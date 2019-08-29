@@ -8,86 +8,182 @@
  * Version 1: Import from CSV
  *
  * (c) 2018 Steven Mileham
+ * 
+ * Mark Backer
+ * Version 2: Added import of relations and properties
  *
  */
 
+load(__DIR__ + "lib/papaparse.min.js");
+load(__DIR__ + "common/Export-import to CSV.ajs");
+
 var debug = true;
+var info = true;
+
+var ImportDate  = new Date().toLocaleDateString();
 
 console.show();
 console.clear();
 console.log("> Import CSV");
 
-load(__DIR__ + "lib/papaparse.min.js");
-
-console.log("> Loaded Papa Parse");
-
-var filePath = window.promptOpenFile({ title: "Open CSV", filterExtensions: ["*.CSV"], fileName: "default.archimate" });
-if (filePath) {
-    var FileReader = Java.type("java.io.FileReader");
-    var theCSVFile = new FileReader(filePath);
-
-    var theCSV ="";
-
-    var data = theCSVFile.read();
-    console.log("> Please Wait...");
-    while(data != -1) {
-        var theCharacter = String.fromCharCode(data);
-        theCSV+=theCharacter;
-        data = theCSVFile.read();
-    }
-    theCSVFile.close();
-
-    console.log("> File Loaded");
-    theDataFile = Papa.parse(theCSV);
-
-    theData = theDataFile.data;
-
-    theDataHeaders = theData[0];
-
-    var commonProperties = ["UID","Name", "Documentation","Type"];
-
-    for (var i=1; i<theData.length-1; i++) {
-        var theConcept = null;
-        var theObject = [];
-        for (var j=0; j<theDataHeaders.length; j++) {
-            theObject[theDataHeaders[j]]=theData[i][j];
-        }
-
-        theConcept = $("#"+theObject.UID).first();
-        if (!theConcept) {
-            debug? console.log("> Missing UID, checking Name"):true;
-            theConcept = $("."+theObject.Name).first();
-            if (!theConcept || theConcept.length>1) {
-                debug? console.log("> Creating Concept"):true;
-                theConcept = model.createElement(theObject.Type,theObject.Name);
-            }
-        }
-        debug? console.log(theConcept):true;
-
-        theConcept.name=theObject.Name;
-        theConcept.documentation=theObject.Documentation;
-        theConcept.type=theObject.Type;
-
-        for (var j=0; j<theDataHeaders.length; j++) {
-            switch (theDataHeaders[j]) {
-                case "UID":
-                case "Name":
-                case "Documentation":
-                case "Type":
-                    break;
-                default:
-                    if (theObject[theDataHeaders[j]]) {
-                        theConcept.prop(theDataHeaders[j],theObject[theDataHeaders[j]]);
-                    }
-                    else {
-                        theConcept.removeProp(theDataHeaders[j]);
-                    }
-            }
-        }
-
-    }
-    console.log("> Parsing Complete")
+var read_CSVdata=function(CSVfilename_postfix){
+	
+	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "default.archimate" });
+	
+	var theCSV ="";
+	if (filePath) {
+		var FileReader = Java.type("java.io.FileReader");
+		var theCSVFile = new FileReader(filePath);
+	
+	
+		var data = theCSVFile.read();
+		console.log("> Please Wait...");
+	
+		while(data != -1) {
+			var theCharacter = String.fromCharCode(data);
+			theCSV+=theCharacter;
+			data = theCSVFile.read();
+		}
+		theCSVFile.close();
+		console.log("> File Loaded");
+		return theCSV;
+	}
+	else {
+		console.log("> Cancelled");
+	}
 }
-else {
-    console.log("> Cancelled");
+
+if (elementCSVData = read_CSVdata("element")) {
+
+	elementParsedData = Papa.parse(elementCSVData);
+
+	ParsedDataHeaders = elementParsedData.data[0];
+	console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
+	
+	try {
+		// all rows, but skip header
+		for (var i=1; i<elementParsedData.data.length; i++) {
+			var parsedCell = [];
+
+			console.log("> elementParsedData.data[i]: " + elementParsedData.data[i]);
+
+			// all columns
+			for (var j=0; j<ParsedDataHeaders.length; j++) {
+				parsedCell[ParsedDataHeaders[j]]=elementParsedData.data[i][j];
+				debug? console.log(">> elementParsedData row " + i + " > " + elementParsedData.data[0][j] + " = " + elementParsedData.data[i][j]) : true;
+			}
+
+			// Select the element with the id.
+			var selectID ="#" + parsedCell[elementMappings["id"]];
+			info ? console.log(">> Select element with id: " + selectID) : true;
+
+			var element = null;
+			var element = $(selectID);
+			if (element || element.length<1) { // if there is no element with the id
+				selectName = "." + parsedCell[elementMappings["name"]];
+				info? console.log(">> No element with id, select element with name : " + selectName):true;
+				element = $(selectName).first();
+				if (!element || element.length>1) {
+					info? console.log(">> Element not found, creating element"):true;
+					element = model.createElement(parsedCell[elementMappings["type"]], parsedCell[elementMappings["name"]]);
+					element.prop("ImportAction", "Created");
+				} else {
+					element.prop("ImportAction", "Updated by name");
+				}
+			} else {
+				element.prop("ImportAction", "Updated by ID");
+			}
+			info? console.log(">> Element : " + element):true;
+
+			element.name			=parsedCell[elementMappings["name"]];
+			element.documentation	=parsedCell[elementMappings["documentation"]];
+			element.type			=parsedCell[elementMappings["type"]];
+
+			for (var j=elementHeaders.length; j<ParsedDataHeaders.length; j++) {
+				if (parsedCell[ParsedDataHeaders[j]]) {
+					element.prop(ParsedDataHeaders[j],parsedCell[ParsedDataHeaders[j]]);
+				}
+			}
+			element.prop("ImportDate", ImportDate);
+		}
+		console.log("> Parsing Complete")
+	}
+	catch (error) {
+		console.log("> Error, ignoring: " + element);
+	}
+} else {
+	console.log("> No element CSV");
+}
+
+
+if (relationCSVData = read_CSVdata("releationship")) {
+
+	relationParsedData = Papa.parse(relationCSVData);
+
+	ParsedDataHeaders = relationParsedData.data[0];
+	console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
+	
+	debug=true;
+
+	try {
+		// all rows, but skip header
+		for (var i=1; i<relationParsedData.data.length; i++) {
+			var relationship = null;
+			var parsedCell = [];
+
+			console.log("> relationParsedData.data[i]: " + relationParsedData.data[i]);
+
+			// all columns
+			for (var j=0; j<ParsedDataHeaders.length; j++) {
+				parsedCell[ParsedDataHeaders[j]]=relationParsedData.data[i][j];
+				debug? console.log(">> relationParsedData row " + i + " > " + relationParsedData.data[0][j] + " = " + relationParsedData.data[i][j]) : true;
+			}
+
+			// Select the relationship with the id.
+			var selectID ="#" + parsedCell[relationshipMappings["id"]];
+			info ? console.log(">> Select relationship with id: " + selectID) : true;
+			relationship = $(selectID);
+			if (!relationship||relationship.length<1) { // if there is no relationship with the id
+				info? console.log(">> Relationship not found, creating relationship"):true;
+
+				var selectSource = "#" + parsedCell[relationshipMappings["source.id"]];
+				var selectTarget = "#" + parsedCell[relationshipMappings["target.id"]];
+
+				var source = $("#" + parsedCell[relationshipMappings["source.id"]]);
+				info? console.log(">> source : " + source):true;
+				var target = $("#" + parsedCell[relationshipMappings["target.id"]]);
+				info? console.log(">> target : " + target):true;
+
+				relationship = model.createRelationship(
+								parsedCell[relationshipMappings["type"]],
+								parsedCell[relationshipMappings["name"]],
+								source,
+								target);
+								
+				relationship.prop("ImportAction", "Created");
+			} else {
+				relationship.prop("ImportAction", "Updated by ID");
+			}
+
+			info? console.log(">> relationship : " + relationship):true;
+
+			relationship.name			=parsedCell[relationshipMappings["name"]];
+			relationship.documentation	=parsedCell[relationshipMappings["documentation"]];
+			relationship.type			=parsedCell[relationshipMappings["type"]];
+
+			for (var j=elementHeaders.length; j<ParsedDataHeaders.length; j++) {
+				if (parsedCell[ParsedDataHeaders[j]]) {
+					relationship.prop(ParsedDataHeaders[j],parsedCell[ParsedDataHeaders[j]]);
+				}
+			}
+			relationship.prop("ImportDate", ImportDate);
+		}
+		console.log("> Parsing Complete")
+	}
+	catch (error) {
+		console.log("> Error: " + error.message);
+		console.log("> Relationship : " + relationship);
+	}
+} else {
+	console.log("> No relation CSV");
 }

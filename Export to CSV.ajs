@@ -10,36 +10,18 @@
  * Version 1.2: Fix missing properties
  * Version 2: Updated to export Relationships to additional CSV
  * Version 2.1: Added error check for View.
- * Version 3: Mark added relationship properties and restructure
  *
  * (c) 2018 Steven Mileham
+ * 
+ * Mark Backer
+ * Version 3: Added relationship properties and restructure
  *
  */
 
 load(__DIR__ + "lib/papaparse.min.js");
+load(__DIR__ + "common/Export-import to CSV.ajs");
 
 var objectIndexMap = [];
-
-// Set up some elementHeaders
-var elementHeaders = [
-    "Element label",
-    "Element documentation",
-    "Element ID",
-    "Element type"
-];
-
-var relationshipHeaders = [
-	"Relationship ID",
-	"Relationship label",
-	"Relationship documentation",
-	"Source element",
-	"Source type",
-	"Source ID",
-	"Relationship type",
-	"Target ID",
-	"Target element",
-	"Target type"
-];
 
 var elementData = [];
 var relationshipData = [];
@@ -66,10 +48,10 @@ if (selectedView) {
 
 				objectIndexMap[element.concept.id]=true;
 
-				elementRow[elementHeaders[0]]=element.concept.name;
-                elementRow[elementHeaders[1]]=element.concept.documentation;
-                elementRow[elementHeaders[2]]=element.concept.id;
-                elementRow[elementHeaders[3]]=element.concept.type;
+				elementRow[elementMappings["name"]]			=element.concept.name;
+                elementRow[elementMappings["documentation"]]=element.concept.documentation;
+                elementRow[elementMappings["id"]]			=element.concept.id;
+                elementRow[elementMappings["type"]]			=element.concept.type;
 
                 debug? console.log("> Number of properties : " + element.concept.prop().length):true;
 
@@ -104,16 +86,19 @@ if (selectedView) {
         
 						debug? console.log(">> Relationship : " + relationship.source.name + " <-> " + relationship.target.name):true;
 
-						relationshipRow[relationshipHeaders[0]]=relationship.id;
-                        relationshipRow[relationshipHeaders[1]]=relationship.name;
-                        relationshipRow[relationshipHeaders[2]]=relationship.documentation;
-                        relationshipRow[relationshipHeaders[3]]=relationship.source.name;
-                        relationshipRow[relationshipHeaders[4]]=relationship.source.type;
-                        relationshipRow[relationshipHeaders[5]]=relationship.source.id;
-                        relationshipRow[relationshipHeaders[6]]=relationship.type;
-                        relationshipRow[relationshipHeaders[7]]=relationship.target.id;
-                        relationshipRow[relationshipHeaders[8]]=relationship.target.name;
-                        relationshipRow[relationshipHeaders[9]]=relationship.target.type;
+						relationshipRow[relationshipMappings["id"]]				=relationship.id;
+                        relationshipRow[relationshipMappings["name"]]			=relationship.name;
+                        relationshipRow[relationshipMappings["documentation"]]	=relationship.documentation;
+                        relationshipRow[relationshipMappings["type"]]			=relationship.type;
+                        relationshipRow[relationshipMappings["source.id"]]		=relationship.source.id;
+                        relationshipRow[relationshipMappings["source.name"]]	=relationship.source.name;
+                        relationshipRow[relationshipMappings["source.type"]]	=relationship.source.type;
+						relationshipRow[relationshipMappings["source ObjID"]]	=relationship.source.prop("Object ID");
+                        relationshipRow[relationshipMappings["target.id"]]		=relationship.target.id;
+                        relationshipRow[relationshipMappings["target.name"]]	=relationship.target.name;
+						relationshipRow[relationshipMappings["target.type"]]	=relationship.target.type;
+						relationshipRow[relationshipMappings["target ObjID"]]	=relationship.target.prop("Object ID");
+						
 
                         // Retrieve all properties of the relation
                         for (var i=0; i<relationship.prop().length; i++){

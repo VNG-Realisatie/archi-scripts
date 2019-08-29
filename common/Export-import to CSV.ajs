@@ -1,0 +1,54 @@
+/*
+ * Export-import To CSV
+ * 
+ * Version 1: Common header mappings voor Export and Import to CSV
+ * 
+ * (c) 2019 Mark Backer
+ *
+ *         theRelationshipRow["Relationship Type"]=!headerMappings[r.type]?r.type:headerMappings[r.type];
+ */
+
+// Set up some elementHeaders
+var elementHeaders = [
+    "Element ID",
+    "Element label",
+    "Element type",
+    "Element documentation"
+];
+
+var elementMappings = {
+	"id":			elementHeaders[0],
+	"name":			elementHeaders[1],
+	"type":			elementHeaders[2],
+	"documentation":elementHeaders[3]
+}
+
+var relationshipHeaders = [
+	"Relationship ID",
+	"Relationship label",
+	"Relationship documentation",
+	"Relationship type",
+	"Source ID",
+	"Source label",
+	"Source type",
+	"Source Object ID",
+	"Target ID",
+	"Target label",
+	"Target type",
+	"Target Object ID"
+];
+
+var relationshipMappings = {
+	"id":				relationshipHeaders[0],
+	"name":				relationshipHeaders[1],
+	"documentation":	relationshipHeaders[2],
+	"type":				relationshipHeaders[3],
+	"source.id":		relationshipHeaders[4],
+	"source.name":		relationshipHeaders[5],
+	"source.type":		relationshipHeaders[6],
+	"source ObjID":		relationshipHeaders[7],
+	"target.id":		relationshipHeaders[8],
+	"target.name":		relationshipHeaders[9],
+	"target.type":		relationshipHeaders[10],
+	"target ObjID":		relationshipHeaders[11]
+}
