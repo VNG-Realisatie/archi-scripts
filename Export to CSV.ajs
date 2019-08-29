@@ -47,21 +47,8 @@ var relationshipHeaders = [
     "Relationship Documentation"
 ];
 
-/* 
-var typeMappings = {
-    "access-relationship":"Accesses",
-    "composition-relationship":"Comprises",
-    "flow-relationship":"Flows to",
-    "realization-relationship":"Realises",
-    "assignment-relationship":"Assigned to",
-    "serving-relationship":"Serves/Used By",
-    "association-relationship":"Associated to",
-    "aggregation-relationship":"Aggregates"
-}
-*/
-
-var theData = new Array();
-var theRelationshipData = new Array();
+var theData = [];
+var theRelationshipData = [];
 
 var theView = $(selection).filter("archimate-diagram-model").first();
 debug? console.log(theView):true;
@@ -70,28 +57,12 @@ if (theView) {
 
     // Loop through all elements and set cells to elememt info
     $(theView).find().not("relationship").each(function(element) {
-		
-        var theElement = element.concept; // element is the occurrence of the element on the diagram. theElement is the actual element
+
+		var theElement = element.concept; // element is the occurrence of the element on the diagram. theElement is the actual element
 
         try {
             if (!ObjectHashMap[theElement.id]) {
                 ObjectHashMap[theElement.id]=true;
-
-                //var theElement.prop() = theElement.prop(); //=> properties' key for the first object
-                var ElementProperties2 = [];
-
-                for (var i=0; i<theElement.prop().length; i++){
-                    var found = false;
-                    for (var j=0; j<ElementProperties2.length; j++) {
-                        if (ElementProperties2[j]==theElement.prop()[i]) {
-                            found=true;
-                        }
-                    }
-                    if (!found) {
-                        ElementProperties2.push(theElement.prop()[i]);
-                        elementHeaders.push(theElement.prop()[i]);
-                    }
-                }
 
                 var theElementRow = new Object;
                 theElementRow["Name"]=theElement.name;
@@ -99,18 +70,33 @@ if (theView) {
                 theElementRow["ID"]=theElement.id;
                 theElementRow["Type"]=theElement.type;
 
-                for (var i=0; i<ElementProperties2.length; i++){
-                    if (theElement.prop(ElementProperties2[i])) {
-                        theElementRow[ElementProperties2[i]]="" + theElement.prop(ElementProperties2[i]);
+                debug? console.log("theElementRow : " + theElementRow):true;
+                debug? console.log("theElement.prop().length : " + theElement.prop().length):true;
+
+                // retrieve all properties of the element
+                for (var i=0; i<theElement.prop().length; i++){
+
+                    var PropertyLabel = theElement.prop()[i];
+                    debug? console.log("PropertyLabel : " + PropertyLabel):true;
+
+                    if (theElement.prop(PropertyLabel)) {
+                        theElementRow[PropertyLabel] = "" + theElement.prop(PropertyLabel);
+                        var found = false;
+                        for (var j=0; j<elementHeaders.length; j++) {
+                            if (elementHeaders[j]==PropertyLabel) {found=true;}            
+                        }
+                        if (!found) { // only add new property label to the header
+                            elementHeaders.push(PropertyLabel);
+                            debug? console.log("elementHeaders : " + elementHeaders):true;
+                        }
                     }
+                    debug? console.log("theElement.prop : " + PropertyLabel):true;
+                    debug? console.log("theElementRow : " + theElementRow[PropertyLabel]):true;
                 }
-                debug? console.log("> theElementRow"):true;
-                debug? console.log(theElementRow["Name"]):true;
 
                 theData.push(theElementRow);
 
                 // Get Relationships
-
                 $(theElement).outRels().each(function (relationship) { // ## waarom niet vanuit theElement??? geen check op dubbeling, wel nodig voor occurrences
                     if (!ObjectHashMap[relationship.id]) {
                         ObjectHashMap[relationship.id]=true;
@@ -120,7 +106,6 @@ if (theView) {
                         theRelationshipRow["Source Name"]=relationship.source.name;
                         theRelationshipRow["Source Type"]=relationship.source.type;
                         theRelationshipRow["Source ID"]=relationship.source.id;
-                        // theRelationshipRow["Relationship Type"]=!typeMappings[relationship.type]?relationship.type:typeMappings[relationship.type];
                         theRelationshipRow["Relationship Type"]=relationship.type;
                         theRelationshipRow["Target ID"]=relationship.target.id;
                         theRelationshipRow["Target Name"]=relationship.target.name;
@@ -129,27 +114,22 @@ if (theView) {
                         theRelationshipRow["Relationship Documentation"]=relationship.documentation;
                         theRelationshipRow["Object ID hard"]=relationship.prop("Object ID");
 
-                        //var relationship.prop() = relationship.prop();  
-                        var RelationshipProperties2 = [];
-                        debug? console.log("relationship.prop : " + relationship.prop()):true;
-
-
+                        // Retrieve all properties of the relation
                         for (var i=0; i<relationship.prop().length; i++){
-                            var found = false;
-                            for (var j=0; j<RelationshipProperties2.length; j++) {
-                                if (RelationshipProperties2[j]==relationship.prop()[i]) {
-                                    found=true;
+                            var PropertyLabel = relationship.prop()[i];
+                            if (relationship.prop(PropertyLabel)) {
+                                theRelationshipRow[PropertyLabel] = relationship.prop(PropertyLabel);
+                                var found = false;
+                                for (var j=0; j<relationshipHeaders.length; j++) {
+                                    if (relationshipHeaders[j]==PropertyLabel) {found=true;}            
+                                }
+                                if (!found) { // only add new property label to the header
+                                    relationshipHeaders.push(PropertyLabel);
+                                    debug? console.log("relationshipHeaders : " + relationshipHeaders):true;
                                 }
                             }
-                            if (!found) {
-                                RelationshipProperties2.push(relationship.prop()[i]);
-                                relationshipHeaders.push(relationship.prop()[i]);
-                            }
-                        }
-                        for (var i=0; i<RelationshipProperties2.length; i++){
-                            if (relationship.prop(RelationshipProperties2[i])) {
-                                theRelationshipRow[RelationshipProperties2[i]]="" + relationship.prop(RelationshipProperties2[i]);
-                            }
+                            debug? console.log("relationship.prop : " + PropertyLabel):true;
+                            debug? console.log("theRelationshipRow : " + theRelationshipRow[PropertyLabel]):true;
                         }
                         debug? console.log("> theRelationshipRow"):true;
                         debug? console.log(theRelationshipRow["Source Name"] + " <-> " + theRelationshipRow["Target Name"] ):true;
