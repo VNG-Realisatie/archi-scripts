@@ -1,0 +1,93 @@
+/*
+ * Import from CSV
+ * 
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ * Requires PapaParse - https://www.papaparse.com/
+ * Works with Export to CSV Script - https://gist.github.com/smileham/15c445b17a92bd6f5dc1508e573bcd8a
+ * 
+ * Version 1: Import from CSV
+ *
+ * (c) 2018 Steven Mileham
+ *
+ */
+
+var debug = true;
+
+console.show();
+console.clear();
+console.log("> Import CSV");
+
+load(__DIR__ + "lib/papaparse.min.js");
+
+console.log("> Loaded Papa Parse");
+
+var filePath = window.promptOpenFile({ title: "Open CSV", filterExtensions: ["*.CSV"], fileName: "default.archimate" });
+if (filePath) {
+    var FileReader = Java.type("java.io.FileReader");
+    var theCSVFile = new FileReader(filePath);
+
+    var theCSV ="";
+
+    var data = theCSVFile.read();
+    console.log("> Please Wait...");
+    while(data != -1) {
+        var theCharacter = String.fromCharCode(data);
+        theCSV+=theCharacter;
+        data = theCSVFile.read();
+    }
+    theCSVFile.close();
+
+    console.log("> File Loaded");
+    theDataFile = Papa.parse(theCSV);
+
+    theData = theDataFile.data;
+
+    theDataHeaders = theData[0];
+
+    var commonProperties = ["UID","Name", "Documentation","Type"];
+
+    for (var i=1; i<theData.length-1; i++) {
+        var theConcept = null;
+        var theObject = [];
+        for (var j=0; j<theDataHeaders.length; j++) {
+            theObject[theDataHeaders[j]]=theData[i][j];
+        }
+
+        theConcept = $("#"+theObject.UID).first();
+        if (!theConcept) {
+            debug? console.log("> Missing UID, checking Name"):true;
+            theConcept = $("."+theObject.Name).first();
+            if (!theConcept || theConcept.length>1) {
+                debug? console.log("> Creating Concept"):true;
+                theConcept = model.createElement(theObject.Type,theObject.Name);
+            }
+        }
+        debug? console.log(theConcept):true;
+
+        theConcept.name=theObject.Name;
+        theConcept.documentation=theObject.Documentation;
+        theConcept.type=theObject.Type;
+
+        for (var j=0; j<theDataHeaders.length; j++) {
+            switch (theDataHeaders[j]) {
+                case "UID":
+                case "Name":
+                case "Documentation":
+                case "Type":
+                    break;
+                default:
+                    if (theObject[theDataHeaders[j]]) {
+                        theConcept.prop(theDataHeaders[j],theObject[theDataHeaders[j]]);
+                    }
+                    else {
+                        theConcept.removeProp(theDataHeaders[j]);
+                    }
+            }
+        }
+
+    }
+    console.log("> Parsing Complete")
+}
+else {
+    console.log("> Cancelled");
+}
