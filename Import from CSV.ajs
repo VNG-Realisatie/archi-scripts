@@ -17,7 +17,7 @@
 load(__DIR__ + "lib/papaparse.min.js");
 load(__DIR__ + "common/Export-import to CSV.ajs");
 
-var debug = true;
+var debug = false;
 var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
@@ -26,7 +26,21 @@ console.show();
 console.clear();
 console.log("> Import CSV");
 
-var read_CSVdata=function(CSVfilename_postfix){
+function ElementPropertyFind(pProperty, pValue) {
+	var selectedElement = null;
+	if (pValue) { // alleen zoeken met geldige waarde
+		$("element").each(function(element) {
+		//	console.log("> Element : " + element);
+			if (element.prop(pProperty) == pValue) {
+				debug?console.log("Element found : " + element + " with " + pProperty + " = " + pValue):true;
+				selectedElement = element;
+			}
+		}); // each element
+	}
+	return selectedElement;
+} 
+
+function read_CSVdata(CSVfilename_postfix){
 	
 	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "default.archimate" });
 	
@@ -61,47 +75,64 @@ if (elementCSVData = read_CSVdata("element")) {
 	console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
 	
 	try {
-		// all rows, but skip header
-		for (var i=1; i<elementParsedData.data.length; i++) {
-			var parsedCell = [];
+		// skip header, read all rows
+		for (var i_row=1; i_row<elementParsedData.data.length; i_row++) {
+			var labelledCell = [];
 
-			console.log("> elementParsedData.data[i]: " + elementParsedData.data[i]);
+			debug?console.log("> elementParsedData.data[i_row]: " + elementParsedData.data[i_row]):true;
 
-			// all columns
-			for (var j=0; j<ParsedDataHeaders.length; j++) {
-				parsedCell[ParsedDataHeaders[j]]=elementParsedData.data[i][j];
-				debug? console.log(">> elementParsedData row " + i + " > " + elementParsedData.data[0][j] + " = " + elementParsedData.data[i][j]) : true;
+			// label cell of i_row with headerlabel
+			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
+				labelledCell[ParsedDataHeaders[j_col]]=elementParsedData.data[i_row][j_col];
+				debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labelledCell[ParsedDataHeaders[j_col]]) : true;
 			}
 
-			// Select the element with the id.
-			var selectID ="#" + parsedCell[elementMappings["id"]];
-			info ? console.log(">> Select element with id: " + selectID) : true;
+			// Select the element with GEMMA Object id
+			debug? console.log(">> Find element with Object ID == " + labelledCell["Object ID"]) : true;
+			element = ElementPropertyFind("Object ID", labelledCell["Object ID"]);
+			if (!element || element.length<1) { // if there is no element with the GEMMA Object ID
+				// Select the element with the id.
+				selectID ="#" + labelledCell[elementMappings["id"]];
+				debug? console.log(">> No element with Object ID, select element with id == " + selectID) : true;
 
-			var element = null;
-			var element = $(selectID);
-			if (element || element.length<1) { // if there is no element with the id
-				selectName = "." + parsedCell[elementMappings["name"]];
-				info? console.log(">> No element with id, select element with name : " + selectName):true;
-				element = $(selectName).first();
-				if (!element || element.length>1) {
-					info? console.log(">> Element not found, creating element"):true;
-					element = model.createElement(parsedCell[elementMappings["type"]], parsedCell[elementMappings["name"]]);
-					element.prop("ImportAction", "Created");
+				element = $(selectID);
+				if (!element || element.length<1) { // if there is no element with the id
+					selectName = "." + labelledCell[elementMappings["name"]];
+					debug? console.log(">> No element with id, select element with name == " + selectName):true;
+
+					element = $(selectName);
+					if (element.length==1){
+						element.prop("ImportAction", "Updated by name");
+						debug? console.log(">> Name == " + selectName + ", updating element"):true;
+					} else {
+						if (element.length>1) {
+							debug? console.log(">> Multiple elements with same name, creating element"):true;
+							element.prop("ImportAction", "Created new duplicate, " + element.length + " exist" );
+						}
+						if (element.length==0) {
+							debug? console.log(">> No elements with name, creating element"):true;
+						}
+						element = model.createElement(labelledCell[elementMappings["type"]], labelledCell[elementMappings["name"]]);
+						element.prop("ImportAction", "Created");
+					}
 				} else {
-					element.prop("ImportAction", "Updated by name");
+					element.prop("ImportAction", "Updated by ID");
+					debug? console.log(">> ID == " + selectID + ", updating element"):true;
 				}
 			} else {
-				element.prop("ImportAction", "Updated by ID");
+				element.prop("ImportAction", "Updated by Object ID");
+				debug? console.log(">> Object ID == " + labelledCell["Object ID"] + ", updating element"):true;
 			}
-			info? console.log(">> Element : " + element):true;
+			console.log(">> " + element.prop("ImportAction") + " : " + element);
+			debug?console.log(">> ======== " ):true;
 
-			element.name			=parsedCell[elementMappings["name"]];
-			element.documentation	=parsedCell[elementMappings["documentation"]];
-			element.type			=parsedCell[elementMappings["type"]];
+			element.name			=labelledCell[elementMappings["name"]];
+			element.documentation	=labelledCell[elementMappings["documentation"]];
+			element.type			=labelledCell[elementMappings["type"]];
 
-			for (var j=elementHeaders.length; j<ParsedDataHeaders.length; j++) {
-				if (parsedCell[ParsedDataHeaders[j]]) {
-					element.prop(ParsedDataHeaders[j],parsedCell[ParsedDataHeaders[j]]);
+			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
+				if (labelledCell[ParsedDataHeaders[j_col]]) {
+					element.prop(ParsedDataHeaders[j_col],labelledCell[ParsedDataHeaders[j_col]]);
 				}
 			}
 			element.prop("ImportDate", ImportDate);
@@ -127,36 +158,36 @@ if (relationCSVData = read_CSVdata("releationship")) {
 
 	try {
 		// all rows, but skip header
-		for (var i=1; i<relationParsedData.data.length; i++) {
+		for (var i_row=1; i_row<relationParsedData.data.length; i_row++) {
 			var relationship = null;
-			var parsedCell = [];
+			var labelledCell = [];
 
-			console.log("> relationParsedData.data[i]: " + relationParsedData.data[i]);
+			console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]);
 
 			// all columns
-			for (var j=0; j<ParsedDataHeaders.length; j++) {
-				parsedCell[ParsedDataHeaders[j]]=relationParsedData.data[i][j];
-				debug? console.log(">> relationParsedData row " + i + " > " + relationParsedData.data[0][j] + " = " + relationParsedData.data[i][j]) : true;
+			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
+				labelledCell[ParsedDataHeaders[j_col]]=relationParsedData.data[i_row][j_col];
+				debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
 			}
 
 			// Select the relationship with the id.
-			var selectID ="#" + parsedCell[relationshipMappings["id"]];
+			var selectID ="#" + labelledCell[relationshipMappings["id"]];
 			info ? console.log(">> Select relationship with id: " + selectID) : true;
 			relationship = $(selectID);
 			if (!relationship||relationship.length<1) { // if there is no relationship with the id
 				info? console.log(">> Relationship not found, creating relationship"):true;
 
-				var selectSource = "#" + parsedCell[relationshipMappings["source.id"]];
-				var selectTarget = "#" + parsedCell[relationshipMappings["target.id"]];
+				var selectSource = "#" + labelledCell[relationshipMappings["source.id"]];
+				var selectTarget = "#" + labelledCell[relationshipMappings["target.id"]];
 
-				var source = $("#" + parsedCell[relationshipMappings["source.id"]]);
+				var source = $("#" + labelledCell[relationshipMappings["source.id"]]);
 				info? console.log(">> source : " + source):true;
-				var target = $("#" + parsedCell[relationshipMappings["target.id"]]);
+				var target = $("#" + labelledCell[relationshipMappings["target.id"]]);
 				info? console.log(">> target : " + target):true;
 
 				relationship = model.createRelationship(
-								parsedCell[relationshipMappings["type"]],
-								parsedCell[relationshipMappings["name"]],
+								labelledCell[relationshipMappings["type"]],
+								labelledCell[relationshipMappings["name"]],
 								source,
 								target);
 								
@@ -167,13 +198,13 @@ if (relationCSVData = read_CSVdata("releationship")) {
 
 			info? console.log(">> relationship : " + relationship):true;
 
-			relationship.name			=parsedCell[relationshipMappings["name"]];
-			relationship.documentation	=parsedCell[relationshipMappings["documentation"]];
-			relationship.type			=parsedCell[relationshipMappings["type"]];
+			relationship.name			=labelledCell[relationshipMappings["name"]];
+			relationship.documentation	=labelledCell[relationshipMappings["documentation"]];
+			relationship.type			=labelledCell[relationshipMappings["type"]];
 
-			for (var j=elementHeaders.length; j<ParsedDataHeaders.length; j++) {
-				if (parsedCell[ParsedDataHeaders[j]]) {
-					relationship.prop(ParsedDataHeaders[j],parsedCell[ParsedDataHeaders[j]]);
+			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
+				if (labelledCell[ParsedDataHeaders[j_col]]) {
+					relationship.prop(ParsedDataHeaders[j_col],labelledCell[ParsedDataHeaders[j_col]]);
 				}
 			}
 			relationship.prop("ImportDate", ImportDate);
