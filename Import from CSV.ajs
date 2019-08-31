@@ -26,6 +26,10 @@ console.show();
 console.clear();
 console.log("> Import CSV");
 
+/*
+ * 	Import elements
+ *	
+ */
 if (elementCSVData = read_CSVdata("element")) {
 
 	elementParsedData = Papa.parse(elementCSVData);
@@ -46,18 +50,17 @@ if (elementCSVData = read_CSVdata("element")) {
 				debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labeledCell[ParsedDataHeaders[j_col]]) : true;
 			}
 
-			result = findCSVelement(labeledCell, "Object ID", elementMappings["id"], elementMappings["name"]);
+			result = findImportElement(labeledCell, "Object ID", elementMappings["id"], elementMappings["name"]);
+			// debug?console.log(">> result from findImportElement : " + result.vFindImportText + " : " + result.vElement):true;
 
-			debug?console.log(">> result from findCSVelement : " + result.vImportKey + " : " + result.vElement):true;
-
-			if (result.vImportKey == "Not found") {
+			if (result.vFindImportText == "Not found") {
 				element = model.createElement(labeledCell[elementMappings["type"]], labeledCell[elementMappings["name"]]);
-				element.prop("ImportAction", "Created");
+				element.prop("Import", "Created at " + ImportDate);
 			} else {
 				element = result.vElement;
-				element.prop("ImportAction", result.vImportKey);
+				element.prop("Import", "Updated at " + ImportDate + ": Found with (" + result.vFindImportText + ")");
 			}
-			console.log(">> " + element.prop("ImportAction") + " : " + element);
+			console.log(">> Import element " + element.prop("Import") + " : " + element);
 			debug?console.log(">> ======== " ):true;
 
 			element.name			=labeledCell[elementMappings["name"]];
@@ -69,7 +72,6 @@ if (elementCSVData = read_CSVdata("element")) {
 					element.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
 				}
 			}
-			element.prop("ImportDate", ImportDate);
 		}
 		console.log("> Parsing Complete")
 	}
@@ -97,6 +99,7 @@ if (elementCSVData = read_CSVdata("element")) {
 		for (var i_row=1; i_row<relationParsedData.data.length; i_row++) {
 			var relationship = null;
 			var labeledCell = [];
+			var flagValidRelation=false;
 
 			console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]);
 
@@ -113,7 +116,7 @@ if (elementCSVData = read_CSVdata("element")) {
 			if (!relationship) { // if there is no relationship with the GEMMA Object ID
 				// Select the relationship with the id.
 				var selectID ="#" + labeledCell[relationshipMappings["id"]];
-				debug? console.log(">> No relationship with Object ID, select relationship with id == " + selectID) : true;
+				debug? console.log(">> Find relationship with id == " + selectID) : true;
 				relationship = $(selectID);
 
 				if (!relationship||relationship.length<1) { // if there is no relationship with the id. Test length, object is not null??
@@ -121,52 +124,66 @@ if (elementCSVData = read_CSVdata("element")) {
 					var source = null;
 					var target = null;
 
-					sourceResult = findCSVelement(labeledCell, "Source Object ID", "Source ID", "Source label");
-					targetResult = findCSVelement(labeledCell, "Target Object ID", "Target ID", "Target label");
+					sourceResult = findImportElement(labeledCell, "Source Object ID", "Source ID", "Source label");
+					targetResult = findImportElement(labeledCell, "Target Object ID", "Target ID", "Target label");
 
-					if (sourceResult.vImportKey == "Not found") {
-						console.log(">> Error: source not found : " + element);
+					source = sourceResult.vElement;
+					target = targetResult.vElement;
+
+					if (sourceResult.vFindImportText == "Not found") {
+						console.log(">>>> Source not found : " + labeledCell[relationshipMappings["source.name"]]);
+						flagValidRelation=false;
 					} else {
-						source = sourceResult.element;
-						info?console.log(">> Source " + source.prop("ImportAction") + " : " + source):true;
+						info?console.log(">> Source : " + source):true;
+						flagValidRelation=true;
 					}
-					if (targetResult.vImportKey == "Not found") {
-						console.log(">> Error: target not found : " + element);
+					if (targetResult.vFindImportText == "Not found") {
+						console.log(">>>> Target not found : " + labeledCell[relationshipMappings["target.name"]]);
+						flagValidRelation=false;
 					} else {
-						target = targetResult.element;
-						info?console.log(">> target " + target.prop("ImportAction") + " : " + target):true;
+						info?console.log(">> Target : " + target):true;
+						flagValidRelation=true;
 					}
-					debug?console.log(">> ======== " ):true;
 		
-					if (source && target) {
+					if (flagValidRelation) {
 						relationship = model.createRelationship(
 							labeledCell[relationshipMappings["type"]],
 							labeledCell[relationshipMappings["name"]],
 							source,
 							target);
 							
-						relationship.prop("ImportAction", "Created");
+						relationship.prop("Import", "Created at " + ImportDate);
+						flagValidRelation=true;
 					}
 				} else {
-					relationship.prop("ImportAction", "Updated by ID");
+					relationship.prop("Import", "Updated at " + ImportDate + ": Found with ID");
+					flagValidRelation=true;
 				}
 			} else {
-				relationship.prop("ImportAction", "Updated by Object ID");
+				relationship.prop("Import", "Updated at " + ImportDate + ": Found with Object ID");
+				flagValidRelation=true;
 			}
-			info? console.log(">> relationship : " + relationship):true;
 
-			relationship.name			=labeledCell[relationshipMappings["name"]];
-			relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
-			relationship.type			=labeledCell[relationshipMappings["type"]];
-
-			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
-				if (labeledCell[ParsedDataHeaders[j_col]]) {
-					relationship.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
+			if (flagValidRelation) {
+				relationship.name			=labeledCell[relationshipMappings["name"]];
+				relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
+				relationship.type			=labeledCell[relationshipMappings["type"]];
+	
+				for (var j_col=relationshipHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
+					if (labeledCell[ParsedDataHeaders[j_col]]) {
+						relationship.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
+					}
 				}
+				info? console.log(">> relationship : " + relationship):true;
+			} else {
+				debug?console.log(">> relationship ignored :" +
+					labeledCell[relationshipMappings["source.name"]] + 
+					" <-> " +
+					labeledCell[relationshipMappings["target.name"]] ):true;
 			}
-			relationship.prop("ImportDate", ImportDate);
-			console.log("> Parsing Complete")
+			debug?console.log(">> ======== " ):true;
 		}
+		console.log("> Parsing Complete")
 	}
 	catch (error) {
 		console.log("> Error: " + error.message);

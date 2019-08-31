@@ -10,10 +10,10 @@
 
 // Set up some elementHeaders
 var elementHeaders = [
-    "vElement ID",
-    "vElement label",
-    "vElement type",
-    "vElement documentation"
+    "Element ID",
+    "Element label",
+    "Element type",
+    "Element documentation"
 ];
 
 var elementMappings = {
@@ -31,11 +31,11 @@ var relationshipHeaders = [
 	"Source ID",
 	"Source label",
 	"Source type",
-	"Source vObject ID",
+	"Source Object ID",
 	"Target ID",
 	"Target label",
 	"Target type",
-	"Target vObject ID"
+	"Target Object ID"
 ];
 
 var relationshipMappings = {
@@ -82,11 +82,12 @@ function read_CSVdata(CSVfilename_postfix){
 
 function ObjectPropertyFind(pConcept, pProperty, pValue) {
 	var vSelectedObject = null;
+	debug?console.log(">>> ObjectPropertyFind() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
 	if (pValue) { // alleen zoeken met geldige waarde
 		$(pConcept).each(function(vObject) {
 		//	console.log("> vObject : " + vObject);
 			if (vObject.prop(pProperty) == pValue) {
-				debug?console.log("> Function ObjectPropertyFind > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
+				debug?console.log(">>> ObjectPropertyFind() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
 				vSelectedObject = vObject;
 			}
 		}); // each vObject
@@ -94,40 +95,39 @@ function ObjectPropertyFind(pConcept, pProperty, pValue) {
 	return vSelectedObject;
 } 
 
-function findCSVelement(pLabeledCell, pProperty, pSelectID, pSelectName) {
+function findImportElement(pLabeledCell, pProperty, pSelectID, pSelectName) {
 	var vElement = null;
 
 	// Select the vElement with property
-	debug? console.log(">> Find element with property " + pProperty + " = " + pLabeledCell[pProperty] ) : true;
-	vElement = ObjectPropertyFind("element",  pProperty, pLabeledCell[pProperty]);
+	debug? console.log(">> findImportElement() Find element with " + pProperty + " = " + pLabeledCell[pProperty] ) : true;
+	vElement = ObjectPropertyFind("element",  "Object ID", pLabeledCell[pProperty]);
 
 //	if (!vElement || vElement.length<1) { // if there is no vElement with the GEMMA Object ID
 	if (!vElement) { // if there is no vElement with the GEMMA Object ID
 			// Select the vElement with the id.
-		selectID ="#" + pLabeledCell[pSelectID];
-		debug? console.log(">> No element with " + pProperty + ", select element with " + pSelectID + " == " + selectID): true;
-		vElement = $(selectID);
+		vSelectID ="#" + pLabeledCell[pSelectID];
+		debug? console.log(">> findImportElement() Find element with " + pSelectID + " = " + vSelectID): true;
+		vElement = $(vSelectID);
 
 		if (!vElement || vElement.length < 1) { // if there is no vElement with the id
-			selectName = "." + pLabeledCell[pSelectName];
-			debug? console.log(">> No element with " + pSelectID + ", select element with " + pSelectName + " == " + selectName ):true;
-			vElement = $(selectName);
+			vSelectName = "." + pLabeledCell[pSelectName];
+			debug? console.log(">> findImportElement() Find element with " + pSelectName + " = " + vSelectName ):true;
+			vElement = $(vSelectName);
 
-			if (!vElement) { // if there is no vElement with the id
-				debug? console.log(">> No elements found "):true;
-				var vImportKey = "Not found";
+			if (!vElement || vElement.length<1) { // if there is no vElement with the id
+				var vFindImportText = "Not found";
 			} else {
-				var vImportKey = "Found with " + pSelectName;
+				var vFindImportText = pSelectName;
 			}
 		} else {
-			var vImportKey = "Found with " + pSelectID;
+			var vFindImportText = pSelectID;
 		}
 	} else {
-		var vImportKey = "Found with " + pProperty;
+		var vFindImportText = pProperty;
 	}
-	debug? console.log(">> function findCSVelement: vElement :" + vElement):true;
-	//var vImportKey = "Multiple elements found, number = " + vElement.length;
-	return {vElement:vElement, vImportKey:vImportKey}
+	debug? console.log(">> findImportElement() : " + vFindImportText + " > " + vElement):true;
+	//var vFindImportText = "Multiple elements found, number = " + vElement.length;
+	return {vElement:vElement, vFindImportText:vFindImportText}
 }
 
 
