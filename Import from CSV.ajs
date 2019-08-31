@@ -17,7 +17,7 @@
 load(__DIR__ + "lib/papaparse.min.js");
 load(__DIR__ + "common/Export-import to CSV.ajs");
 
-var debug = true;
+var debug = false;
 var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
@@ -30,6 +30,9 @@ console.log("> Import CSV");
  * 	Import elements
  *	
  */
+var NrElementUpdated = 0;
+var NrElementCreated = 0;
+
 if (elementCSVData = read_CSVdata("element")) {
 
 	elementParsedData = Papa.parse(elementCSVData);
@@ -56,9 +59,11 @@ if (elementCSVData = read_CSVdata("element")) {
 			if (result.vFindImportText == "Not found") {
 				element = model.createElement(labeledCell[elementMappings["type"]], labeledCell[elementMappings["name"]]);
 				element.prop("Import", "Created at " + ImportDate);
+				NrElementCreated++;
 			} else {
 				element = result.vElement;
 				element.prop("Import", "Updated at " + ImportDate + ": Found with (" + result.vFindImportText + ")");
+				NrElementUpdated++;
 			}
 			console.log(">> Import element " + element.prop("Import") + " : " + element);
 			debug?console.log(">> ======== " ):true;
@@ -72,8 +77,16 @@ if (elementCSVData = read_CSVdata("element")) {
 					element.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
 				}
 			}
+			debug?console.log(">> ======== " ):true;
 		}
-		console.log("> Parsing Complete")
+		console.log("");
+		console.log("> Parsing Complete");
+		console.log("");
+		console.log(">> Statistics elements <");
+		console.log(">>>> rows in CSV : " + elementParsedData.data.length + " (including 1 header)");
+		console.log(">>>> elements updated : " + NrElementUpdated);
+		console.log(">>>> elements created : " + NrElementCreated);
+		console.log("");
 	}
 	catch (error) {
 		console.log("> Error: " + error);
@@ -92,8 +105,10 @@ if (elementCSVData = read_CSVdata("element")) {
 	ParsedDataHeaders = relationParsedData.data[0];
 	console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
 	
-	debug=true;
-
+	var NrRelationUpdated = 0;
+	var NrRelationCreated = 0;
+	var skippedRelation = [];
+	var NrRelationSkipped=0;
 	try {
 		// all rows, but skip header
 		for (var i_row=1; i_row<relationParsedData.data.length; i_row++) {
@@ -101,7 +116,7 @@ if (elementCSVData = read_CSVdata("element")) {
 			var labeledCell = [];
 			var flagValidRelation=false;
 
-			console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]);
+			debug?console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]):true;
 
 			// all columns
 			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
@@ -120,7 +135,7 @@ if (elementCSVData = read_CSVdata("element")) {
 				relationship = $(selectID);
 
 				if (!relationship||relationship.length<1) { // if there is no relationship with the id. Test length, object is not null??
-					info? console.log(">> Relationship not found, creating relationship"):true;
+					debug? console.log(">> Relationship not found, try to create relationship"):true;
 					var source = null;
 					var target = null;
 
@@ -130,18 +145,20 @@ if (elementCSVData = read_CSVdata("element")) {
 					source = sourceResult.vElement;
 					target = targetResult.vElement;
 
-					if (sourceResult.vFindImportText == "Not found") {
-						console.log(">>>> Source not found : " + labeledCell[relationshipMappings["source.name"]]);
+					if (sourceResult.vFindImportText == "Not found" || targetResult.vFindImportText == "Not found") {
+						skippedRelation[NrRelationSkipped]=labeledCell[relationshipMappings["source.name"]];
+						if (sourceResult.vFindImportText == "Not found") {
+							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+						}
+						skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " <= " + labeledCell[relationshipMappings["type"]] + " => " + labeledCell[relationshipMappings["target.name"]];
+						if (targetResult.vFindImportText == "Not found") {
+							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+						}
+
+						debug?console.log(">>>> Skipped relation: " + skippedRelation[NrRelationSkipped]):true;
+						NrRelationSkipped++;
 						flagValidRelation=false;
 					} else {
-						info?console.log(">> Source : " + source):true;
-						flagValidRelation=true;
-					}
-					if (targetResult.vFindImportText == "Not found") {
-						console.log(">>>> Target not found : " + labeledCell[relationshipMappings["target.name"]]);
-						flagValidRelation=false;
-					} else {
-						info?console.log(">> Target : " + target):true;
 						flagValidRelation=true;
 					}
 		
@@ -153,15 +170,17 @@ if (elementCSVData = read_CSVdata("element")) {
 							target);
 							
 						relationship.prop("Import", "Created at " + ImportDate);
-						flagValidRelation=true;
+						NrRelationCreated++;
 					}
 				} else {
 					relationship.prop("Import", "Updated at " + ImportDate + ": Found with ID");
 					flagValidRelation=true;
+					NrRelationUpdated++;
 				}
 			} else {
 				relationship.prop("Import", "Updated at " + ImportDate + ": Found with Object ID");
 				flagValidRelation=true;
+				NrRelationUpdated++;
 			}
 
 			if (flagValidRelation) {
@@ -183,7 +202,21 @@ if (elementCSVData = read_CSVdata("element")) {
 			}
 			debug?console.log(">> ======== " ):true;
 		}
-		console.log("> Parsing Complete")
+		if (skippedRelation.length>0) {
+			console.log(">>>> There are skipped relations: ");
+			for (var s=0; s<skippedRelation.length; s++) {
+				console.log("     - " + skippedRelation[s]);
+			}
+			debug?console.log(">> ======== " ):true;
+		}
+		console.log("");
+		console.log("> Parsing Complete");
+		console.log("");
+		console.log(">> Statistics relations <");
+		console.log(">>>> rows in CSV : " + relationParsedData.data.length + " (including 1 header)");
+		console.log(">>>> Relations skipped : " + skippedRelation.length);
+		console.log(">>>> Relations updated : " + NrRelationUpdated);
+		console.log(">>>> Relations created : " + NrRelationCreated);
 	}
 	catch (error) {
 		console.log("> Error: " + error.message);
