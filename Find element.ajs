@@ -1,0 +1,78 @@
+/*
+ *
+ */
+load(__DIR__ + "lib/papaparse.min.js");
+load(__DIR__ + "common/Export-import to CSV.ajs");
+
+var debug = true;
+var info = true;
+
+function findCSVelement(pLabeledCell, pProperty, pSelectID, pSelectName) {
+	var element = null;
+
+	// Select the element with property
+	debug? console.log(">> Find element with property " + pProperty + " = " + pLabeledCell[pProperty] ) : true;
+	element = ObjectPropertyFind("element",  pProperty, pLabeledCell[pProperty]);
+
+//	if (!element || element.length<1) { // if there is no element with the GEMMA Object ID
+	if (!element) { // if there is no element with the GEMMA Object ID
+			// Select the element with the id.
+		selectID ="#" + pLabeledCell[pSelectID];
+		debug? console.log(">> No element with " + pProperty + ", select element with " + pSelectID + " == " + selectID): true;
+		element = $(selectID);
+
+		if (!element || element.length < 1) { // if there is no element with the id
+			selectName = "." + pLabeledCell[pSelectName];
+			debug? console.log(">> No element with " + pSelectID + ", select element with " + pSelectName + " == " + selectName ):true;
+			element = $(selectName);
+
+			if (!element) { // if there is no element with the id
+				debug? console.log(">> No elements found "):true;
+				var ImportKey = "Not found";
+			} else {
+				var ImportKey = "Found with " + pSelectName;
+			}
+		} else {
+			var ImportKey = "Found with " + pSelectID;
+		}
+	} else {
+		var ImportKey = "Found with " + pProperty;
+	}
+	//debug? console.log(">> Multiple elements with same name"):true;
+	//var ImportKey = "Multiple elements found, number = " + element.length;
+	return {element:element, Importkey:ImportKey}
+}
+
+if (relationCSVData = read_CSVdata("releationship")) {
+
+	relationParsedData = Papa.parse(relationCSVData);
+
+	ParsedDataHeaders = relationParsedData.data[0];
+	console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
+	
+	debug=true;
+
+	try {
+		// all rows, but skip header
+		for (var i_row=1; i_row<relationParsedData.data.length; i_row++) {
+			var relationship = null;
+			var labelledCell = [];
+
+			console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]);
+
+			// all columns
+			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
+				labelledCell[ParsedDataHeaders[j_col]]=relationParsedData.data[i_row][j_col];
+				debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
+			}
+
+			result = findCSVelement(labelledCell, "Object ID", elementMappings["id"], elementMappings["name"]);
+			console.log(">> Result element : " + result.element) 
+			console.log(">> Result ImportKey : " + result.Importkey) 
+
+		}
+	}
+	catch (error) {
+		console.log("> Error: " + error.message);
+	}
+}

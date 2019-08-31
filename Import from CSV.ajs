@@ -17,7 +17,7 @@
 load(__DIR__ + "lib/papaparse.min.js");
 load(__DIR__ + "common/Export-import to CSV.ajs");
 
-var debug = false;
+var debug = true;
 var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
@@ -25,47 +25,6 @@ var ImportDate  = new Date().toLocaleDateString();
 console.show();
 console.clear();
 console.log("> Import CSV");
-
-function ElementPropertyFind(pProperty, pValue) {
-	var selectedElement = null;
-	if (pValue) { // alleen zoeken met geldige waarde
-		$("element").each(function(element) {
-		//	console.log("> Element : " + element);
-			if (element.prop(pProperty) == pValue) {
-				debug?console.log("Element found : " + element + " with " + pProperty + " = " + pValue):true;
-				selectedElement = element;
-			}
-		}); // each element
-	}
-	return selectedElement;
-} 
-
-function read_CSVdata(CSVfilename_postfix){
-	
-	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "default.archimate" });
-	
-	var theCSV ="";
-	if (filePath) {
-		var FileReader = Java.type("java.io.FileReader");
-		var theCSVFile = new FileReader(filePath);
-	
-	
-		var data = theCSVFile.read();
-		console.log("> Please Wait...");
-	
-		while(data != -1) {
-			var theCharacter = String.fromCharCode(data);
-			theCSV+=theCharacter;
-			data = theCSVFile.read();
-		}
-		theCSVFile.close();
-		console.log("> File Loaded");
-		return theCSV;
-	}
-	else {
-		console.log("> Cancelled");
-	}
-}
 
 if (elementCSVData = read_CSVdata("element")) {
 
@@ -77,62 +36,37 @@ if (elementCSVData = read_CSVdata("element")) {
 	try {
 		// skip header, read all rows
 		for (var i_row=1; i_row<elementParsedData.data.length; i_row++) {
-			var labelledCell = [];
+			var labeledCell = [];
 
 			debug?console.log("> elementParsedData.data[i_row]: " + elementParsedData.data[i_row]):true;
 
 			// label cell of i_row with headerlabel
 			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
-				labelledCell[ParsedDataHeaders[j_col]]=elementParsedData.data[i_row][j_col];
-				debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labelledCell[ParsedDataHeaders[j_col]]) : true;
+				labeledCell[ParsedDataHeaders[j_col]]=elementParsedData.data[i_row][j_col];
+				debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labeledCell[ParsedDataHeaders[j_col]]) : true;
 			}
 
-			// Select the element with GEMMA Object id
-			debug? console.log(">> Find element with Object ID == " + labelledCell["Object ID"]) : true;
-			element = ElementPropertyFind("Object ID", labelledCell["Object ID"]);
-			if (!element || element.length<1) { // if there is no element with the GEMMA Object ID
-				// Select the element with the id.
-				selectID ="#" + labelledCell[elementMappings["id"]];
-				debug? console.log(">> No element with Object ID, select element with id == " + selectID) : true;
+			result = findCSVelement(labeledCell, "Object ID", elementMappings["id"], elementMappings["name"]);
 
-				element = $(selectID);
-				if (!element || element.length<1) { // if there is no element with the id
-					selectName = "." + labelledCell[elementMappings["name"]];
-					debug? console.log(">> No element with id, select element with name == " + selectName):true;
+			debug?console.log(">> result from findCSVelement : " + result.vImportKey + " : " + result.vElement):true;
 
-					element = $(selectName);
-					if (element.length==1){
-						element.prop("ImportAction", "Updated by name");
-						debug? console.log(">> Name == " + selectName + ", updating element"):true;
-					} else {
-						if (element.length>1) {
-							debug? console.log(">> Multiple elements with same name, creating element"):true;
-							element.prop("ImportAction", "Created new duplicate, " + element.length + " exist" );
-						}
-						if (element.length==0) {
-							debug? console.log(">> No elements with name, creating element"):true;
-						}
-						element = model.createElement(labelledCell[elementMappings["type"]], labelledCell[elementMappings["name"]]);
-						element.prop("ImportAction", "Created");
-					}
-				} else {
-					element.prop("ImportAction", "Updated by ID");
-					debug? console.log(">> ID == " + selectID + ", updating element"):true;
-				}
+			if (result.vImportKey == "Not found") {
+				element = model.createElement(labeledCell[elementMappings["type"]], labeledCell[elementMappings["name"]]);
+				element.prop("ImportAction", "Created");
 			} else {
-				element.prop("ImportAction", "Updated by Object ID");
-				debug? console.log(">> Object ID == " + labelledCell["Object ID"] + ", updating element"):true;
+				element = result.vElement;
+				element.prop("ImportAction", result.vImportKey);
 			}
 			console.log(">> " + element.prop("ImportAction") + " : " + element);
 			debug?console.log(">> ======== " ):true;
 
-			element.name			=labelledCell[elementMappings["name"]];
-			element.documentation	=labelledCell[elementMappings["documentation"]];
-			element.type			=labelledCell[elementMappings["type"]];
-
+			element.name			=labeledCell[elementMappings["name"]];
+			element.documentation	=labeledCell[elementMappings["documentation"]];
+			element.type			=labeledCell[elementMappings["type"]];
+			// import all properties	
 			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
-				if (labelledCell[ParsedDataHeaders[j_col]]) {
-					element.prop(ParsedDataHeaders[j_col],labelledCell[ParsedDataHeaders[j_col]]);
+				if (labeledCell[ParsedDataHeaders[j_col]]) {
+					element.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
 				}
 			}
 			element.prop("ImportDate", ImportDate);
@@ -140,14 +74,16 @@ if (elementCSVData = read_CSVdata("element")) {
 		console.log("> Parsing Complete")
 	}
 	catch (error) {
-		console.log("> Error, ignoring: " + element);
+		console.log("> Error: " + error);
 	}
 } else {
-	console.log("> No element CSV");
+	console.log("> No CSV with elements");
 }
 
-
-if (relationCSVData = read_CSVdata("releationship")) {
+/*
+ * Import relations
+ */
+ if (relationCSVData = read_CSVdata("releationship")) {
 
 	relationParsedData = Papa.parse(relationCSVData);
 
@@ -160,61 +96,82 @@ if (relationCSVData = read_CSVdata("releationship")) {
 		// all rows, but skip header
 		for (var i_row=1; i_row<relationParsedData.data.length; i_row++) {
 			var relationship = null;
-			var labelledCell = [];
+			var labeledCell = [];
 
 			console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]);
 
 			// all columns
 			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
-				labelledCell[ParsedDataHeaders[j_col]]=relationParsedData.data[i_row][j_col];
+				labeledCell[ParsedDataHeaders[j_col]]=relationParsedData.data[i_row][j_col];
 				debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
 			}
 
-			// Select the relationship with the id.
-			var selectID ="#" + labelledCell[relationshipMappings["id"]];
-			info ? console.log(">> Select relationship with id: " + selectID) : true;
-			relationship = $(selectID);
-			if (!relationship||relationship.length<1) { // if there is no relationship with the id
-				info? console.log(">> Relationship not found, creating relationship"):true;
+			// Select the relationship with GEMMA Object id.
+			debug? console.log(">> Find relation with Object ID == " + labeledCell["Object ID"]) : true;
+			relationship = ObjectPropertyFind("relationship", "Object ID", labeledCell["Object ID"]);
 
-				var selectSource = "#" + labelledCell[relationshipMappings["source.id"]];
-				var selectTarget = "#" + labelledCell[relationshipMappings["target.id"]];
+			if (!relationship) { // if there is no relationship with the GEMMA Object ID
+				// Select the relationship with the id.
+				var selectID ="#" + labeledCell[relationshipMappings["id"]];
+				debug? console.log(">> No relationship with Object ID, select relationship with id == " + selectID) : true;
+				relationship = $(selectID);
 
-				var source = $("#" + labelledCell[relationshipMappings["source.id"]]);
-				info? console.log(">> source : " + source):true;
-				var target = $("#" + labelledCell[relationshipMappings["target.id"]]);
-				info? console.log(">> target : " + target):true;
+				if (!relationship||relationship.length<1) { // if there is no relationship with the id. Test length, object is not null??
+					info? console.log(">> Relationship not found, creating relationship"):true;
+					var source = null;
+					var target = null;
 
-				relationship = model.createRelationship(
-								labelledCell[relationshipMappings["type"]],
-								labelledCell[relationshipMappings["name"]],
-								source,
-								target);
-								
-				relationship.prop("ImportAction", "Created");
+					sourceResult = findCSVelement(labeledCell, "Source Object ID", "Source ID", "Source label");
+					targetResult = findCSVelement(labeledCell, "Target Object ID", "Target ID", "Target label");
+
+					if (sourceResult.vImportKey == "Not found") {
+						console.log(">> Error: source not found : " + element);
+					} else {
+						source = sourceResult.element;
+						info?console.log(">> Source " + source.prop("ImportAction") + " : " + source):true;
+					}
+					if (targetResult.vImportKey == "Not found") {
+						console.log(">> Error: target not found : " + element);
+					} else {
+						target = targetResult.element;
+						info?console.log(">> target " + target.prop("ImportAction") + " : " + target):true;
+					}
+					debug?console.log(">> ======== " ):true;
+		
+					if (source && target) {
+						relationship = model.createRelationship(
+							labeledCell[relationshipMappings["type"]],
+							labeledCell[relationshipMappings["name"]],
+							source,
+							target);
+							
+						relationship.prop("ImportAction", "Created");
+					}
+				} else {
+					relationship.prop("ImportAction", "Updated by ID");
+				}
 			} else {
-				relationship.prop("ImportAction", "Updated by ID");
+				relationship.prop("ImportAction", "Updated by Object ID");
 			}
-
 			info? console.log(">> relationship : " + relationship):true;
 
-			relationship.name			=labelledCell[relationshipMappings["name"]];
-			relationship.documentation	=labelledCell[relationshipMappings["documentation"]];
-			relationship.type			=labelledCell[relationshipMappings["type"]];
+			relationship.name			=labeledCell[relationshipMappings["name"]];
+			relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
+			relationship.type			=labeledCell[relationshipMappings["type"]];
 
 			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
-				if (labelledCell[ParsedDataHeaders[j_col]]) {
-					relationship.prop(ParsedDataHeaders[j_col],labelledCell[ParsedDataHeaders[j_col]]);
+				if (labeledCell[ParsedDataHeaders[j_col]]) {
+					relationship.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
 				}
 			}
 			relationship.prop("ImportDate", ImportDate);
+			console.log("> Parsing Complete")
 		}
-		console.log("> Parsing Complete")
 	}
 	catch (error) {
 		console.log("> Error: " + error.message);
 		console.log("> Relationship : " + relationship);
 	}
 } else {
-	console.log("> No relation CSV");
+	console.log("> No CSV with relations");
 }

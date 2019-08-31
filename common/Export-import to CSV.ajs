@@ -10,10 +10,10 @@
 
 // Set up some elementHeaders
 var elementHeaders = [
-    "Element ID",
-    "Element label",
-    "Element type",
-    "Element documentation"
+    "vElement ID",
+    "vElement label",
+    "vElement type",
+    "vElement documentation"
 ];
 
 var elementMappings = {
@@ -31,11 +31,11 @@ var relationshipHeaders = [
 	"Source ID",
 	"Source label",
 	"Source type",
-	"Source Object ID",
+	"Source vObject ID",
 	"Target ID",
 	"Target label",
 	"Target type",
-	"Target Object ID"
+	"Target vObject ID"
 ];
 
 var relationshipMappings = {
@@ -52,3 +52,82 @@ var relationshipMappings = {
 	"target.type":		relationshipHeaders[10],
 	"target ObjID":		relationshipHeaders[11]
 }
+
+function read_CSVdata(CSVfilename_postfix){
+	
+	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "default.archimate" });
+	
+	var theCSV ="";
+	if (filePath) {
+		var FileReader = Java.type("java.io.FileReader");
+		var theCSVFile = new FileReader(filePath);
+	
+	
+		var data = theCSVFile.read();
+		console.log("> Please Wait...");
+	
+		while(data != -1) {
+			var theCharacter = String.fromCharCode(data);
+			theCSV+=theCharacter;
+			data = theCSVFile.read(); 
+		}
+		theCSVFile.close();
+		console.log("> File Loaded");
+		return theCSV;
+	}
+	else {
+		console.log("> Cancelled");
+	}
+}
+
+function ObjectPropertyFind(pConcept, pProperty, pValue) {
+	var vSelectedObject = null;
+	if (pValue) { // alleen zoeken met geldige waarde
+		$(pConcept).each(function(vObject) {
+		//	console.log("> vObject : " + vObject);
+			if (vObject.prop(pProperty) == pValue) {
+				debug?console.log("> Function ObjectPropertyFind > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
+				vSelectedObject = vObject;
+			}
+		}); // each vObject
+	}
+	return vSelectedObject;
+} 
+
+function findCSVelement(pLabeledCell, pProperty, pSelectID, pSelectName) {
+	var vElement = null;
+
+	// Select the vElement with property
+	debug? console.log(">> Find element with property " + pProperty + " = " + pLabeledCell[pProperty] ) : true;
+	vElement = ObjectPropertyFind("element",  pProperty, pLabeledCell[pProperty]);
+
+//	if (!vElement || vElement.length<1) { // if there is no vElement with the GEMMA Object ID
+	if (!vElement) { // if there is no vElement with the GEMMA Object ID
+			// Select the vElement with the id.
+		selectID ="#" + pLabeledCell[pSelectID];
+		debug? console.log(">> No element with " + pProperty + ", select element with " + pSelectID + " == " + selectID): true;
+		vElement = $(selectID);
+
+		if (!vElement || vElement.length < 1) { // if there is no vElement with the id
+			selectName = "." + pLabeledCell[pSelectName];
+			debug? console.log(">> No element with " + pSelectID + ", select element with " + pSelectName + " == " + selectName ):true;
+			vElement = $(selectName);
+
+			if (!vElement) { // if there is no vElement with the id
+				debug? console.log(">> No elements found "):true;
+				var vImportKey = "Not found";
+			} else {
+				var vImportKey = "Found with " + pSelectName;
+			}
+		} else {
+			var vImportKey = "Found with " + pSelectID;
+		}
+	} else {
+		var vImportKey = "Found with " + pProperty;
+	}
+	debug? console.log(">> function findCSVelement: vElement :" + vElement):true;
+	//var vImportKey = "Multiple elements found, number = " + vElement.length;
+	return {vElement:vElement, vImportKey:vImportKey}
+}
+
+
