@@ -14,9 +14,9 @@
  *
  */
 
-load(__DIR__ + "lib/papaparse.min.js");
 load(__DIR__ + "common/Export-import to CSV.ajs");
 
+var error = new Error();
 var debug = false;
 var info = true;
 
@@ -49,7 +49,9 @@ if (elementCSVData = read_CSVdata("element")) {
 
 			// label cell of i_row with headerlabel
 			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
-				labeledCell[ParsedDataHeaders[j_col]]=elementParsedData.data[i_row][j_col];
+				var str ="";
+				str = elementParsedData.data[i_row][j_col];
+				labeledCell[ParsedDataHeaders[j_col]]= str.trim();
 				debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labeledCell[ParsedDataHeaders[j_col]]) : true;
 			}
 
@@ -57,7 +59,10 @@ if (elementCSVData = read_CSVdata("element")) {
 			// debug?console.log(">> result from findImportElement : " + result.vFindImportText + " : " + result.vElement):true;
 
 			if (result.vFindImportText == "Not found") {
-				element = model.createElement(labeledCell[elementMappings["type"]], labeledCell[elementMappings["name"]]);
+				info? console.log(">> Create element : " + labeledCell[elementMappings["type"]] + " " + labeledCell[elementMappings["name"]]) : true;
+				element = model.createElement(
+					labeledCell[elementMappings["type"]], 
+					labeledCell[elementMappings["name"]]);
 				element.prop("Import", "Created at " + ImportDate);
 				NrElementCreated++;
 			} else {
@@ -68,9 +73,16 @@ if (elementCSVData = read_CSVdata("element")) {
 			console.log(">> Import element " + element.prop("Import") + " : " + element);
 			debug?console.log(">> ======== " ):true;
 
-			element.name			=labeledCell[elementMappings["name"]];
-			element.documentation	=labeledCell[elementMappings["documentation"]];
-			element.type			=labeledCell[elementMappings["type"]];
+			if (labeledCell[elementMappings["name"]]) {
+				element.name			=labeledCell[elementMappings["name"]];
+			}
+			if (labeledCell[elementMappings["documentation"]]) {
+				element.documentation	=labeledCell[elementMappings["documentation"]];
+			}
+			if (labeledCell[elementMappings["type"]]) {
+				element.type			=labeledCell[elementMappings["type"]];
+			}
+
 			// import all properties	
 			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
 				if (labeledCell[ParsedDataHeaders[j_col]]) {
@@ -120,7 +132,9 @@ if (elementCSVData = read_CSVdata("element")) {
 
 			// all columns
 			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
-				labeledCell[ParsedDataHeaders[j_col]]=relationParsedData.data[i_row][j_col];
+				var str ="";
+				str = relationParsedData.data[i_row][j_col];
+				labeledCell[ParsedDataHeaders[j_col]]=str.trim();
 				debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
 			}
 
@@ -163,12 +177,22 @@ if (elementCSVData = read_CSVdata("element")) {
 					}
 		
 					if (flagValidRelation) {
+						relationName = labeledCell[relationshipMappings["name"]] ? labeledCell[relationshipMappings["name"]] : "";
+						if (!labeledCell[relationshipMappings["type"]] ) {
+							throw "Relationship without type";
+						}
+
+						info? console.log("Create relation: " + source + " <= " + labeledCell[relationshipMappings["type"]] + " => " + target):true;
+		
 						relationship = model.createRelationship(
 							labeledCell[relationshipMappings["type"]],
-							labeledCell[relationshipMappings["name"]],
+							relationName,
+							// "",
 							source,
 							target);
-							
+
+							debug? console.log("Created!!: " + source + " <= " + labeledCell[relationshipMappings["type"]] + " => " + target):true;
+
 						relationship.prop("Import", "Created at " + ImportDate);
 						NrRelationCreated++;
 					}
@@ -184,9 +208,15 @@ if (elementCSVData = read_CSVdata("element")) {
 			}
 
 			if (flagValidRelation) {
-				relationship.name			=labeledCell[relationshipMappings["name"]];
-				relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
-				relationship.type			=labeledCell[relationshipMappings["type"]];
+				if (labeledCell[relationshipMappings["name"]]) {
+					relationship.name			=labeledCell[relationshipMappings["name"]];
+				}
+				if (labeledCell[relationshipMappings["documentation"]]) {
+					relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
+				}
+				if (labeledCell[relationshipMappings["type"]]) {
+					relationship.type			=labeledCell[relationshipMappings["type"]];
+				}
 	
 				for (var j_col=relationshipHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
 					if (labeledCell[ParsedDataHeaders[j_col]]) {

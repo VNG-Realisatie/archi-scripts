@@ -1,0 +1,67 @@
+/*
+ * Test read CSV
+ */
+
+load(__DIR__ + "lib/papaparse.min.js");
+
+var debug = true;
+
+function read_CSVdata(CSVfilename_postfix) {
+
+	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "*.csv" });
+/*
+	var theCSV ="";
+	if (filePath != null) {
+		try {
+			$.fs.readFile(filePath, 'utf8', function(localErr, theCSV) {
+				if(localErr) throw localErr;
+			});
+			console.log("> File Loaded : " + filePath);
+			return theCSV;
+		}
+		catch(err) {
+			console.error(err);
+		}
+*/
+
+	var theCSV ="";
+	if (filePath) {
+		var FileReader = Java.type("java.io.FileReader");
+		var theCSVFile = new FileReader(filePath);
+//		var InputStreamReader = Java.type("java.io.InputStreamReader");
+//		var theCSVFile = new InputStreamReader(filePath, "UTF-8");
+		
+		var data = theCSVFile.read();
+		console.log("> Please Wait...");
+	
+		while(data != -1) {
+			var theCharacter = String.fromCharCode(data);
+			theCSV+=theCharacter;
+			data = theCSVFile.read(); 
+		}
+		theCSVFile.close();
+		console.log("> File Loaded");
+		return theCSV;
+	} else {
+		console.log("> Cancelled");
+	}
+}
+
+console.show();
+console.clear();
+
+if (elementCSVData = read_CSVdata("element")) {
+	elementParsedData = Papa.parse(elementCSVData);
+    ParsedDataHeaders = elementParsedData.data[0];
+    console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
+
+    // skip header, read all rows
+    for (var i_row=1; i_row<elementParsedData.data.length; i_row++) {
+        var labeledCell = [];
+
+        debug?console.log("> elementParsedData.data[i_row]: " + elementParsedData.data[i_row]):true;
+    }
+    
+} else {
+	console.log("> No CSV with elements");
+}

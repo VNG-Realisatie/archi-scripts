@@ -1,0 +1,12 @@
+var ImportDate  = new Date().toLocaleDateString();
+
+vSelectName = "." + "Links";
+source = $(vSelectName).first();
+target =$(".Rechts").first()
+
+relationship = model.createRelationship(
+    "aggregation-relationship",
+    "Gevonden",
+    source,
+    target);
+

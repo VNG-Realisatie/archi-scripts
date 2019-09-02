@@ -1,0 +1,13 @@
+var ImportDate  = new Date().toLocaleDateString();
+
+source = model.createElement( "application-component",  "Links");
+target = model.createElement( "application-component",  "Rechts");
+
+source.prop("test", "Created at " + ImportDate);
+
+relationship = model.createRelationship(
+    "aggregation-relationship",
+    "",
+    source,
+    target);
+
