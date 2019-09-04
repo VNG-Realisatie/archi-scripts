@@ -45,51 +45,54 @@ if (elementCSVData = read_CSVdata("element")) {
 		for (var i_row=1; i_row<elementParsedData.data.length; i_row++) {
 			var labeledCell = [];
 
-			debug?console.log("> elementParsedData.data[i_row]: " + elementParsedData.data[i_row]):true;
+			if (elementParsedData.data[i_row].length>1) { // skip empty line
 
-			// label cell of i_row with headerlabel
-			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
-				var str ="";
-				str = elementParsedData.data[i_row][j_col];
-				labeledCell[ParsedDataHeaders[j_col]]= str.trim();
-				debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labeledCell[ParsedDataHeaders[j_col]]) : true;
-			}
+				debug?console.log("> elementParsedData.data[i_row]: " + elementParsedData.data[i_row]):true;
 
-			result = findImportElement(labeledCell, "Object ID", elementMappings["id"], elementMappings["name"]);
-			// debug?console.log(">> result from findImportElement : " + result.vFindImportText + " : " + result.vElement):true;
-
-			if (result.vFindImportText == "Not found") {
-				info? console.log(">> Create element : " + labeledCell[elementMappings["type"]] + " " + labeledCell[elementMappings["name"]]) : true;
-				element = model.createElement(
-					labeledCell[elementMappings["type"]], 
-					labeledCell[elementMappings["name"]]);
-				element.prop("Import", "Created at " + ImportDate);
-				NrElementCreated++;
-			} else {
-				element = result.vElement;
-				element.prop("Import", "Updated at " + ImportDate + ": Found with (" + result.vFindImportText + ")");
-				NrElementUpdated++;
-			}
-			console.log(">> Import element " + element.prop("Import") + " : " + element);
-			debug?console.log(">> ======== " ):true;
-
-			if (labeledCell[elementMappings["name"]]) {
-				element.name			=labeledCell[elementMappings["name"]];
-			}
-			if (labeledCell[elementMappings["documentation"]]) {
-				element.documentation	=labeledCell[elementMappings["documentation"]];
-			}
-			if (labeledCell[elementMappings["type"]]) {
-				element.type			=labeledCell[elementMappings["type"]];
-			}
-
-			// import all properties	
-			for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
-				if (labeledCell[ParsedDataHeaders[j_col]]) {
-					element.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
+				// label cell of i_row with headerlabel
+				for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
+					var str ="";
+					str = elementParsedData.data[i_row][j_col];
+					labeledCell[ParsedDataHeaders[j_col]]= str.trim();
+					debug? console.log(">> elementParsedData row " + i_row + " > " + ParsedDataHeaders[j_col] + " = " + labeledCell[ParsedDataHeaders[j_col]]) : true;
 				}
-			}
-			debug?console.log(">> ======== " ):true;
+
+				result = findImportElement(labeledCell, "Object ID", elementMappings["id"], elementMappings["name"]);
+				// debug?console.log(">> result from findImportElement : " + result.vFindImportText + " : " + result.vElement):true;
+
+				if (result.vFindImportText == "Not found") {
+					info? console.log(">> Create element : " + labeledCell[elementMappings["type"]] + " " + labeledCell[elementMappings["name"]]) : true;
+					element = model.createElement(
+						labeledCell[elementMappings["type"]], 
+						labeledCell[elementMappings["name"]]);
+					element.prop("Import", "Created at " + ImportDate);
+					NrElementCreated++;
+				} else {
+					element = result.vElement;
+					element.prop("Import", "Updated at " + ImportDate + ": Found with (" + result.vFindImportText + ")");
+					NrElementUpdated++;
+				}
+				console.log(">> Import element " + element.prop("Import") + " : " + element);
+				debug?console.log(">> ======== " ):true;
+
+				if (labeledCell[elementMappings["name"]]) {
+					element.name			=labeledCell[elementMappings["name"]];
+				}
+				if (labeledCell[elementMappings["documentation"]]) {
+					element.documentation	=labeledCell[elementMappings["documentation"]];
+				}
+				if (labeledCell[elementMappings["type"]]) {
+					element.type			=labeledCell[elementMappings["type"]];
+				}
+
+				// import all properties	
+				for (var j_col=elementHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
+					if (labeledCell[ParsedDataHeaders[j_col]]) {
+						element.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
+					}
+				}
+				debug?console.log(">> ======== " ):true;
+			} // next line
 		}
 		console.log("");
 		console.log("> Parsing Complete");
@@ -128,109 +131,112 @@ if (elementCSVData = read_CSVdata("element")) {
 			var labeledCell = [];
 			var flagValidRelation=false;
 
-			debug?console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]):true;
+			if (relationParsedData.data[i_row].length>1) { // skip empty line
 
-			// all columns
-			for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
-				var str ="";
-				str = relationParsedData.data[i_row][j_col];
-				labeledCell[ParsedDataHeaders[j_col]]=str.trim();
-				debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
-			}
+				debug?console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]):true;
 
-			// Select the relationship with GEMMA Object id.
-			debug? console.log(">> Find relation with Object ID == " + labeledCell["Object ID"]) : true;
-			relationship = ObjectPropertyFind("relationship", "Object ID", labeledCell["Object ID"]);
+				// all columns
+				for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
+					var str ="";
+					str = relationParsedData.data[i_row][j_col];
+					labeledCell[ParsedDataHeaders[j_col]]=str.trim();
+					debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
+				}
 
-			if (!relationship) { // if there is no relationship with the GEMMA Object ID
-				// Select the relationship with the id.
-				var selectID ="#" + labeledCell[relationshipMappings["id"]];
-				debug? console.log(">> Find relationship with id == " + selectID) : true;
-				relationship = $(selectID);
+					// Select the relationship with GEMMA Object id.
+				debug? console.log(">> Find relation with Object ID == " + labeledCell["Object ID"]) : true;
+				relationship = ObjectPropertyFind("relationship", "Object ID", labeledCell["Object ID"]);
 
-				if (!relationship||relationship.length<1) { // if there is no relationship with the id. Test length, object is not null??
-					debug? console.log(">> Relationship not found, try to create relationship"):true;
-					var source = null;
-					var target = null;
+				if (!relationship) { // if there is no relationship with the GEMMA Object ID
+					// Select the relationship with the id.
+					var selectID ="#" + labeledCell[relationshipMappings["id"]];
+					debug? console.log(">> Find relationship with id == " + selectID) : true;
+					relationship = $(selectID);
 
-					sourceResult = findImportElement(labeledCell, "Source Object ID", "Source ID", "Source label");
-					targetResult = findImportElement(labeledCell, "Target Object ID", "Target ID", "Target label");
+					if (!relationship||relationship.length<1) { // if there is no relationship with the id. Test length, object is not null??
+						debug? console.log(">> Relationship not found, try to create relationship"):true;
+						var source = null;
+						var target = null;
 
-					source = sourceResult.vElement;
-					target = targetResult.vElement;
+						sourceResult = findImportElement(labeledCell, "Source Object ID", "Source ID", "Source label");
+						targetResult = findImportElement(labeledCell, "Target Object ID", "Target ID", "Target label");
 
-					if (sourceResult.vFindImportText == "Not found" || targetResult.vFindImportText == "Not found") {
-						skippedRelation[NrRelationSkipped]=labeledCell[relationshipMappings["source.name"]];
-						if (sourceResult.vFindImportText == "Not found") {
-							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+						source = sourceResult.vElement;
+						target = targetResult.vElement;
+
+						if (sourceResult.vFindImportText == "Not found" || targetResult.vFindImportText == "Not found") {
+							skippedRelation[NrRelationSkipped]=labeledCell[relationshipMappings["source.name"]];
+							if (sourceResult.vFindImportText == "Not found") {
+								skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+							}
+							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " <= " + labeledCell[relationshipMappings["type"]] + " => " + labeledCell[relationshipMappings["target.name"]];
+							if (targetResult.vFindImportText == "Not found") {
+								skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+							}
+
+							debug?console.log(">>>> Skipped relation: " + skippedRelation[NrRelationSkipped]):true;
+							NrRelationSkipped++;
+							flagValidRelation=false;
+						} else {
+							flagValidRelation=true;
 						}
-						skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " <= " + labeledCell[relationshipMappings["type"]] + " => " + labeledCell[relationshipMappings["target.name"]];
-						if (targetResult.vFindImportText == "Not found") {
-							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
-						}
+			
+						if (flagValidRelation) {
+							relationName = labeledCell[relationshipMappings["name"]] ? labeledCell[relationshipMappings["name"]] : "";
+							if (!labeledCell[relationshipMappings["type"]] ) {
+								throw "Relationship without type";
+							}
 
-						debug?console.log(">>>> Skipped relation: " + skippedRelation[NrRelationSkipped]):true;
-						NrRelationSkipped++;
-						flagValidRelation=false;
+							info? console.log("Create relation: " + source + " <= " + labeledCell[relationshipMappings["type"]] + " => " + target):true;
+			
+							relationship = model.createRelationship(
+								labeledCell[relationshipMappings["type"]],
+								relationName,
+								// "",
+								source,
+								target);
+
+								debug? console.log("Created!!: " + source + " <= " + labeledCell[relationshipMappings["type"]] + " => " + target):true;
+
+							relationship.prop("Import", "Created at " + ImportDate);
+							NrRelationCreated++;
+						}
 					} else {
+						relationship.prop("Import", "Updated at " + ImportDate + ": Found with ID");
 						flagValidRelation=true;
-					}
-		
-					if (flagValidRelation) {
-						relationName = labeledCell[relationshipMappings["name"]] ? labeledCell[relationshipMappings["name"]] : "";
-						if (!labeledCell[relationshipMappings["type"]] ) {
-							throw "Relationship without type";
-						}
-
-						info? console.log("Create relation: " + source + " <= " + labeledCell[relationshipMappings["type"]] + " => " + target):true;
-		
-						relationship = model.createRelationship(
-							labeledCell[relationshipMappings["type"]],
-							relationName,
-							// "",
-							source,
-							target);
-
-							debug? console.log("Created!!: " + source + " <= " + labeledCell[relationshipMappings["type"]] + " => " + target):true;
-
-						relationship.prop("Import", "Created at " + ImportDate);
-						NrRelationCreated++;
+						NrRelationUpdated++;
 					}
 				} else {
-					relationship.prop("Import", "Updated at " + ImportDate + ": Found with ID");
+					relationship.prop("Import", "Updated at " + ImportDate + ": Found with Object ID");
 					flagValidRelation=true;
 					NrRelationUpdated++;
 				}
-			} else {
-				relationship.prop("Import", "Updated at " + ImportDate + ": Found with Object ID");
-				flagValidRelation=true;
-				NrRelationUpdated++;
-			}
 
-			if (flagValidRelation) {
-				if (labeledCell[relationshipMappings["name"]]) {
-					relationship.name			=labeledCell[relationshipMappings["name"]];
-				}
-				if (labeledCell[relationshipMappings["documentation"]]) {
-					relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
-				}
-				if (labeledCell[relationshipMappings["type"]]) {
-					relationship.type			=labeledCell[relationshipMappings["type"]];
-				}
-	
-				for (var j_col=relationshipHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
-					if (labeledCell[ParsedDataHeaders[j_col]]) {
-						relationship.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
+				if (flagValidRelation) {
+					if (labeledCell[relationshipMappings["name"]]) {
+						relationship.name			=labeledCell[relationshipMappings["name"]];
 					}
+					if (labeledCell[relationshipMappings["documentation"]]) {
+						relationship.documentation	=labeledCell[relationshipMappings["documentation"]];
+					}
+					if (labeledCell[relationshipMappings["type"]]) {
+						relationship.type			=labeledCell[relationshipMappings["type"]];
+					}
+		
+					for (var j_col=relationshipHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
+						if (labeledCell[ParsedDataHeaders[j_col]]) {
+							relationship.prop(ParsedDataHeaders[j_col],labeledCell[ParsedDataHeaders[j_col]]);
+						}
+					}
+					info? console.log(">> relationship : " + relationship):true;
+				} else {
+					debug?console.log(">> relationship ignored :" +
+						labeledCell[relationshipMappings["source.name"]] + 
+						" <-> " +
+						labeledCell[relationshipMappings["target.name"]] ):true;
 				}
-				info? console.log(">> relationship : " + relationship):true;
-			} else {
-				debug?console.log(">> relationship ignored :" +
-					labeledCell[relationshipMappings["source.name"]] + 
-					" <-> " +
-					labeledCell[relationshipMappings["target.name"]] ):true;
-			}
-			debug?console.log(">> ======== " ):true;
+				debug?console.log(">> ======== " ):true;
+			} // next line
 		}
 		if (skippedRelation.length>0) {
 			console.log(">>>> There are skipped relations: ");
