@@ -1,0 +1,29 @@
+			
+var relationPropertyHeader = {
+//	"jArchi property" 	"Header",
+	id:					"Relationship ID",
+	name:				"Relationship label",
+	documentation:		"Relationship documentation",
+	type:				"Relationship type",
+	"source.id":		"Source ID",
+	"source.name":		"Source label",
+	"source.type":		"Source type",
+	"target.id":		"Target ID",
+	"target.name":		"Target label",
+	"target.type":		"Target type"
+	// "source ObjID":		"Source Object ID",
+	// "target ObjID":		"Target Object ID"
+}
+
+var label ="";
+if (label.includes(".")){
+	console.log(" label.substring(label.indexOf(.)+1) :" + label.substring(label.indexOf(".")+1));
+}	
+for (var label in relationPropertyHeader) {
+	if (label.includes(".")){
+		console.log(" label.substring(label.indexOf(.)+1) :" + label.substring(label.indexOf(".")+1));
+			
+		// Row[relationPropertyHeader[label]]	=relationship[label.substring(0,label.indexOf("."))][label.substring(label.indexOf(".")+1)];
+		// Row[relationPropertyHeader[label]]	=relationship[label.substring(0,label.indexOf("."))][label.substring(label.indexOf(".")+1)];
+	}
+}

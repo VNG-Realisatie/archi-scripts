@@ -12,81 +12,46 @@
  /* 
  * 
  */
-var elementHeadersII = [
- 	["Element ID", "id"],
-    ["Element label", "name"],
-    ["Element type", "type"],
-    ["Element documentation", "documentation"]
-];
-
 
 
 load(__DIR__ + "../lib/papaparse.min.js");
 
 // Set up some elementHeaders
-var elementHeaders = [
-    "Element ID",
-    "Element label",
-    "Element type",
-    "Element documentation"
-];
-
-var elementMappings = {
-	"id":			elementHeaders[0],
-	"name":			elementHeaders[1],
-	"type":			elementHeaders[2],
-	"documentation":elementHeaders[3]
+var elementPropertyHeader = {
+	// display: function display() {
+	// 	for (var i in this) {
+	// 		return "Header label for " + i + " = " + this[i];
+	// 	}
+	// },
+	//	jArchi property: 	"Header",
+	id: 			"Element ID",
+	name: 			"Element label",
+	type: 			"Element type",
+	documentation: 	"Element documentation"
+  };
+  
+var relationPropertyHeader = {
+//	"jArchi property" 	"Header",
+	id:					"Relationship ID",
+	name:				"Relationship label",
+	documentation:		"Relationship documentation",
+	type:				"Relationship type",
+	"source.id":		"Source ID",
+	"source.name":		"Source label",
+	"source.type":		"Source type",
+	"source ObjID":		"Source Object ID",
+	"target.id":		"Target ID",
+	"target.name":		"Target label",
+	"target.type":		"Target type"
+	"target ObjID":		"Target Object ID"
 }
 
-var relationshipHeaders = [
-	"Relationship ID",
-	"Relationship label",
-	"Relationship documentation",
-	"Relationship type",
-	"Source ID",
-	"Source label",
-	"Source type",
-	"Source Object ID",
-	"Target ID",
-	"Target label",
-	"Target type",
-	"Target Object ID"
-];
-
-var relationshipMappings = {
-	"id":				relationshipHeaders[0],
-	"name":				relationshipHeaders[1],
-	"documentation":	relationshipHeaders[2],
-	"type":				relationshipHeaders[3],
-	"source.id":		relationshipHeaders[4],
-	"source.name":		relationshipHeaders[5],
-	"source.type":		relationshipHeaders[6],
-	"source ObjID":		relationshipHeaders[7],
-	"target.id":		relationshipHeaders[8],
-	"target.name":		relationshipHeaders[9],
-	"target.type":		relationshipHeaders[10],
-	"target ObjID":		relationshipHeaders[11]
-}
-
-
+/*
+ *	Read CSV file in UTF-8 encoding and parse the file into an array
+ */  
 function read_CSVdata(CSVfilename_postfix) {
 
 	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "*.csv" });
-/*
-	var theCSV ="";
-	if (filePath != null) {
-		try {
-			$.fs.readFile(filePath, 'utf8', function(localErr, theCSV) {
-				if(localErr) throw localErr;
-			});
-			console.log("> File Loaded : " + filePath);
-			return theCSV;
-		}
-		catch(err) {
-			console.error(err);
-		}
-*/
-
 	var theCSV ="";
 	if (filePath) {
 		var FileReader = Java.type("java.io.FileReader");
@@ -112,6 +77,44 @@ function read_CSVdata(CSVfilename_postfix) {
 	}
 }
 
+/*
+ *	Save all object to CSV and show some statistics 
+ */  
+function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
+	var headerText = "";
+	var headerArray = [];
+
+	var i=0;
+	for (var label in pHeader) {
+		headerText += pHeader[label] + " | ";
+		headerArray[i]=pHeader[label];
+		i++;
+	}
+  	console.log("==============");
+	console.log("> Header columns (" + i + ") :" + headerText);
+	console.log("> Data rows number : " + pData.length);
+  
+	if (pDuplicate.length > 0) {
+		console.log("==============");
+		console.log("> Info: " + pType + " with multiple occurrences on view: ");
+  
+	  for (var i = 0; i < pDuplicate.length; i++) {
+		console.log(">> ", pDuplicate[i]);
+	  }
+	}
+	console.log("==============");
+	if (pExportFile != null) {
+	  var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
+	  $.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
+	  console.log("> " + pType + "  : " + ExportFile);
+	} else {
+	  console.log("> Save CSV cancelled");
+	}
+  }
+
+/*
+ *	Find Object with property en propertyvalue
+ */  
 function ObjectPropertyFind(pConcept, pProperty, pValue) {
 	var vSelectedObject = null;
 	debug?console.log(">>> ObjectPropertyFind() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
@@ -127,6 +130,14 @@ function ObjectPropertyFind(pConcept, pProperty, pValue) {
 	return vSelectedObject;
 } 
 
+/*
+ *	Try to find an existing element.
+ *	Priority for finding an element
+ *	- return element found with a given property value
+ * 	- else return element found with Archi id
+ * 	- else return element found by name.
+ *  	- return the first if there are multiple elements with the same name
+ */  
 function findImportElement(pLabeledCell, pProperty, pSelectID, pSelectName) {
 	var vElement = null;
 	var vFindImportText = "";

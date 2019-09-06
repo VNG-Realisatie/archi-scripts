@@ -22,38 +22,46 @@ load(__DIR__ + "lib/papaparse.min.js");
 load(__DIR__ + "common/Export-import to CSV.ajs");
 
 var objectIndexMap = [];
+var elementDuplicate = [];
+var elementDuplicate_i = 0;
+var relationDuplicate = [];
+var relationDuplicate_i = 0;
 
 var elementData = [];
-var relationshipData = [];
-var selectedView = $(selection).filter("archimate-diagram-model").first();
+var relationData = [];
 
 var debug = false;
+var info = true;
 
 // Show output in the console
 console.show();
 console.clear();
-console.log("> Starting CSV Export for selected view : " + selectedView);
 
-if (selectedView) {
-
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+	console.log("> Starting CSV Export for selected view : " + selectedView);
 	// Loop through all element occurrences
-	// element is the occurrence of the element on the diagram. element.concept is the actual element
+	// element is the occurrence of the element on the diagram. 
+	// element.concept is the actual element
     $(selectedView).find().not("relationship").each(function(element) { 
 
-		debug? console.log("Element : " + element.concept.name):true;
+		info? console.log(">> " + element.concept):true;
 
 		try {
-            if (!objectIndexMap[element.concept.id]) {
-                var elementRow = new Object;
-
+            if (objectIndexMap[element.concept.id]) {
+				elementDuplicate[elementDuplicate_i] = element.concept; 
+				debug? console.log("Multiple occurrences on view of element: ", elementDuplicate[elementDuplicate_i]):true;
+				elementDuplicate_i++;
+			} else { 
 				objectIndexMap[element.concept.id]=true;
-
-				elementRow[elementMappings["name"]]			=element.concept.name;
-                elementRow[elementMappings["documentation"]]=element.concept.documentation;
-                elementRow[elementMappings["id"]]			=element.concept.id;
-                elementRow[elementMappings["type"]]			=element.concept.type;
-
-                debug? console.log("> Number of properties : " + element.concept.prop().length):true;
+				
+				var Row = new Object;
+                // retrieve all defined header attributes and properties
+				for (var label in elementPropertyHeader) {
+					Row[elementPropertyHeader[label]]		=element.concept[label];
+				}
 
                 // retrieve all properties of the element
                 for (var i=0; i<element.concept.prop().length; i++){
@@ -62,106 +70,81 @@ if (selectedView) {
                     if (element.concept.prop(PropertyLabel)) {
                         var found = false;
 
-						for (var j=0; j<elementHeaders.length; j++) {
-                            if (elementHeaders[j]==PropertyLabel) {found=true;}            
+						for (var prop in elementPropertyHeader) {
+                            if (prop==PropertyLabel) {found=true;}            
                         }
                         if (!found) { // only add new property label to the header
-                            elementHeaders.push(PropertyLabel);
-                            debug? console.log("> New property label : " + PropertyLabel):true;
+                            elementPropertyHeader[PropertyLabel] = PropertyLabel;
+                            debug? console.log(">>> Add property label : " + PropertyLabel):true;
                         }
-
-						elementRow[PropertyLabel] = element.concept.prop(PropertyLabel);
-						debug? console.log("> Add property " + PropertyLabel + ": " + element.concept.prop(PropertyLabel)):true;
+						Row[PropertyLabel] = element.concept.prop(PropertyLabel);
+						debug? console.log(">>>> Add property " + PropertyLabel + ": " + element.concept.prop(PropertyLabel)):true;
                     }
                 }
 
-                elementData.push(elementRow);
+                elementData.push(Row);
 
-                // Get Relationships
+                // Get all relationships of the element (not only the occurrences on the view)
                 $(element.concept).outRels().each(function (relationship) { 
-                    if (!objectIndexMap[relationship.id]) {
-                        var relationshipRow = new Object;
-
+                    if (objectIndexMap[relationship.id]) { // cannot happen, prepared for selection of occurrences of relationships on view
+						relationDuplicate[relationDuplicate_i] = relationship; 
+						debug? console.log("Multiple occurrences on view of relation: ", relationDuplicate[relationDuplicate_i]):true;
+						relationDuplicate_i++;
+					} else {
 						objectIndexMap[relationship.id]=true;
-        
-						debug? console.log(">> Relationship : " + relationship.source.name + " <-> " + relationship.target.name):true;
+	
+						info? console.log(">>> " + relationship + " " + relationship.source.name + " <-> " + relationship.target.name):true;
 
-						relationshipRow[relationshipMappings["id"]]				=relationship.id;
-                        relationshipRow[relationshipMappings["name"]]			=relationship.name;
-                        relationshipRow[relationshipMappings["documentation"]]	=relationship.documentation;
-                        relationshipRow[relationshipMappings["type"]]			=relationship.type;
-                        relationshipRow[relationshipMappings["source.id"]]		=relationship.source.id;
-                        relationshipRow[relationshipMappings["source.name"]]	=relationship.source.name;
-                        relationshipRow[relationshipMappings["source.type"]]	=relationship.source.type;
-						relationshipRow[relationshipMappings["source ObjID"]]	=relationship.source.prop("Object ID");
-                        relationshipRow[relationshipMappings["target.id"]]		=relationship.target.id;
-                        relationshipRow[relationshipMappings["target.name"]]	=relationship.target.name;
-						relationshipRow[relationshipMappings["target.type"]]	=relationship.target.type;
-						relationshipRow[relationshipMappings["target ObjID"]]	=relationship.target.prop("Object ID");
+						var Row = new Object;
+
+						Row[relationPropertyHeader["id"]]			=relationship.id;
+                        Row[relationPropertyHeader["name"]]			=relationship.name;
+                        Row[relationPropertyHeader["documentation"]]=relationship.documentation;
+                        Row[relationPropertyHeader["type"]]			=relationship.type;
+                        Row[relationPropertyHeader["source.id"]]	=relationship.source.id;
+                        Row[relationPropertyHeader["source.name"]]	=relationship.source.name;
+                        Row[relationPropertyHeader["source.type"]]	=relationship.source.type;
+						Row[relationPropertyHeader["source ObjID"]]	=relationship.source.prop("Object ID");
+                        Row[relationPropertyHeader["target.id"]]	=relationship.target.id;
+                        Row[relationPropertyHeader["target.name"]]	=relationship.target.name;
+						Row[relationPropertyHeader["target.type"]]	=relationship.target.type;
+						Row[relationPropertyHeader["target ObjID"]]	=relationship.target.prop("Object ID");
 						
-
-                        // Retrieve all properties of the relation
+						// Retrieve all properties of the relation
                         for (var i=0; i<relationship.prop().length; i++){
 							var PropertyLabel = relationship.prop()[i];
 							
-                            if (relationship.prop(PropertyLabel)) {
+                            if (relationship.prop(PropertyLabel)) { // skip empty labels
                                 var found = false;
-                                for (var j=0; j<relationshipHeaders.length; j++) {
-                                    if (relationshipHeaders[j]==PropertyLabel) {found=true;}            
+								for (var prop in relationPropertyHeader) { 
+									if (prop==PropertyLabel) {found=true;}            
+								}
+                                if (!found) { // only first time add new property label to the header
+									relationPropertyHeader[PropertyLabel] = PropertyLabel;
+									debug? console.log(">>>> Add property label : " + PropertyLabel):true;
                                 }
-                                if (!found) { // only add new property label to the header
-                                    relationshipHeaders.push(PropertyLabel);
-									debug? console.log(">>> New property label : " + PropertyLabel):true;
-                                }
-                                relationshipRow[PropertyLabel] = relationship.prop(PropertyLabel);
-								debug? console.log(">>> Add property " + PropertyLabel + ": " + relationship.prop(PropertyLabel)):true;
+                                Row[PropertyLabel] = relationship.prop(PropertyLabel);
+								debug? console.log(">>>>> Add property " + PropertyLabel + ": " + relationship.prop(PropertyLabel)):true;
                             }
                         }
 						
-                        relationshipData.push(relationshipRow);
-                    }
-                    else {
-                        console.log("Duplicate relationship: ", relationship.name);
+                        relationData.push(Row);
                     }
                 }); // each relation
             }
-            else {
-                console.log("Duplicate Concept: ", element.concept.name);
-            }
         }
         catch (error) {
-            console.log("> Error, ignoring: " + element);
+            console.log("> Ignoring: " + element);
+            console.log("> Error: " +  error);
         }
     }); // each element
 
-    // Open a dialog to let the user choose where to save the generated file
+	// Open a dialog to let the user choose where to save the generated file
     var defaultFileName = model.name ? model.name + "-" + selectedView.name + ".csv" : "Exported Model.csv"; // Default file name
-	var ExportFile = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
+	var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
 
-	var elementExportFile = 		ExportFile.substring(0,ExportFile.length-4) +"-element.csv";
-	var relationshipExportFile = 	ExportFile.substring(0,ExportFile.length-4) +"-relationship.csv";
+	write_CSVdata("elements", elementDuplicate, elementPropertyHeader, elementData, ExportFileLocation);
+	write_CSVdata("relations", relationDuplicate, relationPropertyHeader, relationData, ExportFileLocation);
 
-    console.log("==============");
-    console.log("Elements in ExportFile: " 		+ elementExportFile);
-    console.log("> Header : " 	+ elementHeaders);
-    console.log("> Nr columns : " + elementHeaders.length);
-    console.log("> Nr rows : " 	+ elementData.length);
-    console.log("==============");
-    console.log("Relationships in ExportFile: " 		+ relationshipExportFile);
-    console.log("> Header : " 	+ relationshipHeaders);
-    console.log("> Nr columns : " + relationshipHeaders.length);
-    console.log("> Nr rows : " 	+ relationshipData.length);
-
-	console.log("==============");
-    if(elementExportFile != null) {
-        $.fs.writeFile(elementExportFile, 		Papa.unparse({fields:elementHeaders, data:elementData}));
-        $.fs.writeFile(relationshipExportFile, 	Papa.unparse({fields:relationshipHeaders, data:relationshipData}));
-        console.log("> Export done");
-    }
-    else {
-        console.log("> Export cancelled");
-    }
-}
-else {
-    console.log("> Please Select a View");
+	console.log("> Export to CSV finished");
 }
