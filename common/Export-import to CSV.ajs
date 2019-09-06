@@ -42,7 +42,7 @@ var relationPropertyHeader = {
 	"source ObjID":		"Source Object ID",
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
-	"target.type":		"Target type"
+	"target.type":		"Target type",
 	"target ObjID":		"Target Object ID"
 }
 
