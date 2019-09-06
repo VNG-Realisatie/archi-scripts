@@ -9,10 +9,8 @@
  * 
  */ 
 
- /* 
- * 
- */
-
+var E_I_Debug = false;
+var E_I_Info = false;
 
 load(__DIR__ + "../lib/papaparse.min.js");
 
@@ -47,7 +45,7 @@ var relationPropertyHeader = {
 }
 
 /*
- *	Read CSV file in UTF-8 encoding and parse the file into an array
+ *	Read CSV file in UTF-8 encoding and return file parsed into an array
  */  
 function read_CSVdata(CSVfilename_postfix) {
 
@@ -71,7 +69,7 @@ function read_CSVdata(CSVfilename_postfix) {
 
 		console.log("> File Loaded");
 
-		return theCSV;
+		return Papa.parse(theCSV);
 	} else {
 		console.log("> Cancelled");
 	}
@@ -117,12 +115,12 @@ function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
  */  
 function ObjectPropertyFind(pConcept, pProperty, pValue) {
 	var vSelectedObject = null;
-	debug?console.log(">>> ObjectPropertyFind() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
+	E_I_Debug?console.log(">>> ObjectPropertyFind() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
 	if (pValue) { // alleen zoeken met geldige waarde
 		$(pConcept).each(function(vObject) {
 		//	console.log("> vObject : " + vObject);
 			if (vObject.prop(pProperty) == pValue) {
-				debug?console.log(">>> ObjectPropertyFind() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
+				E_I_Debug?console.log(">>> ObjectPropertyFind() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
 				vSelectedObject = vObject;
 			}
 		}); // each vObject
@@ -138,24 +136,24 @@ function ObjectPropertyFind(pConcept, pProperty, pValue) {
  * 	- else return element found by name.
  *  	- return the first if there are multiple elements with the same name
  */  
-function findImportElement(pLabeledCell, pProperty, pSelectID, pSelectName) {
+function findImportElement(pCell, pProperty, pSelectID, pSelectName) {
 	var vElement = null;
 	var vFindImportText = "";
 
 	// Select the vElement with property
-	debug? console.log(">> findImportElement() Find element with " + pProperty + " = " + pLabeledCell[pProperty] ) : true;
-	vElement = ObjectPropertyFind("element",  "Object ID", pLabeledCell[pProperty]);
+	E_I_Debug? console.log(">> findImportElement() Find element with " + pProperty + " = " + pCell[pProperty] ) : true;
+	vElement = ObjectPropertyFind("element",  "Object ID", pCell[pProperty]);
 
 //	if (!vElement || vElement.length<1) { // if there is no vElement with the GEMMA Object ID
 	if (!vElement) { // if there is no vElement with the GEMMA Object ID
 			// Select the vElement with the id.
-		vSelectID ="#" + pLabeledCell[pSelectID];
-		debug? console.log(">> findImportElement() Find element with " + pSelectID + " = " + vSelectID): true;
+		vSelectID ="#" + pCell[pSelectID];
+		E_I_Debug? console.log(">> findImportElement() Find element with " + pSelectID + " = " + vSelectID): true;
 		vElementCollection = $(vSelectID); // Result is collection of elements with #id
 
 		if (!vElementCollection || vElementCollection.size() < 1) { // if there is no vElement with the id
-			vSelectName = "." + pLabeledCell[pSelectName];
-			debug? console.log(">> findImportElement() Find element with " + pSelectName + " = " + vSelectName ):true;
+			vSelectName = "." + pCell[pSelectName];
+			E_I_Debug? console.log(">> findImportElement() Find element with " + pSelectName + " = " + vSelectName ):true;
 			vElementCollection = $(vSelectName);
 
 			if (!vElementCollection || vElementCollection.size()<1) { // if there is no vElement with the name
@@ -175,7 +173,7 @@ function findImportElement(pLabeledCell, pProperty, pSelectID, pSelectName) {
 		vFindImportText = pProperty;
 	}
 
-	info? console.log(">> findImportElement() : " + vFindImportText + " > " + vElement):true;
+	E_I_Info? console.log(">> findImportElement() : " + vFindImportText + " > " + vElement):true;
 	return {vElement:vElement, vFindImportText:vFindImportText}
 }
 

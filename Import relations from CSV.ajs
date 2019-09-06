@@ -1,0 +1,177 @@
+/*
+ * Import from CSV
+ * 
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ * Requires PapaParse - https://www.papaparse.com/
+ * Works with Export to CSV Script - https://gist.github.com/smileham/15c445b17a92bd6f5dc1508e573bcd8a
+ * 
+ * Version 1: Import from CSV
+ *
+ * (c) 2018 Steven Mileham
+ * 
+ * Mark Backer
+ * Version 2: Added import of relations and properties
+ *
+ */
+
+load(__DIR__ + "common/Export-import to CSV.ajs");
+
+var error = new Error();
+var debug = false;
+var info = true;
+
+var ImportDate  = new Date().toLocaleDateString();
+
+console.show();
+console.clear();
+console.log("> Import CSV");
+
+/*
+ * Import relations
+ */
+ if (relationCSVData = read_CSVdata("releationship")) {
+
+	ParsedDataHeaders = relationParsedData.data[0];
+	console.log("> ParsedDataHeaders: " + ParsedDataHeaders);
+	
+	var NrRelationUpdated = 0;
+	var NrRelationCreated = 0;
+	var skippedRelation = [];
+	var NrRelationSkipped=0;
+	try {
+		// all rows, but skip header
+		for (var i_row=1; i_row<relationParsedData.data.length; i_row++) {
+			var relationship = null;
+			var cell = [];
+			var flagValidRelation=false;
+
+			if (relationParsedData.data[i_row].length>1) { // skip empty line
+
+				debug?console.log("> relationParsedData.data[i_row]: " + relationParsedData.data[i_row]):true;
+
+				// all columns
+				for (var j_col=0; j_col<ParsedDataHeaders.length; j_col++) {
+					var str ="";
+					str = relationParsedData.data[i_row][j_col];
+					cell[ParsedDataHeaders[j_col]]=str.trim();
+					debug? console.log(">> relationParsedData row " + i_row + " > " + relationParsedData.data[0][j_col] + " = " + relationParsedData.data[i_row][j_col]) : true;
+				}
+
+					// Select the relationship with GEMMA Object id.
+				debug? console.log(">> Find relation with Object ID == " + cell["Object ID"]) : true;
+				relationship = ObjectPropertyFind("relationship", "Object ID", cell["Object ID"]);
+
+				if (!relationship) { // if there is no relationship with the GEMMA Object ID
+					// Select the relationship with the id.
+					var selectID ="#" + cell[relationshipMappings["id"]];
+					debug? console.log(">> Find relationship with id == " + selectID) : true;
+					relationship = $(selectID);
+
+					if (!relationship||relationship.length<1) { // if there is no relationship with the id. Test length, object is not null??
+						debug? console.log(">> Relationship not found, try to create relationship"):true;
+						var source = null;
+						var target = null;
+
+						sourceResult = findImportElement(cell, "Source Object ID", "Source ID", "Source label");
+						targetResult = findImportElement(cell, "Target Object ID", "Target ID", "Target label");
+
+						source = sourceResult.vElement;
+						target = targetResult.vElement;
+
+						if (sourceResult.vFindImportText == "Not found" || targetResult.vFindImportText == "Not found") {
+							skippedRelation[NrRelationSkipped]=cell[relationshipMappings["source.name"]];
+							if (sourceResult.vFindImportText == "Not found") {
+								skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+							}
+							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " <= " + cell[relationshipMappings["type"]] + " => " + cell[relationshipMappings["target.name"]];
+							if (targetResult.vFindImportText == "Not found") {
+								skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+							}
+
+							debug?console.log(">>>> Skipped relation: " + skippedRelation[NrRelationSkipped]):true;
+							NrRelationSkipped++;
+							flagValidRelation=false;
+						} else {
+							flagValidRelation=true;
+						}
+			
+						if (flagValidRelation) {
+							relationName = cell[relationshipMappings["name"]] ? cell[relationshipMappings["name"]] : "";
+							if (!cell[relationshipMappings["type"]] ) {
+								throw "Relationship without type";
+							}
+
+							info? console.log("Create relation: " + source + " <= " + cell[relationshipMappings["type"]] + " => " + target):true;
+			
+							relationship = model.createRelationship(
+								cell[relationshipMappings["type"]],
+								relationName,
+								// "",
+								source,
+								target);
+
+								debug? console.log("Created!!: " + source + " <= " + cell[relationshipMappings["type"]] + " => " + target):true;
+
+							relationship.prop("Import", "Created at " + ImportDate);
+							NrRelationCreated++;
+						}
+					} else {
+						relationship.prop("Import", "Updated at " + ImportDate + ": Found with ID");
+						flagValidRelation=true;
+						NrRelationUpdated++;
+					}
+				} else {
+					relationship.prop("Import", "Updated at " + ImportDate + ": Found with Object ID");
+					flagValidRelation=true;
+					NrRelationUpdated++;
+				}
+
+				if (flagValidRelation) {
+					if (cell[relationshipMappings["name"]]) {
+						relationship.name			=cell[relationshipMappings["name"]];
+					}
+					if (cell[relationshipMappings["documentation"]]) {
+						relationship.documentation	=cell[relationshipMappings["documentation"]];
+					}
+					if (cell[relationshipMappings["type"]]) {
+						relationship.type			=cell[relationshipMappings["type"]];
+					}
+		
+					for (var j_col=relationshipHeaders.length; j_col<ParsedDataHeaders.length; j_col++) {
+						if (cell[ParsedDataHeaders[j_col]]) {
+							relationship.prop(ParsedDataHeaders[j_col],cell[ParsedDataHeaders[j_col]]);
+						}
+					}
+					info? console.log(">> relationship : " + relationship):true;
+				} else {
+					debug?console.log(">> relationship ignored :" +
+						cell[relationshipMappings["source.name"]] + 
+						" <-> " +
+						cell[relationshipMappings["target.name"]] ):true;
+				}
+				debug?console.log(">> ======== " ):true;
+			} // next line
+		}
+		if (skippedRelation.length>0) {
+			console.log(">>>> There are skipped relations: ");
+			for (var s=0; s<skippedRelation.length; s++) {
+				console.log("     - " + skippedRelation[s]);
+			}
+			debug?console.log(">> ======== " ):true;
+		}
+		console.log("");
+		console.log("> Parsing Complete");
+		console.log("");
+		console.log(">> Statistics relations <");
+		console.log(">>>> rows in CSV : " + relationParsedData.data.length + " (including 1 header)");
+		console.log(">>>> Relations skipped : " + skippedRelation.length);
+		console.log(">>>> Relations updated : " + NrRelationUpdated);
+		console.log(">>>> Relations created : " + NrRelationCreated);
+	}
+	catch (error) {
+		console.log("> Error: " + error.message);
+		console.log("> Relationship : " + relationship);
+	}
+} else {
+	console.log("> No CSV with relations");
+}

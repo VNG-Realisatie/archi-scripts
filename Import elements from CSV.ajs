@@ -1,0 +1,98 @@
+/*
+ * Import from CSV
+ * 
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ * Requires PapaParse - https://www.papaparse.com/
+ * Works with Export to CSV Script - https://gist.github.com/smileham/15c445b17a92bd6f5dc1508e573bcd8a
+ * 
+ * Version 1: Import from CSV
+ *
+ * (c) 2018 Steven Mileham
+ * 
+ * Mark Backer
+ * Version 2: Added import of relations and properties
+ *
+ */
+
+load(__DIR__ + "common/Export-import to CSV.ajs");
+
+var error = new Error();
+var debug = false;
+var info = true;
+
+var ImportDate  = new Date().toLocaleDateString();
+var NrElementUpdated = 0;
+var NrElementCreated = 0;
+
+console.show();
+console.clear();
+
+CSVtable = read_CSVdata("element")
+if (!CSVtable) {
+	console.log("> Canceled, no CSV data ");
+} else {
+	console.log("> Import CSV");
+
+	CSVheader = CSVtable.data[0];
+	debug?console.log("> CSVheader: " + CSVheader):true;
+	
+	try {
+		// skip header, read all rows
+		for (var i_row=1; i_row<CSVtable.data.length; i_row++) {
+			var cell = [];
+
+			if (CSVtable.data[i_row].length>1) { // skip empty line
+
+//				debug?console.log("> CSVtable.data[i_row]: " + CSVtable.data[i_row]):true;
+				debug?console.log(">> ======== " ):true;
+
+				// label cell of i_row with headerlabel
+				for (var j_col=0; j_col<CSVheader.length; j_col++) {
+					cell[CSVheader[j_col]] = CSVtable.data[i_row][j_col].trim();
+//					debug? console.log(">> CSVtable row " + i_row + " > " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
+				}
+
+				result = findImportElement(cell, "Object ID", elementPropertyHeader["id"], elementPropertyHeader["name"]);
+				if (result.vFindImportText == "Not found") {
+					info? console.log(">> Create element : " + cell[elementPropertyHeader["type"]] + " " + cell[elementPropertyHeader["name"]]) : true;
+					element = model.createElement(
+						cell[elementPropertyHeader["type"]], 
+						cell[elementPropertyHeader["name"]]);
+					element.prop("Import", "Created at " + ImportDate);
+					NrElementCreated++;
+				} else {
+					element = result.vElement;
+					element.prop("Import", " > Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
+					NrElementUpdated++;
+				}
+				console.log(">> " + element + " " + element.prop("Import"));
+
+				// import attributes defined in header
+				var attribute_i=0;
+				for (var label in elementPropertyHeader) {
+					if (label!="id"){ // id can't be set 
+						element[label] = cell[elementPropertyHeader[label]];
+						debug?console.log(">>> Set attribute " + label + " : " + element[label]):true;
+					}
+					attribute_i++;
+				}
+				// import all properties	
+				for (var j_col=attribute_i; j_col<CSVheader.length; j_col++) {
+					if (cell[CSVheader[j_col]]) {
+						element.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
+						debug?console.log(">>> Set property  " + CSVheader[j_col] + " : " + cell[CSVheader[j_col]]):true;
+					}
+				}
+			} // next line
+		}
+		debug?console.log(">> ======== " ):true;
+		console.log("");
+		console.log(">> Import finished");
+		console.log(">>> elements updated : " + NrElementUpdated);
+		console.log(">>> elements created : " + NrElementCreated);
+		console.log("");
+	}
+	catch (error) {
+		console.log("> Error: " + error);
+	}
+}
