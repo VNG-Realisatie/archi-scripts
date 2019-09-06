@@ -15,10 +15,15 @@
  *  - You can't redistribute this script.
  *  - You can't use this script for commercial purposes unless you obtained it from the official Archi distribution channels.
  * 
+ * AAAAA
+ * Aan te passen
+ * - niet alle objectrefs, maar de refs van de geselecteerde plaat
+ * - kleuren van colorbrewer inlezen
+ * 
  */ 
 
 // Amplify elements that have the property "maturity" with a value between 0 and 100
-amplifyElementColor("BIV max", 1, 3);
+amplifyElementColor("Vertrouwelijkheid", 1, 3);
 
 // Amplify the red/green color of elements with a given property key with a value between minValue and maxValue
 function amplifyElementColor(propertyKey, minValue, maxValue) {
