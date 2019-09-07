@@ -1,5 +1,5 @@
 			
-var relationPropertyHeader = {
+var relationHeaderDef = {
 //	"jArchi property" 	"Header",
 	id:					"Relationship ID",
 	name:				"Relationship label",
@@ -19,11 +19,11 @@ var label ="";
 if (label.includes(".")){
 	console.log(" label.substring(label.indexOf(.)+1) :" + label.substring(label.indexOf(".")+1));
 }	
-for (var label in relationPropertyHeader) {
+for (var label in relationHeaderDef) {
 	if (label.includes(".")){
 		console.log(" label.substring(label.indexOf(.)+1) :" + label.substring(label.indexOf(".")+1));
 			
-		// Row[relationPropertyHeader[label]]	=relationship[label.substring(0,label.indexOf("."))][label.substring(label.indexOf(".")+1)];
-		// Row[relationPropertyHeader[label]]	=relationship[label.substring(0,label.indexOf("."))][label.substring(label.indexOf(".")+1)];
+		// Row[relationHeaderDef[label]]	=relationship[label.substring(0,label.indexOf("."))][label.substring(label.indexOf(".")+1)];
+		// Row[relationHeaderDef[label]]	=relationship[label.substring(0,label.indexOf("."))][label.substring(label.indexOf(".")+1)];
 	}
 }

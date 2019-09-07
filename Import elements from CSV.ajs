@@ -1,5 +1,5 @@
 /*
- * Import from CSV
+ * Import elements from CSV
  * 
  * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
  * Requires PapaParse - https://www.papaparse.com/
@@ -10,8 +10,15 @@
  * (c) 2018 Steven Mileham
  * 
  * Mark Backer
- * Version 2: Added import of relations and properties
- *
+ * Version 2: Added finding existing elements with a custom "id" in a property.
+ * 
+ * - the custom id is used for exchanging elements en relation between multiple architecture tools. 
+ * 	Inputformat of the relation CSV:
+ *	- use the script "Export to CSV.ajs" to create a spreadsheet with all the columns
+ * 	- first columns are defined in elementHeaderDef
+ * 		- column 1 to 4 the jArchi relation attributes
+ *	 	- extra columns in the CSV are saved as properties. The header label is used as the property name
+ * 	The import script adds to each imported object a property customImportLog as a logline for future reference in the architecture model
  */
 
 load(__DIR__ + "common/Export-import to CSV.ajs");
@@ -43,44 +50,45 @@ if (!CSVtable) {
 
 			if (CSVtable.data[i_row].length>1) { // skip empty line
 
-//				debug?console.log("> CSVtable.data[i_row]: " + CSVtable.data[i_row]):true;
+				debug?console.log(">> CSVtable.data[" + i_row + "] >  " + CSVtable.data[i_row]):true;
 				debug?console.log(">> ======== " ):true;
 
 				// label cell of i_row with headerlabel
 				for (var j_col=0; j_col<CSVheader.length; j_col++) {
 					cell[CSVheader[j_col]] = CSVtable.data[i_row][j_col].trim();
-//					debug? console.log(">> CSVtable row " + i_row + " > " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
+					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
 				}
 
-				result = findImportElement(cell, "Object ID", elementPropertyHeader["id"], elementPropertyHeader["name"]);
+				result = FindElement(cell, customID, elementHeaderDef["id"], elementHeaderDef["name"]);
 				if (result.vFindImportText == "Not found") {
-					info? console.log(">> Create element : " + cell[elementPropertyHeader["type"]] + " " + cell[elementPropertyHeader["name"]]) : true;
+					info? console.log(">> Create element : " + cell[elementHeaderDef["type"]] + " " + cell[elementHeaderDef["name"]]) : true;
 					element = model.createElement(
-						cell[elementPropertyHeader["type"]], 
-						cell[elementPropertyHeader["name"]]);
-					element.prop("Import", "Created at " + ImportDate);
+						cell[elementHeaderDef["type"]], 
+						cell[elementHeaderDef["name"]]);
+					element.prop(customImportLog, " > Created at " + ImportDate);
 					NrElementCreated++;
 				} else {
 					element = result.vElement;
-					element.prop("Import", " > Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
+					element.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
 					NrElementUpdated++;
 				}
-				console.log(">> " + element + " " + element.prop("Import"));
+				console.log(">> " + element + " " + element.prop(customImportLog));
 
 				// import attributes defined in header
 				var attribute_i=0;
-				for (var label in elementPropertyHeader) {
+				for (var label in elementHeaderDef) {
 					if (label!="id"){ // id can't be set 
-						element[label] = cell[elementPropertyHeader[label]];
+						element[label] = cell[elementHeaderDef[label]];
 						debug?console.log(">>> Set attribute " + label + " : " + element[label]):true;
 					}
 					attribute_i++;
 				}
 				// import all properties	
 				for (var j_col=attribute_i; j_col<CSVheader.length; j_col++) {
-					if (cell[CSVheader[j_col]]) {
+					// skip empty headers and don't overwrite with previous exported customImportLog property
+					if (cell[CSVheader[j_col]] && cell[CSVheader[j_col]] != customImportLog) { 
 						element.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
-						debug?console.log(">>> Set property  " + CSVheader[j_col] + " : " + cell[CSVheader[j_col]]):true;
+						debug?console.log(">>> Set property : " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]):true;
 					}
 				}
 			} // next line

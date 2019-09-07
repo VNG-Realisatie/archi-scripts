@@ -59,8 +59,8 @@ if (!selectedView) {
 				
 				var Row = new Object;
                 // retrieve all defined header attributes and properties
-				for (var label in elementPropertyHeader) {
-					Row[elementPropertyHeader[label]]		=element.concept[label];
+				for (var label in elementHeaderDef) {
+					Row[elementHeaderDef[label]]		=element.concept[label];
 				}
 
                 // retrieve all properties of the element
@@ -70,11 +70,11 @@ if (!selectedView) {
                     if (element.concept.prop(PropertyLabel)) {
                         var found = false;
 
-						for (var prop in elementPropertyHeader) {
+						for (var prop in elementHeaderDef) {
                             if (prop==PropertyLabel) {found=true;}            
                         }
                         if (!found) { // only add new property label to the header
-                            elementPropertyHeader[PropertyLabel] = PropertyLabel;
+                            elementHeaderDef[PropertyLabel] = PropertyLabel;
                             debug? console.log(">>> Add property label : " + PropertyLabel):true;
                         }
 						Row[PropertyLabel] = element.concept.prop(PropertyLabel);
@@ -96,19 +96,21 @@ if (!selectedView) {
 						info? console.log(">>> " + relationship + " " + relationship.source.name + " <-> " + relationship.target.name):true;
 
 						var Row = new Object;
+						// retrieve all defined header attributes and properties
+						for (var label in relationHeaderDef) {
+							if (label=="id" || label=="name" || label=="documentation" || label=="type"){ // how to make this work for all headerDefs???
+								Row[relationHeaderDef[label]]		=relationship[label];
+							}
+						}
 
-						Row[relationPropertyHeader["id"]]			=relationship.id;
-                        Row[relationPropertyHeader["name"]]			=relationship.name;
-                        Row[relationPropertyHeader["documentation"]]=relationship.documentation;
-                        Row[relationPropertyHeader["type"]]			=relationship.type;
-                        Row[relationPropertyHeader["source.id"]]	=relationship.source.id;
-                        Row[relationPropertyHeader["source.name"]]	=relationship.source.name;
-                        Row[relationPropertyHeader["source.type"]]	=relationship.source.type;
-						Row[relationPropertyHeader["source ObjID"]]	=relationship.source.prop("Object ID");
-                        Row[relationPropertyHeader["target.id"]]	=relationship.target.id;
-                        Row[relationPropertyHeader["target.name"]]	=relationship.target.name;
-						Row[relationPropertyHeader["target.type"]]	=relationship.target.type;
-						Row[relationPropertyHeader["target ObjID"]]	=relationship.target.prop("Object ID");
+						Row[relationHeaderDef["source.id"]]			=relationship.source.id;
+                        Row[relationHeaderDef["source.name"]]		=relationship.source.name;
+                        Row[relationHeaderDef["source.type"]]		=relationship.source.type;
+						Row[relationHeaderDef["source customID"]]	=relationship.source.prop(customID);
+                        Row[relationHeaderDef["target.id"]]			=relationship.target.id;
+                        Row[relationHeaderDef["target.name"]]		=relationship.target.name;
+						Row[relationHeaderDef["target.type"]]		=relationship.target.type;
+						Row[relationHeaderDef["target customID"]]	=relationship.target.prop(customID);
 						
 						// Retrieve all properties of the relation
                         for (var i=0; i<relationship.prop().length; i++){
@@ -116,11 +118,11 @@ if (!selectedView) {
 							
                             if (relationship.prop(PropertyLabel)) { // skip empty labels
                                 var found = false;
-								for (var prop in relationPropertyHeader) { 
+								for (var prop in relationHeaderDef) { 
 									if (prop==PropertyLabel) {found=true;}            
 								}
                                 if (!found) { // only first time add new property label to the header
-									relationPropertyHeader[PropertyLabel] = PropertyLabel;
+									relationHeaderDef[PropertyLabel] = PropertyLabel;
 									debug? console.log(">>>> Add property label : " + PropertyLabel):true;
                                 }
                                 Row[PropertyLabel] = relationship.prop(PropertyLabel);
@@ -143,8 +145,8 @@ if (!selectedView) {
     var defaultFileName = model.name ? model.name + "-" + selectedView.name + ".csv" : "Exported Model.csv"; // Default file name
 	var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
 
-	write_CSVdata("elements", elementDuplicate, elementPropertyHeader, elementData, ExportFileLocation);
-	write_CSVdata("relations", relationDuplicate, relationPropertyHeader, relationData, ExportFileLocation);
+	write_CSVdata("elements", elementDuplicate, elementHeaderDef, elementData, ExportFileLocation);
+	write_CSVdata("relations", relationDuplicate, relationHeaderDef, relationData, ExportFileLocation);
 
 	console.log("> Export to CSV finished");
 }

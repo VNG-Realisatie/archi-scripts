@@ -1,12 +1,10 @@
 /*
  * Export-import To CSV
  * 
- * Version 1: Common header mappings voor Export and Import to CSV
+ * Version 1: Common functions and headers voor Export and Import to CSV
  * 
  * (c) 2019 Mark Backer
  *
- *         theRelationshipRow["Relationship Type"]=!headerMappings[r.type]?r.type:headerMappings[r.type];
- * 
  */ 
 
 var E_I_Debug = false;
@@ -14,35 +12,39 @@ var E_I_Info = false;
 
 load(__DIR__ + "../lib/papaparse.min.js");
 
+// Custom id for finding existing elements
+var customID = "Object ID";
+var customImportLog = "ImportLog";
+
 // Set up some elementHeaders
-var elementPropertyHeader = {
+var elementHeaderDef = {
 	// display: function display() {
 	// 	for (var i in this) {
 	// 		return "Header label for " + i + " = " + this[i];
 	// 	}
 	// },
 	//	jArchi property: 	"Header",
-	id: 			"Element ID",
-	name: 			"Element label",
-	type: 			"Element type",
-	documentation: 	"Element documentation"
-  };
+	id: 				"Element ID",
+	name: 				"Element label",
+	type: 				"Element type",
+	documentation: 		"Element documentation"
+};
   
-var relationPropertyHeader = {
+var relationHeaderDef = {
 //	"jArchi property" 	"Header",
 	id:					"Relationship ID",
 	name:				"Relationship label",
-	documentation:		"Relationship documentation",
 	type:				"Relationship type",
+	documentation:		"Relationship documentation",
 	"source.id":		"Source ID",
 	"source.name":		"Source label",
 	"source.type":		"Source type",
-	"source ObjID":		"Source Object ID",
+	"source customID":	"Source " + customID, // custom ID for finding the source element
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
 	"target.type":		"Target type",
-	"target ObjID":		"Target Object ID"
-}
+	"target customID":	"Target " + customID // custom ID for finding the target element
+};
 
 /*
  *	Read CSV file in UTF-8 encoding and return file parsed into an array
@@ -113,14 +115,14 @@ function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
 /*
  *	Find Object with property en propertyvalue
  */  
-function ObjectPropertyFind(pConcept, pProperty, pValue) {
+function FindObjectWithProperty(pConcept, pProperty, pValue) {
 	var vSelectedObject = null;
-	E_I_Debug?console.log(">>> ObjectPropertyFind() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
+	E_I_Debug?console.log(">>> FindObjectWithProperty() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
 	if (pValue) { // alleen zoeken met geldige waarde
 		$(pConcept).each(function(vObject) {
 		//	console.log("> vObject : " + vObject);
 			if (vObject.prop(pProperty) == pValue) {
-				E_I_Debug?console.log(">>> ObjectPropertyFind() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
+				E_I_Debug?console.log(">>> FindObjectWithProperty() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
 				vSelectedObject = vObject;
 			}
 		}); // each vObject
@@ -136,24 +138,24 @@ function ObjectPropertyFind(pConcept, pProperty, pValue) {
  * 	- else return element found by name.
  *  	- return the first if there are multiple elements with the same name
  */  
-function findImportElement(pCell, pProperty, pSelectID, pSelectName) {
+function FindElement(pCell, pProperty, pSelectID, pSelectName) {
 	var vElement = null;
 	var vFindImportText = "";
 
 	// Select the vElement with property
-	E_I_Debug? console.log(">> findImportElement() Find element with " + pProperty + " = " + pCell[pProperty] ) : true;
-	vElement = ObjectPropertyFind("element",  "Object ID", pCell[pProperty]);
+	E_I_Debug? console.log(">> FindElement() > " + pProperty + " = " + pCell[pProperty] ) : true;
+	vElement = FindObjectWithProperty("element",  customID, pCell[pProperty]);
 
-//	if (!vElement || vElement.length<1) { // if there is no vElement with the GEMMA Object ID
-	if (!vElement) { // if there is no vElement with the GEMMA Object ID
+//	if (!vElement || vElement.length<1) { // if there is no vElement with the customID
+	if (!vElement) { // if there is no vElement with the customID
 			// Select the vElement with the id.
 		vSelectID ="#" + pCell[pSelectID];
-		E_I_Debug? console.log(">> findImportElement() Find element with " + pSelectID + " = " + vSelectID): true;
+		E_I_Debug? console.log(">> FindElement() > " + pSelectID + " = " + vSelectID): true;
 		vElementCollection = $(vSelectID); // Result is collection of elements with #id
 
 		if (!vElementCollection || vElementCollection.size() < 1) { // if there is no vElement with the id
 			vSelectName = "." + pCell[pSelectName];
-			E_I_Debug? console.log(">> findImportElement() Find element with " + pSelectName + " = " + vSelectName ):true;
+			E_I_Debug? console.log(">> FindElement() > " + pSelectName + " = " + vSelectName ):true;
 			vElementCollection = $(vSelectName);
 
 			if (!vElementCollection || vElementCollection.size()<1) { // if there is no vElement with the name
@@ -173,7 +175,7 @@ function findImportElement(pCell, pProperty, pSelectID, pSelectName) {
 		vFindImportText = pProperty;
 	}
 
-	E_I_Info? console.log(">> findImportElement() : " + vFindImportText + " > " + vElement):true;
+	E_I_Info? console.log(">> FindElement() : " + vFindImportText + " > " + vElement):true;
 	return {vElement:vElement, vFindImportText:vFindImportText}
 }
 
