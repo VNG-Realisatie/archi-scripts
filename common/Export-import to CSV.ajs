@@ -6,15 +6,16 @@
  * (c) 2019 Mark Backer
  *
  */ 
+// Custom id for finding existing elements
+var customID = "Object ID";
+// Custom property for logging import action with element or relation
+var customImportLog = "ImportLog";
+
 
 var E_I_Debug = false;
 var E_I_Info = false;
 
 load(__DIR__ + "../lib/papaparse.min.js");
-
-// Custom id for finding existing elements
-var customID = "Object ID";
-var customImportLog = "ImportLog";
 
 // Set up some elementHeaders
 var elementHeaderDef = {
@@ -81,32 +82,30 @@ function read_CSVdata(CSVfilename_postfix) {
  *	Save all object to CSV and show some statistics 
  */  
 function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
-	var headerText = "";
 	var headerArray = [];
 
 	var i=0;
+	console.log("==============");
+	console.log("> Exported columns for " + pType );
 	for (var label in pHeader) {
-		headerText += pHeader[label] + " | ";
 		headerArray[i]=pHeader[label];
 		i++;
+		console.log(">> " + i + " : " + pHeader[label]);
 	}
-  	console.log("==============");
-	console.log("> Header columns (" + i + ") :" + headerText);
-	console.log("> Data rows number : " + pData.length);
   
 	if (pDuplicate.length > 0) {
-		console.log("==============");
 		console.log("> Info: " + pType + " with multiple occurrences on view: ");
-  
-	  for (var i = 0; i < pDuplicate.length; i++) {
-		console.log(">> ", pDuplicate[i]);
-	  }
+		for (var i = 0; i < pDuplicate.length; i++) {
+			console.log(">> ", pDuplicate[i]);
+		}
 	}
-	console.log("==============");
+
+	console.log("> Number of exported " + pType + " : " + pData.length );
+
 	if (pExportFile != null) {
 	  var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
 	  $.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
-	  console.log("> " + pType + "  : " + ExportFile);
+	  console.log("> File : " + ExportFile + "\n");
 	} else {
 	  console.log("> Save CSV cancelled");
 	}
@@ -138,7 +137,7 @@ function FindObjectWithProperty(pConcept, pProperty, pValue) {
  * 	- else return element found by name.
  *  	- return the first if there are multiple elements with the same name
  */  
-function FindElement(pCell, pProperty, pSelectID, pSelectName) {
+function FindElement(pCell, pProperty, pSelectID, pSelectName, pType) {
 	var vElement = null;
 	var vFindImportText = "";
 
@@ -156,7 +155,10 @@ function FindElement(pCell, pProperty, pSelectID, pSelectName) {
 		if (!vElementCollection || vElementCollection.size() < 1) { // if there is no vElement with the id
 			vSelectName = "." + pCell[pSelectName];
 			E_I_Debug? console.log(">> FindElement() > " + pSelectName + " = " + vSelectName ):true;
-			vElementCollection = $(vSelectName);
+			if (!pCell[pType]) { // elementtype is known
+				throw "Element without type "  + pSelectName + " = " + vSelectName;
+			}
+			vElementCollection = $(vSelectName).filter(pType);
 
 			if (!vElementCollection || vElementCollection.size()<1) { // if there is no vElement with the name
 				vFindImportText = "Not found";

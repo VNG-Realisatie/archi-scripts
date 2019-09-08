@@ -31,7 +31,7 @@ var elementData = [];
 var relationData = [];
 
 var debug = false;
-var info = true;
+var info = false;
 
 // Show output in the console
 console.show();

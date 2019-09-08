@@ -96,21 +96,20 @@ if (!CSVtable) {
 						var source = null;
 						var target = null;
 
-						sourceResult = FindElement(cell, relationHeaderDef["source customID"], "Source ID", "Source label");
+						sourceResult = FindElement(cell, relationHeaderDef["source customID"], relationHeaderDef["source.id"], relationHeaderDef["source.name"], relationHeaderDef["source.type"]);
+						targetResult = FindElement(cell, relationHeaderDef["target customID"], relationHeaderDef["target.id"], relationHeaderDef["target.name"], relationHeaderDef["target.type"]);
 						source = sourceResult.vElement;
-						targetResult = FindElement(cell, relationHeaderDef["target customID"], "Target ID", "Target label");
 						target = targetResult.vElement;
 
 						if (sourceResult.vFindImportText == "Not found" || targetResult.vFindImportText == "Not found") {
 							skippedRelation[NrRelationSkipped]=cell[relationHeaderDef["source.name"]];
 							if (sourceResult.vFindImportText == "Not found") {
-								skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+								skippedRelation[NrRelationSkipped]=+ " (missing)";
 							}
-							skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " <= " + cell[relationHeaderDef["type"]] + " => " + cell[relationHeaderDef["target.name"]];
+							skippedRelation[NrRelationSkipped]=+ " <= " + cell[relationHeaderDef["type"]] + " => " + cell[relationHeaderDef["target.name"]];
 							if (targetResult.vFindImportText == "Not found") {
-								skippedRelation[NrRelationSkipped]=skippedRelation[NrRelationSkipped] + " (missing)";
+								skippedRelation[NrRelationSkipped]=+ " (missing)";
 							}
-
 							debug?console.log(">>>> Skipped relation: " + skippedRelation[NrRelationSkipped]):true;
 							NrRelationSkipped++;
 							flagValidRelation=false;
