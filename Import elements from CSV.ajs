@@ -28,6 +28,8 @@ var debug = false;
 var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
+var ImportLogText = "";
+var NrElementProcessed = 0;
 var NrElementUpdated = 0;
 var NrElementCreated = 0;
 
@@ -49,6 +51,8 @@ if (!CSVtable) {
 			var cell = [];
 
 			if (CSVtable.data[i_row].length>1) { // skip empty line
+				var ElementCreated=false;
+				var ElementUpdated=false;
 
 				debug?console.log(">> CSVtable.data[" + i_row + "] >  " + CSVtable.data[i_row]):true;
 				debug?console.log(">> ======== " ):true;
@@ -59,48 +63,64 @@ if (!CSVtable) {
 					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
 				}
 
-				result = FindElement(cell, customID, elementHeaderDef["id"], elementHeaderDef["name"]);
-				if (result.vFindImportText == "Not found") {
+				result = FindElement(PropertyWithCustomID, cell[PropertyWithCustomID], 
+					cell[elementHeaderDef["id"]],
+					cell[elementHeaderDef["name"]], cell[elementHeaderDef["type"]]);
+
+				if (result.vElement) {
+					element = result.vElement;
+					ImportLogText = ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"";
+					//	element.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
+				} else {
 					info? console.log(">> Create element : " + cell[elementHeaderDef["type"]] + " " + cell[elementHeaderDef["name"]]) : true;
 					element = model.createElement(
 						cell[elementHeaderDef["type"]], 
 						cell[elementHeaderDef["name"]]);
-					element.prop(customImportLog, " > Created at " + ImportDate);
-					NrElementCreated++;
-				} else {
-					element = result.vElement;
-					element.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
-					NrElementUpdated++;
+						ImportLogText = " > Created at " + ImportDate;
+					// element.prop(customImportLog, " > Created at " + ImportDate);
+					ElementCreated=true;
 				}
-				console.log(">> " + element + " " + element.prop(customImportLog));
+				console.log(">> " + element + " " + ImportLogText);
 
 				// import attributes defined in header
 				var attribute_i=0;
 				for (var label in elementHeaderDef) {
 					if (label!="id"){ // id can't be set 
-						element[label] = cell[elementHeaderDef[label]];
-						debug?console.log(">>> Set attribute " + label + " : " + element[label]):true;
+						if (element[label] != cell[elementHeaderDef[label]]){
+							debug?console.log(">>> Set attribute " + label + " (current/new) > " + element[label] + " / " + cell[elementHeaderDef[label]]):true;
+							element[label] = cell[elementHeaderDef[label]];
+							ElementUpdated=true;
+						}
 					}
 					attribute_i++;
 				}
 				// import all properties	
 				for (var j_col=attribute_i; j_col<CSVheader.length; j_col++) {
-					// skip empty headers and don't overwrite with previous exported customImportLog property
+					// skip empty cells and customImportLog property
 					if (cell[CSVheader[j_col]] && cell[CSVheader[j_col]] != customImportLog) { 
-						element.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
-						debug?console.log(">>> Set property : " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]):true;
+						if (element.prop(CSVheader[j_col]) != cell[CSVheader[j_col]]) {
+							debug?console.log(">>> Set property " + CSVheader[j_col] + " (current/new) > " + element.prop(CSVheader[j_col]) + " / " + cell[CSVheader[j_col]]):true;
+							element.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
+							ElementUpdated=true;
+						}
 					}
 				}
-			} // next line
+				NrElementProcessed++;
+				ElementCreated ? NrElementCreated++:true;
+				ElementUpdated && !ElementCreated ? NrElementUpdated++:true;
+				ElementCreated || ElementUpdated ? element.prop(customImportLog, ImportLogText):true;
+				} // next line
 		}
 		debug?console.log(">> ======== " ):true;
 		console.log("");
 		console.log(">> Import finished");
-		console.log(">>> elements updated : " + NrElementUpdated);
-		console.log(">>> elements created : " + NrElementCreated);
+		console.log(">>> elements processed : " + NrElementProcessed);
+		console.log(">>> elements updated   : " + NrElementUpdated);
+		console.log(">>> elements created   : " + NrElementCreated);
 		console.log("");
 	}
 	catch (error) {
 		console.log("> Error: " + error);
+		console.log("> Error: " + error.stack);
 	}
 }

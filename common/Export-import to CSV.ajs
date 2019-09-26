@@ -6,14 +6,13 @@
  * (c) 2019 Mark Backer
  *
  */ 
-// Custom id for finding existing elements
-var customID = "Object ID";
+// PropertyWithCustomID for finding existing elements
+var PropertyWithCustomID = "Object ID";
 // Custom property for logging import action with element or relation
 var customImportLog = "ImportLog";
 
-
 var E_I_Debug = false;
-var E_I_Info = false;
+var E_I_Info = true;
 
 load(__DIR__ + "../lib/papaparse.min.js");
 
@@ -40,11 +39,11 @@ var relationHeaderDef = {
 	"source.id":		"Source ID",
 	"source.name":		"Source label",
 	"source.type":		"Source type",
-	"source customID":	"Source " + customID, // custom ID for finding the source element
+	"source CustomID":	"Source " + PropertyWithCustomID, // custom ID for finding the source element
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
 	"target.type":		"Target type",
-	"target customID":	"Target " + customID // custom ID for finding the target element
+	"target CustomID":	"Target " + PropertyWithCustomID // custom ID for finding the target element
 };
 
 /*
@@ -117,14 +116,19 @@ function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
 function FindObjectWithProperty(pConcept, pProperty, pValue) {
 	var vSelectedObject = null;
 	E_I_Debug?console.log(">>> FindObjectWithProperty() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
-	if (pValue) { // alleen zoeken met geldige waarde
-		$(pConcept).each(function(vObject) {
-		//	console.log("> vObject : " + vObject);
-			if (vObject.prop(pProperty) == pValue) {
-				E_I_Debug?console.log(">>> FindObjectWithProperty() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
-				vSelectedObject = vObject;
-			}
-		}); // each vObject
+	if (typeof pValue !== "undefined"){ // property must exist
+		// console.log(">>> FindObjectWithProperty() > pValue = " + typeof(pValue));
+		if (pValue) { // don't search with empty value
+			$(pConcept).each(function(vObject) {
+				console.log(">>> FindObjectWithProperty() > vObject : " + vObject);
+				if (vObject.prop(pProperty) == pValue) {
+					E_I_Debug?console.log(">>> FindObjectWithProperty() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
+					vSelectedObject = vObject;
+				}
+			}); // each vObject
+		}
+	} else {
+		E_I_Debug?console.log(">>> FindObjectWithProperty() > no custom property value "):true;
 	}
 	return vSelectedObject;
 } 
@@ -137,44 +141,60 @@ function FindObjectWithProperty(pConcept, pProperty, pValue) {
  * 	- else return element found by name.
  *  	- return the first if there are multiple elements with the same name
  */  
-function FindElement(pCell, pProperty, pSelectID, pSelectName, pType) {
+function FindElement(pProperty, pPropertyValue, pSelectID, pSelectName, pType) {
 	var vElement = null;
+	var vElementFound = false;
 	var vFindImportText = "";
 
-	// Select the vElement with property
-	E_I_Debug? console.log(">> FindElement() > " + pProperty + " = " + pCell[pProperty] ) : true;
-	vElement = FindObjectWithProperty("element",  customID, pCell[pProperty]);
+	// Find the element with custom property
+	E_I_Debug? console.log(">> FindElement() > " + pProperty + " = " + pPropertyValue ) : true;
+	vElement = FindObjectWithProperty("element", pProperty, pPropertyValue);
+	if (vElement) {	
+		vElementFound = true;
+		vFindImportText = pProperty;
+	} 
+	
+	// Find element with the id.
+	if (!vElementFound) { // if there is no vElement with the pProperty
+		if (pSelectID) {
+			E_I_Debug? console.log(">> FindElement() > " + pSelectID + " = " + vSelectID): true;
 
-//	if (!vElement || vElement.length<1) { // if there is no vElement with the customID
-	if (!vElement) { // if there is no vElement with the customID
-			// Select the vElement with the id.
-		vSelectID ="#" + pCell[pSelectID];
-		E_I_Debug? console.log(">> FindElement() > " + pSelectID + " = " + vSelectID): true;
-		vElementCollection = $(vSelectID); // Result is collection of elements with #id
+			vSelectID ="#" + pSelectID;
+			vElementCollection = $(vSelectID); // Result is collection of elements with #id
 
-		if (!vElementCollection || vElementCollection.size() < 1) { // if there is no vElement with the id
-			vSelectName = "." + pCell[pSelectName];
+			if (vElementCollection.is('element')) {
+				vElementFound = true;
+				vFindImportText = pSelectID;
+			}
+		}
+	}
+
+	// Find element by name.
+	if (!vElementFound) { // if there is no vElement with the pProperty of the id
+		if (pSelectName) {
+
+			vSelectName = "." + pSelectName;
 			E_I_Debug? console.log(">> FindElement() > " + pSelectName + " = " + vSelectName ):true;
-			if (!pCell[pType]) { // elementtype is known
+			if (!pType) { // elementtype is known
 				throw "Element without type "  + pSelectName + " = " + vSelectName;
 			}
-			vElementCollection = $(vSelectName).filter(pType);
 
-			if (!vElementCollection || vElementCollection.size()<1) { // if there is no vElement with the name
-				vFindImportText = "Not found";
-			} else {
-				if (vElementCollection.size()>1) {
-					vFindImportText = pSelectName + ": Multiple elements found, number = " + vElementCollection.size();
-				} else {
+			vElementCollection = $(vSelectName).filter(pType);
+			if (vElementCollection.is('element')) { // if element found 
+
+				if (vElementCollection.size() == 1) {
 					vFindImportText = pSelectName;
+					vElement = vElementCollection.first();
+					vElementFound = true;
+				} else {
+					vFindImportText = pSelectName + " (" + pType +  ") : Multiple elements found, number = " + vElementCollection.size();
 				}
+			} else {
+				vFindImportText = pSelectName + " (" + pType +  ") : Not found";
 			}
 		} else {
-			vFindImportText = pSelectID;
+			vFindImportText = "Empty name, not found";
 		}
-		vElement = vElementCollection.first();
-	} else {
-		vFindImportText = pProperty;
 	}
 
 	E_I_Info? console.log(">> FindElement() : " + vFindImportText + " > " + vElement):true;

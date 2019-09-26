@@ -26,7 +26,7 @@
 load(__DIR__ + "common/Export-import to CSV.ajs");
 
 var error = new Error();
-var debug = false;
+var debug = true;
 var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
@@ -47,7 +47,7 @@ if (!CSVtable) {
 	var NrRelationUpdated = 0;
 	var NrRelationCreated = 0;
 	var skippedRelation = [];
-	var NrRelationSkipped=0;
+	var NrRelationSkipped = 0;
 
 	CSVheader = CSVtable.data[0];
 	console.log("> CSVheader >  " + CSVheader);
@@ -72,11 +72,11 @@ if (!CSVtable) {
 					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
 				}
 
-				// Find relation with customID.
-				relation = FindObjectWithProperty("relation", customID, cell[customID]);
-				if (relation) { // relation found with property customID
+				// Find relation with PropertyWithCustomID.
+				relation = FindObjectWithProperty("relation", PropertyWithCustomID, cell[PropertyWithCustomID]);
+				if (relation) { // relation found with PropertyWithCustomID
 
-					relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + customID + "\"");
+					relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + PropertyWithCustomID + "\"");
 					flagValidRelation=true;
 					NrRelationUpdated++;
 
@@ -85,7 +85,7 @@ if (!CSVtable) {
 					debug? console.log(">> Find relation with id == " + selectID) : true;
 
 					relation = $(selectID);
-					if (!relation||relation.length<1) { // if there is no relation with the id. Test length, object is not null??
+					if (relation.is('relation')) { // if there is 1 relation
 
 						relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"ID\"");
 						flagValidRelation=true;
@@ -96,21 +96,26 @@ if (!CSVtable) {
 						var source = null;
 						var target = null;
 
-						sourceResult = FindElement(cell, relationHeaderDef["source customID"], relationHeaderDef["source.id"], relationHeaderDef["source.name"], relationHeaderDef["source.type"]);
-						targetResult = FindElement(cell, relationHeaderDef["target customID"], relationHeaderDef["target.id"], relationHeaderDef["target.name"], relationHeaderDef["target.type"]);
+						sourceResult = FindElement(relationHeaderDef["source CustomID"], cell[relationHeaderDef["source CustomID"]],
+							cell[relationHeaderDef["source.id"]],
+							cell[relationHeaderDef["source.name"]], cell[relationHeaderDef["source.type"]]);
+						targetResult = FindElement(relationHeaderDef["target CustomID"], cell[relationHeaderDef["target CustomID"]], 
+							cell[relationHeaderDef["target.id"]],
+							cell[relationHeaderDef["target.name"]], cell[relationHeaderDef["target.type"]]);
 						source = sourceResult.vElement;
 						target = targetResult.vElement;
+						
 
-						if (sourceResult.vFindImportText == "Not found" || targetResult.vFindImportText == "Not found") {
+						if (!sourceResult.vElement || !targetResult.vElement) {
 							skippedRelation[NrRelationSkipped]=cell[relationHeaderDef["source.name"]];
-							if (sourceResult.vFindImportText == "Not found") {
-								skippedRelation[NrRelationSkipped]=+ " (missing)";
+							if (!sourceResult.vElement) {
+								skippedRelation[NrRelationSkipped]+= " (missing)";
 							}
-							skippedRelation[NrRelationSkipped]=+ " <= " + cell[relationHeaderDef["type"]] + " => " + cell[relationHeaderDef["target.name"]];
-							if (targetResult.vFindImportText == "Not found") {
-								skippedRelation[NrRelationSkipped]=+ " (missing)";
+							skippedRelation[NrRelationSkipped]+= " <= " + cell[relationHeaderDef["type"]] + " => " + cell[relationHeaderDef["target.name"]];
+							if (!targetResult.vElement) {
+								skippedRelation[NrRelationSkipped]+= " (missing)";
 							}
-							debug?console.log(">>>> Skipped relation: " + skippedRelation[NrRelationSkipped]):true;
+							debug?console.log(">>>> Skipped relation " + NrRelationSkipped + " : " + skippedRelation[NrRelationSkipped]):true;
 							NrRelationSkipped++;
 							flagValidRelation=false;
 						} else {
@@ -161,7 +166,7 @@ if (!CSVtable) {
 						}
 					}
 				} else {
-					debug?console.log(">> relation ignored :" +
+					debug?console.log(">> relation skipped :" +
 						cell[relationHeaderDef["source.name"]] + 
 						" <-> " +
 						cell[relationHeaderDef["target.name"]] ):true;
@@ -185,6 +190,7 @@ if (!CSVtable) {
 	}
 	catch (error) {
 		console.log("> Error: " + error.message);
+		console.log("> Error: " + error.stack);
 		console.log("> Relation : " + relation);
 	}
 }
