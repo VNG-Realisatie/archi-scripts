@@ -78,16 +78,13 @@ function read_CSVdata(CSVfilename_postfix) {
 }
 
 /*
- *	Save all object to CSV and show some statistics 
+ *	show some statistics 
  */  
-function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
-	var headerArray = [];
-
+function stats_CSVdata(pType, pDuplicate, pHeader, pData) {
 	var i=0;
 	console.log("==============");
-	console.log("> Exported columns for " + pType );
+	console.log("> Columns for " + pType );
 	for (var label in pHeader) {
-		headerArray[i]=pHeader[label];
 		i++;
 		console.log(">> " + i + " : " + pHeader[label]);
 	}
@@ -98,17 +95,27 @@ function write_CSVdata(pType, pDuplicate, pHeader, pData, pExportFile) {
 			console.log(">> ", pDuplicate[i]);
 		}
 	}
+	console.log("> Number of " + pType + " : " + pData.length );
+}
 
-	console.log("> Number of exported " + pType + " : " + pData.length );
-
+/*
+ *	Save all object to CSV 
+ */  
+function write_CSVdata(pType, pHeader, pData, pExportFile) {
+	var i=0;
+	var headerArray = [];
 	if (pExportFile != null) {
-	  var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
-	  $.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
-	  console.log("> File : " + ExportFile + "\n");
+		var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
+	  	for (var label in pHeader) {
+			headerArray[i]=pHeader[label];
+			i++;
+		}
+		$.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
+		console.log(">>> " + pType + " saved in : " + ExportFile);
 	} else {
-	  console.log("> Save CSV cancelled");
+		console.log("> Save CSV cancelled");
 	}
-  }
+}
 
 /*
  *	Find Object with property en propertyvalue
@@ -120,7 +127,7 @@ function FindObjectWithProperty(pConcept, pProperty, pValue) {
 		// console.log(">>> FindObjectWithProperty() > pValue = " + typeof(pValue));
 		if (pValue) { // don't search with empty value
 			$(pConcept).each(function(vObject) {
-				console.log(">>> FindObjectWithProperty() > vObject : " + vObject);
+				// console.log(">>> FindObjectWithProperty() > vObject : " + vObject);
 				if (vObject.prop(pProperty) == pValue) {
 					E_I_Debug?console.log(">>> FindObjectWithProperty() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
 					vSelectedObject = vObject;
