@@ -42,10 +42,10 @@ if (!selectedView) {
 	console.log("> Please Select a View");
 } else {
 	console.log("> Starting CSV Export for selected view : " + selectedView);
-	// Loop through all element occurrences
-	// element is the occurrence of the element on the diagram. 
-	// element.concept is the actual element
-    $(selectedView).find().not("relationship").each(function(element) { 
+	// Loop through all element occurrences on the diagram
+	//	element.concept is the actual element
+
+	$(selectedView).find("element").each(function(element) { 
 
 		info? console.log(">> " + element.concept):true;
 
@@ -106,11 +106,11 @@ if (!selectedView) {
 						Row[relationHeaderDef["source.id"]]			=relationship.source.id;
                         Row[relationHeaderDef["source.name"]]		=relationship.source.name;
                         Row[relationHeaderDef["source.type"]]		=relationship.source.type;
-						Row[relationHeaderDef["source customID"]]	=relationship.source.prop(customID);
+						Row[relationHeaderDef["source customID"]]	=relationship.source.prop(PropertyWithCustomID);
                         Row[relationHeaderDef["target.id"]]			=relationship.target.id;
                         Row[relationHeaderDef["target.name"]]		=relationship.target.name;
 						Row[relationHeaderDef["target.type"]]		=relationship.target.type;
-						Row[relationHeaderDef["target customID"]]	=relationship.target.prop(customID);
+						Row[relationHeaderDef["target customID"]]	=relationship.target.prop(PropertyWithCustomID);
 						
 						// Retrieve all properties of the relation
                         for (var i=0; i<relationship.prop().length; i++){
@@ -141,6 +141,20 @@ if (!selectedView) {
         }
     }); // each element
 
+	// skipped visual objects
+	console.log("");
+	console.log("> Skipped diagram-objects (diagram-objects do not exist in de model tree)" );
+	var diagramObjectTypes = ["diagram-model-note", "diagram-model-group", "diagram-model-connection", "diagram-model-image", "diagram-model-reference"];
+	diagramObjectTypes.forEach(function(ObjectType) {
+		$(selectedView).find(ObjectType).each(function(diagramObject) {
+			if (ObjectType == "diagram-model-note") {
+				console.log(">>> " + diagramObject + diagramObject.text);
+			} else {
+				console.log(">>> " + diagramObject);
+			}
+		});
+	});
+
 	// Open a dialog to let the user choose where to save the generated file
     var defaultFileName = model.name ? model.name + "-" + selectedView.name + ".csv" : "Exported Model.csv"; // Default file name
 	var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
@@ -148,5 +162,6 @@ if (!selectedView) {
 	write_CSVdata("elements", elementDuplicate, elementHeaderDef, elementData, ExportFileLocation);
 	write_CSVdata("relations", relationDuplicate, relationHeaderDef, relationData, ExportFileLocation);
 
+	console.log("==============");
 	console.log("> Export to CSV finished");
 }
