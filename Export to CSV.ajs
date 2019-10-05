@@ -41,7 +41,7 @@ var selectedView = $(selection).filter("archimate-diagram-model").first();
 if (!selectedView) {
 	console.log("> Please Select a View");
 } else {
-	console.log("> Starting CSV Export for selected view : " + selectedView);
+	console.log("> Starting CSV Export for " + selectedView);
 	// Loop through all element occurrences on the diagram
 	//	element.concept is the actual element
 
@@ -58,7 +58,7 @@ if (!selectedView) {
 				objectIndexMap[element.concept.id]=true;
 				
 				var Row = new Object;
-                // retrieve all defined header attributes and properties
+                // retrieve all defined header attributes
 				for (var label in elementHeaderDef) {
 					Row[elementHeaderDef[label]]		=element.concept[label];
 				}
@@ -72,7 +72,7 @@ if (!selectedView) {
 						for (var prop in elementHeaderDef) {
                             if (prop==PropertyLabel) {found=true;}            
                         }
-                        if (!found) { // only add new property label to the header
+                        if (!found) { // add property label only once to the header
                             elementHeaderDef[PropertyLabel] = PropertyLabel;
                             debug? console.log(">>> Add property label : " + PropertyLabel):true;
                         }
@@ -119,7 +119,7 @@ if (!selectedView) {
 								for (var prop in relationHeaderDef) { 
 									if (prop==PropertyLabel) {found=true;}            
 								}
-                                if (!found) { // only first time add new property label to the header
+                                if (!found) { // add property label to the header only once
 									relationHeaderDef[PropertyLabel] = PropertyLabel;
 									debug? console.log(">>>> Add property label : " + PropertyLabel):true;
                                 }
