@@ -62,7 +62,6 @@ if (!selectedView) {
 				for (var label in elementHeaderDef) {
 					Row[elementHeaderDef[label]]		=element.concept[label];
 				}
-
                 // retrieve all properties of the element
                 for (var i=0; i<element.concept.prop().length; i++){
                     var PropertyLabel = element.concept.prop()[i];
@@ -96,13 +95,12 @@ if (!selectedView) {
 						info? console.log(">>> " + relationship + " " + relationship.source.name + " <-> " + relationship.target.name):true;
 
 						var Row = new Object;
-						// retrieve all defined header attributes and properties
+						// Retrieve all defined header attributes and properties
 						for (var label in relationHeaderDef) {
 							if (label=="id" || label=="name" || label=="documentation" || label=="type"){ // how to make this work for all headerDefs???
 								Row[relationHeaderDef[label]]		=relationship[label];
 							}
 						}
-
 						Row[relationHeaderDef["source.id"]]			=relationship.source.id;
                         Row[relationHeaderDef["source.name"]]		=relationship.source.name;
                         Row[relationHeaderDef["source.type"]]		=relationship.source.type;
@@ -154,14 +152,16 @@ if (!selectedView) {
 			}
 		});
 	});
+	stats_CSVdata("elements", elementDuplicate, elementHeaderDef, elementData);
+	stats_CSVdata("relations", relationDuplicate, relationHeaderDef, relationData);
 
 	// Open a dialog to let the user choose where to save the generated file
     var defaultFileName = model.name ? model.name + "-" + selectedView.name + ".csv" : "Exported Model.csv"; // Default file name
 	var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
 
-	write_CSVdata("elements", elementDuplicate, elementHeaderDef, elementData, ExportFileLocation);
-	write_CSVdata("relations", relationDuplicate, relationHeaderDef, relationData, ExportFileLocation);
-
+	console.log("==============");
+	write_CSVdata("elements", elementHeaderDef, elementData, ExportFileLocation);
+	write_CSVdata("relations", relationHeaderDef, relationData, ExportFileLocation);
 	console.log("==============");
 	console.log("> Export to CSV finished");
 }
