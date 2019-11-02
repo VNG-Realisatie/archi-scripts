@@ -1,0 +1,36 @@
+/*
+ * Heatmap
+ */
+ 
+console.log("Heatmap (color BIV)");
+
+load(__DIR__ + "common/Heatmap (include).ajs");
+
+// given a value return a color code
+function BIV(pValue)
+{
+  return Set1_3_qual[pValue];
+}
+
+//-------------------------
+//  for diagram diagramName , colorize  components of componentType according to their propertyName values
+function makeHeatMap(diagramName,componentType,propertyName,colorfunc)
+{
+  diagram = selectDiagram(diagramName);
+  
+  $(diagram).find(componentType).forEach(function(vis) {
+	var color = colorfunc(vis.prop(propertyName));
+	if (color) {
+		vis.fillColor=colorfunc(vis.prop(propertyName));;
+	}
+  })
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+	// callexample
+	makeHeatMap(selectedView.name,"application-component","Vertrouwelijkheid", BIV) 
+}

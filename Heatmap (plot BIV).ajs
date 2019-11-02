@@ -1,0 +1,54 @@
+/*
+ * Heatmap (plot BIV)
+ */
+ 
+console.log("Heatmap (plot BIV)");
+
+load(__DIR__ + "common/Heatmap (include).ajs");
+
+//-------------------------
+//  for diagram diagramName , colorize  components of componentType according to their propertyName values
+function makePlotMap(diagramName,componentType,propertyName,colorfunc, start_x)
+{
+	var j=0;
+	var k=0;
+	
+	diagram = selectDiagram(diagramName);
+
+	$(diagram).find(componentType).forEach(function(vis) {
+		var color = colorfunc(vis.prop(propertyName));
+		if (color) {
+			vis.fontSize = 10;
+
+			var note = vis.createObject("note", start_x, 45, 45, 25); // Add a Note to this element
+			var str = propertyName;
+			note.text = str.substring(0,1) + ":" + vis.prop(propertyName);
+			note.fillColor=color;
+			note.fontSize = 9;
+			j++
+		}
+		k++;
+	})
+	console.log(propertyName + ": " + k + "/" + j + " (" + componentType + " doorlopen/gezet)" );
+
+}
+
+// given a value return a color code
+function BIV(pValue)
+{
+  return Set1_3_qual[pValue];
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+	var BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
+
+	var start_x = 10;
+	for (var i=0; i<BIVlist.length; i++) {
+		makePlotMap(selectedView.name, "application-component", BIVlist[i], BIV, start_x);
+		start_x += 60;
+	}
+}

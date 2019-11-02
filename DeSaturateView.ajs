@@ -1,0 +1,27 @@
+/*
+ * Heatmap
+ */
+ 
+console.log("DeSaturate");
+
+load(__DIR__ + "common/Heatmap (include).ajs");
+
+//-------------------------
+//  for diagram diagramName , colorize  components of componentType according to their propertyName values
+function deSatView(diagramName, sat)
+{
+  diagram = selectDiagram(diagramName);
+  $(diagram).find("element").forEach(function(vis) {
+	  //console.log("vis.fillColor: " + vis.fillColor)
+	  vis.fillColor=desaturateColor(sat, vis.fillColor);
+  });
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+	// callexample
+	deSatView(selectedView.name, 50) 
+}
