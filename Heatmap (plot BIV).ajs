@@ -29,7 +29,8 @@ function makePlotMap(diagramName,componentType,propertyName,colorfunc, start_x)
 		}
 		k++;
 	})
-	console.log(propertyName + ": " + k + "/" + j + " (" + componentType + " doorlopen/gezet)" );
+//	console.log(propertyName + ": " + k + "/" + j + " (" + componentType + " doorlopen/gezet)" );
+	console.log( `${propertyName} : ${k}/${j} (${componentType} doorlopen/gezet)`);
 
 }
 

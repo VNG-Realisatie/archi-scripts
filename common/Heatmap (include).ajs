@@ -1,7 +1,8 @@
 /*
  * Heatmap include
  */
- 
+
+
 
 function componentToHex(c) {
 	var hex = c.toString(16);
@@ -20,6 +21,7 @@ function hexToRgb(hex) {
     } : null;
 }
 
+// desaturateColor(10, '#f7ecd0');
 function desaturateColor(sat, hex) {
 	sat = sat / 100;
 	if (hex) {
@@ -36,8 +38,7 @@ function desaturateColor(sat, hex) {
 	}
 }
 
-// desaturateColor(10, '#f7ecd0');
-
+// Colors from spreadsheet "ColorBrewer_all_schemes_RGBonly4_with_rgbToHex.xlsx"
 var BuGn_3_seq = [];
 var BuPu_3_seq = [];
 var OrRd_3_seq = [];

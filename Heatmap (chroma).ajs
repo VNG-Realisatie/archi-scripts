@@ -1,0 +1,52 @@
+/*
+ * Heatmap
+ */
+ 
+console.log("Heatmap (chroma)");
+
+load(__DIR__ + "common/Heatmap (include).ajs");
+
+/*
+ * chroma.js is a small-ish zero-dependency JavaScript library (13.5kB)
+ * for all kinds of color conversions and color scales.
+ * https://gka.github.io/chroma.js/
+ */
+load(__DIR__ + "lib/chroma.min.js");
+
+// given a value return a color code
+function BIV(pValue)
+{
+//  return Set1_3_qual[pValue];
+//	colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
+//	colorscale = chroma.scale('OrRd').classes(3).padding([0.1, 0.1]);
+	colorscale = chroma.brewer.OrRd;
+
+	return colorscale((pValue-1)/2);
+//	return colorscale(pValue/3);
+}
+
+
+
+
+//-------------------------
+//  for diagram diagramName , colorize  components of componentType according to their propertyName values
+function makeHeatMap(diagramName,componentType,propertyName,colorfunc)
+{
+  diagram = selectDiagram(diagramName);
+  
+  $(diagram).find(componentType).forEach(function(vis) {
+	var color = colorfunc(vis.prop(propertyName));
+	if (color) {
+		vis.fillColor=colorfunc(vis.prop(propertyName));;
+	}
+  })
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+	// callexample
+	makeHeatMap(selectedView.name,"application-component","Vertrouwelijkheid", BIV) 
+}
