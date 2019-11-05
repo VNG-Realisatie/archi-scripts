@@ -1,0 +1,41 @@
+/*
+ * The default font on Linux is no longer "Arial 9" but is now "Sans 9". This ensures proper rendering of fonts in SVG export.
+ *    SVG export met Arial heeft foute uitlijning 
+ */
+ 
+console.log("Change font");
+
+
+//-------------------------
+//  for diagram diagramName , colorize  components of componentType according to their propertyName values
+function ChangeFont(diagram, pFont)
+{
+
+	$(diagram).find("element").forEach(function(ViewElement) {
+		var font = ViewElement.fontName;
+		if (font != pFont) {
+            ViewElement.fontName = pFont;
+			// ViewElement.fontSize = 10;
+        }
+        var fontsize = ViewElement.fontSize;
+        if (fontsize > 14) {
+            ViewElement.fontSize -= 4; 
+        } else {
+            if (fontsize = 12) {
+                ViewElement.fontSize = 11;
+            }
+        }
+	})
+//	console.log( `${propertyName} : ${k}/${j} (${componentType} doorlopen/gezet)`);
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+    ChangeFont(selectedView, "Segoe UI");
+    // ChangeFont(selectedView, "Sans");
+    // ChangeFont(selectedView, "Arial");
+    // ChangeFont(selectedView, "Bluefish");
+}

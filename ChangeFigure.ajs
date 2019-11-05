@@ -1,0 +1,24 @@
+/*
+ * The default font on Linux is no longer "Arial 9" but is now "Sans 9". This ensures proper rendering of fonts in SVG export.
+ *    SVG export met Arial heeft foute uitlijning 
+ */
+ 
+console.log("Change figure");
+
+function ChangeFigure(diagram)
+{
+	$(diagram).find("application-component").forEach(function(ViewElement) {
+		var figure = ViewElement.figureType;
+		if (figure == 0) { // expliciete component figure
+            ViewElement.figureType = 1; // rectangle with icon 
+        }
+	})
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+    ChangeFigure(selectedView);
+}
