@@ -5,6 +5,13 @@
 console.log("Heatmap (plot BIV)");
 
 load(__DIR__ + "common/Heatmap (include).ajs");
+/*
+ * chroma.js is a small-ish zero-dependency JavaScript library (13.5kB)
+ * for all kinds of color conversions and color scales.
+ * https://gka.github.io/chroma.js/
+ */
+load(__DIR__ + "lib/chroma.min.js");
+
 
 //-------------------------
 //  for diagram diagramName , colorize  components of componentType according to their propertyName values
@@ -34,10 +41,18 @@ function makePlotMap(diagramName,componentType,propertyName,colorfunc, start_x)
 
 }
 
+
 // given a value return a color code
 function BIV(pValue)
 {
-  return Set1_3_qual[pValue];
+//  return Set1_3_qual[pValue];
+//	colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
+//	colorscale = chroma.scale('OrRd').classes(3).padding([0.1, 0.1]);
+	colorscale = chroma.scale('OrRd').classes(3);
+//	colorscale = chroma.brewer.OrRd; // fout
+
+	return colorscale((pValue-1)/2);
+//	return colorscale(pValue/3);
 }
 
 var selectedView = $(selection).filter("archimate-diagram-model").first();

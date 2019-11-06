@@ -18,8 +18,8 @@ function BIV(pValue)
 {
 //  return Set1_3_qual[pValue];
 //	colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
-//	colorscale = chroma.scale('OrRd').classes(3).padding([0.1, 0.1]);
-	colorscale = chroma.brewer.OrRd;
+	colorscale = chroma.scale('OrRd').classes(3).padding([0.1, 0.1]);
+//	colorscale = chroma.brewer.OrRd; // fout
 
 	return colorscale((pValue-1)/2);
 //	return colorscale(pValue/3);
