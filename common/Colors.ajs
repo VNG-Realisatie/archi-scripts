@@ -2,8 +2,6 @@
  * Heatmap include
  */
 
-
-
 function componentToHex(c) {
 	var hex = c.toString(16);
 	return hex.length == 1 ? "0" + hex : hex;
@@ -80,13 +78,5 @@ Set1_3_qual[1] = rgbToHex(77, 175, 74);
 function selectDiagram(diagramName)
 {
   return $("archimate-diagram-model").filter("."+diagramName).first() ;
-}
-//-------------------------
-// given a value return a color code
-function colorize(pValue)
-{
-  if (pValue=="planned") return "#FF0000";
-  else if (pValue =="deployed") return "#00FF00";
-  else return "#0000FF";
 }
 

@@ -21,7 +21,7 @@ function ChangeFont(diagram, pFont)
         if (fontsize > 14) {
             ViewElement.fontSize -= 4; 
         } else {
-            if (fontsize = 12) {
+            if (fontsize == 12) {
                 ViewElement.fontSize = 11;
             }
         }
@@ -34,8 +34,8 @@ var selectedView = $(selection).filter("archimate-diagram-model").first();
 if (!selectedView) {
 	console.log("> Please Select a View");
 } else {
-    ChangeFont(selectedView, "Segoe UI");
+    // ChangeFont(selectedView, "Segoe UI");
     // ChangeFont(selectedView, "Sans");
-    // ChangeFont(selectedView, "Arial");
+    ChangeFont(selectedView, "Arial");
     // ChangeFont(selectedView, "Bluefish");
 }

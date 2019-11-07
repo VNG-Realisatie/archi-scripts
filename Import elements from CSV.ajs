@@ -69,26 +69,30 @@ if (!CSVtable) {
 
 				if (result.vElement) {
 					element = result.vElement;
-					ImportLogText = ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"";
+					ImportLogText = "Found " + result.vFindImportText;
 					//	element.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
 				} else {
 					info? console.log(">> Create element : " + cell[elementHeaderDef["type"]] + " " + cell[elementHeaderDef["name"]]) : true;
 					element = model.createElement(
 						cell[elementHeaderDef["type"]], 
 						cell[elementHeaderDef["name"]]);
-						ImportLogText = " > Created at " + ImportDate;
+						ImportLogText = "Created at " + ImportDate;
 					// element.prop(customImportLog, " > Created at " + ImportDate);
 					ElementCreated=true;
 				}
-				console.log(">> " + element + " " + ImportLogText);
+				console.log(`>> ${element} (${ImportLogText})`);
 
 				// import attributes defined in header
 				var attribute_i=0;
 				for (var label in elementHeaderDef) {
 					if (label!="id"){ // id can't be set 
 						if (element[label] != cell[elementHeaderDef[label]]){
-							debug?console.log(">>> Set attribute " + label + " (current/new) > " + element[label] + " / " + cell[elementHeaderDef[label]]):true;
+							var UpdateText = `Set attribute ${label}: \n${element[label]}\n${cell[elementHeaderDef[label]]}`;
+
 							element[label] = cell[elementHeaderDef[label]];
+
+							ImportLogText += `\n${UpdateText}`;
+							info?console.log(`>>> ${UpdateText}`):true;
 							ElementUpdated=true;
 						}
 					}
@@ -97,10 +101,14 @@ if (!CSVtable) {
 				// import all properties	
 				for (var j_col=attribute_i; j_col<CSVheader.length; j_col++) {
 					// skip empty cells and customImportLog property
-					if (cell[CSVheader[j_col]] && cell[CSVheader[j_col]] != customImportLog) { 
+					if (cell[CSVheader[j_col]] && (CSVheader[j_col] != customImportLog)) { 
 						if (element.prop(CSVheader[j_col]) != cell[CSVheader[j_col]]) {
-							debug?console.log(">>> Set property " + CSVheader[j_col] + " (current/new) > " + element.prop(CSVheader[j_col]) + " / " + cell[CSVheader[j_col]]):true;
+							var UpdateText = `Set property ${CSVheader[j_col]}: \n${element.prop(CSVheader[j_col])}\n${cell[CSVheader[j_col]]}`;
+
 							element.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
+
+							ImportLogText += `\n${UpdateText}`;
+							info?console.log(`>>> ${UpdateText}`):true;
 							ElementUpdated=true;
 						}
 					}
@@ -108,7 +116,7 @@ if (!CSVtable) {
 				NrElementProcessed++;
 				ElementCreated ? NrElementCreated++:true;
 				ElementUpdated && !ElementCreated ? NrElementUpdated++:true;
-				ElementCreated || ElementUpdated ? element.prop(customImportLog, ImportLogText):true;
+				ElementCreated || ElementUpdated ? element.prop(customImportLog, `${ImportDate}: ${ImportLogText}`):true;
 				} // next line
 		}
 		debug?console.log(">> ======== " ):true;

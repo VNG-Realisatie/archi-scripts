@@ -139,7 +139,7 @@ if (!selectedView) {
         }
     }); // each element
 
-	// skipped visual objects
+	// skipped VisualElements objects
 	console.log("");
 	console.log("> Skipped diagram-objects (diagram-objects do not exist in de model tree)" );
 	var diagramObjectTypes = ["diagram-model-note", "diagram-model-group", "diagram-model-connection", "diagram-model-image", "diagram-model-reference"];

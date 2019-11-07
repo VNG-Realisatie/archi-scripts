@@ -4,7 +4,7 @@
  
 console.log("Heatmap (color BIV)");
 
-load(__DIR__ + "common/Heatmap (include).ajs");
+load(__DIR__ + "common/Color.ajs");
 
 // given a value return a color code
 function BIV(pValue)
@@ -25,10 +25,10 @@ function makeHeatMap(diagramName,componentType,propertyName,colorfunc)
 {
   diagram = selectDiagram(diagramName);
   
-  $(diagram).find(componentType).forEach(function(vis) {
-	var color = colorfunc(vis.prop(propertyName));
+  $(diagram).find(componentType).forEach(function(VisualElement) {
+	var color = colorfunc(VisualElement.prop(propertyName));
 	if (color) {
-		vis.fillColor=colorfunc(vis.prop(propertyName));;
+		VisualElement.fillColor=colorfunc(VisualElement.prop(propertyName));;
 	}
   })
 }

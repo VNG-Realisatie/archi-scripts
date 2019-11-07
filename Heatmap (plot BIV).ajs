@@ -1,70 +1,56 @@
 /*
- * Heatmap (plot BIV)
+ * 	Heatmap (plot BIV)
+ *		Color the application-components based on their BIV security classification and plot the BIV-values as notes
  */
  
-console.log("Heatmap (plot BIV)");
-
-load(__DIR__ + "common/Heatmap (include).ajs");
-/*
- * chroma.js is a small-ish zero-dependency JavaScript library (13.5kB)
- * for all kinds of color conversions and color scales.
- * https://gka.github.io/chroma.js/
- */
+//	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
 load(__DIR__ + "lib/chroma.min.js");
 
+console.log("Heatmap (plot BIV)");
 
-//-------------------------
-//  for diagram diagramName , colorize  components of componentType according to their propertyName values
-function makePlotMap(diagramName,componentType,propertyName,colorfunc, start_x)
-{
-	var j=0;
-	var k=0;
-	
-	diagram = selectDiagram(diagramName);
-
-	$(diagram).find(componentType).forEach(function(vis) {
-		var color = colorfunc(vis.prop(propertyName));
-		if (color) {
-			vis.fontSize = 10;
-
-			var note = vis.createObject("note", start_x, 45, 45, 25); // Add a Note to this element
-			var str = propertyName;
-			note.text = str.substring(0,1) + ":" + vis.prop(propertyName);
-			note.fillColor=color;
-			note.fontSize = 9;
-			j++
-		}
-		k++;
-	})
-//	console.log(propertyName + ": " + k + "/" + j + " (" + componentType + " doorlopen/gezet)" );
-	console.log( `${propertyName} : ${k}/${j} (${componentType} doorlopen/gezet)`);
-
-}
-
-
-// given a value return a color code
-function BIV(pValue)
-{
-//  return Set1_3_qual[pValue];
-//	colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
-//	colorscale = chroma.scale('OrRd').classes(3).padding([0.1, 0.1]);
-	colorscale = chroma.scale('OrRd').classes(3);
-//	colorscale = chroma.brewer.OrRd; // fout
-
-	return colorscale((pValue-1)/2);
-//	return colorscale(pValue/3);
-}
+// 	colorscale = chroma.scale(['yellow', '008ae5']); //.classes(3).padding([0.1, 0.1]);
+//
+// ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+// 
+//	colorscale 	= chroma.scale('Oranges');
+//	colorscale 	= chroma.scale('Blues');
+//	colorscale 	= chroma.scale('Greens');
+colorscale 	= chroma.scale('YlGn');
 
 var selectedView = $(selection).filter("archimate-diagram-model").first();
 
 if (!selectedView) {
 	console.log("> Please Select a View");
 } else {
+	var k=0;
 	var BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
+	
+	$(selectedView).find("application-component").forEach(function(VisualElement) {
 
-	var start_x = 10;
-	for (var i=0; i<BIVlist.length; i++) {
-		makePlotMap(selectedView.name, "application-component", BIVlist[i], BIV, start_x);
-		start_x += 60;
-	}
+		VisualElement.fillColor = colorscale((VisualElement.prop("Vertrouwelijkheid")- 1)/3);  // color element with value for 'Vertrouwelijkheid' 
+
+		var x = 20;
+		for (var i=0; i<BIVlist.length; i++) {
+		
+			var BIVvalue = VisualElement.prop(BIVlist[i]);
+			if (BIVvalue) {
+				VisualElement.fontSize = 10;  // reduce fontsize to make room for notes
+
+				var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
+				note.fillColor = colorscale((BIVvalue - 0.8 )/3); // subtract less than 1 for darker color in note than element
+				note.fontSize = 9;
+				note.fontStyle = "bold";
+
+				var str = BIVlist[i];
+				note.text = `${str.substring(0,1)} = ${VisualElement.prop(BIVlist[i])}` ;
+
+			} else {
+				console.log( `${VisualElement.name}: no property ${BIVlist[i]}`);
+			}
+			x += 60;
+		} // next in BIVlist
+		k++;
+	}) // next element
+
+	console.log( `${k} application-components colored`);
 }

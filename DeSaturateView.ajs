@@ -4,16 +4,16 @@
  
 console.log("DeSaturate");
 
-load(__DIR__ + "common/Heatmap (include).ajs");
+load(__DIR__ + "common/Color.ajs");
 
 //-------------------------
 //  for diagram diagramName , colorize  components of componentType according to their propertyName values
 function deSatView(diagramName, sat)
 {
   diagram = selectDiagram(diagramName);
-  $(diagram).find("element").forEach(function(vis) {
-	  //console.log("vis.fillColor: " + vis.fillColor)
-	  vis.fillColor=desaturateColor(sat, vis.fillColor);
+  $(diagram).find("element").forEach(function(VisualElement) {
+	  //console.log("VisualElement.fillColor: " + VisualElement.fillColor)
+	  VisualElement.fillColor=desaturateColor(sat, VisualElement.fillColor);
   });
 }
 

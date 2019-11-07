@@ -12,7 +12,7 @@ var PropertyWithCustomID = "Object ID";
 var customImportLog = "ImportLog";
 
 var E_I_Debug = false;
-var E_I_Info = true;
+var E_I_Info = false;
 
 load(__DIR__ + "../lib/papaparse.min.js");
 
@@ -164,14 +164,16 @@ function FindElement(pProperty, pPropertyValue, pSelectID, pSelectName, pType) {
 	// Find element with the id.
 	if (!vElementFound) { // if there is no vElement with the pProperty
 		if (pSelectID) {
-			E_I_Debug? console.log(">> FindElement() > " + pSelectID + " = " + vSelectID): true;
 
 			vSelectID ="#" + pSelectID;
+			E_I_Debug? console.log(">> FindElement() > id = " + vSelectID): true;
+
 			vElementCollection = $(vSelectID); // Result is collection of elements with #id
 
 			if (vElementCollection.is('element')) {
+				vElement = vElementCollection.first();
 				vElementFound = true;
-				vFindImportText = pSelectID;
+				vFindImportText = "Element with id";
 			}
 		}
 	}
