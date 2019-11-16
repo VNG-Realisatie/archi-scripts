@@ -22,7 +22,7 @@ function ChangeFont(diagram, pFont)
             ViewElement.fontSize -= 4; 
         } else {
             if (fontsize == 12) {
-                ViewElement.fontSize = 11;
+//                ViewElement.fontSize = 11;
             }
         }
 	})

@@ -12,7 +12,7 @@
  * Mark Backer
  * Version 2: Added finding existing elements with a custom "id" in a property.
  * 
- * - the custom id is used for exchanging elements en relation between multiple architecture tools. 
+ * - the CustomIDproperty is used for exchanging elements en relation between multiple architecture tools. 
  * 	Inputformat of the relation CSV:
  *	- use the script "Export to CSV.ajs" to create a spreadsheet with all the columns
  * 	- first columns are defined in elementHeaderDef
@@ -29,6 +29,10 @@ var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
 var ImportLogText = "";
+// Custom property for logging import action with element or relation. Set to null for no property
+// var customImportLog = "ImportLog";
+var customImportLog = null;
+
 var NrElementProcessed = 0;
 var NrElementUpdated = 0;
 var NrElementCreated = 0;
@@ -54,45 +58,44 @@ if (!CSVtable) {
 				var ElementCreated=false;
 				var ElementUpdated=false;
 
-				debug?console.log(">> CSVtable.data[" + i_row + "] >  " + CSVtable.data[i_row]):true;
+				debug?console.log(`>> CSVtable.data[${i_row}] >  ${CSVtable.data[i_row]}`):true;
 				debug?console.log(">> ======== " ):true;
 
 				// label cell of i_row with headerlabel
 				for (var j_col=0; j_col<CSVheader.length; j_col++) {
 					cell[CSVheader[j_col]] = CSVtable.data[i_row][j_col].trim();
-					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
+					debug? console.log(`>>> CSVtable.data[${i_row}] > ${CSVheader[j_col]} = ${cell[CSVheader[j_col]]}`) : true;
 				}
 
-				result = FindElement(PropertyWithCustomID, cell[PropertyWithCustomID], 
+				result = FindElement(CustomIDproperty, cell[CustomIDproperty], 
 					cell[elementHeaderDef["id"]],
 					cell[elementHeaderDef["name"]], cell[elementHeaderDef["type"]]);
 
 				if (result.vElement) {
 					element = result.vElement;
-					ImportLogText = "Found " + result.vFindImportText;
+					ImportLogText = `(Found ${result.vFindImportText})`;
 					//	element.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + result.vFindImportText + "\"");
 				} else {
-					info? console.log(">> Create element : " + cell[elementHeaderDef["type"]] + " " + cell[elementHeaderDef["name"]]) : true;
+					debug? console.log(`>> Create element : ${cell[elementHeaderDef["type"]]} ${cell[elementHeaderDef["name"]]}`) : true;
 					element = model.createElement(
 						cell[elementHeaderDef["type"]], 
 						cell[elementHeaderDef["name"]]);
-						ImportLogText = "Created at " + ImportDate;
+						ImportLogText = `(Created at ${ImportDate})`;
 					// element.prop(customImportLog, " > Created at " + ImportDate);
 					ElementCreated=true;
 				}
-				console.log(`>> ${element} (${ImportLogText})`);
 
 				// import attributes defined in header
 				var attribute_i=0;
 				for (var label in elementHeaderDef) {
 					if (label!="id"){ // id can't be set 
 						if (element[label] != cell[elementHeaderDef[label]]){
-							var UpdateText = `Set attribute ${label}: \n${element[label]}\n${cell[elementHeaderDef[label]]}`;
+							var UpdateText = `Set attribute [${label}]: \n${element[label]}\n${cell[elementHeaderDef[label]]}`;
 
 							element[label] = cell[elementHeaderDef[label]];
 
 							ImportLogText += `\n${UpdateText}`;
-							info?console.log(`>>> ${UpdateText}`):true;
+//							info?console.log(`>>> ${UpdateText}`):true;
 							ElementUpdated=true;
 						}
 					}
@@ -103,24 +106,28 @@ if (!CSVtable) {
 					// skip empty cells and customImportLog property
 					if (cell[CSVheader[j_col]] && (CSVheader[j_col] != customImportLog)) { 
 						if (element.prop(CSVheader[j_col]) != cell[CSVheader[j_col]]) {
-							var UpdateText = `Set property ${CSVheader[j_col]}: \n${element.prop(CSVheader[j_col])}\n${cell[CSVheader[j_col]]}`;
+							var UpdateText = `Set property [${CSVheader[j_col]}]: \n${element.prop(CSVheader[j_col])}\n${cell[CSVheader[j_col]]}`;
 
 							element.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
 
 							ImportLogText += `\n${UpdateText}`;
-							info?console.log(`>>> ${UpdateText}`):true;
+//							info?console.log(`>>> ${UpdateText}`):true;
 							ElementUpdated=true;
 						}
 					}
 				}
+				if (customImportLog) {
+					ElementCreated || ElementUpdated ? element.prop(customImportLog, `${ImportDate}: ${ImportLogText}`):true;
+				}
+
+				ElementCreated || ElementUpdated ? console.log(`===============================\n>> ${element} ${ImportLogText}`):true;
+
 				NrElementProcessed++;
 				ElementCreated ? NrElementCreated++:true;
 				ElementUpdated && !ElementCreated ? NrElementUpdated++:true;
-				ElementCreated || ElementUpdated ? element.prop(customImportLog, `${ImportDate}: ${ImportLogText}`):true;
 				} // next line
 		}
-		debug?console.log(">> ======== " ):true;
-		console.log("");
+		console.log("\n>> ======== " );
 		console.log(">> Import finished");
 		console.log(">>> elements processed : " + NrElementProcessed);
 		console.log(">>> elements updated   : " + NrElementUpdated);

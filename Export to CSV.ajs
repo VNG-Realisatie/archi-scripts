@@ -36,6 +36,7 @@ var info = false;
 // Show output in the console
 console.show();
 console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...");
 
 var selectedView = $(selection).filter("archimate-diagram-model").first();
 if (!selectedView) {
@@ -77,7 +78,7 @@ if (!selectedView) {
                             debug? console.log(">>> Add property label : " + PropertyLabel):true;
                         }
 						Row[PropertyLabel] = element.concept.prop(PropertyLabel);
-						debug? console.log(">>>> Add property " + PropertyLabel + ": " + element.concept.prop(PropertyLabel)):true;
+						debug? console.log(`>>>> Add property ${PropertyLabel} : ${element.concept.prop(PropertyLabel)}`):true;
                     }
                 }
 
@@ -92,7 +93,7 @@ if (!selectedView) {
 					} else {
 						objectIndexMap[relationship.id]=true;
 	
-						info? console.log(">>> " + relationship + " " + relationship.source.name + " <-> " + relationship.target.name):true;
+						info? console.log(`>>> ${relationship} ${relationship.source.name} <-> ${relationship.target.name}`):true;
 
 						var Row = new Object;
 						// Retrieve all defined header attributes and properties
@@ -104,11 +105,11 @@ if (!selectedView) {
 						Row[relationHeaderDef["source.id"]]			=relationship.source.id;
                         Row[relationHeaderDef["source.name"]]		=relationship.source.name;
                         Row[relationHeaderDef["source.type"]]		=relationship.source.type;
-						Row[relationHeaderDef["source customID"]]	=relationship.source.prop(PropertyWithCustomID);
+						Row[relationHeaderDef["source customID"]]	=relationship.source.prop(CustomIDproperty);
                         Row[relationHeaderDef["target.id"]]			=relationship.target.id;
                         Row[relationHeaderDef["target.name"]]		=relationship.target.name;
 						Row[relationHeaderDef["target.type"]]		=relationship.target.type;
-						Row[relationHeaderDef["target customID"]]	=relationship.target.prop(PropertyWithCustomID);
+						Row[relationHeaderDef["target customID"]]	=relationship.target.prop(CustomIDproperty);
 						
 						// Retrieve all properties of the relation
                         for (var i=0; i<relationship.prop().length; i++){

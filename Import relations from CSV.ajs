@@ -30,6 +30,10 @@ var debug = true;
 var info = true;
 
 var ImportDate  = new Date().toLocaleDateString();
+
+// Custom property for logging import action with element or relation
+var customImportLog = "ImportLog";
+
 var NrRelationUpdated = 0;
 var NrRelationCreated = 0;
 var skippedRelation = [];
@@ -71,11 +75,11 @@ if (!CSVtable) {
 					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
 				}
 
-				// Find relation with PropertyWithCustomID.
-				relation = FindObjectWithProperty("relation", PropertyWithCustomID, cell[PropertyWithCustomID]);
-				if (relation) { // relation found with PropertyWithCustomID
+				// Find relation with CustomIDproperty.
+				relation = FindObjectWithProperty("relation", CustomIDproperty, cell[CustomIDproperty]);
+				if (relation) { // relation found with CustomIDproperty
 
-					relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + PropertyWithCustomID + "\"");
+					relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + CustomIDproperty + "\"");
 					flagValidRelation=true;
 					NrRelationUpdated++;
 

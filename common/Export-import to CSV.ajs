@@ -6,10 +6,8 @@
  * (c) 2019 Mark Backer
  *
  */ 
-// PropertyWithCustomID for finding existing elements
-var PropertyWithCustomID = "Object ID";
-// Custom property for logging import action with element or relation
-var customImportLog = "ImportLog";
+// CustomIDproperty for finding existing elements
+var CustomIDproperty = "Object ID";
 
 var E_I_Debug = false;
 var E_I_Info = false;
@@ -24,10 +22,10 @@ var elementHeaderDef = {
 	// 	}
 	// },
 	//	jArchi property: 	"Header",
-	id: 				"Element ID",
-	name: 				"Element label",
 	type: 				"Element type",
-	documentation: 		"Element documentation"
+	name: 				"Element label",
+	documentation: 		"Element documentation",
+	id: 				"Element ID"
 };
   
 var relationHeaderDef = {
@@ -39,11 +37,11 @@ var relationHeaderDef = {
 	"source.id":		"Source ID",
 	"source.name":		"Source label",
 	"source.type":		"Source type",
-	"source CustomID":	"Source " + PropertyWithCustomID, // custom ID for finding the source element
+	"source CustomID":	"Source " + CustomIDproperty, // custom ID for finding the source element
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
 	"target.type":		"Target type",
-	"target CustomID":	"Target " + PropertyWithCustomID // custom ID for finding the target element
+	"target CustomID":	"Target " + CustomIDproperty // custom ID for finding the target element
 };
 
 /*
@@ -60,7 +58,7 @@ function read_CSVdata(CSVfilename_postfix) {
 		var theCSVFile = new InputStreamReader(new FileInputStream(filePath), "UTF-8");
 
 		var data = theCSVFile.read();
-		console.log("> Please Wait...");
+		console.log(`> Processing CSV-file: ${filePath}`);
 	
 		while(data != -1) {
 			var theCharacter = String.fromCharCode(data);

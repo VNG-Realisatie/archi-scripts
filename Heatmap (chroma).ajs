@@ -1,31 +1,62 @@
 /*
- * Heatmap
+ * Heatmap chroma
  */
  
 console.log("Heatmap (chroma)");
 
-load(__DIR__ + "common/Color.ajs");
-
-/*
- * chroma.js is a small-ish zero-dependency JavaScript library (13.5kB)
- * for all kinds of color conversions and color scales.
- * https://gka.github.io/chroma.js/
- */
+//	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
 load(__DIR__ + "lib/chroma.min.js");
 
-// given a value return a color code
-function BIV(pValue)
-{
-//  return Set1_3_qual[pValue];
-//	colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
-	colorscale = chroma.scale('OrRd').classes(3).padding([0.1, 0.1]);
-//	colorscale = chroma.brewer.OrRd; // fout
+// 	colorscale = chroma.scale(['yellow', '008ae5']); //.classes(3).padding([0.1, 0.1]);
+//
+// ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+// 
+//	colorscale 	= chroma.scale('Oranges');
+//	colorscale 	= chroma.scale('Blues');
+//	colorscale 	= chroma.scale('Greens');
+colorscale 	= chroma.scale('YlGn');
 
-	return colorscale((pValue-1)/2);
-//	return colorscale(pValue/3);
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+	var k=0;
+
+	var colorByValueList = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
+//	var conceptType = "application-component";
+	var conceptType = "*";
+	
+	$(selectedView).find(conceptType).forEach(function(VisualElement) {
+
+		VisualElement.fillColor = colorscale((VisualElement.prop("Vertrouwelijkheid")- 1)/3);  // color element with value for 'Vertrouwelijkheid' 
+
+		var x = 20;
+		for (var i=0; i<BIVlist.length; i++) {
+		
+			var BIVvalue = VisualElement.prop(BIVlist[i]);
+			if (BIVvalue) {
+				VisualElement.fontSize = 10;  // reduce fontsize to make room for notes
+
+				var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
+				note.fillColor = colorscale((BIVvalue - 0.8 )/3); // subtract less than 1 for darker color in note than element
+				note.fontSize = 9;
+				note.fontStyle = "bold";
+
+				var str = BIVlist[i];
+				note.text = `${str.substring(0,1)} = ${VisualElement.prop(BIVlist[i])}` ;
+
+			} else {
+				console.log( `${VisualElement.name}: no property ${BIVlist[i]}`);
+			}
+			x += 60;
+		} // next in BIVlist
+		k++;
+	}) // next element
+
+	console.log( `${k} application-components colored`);
 }
-
-
 
 
 //-------------------------
@@ -50,3 +81,5 @@ if (!selectedView) {
 	// callexample
 	makeHeatMap(selectedView.name,"application-component","Vertrouwelijkheid", BIV) 
 }
+
+
