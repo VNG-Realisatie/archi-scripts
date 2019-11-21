@@ -1,0 +1,56 @@
+/*
+ * Export To CSV
+ * 
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ * Requires PapaParse - https://www.papaparse.com/
+
+ * Mark Backer
+ * Version 1:
+ *
+ */
+
+load(__DIR__ + "../lib/papaparse.min.js");
+load(__DIR__ + "IncludeExportImport.ajs");
+
+var viewData = [];
+
+var debug = false;
+var info = true;
+
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...");
+
+// Loop on all views
+$('view').each(function(view) {
+
+	info? console.log(">> " + view):true;
+
+	try {
+
+		var Row = new Object;
+		// export Archi defined attributes
+		for (var label in viewHeaderDef) {
+			Row[viewHeaderDef[label]]		=view[label];
+		}
+//		Row[viewHeaderDef["viewpoint.name"]] =view.viewpoint.name; 
+
+		export_properties(view, Row, viewHeaderDef);
+
+		viewData.push(Row);
+
+	}
+	catch (error) {
+		console.log("> Ignoring: " + view);
+		console.log("> Error: " +  error);
+	}
+}); // each view
+
+// Open a dialog to let the user choose where to save the generated file
+var defaultFileName = model.name ? model.name + ".csv" : "Exported Model.csv"; // Default file name
+var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
+console.log("==============");
+write_CSVdata("views", viewHeaderDef, viewData, ExportFileLocation);
+console.log("==============");
+console.log("> Export to CSV finished");

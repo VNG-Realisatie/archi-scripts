@@ -1,0 +1,82 @@
+/*
+ * ImportViewProp from CSV
+ * 
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ * Requires PapaParse - https://www.papaparse.com/
+ * 
+ * Mark Backer
+ * Version 1: Import view properties from CSV
+ */
+
+
+ load(__DIR__ + "IncludeExportImport.ajs");
+
+var error = new Error();
+var debug = false;
+var info = true;
+
+var Stat = {
+	flag :  { processed : false, updated: false, notfound_created: false },
+	nr : 	{ processed : 0, updated : 0, notfound_created : 0 }
+};
+
+console.show();
+console.clear();
+
+CSVtable = read_CSVdata("view")
+if (!CSVtable) {
+	console.log("> Canceled, no CSV data ");
+} else {
+	console.log("> Import CSV");
+
+	CSVheader = CSVtable.data[0];
+	debug?console.log("> CSVheader: " + CSVheader):true;
+	
+	try {
+		// skip header, read all rows
+		for (var i_row=1; i_row<CSVtable.data.length; i_row++) {
+			var view = null;
+			var CSVrow = [];
+			var ImportLog = { Text: "" };
+			Stat.flag.updated=false;
+			Stat.flag.notfound_created=false;
+
+			if (CSVtable.data[i_row].length>1) { // skip empty line
+
+				debug?console.log(`>> CSVtable.data[${i_row}] >  ${CSVtable.data[i_row]}`):true;
+				debug?console.log(">> ======== " ):true;
+
+				// label CSVrow of i_row with headerlabel
+				for (var j_col=0; j_col<CSVheader.length; j_col++) {
+					CSVrow[CSVheader[j_col]] = CSVtable.data[i_row][j_col].trim();
+					debug? console.log(`>>> CSVtable.data[${i_row}] > ${CSVheader[j_col]} = ${CSVrow[CSVheader[j_col]]}`) : true;
+				}
+
+				vSelectID ="#" + CSVrow[viewHeaderDef["id"]];
+				debug? console.log(">> FindView() > id = " + vSelectID): true;
+	
+				vCollection = $(vSelectID); // Result is collection of objects with #id
+				if (vCollection.is('view')) {
+					view = vCollection.first();
+					ImportLog.Text = `(Found View with id)`;
+				} else {
+					Stat.flag.notfound_created=true;
+					ImportLog.Text = `(View not found  : ${CSVrow[viewHeaderDef["type"]]} ${CSVrow[viewHeaderDef["name"]]})`;
+				}
+
+				import_attributes_properties(view, viewHeaderDef, CSVheader, CSVrow, Stat, ImportLog);
+
+			} // next row
+		}
+		console.log("\n>> ======== " );
+		console.log(">> Import finished");
+		console.log(">>> views processed : " + Stat.nr.processed);
+		console.log(">>> views updated   : " + Stat.nr.updated);
+		console.log(">>> views not found : " + Stat.nr.notfound_created);
+		console.log("");
+	}
+	catch (error) {
+		console.log("> Error: " + error);
+		console.log("> Error: " + error.stack);
+	}
+}

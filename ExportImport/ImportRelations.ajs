@@ -20,19 +20,14 @@
  * 			- The source Object ID is a custom property for finding the element
  * 		- column 9 to 12 idem as source
  * 		- extra columns in the CSV are saved as relation properties 
- * 	The import script adds to each imported relation a property customImportLog as a logline for future reference in the architecture model
+ * 	The import script adds to each imported relation a property customlabel_ImportLog_property as a logline for future reference in the architecture model
  */
 
-load(__DIR__ + "common/Export-import to CSV.ajs");
+load(__DIR__ + "IncludeExportImport.ajs");
 
 var error = new Error();
-var debug = true;
+var debug = false;
 var info = true;
-
-var ImportDate  = new Date().toLocaleDateString();
-
-// Custom property for logging import action with element or relation
-var customImportLog = "ImportLog";
 
 var NrRelationUpdated = 0;
 var NrRelationCreated = 0;
@@ -59,8 +54,9 @@ if (!CSVtable) {
 		// all rows, but skip header
 		for (var i_row=1; i_row<CSVtable.data.length; i_row++) {
 			var relation = null;
-			var cell = [];
+			var row = [];
 			var flagValidRelation=false;
+			var ImportLog = { Text: "" };
 
 			if (CSVtable.data[i_row].length>1) { // skip empty line
 
@@ -71,26 +67,26 @@ if (!CSVtable) {
 				for (var j_col=0; j_col<CSVheader.length; j_col++) {
 					var str ="";
 					str = CSVtable.data[i_row][j_col];
-					cell[CSVheader[j_col]]=str.trim();
-					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]) : true;
+					row[CSVheader[j_col]]=str.trim();
+					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + row[CSVheader[j_col]]) : true;
 				}
 
-				// Find relation with CustomIDproperty.
-				relation = FindObjectWithProperty("relation", CustomIDproperty, cell[CustomIDproperty]);
-				if (relation) { // relation found with CustomIDproperty
+				// Find relation with customlabel_ID_property.
+				relation = FindObjectWithProperty("relation", customlabel_ID_property, row[customlabel_ID_property]);
+				if (relation) { // relation found with customlabel_ID_property
 
-					relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"" + CustomIDproperty + "\"");
+					relation.prop(customlabel_ImportLog_property, ">> Updated at " + ImportDate + " via \"" + customlabel_ID_property + "\"");
 					flagValidRelation=true;
 					NrRelationUpdated++;
 
 				} else { // Select the relation with the id.
-					var selectID ="#" + cell[relationHeaderDef["id"]];
+					var selectID ="#" + row[relationHeaderDef["id"]];
 					debug? console.log(">> Find relation with id == " + selectID) : true;
 
 					relation = $(selectID);
 					if (relation.is('relation')) { // if there is 1 relation
 
-						relation.prop(customImportLog, ">> Updated at " + ImportDate + " via \"ID\"");
+						relation.prop(customlabel_ImportLog_property, ">> Updated at " + ImportDate + " via \"ID\"");
 						flagValidRelation=true;
 						NrRelationUpdated++;
 
@@ -99,22 +95,22 @@ if (!CSVtable) {
 						var source = null;
 						var target = null;
 
-						sourceResult = FindElement(relationHeaderDef["source CustomID"], cell[relationHeaderDef["source CustomID"]],
-							cell[relationHeaderDef["source.id"]],
-							cell[relationHeaderDef["source.name"]], cell[relationHeaderDef["source.type"]]);
-						targetResult = FindElement(relationHeaderDef["target CustomID"], cell[relationHeaderDef["target CustomID"]], 
-							cell[relationHeaderDef["target.id"]],
-							cell[relationHeaderDef["target.name"]], cell[relationHeaderDef["target.type"]]);
+						sourceResult = FindElement(relationHeaderDef["source customlabel_ID_property"], row[relationHeaderDef["source customlabel_ID_property"]],
+							row[relationHeaderDef["source.id"]],
+							row[relationHeaderDef["source.name"]], row[relationHeaderDef["source.type"]]);
+						targetResult = FindElement(relationHeaderDef["target customlabel_ID_property"], row[relationHeaderDef["target customlabel_ID_property"]], 
+							row[relationHeaderDef["target.id"]],
+							row[relationHeaderDef["target.name"]], row[relationHeaderDef["target.type"]]);
 						source = sourceResult.vElement;
 						target = targetResult.vElement;
 						
 
 						if (!sourceResult.vElement || !targetResult.vElement) {
-							skippedRelation[NrRelationSkipped]=cell[relationHeaderDef["source.name"]];
+							skippedRelation[NrRelationSkipped]=row[relationHeaderDef["source.name"]];
 							if (!sourceResult.vElement) {
 								skippedRelation[NrRelationSkipped]+= " (missing)";
 							}
-							skippedRelation[NrRelationSkipped]+= " <= " + cell[relationHeaderDef["type"]] + " => " + cell[relationHeaderDef["target.name"]];
+							skippedRelation[NrRelationSkipped]+= " <= " + row[relationHeaderDef["type"]] + " => " + row[relationHeaderDef["target.name"]];
 							if (!targetResult.vElement) {
 								skippedRelation[NrRelationSkipped]+= " (missing)";
 							}
@@ -126,23 +122,23 @@ if (!CSVtable) {
 						}
 			
 						if (flagValidRelation) {
-							relationName = cell[relationHeaderDef["name"]] ? cell[relationHeaderDef["name"]] : "";
-							if (!cell[relationHeaderDef["type"]] ) {
+							relationName = row[relationHeaderDef["name"]] ? row[relationHeaderDef["name"]] : "";
+							if (!row[relationHeaderDef["type"]] ) {
 								throw "Relation without type";
 							}
 
-							info? console.log(">> Create relation: " + source + " <= " + cell[relationHeaderDef["type"]] + " => " + target):true;
+							info? console.log(">> Create relation: " + source + " <= " + row[relationHeaderDef["type"]] + " => " + target):true;
 			
 							relation = model.createRelationship(
-								cell[relationHeaderDef["type"]],
+								row[relationHeaderDef["type"]],
 								relationName,
 								// "",
 								source,
 								target);
 
-							relation.prop(customImportLog, ">> Created at " + ImportDate);
+							relation.prop(customlabel_ImportLog_property, ">> Created at " + ImportDate);
 							NrRelationCreated++;
-							debug? console.log(">> Relation created: " + relation ):true;
+							debug? console.log(">> Relation notfound_created: " + relation ):true;
 						}
 					}
 				}
@@ -155,24 +151,24 @@ if (!CSVtable) {
 					var attribute_i=0;
 					for (var label in relationHeaderDef) {
 						if (label=="name" || label=="documentation" || label=="type"){ // only attributes of relation, other relationHeaderDef are from source or target
-							relation[label] = cell[relationHeaderDef[label]];
-							debug?console.log(">>> Set attribute : " + label + " = " + cell[relationHeaderDef[label]]):true;
+							relation[label] = row[relationHeaderDef[label]];
+							debug?console.log(">>> Set attribute : " + label + " = " + row[relationHeaderDef[label]]):true;
 						}
 						attribute_i++; // count length of relationHeaderDef
 					}
 					// import all properties	
 					for (var j_col=attribute_i; j_col<CSVheader.length; j_col++) {
-					// skip empty headers and don't overwrite with previous exported customImportLog property
-						if (cell[CSVheader[j_col]] && cell[CSVheader[j_col]] != customImportLog) { 
-							relation.prop(CSVheader[j_col], cell[CSVheader[j_col]]);
-							debug?console.log(">>> Set property : " + CSVheader[j_col] + " = " + cell[CSVheader[j_col]]):true;
+					// skip empty headers and don't overwrite with previous exported customlabel_ImportLog_property property
+						if (row[CSVheader[j_col]] && row[CSVheader[j_col]] != customlabel_ImportLog_property) { 
+							relation.prop(CSVheader[j_col], row[CSVheader[j_col]]);
+							debug?console.log(">>> Set property : " + CSVheader[j_col] + " = " + row[CSVheader[j_col]]):true;
 						}
 					}
 				} else {
 					debug?console.log(">> relation skipped :" +
-						cell[relationHeaderDef["source.name"]] + 
+						row[relationHeaderDef["source.name"]] + 
 						" <-> " +
-						cell[relationHeaderDef["target.name"]] ):true;
+						row[relationHeaderDef["target.name"]] ):true;
 				}
 			} // next line
 		}

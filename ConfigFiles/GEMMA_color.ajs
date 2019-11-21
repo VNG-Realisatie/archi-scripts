@@ -1,0 +1,24 @@
+
+/*
+*/
+var ArrayOfValidArchiLayers = [
+	"Application",
+	"Business",
+	"Implementation & Migration",
+	"Motivation",
+	"Other",
+	"Other Visual Objects",
+	"Physical",
+	"Relationships",
+	"Strategy",
+	"Technology",
+	"Views"
+];
+
+create DataView
+ArrayOfValidArchiLayers.forEach(element => {
+	addelement
+	element.color
+	element.name = color
+	
+});

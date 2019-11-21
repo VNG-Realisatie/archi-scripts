@@ -1,27 +1,27 @@
 /*
- * Export-import To CSV
+ * IncludeExportImport
  * 
- * Version 1: Common functions and headers voor Export and Import to CSV
+ * Version 1: Definitions and common functions for CSV Export and Import
  * 
  * (c) 2019 Mark Backer
  *
- */ 
-// CustomIDproperty for finding existing elements
-var CustomIDproperty = "Object ID";
+ */
+
+// customlabel_ID_property for finding existing elements
+var customlabel_ID_property = "Object ID";
+// Custom property for logging import action with element or relation. Set to null for no property
+var customlabel_ImportLog_property = null;
+// var customlabel_ImportLog_property = "ImportLog";
+
+var ImportDate  = new Date().toLocaleDateString();
 
 var E_I_Debug = false;
 var E_I_Info = false;
 
 load(__DIR__ + "../lib/papaparse.min.js");
 
-// Set up some elementHeaders
+// Set up CSV column-labels
 var elementHeaderDef = {
-	// display: function display() {
-	// 	for (var i in this) {
-	// 		return "Header label for " + i + " = " + this[i];
-	// 	}
-	// },
-	//	jArchi property: 	"Header",
 	type: 				"Element type",
 	name: 				"Element label",
 	documentation: 		"Element documentation",
@@ -29,19 +29,26 @@ var elementHeaderDef = {
 };
   
 var relationHeaderDef = {
-//	"jArchi property" 	"Header",
+	type:				"Relationship type",
 	id:					"Relationship ID",
 	name:				"Relationship label",
-	type:				"Relationship type",
 	documentation:		"Relationship documentation",
 	"source.id":		"Source ID",
 	"source.name":		"Source label",
 	"source.type":		"Source type",
-	"source CustomID":	"Source " + CustomIDproperty, // custom ID for finding the source element
+	"source CustomID":	"Source " + customlabel_ID_property, // custom ID for finding the source element
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
 	"target.type":		"Target type",
-	"target CustomID":	"Target " + CustomIDproperty // custom ID for finding the target element
+	"target CustomID":	"Target " + customlabel_ID_property // custom ID for finding the target element
+};
+
+var viewHeaderDef = {
+	type: 				"View type",
+	name: 				"View label",
+	documentation: 		"View documentation",
+	id: 				"View ID"
+	, "viewpoint.name":	"Viewpoint" // don't use viewpoint, default is none
 };
 
 /*
@@ -71,9 +78,102 @@ function read_CSVdata(CSVfilename_postfix) {
 
 		return Papa.parse(theCSV);
 	} else {
-		console.log("> Cancelled");
+		console.log("> Canceled");
 	}
 }
+
+/*
+ *	Save all object to CSV 
+ */  
+function write_CSVdata(pType, pHeader, pData, pExportFile) {
+	var i=0;
+	var headerArray = [];
+	if (pExportFile != null) {
+		var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
+	  	for (var label in pHeader) {
+			headerArray[i]=pHeader[label];
+			i++;
+		}
+		$.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
+		console.log(">>> " + pType + " saved in : " + ExportFile);
+	} else {
+		console.log("> Save CSV canceled");
+	}
+}
+
+/*
+ *	Export the properties of an object to a CSV row
+ */  
+function export_properties(pObject, pRow, pHeaderDef) {
+	
+	// retrieve all properties of the pObject
+	for (var i=0; i<pObject.prop().length; i++){
+		var PropertyLabel = pObject.prop()[i];
+	
+		if (pObject.prop(PropertyLabel)) {
+			var found = false;
+	
+			for (var prop in pHeaderDef) {
+				if (prop==PropertyLabel) {found=true;}            
+			}
+			if (!found) { // add property label only once to the header
+				pHeaderDef[PropertyLabel] = PropertyLabel;
+				debug? console.log(">>> Add property label : " + PropertyLabel):true;
+			}
+			pRow[PropertyLabel] = pObject.prop(PropertyLabel);
+			debug? console.log(`>>>> Add property ${PropertyLabel} : ${pObject.prop(PropertyLabel)}`):true;
+		}
+	}
+}
+
+/*
+ *	Import the current row
+ *		assign the cell values to the attributes and properties of the object
+ *		and write a log if there is a change
+ */  
+function import_attributes_properties(pObject, pHeaderDef, pCSVheader, pCSVrow, pStat, pImportLog) {
+	var attribute_i=0;
+
+	if (pObject != null) {
+		// import attributes defined in header
+		for (var label in pHeaderDef) {
+			if (label!="id"){ // id can't be set 
+				if (pObject[label] != pCSVrow[pHeaderDef[label]]){
+
+					pImportLog.Text += `\n>>> Set attribute [${label}]: \n${pObject[label]}\n${pCSVrow[pHeaderDef[label]]}`;
+					pStat.flag.updated=true;
+
+					pObject[label] = pCSVrow[pHeaderDef[label]];
+				}
+			}
+			attribute_i++;
+		}
+		// import properties	
+		for (var j_col=attribute_i; j_col<pCSVheader.length; j_col++) {
+			// skip empty pCSVrows and the customlabel_ImportLog_property
+			if (pCSVrow[pCSVheader[j_col]] && (pCSVheader[j_col] != customlabel_ImportLog_property)) { 
+				if (pObject.prop(pCSVheader[j_col]) != pCSVrow[pCSVheader[j_col]]) {
+
+					pImportLog.Text += `\n>>> Set property [${pCSVheader[j_col]}]: \n${pObject.prop(pCSVheader[j_col])}\n${pCSVrow[pCSVheader[j_col]]}`;
+					pStat.flag.updated=true;
+
+					pObject.prop(pCSVheader[j_col], pCSVrow[pCSVheader[j_col]]);
+				}
+			}
+		}
+
+		if (customlabel_ImportLog_property) {
+			pStat.flag.notfound_created || pStat.flag.updated ? pObject.prop(customlabel_ImportLog_property, `${ImportDate}: ${pImportLog.Text}`):true;
+		}
+	}
+
+	pStat.flag.notfound_created || pStat.flag.updated ? console.log(`===============================\n>> ${pObject} ${pImportLog.Text}`):true;
+	pStat.flag.notfound_created ? pStat.nr.notfound_created++:true;
+	pStat.flag.updated && !pStat.flag.notfound_created ? pStat.nr.updated++:true;
+	
+	pStat.nr.processed++;
+}
+
 
 /*
  *	show some statistics 
@@ -94,25 +194,6 @@ function stats_CSVdata(pType, pDuplicate, pHeader, pData) {
 		}
 	}
 	console.log("> Number of " + pType + " : " + pData.length );
-}
-
-/*
- *	Save all object to CSV 
- */  
-function write_CSVdata(pType, pHeader, pData, pExportFile) {
-	var i=0;
-	var headerArray = [];
-	if (pExportFile != null) {
-		var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
-	  	for (var label in pHeader) {
-			headerArray[i]=pHeader[label];
-			i++;
-		}
-		$.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
-		console.log(">>> " + pType + " saved in : " + ExportFile);
-	} else {
-		console.log("> Save CSV cancelled");
-	}
 }
 
 /*

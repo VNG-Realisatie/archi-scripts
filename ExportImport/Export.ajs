@@ -18,8 +18,8 @@
  *
  */
 
-load(__DIR__ + "lib/papaparse.min.js");
-load(__DIR__ + "common/Export-import to CSV.ajs");
+load(__DIR__ + "../lib/papaparse.min.js");
+load(__DIR__ + "IncludeExportImport.ajs");
 
 var objectIndexMap = [];
 var elementDuplicate = [];
@@ -31,7 +31,7 @@ var elementData = [];
 var relationData = [];
 
 var debug = false;
-var info = false;
+var info = true;
 
 // Show output in the console
 console.show();
@@ -58,33 +58,18 @@ if (!selectedView) {
 			} else { 
 				objectIndexMap[element.concept.id]=true;
 				
+
 				var Row = new Object;
                 // retrieve all defined header attributes
 				for (var label in elementHeaderDef) {
 					Row[elementHeaderDef[label]]		=element.concept[label];
 				}
-                // retrieve all properties of the element
-                for (var i=0; i<element.concept.prop().length; i++){
-                    var PropertyLabel = element.concept.prop()[i];
 
-                    if (element.concept.prop(PropertyLabel)) {
-                        var found = false;
+				export_properties(element.concept, Row, elementHeaderDef);
 
-						for (var prop in elementHeaderDef) {
-                            if (prop==PropertyLabel) {found=true;}            
-                        }
-                        if (!found) { // add property label only once to the header
-                            elementHeaderDef[PropertyLabel] = PropertyLabel;
-                            debug? console.log(">>> Add property label : " + PropertyLabel):true;
-                        }
-						Row[PropertyLabel] = element.concept.prop(PropertyLabel);
-						debug? console.log(`>>>> Add property ${PropertyLabel} : ${element.concept.prop(PropertyLabel)}`):true;
-                    }
-                }
+				elementData.push(Row);
 
-                elementData.push(Row);
-
-                // Get all relationships of the element (not only the occurrences on the view)
+				// Get all relationships of the element (not only the occurrences on the view)
                 $(element.concept).outRels().each(function (relationship) { 
                     if (objectIndexMap[relationship.id]) { // cannot happen, prepared for selection of occurrences of relationships on view
 						relationDuplicate[relationDuplicate_i] = relationship; 
@@ -98,38 +83,29 @@ if (!selectedView) {
 						var Row = new Object;
 						// Retrieve all defined header attributes and properties
 						for (var label in relationHeaderDef) {
-							if (label=="id" || label=="name" || label=="documentation" || label=="type"){ // how to make this work for all headerDefs???
+							if (label=="id" || label=="name" || label=="documentation" || label=="type"){ 
 								Row[relationHeaderDef[label]]		=relationship[label];
 							}
 						}
-						Row[relationHeaderDef["source.id"]]			=relationship.source.id;
+						Row[relationHeaderDef["source.id"]]			=relationship.source.id; // can't get this working in for loop
                         Row[relationHeaderDef["source.name"]]		=relationship.source.name;
                         Row[relationHeaderDef["source.type"]]		=relationship.source.type;
-						Row[relationHeaderDef["source customID"]]	=relationship.source.prop(CustomIDproperty);
                         Row[relationHeaderDef["target.id"]]			=relationship.target.id;
                         Row[relationHeaderDef["target.name"]]		=relationship.target.name;
 						Row[relationHeaderDef["target.type"]]		=relationship.target.type;
-						Row[relationHeaderDef["target customID"]]	=relationship.target.prop(CustomIDproperty);
-						
-						// Retrieve all properties of the relation
-                        for (var i=0; i<relationship.prop().length; i++){
-							var PropertyLabel = relationship.prop()[i];
-							
-                            if (relationship.prop(PropertyLabel)) { // skip empty labels
-                                var found = false;
-								for (var prop in relationHeaderDef) { 
-									if (prop==PropertyLabel) {found=true;}            
-								}
-                                if (!found) { // add property label to the header only once
-									relationHeaderDef[PropertyLabel] = PropertyLabel;
-									debug? console.log(">>>> Add property label : " + PropertyLabel):true;
-                                }
-                                Row[PropertyLabel] = relationship.prop(PropertyLabel);
-								debug? console.log(">>>>> Add property " + PropertyLabel + ": " + relationship.prop(PropertyLabel)):true;
-                            }
-                        }
-						
-                        relationData.push(Row);
+
+						Source = relationship.source;
+						Target = relationship.target;
+
+						Row[relationHeaderDef["source CustomID"]]	= Source.prop(customlabel_ID_property);
+						Row[relationHeaderDef["target CustomID"]]	= Target.prop(customlabel_ID_property);
+
+						debug? console.log(`>>>> Source ${Source} ${Source.prop(customlabel_ID_property)}`):true;
+						debug? console.log(`>>>> Target ${Target} ${Target.prop(customlabel_ID_property)}`):true;
+
+						export_properties(relationship, Row, relationHeaderDef);
+
+						relationData.push(Row);
                     }
                 }); // each relation
             }
