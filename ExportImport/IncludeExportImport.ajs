@@ -48,7 +48,7 @@ var viewHeaderDef = {
 	name: 				"View label",
 	documentation: 		"View documentation",
 	id: 				"View ID"
-	, "viewpoint.name":	"Viewpoint" // don't use viewpoint, default is none
+//	, "viewpoint.name":	"Viewpoint" // don't use viewpoint, default is none
 };
 
 /*
