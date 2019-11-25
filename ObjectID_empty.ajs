@@ -1,0 +1,47 @@
+/*
+ * ObjectID_empty
+ * 
+ * Alle objecten in het GEMMA architectuurmodel bevatten verplicht een property "Object ID". 
+ * Deze property zorgt ervoor dat alle objecten in alle tools beschikken over een niet wijzigend ID.
+ * (met name BiZZdesign neemt genereert in een exportbestand altijd weer nieuwe id's, ook neemt BD geen id's over bij het importeren)
+ * 
+ * Version 1: Check all object for empty "Object ID" and set property with id
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+// customlabel_ID_property for finding existing elements
+var customlabel_ID_property = "Object ID";
+var Empty_i = 0;
+
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...\n");
+
+function set_empty_ID_property(pObject) {
+	if (pObject.prop(customlabel_ID_property) == null) {
+		// if empty ID_property then add property with value of id
+		pObject.prop(customlabel_ID_property, pObject.id);
+		console.log(`"> ${pObject}" with empty [${customlabel_ID_property}]\n>> [${customlabel_ID_property}] set to [${pObject.id}]`);
+		Empty_i++;
+	}
+}
+
+// Loop on all concepts
+$('concept').each(function(concept) {
+	set_empty_ID_property(concept)
+})
+
+// Loop on all views
+$('view').each(function(view) {
+	set_empty_ID_property(view)
+})
+
+
+if (Empty_i > 0) {
+	console.log(`\nThere was/were ${Empty_i} object(s) without a property [${customlabel_ID_property}]`);
+} else {
+	console.log(`\nAll object have a valid property [${customlabel_ID_property}]  : )`);
+}
