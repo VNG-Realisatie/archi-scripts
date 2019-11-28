@@ -1,0 +1,73 @@
+/*
+ * CopyFormat
+ * 
+ * Copy formatting to other (selected) elements
+ * 
+ * (c) 2019 Mark Backer
+ * 
+ * behavior
+ * 	select one element in view			-> copy in view formatting to all elements of same type (also figure)
+ * 	select multiple elements in view 	-> copy formatting from first element to selected elements
+ * 
+ * idea
+ * 	select one element in model tree	-> copy in model formatting to all elements of same type (also figure)
+ *
+ */
+
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...\n");
+
+function CopyFormat(pSource, pTarget) {
+	// no jArchi API calls for formatting of 
+	// 	text alignment en position
+	// 	outline opacity
+
+	if (pTarget.fontColor	!= pSource.fontColor)	{pTarget.fontColor	= pSource.fontColor};
+	if (pTarget.fontName 	!= pSource.fontName)	{pTarget.fontName 	= pSource.fontName};
+	if (pTarget.fontSize 	!= pSource.fontSize)	{pTarget.fontSize 	= pSource.fontSize};
+	if (pTarget.fontStyle 	!= pSource.fontStyle)	{pTarget.fontStyle 	= pSource.fontStyle};
+
+	if (pTarget.opacity 	!= pSource.opacity)		{pTarget.opacity 	= pSource.opacity};
+	if (pTarget.fillColor 	!= pSource.fillColor)	{pTarget.fillColor 	= pSource.fillColor};
+	if (pTarget.lineColor 	!= pSource.lineColor)	{pTarget.lineColor 	= pSource.lineColor};
+}
+
+function CopyFormatType(pSource, pTarget) {
+	CopyFormat(FormatSource, pTarget);
+	if (pTarget.figureType != pSource.figureType)	{pTarget.figureType 	= pSource.figureType};
+}
+
+var FormatSource = $(selection).filter("element").first();
+
+var i;
+try {
+	if (FormatSource) {
+		if ($(selection).filter("element").size() == 1){
+			// select one element in view			-> copy formatting to all elements of same type (also figure)
+			console.log(`> Copy formatting from ${FormatSource} to all "${FormatSource.type}"`);
+			console.log(`> View is ${FormatSource.view}`);
+		
+			$(FormatSource.view).find(FormatSource.concept.type).each(function(occurrence) { 
+				console.log(`> Copy to ${occurrence}`);
+				CopyFormatType(FormatSource, occurrence);
+			})
+		} else {
+			// select multiple elements in view 	-> copy formatting from first element to selected elements
+			console.log(`> Copy formatting from ${FormatSource}`);
+
+			$(selection).filter("element").each(function(occurrence){
+				CopyFormat(FormatSource, occurrence);
+			})
+		}
+	} else {
+		console.log(`> Select multiple elements`);
+	}
+}
+catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Error: " + error.stack);
+}
+
+console.log(`\nDone`);
