@@ -1,0 +1,46 @@
+/*
+ * ResetFont
+ * 
+ * Version 1: Reset font appearence to default
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...\n");
+
+function RemoveFont(pObject) {
+	if (pObject.fontColor	!= null) {pObject.fontColor = null};
+	if (pObject.fontName 	!= null) {pObject.fontName = "Segoe UI"}; // can't set fontName to null
+	if (pObject.fontSize 	!= null) {pObject.fontSize = 9};
+	if (pObject.fontStyle 	!= null) {pObject.fontStyle = null};
+}
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+try {
+	if (selectedView) {
+		console.log(`> Resetting font for ${selectedView}`);
+		$(selectedView).find('concept').each(function(occurrence){
+			RemoveFont(occurrence);
+		})
+	} else {
+		// Loop on all views
+		$('view').each(function(view) {
+			console.log(`> Resetting font for ${view}`);
+			$(view).find('concept').each(function(occurrence){
+				RemoveFont(occurrence);
+			})
+		})
+	}
+}
+catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Error: " + error.stack);
+}
+
+console.log(`\nDone`);
+

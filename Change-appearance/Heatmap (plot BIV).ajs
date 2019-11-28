@@ -4,7 +4,7 @@
  */
  
 //	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
-load(__DIR__ + "lib/chroma.min.js");
+load(__DIR__ + "../lib/chroma.min.js");
 
 console.log("Heatmap (plot BIV)");
 
