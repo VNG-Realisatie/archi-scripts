@@ -2,9 +2,12 @@
  * Heatmap
  */
  
-console.log("Heatmap (color BIV)");
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...\n");
 
-load(__DIR__ + "common/Color.ajs");
+load(__DIR__ + "../common/Color.ajs");
 
 // given a value return a color code
 function BIV(pValue)

@@ -9,7 +9,15 @@
  */
 
 
- load(__DIR__ + "IncludeExportImport.ajs");
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
+
+load(__DIR__ + "IncludeExportImport.ajs");
 
 var error = new Error();
 var debug = false;
@@ -19,9 +27,6 @@ var Stat = {
 	flag :  { processed : false, updated: false, notfound_created: false },
 	nr : 	{ processed : 0, updated : 0, notfound_created : 0 }
 };
-
-console.show();
-console.clear();
 
 CSVtable = read_CSVdata("view")
 if (!CSVtable) {
@@ -80,3 +85,4 @@ if (!CSVtable) {
 		console.log("> Error: " + error.stack);
 	}
 }
+console.log(`Script "${scriptName}" finished\n`);

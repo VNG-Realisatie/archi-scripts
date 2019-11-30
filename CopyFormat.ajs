@@ -14,10 +14,13 @@
  *
  */
 
-// Show output in the console
+ // Show output in the console
 console.show();
 console.clear();
-console.log("Executing " + __FILE__.substring(6) + " ...\n");
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
 
 function CopyFormat(pSource, pTarget) {
 	// no jArchi API calls for formatting of 
@@ -70,4 +73,4 @@ catch (error) {
 	console.log("> Error: " + error.stack);
 }
 
-console.log(`\nDone`);
+console.log(`Script "${scriptName}" finished\n`);

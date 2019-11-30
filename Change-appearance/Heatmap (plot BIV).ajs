@@ -6,7 +6,10 @@
 //	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
 load(__DIR__ + "../lib/chroma.min.js");
 
-console.log("Heatmap (plot BIV)");
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(2) + " ...\n");
 
 // 	colorscale = chroma.scale(['yellow', '008ae5']); //.classes(3).padding([0.1, 0.1]);
 //
@@ -29,26 +32,31 @@ if (!selectedView) {
 
 		VisualElement.fillColor = colorscale((VisualElement.prop("Vertrouwelijkheid")- 0.8)/3);  // color element with value for 'Vertrouwelijkheid' 
 
-		var x = 20;
-		for (var i=0; i<BIVlist.length; i++) {
-		
-			var BIVvalue = VisualElement.prop(BIVlist[i]);
-			if (BIVvalue) {
-//				VisualElement.fontSize = 10;  // reduce fontsize to make room for notes
-
-				var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
-				note.fillColor = colorscale((BIVvalue - 0.6 )/3); // subtract less than 1 for darker color in note than element
-				note.fontSize = 9;
-//				note.fontStyle = "bold";
-
-				var str = BIVlist[i];
-				note.text = `${str.substring(0,1)} = ${VisualElement.prop(BIVlist[i])}` ;
-
-			} else {
-				console.log( `${VisualElement.name}: no property ${BIVlist[i]}`);
-			}
-			x += 60;
-		} // next in BIVlist
+		// only plot BIV notes in referentiecomponent, not in legenda components
+		if (VisualElement.prop("GEMMA type") == "Referentiecomponent") {
+			var x = 20;
+			for (var i=0; i<BIVlist.length; i++) {
+			
+				var BIVvalue = VisualElement.prop(BIVlist[i]);
+				if (BIVvalue) {
+	//				VisualElement.fontSize = 10;  // reduce fontsize to make room for notes
+	
+					var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
+					note.fillColor = colorscale((BIVvalue - 0.6 )/3); // subtract less than 1 for darker color in note than element
+					note.fontSize = 9;
+	//				note.fontStyle = "bold";
+	
+					var str = BIVlist[i];
+					note.text = `${str.substring(0,1)} = ${VisualElement.prop(BIVlist[i])}` ;
+	
+				} else {
+					console.log( `${VisualElement.name}: no property ${BIVlist[i]}`);
+				}
+				x += 60;
+			} // next in BIVlist
+		} else {
+			console.log( `${VisualElement.name}: property "GEMMA type" = ${VisualElement.prop("GEMMA type")}`);
+		}
 		k++;
 	}) // next element
 

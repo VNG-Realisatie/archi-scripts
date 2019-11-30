@@ -7,16 +7,19 @@
  *
  */
 
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
+
 // customlabel_ID_property for finding existing elements
 var customlabel_ID_property = "Object ID";
 var IndexMap = [];
 var Duplicate = [];
 var Duplicate_i = 0;
-
-// Show output in the console
-console.show();
-console.clear();
-console.log("Executing " + __FILE__.substring(6) + " ...\n");
 
 function check_duplicatie_ID_property(concept){
 	if (IndexMap[concept.prop(customlabel_ID_property)]) {
@@ -46,3 +49,4 @@ if (Duplicate_i > 0) {
 } else {
 	console.log(`\nNo duplicates found :)`);
 }
+console.log(`Script "${scriptName}" finished\n`);

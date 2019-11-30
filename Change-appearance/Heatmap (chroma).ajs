@@ -2,10 +2,13 @@
  * Heatmap chroma
  */
  
-console.log("Heatmap (chroma)");
-
 //	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
-load(__DIR__ + "lib/chroma.min.js");
+load(__DIR__ + ",,/lib/chroma.min.js");
+
+// Show output in the console
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...\n");
 
 // 	colorscale = chroma.scale(['yellow', '008ae5']); //.classes(3).padding([0.1, 0.1]);
 //

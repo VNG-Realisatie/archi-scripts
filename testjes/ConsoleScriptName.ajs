@@ -1,0 +1,9 @@
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
+
+console.log(`Script "${scriptName}" finished\n`);

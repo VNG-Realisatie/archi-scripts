@@ -17,6 +17,13 @@
  * Version 3: Added relationship properties and restructure
  *
  */
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
 
 load(__DIR__ + "../lib/papaparse.min.js");
 load(__DIR__ + "IncludeExportImport.ajs");
@@ -32,11 +39,6 @@ var relationData = [];
 
 var debug = false;
 var info = true;
-
-// Show output in the console
-console.show();
-console.clear();
-console.log("Executing " + __FILE__.substring(6) + " ...");
 
 var selectedView = $(selection).filter("archimate-diagram-model").first();
 if (!selectedView) {
@@ -140,5 +142,5 @@ if (!selectedView) {
 	write_CSVdata("elements", elementHeaderDef, elementData, ExportFileLocation);
 	write_CSVdata("relations", relationHeaderDef, relationData, ExportFileLocation);
 	console.log("==============");
-	console.log("> Export to CSV finished");
 }
+console.log(`Script "${scriptName}" finished\n`);

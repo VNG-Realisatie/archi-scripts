@@ -23,6 +23,15 @@
  * 	The import script adds to each imported relation a property customlabel_ImportLog_property as a logline for future reference in the architecture model
  */
 
+
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
+
 load(__DIR__ + "IncludeExportImport.ajs");
 
 var error = new Error();
@@ -33,9 +42,6 @@ var NrRelationUpdated = 0;
 var NrRelationCreated = 0;
 var skippedRelation = [];
 var NrRelationSkipped = 0;
-
-console.show();
-console.clear();
 
 /*
  * Import relations
@@ -193,3 +199,4 @@ if (!CSVtable) {
 		console.log("> Relation : " + relation);
 	}
 }
+console.log(`Script "${scriptName}" finished\n`);
