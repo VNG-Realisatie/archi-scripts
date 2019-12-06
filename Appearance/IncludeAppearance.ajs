@@ -1,0 +1,53 @@
+/*
+ * IncludeAppearance
+ * 
+ * Version 1: Shared appearance functions
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+var _filepath = __FILE__.split("/");
+var _scriptName = _filepath[_filepath.length-1];
+console.log(`> Include script "${_scriptName}"...`);
+
+// 
+function ChangeFont(pView, pMode) {
+
+	console.log(`> ${pMode} font for ${pView}`);
+
+	$(pView).find('concept').each(function(viewObject){
+		// set font to Archi default font to avoid fontspacing problems in SVG en pdf
+		// resetting to default by assigning null-value is not allowed, so resetting to Segoe UI
+		if (viewObject.fontName != null) {viewObject.fontName = "Segoe UI"}; 
+		if (viewObject.fontStyle != null) {viewObject.fontStyle = null};
+
+		if (pMode == "Reset") {
+			if (viewObject.fontColor != null) {viewObject.fontColor = null};
+			if (viewObject.fontSize != null) {viewObject.fontSize = 9};
+		} else {
+			if (pMode == "Decrease") {
+				if (viewObject.fontSize > 9 ) {
+					if (viewObject.fontSize == 10) {
+						viewObject.fontSize = 9;
+					} else {
+						viewObject.fontSize = viewObject.fontSize - 2;
+					}
+				}
+			}
+		}
+	})
+}
+
+// chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
+// 
+// colorscale = chroma.scale(['yellow', '008ae5']); //.classes(3).padding([0.1, 0.1]);
+//
+// ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+// 
+// colorscale 	= chroma.scale('Oranges');
+// colorscale 	= chroma.scale('Blues');
+// colorscale 	= chroma.scale('Greens');
+// colorscale 	= chroma.scale('YlGn');
+load(__DIR__ + "../lib/chroma.min.js");
+

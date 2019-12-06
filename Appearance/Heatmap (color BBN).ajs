@@ -10,7 +10,7 @@ console.log("Executing " + __FILE__.substring(6) + " ...\n");
 load(__DIR__ + "../common/Color.ajs");
 
 // given a value return a color code
-function BIV(pValue)
+function colorByValue(pValue)
 {
 //  return Set1_3_qual[pValue];
 //	colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
@@ -23,18 +23,17 @@ function BIV(pValue)
 }
 
 //-------------------------
-//  for diagram diagramName , colorize  components of componentType according to their propertyName values
-function makeHeatMap(diagramName,componentType,propertyName,colorfunc)
+//  for diagram pView , colorize  components of componentType according to their propertyName values
+function selectElements(pView,componentType,propertyName,colorfunc)
 {
-  diagram = selectDiagram(diagramName);
-  
-  $(diagram).find(componentType).forEach(function(VisualElement) {
-	var color = colorfunc(VisualElement.prop(propertyName));
-	if (color) {
-		VisualElement.fillColor=colorfunc(VisualElement.prop(propertyName));;
-	}
-  })
+	$(pView).find(componentType).forEach(function(objectOccurrence) {
+		var color = colorfunc(objectOccurrence.prop(propertyName));
+		if (color) {
+			objectOccurrence.fillColor=colorfunc(objectOccurrence.prop(propertyName));;
+		}
+	})
 }
+
 
 var selectedView = $(selection).filter("archimate-diagram-model").first();
 
@@ -42,5 +41,5 @@ if (!selectedView) {
 	console.log("> Please Select a View");
 } else {
 	// callexample
-	makeHeatMap(selectedView.name,"application-component","Vertrouwelijkheid", BIV) 
+	selectElements(selectedView, "application-component","Vertrouwelijkheid", colorByValue) 
 }

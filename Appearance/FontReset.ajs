@@ -1,0 +1,34 @@
+/*
+ * ResetFont
+ * 
+ * Version 1: Reset font to default in selected view
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.log(`Executing script "${scriptName}"...\n`);
+
+load(__DIR__ + "IncludeAppearance.ajs");
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+try {
+	if (selectedView) {
+		ChangeFont(selectedView, "Reset");
+	} else {
+		console.log(`> Please select a view`);
+	}
+	}
+catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Error: " + error.stack);
+}
+
+console.log(`\nScript "${scriptName}" finished\n`);
+

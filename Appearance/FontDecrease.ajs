@@ -1,0 +1,37 @@
+/*
+ * FontDecrease
+ * 
+ * Version 1: Decrease and reset font for selected or all views
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.log(`Executing script "${scriptName}"...\n`);
+
+load(__DIR__ + "IncludeAppearance.ajs");
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+try {
+	if (selectedView) {
+		ChangeFont(selectedView, "Decrease");
+	} else {
+		// Loop on all views
+		$('view').each(function(view) {
+			ChangeFont(view, "Decrease");
+		})
+	}
+}
+catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Error: " + error.stack);
+}
+
+console.log(`\nScript "${scriptName}" finished\n`);
+
