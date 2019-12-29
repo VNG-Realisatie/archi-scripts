@@ -5,9 +5,19 @@
  
 console.log("Change font");
 
+var selectedView = $(selection).filter("archimate-diagram-model").first();
 
-//-------------------------
-//  for diagram diagramName , colorize  components of componentType according to their propertyName values
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+    // ChangeFont(selectedView, "Segoe UI");
+    // ChangeFont(selectedView, "Sans");
+    ChangeFont(selectedView, "Arial");
+}
+
+/********************************************
+ * function definitions
+ *******************************************/
 function ChangeFont(diagram, pFont)
 {
 
@@ -26,16 +36,4 @@ function ChangeFont(diagram, pFont)
             }
         }
 	})
-//	console.log( `${propertyName} : ${k}/${j} (${componentType} doorlopen/gezet)`);
-}
-
-var selectedView = $(selection).filter("archimate-diagram-model").first();
-
-if (!selectedView) {
-	console.log("> Please Select a View");
-} else {
-    // ChangeFont(selectedView, "Segoe UI");
-    // ChangeFont(selectedView, "Sans");
-    ChangeFont(selectedView, "Arial");
-    // ChangeFont(selectedView, "Bluefish");
 }

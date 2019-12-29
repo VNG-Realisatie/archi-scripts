@@ -1,0 +1,4 @@
+Object = $(selection).filter("concept").first();
+console.log(`Object.prop() : ${Object.prop()}`)
+
+console.log(`property : ${property}`)

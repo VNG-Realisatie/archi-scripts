@@ -1,37 +1,39 @@
 /*
  * FontDecrease
  * 
- * Version 1: Decrease and reset font for selected or all views
+ * Decrease fontsize by 2, but don't set fontsize smaller than default 9
  * 
  * (c) 2019 Mark Backer
  *
  */
-
-// Show output in the console
-console.show();
-console.clear();
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
-console.log(`Executing script "${scriptName}"...\n`);
-
 load(__DIR__ + "IncludeAppearance.ajs");
 
-var selectedView = $(selection).filter("archimate-diagram-model").first();
+// Show output in the console
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.show();
+console.clear();
+console.log(`Executing script "${scriptName}"...\n`);
 
-try {
-	if (selectedView) {
-		ChangeFont(selectedView, "Decrease");
-	} else {
-		// Loop on all views
-		$('view').each(function(view) {
-			ChangeFont(view, "Decrease");
-		})
+applyToSelection($(selection), DecreaseFont);
+
+console.log(`\nScript "${scriptName}" finished`);
+
+/*
+ * DecreaseFont
+ * 
+ * Decrease font for object
+ * 
+ */
+function DecreaseFont(pObject) {
+
+	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
+
+	if (pObject.fontSize > 9 ) {
+		if (pObject.fontSize == 10) {
+			pObject.fontSize = 9;
+		} else {
+			pObject.fontSize = pObject.fontSize - 2;
+		}
 	}
 }
-catch (error) {
-	console.log("> Error: " + error);
-	console.log("> Error: " + error.stack);
-}
-
-console.log(`\nScript "${scriptName}" finished\n`);
-

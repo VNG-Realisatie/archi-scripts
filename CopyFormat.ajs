@@ -1,7 +1,10 @@
 /*
  * CopyFormat
  * 
- * Copy formatting to other (selected) elements
+ * Bulk copy of element formatting to other (selected) elements in view
+ * 
+ * Use this script if you want to copy the formatting of one element to multiple other elements
+ * For selectively copy the formatting, use the brush tool in the Archi palette 
  * 
  * (c) 2019 Mark Backer
  * 
@@ -10,23 +13,84 @@
  * 	select multiple elements in view 	-> copy formatting from first element to selected elements
  * 
  * idea
- * 	select one element in model tree	-> copy in model formatting to all elements of same type (also figure)
+ * 	select one element in model tree	-> copy formatting to all elements of same type (also figure) in all views
  *
  */
 
  // Show output in the console
-console.show();
-console.clear();
 var filepath = __FILE__.split("/");
 var scriptName = filepath[filepath.length-1];
-
+console.show();
+console.clear();
 console.log(`Executing script "${scriptName}"...\n`);
 
-function CopyFormat(pSource, pTarget) {
-	// no jArchi API calls for formatting of 
-	// 	text alignment en position
-	// 	outline opacity
+var FormatSource = $(selection).filter("element").first();
 
+try {
+	if (FormatSource) {
+		var i=0;
+		if ($(selection).filter("element").size() == 1){
+			// select one element in view			-> copy formatting to all elements of same type (also figure)
+			console.log(`> Copy formatting from "${FormatSource}" to all "${FormatSource.type}"`);
+			console.log(`> View is ${FormatSource.view}`);
+		
+			$(FormatSource.view).find(FormatSource.concept.type).each(function(occurrence) { 
+				console.log(`> Copy to "${occurrence.name}"`);
+				CopyFormat(FormatSource, occurrence, "Multiple");
+				i++;
+			})
+		} else {
+			// select multiple elements in view 	-> copy formatting from first element to selected elements
+			let myOccurrenceSet = new Set();
+			var myOccurrenceList = [];
+
+			$(selection).forEach(function(occurrence) {
+				myOccurrenceSet.add(occurrence.name);
+			})
+			for (let item of myOccurrenceSet) {
+				myOccurrenceList.push(item); // convert set to array
+			}
+			myOccurrenceList.sort()
+
+			FormatSourceName = window.prompt(`Select the object to use as formatting source\n  Select Cancel if you want to use ${FormatSource}`, `${myOccurrenceList}`)
+			if (FormatSourceName) {
+				FormatSource = $(selection).filter(function(occurrence) {
+					if (occurrence.name == FormatSourceName) { return true;	} 
+					else { return false; }
+				})
+				if (FormatSource.size() != 1) {
+					throw(`Multiple elements found, number is ${FormatSource.size()}`)
+				}
+				FormatSource = FormatSource.first()
+			}
+			console.log(`> Copy formatting from "${FormatSource}"`);
+
+			$(selection).filter("element").each(function(occurrence){
+				CopyFormat(FormatSource, occurrence, "One");
+				i++;
+			})
+		}
+		console.log(`> Formatting copied to ${i} elements`);
+	} else {
+		console.log(`> Select one or multiple elements`);
+	}
+}
+catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Error: " + error.stack);
+}
+console.log(`Script "${scriptName}" finished`);
+
+
+/*
+ * CopyFormat
+ *
+ *	Not all formatting is copied, there are no jArchi API calls for setting
+ *		text alignment en position
+ *		outline opacity
+ *  
+ */
+function CopyFormat(pSource, pTarget, pMode) {
 	if (pTarget.fontColor	!= pSource.fontColor)	{pTarget.fontColor	= pSource.fontColor};
 	if (pTarget.fontName 	!= pSource.fontName)	{pTarget.fontName 	= pSource.fontName};
 	if (pTarget.fontSize 	!= pSource.fontSize)	{pTarget.fontSize 	= pSource.fontSize};
@@ -35,42 +99,7 @@ function CopyFormat(pSource, pTarget) {
 	if (pTarget.opacity 	!= pSource.opacity)		{pTarget.opacity 	= pSource.opacity};
 	if (pTarget.fillColor 	!= pSource.fillColor)	{pTarget.fillColor 	= pSource.fillColor};
 	if (pTarget.lineColor 	!= pSource.lineColor)	{pTarget.lineColor 	= pSource.lineColor};
-}
-
-function CopyFormatType(pSource, pTarget) {
-	CopyFormat(FormatSource, pTarget);
-	if (pTarget.figureType != pSource.figureType)	{pTarget.figureType 	= pSource.figureType};
-}
-
-var FormatSource = $(selection).filter("element").first();
-
-var i;
-try {
-	if (FormatSource) {
-		if ($(selection).filter("element").size() == 1){
-			// select one element in view			-> copy formatting to all elements of same type (also figure)
-			console.log(`> Copy formatting from ${FormatSource} to all "${FormatSource.type}"`);
-			console.log(`> View is ${FormatSource.view}`);
-		
-			$(FormatSource.view).find(FormatSource.concept.type).each(function(occurrence) { 
-				console.log(`> Copy to ${occurrence}`);
-				CopyFormatType(FormatSource, occurrence);
-			})
-		} else {
-			// select multiple elements in view 	-> copy formatting from first element to selected elements
-			console.log(`> Copy formatting from ${FormatSource}`);
-
-			$(selection).filter("element").each(function(occurrence){
-				CopyFormat(FormatSource, occurrence);
-			})
-		}
-	} else {
-		console.log(`> Select multiple elements`);
+	if (pMode == "Multiple") {
+		if (pTarget.figureType != pSource.figureType)	{pTarget.figureType 	= pSource.figureType};
 	}
 }
-catch (error) {
-	console.log("> Error: " + error);
-	console.log("> Error: " + error.stack);
-}
-
-console.log(`Script "${scriptName}" finished\n`);

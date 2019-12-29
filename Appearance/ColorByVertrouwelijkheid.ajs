@@ -1,0 +1,34 @@
+/*
+ * ColorByVertrouwelijkheid
+ *
+ * Color elements of the same type by the value of a chosen property
+ *	
+ * (c) 2019 Mark Backer
+ * 
+ */
+load(__DIR__ + "IncludeAppearance.ajs");
+
+// Show output in the console
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.show();
+console.clear();
+console.log(`Executing script "${scriptName}"...\n`);
+
+// ColorByProperty offers a popup with possible properties for coloring
+// ApplyToObjectType($(selection), colorByVertrouwelijkheid);
+applyToSelection($(selection), ColorByVertrouwelijkheid);
+
+console.log(`\nScript "${scriptName}" finished`);
+
+
+function ColorByVertrouwelijkheid(pObject) {
+	
+	colorscale 	= chroma.scale('Blues');
+	
+	var color = colorscale((pObject.prop("Vertrouwelijkheid") - 0.8)/3);
+// 	var color = getColorForProperty(pObject.prop("Vertrouwelijkheid"), this.propertyValues);
+	if (color) {
+		pObject.fillColor=color;
+	}
+}

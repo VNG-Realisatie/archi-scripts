@@ -1,34 +1,38 @@
 /*
  * ResetFont
  * 
- * Version 1: Reset font to default in selected view
+ * For the selected object, reset font
  * 
  * (c) 2019 Mark Backer
- *
+ * 
+ * Select objects in the model tree or on a view and run this script
+ * 
  */
-
-// Show output in the console
-console.show();
-console.clear();
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
-console.log(`Executing script "${scriptName}"...\n`);
-
 load(__DIR__ + "IncludeAppearance.ajs");
 
-var selectedView = $(selection).filter("archimate-diagram-model").first();
+// Show output in the console
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.show();
+console.clear();
+console.log(`Executing script "${scriptName}"...\n`);
 
-try {
-	if (selectedView) {
-		ChangeFont(selectedView, "Reset");
-	} else {
-		console.log(`> Please select a view`);
-	}
-	}
-catch (error) {
-	console.log("> Error: " + error);
-	console.log("> Error: " + error.stack);
-}
+applyToSelection($(selection), ResetFont);
 
-console.log(`\nScript "${scriptName}" finished\n`);
+console.log(`\nScript "${scriptName}" finished`);
 
+/*
+ * ResetFont
+ * 
+ * Reset font for object
+ * 
+ */
+function ResetFont(pObject) {
+
+	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
+
+	if (pObject.fontName != null) {pObject.fontName = "Segoe UI"}; 
+	if (pObject.fontStyle != null) {pObject.fontStyle = null};
+	if (pObject.fontColor != null) {pObject.fontColor = null};
+	if (pObject.fontSize != null) {pObject.fontSize = 9};
+}	

@@ -1,0 +1,47 @@
+/*
+ * Set default Format
+ * 
+ * For the selected object, reset formatting to there defaults (as set in Archi)
+ * See edit > preferences 
+ * 	tab fonts and colors
+ *  tab diagram > default figures
+ * 
+ * (c) 2019 Mark Backer
+ * 
+ * Select objects in the model tree or on a view and run this script
+ * 
+ */
+load(__DIR__ + "IncludeAppearance.ajs");
+
+// Show output in the console
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.show();
+console.clear();
+console.log(`Executing script "${scriptName}"...\n`);
+
+applyToSelection($(selection), SetDefaultFormat);
+// applyToSelection($(selection), ChangeFigure);
+
+console.log(`\nScript "${scriptName}" finished`);
+
+/* 
+ * Reset format to default
+ */
+function SetDefaultFormat(pObject) {
+	// Not all formatting can be reset, there are no jArchi API calls for setting
+	// *	text alignment en position
+	// *	outline opacity
+
+	//	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
+
+	if (pObject.fontColor)	{pObject.fontColor	= null};
+	if (pObject.fillColor)	{pObject.fillColor 	= null};
+	if (pObject.lineColor)	{pObject.lineColor 	= null};
+	
+	//	if (pObject.figureType == 0 ) {pObject.figureType = 1};
+	if (pObject.fontName != "Segoe UI")	{pObject.fontName = "Segoe UI"};
+	if (pObject.fontSize != 9)	{pObject.fontSize 	= 9};
+	if (pObject.fontStyle != "normal")	{pObject.fontStyle 	= "normal"};
+	if (pObject.opacity != 255)	{pObject.opacity = 255};
+}

@@ -1,6 +1,6 @@
 /*
- * 	Heatmap (plot BIV)
- *		Color the application-components based on their BIV security classification and plot the BIV-values as notes
+ * 	PlotPropertyBIV
+ *		Plot notes with the BIV-values inside the application-components
  */
  
 //	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
@@ -11,14 +11,11 @@ console.show();
 console.clear();
 console.log("Executing " + __FILE__.substring(2) + " ...\n");
 
-// 	colorscale = chroma.scale(['yellow', '008ae5']); //.classes(3).padding([0.1, 0.1]);
-//
 // ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
-// 
 // colorscale 	= chroma.scale('Oranges');
-colorscale 	= chroma.scale('Blues');
-//	colorscale 	= chroma.scale('Greens');
+// colorscale 	= chroma.scale('Greens');
 // colorscale 	= chroma.scale('YlGn');
+colorscale 	= chroma.scale('Blues');
 
 var selectedView = $(selection).filter("archimate-diagram-model").first();
 
@@ -39,7 +36,6 @@ if (!selectedView) {
 			
 				var BIVvalue = VisualElement.prop(BIVlist[i]);
 				if (BIVvalue) {
-	//				VisualElement.fontSize = 10;  // reduce fontsize to make room for notes
 	
 					var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
 					note.fillColor = colorscale((BIVvalue - 0.6 )/3); // subtract less than 1 for darker color in note than element
@@ -60,5 +56,5 @@ if (!selectedView) {
 		k++;
 	}) // next element
 
-	console.log( `${k} application-components colored`);
+	console.log( `${k} application-components plotted`);
 }

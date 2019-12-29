@@ -1,0 +1,58 @@
+/*
+ * ColorByProperty
+ *
+ * Color elements of the same type by the value of a chosen property
+ *	
+ * (c) 2019 Mark Backer
+ * 
+ */
+load(__DIR__ + "..\\Common\\includeCommon.ajs");
+load(__DIR__ + "IncludeAppearance.ajs");
+
+// Show output in the console
+initConsoleLog(__FILE__, true)
+
+// ApplyToSelection($(selection), colorfunc);
+applyToSelection($(selection), ColorByProperty, myColorForIndexPosition);
+
+finishConsoleLog();
+
+
+
+/*
+ * myColorForIndexPosition
+ * 
+ * Given a value and a list of possible values 
+ * -> return a color code based on the value's index position
+ */
+function myColorForIndexPosition(pValue, pValueList)
+{
+/*
+		colorscale = chroma.scale('Oranges');
+		colorscale = chroma.scale('Blues');
+		colorscale = chroma.scale('Greens');
+		colorscale = chroma.scale('OrRd').classes(3);
+		colorscale = chroma.scale(['yellow', '008ae5']).classes(3).padding([0.1, 0.1]);
+*/
+	// colorscale 	= chroma.scale('Blues');
+	colorscale = chroma.scale('Blues').padding([0, 0.2]);
+
+	return colorscale((pValueList.indexOf(pValue))/pValueList.length);
+}
+
+// given a value return a color code
+function colorByTypeVoorziening(pValue)
+{
+	var TypeVoorziening = [
+		'Referentieimplementatie',
+		'Lokale voorziening',
+		'Sectorale voorziening',
+		'Landelijke voorziening',
+		'Beheervoorziening',
+		'Ontwikkelvoorziening'
+	];
+
+	colorscale = chroma.scale('Blues').padding([0, 0.3]);
+	return colorscale((TypeVoorziening.indexOf(pValue))/TypeVoorziening.length);
+}
+

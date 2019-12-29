@@ -1,34 +1,40 @@
 /*
- * ResetFont
+ * FontPlot
  * 
- * Version 1: Set font for Applicationcomponents
+ * Set font for application-components a bit larger than default
  * 
  * (c) 2019 Mark Backer
- *
+ * 
  */
-
-// Show output in the console
-console.show();
-console.clear();
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
-console.log(`Executing script "${scriptName}"...\n`);
-
 load(__DIR__ + "IncludeAppearance.ajs");
 
-var selectedView = $(selection).filter("archimate-diagram-model").first();
+// Show output in the console
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.show();
+console.clear();
+console.log(`Executing script "${scriptName}"...\n`);
 
-try {
-	if (selectedView) {
-		ChangeFont(selectedView, "PlotSize");
-	} else {
-		console.log(`> Please select a view`);
+applyToSelection($(selection), FontPlotSize);
+
+console.log(`\nScript "${scriptName}" finished`);
+
+/*
+ * FontPlotSize
+ */
+function FontPlotSize(pObject) {
+
+	if (pObject.type == "application-component") {
+		var FlagChanged = false;
+
+		if (pObject.fontName != "Segoe UI") {FlagChanged=true; pObject.fontName = "Segoe UI"}; 
+		// if (pObject.fontStyle != null) 		{FlagChanged=true; pObject.fontStyle = null};
+		// if (pObject.fontColor != null) 		{FlagChanged=true; pObject.fontColor = null};
+		if (pObject.fontSize != 10) 		{FlagChanged=true; pObject.fontSize = 10};
+		if (FlagChanged) {
+			console.log(`>>> ${pObject} on view ${pObject.view.name}`);
+		} else {
+			console.log(`>>> Not changed: ${pObject} on view ${pObject.view.name}`);
+		}
 	}
-	}
-catch (error) {
-	console.log("> Error: " + error);
-	console.log("> Error: " + error.stack);
-}
-
-console.log(`\nScript "${scriptName}" finished\n`);
-
+}	

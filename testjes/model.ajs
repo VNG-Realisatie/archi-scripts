@@ -1,0 +1,57 @@
+load(__DIR__ + "..\\Common\\includeCommon.ajs");
+
+pSelection = $(selection)
+
+var archiCollectionType = [
+	'archimate-model',
+	'folder',
+	'archimate-diagram-model', //  'view' also selects sketch and canvas
+	'concept',
+	'diagram-model-note',
+	'diagram-model-group',
+	'diagram-model-connection',
+	'diagram-model-image',
+	'diagram-model-reference'
+];
+
+initConsoleLog(__FILE__, true)
+
+console.log(`======================`)
+
+for (var j=0; j<archiCollectionType.length; j++) {
+	if (pSelection.is(archiCollectionType[j])) {
+		SelectionType = archiCollectionType[j]
+		console.log(`${pSelection} is a ${SelectionType}`)
+	}
+}
+console.log(`======================`)
+console.log(`model = ${model}`)
+console.log(`pSelection (show collection)= ${pSelection}`)
+// console.log(`pSelection.find() = ${pSelection.find()}`)
+console.log(`pSelection.first() (show first object)= ${pSelection.first()}`)
+console.log(`pSelection.first().id (show object.id)= ${pSelection.first().id}`)
+console.log(`pSelection object to collection)= ` + $(`#${pSelection.first().id}`))
+
+// console.log(`pSelection.children() = ${pSelection.children()}`)
+console.log(`is a archimate-model = ${pSelection.is('archimate-model')} `)
+console.log(`is a folder = ${pSelection.is('folder')} `)
+console.log(`is a archimate-diagram-model = ${pSelection.is('archimate-diagram-model')} `)
+console.log(`is a element = ${pSelection.is('element')} `)
+console.log(`is a relation = ${pSelection.is('relation')} `)
+console.log(`is a concept = ${pSelection.is('concept')} `)
+console.log(`is a diagram-model-note = ${pSelection.is('diagram-model-note')} `)
+console.log(`is a diagram-model-connection = ${pSelection.is('diagram-model-connection')} `)
+console.log(`is a diagram-model-group = ${pSelection.is('diagram-model-group')} `)
+
+pView = pSelection
+	// from object pView back to a collection with pView.id
+	// ugly, but works
+	console.log(`pView = ${pView}`)
+	console.log(`pView.id = ${pView.id}`)
+	console.log(`$(#pView.id) = ` + $(`#${pView.id}`))
+	console.log(`$(#pView.id).find() = ` + $(`#${pView.id}`).find())
+	console.log(`$(#pView.id).find().first() = ` + $(`#${pView.id}`).find().first())
+	console.log(`$(#pView.id).find().first().bounds = ` + $(`#${pView.id}`).find().first().bounds)
+	console.log(`$(#pView.id).find().first().bounds.x = ` + $(`#${pView.id}`).find().first().bounds.x)
+
+finishConsoleLog();

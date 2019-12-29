@@ -1,0 +1,46 @@
+var _commonScriptName;
+var _commonCounter;
+
+function initConsoleLog(pFile, pClear) {
+	_commonCounter = startCounter();
+	// Show output in the console
+	filepath = pFile.split("/");
+	_commonScriptName = filepath[filepath.length-1];
+
+	console.show();
+	if (pClear) {console.clear()};
+	console.log(`Executing script "${_commonScriptName}"...\n`);
+}
+
+function finishConsoleLog() {
+	_commonCounter = endCounter(_commonCounter);
+	console.log(`\nScript "${_commonScriptName}" finished in ${_commonCounter.minutes}m${_commonCounter.seconds}s`);
+}
+
+function info(msg) {
+	if ( G_verbose ) console.log("INFO: " + msg);
+}
+
+function debug(msg) {
+	if ( G_debug ) console.log("DEBG: " + msg);
+}
+
+/*
+	var _commonCounter = startCounter();
+	G__allViews = $("view");
+	_commonCounter = endCounter(_commonCounter);
+	debug("Duration: "+_commonCounter.minutes+"m"+_commonCounter.seconds+"s");
+
+*/
+function startCounter() {
+	return new Date();
+}
+
+function endCounter(startCounter) {
+	_endCounter = new Date();
+	_durationInSeconds = parseInt((_endCounter - startCounter) / 1000);
+	_minutes = parseInt(_durationInSeconds / 60);
+	_seconds = parseInt(_durationInSeconds % 60);
+	return {minutes:_minutes, seconds: _seconds};
+}
+

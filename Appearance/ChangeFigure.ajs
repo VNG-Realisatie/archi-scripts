@@ -1,0 +1,43 @@
+/*
+ * Change figure
+ * 
+ * For the selected object, toggle there figure
+ * 
+ * (c) 2019 Mark Backer
+ * 
+ * Select objects in the model tree or on a view and run this script
+ * 
+ */
+load(__DIR__ + "IncludeAppearance.ajs");
+
+// Show output in the console
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+console.show();
+console.clear();
+console.log(`Executing script "${scriptName}"...\n`);
+
+applyToSelection($(selection), ChangeFigure);
+
+console.log(`\nScript "${scriptName}" finished`);
+
+/* 
+ * Change figure of application component in diagram
+ */
+function ChangeFigure(pObject)
+{
+
+	if (pObject.figureType == 0 || pObject.figureType == 1) 
+	{
+		console.log(`>>> Set figure "${pObject.name}"`);
+
+		if (pObject.figureType == 0) {
+			pObject.figureType = 1; // rectangle with icon 
+		} else {
+			pObject.figureType = 0; // explicite component figure 
+		}
+	} else {
+		console.log(`>>> Skipped, "${pObject}" does not have a figure property`);
+	}
+
+}
