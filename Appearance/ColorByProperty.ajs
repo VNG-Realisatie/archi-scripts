@@ -1,13 +1,17 @@
 /*
  * ColorByProperty
  *
- * Color elements of the same type by the value of a chosen property
+ * Color elements by the value of a selected property
  *	
  * (c) 2019 Mark Backer
  * 
+ * load chroma.min.js
+ *		chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
+ *		ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
-load(__DIR__ + "..\\Common\\includeCommon.ajs");
-load(__DIR__ + "IncludeAppearance.ajs");
+load(__DIR__ + "../lib/chroma.min.js");
+load(__DIR__ + "../Common/includeCommon.ajs");
+load(__DIR__ + "IncludeApplyToSelection.ajs");
 
 // Show output in the console
 initConsoleLog(__FILE__, true)
@@ -16,8 +20,6 @@ initConsoleLog(__FILE__, true)
 applyToSelection($(selection), ColorByProperty, myColorForIndexPosition);
 
 finishConsoleLog();
-
-
 
 /*
  * myColorForIndexPosition
@@ -56,3 +58,177 @@ function colorByTypeVoorziening(pValue)
 	return colorscale((TypeVoorziening.indexOf(pValue))/TypeVoorziening.length);
 }
 
+/**
+ * ColorByProperty
+ * 	Generic function to color an element based on a property value
+ * 
+ *  The first time this function is called, the function
+ * 	- shows a popup with the properties of the argument pObject
+ *  	- select a property by typing a property name (edit the property list)
+ *  - draws a legenda with the property values and given colors
+ * 
+ *  Next for all calls
+ *  - the function pColorFunc is called with the property value
+ * 	- the objects color is set to the resulting color
+ * 
+ * @param pObject 
+ * @param pColorFunc 
+ */
+function ColorByProperty(pObject, pColorFunc) {
+	// initialize with selection of property en property values
+	if ( typeof this.FlagFirstTime == 'undefined' ) {
+		// JS functions are also objects -- which means they can have (static) properties
+		this.FlagFirstTime = true;
+		this.viewDrawLegenda = new Set();
+		this.colorFunc = pColorFunc;
+
+		if (!pColorFunc) {
+			this.colorFunc = colorForIndexPosition;
+		}
+		console.log(`>>> Color function is : ${pColorFunc.name}`);
+
+		/*
+			Prefer to start with selectedElement. To be sure that the colorfunc initializes with a known element
+			reason: the ColorByProperty shows the list of properties from the first element
+			property = pColorFunc(selectedElement);
+			if (!property) {
+				throw ('No valid property')
+			}
+			// i++; // count selectedElement
+			Can't get a collection minus selectedElement
+			not(selectedElement) not working?? 
+			$(selectedElement.view).not(selectedElement).find(selectedElement.type).forEach(function(occurrence) {
+
+			Sollution in ColorByProperty(); show in popup which element is used for property list
+		*/
+
+		// select a property of the selected element
+		propertiesList = pObject.prop();
+
+		promptText = `Select a property\n`
+		promptText += `   Prefilled with properties from [${pObject}]\n`
+		promptText += `   Edit and keep the name of the property`
+		this.selectedProperty = window.prompt(promptText, `${propertiesList}`)
+		if (this.selectedProperty) {
+			if (pObject.prop(this.selectedProperty)){
+
+				console.log(`>>> Color by property : ${this.selectedProperty}`);
+				// this(pObject.view, pObject.type, selectedProperty)
+				this.propertyValues = getPropertyValues(pObject.view, pObject.type, this.selectedProperty);
+			} else {
+				throw (`Invalid selection, property "${this.selectedProperty}" does not exist for ${pObject}`);
+			}
+		} else {
+			throw ('Cancelled, no property selected');
+		}
+	}
+
+	if (!viewDrawLegenda.has(pObject.view)) {
+		drawLegenda(pObject.view, this.colorFunc, this.selectedProperty, this.propertyValues)
+		viewDrawLegenda.add(pObject.view);
+	}
+
+	var color = this.colorFunc(pObject.prop(this.selectedProperty), this.propertyValues);
+
+	if (color) {
+		pObject.fillColor=color;
+	}
+	return this.selectedProperty
+}
+
+/*
+ * getPropertyValues
+ * 
+ * return an array of property values, filter the duplicates
+ * 
+ * given a view, the the property values of the objects on the view are returned
+ * without a view, all the objects in the model are evaluated
+ * 
+ */
+function getPropertyValues(pView, pObjectType, pProperty)
+{
+	let myPropertySet = new Set()
+	var myList = [];
+	var evaluateSelection;
+
+	if (pView) {
+		evaluateSelection = pView
+	} else {
+		evaluateSelection = model
+	}
+
+	$(evaluateSelection).find(pObjectType).forEach(function(occurrence) {
+		myPropertySet.add(occurrence.prop(pProperty));
+	})
+	console.log(`>> Evaluated objects for property values: all objects in "${evaluateSelection}" of type ${pObjectType}`)
+	console.log(`>> Found ${myPropertySet.size} unique values for "${pProperty}"`)
+
+	for (let item of myPropertySet) {
+		myList.push(item); // convert set to array
+		console.log(`>>> ${item}`);
+	}
+	return myList;
+}
+
+/*
+ * colorForIndexPosition
+ * 
+ * Given a value and a list of possible values 
+ * -> return a color code based on the value's index position
+ */
+function colorForIndexPosition(pValue, pValueList)
+{
+	// console.log(`>> pValue, list: ${pValue}, ${pValueList}`)
+	// console.log(`>> pValueList.index: ${pValueList.indexOf(pValue)}`)
+	// console.log(`>> pValueList.length: ${pValueList.length}`)
+	if (pValueList.length > 5) {
+		colorscale = chroma.scale('RdYlBu');
+	} else {
+		colorscale = chroma.scale('Blues').padding([0, 0.2]);
+	}
+	return colorscale((pValueList.indexOf(pValue))/pValueList.length);
+}
+
+/*
+ * drawLegenda
+ * 
+ * Draw a legenda with the colors of the property values
+ */
+function drawLegenda(pView, pColorFunc, pProperty, pPropertyValues)
+{
+	// Add a visual group Legenda to view
+	maxX = 0;
+	minY = 0;
+
+	// create a 'collection' of pView for finding all view elements
+	$(`#${pView.id}`).find("element").forEach(function(occurrence){
+		maxX = Math.max(occurrence.bounds.x + occurrence.bounds.width, maxX);
+		minY = Math.min(occurrence.bounds.y, minY);
+	});
+	// Determine position of the legenda
+	ItemWidth = 140;
+	ItemHeigth = 25;
+	HeaderHeight = 30;
+	ItemSpacingX =10;
+	ItemSpacingY = 5;
+
+	var group = pView.createObject("group", 
+		maxX + ItemSpacingX,
+		minY,
+		ItemWidth + (2 * ItemSpacingX),
+		HeaderHeight + ItemSpacingY + (ItemHeigth * pPropertyValues.length) + (ItemSpacingY * pPropertyValues.length)
+	);
+	group.name = pProperty // "Legenda";
+	group.figureType = 1;
+	group.fillColor = "#FFFFFF"
+	for (var j=0; j<pPropertyValues.length; j++) {
+		note = group.createObject("note",
+			ItemSpacingX, 
+			HeaderHeight + (j* (ItemHeigth+ItemSpacingY) ), 
+			ItemWidth, 
+			ItemHeigth)
+		note.fillColor = pColorFunc(pPropertyValues[j], pPropertyValues)
+		note.text = pPropertyValues[j];
+		note.figureType = 1; // rectangle
+	}
+}

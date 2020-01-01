@@ -8,25 +8,20 @@
  * Select objects in the model tree or on a view and run this script
  * 
  */
-load(__DIR__ + "IncludeAppearance.ajs");
+load(__DIR__ + "../Common/includeCommon.ajs");
+load(__DIR__ + "IncludeApplyToSelection.ajs");
 
-// Show output in the console
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
-console.show();
-console.clear();
-console.log(`Executing script "${scriptName}"...\n`);
+initConsoleLog(__FILE__)
 
 applyToSelection($(selection), ChangeFigure);
 
-console.log(`\nScript "${scriptName}" finished`);
+finishConsoleLog()
 
 /* 
  * Change figure of application component in diagram
  */
 function ChangeFigure(pObject)
 {
-
 	if (pObject.figureType == 0 || pObject.figureType == 1) 
 	{
 		console.log(`>>> Set figure "${pObject.name}"`);
@@ -39,5 +34,4 @@ function ChangeFigure(pObject)
 	} else {
 		console.log(`>>> Skipped, "${pObject}" does not have a figure property`);
 	}
-
 }

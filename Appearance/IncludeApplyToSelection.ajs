@@ -1,30 +1,20 @@
 /*
- * IncludeAppearance
- * 
- * Version 1: Shared appearance functions
+ * IncludeApplyToSelection
  * 
  * (c) 2019 Mark Backer
  *
- * load chroma.min.js
- *		chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
- *		ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
-load(__DIR__ + "../lib/chroma.min.js");
 
-var _filepath = __FILE__.split("/");
-var _scriptName = _filepath[_filepath.length-1];
-console.log(`> Include script "${_scriptName}"...`);
-
-
-/*
+/**
  * applyToSelection
  * 
- * Apply a (formatting)function to the selection
+ * Apply a formatting function to the selection. 
+ * Depending on the selection, the given function is applied to a selection off visual concepts on one or multiple views
  * 
  * Behavior
  * 		select model, apply function to objects on all views
  * 		select folder(s), apply function to objects on views in selected (sub)folders
- * 		select view(s), apply function to objects on selected view
+ * 		select view(s), apply function to objects on selected view(s)
  *   	select object(s) in model tree, apply function to all references on all views
  * 
  * If you select on the view
@@ -34,10 +24,14 @@ console.log(`> Include script "${_scriptName}"...`);
  * 			if parameter applyToType, apply function to selected elements of same type as first selected object; 
  * 
  * Parameters:
- * 	pSelection - the selection
- * 	pFunc - formatting of set_properties function
- *  pApplyToFilter - if true (and a concept is selected), apply function to objects of the concepttype of the selection
- *  pFuncParam - optional parameters for function
+ * 	@param pSelection - the selection of objects
+ *  @param pValidSelection - valid collectionType of objects to apply the function to
+ * 		- tree
+ * 		- view
+ * 		- concept
+ * 		- diagram-object
+ * 	@param pFunc - function with formatting for selected objects (function must have a parameter object)
+ *  @param pFuncParam - optional parameters for function
  * 		
  */
 function applyToSelection(pSelection, pFunc, pFuncParam) {
@@ -128,7 +122,7 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 			case 'diagram-model-connection':
 			case 'diagram-model-image':
 			case 'diagram-model-reference': {
-				console.log(`> That's a visual element`)
+				console.log(`> Select the model, a folder or a concept. Visual element not supported`)
 				break;
 			}
 			default:
@@ -136,165 +130,6 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 	}
 	catch (error) {
 		console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
-	}
-}
-
-function ColorByProperty(pObject, pColorFunc) {
-	// initialize with selection of property en property values
-	if ( typeof this.FlagFirstTime == 'undefined' ) {
-		// JS functions are also objects -- which means they can have (static) properties
-		this.FlagFirstTime = true;
-		this.viewSet = new Set();
-		this.colorFunc = pColorFunc;
-
-		if (!pColorFunc) {
-			this.colorFunc = colorForIndexPosition;
-		}
-		console.log(`>>> Color function is : ${pColorFunc.name}`);
-
-		/*
-			Prefer to start with selectedElement. To be sure that the colorfunc initializes with a known element
-			reason: the ColorByProperty shows the list of properties from the first element
-			property = pColorFunc(selectedElement);
-			if (!property) {
-				throw ('No valid property')
-			}
-			// i++; // count selectedElement
-			Can't get a collection minus selectedElement
-			not(selectedElement) not working?? 
-			$(selectedElement.view).not(selectedElement).find(selectedElement.type).forEach(function(occurrence) {
-
-			Sollution in ColorByProperty(); show in popup which element is used for property list
-		*/
-
-		// select a property of the selected element
-		propertiesList = pObject.prop();
-
-		promptText = `Select a property\n`
-		promptText += `   Prefilled with properties from [${pObject}]\n`
-		promptText += `   Edit and keep the name of the property`
-		this.selectedProperty = window.prompt(promptText, `${propertiesList}`)
-		if (this.selectedProperty) {
-			if (pObject.prop(this.selectedProperty)){
-
-				console.log(`>>> Color by property : ${this.selectedProperty}`);
-				// this(pObject.view, pObject.type, selectedProperty)
-				this.propertyValues = getPropertyValues(pObject.view, pObject.type, this.selectedProperty);
-			} else {
-				throw (`Invalid selection, property "${this.selectedProperty}" does not exist for ${pObject}`);
-			}
-		} else {
-			throw ('Cancelled, no property selected');
-		}
-	}
-
-	if (!viewSet.has(pObject.view)) {
-		drawLegenda(pObject.view, this.selectedProperty, this.propertyValues)
-		viewSet.add(pObject.view);
-	}
-
-	var color = this.colorFunc(pObject.prop(this.selectedProperty), this.propertyValues);
-
-	if (color) {
-		pObject.fillColor=color;
-	}
-	return this.selectedProperty
-}
-
-/*
- * getPropertyValues
- * 
- * return an array of property values, filter the duplicates
- * 
- * given a view, the the property values of the objects on the view are returned
- * without a view, all the objects in the model are evaluated
- * 
- */
-function getPropertyValues(pView, pObjectType, pProperty)
-{
-	let myPropertySet = new Set()
-	var myList = [];
-	var evaluateSelection;
-
-	if (pView) {
-		evaluateSelection = pView
-	} else {
-		evaluateSelection = model
-	}
-
-	$(evaluateSelection).find(pObjectType).forEach(function(occurrence) {
-		myPropertySet.add(occurrence.prop(pProperty));
-	})
-	console.log(`>> Evaluated objects for property values: all objects in "${evaluateSelection}" of type ${pObjectType}`)
-	console.log(`>> Found ${myPropertySet.size} unique values for "${pProperty}"`)
-
-	for (let item of myPropertySet) {
-		myList.push(item); // convert set to array
-		console.log(`>>> ${item}`);
-	}
-	return myList;
-}
-
-/*
- * colorForIndexPosition
- * 
- * Given a value and a list of possible values 
- * -> return a color code based on the value's index position
- */
-function colorForIndexPosition(pValue, pValueList)
-{
-	// console.log(`>> pValue, list: ${pValue}, ${pValueList}`)
-	// console.log(`>> pValueList.index: ${pValueList.indexOf(pValue)}`)
-	// console.log(`>> pValueList.length: ${pValueList.length}`)
-	if (pValueList.length > 5) {
-		colorscale = chroma.scale('RdYlBu');
-	} else {
-		colorscale = chroma.scale('Blues').padding([0, 0.2]);
-	}
-	return colorscale((pValueList.indexOf(pValue))/pValueList.length);
-}
-
-/*
- * drawLegenda
- * 
- * Draw a legenda with the colors of the property values
- */
-function drawLegenda(pView, pProperty, pPropertyValues)
-{
-	// Add a visual group Legenda to view
-	maxX = 0;
-	minY = 0;
-
-	// create a 'collection' of pView for finding all view elements
-	$(`#${pView.id}`).find("element").forEach(function(occurrence){
-		maxX = Math.max(occurrence.bounds.x + occurrence.bounds.width, maxX);
-		minY = Math.min(occurrence.bounds.y, minY);
-	});
-	// Determine position of the legenda
-	ItemWidth = 140;
-	ItemHeigth = 25;
-	HeaderHeight = 30;
-	ItemSpacingX =10;
-	ItemSpacingY = 5;
-
-	var group = pView.createObject("group", 
-		maxX + ItemSpacingX,
-		minY,
-		ItemWidth + (2 * ItemSpacingX),
-		HeaderHeight + ItemSpacingY + (ItemHeigth * pPropertyValues.length) + (ItemSpacingY * pPropertyValues.length)
-	);
-	group.name = pProperty // "Legenda";
-	group.figureType = 1;
-	group.fillColor = "#FFFFFF"
-	for (var j=0; j<pPropertyValues.length; j++) {
-		note = group.createObject("note",
-			ItemSpacingX, 
-			HeaderHeight + (j* (ItemHeigth+ItemSpacingY) ), 
-			ItemWidth, 
-			ItemHeigth)
-		note.fillColor = colorForIndexPosition(pPropertyValues[j], pPropertyValues)
-		note.text = pPropertyValues[j];
-		note.figureType = 1; // rectangle
 	}
 }
 
@@ -360,16 +195,17 @@ function applyToElementTypeAllView(pSelection, pFunc, pFuncParam) {
 	// 	console.log(`>>> ${view}`); 
 	// }		
 	console.log(`Function not applied to ${i} elements in ${v} views`)
+	for (let entry of ViewSet) {
+		console.log(`>> Skipped view: "${entry}"`);
+	}
 }
 
 function applyToElementTypeOnView(pSelection, pFunc, pFuncParam) {
 	var i=0;
 	var v=0;
 	selectedElement = pSelection.first();
-	$(selectedElement.view).find(selectedElement.type).forEach(function(occurrence) {
-		if (!pFunc(occurrence, pFuncParam)) {
-			throw (`in ${pFunc.name}`);
-		}
+	$(selectedElement.view).find(selectedElement.concept.type).forEach(function(occurrence) {
+		pFunc(occurrence, pFuncParam);
 		i++;
 	})
 	console.log(`${pFunc.name} applied to ${i} elements of type ${selectedElement.type} in view "${selectedElement.view.name}"`)

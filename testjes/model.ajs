@@ -1,4 +1,4 @@
-load(__DIR__ + "..\\Common\\includeCommon.ajs");
+load(__DIR__ + "../Common/includeCommon.ajs");
 
 pSelection = $(selection)
 
@@ -14,11 +14,17 @@ var archiCollectionType = [
 	'diagram-model-reference'
 ];
 
+for (var j = 0; j < archiCollectionType.length; j++) {
+	if (pSelection.is(archiCollectionType[j])) {
+		SelectionType = archiCollectionType[j]
+	}
+}
+
 initConsoleLog(__FILE__, true)
 
 console.log(`======================`)
 
-for (var j=0; j<archiCollectionType.length; j++) {
+for (var j = 0; j < archiCollectionType.length; j++) {
 	if (pSelection.is(archiCollectionType[j])) {
 		SelectionType = archiCollectionType[j]
 		console.log(`${pSelection} is a ${SelectionType}`)
@@ -43,15 +49,39 @@ console.log(`is a diagram-model-note = ${pSelection.is('diagram-model-note')} `)
 console.log(`is a diagram-model-connection = ${pSelection.is('diagram-model-connection')} `)
 console.log(`is a diagram-model-group = ${pSelection.is('diagram-model-group')} `)
 
-pView = pSelection
-	// from object pView back to a collection with pView.id
-	// ugly, but works
-	console.log(`pView = ${pView}`)
-	console.log(`pView.id = ${pView.id}`)
-	console.log(`$(#pView.id) = ` + $(`#${pView.id}`))
-	console.log(`$(#pView.id).find() = ` + $(`#${pView.id}`).find())
-	console.log(`$(#pView.id).find().first() = ` + $(`#${pView.id}`).find().first())
-	console.log(`$(#pView.id).find().first().bounds = ` + $(`#${pView.id}`).find().first().bounds)
-	console.log(`$(#pView.id).find().first().bounds.x = ` + $(`#${pView.id}`).find().first().bounds.x)
+
+switch (SelectionType) {
+	case 'archimate-model': {
+		break;
+	}
+	case 'folder': {
+		break;
+	}
+	case 'archimate-diagram-model': {
+		pView = pSelection
+		// from object pView back to a collection with pView.id
+		// ugly, but works
+		console.log(`pView = ${pView}`)
+
+		console.log(`pView.first().id = ${pView.first().id}`)
+		console.log(`$(#pView.id) = ` + $(`#${pView.id}`))
+		console.log(`$(#pView.id).find() = ` + $(`#${pView.id}`).find())
+		console.log(`$(#pView.id).find().first() = ` + $(`#${pView.id}`).find().first())
+		console.log(`$(#pView.id).find().first().bounds = ` + $(`#${pView.id}`).find().first().bounds)
+		console.log(`$(#pView.id).find().first().bounds.x = ` + $(`#${pView.id}`).find().first().bounds.x)
+		break;
+	}
+	case 'concept': {
+		selectedElement = pSelection.first()
+		console.log(`\pSelection = ${pSelection}`)
+		console.log(`selectedElement = ${selectedElement}`)
+		console.log(`selectedElement.view = ${selectedElement.view}`)
+		console.log(`selectedElement.view.id = ${selectedElement.view.id}`)
+		viewColl = $(`#${selectedElement.view.id}`)
+		console.log(`viewColl = ${viewColl}`)
+		console.log(`viewColl.find(selectedElement.type) = ${viewColl.find(selectedElement.type)}`)
+		console.log(`\n$(selectedElement.view).find(selectedElement.concept.type) = ${$(selectedElement.view).find(selectedElement.concept.type)}`)
+	}
+}
 
 finishConsoleLog();

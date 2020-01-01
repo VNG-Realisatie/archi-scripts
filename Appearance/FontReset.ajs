@@ -8,18 +8,14 @@
  * Select objects in the model tree or on a view and run this script
  * 
  */
-load(__DIR__ + "IncludeAppearance.ajs");
+load(__DIR__ + "../Common/includeCommon.ajs");
+load(__DIR__ + "IncludeApplyToSelection.ajs");
 
-// Show output in the console
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
-console.show();
-console.clear();
-console.log(`Executing script "${scriptName}"...\n`);
+initConsoleLog(__FILE__)
 
 applyToSelection($(selection), ResetFont);
 
-console.log(`\nScript "${scriptName}" finished`);
+finishConsoleLog()
 
 /*
  * ResetFont

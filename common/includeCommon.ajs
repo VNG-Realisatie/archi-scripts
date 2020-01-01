@@ -1,37 +1,34 @@
-var _commonScriptName;
-var _commonCounter;
+var _includeCommon_ScriptName;
+var _includeCommon_Counter;
 
+/**
+ * initConsoleLog and finishconsole
+ * 	first and last call in an Archi script
+ * 
+ * @param pFile : string __FILE__ as current script
+ * @param pClear : boolean for clear console
+ */
 function initConsoleLog(pFile, pClear) {
-	_commonCounter = startCounter();
+	_includeCommon_Counter = startCounter();
 	// Show output in the console
 	filepath = pFile.split("/");
-	_commonScriptName = filepath[filepath.length-1];
+	_includeCommon_ScriptName = filepath[filepath.length - 1];
 
 	console.show();
-	if (pClear) {console.clear()};
-	console.log(`Executing script "${_commonScriptName}"...\n`);
+	if (pClear) { console.clear() };
+	console.log(`Executing script "${_includeCommon_ScriptName}"...\n`);
 }
 
 function finishConsoleLog() {
-	_commonCounter = endCounter(_commonCounter);
-	console.log(`\nScript "${_commonScriptName}" finished in ${_commonCounter.minutes}m${_commonCounter.seconds}s`);
+	_includeCommon_Counter = endCounter(_includeCommon_Counter);
+	duration = `${_includeCommon_Counter.minutes}m${_includeCommon_Counter.seconds}s`
+	console.log(`\nScript "${_includeCommon_ScriptName}" finished in ${duration}\n`);
 }
 
-function info(msg) {
-	if ( G_verbose ) console.log("INFO: " + msg);
-}
-
-function debug(msg) {
-	if ( G_debug ) console.log("DEBG: " + msg);
-}
-
-/*
-	var _commonCounter = startCounter();
-	G__allViews = $("view");
-	_commonCounter = endCounter(_commonCounter);
-	debug("Duration: "+_commonCounter.minutes+"m"+_commonCounter.seconds+"s");
-
-*/
+/**
+ * startCounter and endCounter
+ * 	measure runtime for a block of code
+ */
 function startCounter() {
 	return new Date();
 }
@@ -41,6 +38,37 @@ function endCounter(startCounter) {
 	_durationInSeconds = parseInt((_endCounter - startCounter) / 1000);
 	_minutes = parseInt(_durationInSeconds / 60);
 	_seconds = parseInt(_durationInSeconds % 60);
-	return {minutes:_minutes, seconds: _seconds};
+	return { minutes: _minutes, seconds: _seconds };
 }
 
+/**
+ * info()
+ * 	show informational message if global _console_info is set
+ * @param msg string information message
+ */
+function info(msg) {
+	if (_console_info) console.log(`Info : ${msg}`);
+}
+
+/**
+ * debug()
+ * 	show debug message if global _console_debug is set
+ * @param msg string information message
+ */
+function debug(msg) {
+	if (_console_debug) {
+		console.log("Debug: " + msg)
+	};
+}
+
+/**
+ * stack()
+ * 	show stack message and error stack trace if global _console_stack is set
+ * @param msg string information message
+ */
+function stack(msg) {
+	if (_console_stack) {
+		console.log("Stack: " + msg)
+		console.log("Stack: " + (new Error()).stack)
+	};
+}

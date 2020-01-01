@@ -5,11 +5,9 @@
  
 //	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
 load(__DIR__ + "../lib/chroma.min.js");
+load(__DIR__ + "../Common/includeCommon.ajs");
 
-// Show output in the console
-console.show();
-console.clear();
-console.log("Executing " + __FILE__.substring(2) + " ...\n");
+initConsoleLog(__FILE__)
 
 // ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
 // colorscale 	= chroma.scale('Oranges');
@@ -26,25 +24,25 @@ if (!selectedView) {
 	var BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
 	
 	$(selectedView).find("application-component").forEach(function(VisualElement) {
-
+		
 		VisualElement.fillColor = colorscale((VisualElement.prop("Vertrouwelijkheid")- 0.8)/3);  // color element with value for 'Vertrouwelijkheid' 
-
+		
 		// only plot BIV notes in referentiecomponent, not in legenda components
 		if (VisualElement.prop("GEMMA type") == "Referentiecomponent") {
 			var x = 20;
 			for (var i=0; i<BIVlist.length; i++) {
-			
+				
 				var BIVvalue = VisualElement.prop(BIVlist[i]);
 				if (BIVvalue) {
-	
+					
 					var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
 					note.fillColor = colorscale((BIVvalue - 0.6 )/3); // subtract less than 1 for darker color in note than element
 					note.fontSize = 9;
-	//				note.fontStyle = "bold";
-	
+					//				note.fontStyle = "bold";
+					
 					var str = BIVlist[i];
 					note.text = `${str.substring(0,1)} = ${VisualElement.prop(BIVlist[i])}` ;
-	
+					
 				} else {
 					console.log( `${VisualElement.name}: no property ${BIVlist[i]}`);
 				}
@@ -55,6 +53,8 @@ if (!selectedView) {
 		}
 		k++;
 	}) // next element
-
+	
 	console.log( `${k} application-components plotted`);
 }
+
+finishConsoleLog()

@@ -288,5 +288,3 @@ function FindElement(pProperty, pPropertyValue, pSelectID, pSelectName, pType) {
 	E_I_Info? console.log(">> FindElement() : " + vFindImportText + " > " + vElement):true;
 	return {vElement:vElement, vFindImportText:vFindImportText}
 }
-
-
