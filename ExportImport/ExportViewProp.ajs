@@ -50,10 +50,7 @@ $('view').each(function(view) {
 	}
 }); // each view
 
-// Open a dialog to let the user choose where to save the generated file
-var defaultFileName = model.name ? model.name + ".csv" : "Exported Model.csv"; // Default file name
-var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
 console.log("==============");
-write_CSVdata("views", viewHeaderDef, viewData, ExportFileLocation);
+write_CSVdata("views", viewHeaderDef, viewData);
 console.log("==============");
 console.log(`Script "${scriptName}" finished\n`);

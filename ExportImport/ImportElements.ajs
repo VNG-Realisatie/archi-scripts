@@ -12,7 +12,7 @@
  * Mark Backer
  * Version 2: Added finding existing elements with a custom "id" in a property.
  * 
- * - the customlabel_ID_property is used for exchanging elements en relation between multiple architecture tools. 
+ * - the label_ID_property is used for exchanging elements en relation between multiple architecture tools. 
  * 	Inputformat of the relation CSV:
  *	- use the script "Export to CSV.ajs" to create a spreadsheet with all the columns
  * 	- first columns are defined in elementHeaderDef
@@ -40,7 +40,7 @@ var scriptName = filepath[filepath.length-1];
 
 console.log(`Executing script "${scriptName}"...\n`);
 
-CSVtable = read_CSVdata("element")
+CSVtable = read_CSVdata()
 if (!CSVtable) {
 	console.log("> Canceled, no CSV data ");
 } else {
@@ -69,7 +69,7 @@ if (!CSVtable) {
 					debug? console.log(`>>> CSVtable.data[${i_row}] > ${CSVheader[j_col]} = ${CSVrow[CSVheader[j_col]]}`) : true;
 				}
 
-				result = FindElement(customlabel_ID_property, CSVrow[customlabel_ID_property], 
+				result = FindElement(label_ID_property, CSVrow[label_ID_property], 
 					CSVrow[elementHeaderDef["id"]],
 					CSVrow[elementHeaderDef["name"]], CSVrow[elementHeaderDef["type"]]);
 

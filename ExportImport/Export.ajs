@@ -99,11 +99,11 @@ if (!selectedView) {
 						Source = relationship.source;
 						Target = relationship.target;
 
-						Row[relationHeaderDef["source CustomID"]]	= Source.prop(customlabel_ID_property);
-						Row[relationHeaderDef["target CustomID"]]	= Target.prop(customlabel_ID_property);
+						Row[relationHeaderDef["source CustomID"]]	= Source.prop(label_ID_property);
+						Row[relationHeaderDef["target CustomID"]]	= Target.prop(label_ID_property);
 
-						debug? console.log(`>>>> Source ${Source} ${Source.prop(customlabel_ID_property)}`):true;
-						debug? console.log(`>>>> Target ${Target} ${Target.prop(customlabel_ID_property)}`):true;
+						debug? console.log(`>>>> Source ${Source} ${Source.prop(label_ID_property)}`):true;
+						debug? console.log(`>>>> Target ${Target} ${Target.prop(label_ID_property)}`):true;
 
 						export_properties(relationship, Row, relationHeaderDef);
 
@@ -134,13 +134,9 @@ if (!selectedView) {
 	stats_CSVdata("elements", elementDuplicate, elementHeaderDef, elementData);
 	stats_CSVdata("relations", relationDuplicate, relationHeaderDef, relationData);
 
-	// Open a dialog to let the user choose where to save the generated file
-    var defaultFileName = model.name ? model.name + "-" + selectedView.name + ".csv" : "Exported Model.csv"; // Default file name
-	var ExportFileLocation = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: defaultFileName } );
-
 	console.log("==============");
-	write_CSVdata("elements", elementHeaderDef, elementData, ExportFileLocation);
-	write_CSVdata("relations", relationHeaderDef, relationData, ExportFileLocation);
+	write_CSVdata("elements", elementHeaderDef, elementData, selectedView);
+	write_CSVdata("relations", relationHeaderDef, relationData, selectedView);
 	console.log("==============");
 }
 console.log(`Script "${scriptName}" finished\n`);

@@ -11,42 +11,47 @@
 console.show();
 console.clear();
 var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
-
+var scriptName = filepath[filepath.length - 1];
 console.log(`Executing script "${scriptName}"...\n`);
 
-// customlabel_ID_property for finding existing elements
-var customlabel_ID_property = "Object ID";
-var IndexMap = [];
-var Duplicate = [];
-var Duplicate_i = 0;
+// label_ID_property for finding existing elements
+var label_ID_property = "Object ID";
+var indexMap = [];
+var i = 0;
 
-function check_duplicatie_ID_property(concept){
-	if (IndexMap[concept.prop(customlabel_ID_property)]) {
-		Duplicate[Duplicate_i] = `"${concept}" with duplicate [${customlabel_ID_property}] = ${concept.prop(customlabel_ID_property)}`; 
-		console.log(Duplicate[Duplicate_i]);
-		Duplicate_i++;
-	} else { 
-		IndexMap[concept.prop(customlabel_ID_property)]=true;
-	}
-}
-
-// Loop on all concepts
-$('concept').each(function(concept) {
+// check all concepts
+$('concept').each(function (concept) {
 	check_duplicatie_ID_property(concept)
 })
 
-// Loop on all views
-$('view').each(function(view) {
+// chack all views
+$('view').each(function (view) {
 	check_duplicatie_ID_property(view)
 })
 
-if (Duplicate_i > 0) {
-	console.log(`\nThere are ${Duplicate_i} object with duplicate [${customlabel_ID_property}] found`);
-	console.log(`For new objects: easy sollution is to \n- find the object in the model tree`);
-	console.log(`- show de properties tab and\n- remove the property [${customlabel_ID_property}] (right click on [${customlabel_ID_property}])`);
-	console.log(`For existing objects: \n- be carefull from which object to remove the [${customlabel_ID_property}] !!`);
+if (i > 0) {
+	console.log(`\nThere are ${i} object with duplicate [${label_ID_property}] found`);
+	console.log(`For new objects: easy sollution is to:`);
+	console.log(`- find the object in the model tree`);
+	console.log(`- remove the property [${label_ID_property}] (right click on [${label_ID_property}])`);
+	console.log(`- and fill the property [${label_ID_property}] with script "ObjectID_empty.ajs"`);
+	console.log(`For existing objects:`);
+	console.log(`- be carefull from which object to remove the [${label_ID_property}] !!`);
 } else {
 	console.log(`\nNo duplicates found :)`);
 }
 console.log(`Script "${scriptName}" finished\n`);
+
+/**
+ * 
+ * @param pObject match object with index. if found 
+ */
+function check_duplicatie_ID_property(pObject) {
+	// check for duplicate
+	if (indexMap[pObject.prop(label_ID_property)]) {
+		console.log(`"${pObject}" with duplicate [${label_ID_property}] = ${pObject.prop(label_ID_property)}`);
+		i++;
+	} else { // add ID to indexMap
+		indexMap[pObject.prop(label_ID_property)] = true;
+	}
+}

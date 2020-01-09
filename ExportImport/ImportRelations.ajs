@@ -46,7 +46,7 @@ var NrRelationSkipped = 0;
 /*
  * Import relations
  */
-CSVtable = read_CSVdata("releation");
+CSVtable = read_CSVdata();
 
 if (!CSVtable) {
 	console.log("> No CSV with relations");
@@ -77,11 +77,11 @@ if (!CSVtable) {
 					debug? console.log(">>> CSVtable.data[" + i_row + "] >  " + CSVheader[j_col] + " = " + row[CSVheader[j_col]]) : true;
 				}
 
-				// Find relation with customlabel_ID_property.
-				relation = FindObjectWithProperty("relation", customlabel_ID_property, row[customlabel_ID_property]);
-				if (relation) { // relation found with customlabel_ID_property
+				// Find relation with label_ID_property.
+				relation = FindObjectWithProperty("relation", label_ID_property, row[label_ID_property]);
+				if (relation) { // relation found with label_ID_property
 
-					relation.prop(customlabel_ImportLog_property, ">> Updated at " + ImportDate + " via \"" + customlabel_ID_property + "\"");
+					relation.prop(customlabel_ImportLog_property, ">> Updated at " + ImportDate + " via \"" + label_ID_property + "\"");
 					flagValidRelation=true;
 					NrRelationUpdated++;
 
@@ -101,10 +101,10 @@ if (!CSVtable) {
 						var source = null;
 						var target = null;
 
-						sourceResult = FindElement(relationHeaderDef["source customlabel_ID_property"], row[relationHeaderDef["source customlabel_ID_property"]],
+						sourceResult = FindElement(relationHeaderDef["source label_ID_property"], row[relationHeaderDef["source label_ID_property"]],
 							row[relationHeaderDef["source.id"]],
 							row[relationHeaderDef["source.name"]], row[relationHeaderDef["source.type"]]);
-						targetResult = FindElement(relationHeaderDef["target customlabel_ID_property"], row[relationHeaderDef["target customlabel_ID_property"]], 
+						targetResult = FindElement(relationHeaderDef["target label_ID_property"], row[relationHeaderDef["target label_ID_property"]], 
 							row[relationHeaderDef["target.id"]],
 							row[relationHeaderDef["target.name"]], row[relationHeaderDef["target.type"]]);
 						source = sourceResult.vElement;

@@ -72,11 +72,3 @@ PuOr_3_div[3] = rgbToHex(153, 142, 195);
 Set1_3_qual[3] = rgbToHex(228, 26, 28);
 Set1_3_qual[2] = rgbToHex(55, 126, 184);
 Set1_3_qual[1] = rgbToHex(77, 175, 74);
-
-//-------------------------
-// get a diagram by name
-function selectDiagram(diagramName)
-{
-  return $("archimate-diagram-model").filter("."+diagramName).first() ;
-}
-

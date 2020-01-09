@@ -1,0 +1,79 @@
+/*
+ * mergeElement
+ * 
+ * Version 1: Given an element, the scripts merges all elements with the same name and the same type with this element
+ * 
+ * See https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#merge
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+load(__DIR__ + "Common/includeCommon.ajs");
+
+initConsoleLog(__FILE__)
+
+if ($(selection)) {
+
+	if ($(selection).filter("element").size() == 1) {
+		// select one element in view			-> this element is the master
+		mergeElement($(selection).first())
+
+	} else {
+		// select multiple elements in view 	-> copy formatting from first element to selected elements
+		console.log(`> Multiple elements selected, select only one element`);
+	}
+} else {
+	console.log(`> Select one element`);
+}
+
+finishConsoleLog()
+
+/**
+ * 
+ */
+function mergeElement(pObject) {
+
+	try {
+
+		var masterElement = pObject.concept;
+
+		duplicateElementList = $(`.${masterElement.name}`).filter(masterElement.type);
+		console.log(`duplicateElementList = ${duplicateElementList}`)
+		console.log(`$(#masterElement.id) = ` + $(`#${masterElement.id}`))
+		console.log(`masterElement.id = ` + masterElement.id)
+		duplicateElementList.not($(`#${masterElement.id}`));
+		// duplicateElementList = duplicateElementList.not(masterElement);
+		console.log(`duplicateElementList = ${duplicateElementList}`)
+		
+		var numberOfDup = duplicateElementList.size();
+
+		switch (numberOfDup) {
+			case 0: {
+				console.log(`> There are no elements with the same name and the same type as "${masterElement.name}"`);
+				break;
+			}
+			case 1: {
+				duplicateElement = duplicateElementList.first();
+
+				console.log(`> Merge masterID "${masterElement.id}" with duplicateID "${duplicateElement.id}"`);
+
+				masterElement.merge(duplicateElement);
+
+				console.log(`> "${masterElement.name}" is merged with "${duplicateElement.id}"`);
+				break;
+			}
+			default: {
+				console.log(`> Cannot merge. There are multiple duplicate elements for "${masterElement.name}"`);
+				duplicateElementList.each(function (dup) {
+					console.log(`>> ${dup} with id=${dup.id}`);
+				});
+				break;
+			}
+		}
+	}
+	catch (error) {
+		console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
+
+	}
+}

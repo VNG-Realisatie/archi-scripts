@@ -28,7 +28,7 @@ var Stat = {
 	nr : 	{ processed : 0, updated : 0, notfound_created : 0 }
 };
 
-CSVtable = read_CSVdata("view")
+CSVtable = read_CSVdata()
 if (!CSVtable) {
 	console.log("> Canceled, no CSV data ");
 } else {

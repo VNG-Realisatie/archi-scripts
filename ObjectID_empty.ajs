@@ -19,18 +19,9 @@ var scriptName = filepath[filepath.length-1];
 
 console.log(`Executing script "${scriptName}"...\n`);
 
-// customlabel_ID_property for finding existing elements
-var customlabel_ID_property = "Object ID";
-var Empty_i = 0;
-
-function set_empty_ID_property(pObject) {
-	if (pObject.prop(customlabel_ID_property) == null) {
-		// if empty ID_property then add property with value of id
-		pObject.prop(customlabel_ID_property, pObject.id);
-		console.log(`"> ${pObject}" with empty [${customlabel_ID_property}]\n>> [${customlabel_ID_property}] set to [${pObject.id}]`);
-		Empty_i++;
-	}
-}
+// label_ID_property for finding existing elements
+var label_ID_property = "Object ID";
+var i = 0;
 
 // Loop on all concepts
 $('concept').each(function(concept) {
@@ -43,9 +34,21 @@ $('view').each(function(view) {
 })
 
 
-if (Empty_i > 0) {
-	console.log(`\nThere was/were ${Empty_i} object(s) without a property [${customlabel_ID_property}]`);
+if (i > 0) {
+	console.log(`\nThere was/were ${i} object(s) without a property [${label_ID_property}]`);
 } else {
-	console.log(`\nAll object have a valid property [${customlabel_ID_property}]  : )`);
+	console.log(`\nAll object have a valid property [${label_ID_property}]  : )`);
 }
 console.log(`Script "${scriptName}" finished\n`);
+
+/**
+ * 
+ */
+function set_empty_ID_property(pObject) {
+	if (pObject.prop(label_ID_property) == null) {
+		// if empty ID_property then add property with value of id
+		pObject.prop(label_ID_property, pObject.id);
+		console.log(`"> ${pObject}" with empty [${label_ID_property}]\n>> [${label_ID_property}] set to [${pObject.id}]`);
+		i++;
+	}
+}

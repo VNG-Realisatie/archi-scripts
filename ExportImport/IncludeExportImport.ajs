@@ -7,8 +7,8 @@
  *
  */
 
-// customlabel_ID_property for finding existing elements
-var customlabel_ID_property = "Object ID";
+// label_ID_property for finding existing elements
+var label_ID_property = "Object ID";
 // Custom property for logging import action with element or relation. Set to null for no property
 var customlabel_ImportLog_property = null;
 // var customlabel_ImportLog_property = "ImportLog";
@@ -36,11 +36,11 @@ var relationHeaderDef = {
 	"source.id":		"Source ID",
 	"source.name":		"Source label",
 	"source.type":		"Source type",
-	"source CustomID":	"Source " + customlabel_ID_property, // custom ID for finding the source element
+	"source CustomID":	"Source " + label_ID_property, // custom ID for finding the source element
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
 	"target.type":		"Target type",
-	"target CustomID":	"Target " + customlabel_ID_property // custom ID for finding the target element
+	"target CustomID":	"Target " + label_ID_property // custom ID for finding the target element
 };
 
 var viewHeaderDef = {
@@ -51,12 +51,13 @@ var viewHeaderDef = {
 //	, "viewpoint.name":	"Viewpoint" // don't use viewpoint, default is none
 };
 
-/*
- *	Read CSV file in UTF-8 encoding and return file parsed into an array
- */  
-function read_CSVdata(CSVfilename_postfix) {
 
-	var filePath = window.promptOpenFile({ title: "Open CSV with " + CSVfilename_postfix , filterExtensions: ["*.CSV"], fileName: "*.csv" });
+/**
+ * Read CSV file in UTF-8 encoding and return file parsed into an array
+ */
+function read_CSVdata() {
+
+	var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
 	var theCSV ="";
 	if (filePath) {
 		var FileReader = Java.type("java.io.FileReader");
@@ -85,17 +86,30 @@ function read_CSVdata(CSVfilename_postfix) {
 /*
  *	Save all object to CSV 
  */  
-function write_CSVdata(pType, pHeader, pData, pExportFile) {
+function write_CSVdata(pExportType, pHeader, pData, pSelectedView) {
+	// initialize with selection of property en property values
+	if ( typeof this.FlagFirstTime == 'undefined' ) {
+		this.FlagFirstTime = true;
+
+		// Open a dialog to let the user choose where to save the generated file
+		if (pSelectedView) {
+			var promptFileName = model.name + "-" + pSelectedView.name + ".csv";
+		} else {
+			var promptFileName = model.name + ".csv";
+		}
+		this.exportFile = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: promptFileName } );
+	}
+	
 	var i=0;
 	var headerArray = [];
-	if (pExportFile != null) {
-		var ExportFile = pExportFile.substring(0, pExportFile.length - 4) + ("-" + pType + ".csv");
+	if (this.exportFile != null) {
+		var ExportFile = this.exportFile.substring(0, this.exportFile.length - 4) + "-" + pExportType + ".csv";
 	  	for (var label in pHeader) {
 			headerArray[i]=pHeader[label];
 			i++;
 		}
 		$.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
-		console.log(">>> " + pType + " saved in : " + ExportFile);
+		console.log(">>> " + pExportType + " saved in : " + ExportFile);
 	} else {
 		console.log("> Save CSV canceled");
 	}
@@ -126,11 +140,18 @@ function export_properties(pObject, pRow, pHeaderDef) {
 	}
 }
 
-/*
- *	Import the current row
- *		assign the cell values to the attributes and properties of the object
- *		and write a log if there is a change
- */  
+/**
+ * Import the current row
+ * 	assign the cell values to the attributes and properties of the object
+ * 	and write a log if there is a change
+ * 
+ * @param pObject current object with properties (element, relation or view)
+ * @param pHeaderDef attribute names for object
+ * @param pCSVheader property names for object
+ * @param pCSVrow property values
+ * @param pStat object with flags and counters to return to calling script
+ * @param pImportLog 
+ */
 function import_attributes_properties(pObject, pHeaderDef, pCSVheader, pCSVrow, pStat, pImportLog) {
 	var attribute_i=0;
 

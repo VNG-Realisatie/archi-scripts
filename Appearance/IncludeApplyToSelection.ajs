@@ -49,7 +49,9 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 	];
 
 	try {
+
 		for (var j=0; j<archiCollectionType.length; j++) {
+			// console.log(`> ${j} : ${archiCollectionType[j]}`)
 			if (pSelection.is(archiCollectionType[j])) {
 				SelectionType = archiCollectionType[j]
 			}
@@ -58,17 +60,17 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 
 		switch (SelectionType) {
 			case 'archimate-model': {
-				console.log(`>> ${pFunc.name}() will be applied to objects on all views in [${model}]\n`);
+				console.log(`> ${pFunc.name}() will be applied to objects on all views in [${model}]\n`);
 				applyToAllViews(pSelection, pFunc, pFuncParam)
 				break;
 			}
 			case 'folder': {
-				console.log(`>> ${pFunc.name}() will be applied to objects on all views in selected folders\n`);
+				console.log(`> ${pFunc.name}() will be applied to objects on all views in selected folders\n`);
 				applyToViewsInFolder(pSelection, pFunc, pFuncParam)
 				break;
 			}
 			case 'archimate-diagram-model': {
-				console.log(`>> ${pFunc.name}() will be applied to objects on selected views\n`);
+				console.log(`> ${pFunc.name}() will be applied to objects on selected views\n`);
 				applyToViews(pSelection, pFunc, pFuncParam)
 				break;
 			}
@@ -92,25 +94,27 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 				console.log(`>> ${ConceptSelectionType}`)
 				switch (ConceptSelectionType) {
 					case "One concept is selected in model tree": {
-						console.log(`>> ${pFunc.name} will be applied to objects of ${selectedElement.type} on all views in [${model}]\n`);
+						console.log(`> ${pFunc.name} will be applied to objects of ${selectedElement.type} on all views in [${model}]\n`);
 
 						applyToElementTypeAllView(pSelection, pFunc, pFuncParam)
 						break
 					}
 					case "One concept is selected in view": {
-						console.log(`>> ${pFunc.name} will be applied to all ${selectedElement.type} in view "${selectedElement.view.name}"\n`);
+						console.log(`> ${pFunc.name} will be applied to all ${selectedElement.type} in view "${selectedElement.view.name}"\n`);
 						
 						applyToElementTypeOnView(pSelection, pFunc, pFuncParam)
 						break
 					}
 					case "Multiple concepts are selected in view": {
-						console.log(`>> ${pFunc.name} will be applied to selected objects in view "${selectedElement.view.name}"\n`);
+						console.log(`> ${pFunc.name} will be applied to selected objects in view "${selectedElement.view.name}"`);
+						console.log(`> ${pSelection.filter("element").size()} elements"`);
+						console.log(`> ${pSelection.filter("relation").size()} relations"\n`);
 							
 						applyToSelectionOnView(pSelection, pFunc, pFuncParam)
 						break
 					}
 					case "Multiple concepts are selected in model tree": {
-						console.log(`>> Not possible, select one object in the tree or make selection in a view\n`);
+						console.log(`> Not supported, select one object in the tree or make selection in a view\n`);
 						break
 					}
 					default:
@@ -129,7 +133,7 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 		}
 	}
 	catch (error) {
-		console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
+		console.log(`> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
 	}
 }
 
@@ -144,7 +148,7 @@ function applyToAllViews(pSelection, pFunc, pFuncParam) {
 		})
 		v++;
 	})
-	console.log(`${pFunc.name} applied to ${i} elements in ${v} views`)
+	console.log(`> ${pFunc.name} applied to ${i} elements in ${v} views`)
 }
 
 function applyToViewsInFolder(pSelection, pFunc, pFuncParam) {
@@ -162,7 +166,7 @@ function applyToViewsInFolder(pSelection, pFunc, pFuncParam) {
 			v++;
 		})
 	})
-	console.log(`${pFunc.name} applied to ${i} elements in ${v} views`)
+	console.log(`> ${pFunc.name} applied to ${i} elements in ${v} views`)
 }
 
 function applyToViews(pSelection, pFunc, pFuncParam) {
@@ -176,7 +180,7 @@ function applyToViews(pSelection, pFunc, pFuncParam) {
 		})
 		v++;
 	})	
-	console.log(`${pFunc.name} applied to ${i} elements in ${v} views`)
+	console.log(`> ${pFunc.name} applied to ${i} elements in ${v} views`)
 }
 
 function applyToElementTypeAllView(pSelection, pFunc, pFuncParam) {
@@ -194,7 +198,7 @@ function applyToElementTypeAllView(pSelection, pFunc, pFuncParam) {
 	// for (let view of ViewSet) { 
 	// 	console.log(`>>> ${view}`); 
 	// }		
-	console.log(`Function not applied to ${i} elements in ${v} views`)
+	console.log(`> Function not applied to ${i} elements in ${v} views`)
 	for (let entry of ViewSet) {
 		console.log(`>> Skipped view: "${entry}"`);
 	}
@@ -208,7 +212,7 @@ function applyToElementTypeOnView(pSelection, pFunc, pFuncParam) {
 		pFunc(occurrence, pFuncParam);
 		i++;
 	})
-	console.log(`${pFunc.name} applied to ${i} elements of type ${selectedElement.type} in view "${selectedElement.view.name}"`)
+	console.log(`> ${pFunc.name} applied to ${i} elements of type ${selectedElement.type} in view "${selectedElement.view.name}"`)
 }
 
 function applyToSelectionOnView(pSelection, pFunc, pFuncParam) {
@@ -216,10 +220,10 @@ function applyToSelectionOnView(pSelection, pFunc, pFuncParam) {
 	var v=0;
 	selectedElement = pSelection.first();
 
-	$(pSelection).each(function(occurrence){
+	pSelection.forEach(function(occurrence){
 		pFunc(occurrence, pFuncParam);
 		i++;
 	})
 	v++;
-	console.log(`${pFunc.name} applied to ${i} elements of type ${selectedElement.type} in view "${selectedElement.view.name}"`)
+	console.log(`> ${pFunc.name} applied to ${i} elements in view "${selectedElement.view.name}"`)
 }
