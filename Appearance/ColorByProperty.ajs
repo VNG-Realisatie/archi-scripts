@@ -10,14 +10,14 @@
  *		ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
 load(__DIR__ + "../lib/chroma.min.js");
-load(__DIR__ + "../Common/includeCommon.ajs");
-load(__DIR__ + "IncludeApplyToSelection.ajs");
+load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 // Show output in the console
 initConsoleLog(__FILE__, true)
 
-// ApplyToSelection($(selection), colorfunc);
-applyToSelection($(selection), ColorByProperty, myColorForIndexPosition);
+// applyToDiagramContent($(selection), colorfunc);
+applyToDiagramContent($(selection), ColorByProperty, myColorForIndexPosition);
 
 finishConsoleLog();
 
@@ -42,21 +42,6 @@ function myColorForIndexPosition(pValue, pValueList)
 	return colorscale((pValueList.indexOf(pValue))/pValueList.length);
 }
 
-// given a value return a color code
-function colorByTypeVoorziening(pValue)
-{
-	var TypeVoorziening = [
-		'Referentieimplementatie',
-		'Lokale voorziening',
-		'Sectorale voorziening',
-		'Landelijke voorziening',
-		'Beheervoorziening',
-		'Ontwikkelvoorziening'
-	];
-
-	colorscale = chroma.scale('Blues').padding([0, 0.3]);
-	return colorscale((TypeVoorziening.indexOf(pValue))/TypeVoorziening.length);
-}
 
 /**
  * ColorByProperty

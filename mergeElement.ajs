@@ -9,7 +9,7 @@
  *
  */
 
-load(__DIR__ + "Common/includeCommon.ajs");
+load(__DIR__ + "Common/Common.ajs");
 
 initConsoleLog(__FILE__)
 

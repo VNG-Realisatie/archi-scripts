@@ -7,12 +7,12 @@
  *
  */
 
-load(__DIR__ + "../Common/includeCommon.ajs");
-load(__DIR__ + "IncludeApplyToSelection.ajs");
+load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 initConsoleLog(__FILE__)
 
-applyToSelection($(selection), DecreaseFont);
+applyToDiagramContent($(selection), DecreaseFont);
 
 finishConsoleLog()
 

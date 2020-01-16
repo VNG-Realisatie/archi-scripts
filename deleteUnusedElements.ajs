@@ -1,5 +1,7 @@
-/*
+/**
  * deleteUnusedElements
+ * 
+ * From github.com:nasjonal-arkitektur/kode-archiscripts
  */
  
 console.clear();

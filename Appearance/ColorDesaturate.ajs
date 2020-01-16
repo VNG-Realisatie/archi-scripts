@@ -1,0 +1,54 @@
+/*
+ * ColorDesaturate.ajs
+ */
+
+load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../Common/ApplyToSelection.ajs");
+
+initConsoleLog(__FILE__)
+
+applyToDiagramContent($(selection), ColorDesaturate);
+
+finishConsoleLog()
+
+
+function ColorDesaturate(pObject) {
+	// console.log(`pObject: ${pObject}`)
+	// console.log(`pObject.fillColor: ${pObject.fillColor}`)
+	pObject.fillColor = Desaturate(pObject.fillColor, 50);
+}
+
+// Desaturate('#f7ecd0', 10);
+function Desaturate(hex, sat) {
+	sat = sat / 100;
+	if (hex) {
+		var col = hexToRgb(hex);
+		var gray = col.r * 0.3086 + col.g * 0.6094 + col.b * 0.0820;
+
+		col.r = Math.round(col.r * sat + gray * (1 - sat));
+		col.g = Math.round(col.g * sat + gray * (1 - sat));
+		col.b = Math.round(col.b * sat + gray * (1 - sat));
+
+		return rgbToHex(col.r, col.g, col.b);
+	} else {
+		return hex;
+	}
+}
+
+function hexToRgb(hex) {
+	var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+	return result ? {
+		r: parseInt(result[1], 16),
+		g: parseInt(result[2], 16),
+		b: parseInt(result[3], 16)
+	} : null;
+}
+
+function rgbToHex(r, g, b) {
+	return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+function componentToHex(c) {
+	var hex = c.toString(16);
+	return hex.length == 1 ? "0" + hex : hex;
+}

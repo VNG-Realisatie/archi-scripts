@@ -7,15 +7,15 @@
  * 
  */
 load(__DIR__ + "../lib/chroma.min.js");
-load(__DIR__ + "../Common/includeCommon.ajs");
-load(__DIR__ + "IncludeApplyToSelection.ajs");
+load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 _console_debug = true;
 _console_stack = true;
 
 initConsoleLog(__FILE__)
 
-applyToSelection($(selection), ColorByVertrouwelijkheid);
+applyToDiagramContent($(selection), ColorByVertrouwelijkheid);
 
 finishConsoleLog()
 

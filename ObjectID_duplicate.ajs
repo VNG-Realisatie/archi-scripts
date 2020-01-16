@@ -18,6 +18,7 @@ console.log(`Executing script "${scriptName}"...\n`);
 var label_ID_property = "Object ID";
 var indexMap = [];
 var i = 0;
+var j = 0;
 
 // check all concepts
 $('concept').each(function (concept) {
@@ -30,17 +31,22 @@ $('view').each(function (view) {
 })
 
 if (i > 0) {
-	console.log(`\nThere are ${i} object with duplicate [${label_ID_property}] found`);
-	console.log(`For new objects: easy sollution is to:`);
-	console.log(`- find the object in the model tree`);
+	console.log(`\nThere ${(i==1 ? "is" : "are")} ${i} object with duplicate [${label_ID_property}] found\n`);
+	console.log(`To generate a new ${label_ID_property}:`);
+	console.log(`- lookup the object in the model tree`);
 	console.log(`- remove the property [${label_ID_property}] (right click on [${label_ID_property}])`);
 	console.log(`- and fill the property [${label_ID_property}] with script "ObjectID_empty.ajs"`);
-	console.log(`For existing objects:`);
-	console.log(`- be carefull from which object to remove the [${label_ID_property}] !!`);
 } else {
 	console.log(`\nNo duplicates found :)`);
 }
-console.log(`Script "${scriptName}" finished\n`);
+
+if (j > 0) {
+	console.log(`\nThere ${(j==1 ? "is" : "are")} ${j} object without or with an empty [${label_ID_property}]\n`);
+	console.log(`To create valid ${label_ID_property} properties:`);
+	console.log(`- run the script "ObjectID_empty.ajs"`);
+}
+
+console.log(`\nScript "${scriptName}" finished`);
 
 /**
  * 
@@ -49,8 +55,12 @@ console.log(`Script "${scriptName}" finished\n`);
 function check_duplicatie_ID_property(pObject) {
 	// check for duplicate
 	if (indexMap[pObject.prop(label_ID_property)]) {
-		console.log(`"${pObject}" with duplicate [${label_ID_property}] = ${pObject.prop(label_ID_property)}`);
-		i++;
+		if (pObject.prop(label_ID_property) == null) {
+			j++
+		} else {
+			console.log(`"${pObject}" with duplicate [${label_ID_property}] = ${pObject.prop(label_ID_property)}`);
+			i++;
+		}
 	} else { // add ID to indexMap
 		indexMap[pObject.prop(label_ID_property)] = true;
 	}

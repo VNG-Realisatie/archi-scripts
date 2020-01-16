@@ -1,40 +1,36 @@
 /*
- * IncludeApplyToSelection
+ * ApplyToSelection.ajs
  * 
  * (c) 2019 Mark Backer
  *
  */
 
 /**
- * applyToSelection
+ * applyToDiagramContent
  * 
- * Apply a formatting function to the selection. 
- * Depending on the selection, the given function is applied to a selection off visual concepts on one or multiple views
+ * Apply a (formatting) function to the diagram content of the selection. 
  * 
  * Behavior
+ * 	selection in the model tree
  * 		select model, apply function to objects on all views
  * 		select folder(s), apply function to objects on views in selected (sub)folders
  * 		select view(s), apply function to objects on selected view(s)
  *   	select object(s) in model tree, apply function to all references on all views
- * 
- * If you select on the view
- * 		select one object on view, apply function to selected objects
- * 			if parameter applyToType, apply function to all elements of same type; 
+ * 	selection in a view
+ * 		select one object in view, apply function to alle objects of same type in the view
  * 		select multiple objects in view, apply function to selected objects
- * 			if parameter applyToType, apply function to selected elements of same type as first selected object; 
  * 
  * Parameters:
  * 	@param pSelection - the selection of objects
- *  @param pValidSelection - valid collectionType of objects to apply the function to
- * 		- tree
- * 		- view
- * 		- concept
- * 		- diagram-object
  * 	@param pFunc - function with formatting for selected objects (function must have a parameter object)
  *  @param pFuncParam - optional parameters for function
- * 		
+ * 
+ * Example:
+ * 		applyToDiagramContent($(selection), ChangeFont);
+ * 	will apply the function to the diagram content of selection
+ *		function ChangeFont(pObject) {pObject.fontName = "Arial";}
  */
-function applyToSelection(pSelection, pFunc, pFuncParam) {
+function applyToDiagramContent(pSelection, pFunc, pFuncParam) {
 	var SelectionType;
 	var archiCollectionType = [
 		'archimate-model',
@@ -110,7 +106,7 @@ function applyToSelection(pSelection, pFunc, pFuncParam) {
 						console.log(`> ${pSelection.filter("element").size()} elements"`);
 						console.log(`> ${pSelection.filter("relation").size()} relations"\n`);
 							
-						applyToSelectionOnView(pSelection, pFunc, pFuncParam)
+						applyToDiagramContentOnView(pSelection, pFunc, pFuncParam)
 						break
 					}
 					case "Multiple concepts are selected in model tree": {
@@ -215,7 +211,7 @@ function applyToElementTypeOnView(pSelection, pFunc, pFuncParam) {
 	console.log(`> ${pFunc.name} applied to ${i} elements of type ${selectedElement.type} in view "${selectedElement.view.name}"`)
 }
 
-function applyToSelectionOnView(pSelection, pFunc, pFuncParam) {
+function applyToDiagramContentOnView(pSelection, pFunc, pFuncParam) {
 	var i=0;
 	var v=0;
 	selectedElement = pSelection.first();

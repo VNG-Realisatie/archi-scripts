@@ -1,5 +1,5 @@
-var _includeCommon_ScriptName;
-var _includeCommon_Counter;
+var _commonScriptName;
+var _commonCounter;
 
 /**
  * initConsoleLog and finishconsole
@@ -9,20 +9,20 @@ var _includeCommon_Counter;
  * @param pClear : boolean for clear console
  */
 function initConsoleLog(pFile, pClear) {
-	_includeCommon_Counter = startCounter();
+	_commonCounter = startCounter();
 	// Show output in the console
 	filepath = pFile.split("/");
-	_includeCommon_ScriptName = filepath[filepath.length - 1];
+	_commonScriptName = filepath[filepath.length - 1];
 
 	console.show();
 	if (pClear) { console.clear() };
-	console.log(`Executing script "${_includeCommon_ScriptName}"...\n`);
+	console.log(`Executing script "${_commonScriptName}"...\n`);
 }
 
 function finishConsoleLog() {
-	_includeCommon_Counter = endCounter(_includeCommon_Counter);
-	duration = `${_includeCommon_Counter.minutes}m${_includeCommon_Counter.seconds}s`
-	console.log(`\nScript "${_includeCommon_ScriptName}" finished in ${duration}\n`);
+	_commonCounter = endCounter(_commonCounter);
+	duration = `${_commonCounter.minutes}m${_commonCounter.seconds}s`
+	console.log(`\nScript "${_commonScriptName}" finished in ${duration}\n`);
 }
 
 /**
