@@ -11,6 +11,9 @@
 load(__DIR__ + "../Common/Common.ajs");
 load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
+var _console_info = true;
+var _console_debug = false;
+
 initConsoleLog(__FILE__)
 
 applyToDiagramContent($(selection), ChangeFigure);
@@ -20,11 +23,9 @@ finishConsoleLog()
 /* 
  * Change figure of application component in diagram
  */
-function ChangeFigure(pObject)
-{
-	if (pObject.figureType == 0 || pObject.figureType == 1) 
-	{
-		console.log(`>>> Set figure "${pObject.name}"`);
+function ChangeFigure(pObject) {
+	if (pObject.figureType == 0 || pObject.figureType == 1) {
+		debug(`Set figure "${pObject.name}"`);
 
 		if (pObject.figureType == 0) {
 			pObject.figureType = 1; // rectangle with icon 
@@ -32,6 +33,6 @@ function ChangeFigure(pObject)
 			pObject.figureType = 0; // explicite component figure 
 		}
 	} else {
-		console.log(`>>> Skipped, "${pObject}" does not have a figure property`);
+		info(`Skipped, "${pObject}" does not have a figure property`);
 	}
 }

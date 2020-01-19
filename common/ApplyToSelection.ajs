@@ -5,6 +5,9 @@
  *
  */
 
+var _console_info = true;
+var _console_debug = true;
+
 /**
  * applyToDiagramContent
  * 
@@ -21,171 +24,150 @@
  * 		select multiple objects in view, apply function to selected objects
  * 
  * Parameters:
- * 	@param pSelection - the selection of objects
+ * 	@param pSelection - a jArchi collection with the selected objects
  * 	@param pFunc - function with formatting for selected objects (function must have a parameter object)
  *  @param pFuncParam - optional parameters for function
  * 
  * Example:
  * 		applyToDiagramContent($(selection), ChangeFont);
  * 	will apply the function to the diagram content of selection
- *		function ChangeFont(pObject) {pObject.fontName = "Arial";}
+ *		function ChangeFont(pObject) {pObject.fontName = "Aria
  */
 function applyToDiagramContent(pSelection, pFunc, pFuncParam) {
-	var SelectionType;
-	var archiCollectionType = [
-		'archimate-model',
-		'folder',
-		'archimate-diagram-model', //  'view' also selects sketch and canvas
-		'concept',
-		'diagram-model-note',
-		'diagram-model-group',
-		'diagram-model-connection',
-		'diagram-model-image',
-		'diagram-model-reference'
-	];
 
-	try {
+	var SelectionType = selectionType(pSelection)
+	var selectedConcept = pSelection.first();
 
-		for (var j=0; j<archiCollectionType.length; j++) {
-			// console.log(`> ${j} : ${archiCollectionType[j]}`)
-			if (pSelection.is(archiCollectionType[j])) {
-				SelectionType = archiCollectionType[j]
+	if (SelectionType) {
+		try {
+
+			switch (SelectionType) {
+				case 'archimate-model': {
+					applyToAllViews(pSelection, pFunc, pFuncParam)
+					break;
+				}
+				case 'folder': {
+					applyToViewsInFolder(pSelection, pFunc, pFuncParam)
+					break;
+				}
+				case 'archimate-diagram-model': {
+					applyToViews(pSelection, pFunc, pFuncParam)
+					break;
+				}
+				case "One concept is selected in model tree": {
+					console.log(`> ${pFunc.name} will be applied to [${selectedConcept.type}] on all views in [${model}]\n`);
+
+					applyToConceptTypeInAllViews(pSelection, pFunc, pFuncParam)
+					break;
+				}
+				case "One concept is selected in view": {
+					applyToConceptTypeInView(pSelection, pFunc, pFuncParam)
+					break;
+				}
+				case "Multiple concepts are selected in view": {
+					console.log(`> ${pFunc.name} will be applied to selected concepts in view "${selectedConcept.view.name}"`);
+					console.log(`>> ${pSelection.filter("element").size()} elements"`);
+					console.log(`>> ${pSelection.filter("relation").size()} relations"`);
+					console.log(`>> ${pSelection.size() - 
+									pSelection.filter("element").size() - 
+									pSelection.filter("relation").size()} diagram-model concepts"`);
+
+					applyToSelectionInView(pSelection, pFunc, pFuncParam)
+					break;
+				}
+				case "Multiple concepts are selected in model tree": {
+					console.log(`> Not supported, select one object in the tree or make selection in a view\n`);
+					break;
+				}
+				default:
+					throw (`>> Unknown SelectionType: ${SelectionType}`);
 			}
 		}
-		console.log(`> You've selected a ${SelectionType}`)
-
-		switch (SelectionType) {
-			case 'archimate-model': {
-				console.log(`> ${pFunc.name}() will be applied to objects on all views in [${model}]\n`);
-				applyToAllViews(pSelection, pFunc, pFuncParam)
-				break;
-			}
-			case 'folder': {
-				console.log(`> ${pFunc.name}() will be applied to objects on all views in selected folders\n`);
-				applyToViewsInFolder(pSelection, pFunc, pFuncParam)
-				break;
-			}
-			case 'archimate-diagram-model': {
-				console.log(`> ${pFunc.name}() will be applied to objects on selected views\n`);
-				applyToViews(pSelection, pFunc, pFuncParam)
-				break;
-			}
-			case 'concept': {
-				var NumberSelected;
-				var SelectedIn;
-				var	selectedElement = pSelection.filter("concept").first();
-				if (selectedElement.id == selectedElement.concept.id){
-					SelectedIn = "model tree"
-				} else {
-					SelectedIn = "view"
-				}
-
-				if (pSelection.filter("concept").size() == 1){
-					NumberSelected = "One concept is"
-				} else {
-					NumberSelected = "Multiple concepts are"
-				}
-
-				ConceptSelectionType = `${NumberSelected} selected in ${SelectedIn}`
-				console.log(`>> ${ConceptSelectionType}`)
-				switch (ConceptSelectionType) {
-					case "One concept is selected in model tree": {
-						console.log(`> ${pFunc.name} will be applied to objects of ${selectedElement.type} on all views in [${model}]\n`);
-
-						applyToElementTypeAllView(pSelection, pFunc, pFuncParam)
-						break
-					}
-					case "One concept is selected in view": {
-						console.log(`> ${pFunc.name} will be applied to all ${selectedElement.type} in view "${selectedElement.view.name}"\n`);
-						
-						applyToElementTypeOnView(pSelection, pFunc, pFuncParam)
-						break
-					}
-					case "Multiple concepts are selected in view": {
-						console.log(`> ${pFunc.name} will be applied to selected objects in view "${selectedElement.view.name}"`);
-						console.log(`> ${pSelection.filter("element").size()} elements"`);
-						console.log(`> ${pSelection.filter("relation").size()} relations"\n`);
-							
-						applyToDiagramContentOnView(pSelection, pFunc, pFuncParam)
-						break
-					}
-					case "Multiple concepts are selected in model tree": {
-						console.log(`> Not supported, select one object in the tree or make selection in a view\n`);
-						break
-					}
-					default:
-				}
-				break;
-			}
-			case 'diagram-model-note':
-			case 'diagram-model-group':
-			case 'diagram-model-connection':
-			case 'diagram-model-image':
-			case 'diagram-model-reference': {
-				console.log(`> Select the model, a folder or a concept. Visual element not supported`)
-				break;
-			}
-			default:
+		catch (error) {
+			console.log(`> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
 		}
 	}
-	catch (error) {
-		console.log(`> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
-	}
+}
+
+/**
+* applyToModelContent
+ * 
+ * Apply a function to the in the model selected content. 
+ * 
+ * Behavior
+ * 	selection in the model tree
+ * 		select model, apply function to all objects 
+ * 		select folder(s), apply function to objects in the selected (sub)folders
+ * 		select view(s), apply function to objects on selected view(s)
+ *   	select object(s), apply function to selected objects
+ * 	selection in a view
+ * 		select one object in view, apply function to alle objects of same type in the view
+ * 		select multiple objects in view, apply function to selected objects
+ * 
+ * Parameters:
+ * 	@param pSelection - a jArchi collection with the selected objects
+ * 	@param pFunc - function with actions for selected objects (function must have a parameter object)
+ *  @param pFuncParam - optional parameters for function
+ * 
+ * Example:
+ * 		applyToDiagramContent($(selection), ChangeFont);
+ * 	will apply the function to the diagram content of selection
+ *		function ChangeFont(pObject) {pObject.fontName = "Arial";}
+  */
+function applyToModelContent(pSelection, pFunc, pFuncParam) {
+	// extra parameter to implement differences ### todo
+	// or function applyToContent called by model en diagram function
+	applyToDiagramContent(pSelection, pFunc, pFuncParam);
 }
 
 function applyToAllViews(pSelection, pFunc, pFuncParam) {
-	var i=0;
-	var v=0;
-	$('view').each(function(view) {
-		console.log(`>> View: "${view.name}"`);
-		$(view).find('concept').each(function(occurrence){
-			pFunc(occurrence, pFuncParam);
-			i++;
-		})
+	var v = 0;
+	$('view').each(function (view) {
+		applyToView(view, pFunc, pFuncParam);
 		v++;
 	})
-	console.log(`> ${pFunc.name} applied to ${i} elements in ${v} views`)
+	console.log(`> ${pFunc.name} applied to ${v} views`)
 }
 
 function applyToViewsInFolder(pSelection, pFunc, pFuncParam) {
-	var i=0;
-	var v=0;
+	var v = 0;
 	//pSelection.add(pSelection.find('folder'))
-	pSelection.filter('folder').each(function(folder){
-		console.log(`> Folder ${folder.name}`);
-		$(folder).find('view').each(function(view){
-			console.log(`>> View: "${view.name}"`);
-			$(view).find('concept').each(function(occurrence){
-				pFunc(occurrence, pFuncParam);
-				i++;
-			})
+	pSelection.filter('folder').each(function (folder) {
+		console.log(`> Folder: ${folder.name}`);
+		$(folder).find('view').each(function (view) {
+			applyToView(view, pFunc, pFuncParam);
 			v++;
 		})
 	})
-	console.log(`> ${pFunc.name} applied to ${i} elements in ${v} views`)
+	console.log(`> ${pFunc.name} applied to ${v} views`)
 }
 
 function applyToViews(pSelection, pFunc, pFuncParam) {
-	var i=0;
-	var v=0;
-	$(pSelection).filter('view').each(function(view){
-		console.log(`>> View: "${view.name}"`);
-		$(view).find('concept').each(function(occurrence){
-			pFunc(occurrence, pFuncParam);
-			i++;
-		})
+	var v = 0;
+	$(pSelection).filter('view').each(function (view) {
+		applyToView(view, pFunc, pFuncParam);
 		v++;
-	})	
-	console.log(`> ${pFunc.name} applied to ${i} elements in ${v} views`)
+	})
+	console.log(`> ${pFunc.name} applied to ${v} views`)
 }
 
-function applyToElementTypeAllView(pSelection, pFunc, pFuncParam) {
-	var i=0;
-	var v=0;
+function applyToView(pView, pFunc, pFuncParam) {
+	var i = 0;
+	// apply function to all concepts and diagram notes etc
+	$(pView).find().each(function (occurrence) {
+		pFunc(occurrence, pFuncParam);
+		i++;
+	})
+	console.log(`>> ${pView.name} with ${i} visual concepts`);
+}
+
+function applyToConceptTypeInAllViews(pSelection, pFunc, pFuncParam) {
+	var i = 0;
+	var v = 0;
 	// Reset formatting in all referenced views
 	let ViewSet = new Set()
-	$(pSelection).objectRefs().each(function(occurrence){
-//		pFunc(occurrence, pFuncParam);
+	$(pSelection).objectRefs().each(function (occurrence) {
+		//		pFunc(occurrence, pFuncParam);
 		ViewSet.add(occurrence.view.name);
 		i++;
 	})
@@ -194,32 +176,108 @@ function applyToElementTypeAllView(pSelection, pFunc, pFuncParam) {
 	// for (let view of ViewSet) { 
 	// 	console.log(`>>> ${view}`); 
 	// }		
-	console.log(`> Function not applied to ${i} elements in ${v} views`)
+	console.log(`> Function not applied to ${i} concepts in ${v} views`)
 	for (let entry of ViewSet) {
 		console.log(`>> Skipped view: "${entry}"`);
 	}
 }
 
-function applyToElementTypeOnView(pSelection, pFunc, pFuncParam) {
-	var i=0;
-	var v=0;
-	selectedElement = pSelection.first();
-	$(selectedElement.view).find(selectedElement.concept.type).forEach(function(occurrence) {
+function applyToConceptTypeInView(pSelection, pFunc, pFuncParam) {
+	var i = 0;
+
+	selectedConcept = pSelection.filter("concept").first();
+	$(selectedConcept.view).find(selectedConcept.concept.type).forEach(function (occurrence) {
 		pFunc(occurrence, pFuncParam);
 		i++;
 	})
-	console.log(`> ${pFunc.name} applied to ${i} elements of type ${selectedElement.type} in view "${selectedElement.view.name}"`)
+	console.log(`> ${pFunc.name} applied to ${i} concepts of type ${selectedConcept.type} in view "${selectedConcept.view.name}"`)
 }
 
-function applyToDiagramContentOnView(pSelection, pFunc, pFuncParam) {
-	var i=0;
-	var v=0;
-	selectedElement = pSelection.first();
+function applyToSelectionInView(pSelection, pFunc, pFuncParam) {
+	var i = 0;
+	var v = 0;
+	selectedConcept = pSelection.first();
 
-	pSelection.forEach(function(occurrence){
+	pSelection.forEach(function (occurrence) {
 		pFunc(occurrence, pFuncParam);
 		i++;
 	})
 	v++;
-	console.log(`> ${pFunc.name} applied to ${i} elements in view "${selectedElement.view.name}"`)
+	console.log(`> ${pFunc.name} applied to ${i} concepts in view "${selectedConcept.view.name}"`)
+}
+
+/**
+ * selectionType
+ * 
+ * 	Determine what kind of object is selected
+ * 
+ * 	@param pSelection - a jArchi collection with the selected objects
+ * 
+ */
+function selectionType(pSelection) {
+
+	var archiCollectionType = [
+		'archimate-model',
+		'folder',
+		'archimate-diagram-model', //  'view' also selects sketch and canvas
+		'concept',
+		'diagram-model-note', // 
+		'diagram-model-group',
+		'diagram-model-connection',
+		'diagram-model-image',
+		'diagram-model-reference'
+	];
+	var SelectionType = null;
+	var SelectionTypeSet = new Set();
+	var SelectedIn = "model tree";
+	
+	// Determine what kind of objects are present in the selection
+	// Determine if object is selected on a view or in the model tree
+	console.log(`> You've selected object(s) of type:`)
+	for (var i = 0; i < archiCollectionType.length; i++) {
+		// if there is at least one object of the jArchi object type, add the type to the set
+		if (pSelection.is(archiCollectionType[i])) {
+			SelectionType = archiCollectionType[i];
+			SelectionTypeSet.add(SelectionType);
+			console.log(`>> ${SelectionType}`);
+			if (SelectionType.startsWith("diagram")) {
+				SelectedIn = "view"
+			}
+			if (SelectionType == "concept") {
+				var selectedConcept = pSelection.filter("concept").first();
+				if (selectedConcept.id != selectedConcept.concept.id) {
+					SelectedIn = "view"
+				}
+			}
+		}
+	}
+
+	// Keep it simple. Just select one objecttypes.  
+	if ((SelectedIn == "model tree") && (SelectionTypeSet.size > 1)) {
+		throw (`> Select only one objecttype in the model tree (eg. folders, concepts, ..)`)
+	}
+	// in a view multiple objecttypes can be selected (eg. concepts and diagram-model occurrences)
+	// reduce to 
+	if (SelectedIn == "view") {
+		if (SelectionTypeSet.has("concept")) {
+			// Depending on the order of the pSelection collection, SelectionType could have been a diagram-model type
+			// multiple objecttypes on a view are handled as a concept
+			SelectionType = "concept";
+		}
+	}
+	console.log(`> You've selected a ${SelectionType}`)
+
+	if (SelectionType == "concept") {
+		var NumberSelected;
+		if (pSelection.size() == 1) {
+			NumberSelected = `One concept is`;
+		} else {
+			NumberSelected = `Multiple concepts are`;
+		}
+
+		SelectionType = `${NumberSelected} selected in ${SelectedIn}`
+		console.log(`>> ${SelectionType}`)
+	}
+
+	return SelectionType
 }
