@@ -16,34 +16,40 @@ console.log(`Executing script "${scriptName}"...\n`);
 
 // label_ID_property for finding existing elements
 var label_ID_property = "Object ID";
-var indexMap = [];
-var i = 0;
-var j = 0;
+var emptyList = [];
+var duplicatesList = [];
 
 // check all concepts
 $('concept').each(function (concept) {
-	check_duplicatie_ID_property(concept)
+	check_duplicatie_ID_property(concept, duplicatesList, emptyList);
 })
 
 // chack all views
 $('view').each(function (view) {
-	check_duplicatie_ID_property(view)
+	check_duplicatie_ID_property(view, duplicatesList, emptyList);
 })
 
-if (i > 0) {
-	console.log(`\nThere ${(i==1 ? "is" : "are")} ${i} object with duplicate [${label_ID_property}] found\n`);
-	console.log(`To generate a new ${label_ID_property}:`);
-	console.log(`- lookup the object in the model tree`);
-	console.log(`- remove the property [${label_ID_property}] (right click on [${label_ID_property}])`);
-	console.log(`- and fill the property [${label_ID_property}] with script "ObjectID_empty.ajs"`);
-} else {
-	console.log(`\nNo duplicates found :)`);
+if (emptyList.length > 0) {
+	console.log(`There ${(emptyList.length == 1 ? "is" : "are")} ${emptyList.length} object with no valid [${label_ID_property}]`);
+	emptyList.sort();
+	for (var i = 0; i < emptyList.length; i++) {
+		console.log(`> ${emptyList[i]}`);
+	}
+	console.log(`\nTo create valid ${label_ID_property} properties:`);
+	console.log(`- run the script "ObjectID_empty.ajs"`);
 }
 
-if (j > 0) {
-	console.log(`\nThere ${(j==1 ? "is" : "are")} ${j} object without or with an empty [${label_ID_property}]\n`);
-	console.log(`To create valid ${label_ID_property} properties:`);
+if (duplicatesList.length > 0) {
+	console.log(`There ${(duplicatesList.length == 1 ? "is" : "are")} ${duplicatesList.length} object with duplicate [${label_ID_property}] found`);
+	duplicatesList.sort();
+	for (var i = 0; i < duplicatesList.length; i++) {
+		console.log(`> ${duplicatesList[i]}`);
+	}
+	console.log(`\nTo generate a new [${label_ID_property}] for these objects:`);
+	console.log(`- remove the property [${label_ID_property}]`);
 	console.log(`- run the script "ObjectID_empty.ajs"`);
+} else {
+	console.log(`\nNo duplicates found :)`);
 }
 
 console.log(`\nScript "${scriptName}" finished`);
@@ -52,16 +58,25 @@ console.log(`\nScript "${scriptName}" finished`);
  * 
  * @param pObject match object with index. if found 
  */
-function check_duplicatie_ID_property(pObject) {
+function check_duplicatie_ID_property(pObject, pDuplicatesList, pEmptyList) {
+	// initialize with selection of property en property values
+	if (typeof this.indexMap == 'undefined') {
+		// JS functions are also objects -- which means they can have (static) properties
+		this.indexMap = [];
+		this.i = 0;
+		this.j = 0;
+	}
+
 	// check for duplicate
-	if (indexMap[pObject.prop(label_ID_property)]) {
+	if (this.indexMap[pObject.prop(label_ID_property)]) {
 		if (pObject.prop(label_ID_property) == null) {
-			j++
+			pEmptyList[this.j] = pObject;
+			this.j++
 		} else {
-			console.log(`"${pObject}" with duplicate [${label_ID_property}] = ${pObject.prop(label_ID_property)}`);
-			i++;
+			pDuplicatesList[this.i] = `[${pObject}] with [${label_ID_property}] = ${pObject.prop(label_ID_property)}`;
+			this.i++;
 		}
 	} else { // add ID to indexMap
-		indexMap[pObject.prop(label_ID_property)] = true;
+		this.indexMap[pObject.prop(label_ID_property)] = true;
 	}
 }
