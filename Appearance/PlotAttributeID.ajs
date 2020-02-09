@@ -11,7 +11,7 @@ load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 initConsoleLog(__FILE__, true);
 
-applyToDiagramContent($(selection), PlotAttributeID);
+applyToDiagramContent($(selection).find("element"), PlotAttributeID);
 
 finishConsoleLog();
 
@@ -22,14 +22,10 @@ finishConsoleLog();
  *
  */
 function PlotAttributeID(pObject) {
-  if (pObject.type.endsWith("relationship")) {
-    console.log(
-      `>>> Skipped relation with id ${pObject.id}`
-    );
-  } else {
-    console.log(`>>> ${pObject}`);
+  console.log(`>>> ${pObject}`);
 
-    var note = pObject.createObject("note", 5, 25, 200, 25); // Add a Note to this element
-    note.text = `id=${pObject.id}\n`;
-  }
+  // Add a Note to this element
+  var note = pObject.createObject("note", 5, 25, 200, 25); 
+  // plot id of concept, not id of occurrence
+  note.text = `id=${pObject.concept.id}\n`;
 }

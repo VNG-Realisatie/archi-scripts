@@ -84,26 +84,30 @@ if (!selectedView) {
 
 						var Row = new Object;
 						// Retrieve all defined header attributes and properties
+						console.log(JSON.stringify(relationHeaderDef, null, 2));
 						for (var label in relationHeaderDef) {
-							if (label=="id" || label=="name" || label=="documentation" || label=="type"){ 
-								Row[relationHeaderDef[label]]		=relationship[label];
-							}
+//							if (label=="id" || label=="name" || label=="documentation" || label=="type"){ 
+//								Row[relationHeaderDef[label]]		=relationship[label];
+console.log(`### label = ${label}`);
+Row[relationHeaderDef[label]]		= eval(`relationship.${label}`);
+console.log(`### Row[relationHeaderDef[${label}]] = ${Row[relationHeaderDef[label]]}`);
+//							}
 						}
-						Row[relationHeaderDef["source.id"]]			=relationship.source.id; // can't get this working in for loop
-                        Row[relationHeaderDef["source.name"]]		=relationship.source.name;
-                        Row[relationHeaderDef["source.type"]]		=relationship.source.type;
-                        Row[relationHeaderDef["target.id"]]			=relationship.target.id;
-                        Row[relationHeaderDef["target.name"]]		=relationship.target.name;
-						Row[relationHeaderDef["target.type"]]		=relationship.target.type;
+						// Row[relationHeaderDef["source.id"]]			=relationship.source.id; // can't get this working in for loop
+                        // Row[relationHeaderDef["source.name"]]		=relationship.source.name;
+                        // Row[relationHeaderDef["source.type"]]		=relationship.source.type;
+                        // Row[relationHeaderDef["target.id"]]			=relationship.target.id;
+                        // Row[relationHeaderDef["target.name"]]		=relationship.target.name;
+						// Row[relationHeaderDef["target.type"]]		=relationship.target.type;
 
-						Source = relationship.source;
-						Target = relationship.target;
+						// Source = relationship.source;
+						// Target = relationship.target;
 
-						Row[relationHeaderDef["source CustomID"]]	= Source.prop(label_ID_property);
-						Row[relationHeaderDef["target CustomID"]]	= Target.prop(label_ID_property);
+						// Row[relationHeaderDef["source CustomID"]]	= Source.prop(label_ID_property);
+						// Row[relationHeaderDef["target CustomID"]]	= Target.prop(label_ID_property);
 
-						debug? console.log(`>>>> Source ${Source} ${Source.prop(label_ID_property)}`):true;
-						debug? console.log(`>>>> Target ${Target} ${Target.prop(label_ID_property)}`):true;
+						// debug? console.log(`>>>> Source ${Source} ${Source.prop(label_ID_property)}`):true;
+						// debug? console.log(`>>>> Target ${Target} ${Target.prop(label_ID_property)}`):true;
 
 						export_properties(relationship, Row, relationHeaderDef);
 
@@ -113,8 +117,7 @@ if (!selectedView) {
             }
         }
         catch (error) {
-            console.log("> Ignoring: " + element);
-            console.log("> Error: " +  error);
+			console.log(`> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
         }
     }); // each element
 
