@@ -10,8 +10,8 @@ load(__DIR__ + "../lib/chroma.min.js");
 load(__DIR__ + "../Common/Common.ajs");
 load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
-_console_debug = true;
-_console_stack = true;
+_commonShowDebugMessage.push(true);
+_commonShowInfoMessage.push(true);
 
 initConsoleLog(__FILE__)
 
@@ -26,7 +26,7 @@ function ColorByVertrouwelijkheid(pObject) {
 	colorscale 	= chroma.scale('Oranges');
 	
 	if (pObject.prop("Vertrouwelijkheid")) {
-		debug(`${pObject} met vertrouwelijkheid: ${pObject.prop("Vertrouwelijkheid")}`)
+		info(`${pObject} met vertrouwelijkheid: ${pObject.prop("Vertrouwelijkheid")}`)
 		pObject.fillColor=colorscale((pObject.prop("Vertrouwelijkheid") - 0.8)/3);
 	} else {
 		debug(`Skipped ${pObject}: Vertrouwelijkheid = ${pObject.prop("Vertrouwelijkheid")}`)

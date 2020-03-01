@@ -17,7 +17,6 @@
  */
 
 load(__DIR__ + "Common/Common.ajs");
-_console_debug = false;
 
 initConsoleLog(__FILE__)
 
@@ -42,6 +41,7 @@ finishConsoleLog()
  */
 function mergeElement(pObject) {
 
+	_commonShowDebugMessage.push(false);
 	try {
 
 		var masterElement = pObject.concept;
@@ -90,4 +90,5 @@ function mergeElement(pObject) {
 	catch (error) {
 		console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
 	}
+	_commonShowDebugMessage.pop();
 }

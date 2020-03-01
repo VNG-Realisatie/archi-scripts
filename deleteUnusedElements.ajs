@@ -3,22 +3,25 @@
  * 
  * From github.com:nasjonal-arkitektur/kode-archiscripts
  */
- 
-console.clear();
 
-function deleteUnusedElements() {
+load(__DIR__ + "Common/Common.ajs");
+load(__DIR__ + "Common/ApplyToSelection.ajs");
 
-	console.log("Starting function deleteUnusedElements");
+initConsoleLog(__FILE__)
 
-    $("element").each(function(element) {
-        if($(element).objectRefs().isEmpty()) {
-			console.log("Deleting unused element: " + element.name);
-            element.delete();
+applyToModelContent($(selection), deleteUnusedElements);
+
+finishConsoleLog();
+
+
+function deleteUnusedElements(pObject) {
+
+    objectType = pObject.type;
+    if (!objectType.endsWith("relationship")) {
+
+        if ($(pObject.concept).objectRefs().isEmpty()) {
+            console.log("Deleting unused element: " + pObject.name);
+            pObject.delete();
         }
-    });
-
-	console.log("Ending function deleteUnusedElements");
-
-}
-
-deleteUnusedElements();
+    }
+};
