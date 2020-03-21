@@ -303,7 +303,7 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 
 
 /**
-* applyToModelContent
+ * applyToModelContent
  * 
  * Apply a function to the selected objects
  * 

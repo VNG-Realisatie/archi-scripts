@@ -1,7 +1,7 @@
 /*
  * mergeElement
  * 
- * Version 1: Given an element, the script merges all elements with the same name and the same type to the selected element
+ * Version 1: Given an element, the script merges all elements with the same name and type to the selected element
  * 
  * From the jArchi .merge method (https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#merge)
  * 
@@ -11,6 +11,8 @@
  *     Properites of the other element are appended to this element's properties
  * 
  *     The other element is not deleted
+ * Version 1.1: 
+ * 		If documention or property of other element is equal, do not append
  * 
  * (c) 2019 Mark Backer
  *
@@ -41,28 +43,28 @@ finishConsoleLog()
  */
 function mergeElement(pObject) {
 
-	_commonShowDebugMessage.push(false);
+	_commonShowInfoMessage.push(true);
 	try {
 
 		var masterElement = pObject.concept;
 
 		duplicateElementList = $(`.${masterElement.name}`).filter(masterElement.type);
-		debug(`duplicateElementList = ${duplicateElementList}`);
+		info(`duplicateElementList = ${duplicateElementList}`);
 		duplicateElementList.not($(`#${masterElement.id}`));
 		// duplicateElementList = duplicateElementList.not(masterElement);
-		debug(`duplicateElementList = ${duplicateElementList}`)
+		info(`duplicateElementList = ${duplicateElementList}`)
 
 
 		if (duplicateElementList.size() == 0) {
 			console.log(`> There are no elements with the same name and the same type as "${masterElement.name}"`);
 		} else {
 			console.log(`> Merge all elements with the same name and type to ${masterElement}`);
-			console.log(`> The selected element has the id = ${masterElement.id}`)
+			info(`The selected element has the id: ${masterElement.id}`)
 
-			console.log(`> Merge with:`)
+			info(`Merge with:`)
 			duplicateElementList.each(function (duplicateElement) {
 
-				console.log(`>> ${duplicateElement.id}`);
+				info(`- duplicate with id: ${duplicateElement.id}`);
 
 				// don't append documentation if documentation strings are equal
 				if (duplicateElement.documentation == masterElement.documentation) {
@@ -70,10 +72,10 @@ function mergeElement(pObject) {
 					console.log(`>>> Documentation is equal to selected element`);
 				}
 				var duplicatePropList = duplicateElement.prop();
-				debug(`duplicatePropList = ${duplicatePropList}`)
+				info(`- duplicatePropList = ${duplicatePropList}`)
 				for (var i=0; i < duplicatePropList.length; i++){
 					// remove property from duplicate if property is equal to master property
-					debug(`masterElement.prop(${duplicatePropList[i]}) = ${masterElement.prop(duplicatePropList[i])}`)
+					info(`masterElement.prop(${duplicatePropList[i]}) = ${masterElement.prop(duplicatePropList[i])}`)
 					if (masterElement.prop(duplicatePropList[i]) == duplicateElement.prop(duplicatePropList[i])) {
 						console.log(`>>> Property ${duplicatePropList[i]} is equal to selected element`);
 						duplicateElement.removeProp(duplicatePropList[i]);
@@ -90,5 +92,5 @@ function mergeElement(pObject) {
 	catch (error) {
 		console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
 	}
-	_commonShowDebugMessage.pop();
+	_commonShowInfoMessage.pop();
 }

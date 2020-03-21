@@ -1,0 +1,66 @@
+/**
+ * ObjectID_export
+ * 
+ * Export Object_ID, id and other object properties of selection
+ * The applyToModelContent function allows for multiple kinds of selections
+ * 
+ */
+load(__DIR__ + "../lib/papaparse.min.js");
+
+load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../Common/ApplyToSelection.ajs");
+
+_commonShowDebugMessage = [false];
+// exportString += `"${pObject.id}", "${pObject.type}", "${pObject.name}","${pObject.prop("GEMMA type")}", "${pObject.prop("Object ID")}"\n`;
+
+initConsoleLog(__FILE__)
+
+var exportData = {
+	header = ["id", "type", "name", "documentation"],
+	headerProperties = ["GEMMA type", "Object ID"],
+	data = [],
+
+	exportRow(pObject) {
+        let Row = [];
+		for (let i = 0; i < this.header.length + this.headerProperties.length; i++) {
+			if (i < this.header.length) {
+				Row[i] = pObject.concept[this.header[i]];
+			} else {
+				Row[i] = pObject.prop(this.headerProperties[i - this.header.length]);
+			}
+			debug(`Row[${i}]: ${Row[i]}`);
+		}
+        this.data.push(Row)
+	},
+	get headerRow() {
+		return this.header.concat(this.headerProperties);
+	},
+	get dataRows() {
+		return this.data;
+	}
+};
+
+applyToModelContent($(selection), exportData.exportRow);
+
+let datum = new Date();
+let exportFile = window.promptSaveFile({
+    title: "Export to CSV",
+    filterExtensions: ["*.csv"],
+    fileName: `${datum.toLocaleDateString('nl-NL')} ${model.name}-${$(selection).first().name}.csv`
+});
+if (exportFile != null) {
+    // var exportString = `"Element ID", "Element type", "Element label", "GEMMA type", "Object ID"\n`;
+    // console.log(`dataRows: ${exportData.dataRows}`)
+
+    $.fs.writeFile(exportFile, Papa.unparse({
+        fields: exportData.headerRow,
+        data: exportData.dataRows
+    }));
+
+    // $.fs.writeFile(exportFile, exportString) ;
+    console.log(">>> saved in : " + exportFile);
+} else {
+    console.log("> Save CSV canceled");
+}
+
+finishConsoleLog()
