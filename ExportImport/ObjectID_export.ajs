@@ -13,54 +13,71 @@ load(__DIR__ + "../Common/ApplyToSelection.ajs");
 _commonShowDebugMessage = [false];
 // exportString += `"${pObject.id}", "${pObject.type}", "${pObject.name}","${pObject.prop("GEMMA type")}", "${pObject.prop("Object ID")}"\n`;
 
-initConsoleLog(__FILE__)
-
 var exportData = {
-	header = ["id", "type", "name", "documentation"],
-	headerProperties = ["GEMMA type", "Object ID"],
+	header = new Set(["id", "type", "name", "documentation"]),
 	data = [],
 
 	exportRow(pObject) {
-        let Row = [];
-		for (let i = 0; i < this.header.length + this.headerProperties.length; i++) {
-			if (i < this.header.length) {
-				Row[i] = pObject.concept[this.header[i]];
-			} else {
-				Row[i] = pObject.prop(this.headerProperties[i - this.header.length]);
-			}
-			debug(`Row[${i}]: ${Row[i]}`);
+		let Row = new Object;
+		for (let attribute of this.header) {
+			Row[attribute] = pObject.concept[attribute];
 		}
-        this.data.push(Row)
+		for (let i = 0; i < pObject.prop().length; i++) {
+			let PropertyLabel = pObject.prop()[i];
+			if (pObject.prop(PropertyLabel)) {
+				this.header.add(PropertyLabel)
+				Row[PropertyLabel] = pObject.prop(PropertyLabel);
+				debug(`Row[${PropertyLabel}]: ${Row[PropertyLabel]}`);
+			}
+		}
+
+		this.data.push(Row)
 	},
+
 	get headerRow() {
-		return this.header.concat(this.headerProperties);
+		let headerArray = [];
+
+		let i=0;
+		for (let columnLabel of this.header) {
+			headerArray[i] = columnLabel;
+			i++;
+		}
+
+		return headerArray;
 	},
-	get dataRows() {
+
+	get dataRows() { //idem
 		return this.data;
 	}
 };
 
-applyToModelContent($(selection), exportData.exportRow);
+initConsoleLog(__FILE__)
 
-let datum = new Date();
-let exportFile = window.promptSaveFile({
-    title: "Export to CSV",
-    filterExtensions: ["*.csv"],
-    fileName: `${datum.toLocaleDateString('nl-NL')} ${model.name}-${$(selection).first().name}.csv`
-});
-if (exportFile != null) {
-    // var exportString = `"Element ID", "Element type", "Element label", "GEMMA type", "Object ID"\n`;
-    // console.log(`dataRows: ${exportData.dataRows}`)
+try {
 
-    $.fs.writeFile(exportFile, Papa.unparse({
-        fields: exportData.headerRow,
-        data: exportData.dataRows
-    }));
+	applyToModelContent($(selection), exportData.exportRow);
 
-    // $.fs.writeFile(exportFile, exportString) ;
-    console.log(">>> saved in : " + exportFile);
-} else {
-    console.log("> Save CSV canceled");
+	let datum = new Date();
+	let exportFile = window.promptSaveFile({
+		title: "Export to CSV",
+		filterExtensions: ["*.csv"],
+		fileName: `${datum.toLocaleDateString('nl-NL')} ${model.name}-${$(selection).first().name}.csv`
+	});
+	if (exportFile != null) {
+
+		debug(exportData.headerRow);
+
+		$.fs.writeFile(exportFile, Papa.unparse({
+			fields: exportData.headerRow,
+			data: exportData.dataRows
+		}));
+
+		console.log(">>> saved in : " + exportFile);
+	} else {
+		console.log("> Save CSV canceled");
+	}
+
+} catch (error) {
+	console.log(`> ${error}`);
 }
-
 finishConsoleLog()

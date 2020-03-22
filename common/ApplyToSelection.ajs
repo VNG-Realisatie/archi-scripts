@@ -344,9 +344,7 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 					break;
 				}
 				case 'archimate-diagram-model': {
-					// applyToConceptsOnView(pSelection, pFunc, pFuncParam)
-					console.log(`Can't apply ${pFunc.name} to a view. Select the model or one or multiple folders or concepts`)
-					break;
+					throw (`Can't apply ${pFunc.name} to a view. Select the model or one or multiple folders or concepts`)
 				}
 				case "One concept is selected in model tree":
 				case "One concept is selected in view": {
@@ -360,8 +358,7 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 					break;
 				}
 				case "diagram-model-object":
-					console.log(`Can't apply ${pFunc.name} to a diagram-model-object. Select the model or one or multiple folders or concepts`)
-					break;
+					throw (`Can't apply ${pFunc.name} to a diagram-model-object. Select the model or one or multiple folders or concepts`)
 				case "Multiple concepts are selected in view":
 				case "Multiple concepts are selected in model tree": {
 					applyToSelectedConcepts(pSelection, pFunc, pFuncParam)
@@ -374,6 +371,7 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 	}
 	catch (error) {
 		console.log(`> ${arguments.callee.name}(): ${typeof error.stack == 'undefined' ? error : error.stack}`);
+		throw ('> exiting')
 	}
 	_commonShowDebugMessage.pop();
 	_commonShowInfoMessage.pop();
