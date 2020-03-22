@@ -11,9 +11,6 @@
 load(__DIR__ + "../Common/Common.ajs");
 load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
-var _console_info = true;
-var _console_debug = false;
-
 initConsoleLog(__FILE__)
 
 applyToDiagramContent($(selection), ChangeFigure);
@@ -24,6 +21,9 @@ finishConsoleLog()
  * Change figure of application component in diagram
  */
 function ChangeFigure(pObject) {
+	_commonShowDebugMessage.push(false);
+	_commonShowInfoMessage.push(true);
+
 	if (pObject.figureType == 0 || pObject.figureType == 1) {
 		debug(`Set figure "${pObject.name}"`);
 
@@ -35,4 +35,6 @@ function ChangeFigure(pObject) {
 	} else {
 		info(`Skipped, "${pObject}" does not have a figure property`);
 	}
+	_commonShowDebugMessage.pop();
+	_commonShowInfoMessage.pop();
 }

@@ -1,0 +1,47 @@
+/**
+ * ObjectID_replace
+ * 
+ * Export Object_ID, id and other object properties of selection
+ * The applyToModelContent function allows for multiple kinds of selections
+ * 
+ */
+
+load(__DIR__ + "../Common/Common.ajs");
+
+initConsoleLog(__FILE__)
+
+// label_ID_property for finding existing elements
+const label_ID_property = "Object ID";
+const label_ID_lookup = "ID - Lookup on name";
+var i = 0;
+var j = 0;
+
+// Loop on all concepts
+$('concept').each(function(concept) {
+	ObjectID_replace(concept)
+    j++;
+})
+
+
+console.log(`\nThere are ${j} concepts processed`);
+if (i > 0) {
+	console.log(`\nThere are for ${i} object(s) the ID replaced`);
+} else {
+	console.log(`\nAll object have a valid property [${label_ID_property}]  : )`);
+}
+
+finishConsoleLog()
+
+/********************************************
+ * function definitions
+ *******************************************/
+
+function ObjectID_replace(pObject) {
+	if (pObject.prop(label_ID_lookup)) {
+
+		pObject.prop(label_ID_property + " fout", pObject.prop(label_ID_property));
+		pObject.prop(label_ID_property, pObject.prop(label_ID_lookup));
+		// console.log(`"> ${pObject}" with empty [${label_ID_property}]\n>> [${label_ID_property}] set to [${pObject.id}]`);
+		i++;
+	}
+}

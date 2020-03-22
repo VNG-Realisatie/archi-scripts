@@ -1,0 +1,52 @@
+/**
+ * findDuplicateRelations
+ * 
+ *  Definition of duplicate relation
+ *      - duplicate source and target object
+ *      - duplicate name (often empty)
+ *      - duplicate type
+ * 
+ *  - Find all relations with duplicate
+ * 
+ */
+
+console.clear();
+let RelationsSet = new Set()
+
+function findDuplicateRelations() {
+
+    console.log("Starting function findDuplicateRelations");
+
+    $("relation").each(function (r) {
+            var DupRel = getDuplicateRelationString(r)
+ 
+            if (RelationsSet.has(DupRel)) {
+                console.log(DupRel)
+            } else {
+                RelationsSet.add(DupRel);
+            }
+
+        });
+
+        console.log("Ending function findDuplicateRelations");
+
+    }
+
+function getDuplicateRelationString (pRelation) {
+    var DuplicateRelationString = `${pRelation.type}`;
+    if (pRelation.type == 'access-relationship') {
+        DuplicateRelationString += `(${pRelation.accessType})`;
+    }
+    if (pRelation.type == 'influence-relationship') {
+        DuplicateRelationString += `(${pRelation.influenceStrength})`;
+    }
+    if (pRelation.type == 'association-relationship') {
+        DuplicateRelationString += `(${pRelation.associationDirected})`;
+    }
+    var rName = pRelation.name ? `[${pRelation.name}]` : "[no name]" 
+    DuplicateRelationString += `: ${pRelation.source.name} -${rName}-> ${pRelation.target.name} (${pRelation.source.id} - ${pRelation.target.id})`;
+
+    return DuplicateRelationString
+}
+
+findDuplicateRelations();
