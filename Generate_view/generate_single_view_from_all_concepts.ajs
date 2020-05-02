@@ -1,0 +1,34 @@
+/*
+ * JArchi script that generates a view called "whole_model" that contains all the Archimate concepts.
+ *
+ * Requires:
+ *     Archi:			https://www.archimatetool.com
+ *     jArchi plugin:	https://www.archimatetool.com/plugins
+ *     Java script:		generate_view.js
+ *
+ *  #	date		Author			Comments
+ *  1	28/01/2019	Hervé Jouin		File creation.
+ */
+
+console.show();
+console.clear();
+console.log("Executing " + __FILE__.substring(6) + " ...");
+
+try {
+	load(__DIR__ + "generate_view/generate_view.js");
+	
+	var view = generate_view({concepts: "*"});
+
+	if ( view !== undefined ) {
+		console.log("The view \"" + view.name + "\" has been generated.");
+		open_view(view);
+	} else {
+		console.error("The view has not been generated.");
+	}
+} catch (e) {
+	console.error("Error : " + e);
+	if ( e.stack !== undefined )
+		console.error(e.stack);
+}
+
+console.log("End.");

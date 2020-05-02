@@ -1,0 +1,2315 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model xmlns="http://www.opengroup.org/xsd/archimate/3.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengroup.org/xsd/archimate/3.0/ http://www.opengroup.org/xsd/archimate/3.1/archimate3_Diagram.xsd" identifier="id-b58b6b03-a59d-472b-bd87-88ba77ded4e6">
+  <name xml:lang="nl">GEMMA 2 bestand</name>
+  <documentation xml:lang="nl">De GEMeentelijk Model Architectuur (GEMMA) bevat een blauwdruk van de gemeente en haar informatievoorziening. De GEMMA kan worden gebruikt als basis voor de projectmodellen</documentation>
+  <properties>
+    <property propertyDefinitionRef="propid-21">
+      <value xml:lang="nl">Softwarecatalogus en GEMMA Online en redactie</value>
+    </property>
+    <property propertyDefinitionRef="propid-1">
+      <value xml:lang="nl">In gebruik</value>
+    </property>
+    <property propertyDefinitionRef="propid-27">
+      <value xml:lang="nl">Archi</value>
+    </property>
+    <property propertyDefinitionRef="propid-28">
+      <value xml:lang="nl">Kernmodel</value>
+    </property>
+    <property propertyDefinitionRef="propid-3">
+      <value xml:lang="nl">2b2b88ba-8efe-46d3-8b40-47af290bc418</value>
+    </property>
+    <property propertyDefinitionRef="propid-29">
+      <value xml:lang="nl">0.9</value>
+    </property>
+  </properties>
+  <elements>
+    <element identifier="id-29193" xsi:type="ApplicationComponent">
+      <name xml:lang="nl">Vergunning- Toezicht- en Handhavingcomponent Omgevingswet</name>
+      <documentation xml:lang="nl">Component voor het ondersteunen van diverse soorten vergunningverlening, het ondersteunen op het toezicht houden en het ondersteunen van het handhaven.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In ontwikkeling</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Referentiecomponent</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">0777c4b6-e7c5-4d42-9fe8-9b98e6bca8a6</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29225" xsi:type="ApplicationComponent">
+      <name xml:lang="nl">Toepasbareregelsbeheer-component</name>
+      <documentation xml:lang="nl">Component voor het  beheren en digitaal beschikbaar stellen van toepasbare regels op basis van de regels uit beleid (omgevingsvisie, programma, omgevingsplan)</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl" />
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In ontwikkeling</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Referentiecomponent</value>
+        </property>
+        <property propertyDefinitionRef="propid-5">
+          <value xml:lang="nl">Nieuw</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">7f053bcc-9558-41ce-8a17-d3fa81fb7c17</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29243" xsi:type="ApplicationComponent">
+      <name xml:lang="nl">Omgevingsbeleidcomponent</name>
+      <documentation xml:lang="nl">Toekomstige component voor het ontwikkelen, beheren en digitaal beschikbaar stellen van omgevingsdocumenten (omgevingsplan, omgevingsvisie en programma) conform de Omgevingswet standaarden. Hiermee is de Omgevingsbeleid component de opvolger van de GEMMA WRO-component. De Omgevingsbeleidcomponent bevat diverse functionalteiten voor omgevingswetbesluiten.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl" />
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In ontwikkeling</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Referentiecomponent</value>
+        </property>
+        <property propertyDefinitionRef="propid-5">
+          <value xml:lang="nl">Nieuw</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">482b112b-dc5e-49b6-879c-a22f22cb6941</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29255" xsi:type="ApplicationComponent">
+      <name xml:lang="nl">DSO-LV</name>
+      <documentation xml:lang="nl">De landelijke voorziening Digitaal Stelsel Omgevingswet (DSO)</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">a0ce4c62-9619-4d60-bb27-7eabb5a9005e</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29195" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Ondersteunen van aanvragen en meldingen</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen inplannen van werkzaamheden
+Kunnen verlengen van het termijn van de te volgen procedure
+Kunnen (flexibel) inrichten van de werkprocessen
+Kunnen bewaken van de status van (interne en externe) adviesaanvraag
+Kunnen bewaken van de status van een zaak
+Kunnen doen van termijnbewaking zoals gedefinieerd volgens de wet / conform eigen service (instelbaar) termijnen.
+Kunnen instellen en bijhouden van doorlooptijden gedurende het aanvraagproces
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">329f2874-3826-4e2b-81b0-0bfbb7f67f6b</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29197" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Afhandelen Aanvragen en Meldingen</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen registreren van een formeel  vastgesteld document
+Kunnen doorsturen melding incident naar ander bevoegd gezag of een uitvoeringsorganisatie
+Kunnen aanmaken van een samenwerkingsruimte in de Samenwerkingsvoorziening van het DSO
+Kunnen aanvragen van een advies via de Samenwerkingsvoorziening van het DSO.
+Kunnen ontvangen van het triggerbericht uit DSO-LV
+Kunnen ophalen van de aanvraag of melding uit DSO-LV
+Kunnen ophalen van de bijlagen bij de aanvraag of melding uit het DSO
+Kunnen opvragen van documenten uit de Samenwerkingsvoorziening van het DSO
+Kunnen registreren van de aanvraag of melding in het Omgevingsloket
+Kunnen samenwerken aan een verzoek in de Samenwerkingsvoorziening van het DSO
+Kunnen aanbrengen van relatie tussen DSO-LV verzoeknummer met de zaaknummer(s) van het betreffende bevoegd gezag
+Kunnen betekenisvol overnemen van antwoorden op vragen uit de vragenboom die meegestuurd zijn in het Verzoek.
+Kunnen ophalen van indieningsvereisten uit het DSO
+Kunnen doorsturen van de aanvraag of melding activiteit (via DSO-LV) naar ander bevoegd gezag
+Kunnen opzoeken van begrippen in de stelselcatalogus
+Kunnen overnemen van begrippen uit de stelselcatalogus  met een link daar naar toe
+Kunnen aanvragen van extern advies
+Kunnen opvragen van gegevens in het monumentenregister bij de Rijksdienst voor Cultureel Erfgoed.
+Kunnen publiceren van een besluit via het officiele publicatiemechanisme (nu DROP  wordt later LVBB)
+Kunnen registeren en opvragen van vergunning en handhavingsbesluiten in landelijke registraties (zoals het Landelijk Register Kinderopvang  Peuterspeelzalen  Kadaster  etc)
+Kunnen opvragen van de gemeentelijke legesregeling
+Kunnen exporteren van ontwerpbesluit ten behoeve van ter inzagelegging
+Kunnen ophalen van bijbehorende documenten vanuit het gemeentelijk webformulier
+Kunnen ophalen van gegevens / documenten uit archief functionaliteit
+Kunnen uitwisselen van gegevens met de basis- of kernregistraties
+Kunnen uitwisselen van gegevens met de zaakregistratiecomponent
+Kunnen uitwisselen van gegevens met de zaaktypecataloguscomponent
+Kunnen uitwisselen van gegevens met financieel component
+Kunnen uitwisselen van gegevens met het besluitenregistratiecomponent
+Kunnen uitwisselen van gegevens met het data-analyse en monitoringcomponent
+Kunnen uitwisselen van gegevens met het documentregistratiecomponent
+Kunnen uitwisselen van gegevens met het handhavingregistratiecomponent
+Kunnen uitwisselen van gegevens met het Leefomgevingobjecten-en-activiteiten-registratiecomponent
+Kunnen uitwisselen van gegevens met het toezichtregistratiecomponent
+Kunnen uitwisselen van gegevens met het Vergunningen-en-meldingenregistratie component
+Kunnen genereren van brieven/besluiten aan verzoeker en belanghebbende
+Kunnen versturen van berichten aan initiatiefnemer  verzoeker en belanghebbende
+Kunnen afsluiten van het opstellen van de conceptbeschikking
+Kunnen geheel of gedeeltelijk buiten behandeling stellen van een aanvraag
+Kunnen inhoudelijk toetsen van de activiteiten
+Kunnen laten accorderen van de concept beschikking
+Kunnen laten toetsen van de beschikking inclusief legesberekening c.q. -beschikking
+Kunnen laten vaststellen van de definitieve beschikking
+Kunnen opstellen van een concept beschikking
+Kunnen opstellen van een legesbeschikking
+Kunnen opstellen van een planschaderisico
+Kunnen opstellen van een proces-verbaal
+Kunnen vergelijken van de aanvraag met de kaders van de geldende regelgeving
+Kunnen aangeven van een risicoprofiel
+Kunnen agenderen van toezicht (al dan niet in een gerelateerde zaak)
+Kunnen bepalen en registreren van de te volgen procedure.
+Kunnen berekenen van leges op basis van gemeentelijke legesregeling
+Kunnen controleren of de aanvraag voldoet aan de indieningsvereisten  of de initiatiefnemer participatie heeft georganiseerd en of alle noodzakelijke bijlagen zijn aangeleverd
+Kunnen controleren of de aanvraagde of geconstateerde activiteiten vergunningplichtig  meldingplichtig of vergunningvrij zijn
+Kunnen ondersteunen in het maken van een integrale afweging op basis van verzamelde adviezen
+Kunnen opstellen van een advies
+Kunnen opstellen van een besluit
+Kunnen opstellen van een toetsingsdocument
+Kunnen samenstellen van activiteiten tot een integraal besluit
+Kunnen vastleggen van afspraken met ketenpartners
+Kunnen vastleggen van samenhang met andere procedures/besluitvorming.
+Kunnen genereren van operationele rapportages (bv. overzicht werkvoorraad  voortgang)
+Kunnen genereren van management rapportages
+Kunnen samenstellen van eigen rapportages
+Kunnen agenderen van een adviesvraag aan de Gemeenteraad
+Kunnen opschorten van de beslistermijn
+Kunnen sluiten van de aanvraag
+Kunnen aanwijzen van hoofdbehandelaar/behandelaren/adviseurs
+Kunnen bewaken van de status van (interne en externe) adviesaanvraag
+Kunnen koppelen op basis van de Standaard Aanvragen en Meldingen (STAM)
+Kunnen koppelen op basis van de Standaard Zaak- en Documenten Services
+Kunnen koppelen op basis van de Standaard Zaakgericht Werken API (ZGW API)
+Kunnen koppelen van documenten aan een Zaak in de Zaakregistratiecomponent
+Kunnen aanvragen van intern advies
+Kunnen agenderen van een nieuwe (gerelateerde) zaak
+Kunnen controleren op bestaande (afgehandelde of lopende) zaken (o.a. vergunning  toezicht  handhaving  wijziging omgevingsplan)
+Kunnen doen van verzoek om aanpassing in omgevingsplan
+Kunnen registeren van een zaak
+Kunnen relateren van een zaak aan één of meer andere gerelateerde zaken
+Kunnen samenwerken met ketenpartners op basis van Zaakgericht Werken
+Kunnen werken op basis van de interbestuurlijke ZTC-Omgevingswet
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">1d38e87a-49d2-41f0-a8dd-eeda595fbba1</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29199" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Registreren Aanvragen en Meldingen</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen registeren van de beschikking
+Kunnen registreren van (inkomende) correspondentie
+Kunnen genereren van operationele rapportages (bv. overzicht werkvoorraad  voortgang)
+Kunnen genereren van management rapportages
+Kunnen samenwerken met ketenpartners op basis van Zaakgericht Werken
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">2233bb47-18ee-4827-b3b7-8a2f60831df9</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29203" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Registreren Handhaving</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen registeren van de beschikking
+Kunnen registreren van (geconstateerd) naleefgedrag gekoppeld aan (een) thema
+Kunnen registreren van (inkomende) correspondentie
+Kunnen vastleggen en registreren beslissing/advies voor vervolg op basis van beoordeling geconstateerde situatie.
+Kunnen uitwisselen van gegevens met het besluitenregistratiecomponent
+Kunnen uitwisselen van gegevens met het data-analyse en monitoringcomponent
+Kunnen uitwisselen van gegevens met het documentregistratiecomponent
+Kunnen uitwisselen van gegevens met het handhavingregistratiecomponent
+Kunnen uitwisselen van gegevens met het toezichtregistratiecomponent
+Kunnen samenstellen van activiteiten tot een integraal besluit
+Kunnen genereren van operationele rapportages (bv. overzicht werkvoorraad  voortgang)
+Kunnen genereren van management rapportages
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">ca2a7cdd-28a1-4bef-8c8d-622ac804ad56</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29205" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Afhandelen Handhaving</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen beheren van leefomgevingsobjecten en -activiteiten
+Kunnen registeren van de beschikking
+Kunnen registreren van (geconstateerd) naleefgedrag gekoppeld aan (een) thema
+Kunnen registreren van (inkomende) correspondentie
+Kunnen registreren van een formeel  vastgesteld document
+Kunnen vastleggen en registreren beslissing/advies voor vervolg op basis van beoordeling geconstateerde situatie.
+Kunnen aanvragen van een advies via de Samenwerkingsvoorziening van het DSO.
+Kunnen opvragen van documenten uit de Samenwerkingsvoorziening van het DSO
+Kunnen registreren van de aanvraag of melding in het Omgevingsloket
+Kunnen samenwerken aan een verzoek in de Samenwerkingsvoorziening van het DSO
+Kunnen opvragen van gegevens in het monumentenregister bij de Rijksdienst voor Cultureel Erfgoed.
+Kunnen publiceren van een besluit via het officiele publicatiemechanisme (nu DROP  wordt later LVBB)
+Kunnen opvragen van de gemeentelijke legesregeling
+Kunnen ophalen van bijbehorende documenten vanuit het gemeentelijk webformulier
+Kunnen ophalen van gegevens / documenten uit archief functionaliteit
+Kunnen uitwisselen van gegevens met de basis- of kernregistraties
+Kunnen uitwisselen van gegevens met de zaakregistratiecomponent
+Kunnen uitwisselen van gegevens met de zaaktypecataloguscomponent
+Kunnen uitwisselen van gegevens met financieel component
+Kunnen uitwisselen van gegevens met het besluitenregistratiecomponent
+Kunnen uitwisselen van gegevens met het data-analyse en monitoringcomponent
+Kunnen uitwisselen van gegevens met het documentregistratiecomponent
+Kunnen uitwisselen van gegevens met het handhavingregistratiecomponent
+Kunnen uitwisselen van gegevens met het Leefomgevingobjecten-en-activiteiten-registratiecomponent
+Kunnen uitwisselen van gegevens met het toezichtregistratiecomponent
+Kunnen uitwisselen van gegevens met het Vergunningen-en-meldingenregistratie component
+Kunnen genereren van brieven/besluiten aan verzoeker en belanghebbende
+Kunnen versturen van berichten aan initiatiefnemer  verzoeker en belanghebbende
+Kunnen afsluiten van het opstellen van de conceptbeschikking
+Kunnen inhoudelijk toetsen van de activiteiten
+Kunnen laten accorderen van de concept beschikking
+Kunnen laten vaststellen van de definitieve beschikking
+Kunnen opstellen van een concept beschikking
+Kunnen opstellen van een legesbeschikking
+Kunnen opstellen van een proces-verbaal
+Kunnen vergelijken van de aanvraag met de kaders van de geldende regelgeving
+Kunnen aangeven van een risicoprofiel
+Kunnen agenderen van toezicht (al dan niet in een gerelateerde zaak)
+Kunnen categoriseren van geconstateerde situatie/overtreding m.b.t. landelijke handhavingsstrategie
+Kunnen controleren of de aanvraagde of geconstateerde activiteiten vergunningplichtig  meldingplichtig of vergunningvrij zijn
+Kunnen ondersteunen in het maken van een integrale afweging op basis van verzamelde adviezen
+Kunnen opstellen van een besluit
+Kunnen prioriteren van de geconstateerde overtredingen
+Kunnen samenstellen van activiteiten tot een integraal besluit
+Kunnen vastleggen van afspraken met ketenpartners
+Kunnen vastleggen van samenhang met andere procedures/besluitvorming.
+Kunnen genereren van operationele rapportages (bv. overzicht werkvoorraad  voortgang)
+Kunnen genereren van management rapportages
+Kunnen samenstellen van eigen rapportages
+Kunnen opschorten van de beslistermijn
+Kunnen sluiten van de aanvraag
+Kunnen aanwijzen van hoofdbehandelaar/behandelaren/adviseurs
+Kunnen bewaken van de status van (interne en externe) adviesaanvraag
+Kunnen koppelen op basis van de Standaard Zaak- en Documenten Services
+Kunnen koppelen op basis van de Standaard Zaakgericht Werken API (ZGW API)
+Kunnen koppelen van documenten aan een Zaak in de Zaakregistratiecomponent
+Kunnen agenderen van een nieuwe (gerelateerde) zaak
+Kunnen controleren op bestaande (afgehandelde of lopende) zaken (o.a. vergunning  toezicht  handhaving  wijziging omgevingsplan)
+Kunnen registeren van een zaak
+Kunnen relateren van een zaak aan één of meer andere gerelateerde zaken
+Kunnen samenwerken met ketenpartners op basis van Zaakgericht Werken
+Kunnen werken op basis van de interbestuurlijke ZTC-Omgevingswet
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">405c5c57-9833-4d3f-9147-64afb3369082</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29207" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Ondersteunen van objecten en activiteiten</name>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">9bbef204-6c29-4f99-b888-263967881f4f</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29209" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Registreren Objecten en Activiteiten</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen registreren van leefomgevingsobjecten en -activiteiten
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">39359928-9869-4580-b60c-61c315ec461f</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29211" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Beheren Objecten en Activiteiten</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen beheren van leefomgevingsobjecten en -activiteiten
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">99d80e43-d403-432b-897d-fa254eb06ad7</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29215" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Registreren Toezicht</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen registreren van (geconstateerd) naleefgedrag gekoppeld aan (een) thema
+Kunnen registreren van (inkomende) correspondentie
+Kunnen registreren van een formeel  vastgesteld document
+Kunnen vastleggen en registreren beslissing/advies voor vervolg op basis van beoordeling geconstateerde situatie.
+Kunnen uitwisselen van gegevens met het data-analyse en monitoringcomponent
+Kunnen genereren van operationele rapportages (bv. overzicht werkvoorraad  voortgang)
+Kunnen genereren van management rapportages
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">3da90f21-c5e1-47b6-bce1-6d297533b1c1</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29217" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Afhandelen Toezicht</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen doorsturen melding incident naar ander bevoegd gezag of een uitvoeringsorganisatie
+Kunnen aanvragen van een advies via de Samenwerkingsvoorziening van het DSO.
+Kunnen opvragen van documenten uit de Samenwerkingsvoorziening van het DSO
+Kunnen registreren van de aanvraag of melding in het Omgevingsloket
+Kunnen samenwerken aan een verzoek in de Samenwerkingsvoorziening van het DSO
+Kunnen opvragen van gegevens in het monumentenregister bij de Rijksdienst voor Cultureel Erfgoed.
+Kunnen publiceren van een besluit via het officiele publicatiemechanisme (nu DROP  wordt later LVBB)
+Kunnen opvragen van de gemeentelijke legesregeling
+Kunnen ophalen van gegevens / documenten uit archief functionaliteit
+Kunnen uitwisselen van gegevens met de basis- of kernregistraties
+Kunnen uitwisselen van gegevens met de zaakregistratiecomponent
+Kunnen uitwisselen van gegevens met de zaaktypecataloguscomponent
+Kunnen uitwisselen van gegevens met het besluitenregistratiecomponent
+Kunnen uitwisselen van gegevens met het data-analyse en monitoringcomponent
+Kunnen uitwisselen van gegevens met het documentregistratiecomponent
+Kunnen uitwisselen van gegevens met het handhavingregistratiecomponent
+Kunnen uitwisselen van gegevens met het Leefomgevingobjecten-en-activiteiten-registratiecomponent
+Kunnen uitwisselen van gegevens met het toezichtregistratiecomponent
+Kunnen uitwisselen van gegevens met het Vergunningen-en-meldingenregistratie component
+Kunnen genereren van brieven/besluiten aan verzoeker en belanghebbende
+Kunnen versturen van berichten aan initiatiefnemer  verzoeker en belanghebbende
+Kunnen afsluiten van het opstellen van de conceptbeschikking
+Kunnen inhoudelijk toetsen van de activiteiten
+Kunnen laten accorderen van de concept beschikking
+Kunnen laten vaststellen van de definitieve beschikking
+Kunnen opstellen van een concept beschikking
+Kunnen opstellen van een legesbeschikking
+Kunnen opstellen van een proces-verbaal
+Kunnen vergelijken van de aanvraag met de kaders van de geldende regelgeving
+Kunnen aangeven van een risicoprofiel
+Kunnen agenderen van toezicht (al dan niet in een gerelateerde zaak)
+Kunnen categoriseren van geconstateerde situatie/overtreding m.b.t. landelijke handhavingsstrategie
+Kunnen controleren of de aanvraagde of geconstateerde activiteiten vergunningplichtig  meldingplichtig of vergunningvrij zijn
+Kunnen ondersteunen in het maken van een integrale afweging op basis van verzamelde adviezen
+Kunnen opstellen van een besluit
+Kunnen opstellen van verslagen/rapportages.
+Kunnen prioriteren van toezicht op basis van lokaal uitvoeringsbeleid
+Kunnen prioriteren van de geconstateerde overtredingen
+Kunnen vastleggen van afspraken met ketenpartners
+Kunnen vastleggen van samenhang met andere procedures/besluitvorming.
+Kunnen genereren van operationele rapportages (bv. overzicht werkvoorraad  voortgang)
+Kunnen genereren van management rapportages
+Kunnen samenstellen van eigen rapportages
+Kunnen opschorten van de beslistermijn
+Kunnen sluiten van de aanvraag
+Kunnen aanwijzen van hoofdbehandelaar/behandelaren/adviseurs
+Kunnen bewaken van de status van (interne en externe) adviesaanvraag
+Kunnen bewaken van de status van een zaak
+Kunnen koppelen op basis van de Standaard Zaak- en Documenten Services
+Kunnen koppelen op basis van de Standaard Zaakgericht Werken API (ZGW API)
+Kunnen koppelen van documenten aan een Zaak in de Zaakregistratiecomponent
+Kunnen agenderen van een nieuwe (gerelateerde) zaak
+Kunnen controleren op bestaande (afgehandelde of lopende) zaken (o.a. vergunning  toezicht  handhaving  wijziging omgevingsplan)
+Kunnen relateren van een zaak aan één of meer andere gerelateerde zaken
+Kunnen samenwerken met ketenpartners op basis van Zaakgericht Werken
+Kunnen werken op basis van de interbestuurlijke ZTC-Omgevingswet
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">67779e14-4c10-47d6-901e-d3f9c046c730</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29227" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Borgen kwaliteit toepasbare regels</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen zoeken in toepasbare regels
+Kunnen toetsten van toepasbare regels aan schrijfwijzer
+Kunnen afleiden van toepasbare regels
+Kunnen afspelen van toepasbare regels
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">f0749241-d4d8-485e-a867-ae88bf713f49</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29229" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Ontsluiten toepasbare regels</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen ontsluiten van toepasbare regels voor andere software
+Kunnen presenteren van toepasbare regels voor niet-gebruikers
+Kunnen genereren van een eigen loket voor checken en aanvragen 
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">be8826f7-9b21-4207-867c-54933dcc388b</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29231" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Beheren toepasbare regels</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen analyseren van juridische regels
+Kunnen relateren van juridische en toepasbare regels
+Kunnen opstellen en wijzigen van toepasbare regels
+Kunnen gebruiken van informatiebronnen in toepasbare regels
+Kunnen beheren van versies van toepasbare regels 
+Kunnen beheren van toepasbare regels door meerdere personen tegelijkertijd
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">4cc1d41b-27c4-4c26-ad42-82956ca066c6</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29233" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Werken met STTR</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen beheren van de functionele structuur
+Kunnen genereren van toepasbare regels in STTR-formaat
+Kunnen verifiëren van toepasbare regels
+Kunnen registreren van toepasbare regels
+Kunnen importeren van toepasbare regels
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">7d985e7c-c94a-4ff4-9719-178d12d30550</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29245" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Viewer</name>
+      <documentation xml:lang="nl">Deze functie omvat: 
+
+Kunnen tonen van omgevingsbeleid op een kaart
+Kunnen tonen van omgevingsbeleid als tekst
+Kunnen tonen van verschillen tussen regelingen
+Kunnen plaatsen van opmerkingen bij tekst dan wel kaart
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">5f1f691e-aa7d-4409-a484-2192ac2189b7</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29247" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Werkproces</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen ondersteunen van  werkproces opstellen of wijzigen omgevingsvisie
+Kunnen monitoren van statussen
+Kunnen instellen en bijhouden van doorlooptijden gedurende het wijzigingsproces
+Kunnen doen van termijnbewaking zoals gedefinieerd volgens de wet 
+Kunnen doen van termijnbewaking conform eigen service termijn
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">61f0b23a-1415-4b6b-9a0f-b4b685b17940</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29249" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Beheren van regelingen</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen aanbeiden van tekst en geometrie als eenheid
+Kunnen leggen van de relatie juridische regels en toepasbare regels 
+Kunnen tijdreizen in regelingen 
+Kunnen ondersteunen van samenwerking
+Kunnen ondersteunen van  tegelijk werken aan plan binnen organisatie
+Kunnen ondersteunen bij samenloop 
+Kunnen bieden van kwaliteitsbewaking
+Kunnen interacteren met toepasbare regels component
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">0c1a97d4-8621-4509-8775-1a20eaf7b402</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29251" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Publicatie</name>
+      <documentation xml:lang="nl">Deze functie omvat: 
+
+Kunnen genereren van was/wordt instructies
+Kunnen consolideren van de regeling
+Kunnen doorgeven van relevante procedure gevens
+Kunnen publiceren van initiele versie van regeling
+Kunnen valideren van besluiten via LVBB
+Kunnen aanleveren van besluiten aan LVBB
+Kunnen archiveren van besluiten
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">0d182566-5742-460f-9f57-c010ab66ffc6</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29219" xsi:type="ApplicationService">
+      <name xml:lang="nl">Koppelvlak samenwerken</name>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">6e151c9d-e261-4844-b185-537d7aecd2c1</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29221" xsi:type="ApplicationService">
+      <name xml:lang="nl">Koppelvlak aanvragen en meldingen</name>
+      <documentation xml:lang="nl">Omschrijving: Het ketenproces Indienen Aanvragen en Meldingen levert de door de Initiatiefnemer ingevulden en ingediende vergunningsaanvraag of melding af bij het Bevoegd gezag. Er wordt een keuze gemaakt voor één bevoegd gezag die de aanvraag/melding krijgt aangeleverd. 
+
+Organisatorische Interoperabiliteit: Randvoorwaarde is dat de gekozen rollen en vaardigheden het ontvangen van vergunningsaanvragen/meldingen omvat. Het koppelvlak bestaat uit 2 stadia te weten eerst het sturen van een triggerbericht waarin de notificatie is opgenomen dat er een vergunningsaanvraag/melding gereed staat bij DSO en vervolgens de mogelijkheid om de vergunningsaanvraag/melding met bijlages op te halen. 
+
+Berichten naar Initiatiefnemers worden verstuurd naar de betreffende GDI voorzieningen waarop het BG zelf dient aan te sluiten: 
+* Berichtenbox Bedrijven 
+* Berichtenbox Ondernemers 
+* Lopende zaken 
+
+Semantische Interoperabiliteit 
+
+Voorwaarde is kennis van: 
+* IMAM - DSO Informatiemodel Aanvragen Meldingen 
+* STAM - DSO Standaard Aanvragen Meldingen 
+* HAL (Hypertext Application Language) 
+* StUF - DSO (n.b. dit is een specifieke subset van StUF LVO die voor DSO relevant is). 
+
+Technische Interoperabiliteit 
+
+Voorwaarden ten behoeve van communicatie zijn de volgende standaarden: 
+* Digikoppeling ebMS 
+* XML 
+* JSON 
+* REST 
+* OAuth 
+
+Voorwaarde ten behoeve van veilig webverkeer zijn de volgende FS standaarden: 
+* PKI Overheid / OIN 
+* HTTPS 
+* TLS 
+* IPv4 / IPv6</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">fcaaeb46-cfd1-42b8-af88-b30f68cb3a7e</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29261" xsi:type="ApplicationService">
+      <name xml:lang="nl">Koppelvlak stelselcatalogus</name>
+      <documentation xml:lang="nl">Omschrijving: De DSO Stelselcatalogus is de DSO component waarin begrippen en metadata omtrent informatieproducten en services wordt beheerd. 
+Organisatorische Interoperabiliteit: Randvoorwaarde is dat de gekozen rollen en vaardigheden het inzien en aanleveren van begrippen (en andere metadata) omvatten binnen een Omgevingswet ketenproces. 
+Semantische Interoperabiliteit: Voorwaarde is kennis van: · SKOS https://www.forumstandaardisatie.nl/standaard/skos 
+* Linked Data 
+Technische Interoperabiliteit 
+Voorwaarden ten behoeve van communicatie zijn de volgende standaarden: · Cool URI http://www.w3.org/TR/cooluris/ 
+* Open API Specification 
+* (Geo-)JSON LD (of RDF XML respectievelijk GML) n.b. RDF nog in overweging 
+* REST 
+* OAuth 
+Voorwaarde ten behoeve van veilig webverkeer zijn de volgende FS standaarden: 
+* HTTPS 
+* TLS 
+* IPv4 / IPv6</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">5e1a29dc-1d0b-4417-98de-c70a6990e023</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29275" xsi:type="ApplicationService">
+      <name xml:lang="nl">Koppelvlak Omgevingswetbesluiten</name>
+      <documentation xml:lang="nl">Omschrijving: Het publiceren van Omgevingsdocumenten op het platform voor Overheidspublicaties LVBB (Landelijke Voorziening Beschikbaar stellen en Bekend maken) en deze via de DSO component ROD (Registratie Omgevingsdocumenten) ter beschikking stellen van DSO is waar de bevoegde gezagen op aansluiten om aan hun publicatieplicht te voldoen. 
+Organisatorische Interoperabiliteit: Randvoorwaarde is dat de gekozen rollen en vaardigheden het publiceren van Omgevingsdocumenten omvat. Dit is een wettelijke verplichting om als Omgevingswet ketenproces in te richten. 
+Semantische Interoperabiliteit 
+Voorwaarde is kennis van: 
+* STOP - Standaard Overheidspublicaties 
+* IMOD - DSO Informatiemodel Omgevingsdocumenten 
+* TPOD - DSO Toepassingsprofiel Omgevingsdocumenten (binnen STOP) 
+* GML (Geography Markup Language) 
+* OWMS 
+* XSD n.b. XSD als onderdeel van STOP/TPOD, nog in overweging voor relatie tussen gebied en regel. 
+Technische Interoperabiliteit 
+Voorwaarden ten behoeve van communicatie zijn de volgende standaarden: 
+* Digikoppeling ebMS 
+* OGC Geo standaarden (WMS, WFS) 
+* XML 
+* BWB 
+* JDCR 
+* ECLI 
+Voorwaarde ten behoeve van veilig webverkeer zijn de volgende FS standaarden: 
+* PKI Overheid / OIN 
+* HTTPS 
+* TLS 
+* IPv4 / IPv6</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">96225642-01e9-480f-961c-64c501f7dafb</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29277" xsi:type="ApplicationService">
+      <name xml:lang="nl">Koppelvlak toepasbare regels</name>
+      <documentation xml:lang="nl">Omschrijving: Toepasbare regels is de DSO component waaraan (lokale) kunnen worden aangeleverd ten behoeven van vragenbomen in het loket. 
+Organisatorische Interoperabiliteit: Randvoorwaarde is dat de gekozen rollen en vaardigheden het maken en aanleveren van toepasbare regels omvat binnen een Omgevingswet ketenproces. 
+Semantische Interoperabiliteit: 
+Voorwaarde is kennis van: 
+* IMTR - DSO Informatiemodel Toepasbare Regels 
+* STTR - DSO Standaard Toepasbare Regels 
+* DMN - Decision Model and Notation 
+Technische Interoperabiliteit 
+Voorwaarden ten behoeve van communicatie zijn de volgende standaarden: 
+* Digikoppeling ebMS 
+* XML 
+* HTML (n.b. slechts voor opmaak van toelichtende tekst bij regels) 
+* BWB (*) 
+* JDCR (*) 
+* ECLI (*) 
+(*) Wordt in de toekomst geïmplementeerd. 
+Voorwaarde ten behoeve van veilig webverkeer zijn de volgende FS standaarden: 
+* PKI Overheid / OIN 
+* HTTPS 
+* TLS 
+* IPv4 / IPv6</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">ff2b1a33-0f42-4932-b230-4c44096c0a26</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29201" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Ondersteunen van handhaving</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen inplannen van werkzaamheden
+Kunnen verlengen van het termijn van de te volgen procedure
+Kunnen (flexibel) inrichten van de werkprocessen
+Kunnen bewaken van de status van (interne en externe) adviesaanvraag
+Kunnen bewaken van de status van een zaak
+Kunnen doen van termijnbewaking zoals gedefinieerd volgens de wet / conform eigen service (instelbaar) termijnen.
+Kunnen instellen en bijhouden van doorlooptijden gedurende het aanvraagproces
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">Bijv. het opleggen van boetes of treffen van andere sanctiemaatregelen</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Geen</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">13d771fa-2a63-4686-a539-58c902b048a4</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29213" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Ondersteunen van toezicht</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen inplannen van werkzaamheden
+Kunnen verlengen van het termijn van de te volgen procedure
+Kunnen (flexibel) inrichten van de werkprocessen
+Kunnen bewaken van de status van (interne en externe) adviesaanvraag
+Kunnen bewaken van de status van een zaak
+Kunnen doen van termijnbewaking zoals gedefinieerd volgens de wet / conform eigen service (instelbaar) termijnen.
+Kunnen instellen en bijhouden van doorlooptijden gedurende het aanvraagproces
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">Bijv. via het controleren van afgegeven vergunningen, het in de openbare ruimte controleren op naleving van regels of toezicht via camera's</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Geen</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">65031be6-9a49-4054-9313-04ccdd719f7c</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-27287" xsi:type="ApplicationComponent">
+      <name xml:lang="nl">Vergunning- Toezicht- Handhavingcomponent</name>
+      <documentation xml:lang="nl">Component voor het ondersteunen van diverse soorten vergunningverlening.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-6">
+          <value xml:lang="nl">BBN 2 en beschikbaarheidsmaatregelen op BBN1</value>
+        </property>
+        <property propertyDefinitionRef="propid-7">
+          <value xml:lang="nl">122</value>
+        </property>
+        <property propertyDefinitionRef="propid-8">
+          <value xml:lang="nl">1</value>
+        </property>
+        <property propertyDefinitionRef="propid-9">
+          <value xml:lang="nl">1 : irritatie en ongemak bij burgers geventileerd in de media;</value>
+        </property>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">Bijv. het registeren van aanvragen, workflow voor het ondersteunen van het behandelproces en het beschikbaar stellen van informatie ten behoeve van toezicht en handhaving. Afhankelijk van het type vergunning kan vergunningverlening binnen verschillende domeinen plaats vinden. Bijv. Omgevingswetvergunningen binnen het Ruimtelijk Domein, Bijzondere Wetten en APV gerelateerde vergunningen binnen Publieksdiensten en Evenementvergunningenen in het Domein Openbare Orde en Veiligheid. De VTH-component bevat ook functionaliteit voor het uitvoeren van toezicht en handhaving voor de gebieden waarvoor vergunningen worden verstrekt.</value>
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In gebruik</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Referentiecomponent</value>
+        </property>
+        <property propertyDefinitionRef="propid-10">
+          <value xml:lang="nl">2</value>
+        </property>
+        <property propertyDefinitionRef="propid-11">
+          <value xml:lang="nl">2 : verlies van publiek respect; klachten van burgers;</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">ca98dd6d-1c0b-43dc-a26e-61ebd1cd810d</value>
+        </property>
+        <property propertyDefinitionRef="propid-12">
+          <value xml:lang="nl">2</value>
+        </property>
+        <property propertyDefinitionRef="propid-13">
+          <value xml:lang="nl">2 : verlies van publiek respect; klachten van burgers significant verlies van motivatie van medewerkers;</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-27965" xsi:type="ApplicationComponent">
+      <name xml:lang="nl">BAG-beheercomponent</name>
+      <documentation xml:lang="nl">Component voor het bronbeheer van de Basisregistratie Adressen en Gebouwen (BAG), eventueel aangevuld met zelf gedefinieerde attributen.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-6">
+          <value xml:lang="nl">BBN 1 en RA voor Integriteit</value>
+        </property>
+        <property propertyDefinitionRef="propid-7">
+          <value xml:lang="nl">231</value>
+        </property>
+        <property propertyDefinitionRef="propid-8">
+          <value xml:lang="nl">2</value>
+        </property>
+        <property propertyDefinitionRef="propid-9">
+          <value xml:lang="nl">2 : verlies van publiek respect; klachten van burgers;</value>
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In gebruik</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Referentiecomponent</value>
+        </property>
+        <property propertyDefinitionRef="propid-10">
+          <value xml:lang="nl">3</value>
+        </property>
+        <property propertyDefinitionRef="propid-11">
+          <value xml:lang="nl">3 : Verlies, beschadiging ongeoorlo de wijziging van informatie heeft een grote impact voor betrokkene(n);</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">65eaff18-c9e2-4f97-83b1-d9fb3aa366ad</value>
+        </property>
+        <property propertyDefinitionRef="propid-12">
+          <value xml:lang="nl">1</value>
+        </property>
+        <property propertyDefinitionRef="propid-13">
+          <value xml:lang="nl">1 : irritatie en ongemak bij burgers geventileerd in de media;</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29257" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Beheren van geometrieen</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen tekenen en wijzigen van geometrie
+Kunnen overnemen van geometrie
+Kunnen leggen van een relatie met tekst
+Kunnen ophalen en overnemen van geometrie en ID uit (basis)registraties
+Kunnen ondersteunen van 3D 
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">fb2d6626-3ce8-4f19-8d0f-5e5a5fbfa719</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29285" xsi:type="ApplicationFunction">
+      <name xml:lang="nl">Beheren van tekst</name>
+      <documentation xml:lang="nl">Deze functie omvat:
+
+Kunnen wijzigen en intrekken van juridische regels en waarden
+Kunnen annoteren van juridische regels, en waarden (juridisch spoor)
+Kunnen annoteren ten behoeve van het servicespoor 
+Kunnen toevoegen van metadata aan een regeling
+Kunnen leggen van een relatie met geometrie
+Kunnen ondersteunen van  waardelijsten
+Kunnen interacteren met de DSO stelselcatalogus
+
+Voor meer details verwijzen we naar de software requirements op gemmaonline.nl thema omgevingswet</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">0a5b735b-cdf2-4930-9f14-a431feda3125</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-a34b3b7e-faed-43df-844a-950164978e05" xsi:type="Constraint">
+      <name xml:lang="nl">Constraint</name>
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">a34b3b7e-faed-43df-844a-950164978e05</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-28612" xsi:type="Constraint">
+      <name xml:lang="nl">BAG Bevragen</name>
+      <documentation xml:lang="nl">BAG Bevragen biedt een koppelvlak waarop u uw software kunt aansluiten:  * directe toegang tot alle gegevens uit de LV BAG; * gegevens op basis van levenscyclus of peildatum.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In gebruik</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Standaard</value>
+        </property>
+        <property propertyDefinitionRef="propid-14">
+          <value xml:lang="nl">BAG-Bevragen-voorbeeldberichten</value>
+        </property>
+        <property propertyDefinitionRef="propid-15">
+          <value xml:lang="nl">http://www.kadaster.nl/web/Themas/Registraties/BAG/BAG-product/BAG-Bevragen.htm#Documenten</value>
+        </property>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">Kadaster</value>
+        </property>
+        <property propertyDefinitionRef="propid-17">
+          <value xml:lang="nl">BAG Bevragen</value>
+        </property>
+        <property propertyDefinitionRef="propid-18">
+          <value xml:lang="nl">http://www.kadaster.nl/web/Themas/Registraties/BAG/BAGartikelen/BAG-producten.htm</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">b51cc951-8db0-11e3-67ab-0050568a6153</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-32739" xsi:type="Constraint">
+      <name xml:lang="nl">StUF BAG</name>
+      <documentation xml:lang="nl">StUF BAG is een op StUF-BG gebaseerde berichtenstandaard voor het doorgeven van wijzigingen in de Basisregistratie Adressen en Gebouwen (BAG) aan afnemende applicaties waaronder de Waardering Onroerende Zaken (WOZ).</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">StUF BAG (voorheen StUF BG berichtcatalogus BAG) is gebaseerd op samengestelde berichten. Namelijk alle mutaties die samenhangen met één BAG-gebeurtenis zijn samengebracht in een samengesteld bericht. Op die manier is in deze standaard het gebeurtenisgeoriënteerd werken vormgegeven. Per samengesteld bericht/gebeurtenis kan de afnemende applicatie (bijvoorbeeld WOZ) dan een vast verwerking definiëren en deels automatiseren.</value>
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In gebruik</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Standaard</value>
+        </property>
+        <property propertyDefinitionRef="propid-14">
+          <value xml:lang="nl">StUF Testplatform</value>
+        </property>
+        <property propertyDefinitionRef="propid-15">
+          <value xml:lang="nl">https://www.gemmaonline.nl</value>
+        </property>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">VNG Realisatie</value>
+        </property>
+        <property propertyDefinitionRef="propid-17">
+          <value xml:lang="nl">StUF BAG</value>
+        </property>
+        <property propertyDefinitionRef="propid-18">
+          <value xml:lang="nl">https://www.gemmaonline.nl/index.php/BAG</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">bce52061-8db0-11e3-67ab-0050568a6153</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-32772" xsi:type="Constraint">
+      <name xml:lang="nl">StUF WOZ</name>
+      <documentation xml:lang="nl">StUF WOZ is een op basis van StUF opgestelde standaard, een zogenaamd Sectormodel, gericht op alle gegevensuitwisseling rond de uitvoering van de Wet Onroerende Zaken (WOZ) door gemeenten.</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">Naast de definitie van objecttypen en attributen (het gegevenswoordenboek WOZ) en de definitie van reguliere kennisgevingsberichten en vraag/antwoordberichten voor binnengemeentelijk gebruik, specificeert de standaard ook zogenaamde dienstberichten voor de optimalisering van binnengemeentelijke WOZ-werkprocessen.</value>
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In gebruik</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Standaard</value>
+        </property>
+        <property propertyDefinitionRef="propid-14">
+          <value xml:lang="nl">Conformiteitstoets</value>
+        </property>
+        <property propertyDefinitionRef="propid-15">
+          <value xml:lang="nl">https://www.kadaster.nl/web/formulier/WOZ-formulieren/Aanmelding-conformiteitstoets-LV-WOZ.htm</value>
+        </property>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">Waarderingskamer</value>
+        </property>
+        <property propertyDefinitionRef="propid-17">
+          <value xml:lang="nl">StUF WOZ</value>
+        </property>
+        <property propertyDefinitionRef="propid-18">
+          <value xml:lang="nl">http://www.waarderingskamer.nl/basisregistratihttps://www.waarderingskamer.nl/basisregistratie-woz-lv-woz/technische-specificaties-lv-woz/</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">bdb6a131-8db0-11e3-67ab-0050568a6153</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-39807" xsi:type="Constraint">
+      <name xml:lang="nl">DKIM</name>
+      <documentation xml:lang="nl">DomainKeys Identified Mail Signatures (DKIM) koppelt een e-mail aan een domeinnaam met behulp van een digitale handtekening</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">Het stelt de ontvanger in staat om te bepalen welke domeinnaam (en daarmee welke achterliggende organisatie) verantwoordelijk is voor het zenden van de e-mail. Daardoor kunnen spam- en phishing-mails beter worden gefilterd (bron https://lijsten.forumstandaardisatie.nl/open-standaard/dkim).</value>
+        </property>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In gebruik</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Standaard</value>
+        </property>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">IETF</value>
+        </property>
+        <property propertyDefinitionRef="propid-17">
+          <value xml:lang="nl">DKIM</value>
+        </property>
+        <property propertyDefinitionRef="propid-18">
+          <value xml:lang="nl">https://tools.ietf.org/html/rfc6376</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">c458b120-7957-11e4-67ab-0050568a6153</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29235" xsi:type="Constraint">
+      <name xml:lang="nl">STAM</name>
+      <documentation xml:lang="nl">De Standaard aanvragen en meldingen (STAM) beschrijft het koppelvlak dat een rol speelt bij het indienen van een vergunningsaanvraag of een melding. Dit is één van de standaarden voor het digitaal stelsel Omgevingswet (DSO).</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-1">
+          <value xml:lang="nl">In ontwikkeling</value>
+        </property>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Standaard</value>
+        </property>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">Kadaster</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">e3c1e61e-c64a-4153-ba60-159f889ac25f</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29253" xsi:type="Constraint">
+      <name xml:lang="nl">STTR</name>
+      <documentation xml:lang="nl">STandaard Toepasbare Regels</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-4">
+          <value xml:lang="nl">Zie ook: https://aandeslagmetdeomgevingswet.nl/digitaal-stelsel/documenten/documenten/specificatie-sttr/</value>
+        </property>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">Kadaster</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">ca625da4-84e8-42e2-a114-0edbceeff544</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29259" xsi:type="Constraint">
+      <name xml:lang="nl">STOP-TPOD</name>
+      <documentation xml:lang="nl">STandaarden voor Overheids Publicaties/ ToepassingsProfiel OmgevingsDocumenten</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-16">
+          <value xml:lang="nl">Kadaster</value>
+        </property>
+        <property propertyDefinitionRef="propid-18">
+          <value xml:lang="nl">https://aandeslagmetdeomgevingswet.nl/digitaal-stelsel/documenten/documenten/visualisatie/</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">3b147192-2f00-4eac-b4b6-013d8e7f0f54</value>
+        </property>
+      </properties>
+    </element>
+    <element identifier="id-29265" xsi:type="Constraint">
+      <name xml:lang="nl">STAM (actueel)</name>
+      <documentation xml:lang="nl">De actuele versie staat voor alle versies van het koppelvlak waarmee de voorziening gebruikt kan worden</documentation>
+      <properties>
+        <property propertyDefinitionRef="propid-2">
+          <value xml:lang="nl">Standaardversie</value>
+        </property>
+        <property propertyDefinitionRef="propid-19">
+          <value xml:lang="nl">Actueel</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">522835a1-70fe-46de-831d-ca142f2f12ee</value>
+        </property>
+      </properties>
+    </element>
+  </elements>
+  <relationships>
+    <relationship identifier="id-32610" source="id-27287" target="id-29213" xsi:type="Assignment">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">f12b39ce-e3b6-4486-a6a9-f4b36c771f6d</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-32621" source="id-27287" target="id-29201" xsi:type="Assignment">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">f88d4576-effe-46c3-bef0-79ec2649e95f</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-33449" source="id-27965" target="id-28612" xsi:type="Realization">
+      <name xml:lang="nl">Aanbevolen</name>
+      <properties>
+        <property propertyDefinitionRef="propid-20">
+          <value xml:lang="nl">Aanbevolen</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">ec8ea2bb-c763-4ba3-afd5-b04dead0e7e4</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-42679" source="id-27965" target="id-32739" xsi:type="Realization">
+      <name xml:lang="nl">Verplicht</name>
+      <properties>
+        <property propertyDefinitionRef="propid-20">
+          <value xml:lang="nl">Verplicht</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">1367a3ab-acfd-423a-a7f9-babf1780641d</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-42760" source="id-27287" target="id-32739" xsi:type="Realization">
+      <name xml:lang="nl">Aanbevolen</name>
+      <properties>
+        <property propertyDefinitionRef="propid-20">
+          <value xml:lang="nl">Aanbevolen</value>
+        </property>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">400b463e-5fbf-4e45-b469-fd6f807319ea</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-41667" source="id-29249" target="id-29285" xsi:type="Composition">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">7668a339-7bc1-433d-9a25-134044e7d298</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-41668" source="id-29249" target="id-29257" xsi:type="Composition">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">ca6201b8-70ad-4c03-9f27-2d33e59656a1</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29223" source="id-29255" target="id-29277" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">589585a9-2642-488f-9153-f47464287626</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29237" source="id-29221" target="id-29235" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">f3de4c42-9154-492f-bf27-ccdfd6ffb685</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29239" source="id-29275" target="id-29259" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">5a3a48ab-7c7c-43ce-b131-9fe8209fa571</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29241" source="id-29225" target="id-29253" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">51fca42a-24ec-4f2b-af74-35cf1a61835c</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29267" source="id-29255" target="id-29221" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">11504f21-0458-407c-b751-f5742755f588</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29269" source="id-29255" target="id-29261" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">9cea6fb6-4b50-4d04-8ca5-d641ed55d120</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29271" source="id-29243" target="id-29259" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">289dedbf-13b4-45b7-b7ec-71a3aa03addd</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29273" source="id-29193" target="id-29235" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">de4cfdce-c6c6-4e19-bf99-df5876a52c3f</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29279" source="id-29255" target="id-29219" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">a641fcf5-8d79-46d6-91f9-bb6805fb6926</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29281" source="id-29277" target="id-29253" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">92ec485c-38a3-4d65-affd-3ea0d873b080</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29283" source="id-29255" target="id-29275" xsi:type="Realization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">6ab2caaf-65a7-4cbb-b021-8c5fd00f989e</value>
+        </property>
+      </properties>
+    </relationship>
+    <relationship identifier="id-29263" source="id-29265" target="id-29235" xsi:type="Specialization">
+      <properties>
+        <property propertyDefinitionRef="propid-3">
+          <value xml:lang="nl">773ad6e5-5433-495b-8646-2c00462f82f7</value>
+        </property>
+      </properties>
+    </relationship>
+  </relationships>
+  <organizations>
+    <item>
+      <label xml:lang="nl">Business</label>
+      <item>
+        <label xml:lang="nl">Bedrijfsservices</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsrollen</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Procesarchitectuur</label>
+        <item>
+          <label xml:lang="nl">Procesbouwstenencatalogus</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Processenlandschap</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Bouwstenen-scope</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Klant-tot-klantproces</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Relatie tussen bedrijfsfuncties en deelprocessen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Vaststellen omgevingsplan</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Proceshiërarchie</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Bouwstenen-services</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Relatie bedrijfsobjecten en processen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Ketensamenwerking</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Relatie met zaakgericht werken</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Actoren en rollen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Opleggen sanctie</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">_Ongesorteerd</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Thema's</label>
+        <item>
+          <label xml:lang="nl">Privacy en informatiebeveiliging</label>
+          <item>
+            <label xml:lang="nl">eIDAS</label>
+            <item>
+              <label xml:lang="nl">Bedrijfsprocessen</label>
+            </item>
+          </item>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsactoren</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Producten</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsfuncties</label>
+        <item>
+          <label xml:lang="nl">(Hoofd)bedrijfsfuncties</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Sub(sub)bedrijfsfuncties</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfssamenwerkingen</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsobjecten</label>
+      </item>
+    </item>
+    <item>
+      <label xml:lang="nl">Application</label>
+      <item>
+        <label xml:lang="nl">Overerving</label>
+        <item>
+          <label xml:lang="nl">Basiscomponenten</label>
+          <item>
+            <label xml:lang="nl">Applicatielaag</label>
+          </item>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Omgevingswet</label>
+        <item identifierRef="id-29193" />
+        <item identifierRef="id-29225" />
+        <item identifierRef="id-29243" />
+        <item identifierRef="id-29255" />
+        <item identifierRef="id-29195" />
+        <item identifierRef="id-29197" />
+        <item identifierRef="id-29199" />
+        <item identifierRef="id-29203" />
+        <item identifierRef="id-29205" />
+        <item identifierRef="id-29207" />
+        <item identifierRef="id-29209" />
+        <item identifierRef="id-29211" />
+        <item identifierRef="id-29215" />
+        <item identifierRef="id-29217" />
+        <item identifierRef="id-29227" />
+        <item identifierRef="id-29229" />
+        <item identifierRef="id-29231" />
+        <item identifierRef="id-29233" />
+        <item identifierRef="id-29245" />
+        <item identifierRef="id-29247" />
+        <item identifierRef="id-29249" />
+        <item identifierRef="id-29251" />
+        <item identifierRef="id-29219" />
+        <item identifierRef="id-29221" />
+        <item identifierRef="id-29261" />
+        <item identifierRef="id-29275" />
+        <item identifierRef="id-29277" />
+      </item>
+      <item>
+        <label xml:lang="nl">_Ongesorteerd</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatiefuncties</label>
+        <item>
+          <label xml:lang="nl">Applicatiefuncties generiek</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Applicatiefuncties informatiebeveiliging</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Groeperende applicatiefuncties</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Applicatiefuncties domeinen</label>
+          <item identifierRef="id-29201" />
+          <item identifierRef="id-29213" />
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatiesamenwerkingen (groepen)</label>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke applicatiesamenwerkingen</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatieservices</label>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke koppelvlakken</label>
+        </item>
+        <item>
+          <label xml:lang="nl">In patronen</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatiecomponenten</label>
+        <documentation xml:lang="nl">Het Ondernemingsdossier stelt een ondernemer in staat om bepaalde informatie uit de bedrijfsvoering eenmalig vast te leggen en meerdere keren beschikbaar te stellen aan overheden zoals toezichthouders en vergunningverleners</documentation>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten verzamel</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten in ontwikkeling</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten domeinen</label>
+          <item identifierRef="id-27287" />
+          <item identifierRef="id-27965" />
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten generiek</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke voorzieningen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten intermediair</label>
+          <item identifierRef="id-29257" />
+          <item identifierRef="id-29285" />
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten informatiebeveiliging</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Views extra objecten</label>
+        <item>
+          <label xml:lang="nl">Applicatiecomponenten overig</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke voorzieningen overig</label>
+        </item>
+        <item>
+          <label xml:lang="nl">BBN legenda</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Procesarchitectuur</label>
+        <item>
+          <label xml:lang="nl">Bouwstenen-scope</label>
+        </item>
+      </item>
+    </item>
+    <item>
+      <label xml:lang="nl">Motivation</label>
+      <item>
+        <label xml:lang="nl">Views extra objecten</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Architectuurprincipes</label>
+      </item>
+      <item>
+        <label xml:lang="nl">GEMMA standaardenlijst</label>
+        <item>
+          <label xml:lang="nl">Standaard(versie) verwijderd</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Standaarden</label>
+          <item identifierRef="id-28612" />
+          <item identifierRef="id-32739" />
+          <item identifierRef="id-32772" />
+          <item identifierRef="id-39807" />
+        </item>
+        <item>
+          <label xml:lang="nl">Standaarden in ontwikkeling</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Standaard(versie) onderzoek</label>
+          <item identifierRef="id-29235" />
+          <item identifierRef="id-29253" />
+          <item identifierRef="id-29259" />
+          <item identifierRef="id-29265" />
+        </item>
+        <item>
+          <label xml:lang="nl">Standaardversie (actueel)</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Standaardversies</label>
+        </item>
+      </item>
+      <item identifierRef="id-a34b3b7e-faed-43df-844a-950164978e05" />
+    </item>
+    <item>
+      <label xml:lang="nl">Other</label>
+      <item>
+        <label xml:lang="nl">Groepen</label>
+      </item>
+    </item>
+    <item>
+      <label xml:lang="nl">Relations</label>
+      <item>
+        <label xml:lang="nl">Bedrijfsrollen</label>
+      </item>
+      <item>
+        <label xml:lang="nl">_Ongesorteerd</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatieservices</label>
+        <item>
+          <label xml:lang="nl">In patronen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke koppelvlakken</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatiecomponenten</label>
+        <documentation xml:lang="nl">Het Ondernemingsdossier stelt een ondernemer in staat om bepaalde informatie uit de bedrijfsvoering eenmalig vast te leggen en meerdere keren beschikbaar te stellen aan overheden zoals toezichthouders en vergunningverleners</documentation>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten in ontwikkeling</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten informatiebeveiliging</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten domeinen</label>
+          <item identifierRef="id-32610" />
+          <item identifierRef="id-32621" />
+          <item identifierRef="id-33449" />
+          <item identifierRef="id-42679" />
+          <item identifierRef="id-42760" />
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten generiek</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Referentiecomponenten intermediair</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke voorzieningen</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatiefuncties</label>
+        <item>
+          <label xml:lang="nl">Groeperende applicatiefuncties</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Applicatiefuncties informatiebeveiliging</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Applicatiefuncties generiek</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Applicatiefuncties domeinen</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfssamenwerkingen</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Procesarchitectuur</label>
+        <item>
+          <label xml:lang="nl">Bouwstenen-scope</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Actoren en rollen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Processenlandschap</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Opleggen sanctie</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Vaststellen omgevingsplan</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Relatie tussen bedrijfsfuncties en deelprocessen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Bouwstenen-services</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Procesbouwstenencatalogus</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Klant-tot-klantproces</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Relatie bedrijfsobjecten en processen</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Proceshiërarchie</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Ketensamenwerking</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Relatie met zaakgericht werken</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Views extra objecten</label>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke voorzieningen overig</label>
+        </item>
+        <item />
+        <item>
+          <label xml:lang="nl">Applicatiecomponenten overig</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Omgevingswet</label>
+        <item identifierRef="id-41667" />
+        <item identifierRef="id-41668" />
+        <item identifierRef="id-29223" />
+        <item identifierRef="id-29237" />
+        <item identifierRef="id-29239" />
+        <item identifierRef="id-29241" />
+        <item identifierRef="id-29267" />
+        <item identifierRef="id-29269" />
+        <item identifierRef="id-29271" />
+        <item identifierRef="id-29273" />
+        <item identifierRef="id-29279" />
+        <item identifierRef="id-29281" />
+        <item identifierRef="id-29283" />
+      </item>
+      <item>
+        <label xml:lang="nl">Applicatiesamenwerkingen (groepen)</label>
+        <item>
+          <label xml:lang="nl">Buitengemeentelijke applicatiesamenwerkingen</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsfuncties</label>
+        <item>
+          <label xml:lang="nl">Sub(sub)bedrijfsfuncties</label>
+        </item>
+        <item>
+          <label xml:lang="nl">(Hoofd)bedrijfsfuncties</label>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Producten</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Groepen</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Technologielaag</label>
+      </item>
+      <item>
+        <label xml:lang="nl">GEMMA standaardenlijst</label>
+        <item>
+          <label xml:lang="nl">Standaardenversies</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Standaardversie (actueel)</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Standaarden in ontwikkeling</label>
+        </item>
+        <item>
+          <label xml:lang="nl">Standaarden en versie in onderzoek</label>
+          <item identifierRef="id-29263" />
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Thema's</label>
+        <item>
+          <label xml:lang="nl">Privacy en informatiebeveiliging</label>
+          <item>
+            <label xml:lang="nl">eIDAS</label>
+            <item>
+              <label xml:lang="nl">Bedrijfsprocessen</label>
+            </item>
+          </item>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Overerving</label>
+        <item>
+          <label xml:lang="nl">Basiscomponenten</label>
+          <item>
+            <label xml:lang="nl">Applicatielaag</label>
+          </item>
+        </item>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsservices</label>
+      </item>
+      <item>
+        <label xml:lang="nl">Bedrijfsactoren</label>
+      </item>
+    </item>
+    <item>
+      <label xml:lang="nl">Views</label>
+      <item>
+        <label xml:lang="nl">Projectarchitectuur basis</label>
+        <item>
+          <label xml:lang="nl">Omgevingswet</label>
+          <item identifierRef="id-26243" />
+        </item>
+      </item>
+    </item>
+  </organizations>
+  <propertyDefinitions>
+    <propertyDefinition identifier="propid-17" type="string">
+      <name>Afkorting</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-25" type="string">
+      <name>Architectuurlaag</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-27" type="string">
+      <name>Architectuurtool</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-6" type="string">
+      <name>BBN</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-7" type="string">
+      <name>BIV score BBN</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-16" type="string">
+      <name>Beheerder</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-8" type="string">
+      <name>Beschikbaarheid</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-9" type="string">
+      <name>Beschikbaarheid (belangrijkste reden)</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-14" type="string">
+      <name>Compliancy</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-15" type="string">
+      <name>Compliancy URL</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-26" type="string">
+      <name>Domein</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-1" type="string">
+      <name>GEMMA status</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-23" type="string">
+      <name>GEMMA thema</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-2" type="string">
+      <name>GEMMA type</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-10" type="string">
+      <name>Integriteit</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-11" type="string">
+      <name>Integriteit (belangrijkste reden)</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-3" type="string">
+      <name>Object ID</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-5" type="string">
+      <name>Projectstatus</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-21" type="string">
+      <name>Publiceren</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-22" type="string">
+      <name>Scope</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-4" type="string">
+      <name>Toelichting</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-28" type="string">
+      <name>Type model</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-18" type="string">
+      <name>URL</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-20" type="string">
+      <name>Verbindingsrol</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-29" type="string">
+      <name>Versie</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-19" type="string">
+      <name>Versieaanduiding</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-12" type="string">
+      <name>Vertrouwelijkheid</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-13" type="string">
+      <name>Vertrouwelijkheid (belangrijkste reden)</name>
+    </propertyDefinition>
+    <propertyDefinition identifier="propid-24" type="string">
+      <name>Viewtype</name>
+    </propertyDefinition>
+  </propertyDefinitions>
+  <views>
+    <diagrams>
+      <view identifier="id-26243" xsi:type="Diagram">
+        <name xml:lang="nl">Beheerview voor SWC</name>
+        <properties>
+          <property propertyDefinitionRef="propid-3">
+            <value xml:lang="nl">ec0a5fac-c557-417f-9876-9fa20684ec06</value>
+          </property>
+          <property propertyDefinitionRef="propid-21">
+            <value xml:lang="nl">GEMMA Online en redactie</value>
+          </property>
+          <property propertyDefinitionRef="propid-22">
+            <value xml:lang="nl">Gemeente</value>
+          </property>
+          <property propertyDefinitionRef="propid-23">
+            <value xml:lang="nl">Omgevingswet</value>
+          </property>
+          <property propertyDefinitionRef="propid-24">
+            <value xml:lang="nl">Beheer</value>
+          </property>
+          <property propertyDefinitionRef="propid-25">
+            <value xml:lang="nl">Totaal (meerlaags)</value>
+          </property>
+          <property propertyDefinitionRef="propid-26">
+            <value xml:lang="nl">Ruimtelijk domein</value>
+          </property>
+        </properties>
+        <node identifier="id-29274" elementRef="id-29275" xsi:type="Element" x="432" y="620" w="160" h="60">
+          <style>
+            <fillColor r="183" g="222" b="232" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29276" elementRef="id-29277" xsi:type="Element" x="433" y="500" w="160" h="60">
+          <style>
+            <fillColor r="183" g="222" b="232" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29220" elementRef="id-29221" xsi:type="Element" x="432" y="193" w="160" h="60">
+          <style>
+            <fillColor r="183" g="222" b="232" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29254" elementRef="id-29255" xsi:type="Element" x="130" y="170" w="193" h="713">
+          <style>
+            <fillColor r="218" g="238" b="243" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29258" elementRef="id-29259" xsi:type="Element" x="659" y="623" w="133" h="53">
+          <style>
+            <fillColor r="204" g="204" b="255" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29252" elementRef="id-29253" xsi:type="Element" x="660" y="500" w="133" h="53">
+          <style>
+            <fillColor r="204" g="204" b="255" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29234" elementRef="id-29235" xsi:type="Element" x="659" y="197" w="133" h="53">
+          <style>
+            <fillColor r="204" g="204" b="255" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29260" elementRef="id-29261" xsi:type="Element" x="432" y="707" w="160" h="60">
+          <style>
+            <fillColor r="183" g="222" b="232" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29218" elementRef="id-29219" xsi:type="Element" x="432" y="787" w="160" h="60">
+          <style>
+            <fillColor r="183" g="222" b="232" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29224" elementRef="id-29225" xsi:type="Element" x="840" y="470" w="620" h="107">
+          <style>
+            <fillColor r="218" g="238" b="243" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+          <node identifier="id-29230" elementRef="id-29231" xsi:type="Element" x="867" y="497" w="133" h="53">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+          <node identifier="id-29226" elementRef="id-29227" xsi:type="Element" x="1014" y="497" w="133" h="53">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+          <node identifier="id-29232" elementRef="id-29233" xsi:type="Element" x="1160" y="497" w="133" h="53">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+          <node identifier="id-29228" elementRef="id-29229" xsi:type="Element" x="1300" y="497" w="133" h="53">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+        </node>
+        <node identifier="id-29242" elementRef="id-29243" xsi:type="Element" x="840" y="624" w="680" h="207">
+          <style>
+            <fillColor r="218" g="238" b="243" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+          <node identifier="id-29248" elementRef="id-29249" xsi:type="Element" x="874" y="644" w="180" h="173">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+            <node identifier="id-29256" elementRef="id-29257" xsi:type="Element" x="897" y="684" w="133" h="53">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+            <node identifier="id-29284" elementRef="id-29285" xsi:type="Element" x="897" y="754" w="133" h="53">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+          </node>
+          <node identifier="id-29246" elementRef="id-29247" xsi:type="Element" x="1067" y="644" w="133" h="173">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+          <node identifier="id-29250" elementRef="id-29251" xsi:type="Element" x="1214" y="644" w="133" h="173">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+          <node identifier="id-29244" elementRef="id-29245" xsi:type="Element" x="1367" y="644" w="133" h="173">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+          </node>
+        </node>
+        <node identifier="id-29264" elementRef="id-29265" xsi:type="Element" x="580" y="300" w="133" h="53">
+          <style>
+            <fillColor r="204" g="204" b="255" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-29192" elementRef="id-29193" xsi:type="Element" x="840" y="160" w="1100" h="280">
+          <style>
+            <fillColor r="218" g="238" b="243" a="100" />
+            <lineColor r="0" g="0" b="0" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+          <node identifier="id-29194" elementRef="id-29195" xsi:type="Element" x="874" y="194" w="233" h="213">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+            <node identifier="id-29198" elementRef="id-29199" xsi:type="Element" x="907" y="307" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+            <node identifier="id-29196" elementRef="id-29197" xsi:type="Element" x="907" y="227" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+          </node>
+          <node identifier="id-29212" elementRef="id-29213" xsi:type="Element" x="1140" y="194" w="233" h="213">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+            <node identifier="id-29216" elementRef="id-29217" xsi:type="Element" x="1174" y="227" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+            <node identifier="id-29214" elementRef="id-29215" xsi:type="Element" x="1174" y="307" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+          </node>
+          <node identifier="id-29200" elementRef="id-29201" xsi:type="Element" x="1407" y="194" w="233" h="213">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+            <node identifier="id-29204" elementRef="id-29205" xsi:type="Element" x="1440" y="227" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+            <node identifier="id-29202" elementRef="id-29203" xsi:type="Element" x="1440" y="307" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+          </node>
+          <node identifier="id-29206" elementRef="id-29207" xsi:type="Element" x="1674" y="194" w="233" h="213">
+            <style>
+              <fillColor r="183" g="222" b="232" a="100" />
+              <lineColor r="0" g="0" b="0" a="100" />
+              <font name="Segoe UI" size="9">
+                <color r="0" g="0" b="0" />
+              </font>
+            </style>
+            <node identifier="id-29210" elementRef="id-29211" xsi:type="Element" x="1707" y="227" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+            <node identifier="id-29208" elementRef="id-29209" xsi:type="Element" x="1707" y="307" w="167" h="67">
+              <style>
+                <fillColor r="183" g="222" b="232" a="100" />
+                <lineColor r="0" g="0" b="0" a="100" />
+                <font name="Segoe UI" size="9">
+                  <color r="0" g="0" b="0" />
+                </font>
+              </style>
+            </node>
+          </node>
+        </node>
+        <node identifier="id-74858236-ddb9-4686-9405-8f5c0287bd67" elementRef="id-28612" xsi:type="Element" x="522" y="45" w="140" h="60">
+          <style>
+            <fillColor r="202" g="181" b="234" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-ed0050a2-05e8-45be-b007-620b53bf575a" elementRef="id-32739" xsi:type="Element" x="10" y="40" w="140" h="60">
+          <style>
+            <fillColor r="202" g="181" b="234" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-93c1c4dc-ba52-4d86-b3da-1c6d9949c500" elementRef="id-32772" xsi:type="Element" x="276" y="58" w="140" h="60">
+          <style>
+            <fillColor r="202" g="181" b="234" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-001f0e29-0c7c-48b2-8b4b-e5b99e98c7e2" elementRef="id-39807" xsi:type="Element" x="732" y="53" w="140" h="60">
+          <style>
+            <fillColor r="202" g="181" b="234" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-33ca7d84-eb7d-48de-bc62-96f5fd9437bc" elementRef="id-a34b3b7e-faed-43df-844a-950164978e05" xsi:type="Element" x="400" y="360" w="140" h="60">
+          <style>
+            <fillColor r="202" g="181" b="234" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-2e698142-2e6b-4492-a54c-4c0012e067f3" elementRef="id-27965" xsi:type="Element" x="1010" y="70" w="140" h="60">
+          <style>
+            <fillColor r="218" g="238" b="243" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <node identifier="id-81b529ab-b875-4598-bce3-1648fe96d975" elementRef="id-27287" xsi:type="Element" x="1344" y="59" w="140" h="60">
+          <style>
+            <fillColor r="218" g="238" b="243" a="100" />
+            <lineColor r="79" g="79" b="79" a="100" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </node>
+        <connection identifier="id-29238" relationshipRef="id-29239" xsi:type="Relationship" source="id-29274" target="id-29258">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29280" relationshipRef="id-29281" xsi:type="Relationship" source="id-29276" target="id-29252">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29236" relationshipRef="id-29237" xsi:type="Relationship" source="id-29220" target="id-29234">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29266" relationshipRef="id-29267" xsi:type="Relationship" source="id-29254" target="id-29220">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29278" relationshipRef="id-29279" xsi:type="Relationship" source="id-29254" target="id-29218">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29268" relationshipRef="id-29269" xsi:type="Relationship" source="id-29254" target="id-29260">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29222" relationshipRef="id-29223" xsi:type="Relationship" source="id-29254" target="id-29276">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29282" relationshipRef="id-29283" xsi:type="Relationship" source="id-29254" target="id-29274">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29240" relationshipRef="id-29241" xsi:type="Relationship" source="id-29224" target="id-29252">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29270" relationshipRef="id-29271" xsi:type="Relationship" source="id-29242" target="id-29258">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29262" relationshipRef="id-29263" xsi:type="Relationship" source="id-29264" target="id-29234">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-29272" relationshipRef="id-29273" xsi:type="Relationship" source="id-29192" target="id-29234">
+          <style>
+            <lineColor r="0" g="0" b="0" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-cbc1fb64-dd5d-497b-9257-d8a6ffca07f5" relationshipRef="id-33449" xsi:type="Relationship" source="id-2e698142-2e6b-4492-a54c-4c0012e067f3" target="id-74858236-ddb9-4686-9405-8f5c0287bd67">
+          <style>
+            <lineColor r="29" g="29" b="29" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-cd0db9c8-6c04-4dea-9f44-2a627f6279b9" relationshipRef="id-42679" xsi:type="Relationship" source="id-2e698142-2e6b-4492-a54c-4c0012e067f3" target="id-ed0050a2-05e8-45be-b007-620b53bf575a">
+          <style>
+            <lineColor r="29" g="29" b="29" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-58a9fb1c-57c5-4029-b6dc-1a02ea23e328" relationshipRef="id-32610" xsi:type="Relationship" source="id-81b529ab-b875-4598-bce3-1648fe96d975" target="id-29212">
+          <style>
+            <lineColor r="29" g="29" b="29" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-dd7e0a65-3259-4534-b0de-adc0ecbed5dd" relationshipRef="id-32621" xsi:type="Relationship" source="id-81b529ab-b875-4598-bce3-1648fe96d975" target="id-29200">
+          <style>
+            <lineColor r="29" g="29" b="29" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+        <connection identifier="id-4930c4e5-e7cf-49ad-901b-4fc25b172a79" relationshipRef="id-42760" xsi:type="Relationship" source="id-81b529ab-b875-4598-bce3-1648fe96d975" target="id-ed0050a2-05e8-45be-b007-620b53bf575a">
+          <style>
+            <lineColor r="29" g="29" b="29" />
+            <font name="Segoe UI" size="9">
+              <color r="0" g="0" b="0" />
+            </font>
+          </style>
+        </connection>
+      </view>
+    </diagrams>
+  </views>
+</model>
