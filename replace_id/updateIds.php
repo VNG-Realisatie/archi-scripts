@@ -20,9 +20,7 @@
     /**
      *
      */
-    class idReplacer
-
-    {
+    class idReplacer    {
 
         const NAME_SPACE            = 'a';
         const OBJECTID              = 'Object ID';
@@ -165,13 +163,11 @@
             foreach ($elements as $element) {
                 $guid =  $this->getNodeValue($this->sourceParser, $element, self::OBJECTID);
 
-                echo "Debug: Object ID $guid "  . PHP_EOL;
+                // echo "Debug: Object ID $guid "  . PHP_EOL;
 
                 $id = $this->getAttribute($element, 'identifier');
 
-                if ( 'id-' . $guid <> $id &&
-                    !empty ( $guid)
-                ) {
+                if ( 'id-' . $guid <> $id && !empty ( $guid))  {
                     if ( strlen( $guid ) < 32 ) {
                         $oldGuid = $guid;
                         $guid = $this->createGUID($guid);
@@ -193,9 +189,6 @@
                         echo "Id: $id NOT replaced (longer than 32)" . PHP_EOL;
                         $counter2++;
                     }
-
-
-
                 }
             }
             $total = $counter + $counter2;
