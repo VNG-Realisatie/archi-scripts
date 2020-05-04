@@ -14,6 +14,7 @@
 
 
 
+    $format  = '';
     $class = new idReplacer ( $sourceFile, $format );
     $class->run();
 
@@ -48,6 +49,8 @@
         //Archi  variables
         const ARCHI_ELEMENT         = 'element';
         const ARCHI_ELEMENTS        = 'Elements';
+        const ARCHI_RELATIONSHIP    = 'relationship';
+        const ARCHI_RELATIONSHIPS   = 'Relations';
         const ARCHI_VIEWS           = 'views';
         const ARCHI_IDENTIFIER      = 'id';
 
@@ -267,6 +270,8 @@
                     break;
                 case self::ARCHI:
                     $this->replaceIdForObjects($this->sourceElements, self::ARCHI_ELEMENTS, self::ARCHI_IDENTIFIER);
+                    $this->replaceIdForObjects($this->sourceRelationships, self::ARCHI_RELATIONSHIPS, self::ARCHI_IDENTIFIER);
+                    $this->replaceIdForObjects($this->sourceViews, self::ARCHI_VIEWS, self::ARCHI_IDENTIFIER);
                     break;
                 default:
 
@@ -484,7 +489,9 @@
             $properties = $parser->query('.' . $this->prefix . self::ARCHIMATE_PROPERTY, $object);
             foreach ( $properties as $property ) {
                 $currentPropId =  $this->getAttribute($property, $this->propertyDefRef );
-                if ( trim($currentPropId) == trim($this->objectId) )  {
+                // if ( trim($currentPropId) == trim($this->objectId) )  {
+                if ( trim($currentPropId) == trim(self::OBJECTID) )  {
+                        
                     $result = trim($property->nodeValue);
                     break;
                 }
