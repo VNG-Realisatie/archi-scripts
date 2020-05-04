@@ -14,7 +14,6 @@
 
 
 
-    $format  = '';
     $class = new idReplacer ( $sourceFile, $format );
     $class->run();
 
@@ -29,6 +28,7 @@
         const OBJECTID              = 'Object ID';
         const AMEFF                 = 'ameff';
         const ARCHI                 = 'archi';
+        const VALUE                 = 'value';
 
 
         const ARCHIMATE_ELEMENT         = 'element';
@@ -49,8 +49,6 @@
         //Archi  variables
         const ARCHI_ELEMENT         = 'element';
         const ARCHI_ELEMENTS        = 'Elements';
-        const ARCHI_RELATIONSHIP    = 'relationship';
-        const ARCHI_RELATIONSHIPS   = 'Relations';
         const ARCHI_VIEWS           = 'views';
         const ARCHI_IDENTIFIER      = 'id';
 
@@ -270,8 +268,6 @@
                     break;
                 case self::ARCHI:
                     $this->replaceIdForObjects($this->sourceElements, self::ARCHI_ELEMENTS, self::ARCHI_IDENTIFIER);
-                    $this->replaceIdForObjects($this->sourceRelationships, self::ARCHI_RELATIONSHIPS, self::ARCHI_IDENTIFIER);
-                    $this->replaceIdForObjects($this->sourceViews, self::ARCHI_VIEWS, self::ARCHI_IDENTIFIER);
                     break;
                 default:
 
@@ -294,31 +290,47 @@
             $counter = 0;
             $counter2 = 0;
             foreach ($elements as $element) {
-                $guid =  $this->getNodeValue($this->sourceParser, $element, self::OBJECTID);
+
+                if ( $this->format == self::ARCHI ) {
+                    $guid = $this->getPropertyValue($this->sourceParser, $element, self::OBJECTID);
+                } else {
+                    $guid = $this->getNodeValue($this->sourceParser, $element, self::OBJECTID);
+                }
 
                 $id = $this->getAttribute($element, $propertyId);
-                if ( 'id-' . $guid <> $id &&
+
+                if ( strstr( $id, 'id-' )  ) {
+                    $prefix = 'id-';
+                } else {
+                    $prefix = '';
+                }
+
+
+
+                // If GUID AND ID are not indentical and the guid is not empty
+                // then replace the id with the guid
+
+                if ( $prefix . $guid <> $id &&
                     !empty ( $guid)
                 ) {
-                    //if ( strlen( $guid ) < 32 ) {
-                    //echo $guid . PHP_EOL;
-                    if ( $this->isGUID ($guid) ){
+                    if ( strlen( $guid ) < 32 ) {
+                    //if ( $this->isGUID ($guid) ){
                         $oldGuid = $guid;
                         $guid = $this->createGUID($guid);
                         echo "New guid generated from $oldGuid --> ";
                     } //b5074647-34aa-4f9b-848b-c4d8a8b98dc5 = 8+1+4+4+4+12=33
-                    echo "Id: $id is replaced by id-$guid" . PHP_EOL;
-                    $this->sourceContent = str_replace($id, 'id-' . $guid, $this->sourceContent);
+                    echo "--> Id: $id is replaced by $prefix$guid" . PHP_EOL;
+                    $this->sourceContent = str_replace($id, $prefix . $guid, $this->sourceContent);
                     $counter++;
-                } else { // NO OBJECT ID FOUND
-                    //if ( strlen( $id ) < 32) {
-                    //echo $id . PHP_EOL;
-                    if ( $this->isGUID ($id) ){
+                } else { // No OBJECT ID found and the id is not a guid
+                    if ( strlen( $id ) < 32) {
+
+                    //if ( $this->isGUID ($id) ){
                         $oldId = $id;
                         $guid = $this->createGUID($id);
                         echo "New guid generated from $oldId --> ";
-                        echo "Id: $oldId is replaced by id-$guid" . PHP_EOL;
-                        $this->sourceContent = str_replace($id, 'id-' . $guid, $this->sourceContent);
+                        echo "Id: $oldId is replaced by $prefix$guid" . PHP_EOL;
+                        $this->sourceContent = str_replace($id, $prefix . $guid, $this->sourceContent);
                         $counter++;
                     } //(id-)b5074647-34aa-4f9b-848b-c4d8a8b98dc5 = 8+1+4+4+4+12=(36)33
                     else {
@@ -331,6 +343,7 @@
             echo "- $counter id's of $elementType have been replaced" . PHP_EOL;
             echo "- $counter2 id's of $elementType have NOT been replaced" . PHP_EOL;
         }
+
 
         /**
          * This function creates a stable guid on the basis of two other guids. Although this is not precisely a genuinely unique GUID
@@ -457,6 +470,24 @@
         }
 
         /**
+         * This function searches for a value of an attribute of a given node
+         *
+         * @param XPathObject $parser
+         * @param DOMNode $object
+         * @param string $propName
+         * @return string
+         */
+        private function getPropertyValue ($parser, $object, $propName) {
+            $result = '';
+
+            $properties = $parser->query("property[@key='" . $propName . "']", $object);
+            foreach ( $properties as $property ) {
+                $result  = $this->getAttribute($property, self::VALUE);
+            }
+            return $result;
+        }
+
+        /**
          * This function searches for the attribute of an object
          * and returns this value if found
          *
@@ -486,12 +517,11 @@
          */
         private function getNodeValue ($parser, $object, $propName) {
             $result = '';
+
             $properties = $parser->query('.' . $this->prefix . self::ARCHIMATE_PROPERTY, $object);
             foreach ( $properties as $property ) {
                 $currentPropId =  $this->getAttribute($property, $this->propertyDefRef );
-                // if ( trim($currentPropId) == trim($this->objectId) )  {
-                if ( trim($currentPropId) == trim(self::OBJECTID) )  {
-                        
+                if ( trim($currentPropId) == trim($this->objectId) )  {
                     $result = trim($property->nodeValue);
                     break;
                 }
