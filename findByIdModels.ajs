@@ -1,22 +1,28 @@
 // Find element with the id.
 
-promptText = `Find object with id`
-id = window.prompt(promptText, 'Enter id')
+promptText = `Find concept with id or Object ID`
+id = window.prompt(promptText, 'Enter id or Object ID')
 if (id) {
 
-	console.log(`| Model | Object | id | Object ID |`)
+	console.log(`\n| Model | Object | id | Object ID |`)
 	console.log(`| ----- | ------ | -- | --------- |`)
 
 	var loadedModelsList = $.model.getLoadedModels();
 	for (let i = 0; i < loadedModelsList.length; i++) {
+		let id_in_model = false;
 		let loadedModel = loadedModelsList[i];
-		loadedModel.setAsCurrent(); 
-	
-		FoundObjects = $(`#${id}`); // Result is collection of elements with #id
-		if (FoundObjects.size() == 1) {
-			console.log(`|${model.name} | ${FoundObjects.first()} | ${id} | ${FoundObjects.first().prop('Object ID')} |`)
-		} else {
-			console.log(`|${model.name} | Not found |  |  |`)
+		loadedModel.setAsCurrent();
+
+		// FoundObjects = $(`#${id}`); // Result is collection of elements with #id
+		$('concept').each(function (concept) {
+			// if (FoundObjects.size() == 1) {
+			if ((concept.id === id) || (concept.prop('Object ID') === id)) {
+				console.log(`|${model.name} | ${concept} | ${concept.id} | ${concept.prop('Object ID')} |`)
+				id_in_model = true;
+			}
+		})
+		if (!id_in_model) {
+			console.log(`| *${model.name}* | id not found |  |  |`)
 		}
 	}
 } else {
