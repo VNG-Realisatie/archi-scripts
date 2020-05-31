@@ -1,0 +1,80 @@
+/*
+ * ObjectID_check
+ * 
+ * Version 1: Check all objects for duplicate "Object ID"
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length - 1];
+console.log(`Executing script "${scriptName}"...\n`);
+
+// label_ID_property for finding existing elements
+var label_ID_property = "Object ID";
+
+var emptyList = [];
+var duplicatesList = [];
+var unvalidGUIDList = [];
+var indexMap = [];
+// There are 692 object with unvalid GUIDs [Object ID] found
+// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
+var guid_pattern = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+
+// check all objects. Skip folders, properties of folders are not exported
+$('*').not('folder').each(function (object) {
+
+	// check for valid GUID
+	if (guid_pattern.test(object.prop(label_ID_property)) === true) {
+
+		// check for duplicate
+		if (indexMap[object.prop(label_ID_property)]) {
+			duplicatesList.push(`${object} with ${label_ID_property} = ${object.prop(label_ID_property)}`);
+		} else { // add ID to indexMap
+			indexMap[object.prop(label_ID_property)] = true;
+		}
+	} else {
+		// check for empty Object ID
+		if (object.prop(label_ID_property) == null) {
+			emptyList.push(object);
+		} else {
+			unvalidGUIDList.push(object);
+		}
+	}
+})
+
+if (emptyList.length > 0) {
+	console.log(`Objects with no valid ${label_ID_property}`);
+	emptyList.sort();
+	for (var i = 0; i < emptyList.length; i++) {
+		console.log(`> ${emptyList[i]} with id ${emptyList[i].id}`);
+	}
+}
+if (duplicatesList.length > 0) {
+	duplicatesList.sort();
+	console.log(`Objects with duplicate ${label_ID_property}`);
+	for (var i = 0; i < duplicatesList.length; i++) {
+		console.log(`> ${duplicatesList[i]}`);
+	}
+}
+if (duplicatesList.length > 0) {
+	unvalidGUIDList.sort();
+	console.log(`Objects with unvalid GUIDs ${label_ID_property}`);
+	for (var i = 0; i < unvalidGUIDList.length; i++) {
+		console.log(`> ${unvalidGUIDList[i]}: ${label_ID_property}=${unvalidGUIDList[i].prop(label_ID_property)}`);
+	}
+}
+
+console.log(`\nThere ${(emptyList.length == 1 ? "is" : "are")} ${emptyList.length} object without an ${label_ID_property}`);
+console.log(`There ${(duplicatesList.length == 1 ? "is" : "are")} ${duplicatesList.length} object with a duplicate ${label_ID_property}`);
+console.log(`There ${(unvalidGUIDList.length == 1 ? "is" : "are")} ${unvalidGUIDList.length} object with an unvalid GUID in ${label_ID_property}`);
+
+console.log(`\nTo generate a new ${label_ID_property} for these objects:`);
+console.log(`- remove the property ${label_ID_property}`);
+console.log(`- run the script "ObjectID_set.ajs"`);
+
+console.log(`\nScript "${scriptName}" finished`);

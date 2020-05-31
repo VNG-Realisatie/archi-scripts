@@ -1,0 +1,118 @@
+/*
+ * ObjectID_set
+ * 
+ * Alle objecten in het GEMMA architectuurmodel bevatten verplicht een property "Object ID". 
+ * Deze property zorgt ervoor dat alle objecten in alle tools beschikken over een niet wijzigend ID.
+ * (met name BiZZdesign neemt genereert in een exportbestand altijd weer nieuwe id's, ook neemt BD geen id's over bij het importeren)
+ * 
+ * Version 1: 
+ * - Check all objects for empty property "Object ID"
+ * - if empty set to id
+ * Version 2: 26-05-2020
+ * if Object ID is not a valid GUID, try to set it with a GUID derived from the id
+ * 	if id is a valid GUID => set Object ID to id
+ *  if id without a known prefix is a valid GUID => set Object ID to stripped id
+ *  if id doesn't contain a valid GUID => set Object ID to a generated GUID
+ * 
+ * This is used in conjunction with the php script replace_id_with_ObjectID.php to support:
+ * - Archi roundtripping between .archimate and Open Exchange XML files is possible without changing id's
+ * - Archi id are a GUID prefixed with an 'underscore'
+ * - if Archi id is not valid, it's replace with an Object ID
+ * 
+ * (c) 2019 Mark Backer
+ *
+ */
+
+// Show output in the console
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length-1];
+
+console.log(`Executing script "${scriptName}"...\n`);
+
+// label_ID_property for finding existing elements
+var label_ID_property = "Object ID";
+
+var counter_total = 0;
+var counter_ObjectID_empty = 0;
+var counter_ObjectID_valid = 0;
+var counter_id = 0;
+var counter_id_prefix = 0;
+var counter_generated = 0;
+
+// There are 692 object with unvalid GUIDs [Object ID] found
+// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
+var guid_pattern = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+var prefixList = ['id-', '_'];
+
+// loop over all objects. Skip folders, properties of folders are not exported
+$('*').not('folder').each(function (object) {
+	let ObjectID = object.prop(label_ID_property)
+	let id		 = object.id
+	let validFlag = false;
+	
+	// check if object ID is valid
+	if (guid_pattern.test(ObjectID) === true) {
+		counter_ObjectID_valid++;
+	} else { // set the Object ID to a valid GUID
+		// Count empty Object ID for statistics reporting
+		if (ObjectID == null || ObjectID=='') {
+			counter_ObjectID_empty++;
+			console.log(`> Empty ${label_ID_property}: ${object}`);
+		} else {
+			console.log(`> Unvalid ${label_ID_property}: ${object}, ${label_ID_property} = ${object.prop(label_ID_property)}`);
+		}
+		// if id is valid guid, set object ID to id
+		if (guid_pattern.test(id) === true) {
+			object.prop(label_ID_property, id);
+			console.log(`>> Set to id: ${id}`);
+			validFlag = true;
+			counter_id++;
+		} else {
+
+			// check if id has a known prefix
+			for (let i = 0; i < prefixList.length; i++) {
+				if (id.startsWith(prefixList[i], 0)) {
+					let id_without_prefix = id.substr(prefixList[i].length, id.length - prefixList[i].length)
+					// check if id without prefix is a valid guid
+					if (guid_pattern.test(id_without_prefix) === true) {
+						object.prop(label_ID_property, id_without_prefix);
+						console.log(`>> Set to id without prefix '${prefixList[i]}': ${id_without_prefix}`);
+						validFlag = true;
+						counter_id_prefix++;
+					}
+				}
+			}
+		}
+		if (!validFlag) {
+			id_generated = generateUUID()
+			object.prop(label_ID_property, id_generated);
+			console.log(`>> Set to generated GUID: ${id_generated}`);
+			counter_generated++;
+		}
+	}
+	counter_total++;
+})
+
+console.log();
+console.log(`Number of processed objects and views: \t${counter_total}`);
+console.log(`Number objects with unvalid Object ID: \t${counter_total - counter_ObjectID_valid}`);
+console.log(`- number with empty Object ID: \t${counter_ObjectID_empty}`);
+console.log(`GUID for set Object ID:`);
+console.log(`- id with valid GUID copied to Object ID: \t${counter_id}`);
+console.log(`- id with stripped prefix copied to Object ID: \t${counter_id_prefix}`);
+console.log(`- GUID generated for Object ID: \t${counter_generated}\n`);
+
+console.log(`Script "${scriptName}" finished\n`);
+
+// https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+function generateUUID() { // Public Domain/MIT
+	var d = new Date().getTime(); //Timestamp
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+		var r = Math.random() * 16; //random number between 0 and 16
+		r = (d + r) % 16 | 0;
+		d = Math.floor(d / 16);
+		return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+	});
+}
