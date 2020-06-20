@@ -16,10 +16,7 @@ applyToDiagramContent($(selection), PlotAttributeID);
 finishConsoleLog();
 
 /*
- * ResetFont
- *
- * Reset font for object
- *
+ * PlotAttributeID
  */
 function PlotAttributeID(pObject) {
   if (pObject.type.endsWith("relationship")) {

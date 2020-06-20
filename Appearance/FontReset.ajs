@@ -1,5 +1,5 @@
 /*
- * ResetFont
+ * FontReset
  * 
  * For the selected object, reset font
  * 
@@ -13,17 +13,17 @@ load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 initConsoleLog(__FILE__)
 
-applyToDiagramContent($(selection), ResetFont);
+applyToDiagramContent($(selection), FontReset);
 
 finishConsoleLog()
 
 /*
- * ResetFont
+ * FontReset
  * 
  * Reset font for object
  * 
  */
-function ResetFont(pObject) {
+function FontReset(pObject) {
 
 	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
 

@@ -9,10 +9,10 @@
  * - Check all objects for empty property "Object ID"
  * - if empty set to id
  * Version 2: 26-05-2020
- * if Object ID is not a valid GUID, try to set it with a GUID derived from the id
- * 	if id is a valid GUID => set Object ID to id
- *  if id without a known prefix is a valid GUID => set Object ID to stripped id
- *  if id doesn't contain a valid GUID => set Object ID to a generated GUID
+ * - if Object ID is not a valid GUID, try to set it with a GUID derived from the id
+ * 		- if id is a valid GUID => set Object ID to id
+ *  	- if id is a known Archi id => set Object ID to stripped Archi id
+ *  	- if id doesn't contain a valid GUID => set Object ID to a generated GUID
  * 
  * This is used in conjunction with the php script replace_id_with_ObjectID.php to support:
  * - Archi roundtripping between .archimate and Open Exchange XML files is possible without changing id's
@@ -27,69 +27,70 @@
 console.show();
 console.clear();
 var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
+var scriptName = filepath[filepath.length - 1];
 
 console.log(`Executing script "${scriptName}"...\n`);
 
-// label_ID_property for finding existing elements
-var label_ID_property = "Object ID";
+// Label of the property with the ID
+var propertyID = "Object ID";
 
 var counter_total = 0;
 var counter_ObjectID_empty = 0;
 var counter_ObjectID_valid = 0;
-var counter_id = 0;
-var counter_id_prefix = 0;
+var counter_archi_id_pattern = 0;
+var counter_guid_pattern = 0;
+var counter_archi_underscore_pattern = 0;
 var counter_generated = 0;
 
-// There are 692 object with unvalid GUIDs [Object ID] found
 // Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
 var guid_pattern = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
-var prefixList = ['id-', '_'];
+var archi_underscore_pattern = new RegExp('^_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+var archi_id_pattern = new RegExp('^id-[0-9a-f]{8}[0-9a-f]{4}[1-5][0-9a-f]{3}[0-9a-f]{4}[0-9a-f]{12}$', 'i');
 
 // loop over all objects. Skip folders, properties of folders are not exported
 $('*').not('folder').each(function (object) {
-	let ObjectID = object.prop(label_ID_property)
-	let id		 = object.id
+	let ObjectID = object.prop(propertyID)
+	let id = object.id
 	let validFlag = false;
-	
+
 	// check if object ID is valid
 	if (guid_pattern.test(ObjectID) === true) {
 		counter_ObjectID_valid++;
 	} else { // set the Object ID to a valid GUID
 		// Count empty Object ID for statistics reporting
-		if (ObjectID == null || ObjectID=='') {
+		if (ObjectID == null ) {
 			counter_ObjectID_empty++;
-			console.log(`> Empty ${label_ID_property}: ${object}`);
+			console.log(`> Empty ${propertyID}: ${object}`);
 		} else {
-			console.log(`> Unvalid ${label_ID_property}: ${object}, ${label_ID_property} = ${object.prop(label_ID_property)}`);
+			console.log(`> Unvalid ${propertyID}: ${object}, ${propertyID} = ${object.prop(propertyID)}`);
 		}
-		// if id is valid guid, set object ID to id
-		if (guid_pattern.test(id) === true) {
-			object.prop(label_ID_property, id);
-			console.log(`>> Set to id: ${id}`);
-			validFlag = true;
-			counter_id++;
-		} else {
 
-			// check if id has a known prefix
-			for (let i = 0; i < prefixList.length; i++) {
-				if (id.startsWith(prefixList[i], 0)) {
-					let id_without_prefix = id.substr(prefixList[i].length, id.length - prefixList[i].length)
-					// check if id without prefix is a valid guid
-					if (guid_pattern.test(id_without_prefix) === true) {
-						object.prop(label_ID_property, id_without_prefix);
-						console.log(`>> Set to id without prefix '${prefixList[i]}': ${id_without_prefix}`);
-						validFlag = true;
-						counter_id_prefix++;
-					}
+		// id prefixed with 'id-' (true for archi 4.7 and higher)
+		if (archi_id_pattern.test(id) === true) {
+			let vObjectID = `${id.substr(3,8)}-${id.substr(11,4)}-${id.substr(15,4)}-${id.substr(19,4)}-${id.substr(23,12)}`;
+			object.prop(propertyID, vObjectID);
+			console.log(`>> ${propertyID} created from Archi id > ${vObjectID}`);
+			counter_archi_id_pattern++;
+		} else {
+			// id is a valid guid (true for archi up to version 4.6)
+			if (guid_pattern.test(id) === true) {
+				object.prop(propertyID, id);
+				console.log(`>> ${propertyID} created from Archi GUID id > ${id}`);
+				counter_guid_pattern++;
+			} else {
+				// id prefixed with  underscore (true for archi 4.7 beta version)
+				if (archi_underscore_pattern.test(id) === true) {
+					object.prop(propertyID, id.substr(1));
+					console.log(`>> ${propertyID} created from Archi underscore id > ${id.substr(1)}`);
+					counter_archi_underscore_pattern++;
+				} else {
+					// unknown id format, generate guid
+					let id_generated = generateUUID()
+					object.prop(propertyID, id_generated);
+					console.log(`>> ${propertyID} set to generated UUID > ${id_generated}`);
+					counter_generated++;
 				}
 			}
-		}
-		if (!validFlag) {
-			id_generated = generateUUID()
-			object.prop(label_ID_property, id_generated);
-			console.log(`>> Set to generated GUID: ${id_generated}`);
-			counter_generated++;
 		}
 	}
 	counter_total++;
@@ -97,12 +98,13 @@ $('*').not('folder').each(function (object) {
 
 console.log();
 console.log(`Number of processed objects and views: \t${counter_total}`);
-console.log(`Number objects with unvalid Object ID: \t${counter_total - counter_ObjectID_valid}`);
-console.log(`- number with empty Object ID: \t${counter_ObjectID_empty}`);
-console.log(`GUID for set Object ID:`);
-console.log(`- id with valid GUID copied to Object ID: \t${counter_id}`);
-console.log(`- id with stripped prefix copied to Object ID: \t${counter_id_prefix}`);
-console.log(`- GUID generated for Object ID: \t${counter_generated}\n`);
+console.log(`Number objects with unvalid ${propertyID}: \t${counter_total - counter_ObjectID_valid}`);
+console.log(`- number with empty ${propertyID}: \t${counter_ObjectID_empty}`);
+console.log(`GUID for set ${propertyID}:`);
+console.log(`- Archi id (prefix 'id-') copied to ${propertyID}: \t${counter_archi_id_pattern}`);
+console.log(`- Archi id (prefix '_') copied to ${propertyID}: \t${counter_archi_underscore_pattern}`);
+console.log(`- Archi id (valid GUID) copied to ${propertyID}: \t${counter_guid_pattern}`);
+console.log(`- GUID generated for ${propertyID}: \t${counter_generated}\n`);
 
 console.log(`Script "${scriptName}" finished\n`);
 

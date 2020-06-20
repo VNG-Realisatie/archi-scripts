@@ -1,41 +1,75 @@
-// Find element with the id.
+// Loop over all opened models en show objects with given id.
+
+const tablength = 8
 
 var maxModelNameLength = 0;
+var maxObjectNameLength = 40;
+var maxObjectIDLength = 32;
+var maxIdLength = 35;
+
 var logLine = [];
 
 promptText = `Find concept with id or Object ID`
-// id = window.prompt(promptText, 'Enter id or Object ID')
-id = '95ff8a41-a3b6-4a14-bf66-3c7a52952a23'
-if (id) {
+id = window.prompt(promptText, 'Enter id or Object ID')
 
-	console.log(`\n| Model\t| Object\t| id\t| Object ID\t|`)
-	console.log(`| ----- \t| ------ \t| ---- \t| ---------\t|`)
+// id = '95ff8a41-a3b6-4a14-bf66-3c7a52952a23'
+try {
 
-	var loadedModelsList = $.model.getLoadedModels();
-	for (let i = 0; i < loadedModelsList.length; i++) {
-		let id_in_model = false;
-		let loadedModel = loadedModelsList[i];
-		loadedModel.setAsCurrent();
-
-		if (model.name.length > maxModelNameLength) {maxModelNameLength = model.name.length}
-
-		// FoundObjects = $(`#${id}`); // Result is collection of elements with #id
-		$('*').each(function (object) {
-			// if (FoundObjects.size() == 1) {
-			if ((object.id === id) || (object.prop('Object ID') === id)) {
-				
-				logLine.push("`| ${model.name} ${' '.repeat(maxModelNameLength)}\t| ${object}\t| ${object.id}\t| ${object.prop('Object ID')}\t|`")
-
-				id_in_model = true;
+	if (id) {
+		var loadedModelsList = $.model.getLoadedModels();
+		for (let i = 0; i < loadedModelsList.length; i++) {
+			let loadedModel = loadedModelsList[i];
+			loadedModel.setAsCurrent();
+			if (model.name.length > maxModelNameLength) {
+				maxModelNameLength = model.name.length + (tablength - model.name.length % tablength)
 			}
-		})
-		if (!id_in_model) {
-			console.log(`| ${model.name} > ${maxModelNameLength}\t| id not found\t| \t| \t|`)
+			$('*').each(function (object) {
+				if ((object.id === id) || (object.prop('Object ID') === id)) {
+					if (`${object}`.length > maxObjectNameLength) {
+						maxObjectNameLength = `${object}`.length + (tablength - `${object}`.length % tablength)
+						console.log(`object = ${object} maxObjectNameLength =${maxObjectNameLength}`)
+					}
+					if (object.id.length > maxIdLength) {
+						maxIdLength = object.id.length + (tablength - object.id.length % tablength)
+					}
+					if (object.prop('Object ID').length > maxObjectIDLength) {
+						maxObjectIDLength = object.prop('Object ID').length + (tablength - object.prop('Object ID').length % tablength)
+					}
+				}
+			})
+			// console.log(`model.name = ${model.name} model.name.length =${model.name.length}`)
+			// console.log(`maxModelNameLength =${maxModelNameLength}`)
 		}
+
+		console.log(`\n| Model ${' '.repeat(maxModelNameLength - 7 )} \t| Object ${' '.repeat(maxObjectNameLength*1.5)}\t| id ${' '.repeat(maxIdLength*1.5)} \t| Object ID ${' '.repeat(maxObjectIDLength *1.5)} \t|`)
+		console.log(`| ${'-'.repeat(maxModelNameLength)} \t| ${'-'.repeat(maxObjectNameLength)} \t| ${'-'.repeat(maxIdLength)} \t| ${'-'.repeat(maxObjectIDLength)} \t|`)
+
+		for (let i = 0; i < loadedModelsList.length; i++) {
+			let id_in_model = false;
+			let loadedModel = loadedModelsList[i];
+			loadedModel.setAsCurrent();
+
+			$('*').each(function (object) {
+				if ((object.id === id) || (object.prop('Object ID') === id)) {
+					let regel = `| ${model.name} ${' '.repeat(maxModelNameLength - model.name.length)}\t| ${object} ${' '.repeat(maxObjectNameLength - object.length)}\t| ${object.id} ${' '.repeat(maxIdLength - object.id.length)}\t| ${object.prop('Object ID')} ${' '.repeat(maxObjectIDLength - object.prop('Object ID').length)}\t|`
+					logLine.push(regel)
+
+					id_in_model = true;
+				}
+			})
+			if (!id_in_model) {
+				let regel = `| ${model.name} ${' '.repeat(maxModelNameLength - model.name.length)}\t| id not found ${' '.repeat(maxObjectNameLength * 1.5 - 12)} \t| ${' '.repeat(maxIdLength*1.5)}\t| ${' '.repeat(maxObjectIDLength*1.5)}\t|`;
+				logLine.push(regel)
+			}
+		}
+		for (let i = 0; i < logLine.length; i++) {
+			let printregel = `${logLine[i]}`
+			console.log(logLine[i])
+		}
+	} else {
+		console.log('Cancelled');
 	}
-	for (let i = 0; i < logLine.length; i++) {
-		console.log(`${logLine[i]}`)
-	}
-} else {
-	console.log('Cancelled');
+} catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Stack: " + error.stack);
 }

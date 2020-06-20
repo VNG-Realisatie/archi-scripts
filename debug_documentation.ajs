@@ -1,0 +1,487 @@
+/*
+	Script: Documentation Generation
+	Purpose: To generate architecture output based on a driving view
+
+	Author: Richard Heward - Tame Blue Lion Ltd
+
+	This generates a markdown file with the embedded images and text based upon a driving view in Archi of groups that trigger each other and embedded views. 
+	See my blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
+
+	Setting embed to false will have the images saved to file and references placed in the document. It's then up to your markdown engine. This isn't that well tested.
+	Setting 
+	Note - markdown can be converted to PDF / Word Docs or anything. I've used pandoc command line to do this.
+
+	Date: 8-Oct-2019
+
+	Mark Backer
+	- Document all viewObjects (also embedded viewObjects) in a markdown table
+	15-03-2020
+	- Beautify tables with element documentation.
+		- order of element in the table follows the order and embedding of the element in the view
+	- Driving view properties IncludeViewElements and IncludeAppendix
+	- Also include sketch-views. A sketch view can contain a picture created outside Archi
+
+	Dependencies: 
+	- node needs to be installed
+	- Install with npm the module nano-markdown
+
+*/
+
+// Script used to simulate the "require" keyword in Nashorn.
+// See https://github.com/nodyn/jvm-npm
+load("https://raw.githubusercontent.com/nodyn/jvm-npm/master/src/main/javascript/jvm-npm.js");
+
+// Node module to convert a markdown string to html
+// See https://github.com/Holixus/nano-markdown
+//  to install node module
+// 	$ npm install -g nano-markdown
+convertMarkDown2Html = require("nano-markdown");
+
+// Get current date
+var currentDate = new Date().toLocaleString("en-US", { day: 'numeric', month: 'short', year: 'numeric' });
+
+console.show();
+console.clear();
+console.log("Documentation Generation @", currentDate);
+
+var Sections = [];
+var nextOne = null;
+var outInfo = "";
+var theToc = "";
+var path = "";
+var embed = true;
+
+// For every view, create a table with documentation for the elements on the view
+var IncludeViewElements = true; // to override: set property `IncludeViewElements = "false"` on the driving view.
+// For all the view, create an addendum with documentation for all elements on all views
+var IncludeAppendix = false; // to override: set property `IncludeAppendix = "true"` on the driving view.
+var renderViewScale = 2; // size of rendered views. 
+
+var drivingView = null; // will be set to the selected view that has all the groups and view references on.
+
+function generateLink(theString) {
+	// this function thanks to Steven Mileham
+	var regex = /[\[\]\(\)\#\\\/\"]/gi;
+	return "#" + theString.toLowerCase().replace(regex, "")
+		.replaceAll(" ", "-")
+		.replaceAll("\<", "lt")
+		.replaceAll("\>", "gt");
+}
+
+// document the elements (not relations) on the view
+function getviewObjects(view) {
+
+	// outInfo += "\n#### View Elements \n\n";
+
+	// recurse through all children and return maximum nesting level of visual objects
+	// maxlevel is used to generate a table column for each level
+	// start with level 0. Don't count the first level, this is the view
+	var maxLevel = recurseViewMaxEmbedding(0, view);
+	console.log(`Generate table with ${maxLevel} element columns for ${view}`)
+
+	outInfo += `<table>
+					<thead>
+						<tr>
+						<th colspan="${maxLevel}" width="20%">Element</th>
+						<th rowspan="2"           width="80%">Documentation</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>`
+	// for (let i = 1; i < maxLevel+1; i++) { outInfo += `<td align="center">(${i})</td>` }
+	// generate 'empty' columnheaders, this is ugly
+	for (let i = 1; i < maxLevel + 1; i++) {
+		outInfo += `<td align="center"></td>` 
+	}
+	outInfo += `		<td></td>
+						</tr>`
+
+	// write a Markdown table line for every child and the child's children
+	// First level is a view, not an element > start with level = 0. 
+	recurseWriteTableLine(0, maxLevel, false, view);
+	console.log();
+
+	outInfo += `	
+					</tbody>
+				</table>`
+
+	outInfo += "\n\n";
+}
+
+// recurse through all child elements to find deepest level of embedding
+function recurseViewMaxEmbedding(level, pObject) {
+
+	if ($(`#${pObject.id}`).children("element").size() == 0) {
+		return level
+	};
+
+	let maxLevel = 0
+	$(`#${pObject.id}`).children("element").each(function (c) {
+		recurseLevel = recurseViewMaxEmbedding(level + 1, c);
+		if (maxLevel < recurseLevel) {
+			maxLevel = recurseLevel;
+		}
+	})
+	return maxLevel
+}
+
+// Recursive function to write table lines voor elements at current level
+function recurseWriteTableLine(pLevel, pMaxLevel, pChildLineIsWritten, pObject) {
+	// scope of childArray is this function and all recursions
+	var childArray = [];
+	// Write table line for every visual child element of view and children
+	// Write recurring visual references of the same child element only once
+	if (pObject.type !== "archimate-diagram-model") {
+
+		if (!pChildLineIsWritten) {
+			// markdown wants "Cell content must be on one line only"
+			// replace new lines with html paragraphs and lists with html list. 
+			let htmlString = convertMarkDown2Html(pObject.documentation);
+			// remove excess of new lines and line breaks
+			htmlString = htmlString.replace(/(?:\n\r|\r\n)/g, '');
+
+			outInfo += `<tr valign="top")>`;
+			// for (let i = 1; i < pLevel; i++) { outInfo += `<td></td>` }
+			if (pLevel > 1) {
+				outInfo += `<td colspan="${pLevel - 1}"></td>`
+			}
+			outInfo += `<td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>
+						<td>${htmlString}</td>
+						</tr>`
+
+			console.log(`${">".repeat(pLevel)} ${pObject.name}`)
+
+		} else {
+			console.log(`${"-".repeat(pLevel)} Skip duplicate ${pObject.name}`)
+		}
+	}
+
+	// stop if element has no children
+	if ($(`#${pObject.id}`).children("element").size() == 0) {
+		return
+	};
+
+	let i = 0;
+	$(`#${pObject.id}`).children("element").each(function (c) {
+		childArray[i] = c
+		i++;
+	})
+
+	// Sort array of embedded children from left to right
+	childArray.sort(sortPosition)
+
+	// set for checking if there are multiple visual objects of a concept
+	let conceptIdOfChildSet = new Set()
+	for (let i = 0; i < childArray.length; i++) {
+
+		recurseWriteTableLine(pLevel + 1, pMaxLevel, conceptIdOfChildSet.has(childArray[i].concept.id), childArray[i]);
+
+		conceptIdOfChildSet.add(childArray[i].concept.id);
+	}
+	return
+
+}
+
+// function sortPosition(a, b) {
+// 	sort visual object from left to right like reading
+function sortPosition(a, b) {
+	let aCentroid = { "x": (a.bounds.x + a.bounds.width) / 2, "y": (a.bounds.y + a.bounds.height) / 2 }
+	let bCentroid = { "x": (b.bounds.x + b.bounds.width) / 2, "y": (b.bounds.y + b.bounds.height) / 2 }
+
+	// sort form top to bottom
+	//	 	(a.bounds.y - b.bounds.y) || ((a.bounds.y + a.bounds.height) - b.bounds.y)  )
+	// sort from left to right
+	return ((aCentroid.x - bCentroid.x) || (aCentroid.y - bCentroid.y))
+}
+
+function getViews(Level, Levelobj) {
+	var thisView = null;
+	var thisPath = "";
+	var imageURL = "";
+
+	if (!Levelobj) {
+		return null;
+	}
+	else {
+		// find the view references composed within this group
+		$(Levelobj).children().each(function (viewRefs) {
+			if ((viewRefs) && ((viewRefs.type == 'archimate-diagram-model') || (viewRefs.type == 'canvas-model'))) {
+				console.log(`Level + 1, viewRefs.name: ${Level +1} ${viewRefs}`);
+				outputHdr(Level + 1, viewRefs.name);
+
+				// Find the actual linked views
+				// $('archimate-diagram-model').each(function (linkedView) {
+				$('view').each(function (view) {
+					// console.log("Debug: view: ", view.name);
+					if (view.name == viewRefs.name) {
+						console.log(">> Debug: view is viewRefs: ", view.name);
+
+						view.documentation != "" ? outInfo += "\n" + view.documentation + "\n" : true;
+						console.log(">> Debug 1");
+
+						var bytes = $.model.renderViewAsBase64(view, "PNG", { scale: renderViewScale, margin: renderViewScale * 10 });
+
+						console.log(">> Debug 2");
+						if (embed) {
+							outInfo += "\n![" + view.name + "](data:image/png;base64," + bytes + ")\n";
+						}
+						else {
+							thisPath = path + view.name;
+							$.fs.writeFile(thisPath + ".png", bytes, "BASE64");
+
+							imageURL = thisPath.replaceAll(" ", "%20");
+
+							outInfo += "\n![" + view.name + "][" + view.name + "]";
+							outInfo += "\n[" + view.name + "]: " + imageURL + ".png";
+						}
+						outInfo += `<p align="center">${view.name}</p>\n`;
+						console.log(">> Debug 3");
+
+						// Now document the view details, by default, if there is no IncludeViewElements property on the driving view.
+						if ((IncludeViewElements) && (viewRefs.type == 'archimate-diagram-model')) {
+							console.log("Debug: document viewobjects: ", view.name);
+							getviewObjects(view);
+						}
+						console.log(">> Debug: viewRefs finished: ", view.name);
+					}
+				});
+			}
+		});
+	}
+}
+
+
+function outputHdr(Level, Name, Doc) {
+
+	var indent = "";
+	var tocIndent = "";
+
+	for (var i = 0; i < Level; i++) {
+		indent = indent + "#";
+	}
+	for (var j = 0; j < Level - 1; j++) {  // ToC needs one less indent tab.
+		tocIndent = tocIndent + "\t";
+	}
+
+	console.log("Level ", Level, " ", indent, " (", Name, ")");
+
+	/* 
+		.repeat doesn't work on the PC?..
+		var indent = "#".repeat(Level);
+		var tocIndent = " ".repeat(Level);
+	*/
+
+	var outHdr = indent + " " + Name;
+	var thisLink = generateLink(Name);
+
+	if (Level == 1) {
+		outInfo += '<div style="page-break-before: always;"></div>';
+		outInfo += "\n\n---\n"; // horiz line before level 1s
+	}
+	outInfo += "\n" + outHdr + "\n";
+	// anchors don't work in most markdown viewer. 
+	// outInfo += "\n" + "[](" + thisLink + ")";
+
+	if (Doc) {
+		outInfo += Doc + "\n";
+	}
+
+	//	console.log(indent +" " +Name);
+	theToc += tocIndent + "* [" + Name + "](" + thisLink + ")\n";
+}
+
+
+function getSubGroups(Group, lvl) {
+	var nextsubGroup = null;
+	var nextsLevel = lvl + 1;
+
+	$(Group).outRels("composition-relationship").each(function (rel) {
+
+		var incomingRels2 = $(rel.target).inRels("triggering-relationship").size();
+		var outgoingRels2 = $(rel.target).outRels("triggering-relationship").size();
+		var subGroup = rel.target;
+
+		if (incomingRels2 == 0) {
+			// It's the first child in the sub group
+			Sections.push([subGroup, nextsLevel]);  // from lvl
+
+			// There's another trigger out so find the next..				
+			nextsubGroup = $(subGroup).outRels("triggering-relationship").first();
+
+			// add the next one onto the array
+			if (nextsubGroup) {
+				Sections.push([nextsubGroup.target, nextsLevel]);  //from lvl
+				// recurse to get the next subgroup
+				getSubGroups(nextsubGroup.target, nextsLevel);
+			}
+
+		}
+		else {
+			// just ignore the rest, the getSubGroups will take care of them.
+			return (null);
+		}
+	});
+}
+
+function getNextGroup(Group, glvl) {
+	var nextGroup = null;
+	var outgoingRels = $(Group).outRels("triggering-relationship").size();
+	var nextLevel = glvl + 1;
+	//check for sub groups
+	getSubGroups(Group, glvl);
+
+	if (outgoingRels == 1) {
+		// There's a triggering out so find the next..				
+		nextGroup = $(Group).outRels("triggering-relationship").first();
+		if (nextGroup) {
+			// add the next one onto the array
+			Sections.push([nextGroup.target, glvl]);
+
+			// recurse to get the next group
+			getNextGroup(nextGroup.target, glvl);
+		}
+		else {
+			window.alert("The groups should all use triggering relationships");
+			return (null);
+		}
+	}
+}
+
+
+function createAphabeticalTable(pView) {
+	var markdownTable = '';
+	var allElements = $(); // empty collection
+
+	$(pView).find("diagram-model-reference").each(function (viewReference) {
+		// Find the actual linked views
+		linkedView = $("view").filter(function(v) {return v.name === viewReference.name})
+		allElements.add(linkedView.find("element"))
+	})
+	console.log(`Total allElements.size() = ${allElements.size()}`)
+
+	// Use the Java Collections sort routine
+	var Collections = Java.type("java.util.Collections");
+	Collections.sort(allElements);
+
+	markdownTable = '<div style="page-break-before: always;"></div>';
+	markdownTable += "\n\n---\n"; // horiz line before level 1s
+	markdownTable += "# Toelichting elementen\n\n";
+	markdownTable += `| Element | Type | Documentatie |\n`;
+	markdownTable += `| ------- | -----|------------- |\n`;
+
+	var uniqueRowSet = new Set();
+	allElements.each(function (e) {
+		markdownRow = `| ${e.name} (${e.type}) | ${e.documentation}|\n`
+		if (!uniqueRowSet.has(markdownRow)) {
+			let htmlString = convertMarkDown2Html(e.documentation);
+			// remove excess of new lines and line breaks
+			htmlString = htmlString.replace(/(?:\n\r|\r\n)/g, '');
+
+			markdownTable += `| ${e.name} | ${e.type} | ${htmlString}|\n`
+		}
+		uniqueRowSet.add(markdownRow)
+	})
+	console.log(`eNameAndTypeSet.size() = ${uniqueRowSet.size}`)
+
+	// console.log(markdownTable)
+	return markdownTable;
+}
+
+/*
+Main
+*/
+
+drivingView = selection.filter("archimate-diagram-model").first();
+if (!drivingView) {
+	window.alert("Please open and select a Driving View for the documentation");
+}
+else {
+	console.log("Driving view is: " + drivingView.name);
+	// if there is a property IncludeAppendix, override value
+	if (drivingView.prop("IncludeViewElements")) {
+		IncludeViewElements = (drivingView.prop("IncludeViewElements") === "true");
+	}
+
+	$(drivingView).children("grouping").each(function (thisGroup) {
+		if (thisGroup) {
+			var incomingRels = $(thisGroup).inRels("triggering-relationship").size();
+			var outgoingRels = $(thisGroup).outRels("triggering-relationship").size();
+
+			if (incomingRels == 0) {
+				// It's the first section, put it in the array.
+				Sections.push([thisGroup, 1]);
+				getSubGroups(thisGroup, 1);
+
+				if (outgoingRels == 1) {
+					// There is a next group, lets get it..				
+					nextOne = $(thisGroup).outRels("triggering-relationship").first();
+					// Add the next one to the array
+					if (nextOne) {
+						Sections.push([nextOne.target, 1]);
+						getNextGroup(nextOne.target, 1);
+					}
+					else {
+						window.alert("The groups should all use triggering relationships");
+						return (null);
+					}
+				}
+				return (null);
+			}
+			else {
+				// just ignore the rest, the getNextGroup will take care of them.
+				return (null);
+			}
+		}
+	});
+
+	console.log(`Debug: Sections : ${Sections}`)
+
+
+	var docGen = "";
+	var datum = new Date();
+	let exportFilename = `${datum.toLocaleDateString('nl-NL')} ${drivingView.name}`
+	var exportFile = window.promptSaveFile({ title: "Export to File", filterExtensions: ["*.md"], fileName: exportFilename});
+
+	// where's the path. Find where the last slash delimiter is
+	var lastSlash = "";
+	if (exportFile) {
+		if (exportFile.indexOf("/") == -1) {
+			lastSlash = exportFile.lastIndexOf("\\"); // Windows 
+		} else {
+			lastSlash = exportFile.lastIndexOf("/"); // Mac or Linux
+		}
+		path = exportFile.substring(0, lastSlash + 1);
+		fileName = exportFile.substring(lastSlash + 1, exportFile.length);
+		console.log("path: ", exportFile.substring(0, lastSlash + 1));
+		console.log("fileName: ", exportFile.substring(lastSlash + 1, exportFile.length));
+
+		// go through the array, and output.
+		for (var i = 0; i < Sections.length; i++) {
+			console.log(`Sections[${i}][1]: ${Sections[i][1]}, Sections[${i}][0] : ${Sections[i][0]}`);
+			outputHdr(Sections[i][1], Sections[i][0].name, Sections[i][0].documentation);
+			getViews(Sections[i][1], Sections[i][0]);
+		}
+		docGen = "# " + drivingView.name + "\n"
+		docGen += "\n---\n";
+		docGen += drivingView.documentation + "\n\n"
+		docGen += `Mark Backer\nVNG Realisatie\n`;
+		docGen += `${datum.toLocaleDateString('nl-NL')}\n`;
+		docGen += "## Inhoud\n";
+		docGen += theToc + "\n";
+		docGen += outInfo;
+
+		// if there is a property IncludeAppendix, override value
+		if (drivingView.prop("IncludeAppendix")) {
+			IncludeAppendix = (drivingView.prop("IncludeAppendix") === "true");
+		}
+		if (IncludeAppendix) {
+			docGen += createAphabeticalTable(drivingView)
+		}
+
+		$.fs.writeFile(exportFile, docGen);
+	}
+}
+
+
+// end of script	
+console.log("Done");

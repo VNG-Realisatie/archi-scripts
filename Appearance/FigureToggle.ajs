@@ -1,5 +1,5 @@
 /*
- * Change figure
+ * FigureToggle
  * 
  * For the selected object, toggle the figure
  * 
@@ -13,14 +13,14 @@ load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 initConsoleLog(__FILE__)
 
-applyToDiagramContent($(selection), ChangeFigure);
+applyToDiagramContent($(selection), FigureToggle);
 
 finishConsoleLog()
 
 /* 
  * Change figure of application component in diagram
  */
-function ChangeFigure(pObject) {
+function FigureToggle(pObject) {
 	_commonShowDebugMessage.push(false);
 	_commonShowInfoMessage.push(true);
 
