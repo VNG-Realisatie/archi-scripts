@@ -1,0 +1,581 @@
+/**
+ *  documentation_view_template.ajs
+ * 
+ */
+
+load(__DIR__ + "../Common/Common.ajs");
+
+console.clear();
+initConsoleLog(__FILE__)
+
+var document = new Object();
+var documentSettings = new Object();
+
+var drivingView = selection.filter("archimate-diagram-model").first();
+
+if (drivingView) {
+	if (drivingView.prop("documentationDrivingView") != null) {
+
+		console.log(`Driving view is: ${drivingView.name}\n`);
+	
+		init()
+		
+		var exportFile = '';
+		let datum = new Date();
+		let exportFilename = `${datum.toLocaleDateString('nl-NL')} ${drivingView.name}.md`
+
+		if (documentSettings.path != null) {
+			// to skip the popup window while debugging, set filename as a property 
+			exportFile = `${documentSettings.path}\\${exportFilename}`
+		} else {
+			exportFile = window.promptSaveFile({
+				title: "Export to File",
+				filterExtensions: ["*.md"],
+				fileName: exportFilename
+			});
+			if (exportFile.indexOf("/") == -1) {
+				lastSlash = exportFile.lastIndexOf("\\"); // Windows 
+			} else {
+				lastSlash = exportFile.lastIndexOf("/"); // Mac or Linux
+			}
+			documentSettings.path = exportFile.substring(0, lastSlash + 1);
+		}
+
+		if (exportFile) {
+
+			documentFirstPage()
+			// First level is a view, not an element > start with level = 0. 
+			documentStructure(0, '', drivingView);
+			documentLastTable()
+
+			let documentString = document.start + document.content + document.body;
+			$.fs.writeFile(exportFile, documentString);
+
+			console.log(`Markdown report saved to:`);
+			console.log(`- path: ${documentSettings.path}`);
+			console.log(`- fileName: ${exportFilename}`);
+			
+			finishConsoleLog()
+		} else { console.log("Canceled") }
+	} else { console.log(`Not a valid drivingView. Please add a property 'documentationDrivingView'`)}
+} else { console.log("Please open and select a Driving View"); }
+
+/**
+ * Read document settings from drivingView properties
+ * Generate first page
+ */
+function init() {
+
+	documentSettings.includeTableOfView = true;
+	documentSettings.includeTableOfAllViews = false;
+	documentSettings.renderViewScale = 2;
+	documentSettings.renderViewEmbed = true;
+	documentSettings.path = '';
+
+	// set documentSettings with the driving view properties
+	console.log(`Driving view settings: `)
+	getObjectProperties(drivingView, documentSettings)
+}
+
+/**
+ * Generate first page
+ */
+function documentFirstPage() {
+	
+	document.start = `# ${drivingView.name}\n`;
+	document.start += `${drivingView.documentation}\n\n`
+	
+	documentProperties = new Object()
+	documentProperties.Author = ''
+	documentProperties.Organisation = ''
+	
+	// set documentProperties with the driving view properties
+	console.log(`Driving view document properties: `)
+	getObjectProperties(drivingView, documentProperties)
+	
+	document.start += `${documentProperties.Author}\n`;
+	document.start += `${documentProperties.Organisation}\n`;
+	
+	let datum = new Date();
+	document.start += `Document generated at: ${datum.toLocaleDateString('nl-NL')}\n\n`;
+	document.start += "\n---\n";
+
+	// Initialize document.content
+	document.content = '# Content\n\n';
+	document.body = '\n\n';
+}
+
+function getObjectProperties(pObject, pProperty) {
+
+	for (var key in pProperty) {
+		if (pObject.prop(key) != null) {
+			if (pProperty[key].type == Boolean) {
+				pProperty[key] = (pObject.prop(key) === "true");
+			} else {
+				pProperty[key] = pObject.prop(key);
+			}
+		}
+		console.log(`- ${key}: ${pProperty[key]}`)
+	}
+	console.log()
+}
+
+/**
+ * Generate lastTable
+ */
+function documentLastTable() {
+	if (documentSettings.includeTableOfAllViews) {
+		var lastTable = new Object();
+		lastTable.name = 'Tabel met elementen van alle views';
+		lastTable.documentation = '';
+
+		printObjectHeading(1, lastTable, 'String')
+
+		document.body += printTableOfAllViews(drivingView)
+	}
+}
+
+function printTableOfAllViews(pView) {
+	var markdownTable = '';
+	var allElements = [];
+
+	let i = 0;
+	// loop over all reference-views of the driving view
+	$(pView).find("diagram-model-reference").each(function (viewReference) {
+		// Find the actual linked views
+		linkedView = $("view").filter(function (v) {
+			return v.name === viewReference.name
+		})
+		linkedView.find("element").each(function (element) {
+			allElements[i] = element;
+			i++;
+		})
+	})
+	// Sort array of found elements alphabetical
+	allElements.sort(sortAlphabetic)
+
+	markdownTable += `| Element | Type | Documentatie |\n`;
+	markdownTable += `| ------- | -----|------------- |\n`;
+	
+	var uniqueRowSet = new Set();
+	for (let j = 0; j < allElements.length; j++) {
+		let e = allElements[j];
+		let elementKey = `| ${e.name} (${e.type}) | ${e.documentation}|\n`
+		if (!uniqueRowSet.has(elementKey)) {
+			markdownTable += `| ${e.name} | ${e.type} | ${tableCell2HTML(e.documentation)}|\n`
+		}
+		uniqueRowSet.add(elementKey)
+	}
+
+	console.log('\nTable with all elements')
+	console.log(`- number of elements on all views: ${allElements.length}`)
+	console.log(`- number of unique elements: ${uniqueRowSet.size}\n`)
+
+	return markdownTable;
+
+	function sortAlphabetic(a, b) {
+		if ( a.name.toLowerCase() < b.name.toLowerCase() ){
+			return -1;
+		  }
+		  if ( a.name.toLowerCase() > b.name.toLowerCase() ){
+			return 1;
+		  }
+		  return 0;
+	}	
+}
+
+/**
+ * documentStructure 
+ * 	this recursive function reads the document structure from the driving view
+ * 
+ * @param pLevel 		number with recursion depth
+ * @param pParagraph 	string with paragraph number
+ * @param pObject 		visual object to traverse, start with drivingView
+ */
+function documentStructure(pLevel, pParagraph, pObject) {
+
+	// scope of childArray is this function and all recursions
+	var childArray = [];
+
+	// add text of note to the current paragraph in the report
+	if (pObject.type == "diagram-model-note") {
+		document.body += `${pObject.text}\n\n`;
+		console.log(`${'>'.repeat(pLevel)} insert text from note`);
+	} else {
+		// bug in jArchi; visual object of type "diagram-model-reference" return type "archimate-diagram-model"
+		// add referenced view to the current paragraph in the report
+		if (pObject.type == "diagram-model-reference" || // view reference not working or
+			(pObject.type == "archimate-diagram-model" && pObject.view) || // view reference work around or
+			(pObject.type == "canvas-model" && pObject.view) // canvas view
+		) {
+
+			printObjectHeading(pLevel, pObject, 'view')
+
+			// Find the actual referenced view; loop over all views and compare names
+			$('view').each(function (view) {
+				if (view.name == pObject.name) {
+
+					printView(view);
+		
+					// add all elements. Skip if the driving view has includeTableOfView with value false
+					if (documentSettings.includeTableOfView) {
+						printElementsHierarchic(pLevel, view);
+					}
+				}
+			});
+
+		} else {
+
+			// Check for subparagraphs and recurse into subparagraph
+			if ((pObject.type == "archimate-diagram-model" && !pObject.view) || // driving view or 
+				pObject.type == "diagram-model-group" || // visual group or
+				pObject.type == "grouping") { // group
+
+				// skip pLevel 0, this is the drivingview
+				if (pLevel > 0) {
+
+					printObjectHeading(pLevel, pObject, 'group')
+				}
+
+				// console.log(`${">".repeat(pLevel+1)} ${pObject.name}`)
+				let childrenCollection = $(`#${pObject.id}`).children();
+
+				// stop if element has no children
+				if (childrenCollection.size() > 0) {
+
+					// console.log(`${">".repeat(pLevel+1)} ${childrenCollection.size()} Children > ${childrenCollection}`)
+					// console.log(`${">".repeat(pLevel)} ${childrenCollection.size()} Children`)
+
+					let i = 0;
+					childrenCollection.each(function (c) {
+						childArray[i] = c
+						i++;
+					})
+					// Sort array of embedded children from left to right
+					childArray.sort(sortPosition)
+
+					for (let i = 0; i < childArray.length; i++) {
+
+						let paragraph = ``;
+
+						// skip pLevel 0, this is the drivingview
+						if (pLevel == 0) {
+							paragraph = `${i + 1}`;
+						} else {
+							paragraph = `${pParagraph}.${i + 1}`
+						}
+						documentStructure(pLevel + 1, paragraph, childArray[i]);
+					}
+				};
+			}
+		}
+	}
+	return
+}
+
+function printObjectHeading(pLevel, pObject, pTypeText) {
+
+	console.log(`${'>'.repeat(pLevel)} ${pObject.name} (${pTypeText})`);
+
+	var thisLink = generateLink(pObject.name);
+
+	// document.content += `${'#'.repeat(pLevel)} ${pObject.name}\n`;
+	document.content += `${'\t'.repeat(pLevel - 1)}* [${pObject.name}](${thisLink}) \n`;
+
+	if (pLevel == 1) {
+		document.body += '<div style="page-break-before: always;"></div>';
+		document.body += "\n\n---\n\n";
+	}
+	document.body += `${'#'.repeat(pLevel)} ${pObject.name}\n`;
+
+	if (pObject.documentation != "") {
+		document.body += `${pObject.documentation}\n\n`;
+	}
+}
+
+function generateLink(theString) {
+	// this function thanks to Steven Mileham
+	var regex = /[\[\]\(\)\#\\\/\"]/gi;
+	return "#" + theString.toLowerCase().replace(regex, "")
+		.replaceAll(" ", "-")
+		.replaceAll("\<", "lt")
+		.replaceAll("\>", "gt");
+}
+
+function printView(view) {
+	var bytes = $.model.renderViewAsBase64(view, "PNG", {
+		scale: documentSettings.renderViewScale,
+		margin: documentSettings.renderViewScale * 10
+	});
+
+	if (documentSettings.renderViewEmbed) {
+		document.body += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
+	} else {
+
+		$.fs.writeFile(documentSettings.path + ".png", bytes, "BASE64");
+
+		let imageURL = documentSettings.path.replaceAll(" ", "%20");
+		document.body += `\n![${view.name}][${view.name}]`;
+		document.body += `\n[${view.name}]: ${imageURL}.png`;
+	}
+	document.body += `\n<p align="center"><i>View ${view.name}</i></p>\n\n`;
+}
+
+// document the elements (not relations) on the view
+function printElementsHierarchic(pLogLevel, view) {
+
+	// Private recursive function to find deepest level of embedding
+	function findMaxEmbedding(level, pObject) {
+
+		if ($(`#${pObject.id}`).children("element").size() == 0) {
+			return level
+		};
+
+		let maxLevel = 0
+		$(`#${pObject.id}`).children("element").each(function (c) {
+			recurseLevel = findMaxEmbedding(level + 1, c);
+			if (maxLevel < recurseLevel) {
+				maxLevel = recurseLevel;
+			}
+		})
+		return maxLevel
+	}
+
+	// Private recursive function for writing table row for current elements
+	function printTableRow(pLevel, pMaxLevel, pChildLineIsWritten, pObject) {
+		// scope of childArray is this function and all recursions
+		var childArray = [];
+		let i = 0;
+		$(`#${pObject.id}`).children("element").each(function (c) {
+			childArray[i] = c
+			i++;
+		})
+
+		// Write table line for every visual child element of view and children
+		if (pObject.type !== "archimate-diagram-model") {
+
+			// Skip duplicate elements if element has no children
+			if (!pChildLineIsWritten || childArray.length > 0) {
+
+				document.body += `<tr valign="top")>`;
+				// for (let i = 1; i < pLevel; i++) { document.body += `<td></td>` }
+				if (pLevel > 1) {
+					document.body += `
+			<td colspan="${pLevel - 1}"></td>`
+				}
+				document.body += `
+			<td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>
+			<td>${tableCell2HTML(pObject.documentation)}</td>
+		</tr>`
+
+				// console.log(`${">".repeat(pLevel)} ${pObject.name}`)
+
+			} else {
+				console.log(`${">".repeat(pLogLevel+1)} Skip row for duplicate ${pObject.name}`)
+			}
+		}
+
+		// stop if element has no children
+		// if ($(`#${pObject.id}`).children("element").size() == 0) {
+		if (childArray.length == 0) {
+			return
+		};
+
+		// Sort array of embedded children from left to right
+		childArray.sort(sortPosition)
+
+		// set for checking if there are multiple visual objects of a concept
+		let conceptIdOfChildSet = new Set()
+		for (let i = 0; i < childArray.length; i++) {
+
+			printTableRow(pLevel + 1, pMaxLevel, conceptIdOfChildSet.has(childArray[i].concept.id), childArray[i]);
+
+			conceptIdOfChildSet.add(childArray[i].concept.id);
+		}
+		return
+	}
+
+	// maxlevel is used to generate a table column for each level
+	// start with level 0. Don't count the first level, this is the view
+	var maxLevel = findMaxEmbedding(0, view);
+
+	console.log(`${'>'.repeat(pLogLevel)} table with ${maxLevel} columns`)
+
+	document.body += `<table>
+	<thead>
+		<tr>
+			<th colspan="${maxLevel}" width="20%">Element</th>
+			<th rowspan="2" width="80%">Documentation</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr style="display:none;">`;
+	// for (let i = 1; i < maxLevel+1; i++) { document.body += `<td align="center">(${i})</td>` }
+	// generate 'empty' columnheaders, this is ugly
+	for (let i = 1; i < maxLevel + 1; i++) {
+		document.body += `
+			<td align="center"></td>`
+	}
+	document.body += `
+			<td></td>
+		</tr>`
+
+	// write a Markdown table line for every child and the child's children
+	// First level is a view, not an element > start with level = 0. 
+	printTableRow(0, maxLevel, false, view);
+
+	document.body += `	
+	</tbody>
+</table>\n\n`
+}
+
+
+/**
+ * Sorting function
+ * 	sort visual object from left to right like reading
+ * 
+ * @param a visual object
+ * @param b visual object
+ */
+// 
+function sortPosition(a, b) {
+	// check if boxes are on the same 'line' 
+	if ((a.bounds.y + a.bounds.heigth < b.bounds.y) &&
+		(a.bounds.y > b.bounds.y + b.bounds.heigth))
+		return a.bounds.x - b.bounds.x
+	else
+		return (a.bounds.y - b.bounds.y)
+}
+
+/**
+ * tableCell2HTML()
+ *	markdown wants "Cell content must be on one line only"
+ * 	this function converts a multiline markdown string to a single line HTML string
+ * 
+ * @param src multi line markdownstring
+ * 
+ */
+function tableCell2HTML(src) {
+
+	let htmlString = '';
+
+	src = src.trim();
+
+	if (src) {
+
+		// Remove line breaks from start and end of string
+		// src = src.replace(/^\s+|\s+$/g, '');
+
+		src = convertMarkDown2Html(src);
+
+		// remove excess of new lines and line breaks
+		htmlString = src.replace(/(?:\r\n|\r|\n)/g, '<br>');
+	}
+
+	return htmlString;
+}
+
+// function convertMarkDown2Html(a, b) { "function" == typeof define && define.amd ? define([], b) : "object" == typeof exports ? module.exports = b() : a.returnExports = b() } (this, function () { "use strict"; function a(a) { return a.replace(/\\([(){}[\]#*+\-.!_\\])/g, function (a, b) { return String.fromCharCode(1, c.indexOf(b) + d) }).replace(/(\*\*|__|~~)(\S(?:[\s\S]*?\S)?)\1/g, function (a, b, c) { return "~~" === b ? "<del>" + c + "</del>" : "<b>" + c + "</b>" }).replace(/(\n|^|\W)([_\*])(\S(?:[\s\S]*?\S)?)\2(\W|$|\n)/g, function (a, b, c, d, e) { return b + "<i>" + d + "</i>" + e }).replace(/(!?)\[([^\]<>]+)\]\((\+?)([^ \)<>]+)(?: "([^\(\)\"]+)")?\)/g, function (a, b, c, d, f, g) { var h = g ? ' title="' + g + '"' : ""; return b ? '<img src="' + e.href(f) + '" alt="' + c + '"' + h + "/>" : (d && (h += ' target="_blank"'), '<a href="' + e.href(f) + '"' + h + ">" + c + "</a>") }) } function b(a) { return a.replace(/\x01([\x0f-\x1c])/g, function (a, b) { return c.charAt(b.charCodeAt(0) - d) }) } var c = "\\[!]#{()}*+-._", d = 16, e = function (c) { return c.replace(/.+(?:\n.+)*/g, function (c) { var d = /^\s{4}([^]*)$/.exec(c); if (d) return "<pre><code>" + d[1].replace(/\n    /g, "\n") + "</code></pre>"; for (var f, g = [], h = a(c).split("\n"), i = 0, j = h.length; j > i; ++i) { var k = h[i], l = /^\s{0,3}(\#{1,6})\s+(.*?)\s*#*\s*$/.exec(k); if (l) g.push(f = [l[2], "h", l[1].length]); else { var m = /^(\s*)(?:[-*]|(\d[.)])) (.+)$/.exec(k); m ? g.push(f = [m[3], m[2] ? "ol" : "ul", m[1].length]) : /^\s{0,3}([-])(\s*\1){2,}\s*$/.test(k) ? g.push(f = ["", "hr"]) : f && "hr" !== f[1] && "h" !== f[1] ? f[0] += "\n" + k : g.push(f = [k, "p", ""]) } } var n = "", o = []; for (i = 0, j = g.length; j > i; ++i) { f = g[i]; var p = f[0], q = f[1], r = f[2]; if ("ul" === q || "ol" === q) !o.length || r > o[0][1] ? (o.unshift([q, r]), n += "<" + o[0][0] + "><li>" + p) : o.length > 1 && r <= o[1][1] ? (n += "</li></" + o.shift()[0] + ">", --i) : n += "</li><li>" + p; else { for (; o.length;)n += "</li></" + o.shift()[0] + ">"; n += "hr" === q ? "<hr/>" : "<" + q + r + e.headAttrs(r, p) + ">" + p + "</" + q + r + ">" } } for (; o.length;)n += "</li></" + o.shift()[0] + ">"; return b(n) }) }; return e.href = function (a) { return a }, e.headAttrs = function (a, b) { return "" }, e });
+/**
+ * drawdown.js
+ * (c) Adam Leggett
+ */
+
+function convertMarkDown2Html(src) {
+	// ;function markdown(src) {
+
+	function replace(rex, fn) {
+		src = src.replace(rex, fn);
+	}
+
+	function element(tag, content) {
+		return "<" + tag + ">" + content + "</" + tag + ">";
+	}
+
+	function blockquote(src) {
+		return src.replace(/\n *&gt; *([^]*?)(?=(\n|$){2})/g,
+			function (all, content) {
+				return element("blockquote", blockquote(content.replace(/^ *&gt; */gm, "")));
+			});
+	}
+
+	function list(src) {
+		return src.replace(/\n( *)([*\-+]|((\d+)|([a-z])|[A-Z])[.)]) +([^]*?)(?=(\n|$){2})/g,
+			function (all, ind, _, ol, num, low, content) {
+				var rind = "\n {0," + (ind.length + 1) + "}";
+				var entry = content.split(
+					RegExp(rind + "(?:(?:\\d+|[a-zA-Z])[.)]|[*\\-+]) +", "g")).map(list);
+
+				return (ol ?
+						"<ol start='" + (num ?
+							ol + "'>" :
+							(parseInt(ol, 36) - 9) + "' style='list-style-type:" + (low ? "low" : "upp") + "er-alpha'>") :
+						"<ul>")
+					// + element("li", highlight(entry.join("</li>\n<li>").replace(RegExp(rind,"g"),"\n")))
+					+
+					element("li", highlight(entry.join("</li><li>").replace(RegExp(rind, "g"), "\n"))) +
+					(ol ? "</ol>" : "</ul>");
+			});
+	}
+
+	function highlight(src) {
+		return src.replace(/(^|\W|_)(([*_])|(~)|`)(\2?)([^<]*?)\2\5(?!\2)(?=\W|_|$)/g,
+			function (all, _, p1, bi, ss, p2, content) {
+				return _ + element(
+					bi ? (p2 ? "b" : "i") :
+					ss ? (p2 ? "s" : "sub") : "code",
+					highlight(content));
+			});
+	}
+
+	var stash = [];
+	var si = 0;
+
+	// src = "\n" + src + "\n";
+
+	replace(/</g, "&lt;");
+	replace(/>/g, "&gt;");
+	replace(/\t|\r/g, "  ");
+
+	// blockquote
+	src = blockquote(src);
+
+	// horizontal rule
+	replace(/^([*\-=_] *){3,}$/gm, "<hr/>");
+
+	// list
+	src = list(src);
+
+	// code
+	replace(/\n((```|~~~).*\n?([^]*?)\2|((    .*?\n)+))/g, function (all, p1, p2, p3, p4) {
+		stash[--si] = element("pre", element("code", p3 || p4.replace(/^    /gm, "")));
+		return si + "\r";
+	});
+
+	// link or escape
+	replace(/((!?)\[(.*?)\]\((.*?)( ".*")?\)|\\([\\`*_{}\[\]()#+\-.!~]))/g, function (all, p1, p2, p3, p4, p5, p6) {
+		stash[--si] = p4 ?
+			(p2 ?
+				"<img src='" + p4 + "' alt='" + p3 + "'/>" :
+				p3.link(p4)) :
+			p6;
+		return si + "\r";
+	});
+
+	// heading
+	replace(/(?=^|>|\n)([>\s]*?)(#{1,6}) (.*?)( #*)? *(?=\n|$)/g, function (all, _, p1, p2) {
+		return _ + element("h" + p1.length, highlight(p2));
+	});
+
+	// paragraph
+	replace(/(?=^|>|\n)\n+([^<]+?)\n+(?=\n|<|$)/g, function (all, c) {
+		return element("p", highlight(c));
+	});
+
+	// stash
+	replace(/-\d+\r/g, function (all) {
+		return stash[+all];
+	});
+
+	return src;
+};
