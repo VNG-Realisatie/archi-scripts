@@ -8,63 +8,54 @@ load(__DIR__ + "../Common/Common.ajs");
 console.clear();
 initConsoleLog(__FILE__)
 
-var document = new Object();
-var documentSettings = new Object();
+try {
+	var document = new Object();
+	var documentSettings = new Object();
 
-var drivingView = selection.filter("archimate-diagram-model").first();
+	var drivingView = selection.filter("archimate-diagram-model").first();
 
-if (drivingView) {
-	if (drivingView.prop("documentationDrivingView") != null) {
+	if (drivingView) {
+		if (drivingView.prop("documentationDrivingView") != null) {
 
-		console.log(`Driving view is: ${drivingView.name}\n`);
-	
-		init()
-		
-		var exportFile = '';
-		let datum = new Date();
-		let exportFilename = `${datum.toLocaleDateString('nl-NL')} ${drivingView.name}.md`
+			console.log(`Driving view is: ${drivingView.name}\n`);
 
-		if (documentSettings.path != null) {
-			// to skip the popup window while debugging, set filename as a property 
-			exportFile = `${documentSettings.path}\\${exportFilename}`
-		} else {
-			exportFile = window.promptSaveFile({
-				title: "Export to File",
-				filterExtensions: ["*.md"],
-				fileName: exportFilename
-			});
-			if (exportFile.indexOf("/") == -1) {
-				lastSlash = exportFile.lastIndexOf("\\"); // Windows 
+			if (init()) {
+
+				documentFirstPage()
+				// First level is a view, not an element > start with level = 0. 
+				documentStructure(0, '', drivingView);
+				documentLastTable()
+
+				console.log(`Markdown report saved to:`);
+				console.log(`- path:     ${documentSettings.path}`);
+				console.log(`- fileName: ${documentSettings.fileName}`);
+
+				let documentString = document.start + document.content + document.body;
+				$.fs.writeFile(documentSettings.exportFile, documentString);
+
+				finishConsoleLog()
 			} else {
-				lastSlash = exportFile.lastIndexOf("/"); // Mac or Linux
+				console.log("Canceled")
 			}
-			documentSettings.path = exportFile.substring(0, lastSlash + 1);
+		} else {
+			console.log(`Not a valid drivingView. Please add a property 'documentationDrivingView'`)
 		}
-
-		if (exportFile) {
-
-			documentFirstPage()
-			// First level is a view, not an element > start with level = 0. 
-			documentStructure(0, '', drivingView);
-			documentLastTable()
-
-			let documentString = document.start + document.content + document.body;
-			$.fs.writeFile(exportFile, documentString);
-
-			console.log(`Markdown report saved to:`);
-			console.log(`- path: ${documentSettings.path}`);
-			console.log(`- fileName: ${exportFilename}`);
-			
-			finishConsoleLog()
-		} else { console.log("Canceled") }
-	} else { console.log(`Not a valid drivingView. Please add a property 'documentationDrivingView'`)}
-} else { console.log("Please open and select a Driving View"); }
+	} else {
+		console.log("Please open and select a Driving View");
+	}
+} catch (error) {
+	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
+}
 
 /**
  * Read document settings from drivingView properties
  * Generate first page
  */
 function init() {
+
+	let exportFile = '';
+	let datum = new Date();
+	let fileName = `${datum.toLocaleDateString('nl-NL')} ${drivingView.name}.md`
 
 	documentSettings.includeTableOfView = true;
 	documentSettings.includeTableOfAllViews = false;
@@ -75,27 +66,67 @@ function init() {
 	// set documentSettings with the driving view properties
 	console.log(`Driving view settings: `)
 	getObjectProperties(drivingView, documentSettings)
+
+	// to skip the popup window while debugging, set path as a property
+	if (documentSettings.path) {
+		// fs.writefile seems to accept slashes and backslashes independent of platform??
+		// if (slash() == "\\") {
+		// 	documentSettings.path = documentSettings.path.replaceAll("/", "\\/");
+		// } else {
+		// 	documentSettings.path = documentSettings.path.replaceAll(/\\/g, "/");
+		// }
+		exportFile = `${documentSettings.path}${slash()}${fileName}`
+	} else {
+		exportFile = window.promptSaveFile({
+			title: "Export to File",
+			filterExtensions: ["*.md"],
+			fileName: fileName
+		});
+	}
+	if (exportFile) {
+		documentSettings.path = exportFile.substring(0, exportFile.lastIndexOf(slash()) + 1);
+		documentSettings.fileName = exportFile.substring(exportFile.lastIndexOf(slash()) + 1);
+		documentSettings.exportFile = exportFile;
+	}
+	return exportFile
+
+	function slash() {
+		var System = Java.type("java.lang.System")
+		var nameOS = System.getProperty("os.name", "");
+
+		if (nameOS.indexOf("Win") != -1) {
+			return "\\";
+		} else {
+			if ((nameOS.indexOf("Mac") != -1) ||
+				(nameOS.indexOf("X11") != -1) ||
+				(nameOS.indexOf("Linux") != -1)) {
+				return "/";
+			} else {
+				throw (`>> Unknown OS: ${nameOS}`);
+			}
+		}
+	}
 }
 
 /**
  * Generate first page
  */
 function documentFirstPage() {
-	
+
 	document.start = `# ${drivingView.name}\n`;
 	document.start += `${drivingView.documentation}\n\n`
-	
+
 	documentProperties = new Object()
 	documentProperties.Author = ''
 	documentProperties.Organisation = ''
-	
+
 	// set documentProperties with the driving view properties
 	console.log(`Driving view document properties: `)
 	getObjectProperties(drivingView, documentProperties)
-	
+
 	document.start += `${documentProperties.Author}\n`;
 	document.start += `${documentProperties.Organisation}\n`;
-	
+
 	let datum = new Date();
 	document.start += `Document generated at: ${datum.toLocaleDateString('nl-NL')}\n\n`;
 	document.start += "\n---\n";
@@ -156,7 +187,7 @@ function printTableOfAllViews(pView) {
 
 	markdownTable += `| Element | Type | Documentatie |\n`;
 	markdownTable += `| ------- | -----|------------- |\n`;
-	
+
 	var uniqueRowSet = new Set();
 	for (let j = 0; j < allElements.length; j++) {
 		let e = allElements[j];
@@ -174,19 +205,24 @@ function printTableOfAllViews(pView) {
 	return markdownTable;
 
 	function sortAlphabetic(a, b) {
-		if ( a.name.toLowerCase() < b.name.toLowerCase() ){
+		if (a.name.toLowerCase() < b.name.toLowerCase()) {
 			return -1;
-		  }
-		  if ( a.name.toLowerCase() > b.name.toLowerCase() ){
+		}
+		if (a.name.toLowerCase() > b.name.toLowerCase()) {
 			return 1;
-		  }
-		  return 0;
-	}	
+		}
+		return 0;
+	}
 }
 
 /**
  * documentStructure 
  * 	this recursive function reads the document structure from the driving view
+ * 	-	follow the elements on the driving view from top left to the bottom right
+ * 	-	recurse into groups with embedded elements/children
+ * 		- print (visual) groups as sectionheaders
+ * 		- print viewReferences
+ * 		- print notes
  * 
  * @param pLevel 		number with recursion depth
  * @param pParagraph 	string with paragraph number
@@ -216,9 +252,10 @@ function documentStructure(pLevel, pParagraph, pObject) {
 				if (view.name == pObject.name) {
 
 					printView(view);
-		
-					// add all elements. Skip if the driving view has includeTableOfView with value false
-					if (documentSettings.includeTableOfView) {
+
+					// if the property includeTableOfView is set, print a table with the views elements.
+					// "canvas-model" views don't have elements, so skip
+					if (documentSettings.includeTableOfView && pObject.type != "canvas-model") {
 						printElementsHierarchic(pLevel, view);
 					}
 				}
@@ -238,7 +275,8 @@ function documentStructure(pLevel, pParagraph, pObject) {
 				}
 
 				// console.log(`${">".repeat(pLevel+1)} ${pObject.name}`)
-				let childrenCollection = $(`#${pObject.id}`).children();
+				// select all embedded (visual) elements. Skip relations
+				let childrenCollection = $(`#${pObject.id}`).children().not("relation");
 
 				// stop if element has no children
 				if (childrenCollection.size() > 0) {
@@ -271,16 +309,46 @@ function documentStructure(pLevel, pParagraph, pObject) {
 		}
 	}
 	return
+
+	// render the view to a string
+	// - embed in the document 
+	// - or save as .png
+	function printView(view) {
+
+		let bytes = $.model.renderViewAsBase64(view, "PNG", {
+			scale: documentSettings.renderViewScale,
+			margin: documentSettings.renderViewScale * 10
+		});
+
+		if (documentSettings.renderViewEmbed) {
+			document.body += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
+		} else {
+			let imageFile = `${documentSettings.path}${view.name}.png`
+			$.fs.writeFile(imageFile, bytes, "BASE64");
+
+			let imageURL = imageFile.replaceAll(" ", "%20");
+			document.body += `\n![${view.name}][${view.name}]`;
+			document.body += `\n[${view.name}]: ${imageURL}`;
+		}
+		document.body += `\n<p align="center"><i>View ${view.name}</i></p>\n\n`;
+	}
 }
 
+/**
+ * printObjectHeading
+ * 	add the given object to the contentlist and create a heading
+ * 	if the object has documentation, also create a paragraph
+ * 
+ * @param pLevel use recursion depth as paragraph level
+ * @param pObject current element
+ * @param pTypeText type of current element 
+ */
 function printObjectHeading(pLevel, pObject, pTypeText) {
 
 	console.log(`${'>'.repeat(pLevel)} ${pObject.name} (${pTypeText})`);
 
-	var thisLink = generateLink(pObject.name);
-
 	// document.content += `${'#'.repeat(pLevel)} ${pObject.name}\n`;
-	document.content += `${'\t'.repeat(pLevel - 1)}* [${pObject.name}](${thisLink}) \n`;
+	document.content += `${'\t'.repeat(pLevel - 1)}* [${pObject.name}](${stringToLink(pObject.name)}) \n`;
 
 	if (pLevel == 1) {
 		document.body += '<div style="page-break-before: always;"></div>';
@@ -291,38 +359,52 @@ function printObjectHeading(pLevel, pObject, pTypeText) {
 	if (pObject.documentation != "") {
 		document.body += `${pObject.documentation}\n\n`;
 	}
-}
 
-function generateLink(theString) {
-	// this function thanks to Steven Mileham
-	var regex = /[\[\]\(\)\#\\\/\"]/gi;
-	return "#" + theString.toLowerCase().replace(regex, "")
-		.replaceAll(" ", "-")
-		.replaceAll("\<", "lt")
-		.replaceAll("\>", "gt");
-}
-
-function printView(view) {
-	var bytes = $.model.renderViewAsBase64(view, "PNG", {
-		scale: documentSettings.renderViewScale,
-		margin: documentSettings.renderViewScale * 10
-	});
-
-	if (documentSettings.renderViewEmbed) {
-		document.body += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
-	} else {
-
-		$.fs.writeFile(documentSettings.path + ".png", bytes, "BASE64");
-
-		let imageURL = documentSettings.path.replaceAll(" ", "%20");
-		document.body += `\n![${view.name}][${view.name}]`;
-		document.body += `\n[${view.name}]: ${imageURL}.png`;
+	function stringToLink(theString) {
+		// this function thanks to Steven Mileham
+		var regex = /[\[\]\(\)\#\\\/\"]/gi;
+		return "#" + theString.toLowerCase().replace(regex, "")
+			.replaceAll(" ", "-")
+			.replaceAll("\<", "lt")
+			.replaceAll("\>", "gt");
 	}
-	document.body += `\n<p align="center"><i>View ${view.name}</i></p>\n\n`;
 }
 
 // document the elements (not relations) on the view
 function printElementsHierarchic(pLogLevel, view) {
+	// maxlevel is used to generate a table column for each level
+	// start with level 0. Don't count the first level, this is the view
+	var maxLevel = findMaxEmbedding(0, view);
+
+	console.log(`${'>'.repeat(pLogLevel)} table with ${maxLevel} columns`)
+
+	document.body += `<table>
+	<thead>
+		<tr>
+			<th colspan="${maxLevel}" width="20%">Element</th>
+			<th rowspan="2" width="80%">Documentation</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr >`;
+	// for (let i = 1; i < maxLevel+1; i++) { document.body += `<td align="center">(${i})</td>` }
+	// generate 'empty' columnheaders, this is ugly
+	for (let i = 1; i < maxLevel + 1; i++) {
+		document.body += `
+			<td align="center"></td>`
+	}
+	document.body += `
+			<td></td>
+		</tr>`
+
+	// write a Markdown table line for every child and the child's children
+	// First level is a view, not an element > start with level = 0. 
+	printTableRow(0, maxLevel, false, view);
+
+	document.body += `	
+	</tbody>
+</table>\n\n`
+	return
 
 	// Private recursive function to find deepest level of embedding
 	function findMaxEmbedding(level, pObject) {
@@ -394,55 +476,23 @@ function printElementsHierarchic(pLogLevel, view) {
 		}
 		return
 	}
-
-	// maxlevel is used to generate a table column for each level
-	// start with level 0. Don't count the first level, this is the view
-	var maxLevel = findMaxEmbedding(0, view);
-
-	console.log(`${'>'.repeat(pLogLevel)} table with ${maxLevel} columns`)
-
-	document.body += `<table>
-	<thead>
-		<tr>
-			<th colspan="${maxLevel}" width="20%">Element</th>
-			<th rowspan="2" width="80%">Documentation</th>
-		</tr>
-	</thead>
-	<tbody>
-		<tr style="display:none;">`;
-	// for (let i = 1; i < maxLevel+1; i++) { document.body += `<td align="center">(${i})</td>` }
-	// generate 'empty' columnheaders, this is ugly
-	for (let i = 1; i < maxLevel + 1; i++) {
-		document.body += `
-			<td align="center"></td>`
-	}
-	document.body += `
-			<td></td>
-		</tr>`
-
-	// write a Markdown table line for every child and the child's children
-	// First level is a view, not an element > start with level = 0. 
-	printTableRow(0, maxLevel, false, view);
-
-	document.body += `	
-	</tbody>
-</table>\n\n`
 }
-
 
 /**
  * Sorting function
- * 	sort visual object from left to right like reading
+ * 	sort visual object from top to bottom and left to right like reading
  * 
  * @param a visual object
  * @param b visual object
  */
-// 
 function sortPosition(a, b) {
+	// jArchi 0.0 point is the top left corner
+	// - x coordinates are 'normal'
+	// - y coordinates are opposite to 'normal'
 	// check if boxes are on the same 'line' 
 	if ((a.bounds.y + a.bounds.heigth < b.bounds.y) &&
 		(a.bounds.y > b.bounds.y + b.bounds.heigth))
-		return a.bounds.x - b.bounds.x
+		return b.bounds.x - a.bounds.x
 	else
 		return (a.bounds.y - b.bounds.y)
 }
@@ -458,124 +508,122 @@ function sortPosition(a, b) {
 function tableCell2HTML(src) {
 
 	let htmlString = '';
-
 	src = src.trim();
 
 	if (src) {
 
-		// Remove line breaks from start and end of string
-		// src = src.replace(/^\s+|\s+$/g, '');
-
-		src = convertMarkDown2Html(src);
+		src = markdown2HTML(src);
 
 		// remove excess of new lines and line breaks
 		htmlString = src.replace(/(?:\r\n|\r|\n)/g, '<br>');
 	}
 
 	return htmlString;
+
+	/**
+	 * markdown2HTML
+	 * 	convert a markdown string to a HTML string
+	 * 
+	 * based on https://github.com/adamvleggett/drawdown
+	 * 	(c) Adam Leggett
+	 * 
+	 * removed newlines in the created HTML string for use in a markdown table
+	 */
+	function markdown2HTML(src) {
+
+		function replace(rex, fn) {
+			src = src.replace(rex, fn);
+		}
+
+		function element(tag, content) {
+			return "<" + tag + ">" + content + "</" + tag + ">";
+		}
+
+		function blockquote(src) {
+			return src.replace(/\n *&gt; *([^]*?)(?=(\n|$){2})/g,
+				function (all, content) {
+					return element("blockquote", blockquote(content.replace(/^ *&gt; */gm, "")));
+				});
+		}
+
+		function list(src) {
+			return src.replace(/\n( *)([*\-+]|((\d+)|([a-z])|[A-Z])[.)]) +([^]*?)(?=(\n|$){2})/g,
+				function (all, ind, _, ol, num, low, content) {
+					var rind = "\n {0," + (ind.length + 1) + "}";
+					var entry = content.split(
+						RegExp(rind + "(?:(?:\\d+|[a-zA-Z])[.)]|[*\\-+]) +", "g")).map(list);
+
+					return (ol ?
+							"<ol start='" + (num ?
+								ol + "'>" :
+								(parseInt(ol, 36) - 9) + "' style='list-style-type:" + (low ? "low" : "upp") + "er-alpha'>") :
+							"<ul>")
+						// + element("li", highlight(entry.join("</li>\n<li>").replace(RegExp(rind,"g"),"\n")))
+						+
+						element("li", highlight(entry.join("</li><li>").replace(RegExp(rind, "g"), "\n"))) +
+						(ol ? "</ol>" : "</ul>");
+				});
+		}
+
+		function highlight(src) {
+			return src.replace(/(^|\W|_)(([*_])|(~)|`)(\2?)([^<]*?)\2\5(?!\2)(?=\W|_|$)/g,
+				function (all, _, p1, bi, ss, p2, content) {
+					return _ + element(
+						bi ? (p2 ? "b" : "i") :
+						ss ? (p2 ? "s" : "sub") : "code",
+						highlight(content));
+				});
+		}
+
+		var stash = [];
+		var si = 0;
+
+		// src = "\n" + src + "\n";
+
+		replace(/</g, "&lt;");
+		replace(/>/g, "&gt;");
+		replace(/\t|\r/g, "  ");
+
+		// blockquote
+		src = blockquote(src);
+
+		// horizontal rule
+		replace(/^([*\-=_] *){3,}$/gm, "<hr/>");
+
+		// list
+		src = list(src);
+
+		// code
+		replace(/\n((```|~~~).*\n?([^]*?)\2|((    .*?\n)+))/g, function (all, p1, p2, p3, p4) {
+			stash[--si] = element("pre", element("code", p3 || p4.replace(/^    /gm, "")));
+			return si + "\r";
+		});
+
+		// link or escape
+		replace(/((!?)\[(.*?)\]\((.*?)( ".*")?\)|\\([\\`*_{}\[\]()#+\-.!~]))/g, function (all, p1, p2, p3, p4, p5, p6) {
+			stash[--si] = p4 ?
+				(p2 ?
+					"<img src='" + p4 + "' alt='" + p3 + "'/>" :
+					p3.link(p4)) :
+				p6;
+			return si + "\r";
+		});
+
+		// heading
+		replace(/(?=^|>|\n)([>\s]*?)(#{1,6}) (.*?)( #*)? *(?=\n|$)/g, function (all, _, p1, p2) {
+			return _ + element("h" + p1.length, highlight(p2));
+		});
+
+		// paragraph
+		replace(/(?=^|>|\n)\n+([^<]+?)\n+(?=\n|<|$)/g, function (all, c) {
+			return element("p", highlight(c));
+		});
+
+		// stash
+		replace(/-\d+\r/g, function (all) {
+			return stash[+all];
+		});
+
+		return src;
+	};
 }
-
-// function convertMarkDown2Html(a, b) { "function" == typeof define && define.amd ? define([], b) : "object" == typeof exports ? module.exports = b() : a.returnExports = b() } (this, function () { "use strict"; function a(a) { return a.replace(/\\([(){}[\]#*+\-.!_\\])/g, function (a, b) { return String.fromCharCode(1, c.indexOf(b) + d) }).replace(/(\*\*|__|~~)(\S(?:[\s\S]*?\S)?)\1/g, function (a, b, c) { return "~~" === b ? "<del>" + c + "</del>" : "<b>" + c + "</b>" }).replace(/(\n|^|\W)([_\*])(\S(?:[\s\S]*?\S)?)\2(\W|$|\n)/g, function (a, b, c, d, e) { return b + "<i>" + d + "</i>" + e }).replace(/(!?)\[([^\]<>]+)\]\((\+?)([^ \)<>]+)(?: "([^\(\)\"]+)")?\)/g, function (a, b, c, d, f, g) { var h = g ? ' title="' + g + '"' : ""; return b ? '<img src="' + e.href(f) + '" alt="' + c + '"' + h + "/>" : (d && (h += ' target="_blank"'), '<a href="' + e.href(f) + '"' + h + ">" + c + "</a>") }) } function b(a) { return a.replace(/\x01([\x0f-\x1c])/g, function (a, b) { return c.charAt(b.charCodeAt(0) - d) }) } var c = "\\[!]#{()}*+-._", d = 16, e = function (c) { return c.replace(/.+(?:\n.+)*/g, function (c) { var d = /^\s{4}([^]*)$/.exec(c); if (d) return "<pre><code>" + d[1].replace(/\n    /g, "\n") + "</code></pre>"; for (var f, g = [], h = a(c).split("\n"), i = 0, j = h.length; j > i; ++i) { var k = h[i], l = /^\s{0,3}(\#{1,6})\s+(.*?)\s*#*\s*$/.exec(k); if (l) g.push(f = [l[2], "h", l[1].length]); else { var m = /^(\s*)(?:[-*]|(\d[.)])) (.+)$/.exec(k); m ? g.push(f = [m[3], m[2] ? "ol" : "ul", m[1].length]) : /^\s{0,3}([-])(\s*\1){2,}\s*$/.test(k) ? g.push(f = ["", "hr"]) : f && "hr" !== f[1] && "h" !== f[1] ? f[0] += "\n" + k : g.push(f = [k, "p", ""]) } } var n = "", o = []; for (i = 0, j = g.length; j > i; ++i) { f = g[i]; var p = f[0], q = f[1], r = f[2]; if ("ul" === q || "ol" === q) !o.length || r > o[0][1] ? (o.unshift([q, r]), n += "<" + o[0][0] + "><li>" + p) : o.length > 1 && r <= o[1][1] ? (n += "</li></" + o.shift()[0] + ">", --i) : n += "</li><li>" + p; else { for (; o.length;)n += "</li></" + o.shift()[0] + ">"; n += "hr" === q ? "<hr/>" : "<" + q + r + e.headAttrs(r, p) + ">" + p + "</" + q + r + ">" } } for (; o.length;)n += "</li></" + o.shift()[0] + ">"; return b(n) }) }; return e.href = function (a) { return a }, e.headAttrs = function (a, b) { return "" }, e });
-/**
- * drawdown.js
- * (c) Adam Leggett
- */
-
-function convertMarkDown2Html(src) {
-	// ;function markdown(src) {
-
-	function replace(rex, fn) {
-		src = src.replace(rex, fn);
-	}
-
-	function element(tag, content) {
-		return "<" + tag + ">" + content + "</" + tag + ">";
-	}
-
-	function blockquote(src) {
-		return src.replace(/\n *&gt; *([^]*?)(?=(\n|$){2})/g,
-			function (all, content) {
-				return element("blockquote", blockquote(content.replace(/^ *&gt; */gm, "")));
-			});
-	}
-
-	function list(src) {
-		return src.replace(/\n( *)([*\-+]|((\d+)|([a-z])|[A-Z])[.)]) +([^]*?)(?=(\n|$){2})/g,
-			function (all, ind, _, ol, num, low, content) {
-				var rind = "\n {0," + (ind.length + 1) + "}";
-				var entry = content.split(
-					RegExp(rind + "(?:(?:\\d+|[a-zA-Z])[.)]|[*\\-+]) +", "g")).map(list);
-
-				return (ol ?
-						"<ol start='" + (num ?
-							ol + "'>" :
-							(parseInt(ol, 36) - 9) + "' style='list-style-type:" + (low ? "low" : "upp") + "er-alpha'>") :
-						"<ul>")
-					// + element("li", highlight(entry.join("</li>\n<li>").replace(RegExp(rind,"g"),"\n")))
-					+
-					element("li", highlight(entry.join("</li><li>").replace(RegExp(rind, "g"), "\n"))) +
-					(ol ? "</ol>" : "</ul>");
-			});
-	}
-
-	function highlight(src) {
-		return src.replace(/(^|\W|_)(([*_])|(~)|`)(\2?)([^<]*?)\2\5(?!\2)(?=\W|_|$)/g,
-			function (all, _, p1, bi, ss, p2, content) {
-				return _ + element(
-					bi ? (p2 ? "b" : "i") :
-					ss ? (p2 ? "s" : "sub") : "code",
-					highlight(content));
-			});
-	}
-
-	var stash = [];
-	var si = 0;
-
-	// src = "\n" + src + "\n";
-
-	replace(/</g, "&lt;");
-	replace(/>/g, "&gt;");
-	replace(/\t|\r/g, "  ");
-
-	// blockquote
-	src = blockquote(src);
-
-	// horizontal rule
-	replace(/^([*\-=_] *){3,}$/gm, "<hr/>");
-
-	// list
-	src = list(src);
-
-	// code
-	replace(/\n((```|~~~).*\n?([^]*?)\2|((    .*?\n)+))/g, function (all, p1, p2, p3, p4) {
-		stash[--si] = element("pre", element("code", p3 || p4.replace(/^    /gm, "")));
-		return si + "\r";
-	});
-
-	// link or escape
-	replace(/((!?)\[(.*?)\]\((.*?)( ".*")?\)|\\([\\`*_{}\[\]()#+\-.!~]))/g, function (all, p1, p2, p3, p4, p5, p6) {
-		stash[--si] = p4 ?
-			(p2 ?
-				"<img src='" + p4 + "' alt='" + p3 + "'/>" :
-				p3.link(p4)) :
-			p6;
-		return si + "\r";
-	});
-
-	// heading
-	replace(/(?=^|>|\n)([>\s]*?)(#{1,6}) (.*?)( #*)? *(?=\n|$)/g, function (all, _, p1, p2) {
-		return _ + element("h" + p1.length, highlight(p2));
-	});
-
-	// paragraph
-	replace(/(?=^|>|\n)\n+([^<]+?)\n+(?=\n|<|$)/g, function (all, c) {
-		return element("p", highlight(c));
-	});
-
-	// stash
-	replace(/-\d+\r/g, function (all) {
-		return stash[+all];
-	});
-
-	return src;
-};
