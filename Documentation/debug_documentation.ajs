@@ -35,7 +35,7 @@ load("https://raw.githubusercontent.com/nodyn/jvm-npm/master/src/main/javascript
 // See https://github.com/Holixus/nano-markdown
 //  to install node module
 // 	$ npm install -g nano-markdown
-convertMarkDown2Html = require("nano-markdown");
+markdown2HTML = require("nano-markdown");
 
 // Get current date
 var currentDate = new Date().toLocaleString("en-US", { day: 'numeric', month: 'short', year: 'numeric' });
@@ -136,7 +136,7 @@ function recurseWriteTableLine(pLevel, pMaxLevel, pChildLineIsWritten, pObject) 
 		if (!pChildLineIsWritten) {
 			// markdown wants "Cell content must be on one line only"
 			// replace new lines with html paragraphs and lists with html list. 
-			let htmlString = convertMarkDown2Html(pObject.documentation);
+			let htmlString = markdown2HTML(pObject.documentation);
 			// remove excess of new lines and line breaks
 			htmlString = htmlString.replace(/(?:\n\r|\r\n)/g, '');
 
@@ -347,7 +347,6 @@ function getNextGroup(Group, glvl) {
 	}
 }
 
-
 function createAphabeticalTable(pView) {
 	var markdownTable = '';
 	var allElements = $(); // empty collection
@@ -373,7 +372,7 @@ function createAphabeticalTable(pView) {
 	allElements.each(function (e) {
 		markdownRow = `| ${e.name} (${e.type}) | ${e.documentation}|\n`
 		if (!uniqueRowSet.has(markdownRow)) {
-			let htmlString = convertMarkDown2Html(e.documentation);
+			let htmlString = markdown2HTML(e.documentation);
 			// remove excess of new lines and line breaks
 			htmlString = htmlString.replace(/(?:\n\r|\r\n)/g, '');
 
