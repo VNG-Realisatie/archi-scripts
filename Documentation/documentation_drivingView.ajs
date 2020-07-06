@@ -1,5 +1,5 @@
 /**
- *  documentation_view_template.ajs
+ *  documentation_drivingView.ajs
  * 
  */
 
@@ -26,7 +26,7 @@ try {
 				documentStructure(0, '', drivingView);
 				documentLastTable()
 
-				console.log(`Markdown report saved to:`);
+				console.log(`\nMarkdown report saved to:`);
 				console.log(`- path:     ${documentSettings.path}`);
 				console.log(`- fileName: ${documentSettings.fileName}`);
 
@@ -38,7 +38,7 @@ try {
 				console.log("Canceled")
 			}
 		} else {
-			console.log(`Not a valid drivingView. Please add a property 'documentationDrivingView'`)
+			console.log(`The selected view '${drivingView.name}' is not a valid drivingView.\nA drivingView must have a property 'documentationDrivingView'`)
 		}
 	} else {
 		console.log("Please open and select a Driving View");
@@ -135,18 +135,25 @@ function documentFirstPage() {
 	document.content = '# Content\n\n';
 	document.body = '\n\n';
 }
+/**
+ * getObjectProperties
+ * 	read the properties of the driving view as settings
+ *  
+ * @param pDrivingView driving view
+ * @param pSettingObject settings
+ */
+function getObjectProperties(pDrivingView, pSettingObject) {
 
-function getObjectProperties(pObject, pProperty) {
-
-	for (var key in pProperty) {
-		if (pObject.prop(key) != null) {
-			if (pProperty[key].type == Boolean) {
-				pProperty[key] = (pObject.prop(key) === "true");
+	for (var key in pSettingObject) {
+		if (pDrivingView.prop(key) != null) {
+			if (typeof pSettingObject[key] == 'boolean') {
+				// pDrivingView.prop(key) == "true" ? pSettingObject[key] = true : pSettingObject[key] = false;
+				pSettingObject[key] = (pDrivingView.prop(key) == "true");
 			} else {
-				pProperty[key] = pObject.prop(key);
+				pSettingObject[key] = pDrivingView.prop(key);
 			}
 		}
-		console.log(`- ${key}: ${pProperty[key]}`)
+		console.log(`- ${key}: ${pSettingObject[key]} ${typeof pSettingObject[key]}`)
 	}
 	console.log()
 }
@@ -323,12 +330,18 @@ function documentStructure(pLevel, pParagraph, pObject) {
 		if (documentSettings.renderViewEmbed) {
 			document.body += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
 		} else {
-			let imageFile = `${documentSettings.path}${view.name}.png`
+			// let imageFile = `${documentSettings.path}\\${view.name}.png`
+			let datum = new Date();
+			let fileName = `${datum.toLocaleDateString('nl-NL')} ${drivingView.name} - ${view.name}`
+			let imageFile = `${documentSettings.path}${fileName}.png`
 			$.fs.writeFile(imageFile, bytes, "BASE64");
+			// $.fs.mkdir()
+			console.log(`>> ${fileName}.png`)
 
-			let imageURL = imageFile.replaceAll(" ", "%20");
-			document.body += `\n![${view.name}][${view.name}]`;
-			document.body += `\n[${view.name}]: ${imageURL}`;
+			let imageURL = `${fileName}.png`.replaceAll(" ", "%20");
+			// let imageURL = `${view.name}.png`.replaceAll(" ", "%20");
+			document.body += `\n![${view.name}](${imageURL})`;
+			// document.body += `\n[${view.name}]: ${imageURL}`;
 		}
 		document.body += `\n<p align="center"><i>View ${view.name}</i></p>\n\n`;
 	}
@@ -414,8 +427,9 @@ function printElementsHierarchic(pLogLevel, view) {
 		};
 
 		let maxLevel = 0
-		$(`#${pObject.id}`).children("element").each(function (c) {
-			recurseLevel = findMaxEmbedding(level + 1, c);
+		// $(`#${pObject.id}`).children().not("relation").each(function (c) {
+		$(`#${pObject.id}`).children("element").each(function (c) {  // children of visual objects are skipped
+				recurseLevel = findMaxEmbedding(level + 1, c);
 			if (maxLevel < recurseLevel) {
 				maxLevel = recurseLevel;
 			}
@@ -428,8 +442,10 @@ function printElementsHierarchic(pLogLevel, view) {
 		// scope of childArray is this function and all recursions
 		var childArray = [];
 		let i = 0;
-		$(`#${pObject.id}`).children("element").each(function (c) {
-			childArray[i] = c
+
+		// $(`#${pObject.id}`).children().not("relation").each(function (c) {
+		$(`#${pObject.id}`).children("element").each(function (c) {  // children of visual objects are skipped
+				childArray[i] = c
 			i++;
 		})
 

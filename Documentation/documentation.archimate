@@ -3348,8 +3348,7 @@ Service operators: Istio enables policy enforcement and mesh monitoring from a s
         <property key="documentationDrivingView" value="true"/>
         <property key="includeTableOfView" value="true"/>
         <property key="includeTableOfAllViews" value="true"/>
-        <property key="path" value="C:\D-schijf\Data\Dropbox\KING\KING ICT\Archi\Script\MyScripts\Documentation"/>
-        <property key="Author"/>
+        <property key="path" value="C:/D-schijf/Data\Dropbox\KING\KING ICT\Archi\Script\MyScripts\Documentation"/>
       </element>
       <element xsi:type="archimate:ArchimateDiagramModel" name="Istio and Kubernetes architecture (org)" id="id-f73bb4bdbaeb40349f6a075c0a0ca786">
         <child xsi:type="archimate:DiagramObject" id="id-59b096616c8042ab8d388754ae96693c" textAlignment="1" archimateElement="e66b381e-c5cf-4ebc-b903-0063c8ddee5c" type="1">
