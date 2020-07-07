@@ -59,8 +59,9 @@ function init() {
 
 	documentSettings.includeTableOfView = true;
 	documentSettings.includeTableOfAllViews = false;
-	documentSettings.renderViewScale = 2;
+	documentSettings.renderViewScale = 1;
 	documentSettings.renderViewEmbed = true;
+	documentSettings.paragraphNumber = false;
 	documentSettings.path = '';
 
 	// set documentSettings with the driving view properties
@@ -128,7 +129,7 @@ function documentFirstPage() {
 	document.start += `${documentProperties.Organisation}\n`;
 
 	let datum = new Date();
-	document.start += `Document generated at: ${datum.toLocaleDateString('nl-NL')}\n\n`;
+	document.start += `Document generated at: ${datum.toLocaleDateString('nl-NL')}  ${datum.toLocaleTimeString('nl-NL')}\n\n`;
 	document.start += "\n---\n";
 
 	// Initialize document.content
@@ -167,7 +168,7 @@ function documentLastTable() {
 		lastTable.name = 'Tabel met elementen van alle views';
 		lastTable.documentation = '';
 
-		printObjectHeading(1, lastTable, 'String')
+		printObjectHeading(1, 'A.', lastTable, 'String')
 
 		document.body += printTableOfAllViews(drivingView)
 	}
@@ -231,11 +232,11 @@ function printTableOfAllViews(pView) {
  * 		- print viewReferences
  * 		- print notes
  * 
- * @param pLevel 		number with recursion depth
- * @param pParagraph 	string with paragraph number
+ * @param pLevel 		number with recursion depth, used for logging and paragraph numbers
+ * @param pParagraphNr 	string with paragraph number
  * @param pObject 		visual object to traverse, start with drivingView
  */
-function documentStructure(pLevel, pParagraph, pObject) {
+function documentStructure(pLevel, pParagraphNr, pObject) {
 
 	// scope of childArray is this function and all recursions
 	var childArray = [];
@@ -252,7 +253,7 @@ function documentStructure(pLevel, pParagraph, pObject) {
 			(pObject.type == "canvas-model" && pObject.view) // canvas view
 		) {
 
-			printObjectHeading(pLevel, pObject, 'view')
+			printObjectHeading(pLevel, pParagraphNr, pObject, 'view')
 
 			// Find the actual referenced view; loop over all views and compare names
 			$('view').each(function (view) {
@@ -278,7 +279,7 @@ function documentStructure(pLevel, pParagraph, pObject) {
 				// skip pLevel 0, this is the drivingview
 				if (pLevel > 0) {
 
-					printObjectHeading(pLevel, pObject, 'group')
+					printObjectHeading(pLevel, pParagraphNr, pObject, 'group')
 				}
 
 				// console.log(`${">".repeat(pLevel+1)} ${pObject.name}`)
@@ -300,16 +301,7 @@ function documentStructure(pLevel, pParagraph, pObject) {
 					childArray.sort(sortPosition)
 
 					for (let i = 0; i < childArray.length; i++) {
-
-						let paragraph = ``;
-
-						// skip pLevel 0, this is the drivingview
-						if (pLevel == 0) {
-							paragraph = `${i + 1}`;
-						} else {
-							paragraph = `${pParagraph}.${i + 1}`
-						}
-						documentStructure(pLevel + 1, paragraph, childArray[i]);
+						documentStructure(pLevel + 1, `${pParagraphNr}${i + 1}.`, childArray[i]);
 					}
 				};
 			}
@@ -353,29 +345,35 @@ function documentStructure(pLevel, pParagraph, pObject) {
  * 	if the object has documentation, also create a paragraph
  * 
  * @param pLevel use recursion depth as paragraph level
+ * @param pParagraphNr paragraph number for heading
  * @param pObject current element
  * @param pTypeText type of current element 
  */
-function printObjectHeading(pLevel, pObject, pTypeText) {
+function printObjectHeading(pLevel, pParagraphNr, pObject, pTypeText) {
+
+	let headingParagraphNr = documentSettings.paragraphNumber ? `${pParagraphNr} ` : ''
 
 	console.log(`${'>'.repeat(pLevel)} ${pObject.name} (${pTypeText})`);
 
 	// document.content += `${'#'.repeat(pLevel)} ${pObject.name}\n`;
-	document.content += `${'\t'.repeat(pLevel - 1)}* [${pObject.name}](${stringToLink(pObject.name)}) \n`;
+	// document.content += `${'\t'.repeat(pLevel - 1)}* [${pParagraphNr}. ${pObject.name}](${stringToLink(pObject.name)}) \n`;
+	document.content += `${'\t'.repeat(pLevel - 1)}* ${headingParagraphNr} [${headingParagraphNr}${pObject.name}](${stringToLink(headingParagraphNr + pObject.name)}) \n`;
 
 	if (pLevel == 1) {
 		document.body += '<div style="page-break-before: always;"></div>';
 		document.body += "\n\n---\n\n";
 	}
-	document.body += `${'#'.repeat(pLevel)} ${pObject.name}\n`;
+	document.body += `${'#'.repeat(pLevel)} ${headingParagraphNr}${pObject.name}\n`;
 
 	if (pObject.documentation != "") {
 		document.body += `${pObject.documentation}\n\n`;
 	}
 
+	// create a valid anchor link for a heading
 	function stringToLink(theString) {
 		// this function thanks to Steven Mileham
-		var regex = /[\[\]\(\)\#\\\/\"]/gi;
+		// remove these characters from a link '[]()#\".'
+		var regex = /[\[\]\(\)\#\\\/\"\.]/gi;
 		return "#" + theString.toLowerCase().replace(regex, "")
 			.replaceAll(" ", "-")
 			.replaceAll("\<", "lt")
@@ -383,6 +381,18 @@ function printObjectHeading(pLevel, pObject, pTypeText) {
 	}
 }
 
+/**
+ * printElementsHierarchic()
+ * 	document all elements of the given view in a hierarchic table
+ * 
+ * 	This function creates a HTML table with all elements
+ * 	- use HTML for merging cells over column (not supported in markdown)
+ * 	- elements embedded in elements are printed below their parents
+ * 	- elements are sorted from left to right en top to bottom like reading
+ *  
+ * @param pLogLevel 
+ * @param view 
+ */
 // document the elements (not relations) on the view
 function printElementsHierarchic(pLogLevel, view) {
 	// maxlevel is used to generate a table column for each level
@@ -400,23 +410,22 @@ function printElementsHierarchic(pLogLevel, view) {
 	</thead>
 	<tbody>
 		<tr >`;
-	// for (let i = 1; i < maxLevel+1; i++) { document.body += `<td align="center">(${i})</td>` }
-	// generate 'empty' columnheaders, this is ugly
+
+	// to show all hierarchy levels, you have to 'define' a column for every level (hack)
+	// without these 'empty' columnheaders, no indendation is shown for deeper levels
 	for (let i = 1; i < maxLevel + 1; i++) {
 		document.body += `
 			<td align="center"></td>`
 	}
 	document.body += `
 			<td></td>
-		</tr>`
+		</tr>\n`
 
 	// write a Markdown table line for every child and the child's children
 	// First level is a view, not an element > start with level = 0. 
 	printTableRow(0, maxLevel, false, view);
 
-	document.body += `	
-	</tbody>
-</table>\n\n`
+	document.body += `	</tbody>\n</table>\n\n`
 	return
 
 	// Private recursive function to find deepest level of embedding
@@ -455,17 +464,14 @@ function printElementsHierarchic(pLogLevel, view) {
 			// Skip duplicate elements if element has no children
 			if (!pChildLineIsWritten || childArray.length > 0) {
 
-				document.body += `<tr valign="top")>`;
-				// for (let i = 1; i < pLevel; i++) { document.body += `<td></td>` }
+				document.body += `		<tr valign="top")>`;
 				if (pLevel > 1) {
-					document.body += `
-			<td colspan="${pLevel - 1}"></td>`
+					document.body += `\n			<td colspan="${pLevel - 1}"></td>`
 				}
-				document.body += `
-			<td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>
-			<td>${tableCell2HTML(pObject.documentation)}</td>
-		</tr>`
-
+				document.body += `\n			<td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>
+				<td>${tableCell2HTML(pObject.documentation)}</td>
+				</tr>\n`
+				// <td>${tableCell2HTML(pObject.documentation)} <br>LB (y=${pObject.bounds.y},x=${pObject.bounds.x})  <br>RO=(height=${pObject.bounds.height} width=${pObject.bounds.width})</td>
 				// console.log(`${">".repeat(pLevel)} ${pObject.name}`)
 
 			} else {
@@ -474,7 +480,6 @@ function printElementsHierarchic(pLogLevel, view) {
 		}
 
 		// stop if element has no children
-		// if ($(`#${pObject.id}`).children("element").size() == 0) {
 		if (childArray.length == 0) {
 			return
 		};
@@ -503,13 +508,14 @@ function printElementsHierarchic(pLogLevel, view) {
  */
 function sortPosition(a, b) {
 	// jArchi 0.0 point is the top left corner
-	// - x coordinates are 'normal'
-	// - y coordinates are opposite to 'normal'
-	// check if boxes are on the same 'line' 
-	if ((a.bounds.y + a.bounds.heigth < b.bounds.y) &&
-		(a.bounds.y > b.bounds.y + b.bounds.heigth))
-		return b.bounds.x - a.bounds.x
+	// - direction of x coordinates is left to right
+	// - direction of y coordinates are opposite to top to bottom
+	if ((a.bounds.y + a.bounds.height) > b.bounds.y &&	// aLO < bLB
+		 a.bounds.y < (b.bounds.y + b.bounds.height))	//aLB > bLO
+		// if boxes are on the same 'line', compare horizontal coordinates
+		return a.bounds.x - b.bounds.x
 	else
+		// else compare vertical coordinates
 		return (a.bounds.y - b.bounds.y)
 }
 
