@@ -18,19 +18,22 @@ function printView(view, renderViewScale, renderViewEmbed, pExportFile) {
 
 	if (renderViewEmbed) {
 		// - embed in the document 
+		// console.log(`>> Embed view ${view.name} in markdown file`)
 		markdownString += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
 	} else {
 		// - or save as .png
 		let path = pExportFile.substring(0, pExportFile.lastIndexOf(slash()) + 1); // path plus slash
 		let fileName = pExportFile.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf('.'));
-		let imageFile = `${fileName} - ${view.name}.png`
-		// $.fs.mkdir(filename) ### not in Archi
-		// let imageFile = `${path}${filename}${slash()}${view.name}.png`
+		let imageAbsoluteDir = path + fileName
+		let imageRelativeDir = fileName
 
-		$.fs.writeFile(path + imageFile, bytes, "BASE64");
-		console.log(`>> ${imageFile}`)
+		// create directory for saving view .png files
+		let fileObject = new Packages.java.io.File(imageAbsoluteDir);
+		fileObject.mkdir();
+		
+		$.fs.writeFile(`${imageAbsoluteDir}${slash()}${view.name}.png`, bytes, "BASE64");
 
-		let imageURL = `${imageFile}`.replaceAll(" ", "%20");
+		let imageURL = `${imageRelativeDir}${slash()}${view.name}.png`.replaceAll(" ", "%20");
 		markdownString += `\n![${view.name}](${imageURL})`;
 	}
 	markdownString += `\n<p align="center"><i>View ${view.name}</i></p>\n\n`;
@@ -56,8 +59,7 @@ function printElementsHierarchic(pLogLevel, view) {
 
 	// start with level 0. Don't count the first level, this is the view
 	var maxLevel = findMaxEmbedding(0, view);
-
-	console.log(`${'>'.repeat(pLogLevel)} table with ${maxLevel} columns`)
+	// console.log(`${'>'.repeat(pLogLevel)} table with ${maxLevel} columns`)
 
 	markdownString += `<table>\n`
 	markdownString += `	<thead>\n`

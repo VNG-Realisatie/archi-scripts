@@ -1,14 +1,28 @@
 /**
  *  documentation_driving_view.ajs
  * 
- * 	Purpose: To generate architecture output based on a driving view
+ * 	Purpose: To generate architecture output in markdown format based on a driving view
+	Note - markdown can be converted to PDF / Word Docs or anything. 
 
 	Original idea and script from Richard Heward - Tame Blue Lion Ltd
+	See blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
 
-	This generates a markdown file with the embedded images and text based upon a driving view in Archi of groups that trigger each other and embedded views. 
-	See my blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
+	The driving view defines the structure of the documentation. 
+	You define the structure of the documentation by visualy drawing it. 
+	Draw a group to create a sections. Embed a view references in the group to print it there. 
 
-	Note - markdown can be converted to PDF / Word Docs or anything. I've used pandoc command line to do this.
+	You can use the following elements to define your document structure
+	- visual group or a grouping (use groupings if they have meaning in your model, else use visual groups)
+		- a group becomes a section. You can embed groupings to create subsections.
+		- the group name is the section title, the group documentation is printed below the title
+	- note
+		- the content of the note is printed
+	- view reference
+		- the view is printed (archimate or sketch view)
+		- for archimate views a table with all the elements of the view is printed
+
+	Set some properties of the driving view to change the default behavior of the script
+	Just run the script and see in the console the properties you can use.
 
 	Created: 8-Oct-2019
 
@@ -34,11 +48,11 @@ try {
 	var drivingView = selection.filter("archimate-diagram-model").first();
 
 	if (drivingView) {
-		if (drivingView.prop("documentationDrivingView") != null) {
+		init(documentSettings)
+
+		if (documentSettings.drivingView.value) {
 
 			console.log(`Driving view is: ${drivingView.name}\n`);
-
-			init(documentSettings)
 
 			let exportFile = '';
 			let fileName = `${new Date().toLocaleDateString('nl-NL')} ${drivingView.name}.md`
@@ -56,18 +70,17 @@ try {
 
 			if (exportFile) {
 
-				let documentString = documentFirstPage()
 				console.log(`Processing drivingView '${drivingView.name}'`);
-
+				
 				// Initialize document object
 				document.content = "---\n";
 				document.content += '# Content\n\n';
 				document.body = '';
-
+				
 				// First level is a view, not an element > start with level = 0. 
 				documentStructure(0, '', drivingView, exportFile);
 				
-				if (documentSettings.includeTableOfAllViews) {
+				if (documentSettings.includeTableOfAllViews.value) {
 					documentTableOfAllViews()
 				}
 				
@@ -75,6 +88,7 @@ try {
 				console.log(`- path:     ${exportFile.substring(0, exportFile.lastIndexOf(slash()))}`);
 				console.log(`- fileName: ${exportFile.substring(exportFile.lastIndexOf(slash()) + 1)}`);
 				
+				let documentString = documentFirstPage(documentSettings)
 				documentString += document.content
 				documentString += document.body;
 				$.fs.writeFile(exportFile, documentString);
@@ -90,7 +104,7 @@ try {
 			// embedded view
 			// hierarchic table
 			console.log(`The selected view '${drivingView.name}' is not a valid drivingView.`)
-			console.log(`A drivingView must have a property 'documentationDrivingView'`)
+			console.log(`A drivingView must have a property 'drivingView' with the value 'true'`)
 		}
 	} else {
 		console.log("Please open and select a Driving View");
@@ -104,7 +118,11 @@ try {
  * Generate first page
  */
 function init(documentSettings) {
-
+	
+	documentSettings.drivingView = {
+		value: null,
+		description: `A drivingView must have this property (true)`
+	}
 	documentSettings.includeTableOfView = {
 		value: true,
 		description: `Print below every view the elements (true/false)`
@@ -129,6 +147,14 @@ function init(documentSettings) {
 		value: null,
 		description: `Path for saving markdown (pop-up if not set)`
 	}
+	documentSettings.author = {
+		value: '',
+		description: 'Name of author'
+	}
+	documentSettings.organisation = {
+		value: '',
+		description: 'Name of organisation'
+	}
 
 	// set documentSettings with the driving view properties
 	getObjectProperties(drivingView, documentSettings)
@@ -137,28 +163,13 @@ function init(documentSettings) {
 /**
  * Generate first page
  */
-function documentFirstPage() {
+function documentFirstPage(pSettingObject) {
 
 	let markdownString = `# ${drivingView.name}\n`;
 	markdownString += (drivingView.documentation) ? `${drivingView.documentation}\n` : ''
 
-	documentProperties = new Object()
-	documentProperties.Author = {
-		value: '',
-		description: 'Name of author'
-	}
-	documentProperties.Organisation = {
-		value: '',
-		description: 'Name of organisation'
-	}
-
-	// set documentProperties with the driving view properties
-	console.log(`Print on first page: `)
-	getObjectProperties(drivingView, documentProperties)
-
-	markdownString += `${documentProperties.Author}\n`;
-	// markdownString += `${documentProperties.Organisation}\n`;
-
+	markdownString += `${pSettingObject.author.value}\n`;
+	markdownString += `${pSettingObject.organisation.value}\n`;
 	markdownString += `Document generated at: ${new Date().toLocaleDateString('nl-NL')}  ${new Date().toLocaleTimeString('nl-NL')}\n\n`;
 
 	return markdownString
@@ -216,7 +227,7 @@ function getObjectProperties(pDrivingView, pSettingObject) {
 function printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, pTypeText) {
 
 	// add optional paragraph number 
-	let heading = documentSettings.paragraphNumber ? `${pParagraphNr} ` : '';
+	let heading = documentSettings.paragraphNumber.value ? `${pParagraphNr} ` : '';
 	heading += (pObject.type == "archimate-diagram-model") ? 'View ' : '';
 	heading += (pObject.type == "canvas-model") ? 'Picture ' : '';
 	heading += pObject.name;
@@ -284,7 +295,7 @@ function documentStructure(pLevel, pParagraphNr, pObject, pExportFile) {
 			// Find the referenced view by looping over and comparing names ### comparing id's possible?
 			$('view').each(function (view) {
 				if (view.name == pObject.name) {
-					document.body += printView(view, documentSettings.renderViewScale, documentSettings.renderViewEmbed, pExportFile);
+					document.body += printView(view, documentSettings.renderViewScale.value, documentSettings.renderViewEmbed.value, pExportFile);
 
 					// Print a table with the views elements, if includeTableView is set.
 					// "canvas-model" views don't have elements, so skip
@@ -383,9 +394,8 @@ function printTableOfAllViews(pView) {
 		uniqueRowSet.add(elementKey)
 	}
 
-	console.log('\nTable with all elements')
-	console.log(`- number of elements on all views: ${allElements.length}`)
-	console.log(`- number of unique elements: ${uniqueRowSet.size}\n`)
+	console.log(`>> number of elements on all views: ${allElements.length}`)
+	console.log(`>> number of unique elements: ${uniqueRowSet.size}`)
 
 	return markdownTable;
 
