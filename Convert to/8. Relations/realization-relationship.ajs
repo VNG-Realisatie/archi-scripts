@@ -1,7 +1,10 @@
+/**
+ * jbsarrodie/ConvertConcept.lib.js 
+ * https://gist.github.com/jbsarrodie/45a312cff559d23cf55ed102422e8af7
+ * 
+ * The name of this file is used as a parameter voor the concept type to convert to
+ */
+ 
 load(__DIR__+"../ConvertConcept.lib.js");
 
-convert(selection, getTypeFromFilename());
-
-function getTypeFromFilename() {
-  return __FILE__.replace(/^.*\//, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
-}
+convertConcept(selection, __FILE__ );
