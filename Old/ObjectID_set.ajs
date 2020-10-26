@@ -42,8 +42,12 @@ var counter_guid_pattern = 0;
 var counter_archi_underscore_pattern = 0;
 var counter_generated = 0;
 
-// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
-var guid_pattern = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+// Too strict 		>>  new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
+// Still too strict >>  new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+var guid_pattern 			= new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+var guid_pattern_SWC 		= new RegExp('^[0-9a-f]{32}$', 'i');
+var guid_pattern_SWC_pv 	= new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$', 'i');
+var guid_pattern_SWC_view	= new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$', 'i');
 var archi_underscore_pattern = new RegExp('^_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
 var archi_id_pattern = new RegExp('^id-[0-9a-f]{8}[0-9a-f]{4}[1-5][0-9a-f]{3}[0-9a-f]{4}[0-9a-f]{12}$', 'i');
 
@@ -54,7 +58,10 @@ $('*').not('folder').each(function (object) {
 	let validFlag = false;
 
 	// check if object ID is valid
-	if (guid_pattern.test(ObjectID) === true) {
+	if ((guid_pattern.test(object.prop(propertyID)) === true) || 
+		(guid_pattern_SWC.test(object.prop(propertyID)) === true) ||
+		(guid_pattern_SWC_view.test(object.prop(propertyID)) === true) ||
+		(guid_pattern_SWC_pv.test(object.prop(propertyID)) === true)) {
 		counter_ObjectID_valid++;
 	} else { // set the Object ID to a valid GUID
 		// Count empty Object ID for statistics reporting

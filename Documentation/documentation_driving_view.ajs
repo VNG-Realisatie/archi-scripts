@@ -240,11 +240,11 @@ function printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, pTypeText) 
 		document.body += '<div style="page-break-before: always;"></div>';
 		document.body += "\n\n---\n\n";
 	}
-	document.body += `${'#'.repeat(pLevel)} ${heading}\n`;
+	document.body += `${'#'.repeat(pLevel)} ${heading}\n\n`;
 
 	// insert documentation of the object in document
 	if (pObject.documentation != "") {
-		document.body += `${pObject.documentation}\n`;
+		document.body += `${pObject.documentation}\n\n`;
 	}
 	console.log(`${'>'.repeat(pLevel)} ${pObject.name} (${pTypeText})`);
 

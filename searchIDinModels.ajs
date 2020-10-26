@@ -25,8 +25,9 @@ try {
 			loadedModel.setAsCurrent();
 
 			$('*').each(function (object) {
-				if ((object.id === id) || (object.prop('Object ID') === id)) {
-					tableArray.push([model.name, object, object.id, object.prop('Object ID')]);
+				let vObjectID = object.prop('Object ID');
+				if ((object.id === id) || (vObjectID === id)) {
+					tableArray.push([model.name, object, object.id, !vObjectID ? '-' : vObjectID]);
 					id_in_model = true;
 				}
 			})

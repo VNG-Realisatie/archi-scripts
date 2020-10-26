@@ -83,7 +83,7 @@ function printElementsHierarchic(pLogLevel, view) {
 	markdownString += printTableRow(0, maxLevel, false, view);
 
 	markdownString += `	</tbody>\n`
-	markdownString += `</table>\n`
+	markdownString += `</table>\n\n`
 
 	return markdownString
 

@@ -1,0 +1,171 @@
+/**
+ * setObjectID
+ * 
+ * For distributing and updating/synchronizing architecture-models over multiple organization and or
+ * tools it's necesary to have a tool independent id-system
+ * 
+ * This script ensures that all objects in the architecturemodel have a property "Object ID" with a unique GUID.
+ * The property Object ID is used as a tool-independent ID when exchanging models in the Open Exchange file format.
+ * 
+ * Most tools have their own id-system and don't use the id's from an Open Exchange file.
+ * - the tool BiZZdesign ES doesn't export it's internal id's and doesn't import id's. 
+ * - Archi imports the id's from an Open Exchange file
+ * - Archi exports its id's, but if the id starts with a number, it's prefixed with id-
+ * 
+ * Version 1: 
+ * - Check all objects for empty property "Object ID"
+ * - if empty set to id
+ * Version 2: 26-05-2020
+ * - if Object ID is not a valid GUID, try to set it with a GUID derived from the id
+ * 		- if id is a valid GUID => set Object ID to id
+ *  	- if id is a known Archi id => set Object ID to stripped Archi id
+ *  	- if id doesn't contain a valid GUID => set Object ID to a generated GUID
+ * Version 3: 26-10-2020
+ * - the scripts ObjectID_set en ObjectID_check are merged into one script
+ * - SWC guid patterns as valid GUIDs added
+ * 
+ * This script is used in conjunction with the php script replace_id_with_ObjectID.php to support the 
+ * roundtripping of architecture models from .archimate files to Open Exchange XML files en vice versa
+ * - Archi id are a GUID prefixed with an 'id-'
+ * - if Archi id is not valid, it's replace with an Object ID
+ * 
+ * (c) 2019 Mark Backer
+ */
+
+console.show();
+console.clear();
+var filepath = __FILE__.split("/");
+var scriptName = filepath[filepath.length - 1];
+
+console.log(`Executing script "${scriptName}"...\n`);
+
+// Label of the property with the ID
+var propertyID = "Object ID";
+
+var emptyList = [];
+var unvalidList = [];
+
+var unvalidReport = [];
+var emptyReport = [];
+var duplicatesReport = [];
+
+var counter_total = 0;
+var counter_checked = 0;
+
+// Start
+check()
+
+if (duplicatesReport.length > 0) {
+	report(`Objects without an ${propertyID}`, emptyReport)
+	report(`Objects with unvalid GUIDs ${propertyID}`, unvalidReport)
+	report(`Objects with duplicate ${propertyID}`, duplicatesReport)
+	
+	console.log(`\nThere ${(emptyReport.length == 1 ? "is" : "are")} ${emptyReport.length} object without an ${propertyID}`);
+	console.log(`There ${(unvalidReport.length == 1 ? "is" : "are")} ${unvalidReport.length} object with an unvalid GUID in ${propertyID}`);
+	console.log(`There ${(duplicatesReport.length == 1 ? "is" : "are")} ${duplicatesReport.length} object with a duplicate ${propertyID}`);
+	
+	console.log()
+	console.log(`No new ${propertyID} are set`);
+	console.log(`First resolve the reported duplicate ${propertyID}:`);
+	console.log(`- sort out which object was the original`);
+	console.log(`- remove the property ${propertyID} from the other objects`);
+	console.log(`Then run this script again`);
+} else {
+	set(`Adding ${propertyID} with generated GUIDs`, emptyList)
+	set(`Replacing unvalid ${propertyID} with generated GUIDs`, unvalidList)
+
+	console.log();
+	console.log(`Number of processed objects: \t${counter_total}`);
+	console.log(`- checked ${propertyID}: \t${counter_checked}`);
+	console.log(`- added ${propertyID}: \t${emptyReport.length}`);
+	console.log(`- replaced ${propertyID}: \t${unvalidReport.length}`);
+	console.log(`All object now have a valid ${propertyID}`);
+}
+
+console.log(`\nScript "${scriptName}" finished\n`);
+
+/**
+ * Check all object in the architecture model for a valid Object ID
+ */
+function check() {
+	let indexMap = [];
+	// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
+	let pattern_guid = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+	let pattern_guid_SWC = new RegExp('^[0-9a-f]{32}$', 'i');
+	let pattern_guid_SWC_pv = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$', 'i');
+	let pattern_guid_SWC_view = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$', 'i');
+
+	// check all objects. Skip folders, properties of folders are not exported
+	$('*').not('folder').each(function (object) {
+		let guid = (pattern_guid.test(object.prop(propertyID)) === true)
+		let guid_SWC = (pattern_guid_SWC.test(object.prop(propertyID)) === true)
+		let guid_SWC_view = (pattern_guid_SWC_view.test(object.prop(propertyID)) === true)
+		let guid_SWC_pv = (pattern_guid_SWC_pv.test(object.prop(propertyID)) === true)
+
+		// check for valid GUID
+		if ((guid) || (guid_SWC) || (guid_SWC_view) || (guid_SWC_pv)) {
+			// check for duplicate
+			if (indexMap[object.prop(propertyID)]) {
+				duplicatesReport.push(`${object} with ${propertyID} = ${object.prop(propertyID)}`);
+			} else { // add ID to indexMap
+				indexMap[object.prop(propertyID)] = true;
+			}
+			counter_checked++
+		} else {
+			// check for empty Object ID
+			if (object.prop(propertyID) == null) {
+				emptyReport.push(`${object} (Archi id = "${object.id}")`);
+				emptyList.push(object);
+			} else {
+				unvalidReport.push(`${object}: ${propertyID}=${object.prop(propertyID)}`);
+				unvalidList.push(object);
+			}
+		}
+		counter_total++
+	})
+}
+
+/**
+ * report an array of lines to the console
+ */
+function report(pTitle, pLines) {
+	if (pLines.length > 0) {
+		console.log(pTitle);
+		pLines.sort();
+		for (var i = 0; i < pLines.length; i++) {
+			console.log(`> ${pLines[i]}`);
+		}
+	}
+}
+
+/**
+ * Add or replace an Object ID for all object in an given array
+ */
+function set(pTitle, pLines) {
+	if (pLines.length > 0) {console.log(pTitle)};
+
+	for (let i = 0; i < pLines.length; i++) {
+		let object = pLines[i];
+
+		let id_generated = generateUUID()
+		object.prop(propertyID, id_generated);
+		console.log(`> ${object} >> ${propertyID} set to "${id_generated}"`);
+	}
+}
+
+/**
+ * generateUUID()
+ * 	
+ * return a generated UUID
+ * 
+ * from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+ */
+function generateUUID() { // Public Domain/MIT
+	var d = new Date().getTime(); //Timestamp
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+		var r = Math.random() * 16; //random number between 0 and 16
+		r = (d + r) % 16 | 0;
+		d = Math.floor(d / 16);
+		return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+	});
+}
