@@ -9,7 +9,7 @@
  * relationships are no more valid, it will (optionally) convert them to associations.
  * 
  * Mark:
- * 	changed structure to add console logging for an overview of the changed concepts and relations
+ * 	add console logging of the changed concepts and relations
  * 	add property with info about conversion to converted relationships
  */
 
