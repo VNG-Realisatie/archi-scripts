@@ -1,0 +1,162 @@
+/**
+ * ObjectID_export
+ * 
+ * Export Object_ID, id and other object properties of selection
+ * The applyToModelContent function allows for multiple kinds of selections
+ * 
+ */
+load(__DIR__ + "../lib/papaparse.min.js");
+
+load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../Common/ApplyToSelection.ajs");
+
+_commonShowDebugMessage = [true];
+// exportString += `"${pObject.id}", "${pObject.type}", "${pObject.name}","${pObject.prop("GEMMA type")}", "${pObject.prop("Object ID")}"\n`;
+
+function concept(o) {
+	if (o.concept)
+		return o.concept;
+	else
+		return o;
+}
+
+var exportData = {
+	// header = new Set(["id", "type", "name", "documentation"]),
+	objectAttributes = ["id", "type", "name", "documentation"],
+	endpoints = ["source", "target"],
+
+	header = [],
+	data = [],
+	headerIndex = [],
+
+	exportElement(pObject) {
+		let row = new Object;
+
+		// >>>> apply to content moet altijd concept opleveren <<<<<<<<<<
+		let selectedObject = concept(pObject);
+
+		objectAttributes.forEach(function (attribute) {
+			if (!headerIndex[attribute]) {
+				this.header.push(attribute);
+				headerIndex[attribute] = true;
+			}
+
+			row[attribute] = selectedObject[attribute];
+		})
+
+		console.log(`>> ${selectedObject}`)
+		selectedObject.prop().forEach(function (propertyLabel) {
+
+			if (!headerIndex[propertyLabel]) {
+				this.header.push(propertyLabel);
+				headerIndex[propertyLabel] = true;
+			}
+
+			if (selectedObject.prop(propertyLabel)) {
+				row[propertyLabel] = selectedObject.prop(propertyLabel);
+				debug(`>> Row[${propertyLabel}]: ${row[propertyLabel]}`);
+			}
+		})
+
+		debug(`>> Row ${row}`)
+
+		this.data.push(row)
+	},
+
+	exportRelation(pObject) {
+		let selectedObject = concept(pObject);
+		
+		// alle relaties
+		// verwijder relaties met source of target die niet geselecteerd zijn (gaat niet vanuit applySelection)
+		console.log(`====`)
+		console.log(`>> selectedObject: ${selectedObject}`)
+		console.log(`>>> relationships: ${$(selectedObject).outRels()}`)
+		
+		$(selectedObject).outRels().each(function (r) {
+			let row = new Object;
+			
+			debug(`>>> export ${r}`)
+
+			// export relation attributes
+			objectAttributes.forEach(function (attribute) {
+				if (!headerIndex[attribute]) {
+					this.header.push(attribute);
+					headerIndex[attribute] = true;
+				}
+				
+				debug(`>>>> Row[${attribute}] = ${r[attribute]}`)
+				row[attribute] = `${r[attribute]}`;
+			})
+			
+			// export relation properties
+			r.prop().forEach(function (propertyLabel) {
+
+				if (!headerIndex[propertyLabel]) {
+					this.header.push(propertyLabel);
+					headerIndex[propertyLabel] = true;
+				}
+				if (r.prop(propertyLabel)) {
+					row[propertyLabel] = r.prop(propertyLabel);
+					debug(`>>>> Row[${propertyLabel}]: ${row[propertyLabel]}`);
+				}
+			})
+
+			// export relation endpoint attributes
+			endpoints.forEach(function (endpoint) {
+
+				objectAttributes.forEach(function (attribute) {
+
+					if (!headerIndex[`${endpoint}.${attribute}`]) {
+						this.header.push(`${endpoint}.${attribute}`);
+						headerIndex[`${endpoint}.${attribute}`] = true;
+					}
+					row[`${endpoint}.${attribute}`] = r[endpoint][attribute];
+					debug(`>>>> Row[${endpoint}.${attribute}]: ${r[endpoint][attribute]}`);
+				})
+			})
+
+			debug(`>> Resulting Row ` + JSON.stringify(row))
+			this.data.push(row)
+		});
+	},
+
+	get headerRow() {
+		return this.header;
+	},
+
+	get dataRows() { //idem
+		return this.data;
+	}
+};
+
+initConsoleLog(__FILE__)
+
+try {
+
+	// applyToModelContent($(selection), exportData.exportElement);
+	applyToModelContent($(selection), exportData.exportRelation);
+
+	let datum = new Date();
+	let exportFile = window.promptSaveFile({
+		title: "Export to CSV",
+		filterExtensions: ["*.csv"],
+		fileName: `${datum.toLocaleDateString('nl-NL')} ${model.name}-${$(selection).first().name}.csv`
+	});
+	if (exportFile != null) {
+
+		debug(exportData.headerRow);
+
+		$.fs.writeFile(exportFile, Papa.unparse({
+			fields: exportData.headerRow,
+			data: exportData.dataRows
+		}));
+
+		console.log("\nExported to : " + exportFile);
+	} else {
+		console.log("\nExport CSV canceled");
+	}
+
+} catch (error) {
+	console.log(`> ${error}`);
+}
+finishConsoleLog()
