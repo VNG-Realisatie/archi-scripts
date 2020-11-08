@@ -157,7 +157,7 @@ function applyToDiagramContent(pSelection, pFunc, pFuncParam) {
 					var response = window.confirm(`You have selected one concept in the model tree.\n\nYou can apply ${pFunc.name} to:\n- all objects-references of the same type in all views \t> select [Ok]\n- all references of the selected object \t\t\t> select [Cancel]`);
 					if (response) {
 						var selectedConcept = pSelection.first();
-						console.log(`> ${pFunc.name} will be applied to [${selectedConcept.type}] on all views in [${model}]\n`);
+						console.log(`\n> ${pFunc.name} will be applied to [${selectedConcept.type}] on all views in [${model}]\n`);
 						applyToConceptTypeReferences(pSelection, pFunc, pFuncParam)
 					} else {
 						console.log("One concept selected, applied to references of concept")
@@ -187,7 +187,7 @@ function applyToAllViews(pSelection, pFunc, pFuncParam) {
 		applyToView(view, pFunc, pFuncParam);
 		v++;
 	})
-	console.log(`> ${pFunc.name} applied to ${v} views`)
+	console.log(`\n> ${pFunc.name} applied to ${v} views`)
 }
 
 function applyToViewsInFolder(pSelection, pFunc, pFuncParam) {
@@ -200,7 +200,7 @@ function applyToViewsInFolder(pSelection, pFunc, pFuncParam) {
 			v++;
 		})
 	})
-	console.log(`> ${pFunc.name} applied to ${v} views`)
+	console.log(`\n> ${pFunc.name} applied to ${v} views`)
 }
 
 function applyToViews(pSelection, pFunc, pFuncParam) {
@@ -209,7 +209,7 @@ function applyToViews(pSelection, pFunc, pFuncParam) {
 		applyToView(view, pFunc, pFuncParam);
 		v++;
 	})
-	console.log(`> ${pFunc.name} applied to ${v} views`)
+	console.log(`\n> ${pFunc.name} applied to ${v} views`)
 }
 
 function applyToView(pView, pFunc, pFuncParam) {
@@ -230,7 +230,7 @@ function applyToConceptTypeInView(pSelection, pFunc, pFuncParam) {
 		pFunc(occurrence, pFuncParam);
 		i++;
 	})
-	console.log(`> ${pFunc.name} applied to ${i} concepts of type ${selectedConcept.type} in view "${selectedConcept.view.name}"`)
+	console.log(`\n> ${pFunc.name} applied to ${i} concepts of type ${selectedConcept.type} in view "${selectedConcept.view.name}"`)
 }
 
 function applyToSelectionInView(pSelection, pFunc, pFuncParam) {
@@ -239,7 +239,7 @@ function applyToSelectionInView(pSelection, pFunc, pFuncParam) {
 	selectedConcept = pSelection.first();
 
 	// BUG: if selectedConcept is a relation, the method .view gives error
-	console.log(`> ${pFunc.name} will be applied to selected objects in view "${selectedConcept.view.name}"`);
+	console.log(`\n> ${pFunc.name} will be applied to selected objects in view "${selectedConcept.view.name}"`);
 	console.log(`>> ${pSelection.filter("element").size()} elements"`);
 	console.log(`>> ${pSelection.filter("relation").size()} relations"`);
 	console.log(`>> ${pSelection.size() -
@@ -251,7 +251,7 @@ function applyToSelectionInView(pSelection, pFunc, pFuncParam) {
 		i++;
 	})
 	v++;
-	console.log(`> ${pFunc.name} applied to ${i} concepts in view "${selectedConcept.view.name}"`)
+	console.log(`\n> ${pFunc.name} applied to ${i} concepts in view "${selectedConcept.view.name}"`)
 }
 
 function applyToConceptReferences(pSelection, pFunc, pFuncParam) {
@@ -298,7 +298,7 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 			v++;
 		}
 	})
-	console.log(`> ${pFunc.name} applied to ${v} views`)
+	console.log(`\n> ${pFunc.name} applied to ${v} views`)
 }
 
 
@@ -343,8 +343,12 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 					break;
 				}
 				case 'archimate-diagram-model': {
-					throw (`Can't apply ${pFunc.name} to a view. Select the model or one or multiple folders or concepts`)
+					// throw (`Can't apply ${pFunc.name} to a view. Select the model or one or multiple folders or concepts`)
+					applyToViewObject(pSelection, pFunc, pFuncParam)
+					break;
 				}
+				case "diagram-model-object":
+					throw (`Can't apply ${pFunc.name} to a diagram-model-object. Select the model or one or multiple folders or concepts`)
 				case "One concept is selected in model tree":
 				case "One concept is selected in view": {
 					var response = window.confirm(`You have selected one concept.\n\nYou can apply ${pFunc.name} to:\n- all objects of same type \t> select [Ok]\n- just the selected object \t> select [Cancel]`);
@@ -356,8 +360,6 @@ function applyToConceptTypeReferences(pSelection, pFunc, pFuncParam) {
 					}
 					break;
 				}
-				case "diagram-model-object":
-					throw (`Can't apply ${pFunc.name} to a diagram-model-object. Select the model or one or multiple folders or concepts`)
 				case "Multiple concepts are selected in view":
 				case "Multiple concepts are selected in model tree": {
 					applyToSelectedConcepts(pSelection, pFunc, pFuncParam)
@@ -383,7 +385,7 @@ function applyToConceptsInModel(pSelection, pFunc, pFuncParam) {
 		pFunc(c, pFuncParam);
 		i++;
 	})
-	console.log(`> ${pFunc.name} applied to ${i} concepts in "${model}"`)
+	console.log(`\n> ${pFunc.name} applied to ${i} concepts in "${model}"`)
 }
 
 function applyToConceptsInFolder(pSelection, pFunc, pFuncParam) {
@@ -397,7 +399,16 @@ function applyToConceptsInFolder(pSelection, pFunc, pFuncParam) {
 		})
 		f++
 	})
-	console.log(`> ${pFunc.name} applied to ${i} concepts in ${f} folders`)
+	console.log(`\n> ${pFunc.name} applied to ${i} concepts in ${f} folders`)
+}
+
+function applyToViewObject(pSelection, pFunc, pFuncParam) {
+	var v = 0;
+	$(pSelection).filter('view').each(function (view) {
+		pFunc(view, pFuncParam);
+		v++;
+	})
+	console.log(`\n> ${pFunc.name} applied to ${v} views`)
 }
 
 // function applyToConceptsOnView(pSelection, pFunc, pFuncParam) {
@@ -411,7 +422,7 @@ function applyToConceptType(pSelection, pFunc, pFuncParam) {
 		pFunc(c, pFuncParam);
 		i++;
 	})
-	console.log(`> ${pFunc.name} applied to ${i} concepts of type ${selectedConcept.type}`)
+	console.log(`\n> ${pFunc.name} applied to ${i} concepts of type ${selectedConcept.type}`)
 }
 
 function applyToSelectedConcepts(pSelection, pFunc, pFuncParam) {
@@ -419,7 +430,7 @@ function applyToSelectedConcepts(pSelection, pFunc, pFuncParam) {
 	selectedConcept = pSelection.first();
 
 	// BUG: if selectedConcept is a relation, the method .view gives error
-	console.log(`> ${pFunc.name} will be applied to selected concepts`);
+	console.log(`\n> ${pFunc.name} will be applied to selected concepts`);
 	console.log(`>> ${pSelection.filter("element").size()} elements"`);
 	console.log(`>> ${pSelection.filter("relation").size()} relations"`);
 	console.log(`>> ${pSelection.size() -
@@ -430,5 +441,5 @@ function applyToSelectedConcepts(pSelection, pFunc, pFuncParam) {
 		pFunc(c, pFuncParam);
 		i++;
 	})
-	console.log(`> ${pFunc.name} applied to ${i} concepts`)
+	console.log(`\n> ${pFunc.name} applied to ${i} concepts`)
 }
