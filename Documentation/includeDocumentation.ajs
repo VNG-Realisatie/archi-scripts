@@ -17,26 +17,27 @@ function printView(view, renderViewScale, renderViewEmbed, pExportFile) {
 	});
 
 	if (renderViewEmbed) {
-		// - embed in the document 
+		// encode view and embed in the document 
 		// console.log(`>> Embed view ${view.name} in markdown file`)
 		markdownString += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
 	} else {
-		// - or save as .png
+		// save views as .png in a subdirectory with the name of markdown file (aka the exportfile name)
+		// replace in subdir/filename all spaces with an underscore for better compatibility with markdown viewers
 		let path = pExportFile.substring(0, pExportFile.lastIndexOf(slash()) + 1); // path plus slash
-		let fileName = pExportFile.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf('.'));
-		let imageAbsoluteDir = path + fileName
-		let imageRelativeDir = fileName
-
+		let imageSubDir = pExportFile.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf('.')).replaceAll(" ", "_");
+		
 		// create directory for saving view .png files
+		let imageAbsoluteDir = path + imageSubDir
 		let fileObject = new Packages.java.io.File(imageAbsoluteDir);
 		fileObject.mkdir();
 		
-		$.fs.writeFile(`${imageAbsoluteDir}${slash()}${view.name}.png`, bytes, "BASE64");
+		let imageFile = `${view.name}.png`.replaceAll(" ", "_");
+		$.fs.writeFile(`${imageAbsoluteDir}${slash()}${imageFile}`, bytes, "BASE64");
 
-		let imageURL = `${imageRelativeDir}${slash()}${view.name}.png`.replaceAll(" ", "%20");
-		markdownString += `\n![${view.name}](${imageURL})`;
+		let imageURL = `${imageSubDir}${slash()}${imageFile}`
+		markdownString += `![${view.name}](${imageURL})\n`;
 	}
-	markdownString += `\n<p align="center"><i>View ${view.name}</i></p>\n\n`;
+	markdownString += `<p align="center"><i>View ${view.name}</i></p>\n\n`;
 
 	return markdownString
 }
