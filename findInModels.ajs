@@ -1,0 +1,80 @@
+/**
+ * findInModels.ajs
+ * 
+ * Find in opened models, the objects with given search string in name, ID or property Object ID
+ * Display the objects in a table
+ * 
+ */
+
+load(__DIR__ + "Common/Common.ajs");
+
+initConsoleLog(__FILE__)
+
+promptText = `Find objects in all opened models by "name", "id" or property "Object ID"\nYou can use wildcards for finding "name"`
+var searchString = window.prompt(promptText, 'Enter name or ID')
+
+try {
+
+	if (searchString) {
+		var loadedModelsList = $.model.getLoadedModels();
+		var tableArray = []; 
+
+		console.log('Searching in all models for: ' + searchString + '\n');
+
+		tableArray.push(['Model', 'Concept', 'id', 'Object ID']);
+
+		for (let i = 0; i < loadedModelsList.length; i++) {
+			let addModelName = true; // flag for displaying the model name once in the table
+
+			loadedModelsList[i].setAsCurrent();
+
+			$('*').each(function (object) {
+				let vObjectID = object.prop('Object ID');
+				// if ((object.name === searchString) || (object.id === searchString) || (vObjectID === searchString)) {
+				if ((matchRule(object.name, searchString)) || (object.id === searchString) || (vObjectID === searchString)) {
+						tableArray.push([addModelName ? model.name : '', object, object.id, !vObjectID ? '-' : vObjectID]);
+					addModelName = false;
+				}
+			})
+			if (addModelName) {
+				tableArray.push([model.name, 'no object found','', '']);
+			}
+		}
+		console.log(table(tableArray, {markdown: true}))
+	} else {
+		console.log('Cancelled');
+	}
+} catch (error) {
+	console.log("> Error: " + error);
+	console.log("> Stack: " + error.stack);
+}
+
+finishConsoleLog()
+
+//Short code
+function matchRule(str, rule) {
+	// var escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+	var escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+	return new RegExp("^" + rule.split("*").map(escapeRegex).join(".*") + "$", "i").test(str);
+}
+
+//Explanation code
+function matchRuleExpl(str, rule) {
+	// for this solution to work on any string, no matter what characters it has
+	var escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+
+	// "."  => Find a single character, except newline or line terminator
+	// ".*" => Matches any string that contains zero or more characters
+	rule = rule.split("*").map(escapeRegex).join(".*");
+
+	// "^"  => Matches any string with the following at the beginning of it
+	// "$"  => Matches any string with that in front at the end of it
+	rule = "^" + rule + "$"
+
+	//Create a regular expression object for matching string
+	//flag "i" is for case insensitive
+	var regex = new RegExp(rule, "i");
+
+	//Returns true if it finds a match, otherwise it returns false
+	return regex.test(str);
+}
