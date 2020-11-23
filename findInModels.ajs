@@ -1,7 +1,8 @@
 /**
  * findInModels.ajs
  * 
- * Find in opened models, the objects with given search string in name, ID or property Object ID
+ * Loop over all opened models
+ * Find the objects with given search string in name, ID or property Object ID
  * Display the objects in a table
  * 
  */

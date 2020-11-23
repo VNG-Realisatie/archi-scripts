@@ -35,7 +35,6 @@ console.log()
 console.log(`Merged ${nrFoldersStart - nrFoldersRemaining} folders with prefix ${prefix} of total of ${nrFoldersStart} folders`)
 console.log(`${nrFoldersRemaining} folders remaining`)
 
-
 /**
  * mergeImportedFolders()
  * 	recursive function to traverse the folder tree
@@ -51,14 +50,14 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 	let originalParent
 	let originalFolder
 
-	console.log(`${"   ".repeat(pLevel)}${pImportedFolder.name}`)
+	console.log(`${"  ".repeat(pLevel)}${pImportedFolder.name}`)
 
-	if (pLevel == 0) { 
+	if (pLevel == 0) {
 		// get the Archi default folders in the root
-		importedSubFolders = $(pImportedFolder).children("folder") 
+		importedSubFolders = $(pImportedFolder).children("folder")
 	} else {
 		// get all imported folders where name starts with prefix
-		importedSubFolders = $(pImportedFolder).children("folder").filter(isImported) 
+		importedSubFolders = $(pImportedFolder).children("folder").filter(isImportedFolder)
 
 		// get parent folder of the original folder
 		if (pOriginalParent != null) {
@@ -67,9 +66,7 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 			originalParent = $(pImportedFolder).parent("folder").first()
 		}
 		// find the original folder
-		originalFoldersColl = $(originalParent).children("folder").filter(function (f) {
-			return (f.name == pImportedFolder.name.substr(prefix.length))
-		})
+		originalFoldersColl = $(originalParent).children("folder").filter(isOriginalFolder)
 		if (originalFoldersColl.size() > 1) {
 			throw (`Multiple possible original folders for ${pObject.name}`)
 		}
@@ -77,10 +74,15 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 
 		// move all objects from the imported folder to original folder
 		if (originalFolder != null) {
+			let nrObjects = 0
 			$(pImportedFolder).children().not("folder").each(function (o) {
 				originalFolder.add(o);
-				console.log(`${"   ".repeat(pLevel+1)}${o} moved`)
+				// console.log(`${"  ".repeat(pLevel+1)}${o} moved`)
+				nrObjects++
 			})
+			if (nrObjects>0) {
+				console.log(`${"  ".repeat(pLevel+1)}moved ${nrObjects} objects`)
+			}
 		}
 	}
 
@@ -89,33 +91,41 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 		return
 	}
 
-	importedSubFolders.each(function (f) {
-		mergeImportedFolders(f, originalFolder, pLevel + 1)
+	// traverse subfolders
+	importedSubFolders.each(function (importedSubFolder) {
 
-		if (pLevel != 0) { 
+		mergeImportedFolders(importedSubFolder, originalFolder, pLevel + 1)
+
+		if (pLevel > 0) {
 			// remove of rename imported folders
-			if ($(f).children().size() == 0) {
-				console.log(`${"   ".repeat(pLevel+1)}remove ${f.name}`)
-				f.delete()
+			let originalFolderName = importedSubFolder.name.substr(prefix.length)
+			if ($(importedSubFolder).children().size() == 0) {
+				console.log(`${"  ".repeat(pLevel+2)}merged into '${originalFolderName}'`)
+				importedSubFolder.delete()
 			} else {
-				console.log(`${"   ".repeat(pLevel+1)}rename ${f.name}`)
-				// f.name = f.name.substr(prefix.length)
+				console.log(`${"> ".repeat(pLevel+2)}renamed folder to '${originalFolderName}'`)
+				importedSubFolder.name = importedSubFolder.name.substr(prefix.length)
 			}
 		}
 	})
 
-}
-
-
-/**
- * filter function isImported
- * 	return true if folder f starts with prefix
- * @param f a folder
- */
-function isImported(f) { 
-	if (f.name.startsWith(prefix)) {
-		// console.log(`${"   ".repeat(pLevel)}Imported folder: ${f.name}`)
-		return true
+	/**
+	 * filter function isImportedFolder
+	 * 	return true if folder f starts with prefix
+	 */
+	function isImportedFolder(folder) {
+		if (folder.name.startsWith(prefix)) {
+			// console.log(`${"  ".repeat(pLevel)}Imported folder: ${f.name}`)
+			return true
+		}
+		return false
 	}
-	return false
+
+	/**
+	 * filter function isOriginalFolder
+	 * 	return true if folder name is equal to imported folder
+	 */
+	function isOriginalFolder(folder) {
+		return (folder.name == pImportedFolder.name.substr(prefix.length))
+	}
 }
