@@ -22,7 +22,7 @@
 console.clear();
 console.log()
 
-const prefix = '_imported_'
+const prefix = '(import) '
 
 let nrFoldersStart = $(model).find('folder').size()
 console.log(`Number of folders is ${nrFoldersStart}\n`)
@@ -32,7 +32,7 @@ mergeImportedFolders($(model).first())
 let nrFoldersRemaining = $(model).find('folder').size()
 
 console.log()
-console.log(`Merged ${nrFoldersStart - nrFoldersRemaining} folders with prefix ${prefix} of total of ${nrFoldersStart} folders`)
+console.log(`Merged ${nrFoldersStart - nrFoldersRemaining} folders with prefix '${prefix}' of total of ${nrFoldersStart} folders`)
 console.log(`${nrFoldersRemaining} folders remaining`)
 
 /**
