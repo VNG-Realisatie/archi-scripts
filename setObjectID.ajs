@@ -52,9 +52,10 @@ var duplicatesReport = [];
 var counter_total = 0;
 var counter_checked = 0;
 
-// Start
+// check objects for Object ID's with duplicates or unvalid GUID's
 check()
 
+// report only if duplicates are found. Duplicates have to be manualy resolved
 if (duplicatesReport.length > 0) {
 	report(`Objects without an ${propertyID}`, emptyReport)
 	report(`Objects with unvalid GUIDs ${propertyID}`, unvalidReport)
@@ -70,6 +71,7 @@ if (duplicatesReport.length > 0) {
 	console.log(`- sort out which object was the original`);
 	console.log(`- remove the property ${propertyID} from the other objects`);
 	console.log(`Then run this script again`);
+// Set all unvalid Object ID to a valid GUID
 } else {
 	set(`Adding ${propertyID} with generated GUIDs`, emptyList)
 	set(`Replacing unvalid ${propertyID} with generated GUIDs`, unvalidList)
@@ -113,7 +115,7 @@ function check() {
 			counter_checked++
 		} else {
 			// check for empty Object ID
-			if (object.prop(propertyID) == null) {
+			if (!object.prop(propertyID)) {
 				emptyReport.push(`${object} (Archi id = "${object.id}")`);
 				emptyList.push(object);
 			} else {
@@ -148,8 +150,8 @@ function set(pTitle, pLines) {
 		let object = pLines[i];
 
 		let id_generated = generateUUID()
+		console.log(`> ${object} >> ${propertyID}=${id_generated} (GUID was "${object.prop(propertyID)}")`);
 		object.prop(propertyID, id_generated);
-		console.log(`> ${object} >> ${propertyID} set to "${id_generated}"`);
 	}
 }
 

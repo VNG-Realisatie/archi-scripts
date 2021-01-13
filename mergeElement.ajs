@@ -12,6 +12,10 @@
  * 
  *     The other element is not deleted
  * 
+ * jArchi merge method always appends the documentation and property values of the merged element
+ * - This script only appends if the documentation field or de propertie value is different
+ * This script does delete the merged element
+ * 
  * (c) 2019 Mark Backer
  *
  */
@@ -26,9 +30,7 @@ if ($(selection)) {
 	if ($(selection).filter("element").size() == 1) {
 		// select one element in view			-> this element is the master
 		mergeElement($(selection).first())
-
 	} else {
-		// select multiple elements in view 	-> copy formatting from first element to selected elements
 		console.log(`> Multiple elements selected, select only one element`);
 	}
 } else {
@@ -56,35 +58,44 @@ function mergeElement(pObject) {
 		if (duplicateElementList.size() == 0) {
 			console.log(`> There are no elements with the same name and the same type as "${masterElement.name}"`);
 		} else {
-			console.log(`> Merge all elements with the same name and type to ${masterElement}`);
-			console.log(`> The selected element has the id = ${masterElement.id}`)
+			console.log(`> Merge all ${masterElement}`);
+			console.log(`> The selected element has the id = ${masterElement.id}\n`)
 
-			console.log(`> Merge with:`)
 			duplicateElementList.each(function (duplicateElement) {
 
-				console.log(`>> ${duplicateElement.id}`);
+				console.log(`> Merge with element: ${duplicateElement.id}`);
 
 				// don't append documentation if documentation strings are equal
+				console.log(`>> Merge documentation`);
 				if (duplicateElement.documentation == masterElement.documentation) {
+					console.log(`>>> equal documentation`);
 					duplicateElement.documentation = '';
-					console.log(`>>> Documentation is equal to selected element`);
+				} else {
+					console.log(`>>> different documentation is appended`);
 				}
 				var duplicatePropList = duplicateElement.prop();
 				debug(`duplicatePropList = ${duplicatePropList}`)
-				for (var i=0; i < duplicatePropList.length; i++){
-					// remove property from duplicate if property is equal to master property
-					debug(`masterElement.prop(${duplicatePropList[i]}) = ${masterElement.prop(duplicatePropList[i])}`)
-					if (masterElement.prop(duplicatePropList[i]) == duplicateElement.prop(duplicatePropList[i])) {
-						console.log(`>>> Property ${duplicatePropList[i]} is equal to selected element`);
-						duplicateElement.removeProp(duplicatePropList[i]);
+				console.log(`>> Merge properties`);
+				for (var i=0; i < duplicatePropList.length; i++) {
+					if (masterElement.prop(duplicatePropList[i])) {
+						// remove property from duplicate if property is equal to master property
+						debug(`masterElement.prop(${duplicatePropList[i]}) = ${duplicateElement.prop(duplicatePropList[i])}`)
+						if (masterElement.prop(duplicatePropList[i]) == duplicateElement.prop(duplicatePropList[i])) {
+							debug(`>>> equal ${duplicatePropList[i]}`);
+							duplicateElement.removeProp(duplicatePropList[i]);
+						} else {
+							console.log(`>>> appended ${duplicatePropList[i]}`);
+						}
+					} else {
+						console.log(`>>> added ${duplicatePropList[i]}`);
 					}
 				}
 
 				masterElement.merge(duplicateElement);
+				duplicateElement.delete();
 			});
 
-			console.log(`> ${duplicateElementList.size()} elements merged`);
-			console.log(`> `);
+			console.log(`\n> ${duplicateElementList.size()} elements merged and deleted`);
 		}
 	}
 	catch (error) {

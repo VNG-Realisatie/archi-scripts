@@ -22,8 +22,8 @@ finishConsoleLog()
 /*
 */
 function ColorByVertrouwelijkheid(pObject) {
-//	colorscale 	= chroma.scale('Blues');
-	colorscale 	= chroma.scale('Oranges');
+	colorscale 	= chroma.scale('Blues').padding([0.1, 0.2]);
+	// colorscale 	= chroma.scale('Oranges');
 	
 	if (pObject.prop("Vertrouwelijkheid")) {
 		info(`${pObject} met vertrouwelijkheid: ${pObject.prop("Vertrouwelijkheid")}`)
