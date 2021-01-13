@@ -21,7 +21,6 @@
  */
 
 load(__DIR__ + "Common/Common.ajs");
-_console_debug = false;
 
 initConsoleLog(__FILE__)
 
@@ -45,49 +44,39 @@ finishConsoleLog()
 function mergeElement(pObject) {
 
 	try {
-
 		var masterElement = pObject.concept;
 
 		duplicateElementList = $(`.${masterElement.name}`).filter(masterElement.type);
-		debug(`duplicateElementList = ${duplicateElementList}`);
 		duplicateElementList.not($(`#${masterElement.id}`));
-		// duplicateElementList = duplicateElementList.not(masterElement);
-		debug(`duplicateElementList = ${duplicateElementList}`)
-
 
 		if (duplicateElementList.size() == 0) {
 			console.log(`> There are no elements with the same name and the same type as "${masterElement.name}"`);
 		} else {
-			console.log(`> Merge all ${masterElement}`);
-			console.log(`> The selected element has the id = ${masterElement.id}\n`)
+			console.log(`> Merge all objects of type "${masterElement.type}" and with the name "${masterElement.name}"`);
+			console.log(`> Selected master element has id=${masterElement.id}\n`)
 
 			duplicateElementList.each(function (duplicateElement) {
 
-				console.log(`> Merge with element: ${duplicateElement.id}`);
+				console.log(`>> Merge element: ${duplicateElement.id}`);
 
 				// don't append documentation if documentation strings are equal
-				console.log(`>> Merge documentation`);
 				if (duplicateElement.documentation == masterElement.documentation) {
-					console.log(`>>> equal documentation`);
+					console.log(`>>> documentation is equal, not appended to documentation of master`);
 					duplicateElement.documentation = '';
 				} else {
-					console.log(`>>> different documentation is appended`);
+					console.log(`>>> documentation appended to documentation of master`);
 				}
 				var duplicatePropList = duplicateElement.prop();
-				debug(`duplicatePropList = ${duplicatePropList}`)
-				console.log(`>> Merge properties`);
 				for (var i=0; i < duplicatePropList.length; i++) {
 					if (masterElement.prop(duplicatePropList[i])) {
 						// remove property from duplicate if property is equal to master property
-						debug(`masterElement.prop(${duplicatePropList[i]}) = ${duplicateElement.prop(duplicatePropList[i])}`)
 						if (masterElement.prop(duplicatePropList[i]) == duplicateElement.prop(duplicatePropList[i])) {
-							debug(`>>> equal ${duplicatePropList[i]}`);
 							duplicateElement.removeProp(duplicatePropList[i]);
 						} else {
-							console.log(`>>> appended ${duplicatePropList[i]}`);
+							console.log(`>>> property content ${duplicatePropList[i]} appended`);
 						}
 					} else {
-						console.log(`>>> added ${duplicatePropList[i]}`);
+						console.log(`>>> property ${duplicatePropList[i]} added`);
 					}
 				}
 
