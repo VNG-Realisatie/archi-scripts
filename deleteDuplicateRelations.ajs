@@ -91,7 +91,7 @@ function getDuplicateRelationString(pRelation) {
     return relationKey
 }
 
-function printDuplicate (pRelation, pDuplicateRelation) {
+function printDuplicate (pRelation) {
     let r = pRelation.relation;
     console.log(`> ${r.type} (id=${r.id}): \t${r.source.name} - ${r.name} - \t${r.target.name}`);
 }
