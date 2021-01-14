@@ -7,7 +7,7 @@
  * 
  */
 
-load(__DIR__ + "Common/Common.ajs");
+load(__DIR__ + "../_lib/Common.ajs");
 
 initConsoleLog(__FILE__)
 

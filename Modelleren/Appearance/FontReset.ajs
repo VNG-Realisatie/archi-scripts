@@ -1,7 +1,7 @@
 /*
  * FontReset
  * 
- * For the selected object, reset font
+ * Reset font to default for selected objects
  * 
  * (c) 2019 Mark Backer
  * 
