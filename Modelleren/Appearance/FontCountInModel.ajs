@@ -4,8 +4,8 @@
  * 	Report views with more than one font
  */
 
-load(__DIR__ + "../Common/Common.ajs");
-load(__DIR__ + "../Common/ApplyToSelection.ajs");
+load(__DIR__ + "../../_lib/Common.ajs");
+load(__DIR__ + "../../_lib/ApplyToSelection.ajs");
 
 initConsoleLog(__FILE__)
 

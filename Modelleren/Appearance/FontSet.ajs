@@ -3,8 +3,8 @@
  *   Set the font to given fixed type and size
  * 
  */
-load(__DIR__ + "../Common/Common.ajs");
-load(__DIR__ + "../Common/ApplyToSelection.ajs");
+load(__DIR__ + "../../_lib/Common.ajs");
+load(__DIR__ + "../../_lib/ApplyToSelection.ajs");
 
 initConsoleLog(__FILE__)
 
