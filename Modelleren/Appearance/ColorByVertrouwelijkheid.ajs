@@ -7,8 +7,8 @@
  * 
  */
 load(__DIR__ + "../../_lib/chroma.min.js");
-load(__DIR__ + "../../_lib/Common.ajs");
-load(__DIR__ + "../../_lib/ApplyToSelection.ajs");
+load(__DIR__ + "../../_lib/Common.js");
+load(__DIR__ + "../../_lib/ApplyToSelection.js");
 
 _commonShowDebugMessage.push(true);
 _commonShowInfoMessage.push(true);

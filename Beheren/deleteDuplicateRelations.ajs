@@ -2,9 +2,9 @@
  * deleteDuplicateRelations
  * 
  *  Definition of duplicate relation
- *      - duplicate source and target object
- *      - duplicate name (often empty)
- *      - duplicate type
+ *      - equal source and target object
+ *      - same name (often empty)
+ *      - same type
  * 
  *  - Find all relations with duplicate
  *  - Merge relations

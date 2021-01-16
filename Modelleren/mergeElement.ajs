@@ -20,7 +20,7 @@
  *
  */
 
-load(__DIR__ + "../_lib/Common.ajs");
+load(__DIR__ + "../_lib/Common.js");
 
 initConsoleLog(__FILE__)
 

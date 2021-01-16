@@ -18,21 +18,21 @@ function findDuplicateRelations() {
     console.log("Starting function findDuplicateRelations");
 
     $("relation").each(function (r) {
-            var DupRel = getDuplicateRelationString(r)
- 
-            if (RelationsSet.has(DupRel)) {
-                console.log(DupRel)
-            } else {
-                RelationsSet.add(DupRel);
-            }
+        var DupRel = getDuplicateRelationString(r)
 
-        });
+        if (RelationsSet.has(DupRel)) {
+            console.log(DupRel)
+        } else {
+            RelationsSet.add(DupRel);
+        }
 
-        console.log("Ending function findDuplicateRelations");
+    });
 
-    }
+    console.log("Ending function findDuplicateRelations");
 
-function getDuplicateRelationString (pRelation) {
+}
+
+function getDuplicateRelationString(pRelation) {
     var DuplicateRelationString = `${pRelation.type}`;
     if (pRelation.type == 'access-relationship') {
         DuplicateRelationString += `(${pRelation.accessType})`;
@@ -43,10 +43,8 @@ function getDuplicateRelationString (pRelation) {
     if (pRelation.type == 'association-relationship') {
         DuplicateRelationString += `(${pRelation.associationDirected})`;
     }
-    var rName = pRelation.name ? `[${pRelation.name}]` : "[no name]" 
+    var rName = pRelation.name ? `[${pRelation.name}]` : "[no name]"
     DuplicateRelationString += `: ${pRelation.source.name} -${rName}-> ${pRelation.target.name} (${pRelation.source.id} - ${pRelation.target.id})`;
 
     return DuplicateRelationString
 }
-
-findDuplicateRelations();

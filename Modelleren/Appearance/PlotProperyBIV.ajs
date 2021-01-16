@@ -5,7 +5,7 @@
  
 //	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
 load(__DIR__ + "../../_lib/chroma.min.js");
-load(__DIR__ + "../../_lib/Common.ajs");
+load(__DIR__ + "../../_lib/Common.js");
 
 initConsoleLog(__FILE__)
 

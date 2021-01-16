@@ -8,8 +8,8 @@
  * Select objects in the model tree or on a view and run this script
  * 
  */
-load(__DIR__ + "../../_lib/Common.ajs");
-load(__DIR__ + "../../_lib/ApplyToSelection.ajs");
+load(__DIR__ + "../../_lib/Common.js");
+load(__DIR__ + "../../_lib/ApplyToSelection.js");
 
 initConsoleLog(__FILE__)
 
