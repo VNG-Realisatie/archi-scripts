@@ -9,9 +9,9 @@
  *		chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
  *		ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
-load(__DIR__ + "../../_lib/chroma.min.js");
-load(__DIR__ + "../../_lib/Common.js");
-load(__DIR__ + "../../_lib/ApplyToSelection.js");
+load(__DIR__ + "../_lib/chroma.min.js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/ApplyToSelection.js");
 
 // Show output in the console
 initConsoleLog(__FILE__, true)
