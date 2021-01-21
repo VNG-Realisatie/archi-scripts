@@ -20,8 +20,10 @@ function initConsoleLog(pFile, pClear) {
 	_commonScriptName = filePath[filePath.length - 1];
 
 	console.show();
-	if (pClear) { console.clear() };
+    if (pClear) { console.clear() };
+
 	console.log("============================================");
+    console.log(`Platform: ${$.process.platform}\nEngine:   ${$.process.engine}\n`)
 	console.log(`Executing script "${_commonScriptName}"...\n`);
 }
 

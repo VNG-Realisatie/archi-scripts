@@ -18,7 +18,7 @@ var ImportDate  = new Date().toLocaleDateString();
 var E_I_Debug = false;
 var E_I_Info = false;
 
-load(__DIR__ + "../../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/papaparse.min.js");
 
 // Set up CSV column-labels
 var elementHeaderDef = {

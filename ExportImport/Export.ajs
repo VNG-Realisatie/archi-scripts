@@ -25,7 +25,7 @@ var scriptName = filePath[filePath.length-1];
 
 console.log(`Executing script "${scriptName}"...\n`);
 
-load(__DIR__ + "../../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/papaparse.min.js");
 load(__DIR__ + "IncludeExportImport.ajs");
 
 var objectIndexMap = [];

@@ -1,0 +1,233 @@
+/*
+ * Search by Properties
+ * 
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ * 
+ * Find all Archimate elements which match the properties of the selected element.
+ * 
+ * 
+ * Version 1: First release
+ * Version 2: Added layers to results
+ * 
+ */
+
+function findInArray(array, value) {
+    var found = false;
+    for (item in array) {
+        if (array[item]==value) {
+            found=true;
+            break;
+        }
+    }
+    return found;
+}
+
+function searchElements() {
+    console.show();
+    console.clear();
+    console.log("> Search by Properties");
+  
+    try{
+      
+      var theSource = $(selection).first().concept;
+      var theProperties = theSource.prop();
+  
+      var theSearch = new Array();
+      var theResults = new Array();
+  
+      var queryString = "";
+
+      for (key in theProperties) {
+          theSearch[theProperties[key]]=theSource.prop(theProperties[key]);
+          queryString+=" ("+theProperties[key]+":"+theSearch[theProperties[key]]+")";
+          console.log("> "+theProperties[key]+":"+theSearch[theProperties[key]]);
+      }
+  
+      var theModelCollection = $("*");
+      var theKeys = Object.keys(theSearch);
+  
+      for (element in theModelCollection) {
+          var theElement = theModelCollection[element];
+          var foundMatch = false;
+          if (theElement.prop(theKeys[0])==theSearch[theKeys[0]] && theElement.id!=theSource.id) {
+              foundMatch = true;
+              for (key in theKeys) {
+                  if (theElement.prop(theKeys[key])!=theSearch[theKeys[key]]) {
+                      foundMatch = false;
+                      break
+                  }
+              }
+          }
+  
+          if (foundMatch) {
+              console.log(theElement.name+":"+theKeys[0]);
+              theResults.push(theElement);
+          }
+      }
+  
+      if (theResults.length>0) {
+        var theGrid = 12;
+        var theHeight = 61+theGrid;
+        var theWidth = 121+theGrid;
+
+        var strategyLayer = ["resource","capability","course"];
+        var businessLayer = ["business","contract","representation","product"];
+        var applicationLayer = ["application","data"];
+        var technologyLayer = ["technology","node","device","system","path", "communication","artifact"];
+        var physicalLayer = ["equipment","facility","distribution","material"];
+        var motivationLayer = ["stakeholder","driver","assessment","goal","outcome","principle","requirement","constraint","meaning","value"];
+        var implementationLayer = ["implementation", "work", "deliverable", "plateau", "gap"];
+        var otherLayer = ["location", "grouping", "junction"]; 
+
+        var theResultsView = model.createArchimateView("Results - "+queryString+" - "+Date.now().toString());
+
+        var strategyCol = theGrid;
+        var businessCol = theGrid;
+        var applicationCol = theGrid;
+        var technologyCol = theGrid;
+        var physicalCol = theGrid;
+        var motivationCol = theGrid;
+        var implementationCol = theGrid;
+        var otherCol = theGrid;
+        
+        var strategyRow = theHeight * 0;
+        var businessRow = theHeight * 1;
+        var applicationRow = theHeight * 2;
+        var technologyRow = theHeight * 3;
+        var physicalRow = theHeight * 4;
+        var motivationRow = theHeight * 5;
+        var implementationRow = theHeight * 6;
+        var otherRow = theHeight * 7;
+
+        for (result in theResults) {
+            var theResult = theResults[result];
+            var theType = theResult.type.split("-")[0];
+            var theCol = theGrid;
+            var theRow = theGrid;
+
+            var found = false;
+
+            if (findInArray(strategyLayer,theType)) {
+                theRow+=strategyRow;
+                theCol+=strategyCol;
+                strategyCol+=theWidth;
+                if (strategyCol>=1000) {
+                    strategyCol=theGrid;
+                    strategyRow+=theHeight;
+                    businessRow+=theHeight;
+                    applicationRow+=theHeight;
+                    technologyRow+=theHeight;
+                    physicalRow+=theHeight;
+                    motivationRow+=theHeight;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(businessLayer,theType)) {
+                theRow+=businessRow;
+                theCol+=businessCol;
+                businessCol+=theWidth;
+                if (businessCol>=1000) {
+                    businessCol=theGrid;
+                    businessRow+=theHeight;
+                    applicationRow+=theHeight;
+                    technologyRow+=theHeight;
+                    physicalRow+=theHeight;
+                    motivationRow+=theHeight;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(applicationLayer,theType)) {
+                theRow+=applicationRow;
+                theCol+=applicationCol;
+                applicationCol+=theWidth;
+                if (applicationCol>=1000) {
+                    applicationCol=theGrid;
+                    applicationRow+=theHeight;
+                    technologyRow+=theHeight;
+                    physicalRow+=theHeight;
+                    motivationRow+=theHeight;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(technologyLayer,theType)) {
+                theRow+=technologyRow;
+                theCol+=technologyCol;
+                technologyCol+=theWidth;
+                if (technologyCol>=1000) {
+                    technologyCol=theGrid;
+                    technologyRow+=theHeight;
+                    physicalRow+=theHeight;
+                    motivationRow+=theHeight;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(physicalLayer,theType)) {
+                theRow+=physicalRow;
+                theCol+=physicalCol;
+                physicalCol+=theWidth;
+                if (physicalCol>=1000) {
+                    physicalCol=theGrid;
+                    physicalRow+=theHeight;
+                    motivationRow+=theHeight;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(motivationLayer,theType)) {
+                theRow+=motivationRow;
+                theCol+=motivationCol;
+                motivationCol+=theWidth;
+                if (motivationCol>=1000) {
+                    motivationCol=theGrid;
+                    motivationRow+=theHeight;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(implementationLayer,theType)) {
+                theRow+=implementationRow;
+                theCol+=implementationCol;
+                implementationCol+=theWidth;
+                if (implementationCol>=1000) {
+                    implementationCol=theGrid;
+                    implementationRow+=theHeight;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+            else if (findInArray(otherLayer,theType)) {
+                theRow+=otherRow;
+                theCol+=otherCol;
+                otherCol+=theWidth;
+                if (otherCol>=1000) {
+                    otherCol=theGrid;
+                    otherRow+=theHeight;
+                }
+                found = true;
+            }
+
+            if (found) {
+              theResultsView.add(theResult,theCol,theRow,-1,-1);
+            }
+        }
+      }
+  
+    }
+    catch(e)
+    {
+      console.error("> Search by Properties:" + e);
+    }
+    console.log("> Search by Properties: Done");
+  }
+  
+  searchElements();

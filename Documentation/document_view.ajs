@@ -26,7 +26,7 @@ try {
 		
 		if (exportFile) {
 			
-			let markdownString = `## View ${view.name}\n`;
+			let markdownString = `## ${view.name}\n`;
 			markdownString += (view.documentation) ? `${view.documentation}\n\n` : ''
 
 			markdownString += printView(view, 1, false, exportFile);

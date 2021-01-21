@@ -1,0 +1,3 @@
+load(__DIR__+"../ConvertConcept.lib.js");
+
+convertConcept(selection, __FILE__ );
