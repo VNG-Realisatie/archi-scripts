@@ -1,14 +1,13 @@
 /*
  * Search by Properties
+ * renamed to findDuplicateProperties.ajs
  * 
  * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
  * 
  * Find all Archimate elements which match the properties of the selected element.
  * 
- * 
  * Version 1: First release
  * Version 2: Added layers to results
- * 
  */
 
 function findInArray(array, value) {
