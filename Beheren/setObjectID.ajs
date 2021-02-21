@@ -1,11 +1,10 @@
 /**
  * setObjectID
  * 
- * For distributing and updating/synchronizing architecture-models over multiple organization and or
- * tools it's necesary to have a tool independent id-system
- * 
  * This script ensures that all objects in the architecturemodel have a property "Object ID" with a unique GUID.
- * The property Object ID is used as a tool-independent ID when exchanging models in the Open Exchange file format.
+ * 
+ * The property Object ID is used as a tool-independent ID when distributing and 
+ * exchanging models in the Open Exchange file format.
  * 
  * Most tools have their own id-system and don't use the id's from an Open Exchange file.
  * - the tool BiZZdesign ES doesn't export it's internal id's and doesn't import id's. 
@@ -23,6 +22,8 @@
  * Version 3: 26-10-2020
  * - the scripts ObjectID_set en ObjectID_check are merged into one script
  * - SWC guid patterns as valid GUIDs added
+ * Version 3.1: 21-2-2021
+ * - added to also check de model-object
  * 
  * This script is used in conjunction with the php script replace_id_with_ObjectID.php to support the 
  * roundtripping of architecture models from .archimate files to Open Exchange XML files en vice versa
@@ -52,12 +53,25 @@ var duplicatesReport = [];
 var counter_total = 0;
 var counter_checked = 0;
 
-// check objects for Object ID's with duplicates or unvalid GUID's
-check()
+let indexMap = [];
+// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
+let pattern_guid = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+let pattern_guid_SWC = new RegExp('^[0-9a-f]{32}$', 'i');
+let pattern_guid_SWC_pv = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$', 'i');
+let pattern_guid_SWC_view = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$', 'i');
+
+// check if model has a valid property Object ID
+checkObject(model)
+
+// check all objects for Object ID's with duplicates or unvalid GUID's
+// skip folders, properties of folders are not exported
+$('*').not('folder').each(function (object) {
+	checkObject(object)
+})
 
 // report only if duplicates are found. Duplicates have to be manualy resolved
 if (duplicatesReport.length > 0) {
-	report(`Objects without an ${propertyID}`, emptyReport)
+	// report(`Objects without an ${propertyID}`, emptyReport)
 	report(`Objects with unvalid GUIDs ${propertyID}`, unvalidReport)
 	report(`Objects with duplicate ${propertyID}`, duplicatesReport)
 	
@@ -87,44 +101,35 @@ if (duplicatesReport.length > 0) {
 console.log(`\nScript "${scriptName}" finished\n`);
 
 /**
- * Check all object in the architecture model for a valid Object ID
+ * checkObject
+ * 	- check object for Object ID's with duplicates or unvalid GUID's
  */
-function check() {
-	let indexMap = [];
-	// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
-	let pattern_guid = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
-	let pattern_guid_SWC = new RegExp('^[0-9a-f]{32}$', 'i');
-	let pattern_guid_SWC_pv = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$', 'i');
-	let pattern_guid_SWC_view = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$', 'i');
+function checkObject(object) {
+	let guid = (pattern_guid.test(object.prop(propertyID)) === true)
+	let guid_SWC = (pattern_guid_SWC.test(object.prop(propertyID)) === true)
+	let guid_SWC_view = (pattern_guid_SWC_view.test(object.prop(propertyID)) === true)
+	let guid_SWC_pv = (pattern_guid_SWC_pv.test(object.prop(propertyID)) === true)
 
-	// check all objects. Skip folders, properties of folders are not exported
-	$('*').not('folder').each(function (object) {
-		let guid = (pattern_guid.test(object.prop(propertyID)) === true)
-		let guid_SWC = (pattern_guid_SWC.test(object.prop(propertyID)) === true)
-		let guid_SWC_view = (pattern_guid_SWC_view.test(object.prop(propertyID)) === true)
-		let guid_SWC_pv = (pattern_guid_SWC_pv.test(object.prop(propertyID)) === true)
-
-		// check for valid GUID
-		if ((guid) || (guid_SWC) || (guid_SWC_view) || (guid_SWC_pv)) {
-			// check for duplicate
-			if (indexMap[object.prop(propertyID)]) {
-				duplicatesReport.push(`${object} with ${propertyID} = ${object.prop(propertyID)}`);
-			} else { // add ID to indexMap
-				indexMap[object.prop(propertyID)] = true;
-			}
-			counter_checked++
-		} else {
-			// check for empty Object ID
-			if (!object.prop(propertyID)) {
-				emptyReport.push(`${object} (Archi id = "${object.id}")`);
-				emptyList.push(object);
-			} else {
-				unvalidReport.push(`${object}: ${propertyID}=${object.prop(propertyID)}`);
-				unvalidList.push(object);
-			}
+	// check for valid GUID
+	if ((guid) || (guid_SWC) || (guid_SWC_view) || (guid_SWC_pv)) {
+		// check for duplicate
+		if (indexMap[object.prop(propertyID)]) {
+			duplicatesReport.push(`${object} with ${propertyID} = ${object.prop(propertyID)}`);
+		} else { // add ID to indexMap
+			indexMap[object.prop(propertyID)] = true;
 		}
-		counter_total++
-	})
+		counter_checked++
+	} else {
+		// check for empty Object ID
+		if (!object.prop(propertyID)) {
+			emptyReport.push(`${object} (Archi id = "${object.id}")`);
+			emptyList.push(object);
+		} else {
+			unvalidReport.push(`${object}: ${propertyID}=${object.prop(propertyID)}`);
+			unvalidList.push(object);
+		}
+	}
+	counter_total++
 }
 
 /**
@@ -157,10 +162,8 @@ function set(pTitle, pLines) {
 
 /**
  * generateUUID()
- * 	
- * return a generated UUID
- * 
- * from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+ * 	return a generated UUID
+ * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
  */
 function generateUUID() { // Public Domain/MIT
 	var d = new Date().getTime(); //Timestamp
