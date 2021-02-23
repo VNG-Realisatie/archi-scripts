@@ -36,11 +36,13 @@ var relationHeaderDef = {
 	"source.id":		"Source ID",
 	"source.name":		"Source label",
 	"source.type":		"Source type",
-	"source CustomID":	"Source " + label_ID_property, // custom ID for finding the source element
+//	"source CustomID":	"Source " + label_ID_property, // custom ID for finding the source element
+	"source.prop(label_ID_property)":	"Source " + label_ID_property, // custom ID for finding the source element
 	"target.id":		"Target ID",
 	"target.name":		"Target label",
 	"target.type":		"Target type",
-	"target CustomID":	"Target " + label_ID_property // custom ID for finding the target element
+	// "target CustomID":	"Target " + label_ID_property // custom ID for finding the target element
+	"target.prop(label_ID_property)":	"Target " + label_ID_property // custom ID for finding the target element
 };
 
 var viewHeaderDef = {
