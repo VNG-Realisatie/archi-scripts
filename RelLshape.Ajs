@@ -1,0 +1,89 @@
+/*
+ * Author X. Mayeur
+ *
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ *
+ * This script takes a selection of visual objects as input, filter it to keep only relationships
+ * and create L-shape ortho connector
+ */
+
+console.show()
+console.clear()
+
+for each (var o in $(selection).filter("relationship")) {
+    var view = o.view;
+    var rel = o.concept;
+    var source = o.source;
+    var target = o.target;
+    sb = source.bounds
+    tb = target.bounds
+
+    // calculate the source and target element absolute (x,y) coordinate
+    var pp = $(source).parents()
+    for each (p in pp) {
+        try  {
+            sb.x += p.bounds.x
+            sb.y += p.bounds.y
+        } catch(e){}
+    }
+
+    var pp = $(target).parents()
+    for each (p in pp) {
+        try  {
+            tb.x += p.bounds.x
+            tb.y += p.bounds.y
+        } catch(e){}
+    }
+
+    dx = tb.x - sb.x
+    dy = tb.y - sb.y
+
+    try {
+     o.deleteAllBendpoints()
+    } catch(e) {}
+    // New bendpoint 1
+    // target object is left below source
+    if (tb.x+tb.width < sb.x & tb.y - tb.height > sb.y) {
+        var bp1 = {
+            startX: 0,
+            startY: dy,
+            endX: -dx,
+            endY: 0
+        }
+    }
+    // target object is left above source
+    if (tb.x+tb.width < sb.x & tb.y + tb.height < sb.y) {
+         var bp1 = {
+            startX: dx,
+            startY: 0,
+            endX: 0,
+            endY: -dy
+        }
+    }
+    // target is right above source
+    if (tb.x > sb.x + sb.width & tb.y + tb.height < sb.y) {
+         var bp1 = {
+            startX: -dx,
+            startY: 0,
+            endX: 0,
+            endY: dy
+        }
+    }
+    // target is right below source
+    if (sb.x+sb.width < tb.x & tb.y - tb.height > sb.y) {
+        var bp1 = {
+            startX: 0,
+            startY: -dy,
+            endX: dx,
+            endY: 0
+        }
+    }
+
+    // Add bendpoints at index positions
+    try {
+        o.addRelativeBendpoint(bp1, 0);
+    } catch(e) {}
+
+
+}
+

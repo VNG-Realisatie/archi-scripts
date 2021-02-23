@@ -35,7 +35,7 @@
  * 
  */
 
-load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "includeDocumentation.ajs");
 
 console.clear();
@@ -240,11 +240,11 @@ function printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, pTypeText) 
 		document.body += '<div style="page-break-before: always;"></div>';
 		document.body += "\n\n---\n\n";
 	}
-	document.body += `${'#'.repeat(pLevel)} ${heading}\n`;
+	document.body += `${'#'.repeat(pLevel)} ${heading}\n\n`;
 
 	// insert documentation of the object in document
 	if (pObject.documentation != "") {
-		document.body += `${pObject.documentation}\n`;
+		document.body += `${pObject.documentation}\n\n`;
 	}
 	console.log(`${'>'.repeat(pLevel)} ${pObject.name} (${pTypeText})`);
 
@@ -284,26 +284,22 @@ function documentStructure(pLevel, pParagraphNr, pObject, pExportFile) {
 		console.log(`${'>'.repeat(pLevel)} insert text from note`);
 	} else {
 		// add referenced view to the current paragraph in the report
-		if (pObject.type == "diagram-model-reference" || // view reference not working or
-			(pObject.type == "archimate-diagram-model" && pObject.view) || // "diagram-model-reference" work around
+		if (pObject.type == "diagram-model-reference" || // viewReference should have this type, but has not
+			(pObject.type == "archimate-diagram-model" && pObject.view) || // work around, test for "diagram-model-reference" 
 			(pObject.type == "canvas-model" && pObject.view) // canvas view
 		) {
 
 			printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, 'view')
 
 			// Print the view. 
-			// Find the referenced view by looping over and comparing names ### comparing id's possible?
-			$('view').each(function (view) {
-				if (view.name == pObject.name) {
-					document.body += printView(view, documentSettings.renderViewScale.value, documentSettings.renderViewEmbed.value, pExportFile);
+			view = pObject.getRefView()
+			document.body += printView(view, documentSettings.renderViewScale.value, documentSettings.renderViewEmbed.value, pExportFile);
 
-					// Print a table with the views elements, if includeTableView is set.
-					// "canvas-model" views don't have elements, so skip
-					if (documentSettings.includeTableOfView && pObject.type != "canvas-model") {
-						document.body += printElementsHierarchic(pLevel, view);
-					}
-				}
-			});
+			// Print a table with the views elements, if includeTableView is set.
+			// "canvas-model" views don't have elements, so skip
+			if (documentSettings.includeTableOfView && pObject.type != "canvas-model") {
+				document.body += printElementsHierarchic(pLevel, view);
+			}
 
 		} else {
 

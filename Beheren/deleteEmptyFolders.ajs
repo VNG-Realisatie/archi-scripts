@@ -1,0 +1,50 @@
+/**
+ * deleteEmptyFolders.ajs
+ * 	traverse all folders of a model and delete empty folders
+ * 
+ */
+console.clear();
+console.log()
+
+let nrFoldersStart = $(model).find('folder').size()
+console.log(`Number of folders is ${nrFoldersStart}\n`)
+
+deleteEmptyFolders($(model).first())
+
+let nrFoldersRemaining = $(model).find('folder').size()
+
+console.log()
+console.log(`Deleted ${nrFoldersStart - nrFoldersRemaining} empty folders of total of ${nrFoldersStart} folders`)
+console.log(`${nrFoldersRemaining} folders remaining`)
+
+/**
+ * deleteEmptyFolders
+ * 	recursive function to traverse hierarchical tree of folders
+ * 	test for empty folders
+ * 
+ * @param pFolder - current folderobject to traverse. For root folder, use $(model).first()
+ * @param pLevel - current level of recursion
+ */
+function deleteEmptyFolders(pFolder, pLevel = 0) {
+	
+	console.log(`${"   ".repeat(pLevel)}${pFolder.name != '' ? pFolder.name : `## folder with no name ##`}`)
+
+	// stop if folder has no subfolders
+	let subFolders = $(pFolder).children("folder")
+	if (subFolders.size() == 0) {
+		return
+	}
+	
+	subFolders.each(function (subFolder) {
+
+		deleteEmptyFolders(subFolder, pLevel + 1)
+
+		// delete current folder, if it is empty
+		if (($(subFolder).children().size() == 0) && (pLevel > 1)) {
+
+			console.log(`${">  ".repeat(pLevel + 1)}${subFolder.name != '' ? subFolder.name : `## folder with no name ##`} deleted`)
+			subFolder.delete()
+
+		}
+	})
+}

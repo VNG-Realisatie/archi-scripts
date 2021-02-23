@@ -1,15 +1,15 @@
 /*
  * FontReset
  * 
- * For the selected object, reset font
+ * Reset font to default for selected objects
  * 
  * (c) 2019 Mark Backer
  * 
  * Select objects in the model tree or on a view and run this script
  * 
  */
-load(__DIR__ + "../Common/Common.ajs");
-load(__DIR__ + "../Common/ApplyToSelection.ajs");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/ApplyToSelection.js");
 
 initConsoleLog(__FILE__)
 

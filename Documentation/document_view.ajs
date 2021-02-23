@@ -3,7 +3,7 @@
  * 
  * generate a markdown file with the view and a table with all the elements
  */
-load(__DIR__ + "../Common/Common.ajs");
+load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "includeDocumentation.ajs");
 
 initConsoleLog(__FILE__)
@@ -26,7 +26,7 @@ try {
 		
 		if (exportFile) {
 			
-			let markdownString = `## View ${view.name}\n`;
+			let markdownString = `## ${view.name}\n`;
 			markdownString += (view.documentation) ? `${view.documentation}\n\n` : ''
 
 			markdownString += printView(view, 1, false, exportFile);
