@@ -11,51 +11,22 @@ load(__DIR__ + "../Common/Common.ajs");
 load(__DIR__ + "../Common/ApplyToSelection.ajs");
 
 _commonShowDebugMessage = [false];
-// exportString += `"${pObject.id}", "${pObject.type}", "${pObject.name}","${pObject.prop("GEMMA type")}", "${pObject.prop("Object ID")}"\n`;
 
-var exportData = {
-	header = new Set(["id", "type", "name", "documentation"]),
-	data = [],
+const objectAttributes = ["id", "type", "name", "documentation"];
+const endpoints = ["source", "target"];
 
-	exportRow(pObject) {
-		let Row = new Object;
-		for (let attribute of this.header) {
-			Row[attribute] = pObject.concept[attribute];
-		}
-		for (let i = 0; i < pObject.prop().length; i++) {
-			let PropertyLabel = pObject.prop()[i];
-			if (pObject.prop(PropertyLabel)) {
-				this.header.add(PropertyLabel)
-				Row[PropertyLabel] = pObject.prop(PropertyLabel);
-				debug(`Row[${PropertyLabel}]: ${Row[PropertyLabel]}`);
-			}
-		}
-
-		this.data.push(Row)
-	},
-
-	get headerRow() {
-		let headerArray = [];
-
-		let i=0;
-		for (let columnLabel of this.header) {
-			headerArray[i] = columnLabel;
-			i++;
-		}
-
-		return headerArray;
-	},
-
-	get dataRows() { //idem
-		return this.data;
-	}
-};
+var header = [];
+var data = [];
+var uniq = [];
 
 initConsoleLog(__FILE__)
 
 try {
+	console.log('Exporting selected elements\n')
+	applyToModelContent($(selection), exportElement);
 
-	applyToModelContent($(selection), exportData.exportRow);
+	console.log('\nExporting selected relations\n')
+	applyToModelContent($(selection), exportRelation);
 
 	let datum = new Date();
 	let exportFile = window.promptSaveFile({
@@ -63,21 +34,149 @@ try {
 		filterExtensions: ["*.csv"],
 		fileName: `${datum.toLocaleDateString('nl-NL')} ${model.name}-${$(selection).first().name}.csv`
 	});
+
+	uniq = removeDuplicates(data, "id");
+
+	console.log(`>> uniq.length: ${uniq.length}`)
+
 	if (exportFile != null) {
-
-		debug(exportData.headerRow);
-
-		$.fs.writeFile(exportFile, Papa.unparse({
-			fields: exportData.headerRow,
-			data: exportData.dataRows
-		}));
-
-		console.log(">>> saved in : " + exportFile);
+		$.fs.writeFile(exportFile, Papa.unparse({ fields: header, data: uniq }));
+		console.log("\nExported to : " + exportFile);
 	} else {
-		console.log("> Save CSV canceled");
+		console.log("\nExport CSV canceled");
 	}
-
 } catch (error) {
 	console.log(`> ${error}`);
 }
+
 finishConsoleLog()
+
+/**
+ * Remove duplicates from an array of objects
+ * 
+ * @param originalArray 
+ * @param prop 
+ */
+function removeDuplicates(originalArray, prop) {
+	var newArray = [];
+	var lookupObject  = {};
+
+	for (let i in originalArray) {
+		if (lookupObject[originalArray[i][prop]] === undefined) {
+			newArray.push(originalArray[i]);
+		}
+		lookupObject[originalArray[i][prop]] = originalArray[i];
+	}
+	return newArray;
+}
+
+  
+/**
+ * Fill header-row with labels, each label only once
+ * @param pLabel 
+ */
+function headerLabel(pLabel) {
+	if (typeof this.FlagFirstTime == 'undefined') {
+		// JS functions are also objects -- which means they can have (static) properties
+		this.FlagFirstTime = true;
+		this.headerIndex = [];
+	}
+
+	if (!headerIndex[pLabel]) {
+		this.header.push(pLabel);
+		headerIndex[pLabel] = true;
+	}
+}
+
+/**
+ * Export an element as a csv row
+ * 
+ * @param pObject 
+ */
+function exportElement(pObject) {
+	let row = new Object;
+
+	// >>>> apply to content moet altijd concept opleveren <<<<<<<<<<
+	let selectedObject = concept(pObject);
+
+	objectAttributes.forEach(function (attribute) {
+		headerLabel(attribute)
+		row[attribute] = selectedObject[attribute];
+	})
+
+	console.log(`>> ${selectedObject}`)
+	selectedObject.prop().forEach(function (propertyLabel) {
+		headerLabel(propertyLabel)
+
+		if (selectedObject.prop(propertyLabel)) {
+			row[propertyLabel] = selectedObject.prop(propertyLabel);
+			debug(`>> Row[${propertyLabel}]: ${row[propertyLabel]}`);
+		}
+	})
+
+	debug(`>> Row ${row}`)
+
+	this.data.push(row)
+}
+
+/**
+ * Export a relation as a csv row
+ * 
+ * @param pObject 
+ */
+function exportRelation(pObject) {
+	let selectedObject = concept(pObject);
+
+	// alle relaties
+	// verwijder relaties met source of target die niet geselecteerd zijn (gaat niet vanuit applySelection)
+	debug(`====`)
+	console.log(`>> ${selectedObject}`)
+	console.log(`>>> with relationships: ${$(selectedObject).outRels()}`)
+
+	$(selectedObject).outRels().each(function (r) {
+		let row = new Object;
+
+		debug(`>>> export ${r}`)
+
+		// export relation attributes
+		objectAttributes.forEach(function (attribute) {
+			headerLabel(attribute)
+
+			debug(`>>>> Row[${attribute}] = ${r[attribute]}`)
+			row[attribute] = `${r[attribute]}`;
+		})
+
+		// export relation properties
+		r.prop().forEach(function (propertyLabel) {
+			headerLabel(propertyLabel)
+
+			if (r.prop(propertyLabel)) {
+				row[propertyLabel] = r.prop(propertyLabel);
+				debug(`>>>> Row[${propertyLabel}]: ${row[propertyLabel]}`);
+			}
+		})
+
+		// export relation endpoint attributes
+		endpoints.forEach(function (endpoint) {
+			objectAttributes.forEach(function (attribute) {
+				headerLabel(`${endpoint}.${attribute}`)
+
+				row[`${endpoint}.${attribute}`] = r[endpoint][attribute];
+				debug(`>>>> Row[${endpoint}.${attribute}]: ${r[endpoint][attribute]}`);
+			})
+		})
+
+		debug(`>> Resulting Row ` + JSON.stringify(row))
+		this.data.push(row)
+	});
+}
+
+/**
+ * Always return the concept, also if a diagram occurence is given
+ */
+function concept(o) {
+	if (o.concept)
+		return o.concept;
+	else
+		return o;
+}

@@ -1,0 +1,18 @@
+// RemoveBentpoints
+//
+// Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+//
+// Source: https://gist.github.com/jbsarrodie/3cfe6ae90b29696c55550ce3d4b3a577#file-removebentpoints-ajs
+//
+// This script takes a selection of visual objects as input, filter it to keep only relationships and remove all their bendpoints
+//
+// (c) 2018 Jean-Baptiste Sarrodie
+
+$(selection).filter("relationship").filter(function(o) {return o.view}).each(function(o) {
+    var view = o.view;
+    var rel = o.concept;
+    var source = o.source;
+    var target = o.target;
+    o.delete();
+    view.add(rel, source, target);
+})
