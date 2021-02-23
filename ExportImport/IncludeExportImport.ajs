@@ -18,7 +18,7 @@ var ImportDate  = new Date().toLocaleDateString();
 var E_I_Debug = false;
 var E_I_Info = false;
 
-load(__DIR__ + "../lib/papaparse.min.js");
+load(__DIR__ + "../_lib/papaparse.min.js");
 
 // Set up CSV column-labels
 var elementHeaderDef = {
@@ -160,8 +160,9 @@ function import_attributes_properties(pObject, pHeaderDef, pCSVheader, pCSVrow, 
 	if (pObject != null) {
 		// import attributes defined in header
 		for (var label in pHeaderDef) {
-			if (label!="id"){ // id can't be set 
-				if (pObject[label] != pCSVrow[pHeaderDef[label]]){
+			if (label!="id"){ // id can't be set
+				// Only if 'label' is set and value is changed ### ongetest 
+				if (pCSVrow[pHeaderDef[label]] && pObject[label] != pCSVrow[pHeaderDef[label]]){
 
 					pImportLog.Text += `\n>>> Set attribute [${label}]: \n${pObject[label]}\n${pCSVrow[pHeaderDef[label]]}`;
 					pStat.flag.updated=true;

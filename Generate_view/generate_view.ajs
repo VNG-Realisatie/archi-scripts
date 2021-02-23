@@ -1,0 +1,665 @@
+/*
+ * New Archi Script
+ */
+
+	// default values that may be changed by the user through the parameters frame
+var G_verbose = false;
+var G_debug = false;
+
+	// we define some constants used to organise the parameters frame layout
+var WEST = Packages.javax.swing.SpringLayout.WEST;
+var NORTH = Packages.javax.swing.SpringLayout.NORTH;
+var EAST = Packages.javax.swing.SpringLayout.EAST;
+var SOUTH = Packages.javax.swing.SpringLayout.SOUTH;
+var HCENTER = Packages.javax.swing.SpringLayout.HORIZONTAL_CENTER;
+var VCENTER = Packages.javax.swing.SpringLayout.VERTICAL_CENTER;
+
+
+console.show();
+console.clear();
+console.log("Starting Archimate view automation script ...");
+
+	// we check that a model or a model's component is selected
+if ( model == null || model.id == null )
+	fatal("You must select a model or some Archimate elements.");
+	
+var G_okPressed = false;				// is used to register if the user pressend the OK or the CAncel button
+try {
+	var frame = new Packages.javax.swing.JFrame("Archimate view automation");
+	frame.setSize(630, 400);
+	frame.setResizable(false);
+	frame.setLocation(600, 400);
+	
+	var contentPane = frame.getContentPane();
+	var layout = new Packages.javax.swing.SpringLayout();
+	contentPane.setLayout(layout);
+
+	var defaultContent;
+	var defaultDepth;
+	var defaultDirection;
+	var defaultAlign;
+	var defaultAlgorithm;
+	var defaultHSep;
+	var defaultVSep;
+	var defaultNestedRelationships;
+	var defaultViewName;
+	if ( ($(selection).length === 1) && ($(selection)[0].type === "archimate-diagram-model") ) {
+			// one (one only one) view is selected, so we check its properties for default values
+		console.log("A view is selected, getting default values from its properties.");
+		var view = selection[0];
+		defaultContent = view.prop("graph_content");
+		defaultDepth = view.prop("graph_depth");
+		defaultDirection = view.prop("graph_direction");
+		defaultAlign = view.prop("graph_align");
+		defaultAlgorithm = view.prop("graph_algorithm");
+		defaultHSep = view.prop("graph_hsep");
+		defaultVSep = view.prop("graph_vsep");
+		defaultNestedRelationships = view.prop("nested_relationships");
+		defaultViewName = view.name;
+		
+		debug("     - graph_content = " + defaultContent);
+		debug("     - graph_depth = " + defaultDepth);
+		debug("     - graph_direction = " + defaultDirection);
+		debug("     - graph_align = " + defaultAlign);
+		debug("     - graph_algorithm = " + defaultAlgorithm);
+		debug("     - graph_hsep = " + defaultHSep);
+		debug("     - graph_vsep = " + defaultVSep);
+		debug("     - nested_relationships = " + defaultNestedRelationships);
+	}
+		
+	var isModelSelected = false;			// will indicate if the model itself is selected
+	var allElements = $("element");			// contains all the elements in the model
+	var selectedElements = [];				// will contain all the elements selected in the model (ie. no view, folder, relationship, object nor connection)
+	for ( var i in $(selection) ) {
+		var obj = $(selection)[i];
+		if ( obj.type === "archimate-model" ) {
+			isModelSelected = true;
+			break;
+		} else
+			addElementInList(selectedElements, obj);
+	};
+
+		// -------------------- Labels
+	var viewContentLabel = new Packages.javax.swing.JLabel("View content:");
+	contentPane.add(viewContentLabel);
+	layout.putConstraint(WEST, viewContentLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, viewContentLabel, 15, NORTH, contentPane);
+	
+	var followRelationshipsLabel = new Packages.javax.swing.JLabel("Follow relationships:");
+	contentPane.add(followRelationshipsLabel);
+	layout.putConstraint(WEST, followRelationshipsLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, followRelationshipsLabel, 15, SOUTH, viewContentLabel);
+	followRelationshipsLabel.setEnabled(!isModelSelected);
+	
+	var nestedRelationshipsLabel = new Packages.javax.swing.JLabel("Nested relationships:");
+	contentPane.add(nestedRelationshipsLabel);
+	layout.putConstraint(WEST, nestedRelationshipsLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, nestedRelationshipsLabel, 15, SOUTH, followRelationshipsLabel);
+	
+	var graphDirectionLabel = new Packages.javax.swing.JLabel("Graph direction:");
+	contentPane.add(graphDirectionLabel);
+	layout.putConstraint(WEST, graphDirectionLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, graphDirectionLabel, 65, SOUTH, nestedRelationshipsLabel);
+	
+	var graphAlignementLabel = new Packages.javax.swing.JLabel("Graph alignement:");
+	contentPane.add(graphAlignementLabel);
+	layout.putConstraint(WEST, graphAlignementLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, graphAlignementLabel, 15, SOUTH, graphDirectionLabel);
+	
+	var graphAlgorithmLabel = new Packages.javax.swing.JLabel("Graph algorithm:");
+	contentPane.add(graphAlgorithmLabel);
+	layout.putConstraint(WEST, graphAlgorithmLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, graphAlgorithmLabel, 15, SOUTH, graphAlignementLabel);
+	
+	var nodesSeparationLabel = new Packages.javax.swing.JLabel("Nodes separation:");
+	contentPane.add(nodesSeparationLabel);
+	layout.putConstraint(WEST, nodesSeparationLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, nodesSeparationLabel, 15, SOUTH, graphAlgorithmLabel);
+	
+	var viewNameLabel = new Packages.javax.swing.JLabel("View name (path):");
+	contentPane.add(viewNameLabel);
+	layout.putConstraint(WEST, viewNameLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, viewNameLabel, 15, SOUTH, nodesSeparationLabel);
+	
+	var consoleInfoLabel = new Packages.javax.swing.JLabel("Console info level:");
+	contentPane.add(consoleInfoLabel);
+	layout.putConstraint(WEST, consoleInfoLabel, 10, WEST, contentPane);
+	layout.putConstraint(NORTH, consoleInfoLabel, 30, SOUTH, viewNameLabel);
+
+		// -------------------- View content
+	var buttonGroup = new Packages.javax.swing.ButtonGroup();
+	
+	var wholeModelButton = new Packages.javax.swing.JRadioButton("Whole model (" + allElements.length + " elements)");
+	contentPane.add(wholeModelButton);
+	layout.putConstraint(WEST, wholeModelButton, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, wholeModelButton, 0, VCENTER, viewContentLabel);
+	buttonGroup.add(wholeModelButton);
+	wholeModelButton.addActionListener(new Packages.java.awt.event.ActionListener(function(e) {
+			// if whole model, then there is no need to follow the relationships
+		followRelationshipsLabel.setEnabled(!wholeModelButton.isSelected());
+		followRelationshipsSpinner.setEnabled(!wholeModelButton.isSelected());
+		levelsLabel.setEnabled(!wholeModelButton.isSelected());
+	}));
+	
+	var selectedButton = new Packages.javax.swing.JRadioButton("Selected elements (" + selectedElements.length + " elements)");
+	contentPane.add(selectedButton);
+	layout.putConstraint(WEST, selectedButton, 10, EAST, wholeModelButton);
+	layout.putConstraint(VCENTER, selectedButton, 0, VCENTER, viewContentLabel);
+	buttonGroup.add(selectedButton);
+	selectedButton.addActionListener(new Packages.java.awt.event.ActionListener(function(e) {
+			// if selected, then we may follow relationships
+		followRelationshipsLabel.setEnabled(!wholeModelButton.isSelected());
+		followRelationshipsSpinner.setEnabled(!wholeModelButton.isSelected());
+		levelsLabel.setEnabled(!wholeModelButton.isSelected());
+	}));
+
+	if ( selectedElements.length === 0 ) {
+		selectedButton.setEnabled(false);
+		isModelSelected = true;
+	}
+	if ( defaultContent === "*" )
+		isModelSelected = true;
+	wholeModelButton.setSelected(isModelSelected);
+	selectedButton.setSelected(!isModelSelected);
+	
+	// -------------------- Follow relationships
+	if ( (defaultDepth === undefined) || (defaultDepth === null) || (defaultDepth === "") )
+		defaultDepth = 0;
+	else
+		defaultDepth = parseInt(defaultDepth)|0;	// "|0" allows to force a 32 bit integer, else parseInt() returns a double
+	
+	var followRelationshipsSpinner = new Packages.javax.swing.JSpinner(new Packages.javax.swing.SpinnerNumberModel(defaultDepth, 0, 1000000, 1));
+	contentPane.add(followRelationshipsSpinner);
+	layout.putConstraint(WEST, followRelationshipsSpinner, 15, EAST, followRelationshipsLabel);
+	layout.putConstraint(EAST, followRelationshipsSpinner, 60, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, followRelationshipsSpinner, 0, VCENTER, followRelationshipsLabel);
+	followRelationshipsSpinner.setEnabled(!isModelSelected);
+	
+	var levelsLabel = new Packages.javax.swing.JLabel("levels.");
+	contentPane.add(levelsLabel);
+	layout.putConstraint(WEST, levelsLabel, 10, EAST, followRelationshipsSpinner);
+	layout.putConstraint(VCENTER, levelsLabel, 0, VCENTER, followRelationshipsSpinner);
+	levelsLabel.setEnabled(!isModelSelected);
+	
+		// -------------------- Nested relationships
+	if ( (defaultNestedRelationships === undefined) || (defaultNestedRelationships === null) || (defaultNestedRelationships === ""))
+		defaultNestedRelationships = [];
+	else
+		defaultNestedRelationships = defaultNestedRelationships.split(",");
+
+	var accessCheckBox = new Packages.javax.swing.JCheckBox("Access");
+	contentPane.add(accessCheckBox);
+	layout.putConstraint(WEST, accessCheckBox, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, accessCheckBox, 0, VCENTER, nestedRelationshipsLabel);
+	if ( defaultNestedRelationships.indexOf("access-relationship") !== -1 )
+		accessCheckBox.setSelected(true);
+	
+	var aggregationCheckBox = new Packages.javax.swing.JCheckBox("Aggregation");
+	contentPane.add(aggregationCheckBox);
+	layout.putConstraint(WEST, aggregationCheckBox, 20, EAST, accessCheckBox);
+	layout.putConstraint(VCENTER, aggregationCheckBox, 0, VCENTER, accessCheckBox);
+	if ( defaultNestedRelationships.indexOf("aggregation-relationship") !== -1 )
+		aggregationCheckBox.setSelected(true);
+	
+	var assignmentCheckBox = new Packages.javax.swing.JCheckBox("Assignment");
+	contentPane.add(assignmentCheckBox);
+	layout.putConstraint(WEST, assignmentCheckBox, 20, EAST, aggregationCheckBox);
+	layout.putConstraint(VCENTER, assignmentCheckBox, 0, VCENTER, aggregationCheckBox);
+	if ( defaultNestedRelationships.indexOf("assignment-relationship") !== -1 )
+		assignmentCheckBox.setSelected(true);
+	
+	var compositionCheckBox = new Packages.javax.swing.JCheckBox("Composition");
+	contentPane.add(compositionCheckBox);
+	layout.putConstraint(WEST, compositionCheckBox, 20, EAST, assignmentCheckBox);
+	layout.putConstraint(VCENTER, compositionCheckBox, 0, VCENTER, assignmentCheckBox);
+	if ( defaultNestedRelationships.indexOf("composition-relationship") !== -1 )
+		compositionCheckBox.setSelected(true);
+		
+	var flowCheckBox = new Packages.javax.swing.JCheckBox("Flow");
+	contentPane.add(flowCheckBox);
+	layout.putConstraint(WEST, flowCheckBox, 0, WEST, accessCheckBox);
+	layout.putConstraint(NORTH, flowCheckBox, 0, SOUTH, accessCheckBox);
+	if ( defaultNestedRelationships.indexOf("flow-relationship") !== -1 )
+		flowCheckBox.setSelected(true);
+	
+	var influenceCheckBox = new Packages.javax.swing.JCheckBox("Influence");
+	contentPane.add(influenceCheckBox);
+	layout.putConstraint(WEST, influenceCheckBox, 0, WEST, aggregationCheckBox);
+	layout.putConstraint(VCENTER, influenceCheckBox, 0, VCENTER, flowCheckBox);
+	if ( defaultNestedRelationships.indexOf("influence-relationship") !== -1 )
+		influenceCheckBox.setSelected(true);
+	
+	var realizationCheckBox = new Packages.javax.swing.JCheckBox("Realization");
+	contentPane.add(realizationCheckBox);
+	layout.putConstraint(WEST, realizationCheckBox, 0, WEST, assignmentCheckBox);
+	layout.putConstraint(VCENTER, realizationCheckBox, 0, VCENTER, flowCheckBox);
+	if ( defaultNestedRelationships.indexOf("realization-relationship") !== -1 )
+		realizationCheckBox.setSelected(true);
+	
+	var servingCheckBox = new Packages.javax.swing.JCheckBox("Serving");
+	contentPane.add(servingCheckBox);
+	layout.putConstraint(WEST, servingCheckBox, 0, WEST, compositionCheckBox);
+	layout.putConstraint(VCENTER, servingCheckBox, 0, VCENTER, flowCheckBox);
+	if ( defaultNestedRelationships.indexOf("serving-relationship") !== -1 )
+		servingCheckBox.setSelected(true);
+	
+	var specializationCheckBox = new Packages.javax.swing.JCheckBox("Specialization");
+	contentPane.add(specializationCheckBox);
+	layout.putConstraint(WEST, specializationCheckBox, 0, WEST, accessCheckBox);
+	layout.putConstraint(NORTH, specializationCheckBox, 0, SOUTH, flowCheckBox);
+	if ( defaultNestedRelationships.indexOf("specialization-relationship") !== -1 )
+		specializationCheckBox.setSelected(true);
+	
+	var triggeringCheckBox = new Packages.javax.swing.JCheckBox("Triggering");
+	contentPane.add(triggeringCheckBox);
+	layout.putConstraint(WEST, triggeringCheckBox, 10, WEST, accessCheckBox);
+	layout.putConstraint(VCENTER, triggeringCheckBox, 0, VCENTER, specializationCheckBox);
+	if ( defaultNestedRelationships.indexOf("specialization-relationship") !== -1 )
+		specializationCheckBox.setSelected(true);
+	
+		// -------------------- Graph direction
+	buttonGroup = new Packages.javax.swing.ButtonGroup();
+	
+	var topBottomButton = new Packages.javax.swing.JRadioButton("Top-Bottom");
+	contentPane.add(topBottomButton);
+	layout.putConstraint(WEST, topBottomButton, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, topBottomButton, 0, VCENTER, graphDirectionLabel);
+	buttonGroup.add(topBottomButton);
+	
+	var bottomTopButton = new Packages.javax.swing.JRadioButton("Bottom-Top");
+	contentPane.add(bottomTopButton);
+	layout.putConstraint(WEST, bottomTopButton, 10, EAST, topBottomButton);
+	layout.putConstraint(VCENTER, bottomTopButton, 0, VCENTER, graphDirectionLabel);
+	buttonGroup.add(bottomTopButton);
+	
+	var leftRightButton = new Packages.javax.swing.JRadioButton("Left-Right");
+	contentPane.add(leftRightButton);
+	layout.putConstraint(WEST, leftRightButton, 10, EAST, bottomTopButton);
+	layout.putConstraint(VCENTER, leftRightButton, 0, VCENTER, graphDirectionLabel);
+	buttonGroup.add(leftRightButton);
+	
+	var rightLeftButton = new Packages.javax.swing.JRadioButton("Right-Left");
+	contentPane.add(rightLeftButton);
+	layout.putConstraint(WEST, rightLeftButton, 10, EAST, leftRightButton);
+	layout.putConstraint(VCENTER, rightLeftButton, 0, VCENTER, graphDirectionLabel);
+	buttonGroup.add(rightLeftButton);
+	
+	topBottomButton.setSelected(true);
+	if ( defaultDirection === "BT" ) BottomTopButton.setSelected(true);
+	else if ( defaultDirection === "LR" ) leftRightButton.setSelected(true);
+	else if ( defaultDirection === "RL" ) rightLeftButton.setSelected(true);
+	
+		// -------------------- Graph alignment
+	buttonGroup = new Packages.javax.swing.ButtonGroup();
+	
+	var noneButton = new Packages.javax.swing.JRadioButton("None");
+	contentPane.add(noneButton);
+	layout.putConstraint(WEST, noneButton, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, noneButton, 0, VCENTER, graphAlignementLabel);
+	buttonGroup.add(noneButton);
+	
+	var upLeftButton = new Packages.javax.swing.JRadioButton("Up-Left");
+	contentPane.add(upLeftButton);
+	layout.putConstraint(WEST, upLeftButton, 10, EAST, noneButton);
+	layout.putConstraint(VCENTER, upLeftButton, 0, VCENTER, graphAlignementLabel);
+	buttonGroup.add(upLeftButton);
+	
+	var upRightButton = new Packages.javax.swing.JRadioButton("Up-Right");
+	contentPane.add(upRightButton);
+	layout.putConstraint(WEST, upRightButton, 10, EAST, upLeftButton);
+	layout.putConstraint(VCENTER, upRightButton, 0, VCENTER, graphAlignementLabel);
+	buttonGroup.add(upRightButton);
+	
+	var downLeftButton = new Packages.javax.swing.JRadioButton("Down-Left");
+	contentPane.add(downLeftButton);
+	layout.putConstraint(WEST, downLeftButton, 10, EAST, upRightButton);
+	layout.putConstraint(VCENTER, downLeftButton, 0, VCENTER, graphAlignementLabel);
+	buttonGroup.add(downLeftButton);
+	
+	var downRightButton = new Packages.javax.swing.JRadioButton("Down-Right");
+	contentPane.add(downRightButton);
+	layout.putConstraint(WEST, downRightButton, 10, EAST, downLeftButton);
+	layout.putConstraint(VCENTER, downRightButton, 0, VCENTER, graphAlignementLabel);
+	buttonGroup.add(downRightButton);
+	
+	noneButton.setSelected(true);
+	if ( defaultAlign === "UL" ) upLeftButton.setSelected(true);
+	else if ( defaultAlign === "UR" ) upRightButton.setSelected(true);
+	else if ( defaultAlign === "DL" ) downLeftButton.setSelected(true);
+	else if ( defaultAlign === "D" ) downRightButton.setSelected(true);
+	
+		// -------------------- Graph algorithm
+	var graphAlgorithms = ["Network-simplex", "Tight-tree", "Longest-path"];
+	var graphAlgorithmComboBox = new Packages.javax.swing.JComboBox(graphAlgorithms);
+	contentPane.add(graphAlgorithmComboBox);
+	layout.putConstraint(WEST, graphAlgorithmComboBox, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, graphAlgorithmComboBox, 0, VCENTER, graphAlgorithmLabel);
+	
+	if ( (defaultAlgorithm !== undefined) && (defaultAlgorithm !== null) && (graphAlgorithms.indexOf(defaultAlgorithm) != -1) )
+		JComboBox.setSelectedItem(defaultAlgorithm);
+	
+		// -------------------- Nodes separation
+	if ( (defaultHSep === undefined) || (defaultHSep === null) || (defaultHSep === "") )
+		defaultHSep = 50;
+	else
+		defaultHSep = parseInt(defaultHSep)|0;	// "|0" allows to force a 32 bit integer, else parseInt() returns a double
+	
+	if ( (defaultVSep === undefined) || (defaultVSep === null) || (defaultVSep === "") )
+		defaultVSep = 50;
+	else
+		defaultVSep = parseInt(defaultVSep)|0;	// "|0" allows to force a 32 bit integer, else parseInt() returns a double
+	
+	var horizontalLabel = new Packages.javax.swing.JLabel("Horizontal:");
+	contentPane.add(horizontalLabel);
+	layout.putConstraint(WEST, horizontalLabel, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, horizontalLabel, 0, VCENTER, nodesSeparationLabel);
+	
+	var horizontalSeparationSpinner = new Packages.javax.swing.JSpinner(new Packages.javax.swing.SpinnerNumberModel(defaultHSep, 0, 250, 1));
+	contentPane.add(horizontalSeparationSpinner);
+	layout.putConstraint(WEST, horizontalSeparationSpinner, 15, EAST, horizontalLabel);
+	layout.putConstraint(EAST, horizontalSeparationSpinner, 60, EAST, horizontalLabel);
+	layout.putConstraint(VCENTER, horizontalSeparationSpinner, 0, VCENTER, horizontalLabel);
+	
+	var verticalLabel = new Packages.javax.swing.JLabel("Vertical:");
+	contentPane.add(verticalLabel);
+	layout.putConstraint(WEST, verticalLabel, 10, EAST, horizontalSeparationSpinner);
+	layout.putConstraint(VCENTER, verticalLabel, 0, VCENTER, nodesSeparationLabel);
+	
+	var verticalSeparationSpinner = new Packages.javax.swing.JSpinner(new Packages.javax.swing.SpinnerNumberModel(defaultVSep, 0, 250, 1));
+	contentPane.add(verticalSeparationSpinner);
+	layout.putConstraint(WEST, verticalSeparationSpinner, 25, EAST, verticalLabel);
+	layout.putConstraint(EAST, verticalSeparationSpinner, 70, EAST, verticalLabel);
+	layout.putConstraint(VCENTER, verticalSeparationSpinner, 0, VCENTER, verticalLabel);
+	
+		// -------------------- View name
+	var redBorderLine = Packages.javax.swing.BorderFactory.createLineBorder(Packages.java.awt.Color.red);
+	var viewNameTextField = new Packages.javax.swing.JTextField();
+	contentPane.add(viewNameTextField);
+	layout.putConstraint(WEST, viewNameTextField, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, viewNameTextField, 0, VCENTER, viewNameLabel);
+	layout.putConstraint(EAST, viewNameTextField, -10, EAST, contentPane);
+	viewNameTextField.addCaretListener(new Packages.javax.swing.event.CaretListener(function(e) {
+		if ( viewNameTextField.getText() === "" || viewNameTextField.getText() === "/" ) {
+			viewNameTextField.setBorder(redBorderLine);
+			okButton.setEnabled(false);
+		} else {
+			viewNameTextField.setBorder(null);
+			okButton.setEnabled(true);
+		}
+	}));
+	viewNameTextField.addActionListener(new Packages.java.awt.event.ActionListener(function(e) {
+		if ( okButton.isEnabled() ) {
+			G_okPressed = true;
+			frame.setVisible(false);
+		}
+	}));
+	
+	if ( (defaultViewName === undefined) || (defaultViewName === null) || (defaultViewName === "") )
+		viewNameTextField.setBorder(redBorderLine);
+	else
+		viewNameTextField.setText(defaultViewName);
+
+	
+	var viewPathLabel = new Packages.javax.swing.JLabel("You may use the '/' char to separate folder names.");
+	contentPane.add(viewPathLabel);
+	layout.putConstraint(WEST, viewPathLabel, 0, WEST, viewNameTextField);
+	layout.putConstraint(NORTH, viewPathLabel, 0, SOUTH, viewNameTextField);
+
+		// -------------------- Console info
+	buttonGroup = new Packages.javax.swing.ButtonGroup();
+	
+	var infoButton = new Packages.javax.swing.JRadioButton("Info");
+	contentPane.add(infoButton);
+	layout.putConstraint(WEST, infoButton, 10, EAST, followRelationshipsLabel);
+	layout.putConstraint(VCENTER, infoButton, 0, VCENTER, consoleInfoLabel);
+	infoButton.setSelected(true);
+	buttonGroup.add(infoButton);
+	
+	var verboseButton = new Packages.javax.swing.JRadioButton("Verbose");
+	contentPane.add(verboseButton);
+	layout.putConstraint(WEST, verboseButton, 10, EAST, infoButton);
+	layout.putConstraint(VCENTER, verboseButton, 0, VCENTER, consoleInfoLabel);
+	buttonGroup.add(verboseButton);
+	
+	var debugButton = new Packages.javax.swing.JRadioButton("Debug");
+	contentPane.add(debugButton);
+	layout.putConstraint(WEST, debugButton, 10, EAST, verboseButton);
+	layout.putConstraint(VCENTER, debugButton, 0, VCENTER, consoleInfoLabel);
+	buttonGroup.add(debugButton);
+	
+	if ( G_debug )
+		debugButton.setSelected(true);
+	else if ( G_verbose )
+		verboseButton.setSelected(true);
+	else
+		infoButton.setSelected(true);
+
+		// -------------------- OK and Cancel buttons
+	var okButton = new Packages.javax.swing.JButton("OK");
+	okButton.setEnabled(viewNameTextField.getText().length !== 0);
+	okButton.setVerticalTextPosition(Packages.javax.swing.AbstractButton.CENTER);
+	okButton.setHorizontalTextPosition(Packages.javax.swing.AbstractButton.CENTER);
+	okButton.addActionListener(new Packages.java.awt.event.ActionListener(function(e) {
+		G_okPressed = true;
+		frame.setVisible(false);
+	}));
+	contentPane.add(okButton);
+
+	var cancelButton = new Packages.javax.swing.JButton("Cancel");
+	cancelButton.setBounds(250,100,100,50);
+	cancelButton.addActionListener(new Packages.java.awt.event.ActionListener(function(e) {
+		G_okPressed = false;
+		frame.setVisible(false)
+	}));
+	contentPane.add(cancelButton);
+	
+	layout.putConstraint(EAST, cancelButton, -5, EAST, contentPane);
+	layout.putConstraint(SOUTH, cancelButton, -5, SOUTH, contentPane);
+	
+	layout.putConstraint(EAST, okButton, -5, WEST, cancelButton);
+	layout.putConstraint(SOUTH, okButton, -5, SOUTH, contentPane);
+
+	//frame.getContentPane().add(panel);
+	frame.setVisible(true);
+	
+	var Thread = Java.type("java.lang.Thread");
+	
+	Thread.sleep(100);
+	viewNameTextField.grabFocus();
+	viewNameTextField.requestFocus();
+	
+	while ( frame.isVisible() )
+		Thread.sleep(100);
+} catch(e) {
+	console.error(e);
+	if ( e.stack !== undefined )
+		console.error(e.stack);
+}
+
+	// we wait until the frame is visible (ie. until the user clicks on the OK or the Cancel button)
+
+if ( G_okPressed ) {
+		// if the user clicked on the OK button
+	var __LIB__ = __DIR__ + "generate_view/";	// location of the javascript libraires required by the script
+	load(__LIB__ + "generate_view.js");
+	
+	G_verbose = verboseButton.isSelected() || debugButton.isSelected();
+	G_debug = debugButton.isSelected();
+	
+	var elementsToAddInView;
+	var depth = 0;
+	if ( wholeModelButton.isSelected() ) {
+		debug("\"Whole model\" is checked, so creating view from all elements.");
+		elementsToAddInView = allElements;
+	} else {
+		debug("\"Selected elements\" is checked, so creating view from selected elements.");
+		elementsToAddInView = selectedElements;
+		depth = followRelationshipsSpinner.getValue();
+		debug("Following relationships up to " + depth + " levels.");
+	}
+	
+	nestedRelationships = [];
+	if ( accessCheckBox.isSelected() ) nestedRelationships.push("access-relationship");
+	if ( aggregationCheckBox.isSelected() ) nestedRelationships.push("aggregation-relationship");
+	if ( assignmentCheckBox.isSelected() ) nestedRelationships.push("assignment-relationship");
+	if ( compositionCheckBox.isSelected() ) nestedRelationships.push("composition-relationship");
+	if ( flowCheckBox.isSelected() ) nestedRelationships.push("flow-relationship");
+	if ( influenceCheckBox.isSelected() ) nestedRelationships.push("influence-relationship");
+	if ( realizationCheckBox.isSelected() ) nestedRelationships.push("realization-relationship");
+	if ( servingCheckBox.isSelected() ) nestedRelationships.push("serving-relationship");
+	if ( specializationCheckBox.isSelected() ) nestedRelationships.push("specialization-relationship");
+	if ( triggeringCheckBox.isSelected() ) nestedRelationships.push("triggering-relationship");
+	debug("Nesting following " + nestedRelationships.length + " relationships: " + JSON.stringify(nestedRelationships));
+
+	var direction;
+	if ( topBottomButton.isSelected() )
+		direction = "TB";
+	else if ( bottomTopButton.isSelected() )
+		direction = "BT";
+	else if ( leftRightButton.isSelected() )
+		direction = "LR";
+	else if ( rightLeftButton.isSelected() )
+		direction = "RL";
+	debug("Graph direction: " + direction);
+
+	var alignment;
+	if ( upLeftButton.isSelected() )
+		alignment = "UL";
+	else if ( upRightButton.isSelected() )
+		alignment = "UR";
+	else if ( downLeftButton.isSelected() )
+		alignment = "DL";
+	else if ( downRightButton.isSelected() )
+		alignment = "DR";
+	debug("Graph alignment: " + alignment);
+	
+	var hSep = horizontalSeparationSpinner.getValue();
+	debug("Horizontal separation: " + hSep);
+	
+	var vSep = verticalSeparationSpinner.getValue();
+	debug("Vertical separation: " + vSep);
+	
+	var algorithm = graphAlgorithmComboBox.getSelectedItem().toLowerCase();
+	debug("Algorithm: " + algorithm);
+
+
+	// TODO: manage view path
+	var viewPath = viewNameTextField.getText();
+	debug("View path = " + viewPath);
+	var viewName = viewPath.split('/').pop();
+	debug("View name = " + viewName);
+	
+	frame.dispose();
+	frame = null;
+	
+	try {		
+			// generate the view using the Dagre and Graphlib libraries
+		var view = generate_view({
+			concepts: (wholeModelButton.isSelected() ? "*" : "selected"),
+			action: 1,
+			viewName: viewName,			// TODO : manage path with subfolders
+			graphDepth: depth,
+			nestedRelationships: nestedRelationships,
+			graphDirection: direction,
+			graphAlign: alignment,
+			hSep: hSep,
+			vSep: vSep,
+			algorithm: algorithm,
+			verbose: G_verbose,
+			debug: G_debug
+		});
+		
+		debug("Generated view: " + view);
+		if ( view !== undefined ) {
+				// save the parameters used to generate the view as view properties
+			debug("Saving parameters as view properties");
+			
+			view.removeProp("graph_content");
+			view.removeProp("graph_depth");
+			view.removeProp("graph_direction");
+			view.removeProp("graph_align");
+			view.removeProp("graph_algorithm");
+			view.removeProp("graph_hsep");
+			view.removeProp("graph_vsep");
+			view.removeProp("nested_relationships");
+
+			view.prop("graph_direction", direction);
+			view.prop("graph_algorithm", algorithm);
+			view.prop("graph_hsep", hSep);
+			view.prop("graph_vsep", vSep);
+			if ( wholeModelButton.isSelected() )
+				view.prop("graph_content", "*");
+			else {
+				view.prop("graph_content", "selected");
+				view.prop("graph_depth", depth);
+			}
+			if ( alignment !== undefined )
+				view.prop("graph_align", alignment);
+			if ( nestedRelationships.length > 0 )
+				view.prop("nested_relationships", JSON.stringify(nestedRelationships).replace(/[\{\[\}\] \"]/g, ""));
+		
+				// Open the view
+			console.log("The view has been generated.");
+			try {
+					// jArchi provides a ArchimateDiagramModelProxy class where then openDiagramEditor requires a ArchimateDiagramModel class
+					// unfortunately, the getEObject() method that provides the underlying ArchimateDiagramModel class, is protected
+					// so we use reflection to invoke this method.
+				var method = Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class.getDeclaredMethod("getEObject");
+				method.setAccessible(true);
+				var v = method.invoke(view);
+				Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(v);
+			} catch (e) {
+				console.error("Failed to open the view. You may open it manually.");
+			}
+		}
+		
+		console.log("Finished.");
+	} catch (e) {
+		error(e);
+		if ( e.stack !== undefined )
+			console.error(e.stack);
+	}
+} else {
+		// if the user clicked on the Cancel button
+	console.log("Cancelled.");
+}
+
+function verbose(msg) {
+	if ( G_verbose ) console.log("VERB: " + msg);
+}
+
+function debug(msg) {
+	if ( G_debug ) console.log("DEBG: " + msg);
+}
+
+function popup(msg) {
+	Packages.javax.swing.JOptionPane.showMessageDialog(null, msg, "Info", Packages.javax.swing.JOptionPane.INFORMATION_MESSAGE);
+	console.log("INFO: " + msg);
+}
+
+function warning(msg) {
+	Packages.javax.swing.JOptionPane.showMessageDialog(null, msg, "Warning", Packages.javax.swing.JOptionPane.WARNING_MESSAGE);
+	console.error("WARN: " + msg);
+}
+
+function error(msg) {
+	Packages.javax.swing.JOptionPane.showMessageDialog(null, msg, "Error", Packages.javax.swing.JOptionPane.ERROR_MESSAGE);
+	console.error("ERROR: " + msg);
+}
+
+function fatal(msg) {
+	Packages.javax.swing.JOptionPane.showMessageDialog(null, msg, "Error", Packages.javax.swing.JOptionPane.ERROR_MESSAGE);
+	msg = "FATAL: " + msg;
+	throw msg;
+}
+
+	// This function adds an Archimate element in a list
+	// if a container is given, then the function recursively adds all the elements in that container
+function addElementInList(list, obj) {
+	if ( $(obj).is("element") )
+		list.push(obj.concept);
+		
+	$(obj).children().each(function(child) {addElementInList(list, child); });
+
+	return list;
+}

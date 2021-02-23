@@ -1,0 +1,41 @@
+/**
+ * FontCountInModel.ajs
+ * 	Count the numbers of used fonts in all views and the model
+ * 	Report views with more than one font
+ */
+
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/ApplyToSelection.js");
+
+initConsoleLog(__FILE__)
+
+var fonts = new Set();
+
+// loop over all views
+$('view').each(function (view) {
+	let viewFonts = new Set();
+	// for every view, loop over all elements and relations
+	$(view).find('concept').each(function (concept) {
+		fonts.add(concept.fontName)
+		viewFonts.add(concept.fontName)
+	})
+	let fontString='';
+	if (viewFonts.size > 1) {
+		for (let item of fonts) {
+			if (fontString.length > 0) {fontString += ', '}
+			fontString += item;
+		}
+		console.log(`${view} heeft ${viewFonts.size} fonts > ${fontString}`)
+	}
+})
+
+let fontString='';
+for (let item of fonts) {
+	if (fontString.length > 0) {fontString += ', '}
+	fontString += item;
+}
+console.log(`\n${model} heeft ${fonts.size} fonts > ${fontString}`)
+
+
+finishConsoleLog()
+

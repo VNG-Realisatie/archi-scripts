@@ -6,12 +6,12 @@
  * (c) 2019 Mark Backer
  * 
  */
-load(__DIR__ + "../lib/chroma.min.js");
-load(__DIR__ + "../Common/Common.ajs");
-load(__DIR__ + "../Common/ApplyToSelection.ajs");
+load(__DIR__ + "../_lib/chroma.min.js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/ApplyToSelection.js");
 
-_console_debug = true;
-_console_stack = true;
+_commonShowDebugMessage.push(true);
+_commonShowInfoMessage.push(true);
 
 initConsoleLog(__FILE__)
 
@@ -22,11 +22,11 @@ finishConsoleLog()
 /*
 */
 function ColorByVertrouwelijkheid(pObject) {
-//	colorscale 	= chroma.scale('Blues');
-	colorscale 	= chroma.scale('Oranges');
+	colorscale 	= chroma.scale('Blues').padding([0.1, 0.2]);
+	// colorscale 	= chroma.scale('Oranges');
 	
 	if (pObject.prop("Vertrouwelijkheid")) {
-		debug(`${pObject} met vertrouwelijkheid: ${pObject.prop("Vertrouwelijkheid")}`)
+		info(`${pObject} met vertrouwelijkheid: ${pObject.prop("Vertrouwelijkheid")}`)
 		pObject.fillColor=colorscale((pObject.prop("Vertrouwelijkheid") - 0.8)/3);
 	} else {
 		debug(`Skipped ${pObject}: Vertrouwelijkheid = ${pObject.prop("Vertrouwelijkheid")}`)

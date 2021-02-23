@@ -1,0 +1,22 @@
+/*
+ * Set font to default font voor all view elements
+ */
+
+console.log("Change font");
+
+var selectedView = $(selection).filter("archimate-diagram-model").first();
+
+if (!selectedView) {
+	console.log("> Please Select a View");
+} else {
+
+	$(diagram).find(pConcept).forEach(function (ViewElement) {
+		ViewElement.fontName = "Segoe UI";
+		ViewElement.fontSize = 9;
+		ViewElement.fontStyle = "normal";
+		// diagramObject.fontStyle = "normal";
+		// diagramObject.fontStyle = "bold";
+		// diagramObject.fontStyle = "italic";
+		// diagramObject.fontStyle = "bolditalic";
+	})
+}

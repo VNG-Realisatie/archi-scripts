@@ -1,0 +1,50 @@
+/**
+ * document de selected view
+ * 
+ * generate a markdown file with the view and a table with all the elements
+ */
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "includeDocumentation.ajs");
+
+initConsoleLog(__FILE__)
+
+try {
+
+	var view = selection.filter("archimate-diagram-model").first();
+	
+	if (view) {
+
+		console.log(`View is: ${view.name}\n`);
+		
+		let exportFile = '';
+		let fileName = `${new Date().toLocaleDateString('nl-NL')} ${view.name}.md`
+		exportFile = window.promptSaveFile({
+			title: "Export to File",
+			filterExtensions: ["*.md"],
+			fileName: fileName
+		});
+		
+		if (exportFile) {
+			
+			let markdownString = `## ${view.name}\n`;
+			markdownString += (view.documentation) ? `${view.documentation}\n\n` : ''
+
+			markdownString += printView(view, 1, false, exportFile);
+			markdownString += printElementsHierarchic(1, view);
+
+			console.log(`\nMarkdown report saved to:`);
+			console.log(`- path:     ${exportFile.substring(0, exportFile.lastIndexOf(slash()) + 1)}`);
+			console.log(`- fileName: ${exportFile.substring(exportFile.lastIndexOf(slash()) + 1)}`);
+
+			$.fs.writeFile(exportFile, markdownString);
+
+			finishConsoleLog()
+		} else {
+			console.log("Canceled")
+		}
+	} else {
+		console.log("Please select a View");
+	}
+} catch (error) {
+	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
+}

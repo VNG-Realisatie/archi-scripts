@@ -1,0 +1,46 @@
+/**
+ * findFolderWithoutName.ajs
+ * 
+ */
+console.clear();
+console.log()
+
+var nrFolderWithoutName = 0
+
+console.log(`Find folders without a name`)
+console.log(`Number of folders is ${$(model).find('folder').size()}\n`)
+
+findFolderWithoutName($(model).first())
+
+console.log()
+console.log(`${nrFolderWithoutName} folders without a name`)
+
+
+/**
+ * findFolderWithoutName
+ * 	recursive function to traverse hierarchical tree of folders
+ * 	test for folders without a name
+ * 
+ * @param pObject - root or folderobject. Use $(model).first() as the root folder
+ * @param pLevel - 
+ * @param pFolderPath 
+ */
+function findFolderWithoutName(pObject, pLevel = 0, pFolderPath = '') {
+	
+	if (pObject.name == '') {
+		console.log(`${pFolderPath}`)
+		console.log(`   Folder with id ${pObject.id}`)
+		nrFolderWithoutName++
+	}
+	
+	// stop if folder has no subfolders
+	let subFolders = $(pObject).children("folder")
+	if (subFolders.size() == 0) {
+		return
+	}
+	
+	let foldername = pObject.name != '' ? pObject.name : `## no name ##`;
+	subFolders.each(function (f) {
+		findFolderWithoutName(f, pLevel + 1, `${pFolderPath == '' ? foldername : pFolderPath + ' > ' + foldername}`)
+	})
+}
