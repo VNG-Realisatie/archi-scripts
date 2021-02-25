@@ -1,0 +1,189 @@
+// Sync UPL.ajs
+
+load(__DIR__ + "Include_LoadAndSync.js");
+
+// Configuration starts here ======================================================================================
+
+// Each source of information (data source) has its own object which contains:
+// - The label describing the datasource (label)
+// - The path of the CSV file (csv)
+// - The ArchiMate concept type used when importing (targetType)
+// - The function which extracts "logical" id from an ArchiMate element, or null if
+//   element should be skipped (getId)
+// - The function which stores external id into an ArchiMate element (setId)
+// - The column name (or function) used to get (or compute) a unique id (id)
+// - The column name (or function) used to get (or compute) element's name (name)
+// - The column name (or function) used to get (or compute) element's documentation (documentation)
+// - A mapping of external attributes to elements' properties (propMapping)
+// - A description of external relations to map to ArchiMate relationships (relations)
+
+/* Template
+var xxx = {
+  'label': '',
+  'csv': __DIR__+'xxx.csv',
+  'targetType': '',
+  'targetFolder': getFolder('layer', 'folderName'),
+  'getId': function(element) {
+    // Do something to extract id
+  },
+  'setId': function(element, row) {
+    // Do something to store id
+  },
+  'id': '', // Can also be a function
+  'name': '', // Can also be a function
+  'documentation': '', // Can also be a function
+  'propMapping': {
+    'Property_name': 'Column_name',
+    'Property_name': 'Column_name'
+  },
+  'relations': {
+    'Relation_Label': {               // can be changed, will be used in logs
+      'column': '',                   // column name
+      'reference': dataSourceObject,  // reference of the referenced data dource object
+      'targetType': '',               // ArchiMate relationship type
+                                      //  see https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Collection#object-selector-type
+      'accessType': '',               // sets access type if targetType='access-relationship'
+                                      //  see https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#accesstype
+      'isReversed': true|false        // sets direction of the relationship
+    },
+    // You can add other relations if needed
+  }
+};
+*/
+
+/** 
+ * file: Uniforme Productnamenlijst In CSV
+ *  https://data.overheid.nl/dataset/uniforme-productnamenlijst
+ *  download: UPL-actueel.csv'
+ */
+var producten = {
+  'label': 'Unieke productnaam',
+  'csv': __DIR__+'UPL-actueel.csv',
+  'targetType': 'product',
+  'targetFolder': getFolder('Business', 'UPL'),
+  'getId': function(element) {
+    return element.prop('URI')
+  },
+  'setId': function(element, row) {
+    element.prop('URI', row['_id'])
+  },
+  'id': 'URI',
+  'name': 'UniformeProductnaam',
+  'documentation': '',
+  'propMapping': {
+    'Rijk': 'Rijk',
+    'Provincie': 'Provincie',
+    'Waterschap': 'Waterschap',
+    'Gemeente': 'Gemeente',
+    'Burger': 'Burger',
+    'Bedrijf': 'Bedrijf',
+    'Dienstenwet': 'Dienstenwet',
+    'SDG': 'SDG',
+    'Autonomie': 'Autonomie',
+    'Medebewind': 'Medebewind',
+    'DigiDMacht': 'DigiDMacht',
+    'Grondslag': 'Grondslag',
+    'Grondslaglabel': 'Grondslaglabel',
+    'Grondslaglink': 'Grondslaglink'
+  },
+  'relations': {}
+};
+
+var thema = {
+  'label': 'Thema',
+  'csv': __DIR__+'UPL-Thema.csv',
+  'targetType': 'grouping',
+  'targetFolder': getFolder('Other', 'Thema (Taxonomie Beleidsagenda)'),
+  'getId': function(element) {
+    return element.prop('TBAThemaURI')
+  },
+  'setId': function(element, row) {
+    element.prop('TBAThemaURI', row['_id'])
+  },
+  'id': 'TBAThemaURI',
+  'name': 'TBAThema',
+  'documentation': '',
+  'propMapping': {},
+  'relations': {}
+};
+
+
+var topthema = {
+  'label': 'TopThema',
+  'csv': __DIR__+'UPL-Thema.csv',
+  'targetType': 'grouping',
+  'targetFolder': getFolder('Other', 'TopThema'),
+  'getId': function(element) {
+    return element.prop('TOPThemaURI')
+  },
+  'setId': function(element, row) {
+    element.prop('TOPThemaURI', row['_id'])
+  },
+  'id': 'TOPThemaURI',
+  'name': 'TOPThema',
+  'documentation': '',
+  'propMapping': {},
+  'relations': {}
+};
+
+/** per product inlezen van relaties thema's
+ *  andersom, per thema inlezen van relaties werkt niet, één relatie per thema met onderste regel product
+ */
+var thema_producten = {
+  'label': 'Thema producten',
+  'csv': __DIR__+'UPL-Thema.csv',
+  'targetType': 'product',
+  'targetFolder': getFolder('Business', 'UPL'),
+  'getId': function(element) {
+    return element.prop('URI')
+  },
+  'setId': function(element, row) {
+    element.prop('URI', row['_id'])
+  },
+  'id': 'URI',
+  'name': 'UniformeProductnaam',
+  'documentation': '',
+  'propMapping': {},
+  'relations': {
+    'Thema Uniek product': {
+      'column': 'TBAThemaURI',
+      'reference': thema,
+      'targetType': 'aggregation-relationship',
+      'isReversed': true
+    },
+    'Top Uniek product': {
+      'column': 'TOPThemaURI',
+      'reference': topthema,
+      'targetType': 'aggregation-relationship',
+      'isReversed': true
+    }
+  }
+};
+
+
+// End of configuration =========================================================================================
+
+// Things start here ============================================================================================
+// Load data from CSV Files and sync model elements
+console.show();
+console.clear();
+console.log("Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'");
+var startTime = new Date().getTime();
+
+loadAndSync(producten);
+
+loadAndSync(thema);
+syncModelRelationships(thema);
+
+loadAndSync(topthema);
+syncModelRelationships(topthema);
+
+loadAndSync(thema_producten);
+syncModelRelationships(thema_producten);
+
+// Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
+//tagDeletedConcepts();
+
+var endTime = new Date().getTime();
+console.log("Elapse time: ", (endTime - startTime)/1000, " sec");
+console.log("End of synchronization. Check previous messages for errors and undo in case of doubt.");

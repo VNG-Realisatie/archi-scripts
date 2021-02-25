@@ -1,14 +1,15 @@
 /**
- * ObjectID_export
+/**
+ * export_compact.ajs
  * 
  * Export Object_ID, id and other object properties of selection
  * The applyToModelContent function allows for multiple kinds of selections
  * 
  */
-load(__DIR__ + "../lib/papaparse.min.js");
+load(__DIR__ + "../_lib/papaparse.min.js");
 
-load(__DIR__ + "../Common/Common.ajs");
-load(__DIR__ + "../Common/ApplyToSelection.ajs");
+load(__DIR__ + "../_lib/Common.ajs");
+load(__DIR__ + "../_lib/ApplyToSelection.ajs");
 
 _commonShowDebugMessage = [false];
 
@@ -23,10 +24,10 @@ initConsoleLog(__FILE__)
 
 try {
 	console.log('Exporting selected elements\n')
-	applyToModelContent($(selection), exportElement);
+	applyToModelContent($(selection), elementData);
 
 	console.log('\nExporting selected relations\n')
-	applyToModelContent($(selection), exportRelation);
+	applyToModelContent($(selection), relationData);
 
 	let datum = new Date();
 	let exportFile = window.promptSaveFile({
@@ -93,7 +94,7 @@ function headerLabel(pLabel) {
  * 
  * @param pObject 
  */
-function exportElement(pObject) {
+function elementData(pObject) {
 	let row = new Object;
 
 	// >>>> apply to content moet altijd concept opleveren <<<<<<<<<<
@@ -124,7 +125,7 @@ function exportElement(pObject) {
  * 
  * @param pObject 
  */
-function exportRelation(pObject) {
+function relationData(pObject) {
 	let selectedObject = concept(pObject);
 
 	// alle relaties
@@ -157,7 +158,7 @@ function exportRelation(pObject) {
 		})
 
 		// export relation endpoint attributes
-		endpoints.forEach(function (endpoint) {
+		ENDPOINT_LABELS.forEach(function (endpoint) {
 			objectAttributes.forEach(function (attribute) {
 				headerLabel(`${endpoint}.${attribute}`)
 

@@ -1,25 +1,12 @@
 /**
- * ExportObject.ajs
+ * ExportOO.ajs
  * 
- * Export Object_ID, id and other object properties of selection
- * The applyToModelContent function allows for multiple kinds of selections
- * 
- * export
- * 	exportElement
- * 
- * 
- * row
- * 	rowElement
- * 	rowRelation
- * 	rowView
- * 
- * 
+ * Poging om object oriented te programmeren
  * 
  */
-load(__DIR__ + "../lib/papaparse.min.js");
-
-load(__DIR__ + "../Common/Common.ajs");
-load(__DIR__ + "../Common/ApplyToSelection.ajs");
+load(__DIR__ + "../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/ApplyToSelection.js");
 
 _commonShowDebugMessage = [false];
 // exportString += `"${pObject.id}", "${pObject.type}", "${pObject.name}","${pObject.prop("GEMMA type")}", "${pObject.prop("Object ID")}"\n`;

@@ -1,0 +1,38 @@
+/**
+ * exportElement.ajs
+ * 
+ * export selected elements to a CSV file
+ * 
+ * The applyToModelContent function allows for multiple kinds of selections
+ * 
+ */
+load(__DIR__ + "../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/ApplyToSelection.js");
+
+
+load(__DIR__ + "export_import_functions.js");
+
+_commonShowDebugMessage = [false];
+
+initConsoleLog(__FILE__)
+
+try {
+	console.log('Exporting selected elements')
+
+	// add selected concepts of the model to an array. Skip folders, properties of folders are not exported
+	let concepts=[];
+	$(selection).find('element').each(function (concept) {
+		// For export use the concept, also if a diagram occurence is given
+		concepts.push( useConcept(concept))
+	})
+	const data	= concepts.map(concept => elementData(concept))
+	const header = relationHeader(concepts)
+	
+	save2file(header, data, `${model.name}-${$(selection).first().name}-elements`)
+
+} catch (error) {
+	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
+}
+
+finishConsoleLog()

@@ -25,7 +25,7 @@ function PlotGEMMAstatusSWC(pObject) {
 	colorscale 	= chroma.scale('Blues');
 //	colorscale 	= chroma.scale('Oranges');
 	
-	if (pObject.view.prop("Publiceren") == "Softwarecatalogus en GEMMA Online en redactie") {
+	// if (pObject.view.prop("Publiceren") == "Softwarecatalogus en GEMMA Online en redactie") {
 
 		if (pObject.prop("GEMMA status")) {
 			if (pObject.prop("GEMMA status") == "In ontwikkeling") {
@@ -42,5 +42,5 @@ function PlotGEMMAstatusSWC(pObject) {
 		} else {
 			debug(`Skipped ${pObject}`)
 		}
-	}
+	// }
 }
