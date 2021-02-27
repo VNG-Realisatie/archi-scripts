@@ -1,0 +1,71 @@
+/**
+ * importElement.ajs
+ * 
+ * import elements from a CSV file
+ * 
+ */
+load(__DIR__ + "../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/Common.js");
+
+load(__DIR__ + "export_import_functions.js");
+
+// Label of the property with the ID
+const PROP_ID = "Object ID";
+const IMPORT_OBJECT = "element";
+
+// scanned row actions
+const PROP_ID_SYNC="PROP_ID sync";
+const ID_SYNC="id sync";
+const NAME_SYNC="name sync";
+const CREATE_SYNC="create";
+const MULTIPLE_SYNC="multiple";
+
+_commonShowDebugMessage = [true];
+
+initConsoleLog(__FILE__)
+
+try {
+	console.log(`Importing ${IMPORT_OBJECT}s of CSV\n`)
+
+	// var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
+	var filePath = 'C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-25 UPL-Default View-elements.csv'
+	const rows = loadData(filePath)
+
+	// try to find a concept for every row
+	const scannedRows = rows.map((row, index) => findObject(row, index))
+	console.log(`\nScanned ${scannedRows.length} rows`)
+	scannedRows.map(row => debug(`object=${row.modelObject} ==> action is "${row.action}" with row[${row.index}]`))
+
+	updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==NAME_SYNC))
+	createObjects = scannedRows.filter(scan => scan.action==CREATE_SYNC)
+
+	updateLog = updateObjects.map(scan => syncObject(scan.modelObject, scan.row))
+	updateLog.map(line => console.log(line))
+
+	createLog = createObjects.map(scan => createObject(scan.modelObject, scan.row))
+	createLog.map(line => console.log(line))
+
+	// // proces rows with a PROP_ID value
+	// const rows_PROP_ID = rows.filter(row => row[PROP_ID])
+	// debug(`\n> rows_PROP_ID has ${rows_PROP_ID.length} rows.\n${JSON.stringify(rows_PROP_ID)}\n`)
+	// console.log(`> Updating ${IMPORT_OBJECT}s with ${PROP_ID}`)
+	// const logLines = rows_PROP_ID.map(row => updateConcept_PROP_ID(row))
+	
+	// // proces rows without a PROP_ID value
+	// const rows_not_PROP_ID = rows.filter(row => !row[PROP_ID])
+	// debug(`\n> rows_not_PROP_ID has ${rows_not_PROP_ID.length} rows.\n${JSON.stringify(rows_not_PROP_ID)}\n`)
+	// console.log(`> Updating ${IMPORT_OBJECT}s by name and id`)
+	// const logLines = rows_not_PROP_ID.map(row => updateConcept_not_PROP_ID(row))
+
+	console.log("\n>> ======== " );
+	console.log(">> Import finished");
+	console.log(`>>> rows processed : ${rows.length}`);
+	console.log(`>>> elements updated   : ${updateObjects.length}`);
+	console.log(`>>> elements created   : ${createObjects.length}`);
+	console.log("");
+
+} catch (error) {
+	console.log(`> ${typeof error.stack=='undefined' ? error : error.stack}`);
+}
+
+finishConsoleLog()

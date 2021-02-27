@@ -58,7 +58,7 @@ var xxx = {
  */
 var producten = {
   'label': 'Unieke productnaam',
-  'csv': __DIR__+'UPL-actueel.csv',
+  'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-actueel.csv',
   'targetType': 'product',
   'targetFolder': getFolder('Business', 'UPL'),
   'getId': function(element) {
@@ -91,7 +91,7 @@ var producten = {
 
 var thema = {
   'label': 'Thema',
-  'csv': __DIR__+'UPL-Thema.csv',
+  'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-Thema.csv',
   'targetType': 'grouping',
   'targetFolder': getFolder('Other', 'Thema (Taxonomie Beleidsagenda)'),
   'getId': function(element) {
@@ -110,7 +110,7 @@ var thema = {
 
 var topthema = {
   'label': 'TopThema',
-  'csv': __DIR__+'UPL-Thema.csv',
+  'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-Thema.csv',
   'targetType': 'grouping',
   'targetFolder': getFolder('Other', 'TopThema'),
   'getId': function(element) {
@@ -131,7 +131,7 @@ var topthema = {
  */
 var thema_producten = {
   'label': 'Thema producten',
-  'csv': __DIR__+'UPL-Thema.csv',
+  'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-Thema.csv',
   'targetType': 'product',
   'targetFolder': getFolder('Business', 'UPL'),
   'getId': function(element) {

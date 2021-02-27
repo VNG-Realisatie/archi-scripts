@@ -13,7 +13,7 @@ load(__DIR__ + "../_lib/ApplyToSelection.js");
 
 load(__DIR__ + "export_import_functions.js");
 
-_commonShowDebugMessage = [true];
+_commonShowDebugMessage = [false];
 
 initConsoleLog(__FILE__)
 
@@ -22,14 +22,16 @@ try {
 
 	// add selected concepts of the model to an array. Skip folders, properties of folders are not exported
 	let concepts=[];
-	$(selection).find('element').each(function (e) {
-		$(useConcept(e)).outRels().each(function (r) {
-			concepts.push(r)
+	if ($(selection).is('archimate-model')) {
+		$('relation').each(r => concepts.push(r))
+	} else {
+		$(selection).find('element').each(function (e) {
+			$(useConcept(e)).outRels().each(r => concepts.push(r)})
 		})
-	})
-
-	const data	= concepts.map(concept => relationData(concept))
-	const header = relationHeader(concepts)
+	}
+	
+	const data	= concepts.map(concept => mapRelationData(concept))
+	const header = mapRelationHeader(concepts)
 	
 	save2file(header, data, `${model.name}-${$(selection).first().name}-relations`)
 
