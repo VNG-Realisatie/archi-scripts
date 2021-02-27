@@ -39,8 +39,11 @@ try {
 	updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==NAME_SYNC))
 	createObjects = scannedRows.filter(scan => scan.action==CREATE_SYNC)
 
-	updateLog = updateObjects.map(scan => syncObject(scan.modelObject, scan.row))
-	updateLog.map(line => console.log(line))
+	updateLog = updateObjects.map(scan => syncObject(scan.modelObject, scan.row)).filter(line => line!='')
+	if (updateLog.length>0) {
+		console.log(`Updated ${updateLog.length} objects:`)
+		updateLog.map(line => console.log(line))
+	}
 
 	createLog = createObjects.map(scan => createObject(scan.modelObject, scan.row))
 	createLog.map(line => console.log(line))
@@ -60,7 +63,7 @@ try {
 	console.log("\n>> ======== " );
 	console.log(">> Import finished");
 	console.log(`>>> rows processed : ${rows.length}`);
-	console.log(`>>> elements updated   : ${updateObjects.length}`);
+	console.log(`>>> elements updated   : ${updateLog.length}`);
 	console.log(`>>> elements created   : ${createObjects.length}`);
 	console.log("");
 

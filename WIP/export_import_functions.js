@@ -6,8 +6,8 @@
  * 
  */
 
-const IMPORT_ATTRIBUTE_LABELS = ["type", "name", "documentation"];
-const EXPORT_ATTRIBUTE_LABELS = ["id"].concat(IMPORT_ATTRIBUTE_LABELS)
+const ATTRIBUTE_LABELS = ["id", "type", "name", "documentation"];
+const SKIP_ATTRIBUTE_ID = "id"
 const ENDPOINT_LABELS = ["source", "target"];
 const ENDPOINT_ATTRIBUTE_LABELS = ["name", "id"];
 
@@ -51,10 +51,10 @@ function mapHeader(concepts)
 	// convert object with labels to array with labels
 	const propertyLabels = Object.keys(propertyLabelsObject)
 
-	const header = EXPORT_ATTRIBUTE_LABELS.concat(propertyLabels)
+	const header = ATTRIBUTE_LABELS.concat(propertyLabels)
 
 	debug(`>> header: ${header}\n`)
-	console.log(`\nExported ${header.length} columns (${EXPORT_ATTRIBUTE_LABELS.length} attributes and ${propertyLabels.length} properties)`)
+	console.log(`\nExported ${header.length} columns (${ATTRIBUTE_LABELS.length} attributes and ${propertyLabels.length} properties)`)
 
 	return header
 }
@@ -92,7 +92,7 @@ function mapRelationHeader(concepts)
 function mapData(concept) {
 	let row = new Object;
 
-	EXPORT_ATTRIBUTE_LABELS.forEach(function (attribute) {
+	ATTRIBUTE_LABELS.forEach(function (attribute) {
 		row[attribute] = concept[attribute];
 	})
 
@@ -120,7 +120,7 @@ function mapRelationData(concept) {
 
 	// export relation endpoint (source en target) attributes
 	ENDPOINT_LABELS.forEach(function (endpoint) {
-		EXPORT_ATTRIBUTE_LABELS.forEach(function (attribute) {
+		ATTRIBUTE_LABELS.forEach(function (attribute) {
 			row[`${endpoint}.${attribute}`] = concept[endpoint][attribute];
 			debug(`>>>> Row[${endpoint}.${attribute}]: ${concept[endpoint][attribute]}`);
 		})
@@ -185,38 +185,30 @@ function findObject(row, index) {
  * 	synchronize the model object with row values
  */
 function syncObject(object, row) {
-	let line = `> Sync: ${object}`;
-
+	let lineUpdated = '';
+	let line = '';
+	
 	// convert object to key's array
 	const rowLabels = Object.keys(row);
-
-	// synchronize object attributes with row values (attribute id cannot be changed, so skip)
-	const attributes = rowLabels.filter(label => (IMPORT_ATTRIBUTE_LABELS.indexOf(label) != -1 ));
-	attributes.map(label => {
+	// filter the attribute id, the id can't be changed
+	const importlabels  = rowLabels.filter(label => (SKIP_ATTRIBUTE_ID.indexOf(label) == -1 ));
+	
+	importlabels.map(label => {
 		// if row has a value and row value is different than object value
-		if ((row[label]) && (row[label] != object[label])) {
-			if (object[label]) {
-				line += `\n>>> Update attribute [${label}]: \n${object[label]}\n${row[label]}`;
+		if ((row[label]) && (row[label] != get_attr_or_prop(object, label))) {
+			if (get_attr_or_prop(object, label)) {
+				lineUpdated += `\n>> Update [${label}]: \n${get_attr_or_prop(object, label)}\n${row[label]}`;
 			} else {
-				line += `\n>>> Set attribute [${label}]: \n${row[label]}`;
+				lineUpdated += `\n>> Set [${label}]: \n${row[label]}`;
 			}
-			object[label] = row[label]
+			set_attr_or_prop(object, row, label)
 		}
 	})
 	
-	// synchronize object properties with row values
-	const properties  = rowLabels.filter(label => (EXPORT_ATTRIBUTE_LABELS.indexOf(label) == -1 ));
-	properties.map(label => {
-		// Only if value of attribute/property is different
-		if ((row[label]) && (row[label] != object.prop(label))) {
-			if (object.prop(label)) {
-				line += `\n>>> Update property [${label}]: \n${object.prop(label)}\n${row[label]}`;
-			} else {
-				line += `\n>>> Add property [${label}]: \n${row[label]}`;
-			}
-			object.prop(label,row[label])
-		}
-	});
+	if (lineUpdated) {
+		line = `> Update: ${object}`
+		line += lineUpdated
+	}
 	
 	// const endpointLabels = rowLabels.filter(label => label in ENDPOINT_LABELS);
 	// line += endpointLabels.map(label => {
@@ -233,14 +225,21 @@ function syncObject(object, row) {
 	return line
 }
 
-// function syncLabel(label, objectLabel, rowLabel, labelType, line) {
-// 	debug(`label, objectLabel, rowLabel, labelType: ${label}, ${Object.entries(objectLabel)}, ${Object.entries(rowLabel)}, ${labelType}`)
-// 	// if row has a value and row value is different than object value
-// 	if ((rowLabel) && (rowLabel != objectLabel)) {
-// 		line += `\n>>> Set attribute [${label}]: \n${objectLabel}\n${rowLabel}`;
-// 		objectLabel = rowLabel
-// 	}
-// }
+function get_attr_or_prop(object, label) {
+	if (ATTRIBUTE_LABELS.indexOf(label) != -1 ) {
+		return object[label]
+	} else {
+		return object.prop(label)
+	}
+}
+
+function set_attr_or_prop(object, row, label) {
+	if (ATTRIBUTE_LABELS.indexOf(label) != -1 ) {
+		object[label] = row[label]
+	} else {
+		object.prop(label, row[label])
+	}
+}
 
 /** 
  * createObject
