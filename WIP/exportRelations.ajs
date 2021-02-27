@@ -8,9 +8,6 @@
  */
 load(__DIR__ + "../_lib/papaparse.min.js");
 load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../_lib/ApplyToSelection.js");
-
-
 load(__DIR__ + "export_import_functions.js");
 
 _commonShowDebugMessage = [false];
@@ -21,19 +18,43 @@ try {
 	console.log('Exporting relations of selected elements')
 
 	// add selected concepts of the model to an array. Skip folders, properties of folders are not exported
-	let concepts=[];
 	if ($(selection).is('archimate-model')) {
-		$('relation').each(r => concepts.push(r))
-	} else {
-		$(selection).find('element').each(function (e) {
-			$(useConcept(e)).outRels().each(r => concepts.push(r)})
-		})
+		endpoints = $('element') // .each(r => relations.push(r))
+	}
+	if ($(selection).is('element')) {
+		endpoints = $(selection)
+	}
+	if ($(selection).is('folder') || ($(selection).is('archimate-diagram-model'))) {
+		endpoints = $(selection).find('element')
 	}
 	
-	const data	= concepts.map(concept => mapRelationData(concept))
-	const header = mapRelationHeader(concepts)
-	
-	save2file(header, data, `${model.name}-${$(selection).first().name}-relations`)
+	let relations = [];
+	if ($(selection).is('relation')) {
+		$(selection).each(r => relations.push(r))
+	} else {
+		let index = {};
+		debug(`endpoints.size(): ${endpoints.size()}`)
+		endpoints.each(function (e) {
+			// add in- and outgoing relation of all elements
+			// filter duplicates for relations of which source and target where selected
+			$(useConcept(e)).rels().each(r => {
+				if (!index[r.id]) {
+					relations.push(r)
+					index[r.id] = true
+				}
+			})
+		})
+	}
+
+	const data = relations.map(concept => mapData(concept, OBJECT_TYPE_RELATION))
+	const header = mapRelationHeader(relations)
+
+	if (data.length > 0) {
+		save2file(header, data, `${model.name}-${$(selection).first().name}-relations`)
+		console.log(`Exported ${data.length} rows`)
+	} else {
+		console.log(`Nothing to export`)
+	}
 
 } catch (error) {
 	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);

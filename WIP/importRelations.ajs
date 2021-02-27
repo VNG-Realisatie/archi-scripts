@@ -1,0 +1,51 @@
+/**
+ * importRelation.ajs
+ * 
+ * import relatons from a CSV file
+ * 
+ */
+load(__DIR__ + "../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "export_import_functions.js");
+
+_commonShowDebugMessage = [true];
+
+initConsoleLog(__FILE__)
+
+try {
+	console.log(`Importing ${OBJECT_TYPE_RELATION}s of CSV\n`)
+
+	// var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
+	var filePath = `C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-27 UPL--${OBJECT_TYPE_RELATION}s.csv`
+	const rows = loadData(filePath)
+
+	// try to find a concept for every row
+	const scannedRows = rows.map((row, index) => findArchiObject(row, index))
+	console.log(`\nScanned ${scannedRows.length} rows`)
+	scannedRows.map(row => debug(`object=${row.modelObject} ==> action is "${row.action}" with row[${row.index}]`))
+
+	// updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==NAME_SYNC))
+	updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==ENDPOINT_SYNC))
+	// createObjects = scannedRows.filter(scan => scan.action==CREATE_SYNC)
+
+	updateLog = updateObjects.map(scan => syncObject(scan)).filter(line => line!='')
+	if (updateLog.length>0) {
+		console.log(`Updated ${updateLog.length} objects:`)
+		updateLog.map(line => console.log(line))
+	}
+
+	// createLog = createObjects.map(scan => createObject(scan.modelObject, scan.row))
+	// createLog.map(line => console.log(line))
+
+	console.log("\n>> ======== " );
+	console.log(">> Import finished");
+	console.log(`>>> rows processed : ${rows.length}`);
+	console.log(`>>> elements updated   : ${updateLog.length}`);
+	// console.log(`>>> elements created   : ${createObjects.length}`);
+	console.log("");
+
+} catch (error) {
+	console.log(`> ${typeof error.stack=='undefined' ? error : error.stack}`);
+}
+
+finishConsoleLog()
