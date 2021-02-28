@@ -1,14 +1,10 @@
 /**
- * exportViewProp.ajs
+ * exportViews.ajs
  * 
- * export selected elements to a CSV file
- * 
- * The applyToModelContent function allows for multiple kinds of selections
- * 
+ * export properties of selected views to a CSV file
  */
 load(__DIR__ + "../_lib/papaparse.min.js");
 load(__DIR__ + "../_lib/Common.js");
-
 load(__DIR__ + "export_import_functions.js");
 
 _commonShowDebugMessage = [false];
@@ -16,18 +12,12 @@ _commonShowDebugMessage = [false];
 initConsoleLog(__FILE__)
 
 try {
-	console.log('Exporting properties of all views')
-
-	// add selected concepts of the model to an array. Skip folders, properties of folders are not exported
-	let concepts=[];
-	$('view').each(function (concept) {
-		// For export use the concept, also if a diagram occurence is given
-		concepts.push( concept)
-	})
-	const data	= concepts.map(concept => mapData(concept))
-	const header = mapHeader(concepts)
+	console.log('Exporting selected views')
 	
-	saveFile(header, data, `${model.name}-views`)
+	let views=[];
+	views = selectedObjects(selection).views
+
+	exportSelectedObjects(views, OBJECT_TYPE_VIEW)
 
 } catch (error) {
 	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);

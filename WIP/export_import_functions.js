@@ -26,6 +26,7 @@ const CREATE_NEW_OBJECT = "create";
 
 const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_RELATION = "relation";
+const OBJECT_TYPE_VIEW = "view";
 
 // const ENDPOINT_LABELS = {
 // 	"source.id" 	: ["source"]["id"],

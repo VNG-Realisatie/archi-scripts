@@ -3,8 +3,6 @@
  * 
  * export selected concepts to a CSV file
  * 
- * The applyToModelContent function allows for multiple kinds of selections
- * 
  */
 load(__DIR__ + "../_lib/papaparse.min.js");
 load(__DIR__ + "../_lib/Common.js");
@@ -16,45 +14,10 @@ initConsoleLog(__FILE__)
 
 try {
 	console.log('Exporting relations of selected objects')
+	let relations=[];
+	relations = selectedObjects(selection).relations
 
-	// add selected concepts of the model to an array. Skip folders, properties of folders are not exported
-	if ($(selection).is('archimate-model')) {
-		endpoints = $('element') // .each(r => relations.push(r))
-	}
-	if ($(selection).is('element')) {
-		endpoints = $(selection)
-	}
-	if ($(selection).is('folder') || ($(selection).is('archimate-diagram-model'))) {
-		endpoints = $(selection).find('element')
-	}
-	
-	let relations = [];
-	if ($(selection).is('relation')) {
-		$(selection).each(r => relations.push(r))
-	} else {
-		let index = {};
-		debug(`endpoints.size(): ${endpoints.size()}`)
-		endpoints.each(function (e) {
-			// add in- and outgoing relation of all elements
-			// filter duplicates for relations of which source and target where selected
-			$(useConcept(e)).rels().each(r => {
-				if (!index[r.id]) {
-					relations.push(r)
-					index[r.id] = true
-				}
-			})
-		})
-	}
-
-	const data = relations.map(relation => exportCreateRows(relation, OBJECT_TYPE_RELATION))
-	const header = exportCreateHeader(relations, OBJECT_TYPE_RELATION)
-
-	if (data.length > 0) {
-		console.log(`Exported ${data.length} rows\n`)
-		saveFile(header, data, `${model.name}-${$(selection).first().name}-relations`)
-	} else {
-		console.log(`Nothing to export`)
-	}
+	exportSelectedObjects(relations, OBJECT_TYPE_RELATION)
 
 } catch (error) {
 	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);

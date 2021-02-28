@@ -17,17 +17,10 @@ initConsoleLog(__FILE__)
 try {
 	console.log('Exporting selected elements')
 	
-	// add selected concepts of the model to an array. Skip folders, properties of folders are not exported
 	let elements=[];
 	elements = selectedObjects(selection).elements
-	// $(selection).find('element').each(e => concepts.push( useConcept(e) ))
 
 	exportSelectedObjects(elements, OBJECT_TYPE_ELEMENT)
-	
-	// const data	= elements.map(concept => exportCreateRows(concept))
-	// const header = exportCreateHeader(elements)
-	
-	// saveFile(header, data, `${model.name}-${$(selection).first().name}-elements`)
 
 } catch (error) {
 	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
