@@ -3,7 +3,7 @@
  * @param { * } selection 
  * @param {*} filename 
  */
-function filenameParameter(selection, filename ) {
+function executeExportImport(selection, filename ) {
 	let objectType = filename.replace(/^.*[\\\/]/, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
 
 	console.log(`Export ${objectType}`)

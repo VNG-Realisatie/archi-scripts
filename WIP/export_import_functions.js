@@ -5,6 +5,8 @@
  * Functions for exporting and importing model elements, relations and view properties
  * 
  */
+load(__DIR__ + "../_lib/papaparse.min.js");
+load(__DIR__ + "../_lib/Common.js");
 
 // Property with a logical key (your own unique ID's, independent of used architecture tool)
 const PROP_ID = "Object ID";
@@ -24,9 +26,9 @@ const FOUND_ENDPOINT = "endpoint sync";
 const FOUND_MULTIPLE = "multiple";
 const CREATE_NEW_OBJECT = "create";
 
-const OBJECT_TYPE_ELEMENT = "element";
-const OBJECT_TYPE_RELATION = "relation";
-const OBJECT_TYPE_VIEW = "view";
+// const OBJECT_TYPE_ELEMENT = "element";
+const OBJECT_TYPE_RELATION = "relations";
+// const OBJECT_TYPE_VIEW = "view";
 
 // const ENDPOINT_LABELS = {
 // 	"source.id" 	: ["source"]["id"],
@@ -35,7 +37,57 @@ const OBJECT_TYPE_VIEW = "view";
 // 	"target.name"	: ["target"]["name"]
 // }
 
-function selectedObjects (selection) {
+/**
+ * 
+ */
+function executeExportImport(filePath) {
+
+	initConsoleLog(filePath)
+
+	let fileName = filePath.replace(/^.*[\\\/]/, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
+
+	const [executeAction, objectType] = fileName.split('_');
+	debug(`Execute an "${executeAction}" with "${objectType}"`)
+	
+	try {
+		if (["import", "export"].indexOf(executeAction) == -1) {
+			throw (`>> Unknown executeAction: ${executeAction}. Filename format is {export|import}_{element|relation|view}.ajs`);
+		}
+		if (["elements", OBJECT_TYPE_RELATION, "views"].indexOf(objectType) == -1) {
+			throw (`>> Unknown objectType: ${objectType}. Filename format is {export|import}_{element|relation|view}.ajs`);
+		}
+
+		if (executeAction == "export") {
+			mainExport(objectType)
+		} else {
+			mainImport(objectType)
+		}
+	} catch (error) {
+		console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
+	}
+
+
+	finishConsoleLog()
+}
+
+function mainExport(objectType) {
+
+	_commonShowDebugMessage = [false];
+
+	try {
+		console.log(`Exporting selected ${objectType}`)
+
+		let objects = [];
+		objects = selectedObjects(selection)[objectType]
+
+		exportSelectedObjects(objects, objectType)
+
+	} catch (error) {
+		console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
+	}
+}
+
+function selectedObjects(selection) {
 
 	_commonShowDebugMessage.push(false);
 
@@ -44,7 +96,7 @@ function selectedObjects (selection) {
 	function exportArray(objects) {
 		let lookup = {};
 		let exportArray = []
-	
+
 		if (objects) {
 			objects.each(function (object) {
 				if (!lookup[object.id]) {
@@ -56,11 +108,11 @@ function selectedObjects (selection) {
 		}
 		return exportArray
 	}
-	
+
 	let selectedRelations;
 	let selectedElements;
 	let selectedViews;
-	
+
 	if ($(selection).is('archimate-model')) {
 		selectedRelations = $('relation');
 		selectedElements = $('element');
@@ -75,7 +127,7 @@ function selectedObjects (selection) {
 	} else if ($(selection).is('folder')) {
 		let folders = $(selection)
 		selectedElements = folders.find('element')
-		selectedViews =  folders.find('view')
+		selectedViews = folders.find('view')
 		selectedRelations = folders.find('relation')
 		// if no relations found, its not a relation folder
 		if (!selectedRelations) {
@@ -86,24 +138,28 @@ function selectedObjects (selection) {
 		selectedElements = selectedViews.find('element')
 		selectedRelations = selectedElements.rels()
 	}
-	
+
 	elements = exportArray(selectedElements)
 	relations = exportArray(selectedRelations)
 	views = exportArray(selectedViews)
 
 	_commonShowDebugMessage.pop(false);
 
-	return {elements, relations, views}
+	return {
+		elements,
+		relations,
+		views
+	}
 }
 
-function exportSelectedObjects(objects, object_type) {
+function exportSelectedObjects(objects, objectType) {
 
-	const data = objects.map(o => exportCreateRows(o, object_type))
-	const header = exportCreateHeader(objects, object_type)
+	const data = objects.map(o => exportCreateRows(o, objectType))
+	const header = exportCreateHeader(objects, objectType)
 
 	if (data.length > 0) {
 		console.log(`Exported ${data.length} rows\n`)
-		saveFile(header, data, `${model.name}-${$(selection).first().name}-${object_type}s`)
+		saveFile(header, data, `${model.name}-${$(selection).first().name}-${objectType}`)
 	} else {
 		console.log(`Nothing to export`)
 	}
@@ -115,7 +171,7 @@ function exportSelectedObjects(objects, object_type) {
  * 
  * @param objects
  */
-function exportCreateHeader(objects, object_type) {
+function exportCreateHeader(objects, objectType) {
 	// deduplicate the property labels  ### kan dit met een filter op een array?
 	const propertyLabelsObject = objects.reduce((a, concept) => exportDeduplicateHeader(a, concept), {})
 	// convert object with labels to array with labels
@@ -124,7 +180,7 @@ function exportCreateHeader(objects, object_type) {
 	let header = ATTRIBUTE_LABELS.concat(propertyLabels)
 	let endpointLabels = []
 
-	if (object_type == OBJECT_TYPE_RELATION) {
+	if (objectType == OBJECT_TYPE_RELATION) {
 		// relation endpoint (source en target) attributes labels
 		ENDPOINT_LABELS.forEach(function (label) {
 			ENDPOINTS.forEach(function (endpoint) {
@@ -165,7 +221,7 @@ function exportDeduplicateHeader(a, object) {
  * 
  * @param object 
  */
-function exportCreateRows(object, object_type) {
+function exportCreateRows(object, objectType) {
 	let row = new Object;
 
 	_commonShowDebugMessage.push(false);
@@ -185,7 +241,7 @@ function exportCreateRows(object, object_type) {
 		}
 	})
 
-	if (object_type == OBJECT_TYPE_RELATION) {
+	if (objectType == OBJECT_TYPE_RELATION) {
 
 		// export relation endpoint (source en target) attributes
 		ENDPOINTS.forEach(function (endpoint) {
@@ -218,8 +274,8 @@ function exportCreateRows(object, object_type) {
  * 		- search other objects by name
  * create and return an indexRow for further processing
  */
-function indexRowsWithObjects(row, index, object_type) {
-	let foundObjects = {};
+function indexRowsWithObjects(row, index, objectType) {
+	let foundObjects;
 	let searchResult = ''
 
 	let foundEndpoints = {};
@@ -232,7 +288,7 @@ function indexRowsWithObjects(row, index, object_type) {
 	}
 
 	// search relation by endpoints (source and targets)
-	if (foundObjects.size() == 0 && object_type == OBJECT_TYPE_RELATION) {
+	if (foundObjects.size() == 0 && objectType == OBJECT_TYPE_RELATION) {
 		let source = {}
 		let target = {}
 
@@ -341,13 +397,13 @@ function createIndexObject(objects, endpoints, searchResult, row, index) {
  * importCreateObject
  * 	create a new object for the row
  */
-function importCreateObject(indexObject, object_type) {
+function importCreateObject(indexObject, objectType) {
 	let line = '';
 
 	// object = scan.modelObject
 	row = indexObject.row
 
-	if (object_type == OBJECT_TYPE_RELATION) {
+	if (objectType == OBJECT_TYPE_RELATION) {
 		let object = model.createRelation(row.type, row.name, row.endpoints.source, row.endpoints.target);
 		line = `> createObject: ${object}\n`
 

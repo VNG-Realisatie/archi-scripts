@@ -1,0 +1,13 @@
+/**
+ * This script uses its own filename as a parameter
+ * Idea from:
+ * - jbsarrodie/ConvertConcept.lib.js 
+ * - https://gist.github.com/jbsarrodie/45a312cff559d23cf55ed102422e8af7
+ * 
+ * Create 6 copies of this file with different filenames to start the import or export 
+ * Format for the filenames:
+ * - {export|import}_{element|relation|view}.ajs
+ */
+
+load(__DIR__ + "export_import_functions.js");
+executeExportImport(__FILE__);

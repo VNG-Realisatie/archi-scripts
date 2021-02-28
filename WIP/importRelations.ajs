@@ -16,7 +16,7 @@ try {
 	console.log(`Importing ${OBJECT_TYPE_RELATION}s of CSV\n`)
 
 	// var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
-	var filePath = `C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-27 UPL-UPL-relations.csv`
+	var filePath = `C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-28 UPL-Default View-relations.csv`
 	const rows = loadFile(filePath)
 
 	// try to find a concept for every row

@@ -25,7 +25,7 @@ try {
 
 	
 	// try to find a concept for every row
-	const indexedRows = relationRows.map((row, index) => indexRowsWithObjects(row, index))
+	const indexedRows = relationRows.map((row, index) => indexRowsWithObjects(row, index, OBJECT_TYPE_RELATION))
 	console.log(`\nScanned ${indexedRows.length} rows`)
 	indexedRows.map(indexedRow => debug(`object=${indexedRow.object} ==> action is "${indexedRow.resultCode}" with row[${indexedRow.index}]`))
 

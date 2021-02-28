@@ -1,3 +1,0 @@
-load(__DIR__+"filenameParameter.js");
-
-filenameParameter(selection, __FILE__ );
