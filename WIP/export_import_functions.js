@@ -16,13 +16,13 @@ const ENDPOINTS = ["source", "target"];
 const ENDPOINT_PROP_ID = `prop('${PROP_ID}')`
 const ENDPOINT_LABELS = ["name", "id", ENDPOINT_PROP_ID];
 
-// scanned row actions
-const PROP_ID_SYNC = "PROP_ID sync";
-const ID_SYNC = "id sync";
-const NAME_SYNC = "name sync";
-const ENDPOINT_SYNC = "endpoint sync";
-const CREATE_SYNC = "create";
-const MULTIPLE_SYNC = "multiple";
+// Indexing result codes
+const FOUND_PROP_ID = "PROP_ID sync";
+const FOUND_ID = "id sync";
+const FOUND_NAME = "name sync";
+const FOUND_ENDPOINT = "endpoint sync";
+const FOUND_MULTIPLE = "multiple";
+const CREATE_NEW_OBJECT = "create";
 
 const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_RELATION = "relation";
@@ -34,45 +34,108 @@ const OBJECT_TYPE_RELATION = "relation";
 // 	"target.name"	: ["target"]["name"]
 // }
 
-/**
- * map a header for all the exported columns of an element
- * 
- * @param concepts
- */
-function mapHeader(concepts) {
-	// deduplicate the property labels  ### kan dit met een filter op een array?
-	const propertyLabelsObject = concepts.reduce((a, concept) => deduplicatePropLabels(a, concept), {})
-	// convert object with labels to array with labels
-	const propertyLabels = Object.keys(propertyLabelsObject)
+function selectedObjects (selection) {
 
-	const header = ATTRIBUTE_LABELS.concat(propertyLabels)
+	_commonShowDebugMessage.push(false);
 
-	debug(`>> header: ${header}\n`)
-	console.log(`\nExported ${header.length} columns (${ATTRIBUTE_LABELS.length} attributes and ${propertyLabels.length} properties)`)
+	// add selected objects of the model to an array. 
+	// Skip folders, properties of folders are not exported
+	function exportArray(objects) {
+		let lookup = {};
+		let exportArray = []
+	
+		if (objects) {
+			objects.each(function (object) {
+				if (!lookup[object.id]) {
+					exportArray.push(useConcept(object)) // useConcept for view ???
+					debug(`> exportArray object: ${object}`)
+					lookup[object.id] = true
+				}
+			})
+		}
+		return exportArray
+	}
+	
+	let selectedRelations;
+	let selectedElements;
+	let selectedViews;
+	
+	if ($(selection).is('archimate-model')) {
+		selectedRelations = $('relation');
+		selectedElements = $('element');
+		selectedViews = $('view');
+	} else if ($(selection).is('element')) {
+		selectedElements = $(selection)
+		selectedRelations = selectedElements.rels()
+		selectedViews = selectedElements.viewRefs()
+	} else if ($(selection).is('relation')) {
+		selectedRelations = $(selection)
+		selectedElements = selectedRelations.ends()
+	} else if ($(selection).is('folder')) {
+		let folders = $(selection)
+		selectedElements = folders.find('element')
+		selectedViews =  folders.find('view')
+		selectedRelations = folders.find('relation')
+		// if no relations found, its not a relation folder
+		if (!selectedRelations) {
+			selectedRelations = selectedElements.rels()
+		}
+	} else if ($(selection).is('archimate-diagram-model')) {
+		selectedViews = $(selection)
+		selectedElements = selectedViews.find('element')
+		selectedRelations = selectedElements.rels()
+	}
+	
+	elements = exportArray(selectedElements)
+	relations = exportArray(selectedRelations)
+	views = exportArray(selectedViews)
 
-	return header
+	_commonShowDebugMessage.pop(false);
+
+	return {elements, relations, views}
+}
+
+function exportSelectedObjects(objects, object_type) {
+
+	const data = objects.map(o => exportCreateRows(o, object_type))
+	const header = exportCreateHeader(objects, object_type)
+
+	if (data.length > 0) {
+		console.log(`Exported ${data.length} rows\n`)
+		saveFile(header, data, `${model.name}-${$(selection).first().name}-${object_type}s`)
+	} else {
+		console.log(`Nothing to export`)
+	}
 }
 
 /**
- * map a header for all the exported columns of a relation
+ * exportCreateHeader
+ * create a row with the column labels for the exported objects
  * 
- * @param concepts
+ * @param objects
  */
-function mapRelationHeader(concepts) {
-	let header = mapHeader(concepts)
+function exportCreateHeader(objects, object_type) {
+	// deduplicate the property labels  ### kan dit met een filter op een array?
+	const propertyLabelsObject = objects.reduce((a, concept) => exportDeduplicateHeader(a, concept), {})
+	// convert object with labels to array with labels
+	const propertyLabels = Object.keys(propertyLabelsObject)
 
-	// relation endpoint (source en target) attributes labels
-	var endpointLabels = []
-	ENDPOINT_LABELS.forEach(function (label) {
-		ENDPOINTS.forEach(function (endpoint) {
-			endpointLabels.push(`${endpoint}.${label}`)
+	let header = ATTRIBUTE_LABELS.concat(propertyLabels)
+	let endpointLabels = []
+
+	if (object_type == OBJECT_TYPE_RELATION) {
+		// relation endpoint (source en target) attributes labels
+		ENDPOINT_LABELS.forEach(function (label) {
+			ENDPOINTS.forEach(function (endpoint) {
+				endpointLabels.push(`${endpoint}.${label}`)
+			})
 		})
-	})
 
-	header = header.concat(endpointLabels)
+		header = header.concat(endpointLabels)
+	}
 
 	debug(`>> header: ${header}\n`)
-	console.log(`Exported ${header.length} columns (added ${endpointLabels.length} relation endpoint attributes)`)
+	console.log(`\nExported ${header.length} columns (${ATTRIBUTE_LABELS.length} attributes, ${propertyLabels.length} properties, ${endpointLabels.length} endpoints)`)
 
 	return header
 }
@@ -82,10 +145,10 @@ function mapRelationHeader(concepts) {
  * 	reduce function
  *  accumulate the new property labels of the given concepts
  * 
- * @param concept 
+ * @param object 
  */
-function deduplicatePropLabels(a, concept) {
-	concept.prop().forEach(function (propLabel) {
+function exportDeduplicateHeader(a, object) {
+	object.prop().forEach(function (propLabel) {
 		// accumulate all unique property labels. 
 		if (typeof a[propLabel] == 'undefined') {
 			a[propLabel] = propLabel
@@ -96,26 +159,27 @@ function deduplicatePropLabels(a, concept) {
 }
 
 /**
- * Export an object (element of relation) as a csv row
+ * exportCreateRows
+ * create a CSV row for an exported object
  * 
- * @param concept 
+ * @param object 
  */
-function mapData(concept, object_type) {
+function exportCreateRows(object, object_type) {
 	let row = new Object;
 
-	_commonShowDebugMessage.push(true);
-	debug(`> ${concept}`)
+	_commonShowDebugMessage.push(false);
+	debug(`> ${object}`)
 
 	// export attributes
 	ATTRIBUTE_LABELS.forEach(function (attribute) {
-		row[attribute] = concept[attribute];
+		row[attribute] = object[attribute];
 		debug(`>> Attr[${attribute}]: ${row[attribute]}`);
 	})
 
 	// export properties
-	concept.prop().forEach(function (propertyLabel) {
-		if (concept.prop(propertyLabel)) {
-			row[propertyLabel] = concept.prop(propertyLabel);
+	object.prop().forEach(function (propertyLabel) {
+		if (object.prop(propertyLabel)) {
+			row[propertyLabel] = object.prop(propertyLabel);
 			debug(`>> Prop[${propertyLabel}]: ${row[propertyLabel]}`);
 		}
 	})
@@ -126,11 +190,11 @@ function mapData(concept, object_type) {
 		ENDPOINTS.forEach(function (endpoint) {
 			ENDPOINT_LABELS.forEach(function (label) {
 				if (label != ENDPOINT_PROP_ID) {
-					row[`${endpoint}.${label}`] = concept[endpoint][label];
-					debug(`>> Endpoint[${endpoint}.${label}]: ${concept[endpoint][label]}`);
+					row[`${endpoint}.${label}`] = object[endpoint][label];
+					debug(`>> Endpoint[${endpoint}.${label}]: ${object[endpoint][label]}`);
 				} else {
-					row[`${endpoint}.${label}`] = concept[endpoint].prop(PROP_ID);
-					debug(`>> Endpoint[${endpoint}.${label}]: ${concept[endpoint].prop(PROP_ID)}`);
+					row[`${endpoint}.${label}`] = object[endpoint].prop(PROP_ID);
+					debug(`>> Endpoint[${endpoint}.${label}]: ${object[endpoint].prop(PROP_ID)}`);
 				}
 			})
 		})
@@ -143,140 +207,168 @@ function mapData(concept, object_type) {
 }
 
 /** 
- * findArchiObject
- * 	find object (element, relation or view) with PROP_ID, archi id or name respectively.
+ * indexRowsWithObjects
+ * 	find object (element, relation or view) 
+ *  - first try to find the object with IDs
+ *	 	- search with PROP_ID first. The logical PROP_ID precedes. Signal if multiple objects are found
+ * 		- search with Archi id if there is no match with PROP_ID. If found, there is exactly one object found
+ * 	- if object not found
+ *  	- search relation objects with their endpoints
+ * 		- search other objects by name
+ * create and return an indexRow for further processing
  */
-function findArchiObject(row, index) {
+function indexRowsWithObjects(row, index, object_type) {
 	let foundObjects = {};
+	let searchResult = ''
 
-	rowNr = index + 2 // index plus 2 (header en start bij 0)
+	let foundEndpoints = {};
 
-	// search with property PROP_ID
-	if (row[PROP_ID]) {
-		foundObjects = $(row['type']).filter(c => c.prop(PROP_ID) == row[PROP_ID])
-		if (foundObjects.size() == 1) {
-			return {
-				modelObject: foundObjects.first(),
-				row: row,
-				index: rowNr,
-				action: PROP_ID_SYNC
-			}
-		}
-	}
-	// search for equal archi id
-	if (row['id']) {
-		foundObjects = $(`#${row['id']}`)
-		if (foundObjects.size() == 1) {
-			return {
-				modelObject: foundObjects.first(),
-				row: row,
-				index: rowNr,
-				action: ID_SYNC
-			}
-		}
+	foundObjects = search_PROP_ID(row['type'], row[PROP_ID])
+	searchResult = FOUND_PROP_ID
+	if (foundObjects.size() == 0) {
+		foundObjects = search_ID(row['id'])
+		searchResult = FOUND_ID
 	}
 
-	// search by name only for elements, not for relations
-	if (!row['type'].endsWith("relationship")) {
-		if (row['name'] && row['type']) {
-			foundObjects = $(`.${row['name']}`).filter(row['type'])
-			if (foundObjects.size() == 1) {
-				return {
-					modelObject: foundObjects.first(),
-					row: row,
-					index: rowNr,
-					action: NAME_SYNC
-				}
-			}
-		}
-	} else {
-		// search relation by endpoints (source and targets)
-		console.log(`> row is a ${row['type']}, not supported yet`)
+	// search relation by endpoints (source and targets)
+	if (foundObjects.size() == 0 && object_type == OBJECT_TYPE_RELATION) {
+		let source = {}
+		let target = {}
 
-		source = findElement(row[`source.prop(${PROP_ID})`], row[`source.id`])
-		target = findElement(row[`target.prop(${PROP_ID})`], row[`target.id`])
+		source = search_PROP_ID(row['source.type'], row[`source.prop(${PROP_ID})`]) // ### source.type ontbreekt nog
+		if (source.size() != 1) {
+			source = search_ID(row['source.id'])
+		}
+		target = search_PROP_ID(row['target.type'], row[`target.prop(${PROP_ID})`]) // ### target.type ontbreekt nog
+		if (target.size() != 1) {
+			target = search_ID(row['target.id'])
+		}
 
 		if (source && target) {
 
 			foundObjects = $(source).outRels(row['type']).filter(function (r) {
 				return r.target.equals(target)
 			});
-			if (foundObjects.size() == 1) {
-				return {
-					modelObject: foundObjects.first(),
-					row: row,
-					index: rowNr,
-					action: ENDPOINT_SYNC
-				}
-			}
+			foundEndpoints = {
+				source,
+				target
+			};
 		}
+		searchResult = FOUND_ENDPOINT
+	} else {
+		// search by name
+		foundObjects = search_Name(row['name'], row['type'])
+		searchResult = FOUND_NAME
 	}
 
-	if (foundObjects.size() == 0) {
-		console.log(`> No objects found for row[${rowNr}] (name=${row['name']}; id=${row['id']}; ${PROP_ID}=${row[PROP_ID]})`)
-		return {
-			modelObject: foundObjects.first(),
-			row: row,
-			index: rowNr,
-			action: CREATE_SYNC
-		}
-	} else {
-		console.log(`> Multiple objects found for row[${rowNr}] (name=${row['name']}; id=${row['id']}; ${PROP_ID}=${row[PROP_ID]})`)
-		foundObjects.forEach(o => console.log(`>> ${o}`))
-		return {
-			modelObject: foundObjects.first(),
-			row: row,
-			index: rowNr,
-			action: MULTIPLE_SYNC
-		}
-	}
+	return createIndexObject(foundObjects, foundEndpoints, searchResult, row, index)
 }
+
 
 /** 
  */
-function findElement(e_prop_id, e_id) {
+function search_PROP_ID(row_type, row_prop_id) {
+
 	let foundObjects = {};
 
 	// search with property PROP_ID
-	if (e_prop_id) {
-		foundObjects = $(row['type']).filter(c => c.prop(PROP_ID) == e_prop_id)
-		if (foundObjects.size() == 1) {
-			return foundObjects.first()
-		}
+	if (row_prop_id) {
+		foundObjects = $(row_type).filter(o => o.prop(PROP_ID) == row_prop_id)
 	}
-	// search for equal archi id
-	if (e_id) {
-		foundObjects = $(`#${e_id}`)
-		if (foundObjects.size() == 1) {
-			return foundObjects.first()
-		}
-	}
+	// a PROP_ID should be unique, but duplicates happen. 
+	// 0, 1 or more object returned
+	return foundObjects
 }
 
 /** 
- * createObject
- * 	create an object for the row
  */
-function createObject(row) {
+function search_ID(row_id) {
+
+	let foundObjects = {};
+
+	// search with Archi id
+	if (object_id) {
+		foundObjects = $(`#${row_id}`)
+	}
+	// the Archi id is unique
+	// 0 or 1 object returned
+	return foundObjects
+}
+
+/** 
+ */
+function search_Name(row_type, row_name) {
+
+	let foundObjects = {};
+
+	// search with ID
+	if (row_name) {
+		foundObjects = $(`.${row_name}`).filter(row_type)
+	}
+	// names do have duplicates
+	// 0, 1 or more object returned
+	return foundObjects
+}
+
+
+function createIndexObject(objects, endpoints, searchResult, row, index) {
+	let resultCode = ''
+	rowNr = index + 2 // index plus 2 (header en start bij 0)
+
+	if (objects.size() == 1) {
+		resultCode = searchResult
+		object = objects.first()
+	} else if (objects.size() == 0) {
+		console.log(`> No objects found for row[${rowNr}] (name=${row['name']}; id=${row['id']}; ${PROP_ID}=${row[PROP_ID]})`)
+		resultCode = CREATE_NEW_OBJECT
+	} else if (objects.size() > 1) {
+		console.log(`> Multiple objects found for row[${rowNr}] (name=${row['name']}; id=${row['id']}; ${PROP_ID}=${row[PROP_ID]})`)
+		resultCode = FOUND_MULTIPLE
+	}
+
+	let indexObject = {
+		object, // what if empty?
+		endpoints, // what if empty?
+		resultCode,
+		row,
+		rowNr
+	}
+	return indexObject
+}
+
+/** 
+ * importCreateObject
+ * 	create a new object for the row
+ */
+function importCreateObject(indexObject, object_type) {
 	let line = '';
 
-	let object = model.createElement(row.type, row.name);
-	line = `> createObject: ${object}\n`
+	// object = scan.modelObject
+	row = indexObject.row
 
-	line += syncObject(object, row)
+	if (object_type == OBJECT_TYPE_RELATION) {
+		let object = model.createRelation(row.type, row.name, row.endpoints.source, row.endpoints.target);
+		line = `> createObject: ${object}\n`
+
+	} else {
+		let object = model.createElement(row.type, row.name);
+		line = `> createObject: ${object}\n`
+	}
+
+	line += importUpdateObject(object, row)
 	return line
 }
 
 /** 
- * syncObject
+ * importUpdateObject
  * 	synchronize the model object with row values
  */
-function syncObject(scan) {
+function importUpdateObject(indexObject) {
 	let lineUpdated = '';
 	let line = '';
 
-	object = scan.modelObject
-	row = scan.row
+	object = indexObject.modelObject
+	row = indexObject.row
 
 	// convert object key's to an array
 	const rowLabels = Object.keys(row);
@@ -297,22 +389,9 @@ function syncObject(scan) {
 	})
 
 	if (lineUpdated) {
-		line = `> Update from row[${scan.index}]: ${object}`
+		line = `> Update from row[${indexObject.index}]: ${object}`
 		line += lineUpdated
 	}
-
-	// const endpointLabels = rowLabels.filter(label => label in ENDPOINT_LABELS);
-	// line += endpointLabels.map(label => {
-	// 	let line=''
-	// 	if (label!="id"){ // id can't be set
-	// 		// Only if value of attribute/property is different
-	// 		if (row[label] != object[label]){
-	// 			line = `\n>>> Set attribute [${label}]: \n${object[label]}\n${row[label]}`;
-	// 			object[label] = row[label]
-	// 		}
-	// 	}
-	// 	return line
-	// })
 	return line
 }
 
@@ -345,7 +424,7 @@ function useConcept(o) {
 /**
  * Save header and data to a CSV file
  */
-function save2file(header, data, dataName) {
+function saveFile(header, data, dataName) {
 
 	let datum = new Date();
 	let exportFile = window.promptSaveFile({
@@ -368,7 +447,7 @@ function save2file(header, data, dataName) {
 /**
  * Read CSV file in UTF-8 encoding and return file parsed into an array
  */
-function loadData() {
+function loadFile() {
 
 	if (filePath) {
 		console.log(`> Loading ${filePath} from CSV...`);

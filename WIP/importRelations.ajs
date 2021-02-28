@@ -16,25 +16,25 @@ try {
 	console.log(`Importing ${OBJECT_TYPE_RELATION}s of CSV\n`)
 
 	// var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
-	var filePath = `C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-27 UPL--${OBJECT_TYPE_RELATION}s.csv`
-	const rows = loadData(filePath)
+	var filePath = `C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-27 UPL-UPL-relations.csv`
+	const rows = loadFile(filePath)
 
 	// try to find a concept for every row
-	const scannedRows = rows.map((row, index) => findArchiObject(row, index))
-	console.log(`\nScanned ${scannedRows.length} rows`)
-	scannedRows.map(row => debug(`object=${row.modelObject} ==> action is "${row.action}" with row[${row.index}]`))
+	const indexedRows = rows.map((row, index) => indexRowsWithObjects(row, index))
+	console.log(`\nScanned ${indexedRows.length} rows`)
+	indexedRows.map(indexedRow => debug(`object=${indexedRow.object} ==> action is "${indexedRow.resultCode}" with row[${indexedRow.index}]`))
 
-	// updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==NAME_SYNC))
-	updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==ENDPOINT_SYNC))
-	// createObjects = scannedRows.filter(scan => scan.action==CREATE_SYNC)
+	// updateObjects = indexedRownedRows.filter(indexedRow => (indexedRow.resultCode==PROP_ID_SYNC) || (indexedRow.resultCode==ID_SYNC) || (indexedRow.resultCode==NAME_SYNC))
+	updateObjects = indexedRows.filter(indexedRow => (indexedRow.resultCode==FOUND_PROP_ID) || (indexedRow.resultCode==FOUND_ID) || (indexedRow.resultCode==FOUND_ENDPOINT))
+	createObjects = indexedRows.filter(indexedRow => indexedRow.resultCode==CREATE_NEW_OBJECT)
 
-	updateLog = updateObjects.map(scan => syncObject(scan)).filter(line => line!='')
+	updateLog = updateObjects.map(indexedRow => importUpdateObject(indexedRow)).filter(line => line!='')
 	if (updateLog.length>0) {
 		console.log(`Updated ${updateLog.length} objects:`)
 		updateLog.map(line => console.log(line))
 	}
 
-	// createLog = createObjects.map(scan => createObject(scan.modelObject, scan.row))
+	createLog = createObjects.map(indexedRow => importCreateObject(indexedRow, OBJECT_TYPE_RELATION))
 	// createLog.map(line => console.log(line))
 
 	console.log("\n>> ======== " );

@@ -27,7 +27,7 @@ try {
 	const data	= concepts.map(concept => mapData(concept))
 	const header = mapHeader(concepts)
 	
-	save2file(header, data, `${model.name}-views`)
+	saveFile(header, data, `${model.name}-views`)
 
 } catch (error) {
 	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);

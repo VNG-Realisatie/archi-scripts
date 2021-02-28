@@ -17,38 +17,31 @@ try {
 
 	// var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
 	var filePath = 'C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/2021-02-25 UPL-Default View-elements.csv'
-	const rows = loadData(filePath)
+	const rows = loadFile(filePath)
 
+	const relationRows = rows.filter(row => row['type'].endsWith("relationship"))
+	const elementRows = rows.filter(row => !row['type'].endsWith("relationship") && row['type'] != 'archimate-diagram-model')
+	const viewRows = rows.filter(row => row['type'] == 'archimate-diagram-model')
+
+	
 	// try to find a concept for every row
-	const scannedRows = rows.map((row, index) => findArchiObject(row, index))
-	console.log(`\nScanned ${scannedRows.length} rows`)
-	scannedRows.map(row => debug(`object=${row.modelObject} ==> action is "${row.action}" with row[${row.index}]`))
+	const indexedRows = relationRows.map((row, index) => indexRowsWithObjects(row, index))
+	console.log(`\nScanned ${indexedRows.length} rows`)
+	indexedRows.map(indexedRow => debug(`object=${indexedRow.object} ==> action is "${indexedRow.resultCode}" with row[${indexedRow.index}]`))
 
-	updateObjects = scannedRows.filter(scan => (scan.action==PROP_ID_SYNC) || (scan.action==ID_SYNC) || (scan.action==NAME_SYNC))
-	createObjects = scannedRows.filter(scan => scan.action==CREATE_SYNC)
+	createObjects = indexedRows.filter(indexedRow => indexedRow.resultCode == CREATE_NEW_OBJECT)
+	createLog = createObjects.map(indexedRow => importCreateObject(indexedRow))
+	createLog.map(line => console.log(line))
 
-	updateLog = updateObjects.map(scan => syncObject(scan.modelObject, scan.row)).filter(line => line!='')
-	if (updateLog.length>0) {
+	updateObjects = indexedRows.filter(indexedRow => (indexedRow.resultCode == FOUND_PROP_ID) || (indexedRow.resultCode == FOUND_ID) || (indexedRow.resultCode == FOUND_NAME))
+	updateLog = updateObjects.map(indexedRow => importUpdateObject(indexedRow)).filter(line => line != '')
+	if (updateLog.length > 0) {
 		console.log(`Updated ${updateLog.length} objects:`)
 		updateLog.map(line => console.log(line))
 	}
 
-	createLog = createObjects.map(scan => createObject(scan.modelObject, scan.row))
-	createLog.map(line => console.log(line))
 
-	// // proces rows with a PROP_ID value
-	// const rows_PROP_ID = rows.filter(row => row[PROP_ID])
-	// debug(`\n> rows_PROP_ID has ${rows_PROP_ID.length} rows.\n${JSON.stringify(rows_PROP_ID)}\n`)
-	// console.log(`> Updating ${OBJECT_TYPE}s with ${PROP_ID}`)
-	// const logLines = rows_PROP_ID.map(row => updateConcept_PROP_ID(row))
-	
-	// // proces rows without a PROP_ID value
-	// const rows_not_PROP_ID = rows.filter(row => !row[PROP_ID])
-	// debug(`\n> rows_not_PROP_ID has ${rows_not_PROP_ID.length} rows.\n${JSON.stringify(rows_not_PROP_ID)}\n`)
-	// console.log(`> Updating ${OBJECT_TYPE}s by name and id`)
-	// const logLines = rows_not_PROP_ID.map(row => updateConcept_not_PROP_ID(row))
-
-	console.log("\n>> ======== " );
+	console.log("\n>> ======== ");
 	console.log(">> Import finished");
 	console.log(`>>> rows processed : ${rows.length}`);
 	console.log(`>>> elements updated   : ${updateLog.length}`);
@@ -56,7 +49,7 @@ try {
 	console.log("");
 
 } catch (error) {
-	console.log(`> ${typeof error.stack=='undefined' ? error : error.stack}`);
+	console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
 }
 
 finishConsoleLog()
