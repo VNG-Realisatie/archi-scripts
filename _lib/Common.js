@@ -16,21 +16,52 @@ let _commonShowDebugMessage = [false];
 function initConsoleLog(pFile, pClear) {
 	_commonCounter = startCounter();
 	// Show output in the console
-	filePath = pFile.split("/");
+	filePath = pFile.split("\\");
 	_commonScriptName = filePath[filePath.length - 1];
 
 	console.show();
     if (pClear) { console.clear() };
 
 	console.log("============================================");
-    console.log(`Platform: ${$.process.platform}\nEngine:   ${$.process.engine}\n`)
-	console.log(`Executing script "${_commonScriptName}"...\n`);
+	console.log(`Executing script "${_commonScriptName}"...`);
+    console.log(`Platform: ${$.process.platform}`)
+    console.log(`Engine:   ${$.process.engine}\n`)
+	// console.log("============================================");
 }
 
 function finishConsoleLog() {
 	_commonCounter = endCounter(_commonCounter);
 	duration = `${_commonCounter.minutes}m${_commonCounter.seconds}s`
-	console.log(`\nScript "${_commonScriptName}" finished in ${duration}\n`);
+	// console.log("\n============================================");
+	// console.log(`\nScript "${_commonScriptName}" finished in ${duration}\n`);
+	console.log(`\nScript "${_commonScriptName}" finished in ${duration}`);
+	console.log("============================================\n");
+}
+
+ENGINE_NASHORN_ES5 = 'jdk.nashorn.api.scripting.NashornScriptEngine'
+ENGINE_NASHORN_ES6 = 'jdk.nashorn.api.scripting.NashornScriptEngine'
+ENGINE_GRAAL_VM = 'com.oracle.truffle.js.scriptengine.GraalJSScriptEngine'
+ENGINES = [ENGINE_NASHORN_ES5, ENGINE_NASHORN_ES6, ENGINE_GRAAL_VM]
+
+/**
+ * function checkEngine(engine)
+ * usage: checkJavascriptEngine(ENGINE_GRAAL_VM)
+ * - throws an error and exits if a lower version engine is used
+ */
+function checkJavaScriptEngine(required_engine) {
+
+	let current_engine = $.process.engine
+	if (ENGINES.indexOf(current_engine) < ENGINES.indexOf(required_engine)) {
+		let line=''
+
+		line+= `\n\nThis script needs a higher JavaScript engine`
+		line+= `\n- Current engine: ${current_engine}`
+		line+= `\n- Required engine: ${required_engine}\n`
+		line+= `\nUpgrade the Archi javascript engine`
+		line+= `\n- Go to Edit > Preferences > Scripting and select de required JavaScript Engine`
+		line+= `\n- If the higher JavaScript engine is missing, first upgrade the jArchi plugin\n\n`
+		throw(line)
+	}
 }
 
 /**
@@ -74,8 +105,11 @@ function debug(msg) {
  */
 function logMessage(logSwitch, logType, pMsg) {
 	if (logSwitch[logSwitch.length - 1]) {
-		let preFix = '>';
-		console.log(`${preFix.repeat(logSwitch.length)} ${logType}: ${pMsg}`)
+        if (pMsg.startsWith('\n')) {
+            console.log()
+            pMsg = pMsg.substring('\n'.length)
+        }
+		console.log(`${'>'.repeat(logSwitch.length)} ${logType}: ${pMsg}`)
 	};
 }
 
