@@ -113,6 +113,7 @@ function logMessage(logSwitch, logType, pMsg) {
 	};
 }
 
+
 /**
  * stack()
  * 	show stack message and error stack trace
