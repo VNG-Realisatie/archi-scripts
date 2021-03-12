@@ -11,12 +11,16 @@
  * Mark:
  * 	add console logging of the changed concepts and relations
  * 	add property with info about conversion to converted relationships
+ * 	for GraalVM compatibility: changed regular expression
  */
 
 function convertConcept(selection, filename ) {
-	let i=0, j=0;
+	let countConvertConcept=0, countConvertNotAllowed=0;
 	let modeRelaxedSelected = false;
-	let convertToType = filename.replace(/^.*\//, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
+
+	// replace reg exp changed for GraalVM engine
+	// let convertToType = filename.replace(/^.*\//, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
+	let  convertToType = filename.replace(/^.*[\\\/]/, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
 
 	console.log(`\nConvert selected concepts to type ${convertToType}`)
 	
@@ -40,25 +44,25 @@ function convertConcept(selection, filename ) {
 					window.alert(`For ${relationText}\n\nConversion not allowed\n\nClick Ok to exit.`);
 					console.log(`> Cancel: conversion of ${relationText} not allowed`);
 					console.log(`===`)
-					console.log(`Converted ${i} concepts to type ${convertToType}.`)
+					console.log(`Converted ${countConvertConcept} concepts to type ${convertToType}.`)
 					exit();
 				}
 
 				console.log(`>> Convert ${relationText}`)
 
 				convertRelationship(r, o, convertToType);
-				j++;
+				countConvertNotAllowed++;
 			}
 		});
 		concept(o).concept.type = convertToType;
-		i++;
+		countConvertConcept++;
 		console.log(`> Concept converted to: ${o}`)
 		console.log(`===`)
 	});
 	if (modeRelaxedSelected) {
-		console.log(`Converted ${i} concepts to type ${convertToType} and ${j} not allowed relationships to type 'association'`)
+		console.log(`Converted ${countConvertConcept} concepts to type ${convertToType} and ${countConvertNotAllowed} not allowed relationships to type 'association'`)
 	} else {
-		console.log(`Converted ${i} concepts to type ${convertToType}.`)
+		console.log(`Converted ${countConvertConcept} concepts to type ${convertToType}.`)
 	}
 }
 

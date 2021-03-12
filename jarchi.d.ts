@@ -34,6 +34,7 @@ interface ArchiRelation extends ArchiObject {
     accessType?: string; // only for type access-relationship
     influenceStrength?: string; // only for type influence-relationship
     associationDirected?: boolean; // only for type association-relationship
+    merge(other: ArchiRelation): void;
 }
 
 interface Rectangle {

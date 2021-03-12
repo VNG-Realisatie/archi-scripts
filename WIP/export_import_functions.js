@@ -3,6 +3,7 @@
  * 
  * Functions for exporting and importing model elements, relations and view properties
  * 
+ * 
  */
 
 load(__DIR__ + "../_lib/papaparse.min.js");
@@ -80,7 +81,7 @@ function executeExportImport(filePath) {
 function exportObjects(objectType) {
 
 	_commonShowDebugMessage.push(false);
-	debug(`> ${getFuncName()} objectType=${objectType} ======`)
+	debug(`objectType=${objectType}`)
 
 	try {
 		// selection is a global Archi variable with a collection of Archi objects
@@ -102,7 +103,7 @@ function exportObjects(objectType) {
 	} catch (error) {
 		console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
 	}
-	debug(`< ${getFuncName()}`)
+	debug(`< `)
 	_commonShowDebugMessage.pop();
 }
 
@@ -127,7 +128,7 @@ function exportCreateHeader(objects, objectType) {
 		header = header.concat(ENDPOINT_LABELS)
 	}
 
-	debug(`>> header: ${header}\n`)
+	debug(`header: ${header}\n`)
 	console.log(`- ${header.length} columns (header with ${ATTRIBUTE_LABELS.length} attributes, ${propertyLabels.length} properties, ${ENDPOINT_LABELS.length} endpoints)`)
 
 	return header
@@ -145,7 +146,7 @@ function exportHeaderProperties(a, object) {
 		// accumulate all unique property labels. 
 		if (typeof a[propLabel] == 'undefined') {
 			a[propLabel] = propLabel
-			debug(`>>> accumulate a[${propLabel}]: ${a[propLabel]}`);
+			debug(`accumulate a[${propLabel}]: ${a[propLabel]}`);
 		}
 	})
 	return a
@@ -161,15 +162,15 @@ function exportCreateRows(headerRow, object) {
 	let row = new Object;
 
 	_commonShowDebugMessage.push(false);
-	debug(`\n> ${getFuncName()}`)
-	debug(`> ${object}`)
+	debug(`\n> `)
+	debug(`${object}`)
 
 	// fill row with the attributes and property values of the object
 	headerRow.forEach(label => {
 		row[label] = get_attr_or_prop(object, label)
 	})
 
-	debug(`< ${getFuncName()} Row: ${JSON.stringify(row)}`)
+	debug(`Row: ${JSON.stringify(row)}`)
 	_commonShowDebugMessage.pop();
 	return row
 }
@@ -218,12 +219,12 @@ function exportSelectObjects(ArchiSelection, objectType) {
 			objects.each(function (object) {
 				if (!lookup[object.id]) {
 					exportArray.push(useConcept(object)) // useConcept for view ???
-					debug(`> selectObjects() > exportArray(): ${object}`)
+					debug(`selectObjects() > exportArray(): ${object}`)
 					lookup[object.id] = true
 				}
 			})
 		}
-		debug(`- ${getFuncName()}: ${objects.length} Archi objects in array returned`)
+		debug(`${objects.length} Archi objects in array returned`)
 		return exportArray
 	}
 
@@ -246,8 +247,8 @@ function exportSelectObjects(ArchiSelection, objectType) {
 
 function importObjects(objectType) {
 
-	_commonShowDebugMessage.push(false);
-	debug(`> ${getFuncName()} objectType=${objectType} ======`)
+	_commonShowDebugMessage.push(true);
+	debug(`objectType=${objectType}`)
 
 	try {
 		console.log(`Importing ${objectType} of CSV\n`)
@@ -256,7 +257,7 @@ function importObjects(objectType) {
 			title: "Open CSV",
 			filterExtensions: ["*.csv"],
 			fileName: `*${objectType}.csv`
-		});
+		})  || '';
 		let importFileName = importFile.split("\\").pop().split("/").pop();
 
 		// var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
@@ -264,59 +265,62 @@ function importObjects(objectType) {
 		// let importFile = importPath + `2021-02-28_testMerge_Default-View_${objectType}.csv`
 		// let importFile = importPath + `2021-03-02_UPL_Default-View_${objectType}.csv`
 		const rows = getRowsFromFile(importFile)
-		console.log(`> Loading CSV file: ${importFileName}\n`);
+		if (rows.length > 0) {
 
-		// check all rows for missing and valid value's
-		const validateLog = rows.map((row, index) => importValidateRows(row, index)).filter((line) => line != '')
-
-		if (validateLog.length == 0) {
-
-			const importHeaderLabels = importReadHeader(rows)
-
-			const rows_and_objects = rows.map((row, index) => importIndexRows(row, index, objectType))
-			console.log(`Indexed ${rows_and_objects.length} rows`)
-			rows_and_objects.map(row_and_object => debug(`> importObjects() row[${row_and_object.rowNr}] > "${row_and_object.resultCode}" object = ${row_and_object.archiObject}`))
-
-			// create Archi objects for rows which are not found
-			const createRows = rows_and_objects.filter(row_and_object => row_and_object.resultCode == CREATE_NEW_OBJECT)
-			const createdRows_Log = createRows.map(row_and_object => importCreateObject(importHeaderLabels, row_and_object, objectType))
-			createdRows_Log.map(LogAndRows => debug(`${getFuncName()} createdRows_Log: ${LogAndRows.line}`))
-
-			// set properties of created Archi objects
-			const update_createdRows_Log = createRows.map(row_and_object => importUpdateObject(importHeaderLabels, row_and_object)).filter(line => line != '')
-			if (update_createdRows_Log.length > 0) {
-				console.log(`Created ${update_createdRows_Log.length} objects:`)
-				update_createdRows_Log.map(line => console.log(line))
+			console.log(`> Loading CSV file: ${importFileName}\n`);
+	
+			// check all rows for missing and valid value's
+			const validateLog = rows.map((row, index) => importValidateRows(row, index)).filter((line) => line != '')
+	
+			if (validateLog.length == 0) {
+	
+				const importHeaderLabels = importReadHeader(rows)
+	
+				const rows_and_objects = rows.map((row, index) => importIndexRows(row, index, objectType))
+				console.log(`Indexed ${rows_and_objects.length} rows`)
+				rows_and_objects.map(row_and_object => debug(`row[${row_and_object.rowNr}] > "${row_and_object.resultCode}" object = ${row_and_object.archiObject}`))
+	
+				// create Archi objects for rows which are not found
+				const createRows = rows_and_objects.filter(row_and_object => row_and_object.resultCode == CREATE_NEW_OBJECT)
+				const createdRows_Log = createRows.map(row_and_object => importCreateObject(importHeaderLabels, row_and_object, objectType))
+				createdRows_Log.map(LogAndRows => debug(`${LogAndRows.line}`))
+	
+				// set properties of created Archi objects
+				const update_createdRows_Log = createRows.map(row_and_object => importUpdateObject(importHeaderLabels, row_and_object)).filter(line => line != '')
+				if (update_createdRows_Log.length > 0) {
+					console.log(`Created ${update_createdRows_Log.length} objects:`)
+					update_createdRows_Log.map(line => console.log(line))
+				}
+	
+				// update properties of found Archi objects
+				const updateRows = rows_and_objects.filter(row_and_object => (row_and_object.resultCode == FOUND_ID) || (row_and_object.resultCode == FOUND_NAME))
+				const updateRows_Log = updateRows.map(row_and_object => importUpdateObject(importHeaderLabels, row_and_object)).filter(line => line != '')
+	
+				if (updateRows_Log.length > 0) {
+					console.log(`Updated ${updateRows_Log.length} objects:`)
+					updateRows_Log.map(LogAndRows => console.log(`updateRows_Log: ${LogAndRows.line}`))
+				}
+	
+				console.log("\n>> ======== ");
+				console.log(`> Imported CSV file: ${importFileName}\n`);
+				console.log("> Import finished");
+				console.log(`>> rows processed : ${rows.length}`);
+				console.log(`>> ${objectType} updated   : ${updateRows_Log.length}`);
+				console.log(`>> ${objectType} created   : ${createRows.length}`);
+				console.log("");
+			} else {
+				console.log("\n> ======== ");
+				console.log(`> Unvalid data in CSV file: ${importFileName}`);
+				console.log(`> There are ${validateLog.length} unvalid rows`)
+				validateLog.map(line => console.log(`> - ${line}`))
+				console.log(`\n> Correct the data and import again\n`);
 			}
-
-			// update properties of found Archi objects
-			const updateRows = rows_and_objects.filter(row_and_object => (row_and_object.resultCode == FOUND_ID) || (row_and_object.resultCode == FOUND_NAME))
-			const updateRows_Log = updateRows.map(row_and_object => importUpdateObject(importHeaderLabels, row_and_object)).filter(line => line != '')
-
-			if (updateRows_Log.length > 0) {
-				console.log(`Updated ${updateRows_Log.length} objects:`)
-				updateRows_Log.map(LogAndRows => console.log(`updateRows_Log: ${LogAndRows.line}`))
-			}
-
-			console.log("\n>> ======== ");
-			console.log(`> Imported CSV file: ${importFileName}\n`);
-			console.log(">> Import finished");
-			console.log(`>>> rows processed : ${rows.length}`);
-			console.log(`>>> ${objectType} updated   : ${updateRows_Log.length}`);
-			console.log(`>>> ${objectType} created   : ${createRows.length}`);
-			console.log("");
-		} else {
-			console.log("\n>> ======== ");
-			console.log(`> Unvalid data in CSV file: ${importFileName}`);
-			console.log(`> There are ${validateLog.length} unvalid rows`)
-			validateLog.map(line => console.log(`> - ${line}`))
-			console.log(`\n> Correct the data and import again\n`);
-		}
+		} 
 	} catch (error) {
 		console.log(`> ${typeof error.stack == 'undefined' ? error : error.stack}`);
 	}
 
-	debug(`< ${getFuncName()}`)
+	debug(`< `)
 	_commonShowDebugMessage.pop();
 }
 
@@ -353,7 +357,8 @@ function importIndexRows(row, index, objectType) {
 	rowNr = index + 2
 
 	_commonShowDebugMessage.push(true);
-	debug(`\n> ${getFuncName()} (index=${index})`)
+
+	debug(`\nRow index=${index}`)
 
 	if (objectType == OBJECT_TYPE_RELATION) {
 
@@ -407,11 +412,10 @@ function importIndexRows(row, index, objectType) {
 		row
 	}
 
-	debug(`< ${getFuncName()} return indexedRow {`)
-	debug(`< rowNr:  ${rowNr}`)
-	debug(`< object:  ${archiObject}`) // $(archiObject)?
-	debug(`< endpoint (source,target):  (${indexedRow.source}, ${indexedRow.target})`)
-	debug(`< resultCode:  "${resultCode}" }`)
+	debug(`rowNr:  ${rowNr}`)
+	debug(`object:  ${archiObject}`) // $(archiObject)?
+	debug(`endpoint (source,target):  (${indexedRow.source}, ${indexedRow.target})`)
+	debug(`resultCode:  "${resultCode}" }`)
 
 	_commonShowDebugMessage.pop();
 
@@ -429,15 +433,12 @@ function findElement_or_View(row) {
 		archiObjects = search_Name(row['name'], row['type'])
 		if (isEmpty(archiObjects)) {
 			searchResult = NOT_FOUND
-			debug(`> Not found`)
 		} else {
 			searchResult = FOUND_NAME
-			debug(`> Found by name=${archiObjects}`)
 		}
 
 	} else {
 		searchResult = FOUND_ID
-		debug(`> Found with ID =${archiObjects}`)
 	}
 
 	return {
@@ -475,16 +476,16 @@ function findRelation(row) {
 				});
 				if (isEmpty(archiRelations)) {
 					searchResult = FOUND_RELATION_ENDPOINTS
-					debug(`> Not found relation, create with endpoints: source=${archiSource}, target=${archiTarget}`)
+					debug(`Not found relation, create with endpoints: source=${archiSource}, target=${archiTarget}`)
 				} else {
 					searchResult = FOUND_RELATION
-					debug(`> Found relation via endpoints=${archiRelations}`)
+					debug(`Found relation via endpoints=${archiRelations}`)
 				}
 			}
 		}
 	} else {
 		searchResult = FOUND_RELATION
-		debug(`> Found relation with IDs=${archiRelations}`)
+		debug(`Found relation with IDs=${archiRelations}`)
 	}
 
 	return {
@@ -501,12 +502,12 @@ function searchEndpoint(row, endpointSide) {
 
 	ArchiObjects = search_IDs(row[`${endpointSide}.prop.${PROP_ID}`], row[`${endpointSide}.id`], row[`${endpointSide}.type`], )
 	if (isEmpty(ArchiObjects)) {
-		debug(`> Not found relation ${endpointSide}`)
+		debug(`Not found relation ${endpointSide}`)
 	} else {
 		if (ArchiObjects.size() > 1) {
-			debug(`> Not found relation: dismiss MULTIPLE ${endpointSide}s: ${ArchiObjects}`)
+			debug(`Not found relation: dismiss MULTIPLE ${endpointSide}s: ${ArchiObjects}`)
 		} else {
-			debug(`> Found relation ${endpointSide}=${ArchiEndpoint}`)
+			debug(`Found relation ${endpointSide}=${ArchiEndpoint}`)
 			ArchiEndpoint = ArchiObjects.first()
 		}
 	}
@@ -519,7 +520,7 @@ function search_IDs(row_prop_id, row_id, row_type) {
 
 	let ArchiObjects = new Object;
 
-	debug(`> ${getFuncName()}: type=${row_type}, propID=${row_prop_id}, id=${row_id}`)
+	debug(`type=${row_type}, propID=${row_prop_id}, id=${row_id}`)
 
 	// search with property PROP_ID
 	if (row_prop_id) {
@@ -534,19 +535,19 @@ function search_IDs(row_prop_id, row_id, row_type) {
 		// if (foundObjects.size() == 0) {
 		ArchiObjects = $(`#${row_id}`)
 		if (isEmpty(ArchiObjects)) {
-			debug(`>> Not found`)
+			debug(`Not found`)
 		} else {
-			debug(`>> Found with id: ${ArchiObjects}`)
+			debug(`Found with id: ${ArchiObjects}`)
 		}
 	} else {
-		debug(`>> Found with PROP_ID: ${ArchiObjects}`)
+		debug(`Found with PROP_ID: ${ArchiObjects}`)
 	}
 	return ArchiObjects
 }
 
 /** 
  */
-function search_Name(row_type, row_name) {
+function search_Name(row_name, row_type) {
 
 	let ArchiObjects = new Object;
 
@@ -555,7 +556,7 @@ function search_Name(row_type, row_name) {
 		ArchiObjects = $(`.${row_name}`).filter(row_type)
 	}
 
-	debug(`> ${getFuncName()} (type:${row_type}, name:${row_name}): ${ArchiObjects}`)
+	debug(`type:${row_type}, name:${row_name}): ${ArchiObjects}`)
 
 	// names do have duplicates
 	// 0, 1 or more object returned
@@ -570,7 +571,7 @@ function importReadHeader(rows) {
 
 	// row is an array of {name, value} objects => get all object key names
 	const headerLabels = Object.keys(rows[0]);
-	debug(`> ${getFuncName()} headerLabels: ${headerLabels}\n`)
+	debug(`headerLabels: ${headerLabels}\n`)
 
 	// Filter the columns to be imported
 	// - don't import the attribute id (can't be set) and 
@@ -588,7 +589,7 @@ function importCreateObject(headerRow, row_and_object, objectType) {
 	let archiObject
 
 	_commonShowDebugMessage.push(true);
-	debug(`${getFuncName()}`)
+	debug(`Start`)
 
 	row = row_and_object.row
 
@@ -601,10 +602,12 @@ function importCreateObject(headerRow, row_and_object, objectType) {
 		case OBJECT_TYPE_ELEMENT: {
 			archiObject = model.createElement(row.type, row.name);
 			line = `> create element: ${archiObject}\n`
+			break;
 		}
 		case OBJECT_TYPE_VIEW: {
 			line = `> INFO: View ${row.name} NOT created\n`
 			line = `> INFO: creation of views is not supported, use Archi merge function\n`
+			break;
 		}
 	}
 	row_and_object.archiObject = archiObject // #### mag dit. const van buiten
@@ -629,7 +632,7 @@ function importUpdateObject(headerRow, row_and_object) {
 	let rowNr = row_and_object.rowNr
 
 	_commonShowDebugMessage.push(false);
-	debug(`${getFuncName()}`)
+	debug(`Start`)
 
 	// update objects attributes and properties with the row cell values
 	headerRow.map(label => {
@@ -659,7 +662,7 @@ function get_attr_or_prop(archi_object, row_label) {
 	if (ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
 		// attribute => "id", "type",
 
-		debug(`${getFuncName()} ATTRIBUTE_LABELS: ${row_label})`)
+		debug(`Start ATTRIBUTE_LABELS: ${row_label})`)
 		cell[row_label] = archi_object[row_label]
 
 	} else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
@@ -668,7 +671,7 @@ function get_attr_or_prop(archi_object, row_label) {
 		// let attr_label = label.substring(label.indexOf('.'))
 
 		const [endpoint, attr, prop] = row_label.split('.');
-		debug(`${getFuncName()} ENDPOINT_LABELS, endpoint, attr, prop: ${row_label}, [${endpoint}, ${attr}, ${prop}])`)
+		debug(`Start ENDPOINT_LABELS, endpoint, attr, prop: ${row_label}, [${endpoint}, ${attr}, ${prop}])`)
 
 		if (prop) {
 			cell[row_label] = archi_object[endpoint].prop(prop)
@@ -677,7 +680,7 @@ function get_attr_or_prop(archi_object, row_label) {
 		}
 	} else {
 		// property Object ID
-		debug(`${getFuncName()} (PROPERTY LABEL: ${row_label})`)
+		debug(`Start (PROPERTY LABEL: ${row_label})`)
 		cell[row_label] = archi_object.prop(row_label)
 	}
 
@@ -719,8 +722,9 @@ function saveRowsToFile(header, data, objectType) {
  */
 function getRowsFromFile(importFile) {
 
+	let rows = []
 	if (importFile) {
-		var rows = Papa.parse(readFully(importFile, 'utf-8'), {
+		rows = Papa.parse(readFully(importFile, 'utf-8'), {
 			header: true,
 			encoding: 'utf-8',
 			skipEmptyLines: true
@@ -793,16 +797,4 @@ function isEmpty(obj) {
 	} else {
 		console.log(`> isEmpty(obj=${obj}, typeof=${typeof obj}): only use for jArchi objects or JS object`)
 	}
-}
-
-/**
- * See https://github.com/winstonjs/winston/issues/200
- */
-function getFuncName() {
-	let stack = new Error().stack
-
-	let [file, line] = stack.split('\n')[2].split(':')
-	let [func, file2] = file.split(' (')
-	let [func1, file3] = [func.split(' ').pop()] //, path.basename(file2)]
-	return `${func1}()`
 }
