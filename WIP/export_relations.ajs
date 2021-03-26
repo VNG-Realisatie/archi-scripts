@@ -1,22 +1,22 @@
 /**
  * This wrapping script does 2 things
- * 
+ *
  * 1. check JavaScript engine
  * - check the JavaScript engine before any unsupported code is loaded
  * - show an error message with instructions to upgrade the JavaScript engine
- * 2. pass its filename to a function 
+ * 2. pass its filename to a function
  * - the function uses the filename as a parameter
  * - Idea from:
- * 	- jbsarrodie/ConvertConcept.lib.js 
+ * 	- jbsarrodie/ConvertConcept.lib.js
  * 	- https://gist.github.com/jbsarrodie/45a312cff559d23cf55ed102422e8af7
- * 
- * Create 6 copies of this file with different filenames to start the import or export 
+ *
+ * Create 6 copies of this file with different filenames to start the import or export
  * Format for the filenames:
  * - {export|import}_{elements|relations|views}.ajs
  */
 
 load(__DIR__ + "../_lib/Common.js");
-checkJavaScriptEngine(ENGINE_GRAAL_VM)
+checkJavaScriptEngine(ENGINE_GRAAL_VM);
 
 load(__DIR__ + "export_import_functions.js");
 executeExportImport(__FILE__);

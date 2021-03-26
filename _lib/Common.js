@@ -5,7 +5,6 @@ var _commonCounter;
 let _commonShowInfoMessage = [false];
 let _commonShowDebugMessage = [false];
 
-
 /**
  * initConsoleLog and finishconsole
  * 	first and last call in an Archi script
@@ -38,10 +37,9 @@ function finishConsoleLog() {
 	console.log("============================================\n");
 }
 
-ENGINE_NASHORN_ES5 = 'jdk.nashorn.api.scripting.NashornScriptEngine'
-ENGINE_NASHORN_ES6 = 'jdk.nashorn.api.scripting.NashornScriptEngine'
+ENGINE_NASHORN = 'jdk.nashorn.api.scripting.NashornScriptEngine'
 ENGINE_GRAAL_VM = 'com.oracle.truffle.js.scriptengine.GraalJSScriptEngine'
-ENGINES = [ENGINE_NASHORN_ES5, ENGINE_NASHORN_ES6, ENGINE_GRAAL_VM]
+ENGINES = [ENGINE_NASHORN, ENGINE_GRAAL_VM]
 
 /**
  * function checkEngine(engine)
@@ -62,6 +60,7 @@ function checkJavaScriptEngine(required_engine) {
 		line+= `\n- If the higher JavaScript engine is missing, first upgrade the jArchi plugin\n\n`
 		throw(line)
 	}
+	return true
 }
 
 /**
@@ -125,14 +124,6 @@ function logMessage(logSwitch, logType, pMsg) {
 
 	// console.log(`stack:\n${stack}\n\n`)
 
-	// let matchExprFunc =[]
-	// matchExprFunc.push(new RegExp(/Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){2}/))
-	// matchExprFunc.push(new RegExp(/Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){3}/))
-	// matchExprFunc.push(new RegExp(/Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){4}/))
-	// matchExprFunc.push(new RegExp(/Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){5}/))
-	// matchExprFunc.push(new RegExp(/Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){6}/))
-	// let funcName = stack.match(matchExprFunc[stackLevel]);
-
     // escaped regEx /Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){6}/
     let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${stackLevel}}`
 
@@ -145,19 +136,6 @@ function logMessage(logSwitch, logType, pMsg) {
 		return `${funcName[2]}()`
 	}
 }
-
-// /**
-//  * See https://github.com/winstonjs/winston/issues/200
-//  */
-// function getFuncName() {
-// 	let stack = new Error().stack
-
-// 	let [file, line] = stack.split('\n')[2].split(':')
-// 	let [func, file2] = file.split(' (')
-// 	let [func1, file3] = [func.split(' ').pop()] //, path.basename(file2)]
-// 	return `${func1}()`
-// }
-
 
 /**
  * stack()

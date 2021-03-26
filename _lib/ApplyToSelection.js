@@ -1,5 +1,5 @@
 /*
- * ApplyToSelection.ajs
+ * ApplyToSelection.js
  * 
  * (c) 2019 Mark Backer
  *
