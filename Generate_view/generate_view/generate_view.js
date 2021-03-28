@@ -25,8 +25,12 @@ var TYPE_ACTION = {
 	ONE_VIEW_PER_CONCEPT: 2						// Create one view per Archimate concept
 };
 
+const REVERSE_RELATIONS = ["specialization-relationship", "assignment-relationship"]
+const NODE_WIDTH = 140;
+const NODE_HEIGHT = 60;
+
 	// verbose and debug values (may be overriden by the param.verbose and param.debug parameters)
-var G_verbose = false;
+var G_verbose = true;
 var G_debug = false;
 
 	// This function adds an Archimate element in a list
@@ -110,6 +114,7 @@ function generate_view(param) {
 	
 	debug("Function generate_view() called with following parameters");
 	debug("     - concepts = " + param.concepts);
+	debug("     - relations = " + param.relations);
 	debug("     - action = " + param.action);
 	debug("     - viewName = " + param.viewName);
 	debug("     - graphDepth = " + param.graphDepth);
@@ -126,6 +131,9 @@ function generate_view(param) {
 	if ( param.concepts === undefined )
 		throw "Missing mandatatory concepts parameter";
 	
+	if ( param.relations === undefined )
+		param.relations = ''
+
 		// defaulting optional parameters
 	if ( param.nestedRelationships === undefined )
 		param.nestedRelationships = [];
@@ -135,12 +143,12 @@ function generate_view(param) {
 	require.addPath(__DIR__ + "/lib");
 	G__dagre = require('dagre');	
 	
-		// we get an array with all the selected elements
-	var allElements = $("element");			// contains all the elements in the model
-	var selectedElements = [];				// will contain all the elements selected in the model (ie. no view, folder, relationship, object nor connection)
-	if ( param.concepts === "*" ) { 					// --> all the elements in the model
-		selectedElements = allElements;
-	} else if ( param.concepts === "selected" ) {		// --> all the elements selected
+	// we get an array with all the selected elements
+
+	var selectedElements = [] // will contain all the elements selected in the model (ie. no view, folder, relationship, object nor connection)
+	if ( param.selection === "*" ) { 					// --> all the elements in the model
+		selectedElements = $("element");	
+	} else {
 		for ( var i in $(selection) ) {
 			var obj = $(selection)[i];
 			if ( obj.type === "archimate-model" ) {
@@ -149,19 +157,24 @@ function generate_view(param) {
 			} else
 				addElementInList(selectedElements, obj);
 		}
-	} else {
-		var searchedTypes = param.concepts.split(",");
+	}
+
+	var filteredElements = [];
+	var searchedTypes = param.concepts.split(",");
+	if (searchedTypes.length > 0) {
 		console.log("*********** searched type = " + searchedTypes);
-		for ( var i in allElements ) {
-			var obj = allElements[i];
+		for ( var i in selectedElements ) {
+			var obj = selectedElements[i];
 			if ( $(obj).is("element") && (searchedTypes.indexOf(obj.type) !== -1) )
-				selectedElements.push(obj);
+			filteredElements.push(obj);
 		}
+	} else {
+		filteredElements = selectedElements
 	}
 	
-	console.log("INFO: " + selectedElements.length + " Archimate elements to process.");
+	console.log("INFO: " + filteredElements.length + " Archimate elements to process.");
 	
-	if ( selectedElements.length === 0 ) {
+	if ( filteredElements.length === 0 ) {
 		throw "No Archimate element match your criterias.";
 	}
 	
@@ -178,10 +191,10 @@ function generate_view(param) {
 	var view;	
 	if ( param.action === undefined || param.action === TYPE_ACTION.ONE_SINGLE_VIEW ) {
 		if ( param.concepts === "*" ) param.graphDepth = undefined;
-		view = _generate_view(selectedElements, param.nestedRelationships, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth, param.viewName);
+		view = _generate_view(filteredElements, param.concepts, param.relations, param.nestedRelationships, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth, param.viewName);
 	} else {
-		selectedElements.forEach(function(concept) {
-			view = _generate_view(concept, param.nestedRelationships, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth);
+		filteredElements.forEach(function(concept) {
+			view = _generate_view(concept, param.concepts, param.relations, param.nestedRelationships, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth);
 		});
 	}
 	
@@ -193,7 +206,7 @@ function generate_view(param) {
 	return view;
 }
 
-function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, hSep, vSep, algorithm, graphDepth, viewName) {
+function _generate_view(elem, concepts, relations, nestedRelationships, graphDirection, graphAlign, hSep, vSep, algorithm, graphDepth, viewName) {
 	var counter = startCounter();
 	
 	var elements = [];
@@ -240,13 +253,15 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 
 		// creation of the graph
 	debug("     - Création of the graph.");
-	graphLayout = {};
+	graphLayout = new Object;
+	graphLayout.marginx = 10;
+	graphLayout.marginy = 10;
 	if ( graphDirection !== undefined ) graphLayout.rankdir = graphDirection;
 	if ( graphAlign !== undefined) graphLayout.align = graphAlign;
 	if ( hSep !== undefined ) graphLayout.nodesep = hSep;
 	if ( vSep !== undefined ) graphLayout.ranksep = vSep;
 	if ( algorithm !== undefined ) graphLayout.ranker = algorithm;
-	
+
 	var graph = new G__dagre.graphlib.Graph({
 		compound: true,
 		multigraph: true
@@ -258,14 +273,14 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 	.setDefaultEdgeLabel(function() {
 		return { minlen: 1, weight: 1 };
 	});
-	
-		// we add elements to the graph
+
+	// we add elements to the graph
 	debug("Adding selected elements to the graph...");
 	var elementsInGraph = {};
 	elements.forEach(function(e) {
 		if ( elementsInGraph[e.id] === undefined ) {
 			elementsInGraph[e.id] = e;
-			graph.setNode(e.id, {label: e.name, width: 120, height: 55});
+			graph.setNode(e.id, {label: e.name, width: NODE_WIDTH, height: NODE_HEIGHT});
 			debug("     - " + e + " ("+e.class+")");
 		}
 	});
@@ -275,25 +290,30 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 		// if the whole model is not selected and param.graphDepth is not zero,
 		// then we loop on all the elements and follow the relationships to complete the list
 	if ( (graphDepth !== undefined) && (graphDepth > 0) ) {
+		
 		debug("Following relationships (depth = " + graphDepth + ")");
+		var searchedTypes = concepts.split(",");
+		debug("Filter found sources and targest for " + searchedTypes );
+
 		for ( id in elementsInGraph ) {
-			function addRelatedTo(elem, d) {
+			function addRelatedTo(elem, depth) {
 				if ( elementsInGraph[elem.id] === undefined ) {
 					elementsInGraph[elem.id] = elem;
-					graph.setNode(elem.id, {label: elem.name, width: 120, height: 55});
+					graph.setNode(elem.id, {label: elem.name, width: NODE_WIDTH, height: NODE_HEIGHT});
 					debug("     - " + elem + " ("+elem.class+")");
 				}
-				if ( d > 0 ) {
+				if ( depth > 0 ) {
 					// TODO: what about relationships on relationships ?
+
 					$(elem).inRels().each(function(rel) {
 						var src = $(rel).sourceEnds().first();
-						if ( $(src).is("element") )
-							addRelatedTo(src, d-1);
+						if ( $(src).is("element")  && (searchedTypes.indexOf(src.type) !== -1))
+							addRelatedTo(src, depth-1);
 					});
 					$(elem).outRels().each(function(rel) {
 						var tgt = $(rel).targetEnds().first();
-						if ( $(tgt).is("element") )
-							addRelatedTo(tgt, d-1);
+						if ( $(tgt).is("element")  && (searchedTypes.indexOf(tgt.type) !== -1) )
+							addRelatedTo(tgt, depth-1);
 					})
 				}
 			}
@@ -311,7 +331,7 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 	for ( id in elementsInGraph ) {
 		sourceElement = elementsInGraph[id];
 			// Considering outRels() is sufficient, as inRels() for this element is part of an ourRels() of another element.
-		$(sourceElement).outRels().each(function(rel) {
+		$(sourceElement).outRels().filter(r => filter_relations(r, relations)).each(function(rel) {
 			var targetElement = $(rel).targetEnds().first();
 			if ( $(targetElement).is("element") ) {
 				// we have to manually loop on the array as the proxy object is different from the one in the array
@@ -325,9 +345,16 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 				}
 				if ( trouve ) {
 					if ( nestedRelationships.indexOf(rel.type) != -1 ) {
-						debug("     - " + sourceElement + " is parent of " + targetElement);
-						graph.setParent(targetElement.id, sourceElement.id);
-						parents.push(sourceElement.id);							// source is parent of target
+						if (REVERSE_RELATIONS.indexOf(rel.type) == -1) {
+							debug("     - " + sourceElement + " is parent of " + targetElement);
+							graph.setParent(targetElement.id, sourceElement.id);
+							parents.push(sourceElement.id);							// source is parent of target
+	
+						} else { // for specialiazation embedding other way around
+							debug("     - " + targetElement + " is parent of " + sourceElement);
+							graph.setParent(sourceElement.id, targetElement.id);
+							parents.push(targetElement.id);							// target is parent of source
+						}
 					}
 					if ( relationshipsToAdd[rel.id] === undefined )
 						relationshipsToAdd[rel.id] = rel;
@@ -345,7 +372,7 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 		var tgt = $(rel).targetEnds().first();
 		
 		if ( (parents.indexOf(src.id) !== -1) || (parents.indexOf(tgt.id) !== -1) )	{	// if source or target is parent
-			debug("     - removing " + rel);
+			debug("     - nested relation " + rel);
 //			relationshipsToAddLength--;
 			Object.keys(relationshipsToAdd).length--;
 			delete relationshipsToAdd[id];
@@ -361,7 +388,11 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 		var src = $(rel).sourceEnds().first();
 		var tgt = $(rel).targetEnds().first();
 		debug("     - adding " + rel + " from " + src + " to " + tgt);
-		graph.setEdge(src.id, tgt.id, {label: rel.id});
+		if (REVERSE_RELATIONS.indexOf(rel.type) == -1) {
+			graph.setEdge(src.id, tgt.id, {label: rel.id});
+		} else {
+			graph.setEdge(tgt.id, src.id, {label: rel.id});
+		}
 	};
 
 	verbose("Calculating the graph layout...");
@@ -371,7 +402,9 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 	debug("     - ranksep: " + vSep);
 	debug("     - ranker: " + algorithm);
 	try {
-		G__dagre.layout(graph);
+		var opts = {}
+		opts.debugTiming = true
+		G__dagre.layout(graph, opts);
 	} catch (e) {
 		console.error(e.stack);
 		throw e;
@@ -404,7 +437,7 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 							// Archi coordinates are related to the parent, while the graph coordinates are related to the top left corner
 						var grandParent = viewObjects[parentId];
 						x = x - grandParent.bounds.x;
-						y = y - grandParent.bounds.y;
+						y = y - grandParent.bounds.y +10;
 						parentId = graph.parent(parentId);
 					} while ( parentId !== undefined );
 					debug("     - Adding "+archiElement + " (x=" + x + ", y=" + y + ", width=" + node.width + ", height" + node.height + ") into parent " + archiParent);
@@ -422,7 +455,7 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 	addedRelationships = [];
 	for ( id in elementsInGraph ) {
 		sourceElement = elementsInGraph[id];
-		$(sourceElement).outRels().each(function(rel) {
+		$(sourceElement).outRels().filter(r => filter_relations(r, relations)).each(function(rel) {
 			var targetElement = $(rel).targetEnds().first();
 			if ( (viewObjects[targetElement.id] !== undefined) && (nestedRelationships.indexOf(rel.type) == -1) ) {
 				// if the target element is in the view and that the objects are not nested
@@ -445,7 +478,7 @@ function _generate_view(elem, nestedRelationships, graphDirection, graphAlign, h
 	console.log("INFO: View generated.");
 	
 	counter = endCounter(counter);
-	debug("Duration: "+counter.minutes+"m"+counter.seconds+"s");
+	console.log("Duration: "+counter.minutes+"m"+counter.seconds+"s");
 	
 	return view;
 }
@@ -466,5 +499,21 @@ function open_view(view) {
 		Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(v);
 	} catch (e) {
 		console.error("Failed to open the view. You may open it manually.");
+	}
+}
+
+function filter_relations(r, relations) {
+
+	if (relations == '') return true
+	
+	var searchedTypes = relations.split(",");
+	if (searchedTypes.length > 0) {
+		if (searchedTypes.indexOf(r.type) !== -1) {
+			return true
+		} else {
+			return false
+		}
+	} else {
+		return true
 	}
 }

@@ -1,0 +1,60 @@
+// Create the input graph
+// var g = new dagreD3.graphlib.Graph({compound:true})
+//   .setGraph({})
+//   .setDefaultEdgeLabel(function() { return {}; });
+var dagre = require('dagre')
+
+var graph = new dagre.graphlib.Graph({
+	compound: true,
+	multigraph: true
+});
+
+graphLayout = new Object;
+graphLayout.marginx = 10;
+graphLayout.marginy = 10;
+
+graph.setGraph(graphLayout)
+// Default to assigning a new object as a label for each new edge.
+graph.setDefaultEdgeLabel(function() { return {}; });
+
+// Here we're setting the nodes
+graph.setNode('a', {label: 'A'});
+graph.setNode('b', {label: 'B'});
+graph.setNode('c', {label: 'C'});
+graph.setNode('d', {label: 'D'});
+graph.setNode('e', {label: 'E'});
+graph.setNode('f', {label: 'F'});
+graph.setNode('g', {label: 'G'});
+graph.setNode('group', {label: 'Group', clusterLabelPos: 'top', style: 'fill: #d3d7e8'});
+graph.setNode('top_group', {label: 'Top Group', clusterLabelPos: 'bottom', style: 'fill: #ffd47f'});
+graph.setNode('bottom_group', {label: 'Bottom Group', style: 'fill: #5f9488'});
+
+// Set the parents to define which nodes belong to which cluster
+graph.setParent('top_group', 'group');
+graph.setParent('bottom_group', 'group');
+graph.setParent('b', 'top_group');
+graph.setParent('c', 'bottom_group');
+graph.setParent('d', 'bottom_group');
+graph.setParent('e', 'bottom_group');
+graph.setParent('f', 'bottom_group');
+
+// Set up edges, no special attributes.
+graph.setEdge('a', 'b',  {label: 'ab'});
+graph.setEdge('b', 'c',  {label: 'bc'});
+graph.setEdge('b', 'd',  {label: 'bd'});
+graph.setEdge('b', 'e',  {label: 'be'});
+graph.setEdge('b', 'f',  {label: 'bf'});
+graph.setEdge('b', 'g',  {label: 'bg'});
+
+var opts = {}
+opts.debugTiming = true
+
+dagre.layout(graph, opts)
+
+console.log(graph._nodes.a.x)
+console.log(graph._edgeLabels["a\u0001b\u0001\u0000"].points[0])
+console.log(graph._edgeLabels["b\x01c\x01\x00"].points[3])
+console.log(graph._edgeLabels)
+console.log()
+
+graph._edgeLabels["b\u0001g\u0001\u0000"]
