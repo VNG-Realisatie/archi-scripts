@@ -20,13 +20,13 @@ try {
 	var view = generate_view({
 		verbose: true,
 		// selection: "selected" or "*"
-		selection: "selected",
+		concepts: "selected",
 		// concepts: "business-actor,application-component,constraint", // no spaces!
 		// concepts: "constraint,grouping",
 		// concepts: "business-function,business-object", // no spaces!
-		concepts: "business-function", // no spaces!
-		graphDepth: 2,
-		viewName: "gen-custom",
+		// concepts: "business-function", // no spaces!
+		graphDepth: 1,
+		// viewName: "gen-custom",
 
 		// action: TYPE_ACTION.ONE_VIEW_PER_CONCEPT,
 		action: TYPE_ACTION.ONE_SINGLE_VIEW,
@@ -35,14 +35,14 @@ try {
 		// graphDirection: "TB",
 
 		// UpLeft, DownRight "UL", "UR", "DL", "DR"
-		graphAlign: "UR",
+		// graphAlign: "UR",
 		// nestedRelationships: ["aggregation-relationship"],
 		// nestedRelationships: ["specialization-relationship"],
 		// nestedRelationships: ["specialization-relationship","composition-relationship","aggregation-relationship", "access-relationship"],
 		// nestedRelationships: ["specialization-relationship","aggregation-relationship"],
 		// var graphAlgorithms = ["Network-simplex", "Tight-tree", "Longest-path"];
-		algorithm: "Longest-path",
-		// algorithm: "Network-simplex",
+		// algorithm: "Longest-path",
+		algorithm: "Network-simplex",
 		hSep: 20,
 		vSep: 50,
 		debug: false

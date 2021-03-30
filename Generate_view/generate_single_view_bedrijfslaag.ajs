@@ -23,19 +23,18 @@ try {
 		concepts: "selected",
 		// concepts: "business-actor,application-component,constraint", // no spaces!
 		// concepts: "constraint,grouping",
-		// concepts: "business-function,business-object", // no spaces!
-		concepts: "application-component,application-function", // no spaces!
-		relations: "assignment-relationship,aggregation-relationship", // no spaces!
+		concepts: "business-function", // no spaces!
+		// concepts: "application-component,application-function", // no spaces!
+		relations: "serving-relationship,aggregation-relationship", // no spaces!
 
-		graphDepth: 1,
+		graphDepth: 2,
 		// viewName: "gen-custom",
 
 		// action: TYPE_ACTION.ONE_VIEW_PER_CONCEPT,
 		action: TYPE_ACTION.ONE_SINGLE_VIEW,
 		// Direction for rank nodes. Can be TB, BT, LR, or RL, where T = top, B = bottom, L = left, and R = right.
 		// BottomTop, LeftRight, ... "BT", "LR", "RL"
-		// graphDirection: "LR",
-		graphDirection: "TB",
+		graphDirection: "LR",
 
 		// UpLeft, DownRight "UL", "UR", "DL", "DR"
 		// graphAlign: "UL",

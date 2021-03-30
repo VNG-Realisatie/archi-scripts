@@ -29,12 +29,9 @@ function initConsoleLog(pFile, pClear) {
 }
 
 function finishConsoleLog() {
-	_commonCounter = endCounter(_commonCounter);
-	duration = `${_commonCounter.minutes}m${_commonCounter.seconds}s`
 	// console.log("\n============================================");
-	// console.log(`\nScript "${_commonScriptName}" finished in ${duration}\n`);
-	console.log(`\nScript "${_commonScriptName}" finished in ${duration}`);
-	console.log("============================================\n");
+	console.log(`\nScript "${_commonScriptName}" finished in ${endCounter(_commonCounter)}`);
+	console.log("==========================================\n");
 }
 
 ENGINE_NASHORN = 'jdk.nashorn.api.scripting.NashornScriptEngine'
@@ -76,7 +73,11 @@ function endCounter(startCounter) {
 	_durationInSeconds = parseInt((_endCounter - startCounter) / 1000);
 	_minutes = parseInt(_durationInSeconds / 60);
 	_seconds = parseInt(_durationInSeconds % 60);
-	return { minutes: _minutes, seconds: _seconds };
+	if (_minutes > 0) {
+		return `${_minutes}m${_seconds}s`
+	} else {
+		return `${_seconds}s`
+	}
 }
 
 /**
