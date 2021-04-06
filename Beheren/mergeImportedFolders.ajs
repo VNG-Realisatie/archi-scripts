@@ -22,7 +22,7 @@
 console.clear();
 console.log()
 
-const prefix = '(import) '
+const FOLDER_PREFEX = '(import) '
 
 let nrFoldersStart = $(model).find('folder').size()
 console.log(`Number of folders is ${nrFoldersStart}\n`)
@@ -32,14 +32,23 @@ mergeImportedFolders($(model).first())
 let nrFoldersRemaining = $(model).find('folder').size()
 
 console.log()
-console.log(`Merged ${nrFoldersStart - nrFoldersRemaining} folders with prefix '${prefix}' of total of ${nrFoldersStart} folders`)
+console.log(`Merged ${nrFoldersStart - nrFoldersRemaining} folders with prefix '${FOLDER_PREFEX}' of total of ${nrFoldersStart} folders`)
 console.log(`${nrFoldersRemaining} folders remaining`)
 
 /**
  * mergeImportedFolders()
  * 	recursive function to traverse the folder tree
- * 		move all objects from the imported folder to original folder
- * 		remove of rename imported folders
+ * 		find original folder with the same name without prefix '(imported)'
+ * 		if found 
+ * 			move all objects from the imported folder to original folder
+ * 			and remove the imported folder
+ * 		else
+ * 			rename imported folders
+ * 
+ * not supported:
+ * 	the imported folder is not found
+ * 		original was deleted
+ * 		other version
  * 
  * @param pImportedFolder 	current imported folder
  * @param pOriginalParent 	current parent where original folder can be found
@@ -68,7 +77,7 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 		// find the original folder
 		originalFoldersColl = $(originalParent).children("folder").filter(isOriginalFolder)
 		if (originalFoldersColl.size() > 1) {
-			throw (`Multiple possible original folders for ${pObject.name}`)
+			console.log(`\nDuplicate folders in selected model:\nParent folder: ${originalParent}\nDuplicate folder names: ${originalFoldersColl}`)
 		}
 		originalFolder = originalFoldersColl.first()
 
@@ -98,13 +107,13 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 
 		if (pLevel > 0) {
 			// remove of rename imported folders
-			let originalFolderName = importedSubFolder.name.substr(prefix.length)
+			let originalFolderName = importedSubFolder.name.substr(FOLDER_PREFEX.length)
 			if ($(importedSubFolder).children().size() == 0) {
 				console.log(`${"  ".repeat(pLevel+2)}merged into '${originalFolderName}'`)
 				importedSubFolder.delete()
 			} else {
 				console.log(`${"> ".repeat(pLevel+2)}renamed folder to '${originalFolderName}'`)
-				importedSubFolder.name = importedSubFolder.name.substr(prefix.length)
+				importedSubFolder.name = importedSubFolder.name.substr(FOLDER_PREFEX.length)
 			}
 		}
 	})
@@ -114,8 +123,8 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 	 * 	return true if folder f starts with prefix
 	 */
 	function isImportedFolder(folder) {
-		if (folder.name.startsWith(prefix)) {
-			// console.log(`${"  ".repeat(pLevel)}Imported folder: ${f.name}`)
+		if (folder.name.startsWith(FOLDER_PREFEX)) {
+			console.log(`${"  ".repeat(pLevel)}Imported folder: ${folder.name}`)
 			return true
 		}
 		return false
@@ -126,6 +135,6 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 	 * 	return true if folder name is equal to imported folder
 	 */
 	function isOriginalFolder(folder) {
-		return (folder.name == pImportedFolder.name.substr(prefix.length))
+		return (folder.name == pImportedFolder.name.substr(FOLDER_PREFEX.length))
 	}
 }

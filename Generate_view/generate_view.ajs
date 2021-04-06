@@ -54,7 +54,7 @@ try {
 		defaultAlgorithm = view.prop("graph_algorithm");
 		defaultHSep = view.prop("graph_hsep");
 		defaultVSep = view.prop("graph_vsep");
-		defaultNestedRelationships = view.prop("nested_relationships");
+		defaultNestedRelationships = view.prop("nested_relationsships");
 		defaultViewName = view.name;
 		
 		debug("     - graph_content = " + defaultContent);
@@ -64,7 +64,7 @@ try {
 		debug("     - graph_algorithm = " + defaultAlgorithm);
 		debug("     - graph_hsep = " + defaultHSep);
 		debug("     - graph_vsep = " + defaultVSep);
-		debug("     - nested_relationships = " + defaultNestedRelationships);
+		debug("     - nested_relationsships = " + defaultNestedRelationships);
 	}
 		
 	var isModelSelected = false;			// will indicate if the model itself is selected
@@ -581,7 +581,7 @@ if ( G_okPressed ) {
 			view.removeProp("graph_algorithm");
 			view.removeProp("graph_hsep");
 			view.removeProp("graph_vsep");
-			view.removeProp("nested_relationships");
+			view.removeProp("nested_relationsships");
 
 			view.prop("graph_direction", direction);
 			view.prop("graph_algorithm", algorithm);
@@ -596,7 +596,7 @@ if ( G_okPressed ) {
 			if ( alignment !== undefined )
 				view.prop("graph_align", alignment);
 			if ( nestedRelationships.length > 0 )
-				view.prop("nested_relationships", JSON.stringify(nestedRelationships).replace(/[\{\[\}\] \"]/g, ""));
+				view.prop("nested_relationsships", JSON.stringify(nestedRelationships).replace(/[\{\[\}\] \"]/g, ""));
 		
 				// Open the view
 			console.log("The view has been generated.");

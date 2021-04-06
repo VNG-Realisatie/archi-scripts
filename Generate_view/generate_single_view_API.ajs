@@ -17,15 +17,15 @@ console.log("Executing " + __FILE__.substring(6) + " ...");
 try {
 	load(__DIR__ + "generate_view/generate_view.js");
 
-	let view = generate_view({
+	let param = {
 		verbose: true,
 		// selection: "selected" or "*"
-		concepts: "selected",
+		// concepts: "selected",
 		// concepts: "business-actor,application-component,constraint", // no spaces!
 		// concepts: "constraint,grouping",
-		concepts: "business-function", // no spaces!
-		// concepts: "application-component,application-function", // no spaces!
-		relations: "serving-relationship,aggregation-relationship", // no spaces!
+		// concepts: "business-function,business-object", // no spaces!
+		concepts: "application-interface,application-service,constraint", // no spaces!
+		relations: "assignment-relationship,assignment-relationship,realization-relationship,serving-relationship", // no spaces!
 
 		graphDepth: 2,
 		// viewName: "gen-custom",
@@ -34,10 +34,12 @@ try {
 		action: TYPE_ACTION.ONE_SINGLE_VIEW,
 		// Direction for rank nodes. Can be TB, BT, LR, or RL, where T = top, B = bottom, L = left, and R = right.
 		// BottomTop, LeftRight, ... "BT", "LR", "RL"
-		graphDirection: "LR",
+		// graphDirection: "LR",
+		graphDirection: "TB",
 
 		// UpLeft, DownRight "UL", "UR", "DL", "DR"
 		// graphAlign: "UL",
+		// nested_relations: ["realization-relationship"],
 		// nested_relations: ["aggregation-relationship"],
 		// nested_relations: ["assignment-relationship","aggregation-relationship"],
 		// nested_relations: ["specialization-relationship"],
@@ -49,7 +51,9 @@ try {
 		hSep: 20,
 		vSep: 80,
 		debug: false
-	});
+	}
+
+	let view = generate_view(param);
 
 	if (view !== undefined) {
 		console.log("The view \"" + view.name + "\" has been generated.");

@@ -33,6 +33,7 @@ var TYPE_ACTION = {
 
 // const REVERSE_RELATIONS = ["realization-relationship", "specialization-relationship", "assignment-relationship", "serving-relationship"]
 const REVERSE_RELATIONS = ["realization-relationship", "specialization-relationship", "serving-relationship"]
+
 const NODE_WIDTH = 140;
 const NODE_HEIGHT = 60;
 
@@ -56,15 +57,20 @@ var G__allViews;
 	Param is an object that may contain the following properties:
 		concepts (mandatory)			Class of Archimate concepts that must be included in the created view
 										May be one of:
-											*				all objects in the model
+											*	all objects in the model
 											selected		selected objects from the model
 											class,class,...	list of Archimate classes (comma-separated) like business-actor, application-component, technology-collaboration, node, ...
 									
 		relations (optional)			The relations types that will be included in the view. 
 										When graphDepth is greater than 0, this also defines which relation will be followed
 										May be one of:
-											*				all relation types in the model
-											class,class,...	list of Archimate classes (comma-separated) like business-actor, application-component, technology-collaboration, node, ...
+											*	all relation types in the model
+											class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
+									
+		reverse_relations (optional)	The relations types which will be rendered target to source
+										May be one of:
+											*	all relation types in the model
+											class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
 									
 		action (optional)				The type of action that the script should do.
 										May be one of:
@@ -81,7 +87,7 @@ var G__allViews;
 		graphDepth (optional)			Depth of the graph to create (numerical)
 										Defaults to 0
 									
-		nestedRelationships (optional)	Array if relationships names which will conduct to nested elements.
+		nested_relations (optional)	Array if relationships names which will conduct to nested elements.
 										Defaults to []
 										
 		graphDirection (optional)		Direction of the graph.
@@ -130,12 +136,13 @@ function generate_view(param) {
 	debug("Function generate_view() called with following parameters");
 	debug("     - concepts = " + param.concepts);
 	debug("     - relations = " + param.relations);
+	debug("     - reverse_relations = " + param.reverse_relations);
 	debug("     - action = " + param.action);
 	debug("     - viewName = " + param.viewName);
 	debug("     - graphDepth = " + param.graphDepth);
 	debug("     - graphDirection = " + param.graphDirection);
 	debug("     - graphAlign = " + param.graphAlign);
-	debug("     - nestedRelationships = " + JSON.stringify(param.nestedRelationships));
+	debug("     - nested_relations = " + JSON.stringify(param.nested_relations));
 	debug("     - algorithm = " + param.algorithm);
 	debug("     - hSep = " + param.hSep);
 	debug("     - vSep = " + param.vSep);
@@ -145,13 +152,13 @@ function generate_view(param) {
 	// checking mandatory parameters
 	if (param.concepts === undefined)
 		throw "Missing mandatatory concepts parameter";
-
 	if (param.relations === undefined)
 		param.relations = ''
-
+	if (param.reverse_relations === undefined)
+		param.reverse_relations = ''
 	// defaulting optional parameters
-	if (param.nestedRelationships === undefined)
-		param.nestedRelationships = [];
+	if (param.nested_relations === undefined)
+		param.nested_relations = [];
 
 	// calculating the default view name
 	if ((param.viewName === undefined) || (param.viewName === ""))
@@ -209,10 +216,10 @@ function generate_view(param) {
 	var view;
 	if (param.action === undefined || param.action === TYPE_ACTION.ONE_SINGLE_VIEW) {
 		if (param.concepts === "*") param.graphDepth = undefined;
-		view = _generate_view(filteredElements, param.concepts, param.relations, param.nestedRelationships, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth, viewName);
+		view = _generate_view(filteredElements, param.concepts, param.relations, param.nested_relations, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth, viewName);
 	} else {
 		filteredElements.forEach(function (concept) {
-			view = _generate_view(concept, param.concepts, param.relations, param.nestedRelationships, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth);
+			view = _generate_view(concept, param.concepts, param.relations, param.nested_relations, param.graphDirection, param.graphAlign, param.hSep, param.vSep, param.algorithm, param.graphDepth);
 		});
 	}
 
@@ -224,7 +231,7 @@ function generate_view(param) {
 	return view;
 }
 
-function _generate_view(elem, concepts, relations, nestedRelationships, graphDirection, graphAlign, hSep, vSep, algorithm, graphDepth, viewName) {
+function _generate_view(elem, concepts, relations, nested_relations, graphDirection, graphAlign, hSep, vSep, algorithm, graphDepth, viewName) {
 	var counter = startCounter();
 
 	var elements = [];
@@ -348,7 +355,7 @@ function _generate_view(elem, concepts, relations, nestedRelationships, graphDir
 					}
 				}
 				if (trouve) {
-					if (nestedRelationships.indexOf(rel.type) != -1) {
+					if (nested_relations.indexOf(rel.type) != -1) {
 						if (REVERSE_RELATIONS.indexOf(rel.type) == -1) {
 							debug("     - " + sourceElement + " is parent of " + targetElement);
 							graph.setParent(targetElement.id, sourceElement.id);
@@ -470,7 +477,7 @@ function _generate_view(elem, concepts, relations, nestedRelationships, graphDir
 		sourceElement = elementsInGraph[id];
 		$(sourceElement).outRels().filter(r => filter_relations(r, relations)).each(function (rel) {
 			var targetElement = $(rel).targetEnds().first();
-			if ((viewObjects[targetElement.id] !== undefined) && (nestedRelationships.indexOf(rel.type) == -1)) {
+			if ((viewObjects[targetElement.id] !== undefined) && (nested_relations.indexOf(rel.type) == -1)) {
 				// if the target element is in the view and that the objects are not nested
 				if (addedRelationships.indexOf(rel.id) === -1) {
 					debug("     - connecting " + sourceElement + " to " + targetElement);

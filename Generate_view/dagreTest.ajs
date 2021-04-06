@@ -6,16 +6,15 @@
 ENGINE_NASHORN = 'jdk.nashorn.api.scripting.NashornScriptEngine'
 ENGINE_GRAAL_VM = 'com.oracle.truffle.js.scriptengine.GraalJSScriptEngine'
 
-ARCHI_HOME = 'C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/'
-// ARCHI_HOME = __DIR__ + '../../../../'
-
-ARCHI_SCRIPT = ARCHI_HOME + 'Script/MyScripts/'
-NODE_MODULES = ARCHI_HOME + 'Script/node_modules/'
-ARCHI_FILES =  ARCHI_HOME + 'Werkbestanden/'
-
 try {
 	if ($.process.engine === ENGINE_NASHORN || $.process.engine === ENGINE_GRAAL_VM) {
 
+		if (typeof __SCRIPTS_DIR__ == 'undefined')
+			var __SCRIPTS_DIR__ = ''
+		ARCHI_SCRIPT = __SCRIPTS_DIR__ + 'MyScripts/'
+		ARCHI_FILES =  __SCRIPTS_DIR__ + '../Werkbestanden/'
+		NODE_MODULES = __SCRIPTS_DIR__ + 'node_modules/'
+		
 		load(ARCHI_SCRIPT + "_lib/Common.js")
 		load(ARCHI_SCRIPT + "_lib/jvm-npm.js")
 
@@ -41,7 +40,6 @@ try {
 		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 	}
 }
-
 
 function dagreTest(){
 
@@ -102,6 +100,14 @@ function dagreTest(){
 	console.log(graph._edgeLabels["b\x01c\x01\x00"].points[3])
 	console.log(graph._edgeLabels)
 	console.log()
-	
+
 	graph._edgeLabels["b\u0001g\u0001\u0000"]
+
+	graph.edges().forEach(function(edgeObject) {
+		console.log(`edgeObject: ${edgeObject}`)
+		console.log(`edgeObject.v: ${edgeObject.v}`)
+		console.log(`edgeObject.w: ${edgeObject.w}`)
+
+	});
+
 }

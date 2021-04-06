@@ -17,7 +17,7 @@ console.log("Executing " + __FILE__.substring(6) + " ...");
 try {
 	load(__DIR__ + "generate_view/generate_view.js");
 
-	let view = generate_view({
+	let param = {
 		verbose: true,
 		// selection: "selected" or "*"
 		concepts: "selected",
@@ -26,6 +26,9 @@ try {
 		// concepts: "business-function,business-object", // no spaces!
 		concepts: "application-component,application-function", // no spaces!
 		relations: "assignment-relationship,aggregation-relationship", // no spaces!
+		// const REVERSE_RELATIONS = ["realization-relationship", "specialization-relationship", "assignment-relationship", "serving-relationship"]
+		// const REVERSE_RELATIONS = ["realization-relationship", "specialization-relationship", "serving-relationship"]
+		reverse_relations = "realization-relationship,serving-relationship",
 
 		graphDepth: 1,
 		// viewName: "gen-custom",
@@ -39,18 +42,20 @@ try {
 
 		// UpLeft, DownRight "UL", "UR", "DL", "DR"
 		// graphAlign: "UL",
-		// nestedRelationships: ["aggregation-relationship"],
-		// nestedRelationships: ["assignment-relationship","aggregation-relationship"],
-		// nestedRelationships: ["specialization-relationship"],
-		// nestedRelationships: ["specialization-relationship","composition-relationship","aggregation-relationship", "access-relationship"],
-		// nestedRelationships: ["specialization-relationship","aggregation-relationship"],
+		// nested_relations: ["aggregation-relationship"],
+		// nested_relations: ["assignment-relationship","aggregation-relationship"],
+		// nested_relations: ["specialization-relationship"],
+		// nested_relations: ["specialization-relationship","composition-relationship","aggregation-relationship", "access-relationship"],
+		// nested_relations: ["specialization-relationship","aggregation-relationship"],
 		// algorithm: "longest-path",
 		// algorithm: "tight-tree",
 		algorithm: "network-simplex",
 		hSep: 20,
 		vSep: 80,
 		debug: false
-	});
+	}
+
+	let view = generate_view(param);
 
 	if (view !== undefined) {
 		console.log("The view \"" + view.name + "\" has been generated.");

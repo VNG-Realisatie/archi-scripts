@@ -36,11 +36,11 @@ try {
 
 		// UpLeft, DownRight "UL", "UR", "DL", "DR"
 		graphAlign: "UL",
-		// nestedRelationships: ["aggregation-relationship"],
-		// nestedRelationships: ["assignment-relationship","aggregation-relationship"],
-		// nestedRelationships: ["specialization-relationship"],
-		// nestedRelationships: ["specialization-relationship","composition-relationship","aggregation-relationship", "access-relationship"],
-		// nestedRelationships: ["specialization-relationship","aggregation-relationship"],
+		// nested_relations: ["aggregation-relationship"],
+		// nested_relations: ["assignment-relationship","aggregation-relationship"],
+		// nested_relations: ["specialization-relationship"],
+		// nested_relations: ["specialization-relationship","composition-relationship","aggregation-relationship", "access-relationship"],
+		// nested_relations: ["specialization-relationship","aggregation-relationship"],
 		// algorithm: "longest-path",
 		// algorithm: "tight-tree",
 		algorithm: "network-simplex",

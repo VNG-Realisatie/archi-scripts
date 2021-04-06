@@ -257,7 +257,7 @@ function exportSelectObjects(ArchiSelection, objectType) {
 }
 
 function importObjects(objectType) {
-  _commonShowDebugMessage.push(true);
+  _commonShowDebugMessage.push(false);
   debug(`objectType=${objectType}`);
 
   try {
@@ -330,10 +330,8 @@ function importObjects(objectType) {
           .filter((line) => line != "");
 
         if (updateRows_Log.length > 0) {
-          console.log(`Updated ${updateRows_Log.length} objects:`);
-          updateRows_Log.map((LogAndRows) =>
-            console.log(`updateRows_Log: ${LogAndRows.line}`)
-          );
+          console.log(`Update ${updateRows_Log.length} objects:`);
+          updateRows_Log.map((line) => console.log(line));
         }
 
         console.log("\n>> ======== ");
@@ -392,7 +390,7 @@ function importIndexRows(row, index, objectType) {
   // rowNr follows rownumbers in spreadsheet (+1 for header and +1 for row start at 1 (index starts at 0))
   rowNr = index + 2;
 
-  _commonShowDebugMessage.push(true);
+  _commonShowDebugMessage.push(false);
 
   debug(`\nRow index=${index}`);
 
@@ -594,7 +592,7 @@ function search_IDs(row_prop_id, row_id, row_type) {
       debug(`Found with id: ${ArchiObjects}`);
     }
   } else {
-    debug(`Found with PROP_ID: ${ArchiObjects}`);
+    debug(`Found with '${PROP_ID}': ${ArchiObjects}`);
   }
   return ArchiObjects;
 }
@@ -642,7 +640,7 @@ function importCreateObject(headerRow, row_and_object, objectType) {
   let line = "";
   let archiObject;
 
-  _commonShowDebugMessage.push(true);
+  _commonShowDebugMessage.push(false);
   debug(`Start`);
 
   row = row_and_object.row;
@@ -697,13 +695,13 @@ function importUpdateObject(headerRow, row_and_object) {
   headerRow.map((label) => {
     // skip row cell if empty or if equal to object value
     if (row[label] && row[label] != get_attr_or_prop(archiObject, label)) {
+
+      let attr_or_prop = (ATTRIBUTE_LABELS.indexOf(label) != -1) ? 'attribute' : 'property'
+
       if (get_attr_or_prop(archiObject, label)) {
-        lineUpdated += `\n>> Update [${label}]: \n${get_attr_or_prop(
-          archiObject,
-          label
-        )}\n${row[label]}`;
+        lineUpdated += `\n> update ${attr_or_prop} ${label}: \n>> from: ${get_attr_or_prop(archiObject,label)}\n>> to:   ${row[label]}`;
       } else {
-        lineUpdated += `\n>> Set [${label}]: \n${row[label]}`;
+        lineUpdated += `\n> set ${attr_or_prop} ${label}: ${row[label]}`;
       }
       set_attr_or_prop(archiObject, row, label);
       debug(`lineUpdated: ${lineUpdated}`);
@@ -711,7 +709,7 @@ function importUpdateObject(headerRow, row_and_object) {
   });
 
   if (lineUpdated) {
-    line = `> Update from row[${rowNr}]: ${archiObject}`;
+    line = `${archiObject} (csv row ${rowNr})`;
     line += lineUpdated;
   }
   _commonShowDebugMessage.pop();
