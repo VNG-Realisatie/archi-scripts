@@ -79,10 +79,16 @@
 */
 
 try {
+	console.log("Loading dependencies...");
 
-	load(__DIR__ + "../_lib/jvm-npm.js");
-	require.addPath(__SCRIPTS_DIR__ + "node_modules/dagre/dist/");
-	var dagre = require('dagre');
+	load('https://unpkg.com/cytoscape')
+	load("https://unpkg.com/layout-base/layout-base.js")
+	load("https://unpkg.com/avsdf-base/avsdf-base.js")
+	load("https://unpkg.com/cytoscape-avsdf")
+	load("https://unpkg.com/cytoscape-dagre")
+	load("https://unpkg.com/cose-base/cose-base.js")
+	load("https://unpkg.com/cytoscape-fcose/cytoscape-fcose.js")
+	// load("https://unpkg.com/timers")
 
 } catch (error) {
 	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -113,7 +119,8 @@ function generate_multiple_view(param) {
 
 				layoutGraph(param, graph)
 
-				createView(param)
+				createView(param, graph)
+				graph.destroy() 
 				console.log(`== View '${param.viewName}' generated ==`)
 			});
 		}
@@ -140,7 +147,7 @@ function generate_view(param) {
 
 			layoutGraph(param, graph)
 
-			createView(param)
+			createView(param, graph)
 		}
 	} catch (error) {
 		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -252,39 +259,56 @@ function selectElements(param) {
 
 function createGraph(param) {
 
-	graphLayout = new Object;
-	graphLayout.marginx = 10;
-	graphLayout.marginy = 10;
-	if (param.graphDirection !== undefined)
-		graphLayout.rankdir = param.graphDirection;
-	if (param.graphAlign !== undefined)
-		graphLayout.align = param.graphAlign;
-	if (param.hSep !== undefined)
-		graphLayout.nodesep = param.hSep;
-	if (param.vSep !== undefined)
-		graphLayout.ranksep = param.vSep;
-	if (param.algorithm !== undefined)
-		graphLayout.ranker = param.algorithm;
+	console.log(`Node modules used for creating graph:`)
+	console.log(`- cytoscape:    ${cytoscape.version}`)
+
+	var cy = cytoscape({
+		style: [{
+			selector: 'node',
+			style: {
+				'width' : NODE_WIDTH,
+				'height' : NODE_HEIGHT} 
+		}],
+		// styleEnabled: true,
+		headless: true
+	});
+
+	// graphLayout = new Object;
+	// graphLayout.marginx = 10;
+	// graphLayout.marginy = 10;
+	// if (param.graphDirection !== undefined)
+	// 	graphLayout.rankdir = param.graphDirection;
+	// if (param.graphAlign !== undefined)
+	// 	graphLayout.align = param.graphAlign;
+	// if (param.hSep !== undefined)
+	// 	graphLayout.nodesep = param.hSep;
+	// if (param.vSep !== undefined)
+	// 	graphLayout.ranksep = param.vSep;
+	// if (param.algorithm !== undefined)
+	// 	graphLayout.ranker = param.algorithm;
+
 
 	console.log("> Create graph");
-	debug(`graphLayout: ${JSON.stringify(graphLayout)}`);
+	debug(`graphLayout: ${cy}`);
 
-	var graph = new dagre.graphlib.Graph({
-			directed: true, // A directed graph treats the order of nodes in an edge as significant whereas an undirected graph does not.
-			compound: true, // A compound graph is one where a node can be the parent of other nodes.
-			multigraph: true // A multigraph is a graph that can have more than one edge between the same pair of nodes. 
-		})
-		.setGraph(graphLayout)
-		.setDefaultNodeLabel(function () {
-			return {};
-		})
-		.setDefaultEdgeLabel(function () {
-			return {
-				minlen: 1,
-				weight: 1
-			};
-		});
-	return graph
+	// var graph = new dagre.graphlib.Graph({
+	// 		directed: true, // A directed graph treats the order of nodes in an edge as significant whereas an undirected graph does not.
+	// 		compound: true, // A compound graph is one where a node can be the parent of other nodes.
+	// 		multigraph: true // A multigraph is a graph that can have more than one edge between the same pair of nodes. 
+	// 	})
+	// 	.setGraph(graphLayout)
+	// 	.setDefaultNodeLabel(function () {
+	// 		return {};
+	// 	})
+	// 	.setDefaultEdgeLabel(function () {
+	// 		return {
+	// 			minlen: 1,
+	// 			weight: 1
+	// 		};
+	// 	});
+
+	// return graph
+	return cy
 }
 /**
  * add selected nodes
@@ -308,19 +332,28 @@ function fillGraph(param, filteredElements, graph) {
 	})
 
 	console.log("\nThe graph has got:")
-	console.log(graph.nodeCount() + " nodes and");
-	console.log(graph.edgeCount() + " edges in total.");
+	// console.log(graph.nodeCount() + " nodes and");
+	// console.log(graph.edgeCount() + " edges in total.");
+	console.log(graph.nodes().length + " nodes and");
+	console.log(graph.edges().length + " edges in total.");
 }
 
 // recursive function to add viewElements and targets of elements
 function addNode(archiElement, filteredElements, elementsIndex, level, depth) {
 
 	if (elementsIndex[archiElement.id] === undefined) {
-		graph.setNode(archiElement.id, {
-			label: archiElement.name,
-			width: NODE_WIDTH,
-			height: NODE_HEIGHT
+		graph.add({
+			data: {
+				id: archiElement.id,
+				label: archiElement.name
+			}
 		});
+
+		// graph.setNode(archiElement.id, {
+		// 	label: archiElement.name,
+		// 	width: NODE_WIDTH,
+		// 	height: NODE_HEIGHT
+		// });
 		elementsIndex[archiElement.id] = archiElement;
 		debug(`${'>'.repeat(level+3)}: ${archiElement}`);
 	}
@@ -349,14 +382,14 @@ function addNode(archiElement, filteredElements, elementsIndex, level, depth) {
 			// if tgt node not yet in graph, add it
 			addNode(tgt, filteredElements, elementsIndex, level + 1, depth);
 			// Add relation as edge
-			addEdge(src, tgt, rel, level)
+			addEdge(src, tgt, rel, level, elementsIndex)
 		} else {
 			// follow outgoing relations if depth > 0
 			if (depth > level) {
 				// if tgt node not yet in graph, add it
 				addNode(tgt, filteredElements, elementsIndex, level + 1, depth);
 				// Add relation as edge
-				addEdge(src, tgt, rel, level)
+				addEdge(src, tgt, rel, level, elementsIndex)
 			} // else skip relation ..
 		}
 	})
@@ -378,13 +411,13 @@ function addNode(archiElement, filteredElements, elementsIndex, level, depth) {
 				addNode(src, filteredElements, elementsIndex, level + 1, depth);
 
 				// Add relation as edge
-				addEdge(src, tgt, rel, level)
+				addEdge(src, tgt, rel, level, elementsIndex)
 			}
 		}
 	});
 }
 
-function addEdge(src, tgt, rel, level) {
+function addEdge(src, tgt, rel, level, elementsIndex) {
 
 	if (typeof this.addEdgeFlag == 'undefined') {
 		// JS functions are also objects -- which means they can have (static) properties
@@ -392,32 +425,56 @@ function addEdge(src, tgt, rel, level) {
 		this.parentIndex = {};
 	}
 
-	let graphSrc = src
-	let graphTgt = tgt
-	let start_line = '->'
-	let rel_line = `${graphSrc.name} --${rel.type}-> ${graphTgt.name}`
-	if (param.reverse_relations.indexOf(rel.type) !== -1) {
-		graphSrc = tgt
-		graphTgt = src
-		start_line = '<- reversed'
-		rel_line = `${graphSrc.name} <-${rel.type}-- ${graphTgt.name}`
-	}
+	if (elementsIndex[rel.id] === undefined) {
 
-	if (param.nested_relations.indexOf(rel.type) != -1) {
-		graph.setParent(graphSrc.id, graphTgt.id);
-		// ### save rel.id for parent
-		debug(`${'>'.repeat(level+3)}: ${start_line} parent ${graphTgt.name} (${rel})`);
-		// save id of parent because of limitation graphlayout. A parent cannot have another relation.
-		this.parentIndex[graphTgt.id] = true
-	} else {
-		if (this.parentIndex[graphSrc.id] || this.parentIndex[graphTgt.id]) {
-			debug(`${'>'.repeat(level+3)}: Skipped ${rel_line}`);
-		} else {
-			graph.setEdge(graphSrc.id, graphTgt.id, {
-				label: `${start_line}${REVERSED_DELIMITER}${rel.id}`
-			});
-			debug(`${'>'.repeat(level+3)}: ${start_line} ${rel_line}`);
+		let graphSrc = src
+		let graphTgt = tgt
+		let start_line = '->'
+		let rel_line = `${graphSrc.name} --${rel.type}-> ${graphTgt.name}`
+		if (param.reverse_relations.indexOf(rel.type) !== -1) {
+			graphSrc = tgt
+			graphTgt = src
+			start_line = '<- reversed'
+			rel_line = `${graphSrc.name} <-${rel.type}-- ${graphTgt.name}`
 		}
+	
+		if (param.nested_relations.indexOf(rel.type) != -1) {
+	
+			// graph.setParent(graphSrc.id, graphTgt.id);
+			graph.add({
+				data: {
+					id: rel.id,
+					source: graphSrc.id,
+					target: graphTgt.id,
+					label: rel_line
+				}
+			});
+	
+			// ### save rel.id for parent
+			debug(`${'>'.repeat(level+3)}: ${start_line} parent ${graphTgt.name} (${rel})`);
+			// save id of parent because of limitation graphlayout. A parent cannot have another relation.
+			this.parentIndex[graphTgt.id] = true
+		} else {
+			if (this.parentIndex[graphSrc.id] || this.parentIndex[graphTgt.id]) {
+				debug(`${'>'.repeat(level+3)}: Skipped ${rel_line}`);
+			} else {
+				// graph.setEdge(graphSrc.id, graphTgt.id, {
+				// 	label: `${start_line}${REVERSED_DELIMITER}${rel.id}`
+				// });
+				graph.add({
+					data: {
+						id: rel.id,
+						source: graphSrc.id,
+						target: graphTgt.id,
+						label: rel_line
+					}
+				});
+	
+				debug(`${'>'.repeat(level+3)}: ${start_line} ${rel_line}`);
+			}
+		}
+
+		elementsIndex[rel.id] = rel;
 	}
 }
 
@@ -439,12 +496,22 @@ function layoutGraph(param, graph) {
 	console.log("Calculating the graph layout...");
 
 	try {
-		var opts = {}
-		opts.debugTiming = false
-		// if (param.debug)
-		// 	opts.debugTiming = true
-
-		dagre.layout(graph, opts);
+		graph.layout({
+			name: 'circle',	
+			// name: 'concentric',
+			// name: 'breadthfirst',
+			// name: 'cose',
+			// name: 'avsdf', // extension
+			// name: 'fcose', // extension
+			// name: 'random',
+			clockwise: false,
+			// minNodeSpacing: 30,
+			animate: false,
+			// circle: true,
+			// grid: true,
+			// radius: 200
+			// name: 'grid'
+		}).run();
 
 	} catch (e) {
 		console.error(e.stack);
@@ -452,7 +519,7 @@ function layoutGraph(param, graph) {
 	}
 }
 
-function createView(param) {
+function createView(param, graph) {
 
 	console.log(`\nDrawing ArchiMate view`);
 
@@ -476,51 +543,55 @@ function createView(param) {
 	let nodeIndex = {};
 
 	console.log("Drawing graph nodes as elements ...");
-	graph.nodes().forEach(nodeId => drawNode(nodeId, nodeIndex, archiVisualElements, view));
+	// graph.nodes().forEach(nodeId => drawNode(nodeId, nodeIndex, archiVisualElements, view));
+	graph.nodes().forEach(node => drawNode(node, nodeIndex, archiVisualElements, view));
 
 	console.log("Drawing graph edges as relations ...");
+	// graph.edges().forEach(edgeObject => drawEdge(edgeObject, archiVisualElements, view));
 	graph.edges().forEach(edgeObject => drawEdge(edgeObject, archiVisualElements, view));
 
 }
 
-function drawNode(nodeId, nodeIndex, archiVisualElements, view) {
+function drawNode(node, nodeIndex, archiVisualElements, view) {
 
 	// if the id has not yet been added to the view
 	// check because parents are drawn, at the moment a child node comes by 
-	if (nodeIndex[nodeId] === undefined) {
-		nodeIndex[nodeId] = true;
-		let node = graph.node(nodeId);
-		let parentId = graph.parent(nodeId);
-		let archiElement = $("#" + nodeId).first()
+	if (nodeIndex[node.id()] === undefined) {
+		nodeIndex[node.id()] = true;
+		// let node = graph.node(node);
+		// let parentId = graph.parent(node);
+		let archiElement = $("#" + node.id()).first()
 
 		try {
 			// archi coördinates for visual element on archi diagram (related to the top left corner of diagram)
-			let x = parseInt(node.x - node.width / 2);
-			let y = parseInt(node.y - node.height / 2);
+			let x = 100*node.position('x') // - node.width / 2);
+			let y = 100*node.position('y') // - node.height / 2);
 
-			if (parentId === undefined) {
-				// draw element on canvas
-				debug(`>> draw ${archiElement.name} (x=${x}, y=${y}, width=${node.width}, height=${node.height})`);
-				debug(`archiVisualElements: ${archiVisualElements}`)
-				debug(`view: ${view}`)
-				archiVisualElements[nodeId] = view.add(archiElement, x, y, node.width, node.height);
-			} else {
-				// draw element in parent
-				if (nodeIndex[parentId] === undefined) {
-					// if the parent is not yet in the view, we add it first
-					drawNode(parentId, nodeIndex, archiVisualElements, view);
-				}
-				let parentNode = graph.node(parentId)
+			// if (parentId === undefined) {
+			// draw element on canvas
+			debug(`>> draw ${archiElement.name} (x=${x}, y=${y}, width=${node.width()}, height=${node.outerHeight()})`);
+			debug(`archiVisualElements: ${archiVisualElements}`)
+			debug(`view: ${view}`)
 
-				// calculate the position within the parent
-				x = x - parseInt(parentNode.x - (parentNode.width / 2));
-				y = y - parseInt(parentNode.y - (parentNode.height / 2) + 10);
+			archiVisualElements[node] = view.add(archiElement, x, y, NODE_WIDTH*node.width(), NODE_HEIGHT*node.outerHeight());
 
-				let archiParent = archiVisualElements[parentId];
-				debug(`archiParent: ${archiParent}`)
-				debug(`>> draw ${archiElement} into parent ${archiParent} (x=${x}, y=${y}, width=${node.width}, height=${node.height})`);
-				archiVisualElements[nodeId] = archiParent.add(archiElement, x, y, node.width, node.height);
-			}
+			// } else {
+			// 	// draw element in parent
+			// 	if (nodeIndex[parentId] === undefined) {
+			// 		// if the parent is not yet in the view, we add it first
+			// 		drawNode(parentId, nodeIndex, archiVisualElements, view);
+			// 	}
+			// 	let parentNode = graph.node(parentId)
+
+			// 	// calculate the position within the parent
+			// 	x = x - parseInt(parentNode.x - (parentNode.width() / 2));
+			// 	y = y - parseInt(parentNode.y - (parentNode.outerHeight() / 2) + 10);
+
+			// 	let archiParent = archiVisualElements[parentId];
+			// 	debug(`archiParent: ${archiParent}`)
+			// 	debug(`>> draw ${archiElement} into parent ${archiParent} (x=${x}, y=${y}, width=${node.width()}, height=${node.outerHeight()})`);
+			// 	archiVisualElements[node] = archiParent.add(archiElement, x, y, node.width(), node.outerHeight());
+			// }
 		} catch (e) {
 			console.error("-->" + e + "\n" + e.stack);
 			// console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -536,29 +607,29 @@ function drawEdge(edgeObject, archiVisualElements, view) {
 
 	// debug(`graph.edge(edgeObject): ${JSON.stringify(graph.edge(edgeObject))}`);
 
-	let srcId = edgeObject.v
-	let tgtId = edgeObject.w
+	let srcId = edgeObject.source
+	let tgtId = edgeObject.target
 
 	// don't draw relations for edges to parents (embedded relations)
-	if (graph.parent(srcId) === tgtId) { // ???
-		debug('skip embedded edge')
-	} else {
-		let edgeReverse = graph.edge(edgeObject).label.split(REVERSED_DELIMITER)[0]
-		let archiRelationID = graph.edge(edgeObject).label.split(REVERSED_DELIMITER)[1]
-		let archiRelation = $("#" + archiRelationID).first()
+	// if (graph.parent(srcId) === tgtId) { // ???
+	// 	debug('skip embedded edge')
+	// } else {
+	let edgeReverse = edgeObject.data('label').split(REVERSED_DELIMITER)[0]
+	let archiRelationID = edgeObject.id()
+	let archiRelation = $("#" + archiRelationID).first()
 
-		debug(`archiRelation: ${archiRelation}`);
-		let connection
-		if (edgeReverse === '->')
-			connection = view.add(archiRelation, archiVisualElements[srcId], archiVisualElements[tgtId]);
-		else
-			connection = view.add(archiRelation, archiVisualElements[tgtId], archiVisualElements[srcId]);
+	debug(`archiRelation: ${archiRelation}`);
+	let connection
+	if (edgeReverse === '->')
+		connection = view.add(archiRelation, archiVisualElements[srcId], archiVisualElements[tgtId]);
+	else
+		connection = view.add(archiRelation, archiVisualElements[tgtId], archiVisualElements[srcId]);
 
-		// let nrPoints = Object.keys(graph.edge(edgeObject).points).length;
-		// for (let index = 0; index < nrPoints - 1; index++) {
-		// 	addBendpoint(graph.edge(edgeObject).points[index], graph.edge(edgeObject).points[index+1], index, connection)
-		// }
-	}
+	// let nrPoints = Object.keys(graph.edge(edgeObject).points).length;
+	// for (let index = 0; index < nrPoints - 1; index++) {
+	// 	addBendpoint(graph.edge(edgeObject).points[index], graph.edge(edgeObject).points[index+1], index, connection)
+	// }
+	// }
 }
 
 function addBendpoint(startpoint, endpoint, index, connection) {

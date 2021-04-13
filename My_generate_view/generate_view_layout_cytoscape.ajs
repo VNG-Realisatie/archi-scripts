@@ -13,7 +13,7 @@
 load(__DIR__ + "../_lib/Common.js");
 checkJavaScriptEngine(ENGINE_GRAAL_VM)
 
-load(__DIR__ + "include_generate_view.js");
+load(__DIR__ + "include_generate_view_cytoscape.js");
 
 var param = {
 	// viewName: "gen-custom",
@@ -70,7 +70,7 @@ var param = {
 	hSep: 20,
 	vSep: 80,
 
-	debug: false
+	debug: true
 }
 
 initConsoleLog(__FILE__, true)

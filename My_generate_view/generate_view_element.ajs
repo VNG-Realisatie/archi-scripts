@@ -38,23 +38,23 @@ var param = {
 	reverse_relations: [
 		// "realization-relationship",
 		// "serving-relationship",
-		// "aggregation-relationship",
+		"aggregation-relationship",
 		"assignment-relationship",
 		"specialization-relationship"
 	],
 
 	nested_relations: [
 		// "realization-relationship",
-		// "composition-relationship",
+		"composition-relationship",
 		// "access-relationship"],
 		// "specialization-relationship", 
 		// "assignment-relationship",
-		// "serving-relationship",
-		// "aggregation-relationship"
+		"aggregation-relationship",
+		// "serving-relationship"
 	],
 
 	// graphDepth: 1,
-	graphDepth: 0,
+	graphDepth: 1,
 
 	// graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
 	// graphDirection: "LR",
@@ -70,7 +70,7 @@ var param = {
 	hSep: 20,
 	vSep: 80,
 
-	debug: false
+	debug: true
 }
 
 initConsoleLog(__FILE__, true)

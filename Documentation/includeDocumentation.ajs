@@ -21,17 +21,18 @@ function printView(view, renderViewScale, renderViewEmbed, pExportFile) {
 		// console.log(`>> Embed view ${view.name} in markdown file`)
 		markdownString += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
 	} else {
+		const regexSpace = / /ig;
 		// save views as .png in a subdirectory with the name of markdown file (aka the exportfile name)
 		// replace in subdir/filename all spaces with an underscore for better compatibility with markdown viewers
 		let path = pExportFile.substring(0, pExportFile.lastIndexOf(slash()) + 1); // path plus slash
-		let imageSubDir = pExportFile.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf('.')).replaceAll(" ", "_");
+		let imageSubDir = pExportFile.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf('.')).replace(regexSpace, "_");
 		
 		// create directory for saving view .png files
 		let imageAbsoluteDir = path + imageSubDir
 		let fileObject = new Packages.java.io.File(imageAbsoluteDir);
 		fileObject.mkdir();
 		
-		let imageFile = `${view.name}.png`.replaceAll(" ", "_");
+		let imageFile = `${view.name}.png`.replace(regexSpace, "_");
 		$.fs.writeFile(`${imageAbsoluteDir}${slash()}${imageFile}`, bytes, "BASE64");
 
 		let imageURL = `${imageSubDir}/${imageFile}`
