@@ -11,7 +11,7 @@
  */
 
 load(__DIR__ + "../_lib/Common.js");
-checkJavaScriptEngine(ENGINE_GRAAL_VM)
+checkJavaScriptEngine(ENGINE_GRAAL_VM);
 
 load(__DIR__ + "include_generate_view.js");
 
@@ -28,30 +28,30 @@ var param = {
 		// "application-function",
 		"application-component",
 		"application-interface",
-		"application-service"
-	], 
+		"application-service",
+	],
 	relations: [
 		"assignment-relationship",
 		// "flow-relationship",
 		"specialization-relationship",
 		"realization-relationship",
-		"serving-relationship"
+		"serving-relationship",
 	],
 	reverse_relations: [
 		// "realization-relationship",
 		// "serving-relationship",
 		"assignment-relationship",
-		"specialization-relationship"
+		"specialization-relationship",
 	],
 
 	nested_relations: [
 		// "realization-relationship",
 		// "composition-relationship",
 		// "access-relationship"],
-		// "specialization-relationship", 
+		// "specialization-relationship",
 		"assignment-relationship",
 		// "serving-relationship",
-		"aggregation-relationship"
+		"aggregation-relationship",
 	],
 
 	// graphDepth: 1,
@@ -71,12 +71,12 @@ var param = {
 	hSep: 20,
 	vSep: 80,
 
-	debug: true
-}
+	debug: true,
+};
 
-initConsoleLog(__FILE__, true)
+initConsoleLog(__FILE__, true);
 
 generate_view(param);
 // generate_multiple_view(param);
 
-finishConsoleLog()
+finishConsoleLog();

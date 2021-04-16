@@ -1,159 +1,156 @@
 /**
  * Render the view as an image and insert in the document
- * 
+ *
  * @param view 		view object to render
  * @param renderViewScale Resolution of generated images (1 to 4)
  * @param renderViewEmbed Embed images as strings in the markdown or generate .png files
  * @param pExportFile file location of the document
  */
 function printView(view, renderViewScale, renderViewEmbed, pExportFile) {
-	
-	let markdownString = '';
+	let markdownString = "";
 
 	// render the view to a string
 	let bytes = $.model.renderViewAsBase64(view, "PNG", {
 		scale: renderViewScale,
-		margin: renderViewScale * 10
+		margin: renderViewScale * 10,
 	});
 
 	if (renderViewEmbed) {
-		// encode view and embed in the document 
+		// encode view and embed in the document
 		// console.log(`>> Embed view ${view.name} in markdown file`)
 		markdownString += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
 	} else {
-		const regexSpace = / /ig;
+		const regexSpace = / /gi;
 		// save views as .png in a subdirectory with the name of markdown file (aka the exportfile name)
 		// replace in subdir/filename all spaces with an underscore for better compatibility with markdown viewers
 		let path = pExportFile.substring(0, pExportFile.lastIndexOf(slash()) + 1); // path plus slash
-		let imageSubDir = pExportFile.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf('.')).replace(regexSpace, "_");
-		
+		let imageSubDir = pExportFile
+			.substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf("."))
+			.replace(regexSpace, "_");
+
 		// create directory for saving view .png files
-		let imageAbsoluteDir = path + imageSubDir
+		let imageAbsoluteDir = path + imageSubDir;
 		let fileObject = new Packages.java.io.File(imageAbsoluteDir);
 		fileObject.mkdir();
-		
+
 		let imageFile = `${view.name}.png`.replace(regexSpace, "_");
 		$.fs.writeFile(`${imageAbsoluteDir}${slash()}${imageFile}`, bytes, "BASE64");
 
-		let imageURL = `${imageSubDir}/${imageFile}`
+		let imageURL = `${imageSubDir}/${imageFile}`;
 		markdownString += `![${view.name}](${imageURL})\n`;
 	}
 	markdownString += `<p align="center"><i>${view.name}</i></p>\n\n`;
 
-	return markdownString
+	return markdownString;
 }
 
 /**
  * printElementsHierarchic()
  * 	document all elements of the given view in a hierarchic table
- * 
+ *
  * 	This function creates a HTML table with all elements
  * 	- use HTML for merging cells over column (not supported in markdown)
  * 	- elements embedded in elements are printed below their parents
  * 	- elements are sorted from left to right en top to bottom like reading
- *  
- * @param pLogLevel 
- * @param view 
+ *
+ * @param pLogLevel
+ * @param view
  */
 function printElementsHierarchic(pLogLevel, view) {
-
-	let markdownString = '';
+	let markdownString = "";
 
 	// start with level 0. Don't count the first level, this is the view
 	var maxLevel = findMaxEmbedding(0, view);
 	// console.log(`${'>'.repeat(pLogLevel)} table with ${maxLevel} columns`)
 
-	markdownString += `<table>\n`
-	markdownString += `	<thead>\n`
-	markdownString += `		<tr>\n`
-	markdownString += `			<th colspan="${maxLevel}" width="20%">Element</th>\n`
-	markdownString += `			<th rowspan="2" width="80%">Documentation</th>\n`
-	markdownString += `		</tr>\n`
-	markdownString += `	</thead>\n`
-	markdownString += `	<tbody>\n`
+	markdownString += `<table>\n`;
+	markdownString += `	<thead>\n`;
+	markdownString += `		<tr>\n`;
+	markdownString += `			<th colspan="${maxLevel}" width="20%">Element</th>\n`;
+	markdownString += `			<th rowspan="2" width="80%">Documentation</th>\n`;
+	markdownString += `		</tr>\n`;
+	markdownString += `	</thead>\n`;
+	markdownString += `	<tbody>\n`;
 	markdownString += `		<tr >\n`;
 
 	// to show all hierarchy levels, you have to 'define' a column for every level (hack)
 	// without these 'empty' columnheaders, no indendation is shown for deeper levels
 	for (let i = 1; i < maxLevel + 1; i++) {
-		markdownString += `			<td align="center"></td>\n`
+		markdownString += `			<td align="center"></td>\n`;
 	}
-	markdownString += `			<td></td>\n`
-	markdownString += `		</tr>\n`
+	markdownString += `			<td></td>\n`;
+	markdownString += `		</tr>\n`;
 
-	// First level is a view, not an element > start with level = 0. 
+	// First level is a view, not an element > start with level = 0.
 	markdownString += printTableRow(0, maxLevel, false, view);
 
-	markdownString += `	</tbody>\n`
-	markdownString += `</table>\n\n`
+	markdownString += `	</tbody>\n`;
+	markdownString += `</table>\n\n`;
 
-	return markdownString
+	return markdownString;
 
 	/**
 	 * findMaxEmbedding()
 	 * 	return the deepest level of embedding in an object
-	 * 
+	 *
 	 * @param level current level
 	 * @param pObject view or group
 	 */
 	function findMaxEmbedding(level, pObject) {
-
-		let elementsOfLevel = $(`#${pObject.id}`).children("element").add("diagram-model-group")
-		let visualGroupOfLevel = $(`#${pObject.id}`).children("diagram-model-group")
-		childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel)
+		let elementsOfLevel = $(`#${pObject.id}`).children("element").add("diagram-model-group");
+		let visualGroupOfLevel = $(`#${pObject.id}`).children("diagram-model-group");
+		childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel);
 
 		// stop condition
 		if (childrenOfLevel.size() == 0) {
-			return level
-		};
+			return level;
+		}
 
-		let maxLevel = 0
-		childrenOfLevel.each(function (c) { // children of visual objects are skipped
+		let maxLevel = 0;
+		childrenOfLevel.each(function (c) {
+			// children of visual objects are skipped
 			recurseLevel = findMaxEmbedding(level + 1, c);
 			if (maxLevel < recurseLevel) {
 				maxLevel = recurseLevel;
 			}
-		})
-		return maxLevel
+		});
+		return maxLevel;
 	}
 
 	/**
 	 * printTableRow()
 	 * 	recursive function
 	 * 	return a Markdown table line for every child and the child's children
-	 * 
+	 *
 	 * @param pLevel current level
-	 * @param pMaxLevel maximum level of embedding. 
+	 * @param pMaxLevel maximum level of embedding.
 	 * @param pChildLineIsWritten boolean, true if the current object is a duplicate in the current level
 	 * @param pObject an element
 	 */
 	function printTableRow(pLevel, pMaxLevel, pChildLineIsWritten, pObject) {
-
-		let markdownString = '';
+		let markdownString = "";
 		let childArray = [];
 
-		let elementsOfLevel = $(`#${pObject.id}`).children("element").add("diagram-model-group")
-		let visualGroupOfLevel = $(`#${pObject.id}`).children("diagram-model-group")
-		childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel)
+		let elementsOfLevel = $(`#${pObject.id}`).children("element").add("diagram-model-group");
+		let visualGroupOfLevel = $(`#${pObject.id}`).children("diagram-model-group");
+		childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel);
 
-
-		childrenOfLevel.each(function (c) { // children of visual objects are skipped
+		childrenOfLevel.each(function (c) {
+			// children of visual objects are skipped
 			childArray.push(c);
-		})
+		});
 
 		// Write table line for every visual child element of view and children
 		if (pObject.type !== "archimate-diagram-model") {
-
 			// Skip duplicate elements if element has no children
 			if (!pChildLineIsWritten || childArray.length > 0) {
-
 				markdownString += `		<tr valign="top")>\n`;
-				markdownString += (pLevel > 1) ? `			<td colspan="${pLevel - 1}"></td>\n` : '';
-				markdownString += `			<td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>\n`
-				markdownString += `			<td>${tableCell2HTML(pObject.documentation)}</td>\n`
-				markdownString += `		</tr>\n`
+				markdownString += pLevel > 1 ? `			<td colspan="${pLevel - 1}"></td>\n` : "";
+				markdownString += `			<td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>\n`;
+				markdownString += `			<td>${tableCell2HTML(pObject.documentation)}</td>\n`;
+				markdownString += `		</tr>\n`;
 
-				console.log(`${">".repeat(pLevel)} ${pObject.name}`)
+				console.log(`${">".repeat(pLevel)} ${pObject.name}`);
 			} else {
 				// console.log(`${">".repeat(pLevel+1)} Skip row for duplicate ${pObject.name}`)
 			}
@@ -161,19 +158,18 @@ function printElementsHierarchic(pLogLevel, view) {
 
 		// stop if element has no children
 		if (childArray.length == 0) {
-			return markdownString
-		};
+			return markdownString;
+		}
 
 		// Sort array of embedded children from left to right
-		childArray.sort(sortPosition)
+		childArray.sort(sortPosition);
 
 		// set for checking if there are multiple visual objects of a concept
-		let conceptIdOfChildSet = new Set()
+		let conceptIdOfChildSet = new Set();
 		for (let i = 0; i < childArray.length; i++) {
-
-			let ChildLineIsWritten = false
+			let ChildLineIsWritten = false;
 			if (childArray[i].type != "diagram-model-group") {
-				ChildLineIsWritten = conceptIdOfChildSet.has(childArray[i].concept.id)
+				ChildLineIsWritten = conceptIdOfChildSet.has(childArray[i].concept.id);
 			}
 
 			markdownString += printTableRow(pLevel + 1, pMaxLevel, ChildLineIsWritten, childArray[i]);
@@ -182,62 +178,61 @@ function printElementsHierarchic(pLogLevel, view) {
 				conceptIdOfChildSet.add(childArray[i].concept.id);
 			}
 		}
-		return markdownString
+		return markdownString;
 	}
 }
 
 /**
  * Sorting function
  * 	sort visual object from top to bottom and left to right like reading
- * 
+ *
  * @param a visual object
  * @param b visual object
  */
 function sortPosition(a, b) {
-	// jArchi 0.0 point is the top left corner
+	// Archi 0.0 point is the top left corner
 	// - direction of x coordinates is left to right
 	// - direction of y coordinates are opposite to top to bottom
-	if ((a.bounds.y + a.bounds.height) > b.bounds.y && // aLO < bLB
-		a.bounds.y < (b.bounds.y + b.bounds.height)) //aLB > bLO
+	if (
+		a.bounds.y + a.bounds.height > b.bounds.y && // aLO < bLB
+		a.bounds.y < b.bounds.y + b.bounds.height //aLB > bLO
+	)
 		// if boxes are on the same 'line', compare horizontal coordinates
-		return a.bounds.x - b.bounds.x
-	else
-		// else compare vertical coordinates
-		return (a.bounds.y - b.bounds.y)
+		return a.bounds.x - b.bounds.x;
+	// else compare vertical coordinates
+	else return a.bounds.y - b.bounds.y;
 }
 
 /**
  * tableCell2HTML()
  *	markdown wants "Cell content must be on one line only"
  * 	this function converts a multiline markdown string to a single line HTML string
- * 
+ *
  * @param src multi line markdownstring
- * 
+ *
  */
 function tableCell2HTML(src) {
-
-	let htmlString = '';
+	let htmlString = "";
 	src = src.trim();
 
 	if (src) {
 		src = markdown2HTML(src);
 
 		// remove excess of new lines and line breaks
-		htmlString = src.replace(/(?:\r\n|\r|\n)/g, '<br>');
+		htmlString = src.replace(/(?:\r\n|\r|\n)/g, "<br>");
 	}
 	return htmlString;
 
 	/**
 	 * markdown2HTML
 	 * 	convert a markdown string to a HTML string
-	 * 
+	 *
 	 * based on https://github.com/adamvleggett/drawdown
 	 * 	(c) Adam Leggett
-	 * 
+	 *
 	 * removed newlines in the created HTML string for use in a markdown table
 	 */
 	function markdown2HTML(src) {
-
 		function replace(rex, fn) {
 			src = src.replace(rex, fn);
 		}
@@ -247,39 +242,40 @@ function tableCell2HTML(src) {
 		}
 
 		function blockquote(src) {
-			return src.replace(/\n *&gt; *([^]*?)(?=(\n|$){2})/g,
-				function (all, content) {
-					return element("blockquote", blockquote(content.replace(/^ *&gt; */gm, "")));
-				});
+			return src.replace(/\n *&gt; *([^]*?)(?=(\n|$){2})/g, function (all, content) {
+				return element("blockquote", blockquote(content.replace(/^ *&gt; */gm, "")));
+			});
 		}
 
 		function list(src) {
-			return src.replace(/\n( *)([*\-+]|((\d+)|([a-z])|[A-Z])[.)]) +([^]*?)(?=(\n|$){2})/g,
+			return src.replace(
+				/\n( *)([*\-+]|((\d+)|([a-z])|[A-Z])[.)]) +([^]*?)(?=(\n|$){2})/g,
 				function (all, ind, _, ol, num, low, content) {
 					var rind = "\n {0," + (ind.length + 1) + "}";
-					var entry = content.split(
-						RegExp(rind + "(?:(?:\\d+|[a-zA-Z])[.)]|[*\\-+]) +", "g")).map(list);
+					var entry = content.split(RegExp(rind + "(?:(?:\\d+|[a-zA-Z])[.)]|[*\\-+]) +", "g")).map(list);
 
-					return (ol ?
-						"<ol start='" + (num ?
-							ol + "'>" :
-							(parseInt(ol, 36) - 9) + "' style='list-style-type:" + (low ? "low" : "upp") + "er-alpha'>") :
-						"<ul>")
+					return (
+						(ol
+							? "<ol start='" +
+							  (num
+									? ol + "'>"
+									: parseInt(ol, 36) - 9 + "' style='list-style-type:" + (low ? "low" : "upp") + "er-alpha'>")
+							: "<ul>") +
 						// + element("li", highlight(entry.join("</li>\n<li>").replace(RegExp(rind,"g"),"\n")))
-						+
 						element("li", highlight(entry.join("</li><li>").replace(RegExp(rind, "g"), "\n"))) +
-						(ol ? "</ol>" : "</ul>");
-				});
+						(ol ? "</ol>" : "</ul>")
+					);
+				}
+			);
 		}
 
 		function highlight(src) {
-			return src.replace(/(^|\W|_)(([*_])|(~)|`)(\2?)([^<]*?)\2\5(?!\2)(?=\W|_|$)/g,
+			return src.replace(
+				/(^|\W|_)(([*_])|(~)|`)(\2?)([^<]*?)\2\5(?!\2)(?=\W|_|$)/g,
 				function (all, _, p1, bi, ss, p2, content) {
-					return _ + element(
-						bi ? (p2 ? "b" : "i") :
-							ss ? (p2 ? "s" : "sub") : "code",
-						highlight(content));
-				});
+					return _ + element(bi ? (p2 ? "b" : "i") : ss ? (p2 ? "s" : "sub") : "code", highlight(content));
+				}
+			);
 		}
 
 		var stash = [];
@@ -306,11 +302,7 @@ function tableCell2HTML(src) {
 
 		// link or escape
 		replace(/((!?)\[(.*?)\]\((.*?)( ".*")?\)|\\([\\`*_{}\[\]()#+\-.!~]))/g, function (all, p1, p2, p3, p4, p5, p6) {
-			stash[--si] = p4 ?
-				(p2 ?
-					"<img src='" + p4 + "' alt='" + p3 + "'/>" :
-					p3.link(p4)) :
-				p6;
+			stash[--si] = p4 ? (p2 ? "<img src='" + p4 + "' alt='" + p3 + "'/>" : p3.link(p4)) : p6;
 			return si + "\r";
 		});
 
@@ -329,5 +321,5 @@ function tableCell2HTML(src) {
 			return stash[+all];
 		});
 		return src;
-	};
+	}
 }
