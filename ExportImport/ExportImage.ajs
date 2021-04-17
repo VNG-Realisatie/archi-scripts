@@ -1,30 +1,31 @@
 /**
  * ExportImage.ajs
- * 
+ *
  * Export View as image (PNG) with date and diagram name in filename.
- * 
+ *
  * origal from jfdeclercq/ExportImage.ajs
  * https://gist.github.com/jfdeclercq/bafb9ddd617a65d4de8453d69cea53be
- * 
+ *
  */
 
 // Get the first view in the model
 var view = selection.filter("archimate-diagram-model").first();
 
 // Get the Base64 bytes of the view in PNG format. Can use "PNG", "BMP", "JPG" or "GIF"
-var file_extension = "png"
+var file_extension = "png";
 // Options are scale (1 - 4) and margin (pixel value)
-var bytes = $.model.renderViewAsBase64(view, file_extension, {scale: 1, margin: 20});
+var bytes = $.model.renderViewAsBase64(view, file_extension, { scale: 1, margin: 20 });
 
 var date = new Date();
 
 // Ask for a file name
-var fileName = window.promptSaveFile( { 
-	title: "Save View", filterExtensions: [ "*." + file_extension ], 
-	fileName: `${date.toISOString().replace(":","").slice(0,10)} ${model.name}-${view.name}.${file_extension}`
-} );
+var fileName = window.promptSaveFile({
+	title: "Save View",
+	filterExtensions: ["*." + file_extension],
+	fileName: `${date.toISOString().replace(":", "").slice(0, 10)} ${model.name}-${view.name}.${file_extension}`,
+});
 
-if(fileName) {
-    // Write to file
-    $.fs.writeFile(fileName, bytes, "BASE64");
+if (fileName) {
+	// Write to file
+	$.fs.writeFile(fileName, bytes, "BASE64");
 }

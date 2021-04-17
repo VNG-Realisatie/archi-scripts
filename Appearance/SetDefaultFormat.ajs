@@ -1,26 +1,26 @@
 /*
  * Set default Format
- * 
+ *
  * For the selected object, reset formatting to there defaults (as set in Archi)
- * See edit > preferences 
+ * See edit > preferences
  * 	tab fonts and colors
  *  tab diagram > default figures
- * 
+ *
  * (c) 2019 Mark Backer
- * 
+ *
  * Select objects in the model tree or on a view and run this script
- * 
+ *
  */
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/ApplyToSelection.js");
 
-initConsoleLog(__FILE__)
+initConsoleLog(__FILE__);
 
 applyToDiagramContent($(selection), SetDefaultFormat);
 
-finishConsoleLog()
+finishConsoleLog();
 
-/* 
+/*
  * Reset format to default
  */
 function SetDefaultFormat(pObject) {
@@ -30,13 +30,27 @@ function SetDefaultFormat(pObject) {
 
 	//	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
 
-	if (pObject.fontColor)	{pObject.fontColor	= null};
-	if (pObject.fillColor)	{pObject.fillColor 	= null};
-	if (pObject.lineColor)	{pObject.lineColor 	= null};
-	
+	if (pObject.fontColor) {
+		pObject.fontColor = null;
+	}
+	if (pObject.fillColor) {
+		pObject.fillColor = null;
+	}
+	if (pObject.lineColor) {
+		pObject.lineColor = null;
+	}
+
 	//	if (pObject.figureType == 0 ) {pObject.figureType = 1};
-	if (pObject.fontName != "Segoe UI")	{pObject.fontName = "Segoe UI"};
-	if (pObject.fontSize != 9)	{pObject.fontSize 	= 9};
-	if (pObject.fontStyle != "normal")	{pObject.fontStyle 	= "normal"};
-	if (pObject.opacity != 255)	{pObject.opacity = 255};
+	if (pObject.fontName != "Segoe UI") {
+		pObject.fontName = "Segoe UI";
+	}
+	if (pObject.fontSize != 9) {
+		pObject.fontSize = 9;
+	}
+	if (pObject.fontStyle != "normal") {
+		pObject.fontStyle = "normal";
+	}
+	if (pObject.opacity != 255) {
+		pObject.opacity = 255;
+	}
 }

@@ -1,22 +1,24 @@
 /*
  */
- 
+
 console.log("Change figure");
 var selectedView = $(selection).filter("archimate-diagram-model").first();
 
 if (!selectedView) {
 	console.log("> Please select a View");
 } else {
-    ChangeFigure(selectedView);
+	ChangeFigure(selectedView);
 }
 console.log("Done");
 
-function ChangeFigure(view)
-{
-	$(view).find("application-component").forEach(function(element) {
-		var figure = element.figureType;
-		if (figure == 0) { // expliciete component figure
-            element.figureType = 1; // rectangle with icon 
-        }
-	})
+function ChangeFigure(view) {
+	$(view)
+		.find("application-component")
+		.forEach(function (element) {
+			var figure = element.figureType;
+			if (figure == 0) {
+				// expliciete component figure
+				element.figureType = 1; // rectangle with icon
+			}
+		});
 }

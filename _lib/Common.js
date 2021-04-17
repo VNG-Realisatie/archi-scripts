@@ -8,7 +8,7 @@ let _commonShowDebugMessage = [false];
 /**
  * initConsoleLog and finishconsole
  * 	first and last call in an Archi script
- * 
+ *
  * @param pFile : string __FILE__ as current script
  * @param pClear : boolean for clear console
  */
@@ -19,12 +19,14 @@ function initConsoleLog(pFile, pClear) {
 	_commonScriptName = filePath[filePath.length - 1];
 
 	console.show();
-	if (pClear) { console.clear() };
+	if (pClear) {
+		console.clear();
+	}
 
 	console.log("============================================");
 	console.log(`Executing script "${_commonScriptName}"...`);
-	console.log(`Platform: ${$.process.platform}`)
-	console.log(`Engine:   ${$.process.engine}\n`)
+	console.log(`Platform: ${$.process.platform}`);
+	console.log(`Engine:   ${$.process.engine}\n`);
 	// console.log("============================================");
 }
 
@@ -34,9 +36,9 @@ function finishConsoleLog() {
 	console.log("==========================================\n");
 }
 
-ENGINE_NASHORN = 'jdk.nashorn.api.scripting.NashornScriptEngine'
-ENGINE_GRAAL_VM = 'com.oracle.truffle.js.scriptengine.GraalJSScriptEngine'
-ENGINES = [ENGINE_NASHORN, ENGINE_GRAAL_VM]
+ENGINE_NASHORN = "jdk.nashorn.api.scripting.NashornScriptEngine";
+ENGINE_GRAAL_VM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
+ENGINES = [ENGINE_NASHORN, ENGINE_GRAAL_VM];
 
 /**
  * function checkEngine(engine)
@@ -44,20 +46,19 @@ ENGINES = [ENGINE_NASHORN, ENGINE_GRAAL_VM]
  * - throws an error and exits if a lower version engine is used
  */
 function checkJavaScriptEngine(required_engine) {
-
-	let current_engine = $.process.engine
+	let current_engine = $.process.engine;
 	if (ENGINES.indexOf(current_engine) < ENGINES.indexOf(required_engine)) {
-		let line=''
+		let line = "";
 
-		line+= `\n\nThis script needs a higher JavaScript engine`
-		line+= `\n- Current engine: ${current_engine}`
-		line+= `\n- Required engine: ${required_engine}\n`
-		line+= `\nUpgrade the Archi javascript engine`
-		line+= `\n- Go to Edit > Preferences > Scripting and select de required JavaScript Engine`
-		line+= `\n- If the higher JavaScript engine is missing, first upgrade the jArchi plugin\n\n`
-		throw(line)
+		line += `\n\nThis script needs a higher JavaScript engine`;
+		line += `\n- Current engine: ${current_engine}`;
+		line += `\n- Required engine: ${required_engine}\n`;
+		line += `\nUpgrade the Archi javascript engine`;
+		line += `\n- Go to Edit > Preferences > Scripting and select de required JavaScript Engine`;
+		line += `\n- If the higher JavaScript engine is missing, first upgrade the jArchi plugin\n\n`;
+		throw line;
 	}
-	return true
+	return true;
 }
 
 /**
@@ -74,9 +75,9 @@ function endCounter(startCounter) {
 	_minutes = parseInt(_durationInSeconds / 60);
 	_seconds = parseInt(_durationInSeconds % 60);
 	if (_minutes > 0) {
-		return `${_minutes}m${_seconds}s`
+		return `${_minutes}m${_seconds}s`;
 	} else {
-		return `${_seconds}s`
+		return `${_seconds}s`;
 	}
 }
 
@@ -86,7 +87,7 @@ function endCounter(startCounter) {
  * @param msg string information message
  */
 function info(msg) {
-	logMessage(_commonShowInfoMessage, "Info", msg)
+	logMessage(_commonShowInfoMessage, "Info", msg);
 }
 
 /**
@@ -95,7 +96,7 @@ function info(msg) {
  * @param msg string information message
  */
 function debug(msg) {
-	logMessage(_commonShowDebugMessage, "Debug", msg)
+	logMessage(_commonShowDebugMessage, "Debug", msg);
 }
 
 /**
@@ -108,33 +109,33 @@ function logMessage(logSwitch, logType, pMsg) {
 	// console.log(`stack:\n${stack}\n\n`)
 
 	if (logSwitch[logSwitch.length - 1]) {
-		if (pMsg.startsWith('\n')) {
-			console.log()
-			pMsg = pMsg.substring('\n'.length)
+		if (pMsg.startsWith("\n")) {
+			console.log();
+			pMsg = pMsg.substring("\n".length);
 		}
-		let stackLevel = 4 // archi > calling function > debug > logMessage
-		console.log(`${'>'.repeat(logSwitch.length)} ${logType} ${getFuncName(stackLevel)}: ${pMsg}`)
-	};
+		let stackLevel = 4; // archi > calling function > debug > logMessage
+		console.log(`${">".repeat(logSwitch.length)} ${logType} ${getFuncName(stackLevel)}: ${pMsg}`);
+	}
 }
 
 /**
  * See https://github.com/winstonjs/winston/issues/200
  */
- function getFuncName(stackLevel) {
-	let stack = new Error().stack
+function getFuncName(stackLevel) {
+	let stack = new Error().stack;
 
 	// console.log(`stack:\n${stack}\n\n`)
 
-    // escaped regEx /Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){6}/
-    let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${stackLevel}}`
+	// escaped regEx /Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){6}/
+	let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${stackLevel}}`;
 
 	let funcName = stack.match(regExpString);
 
 	// In Archi <program> is matched in a map/reduce/filter function
-	if (funcName[2] == '<program>') {
-		return ''
+	if (funcName[2] == "<program>") {
+		return "";
 	} else {
-		return `${funcName[2]}()`
+		return `${funcName[2]}()`;
 	}
 }
 
@@ -144,8 +145,8 @@ function logMessage(logSwitch, logType, pMsg) {
  * @param msg string information message
  */
 function stack(msg) {
-		console.log("Error: " + msg)
-		console.log("Stack: " + (new Error()).stack)
+	console.log("Error: " + msg);
+	console.log("Stack: " + new Error().stack);
 }
 
 /**
@@ -153,7 +154,7 @@ function stack(msg) {
  *  return OS dependent filepath separator
  */
 function slash() {
-	var System = Java.type("java.lang.System")
+	var System = Java.type("java.lang.System");
 	var nameOS = System.getProperty("os.name", "");
 
 	// fs.writefile seems to accept slashes and backslashes independent of platform??
@@ -166,12 +167,10 @@ function slash() {
 	if (nameOS.indexOf("Win") != -1) {
 		return "\\";
 	} else {
-		if ((nameOS.indexOf("Mac") != -1) ||
-			(nameOS.indexOf("X11") != -1) ||
-			(nameOS.indexOf("Linux") != -1)) {
+		if (nameOS.indexOf("Mac") != -1 || nameOS.indexOf("X11") != -1 || nameOS.indexOf("Linux") != -1) {
 			return "/";
 		} else {
-			throw (`>> Unknown OS: ${nameOS}`);
+			throw `>> Unknown OS: ${nameOS}`;
 		}
 	}
 }
@@ -180,18 +179,18 @@ function slash() {
  * function table
  * 	generate text table strings suitable for printing to stdout
  * 	usage: var s = table(rows, opts={})
- * 	
+ *
  *  based on https://www.npmjs.com/package/text-table
- * 
+ *
  * @param pRows 2 dimensional array with rows and columns
  * @param opts object with layout options
- * 
+ *
  * options are
  * 	opts.markdown   - generate a markdown table
  * 	opts.hsep	   - separator to use between columns, default '  '
  * 	opts.align	  - array of alignment types for each column, default ['l','l',...]
  *  opts.stringLength - callback function to use when calculating the string length
- * 
+ *
  * 	alignment types are:
  *	 'l' - left
  *	 'r' - right
@@ -199,19 +198,23 @@ function slash() {
  *	 '.' - decimal
  */
 function table(pRows, opts) {
-	const cLineChar = '-';
+	const cLineChar = "-";
 	const cIndexTitle = 1;
 	const cIndexLine = 2;
 
 	if (!opts) opts = {};
 	var markDown = opts.markdown === true ? true : false;
 	if (markDown) {
-		var hsep = ' | ';
+		var hsep = " | ";
 	} else {
-		var hsep = opts.hsep === undefined ? '  ' : opts.hsep;
+		var hsep = opts.hsep === undefined ? "  " : opts.hsep;
 	}
 	var align = opts.align || [];
-	var stringLength = opts.stringLength || function (s) { return String(s).length; };
+	var stringLength =
+		opts.stringLength ||
+		function (s) {
+			return String(s).length;
+		};
 
 	// if option markdown is set, create and insert a row with the markdown title separator
 	var rows_ = [];
@@ -231,71 +234,80 @@ function table(pRows, opts) {
 	} else {
 		rows_ = pRows;
 	}
-	
-	var dotsizes = reduce(rows_, function (acc, row) {
-		forEach(row, function (c, ix) {
-			let n = dotindex(c);
-			if (!acc[ix] || n > acc[ix]) acc[ix] = n;
-		});
-		return acc;
-	}, []);
-	
+
+	var dotsizes = reduce(
+		rows_,
+		function (acc, row) {
+			forEach(row, function (c, ix) {
+				let n = dotindex(c);
+				if (!acc[ix] || n > acc[ix]) acc[ix] = n;
+			});
+			return acc;
+		},
+		[]
+	);
+
 	// for collumns with '.', find the dot and fill out to the right
 	var irow = 0;
 	var rows = map(rows_, function (row) {
 		irow++;
-		return  map(row, function (c_, ix) {
+		return map(row, function (c_, ix) {
 			let c = String(c_);
-			if (align[ix] === '.' && 
+			if (
+				align[ix] === "." &&
 				(!markDown || // there is no title
-					(markDown && (irow != cIndexTitle && irow != cIndexLine)) // skip the Title rows
-				) 
-				) { 
+					(markDown && irow != cIndexTitle && irow != cIndexLine)) // skip the Title rows
+			) {
 				let index = dotindex(c);
 				let size = dotsizes[ix] + (/\./.test(c) ? -1 : 0) - (stringLength(c) - index);
 
-				return c + Array(size).join(' ');
-			}
-			else return c;
+				return c + Array(size).join(" ");
+			} else return c;
 		});
 	});
-	
-	var sizes = reduce(rows, function (acc, row) {
-		forEach(row, function (c, ix) {
-			let n = stringLength(c);
-			if (!acc[ix] || n > acc[ix]) acc[ix] = n;
-		});
-		return acc;
-	}, []);
+
+	var sizes = reduce(
+		rows,
+		function (acc, row) {
+			forEach(row, function (c, ix) {
+				let n = stringLength(c);
+				if (!acc[ix] || n > acc[ix]) acc[ix] = n;
+			});
+			return acc;
+		},
+		[]
+	);
 
 	var irow = 0;
 	var tableString = map(rows, function (row) {
 		irow++;
-		return `${markDown ? '| ' : ''}` + map(row, function (c, ix) {
-			let n = (sizes[ix] - stringLength(c)) || 0;
-			let s = Array(Math.max(n + 1, 1)).join(' ');
-			if (markDown && irow == cIndexLine)  {
-				return c + Array(Math.max(n + 1, 1)).join(cLineChar);
-			}
-			if ((align[ix] === 'c') || (markDown && irow == cIndexTitle)) {
-				return Array(Math.ceil(n / 2 + 1)).join(' ')
-					+ c + Array(Math.floor(n / 2 + 1)).join(' ');
-			}
-			if (align[ix] === 'r' || align[ix] === '.') {
-				return s + c;
-			}
-			return c + s;
-		}).join(hsep) //.replace(/\s+$/, '');
-	}).join(`${markDown ? ' |' : ''}\n`);
-	return tableString + `${markDown ? ' |' : ''}\n`;
-};
+		return (
+			`${markDown ? "| " : ""}` +
+			map(row, function (c, ix) {
+				let n = sizes[ix] - stringLength(c) || 0;
+				let s = Array(Math.max(n + 1, 1)).join(" ");
+				if (markDown && irow == cIndexLine) {
+					return c + Array(Math.max(n + 1, 1)).join(cLineChar);
+				}
+				if (align[ix] === "c" || (markDown && irow == cIndexTitle)) {
+					return Array(Math.ceil(n / 2 + 1)).join(" ") + c + Array(Math.floor(n / 2 + 1)).join(" ");
+				}
+				if (align[ix] === "r" || align[ix] === ".") {
+					return s + c;
+				}
+				return c + s;
+			}).join(hsep)
+		); //.replace(/\s+$/, '');
+	}).join(`${markDown ? " |" : ""}\n`);
+	return tableString + `${markDown ? " |" : ""}\n`;
+}
 
-function dotindex (c) {
+function dotindex(c) {
 	let m = /\.[^.]*$/.exec(c);
 	return m ? m.index + 1 : c.length;
 }
 
-function reduce (xs, f, init) {
+function reduce(xs, f, init) {
 	if (xs.reduce) return xs.reduce(f, init);
 	let i = 0;
 	let acc = arguments.length >= 3 ? init : xs[i++];
@@ -305,14 +317,14 @@ function reduce (xs, f, init) {
 	return acc;
 }
 
-function forEach (xs, f) {
+function forEach(xs, f) {
 	if (xs.forEach) return xs.forEach(f);
 	for (let i = 0; i < xs.length; i++) {
 		f.call(xs, xs[i], i);
 	}
 }
 
-function map (xs, f) {
+function map(xs, f) {
 	if (xs.map) return xs.map(f);
 	let res = [];
 	for (let i = 0; i < xs.length; i++) {
@@ -320,4 +332,3 @@ function map (xs, f) {
 	}
 	return res;
 }
-

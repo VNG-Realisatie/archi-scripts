@@ -19,18 +19,18 @@ finishConsoleLog();
  * PlotXYposition
  */
 function PlotXYposition(pObject) {
-  if ((pObject.type.endsWith("relationship") ||
-      pObject.type.startsWith("diagram-model") || 
-      pObject.type.startsWith("archimate-diagram")) && 
-      pObject.type != "diagram-model-group") {
-    console.log(
-      `>>> Skipped object with id ${pObject.id}`
-    );
-  } else {
-    console.log(`>>> ${pObject}`);
+	if (
+		(pObject.type.endsWith("relationship") ||
+			pObject.type.startsWith("diagram-model") ||
+			pObject.type.startsWith("archimate-diagram")) &&
+		pObject.type != "diagram-model-group"
+	) {
+		console.log(`>>> Skipped object with id ${pObject.id}`);
+	} else {
+		console.log(`>>> ${pObject}`);
 
-    var note = pObject.createObject("note", 5, 25, 130, 40); // Add a Note to this element
-    note.text = `x=${pObject.bounds.x} y=${pObject.bounds.y}\n`;
-    note.text += `width=${pObject.bounds.width} height=${pObject.bounds.height}`;
-  }
+		var note = pObject.createObject("note", 5, 25, 130, 40); // Add a Note to this element
+		note.text = `x=${pObject.bounds.x} y=${pObject.bounds.y}\n`;
+		note.text += `width=${pObject.bounds.width} height=${pObject.bounds.height}`;
+	}
 }

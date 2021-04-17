@@ -13,7 +13,7 @@
 console.show();
 console.clear();
 var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length-1];
+var scriptName = filepath[filepath.length - 1];
 
 console.log(`Executing script "${scriptName}"...\n`);
 
@@ -21,32 +21,27 @@ load(__DIR__ + "../_lib/papaparse.min.js");
 load(__DIR__ + "IncludeExportImport.ajs");
 
 var viewData = [];
-
 var debug = false;
 var info = true;
 
 // Loop on all views
-$('view').each(function(view) {
-
-	info? console.log(">> " + view):true;
+$("view").each(function (view) {
+	info ? console.log(">> " + view) : true;
 
 	try {
-
-		var Row = new Object;
+		var Row = new Object();
 		// export Archi defined attributes
 		for (var label in viewHeaderDef) {
-			Row[viewHeaderDef[label]]		=view[label];
+			Row[viewHeaderDef[label]] = view[label];
 		}
-//		Row[viewHeaderDef["viewpoint.name"]] =view.viewpoint.name; 
+		//		Row[viewHeaderDef["viewpoint.name"]] =view.viewpoint.name;
 
 		export_properties(view, Row, viewHeaderDef);
 
 		viewData.push(Row);
-
-	}
-	catch (error) {
+	} catch (error) {
 		console.log("> Ignoring: " + view);
-		console.log("> Error: " +  error);
+		console.log("> Error: " + error);
 	}
 }); // each view
 

@@ -1,8 +1,8 @@
 /*
  * ObjectID_remove_prefix
- * 
+ *
  * Version 1: Check and repair all objects with prefixed "Object ID"
- * 
+ *
  * (c) 2019 Mark Backer
  *
  */
@@ -19,17 +19,21 @@ var label_ID_property = "Object ID";
 var notValidList = [];
 
 // check all concepts
-$('concept').each(function (concept) {
+$("concept").each(function (concept) {
 	ObjectID_remove_prefix(concept, notValidList);
-})
+});
 
 // chack all views
-$('view').each(function (view) {
+$("view").each(function (view) {
 	ObjectID_remove_prefix(view, notValidList);
-})
+});
 
 if (notValidList.length > 0) {
-	console.log(`There ${(notValidList.length == 1 ? "is" : "are")} ${notValidList.length} object with an unvalid [${label_ID_property}] found`);
+	console.log(
+		`There ${notValidList.length == 1 ? "is" : "are"} ${
+			notValidList.length
+		} object with an unvalid [${label_ID_property}] found`
+	);
 	notValidList.sort();
 	for (var i_empty = 0; i_empty < notValidList.length; i_empty++) {
 		console.log(`> ${notValidList[i_empty]}`);
@@ -44,20 +48,20 @@ if (notValidList.length > 0) {
 console.log(`\nScript "${scriptName}" finished`);
 
 /**
- * 
- * @param pObject match object with index. if found 
+ *
+ * @param pObject match object with index. if found
  */
 function ObjectID_remove_prefix(pObject, pNotValidList) {
 	// initialize with selection of property en property values
-	if (typeof this.pattern == 'undefined') {
-		this.pattern = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', 'i');
+	if (typeof this.pattern == "undefined") {
+		this.pattern = new RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "i");
 	}
 
-	let ObjectID = pObject.prop(label_ID_property)
+	let ObjectID = pObject.prop(label_ID_property);
 
 	if (this.pattern.test(ObjectID) != true) {
-		if (ObjectID.startsWith('id-', 0)) {
-			let id_repaired = ObjectID.substr(3, ObjectID.length - 3)
+		if (ObjectID.startsWith("id-", 0)) {
+			let id_repaired = ObjectID.substr(3, ObjectID.length - 3);
 			if (this.pattern.test(id_repaired) === true) {
 				pObject.prop(label_ID_property, id_repaired);
 				console.log(`>> ${pObject} repaired`);

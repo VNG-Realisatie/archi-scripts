@@ -1,36 +1,41 @@
 /*
  * FontPlot
- * 
+ *
  * Set font for application-components a bit larger than default
- * 
+ *
  * (c) 2019 Mark Backer
- * 
+ *
  */
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/ApplyToSelection.js");
 
-initConsoleLog(__FILE__)
+initConsoleLog(__FILE__);
 
 applyToDiagramContent($(selection), FontPlotSize);
 
-finishConsoleLog()
+finishConsoleLog();
 
 /*
  * FontPlotSize
  */
 function FontPlotSize(pObject) {
-
 	if (pObject.type == "application-component") {
 		var FlagChanged = false;
 
-		if (pObject.fontName != "Segoe UI") {FlagChanged=true; pObject.fontName = "Segoe UI"}; 
+		if (pObject.fontName != "Segoe UI") {
+			FlagChanged = true;
+			pObject.fontName = "Segoe UI";
+		}
 		// if (pObject.fontStyle != null) 		{FlagChanged=true; pObject.fontStyle = null};
 		// if (pObject.fontColor != null) 		{FlagChanged=true; pObject.fontColor = null};
-		if (pObject.fontSize != 10) 		{FlagChanged=true; pObject.fontSize = 10};
+		if (pObject.fontSize != 10) {
+			FlagChanged = true;
+			pObject.fontSize = 10;
+		}
 		if (FlagChanged) {
 			console.log(`>>> ${pObject} on view ${pObject.view.name}`);
 		} else {
 			console.log(`>>> Not changed: ${pObject} on view ${pObject.view.name}`);
 		}
 	}
-}	
+}

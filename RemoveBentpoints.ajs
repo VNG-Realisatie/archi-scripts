@@ -8,13 +8,16 @@
 //
 // (c) 2018 Jean-Baptiste Sarrodie
 
-$(selection).filter("relationship").filter(function (o) {
-    return (o.id != o.concept.id) 
-}).each(function (o) {
-    var view = o.view;
-    var rel = o.concept;
-    var source = o.source;
-    var target = o.target;
-    o.delete();
-    view.add(rel, source, target);
-})
+$(selection)
+	.filter("relationship")
+	.filter(function (o) {
+		return o.id != o.concept.id;
+	})
+	.each(function (o) {
+		var view = o.view;
+		var rel = o.concept;
+		var source = o.source;
+		var target = o.target;
+		o.delete();
+		view.add(rel, source, target);
+	});

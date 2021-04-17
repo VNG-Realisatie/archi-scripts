@@ -1,8 +1,8 @@
 /*
  * FontDecrease
- * 
+ *
  * Decrease fontsize by 2, but don't set fontsize smaller than default 9
- * 
+ *
  * (c) 2019 Mark Backer
  *
  */
@@ -10,23 +10,22 @@
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/ApplyToSelection.js");
 
-initConsoleLog(__FILE__)
+initConsoleLog(__FILE__);
 
 applyToDiagramContent($(selection), DecreaseFont);
 
-finishConsoleLog()
+finishConsoleLog();
 
 /*
  * DecreaseFont
- * 
+ *
  * Decrease font for object
- * 
+ *
  */
 function DecreaseFont(pObject) {
-
 	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
 
-	if (pObject.fontSize > 9 ) {
+	if (pObject.fontSize > 9) {
 		if (pObject.fontSize == 10) {
 			pObject.fontSize = 9;
 		} else {

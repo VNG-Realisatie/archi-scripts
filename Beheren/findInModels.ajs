@@ -1,56 +1,55 @@
 /**
  * findInModels.ajs
- * 
+ *
  * Loop over all opened models
  * Find the objects with given search string in name, ID or property Object ID
  * Display the objects in a table
- * 
+ *
  */
 
 load(__DIR__ + "../_lib/Common.js");
 
-initConsoleLog(__FILE__)
+initConsoleLog(__FILE__);
 
-promptText = `Find objects in all opened models by "name", "id" or property "Object ID"\nYou can use wildcards for finding "name"`
-var searchString = window.prompt(promptText, 'Enter name or ID')
+promptText = `Find objects in all opened models by "name", "id" or property "Object ID"\nYou can use wildcards for finding "name"`;
+var searchString = window.prompt(promptText, "Enter name or ID");
 
 try {
-
 	if (searchString) {
 		var loadedModelsList = $.model.getLoadedModels();
-		var tableArray = []; 
+		var tableArray = [];
 
-		console.log('Searching in all models for: ' + searchString + '\n');
+		console.log("Searching in all models for: " + searchString + "\n");
 
-		tableArray.push(['Model', 'Concept', 'id', 'Object ID']);
+		tableArray.push(["Model", "Concept", "id", "Object ID"]);
 
 		for (let i = 0; i < loadedModelsList.length; i++) {
 			let addModelName = true; // flag for displaying the model name once in the table
 
 			loadedModelsList[i].setAsCurrent();
 
-			$('*').each(function (object) {
-				let vObjectID = object.prop('Object ID');
+			$("*").each(function (object) {
+				let vObjectID = object.prop("Object ID");
 				// if ((object.name === searchString) || (object.id === searchString) || (vObjectID === searchString)) {
-				if ((matchRule(object.name, searchString)) || (object.id === searchString) || (vObjectID === searchString)) {
-						tableArray.push([addModelName ? model.name : '', object, object.id, !vObjectID ? '-' : vObjectID]);
+				if (matchRule(object.name, searchString) || object.id === searchString || vObjectID === searchString) {
+					tableArray.push([addModelName ? model.name : "", object, object.id, !vObjectID ? "-" : vObjectID]);
 					addModelName = false;
 				}
-			})
+			});
 			if (addModelName) {
-				tableArray.push([model.name, 'no object found','', '']);
+				tableArray.push([model.name, "no object found", "", ""]);
 			}
 		}
-		console.log(table(tableArray, {markdown: true}))
+		console.log(table(tableArray, { markdown: true }));
 	} else {
-		console.log('Cancelled');
+		console.log("Cancelled");
 	}
 } catch (error) {
 	console.log("> Error: " + error);
 	console.log("> Stack: " + error.stack);
 }
 
-finishConsoleLog()
+finishConsoleLog();
 
 //Short code
 function matchRule(str, rule) {
@@ -70,7 +69,7 @@ function matchRuleExpl(str, rule) {
 
 	// "^"  => Matches any string with the following at the beginning of it
 	// "$"  => Matches any string with that in front at the end of it
-	rule = "^" + rule + "$"
+	rule = "^" + rule + "$";
 
 	//Create a regular expression object for matching string
 	//flag "i" is for case insensitive

@@ -1,23 +1,23 @@
 /*
  * FigureToggle
- * 
+ *
  * For the selected object, toggle the figure
- * 
+ *
  * (c) 2019 Mark Backer
- * 
+ *
  * Select objects in the model tree or on a view and run this script
- * 
+ *
  */
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/ApplyToSelection.js");
 
-initConsoleLog(__FILE__)
+initConsoleLog(__FILE__);
 
 applyToDiagramContent($(selection), FigureToggle);
 
-finishConsoleLog()
+finishConsoleLog();
 
-/* 
+/*
  * Change figure of application component in diagram
  */
 function FigureToggle(pObject) {
@@ -28,9 +28,9 @@ function FigureToggle(pObject) {
 		debug(`Set figure "${pObject.name}"`);
 
 		if (pObject.figureType == 0) {
-			pObject.figureType = 1; // rectangle with icon 
+			pObject.figureType = 1; // rectangle with icon
 		} else {
-			pObject.figureType = 0; // explicite component figure 
+			pObject.figureType = 0; // explicite component figure
 		}
 	} else {
 		info(`Skipped, "${pObject}" does not have a figure property`);

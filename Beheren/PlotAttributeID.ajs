@@ -19,10 +19,10 @@ finishConsoleLog();
  * PlotAttributeID
  */
 function PlotAttributeID(pObject) {
-  console.log(`>>> ${pObject}`);
+	console.log(`>>> ${pObject}`);
 
-  // Add a Note to this element
-  var note = pObject.createObject("note", 5, 25, 200, 25); 
-  // plot id of concept, not id of occurrence
-  note.text = `id=${pObject.concept.id}\n`;
+	// Add a Note to this element
+	var note = pObject.createObject("note", 5, 25, 200, 25);
+	// plot id of concept, not id of occurrence
+	note.text = `id=${pObject.concept.id}\n`;
 }

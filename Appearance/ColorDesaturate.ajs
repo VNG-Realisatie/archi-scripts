@@ -5,12 +5,11 @@
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/ApplyToSelection.js");
 
-initConsoleLog(__FILE__)
+initConsoleLog(__FILE__);
 
 applyToDiagramContent($(selection), ColorDesaturate);
 
-finishConsoleLog()
-
+finishConsoleLog();
 
 function ColorDesaturate(pObject) {
 	// console.log(`pObject: ${pObject}`)
@@ -23,7 +22,7 @@ function Desaturate(hex, sat) {
 	sat = sat / 100;
 	if (hex) {
 		var col = hexToRgb(hex);
-		var gray = col.r * 0.3086 + col.g * 0.6094 + col.b * 0.0820;
+		var gray = col.r * 0.3086 + col.g * 0.6094 + col.b * 0.082;
 
 		col.r = Math.round(col.r * sat + gray * (1 - sat));
 		col.g = Math.round(col.g * sat + gray * (1 - sat));
@@ -37,11 +36,13 @@ function Desaturate(hex, sat) {
 
 function hexToRgb(hex) {
 	var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-	return result ? {
-		r: parseInt(result[1], 16),
-		g: parseInt(result[2], 16),
-		b: parseInt(result[3], 16)
-	} : null;
+	return result
+		? {
+				r: parseInt(result[1], 16),
+				g: parseInt(result[2], 16),
+				b: parseInt(result[3], 16),
+		  }
+		: null;
 }
 
 function rgbToHex(r, g, b) {

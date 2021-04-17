@@ -1,11 +1,11 @@
 /**
  * mergeImportedFolders.ajs
- * 
+ *
  * merge duplicated folder after an import of an archimate file into selected model
  * 	this script repairs the duplication of folders after an import of a model that is created from an exchange format file
  * 	this is a workaround for limitation of exporting and importing the IDs of folders in exchange format
  * 	see https://github.com/archimatetool/archi/issues/690
- * 
+ *
  * Flow for synchronizing architecture model:
  * 	- Archi: export model to Open Exchange File
  * 	- Wiki: import model from Open Exchange File
@@ -14,109 +14,117 @@
  * 	- Archi: import model from Open Exchange File
  * 	- Archi: save model in .archimate file
  * 	- Archi: import Another model into the selected Model
- * 	- now run this script to 
+ * 	- now run this script to
  * 		- move all synchronized objects back from the _imported_ folders to their original folders
  * 		- if there is no original folder, rename the folder by removing the prefix _imported_
  * 		- delete all empty _imported_ folders
  */
 console.clear();
-console.log()
+console.log();
 
-const FOLDER_PREFEX = '(import) '
+const FOLDER_PREFEX = "(import) ";
 
-let nrFoldersStart = $(model).find('folder').size()
-console.log(`Number of folders is ${nrFoldersStart}\n`)
+let nrFoldersStart = $(model).find("folder").size();
+console.log(`Number of folders is ${nrFoldersStart}\n`);
 
-mergeImportedFolders($(model).first())
+mergeImportedFolders($(model).first());
 
-let nrFoldersRemaining = $(model).find('folder').size()
+let nrFoldersRemaining = $(model).find("folder").size();
 
-console.log()
-console.log(`Merged ${nrFoldersStart - nrFoldersRemaining} folders with prefix '${FOLDER_PREFEX}' of total of ${nrFoldersStart} folders`)
-console.log(`${nrFoldersRemaining} folders remaining`)
+console.log();
+console.log(
+	`Merged ${
+		nrFoldersStart - nrFoldersRemaining
+	} folders with prefix '${FOLDER_PREFEX}' of total of ${nrFoldersStart} folders`
+);
+console.log(`${nrFoldersRemaining} folders remaining`);
 
 /**
  * mergeImportedFolders()
  * 	recursive function to traverse the folder tree
  * 		find original folder with the same name without prefix '(imported)'
- * 		if found 
+ * 		if found
  * 			move all objects from the imported folder to original folder
  * 			and remove the imported folder
  * 		else
  * 			rename imported folders
- * 
+ *
  * not supported:
  * 	the imported folder is not found
  * 		original was deleted
  * 		other version
- * 
+ *
  * @param pImportedFolder 	current imported folder
  * @param pOriginalParent 	current parent where original folder can be found
  * @param pLevel 			current recursion level
  */
 function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
-	let importedSubFolders
-	let originalParent
-	let originalFolder
+	let importedSubFolders;
+	let originalParent;
+	let originalFolder;
 
-	console.log(`${"  ".repeat(pLevel)}${pImportedFolder.name}`)
+	console.log(`${"  ".repeat(pLevel)}${pImportedFolder.name}`);
 
 	if (pLevel == 0) {
 		// get the Archi default folders in the root
-		importedSubFolders = $(pImportedFolder).children("folder")
+		importedSubFolders = $(pImportedFolder).children("folder");
 	} else {
 		// get all imported folders where name starts with prefix
-		importedSubFolders = $(pImportedFolder).children("folder").filter(isImportedFolder)
+		importedSubFolders = $(pImportedFolder).children("folder").filter(isImportedFolder);
 
 		// get parent folder of the original folder
 		if (pOriginalParent != null) {
-			originalParent = pOriginalParent
+			originalParent = pOriginalParent;
 		} else {
-			originalParent = $(pImportedFolder).parent("folder").first()
+			originalParent = $(pImportedFolder).parent("folder").first();
 		}
 		// find the original folder
-		originalFoldersColl = $(originalParent).children("folder").filter(isOriginalFolder)
+		originalFoldersColl = $(originalParent).children("folder").filter(isOriginalFolder);
 		if (originalFoldersColl.size() > 1) {
-			console.log(`\nDuplicate folders in selected model:\nParent folder: ${originalParent}\nDuplicate folder names: ${originalFoldersColl}`)
+			console.log(
+				`\nDuplicate folders in selected model:\nParent folder: ${originalParent}\nDuplicate folder names: ${originalFoldersColl}`
+			);
 		}
-		originalFolder = originalFoldersColl.first()
+		originalFolder = originalFoldersColl.first();
 
 		// move all objects from the imported folder to original folder
 		if (originalFolder != null) {
-			let nrObjects = 0
-			$(pImportedFolder).children().not("folder").each(function (o) {
-				originalFolder.add(o);
-				// console.log(`${"  ".repeat(pLevel+1)}${o} moved`)
-				nrObjects++
-			})
-			if (nrObjects>0) {
-				console.log(`${"  ".repeat(pLevel+1)}moved ${nrObjects} objects`)
+			let nrObjects = 0;
+			$(pImportedFolder)
+				.children()
+				.not("folder")
+				.each(function (o) {
+					originalFolder.add(o);
+					// console.log(`${"  ".repeat(pLevel+1)}${o} moved`)
+					nrObjects++;
+				});
+			if (nrObjects > 0) {
+				console.log(`${"  ".repeat(pLevel + 1)}moved ${nrObjects} objects`);
 			}
 		}
 	}
 
 	// stop if folder has no imported subfolders
 	if (importedSubFolders.size() == 0) {
-		return
+		return;
 	}
 
 	// traverse subfolders
 	importedSubFolders.each(function (importedSubFolder) {
-
-		mergeImportedFolders(importedSubFolder, originalFolder, pLevel + 1)
+		mergeImportedFolders(importedSubFolder, originalFolder, pLevel + 1);
 
 		if (pLevel > 0) {
 			// remove of rename imported folders
-			let originalFolderName = importedSubFolder.name.substr(FOLDER_PREFEX.length)
+			let originalFolderName = importedSubFolder.name.substr(FOLDER_PREFEX.length);
 			if ($(importedSubFolder).children().size() == 0) {
-				console.log(`${"  ".repeat(pLevel+2)}merged into '${originalFolderName}'`)
-				importedSubFolder.delete()
+				console.log(`${"  ".repeat(pLevel + 2)}merged into '${originalFolderName}'`);
+				importedSubFolder.delete();
 			} else {
-				console.log(`${"> ".repeat(pLevel+2)}renamed folder to '${originalFolderName}'`)
-				importedSubFolder.name = importedSubFolder.name.substr(FOLDER_PREFEX.length)
+				console.log(`${"> ".repeat(pLevel + 2)}renamed folder to '${originalFolderName}'`);
+				importedSubFolder.name = importedSubFolder.name.substr(FOLDER_PREFEX.length);
 			}
 		}
-	})
+	});
 
 	/**
 	 * filter function isImportedFolder
@@ -124,10 +132,10 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 	 */
 	function isImportedFolder(folder) {
 		if (folder.name.startsWith(FOLDER_PREFEX)) {
-			console.log(`${"  ".repeat(pLevel)}Imported folder: ${folder.name}`)
-			return true
+			console.log(`${"  ".repeat(pLevel)}Imported folder: ${folder.name}`);
+			return true;
 		}
-		return false
+		return false;
 	}
 
 	/**
@@ -135,6 +143,6 @@ function mergeImportedFolders(pImportedFolder, pOriginalParent, pLevel = 0) {
 	 * 	return true if folder name is equal to imported folder
 	 */
 	function isOriginalFolder(folder) {
-		return (folder.name == pImportedFolder.name.substr(FOLDER_PREFEX.length))
+		return folder.name == pImportedFolder.name.substr(FOLDER_PREFEX.length);
 	}
 }

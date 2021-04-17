@@ -1,18 +1,18 @@
 /*
  * Property2Documentation
  */
- 
+
 console.log("Property2Documentation");
 
-$("element").each(function(ele) {
+$("element").each(function (ele) {
 	if (ele.prop("Beschrijving")) {
-        if (!ele.documentation) {
-    		ele.documentation = ele.prop("Beschrijving");
-            console.log("Documentation written with property : " + ele.name );
-        } else {
-            console.log("Documentation not empty : " + ele.name + " -> " + ele.documentation);
-        }
+		if (!ele.documentation) {
+			ele.documentation = ele.prop("Beschrijving");
+			console.log("Documentation written with property : " + ele.name);
+		} else {
+			console.log("Documentation not empty : " + ele.name + " -> " + ele.documentation);
+		}
 	} else {
-        console.log("Property empty  : " + ele.name );
-    }
+		console.log("Property empty  : " + ele.name);
+	}
 });

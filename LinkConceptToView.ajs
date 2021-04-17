@@ -1,10 +1,10 @@
-//  
+//
 // Link concept to View
-//  
-// 2020 David GERARD 
-//  
-// For selected concept in view, search the model for a view with the same name. 
-// If found, 
+//
+// 2020 David GERARD
+//
+// For selected concept in view, search the model for a view with the same name.
+// If found,
 // - create a .createViewReference() positioned in the upperleft corner of the concept, pointing to the view with the same name
 // - create a .createViewReference() positioned in the upperleft corner of the view with the same name, point to the view holding the selected concept
 // Quite useful to describe process and subprocesses, and especially with the HTML export
@@ -13,29 +13,36 @@
 //
 // Roadmap:
 // - currently the script should not be run multiple times for the same concept: it will create multiple .createViewReference(), stacked
-// 
-  
+//
+
 // # Functions
 
- 
-// # Variables  
-  
-var list = $(selection);
-all_views = $("archimate-diagram-model"); 
+// # Variables
 
-// # Main  
-    
-console.show();  
-console.clear();  
-console.log("> Link concept to View:");  
-  
-list.each(function(theConcept) {
-    currentConceptView = $("."+theConcept.view.name).filter("archimate-diagram-model").first() ; 
-    if ($("."+theConcept.name).filter("archimate-diagram-model").first()!= null) {
-        var targetView = $("."+theConcept.name).filter("archimate-diagram-model").first() ; 
-        viewRef = currentConceptView.createViewReference(targetView, theConcept.bounds.x, theConcept.bounds.y, 30, 30); 
-        viewRef = targetView.createViewReference(currentConceptView, 10, 10, 30, 30); 
-    };
+var list = $(selection);
+all_views = $("archimate-diagram-model");
+
+// # Main
+
+console.show();
+console.clear();
+console.log("> Link concept to View:");
+
+list.each(function (theConcept) {
+	currentConceptView = $("." + theConcept.view.name)
+		.filter("archimate-diagram-model")
+		.first();
+	if (
+		$("." + theConcept.name)
+			.filter("archimate-diagram-model")
+			.first() != null
+	) {
+		var targetView = $("." + theConcept.name)
+			.filter("archimate-diagram-model")
+			.first();
+		viewRef = currentConceptView.createViewReference(targetView, theConcept.bounds.x, theConcept.bounds.y, 30, 30);
+		viewRef = targetView.createViewReference(currentConceptView, 10, 10, 30, 30);
+	}
 });
 
 console.log("> Ending properly");

@@ -1,18 +1,18 @@
 /**
  * deleteDuplicateRelations
- * 
+ *
  *  Definition of duplicate relation
  *      - equal source and target object
  *      - same name (often empty)
  *      - same type
- * 
+ *
  *  - Find all relations with duplicate
  *  - Merge relations
  *      Existing diagram instances of the other relation will be replaced with this relation
  *      Documentatation of the other relation is appended to this relation's documentation
  *      Properites of the other are appended to this relation's properties
  *      The other relation is deleted
- * 
+ *
  */
 
 console.clear();
@@ -22,86 +22,88 @@ var relationList = [];
 
 // Loop through all relationships
 $("relation").each(function (r) {
-    relationList.push({
-        key: getDuplicateRelationString(r),
-        relation: r
-    });
+	relationList.push({
+		key: getDuplicateRelationString(r),
+		relation: r,
+	});
 });
 
 relationList.sort(compareKey);
 
 for (let i = 0; i < relationList.length - 1; i++) {
-    // delete if equal to next
-    if (relationList[i + 1].key == relationList[i].key) {
-        printDuplicate(relationList[i])
+	// delete if equal to next
+	if (relationList[i + 1].key == relationList[i].key) {
+		printDuplicate(relationList[i]);
 
-        r0 = relationList[i].relation
-        r1 = relationList[i + 1].relation
+		r0 = relationList[i].relation;
+		r1 = relationList[i + 1].relation;
 
-        // merge relation properties 
-        // After deleting r0, there should be no change to views => copy all visual connections of r0 to r1
-        $(`#${r0.id}`).objectRefs().each(function(r0_Connection){
-            console.log(`>> View ${r0_Connection.view}`)
-            console.log(`>>> visual connection ${r0_Connection.id} node source ${r0_Connection.source.id} target ${r0_Connection.target.id}`)
-            console.log(`>>> lineWidth ${r0_Connection.lineWidth} relativeBendpoints ${r0_Connection.relativeBendpoints} labelVisible ${r0_Connection.labelVisible} `)
-            let r0_ConnectionCopy = r0_Connection.view.add(r1, r0_Connection.source, r0_Connection.target)
-            for (let b = 0; b < r0_Connection.relativeBendpoints.length; b++) {
-                r0_ConnectionCopy.addRelativeBendpoint(r0_Connection.relativeBendpoints[b], b)
-            }
-            for (var p=0; p<r0_Connection.prop().length; p++){
-                console.log(`r0_Connection.prop()[p] ${r0_Connection.prop()[p]}`);
-            }
-        
-            r0_ConnectionCopy.labelVisible  = r0_Connection.labelVisible;
-            r0_ConnectionCopy.lineWidth     = r0_Connection.lineWidth;
-            r0_ConnectionCopy.lineColor     = r0_Connection.lineColor;
-            r0_ConnectionCopy.fontName      = r0_Connection.fontName;
-            r0_ConnectionCopy.fontColor     = r0_Connection.fontColor;
-            r0_ConnectionCopy.fontSize      = r0_Connection.fontSize;
-            r0_ConnectionCopy.fontStyle     = r0_Connection.fontStyle;
+		// merge relation properties
+		// After deleting r0, there should be no change to views => copy all visual connections of r0 to r1
+		$(`#${r0.id}`)
+			.objectRefs()
+			.each(function (r0_Connection) {
+				console.log(`>> View ${r0_Connection.view}`);
+				console.log(
+					`>>> visual connection ${r0_Connection.id} node source ${r0_Connection.source.id} target ${r0_Connection.target.id}`
+				);
+				console.log(
+					`>>> lineWidth ${r0_Connection.lineWidth} relativeBendpoints ${r0_Connection.relativeBendpoints} labelVisible ${r0_Connection.labelVisible} `
+				);
+				let r0_ConnectionCopy = r0_Connection.view.add(r1, r0_Connection.source, r0_Connection.target);
+				for (let b = 0; b < r0_Connection.relativeBendpoints.length; b++) {
+					r0_ConnectionCopy.addRelativeBendpoint(r0_Connection.relativeBendpoints[b], b);
+				}
+				for (var p = 0; p < r0_Connection.prop().length; p++) {
+					console.log(`r0_Connection.prop()[p] ${r0_Connection.prop()[p]}`);
+				}
 
-        })
-        r0.delete();
-    }
-    if (i>0) {
-        // delete if equal to previous
-        if ((relationList[i].key == relationList[i - 1].key) && 
-            (relationList[i + 1].key != relationList[i].key))  {
-            printDuplicate(relationList[i])
-        }
-    }
+				r0_ConnectionCopy.labelVisible = r0_Connection.labelVisible;
+				r0_ConnectionCopy.lineWidth = r0_Connection.lineWidth;
+				r0_ConnectionCopy.lineColor = r0_Connection.lineColor;
+				r0_ConnectionCopy.fontName = r0_Connection.fontName;
+				r0_ConnectionCopy.fontColor = r0_Connection.fontColor;
+				r0_ConnectionCopy.fontSize = r0_Connection.fontSize;
+				r0_ConnectionCopy.fontStyle = r0_Connection.fontStyle;
+			});
+		r0.delete();
+	}
+	if (i > 0) {
+		// delete if equal to previous
+		if (relationList[i].key == relationList[i - 1].key && relationList[i + 1].key != relationList[i].key) {
+			printDuplicate(relationList[i]);
+		}
+	}
 }
 
 console.log("Ending function deleteDuplicateRelations");
 
-
 function getDuplicateRelationString(pRelation) {
+	let relationKey = `${pRelation.source.id} - ${pRelation.type} - ${pRelation.name} - ${pRelation.target.id}`;
 
-    let relationKey = `${pRelation.source.id} - ${pRelation.type} - ${pRelation.name} - ${pRelation.target.id}`;
-
-    if (pRelation.type == 'access-relationship') {
-        relationKey += ` - ${pRelation.accessType}`;
-    }
-    if (pRelation.type == 'influence-relationship') {
-        relationKey += ` - ${pRelation.influenceStrength}`;
-    }
-    if (pRelation.type == 'association-relationship') {
-        relationKey += ` - ${pRelation.associationDirected}`;
-    }
-    return relationKey
+	if (pRelation.type == "access-relationship") {
+		relationKey += ` - ${pRelation.accessType}`;
+	}
+	if (pRelation.type == "influence-relationship") {
+		relationKey += ` - ${pRelation.influenceStrength}`;
+	}
+	if (pRelation.type == "association-relationship") {
+		relationKey += ` - ${pRelation.associationDirected}`;
+	}
+	return relationKey;
 }
 
-function printDuplicate (pRelation) {
-    let r = pRelation.relation;
-    console.log(`> ${r.type} (id=${r.id}): \t${r.source.name} - ${r.name} - \t${r.target.name}`);
+function printDuplicate(pRelation) {
+	let r = pRelation.relation;
+	console.log(`> ${r.type} (id=${r.id}): \t${r.source.name} - ${r.name} - \t${r.target.name}`);
 }
 
 function compareKey(a, b) {
-    if (a.key < b.key) {
-        return -1;
-    }
-    if (a.key > b.key) {
-        return 1;
-    }
-    return 0;
+	if (a.key < b.key) {
+		return -1;
+	}
+	if (a.key > b.key) {
+		return 1;
+	}
+	return 0;
 }

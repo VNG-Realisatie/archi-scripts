@@ -1,8 +1,8 @@
 /*
  * IncludeExportImport
- * 
+ *
  * Version 1: Definitions and common functions for CSV Export and Import
- * 
+ *
  * (c) 2019 Mark Backer
  *
  */
@@ -13,7 +13,7 @@ var label_ID_property = "Object ID";
 var customlabel_ImportLog_property = null;
 // var customlabel_ImportLog_property = "ImportLog";
 
-var ImportDate  = new Date().toLocaleDateString();
+var ImportDate = new Date().toLocaleDateString();
 
 var E_I_Debug = false;
 var E_I_Info = false;
@@ -22,45 +22,43 @@ load(__DIR__ + "../_lib/papaparse.min.js");
 
 // Set up CSV column-labels
 var elementHeaderDef = {
-	type: 				"Element type",
-	name: 				"Element label",
-	documentation: 		"Element documentation",
-	id: 				"Element ID"
+	type: "Element type",
+	name: "Element label",
+	documentation: "Element documentation",
+	id: "Element ID",
 };
-  
+
 var relationHeaderDef = {
-	type:				"Relationship type",
-	id:					"Relationship ID",
-	name:				"Relationship label",
-	documentation:		"Relationship documentation",
-	"source.id":		"Source ID",
-	"source.name":		"Source label",
-	"source.type":		"Source type",
-//	"source CustomID":	"Source " + label_ID_property, // custom ID for finding the source element
-	"source.prop(label_ID_property)":	"Source " + label_ID_property, // custom ID for finding the source element
-	"target.id":		"Target ID",
-	"target.name":		"Target label",
-	"target.type":		"Target type",
+	type: "Relationship type",
+	id: "Relationship ID",
+	name: "Relationship label",
+	documentation: "Relationship documentation",
+	"source.id": "Source ID",
+	"source.name": "Source label",
+	"source.type": "Source type",
+	//	"source CustomID":	"Source " + label_ID_property, // custom ID for finding the source element
+	"source.prop(label_ID_property)": "Source " + label_ID_property, // custom ID for finding the source element
+	"target.id": "Target ID",
+	"target.name": "Target label",
+	"target.type": "Target type",
 	// "target CustomID":	"Target " + label_ID_property // custom ID for finding the target element
-	"target.prop(label_ID_property)":	"Target " + label_ID_property // custom ID for finding the target element
+	"target.prop(label_ID_property)": "Target " + label_ID_property, // custom ID for finding the target element
 };
 
 var viewHeaderDef = {
-	type: 				"View type",
-	name: 				"View label",
-	documentation: 		"View documentation",
-	id: 				"View ID"
-//	, "viewpoint.name":	"Viewpoint" // don't use viewpoint, default is none
+	type: "View type",
+	name: "View label",
+	documentation: "View documentation",
+	id: "View ID",
+	//	, "viewpoint.name":	"Viewpoint" // don't use viewpoint, default is none
 };
-
 
 /**
  * Read CSV file in UTF-8 encoding and return file parsed into an array
  */
 function read_CSVdata() {
-
-	var filePath = window.promptOpenFile({ title: "Open CSV" , filterExtensions: ["*.CSV"], fileName: "*.csv" });
-	var theCSV ="";
+	var filePath = window.promptOpenFile({ title: "Open CSV", filterExtensions: ["*.CSV"], fileName: "*.csv" });
+	var theCSV = "";
 	if (filePath) {
 		var FileReader = Java.type("java.io.FileReader");
 		var InputStreamReader = Java.type("java.io.InputStreamReader");
@@ -69,11 +67,11 @@ function read_CSVdata() {
 
 		var data = theCSVFile.read();
 		console.log(`> Processing CSV-file: ${filePath}`);
-	
-		while(data != -1) {
+
+		while (data != -1) {
 			var theCharacter = String.fromCharCode(data);
-			theCSV+=theCharacter;
-			data = theCSVFile.read(); 
+			theCSV += theCharacter;
+			data = theCSVFile.read();
 		}
 		theCSVFile.close();
 
@@ -86,11 +84,11 @@ function read_CSVdata() {
 }
 
 /*
- *	Save all object to CSV 
- */  
+ *	Save all object to CSV
+ */
 function write_CSVdata(pExportType, pHeader, pData, pSelectedView) {
 	// initialize with selection of property en property values
-	if ( typeof this.FlagFirstTime == 'undefined' ) {
+	if (typeof this.FlagFirstTime == "undefined") {
 		this.FlagFirstTime = true;
 
 		// Open a dialog to let the user choose where to save the generated file
@@ -99,18 +97,22 @@ function write_CSVdata(pExportType, pHeader, pData, pSelectedView) {
 		} else {
 			var promptFileName = model.name + ".csv";
 		}
-		this.exportFile = window.promptSaveFile({ title: "Export to CSV", filterExtensions: [ "*.csv" ], fileName: promptFileName } );
+		this.exportFile = window.promptSaveFile({
+			title: "Export to CSV",
+			filterExtensions: ["*.csv"],
+			fileName: promptFileName,
+		});
 	}
-	
-	var i=0;
+
+	var i = 0;
 	var headerArray = [];
 	if (this.exportFile != null) {
 		var ExportFile = this.exportFile.substring(0, this.exportFile.length - 4) + "-" + pExportType + ".csv";
-	  	for (var label in pHeader) {
-			headerArray[i]=pHeader[label];
+		for (var label in pHeader) {
+			headerArray[i] = pHeader[label];
 			i++;
 		}
-		$.fs.writeFile( ExportFile, Papa.unparse({ fields: headerArray,  data: pData }) );
+		$.fs.writeFile(ExportFile, Papa.unparse({ fields: headerArray, data: pData }));
 		console.log(">>> " + pExportType + " saved in : " + ExportFile);
 	} else {
 		console.log("> Save CSV canceled");
@@ -119,25 +121,27 @@ function write_CSVdata(pExportType, pHeader, pData, pSelectedView) {
 
 /*
  *	Export the properties of an object to a CSV row
- */  
+ */
 function export_properties(pObject, pRow, pHeaderDef) {
-	
 	// retrieve all properties of the pObject
-	for (var i=0; i<pObject.prop().length; i++){
+	for (var i = 0; i < pObject.prop().length; i++) {
 		var PropertyLabel = pObject.prop()[i];
-	
+
 		if (pObject.prop(PropertyLabel)) {
 			var found = false;
-	
+
 			for (var prop in pHeaderDef) {
-				if (prop==PropertyLabel) {found=true;}            
+				if (prop == PropertyLabel) {
+					found = true;
+				}
 			}
-			if (!found) { // add property label only once to the header
+			if (!found) {
+				// add property label only once to the header
 				pHeaderDef[PropertyLabel] = PropertyLabel;
-				debug? console.log(">>> Add property label : " + PropertyLabel):true;
+				debug ? console.log(">>> Add property label : " + PropertyLabel) : true;
 			}
 			pRow[PropertyLabel] = pObject.prop(PropertyLabel);
-			debug? console.log(`>>>> Add property ${PropertyLabel} : ${pObject.prop(PropertyLabel)}`):true;
+			debug ? console.log(`>>>> Add property ${PropertyLabel} : ${pObject.prop(PropertyLabel)}`) : true;
 		}
 	}
 }
@@ -146,40 +150,41 @@ function export_properties(pObject, pRow, pHeaderDef) {
  * Import the current row
  * 	assign the cell values to the attributes and properties of the object
  * 	and write a log if there is a change
- * 
+ *
  * @param pObject current object with properties (element, relation or view)
  * @param pHeaderDef attribute names for object
  * @param pCSVheader property names for object
  * @param pCSVrow property values
  * @param pStat object with flags and counters to return to calling script
- * @param pImportLog 
+ * @param pImportLog
  */
 function import_attributes_properties(pObject, pHeaderDef, pCSVheader, pCSVrow, pStat, pImportLog) {
-	var attribute_i=0;
+	var attribute_i = 0;
 
 	if (pObject != null) {
 		// import attributes defined in header
 		for (var label in pHeaderDef) {
-			if (label!="id"){ // id can't be set
-				// Only if 'label' is set and value is changed ### ongetest 
-				if (pCSVrow[pHeaderDef[label]] && pObject[label] != pCSVrow[pHeaderDef[label]]){
-
+			if (label != "id") {
+				// id can't be set
+				// Only if 'label' is set and value is changed ### ongetest
+				if (pCSVrow[pHeaderDef[label]] && pObject[label] != pCSVrow[pHeaderDef[label]]) {
 					pImportLog.Text += `\n>>> Set attribute [${label}]: \n${pObject[label]}\n${pCSVrow[pHeaderDef[label]]}`;
-					pStat.flag.updated=true;
+					pStat.flag.updated = true;
 
 					pObject[label] = pCSVrow[pHeaderDef[label]];
 				}
 			}
 			attribute_i++;
 		}
-		// import properties	
-		for (var j_col=attribute_i; j_col<pCSVheader.length; j_col++) {
+		// import properties
+		for (var j_col = attribute_i; j_col < pCSVheader.length; j_col++) {
 			// skip empty pCSVrows and the customlabel_ImportLog_property
-			if (pCSVrow[pCSVheader[j_col]] && (pCSVheader[j_col] != customlabel_ImportLog_property)) { 
+			if (pCSVrow[pCSVheader[j_col]] && pCSVheader[j_col] != customlabel_ImportLog_property) {
 				if (pObject.prop(pCSVheader[j_col]) != pCSVrow[pCSVheader[j_col]]) {
-
-					pImportLog.Text += `\n>>> Set property [${pCSVheader[j_col]}]: \n${pObject.prop(pCSVheader[j_col])}\n${pCSVrow[pCSVheader[j_col]]}`;
-					pStat.flag.updated=true;
+					pImportLog.Text += `\n>>> Set property [${pCSVheader[j_col]}]: \n${pObject.prop(pCSVheader[j_col])}\n${
+						pCSVrow[pCSVheader[j_col]]
+					}`;
+					pStat.flag.updated = true;
 
 					pObject.prop(pCSVheader[j_col], pCSVrow[pCSVheader[j_col]]);
 				}
@@ -187,61 +192,81 @@ function import_attributes_properties(pObject, pHeaderDef, pCSVheader, pCSVrow, 
 		}
 
 		if (customlabel_ImportLog_property) {
-			pStat.flag.notfound_created || pStat.flag.updated ? pObject.prop(customlabel_ImportLog_property, `${ImportDate}: ${pImportLog.Text}`):true;
+			pStat.flag.notfound_created || pStat.flag.updated
+				? pObject.prop(customlabel_ImportLog_property, `${ImportDate}: ${pImportLog.Text}`)
+				: true;
 		}
 	}
 
-	pStat.flag.notfound_created || pStat.flag.updated ? console.log(`===============================\n>> ${pObject} ${pImportLog.Text}`):true;
-	pStat.flag.notfound_created ? pStat.nr.notfound_created++:true;
-	pStat.flag.updated && !pStat.flag.notfound_created ? pStat.nr.updated++:true;
-	
+	pStat.flag.notfound_created || pStat.flag.updated
+		? console.log(`===============================\n>> ${pObject} ${pImportLog.Text}`)
+		: true;
+	pStat.flag.notfound_created ? pStat.nr.notfound_created++ : true;
+	pStat.flag.updated && !pStat.flag.notfound_created ? pStat.nr.updated++ : true;
+
 	pStat.nr.processed++;
 }
 
-
 /*
- *	show some statistics 
- */  
+ *	show some statistics
+ */
 function stats_CSVdata(pType, pDuplicate, pHeader, pData) {
-	var i=0;
+	var i = 0;
 	console.log("==============");
-	console.log("> Columns for " + pType );
+	console.log("> Columns for " + pType);
 	for (var label in pHeader) {
 		i++;
 		console.log(">> " + i + " : " + pHeader[label]);
 	}
-  
+
 	if (pDuplicate.length > 0) {
 		console.log("> Info: " + pType + " with multiple occurrences on view: ");
 		for (var i = 0; i < pDuplicate.length; i++) {
 			console.log(">> ", pDuplicate[i]);
 		}
 	}
-	console.log("> Number of " + pType + " : " + pData.length );
+	console.log("> Number of " + pType + " : " + pData.length);
 }
 
 /*
  *	Find Object with property en propertyvalue
- */  
+ */
 function FindObjectWithProperty(pConcept, pProperty, pValue) {
 	var vSelectedObject = null;
-	E_I_Debug?console.log(">>> FindObjectWithProperty() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"):true;
-	if (typeof pValue !== "undefined"){ // property must exist
+	E_I_Debug
+		? console.log(
+				">>> FindObjectWithProperty() > (pConcept=" + pConcept + ", pProperty=" + pProperty + ", pValue=" + pValue + ")"
+		  )
+		: true;
+	if (typeof pValue !== "undefined") {
+		// property must exist
 		// console.log(">>> FindObjectWithProperty() > pValue = " + typeof(pValue));
-		if (pValue) { // don't search with empty value
-			$(pConcept).each(function(vObject) {
+		if (pValue) {
+			// don't search with empty value
+			$(pConcept).each(function (vObject) {
 				// console.log(">>> FindObjectWithProperty() > vObject : " + vObject);
 				if (vObject.prop(pProperty) == pValue) {
-					E_I_Debug?console.log(">>> FindObjectWithProperty() > " + pConcept + " found : " + vObject + " with " + pProperty + " = " + pValue):true;
+					E_I_Debug
+						? console.log(
+								">>> FindObjectWithProperty() > " +
+									pConcept +
+									" found : " +
+									vObject +
+									" with " +
+									pProperty +
+									" = " +
+									pValue
+						  )
+						: true;
 					vSelectedObject = vObject;
 				}
 			}); // each vObject
 		}
 	} else {
-		E_I_Debug?console.log(">>> FindObjectWithProperty() > no custom property value "):true;
+		E_I_Debug ? console.log(">>> FindObjectWithProperty() > no custom property value ") : true;
 	}
 	return vSelectedObject;
-} 
+}
 
 /*
  *	Try to find an existing element.
@@ -250,30 +275,30 @@ function FindObjectWithProperty(pConcept, pProperty, pValue) {
  * 	- else return element found with Archi id
  * 	- else return element found by name.
  *  	- return the first if there are multiple elements with the same name
- */  
+ */
 function FindElement(pProperty, pPropertyValue, pSelectID, pSelectName, pType) {
 	var vElement = null;
 	var vElementFound = false;
 	var vFindImportText = "";
 
 	// Find the element with custom property
-	E_I_Debug? console.log(">> FindElement() > " + pProperty + " = " + pPropertyValue ) : true;
+	E_I_Debug ? console.log(">> FindElement() > " + pProperty + " = " + pPropertyValue) : true;
 	vElement = FindObjectWithProperty("element", pProperty, pPropertyValue);
-	if (vElement) {	
+	if (vElement) {
 		vElementFound = true;
 		vFindImportText = pProperty;
-	} 
-	
-	// Find element with the id.
-	if (!vElementFound) { // if there is no vElement with the pProperty
-		if (pSelectID) {
+	}
 
-			vSelectID ="#" + pSelectID;
-			E_I_Debug? console.log(">> FindElement() > id = " + vSelectID): true;
+	// Find element with the id.
+	if (!vElementFound) {
+		// if there is no vElement with the pProperty
+		if (pSelectID) {
+			vSelectID = "#" + pSelectID;
+			E_I_Debug ? console.log(">> FindElement() > id = " + vSelectID) : true;
 
 			vElementCollection = $(vSelectID); // Result is collection of elements with #id
 
-			if (vElementCollection.is('element')) {
+			if (vElementCollection.is("element")) {
 				vElement = vElementCollection.first();
 				vElementFound = true;
 				vFindImportText = "Element with id";
@@ -282,33 +307,36 @@ function FindElement(pProperty, pPropertyValue, pSelectID, pSelectName, pType) {
 	}
 
 	// Find element by name.
-	if (!vElementFound) { // if there is no vElement with the pProperty of the id
+	if (!vElementFound) {
+		// if there is no vElement with the pProperty of the id
 		if (pSelectName) {
-
 			vSelectName = "." + pSelectName;
-			E_I_Debug? console.log(">> FindElement() > " + pSelectName + " = " + vSelectName ):true;
-			if (!pType) { // elementtype is known
-				throw "Element without type "  + pSelectName + " = " + vSelectName;
+			E_I_Debug ? console.log(">> FindElement() > " + pSelectName + " = " + vSelectName) : true;
+			if (!pType) {
+				// elementtype is known
+				throw "Element without type " + pSelectName + " = " + vSelectName;
 			}
 
 			vElementCollection = $(vSelectName).filter(pType);
-			if (vElementCollection.is('element')) { // if element found 
+			if (vElementCollection.is("element")) {
+				// if element found
 
 				if (vElementCollection.size() == 1) {
 					vFindImportText = pSelectName;
 					vElement = vElementCollection.first();
 					vElementFound = true;
 				} else {
-					vFindImportText = pSelectName + " (" + pType +  ") : Multiple elements found, number = " + vElementCollection.size();
+					vFindImportText =
+						pSelectName + " (" + pType + ") : Multiple elements found, number = " + vElementCollection.size();
 				}
 			} else {
-				vFindImportText = pSelectName + " (" + pType +  ") : Not found";
+				vFindImportText = pSelectName + " (" + pType + ") : Not found";
 			}
 		} else {
 			vFindImportText = "Empty name, not found";
 		}
 	}
 
-	E_I_Info? console.log(">> FindElement() : " + vFindImportText + " > " + vElement):true;
-	return {vElement:vElement, vFindImportText:vFindImportText}
+	E_I_Info ? console.log(">> FindElement() : " + vFindImportText + " > " + vElement) : true;
+	return { vElement: vElement, vFindImportText: vFindImportText };
 }
