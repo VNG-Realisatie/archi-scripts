@@ -17,65 +17,60 @@
  *  2	03/04/2021	Mark Backer		Some more parameters and restructure.
  * 
  * Param is an object that may contain the following properties:
-		concepts (mandatory)			Class of Archimate concepts that must be included in the created view
-										May be one of:
-											*	all objects in the model
-											selected		selected objects from the model
-											class,class,...	list of Archimate classes (comma-separated) like business-actor, application-component, technology-collaboration, node, ...
+		concepts (mandatory)
+		- Class of Archimate concepts that must be included in the created view
+			-	*	all objects in the model
+			-	selected		selected objects from the model
+			-	class,class,...	list of Archimate classes (comma-separated) like business-actor, application-component, technology-collaboration, node, ...
 									
-		relations (optional)			The relations types that will be included in the view. 
-										When graphDepth is greater than 0, this also defines which relation will be followed
-										May be one of:
-											*	all relation types in the model
-											class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
+		relations (optional)
+		- The relations types that will be included in the view. 
+			When graphDepth is greater than 0, this also defines which relation will be followed
+				*	all relation types in the model
+				class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
 									
-		reverse_relations (optional)	The relations types which will be rendered target to source
-										May be one of:
-											*	all relation types in the model
-											class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
+		reverse_relations (optional)
+		- The relations types which will be rendered target to source
+			-	*	all relation types in the model
+			-	class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
 									
-		action (optional)				The type of action that the script should do.
-										May be one of:
-											actionType.ONE_SINGLE_VIEW		--> create one single view that includes all the Archimate concepts,
-											actionType.ONE_VIEW_PER_CONCEPT	--> create one view per Archimate concept
-										Defaults to actionType.ONE_SINGLE_VIEW
+		action (optional - Defaults to actionType.ONE_SINGLE_VIEW)
+		- The type of action that the script should do.
+				actionType.ONE_SINGLE_VIEW		--> create one single view that includes all the Archimate concepts,
+				actionType.ONE_VIEW_PER_CONCEPT	--> create one view per Archimate concept
 	
-		viewName (optional)				Name of the view to create
-										Used only if action = ONE_SINGLE_VIEW, else each view is named by the corresponding concept
-										Defaults to:
-											"whole model"        if concepts = "*"
-											"selected concepts"  in all other cases
+		viewName (optional)
+		- Name of the view to create
+		- Defaults to: name of selected concept
 									
-		graphDepth (optional)			Depth of the graph to create (numerical)
-										Defaults to 0
+		graphDepth (optional, default is 0)
+		-	Depth of the graph to create (numerical)
 									
-		nested_relations (optional)	Array if relationships names which will conduct to nested elements.
-										Defaults to []
-										
-		graphDirection (optional)		Direction of the graph.
-											May be one of:
-												TB		Top-Bottom
-												BT		Bottom-Top
-												LR		Left-Right
-												RL		right-Left
-										Defaults "TB"
-										
-		graphAlign (optional)			Alignment of the graph.
-											May be one of:
-												UL		Up Left
-												UR		Up Right
-												DL		Down Left
-												DR		Down Right
-										Default to no default alignment
+		nested_relations (optional, default [])
+		-	Array of relationships names which will conduct to nested elements.
+			
+		graphDirection (optional, default "TB")
+		-	Direction of the graph.
+					TB		Top-Bottom
+					BT		Bottom-Top
+					LR		Left-Right
+					RL		right-Left
+			
+		graphAlign (optional, default is none which centers de graph)
+		- Alignment of the graph.
+					UL		Up Left
+					UR		Up Right
+					DL		Down Left
+					DR		Down Right
 
-		hSep (optional)					Number of pixels that separate nodes horizontally
-										Defaults to 50
-										
-		vSep (optional)					Number of pixels that separate nodes vertically
-										Defaults to 50
+		hSep (optional, Defaults to 50)
+		- Number of pixels that separate nodes horizontally
+			
+		vSep (optional, Defaults to 50)
+		- Number of pixels that separate nodes vertically
 
-		debug (optional)				Prints debug message on the console
-										defaults to value of G_debug variable defined at begining of script
+		debug (optional, default is false)
+		- Prints debug message on the console
 */
 
 try {
@@ -263,11 +258,7 @@ function createGraph(param) {
 }
 /**
  * add selected nodes
- *
  * add related nodes
- *
- *
- *
  */
 function fillGraph(param, filteredElements, graph) {
 	var elementsIndex = {};
@@ -366,7 +357,6 @@ function addNode(archiElement, filteredElements, elementsIndex, level, depth) {
 
 function addEdge(src, tgt, rel, level) {
 	if (typeof this.addEdgeFlag == "undefined") {
-		// JS functions are also objects -- which means they can have (static) properties
 		this.addEdgeFlag = true;
 		this.parentIndex = {};
 	}
@@ -545,12 +535,7 @@ function addBendpoint(startpoint, endpoint, index, connection) {
 		endX: 0,
 		endY: 0,
 	};
-	// let bendpoint = {
-	// 	startX: startpoint.x /2,
-	// 	startY: startpoint.y /2,
-	// 	endX: endpoint.x /2,
-	// 	endY: endpoint.y /2
-	// }
+
 	debug(`bendpoint: ${JSON.stringify(bendpoint)}`);
 	debug(`connection: ${connection}`);
 	debug(`index: ${index}`);
