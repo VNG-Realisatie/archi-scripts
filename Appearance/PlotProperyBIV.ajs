@@ -7,52 +7,49 @@
 load(__DIR__ + "../_lib/chroma.min.js");
 load(__DIR__ + "../_lib/Common.js");
 
+function plotPropertyBIV(obj, args) {
+	if (typeof this.only_once == "undefined") {
+		this.BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
+		colorscale = chroma.scale(args[0]);
+		console.log(`Plot notes with the BIV-values inside the application-components`);
+		this.only_once = true;
+	}
+
+	// color element with value for 'Vertrouwelijkheid'
+	obj.fillColor = colorscale((obj.prop("Vertrouwelijkheid") - 0.8) / 3);
+
+	// only plot BIV notes in referentiecomponent, not in legenda components
+	if (obj.prop("GEMMA type") == "Referentiecomponent") {
+		var x = 20;
+		for (var i = 0; i < this.BIVlist.length; i++) {
+			var BIVvalue = obj.prop(this.BIVlist[i]);
+			if (BIVvalue) {
+				// Add a Note to this element
+				var note = obj.createObject("note", x, 45, 45, 25);
+				// subtract less than 1 for darker color in note than element
+				note.fillColor = colorscale((BIVvalue - 0.6) / 3);
+				note.fontSize = 9;
+
+				var str = this.BIVlist[i];
+				note.text = `${str.substring(0, 1)} = ${obj.prop(this.BIVlist[i])}`;
+			} else {
+				console.log(`${obj.name}: no property ${this.BIVlist[i]}`);
+			}
+			x += 60;
+		}
+	} else {
+		console.log(`Skip ${obj.name}: property "GEMMA type" = ${obj.prop("GEMMA type")}`);
+	}
+}
+
 initConsoleLog(__FILE__);
+
+load(__DIR__ + "includeFormatting.js");
 
 // ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
 // colorscale 	= chroma.scale('Oranges');
 // colorscale 	= chroma.scale('Greens');
 // colorscale 	= chroma.scale('YlGn');
-colorscale = chroma.scale("Blues");
-
-var selectedView = $(selection).filter("archimate-diagram-model").first();
-
-if (!selectedView) {
-	console.log("> Please Select a View");
-} else {
-	var k = 0;
-	var BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
-
-	$(selectedView)
-		.find("application-component")
-		.forEach(function (VisualElement) {
-			VisualElement.fillColor = colorscale((VisualElement.prop("Vertrouwelijkheid") - 0.8) / 3); // color element with value for 'Vertrouwelijkheid'
-
-			// only plot BIV notes in referentiecomponent, not in legenda components
-			if (VisualElement.prop("GEMMA type") == "Referentiecomponent") {
-				var x = 20;
-				for (var i = 0; i < BIVlist.length; i++) {
-					var BIVvalue = VisualElement.prop(BIVlist[i]);
-					if (BIVvalue) {
-						var note = VisualElement.createObject("note", x, 45, 45, 25); // Add a Note to this element
-						note.fillColor = colorscale((BIVvalue - 0.6) / 3); // subtract less than 1 for darker color in note than element
-						note.fontSize = 9;
-						//				note.fontStyle = "bold";
-
-						var str = BIVlist[i];
-						note.text = `${str.substring(0, 1)} = ${VisualElement.prop(BIVlist[i])}`;
-					} else {
-						console.log(`${VisualElement.name}: no property ${BIVlist[i]}`);
-					}
-					x += 60;
-				} // next in BIVlist
-			} else {
-				console.log(`${VisualElement.name}: property "GEMMA type" = ${VisualElement.prop("GEMMA type")}`);
-			}
-			k++;
-		}); // next element
-
-	console.log(`${k} application-components plotted`);
-}
+formatObjectsOfType($(selection), plotPropertyBIV, ["Oranges"]);
 
 finishConsoleLog();

@@ -8,34 +8,22 @@
  * Select objects in the model tree or on a view and run this script
  *
  */
-load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../_lib/ApplyToSelection.js");
+function fontReset(obj) {
+	console.log(`>>> ${obj} on view ${obj.view.name}`);
 
-initConsoleLog(__FILE__);
-
-applyToDiagramContent($(selection), FontReset);
-
-finishConsoleLog();
-
-/*
- * FontReset
- *
- * Reset font for object
- *
- */
-function FontReset(pObject) {
-	console.log(`>>> ${pObject} on view ${pObject.view.name}`);
-
-	if (pObject.fontName != null) {
-		pObject.fontName = "Segoe UI";
+	if (obj.fontName != null) {
+		obj.fontName = "Segoe UI";
 	}
-	if (pObject.fontStyle != null) {
-		pObject.fontStyle = null;
+	if (obj.fontStyle != null) {
+		obj.fontStyle = null;
 	}
-	if (pObject.fontColor != null) {
-		pObject.fontColor = null;
+	if (obj.fontColor != null) {
+		obj.fontColor = null;
 	}
-	if (pObject.fontSize != null) {
-		pObject.fontSize = 9;
+	if (obj.fontSize != null) {
+		obj.fontSize = 9;
 	}
 }
+
+load(__DIR__ + "includeFormatting.js");
+formatObjects($(selection), fontReset);

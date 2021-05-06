@@ -1,0 +1,13 @@
+/**
+ * FontSet
+ *   Set the font to given fixed type and size
+ *
+ */
+
+function fontSet(obj, args) {
+	obj.fontName = args[0];
+	obj.fontSize = args[1];
+}
+
+load(__DIR__ + "includeFormatting.js");
+formatObjectsOfType($(selection), fontSet, ["Arial", 12]);

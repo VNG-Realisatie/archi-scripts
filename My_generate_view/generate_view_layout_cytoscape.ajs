@@ -11,11 +11,12 @@
  */
 
 load(__DIR__ + "../_lib/Common.js");
+initConsoleLog(__FILE__, true);
 checkJavaScriptEngine(ENGINE_GRAAL_VM);
 
 load(__DIR__ + "include_generate_view_cytoscape.js");
 
-var param = {
+let param = {
 	// viewName: "gen-custom",
 
 	concepts: [
@@ -67,13 +68,24 @@ var param = {
 	// algorithm: "tight-tree",
 	// algorithm: "network-simplex",
 
+	// layout: "grid",
+	// layout: "circle",
+	// layout: 'concentric',
+	// layout: 'cose',
+	layout: 'breadthfirst',
+	// layout: 'random', // Error: >> Invalid parameter layout: random
+	// layout: 'avsdf', // extension
+	// layout: 'fcose', // extension
+	// layout: 'dagre',
+	// layout: 'elk',
+
+	nodeWidth: 140,
+	nodeHeight: 60,
 	hSep: 20,
-	vSep: 80,
+	vSep: 60,
 
-	debug: true,
+	debug: false,
 };
-
-initConsoleLog(__FILE__, true);
 
 generate_view(param);
 // generate_multiple_view(param);

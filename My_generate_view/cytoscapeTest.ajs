@@ -17,20 +17,29 @@ try {
 		NODE_MODULES = __SCRIPTS_DIR__ + "node_modules/";
 
 		load(ARCHI_SCRIPT + "_lib/Common.js");
+		_commonShowDebugMessage.push(true);
 		load(ARCHI_SCRIPT + "_lib/jvm-npm.js");
 
 		initConsoleLog(__FILE__);
 
 		// require.addPath(NODE_MODULES + "dagre/dist/");
-		debug("Loading dependencies...");
+		console.log("Loading dependencies...");
 
+		debug("Loading cytoscape and layouts...");
 		load("https://unpkg.com/cytoscape");
+		debug("Loaded cytoscape");
 		load("https://unpkg.com/layout-base/layout-base.js");
+		debug("Loaded layout-base");
 		load("https://unpkg.com/avsdf-base/avsdf-base.js");
+		debug("Loaded avsdf-base");
 		load("https://unpkg.com/cytoscape-avsdf");
+		debug("Loaded cytoscape-avsdf");
 		load("https://unpkg.com/cytoscape-dagre");
+		debug("Loaded cytoscape-dagre");
 		load("https://unpkg.com/cose-base/cose-base.js");
+		debug("Loaded cose-base");
 		load("https://unpkg.com/cytoscape-fcose/cytoscape-fcose.js");
+		debug("Loaded cytoscape-fcose");
 
 		cytoscapeTest();
 
@@ -51,102 +60,148 @@ try {
 	}
 }
 
-console.log("einde cytoscapeTest");
+console.log("\nEinde cytoscapeTest");
+
+// hack for missing setTimeout function in Archi environment
+// Creating cytoscape object gives
+// 		ReferenceError: "setTimeout" is not defined
+//		probably caused by: at startAnimationLoop (/cytoscape:32)
+// setTimeout is implemented in node or browser window object
+function setTimeout() {
+	debug(`setTimeout called`);
+}
 
 function cytoscapeTest() {
 	console.log(`Node modules used for creating graph:`);
 	console.log(`- cytoscape:    ${cytoscape.version}`);
 
-	var cy = cytoscape({
-		// container: document.getElementById('cy'),
-		elements: [
-			{ data: { id: "a" } },
-			{ data: { id: "b" } },
-			{
-				data: {
-					id: "ab",
-					source: "a",
-					target: "b",
-					label: "ab",
+	try {
+		console.log(`Create cytoscape object cy`);
+		var cy = cytoscape({
+			// container: document.getElementById('cy'),
+			style: [
+				{
+					selector: "node",
+					style: {
+						content: "data(name)",
+						shape: "hexagon",
+						"background-color": "red",
+						label: "data(id)",
+						width: `${NODE_WIDTH}`,
+						height: `${NODE_HEIGHT}`,
+					},
 				},
-			},
-		],
-		layout: { name: "grid" },
-		style: [
-			{
-				selector: "node",
-				style: {
-					shape: "hexagon",
-					"background-color": "red",
-					label: "data(id)",
-					width: `${NODE_WIDTH}`,
-					height: `${NODE_HEIGHT}`,
+				{
+					selector: "edge",
+					style: {
+						"target-arrow-shape": "triangle",
+						label: "data(id)",
+						color: "red",
+					},
 				},
-				selector: "edge",
-				style: {
-					label: "data(id)",
-					color: "red",
+				{
+					selector: ":selected",
+					style: {},
 				},
-			},
-		],
-		styleEnabled: true,
-		// headless: true
-	});
-
-	for (let i = 0; i < 10; i++) {
-		cy.add({ data: { id: "node" + i } });
-		var source = "node" + i;
-		cy.add({
-			data: {
-				id: "edge" + i,
-				source: source,
-				target: i % 2 == 0 ? "a" : "b",
-			},
+			],
+			elements: [
+				{ data: { id: "a" } },
+				{ data: { id: "b" } },
+				{
+					data: {
+						id: "ab",
+						source: "a",
+						target: "b",
+						label: "ab",
+					},
+				},
+			],
+			// layout: { name: "grid" },
+			headless: true,
+			styleEnabled: true,
 		});
-		for (let j = 0; j < 10; j += 2) {
-			cy.add({ data: { id: `node${i}${j}` } });
+
+		console.log(`Add nodes and edges to graph`);
+		for (let i = 0; i < 3; i++) {
+			cy.add({ data: { id: "node" + i } });
+			var source = "node" + i;
 			cy.add({
 				data: {
-					id: `edge${i}${j}`,
-					source: `node${i}`,
-					target: `node${i}${j}`,
-					label: `label${i}${j}`,
+					id: "edge" + i,
+					source: source,
+					target: i % 2 == 0 ? "a" : "b",
 				},
 			});
+			for (let j = 0; j < 3; j += 2) {
+				cy.add({ data: { id: `node${i}${j}` } });
+				cy.add({
+					data: {
+						id: `edge${i}${j}`,
+						source: `node${i}`,
+						target: `node${i}${j}`,
+						label: `label${i}${j}`,
+					},
+				});
+			}
 		}
+
+		console.log(`Run layout`);
+		cy.layout({
+			name: "circle",
+			// name: 'concentric',
+			// name: 'breadthfirst',
+			// name: 'cose',
+			// name: 'avsdf', // extension
+			// name: "fcose", // extension
+			// name: 'random',
+			// clockwise: false,
+			// minNodeSpacing: 30,
+			animate: false,
+			// circle: true,
+			grid: true,
+			// radius: 200
+			// name: 'grid'
+		}).run();
+
+		console.log(`\nShow nodes`);
+		// print all the ids of the nodes in the graph
+		cy.nodes().forEach(function (ele) {
+			// console.log(`ele.id(): ${ele.id()}`);
+			// console.log(`- pos: ${JSON.stringify(ele.position())}`);
+			console.log(`ele.json(): ${JSON.stringify(ele.json())}`);
+		});
+
+		console.log(`\nShow edges`);
+		cy.edges().forEach(function (edge) {
+			// console.log(`edge.id(): ${edge.id()}`);
+			// console.log(`edge.data(): ${JSON.stringify(edge.data())}`);
+			// console.log(`edge.data(label): ${edge.data("label")}`);
+			console.log(`edge.json: ${JSON.stringify(edge.json())}`);
+			// console.log(`- height=${edge.height()} width=${edge.width()}`);
+		});
+
+		newId = "kjjl";
+		cy.add({ data: { id: newId } });
+		console.log(`\nCheck empty cy.getElementById(newId): ${cy.getElementById(newId)}`);
+		if (!cy.getElementById(newId).isNode()) {
+			console.log("add element with id" + newId);
+			cy.add({ data: { id: newId } });
+			let eleX = cy.getElementById(newId);
+			console.log(`Check added cy.getElementById(newId): ${eleX.json()}`);
+		} else {
+			console.log("element found with id=" + JSON.stringify(cy.getElementById(newId).json()));
+		}
+
+		let ele=cy.nodes()
+		console.log(`\nSize of nodes`);
+		console.log(`- height=${ele.height()}\n- width=${ele.width()}`);
+
+		// Get the bounding box of the elements (in model co-ordinates).
+		let boundingbox = cy.elements().boundingBox();
+		console.log(`\nBoundingbox:\n${JSON.stringify(boundingbox)}`);
+
+		cy.destroy();
+	} catch (e) {
+		console.error(e.stack);
 	}
-
-	cy.layout({
-		// name: 'circle',
-		// name: 'concentric',
-		// name: 'breadthfirst',
-		// name: 'cose',
-		// name: 'avsdf', // extension
-		name: "fcose", // extension
-		// name: 'random',
-		// clockwise: false,
-		// minNodeSpacing: 30,
-		animate: false,
-		// circle: true,
-		grid: true,
-		// radius: 200
-		// name: 'grid'
-	}).run();
-
-	// print all the ids of the nodes in the graph
-	cy.nodes().forEach(function (ele) {
-		console.log(`ele.id(): ${ele.id()}`);
-		console.log(`- pos: ${JSON.stringify(ele.position())}`);
-		console.log(`- height=${ele.height()} width=${ele.width()}`);
-	});
-
-	cy.edges().forEach(function (edge) {
-		console.log(`edge.id(): ${edge.id()}`);
-		console.log(`edge.data(): ${JSON.stringify(edge.data())}`);
-		console.log(`edge.data(label): ${edge.data("label")}`);
-		// console.log(`- pos: ${JSON.stringify(edge.position())}`)
-		// console.log(`- height=${edge.height()} width=${edge.width()}`);
-	});
-
-	cy.destroy();
 }

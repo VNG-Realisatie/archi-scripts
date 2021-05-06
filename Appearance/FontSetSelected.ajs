@@ -1,0 +1,14 @@
+/**
+ * FontSetSelected
+ *  Set the font to given fixed type and size
+ * 	for all selected concepts
+ *
+ */
+
+function fontSet(obj, args) {
+	obj.fontName = args[0];
+	obj.fontSize = args[1];
+}
+
+load(__DIR__ + "includeFormatting.js");
+formatObjects($(selection), fontSet, ["Arial", 12]);

@@ -67,6 +67,8 @@ var param = {
 	// algorithm: "tight-tree",
 	// algorithm: "network-simplex",
 
+	nodeWidth: 140,
+	nodeHeight: 60,
 	hSep: 20,
 	vSep: 80,
 

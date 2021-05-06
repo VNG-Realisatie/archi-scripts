@@ -1,0 +1,40 @@
+load(__DIR__ + "../_lib/chroma.min.js");
+load(__DIR__ + "includeFormatting.js");
+
+/**
+ * ColorByVertrouwelijkheid
+ *	 Color elements of the same type by the value of a given property
+ */
+function ColorBy(obj, args) {
+	let property = args[0];
+	let color = args[1];
+
+	// colorscale = chroma.scale("Blues").padding([0.1, 0.2]);
+	colorscale = chroma.scale(color).padding([0.1, 0.2]);
+
+	if (obj.prop(property)) {
+		console.log(`${obj} met ${property}: ${obj.prop(property)}`);
+		obj.fillColor = colorscale((obj.prop(property) - 0.8) / 3);
+	} else {
+		console.log(`Skipped ${obj}: ${property} = ${obj.prop(property)}`);
+	}
+}
+
+try {
+	// formatObjectsOfType($(selection), ColorBy, ["Vertrouwelijkheid", "Blues"]);
+	formatObjectsOfType($(selection), ColorBy, ["Vertrouwelijkheid", "Oranges"]);
+} catch (error) {
+	console.log(error.stack);
+}
+
+function getFunctionCall(pathname) {
+	console.log(`\nScript ${pathname}`);
+
+	let filename = pathname.replace(/^.*[\\\/]/, "").replace(/\.ajs$/, "");
+	let fields = filename.split(/_/);
+	var name = fields[0];
+	var arg1 = fields[1];
+	console.log(`\n${name}(${arg1})`);
+
+	return { name, arg1 };
+}

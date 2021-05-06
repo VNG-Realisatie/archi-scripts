@@ -1,0 +1,24 @@
+/*
+ * plotNoteForSWC
+ *
+ * Plot a note in with the text of a property in elements of the same type
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+
+function plotNoteForSWC(obj) {
+	if (obj.prop("GEMMA status") == "In ontwikkeling") {
+		// Add a Note to this element
+		var note = obj.createObject("note", 10, 45, 200, 30);
+		note.fillColor = obj.fillColor; // .luminance(0.9);
+		note.fontSize = 9;
+		// note.fontStyle = "bold";
+
+		note.text = `(Nog) niet opgenomen in SWC`;
+		console.log(`Note plotted in "${obj}"`)
+	}
+}
+
+load(__DIR__ + "includeFormatting.js");
+formatObjectsOfType($(selection), plotNoteForSWC);
