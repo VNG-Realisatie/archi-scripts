@@ -9,5 +9,5 @@ function fontSet(obj, args) {
 	obj.fontSize = args[1];
 }
 
-load(__DIR__ + "includeFormatting.js");
+load(__DIR__ + "../_lib/includeFormatting.js");
 formatObjectsOfType($(selection), fontSet, ["Arial", 12]);

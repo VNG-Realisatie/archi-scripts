@@ -23,6 +23,6 @@
 	obj.opacity = 255;
 }
 
-load(__DIR__ + "includeFormatting.js");
+load(__DIR__ + "../_lib/includeFormatting.js");
 
 formatObjects($(selection), SetDefaultFormat);

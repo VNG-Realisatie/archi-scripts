@@ -1,47 +1,33 @@
+// chroma-js for all kinds of color conversions and color scales
+// api docs https://gka.github.io/chroma.js/
+load("https://unpkg.com/chroma-js");
+
 /*
  * ColorDesaturate.ajs
  */
 function ColorDesaturate(obj) {
-	console.log(`obj.fillColor: ${obj.fillColor}`)
-	obj.fillColor = Desaturate(obj.fillColor, 50);
-}
-
-// Desaturate('#f7ecd0', 10);
-function Desaturate(hex, sat) {
-	sat = sat / 100;
-	if (hex) {
-		var col = hexToRgb(hex);
-		var gray = col.r * 0.3086 + col.g * 0.6094 + col.b * 0.082;
-
-		col.r = Math.round(col.r * sat + gray * (1 - sat));
-		col.g = Math.round(col.g * sat + gray * (1 - sat));
-		col.b = Math.round(col.b * sat + gray * (1 - sat));
-
-		return rgbToHex(col.r, col.g, col.b);
+	let color = chroma(obj.lineColor).brighten(2); // ### doesn't change black ..
+	obj.lineColor = `${color}`;
+	if ($(obj).is("relationship")) {
+		// console.log(`>> Skip relationship ${obj}`);
 	} else {
-		return hex;
+		if (obj.fillColor) {
+			let color = chroma(obj.fillColor).desaturate(0.5);
+			obj.fillColor = `${color}`;
+			console.log(`>> ${obj.name ? obj.name : obj} desaturated`);
+		} else {
+			console.log(`>>> ${obj} has no color value (set to default)`);
+		}
 	}
 }
 
-function hexToRgb(hex) {
-	var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-	return result
-		? {
-				r: parseInt(result[1], 16),
-				g: parseInt(result[2], 16),
-				b: parseInt(result[3], 16),
-		  }
-		: null;
-}
+load(__DIR__ + "../_lib/includeFormatting.js");
 
-function rgbToHex(r, g, b) {
-	return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+let pattern = /^.*[\\\/]/;
+console.log(`Executing script ${__FILE__.replace(pattern, "")}\n`);
+try {
+	formatObjects($(selection), ColorDesaturate);
+} catch (error) {
+	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-
-function componentToHex(c) {
-	var hex = c.toString(16);
-	return hex.length == 1 ? "0" + hex : hex;
-}
-
-load(__DIR__ + "includeFormatting.js");
-formatObjects($(selection), ColorDesaturate);
+console.log(`\nFinished\n`);

@@ -44,7 +44,7 @@ function plotPropertyBIV(obj, args) {
 
 initConsoleLog(__FILE__);
 
-load(__DIR__ + "includeFormatting.js");
+load(__DIR__ + "../_lib/includeFormatting.js");
 
 // ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
 // colorscale 	= chroma.scale('Oranges');

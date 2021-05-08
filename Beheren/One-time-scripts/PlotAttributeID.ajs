@@ -1,0 +1,30 @@
+/*
+ * PlotAttributeID
+ *
+ * For the selected object, plot a note with the Archi id
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+function plotAttributeID(obj) {
+	if (obj.type.endsWith("relationship") || obj.type.startsWith("diagram-model")) {
+		console.log(`>>> Skipped object ${obj}`);
+	} else {
+		console.log(`>>> ${obj}`);
+
+		// Add a Note to this element
+		var note = obj.createObject("note", 5, 25, 250, 25);
+		// plot id of concept, not id of occurrence
+		note.text = `${obj.concept.id}`;
+	}
+}
+
+load(__DIR__ + "../../_lib/Common.js");
+load(__DIR__ + "../../_lib/includeFormatting.js");
+
+initConsoleLog(__FILE__, true);
+
+// applyToDiagramContent($(selection).find("element"), PlotAttributeID);
+formatObjects($(selection), plotAttributeID);
+
+finishConsoleLog();

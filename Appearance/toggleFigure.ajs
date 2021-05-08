@@ -18,5 +18,5 @@ function toggleFigure(obj) {
 	else obj.figureType = 0;
 }
 
-load(__DIR__ + "includeFormatting.js");
+load(__DIR__ + "../_lib/includeFormatting.js");
 formatObjectsOfType($(selection), toggleFigure);
