@@ -4,6 +4,13 @@
  *	Select one element on a view or in the model tree.
  *	- toggle figure of this element type in the view or in all views
  */
+
+load(__DIR__ + "../_lib/SelectCollection.js");
+
+console.log("\nToggle figure of objects of selected type\n")
+let collection = selectVisualObjectsOfType($(selection));
+applyToCollection(collection, toggleFigure);
+
 function toggleFigure(obj) {
 	if (typeof this.only_once == "undefined") {
 		this.only_once = true;
@@ -17,6 +24,3 @@ function toggleFigure(obj) {
 	// icon shape
 	else obj.figureType = 0;
 }
-
-load(__DIR__ + "../_lib/includeFormatting.js");
-selectVisualObjectsOfType($(selection), toggleFigure);

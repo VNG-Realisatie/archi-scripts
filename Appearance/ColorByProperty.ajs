@@ -46,8 +46,8 @@ function ColorByProperty(obj) {
 		promptText = `Select a property\n`;
 		promptText += `   Prefilled with properties from [${obj}]\n`;
 		promptText += `   Edit and keep the name of the property`;
-		// this.selectedProperty = window.prompt(promptText, `${propertiesList}`);
-		this.selectedProperty = "GEMMA type";
+		this.selectedProperty = window.prompt(promptText, `${propertiesList}`);
+		// this.selectedProperty = "GEMMA type";
 		if (this.selectedProperty) {
 			if (obj.prop(this.selectedProperty)) {
 				this.propertyValues = getPropertyValues(obj, this.selectedProperty);
@@ -109,7 +109,6 @@ function getPropertyValues(obj, prop) {
  * Given a value and a list of possible values
  * -> return a color code based on the value's index position
  */
-
 function colorForIndexPosition(pValue, pValueList) {
 	// colorscale = chroma.scale('Oranges');
 	// colorscale = chroma.scale('Greens');
@@ -121,7 +120,8 @@ function colorForIndexPosition(pValue, pValueList) {
 	} else {
 		colorscale = chroma.scale("Blues").padding([0, 0.2]);
 	}
-	return `${colorscale(pValueList.indexOf(pValue) / pValueList.length)}`;
+	let color = colorscale(pValueList.indexOf(pValue) / pValueList.length)
+	return `${color}`;
 }
 
 /*
