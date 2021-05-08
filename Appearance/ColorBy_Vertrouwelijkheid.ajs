@@ -1,6 +1,19 @@
 // chroma-js for all kinds of color conversions and color scales
 // api docs https://gka.github.io/chroma.js/
 load("https://unpkg.com/chroma-js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/SelectCollection.js");
+
+initConsoleLog(__FILE__, true);
+
+try {
+	let collection = selectVisualObjectsOfType($(selection));
+	applyToCollection(collection.filter("element"), ColorBy, ["Vertrouwelijkheid", "Blues"]);
+} catch (error) {
+	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();
 
 /**
  * ColorByVertrouwelijkheid
@@ -12,27 +25,15 @@ function ColorBy(obj, args) {
 
 	if (typeof this.only_once == "undefined") {
 		this.colors = chroma.scale(chromaColor).padding([0.1, 0.2]);
-		console.log(`> Color elements with a shade of ${chromaColor}, varied by the value of ${prop}`);
+		console.log(`> Color elements with shades of ${chromaColor}, varied by the value of ${prop}`);
 		this.only_once = true;
 	}
 
 	if (obj.prop(prop)) {
 		console.log(`>> ${obj.name} color by value ${prop} = ${obj.prop(prop)}`);
-		colorShade = this.colors((obj.prop(prop) - 0.8) / 3)
+		colorShade = this.colors((obj.prop(prop) - 0.8) / 3);
 		obj.fillColor = `${colorShade}`;
 	} else {
 		console.log(`>> Skipped ${obj}: ${prop} = ${obj.prop(prop)}`);
 	}
 }
-
-load(__DIR__ + "../_lib/includeFormatting.js");
-
-let pattern = /^.*[\\\/]/;
-console.log(`Executing script ${__FILE__.replace(pattern, "")}\n`);
-try {
-	formatObjectsOfType($(selection), ColorBy, ["Vertrouwelijkheid", "Blues"]);
-	// formatObjectsOfType($(selection), ColorBy, ["Vertrouwelijkheid", "Oranges"]);
-} catch (error) {
-	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-}
-console.log(`\nFinished\n`);

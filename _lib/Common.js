@@ -14,14 +14,15 @@ let _commonShowDebugMessage = [false];
  */
 function initConsoleLog(pFile, pClear) {
 	_commonCounter = startCounter();
+	
 	// Show output in the console
-	filePath = pFile.split("\\");
-	_commonScriptName = filePath[filePath.length - 1];
-
 	console.show();
 	if (pClear) {
 		console.clear();
 	}
+
+	let pattern = /^.*[\\\/]/;
+	_commonScriptName = pFile.replace(pattern, "")
 
 	console.log("============================================");
 	console.log(`Executing script "${_commonScriptName}"...`);

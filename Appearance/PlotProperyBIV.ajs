@@ -3,9 +3,19 @@
  *		Plot notes with the BIV-values inside the application-components
  */
 
-//	chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
-load(__DIR__ + "../_lib/chroma.min.js");
+// chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
+// ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+load("https://unpkg.com/chroma-js");
+
 load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/SelectCollection.js");
+
+initConsoleLog(__FILE__, true);
+
+let collection = selectVisualObjectsOfType($(selection));
+applyToCollection(collection, plotPropertyBIV, ["Oranges"]);
+
+finishConsoleLog();
 
 function plotPropertyBIV(obj, args) {
 	if (typeof this.only_once == "undefined") {
@@ -16,7 +26,7 @@ function plotPropertyBIV(obj, args) {
 	}
 
 	// color element with value for 'Vertrouwelijkheid'
-	obj.fillColor = colorscale((obj.prop("Vertrouwelijkheid") - 0.8) / 3);
+	obj.fillColor = `${colorscale((obj.prop("Vertrouwelijkheid") - 0.8) / 3)}`;
 
 	// only plot BIV notes in referentiecomponent, not in legenda components
 	if (obj.prop("GEMMA type") == "Referentiecomponent") {
@@ -27,7 +37,7 @@ function plotPropertyBIV(obj, args) {
 				// Add a Note to this element
 				var note = obj.createObject("note", x, 45, 45, 25);
 				// subtract less than 1 for darker color in note than element
-				note.fillColor = colorscale((BIVvalue - 0.6) / 3);
+				note.fillColor = `${colorscale((BIVvalue - 0.6) / 3)}`;
 				note.fontSize = 9;
 
 				var str = this.BIVlist[i];
@@ -41,15 +51,3 @@ function plotPropertyBIV(obj, args) {
 		console.log(`Skip ${obj.name}: property "GEMMA type" = ${obj.prop("GEMMA type")}`);
 	}
 }
-
-initConsoleLog(__FILE__);
-
-load(__DIR__ + "../_lib/includeFormatting.js");
-
-// ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
-// colorscale 	= chroma.scale('Oranges');
-// colorscale 	= chroma.scale('Greens');
-// colorscale 	= chroma.scale('YlGn');
-formatObjectsOfType($(selection), plotPropertyBIV, ["Oranges"]);
-
-finishConsoleLog();

@@ -8,66 +8,65 @@
  */
 
 load(__DIR__ + "_lib/Common.js");
-load(__DIR__ + "_lib/ApplyToSelection.js");
+load(__DIR__ + "_lib/includeFormatting.js");
 
-initConsoleLog(__FILE__);
+initConsoleLog(__FILE__, true);
 
-applyToModelContent($(selection), reverseRelation);
+let collection = selectConcepts($(selection));
+// collection.each((obj) => plotAttributeID(obj));
+applyToCollection(collection.filter("relation"), reverseRelation);
 
 finishConsoleLog();
 
 /********************************************
  * function definitions
  *******************************************/
-function reverseRelation(pObject) {
+function reverseRelation(obj) {
 	_commonShowDebugMessage.push(false);
 
-	// filter for relation only.
-	// Can't filter selection in applyTo function, the selection could be a diagram with relations
-	if (pObject.type.endsWith("relationship")) {
-		source = pObject.concept.source;
-		target = pObject.concept.target;
-		// check if reversed relation is allowed
-		if ($.model.isAllowedRelationship(pObject.type, target.type, source.type)) {
-			// the order of switching source and target is relevant
-			// a relation connected twice with a relation is not allowed (in Archi or in ArchiMate)
-			if (source.type.endsWith("relationship")) {
-				debug(`\tSet target first, source is a ${source}`);
-				pObject.concept.source = target;
-				pObject.concept.target = source;
-			} else {
-				if (target.type.endsWith("relationship")) {
-					debug(`\tSet source first, target is a ${target}`);
-				}
-				pObject.concept.target = source;
-				pObject.concept.source = target;
-			}
-			console.log(`>> Reversed: \t${getRelationString(pObject)}`);
+	debug(`obj.id: ${obj.id}`);
+	debug(`obj.concept.id: ${obj.concept.id}`);
+
+	source = obj.source;
+	target = obj.target;
+	// check if reversed relation is allowed
+	if ($.model.isAllowedRelationship(obj.type, target.type, source.type)) {
+		// the order of switching source and target is relevant
+		// a relation connected twice with a relation is not allowed (in Archi or in ArchiMate)
+		if (source.type.endsWith("relationship")) {
+			debug(`\tSet target first, source is a ${source}`);
+			obj.source = target;
+			obj.target = source;
 		} else {
-			console.log(`>> Not allowed:\t${getRelationString(pObject)}`);
+			if (target.type.endsWith("relationship")) {
+				debug(`\tSet source first, target is a ${target}`);
+			}
+			obj.target = source;
+			obj.source = target;
 		}
+		console.log(`>> ${getRelationString(obj)}`);
 	} else {
-		console.log(`>> Ignored: \t${pObject}`);
+		console.log(`>> Not allowed: ${getRelationString(obj)}`);
 	}
 	_commonShowDebugMessage.pop();
 }
 
-function getRelationString(pRelation) {
-	var relationString = `${pRelation.type}`;
+function getRelationString(rel) {
+	let relationString = `${rel.type}`;
 
-	if (pRelation.type == "access-relationship" && pRelation.accessType) {
-		relationString += `(${pRelation.accessType})`;
+	if (rel.type == "access-relationship" && rel.accessType) {
+		relationString += `(${rel.accessType})`;
 	}
-	if (pRelation.type == "influence-relationship" && pRelation.influenceStrength) {
-		relationString += `(${pRelation.influenceStrength})`;
+	if (rel.type == "influence-relationship" && rel.influenceStrength) {
+		relationString += `(${rel.influenceStrength})`;
 	}
-	if (pRelation.type == "association-relationship" && pRelation.associationDirected) {
-		relationString += `(${pRelation.associationDirected})`;
+	if (rel.type == "association-relationship" && rel.associationDirected) {
+		relationString += `(${rel.associationDirected})`;
 	}
 
-	var relationName = pRelation.name ? `[${pRelation.name}]` : "[no name]";
-	var sourceName = pRelation.source.type.endsWith("relationship") ? pRelation.source : pRelation.source.name;
-	var targetName = pRelation.target.type.endsWith("relationship") ? pRelation.target : pRelation.target.name;
+	let relationName = rel.name ? `[${rel.name}]` : "[no name]";
+	let sourceName = rel.source.type.endsWith("relationship") ? rel.source : rel.source.name;
+	let targetName = rel.target.type.endsWith("relationship") ? rel.target : rel.target.name;
 	relationString += `: ${sourceName} -${relationName}-> ${targetName}`;
 
 	return relationString;

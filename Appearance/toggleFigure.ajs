@@ -19,4 +19,4 @@ function toggleFigure(obj) {
 }
 
 load(__DIR__ + "../_lib/includeFormatting.js");
-formatObjectsOfType($(selection), toggleFigure);
+selectVisualObjectsOfType($(selection), toggleFigure);

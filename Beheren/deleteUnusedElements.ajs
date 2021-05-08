@@ -1,24 +1,22 @@
 /**
  * deleteUnusedElements
- *
- * From github.com:nasjonal-arkitektur/kode-archiscripts
  */
 
 load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../_lib/ApplyToSelection.js");
+load(__DIR__ + "../_lib/SelectCollection.js");
 
-initConsoleLog(__FILE__);
+initConsoleLog(__FILE__, true);
 
-applyToModelContent($(selection), deleteUnusedElements);
+let collection = selectConcepts($(selection));
+applyToCollection(collection.filter("element"), deleteUnusedElements);
 
 finishConsoleLog();
 
-function deleteUnusedElements(pObject) {
-	objectType = pObject.type;
-	if (!objectType.endsWith("relationship")) {
-		if ($(pObject.concept).objectRefs().isEmpty()) {
-			console.log("Deleting unused element: " + pObject.name);
-			pObject.delete();
-		}
+function deleteUnusedElements(obj) {
+	if ($(obj.concept).objectRefs().isEmpty()) {
+		console.log(">> Delete: " + obj.name);
+		obj.delete();
+	} else {
+		console.log(">> Skip:   " + obj.name);
 	}
 }

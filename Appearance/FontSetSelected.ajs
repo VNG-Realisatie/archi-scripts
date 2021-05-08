@@ -4,11 +4,12 @@
  * 	for all selected concepts
  *
  */
+ load(__DIR__ + "../_lib/SelectCollection.js");
 
+ let collection = selectVisualObjects($(selection));
+ applyToCollection(collection, fontSet, ["Arial", 12]);
+ 
 function fontSet(obj, args) {
 	obj.fontName = args[0];
 	obj.fontSize = args[1];
 }
-
-load(__DIR__ + "../_lib/includeFormatting.js");
-formatObjects($(selection), fontSet, ["Arial", 12]);

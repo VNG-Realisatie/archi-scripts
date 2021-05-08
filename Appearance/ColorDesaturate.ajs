@@ -1,6 +1,19 @@
 // chroma-js for all kinds of color conversions and color scales
 // api docs https://gka.github.io/chroma.js/
 load("https://unpkg.com/chroma-js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/SelectCollection.js");
+
+initConsoleLog(__FILE__, true);
+
+try {
+	let collection = selectVisualObjects($(selection));
+	applyToCollection(collection.not("relation"), ColorDesaturate);
+} catch (error) {
+	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();
 
 /*
  * ColorDesaturate.ajs
@@ -8,26 +21,11 @@ load("https://unpkg.com/chroma-js");
 function ColorDesaturate(obj) {
 	let color = chroma(obj.lineColor).brighten(2); // ### doesn't change black ..
 	obj.lineColor = `${color}`;
-	if ($(obj).is("relationship")) {
-		// console.log(`>> Skip relationship ${obj}`);
+	if (obj.fillColor) {
+		let color = chroma(obj.fillColor).desaturate(1);
+		obj.fillColor = `${color}`;
+		console.log(`>> ${obj.name ? obj.name : obj} desaturated`);
 	} else {
-		if (obj.fillColor) {
-			let color = chroma(obj.fillColor).desaturate(0.5);
-			obj.fillColor = `${color}`;
-			console.log(`>> ${obj.name ? obj.name : obj} desaturated`);
-		} else {
-			console.log(`>>> ${obj} has no color value (set to default)`);
-		}
+		console.log(`>>> ${obj} has no color value (set to default)`);
 	}
 }
-
-load(__DIR__ + "../_lib/includeFormatting.js");
-
-let pattern = /^.*[\\\/]/;
-console.log(`Executing script ${__FILE__.replace(pattern, "")}\n`);
-try {
-	formatObjects($(selection), ColorDesaturate);
-} catch (error) {
-	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-}
-console.log(`\nFinished\n`);

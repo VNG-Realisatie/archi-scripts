@@ -6,6 +6,12 @@
  * (c) 2019 Mark Backer
  *
  */
+load(__DIR__ + "../../_lib/SelectCollection.js");
+
+let collection = selectVisualObjects($(selection));
+applyToCollection(collection, plotAttributeID)
+
+
 function plotAttributeID(obj) {
 	if (obj.type.endsWith("relationship") || obj.type.startsWith("diagram-model")) {
 		console.log(`>>> Skipped object ${obj}`);
@@ -19,12 +25,3 @@ function plotAttributeID(obj) {
 	}
 }
 
-load(__DIR__ + "../../_lib/Common.js");
-load(__DIR__ + "../../_lib/includeFormatting.js");
-
-initConsoleLog(__FILE__, true);
-
-// applyToDiagramContent($(selection).find("element"), PlotAttributeID);
-formatObjects($(selection), plotAttributeID);
-
-finishConsoleLog();

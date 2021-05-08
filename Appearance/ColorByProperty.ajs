@@ -5,7 +5,25 @@
  *
  * (c) 2019 Mark Backer
  *
+ *
+ * load chroma.min.js
+ *		chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
+ *		ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
+ load("https://unpkg.com/chroma-js");
+ load(__DIR__ + "../_lib/Common.js");
+ load(__DIR__ + "../_lib/SelectCollection.js");
+ 
+ initConsoleLog(__FILE__, true);
+ 
+ try {
+	let collection = selectVisualObjectsOfType($(selection));
+	applyToCollection(collection.filter("element"), ColorByProperty);
+} catch (error) {
+	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();
 
 /**
  * ColorByProperty
@@ -90,12 +108,7 @@ function getPropertyValues(obj, prop) {
  *
  * Given a value and a list of possible values
  * -> return a color code based on the value's index position
- *
- * load chroma.min.js
- *		chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
- *		ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
-load("https://unpkg.com/chroma-js");
 
 function colorForIndexPosition(pValue, pValueList) {
 	// colorscale = chroma.scale('Oranges');
@@ -120,7 +133,7 @@ function drawLegenda(obj, prop, propList) {
 	let legendaName = `${obj.type} and property ${prop}`; // "Legenda";
 
 	const HeaderHeight = 30;
-	const ItemWidth = legendaName.length*6; // 180;
+	const ItemWidth = legendaName.length * 6; // 180;
 	const ItemHeigth = 25;
 	const ItemSpacingX = 10;
 	const ItemSpacingY = 5;
@@ -143,7 +156,7 @@ function drawLegenda(obj, prop, propList) {
 		ItemWidth + 2 * ItemSpacingX,
 		HeaderHeight + propList.length * (ItemSpacingY + ItemHeigth) + ItemSpacingY
 	);
-	legenda.name = legendaName
+	legenda.name = legendaName;
 	legenda.figureType = 1; // rectangle => doesn't work
 	legenda.fillColor = "#FFFFFF";
 	for (let j = 0; j < propList.length; j++) {
@@ -159,15 +172,3 @@ function drawLegenda(obj, prop, propList) {
 		item.figureType = 1; // rectangle => doesn't work
 	}
 }
-
-load(__DIR__ + "../_lib/includeFormatting.js");
-
-let pattern = /^.*[\\\/]/;
-console.log(`Executing script ${__FILE__.replace(pattern, "")}\n`);
-try {
-	formatObjectsOfType($(selection), ColorByProperty);
-	// formatObjectsOfType($(selection), ColorBy, ["Vertrouwelijkheid", "Oranges"]);
-} catch (error) {
-	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-}
-console.log(`\nFinished\n`);
