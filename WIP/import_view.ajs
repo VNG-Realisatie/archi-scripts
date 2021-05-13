@@ -18,5 +18,5 @@
 load(__DIR__ + "../_lib/Common.js");
 checkJavaScriptEngine(ENGINE_GRAAL_VM)
 
-load(__DIR__ + "export_import_functions.js");
+load("include_export_import.js")
 executeExportImport(__FILE__);

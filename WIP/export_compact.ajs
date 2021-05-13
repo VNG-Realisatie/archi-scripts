@@ -9,12 +9,12 @@
 load(__DIR__ + "../_lib/papaparse.min.js");
 
 load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../_lib/ApplyToSelection.js");
+load(__DIR__ + "../_lib/SelectCollection.js");
 
 _commonShowDebugMessage = [false];
 
-const objectAttributes = ["id", "type", "name", "documentation"];
-const endpoints = ["source", "target"];
+const OBJECT_ATTRIBUTES = ["id", "type", "name", "documentation"];
+const ENDPOINTS = ["source", "target"];
 
 var header = [];
 var data = [];
@@ -23,11 +23,14 @@ var uniq = [];
 initConsoleLog(__FILE__)
 
 try {
+	
+	let collection = selectConcepts($(selection));
+	
 	console.log('Exporting selected elements\n')
-	applyToModelContent($(selection), elementData);
-
+	applyToCollection(collection.filter("element"), exportElement);
+	
 	console.log('\nExporting selected relations\n')
-	applyToModelContent($(selection), relationData);
+	applyToCollection(collection.filter("relation"), exportElement);
 
 	let datum = new Date();
 	let exportFile = window.promptSaveFile({
@@ -55,20 +58,20 @@ finishConsoleLog()
 /**
  * Remove duplicates from an array of objects
  * 
- * @param originalArray 
+ * @param array 
  * @param prop 
  */
-function removeDuplicates(originalArray, prop) {
-	var newArray = [];
-	var lookupObject  = {};
+function removeDuplicates(array, prop) {
+	var noDupArray = [];
+	var index  = {};
 
-	for (let i in originalArray) {
-		if (lookupObject[originalArray[i][prop]] === undefined) {
-			newArray.push(originalArray[i]);
+	for (let i in array) {
+		if (index[array[i][prop]] === undefined) {
+			noDupArray.push(array[i]);
 		}
-		lookupObject[originalArray[i][prop]] = originalArray[i];
+		index[array[i][prop]] = array[i];
 	}
-	return newArray;
+	return noDupArray;
 }
 
   
@@ -92,25 +95,22 @@ function headerLabel(pLabel) {
 /**
  * Export an element as a csv row
  * 
- * @param pObject 
+ * @param obj 
  */
-function elementData(pObject) {
+function exportElement(obj) {
 	let row = new Object;
 
-	// >>>> apply to content moet altijd concept opleveren <<<<<<<<<<
-	let selectedObject = concept(pObject);
-
-	objectAttributes.forEach(function (attribute) {
+	OBJECT_ATTRIBUTES.forEach(function (attribute) {
 		headerLabel(attribute)
-		row[attribute] = selectedObject[attribute];
+		row[attribute] = obj[attribute];
 	})
 
-	console.log(`>> ${selectedObject}`)
-	selectedObject.prop().forEach(function (propertyLabel) {
+	console.log(`>> ${obj}`)
+	obj.prop().forEach(function (propertyLabel) {
 		headerLabel(propertyLabel)
 
-		if (selectedObject.prop(propertyLabel)) {
-			row[propertyLabel] = selectedObject.prop(propertyLabel);
+		if (obj.prop(propertyLabel)) {
+			row[propertyLabel] = obj.prop(propertyLabel);
 			debug(`>> Row[${propertyLabel}]: ${row[propertyLabel]}`);
 		}
 	})
@@ -123,10 +123,10 @@ function elementData(pObject) {
 /**
  * Export a relation as a csv row
  * 
- * @param pObject 
+ * @param obj 
  */
-function relationData(pObject) {
-	let selectedObject = concept(pObject);
+function exportRelation(obj) {
+	let selectedObject = concept(obj);
 
 	// alle relaties
 	// verwijder relaties met source of target die niet geselecteerd zijn (gaat niet vanuit applySelection)
@@ -140,7 +140,7 @@ function relationData(pObject) {
 		debug(`>>> export ${r}`)
 
 		// export relation attributes
-		objectAttributes.forEach(function (attribute) {
+		OBJECT_ATTRIBUTES.forEach(function (attribute) {
 			headerLabel(attribute)
 
 			debug(`>>>> Row[${attribute}] = ${r[attribute]}`)
@@ -159,7 +159,7 @@ function relationData(pObject) {
 
 		// export relation endpoint attributes
 		ENDPOINT_LABELS.forEach(function (endpoint) {
-			objectAttributes.forEach(function (attribute) {
+			OBJECT_ATTRIBUTES.forEach(function (attribute) {
 				headerLabel(`${endpoint}.${attribute}`)
 
 				row[`${endpoint}.${attribute}`] = r[endpoint][attribute];

@@ -1,29 +1,9 @@
 /**
- * export_import_functions.js
+ * include_import.js
  *
- * Functions for exporting and importing model elements, relations and view properties
+ * Functions for importing model elements, relations and view properties
  */
 
-load(__DIR__ + "../_lib/papaparse.min.js");
-// load(__DIR__ + "../_lib/Common.js"); loaded in wrapper-script
-
-// The property PROP_ID is used as a tool independent identifier.
-// In the import the PROP_ID identifier takes precedence over the Archi id
-const PROP_ID = "Object ID";
-
-// const ENDPOINTS = ["source", "target"];
-
-const ATTRIBUTE_LABELS = ["id", "type", "name", "documentation"];
-const ENDPOINT_LABELS = [
-  "source.name",
-  "target.name",
-  "source.type",
-  "target.type",
-  "source.id",
-  "target.id",
-  `source.prop.${PROP_ID}`,
-  `target.prop.${PROP_ID}`,
-];
 
 // Indexing result codes
 const NOT_FOUND = "object NOT found";
@@ -36,224 +16,7 @@ const FOUND_RELATION = "relation found";
 const FOUND_MULTIPLE = "multiple";
 const CREATE_NEW_OBJECT = "create";
 
-const OBJECT_TYPE_RELATION = "relations";
-const OBJECT_TYPE_ELEMENT = "elements";
-const OBJECT_TYPE_VIEW = "views";
-
 _commonShowDebugMessage = [false];
-
-/**
- *
- */
-function executeExportImport(filePath) {
-  initConsoleLog(filePath);
-  checkJavaScriptEngine(ENGINE_GRAAL_VM);
-
-  let fileName = filePath
-    .replace(/^.*[\\\/]/, "")
-    .replace(/\.ajs$/, "")
-    .replace(/%20/, "-")
-    .toLowerCase();
-
-  const [executeAction, objectType] = fileName.split("_");
-  debug(`Execute an "${executeAction}" with "${objectType}"`);
-
-  let fileFormat =
-    "Filename format is {export|import}_{elements|relations|views}.ajs";
-  if (["elements", OBJECT_TYPE_RELATION, "views"].indexOf(objectType) == -1) {
-    throw `>> Unknown objectType: ${objectType}. ${fileFormat}`;
-  }
-
-  try {
-    switch (executeAction) {
-      case "export": {
-        exportObjects(objectType);
-        break;
-      }
-      case "import": {
-        importObjects(objectType);
-        break;
-      }
-      default:
-        throw `>> Unknown executeAction: ${executeAction}. ${fileFormat}`;
-    }
-  } catch (error) {
-    console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-  }
-
-  finishConsoleLog();
-}
-
-function exportObjects(objectType) {
-  _commonShowDebugMessage.push(false);
-  debug(`objectType=${objectType}`);
-
-  try {
-    // selection is a global Archi variable with a collection of Archi objects
-    // let objects = exportSelectObjects(selection, objectType);
-    let objects = selectConcepts($(selection));
-
-    console.log(
-      `Exporting selected ${objectType} or ${objectType} in selected folder or view\n`
-    );
-
-    console.log(`Creating columns and rows:`);
-    const header = exportCreateHeader(objects, objectType);
-    const data = objects.map((o) => exportCreateRows(header, o));
-
-    if (data.length > 0) {
-      console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
-      saveRowsToFile(header, data, objectType);
-    } else {
-      console.log(`- No rows, nothing to export`);
-    }
-  } catch (error) {
-    console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-  }
-  debug(`< `);
-  _commonShowDebugMessage.pop();
-}
-
-/**
- * exportCreateHeader
- * create a row with the column labels for the exported objects
- * - attributes are prefixed with attr (ex id, id)
- * - prop are prefixed with prop (ex prop.Object ID)
- * - endpoints are prefixed with source en target (source.id, source.prop.Object ID)
- *
- */
-function exportCreateHeader(objects, objectType) {
-  // remove duplicate property labels  ### kan dit met een filter op een array?
-  const propertyLabelsObject = objects.reduce(
-    (a, concept) => exportHeaderProperties(a, concept),
-    {}
-  );
-  // convert object with labels to array with labels
-  const propertyLabels = Object.keys(propertyLabelsObject);
-
-  let header = ATTRIBUTE_LABELS.concat(propertyLabels);
-
-  if (objectType == OBJECT_TYPE_RELATION) {
-    header = header.concat(ENDPOINT_LABELS);
-  }
-
-  debug(`header: ${header}\n`);
-  console.log(
-    `- ${header.length} columns (header with ${ATTRIBUTE_LABELS.length} attributes, ${propertyLabels.length} properties, ${ENDPOINT_LABELS.length} endpoints)`
-  );
-
-  return header;
-}
-
-/**
- * exportHeaderProperties
- * 	reduce function
- *  accumulate the new property labels of the given concepts
- *
- * @param object
- */
-function exportHeaderProperties(a, object) {
-  object.prop().forEach(function (propLabel) {
-    // accumulate all unique property labels.
-    if (typeof a[propLabel] == "undefined") {
-      a[propLabel] = propLabel;
-      debug(`accumulate a[${propLabel}]: ${a[propLabel]}`);
-    }
-  });
-  return a;
-}
-
-/**
- * exportCreateRows
- * create a CSV row for an exported object
- *
- * @param object
- */
-function exportCreateRows(headerRow, object) {
-  let row = new Object();
-
-  _commonShowDebugMessage.push(false);
-  debug(`\n> `);
-  debug(`${object}`);
-
-  // fill row with the attributes and property values of the object
-  headerRow.forEach((label) => {
-    row[label] = get_attr_or_prop(object, label);
-  });
-
-  debug(`Row: ${JSON.stringify(row)}`);
-  _commonShowDebugMessage.pop();
-  return row;
-}
-
-function exportSelectObjects(ArchiSelection, objectType) {
-  _commonShowDebugMessage.push(false);
-
-  let selectedRelations, selectedElements, selectedViews;
-
-  if ($(ArchiSelection).is("archimate-model")) {
-    selectedRelations = $("relation");
-    selectedElements = $("element");
-    selectedViews = $("view");
-    console.log(`- selection is ${$(ArchiSelection)}`);
-  } else if ($(ArchiSelection).is("element")) {
-    selectedElements = $(ArchiSelection);
-    selectedRelations = selectedElements.rels();
-    selectedViews = selectedElements.viewRefs();
-  } else if ($(ArchiSelection).is("relation")) {
-    selectedRelations = $(ArchiSelection);
-    selectedElements = selectedRelations.ends();
-  } else if ($(ArchiSelection).is("folder")) {
-    let folders = $(ArchiSelection);
-    selectedElements = folders.find("element");
-    selectedViews = folders.find("view");
-    selectedRelations = folders.find("relation");
-    // if no relations found, its not a relation folder
-    if (!selectedRelations) {
-      selectedRelations = selectedElements.rels(); 
-    }
-  } else if ($(ArchiSelection).is("archimate-diagram-model")) {
-    selectedViews = $(ArchiSelection);
-    selectedElements = selectedViews.find("element");
-    selectedRelations = selectedElements.rels();
-  }
-  console.log(`Selected object(s): ${$(ArchiSelection)}\n`);
-
-  // add selected objects of the model to an array.
-  // Skip folders, properties of folders are not exported
-  function exportArray(objects) {
-    let lookup = {};
-    let exportArray = [];
-
-    if (!isEmpty(objects)) {
-      objects.each(function (object) {
-        if (!lookup[object.id]) {
-          exportArray.push(useConcept(object)); // useConcept for view ???
-          debug(`selectObjects() > exportArray(): ${object}`);
-          lookup[object.id] = true;
-        }
-      });
-    }
-    debug(`${objects.length} Archi objects in array returned`);
-    return exportArray;
-  }
-
-  let selectedObjects;
-  switch (objectType) {
-    case OBJECT_TYPE_ELEMENT:
-      selectedObjects = exportArray(selectedElements);
-      break;
-    case OBJECT_TYPE_RELATION:
-      selectedObjects = exportArray(selectedRelations);
-      break;
-    case OBJECT_TYPE_VIEW:
-      selectedObjects = exportArray(selectedViews);
-      break;
-  }
-  _commonShowDebugMessage.pop();
-
-  return selectedObjects;
-}
 
 function importObjects(objectType) {
   _commonShowDebugMessage.push(false);
@@ -715,42 +478,10 @@ function importUpdateObject(headerRow, row_and_object) {
   return line;
 }
 
-function get_attr_or_prop(archi_object, row_label) {
-  let cell = new Object();
-
-  if (ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
-    // attribute => "id", "type",
-
-    debug(`Start ATTRIBUTE_LABELS: ${row_label})`);
-    cell[row_label] = archi_object[row_label];
-  } else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
-    // Endpoint => "target.id", `source.prop.${PROP_ID}`
-    // let endpoint = label.substring(0, label.indexOf('.'))
-    // let attr_label = label.substring(label.indexOf('.'))
-
-    const [endpoint, attr, prop] = row_label.split(".");
-    debug(
-      `Start ENDPOINT_LABELS, endpoint, attr, prop: ${row_label}, [${endpoint}, ${attr}, ${prop}])`
-    );
-
-    if (prop) {
-      cell[row_label] = archi_object[endpoint].prop(prop);
-    } else {
-      cell[row_label] = archi_object[endpoint][attr];
-    }
-  } else {
-    // property Object ID
-    debug(`Start (PROPERTY LABEL: ${row_label})`);
-    cell[row_label] = archi_object.prop(row_label);
-  }
-
-  return cell[row_label];
-}
-
 /**
  * Read CSV file in UTF-8 encoding and return file parsed into an array
  */
-function getRowsFromFile(importFile) {
+ function getRowsFromFile(importFile) {
   let rows = [];
   if (importFile) {
     rows = Papa.parse(readFully(importFile, "utf-8"), {
@@ -793,37 +524,4 @@ function readFully(url, charset) {
   }
 
   return result;
-}
-
-function set_attr_or_prop(object, row, label) {
-  if (ATTRIBUTE_LABELS.indexOf(label) != -1) {
-    object[label] = row[label];
-  } else {
-    object.prop(label, row[label]);
-  }
-}
-
-/**
- * Always return the concept, also if a diagram occurence is given
- */
-function useConcept(o) {
-  if (o.concept) return o.concept;
-  else return o;
-}
-
-function isEmpty(obj) {
-  if (typeof obj === "object") {
-    // both jArchi en JS objects have a type object, but the jArchi object gives an error for Object.keys(jArchi object)
-    if (typeof obj.size === "function") {
-      // jArchi object has function size
-      return obj.size() === 0;
-    } else {
-      // for JS object.
-      return Object.keys(obj).length === 0;
-    }
-  } else {
-    console.log(
-      `> isEmpty(obj=${obj}, typeof=${typeof obj}): only use for jArchi objects or JS object`
-    );
-  }
 }

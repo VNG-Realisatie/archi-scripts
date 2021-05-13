@@ -147,5 +147,5 @@ function getFunctionCall(pathname) {
 	var arg1 = fields[1];
 	console.log(`\n${name}(${arg1})`);
 
-	return { name, arg1 };
+	return { name, fields };
 }

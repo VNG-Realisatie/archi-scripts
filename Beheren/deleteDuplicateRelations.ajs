@@ -2,9 +2,9 @@
  * deleteDuplicateRelations
  *
  *  Definition of duplicate relation
- *      - equal source and target object
- *      - same name (often empty)
- *      - same type
+ *  - equal source and target object
+ *  - same name (often empty)
+ *  - same type
  *
  *  - Find all relations with duplicate
  *  - Merge relations
@@ -12,7 +12,6 @@
  *      Documentatation of the other relation is appended to this relation's documentation
  *      Properites of the other are appended to this relation's properties
  *      The other relation is deleted
- *
  */
 
 console.clear();
