@@ -15,19 +15,22 @@ const OBJECT_TYPE_VIEW = "view";
 const PROP_ID = "Object ID";
 
 // const ENDPOINTS = ["source", "target"];
-const ATTRIBUTE_LABELS = ["id", "type", "name", "documentation"];
+const ATTRIBUTE_LABELS = ["name", "type", "documentation","id"];
 const ENDPOINT_LABELS = [
 	"source.name",
-	"target.name",
 	"source.type",
+	"target.name",
 	"target.type",
 	"source.id",
-	"target.id",
 	`source.prop.${PROP_ID}`,
+	"target.id",
 	`target.prop.${PROP_ID}`,
 ];
 
-_commonShowDebugMessage = [false];
+const ATTRIBUTE_LABEL = "attribute";
+const PROPERTY_LABEL = "property";
+// use this value in a property column to remove a property from the object
+const REMOVE_PROPERTY_VALUE = "<remove>";
 
 /**
  *
@@ -35,6 +38,8 @@ _commonShowDebugMessage = [false];
 function executeExportImport(filePath) {
 	initConsoleLog(filePath);
 	checkJavaScriptEngine(ENGINE_GRAAL_VM);
+
+	_commonShowDebugMessage = [false];
 
 	let fileName = filePath
 		.replace(/^.*[\\\/]/, "")
@@ -69,6 +74,7 @@ function executeExportImport(filePath) {
 	} catch (error) {
 		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 	}
+	_commonShowDebugMessage.pop();
 
 	finishConsoleLog();
 }
@@ -88,42 +94,45 @@ function isEmpty(obj) {
 	}
 }
 
+/**
+ * set an attribute or property to the value from the CSV file
+ */
 function set_attr_or_prop(object, row, label) {
-  if (ATTRIBUTE_LABELS.indexOf(label) != -1) {
-    object[label] = row[label];
-  } else {
-    object.prop(label, row[label]);
-  }
+	if (ATTRIBUTE_LABELS.indexOf(label) != -1) {
+		object[label] = row[label];
+	} else {
+		object.prop(label, row[label]);
+	}
 }
 
-
+/**
+ * get the given attribute or property value of an Archi object
+ */
 function get_attr_or_prop(archi_object, row_label) {
+	_commonShowDebugMessage.push(false);
 	let cell = new Object();
 
+	// attribute => "id", "type",
 	if (ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
-		// attribute => "id", "type",
-
-		debug(`Start ATTRIBUTE_LABELS: ${row_label})`);
 		cell[row_label] = archi_object[row_label];
+		debug(`attr archi_object.${row_label}=${cell[row_label]}`);
 	} else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
-		// Endpoint => "target.id", `source.prop.${PROP_ID}`
-		// let endpoint = label.substring(0, label.indexOf('.'))
-		// let attr_label = label.substring(label.indexOf('.'))
-
+		// endpoint => obj.source.id, obj.target.prop("Object ID")
 		const [endpoint, attr, prop] = row_label.split(".");
-		debug(`Start ENDPOINT_LABELS, endpoint, attr, prop: ${row_label}, [${endpoint}, ${attr}, ${prop}])`);
 
 		if (prop) {
 			cell[row_label] = archi_object[endpoint].prop(prop);
+			debug(`endpoint archi_object[${endpoint}].prop(${prop})=${cell[row_label]}`);
 		} else {
 			cell[row_label] = archi_object[endpoint][attr];
+			debug(`endpoint archi_object[${endpoint}][${attr}]=${cell[row_label]}`);
 		}
 	} else {
 		// property Object ID
-		debug(`Start (PROPERTY LABEL: ${row_label})`);
 		cell[row_label] = archi_object.prop(row_label);
+		debug(`prop archi_object.prop(${row_label})=${cell[row_label]}`);
 	}
 
+	_commonShowDebugMessage.pop();
 	return cell[row_label];
 }
-

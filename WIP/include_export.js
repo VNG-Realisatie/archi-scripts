@@ -1,11 +1,16 @@
 /**
  * include_export.js
  *
- * Functions for exportingmodel elements, relations and view properties
+ * Functions for exporting model elements, relations and view properties
  */
 
-_commonShowDebugMessage = [false];
-
+/**
+ * export selected objects to a csv file
+ *
+ * ToDo:
+ * - selectConcept for views
+ * - select elements and their relations
+ */
 function exportObjects(objectType) {
 	_commonShowDebugMessage.push(false);
 	debug(`objectType=${objectType}`);
@@ -13,21 +18,23 @@ function exportObjects(objectType) {
 	try {
 		// selection is a global Archi variable with a collection of Archi objects
 		// let objects = exportSelectObjects(selection, objectType);
-		let collection = selectConcepts($(selection));
+		let collection = $();
+		if (objectType == OBJECT_TYPE_VIEW) {
+			collection = selectViews($(selection));
+		} else {
+			collection = selectConcepts($(selection));
+		}
+		if (collection.size() > 0) {
+			// filter and convert selected Archi collection to an array
+			let objects = [];
+			collection.filter(objectType).each((object) => objects.push(object));
 
-		// filter and convert selected Archi collection to an array
-		let objects = [];
-		collection.filter(objectType).each((object) => objects.push(object));
+			console.log(`Creating header with columns and rows:`);
+			const header = createHeader(objects, objectType);
+			const data = objects.map((o) => createRow(header, o));
 
-		console.log(`Creating columns and rows:`);
-		const header = exportCreateHeader(objects, objectType);
-		const data = objects.map((o) => exportCreateRows(header, o));
-
-		if (data.length > 0) {
 			console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
 			saveRowsToFile(header, data, objectType);
-		} else {
-			console.log(`- No rows, nothing to export`);
 		}
 	} catch (error) {
 		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -37,58 +44,52 @@ function exportObjects(objectType) {
 }
 
 /**
- * exportCreateHeader
  * create a row with the column labels for the exported objects
  * - attributes are prefixed with attr (ex id, id)
  * - prop are prefixed with prop (ex prop.Object ID)
  * - endpoints are prefixed with source en target (source.id, source.prop.Object ID)
- *
  */
-function exportCreateHeader(objects, objectType) {
+function createHeader(objects, objectType) {
 	// remove duplicate property labels  ### kan dit met een filter op een array?
-	const propertyLabelsObject = objects.reduce((a, concept) => exportHeaderProperties(a, concept), {});
+	const propertyLabelsObject = objects.reduce((a, obj) => findPropertyLabels(a, obj), {});
 	// convert object with labels to array with labels
 	const propertyLabels = Object.keys(propertyLabelsObject);
 
 	let header = ATTRIBUTE_LABELS.concat(propertyLabels);
 
+	let relLogLine = "";
 	if (objectType == OBJECT_TYPE_RELATION) {
 		header = header.concat(ENDPOINT_LABELS);
+		relLogLine += `, ${ENDPOINT_LABELS.length} endpoints`;
 	}
 
 	debug(`header: ${header}\n`);
-	console.log(
-		`- ${header.length} columns (header with ${ATTRIBUTE_LABELS.length} attributes, ${propertyLabels.length} properties, ${ENDPOINT_LABELS.length} endpoints)`
-	);
+	let logLine = `- ${header.length} columns (header with ${ATTRIBUTE_LABELS.length} attributes`;
+	logLine += `, ${propertyLabels.length} properties`;
+	logLine += relLogLine + ")";
+	console.log(logLine);
 
 	return header;
 }
 
 /**
- * exportHeaderProperties
- * 	reduce function
- *  accumulate the new property labels of the given concepts
- *
- * @param object
+ * loop over all objects en find all unique property names
  */
-function exportHeaderProperties(accumulator, object) {
+function findPropertyLabels(accumulator, object) {
 	object.prop().forEach(function (propLabel) {
 		// accumulate all unique property labels.
 		if (typeof accumulator[propLabel] == "undefined") {
 			accumulator[propLabel] = propLabel;
-			debug(`accumulate a[${propLabel}]: ${accumulator[propLabel]}`);
+			debug(`add property to accumulator: ${accumulator[propLabel]}`);
 		}
 	});
 	return accumulator;
 }
 
 /**
- * exportCreateRows
  * create a CSV row for an exported object
- *
- * @param object
  */
-function exportCreateRows(headerRow, object) {
+function createRow(headerRow, object) {
 	let row = new Object();
 
 	_commonShowDebugMessage.push(false);
@@ -121,10 +122,13 @@ function saveRowsToFile(header, data, objectType) {
 	if (exportFile != null) {
 		$.fs.writeFile(
 			exportFile,
-			Papa.unparse({
-				fields: header,
-				data: data,
-			})
+			Papa.unparse(
+				{
+					fields: header,
+					data: data,
+				},
+				{ quotes: true }
+			)
 		);
 
 		let exportFileName = exportFile.split("\\").pop().split("/").pop();
@@ -134,12 +138,4 @@ function saveRowsToFile(header, data, objectType) {
 	} else {
 		console.log("\nExport CSV canceled");
 	}
-}
-
-/**
- * Always return the concept, also if a diagram occurence is given
- */
-function useConcept(o) {
-	if (o.concept) return o.concept;
-	else return o;
 }

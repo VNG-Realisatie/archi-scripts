@@ -8,7 +8,15 @@
 //
 // (c) 2018 Jean-Baptiste Sarrodie
 
-$(selection)
+if (selection.is("view")) {
+	viewObjects = selection.find();
+} else if (selection.first().view) {
+	viewObjects = selection;
+} else {
+	console.log("Selection not valid, select a view or select objects on a view");
+}
+
+viewObjects
 	.filter("relationship")
 	.filter(function (o) {
 		return o.id != o.concept.id;

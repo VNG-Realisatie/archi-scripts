@@ -33,7 +33,7 @@ function applyToCollection(collection, pFunc, pArgs) {
 }
 
 /**
- * Create a collection of concepts (elements and relations)
+ * Create a collection of concepts (elements and relations in the model tree)
  *
  * @param {*} selection collection of Archi (visual) objects
  */
@@ -41,20 +41,19 @@ function selectConcepts(selection) {
 	let concepts = $();
 	let viewObjects = $();
 
-	console.log(`Creating collection for selection`);
 	if (selection) {
 		if (selection.is("archimate-model")) {
-			console.log(`Selected ${model}.\n- Adding all concepts of the model`);
+			console.log(`Creating collection of all concepts of the model`);
 			concepts = $("concept");
 		} else if (selection.is("folder")) {
-			console.log(`Selected one or more folders.\n- Adding the concepts in the folders`);
+			console.log(`Creating collection of all concepts in the selected folders`);
 			concepts = selection.find("concept");
 		} else if (selection.is("view")) {
-			console.log(`Selected one or more views.\n- Adding concepts from the selected views`);
+			console.log(`Creating collection of concepts on the selected views`);
 			viewObjects = selection.find("concept");
 		}
 		if (concepts.size() == 0 && viewObjects.size() == 0) {
-			console.log(`Selected one or more objects.\n- Adding selected concepts`);
+			console.log(`Creating collection of selected concepts`);
 			viewObjects = selection.filter("concept");
 		}
 	} else {
@@ -62,39 +61,39 @@ function selectConcepts(selection) {
 	}
 
 	if (viewObjects.size() > 0) {
-		console.log(`- Changing visual concepts to concepts`);
+		// add concept to the collection for each visual object
 		viewObjects.each((vo) => concepts.add(vo.concept));
 	}
 	return concepts;
 }
 
 /**
- * Create a collection of visual objects (references of elements, relations and visual objects)
+ * Create a collection of visual objects (elements, relations and visual objects on views)
  *
  * @param {*} selection collection of Archi (visual) objects
  */
 function selectVisualObjects(selection) {
 	let viewObjects = $();
+
 	if (selection) {
 		let views;
 
 		if (selection.is("archimate-model")) {
-			console.log(`Selected ${model}.\n- Adding all views of the model`);
+			console.log(`Creating collection of all object references on all views`);
 			views = $("folder").find("view");
 		} else if (selection.is("folder")) {
-			console.log(`Selected one or more folders.\n- Adding the views in the folders`);
+			console.log(`Creating collection of object references of views in selected folder`);
 			views = selection.find("view");
 		} else if (selection.is("view")) {
-			console.log(`Selected one or more views.\n- Adding selected views`);
+			console.log(`Creating collection of object references on selected views`);
 			views = selection;
 		}
 
 		if (views) {
-			console.log(`- Adding all visual objects on the views to the collection`);
 			viewObjects = views.find();
 		} else {
 			if (selection.first().view) {
-				console.log(`Selected one or more objects on a views.\n- Adding objects to the collection`);
+				console.log(`Creating collection of objects of current view`);
 				viewObjects = selection;
 			} else {
 				console.log("Selection not valid");
@@ -122,20 +121,45 @@ function selectVisualObjectsOfType(selection) {
 	if (selection.is("concept") && selection.size() == 1) {
 		let obj = selection.first();
 		if (obj.id == obj.concept.id) {
-			console.log(`Selected concept of type ${obj.type} in the model tree`);
-			console.log(`- Adding all references to concepts of type ${obj.type}`);
+			console.log(`Creating collection of all view references to concepts of type ${obj.type}`);
 			viewObjects = $(obj.type).viewRefs().find(obj.type);
 		} else {
-			console.log(`Selected concept of type ${obj.type} on a view`);
-			console.log(`- Adding all concepts in the view of type ${obj.type}`);
+			console.log(`Creating collection of all concepts in the view of type ${obj.type}`);
 			viewObjects = $(obj.view).find(obj.type);
 		}
 	} else {
 		console.log("Select one concept in the tree or on a view");
-		console.log("- if selected in the tree, the function ${formatFunction} will be applied to all view");
-		console.log("- if selected on a view, the function ${formatFunction} will be applied to the selected view");
+		console.log("- if selected in the tree, the selected type will be selected on all views");
+		console.log("- if selected on a view, the selected type will be selected on the view");
 	}
 	return viewObjects;
+}
+
+/**
+ * Create a collection of views
+ * @param {*} selection collection of Archi objects
+ */
+function selectViews(selection) {
+	let views = $();
+
+	if (selection) {
+		if (selection.is("archimate-model")) {
+			console.log(`Creating collection of all views of the model`);
+			views = $("view");
+		} else if (selection.is("folder")) {
+			console.log(`Creating collection of views in the selected folder(s)`);
+			views = selection.find("view");
+		} else if (selection.is("view")) {
+			console.log(`Creating collection of selected views`);
+			views = selection.filter("view");
+		} else {
+			console.log("Selection not valid");
+			console.log("- select one or more views");
+		}
+	} else {
+		console.log("Nothing selected. Select one or more views...");
+	}
+	return views;
 }
 
 function getFunctionCall(pathname) {
