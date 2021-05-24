@@ -2,8 +2,17 @@
  * include_import.js
  *
  * Functions for importing model elements, relations and view properties
- * Import elements before relations
+ * - tries to find objects first by the PROP_ID identifier, next the id and last the name and type
+ * - found objects are updated
+ * - else an object is created
+ *
+ * Make sure you import elements before relations. You can't create relations without a source and target
+ *
  */
+load(__DIR__ + "include_export_import.js");
+
+// use this value in a property column to remove a property from the object
+const REMOVE_PROPERTY_VALUE = "<remove>";
 
 // Indexing result codes
 const NOT_SET = "NOT_SET";
@@ -16,12 +25,11 @@ const CREATE = "CREATE";
  * - first validate and index the rows
  * - then create or update an archi object for each row
  */
-function importObjects(objectType) {
+function importObjects() {
 	_commonShowDebugMessage.push(false);
-	debug(`objectType=${objectType}`);
 
 	try {
-		console.log(`Importing ${objectType} of CSV\n`);
+		console.log(`Importing objects of CSV\n`);
 
 		let importFile =
 			window.promptOpenFile({
@@ -29,7 +37,6 @@ function importObjects(objectType) {
 				filterExtensions: ["*.csv"],
 				fileName: `*.csv`,
 			}) || "";
-		// let importFileName = importFile.split("\\").pop().split("/").pop();
 		let importFileName = importFile.replace(/^.*[\\\/]/, "");
 
 		const rows = getRowsFromFile(importFile);
@@ -37,15 +44,12 @@ function importObjects(objectType) {
 
 		if (rows.length > 0) {
 			debug("\n> check header for missing columns");
-
 			if (checkHeader(rows)) {
 				const labelsToUpdate = readHeader(rows);
 
 				debug("\n> check all rows for missing value's");
-				const validateLog = rows.map((row, index) => checkRows(row, index)).filter((line) => line != "");
-				console.log(`validateLog; ${validateLog}`);
-
-				if (validateLog.length == 0) {
+				const checkRowLog = rows.map((row, index) => checkRows(row, index)).filter((line) => line != "");
+				if (checkRowLog.length == 0) {
 					debug("\n> index rows, find necesary action for every row");
 					const rowIndex = rows.map((row, index) => indexRows(row, index));
 					debug(`\nIndexed ${rowIndex.length} rows`);
@@ -56,7 +60,6 @@ function importObjects(objectType) {
 							}, Object id=${rows[obj.index][`${PROP_ID}`]})`
 						)
 					);
-
 					debug(`\n> filter rows for actionCode CREATE`);
 					const createRows = rowIndex.filter((obj) => obj.actionCode == CREATE);
 					const createRows_Log = createRows.map((obj) => createObject(labelsToUpdate, rows[obj.index], obj));
@@ -64,7 +67,6 @@ function importObjects(objectType) {
 						console.log("\n== create Archi objects ==");
 						createRows_Log.map((line) => console.log(`${line}`));
 					}
-
 					debug(`\n> filter rows for actionCode UPDATE to update`);
 					const updateRows = rowIndex.filter((obj) => obj.actionCode == UPDATE);
 					const updateRows_Log = updateRows
@@ -74,7 +76,6 @@ function importObjects(objectType) {
 						console.log("\n== update Archi objects ==");
 						updateRows_Log.map((line) => console.log(line));
 					}
-
 					const skippedRows = rowIndex.filter((obj) => obj.actionCode == SKIP);
 					// if (skippedRows.length > 0) {
 					// 	console.log("\n== skipped rows ==");
@@ -85,15 +86,15 @@ function importObjects(objectType) {
 					console.log(`> Imported CSV file: ${importFileName}\n`);
 					console.log("> Import finished");
 					console.log(`>> rows processed : ${rows.length}`);
-					console.log(`>> ${objectType} updated : ${updateRows_Log.length}`);
-					console.log(`>> ${objectType} created : ${createRows.length}`);
-					console.log(`>> ${objectType} skipped : ${skippedRows.length}`);
+					console.log(`>> objects updated : ${updateRows_Log.length}`);
+					console.log(`>> objects created : ${createRows.length}`);
+					console.log(`>> objects skipped : ${skippedRows.length}`);
 					console.log("");
 				} else {
 					console.log("\n> ======== ");
 					console.log(`> Unvalid data in CSV file: ${importFileName}`);
-					console.log(`> There are ${validateLog.length} unvalid rows`);
-					validateLog.map((line) => console.log(`> - ${line}`));
+					console.log(`> There are ${checkRowLog.length} unvalid rows`);
+					checkRowLog.map((line) => console.log(`> - ${line}`));
 					console.log(`\n> Correct the data and import again\n`);
 				}
 			} else {
@@ -116,8 +117,7 @@ function importObjects(objectType) {
  * check importFile for missing columns
  */
 function checkHeader(rows) {
-	let lineAttr = "";
-	let lineEndpoint = "";
+	let line = "";
 	// papaparse stores a row in an array with {name, value} objects
 	const headerLabels = Object.keys(rows[0]);
 	console.log(`\nCSV file columns:`);
@@ -126,13 +126,12 @@ function checkHeader(rows) {
 
 	ATTRIBUTE_LABELS.forEach(function (label) {
 		if (headerLabels.indexOf(label) == -1) {
-			lineAttr += `- ${label}`;
+			line += `- ${label}`;
 		}
 	});
-
-	if (lineAttr) {
+	if (line) {
 		console.log(`>> UNVALID CSV file <<\nMissing attribute columns:`);
-		console.log(lineAttr);
+		console.log(line);
 		return false;
 	}
 
@@ -140,14 +139,13 @@ function checkHeader(rows) {
 	if (relations.length > 0) {
 		ENDPOINT_LABELS.forEach(function (label) {
 			if (headerLabels.indexOf(label) == -1) {
-				lineEndpoint += `- ${label}\n`;
+				line += `- ${label}\n`;
 			}
 		});
 	}
-
-	if (lineEndpoint) {
+	if (line) {
 		console.log(`>> UNVALID CSV file <<\nMissing columns for relations`);
-		console.log(lineEndpoint);
+		console.log(line);
 		return false;
 	}
 	return true;
@@ -260,13 +258,14 @@ function findObjects(row_type, row_name, row_prop_id, row_id) {
 			return o.prop(PROP_ID) == row_prop_id;
 		});
 	}
-
+	
 	// a PROP_ID has to be unique
 	if (archiObjects.size() > 1) {
 		let logLine = `\n>> Found multiple objects with '${PROP_ID}': ${archiObjects}`;
 		logLine += `\n>> Duplicate '${PROP_ID}' are not allowed`;
 		logLine += `\n>> Use script setObjectID.ajs to find and resolve duplicates`;
 		throw logLine;
+		// return archiObjects;
 	}
 
 	if (archiObjects.size() == 1) {
@@ -298,25 +297,15 @@ function findObjects(row_type, row_name, row_prop_id, row_id) {
  */
 function findRelation(row) {
 	let archiRelations = $();
-	let archiEndpoint = [];
+	let archiSources, archiTargets = $();
+	archiSources = findObjects(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
+	archiTargets = findObjects(row["target.type"], row["target.name"], row[`target.prop.${PROP_ID}`], row["target.id"]);
 
-	debug(`Find relation with endpoints`);
-	["source", "target"].forEach(function (endpoint) {
-		archiEndpoint[endpoint] = $();
-		archiEndpoint[endpoint] = findObjects(
-			row[`${endpoint}.type`],
-			row[`${endpoint}.name`],
-			row[`${endpoint}.prop.${PROP_ID}`],
-			row[`${endpoint}.id`]
-		);
-		debug(`>> ${endpoint}: ${archiEndpoint[endpoint]}`);
-	});
-
-	if (archiEndpoint["source"].size() > 0 && archiEndpoint["target"].size() > 0) {
+	if (archiSources.size() > 0 && archiTargets.size() > 0) {
 		// find relations with the source and target
-		archiRelations = archiEndpoint["source"].outRels(row.type).filter(function (outRel) {
+		archiRelations = archiSources.outRels(row.type).filter(function (outRel) {
 			// return archiTargets.has(r.target).size() > 0; // ????
-			let foundRel = archiEndpoint["target"].inRels(row.type).filter(function (inRel) {
+			let foundRel = archiTargets.inRels(row.type).filter(function (inRel) {
 				if (outRel.id == inRel.id) {
 					debug(`outRel=${outRel} ${outRel.id} inRel=${inRel} ${inRel.id}`);
 				}
@@ -349,25 +338,25 @@ function createObject(labelsToUpdate, row, obj) {
 	// debug(`check index obj = ${JSON.stringify(obj.archiObject)}`);
 
 	if (row.type.endsWith("relationship")) {
-		let archiSources = $();
-		let archiTargets = $();
+		let archiSources, archiTargets = $();
 		archiSources = findObjects(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
 		archiTargets = findObjects(row["target.type"], row["target.name"], row[`target.prop.${PROP_ID}`], row["target.id"]);
 
 		if (archiSources.size() == 1 && archiTargets.size() == 1) {
 			newObject.archiObject = model.createRelationship(row.type, row.name, archiSources.first(), archiTargets.first());
+			line += `row[${obj.index + 2}] > ${obj.actionCode} ${newObject.archiObject}`;
 			line += updateObject(labelsToUpdate, row, newObject);
 		} else {
-			line += `> relation not created, row does not point to a unique source and target\n`;
-			line += `> found sources: ${archiSources}\n`;
-			line += `> found targets: ${archiSources}\n`;
+			line += `row[${obj.index + 2}] > relation not created, no (unique) source and/or target\n`;
+			line += `> found source(s): ${archiSources}\n`;
+			line += `> found target(s): ${archiTargets}`;
 		}
 	} else if (row.type == "archimate-diagram-model") {
-		line += `> INFO: View ${row.name} NOT created\n`;
-		line += `> INFO: creation of views is not supported, use Archi merge function\n`;
+		line += `row[${obj.index + 2}] > View ${row.name} NOT created\n`;
+		line += `> creation of views is not supported, use Archi merge function`;
 	} else {
 		newObject.archiObject = model.createElement(row.type, row.name);
-		line = `row[${obj.index + 2}] > ${obj.actionCode} ${newObject.archiObject}`;
+		line += `row[${obj.index + 2}] > ${obj.actionCode} ${newObject.archiObject}`;
 		line += updateObject(labelsToUpdate, row, newObject);
 	}
 
@@ -386,10 +375,10 @@ function readHeader(rows) {
 	// Filter the columns to be imported
 	// - don't import the attribute id (can't be set) and
 	// - don't import the endpoints (used for finding the relation)
-	const skipLabels = ["type", "id"].concat(ENDPOINT_LABELS);
+	const LABELS_NOT_TO_UPDATE = ["type", "id"].concat(ENDPOINT_LABELS);
 
 	// const labelsToUpdate = headerLabels.filter((label) => skipLabels.indexOf(label) === -1);
-	let labelsToUpdate = headerLabels.filter((label) => !skipLabels.includes(label));
+	let labelsToUpdate = headerLabels.filter((label) => !LABELS_NOT_TO_UPDATE.includes(label));
 	debug(`\nlabelsToUpdate: ${labelsToUpdate}`);
 
 	return labelsToUpdate;
@@ -400,6 +389,9 @@ function readHeader(rows) {
  * 	update the attributes and properties of the object with the CSV row values
  */
 function updateObject(labelsToUpdate, row, obj) {
+	const ATTRIBUTE_TEXT = "attribute";
+	const PROPERTY_TEXT = "property";
+
 	let lineUpdated = "";
 	let line = "";
 
@@ -409,14 +401,14 @@ function updateObject(labelsToUpdate, row, obj) {
 
 	// update objects attributes and properties with the row cell values
 	labelsToUpdate.map((label) => {
-		let labelType = ATTRIBUTE_LABELS.indexOf(label) != -1 ? ATTRIBUTE_LABEL : PROPERTY_LABEL;
+		let labelType = ATTRIBUTE_LABELS.indexOf(label) != -1 ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
 
 		// remove properties with the value REMOVE_PROPERTY
-		if (labelType == PROPERTY_LABEL && row[label] == REMOVE_PROPERTY_VALUE) {
+		if (labelType == PROPERTY_TEXT && row[label] == REMOVE_PROPERTY_VALUE) {
 			if (obj.archiObject.prop().indexOf(label) != -1) {
 				lineUpdated += `\n> remove ${labelType} ${label}: ${get_attr_or_prop(obj.archiObject, label)}`;
 				obj.archiObject.removeProp(label);
-			} //else lineUpdated += `\n> remove ${labelType} ${label}: no property`
+			}
 		} else {
 			// skip row cell if empty or if equal to object value
 			if (row[label] && row[label] != get_attr_or_prop(obj.archiObject, label)) {
@@ -496,7 +488,7 @@ function stripBom(string) {
 	// Catches EFBBBF (UTF-8 BOM) because the buffer-to-string
 	// conversion translates it to FEFF (UTF-16 BOM).
 	if (string.charCodeAt(0) === 0xfeff) {
-		debug("Ignored BOM from CSV file");
+		debug("Strip BOM from CSV file");
 		return string.slice(1);
 	}
 	return string;

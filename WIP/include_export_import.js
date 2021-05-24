@@ -11,11 +11,12 @@ const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_VIEW = "view";
 
 // The property PROP_ID is used as a tool independent identifier.
-// In the import the PROP_ID identifier takes precedence over the Archi id
 const PROP_ID = "Object ID";
 
-// const ENDPOINTS = ["source", "target"];
+// ## todo update/immutable labels
+// labels for creating column labels and for getting and setting object properties
 const ATTRIBUTE_LABELS = ["name", "type", "documentation","id"];
+const ENDPOINTS = [
 const ENDPOINT_LABELS = [
 	"source.name",
 	"source.type",
@@ -27,73 +28,7 @@ const ENDPOINT_LABELS = [
 	`target.prop.${PROP_ID}`,
 ];
 
-const ATTRIBUTE_LABEL = "attribute";
-const PROPERTY_LABEL = "property";
-// use this value in a property column to remove a property from the object
-const REMOVE_PROPERTY_VALUE = "<remove>";
-
-/**
- *
- */
-function executeExportImport(filePath) {
-	initConsoleLog(filePath);
-	checkJavaScriptEngine(ENGINE_GRAAL_VM);
-
-	_commonShowDebugMessage = [false];
-
-	let fileName = filePath
-		.replace(/^.*[\\\/]/, "")
-		.replace(/\.ajs$/, "")
-		.replace(/%20/, "-")
-		.toLowerCase();
-
-	const [executeAction, objectType] = fileName.split("_");
-	debug(`Execute an "${executeAction}" with "${objectType}"`);
-
-	let fileFormat = "Filename format is {export|import}_{element|relation|view}.ajs";
-	if ([OBJECT_TYPE_ELEMENT, OBJECT_TYPE_RELATION, OBJECT_TYPE_VIEW].indexOf(objectType) == -1) {
-		throw `\n>> Unknown objectType: ${objectType}. ${fileFormat}`;
-	}
-
-	try {
-		switch (executeAction) {
-			case "export": {
-				load(__DIR__ + "../_lib/SelectCollection.js");
-				load("include_export.js");
-				exportObjects(objectType);
-				break;
-			}
-			case "import": {
-				load("include_import.js");
-				importObjects(objectType);
-				break;
-			}
-			default:
-				throw `\n>> Unknown executeAction: ${executeAction}. ${fileFormat}`;
-		}
-	} catch (error) {
-		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-	}
-	_commonShowDebugMessage.pop();
-
-	finishConsoleLog();
-}
-
-function isEmpty(obj) {
-	if (typeof obj === "object") {
-		// both jArchi en JS objects have a type object, but the jArchi object gives an error for Object.keys(jArchi object)
-		if (typeof obj.size === "function") {
-			// jArchi object has function size
-			return obj.size() === 0;
-		} else {
-			// for JS object.
-			return Object.keys(obj).length === 0;
-		}
-	} else {
-		console.log(`> isEmpty(obj=${obj}, typeof=${typeof obj}): only use for jArchi objects or JS object`);
-	}
-}
-
+//////////////////////////////////////////////////////////////////////////////////////////
 /**
  * set an attribute or property to the value from the CSV file
  */
@@ -117,10 +52,17 @@ function get_attr_or_prop(archi_object, row_label) {
 		cell[row_label] = archi_object[row_label];
 		debug(`attr archi_object.${row_label}=${cell[row_label]}`);
 	} else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
-		// endpoint => obj.source.id, obj.target.prop("Object ID")
-		const [endpoint, attr, prop] = row_label.split(".");
-
-		if (prop) {
+		// const [endpoint, attr, prop] = row_label.split("."); // GRAALVM only
+		// row_label => source.id, target.prop.Object ID
+		const endpoint= row_label.substring(0, row_label.indexOf("."));
+		const secondSubString = row_label.substring(row_label.indexOf(".") + 1, row_label.lastIndexOf("."))
+		if (secondSubString == 'prop') {
+			var prop = row_label.substring(row_label.lastIndexOf(".") +1)
+		} else {
+			var attr = row_label.substring(row_label.lastIndexOf(".") + 1)
+		}
+		
+		if (secondSubString == 'prop') {
 			cell[row_label] = archi_object[endpoint].prop(prop);
 			debug(`endpoint archi_object[${endpoint}].prop(${prop})=${cell[row_label]}`);
 		} else {

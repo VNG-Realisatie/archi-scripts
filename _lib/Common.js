@@ -183,7 +183,7 @@ function slash() {
  *
  *  based on https://www.npmjs.com/package/text-table
  *
- * @param pRows 2 dimensional array with rows and columns
+ * @param tData 2 dimensional array with rows and columns
  * @param opts object with layout options
  *
  * options are
@@ -198,7 +198,7 @@ function slash() {
  *	 'c' - center
  *	 '.' - decimal
  */
-function table(pRows, opts) {
+function table(tData, opts) {
 	const cLineChar = "-";
 	const cIndexTitle = 1;
 	const cIndexLine = 2;
@@ -221,19 +221,19 @@ function table(pRows, opts) {
 	var rows_ = [];
 	if (markDown) {
 		var i_rowsTitle = 0;
-		for (let i_row = 0; i_row < pRows.length; i_row++) {
-			rows_[i_rowsTitle] = pRows[i_row];
+		for (let i_row = 0; i_row < tData.length; i_row++) {
+			rows_[i_rowsTitle] = tData[i_row];
 			i_rowsTitle++;
 			if (i_row == 0) {
 				rows_[i_rowsTitle] = [];
-				for (let i_cell = 0; i_cell < pRows[i_row].length; i_cell++) {
+				for (let i_cell = 0; i_cell < tData[i_row].length; i_cell++) {
 					rows_[i_rowsTitle][i_cell] = cLineChar;
 				}
 				i_rowsTitle++;
 			}
 		}
 	} else {
-		rows_ = pRows;
+		rows_ = tData;
 	}
 
 	var dotsizes = reduce(

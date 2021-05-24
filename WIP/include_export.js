@@ -4,11 +4,13 @@
  * Functions for exporting model elements, relations and view properties
  */
 
+load(__DIR__ + "../_lib/SelectCollection.js");
+load(__DIR__ + "include_export_import.js");
+
 /**
- * export selected objects to a csv file
+ * export selected objects to a CSV file
  *
  * ToDo:
- * - selectConcept for views
  * - select elements and their relations
  */
 function exportObjects(objectType) {
@@ -16,8 +18,6 @@ function exportObjects(objectType) {
 	debug(`objectType=${objectType}`);
 
 	try {
-		// selection is a global Archi variable with a collection of Archi objects
-		// let objects = exportSelectObjects(selection, objectType);
 		let collection = $();
 		if (objectType == OBJECT_TYPE_VIEW) {
 			collection = selectViews($(selection));
@@ -39,7 +39,6 @@ function exportObjects(objectType) {
 	} catch (error) {
 		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 	}
-	debug(`< `);
 	_commonShowDebugMessage.pop();
 }
 
@@ -130,7 +129,6 @@ function saveRowsToFile(header, data, objectType) {
 				{ quotes: true }
 			)
 		);
-
 		let exportFileName = exportFile.split("\\").pop().split("/").pop();
 		let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
 		console.log("Saved to file: " + exportFileName);
