@@ -1,0 +1,19 @@
+/**
+ * import
+ * 	import all object from a CSV file
+ */
+
+load(__DIR__ + "../_lib/Common.js");
+// checkJavaScriptEngine(ENGINE_GRAAL_VM)
+
+load("include_import.js");
+
+initConsoleLog(__FILE__);
+
+let dir ="C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/"
+let fileName = "2021-05-27_GEMMA-import-en-publicatietest_element.csv"
+// let fileName = "2021-05-27_GEMMA-import-en-publicatietest_relation.csv"
+// let fileName = "2021-05-27_GEMMA-import-en-publicatietest_view.csv"
+importObjects(dir + fileName);
+
+finishConsoleLog();

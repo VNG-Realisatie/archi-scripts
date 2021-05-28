@@ -1,5 +1,4 @@
 var _commonScriptName;
-var _commonCounter;
 
 // default console logging is off. Override in calling function with push() and pop()
 let _commonShowInfoMessage = [false];
@@ -13,8 +12,8 @@ let _commonShowDebugMessage = [false];
  * @param pClear : boolean for clear console
  */
 function initConsoleLog(pFile, pClear) {
-	_commonCounter = startCounter();
-	
+	startCounter("initConsoleLog");
+
 	// Show output in the console
 	console.show();
 	if (pClear) {
@@ -22,7 +21,7 @@ function initConsoleLog(pFile, pClear) {
 	}
 
 	let pattern = /^.*[\\\/]/;
-	_commonScriptName = pFile.replace(pattern, "")
+	_commonScriptName = pFile.replace(pattern, "");
 
 	console.log("============================================");
 	console.log(`Executing script "${_commonScriptName}"...`);
@@ -33,13 +32,38 @@ function initConsoleLog(pFile, pClear) {
 
 function finishConsoleLog() {
 	// console.log("\n============================================");
-	console.log(`\nScript "${_commonScriptName}" finished in ${endCounter(_commonCounter)}`);
+	console.log(`\nScript "${_commonScriptName}" finished in ${endCounter("initConsoleLog")}`);
 	console.log("==========================================\n");
 }
 
 ENGINE_NASHORN = "jdk.nashorn.api.scripting.NashornScriptEngine";
 ENGINE_GRAAL_VM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
 ENGINES = [ENGINE_NASHORN, ENGINE_GRAAL_VM];
+
+var _startCounter = {};
+
+/**
+ * startCounter and endCounter
+ * 	measure runtime for a block of code
+ */
+function startCounter(label) {
+	_startCounter[label] = Date.now();
+}
+
+function endCounter(label) {
+	let _endCounter = Date.now();
+	let milliSeconds = parseInt(_endCounter - _startCounter[label]);
+	let durationInSeconds = parseInt((_endCounter - _startCounter[label]) / 1000);
+	let minutes = parseInt(durationInSeconds / 60);
+	let seconds = parseInt(durationInSeconds % 60);
+	if (minutes > 0) {
+		return `${minutes}m${seconds}s`;
+	} else if (seconds > 0) {
+		return `${seconds}s`;
+	} else {
+		return `${milliSeconds}ms`;
+	}
+}
 
 /**
  * function checkEngine(engine)
@@ -60,26 +84,6 @@ function checkJavaScriptEngine(required_engine) {
 		throw line;
 	}
 	return true;
-}
-
-/**
- * startCounter and endCounter
- * 	measure runtime for a block of code
- */
-function startCounter() {
-	return new Date();
-}
-
-function endCounter(startCounter) {
-	_endCounter = new Date();
-	_durationInSeconds = parseInt((_endCounter - startCounter) / 1000);
-	_minutes = parseInt(_durationInSeconds / 60);
-	_seconds = parseInt(_durationInSeconds % 60);
-	if (_minutes > 0) {
-		return `${_minutes}m${_seconds}s`;
-	} else {
-		return `${_seconds}s`;
-	}
 }
 
 /**
@@ -105,17 +109,17 @@ function debug(msg) {
  * 	show message with prefix
  * @param msg string information message
  */
-function logMessage(logSwitch, logType, pMsg) {
+function logMessage(logSwitch, logType, msg) {
 	// let stack = new Error().stack
 	// console.log(`stack:\n${stack}\n\n`)
 
 	if (logSwitch[logSwitch.length - 1]) {
-		if (pMsg.startsWith("\n")) {
+		if (msg.startsWith("\n")) {
 			console.log();
-			pMsg = pMsg.substring("\n".length);
+			msg = msg.substring("\n".length);
 		}
 		let stackLevel = 4; // archi > calling function > debug > logMessage
-		console.log(`${">".repeat(logSwitch.length)} ${logType} ${getFuncName(stackLevel)}: ${pMsg}`);
+		console.log(`${">".repeat(logSwitch.length)} ${logType} ${getFuncName(stackLevel)}: ${msg}`);
 	}
 }
 

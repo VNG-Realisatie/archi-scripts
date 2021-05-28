@@ -24,17 +24,21 @@ function exportObjects(objectType) {
 		} else {
 			collection = selectConcepts($(selection));
 		}
-		if (collection.size() > 0) {
-			// filter and convert selected Archi collection to an array
-			let objects = [];
-			collection.filter(objectType).each((object) => objects.push(object));
 
+		// filter and convert selected Archi collection to an array
+		let objects = [];
+		collection.filter(objectType).each((object) => objects.push(object));
+
+		if (objects.length > 0) {
 			console.log(`Creating header with columns and rows:`);
 			const header = createHeader(objects, objectType);
-			const data = objects.map((o) => createRow(header, o));
 
+			const data = objects.map((o) => createRow(header, o));
 			console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
+
 			saveRowsToFile(header, data, objectType);
+		} else {
+			console.log(`Empty selection. No ${objectType}s found`)
 		}
 	} catch (error) {
 		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -44,9 +48,6 @@ function exportObjects(objectType) {
 
 /**
  * create a row with the column labels for the exported objects
- * - attributes are prefixed with attr (ex id, id)
- * - prop are prefixed with prop (ex prop.Object ID)
- * - endpoints are prefixed with source en target (source.id, source.prop.Object ID)
  */
 function createHeader(objects, objectType) {
 	// remove duplicate property labels  ### kan dit met een filter op een array?
@@ -55,18 +56,19 @@ function createHeader(objects, objectType) {
 	const propertyLabels = Object.keys(propertyLabelsObject);
 
 	let header = ATTRIBUTE_LABELS.concat(propertyLabels);
+	let columnCounters = `header with ${ATTRIBUTE_LABELS.length} attributes, ${propertyLabels.length} properties`;
 
-	let relLogLine = "";
 	if (objectType == OBJECT_TYPE_RELATION) {
 		header = header.concat(ENDPOINT_LABELS);
-		relLogLine += `, ${ENDPOINT_LABELS.length} endpoints`;
+		columnCounters += `, ${ENDPOINT_LABELS.length} endpoints`;
+	}
+	if (FOLDER_LABEL) {
+		header.push(FOLDER_LABEL);
+		columnCounters += `, 1 ${FOLDER_LABEL}`;
 	}
 
 	debug(`header: ${header}\n`);
-	let logLine = `- ${header.length} columns (header with ${ATTRIBUTE_LABELS.length} attributes`;
-	logLine += `, ${propertyLabels.length} properties`;
-	logLine += relLogLine + ")";
-	console.log(logLine);
+	console.log(`- ${header.length} columns (${columnCounters})`);
 
 	return header;
 }
@@ -100,9 +102,26 @@ function createRow(headerRow, object) {
 		row[label] = get_attr_or_prop(object, label);
 	});
 
+	if (FOLDER_LABEL) {
+		// row[FOLDER_LABEL] = get_folderPath($(`#${object.id}`), "");
+		row[FOLDER_LABEL] = get_folderPath(object, "");
+		debug(`row[FOLDER_LABEL]: ${row[FOLDER_LABEL]}`);
+	}
+
 	debug(`Row: ${JSON.stringify(row)}`);
 	_commonShowDebugMessage.pop();
 	return row;
+}
+
+/**
+ * get objects folderpath by recursively walkin up the parentfolders
+ */
+function get_folderPath(child, currentFolderName) {
+	let parent = $(`#${child.id}`).parent("folder");
+	if (parent.size() == 0) return currentFolderName;
+
+	let folderName = `${parent.first().name}/${currentFolderName}`;
+	return get_folderPath(parent.first(), folderName);
 }
 
 /**
@@ -110,6 +129,9 @@ function createRow(headerRow, object) {
  */
 function saveRowsToFile(header, data, objectType) {
 	let fileName_suggestion = `${model.name}_${$(selection).first().name}_${objectType}`.replace(/\s/g, "-");
+	if (selection.is("archimate-model")) {
+		fileName_suggestion = `${model.name}_${objectType}`.replace(/\s/g, "-");
+	}
 
 	let datum = new Date();
 	let exportFile = window.promptSaveFile({
