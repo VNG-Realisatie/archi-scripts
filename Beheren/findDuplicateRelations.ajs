@@ -13,44 +13,47 @@ console.log("Starting findDuplicateRelations\n");
 
 // add all relations of the model to an array.
 let relations = [];
-$("relation").each(function (relation) {
-	relations.push(relation);
-});
+$("relation").each((relation) => relations.push(relation));
 
 const relationArray = relations.map((relation) => getRelationStrings(relation));
 
 // list of duplicate relations. Relation name is not  with a duplicate property relation ID. Also unvalid relation ID's are shown in duplicate list
 const lookup = relationArray.reduce((accumulator, entry) => {
-	// reduce relations to lookup table with count of occurrences - 1
-	accumulator[entry.key] = accumulator[entry.key] + 1 || 0;
-	return accumulator;
+  // reduce relations to lookup table with count of occurrences - 1
+  accumulator[entry.relKey] = accumulator[entry.relKey] + 1 || 0;
+  return accumulator;
 }, {});
 // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
-const duplicate_Array = relationArray.filter((entry) => lookup[entry.key]);
+const duplicate_Array = relationArray.filter((entry) => lookup[entry.relKey]).sort(sortRelName);
 
 if (duplicate_Array.length > 0) {
-	console.log(`There are ${duplicate_Array.length} duplicate relations (source -> target)`);
-	duplicate_Array.sort(sortRelName).map((relObject) => console.log(`> ${relObject.relName}`));
+  console.log(`Duplicate relations have 'siblings' with the same type, source and target\nRelations with 'duplicates'`);
+  for (let i = 0; i < duplicate_Array.length; i++) {
+    if (i > 0) {
+      if (duplicate_Array[i].relKey !== duplicate_Array[i - 1].relKey) {
+        console.log();
+      }
+    }
+    console.log(`- ${duplicate_Array[i].relKey}`);
+    console.log(`  - id=${duplicate_Array[i].relation.id}`);
+    console.log(`  - Object id=${duplicate_Array[i].relation.prop("Object ID")}`);
+    console.log(`  - name=${duplicate_Array[i].relation.name}`);
+  }
 }
+console.log(`\nFound ${duplicate_Array.length} duplicate relations (source -> target)`);
 
 console.log("\nEnding findDuplicateRelations");
 
 function getRelationStrings(r) {
-	let relKey = `${r.type}`;
-	if (r.type == "access-relationship") {
-		relKey += `(${r.accessType})`;
-	}
-	if (r.type == "influence-relationship") {
-		relKey += `(${r.influenceStrength})`;
-	}
-	if (r.type == "association-relationship") {
-		relKey += `(${r.associationDirected})`;
-	}
-	relKey += `: ${r.source.name} -> ${r.target.name} (${r.source.id} - ${r.target.id})`;
+  let relKey = `${r.type}:`;
+  if (r.type == "access-relationship") relKey += ` (${r.accessType})`;
+  if (r.type == "influence-relationship") relKey += ` (${r.influenceStrength})`;
+  if (r.type == "association-relationship") relKey += ` (${r.associationDirected})`;
+  relKey += ` ${r.source.name} -[${r.name}]-> ${r.target.name}\n  - ${r.source.id} --> ${r.target.id}`;
 
-	let relName = relKey.replace(" -> ", ` -${r.name ? `[${r.name}]` : "[no name]"}-> `);
+  let relName = relKey; // .replace(" -> ", ` -${r.name ? `[${r.name}]` : "[no name]"}-> `);
 
-	return { key: relKey, relName: relName, relation: r };
+  return { relKey: relKey, relName: relName, relation: r };
 }
 
 /**
@@ -58,8 +61,8 @@ function getRelationStrings(r) {
  * 	sort all entries on property key
  */
 function sortRelName(a, b) {
-	if (a.key + a.relation.name < b.key + b.relation.name) return -1;
-	if (a.key + a.relation.name > b.key + b.relation.name) return 1;
-	return 0;
-	//	return a.key + a.relation.name.localeCompare(b.key + a.relation.name)
+  if (a.relKey + a.relation.name < b.relKey + b.relation.name) return -1;
+  if (a.relKey + a.relation.name > b.relKey + b.relation.name) return 1;
+  return 0;
+  //	return a.key + a.relation.name.localeCompare(b.key + a.relation.name)
 }

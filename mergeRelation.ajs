@@ -1,0 +1,112 @@
+/*
+ * mergeRelation
+ *
+ * Version 1: Given an relation, the script merges all relations with
+ * 	- the same endpoints
+ * 	- the same type
+ * 	- and the same name
+ *
+ * From the jArchi .merge method (https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#merge)
+ *
+ *    Existing diagram instances of the other ArchiMate relationship will be replaced with this relationship
+ * 		Relationships have to be of the same type
+ * 		All source and target relationships of the other relationship are set to this relationship
+ *
+ * jArchi merge method always appends the documentation and property values of the merged relation
+ * - This script only appends if the documentation field or de propertie value is different
+ *
+ * This script does delete the merged relation
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+
+load(__DIR__ + "_lib/Common.js");
+
+initConsoleLog(__FILE__);
+
+if ($(selection)) {
+  if ($(selection).filter("relation").size() == 1) {
+    // select one relation in view			-> this relation is the master
+    mergeRelation($(selection).first());
+  } else {
+    console.log(`> Multiple relations selected, select only one relation`);
+  }
+} else {
+  console.log(`> Select one relation`);
+}
+
+finishConsoleLog();
+
+/**
+ *
+ */
+function mergeRelation(rel) {
+  _commonShowDebugMessage.push(false);
+  try {
+		let documentationEqual = false
+    let master = rel.concept;
+
+    debug(`master: ${master}`);
+
+    let dupRels = $(`#${master.source.id}`)
+      .outRels(master.type)
+      .filter(function (outRel) {
+        let dupRel = $(`#${master.target.id}`)
+          .inRels(master.type)
+          .filter(function (inRel) {
+            return outRel.id === inRel.id && outRel.name === master.name;
+          });
+        return dupRel.size() > 0;
+      });
+
+    // remove master relation
+    dupRels.not($(`#${master.id}`));
+
+    let masterName = `${master.name ? master.name : "no-name"}`;
+    let masterString = `${master.type}:  ${master.source.name} -[${masterName}]-> ${master.target.name}`;
+
+    if (dupRels.size() == 0) {
+      console.log(`> Only one relation like:\n>> ${masterString}`);
+    } else {
+      console.log(`> Merge all relations equal to:`);
+      console.log(`>> ${masterString}`);
+      console.log(`>> Selected relation has id=${master.id}\n`);
+
+      dupRels.each(function (dupRel) {
+        console.log(`>> Merge relation: ${dupRel.id}`);
+
+        // don't append documentation if documentation strings are equal
+        if (dupRel.documentation == master.documentation) {
+          console.log(`>>> documentation is equal`);
+					documentationEqual = true
+        } else {
+          console.log(`>>> documentation appended to documentation of master`);
+        }
+        var duplicatePropList = dupRel.prop();
+        for (var i = 0; i < duplicatePropList.length; i++) {
+          if (master.prop(duplicatePropList[i])) {
+            // remove property from duplicate if property is equal to master property
+            if (master.prop(duplicatePropList[i]) == dupRel.prop(duplicatePropList[i])) {
+              dupRel.removeProp(duplicatePropList[i]);
+            } else {
+              console.log(`>>> property ${duplicatePropList[i]} appended`);
+            }
+          } else {
+            console.log(`>>> property ${duplicatePropList[i]} added`);
+          }
+        }
+
+        master.merge(dupRel);
+				// sollution for merge append of empty documentation adds a newline
+				if (documentationEqual) master.documentation = dupRel.documentation;
+        dupRel.delete();
+      });
+
+      console.log(`\n> ${dupRels.size()} relations merged and deleted`);
+    }
+  } catch (error) {
+    console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == "undefined" ? error : error.stack}`);
+  }
+  _commonShowDebugMessage.pop();
+}
