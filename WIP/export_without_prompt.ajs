@@ -1,0 +1,20 @@
+/**
+ * export_without_prompt
+ * 	for fast roundtripping with one export and import CSV file
+ * 	give an objecttype and filename for exporting without a filename prompt
+ */
+
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "include_export.js");
+
+initConsoleLog(__FILE__);
+
+let dir = "C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/";
+
+// let fileName = "2021-05-31_test.csv"
+let fileName = "BO roundtrip element.csv"
+
+// exportObjects(OBJECT_TYPE_RELATION, dir + fileName);
+exportObjects(OBJECT_TYPE_ELEMENT, dir + fileName);
+
+finishConsoleLog();

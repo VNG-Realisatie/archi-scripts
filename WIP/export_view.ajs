@@ -1,11 +1,10 @@
 /**
  * export_view
- * 	export selected or by selection contained views to a CSV file
+ *  export the properties of the selected views to a CSV file
+ * 	if a container (a view or a folder) is selected, all views in the container are exported
  */
 
 load(__DIR__ + "../_lib/Common.js");
-// checkJavaScriptEngine(ENGINE_GRAAL_VM);
-
 load(__DIR__ + "include_export.js");
 
 initConsoleLog(__FILE__);

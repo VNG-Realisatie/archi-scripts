@@ -44,8 +44,9 @@ const CREATE = "CREATE";
 
 /**
  * import the CSV file
- * - first validate and index the rows
- * - then create or update an archi object for each row
+ * - process the given CSV file and for every row create or update an archi object
+ * 
+ * @param {*} importFile filepath to CSV file to import (optional, if empty you will be prompted)
  */
 function importObjects(importFile) {
   _commonShowDebugMessage.push(false);

@@ -1,11 +1,10 @@
 /**
  * export_relation
- * 	export selected or by selection contained relations to a CSV file
+ * 	export selected relations to a CSV file
+ * 	if a container (a view or a folder) is selected, all relations in the container are exported
  */
 
 load(__DIR__ + "../_lib/Common.js");
-// checkJavaScriptEngine(ENGINE_GRAAL_VM);
-
 load(__DIR__ + "include_export.js");
 
 initConsoleLog(__FILE__);

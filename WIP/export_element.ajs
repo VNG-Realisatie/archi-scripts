@@ -1,6 +1,7 @@
 /**
  * export_element
- * 	export selected or by selection contained elements to a CSV file
+ * 	export selected elements to a CSV file
+ * 	if a conainer (a view or a folder) is selected, all elements in the container are exported
  */
 
 load(__DIR__ + "../_lib/Common.js");
