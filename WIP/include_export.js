@@ -12,6 +12,10 @@ load(__DIR__ + "include_export_import.js");
  *
  * ToDo:
  * - select elements and their relations
+ * 
+ * @param {*} objectType type of Archi objects to export.
+ * 												- Use the constants OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT or OBJECT_TYPE_VIEW
+ * @param {*} exportFile filepath to write CSV file (optional, if empty you will be prompted)
  */
 function exportObjects(objectType, exportFile) {
   _commonShowDebugMessage.push(false);
