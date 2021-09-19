@@ -7,25 +7,29 @@
 // This script takes a selection of visual objects as input, filter it to keep only relationships and remove all their bendpoints
 //
 // (c) 2018 Jean-Baptiste Sarrodie
+//
+//	Mark Backer:
+//	- use deleteAllBendpoints() to keep formatting of connection
 
 if (selection.is("view")) {
-	viewObjects = selection.find();
+  viewObjects = selection.find();
 } else if (selection.first().view) {
-	viewObjects = selection;
+  viewObjects = selection;
 } else {
-	console.log("Selection not valid, select a view or select objects on a view");
+  console.log("Selection not valid, select a view or select objects on a view");
 }
 
 viewObjects
-	.filter("relationship")
-	.filter(function (o) {
-		return o.id != o.concept.id;
-	})
-	.each(function (o) {
-		var view = o.view;
-		var rel = o.concept;
-		var source = o.source;
-		var target = o.target;
-		o.delete();
-		view.add(rel, source, target);
-	});
+  .filter("relationship")
+  .filter(function (o) {
+    return o.id != o.concept.id;
+  })
+  .each(function (o) {
+    o.deleteAllBendpoints();
+    // var view = o.view;
+    // var rel = o.concept;
+    // var source = o.source;
+    // var target = o.target;
+    // o.delete();
+    // view.add(rel, source, target);
+  });

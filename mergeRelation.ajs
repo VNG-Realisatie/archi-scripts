@@ -7,7 +7,6 @@
  * 	- and the same name
  *
  * From the jArchi .merge method (https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#merge)
- *
  *    Existing diagram instances of the other ArchiMate relationship will be replaced with this relationship
  * 		Relationships have to be of the same type
  * 		All source and target relationships of the other relationship are set to this relationship
@@ -42,52 +41,53 @@ finishConsoleLog();
  *
  */
 function mergeRelation(rel) {
-  _commonShowDebugMessage.push(false);
+  _commonShowDebugMessage.push(true);
   try {
-		let documentationEqual = false
-    let master = rel.concept;
+    let documentationEqual = false;
+    console.log(rel);
+    var masterRel = concept(rel);
+    
+    debug(`master: ${masterRel}`);
 
-    debug(`master: ${master}`);
-
-    let dupRels = $(`#${master.source.id}`)
-      .outRels(master.type)
+    let dupRels = $(masterRel.source)
+      .outRels(masterRel.type)
       .filter(function (outRel) {
-        let dupRel = $(`#${master.target.id}`)
-          .inRels(master.type)
+        let dupRel = $(masterRel.target)
+          .inRels(masterRel.type)
           .filter(function (inRel) {
-            return outRel.id === inRel.id && outRel.name === master.name;
+            return outRel.id === inRel.id && outRel.name === masterRel.name;
           });
         return dupRel.size() > 0;
       });
 
-    // remove master relation
-    dupRels.not($(`#${master.id}`));
+    // remove master relation from collection
+    dupRels.not($(masterRel));
 
-    let masterName = `${master.name ? master.name : "no-name"}`;
-    let masterString = `${master.type}:  ${master.source.name} -[${masterName}]-> ${master.target.name}`;
+    let masterName = `${masterRel.name ? masterRel.name : "no-name"}`;
+    let masterString = `${masterRel.type}:  ${masterRel.source.name} -[${masterName}]-> ${masterRel.target.name}`;
 
     if (dupRels.size() == 0) {
       console.log(`> Only one relation like:\n>> ${masterString}`);
     } else {
       console.log(`> Merge all relations equal to:`);
       console.log(`>> ${masterString}`);
-      console.log(`>> Selected relation has id=${master.id}\n`);
+      console.log(`>> Selected relation has id=${masterRel.id}\n`);
 
       dupRels.each(function (dupRel) {
         console.log(`>> Merge relation: ${dupRel.id}`);
 
         // don't append documentation if documentation strings are equal
-        if (dupRel.documentation == master.documentation) {
+        if (dupRel.documentation == masterRel.documentation) {
           console.log(`>>> documentation is equal`);
-					documentationEqual = true
+          documentationEqual = true;
         } else {
           console.log(`>>> documentation appended to documentation of master`);
         }
         var duplicatePropList = dupRel.prop();
         for (var i = 0; i < duplicatePropList.length; i++) {
-          if (master.prop(duplicatePropList[i])) {
+          if (masterRel.prop(duplicatePropList[i])) {
             // remove property from duplicate if property is equal to master property
-            if (master.prop(duplicatePropList[i]) == dupRel.prop(duplicatePropList[i])) {
+            if (masterRel.prop(duplicatePropList[i]) == dupRel.prop(duplicatePropList[i])) {
               dupRel.removeProp(duplicatePropList[i]);
             } else {
               console.log(`>>> property ${duplicatePropList[i]} appended`);
@@ -97,9 +97,9 @@ function mergeRelation(rel) {
           }
         }
 
-        master.merge(dupRel);
-				// sollution for merge append of empty documentation adds a newline
-				if (documentationEqual) master.documentation = dupRel.documentation;
+        masterRel.merge(dupRel);
+        // sollution for merge append of empty documentation adds a newline
+        if (documentationEqual) masterRel.documentation = dupRel.documentation;
         dupRel.delete();
       });
 
@@ -109,4 +109,8 @@ function mergeRelation(rel) {
     console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   _commonShowDebugMessage.pop();
+}
+
+function concept(o) {
+  return o.concept ? o.concept : o;
 }

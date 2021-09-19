@@ -64,9 +64,12 @@ function searchElements() {
 		}
 
 		if (theResults.length > 0) {
-			var theGrid = 12;
-			var theHeight = 61 + theGrid;
-			var theWidth = 121 + theGrid;
+			// var theGrid = 12;
+			// var theHeight = 61 + theGrid;
+			// var theWidth = 121 + theGrid;
+			var theGrid = 10;
+			var theHeight = 60 + theGrid;
+			var theWidth = 140 + theGrid;
 
 			var strategyLayer = ["resource", "capability", "course"];
 			var businessLayer = ["business", "contract", "representation", "product"];

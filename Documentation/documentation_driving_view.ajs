@@ -1,410 +1,694 @@
 /**
- *  documentation_driving_view.ajs
- * 
- * 	Purpose: To generate architecture output in markdown format based on a driving view
-	Note - markdown can be converted to PDF / Word Docs or anything. 
-
-	Original idea and script from Richard Heward - Tame Blue Lion Ltd
-	See blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
-
-	The driving view defines the structure of the documentation. 
-	You define the structure of the documentation by visualy drawing it. 
-	Draw a group to create a sections. Embed a view references in the group to print it there. 
-
-	You can use the following elements to define your document structure
-	- visual group or a grouping (use groupings if they have meaning in your model, else use visual groups)
-		- a group becomes a section. You can embed groupings to create subsections.
-		- the group name is the section title, the group documentation is printed below the title
-	- note
-		- the content of the note is printed
-	- view reference
-		- the view is printed (archimate or sketch view)
-		- for archimate views a table with all the elements of the view is printed
-
-	Set some properties of the driving view to change the default behavior of the script
-	Just run the script and see in the console the properties you can use.
-
-	Created: 8-Oct-2019
-
-	Mark Backer
-	- Structured to own liking
-	- Follow structure of drivingView left to right and top to bottom like reading (no need for triggering relations)
-	- Output view elements in a hierarchic HTML table
-	- Option to output a table with all elements of all views
-	- 
- * 
+ * documentation_driving_view.ajs
+ *
+ * Purpose: To generate documentation in markdown format with its structure defined in a view
+ *
+ * Based on the script from Richard Heward - Tame Blue Lion Ltd
+ * See blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
+ *
+ * Steps:
+ * - Create a view and draw what will be included in your documentation
+ * - Add the propery 'drivingView=true' to this view
+ * - Select the 'driving view' and run this script
+ * - Open the generated markdown file in a markdown viewer (mark text, typora, visual studio code, ..)
+ *     - markdown can be converted to PDF / Word Docs or anything.
+ *
+ * Define the outline of the document with (visual) groups, notes and view references.
+ * - section and sub sections
+ *     - draw a visual group or a grouping (use groupings if they have meaning in your model)
+ *       - name of the group will be the section title
+ *       - documentation of the group is printed below the title
+ *     - create subsections by embedding groupings
+ * - paragraph
+ *     - draw a note
+ *     - embed the note in a group
+ *     - the content of the note is printed in the section defined by the group
+ * - image of a view (archimate view or sketch view)
+ *     - draw a view reference (drag a view from the model tree in the drivingView)
+ *     - embed the view reference in a group
+ *     - printed are
+ *       - a title with the name of the view is generated
+ *       - a paragraph with the documentation is printed
+ *       - an image of the view is printed
+ *       - optionally a table with all the elements on the view is printed below the image
+ *
+ * Set properties of the driving view to change the default behavior of the script:
+ *
+ * |  drivingView property  |                         Description                         | Default |
+ * | ---------------------- | ----------------------------------------------------------- | ------- |
+ * | drivingView            | A drivingView must have this property (true)                | null    |
+ * | includeTableOfView     | Print for every view a table with elements (true/false)     | true    |
+ * | includeTableOfAllViews | Print a table with all elements (true/false)                | false   |
+ * | tableOneLineDoc        | Print only first line of element documentation (true/false) | false   |
+ * | renderViewScale        | Resolution of generated images (1 to 4)                     | 1       |
+ * | renderViewEmbed        | Embed images or generate .png files (true/false)            | true    |
+ * | paragraphNumber        | Generate paragraph numbers (true/false)                     | false   |
+ * | path                   | Path for saving markdown (pop-up if not set)                | null    |
+ * | author                 | Name of author                                              |         |
+ * | organisation           | Name of organisation                                        |         |
+ *
+ * Mark Backer
+ * Created: 8-Oct-2019
+ * - Structured to own liking
+ * - Follow structure of drivingView left to right and top to bottom like reading (no need for triggering relations)
+ * - Output view elements in a hierarchic HTML table
+ * - Option to output a table with all elements of all views
+ * Changed: sept 2021
+ * - use showdown for converting markdown strings to html strings
+ * - option to print only first paragraph of element documentation in a table
+ * - center and scale images
  */
 
 load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "includeDocumentation.ajs");
+checkJavaScriptEngine(ENGINE_GRAAL_VM);
 
-console.clear();
-initConsoleLog(__FILE__);
+load("https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.1/showdown.js");
+
+// load(__DIR__ + "includeDocumentation.ajs");
+
+initConsoleLog(__FILE__, true);
 
 try {
-	var document = new Object();
-	var documentSettings = new Object();
+  let document = new Object();
+  var view = selection.filter("archimate-diagram-model").first();
+  if (view) {
+    console.log(`View is: ${view.name}\n`);
 
-	var drivingView = selection.filter("archimate-diagram-model").first();
+    document.settings = getViewProperties(view);
 
-	if (drivingView) {
-		init(documentSettings);
+    let exportFile = "";
+    let fileName = `${new Date().toLocaleDateString("nl-NL")} ${view.name}.md`;
 
-		if (documentSettings.drivingView.value) {
-			console.log(`Driving view is: ${drivingView.name}\n`);
+    // to skip the popup window while debugging, set path as a property
+    if (document.settings.path.value) {
+      exportFile = `${document.settings.path.value}${slash()}${fileName}`;
+    } else {
+      exportFile = window.promptSaveFile({
+        title: "Save to file",
+        filterExtensions: ["*.md"],
+        fileName: fileName,
+      });
+    }
+    if (exportFile) {
+      let markdownString = "";
+      if (document.settings.drivingView.value) {
+        markdownString = document_drivingView(document, view, exportFile);
+      } else {
+        markdownString = document_view(document, view, exportFile);
+      }
+      console.log(`\nMarkdown report saved to:`);
+      console.log(`- path:     ${exportFile.substring(0, exportFile.lastIndexOf(slash()))}`);
+      console.log(`- fileName: ${exportFile.substring(exportFile.lastIndexOf(slash()) + 1)}`);
 
-			let exportFile = "";
-			let fileName = `${new Date().toLocaleDateString("nl-NL")} ${drivingView.name}.md`;
-
-			// to skip the popup window while debugging, set path as a property
-			if (documentSettings.path.value) {
-				exportFile = `${documentSettings.path.value}${slash()}${fileName}`;
-			} else {
-				exportFile = window.promptSaveFile({
-					title: "Export to File",
-					filterExtensions: ["*.md"],
-					fileName: fileName,
-				});
-			}
-
-			if (exportFile) {
-				console.log(`Processing drivingView '${drivingView.name}'`);
-
-				// Initialize document object
-				document.content = "---\n";
-				document.content += "# Content\n\n";
-				document.body = "";
-
-				// First level is a view, not an element > start with level = 0.
-				documentStructure(0, "", drivingView, exportFile);
-
-				if (documentSettings.includeTableOfAllViews.value) {
-					documentTableOfAllViews();
-				}
-
-				console.log(`\nMarkdown report saved to:`);
-				console.log(`- path:     ${exportFile.substring(0, exportFile.lastIndexOf(slash()))}`);
-				console.log(`- fileName: ${exportFile.substring(exportFile.lastIndexOf(slash()) + 1)}`);
-
-				let documentString = documentFirstPage(documentSettings);
-				documentString += document.content;
-				documentString += document.body;
-				$.fs.writeFile(exportFile, documentString);
-
-				finishConsoleLog();
-			} else {
-				console.log("Canceled");
-			}
-		} else {
-			// document current view ### todo
-			// pop up You want to document the current view?
-			// header view.name
-			// embedded view
-			// hierarchic table
-			console.log(`The selected view '${drivingView.name}' is not a valid drivingView.`);
-			console.log(`A drivingView must have a property 'drivingView' with the value 'true'`);
-		}
-	} else {
-		console.log("Please open and select a Driving View");
-	}
+      $.fs.writeFile(exportFile, markdownString);
+    } else {
+      console.log("Canceled");
+    }
+  } else {
+    console.log("Please select a View");
+  }
 } catch (error) {
-	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+finishConsoleLog();
+
+/**
+ * @param document object with settings and for passing on markdown strings
+ * @param view Archi view to be documented
+ * @param exportFile string with path en filename for markdown file
+ * @returns string with report in markdown format
+ */
+function document_view(document, view, exportFile) {
+  let markdownString = `## ${view.name}\n`;
+  markdownString += view.documentation ? `${view.documentation}\n\n` : "";
+
+  markdownString += printView(view, 1, false, exportFile);
+  markdownString += printTableHierarchic(document, view);
+
+  return markdownString;
+}
+
+/**
+ * @param document object with settings and for passing on markdown strings
+ * @param drivingView Archi view with definition of the document structure
+ * @param exportFile string with path en filename for markdown file
+ * @returns string with report in markdown format
+ */
+function document_drivingView(document, drivingView, exportFile) {
+  console.log(`Processing drivingView '${drivingView.name}'`);
+
+  // Initialize document object
+  document.content = "---\n";
+  document.content += "## Content\n\n";
+  document.body = "";
+
+  // First level is a view, not an element > start with level = 0.
+  documentStructure(document, 0, "", drivingView, exportFile);
+
+  if (document.settings.includeTableOfAllViews.value) {
+    //  * Generate page with TableOfAllViews
+    var lastTable = new Object();
+    lastTable.name = "Tabel met elementen van alle views";
+    lastTable.documentation = "";
+
+    printHeadingAndDocumentation(document, 1, "A.", lastTable, "appendix");
+    document.body += printTableAllViews(document, drivingView);
+  }
+  let markdownString = documentFirstPage(document, drivingView);
+  markdownString += document.content;
+  markdownString += "\n";
+  markdownString += document.body;
+
+  return markdownString;
+}
+
+/**
+ * documentStructure
+ *   this recursive function reads the document structure from the driving view
+ *   -  follow the elements on the driving view from top left to the bottom right
+ *   -  recurse into groups with embedded elements/children
+ *     - print (visual) groups as sectionheaders
+ *     - print viewReferences
+ *     - print notes
+ *
+ * @param document object with settings and for passing on markdown strings
+ * @param pLevel     number with recursion depth, used for logging and paragraph numbers
+ * @param pParagraphNr   string with paragraph number
+ * @param pObject     visual object to traverse, start with drivingView
+ */
+function documentStructure(document, pLevel, pParagraphNr, pObject, pExportFile) {
+  // scope of childArray is this function and all recursions
+  var childArray = [];
+
+  // add text of note to the current paragraph in the report
+  if (pObject.type == "diagram-model-note") {
+    document.body += `${pObject.text}\n\n`;
+    console.log(`${">".repeat(pLevel)} insert text from note`);
+  } else {
+    // add referenced view to the current paragraph in the report
+    if (
+      pObject.type == "diagram-model-reference" || // viewReference should have this type, but has not
+      (pObject.type == "archimate-diagram-model" && pObject.view) || // work around, test for "diagram-model-reference"
+      (pObject.type == "canvas-model" && pObject.view) // canvas view
+    ) {
+      printHeadingAndDocumentation(document, pLevel, pParagraphNr, pObject, "view");
+
+      // Print the view.
+      view = pObject.getRefView();
+      document.body += printView(
+        view,
+        document.settings.renderViewScale.value,
+        document.settings.renderViewEmbed.value,
+        pExportFile
+      );
+
+      // Print a table with the views elements, if includeTableView is set.
+      // "canvas-model" views don't have elements, so skip
+      if (document.settings.includeTableOfView && pObject.type != "canvas-model") {
+        document.body += printTableHierarchic(document, view);
+      }
+    } else {
+      // Check for subparagraphs and recurse into subparagraph
+      if (
+        (pObject.type == "archimate-diagram-model" && !pObject.view) || // driving view or
+        pObject.type == "diagram-model-group" || // visual group or
+        pObject.type == "grouping"
+      ) {
+        // skip pLevel 0, this is the drivingview
+        if (pLevel > 0) {
+          printHeadingAndDocumentation(document, pLevel, pParagraphNr, pObject, "group");
+        }
+
+        // console.log(`${">".repeat(pLevel+1)} ${pObject.name}`)
+        // select all embedded (visual) elements. Skip relations
+        let childrenCollection = $(`#${pObject.id}`).children().not("relation");
+
+        // stop if element has no children
+        if (childrenCollection.size() > 0) {
+          // console.log(`${">".repeat(pLevel)} ${childrenCollection.size()} Children`)
+
+          childrenCollection.each(function (c) {
+            childArray.push(c);
+          });
+          // Sort array of embedded children from left to right
+          childArray.sort(sortPosition);
+
+          for (let i = 0; i < childArray.length; i++) {
+            documentStructure(document, pLevel + 1, `${pParagraphNr}${i + 1}.`, childArray[i], pExportFile);
+          }
+        }
+      }
+    }
+  }
+  return;
 }
 
 /**
  * Read document settings from drivingView properties
- * Generate first page
- */
-function init(documentSettings) {
-	documentSettings.drivingView = {
-		value: null,
-		description: `A drivingView must have this property (true)`,
-	};
-	documentSettings.includeTableOfView = {
-		value: true,
-		description: `Print below every view the elements (true/false)`,
-	};
-	documentSettings.includeTableOfAllViews = {
-		value: false,
-		description: `Print all elements at the end of document (true/false)`,
-	};
-	documentSettings.renderViewScale = {
-		value: 1,
-		description: `Resolution of generated images (1 to 4)`,
-	};
-	documentSettings.renderViewEmbed = {
-		value: true,
-		description: `Embed images or generate .png files (true/false)`,
-	};
-	documentSettings.paragraphNumber = {
-		value: false,
-		description: `Generate paragraph numbers (true/false)`,
-	};
-	documentSettings.path = {
-		value: null,
-		description: `Path for saving markdown (pop-up if not set)`,
-	};
-	documentSettings.author = {
-		value: "",
-		description: "Name of author",
-	};
-	documentSettings.organisation = {
-		value: "",
-		description: "Name of organisation",
-	};
-
-	// set documentSettings with the driving view properties
-	getObjectProperties(drivingView, documentSettings);
-}
-
-/**
- * Generate first page
- */
-function documentFirstPage(pSettingObject) {
-	let markdownString = `# ${drivingView.name}\n`;
-	markdownString += drivingView.documentation ? `${drivingView.documentation}\n` : "";
-
-	markdownString += `${pSettingObject.author.value}\n`;
-	markdownString += `${pSettingObject.organisation.value}\n`;
-	markdownString += `Document generated at: ${new Date().toLocaleDateString("nl-NL")}  ${new Date().toLocaleTimeString(
-		"nl-NL"
-	)}\n\n`;
-
-	return markdownString;
-}
-
-/**
- * getObjectProperties
- * 	read the properties of the driving view as settings
- * 	show the properties in the console in a table
  *
- * @param pDrivingView driving view
- * @param pSettingObject settings
+ * @param view Archi view with settings in properties
+ * @returns settings object with read properties
  */
-function getObjectProperties(pDrivingView, pSettingObject) {
-	let tableArray = [];
-	tableArray.push(["drivingView property", "Description", "Default", "Value"]);
+function getViewProperties(view) {
+  let docSetting = new Object();
 
-	for (var key in pSettingObject) {
-		let defaultValue = pSettingObject[`${key}`]["value"];
-		defaultValue = defaultValue === null ? "null" : defaultValue;
-		let propValue = "Not set";
+  docSetting.drivingView = { value: null, description: `A drivingView must have this property (true)` };
+  docSetting.includeTableOfView = { value: true, description: `Print for every view a table with elements (true/false)` };
+  docSetting.includeTableOfAllViews = { value: false, description: `Print a table with all elements (true/false)` };
+  docSetting.tableOneLineDoc = { value: false, description: `Print only first line of element documentation (true/false)` };
+  docSetting.renderViewScale = { value: 1, description: `Resolution of generated images (1 to 4)` };
+  docSetting.renderViewEmbed = { value: true, description: `Embed images or generate .png files (true/false)` };
+  docSetting.paragraphNumber = { value: false, description: `Generate paragraph numbers (true/false)` };
+  docSetting.path = { value: null, description: `Path for saving markdown (pop-up if not set)` };
+  docSetting.author = { value: "", description: "Name of author" };
+  docSetting.organisation = { value: "", description: "Name of organisation" };
 
-		if (pDrivingView.prop(key) != null) {
-			if (typeof pSettingObject[`${key}`]["value"] == "boolean") {
-				// pDrivingView.prop(key) == "true" ? pSettingObject[key] = true : pSettingObject[key] = false;
-				pSettingObject[`${key}`]["value"] = pDrivingView.prop(key) == "true";
-			} else {
-				pSettingObject[`${key}`]["value"] = pDrivingView.prop(key);
-			}
-			propValue = pDrivingView.prop(key);
-		}
+  // set docSetting with the driving view properties
+  //  *   read the properties of the driving view as settings
+  //  *   show the properties in the console in a table
+  let consoleTable = [];
+  consoleTable.push(["drivingView property", "Description", "Default", "Value"]);
 
-		// console.log(`- ${key}: ` + pSettingObject[`${key}`]['description'] + ' | ' + pSettingObject[`${key}`]['value'])
+  for (var key in docSetting) {
+    let defaultValue = docSetting[`${key}`]["value"];
+    defaultValue = defaultValue === null ? "null" : defaultValue;
+    let propValue = "Not set";
 
-		tableArray.push([key, pSettingObject[`${key}`]["description"], defaultValue, propValue]);
-	}
+    if (view.prop(key) != null) {
+      if (typeof docSetting[`${key}`]["value"] == "boolean") {
+        // pDrivingView.prop(key) == "true" ? pSettingObject[key] = true : pSettingObject[key] = false;
+        docSetting[`${key}`]["value"] = view.prop(key) == "true";
+      } else {
+        docSetting[`${key}`]["value"] = view.prop(key);
+      }
+      propValue = view.prop(key);
+    }
 
-	console.log(
-		table(tableArray, {
-			markdown: true,
-		})
-	);
-	console.log();
+    consoleTable.push([key, docSetting[`${key}`]["description"], defaultValue, propValue]);
+  }
+
+  console.log(
+    table(consoleTable, {
+      markdown: true,
+    })
+  );
+  console.log();
+  return docSetting;
+}
+
+/**
+ * Generate first page
+ */
+function documentFirstPage(document, drivingView) {
+  let markdownString = `# ${drivingView.name}\n`;
+  markdownString += drivingView.documentation ? `${drivingView.documentation}\n` : "";
+
+  markdownString += `${document.settings.author.value}\n`;
+  markdownString += `${document.settings.organisation.value}\n`;
+  markdownString += `Document generated at: ${new Date().toLocaleDateString("nl-NL")}  ${new Date().toLocaleTimeString(
+    "nl-NL"
+  )}\n\n`;
+
+  return markdownString;
 }
 
 /**
  * printObjectHeading
- * 	add the given object to the contentlist and create a heading
- * 	if the object has documentation, also create a paragraph
+ *   add the given object to the contentlist and create a heading
+ *   if the object has documentation, also create a paragraph
  *
  * @param pLevel use recursion depth as paragraph level
  * @param pParagraphNr paragraph number for heading
  * @param pObject current group or view
  * @param pTypeText type of current object
  */
-function printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, pTypeText) {
-	// add optional paragraph number
-	let heading = documentSettings.paragraphNumber.value ? `${pParagraphNr} ` : "";
-	heading += pObject.type == "archimate-diagram-model" ? "View " : "";
-	heading += pObject.type == "canvas-model" ? "Picture " : "";
-	heading += pObject.name;
+function printHeadingAndDocumentation(document, pLevel, pParagraphNr, pObject, pTypeText) {
+  let markdownString = "";
 
-	// add heading to content
-	document.content += `${"\t".repeat(pLevel - 1)}* [${heading}](${stringToLink(heading)})\n`;
+  // add optional paragraph number
+  let heading = document.settings.paragraphNumber.value ? `${pParagraphNr} ` : "";
+  heading += pObject.name;
 
-	// insert heading in document
-	if (pLevel == 1) {
-		document.body += '<div style="page-break-before: always;"></div>';
-		document.body += "\n\n---\n\n";
-	}
-	document.body += `${"#".repeat(pLevel)} ${heading}\n\n`;
+  // add heading to content
+  document.content += `${"  ".repeat(pLevel - 1)}* [${heading}](${stringToLink(heading)})\n`;
 
-	// insert documentation of the object in document
-	if (pObject.documentation != "") {
-		document.body += `${pObject.documentation}\n\n`;
-	}
-	console.log(`${">".repeat(pLevel)} ${pObject.name} (${pTypeText})`);
+  // insert heading in document
+  if (pLevel == 1) {
+    document.body += '<div style="page-break-before: always;"></div>';
+    document.body += "\n\n---\n\n";
+  }
+  document.body += `${"#".repeat(pLevel + 1)} ${heading}\n\n`;
 
-	// create a valid anchor link for a heading
-	function stringToLink(theString) {
-		// this function thanks to Steven Mileham
-		// remove these characters from a link '[]()#\".'
-		var regex = /[\[\]\(\)\#\\\/\"\.]/gi;
-		return (
-			"#" + theString.toLowerCase().replace(regex, "").replaceAll(" ", "-").replaceAll("<", "lt").replaceAll(">", "gt")
-		);
-	}
+  // insert documentation of the object in document
+  if (pObject.documentation != "") {
+    document.body += `${pObject.documentation}\n\n`;
+  }
+  console.log(`${">".repeat(pLevel)} ${pObject.name} (${pTypeText})`);
 }
 
 /**
- * documentStructure
- * 	this recursive function reads the document structure from the driving view
- * 	-	follow the elements on the driving view from top left to the bottom right
- * 	-	recurse into groups with embedded elements/children
- * 		- print (visual) groups as sectionheaders
- * 		- print viewReferences
- * 		- print notes
+ * Add a rendered image of the view in the document
  *
- * @param pLevel 		number with recursion depth, used for logging and paragraph numbers
- * @param pParagraphNr 	string with paragraph number
- * @param pObject 		visual object to traverse, start with drivingView
+ * @param view     view object to render
+ * @param renderViewScale Resolution of generated images (1 to 4)
+ * @param renderViewEmbed Embed images as strings in the markdown or generate .png files
+ * @param pExportFile file location of the document
  */
-function documentStructure(pLevel, pParagraphNr, pObject, pExportFile) {
-	// scope of childArray is this function and all recursions
-	var childArray = [];
+function printView(view, renderViewScale, renderViewEmbed, pExportFile) {
+  let markdownString = "";
 
-	// add text of note to the current paragraph in the report
-	if (pObject.type == "diagram-model-note") {
-		document.body += `${pObject.text}\n\n`;
-		console.log(`${">".repeat(pLevel)} insert text from note`);
-	} else {
-		// add referenced view to the current paragraph in the report
-		if (
-			pObject.type == "diagram-model-reference" || // viewReference should have this type, but has not
-			(pObject.type == "archimate-diagram-model" && pObject.view) || // work around, test for "diagram-model-reference"
-			(pObject.type == "canvas-model" && pObject.view) // canvas view
-		) {
-			printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, "view");
+  // render the view to a string
+  let bytes = $.model.renderViewAsBase64(view, "PNG", {
+    scale: renderViewScale,
+    margin: renderViewScale * 10,
+  });
 
-			// Print the view.
-			view = pObject.getRefView();
-			document.body += printView(
-				view,
-				documentSettings.renderViewScale.value,
-				documentSettings.renderViewEmbed.value,
-				pExportFile
-			);
+  if (renderViewEmbed) {
+    // encode view and embed in the document
+    // console.log(`>> Embed view ${view.name} in markdown file`)
+    markdownString += `\n![${view.name}](data:image/png;base64,${bytes})\n`;
+  } else {
+    const regexSpace = / /gi;
+    // save views as .png in a subdirectory with the name of markdown file (aka the exportfile name)
+    // replace in subdir/filename all spaces with an underscore for better compatibility with markdown viewers
+    let path = pExportFile.substring(0, pExportFile.lastIndexOf(slash()) + 1); // path plus slash
+    let imageSubDir = pExportFile
+      .substring(pExportFile.lastIndexOf(slash()) + 1, pExportFile.lastIndexOf("."))
+      .replace(regexSpace, "_");
 
-			// Print a table with the views elements, if includeTableView is set.
-			// "canvas-model" views don't have elements, so skip
-			if (documentSettings.includeTableOfView && pObject.type != "canvas-model") {
-				document.body += printElementsHierarchic(pLevel, view);
-			}
-		} else {
-			// Check for subparagraphs and recurse into subparagraph
-			if (
-				(pObject.type == "archimate-diagram-model" && !pObject.view) || // driving view or
-				pObject.type == "diagram-model-group" || // visual group or
-				pObject.type == "grouping"
-			) {
-				// group
+    // create directory for saving view .png files
+    let imageAbsoluteDir = path + imageSubDir;
+    let fileObject = new Packages.java.io.File(imageAbsoluteDir);
+    fileObject.mkdir();
 
-				// skip pLevel 0, this is the drivingview
-				if (pLevel > 0) {
-					printHeadingAndDocumentation(pLevel, pParagraphNr, pObject, "group");
-				}
+    let imageFile = `${view.name}.png`.replace(regexSpace, "_");
+    $.fs.writeFile(`${imageAbsoluteDir}${slash()}${imageFile}`, bytes, "BASE64");
 
-				// console.log(`${">".repeat(pLevel+1)} ${pObject.name}`)
-				// select all embedded (visual) elements. Skip relations
-				let childrenCollection = $(`#${pObject.id}`).children().not("relation");
+    // ![GEMMA modellering product en service](2021-09-18_GEMMA_nieuw_elan/GEMMA_modellering_product_en_service.png)
+    // <p align="center">
+    // <img width="450" src="2021-09-18_GEMMA_nieuw_elan/GEMMA_modellering_product_en_service.png">
+    // </p>
+    // <p align="center"><i>GEMMA modellering product en service</i></p>
 
-				// stop if element has no children
-				if (childrenCollection.size() > 0) {
-					// console.log(`${">".repeat(pLevel+1)} ${childrenCollection.size()} Children > ${childrenCollection}`)
-					// console.log(`${">".repeat(pLevel)} ${childrenCollection.size()} Children`)
+    let imageURL = `${imageSubDir}/${imageFile}`;
+    let viewWidth = viewSize(view);
+    markdownString += `<figure align="center">\n`;
+    markdownString += `  <img width="${Math.round(viewWidth.width * 1.2)}" src="${imageURL}" alt="${view.name}">\n`;
+    // markdownString += `  <figcaption align="center"><i>${view.name}</i></figcaption>\n`;
+    markdownString += `  <figcaption><i>${view.name}</i></figcaption>\n`;
+    markdownString += `</figure>\n\n`;
+  }
 
-					childrenCollection.each(function (c) {
-						childArray.push(c);
-					});
-					// Sort array of embedded children from left to right
-					childArray.sort(sortPosition);
-
-					for (let i = 0; i < childArray.length; i++) {
-						documentStructure(pLevel + 1, `${pParagraphNr}${i + 1}.`, childArray[i], pExportFile);
-					}
-				}
-			}
-		}
-	}
-	return;
+  return markdownString;
 }
 
 /**
- * Generate page with TableOfAllViews
- */
-function documentTableOfAllViews() {
-	var lastTable = new Object();
-	lastTable.name = "Tabel met elementen van alle views";
-	lastTable.documentation = "";
-
-	printHeadingAndDocumentation(1, "A.", lastTable, "appendix");
-
-	document.body += printTableOfAllViews(drivingView);
-}
-
-/**
- * printTableOfAllViews
+ * printTableAllViews
  *  create a table with all elements of all views referenced in the driving view
  *
- * @param pView drivingView with view references
+ * @param drivingView view with view references
  */
-function printTableOfAllViews(pView) {
-	var markdownTable = "";
-	var allElements = [];
+function printTableAllViews(document, drivingView) {
+  var markdownString = "";
+  var allElements = [];
 
-	let i = 0;
-	// loop over all reference-views of the driving view
-	$(pView)
-		.find("diagram-model-reference")
-		.each(function (viewReference) {
-			// Find the actual linked views
-			linkedView = $("view").filter(function (v) {
-				return v.name === viewReference.name;
-			});
-			linkedView.find("element").each(function (element) {
-				allElements[i] = element;
-				i++;
-			});
-		});
-	// Sort array of found elements alphabetical
-	allElements.sort(sortAlphabetic);
+  console.log(`>> Collecting elements from the views:`);
+  // loop over all reference-views of the driving view
+  $(drivingView)
+    .find("diagram-model-reference")
+    .each(function (viewRef) {
+      let view = viewRef.getRefView();
+      $(view)
+        .find("element")
+        .each(function (element) {
+          allElements.push(element.concept);
+        });
+      console.log(`>> - ${view.name}`);
+    });
+  // Sort array of found elements alphabetical
+  allElements.sort(sortAlphabetic);
 
-	markdownTable += `| Element | Type | Documentatie |\n`;
-	markdownTable += `| ------- | -----|------------- |\n`;
+  markdownString += `<table>\n`;
+  markdownString += `  <thead>\n`;
+  markdownString += `    <tr>\n`;
+  markdownString += `      <th>Element</th>\n`;
+  markdownString += `      <th>Type</th>\n`;
+  markdownString += `      <th>Documentatie</th>\n`;
+  markdownString += `    </tr>\n`;
+  markdownString += `  </thead>\n`;
+  markdownString += `  <tbody>\n`;
 
-	var uniqueRowSet = new Set();
-	for (let j = 0; j < allElements.length; j++) {
-		let e = allElements[j];
-		let elementKey = `| ${e.name} (${e.type}) | ${e.documentation}|\n`;
-		if (!uniqueRowSet.has(elementKey)) {
-			markdownTable += `| ${e.name} | ${e.type} | ${tableCell2HTML(e.documentation)}|\n`;
-		}
-		uniqueRowSet.add(elementKey);
-	}
+  let uniqueRowSet = new Set();
+  for (let j = 0; j < allElements.length; j++) {
+    let e = allElements[j];
+    if (!uniqueRowSet.has(e.id)) {
+      markdownString += `    <tr valign="top")>\n`;
+      markdownString += `      <td>${e.name}</td>\n`;
+      markdownString += `      <td>${e.type}</td>\n`;
+      markdownString += `      <td>${printElementDoc(document, e.documentation)}</td>\n`;
+      markdownString += `    </tr>\n`;
+    }
+    uniqueRowSet.add(e.id);
+  }
+  markdownString += `  </tbody>\n`;
+  markdownString += `</table>\n\n`;
 
-	console.log(`>> number of elements on all views: ${allElements.length}`);
-	console.log(`>> number of unique elements: ${uniqueRowSet.size}`);
+  console.log(`>> collected elements: ${allElements.length}`);
+  console.log(`>> total number of elements without duplicates: ${uniqueRowSet.size}`);
 
-	return markdownTable;
+  return markdownString;
+}
 
-	function sortAlphabetic(a, b) {
-		if (a.name.toLowerCase() < b.name.toLowerCase()) {
-			return -1;
-		}
-		if (a.name.toLowerCase() > b.name.toLowerCase()) {
-			return 1;
-		}
-		return 0;
-	}
+/**
+ *   create a hierarchic table of the given view to the document
+ *
+ *   This function creates a HTML table with all elements
+ *   - markdown tables are limited to "Cell content must be on one line only"
+ *   - use HTML for merging cells over column (not supported in markdown)
+ *   - embedded elements are printed below their parents
+ *   - elements are sorted from left to right en top to bottom like reading
+ *
+ * @param view
+ */
+function printTableHierarchic(document, view) {
+  let markdownString = "";
+
+  // start with level 0. Don't count the first level, this is the view
+  var maxLevel = findMaxEmbedding(0, view);
+
+  markdownString += `<table>\n`;
+  markdownString += `  <thead>\n`;
+  markdownString += `    <tr>\n`;
+  markdownString += `      <th colspan="${maxLevel}" width="20%">Element</th>\n`;
+  markdownString += `      <th rowspan="2" width="80%">Documentation</th>\n`;
+  markdownString += `    </tr>\n`;
+  markdownString += `  </thead>\n`;
+  markdownString += `  <tbody>\n`;
+  markdownString += `    <tr >\n`;
+
+  // to show all hierarchy levels, you have to 'define' a column for every level (hack)
+  // without these 'empty' columnheaders, no indendation is shown for deeper levels
+  for (let i = 1; i < maxLevel + 1; i++) {
+    markdownString += `      <td align="center"></td>\n`;
+  }
+  markdownString += `      <td></td>\n`;
+  markdownString += `    </tr>\n`;
+
+  // First level is a view, not an element > start with level = 0.
+  markdownString += printTableRow(document, 0, maxLevel, false, view);
+
+  markdownString += `  </tbody>\n`;
+  markdownString += `</table>\n\n`;
+
+  return markdownString;
+
+  /**
+   * findMaxEmbedding()
+   *   return the deepest level of embedding in a view
+   *
+   * @param level current recursion level
+   * @param view view or group
+   * @returns integer with embedding level
+   */
+  function findMaxEmbedding(level, view) {
+    let elementsOfLevel = $(view).children("element").add("diagram-model-group");
+    let visualGroupOfLevel = $(view).children("diagram-model-group");
+    childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel);
+
+    // stop condition
+    if (childrenOfLevel.size() == 0) {
+      return level;
+    }
+
+    let maxLevel = 0;
+    childrenOfLevel.each(function (c) {
+      // children of visual objects are skipped
+      recurseLevel = findMaxEmbedding(level + 1, c);
+      if (maxLevel < recurseLevel) {
+        maxLevel = recurseLevel;
+      }
+    });
+    return maxLevel;
+  }
+
+  /**
+   *   recursive function
+   *   return a table row for every child and the child's children
+   *
+   * @param document
+   * @param pLevel current level
+   * @param pMaxLevel maximum level of embedding.
+   * @param pChildLineIsWritten boolean, true if the current object is a duplicate in the current level
+   * @param pObject an element
+   * @returns string with table row
+   */
+  function printTableRow(document, pLevel, pMaxLevel, pChildLineIsWritten, pObject) {
+    let markdownString = "";
+    let childArray = [];
+
+    let elementsOfLevel = $(pObject).children("element").add("diagram-model-group");
+    let visualGroupOfLevel = $(pObject).children("diagram-model-group");
+    childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel);
+
+    childrenOfLevel.each(function (c) {
+      // children of visual objects are skipped
+      childArray.push(c);
+    });
+
+    // Write table line for every visual child element of view and children
+    if (pObject.type !== "archimate-diagram-model") {
+      // Skip duplicate elements if element has no children
+      if (!pChildLineIsWritten || childArray.length > 0) {
+        markdownString += `    <tr valign="top")>\n`;
+        markdownString += pLevel > 1 ? `      <td colspan="${pLevel - 1}"></td>\n` : "";
+        markdownString += `      <td colspan="${pMaxLevel - pLevel + 1}">${pObject.name}</td>\n`;
+        markdownString += `      <td>${printElementDoc(document, pObject.documentation)}</td>\n`;
+        markdownString += `    </tr>\n`;
+
+        // console.log(`${">".repeat(pLevel)} ${pObject.name}`);
+      } else {
+        // console.log(`${">".repeat(pLevel+1)} Skip row for duplicate ${pObject.name}`)
+      }
+    }
+
+    // stop if element has no children
+    if (childArray.length == 0) {
+      return markdownString;
+    }
+
+    // Sort array of embedded children from left to right and top to bottom like reading
+    childArray.sort(sortPosition);
+
+    // set for checking if there are multiple visual objects of a concept
+    let conceptIdOfChildSet = new Set();
+    for (let i = 0; i < childArray.length; i++) {
+      let ChildLineIsWritten = false;
+      if (childArray[i].type != "diagram-model-group") {
+        ChildLineIsWritten = conceptIdOfChildSet.has(childArray[i].concept.id);
+      }
+
+      markdownString += printTableRow(document, pLevel + 1, pMaxLevel, ChildLineIsWritten, childArray[i]);
+
+      if (childArray[i].type != "diagram-model-group") {
+        conceptIdOfChildSet.add(childArray[i].concept.id);
+      }
+    }
+    return markdownString;
+  }
+}
+
+/**
+ * convert documention string to html
+ *   optional reduce documentation to first line (should contain the definition)
+ * @param document object with report settings
+ * @param text string with element documentation
+ * @returns string with HTML
+ */
+function printElementDoc(document, text) {
+  const LINE_EXPRESSION = /\r\n|\n\r|\n|\r/g; // expression symbols order is very important
+
+  if (document.settings.tableOneLineDoc.value) {
+    let lines = text.split(LINE_EXPRESSION);
+    return markdown2html(lines[0]);
+  } else {
+    return markdown2html(text);
+  }
+}
+
+/**
+ * Sorting function
+ *   sort visual object from left to right and top to bottom like reading
+ *
+ * @param a visual object
+ * @param b visual object
+ */
+function sortPosition(a, b) {
+  // Archi 0.0 point is the top left corner
+  // - direction of x coordinates is left to right
+  // - direction of y coordinates is top to bottom
+  if (
+    a.bounds.y + a.bounds.height > b.bounds.y && // a LeftBottom > b LeftTop
+    a.bounds.y < b.bounds.y + b.bounds.height //a LeftTop < b LeftBottom
+  )
+    // if boxes are on the same 'line', compare horizontal coordinates
+    return a.bounds.x - b.bounds.x;
+  // else compare vertical coordinates
+  else return a.bounds.y - b.bounds.y;
+}
+
+function sortAlphabetic(a, b) {
+  if (a.name.toLowerCase() < b.name.toLowerCase()) {
+    return -1;
+  }
+  if (a.name.toLowerCase() > b.name.toLowerCase()) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * calculate min and max coördinates of given view
+ */
+function viewSize(view) {
+  let xMin = 1000,
+    xMax = 0;
+  let yMin = 1000,
+    yMax = 0;
+
+  $(view)
+    .children()
+    .not("diagram-model-connection")
+    .not("relationship")
+    .each(function (o) {
+      if (o.bounds.x + o.bounds.width > xMax) xMax = o.bounds.x + o.bounds.width;
+      if (o.bounds.x < xMin) xMin = o.bounds.x;
+      if (o.bounds.y + o.bounds.height > yMax) yMax = o.bounds.y + o.bounds.height;
+      if (o.bounds.y < yMin) yMin = o.bounds.y;
+    });
+  return { width: xMax - xMin, height: yMax - yMin };
+}
+
+/**
+ * convert a markdown string to html for use in the HTML tables
+ *
+ * @param md markdownstring
+ */
+function markdown2html(md) {
+  // http://showdownjs.com
+  // the showdown converter converts a markdown string to a HTML string
+  var converter = new showdown.Converter();
+  return converter.makeHtml(md);
+}
+
+/**
+ * create a valid anchor link for a heading
+ *
+ * @param theString
+ * @returns string with valid link
+ */
+function stringToLink(theString) {
+  // this function thanks to Steven Mileham
+  // remove these characters from a link '[]()#\".'
+  var regex = /[\[\]\(\)\#\\\/\"\.]/gi;
+  return "#" + theString.toLowerCase().replace(regex, "").replaceAll(" ", "-").replaceAll("<", "lt").replaceAll(">", "gt");
 }

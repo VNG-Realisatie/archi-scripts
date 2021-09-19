@@ -73,9 +73,17 @@
 		- Prints debug message on the console
 */
 
+/**
+ * To do
+ * - print edges
+ * 		- add bendpoints to recursive relationships (oortjes)
+ * - create graph - error for nesting of recursive relationships (oortjes)
+ */
+
 try {
 	load(__DIR__ + "../_lib/jvm-npm.js");
-	require.addPath(__SCRIPTS_DIR__ + "node_modules/dagre/dist/");
+	// require.addPath(__SCRIPTS_DIR__ + "node_modules/dagre/dist/");
+	require.addPath(__SCRIPTS_DIR__ + "node_modules/dagre-cluster-fix/dist");
 	var dagre = require("dagre");
 } catch (error) {
 	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -108,7 +116,7 @@ function generate_multiple_view(param) {
 			});
 		}
 	} catch (error) {
-		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+		console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 	}
 }
 
@@ -129,7 +137,7 @@ function generate_view(param) {
 			createView(param);
 		}
 	} catch (error) {
-		console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+		console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 	}
 
 	if (param.debug !== undefined) _commonShowDebugMessage.pop();
@@ -277,7 +285,15 @@ function fillGraph(param, filteredElements, graph) {
 	console.log(graph.edgeCount() + " edges in total.");
 }
 
-// recursive function to add viewElements and targets of elements
+
+/**
+ * addNode - recursive function to add viewElements and targets of elements
+ * @param {*} archiElement 
+ * @param {*} filteredElements 
+ * @param {*} elementsIndex 
+ * @param {*} level 
+ * @param {*} depth 
+ */
 function addNode(archiElement, filteredElements, elementsIndex, level, depth) {
 	if (elementsIndex[archiElement.id] === undefined) {
 		graph.setNode(archiElement.id, {
@@ -288,6 +304,12 @@ function addNode(archiElement, filteredElements, elementsIndex, level, depth) {
 		elementsIndex[archiElement.id] = archiElement;
 		debug(`${">".repeat(level + 3)}: ${archiElement}`);
 	}
+
+	// recursion stop condition
+	if (level > depth) {
+		return
+	}
+
 	/**
 	 *
 	 * 		// TODO: what about relationships on relationships ?
@@ -413,7 +435,7 @@ function layoutGraph(param, graph) {
 
 		dagre.layout(graph, opts);
 	} catch (e) {
-		console.error(e.stack);
+		// console.error(e.stack);
 		throw e;
 	}
 }

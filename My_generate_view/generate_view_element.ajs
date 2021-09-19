@@ -38,18 +38,18 @@ var param = {
 	reverse_relations: [
 		// "realization-relationship",
 		// "serving-relationship",
-		"aggregation-relationship",
+		// "aggregation-relationship",
 		"assignment-relationship",
 		"specialization-relationship",
 	],
 
 	nested_relations: [
 		// "realization-relationship",
-		"composition-relationship",
+		// "composition-relationship",
 		// "access-relationship"],
 		// "specialization-relationship",
 		// "assignment-relationship",
-		"aggregation-relationship",
+		// "aggregation-relationship",
 		// "serving-relationship"
 	],
 

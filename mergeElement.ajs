@@ -45,7 +45,7 @@ function mergeElement(pObject) {
 		var masterElement = pObject.concept;
 
 		duplicateElementList = $(`.${masterElement.name}`).filter(masterElement.type);
-		duplicateElementList.not($(`#${masterElement.id}`));
+		duplicateElementList.not($(masterElement));
 
 		if (duplicateElementList.size() == 0) {
 			console.log(`> There are no elements with the same name and the same type as "${masterElement.name}"`);
