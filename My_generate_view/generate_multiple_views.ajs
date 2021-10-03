@@ -1,5 +1,7 @@
-/*
- * JArchi script that generates a view called "selected elements" that contains all the Archimate concepts selected in the model.
+/**
+ * JArchi script that generates a view for every selected element
+ * - define with the param objects what to include in the generated views
+ * - the views will be called "<element name> generated"
  *
  * Requires:
  *     Archi:			https://www.archimatetool.com
@@ -36,10 +38,11 @@ var param = {
 		// "serving-relationship"
 	],
 	reverse_relations: [
-		// "realization-relationship",
-		// "serving-relationship",
+		"realization-relationship", // realize from bottom to top
+		"flow-relationship",  // flow from bottom to top
+		"serving-relationship", // serving from bottom to top
 		"aggregation-relationship",
-		"assignment-relationship",
+		// "assignment-relationship",
 		"specialization-relationship",
 	],
 
@@ -50,7 +53,7 @@ var param = {
 		// "specialization-relationship",
 		// "assignment-relationship",
 		// "serving-relationship",
-		// "aggregation-relationship"
+		// "aggregation-relationship",
 	],
 
 	// graphDepth: 1,

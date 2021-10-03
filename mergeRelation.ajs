@@ -41,7 +41,7 @@ finishConsoleLog();
  *
  */
 function mergeRelation(rel) {
-  _commonShowDebugMessage.push(true);
+  _logDebugMessage.push(true);
   try {
     let documentationEqual = false;
     console.log(rel);
@@ -108,7 +108,7 @@ function mergeRelation(rel) {
   } catch (error) {
     console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
 }
 
 function concept(o) {

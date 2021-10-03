@@ -4,7 +4,7 @@
  * This scipt is based on https://github.com/nodyn/jvm-npm which comes with the following copyright
  *
  * and has been updated by Hervé Jouin
- *    add method addPath() that allows to manually specify in which folders the libiries may be searched into.
+ *    add method addPath() that allows to manually specify in which folders the modules may be searched into.
  *
  * Copyright 2014-2016 Red Hat, Inc.
  *
@@ -19,22 +19,21 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License
- */ 
- 
+ */
 
-module = (typeof module === 'undefined') ? {} : module;
+module = typeof module === "undefined" ? {} : module;
 
 (function () {
   var System = java.lang.System;
   var Scanner = java.util.Scanner;
   var File = java.io.File;
 
-  NativeRequire = (typeof NativeRequire === 'undefined') ? {} : NativeRequire;
-  if (typeof require === 'function' && !NativeRequire.require) {
+  NativeRequire = typeof NativeRequire === "undefined" ? {} : NativeRequire;
+  if (typeof require === "function" && !NativeRequire.require) {
     NativeRequire.require = require;
   }
 
-  function Module (id, parent, core) {
+  function Module(id, parent, core) {
     this.id = id;
     this.core = core;
     this.parent = parent;
@@ -42,14 +41,14 @@ module = (typeof module === 'undefined') ? {} : module;
     this.filename = id;
     this.loaded = false;
 
-    Object.defineProperty(this, 'exports', {
+    Object.defineProperty(this, "exports", {
       get: function () {
         return this._exports;
       }.bind(this),
       set: function (val) {
         Require.cache[this.filename] = val;
         this._exports = val;
-      }.bind(this)
+      }.bind(this),
     });
     this.exports = {};
 
@@ -60,39 +59,38 @@ module = (typeof module === 'undefined') ? {} : module;
     }.bind(this);
   }
 
-  Module._load = function _load (file, parent, core, main) {
+  Module._load = function _load(file, parent, core, main) {
     var module = new Module(file, parent, core);
     var body = readFile(module.filename, module.core);
     var dir = new File(module.filename).getParent();
-    var args = ['exports', 'module', 'require', '__filename', '__dirname'];
+    var args = ["exports", "module", "require", "__filename", "__dirname"];
     var func = new Function(args, body);
-    func.apply(module,
-      [module.exports, module, module.require, module.filename, dir]);
+    func.apply(module, [module.exports, module, module.require, module.filename, dir]);
     module.loaded = true;
     module.main = main;
     return module.exports;
   };
 
-  Module.runMain = function runMain (main) {
+  Module.runMain = function runMain(main) {
     var file = Require.resolve(main);
     Module._load(file, undefined, false, true);
   };
 
-  function Require (id, parent) {
+  function Require(id, parent) {
     var core;
     var native_;
     var file = Require.resolve(id, parent);
 
     if (!file) {
-      if (typeof NativeRequire.require === 'function') {
+      if (typeof NativeRequire.require === "function") {
         if (Require.debug) {
-          System.out.println(['Cannot resolve', id, 'defaulting to native'].join(' '));
+          System.out.println(["Cannot resolve", id, "defaulting to native"].join(" "));
         }
         native_ = NativeRequire.require(id);
         if (native_) return native_;
       }
-      System.err.println('Cannot find file ' + id);
-      throw new ModuleError('Cannot find module ' + id, 'MODULE_NOT_FOUND');
+      System.err.println("Cannot find file " + id);
+      throw new ModuleError("Cannot find module " + id, "MODULE_NOT_FOUND");
     }
 
     if (file.core) {
@@ -102,17 +100,17 @@ module = (typeof module === 'undefined') ? {} : module;
     try {
       if (Require.cache[file]) {
         return Require.cache[file];
-      } else if (file.endsWith('.js')) {
+      } else if (file.endsWith(".js")) {
         return Module._load(file, parent, core);
-      } else if (file.endsWith('.json')) {
+      } else if (file.endsWith(".json")) {
         return loadJSON(file);
       }
     } catch (ex) {
       delete Require.cache[file];
       if (ex instanceof java.lang.Exception) {
-        throw new ModuleError('Cannot load module ' + id, 'LOAD_ERROR', ex);
+        throw new ModuleError("Cannot load module " + id, "LOAD_ERROR", ex);
       } else {
-        throw 'Cannot load module ' + id + ' LOAD_ERROR';
+        throw "Cannot load module " + id + " LOAD_ERROR";
       }
     }
   }
@@ -121,40 +119,44 @@ module = (typeof module === 'undefined') ? {} : module;
     var roots = findRoots(parent);
     for (var i = 0; i < roots.length; ++i) {
       var root = roots[i];
-      var result = resolveCoreModule(id, root) ||
-        resolveAsFile(id, root, '.js') ||
-        resolveAsFile(id, root, '.json') ||
-        resolveAsDirectory(id, root)
+      // debug(`id: ${id} root: ${root}`);
+      var result =
+        resolveCoreModule(id, root) ||
+        resolveAsFile(id, root, ".js") ||
+        resolveAsFile(id, root, ".json") ||
+        resolveAsDirectory(id, root);
       if (result) {
+        console.log(`Loading module: ${result}`);
         return result;
       }
     }
     return false;
   };
 
-  Require.root = System.getProperty('user.dir');
+  Require.root = System.getProperty("user.dir");
 
-  function findRoots (parent) {
+  function findRoots(parent) {
     var r = [];
     r.push(findRoot(parent));
     return r.concat(Require.paths());
   }
 
-  
   var searchPaths = [];
   Require.addPath = function (p) {
     searchPaths.push(p);
-  }
+  };
 
   Require.paths = function () {
     return searchPaths;
   };
 
-  function findRoot (parent) {
-    if (!parent || !parent.id) { return Require.root; }
+  function findRoot(parent) {
+    if (!parent || !parent.id) {
+      return Require.root;
+    }
     var pathParts = parent.id.split(/[\/|\\,]+/g);
     pathParts.pop();
-    return pathParts.join('/');
+    return pathParts.join("/");
   }
 
   Require.debug = true;
@@ -164,48 +166,47 @@ module = (typeof module === 'undefined') ? {} : module;
 
   module.exports = Module;
 
-  function loadJSON (file) {
+  function loadJSON(file) {
     var json = JSON.parse(readFile(file));
     Require.cache[file] = json;
     return json;
   }
 
-  function resolveAsDirectory (id, root) {
-    var base = [root, id].join('/');
-    var file = new File([base, 'package.json'].join('/'));
+  function resolveAsDirectory(id, root) {
+    var base = [root, id].join("/");
+    var file = new File([base, "package.json"].join("/"));
     if (file.exists()) {
       try {
         var body = readFile(file.getCanonicalPath());
         var package_ = JSON.parse(body);
         if (package_.main) {
-          return (resolveAsFile(package_.main, base) ||
-            resolveAsDirectory(package_.main, base));
+          return resolveAsFile(package_.main, base) || resolveAsDirectory(package_.main, base);
         }
         // if no package.main exists, look for index.js
-        return resolveAsFile('index.js', base);
+        return resolveAsFile("index.js", base);
       } catch (ex) {
-        throw new ModuleError('Cannot load JSON file', 'PARSE_ERROR', ex);
+        throw new ModuleError("Cannot load JSON file", "PARSE_ERROR", ex);
       }
     }
-    return resolveAsFile('index.js', base);
+    return resolveAsFile("index.js", base);
   }
 
-  function resolveAsFile (id, root, ext) {
+  function resolveAsFile(id, root, ext) {
     var file;
-    if (id.length > 0 && id[0] === '/') {
-      file = new File(normalizeName(id, ext || '.js'));
+    if (id.length > 0 && id[0] === "/") {
+      file = new File(normalizeName(id, ext || ".js"));
       if (!file.exists()) {
         return resolveAsDirectory(id);
       }
     } else {
-      file = new File([root, normalizeName(id, ext || '.js')].join('/'));
+      file = new File([root, normalizeName(id, ext || ".js")].join("/"));
     }
     if (file.exists()) {
       return file.getCanonicalPath();
     }
   }
 
-  function resolveCoreModule (id, root) {
+  function resolveCoreModule(id, root) {
     var name = normalizeName(id);
     var classloader = java.lang.Thread.currentThread().getContextClassLoader();
     if (classloader.getResource(name)) {
@@ -213,15 +214,15 @@ module = (typeof module === 'undefined') ? {} : module;
     }
   }
 
-  function normalizeName (fileName, ext) {
-    var extension = ext || '.js';
+  function normalizeName(fileName, ext) {
+    var extension = ext || ".js";
     if (fileName.endsWith(extension)) {
       return fileName;
     }
     return fileName + extension;
   }
 
-  function readFile (filename, core) {
+  function readFile(filename, core) {
     var input;
     try {
       if (core) {
@@ -231,20 +232,20 @@ module = (typeof module === 'undefined') ? {} : module;
         input = new File(filename);
       }
       // TODO: I think this is not very efficient
-      return new Scanner(input).useDelimiter('\\A').next();
+      return new Scanner(input).useDelimiter("\\A").next();
     } catch (e) {
-      throw new ModuleError('Cannot read file [' + input + ']: ', 'IO_ERROR', e);
+      throw new ModuleError("Cannot read file [" + input + "]: ", "IO_ERROR", e);
     }
   }
 
-  function ModuleError (message, code, cause) {
-    this.code = code || 'UNDEFINED';
-    this.message = message || 'Error loading module';
+  function ModuleError(message, code, cause) {
+    this.code = code || "UNDEFINED";
+    this.message = message || "Error loading module";
     this.cause = cause;
   }
 
   // Helper function until ECMAScript 6 is complete
-  if (typeof String.prototype.endsWith !== 'function') {
+  if (typeof String.prototype.endsWith !== "function") {
     String.prototype.endsWith = function (suffix) {
       if (!suffix) return false;
       return this.indexOf(suffix, this.length - suffix.length) !== -1;
@@ -253,4 +254,4 @@ module = (typeof module === 'undefined') ? {} : module;
 
   ModuleError.prototype = new Error();
   ModuleError.prototype.constructor = ModuleError;
-}());
+})();

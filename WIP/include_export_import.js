@@ -51,7 +51,7 @@ function set_attr_or_prop(object, row, label) {
  * get the given attribute or property value of an Archi object
  */
 function get_attr_or_prop(archi_object, row_label) {
-  _commonShowDebugMessage.push(false);
+  _logDebugMessage.push(false);
   let value = "";
 
   // get attribute, for instance "documentation", "name",
@@ -86,6 +86,6 @@ function get_attr_or_prop(archi_object, row_label) {
     debug(`prop archi_object.prop(${row_label})=${value}`);
   }
 
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
   return value;
 }

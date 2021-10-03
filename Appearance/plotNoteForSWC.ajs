@@ -9,9 +9,9 @@
 load(__DIR__ + "../_lib/SelectCollection.js");
 
 let collection = selectVisualObjects($(selection));
-applyToCollection(collection, plotNoteForSWC);
+applyToCollection(collection, plotCoordinates);
 
-function plotNoteForSWC(obj) {
+function plotCoordinates(obj) {
 	if (obj.prop("GEMMA status") == "In ontwikkeling") {
 		// Add a Note to this element
 		var note = obj.createObject("note", 10, 45, 200, 30);

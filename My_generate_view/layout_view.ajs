@@ -1,37 +1,26 @@
 /**
  * Script that generates a view of the selected objects and related objects
- * - change in this script the param variable to define the view to be rendered
- * - make a selection in Archi (the model, a folder, a view or some elements) and run this script
- * - see include_generate_view.js for an explanation of the parameters
+ * 
+ * Usage:
+ * - change in this script the variable 'param' to define how the view will be rendered
+ *   - see include_generate_view.js for an explanation of the parameters
+ * - make a selection in Archi (the model, a folder, a view or some elements) and 
+ * - run this script
  * 
  * This script calls the function generate_view in the javascript file include_generate_view.js
  * 
  * Requires:
  * 	- node module dagre-cluster-fix
- *  - scripts:
- * 			_lib\Common.js
- * 			_lib\jvm-npm.js
- * 			include_generate_view.js
- *
- *  Based on the work of Hervé Jouin
+ * 
+ * Based on the work of Hervé Jouin
  */
-
 load(__DIR__ + "../_lib/Common.js");
 checkJavaScriptEngine(ENGINE_GRAAL_VM);
 
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-	
 	concepts: [
-		// "application-component",
-    // "application-function",
-    // "application-interface",
-    // "application-service",
-    // "business-function",
-    // "business-object",
-    // "constraint",
-    // "grouping",
   ],
   relations: [
 		// "assignment-relationship",
@@ -58,11 +47,10 @@ var param = {
     // "specialization-relationship",
   ],
 	
-	
 	// viewName: "gen-custom",
 
 	// graphDepth: 1,
-  graphDepth: 1,
+  graphDepth: 0, // layout selected elements and relations of these elements
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
   // graphDirection: "LR",
@@ -71,16 +59,16 @@ var param = {
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  algorithm: "longest-path",
+  // algorithm: "longest-path",
   // algorithm: "tight-tree",
-  // algorithm: "network-simplex",
+  algorithm: "network-simplex",
 
   nodeWidth: 140,
   nodeHeight: 60,
   hSep: 20,
   vSep: 80,
 
-  debug: false,
+  debug: true,
 };
 
 initConsoleLog(__FILE__, true);

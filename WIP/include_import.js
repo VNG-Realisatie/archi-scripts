@@ -49,7 +49,7 @@ const CREATE = "CREATE";
  * @param {*} importFile filepath to CSV file to import (optional, if empty you will be prompted)
  */
 function importObjects(importFile) {
-  _commonShowDebugMessage.push(false);
+  _logDebugMessage.push(false);
 
   try {
     console.log(`Importing objects of CSV`);
@@ -124,7 +124,7 @@ function importObjects(importFile) {
     console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   debug(`< `);
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
 }
 
 /**
@@ -195,7 +195,7 @@ function processRow(row, index, rowLabels) {
   let findResult;
   let result = {};
 
-  _commonShowDebugMessage.push(true);
+  _logDebugMessage.push(true);
   debug(`row[${index + 2}] ${row.type}: ${row.name}`);
 
   findResult = findObject(row.type, row.name, row[PROP_ID], row.id, row);
@@ -213,7 +213,7 @@ function processRow(row, index, rowLabels) {
   }
 
   debug(`>> processRow: ${endCounter("processRow")}\n`);
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
 
   return result;
 }
@@ -387,7 +387,7 @@ function createObject(row, index, rowLabels) {
   let archiObject = {};
   // let newObject = { index: index, resultCode: resultCode };
 
-  _commonShowDebugMessage.push(false);
+  _logDebugMessage.push(false);
   // debug(`\nStart`);
   // debug(`check index row[${index +2}] = ${JSON.stringify(row)}`);
   // debug(`check index obj = ${JSON.stringify(archiObject)}`);
@@ -416,7 +416,7 @@ function createObject(row, index, rowLabels) {
     line += result.line;
     resultCode = CREATE;
   }
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
   debug(`createObject: ${resultCode} ${endCounter("createObject")}`);
   return { index: index, resultCode: resultCode, line: line };
 }
@@ -435,7 +435,7 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
   let archiObj = findResult.archiObj;
   let lineRowUpdate = `row[${index + 2}] > ${UPDATE} ${archiObj} (${findResult.findText})`;
 
-  _commonShowDebugMessage.push(false);
+  _logDebugMessage.push(false);
   debug(`row = ${JSON.stringify(row)}`);
   debug(`obj = ${archiObj}`);
 
@@ -472,7 +472,7 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
     debug(`line: ${line}`);
   }
   debug(`updateObject: ${endCounter("updateObject")}`);
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
 
   return { index: index, resultCode: resultCode, line: line };
 }

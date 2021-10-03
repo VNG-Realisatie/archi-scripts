@@ -93,8 +93,8 @@ function setTimeout() {
 
 function generate_view(param) {
 	// debug parameter
-	if (param.debug === undefined) _commonShowDebugMessage.push(param.debug);
-	else _commonShowDebugMessage.push(false);
+	if (param.debug === undefined) _logDebugMessage.push(param.debug);
+	else _logDebugMessage.push(false);
 
 	try {
 		if (checkParameters(param)) {
@@ -119,8 +119,8 @@ function generate_view(param) {
 
 function generate_multiple_view(param) {
 	// debug parameter
-	if (param.debug === undefined) _commonShowDebugMessage.push(param.debug);
-	else _commonShowDebugMessage.push(false);
+	if (param.debug === undefined) _logDebugMessage.push(param.debug);
+	else _logDebugMessage.push(false);
 
 	try {
 		if (checkParameters(param)) {
@@ -317,7 +317,7 @@ function connectedSelection(containedElements, param) {
 }
 
 function createGraph(param) {
-	_commonShowDebugMessage.push(true);
+	_logDebugMessage.push(true);
 	// require.addPath(__SCRIPTS_DIR__ + "node_modules/cytoscape/");
 	// require.addPath(__SCRIPTS_DIR__ + "node_modules/cytoscape/dist");
 	// require.addPath(__SCRIPTS_DIR__ + "node_modules/layout-base/");
@@ -351,7 +351,7 @@ function createGraph(param) {
 	});
 
 	debug(`Graph style object:\n${JSON.stringify(cy.style().json(), null, 2)}`);
-	_commonShowDebugMessage.pop();
+	_logDebugMessage.pop();
 	return cy;
 }
 
@@ -424,7 +424,7 @@ function fillGraph(param, connected, graph) {
 }
 
 function layoutGraph(param, graph) {
-	_commonShowDebugMessage.push(true);
+	_logDebugMessage.push(true);
 	console.log("Sorting nodes by name...");
 
 	graph = graph.nodes().sort(function (a, b) {
@@ -515,7 +515,7 @@ function layoutGraph(param, graph) {
 	console.log(`Calculating the graph layout ${param.layout}...`);
 	debug(`Layout options object: \n${JSON.stringify(options, null, 2)}`);
 	graph.layout(options).run();
-	_commonShowDebugMessage.pop();
+	_logDebugMessage.pop();
 }
 
 /**
@@ -560,15 +560,15 @@ function drawView(param, graph, view) {
 
 	console.log("> Drawing graph nodes as elements ...");
 	// graph.nodes().forEach(nodeId => drawNode(nodeId, nodeIndex, archiVisualElements, view));
-	_commonShowDebugMessage.push(true);
+	_logDebugMessage.push(true);
 	graph.nodes().forEach((node) => drawViewNode(node, nodeIndex, archiVisualElements, view, eles.boundingBox()));
-	_commonShowDebugMessage.pop();
+	_logDebugMessage.pop();
 
 	console.log("> Drawing graph edges as relations ...");
 	// graph.edges().forEach(edgeObject => drawEdge(edgeObject, archiVisualElements, view));
-	_commonShowDebugMessage.push(false);
+	_logDebugMessage.push(false);
 	graph.edges().forEach((edge) => drawViewEdge(edge, archiVisualElements, view));
-	_commonShowDebugMessage.pop();
+	_logDebugMessage.pop();
 
 	console.log(`\nFinished: open view "${view.name}"`);
 }

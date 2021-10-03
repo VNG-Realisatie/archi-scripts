@@ -1,36 +1,37 @@
 /**
- * documentation_driving_view.ajs
+ * generate_report.ajs
  *
  * Purpose: To generate report in markdown format with its structure defined in a view
  *
  * Based on the script from Richard Heward - Tame Blue Lion Ltd
  * See blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
  *
- * Steps:
- * - Create a view and draw what will be included in your report
- * - Add the propery 'drivingView=true' to this view
- * - Select the 'driving view' and run this script
+ * How to use this script
+ * - select a view and run this script
  * - Open the generated markdown file in a markdown viewer (mark text, typora, visual studio code, ..)
+ * Or
+ * - Create a "drivingView" with the structure of your report. See below how to do this.
+ * - Add the property 'drivingView=true' to the view 
+ * - Select the "drivingView" and run this script
+ * - Open the generated markdown file in a markdown viewer (marktext, typora, visual studio code, ..)
  *     - markdown can be converted to PDF / Word Docs or anything.
  *
+ * How to create a "drivingView"?
  * Define the outline of the report with (visual) groups, notes and view references.
- * - section and sub sections
+ * - create sections and sub sections
  *     - draw a visual group or a grouping (use groupings if they have meaning in your model)
  *       - name of the group will be the section title
  *       - documentation of the group is printed below the title
  *     - create subsections by embedding groupings
- * - paragraph
+ * - create a paragraph
  *     - draw a note
- *     - embed the note in a group
- *     - the content of the note is printed in the section defined by the group
- * - image of a view (archimate view or sketch view)
+ *     - the text of the note is printed where the note is drawn
+ * - print an image of a view (archimate view or sketch view)
  *     - draw a view reference (drag a view from the model tree in the drivingView)
- *     - embed the view reference in a group
- *     - printed are
- *       - a title with the name of the view is generated
- *       - a paragraph with the documentation is printed
- *       - an image of the view is printed
- *       - optionally a table with all the elements on the view is printed below the image
+ *       - a subsection with the name of the view is generated
+ *       - in the subsection the views documentation is printed
+ *       - then an image of the view is printed
+ *       - default a table with all shown elements is printed below the image
  *
  * Set properties of the driving view to change the default behavior of the script:
  *
@@ -41,7 +42,7 @@
  * | includeTableOfAllViews | Print a table with all elements (true/false)                | false   |
  * | tableOneLineDoc        | Print only first line of element documentation (true/false) | false   |
  * | renderViewScale        | Resolution of generated images (1 to 4)                     | 1       |
- * | renderViewEmbed        | Embed images or generate .png files (true/false)            | true    |
+ * | renderViewEmbed        | Embed images or generate .png files (true/false)            | false   |
  * | paragraphNumber        | Generate paragraph numbers (true/false)                     | false   |
  * | path                   | Path for saving markdown (pop-up if not set)                | null    |
  * | author                 | Name of author                                              |         |
@@ -59,26 +60,25 @@
  * - center and scale images
  */
 
+const REGEX_SPACE = / /gi;
+
 load(__DIR__ + "../_lib/Common.js");
-checkJavaScriptEngine(ENGINE_GRAAL_VM);
+// checkJavaScriptEngine(ENGINE_NASHORN);
 
 load("https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.1/showdown.js");
 
-// load(__DIR__ + "includeDocumentation.ajs");
-
 initConsoleLog(__FILE__, true);
-
 try {
   let report = new Object();
   var view = selection.filter("archimate-diagram-model").first();
   if (view) {
     console.log(`Selected view "${view.name}"`);
-    console.log("Set properties of the view to change the default behavior of the script\n");
+    console.log("Change behavior of the script with the properties of selected view:\n");
 
     let settings = getSettings(view);
-    setFilename(settings);
+    getFilename(settings);
 
-    if (settings.filename.value) {
+    if (settings.path.value) {
       let markdownString = "";
       if (settings.drivingView.value) {
         markdownString = document_drivingView(report, settings, view);
@@ -142,6 +142,7 @@ function document_drivingView(report, settings, drivingView) {
   markdownString += report.content;
   markdownString += "\n";
   markdownString += report.body;
+  console.log();
 
   return markdownString;
 }
@@ -149,7 +150,7 @@ function document_drivingView(report, settings, drivingView) {
 /**
  *   this recursive function reads the report structure from the driving view
  *   -  follow the elements on the driving view from top left to the bottom right
- *   -  recurse into groups with embedded elements/children
+ *   -  recurse into groups with embedded elements
  *     - print (visual) groups as sectionheaders
  *     - print viewReferences
  *     - print notes
@@ -167,7 +168,7 @@ function reportStructure(report, settings, pLevel, pParagraphNr, pObject) {
   // add text of note to the current paragraph in the report
   if (pObject.type == "diagram-model-note") {
     report.body += `${pObject.text}\n\n`;
-    console.log(`${">".repeat(pLevel)} insert text from note`);
+    console.log(`${">".repeat(pLevel)} note: insert text`);
   } else {
     // add referenced view to the current paragraph in the report
     if (
@@ -236,7 +237,7 @@ function getSettings(view) {
   settings.includeTableOfAllViews = { value: false, description: `Print a table with all elements (true/false)` };
   settings.tableOneLineDoc = { value: false, description: `Print only first line of element documentation (true/false)` };
   settings.renderViewScale = { value: 1, description: `Resolution of generated images (1 to 4)` };
-  settings.renderViewEmbed = { value: true, description: `Embed images or generate .png files (true/false)` };
+  settings.renderViewEmbed = { value: false, description: `Embed images or generate .png files (true/false)` };
   settings.paragraphNumber = { value: false, description: `Generate paragraph numbers (true/false)` };
   settings.path = { value: null, description: `Path for saving markdown (pop-up if not set)` };
   settings.author = { value: "", description: "Name of author" };
@@ -261,6 +262,10 @@ function getSettings(view) {
       }
       propValue = view.prop(key);
     }
+    let truncate = 33
+    if (propValue.length > truncate) {
+      propValue = `${propValue.slice(0, 6)}...${propValue.slice(9-truncate)}`
+    }
     consoleTable.push([key, propValue, settings[`${key}`]["description"], defaultValue]);
   }
   console.log(table(consoleTable, { markdown: true }));
@@ -268,23 +273,22 @@ function getSettings(view) {
   return settings;
 }
 
-function setFilename(settings) {
-  //  template filename
-  let filename = `${new Date().toLocaleDateString("nl-NL")} ${view.name}.md`;
+function getFilename(settings) {
+  // template filename
+  settings.filename = { value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(REGEX_SPACE, "_")}
+
   // to skip the popup window while debugging, set path as a property
   if (!settings.path.value) {
     let exportFile = window.promptSaveFile({
       title: "Save to file",
       filterExtensions: ["*.md"],
-      fileName: filename,
+      fileName: settings.filename.value,
     });
-    settings.path.value = exportFile.substring(0, exportFile.lastIndexOf(slash())); // path without slash
-    filename = exportFile.substring(exportFile.lastIndexOf(slash()) + 1); //, exportFile.lastIndexOf("."))
+    if (exportFile) {
+      settings.path.value = exportFile.substring(0, exportFile.lastIndexOf(slash())); // path without slash
+      settings.filename.value = exportFile.substring(exportFile.lastIndexOf(slash()) + 1); //, exportFile.lastIndexOf("."))
+    }
   }
-  // else keep given path and template filename
-  settings.filename = { value: filename };
-
-  console.log();
 }
 
 /**
@@ -294,24 +298,23 @@ function setFilename(settings) {
  * @returns string with URL to the PNG file
  */
 function saveViewPNG(settings, view, viewBinary) {
-  const regexSpace = / /gi;
-
-  // replace in subdir/filename all spaces with an underscore for better compatibility with markdown viewers
-  let subDir = settings.path.value + slash() + settings.filename.value.replace(regexSpace, "_");
-  let imageFile = `${view.name}.png`.replace(regexSpace, "_");
+  // replace in filename spaces with an underscore for compatibility with markdown viewers
+  let subDir = settings.filename.value.substring(0, settings.filename.value.lastIndexOf(".")).replace(REGEX_SPACE, "_");
+  let absoluteDir = `${settings.path.value}${slash()}${subDir}`
+  let imageFile = `${view.name}.png`.replace(REGEX_SPACE, "_");
 
   // create subdir and save binary as .png file
-  let fileObject = new Packages.java.io.File(subDir);
+  let fileObject = new Packages.java.io.File(absoluteDir);
   fileObject.mkdir();
-  $.fs.writeFile(`${subDir}${slash()}${imageFile}`, viewBinary, "BASE64");
+  $.fs.writeFile(`${absoluteDir}${slash()}${imageFile}`, viewBinary, "BASE64");
 
-  return `${subDir}/${imageFile}`;
+  return `${subDir}${slash()}${imageFile}`;
 }
 
 function saveReport(settings, markdownString) {
   console.log(`Markdown report saved to:`);
-  console.log(`- path:     ${settings.path.value}`);
-  console.log(`- filename: ${settings.filename.value}`);
+  console.log(`- directory: ${settings.path.value}`);
+  console.log(`- filename:  ${settings.filename.value}`);
 
   $.fs.writeFile(`${settings.path.value}${slash()}${settings.filename.value}`, markdownString);
 }
@@ -361,7 +364,7 @@ function addSection(report, settings, pLevel, pParagraphNr, pObject, pTypeText) 
   if (pObject.documentation != "") {
     report.body += `${pObject.documentation}\n\n`;
   }
-  console.log(`${">".repeat(pLevel)} ${pObject.name} (${pTypeText})`);
+  console.log(`${">".repeat(pLevel)} ${pTypeText}: ${pObject.name}`);
 }
 
 /**

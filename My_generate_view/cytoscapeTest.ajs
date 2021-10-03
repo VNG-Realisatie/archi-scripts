@@ -17,7 +17,7 @@ try {
 		NODE_MODULES = __SCRIPTS_DIR__ + "node_modules/";
 
 		load(ARCHI_SCRIPT + "_lib/Common.js");
-		_commonShowDebugMessage.push(true);
+		_logDebugMessage.push(true);
 		load(ARCHI_SCRIPT + "_lib/jvm-npm.js");
 
 		initConsoleLog(__FILE__);

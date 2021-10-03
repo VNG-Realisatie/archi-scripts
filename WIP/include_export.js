@@ -18,7 +18,7 @@ load(__DIR__ + "include_export_import.js");
  * @param {*} exportFile filepath to write CSV file (optional, if empty you will be prompted)
  */
 function exportObjects(objectType, exportFile) {
-  _commonShowDebugMessage.push(false);
+  _logDebugMessage.push(false);
   debug(`objectType=${objectType}`);
 
   try {
@@ -65,7 +65,7 @@ function exportObjects(objectType, exportFile) {
   } catch (error) {
     console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
 }
 
 /**
@@ -115,7 +115,7 @@ function findPropertyLabels(accumulator, object) {
 function createRow(headerRow, object) {
   let row = new Object();
 
-  _commonShowDebugMessage.push(false);
+  _logDebugMessage.push(false);
   debug(`\n> `);
   debug(`${object}`);
 
@@ -131,7 +131,7 @@ function createRow(headerRow, object) {
   }
 
   debug(`Row: ${JSON.stringify(row)}`);
-  _commonShowDebugMessage.pop();
+  _logDebugMessage.pop();
   return row;
 }
 
