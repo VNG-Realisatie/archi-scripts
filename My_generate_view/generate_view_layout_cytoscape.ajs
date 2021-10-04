@@ -19,7 +19,7 @@ load(__DIR__ + "include_generate_view_cytoscape.js");
 let param = {
 	// viewName: "gen-custom",
 
-	concepts: [
+	conceptFilter: [
 		// "business-function",
 		// "business-object",
 		// "constraint",
@@ -36,7 +36,7 @@ let param = {
 		// "realization-relationship",
 		// "serving-relationship"
 	],
-	reverse_relations: [
+	reverseRelation: [
 		// "realization-relationship",
 		// "serving-relationship",
 		// "aggregation-relationship",
@@ -44,7 +44,7 @@ let param = {
 		"specialization-relationship",
 	],
 
-	nested_relations: [
+	nestedRelation: [
 		// "realization-relationship",
 		// "composition-relationship",
 		// "access-relationship"],

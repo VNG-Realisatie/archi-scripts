@@ -67,7 +67,7 @@ var G__allViews;
 											*	all relation types in the model
 											class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
 									
-		reverse_relations (optional)	The relations types which will be rendered target to source
+		reverseRelation (optional)	The relations types which will be rendered target to source
 										May be one of:
 											*	all relation types in the model
 											class,class,...	list of Archimate classes (comma-separated) like realization-relationship,assignment-relationship, ...
@@ -136,7 +136,7 @@ function generate_view(param) {
 	debug("Function generate_view() called with following parameters");
 	debug("     - concepts = " + param.concepts);
 	debug("     - relations = " + param.relations);
-	debug("     - reverse_relations = " + param.reverse_relations);
+	debug("     - reverseRelation = " + param.reverseRelation);
 	debug("     - action = " + param.action);
 	debug("     - viewName = " + param.viewName);
 	debug("     - graphDepth = " + param.graphDepth);
@@ -154,8 +154,8 @@ function generate_view(param) {
 		throw "Missing mandatatory concepts parameter";
 	if (param.relations === undefined)
 		param.relations = ''
-	if (param.reverse_relations === undefined)
-		param.reverse_relations = ''
+	if (param.reverseRelation === undefined)
+		param.reverseRelation = ''
 	// defaulting optional parameters
 	if (param.nested_relations === undefined)
 		param.nested_relations = [];

@@ -2,7 +2,7 @@
  * Script that generates a view of the selected objects and related objects
  * 
  * Usage:
- * - change in this script the variable 'param' to define how the view will be rendered
+ * - change in this script the 'param' object to define how the view will be rendered
  *   - see include_generate_view.js for an explanation of the parameters
  * - make a selection in Archi (the model, a folder, a view or some elements) and 
  * - run this script
@@ -20,24 +20,25 @@ checkJavaScriptEngine(ENGINE_GRAAL_VM);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-	concepts: [
+	conceptFilter: [
   ],
-  relations: [
+  relationFilter: [
 		// "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
     // "realization-relationship",
     // "serving-relationship"
   ],
-  reverse_relations: [
+  reverseRelation: [
 		// "aggregation-relationship",
     // "assignment-relationship",
+    "composition-relationship",
     "realization-relationship",
     "serving-relationship",
     // "specialization-relationship",
   ],
 	
-  nested_relations: [
+  nestedRelation: [
 		// "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
@@ -59,9 +60,9 @@ var param = {
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  // algorithm: "longest-path",
+  algorithm: "longest-path",
   // algorithm: "tight-tree",
-  algorithm: "network-simplex",
+  // algorithm: "network-simplex",
 
   nodeWidth: 140,
   nodeHeight: 60,

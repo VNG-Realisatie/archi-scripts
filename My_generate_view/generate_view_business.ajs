@@ -22,7 +22,7 @@ checkJavaScriptEngine(ENGINE_GRAAL_VM);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-  concepts: [
+  conceptFilter: [
     // "application-component",
     // "application-function",
     // "application-interface",
@@ -44,7 +44,7 @@ var param = {
     // "grouping",
   ],
 
-  relations: [
+  relationFilter: [
     "aggregation-relationship",
     "assignment-relationship",
     "composition-relationship",
@@ -53,7 +53,7 @@ var param = {
     "specialization-relationship",
     "realization-relationship",
   ],
-  reverse_relations: [
+  reverseRelation: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -61,7 +61,7 @@ var param = {
     "specialization-relationship",
   ],
 
-  nested_relations: [
+  nestedRelation: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

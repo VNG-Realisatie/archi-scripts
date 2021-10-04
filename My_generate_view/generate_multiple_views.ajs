@@ -18,62 +18,62 @@ checkJavaScriptEngine(ENGINE_GRAAL_VM);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-	// viewName: "gen-custom",
+  // viewName: "gen-custom",
 
-	concepts: [
-		// "business-function",
-		// "business-object",
-		// "constraint",
-		// "grouping",
-		// "application-function",
-		// "application-component",
-		// "application-interface",
-		// "application-service"
-	],
-	relations: [
-		// "assignment-relationship",
-		// "flow-relationship",
-		// "specialization-relationship",
-		// "realization-relationship",
-		// "serving-relationship"
-	],
-	reverse_relations: [
-		"realization-relationship", // realize from bottom to top
-		"flow-relationship",  // flow from bottom to top
-		"serving-relationship", // serving from bottom to top
-		"aggregation-relationship",
-		// "assignment-relationship",
-		"specialization-relationship",
-	],
+  conceptFilter: [
+    // "business-function",
+    // "business-object",
+    // "constraint",
+    // "grouping",
+    // "application-function",
+    // "application-component",
+    // "application-interface",
+    // "application-service"
+  ],
+  relationFilter: [
+    // "assignment-relationship",
+    // "flow-relationship",
+    // "specialization-relationship",
+    // "realization-relationship",
+    // "serving-relationship"
+  ],
+  reverseRelation: [
+    "realization-relationship", // realize from bottom to top
+    "flow-relationship", // flow from bottom to top
+    "serving-relationship", // serving from bottom to top
+    "aggregation-relationship",
+    // "assignment-relationship",
+    "specialization-relationship",
+  ],
 
-	nested_relations: [
-		// "realization-relationship",
-		// "composition-relationship",
-		// "access-relationship"],
-		// "specialization-relationship",
-		// "assignment-relationship",
-		// "serving-relationship",
-		// "aggregation-relationship",
-	],
+  nestedRelation: [
+    // "realization-relationship",
+    // "composition-relationship",
+    // "access-relationship"],
+    // "specialization-relationship",
+    // "assignment-relationship",
+    // "serving-relationship",
+    // "aggregation-relationship",
+  ],
 
-	// graphDepth: 1,
-	graphDepth: 1,
+  // graphDepth: 1,
+  graphDepth: 1,
 
-	// graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-	// graphDirection: "LR",
-	graphDirection: "TB",
+  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
+  // graphDirection: "LR",
+  graphDirection: "TB",
 
-	// graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-	// graphAlign: "UL",
+  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
+  // graphAlign: "UL",
 
-	// algorithm: "longest-path",
-	// algorithm: "tight-tree",
-	// algorithm: "network-simplex",
+  // algorithm: "longest-path",
+  // algorithm: "tight-tree",
+  // algorithm: "network-simplex",
 
-	hSep: 20,
-	vSep: 80,
+  hSep: 20,
+  vSep: 80,
 
-	debug: true,
+  debug: true,
 };
 
 initConsoleLog(__FILE__, true);

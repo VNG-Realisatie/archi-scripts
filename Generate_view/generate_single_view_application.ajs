@@ -28,7 +28,7 @@ try {
 		relations: "assignment-relationship,aggregation-relationship", // no spaces!
 		// const REVERSE_RELATIONS = ["realization-relationship", "specialization-relationship", "assignment-relationship", "serving-relationship"]
 		// const REVERSE_RELATIONS = ["realization-relationship", "specialization-relationship", "serving-relationship"]
-		reverse_relations = "realization-relationship,serving-relationship",
+		reverseRelation = "realization-relationship,serving-relationship",
 
 		graphDepth: 1,
 		// viewName: "gen-custom",

@@ -24,7 +24,7 @@ load(__DIR__ + "include_generate_view.js");
 
 var param = {
 	
-	concepts: [
+	conceptFilter: [
 		// "application-component",
     // "application-function",
     // "application-interface",
@@ -47,14 +47,14 @@ var param = {
     "technology-process",
     "technology-service",
   ],
-  relations: [
+  relationFilter: [
 		// "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
     // "realization-relationship",
     // "serving-relationship"
   ],
-  reverse_relations: [
+  reverseRelation: [
 		// "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -62,10 +62,10 @@ var param = {
     // "specialization-relationship",
   ],
 	
-  nested_relations: [
+  nestedRelation: [
 		// "access-relationship",
-    // "aggregation-relationship",
-    // "assignment-relationship",
+    "aggregation-relationship",
+    "assignment-relationship",
     // "composition-relationship",
     // "realization-relationship",
     // "serving-relationship"
