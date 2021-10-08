@@ -15,8 +15,7 @@
  * Based on the work of Hervé Jouin
  */
 load(__DIR__ + "../_lib/Common.js");
-checkJavaScriptEngine(ENGINE_GRAAL_VM);
-
+initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
@@ -62,19 +61,16 @@ var param = {
 
   algorithm: "longest-path",
   // algorithm: "tight-tree",
-  // algorithm: "network-simplex",
+  // algorithm: "network-simplex", // default
 
   nodeWidth: 140,
   nodeHeight: 60,
   hSep: 20,
   vSep: 80,
 
-  debug: true,
+  debug: false,
 };
 
-initConsoleLog(__FILE__, true);
-
 generate_view(param);
-// generate_multiple_view(param);
 
 finishConsoleLog();

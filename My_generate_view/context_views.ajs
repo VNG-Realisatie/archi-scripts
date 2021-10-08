@@ -3,9 +3,9 @@
  * - change in this script the param variable to define the view to be rendered
  * - make a selection in Archi (the model, a folder, a view or some elements) and run this script
  * - see include_generate_view.js for an explanation of the parameters
- *
+ * 
  * This script calls the function generate_view in the javascript file include_generate_view.js
- *
+ * 
  * Requires:
  * 	- node module dagre-cluster-fix
  *  - scripts:
@@ -22,47 +22,47 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-  conceptFilter: [
-    // "application-component",
+	
+	conceptFilter: [
+		// "application-component",
     // "application-function",
     // "application-interface",
     // "application-service",
-    "business-actor",
-    "business-collaboration",
-    "business-event",
-    "business-function",
-    "business-interaction",
-    "business-interface",
-    "business-object",
-    "business-process",
-    "business-role",
-    "business-service",
-    "contract",
-    "product",
-    "representation",
+    // "business-function",
+    // "business-object",
     // "constraint",
     // "grouping",
+    // "artifact",
+    // "communication-network",
+    // "device",
+    // "node",
+    // "path",
+    // "system-software",
+    // "technology-collaboration",
+    // "technology-event",
+    // "technology-function",
+    // "technology-interaction",
+    // "technology-interface",
+    // "technology-process",
+    // "technology-service",
   ],
-
   relationFilter: [
-    "aggregation-relationship",
-    "assignment-relationship",
-    "composition-relationship",
+		// "assignment-relationship",
     // "flow-relationship",
-    "serving-relationship",
-    "specialization-relationship",
-    "realization-relationship",
+    // "specialization-relationship",
+    // "realization-relationship",
+    // "serving-relationship"
   ],
   reverseRelation: [
-    // "aggregation-relationship",
+		// "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
     "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
   ],
-
+	
   nestedRelation: [
-    // "access-relationship",
+		// "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
@@ -70,27 +70,31 @@ var param = {
     // "serving-relationship"
     // "specialization-relationship",
   ],
+	
+	// viewName: "gen-custom",
 
-  // viewName: "gen-custom",
-
-  // graphDepth: 1,
+	// graphDepth: 1,
   graphDepth: 1,
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
+  graphDirection: "TB",
+  // graphDirection: "LR",
+  // graphDirection: "BT",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  algorithm: "longest-path",
+  // algorithm: "longest-path",
   // algorithm: "tight-tree",
-  // algorithm: "network-simplex",
+  algorithm: "network-simplex",
 
   nodeWidth: 140,
   nodeHeight: 60,
   hSep: 20,
   vSep: 80,
+
+  action: MULTIPLE,
+  // action: SINGLE,
 
   debug: false,
 };

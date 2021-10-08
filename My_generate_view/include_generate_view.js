@@ -1,5 +1,10 @@
-/*
- * JArchi script to create one or several views containing Archimate concepts, and automates their placement.
+/**
+ * JArchi function for auto layout of an Archi view
+ *
+ * Use cases:
+ * - quickly generate a starting point for a new view
+ * - generate context views (the element and all its related elements)
+ * - analyse your model by generating different views. Use nesting to find unexpected relations, see double relations, etc.
  *
  * Based on "generate views using graphlib" by Herve Jouin.
  * See https://forum.archimatetool.com/index.php?topic=639.msg3563#msg3563
@@ -17,28 +22,26 @@
  *  3  25/09/2021  Mark Backer   use dagre-cluster-fix version
  *  4  02/10/2021  Mark Backer   draw connection with bendpoints
  *
- * Param is an object that may contain the following properties:
- *  conceptFilter (mandatory)
+ * Configure the behavior of generate_view with the param object properties:
+ *  conceptFilter (optional, default is no filter)
  *  - Archimate concept types that will be included in the view
  *    -  [] (empty array) all concept types are included
  *    -  [type, type, ...]  array of concept types like business-actor, application-component, technology-collaboration, node, ...
- *  relationFilter (optional)
+ *  relationFilter (optional, default is no filter)
  *  - The relationship types that will be included in the view.
- *    When graphDepth is greater than 0, this also defines which relation will be followed
  *      - [] (empty array)  all relationship types in the model
  *      - [type, type, ...]  array of relationship types like realization-relationship,assignment-relationship, ...
- *  reverseRelation (optional)
- *  - The relationship types which will be rendered target to source
+ *  reverseRelation (optional, default none)
+ *  - The relationship types which are reversed in the layout. The Archi relations are not changed.
  *      - [] (empty array)  no relationships are reversed
  *      - [type, type, ...]  array of relationship types like realization-relationship,assignment-relationship, ...
- *  nestedRelation (optional)
+ *  nestedRelation (optional, default none)
  *  - The relationship types which will be rendered nested.
  *  - The target elements (all children) will be embedded in the source element (the parent)
  *      - [] (empty array)  no relationships are nested
  *      - [type, type, ...]  array of relationship types like realization-relationship,assignment-relationship, ...
- *  viewName (optional)
+ *  viewName (optional, default is "<selection> (generated)")
  *  - Name of the view to create
- *  - Defaults to: name of selected concept
  *  graphDepth (optional, default is 0)
  *  -  Depth of the graph to create (numerical)
  *  graphDirection (optional, default "TB")
@@ -53,17 +56,25 @@
  *        UR    Up Right
  *        DL    Down Left
  *        DR    Down Right
- *  hSep (optional, Defaults to 50)
+ *  hSep (optional, defaults to 50)
  *  - Number of pixels that separate nodes horizontally
- *  vSep (optional, Defaults to 50)
+ *  vSep (optional, defaults to 50)
  *  - Number of pixels that separate nodes vertically
+ *  action (optional, default is SINGLE)
+ *  - SINGLE   generate a view with the selected elements
+ *  - MULTIPLE generate a view for every selected element
  *  debug (optional, default is false)
  *  - Print debug messages on the console
  *
- * ToDo
- * - what about relationships on relationships ?
+ * Limitations
+ * - relationships on relationships are skipped
+ * - generating 'clustered or nested' views with dagre-cluster-fix is not stable
+ *    - but stable dagre does not support relations to nested elements
+ *    - bendpoints in connections get mixed up
+ *    - sometimes dagre throws an error, often with a complex view with many elements and nestings. Try with less ..
  */
-
+const SINGLE = 1;
+const MULTIPLE = 2;
 const VIEWNAME_SUFFIX = " (generated)";
 const ARROW_DELIMITER = "_";
 const ARROW = "->";
@@ -80,10 +91,8 @@ const NODE_HEIGHT = 60;
 var graph; // graphlib graph for layout view
 var graphParents = []; // global variable for bookkeeping a parent's relations
 
-_logDebugMessage.push(true);
-
 /**
- * How to install the required node modules in Windows?
+ * How to install the required dagre module in Windows?
  *
  * Use nodeJS to install dagre
  * - install nodejs (nodejs is only used for installing the modules, it's not necesary for running the script)
@@ -114,55 +123,41 @@ try {
 }
 
 /**
- * generate a view for every selected element
- *
- * @param {object} param - settings for generating a view
- */
-function generate_multiple_view(param) {
-  try {
-    if (checkParameters(param)) {
-      let filteredSelection = selectElements(param);
-      console.log(`\n== Generating ${filteredSelection.length} views ==`);
-
-      filteredSelection.forEach(function (element) {
-        param.viewName = `${element.name} (generated)`;
-
-        console.log(`\n== Generate view for ${element.name} ==`);
-
-        graph = createGraph(param);
-        fillGraph(param, $(element));
-        layoutGraph(param);
-        renderArchiView(param);
-      });
-    }
-  } catch (error) {
-    console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-  }
-}
-
-/**
+ * generate a view for every selected element or
  * generate a view with the selected elements
  *
  * @param {object} param - settings for generating a view
  */
 function generate_view(param) {
-  // debug parameters
   if (param.debug !== undefined) _logDebugMessage.push(param.debug);
-
   try {
     if (checkParameters(param)) {
-      let filteredSelection = selectElements(param);
+      let filteredSelection = [];
+      filteredSelection = selectElements(param);
 
-      graph = createGraph(param);
-      fillGraph(param, filteredSelection);
-      layoutGraph(param);
-      renderArchiView(param);
+      if (param.action == MULTIPLE) {
+        console.log(`\n== Generating ${filteredSelection.length} views ==`);
+
+        filteredSelection.forEach(function (element) {
+          console.log(`== Generate view for ${element.name} ==`);
+          param.viewName = element.name + VIEWNAME_SUFFIX;
+          layoutAndRender(param, $(element));
+        });
+      } else {
+        layoutAndRender(param, filteredSelection);
+      }
     }
   } catch (error) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-
   if (param.debug !== undefined) _logDebugMessage.pop();
+
+  function layoutAndRender(param, filteredSelection) {
+    graph = createGraph(param);
+    fillGraph(param, filteredSelection);
+    layoutGraph(param);
+    renderArchiView(param);
+  }
 }
 
 /**
@@ -171,14 +166,9 @@ function generate_view(param) {
  * @param {object} param - settings for generating a view
  */
 function checkParameters(param) {
-  // checking mandatory parameters
   // TODO check for valid Archi element en relation names or pop-up window with pull-downs
-  if (param.conceptFilter === undefined) {
-    console.log("Missing mandatatory parameter 'concepts'");
-    return false;
-  }
-
   // defaulting optional parameters
+  if (param.conceptFilter === undefined) param.conceptFilter = [];
   if (param.relationFilter === undefined) param.relationFilter = [];
   if (param.reverseRelation === undefined) param.reverseRelation = [];
   if (param.nestedRelation === undefined) param.nestedRelation = [];
@@ -186,6 +176,7 @@ function checkParameters(param) {
   // setting the default view name
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
   if (!param.viewName.endsWith(VIEWNAME_SUFFIX)) param.viewName += VIEWNAME_SUFFIX;
+  if (param.action == undefined) param.action == SINGLE;
 
   const INDENT = "  - ";
   console.log("Function called with parameters");
@@ -204,6 +195,7 @@ function checkParameters(param) {
   console.log("- algorithm = " + param.algorithm);
   console.log("- hSep = " + param.hSep);
   console.log("- vSep = " + param.vSep);
+  console.log("- action = " + param.action);
   console.log("- debug = " + param.debug);
   return true;
 }
@@ -215,10 +207,9 @@ function checkParameters(param) {
  * @param {object} param - settings for generating a view
  */
 function selectElements(param) {
-  if (model == null || model.id == null) throw "No model selected. Select one or more objects in the model tree or a view";
+  if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
 
-  // add the selected elements in a list.
-  // if a container is given, then the function recursively adds all the elements in that container
+  // add the selected elements in a list. if a container is given, the elements in that container are added
   function addElementInList(list, obj) {
     if ($(obj).is("element")) list.push(obj.concept);
     $(obj)
@@ -230,17 +221,18 @@ function selectElements(param) {
   }
 
   // create an array with the selected elements
-  let selectedElements = [];
+  var selectedElements = [];
   if ($(selection).first().type === "archimate-model") {
     selectedElements = $("element");
   } else {
     $(selection).each((obj) => addElementInList(selectedElements, obj));
   }
-  console.log(`\n> ${selectedElements.length} elements selected before filtering`);
+  console.log(`\nSelection:`);
+  console.log(`- ${selectedElements.length} selected elements`);
 
   // filter the selected elements with the concept filter
   let filteredSelection = selectedElements.filter((obj) => filter_object_type(obj, param.conceptFilter));
-  console.log(`> ${filteredSelection.length} elements after filtering`);
+  console.log(`- ${filteredSelection.length} filtered elements kept`);
   if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
 
   return filteredSelection;
@@ -262,7 +254,7 @@ function createGraph(param) {
   // if (param.vSep !== undefined) graphLayout.ranksep = param.vSep;
   if (param.algorithm !== undefined) graphLayout.ranker = param.algorithm;
 
-  console.log("\n> Create graph");
+  console.log("\nCreate graph");
 
   let graph = new dagre.graphlib.Graph({
     directed: true, // A directed graph treats the order of nodes in an edge as significant whereas an undirected graph does not.
@@ -286,7 +278,7 @@ function createGraph(param) {
  * add the filtered selection to the graph
  */
 function fillGraph(param, filteredSelection) {
-  console.log("\n> Adding elements and relations to the graph...");
+  console.log(`Adding elements and relations to the graph with a depth of ${param.graphDepth}...`);
 
   let startLevel = 0;
   filteredSelection.forEach((archiElement) => {
@@ -295,9 +287,9 @@ function fillGraph(param, filteredSelection) {
   });
 
   console.log("\nAdded to the graph:");
-  console.log(graph.nodeCount() + " nodes and");
-  console.log(graph.edgeCount() + " edges");
-  if (graphParents.length > 0) console.log(graphParents.length + " parent-child nestings");
+  console.log(`- ${graph.nodeCount()} nodes and`);
+  console.log(`- ${graph.edgeCount()} edges`);
+  if (graphParents.length > 0) console.log(`- ${graphParents.length} parent-child nestings`);
 }
 
 /**
@@ -500,7 +492,7 @@ function drawNode(nodeId, nodeIndex, archiVisualElements, view) {
     let archiElement = $("#" + nodeId).first();
 
     try {
-      // archi coördinates for visual element on archi diagram (related to the top left corner of diagram)
+      // archi coordinates for visual element on archi diagram (related to the top left corner of diagram)
       let x = parseInt(node.x - node.width / 2);
       let y = parseInt(node.y - node.height / 2);
 
@@ -580,16 +572,15 @@ function drawEdge(edge, archiVisualElements, view) {
  */
 function drawParent(parentRel, archiVisualElements, view) {
   debug(`parentRel: ${parentRel}`);
-  let connection;
-  connection = view.add(parentRel, archiVisualElements[parentRel.source.id], archiVisualElements[parentRel.target.id]);
+  let connection = view.add(parentRel, archiVisualElements[parentRel.source.id], archiVisualElements[parentRel.target.id]);
 }
 
 /**
- * Archi connection bendpoints
- * - startX and Y; positon relative to center of source element
- * - endX and Y; position relative to center of target
- * Dagre edge points
- * - points.x and y; absolute position of bendpoint
+ * add bendpoints to an Archi connection
+ * 
+ * calculate Archi bendpoint coordinates from a Dagre point
+ *  - coordinates of Archi bendpoints are given relative to center of the connections source and target
+ *  - coordinates of Dagre points are absolute to the diagram
  *
  * @param {object} edge - graph edge
  * @param {object} connection - Archi connection
@@ -597,52 +588,79 @@ function drawParent(parentRel, archiVisualElements, view) {
  */
 function addBendpoints(edge, connection, reversed) {
   _logDebugMessage.push(false);
-  // center coordinates of source element
-  let srcCenterX = parseInt(connection.source.bounds.x + connection.source.bounds.width / 2);
-  let srcCenterY = parseInt(connection.source.bounds.y + connection.source.bounds.height / 2);
-  let tgtCenterX = parseInt(connection.target.bounds.x + connection.target.bounds.width / 2);
-  let tgtCenterY = parseInt(connection.target.bounds.y + connection.target.bounds.height / 2);
-  debug(`source ${connection.source} \nbounds ${JSON.stringify(connection.source.bounds, null, "  ")}`);
-  debug(`srcCenter (x,y)= (${srcCenterX}, ${srcCenterY})`);
-  debug(`target ${connection.target} \nbounds ${JSON.stringify(connection.target.bounds, null, "  ")}`);
-  debug(`tgtCenter (x,y)= (${tgtCenterX}, ${tgtCenterY})`);
 
-  // calculate of Archi bendpoint (relative coordinates) from points (absolute coordinates)
-  // skip first and last point. These are not bendpoints, but edge connection to node
+  let srcCenter = calculateCenter(connection.source);
+  let tgtCenter = calculateCenter(connection.target);
+
   let bendpoints = [];
   let points = graph.edge(edge).points;
+
+  // skip first and last point. These are not bendpoints, but connecting points on the edge of the node
   for (let i = 1; i < points.length - 1; i++) {
-    debug(`Points: "x"=${points[i].x} "y"=${points[i].y}`);
-
-    bendpoints.push({
-      startX: parseInt(points[i].x - srcCenterX),
-      startY: parseInt(points[i].y - srcCenterY),
-      endX: parseInt(points[i].x - tgtCenterX),
-      endY: parseInt(points[i].y - tgtCenterY),
-    });
-    debug(`bendpoint: ${JSON.stringify(bendpoints[i - 1], null, "  ")}`);
+    bendpoints.push(calculateBendpoint(points[i], srcCenter, tgtCenter));
   }
-  debug(" ");
-  if (points.length < 3) debug(`Edge with ${points.length} points: ${graph.edge(edge).label}`);
 
+  // finaly add the calculated bendpoint to the Archi connection
   for (let i = 0; i < bendpoints.length; i++) {
-    if (!reversed) {
-      connection.addRelativeBendpoint(bendpoints[i], i);
-    } else {
+    if (reversed) {
       connection.addRelativeBendpoint(bendpoints[bendpoints.length - i - 1], i);
+    } else {
+      connection.addRelativeBendpoint(bendpoints[i], i);
     }
   }
   _logDebugMessage.pop();
+}
+
+function calculateBendpoint(point, srcCenter, tgtCenter) {
+  let bendpoint = {
+    startX: parseInt(point.x - srcCenter.x),
+    startY: parseInt(point.y - srcCenter.y),
+    endX: parseInt(point.x - tgtCenter.x),
+    endY: parseInt(point.y - tgtCenter.y),
+  };
+
+  debug(`point: "x"=${point.x} "y"=${point.y}`);
+  debug(`bendpoint: ${JSON.stringify(bendpoint)}`);
+
+  return bendpoint;
+}
+
+// get the absolute coordinates of the center of the element
+function calculateCenter(element) {
+  let center = {};
+  center.x = element.bounds.x + element.bounds.width / 2;
+  center.y = element.bounds.y + element.bounds.height / 2;
+
+  shiftNesting(element, center);
+
+  debug(`bounds "${element}"=${JSON.stringify(element.bounds)}`);
+  debug(`center "${element}"=${JSON.stringify(center)}`);
+
+  center.x = parseInt(center.x);
+  center.y = parseInt(center.y);
+  return center;
+
+  // recursive function
+  // if element is nested, coordinates are relative to the parent (and parent's parent)
+  function shiftNesting(element, center) {
+    let parent = $(element).parent().filter("element").first();
+    if (parent) {
+      // debug(`coordinates relative to parent ${parent} `);
+      center.x += parent.bounds.x;
+      center.y += parent.bounds.y;
+      shiftNesting(parent, center);
+    }
+  }
 }
 
 function addCircularBendpoints(edge, connection) {
   // relative coordinates from center of element to top right corner
   let rightTopX = connection.source.bounds.width / 2;
   let rightTopY = connection.source.bounds.height / 2;
-  let rightX = rightTopX + 30;
+  let rightX = rightTopX + 40;
   let down_Y = -rightTopY + 20;
   let left_X = rightTopX - 20;
-  let up___Y = -rightTopY - 10;
+  let up___Y = -rightTopY - 20;
 
   let bendpoints = [];
   bendpoints[0] = { startX: rightX, startY: down_Y, endX: rightX, endY: down_Y };

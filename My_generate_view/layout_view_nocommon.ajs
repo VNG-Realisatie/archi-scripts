@@ -15,23 +15,25 @@
  * Based on the work of Hervé Jouin
  */
 // load(__DIR__ + "../_lib/Common.js");
-// checkJavaScriptEngine(ENGINE_GRAAL_VM);
 
 var _logDebugMessage = [];
 function debug(message) {
   // console.log(`debug: ${message}`);
 }
 
+initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
   conceptFilter: [],
   relationFilter: [
-    // "assignment-relationship",
+    "aggregation-relationship",
+    "assignment-relationship",
+    "composition-relationship",
     // "flow-relationship",
-    // "specialization-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship",
   ],
   reverseRelation: [
     // "aggregation-relationship",
@@ -39,7 +41,7 @@ var param = {
     "composition-relationship",
     "realization-relationship",
     "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
   ],
 
   nestedRelation: [
@@ -48,8 +50,8 @@ var param = {
     // "assignment-relationship",
     // "composition-relationship",
     // "realization-relationship",
-    // "serving-relationship"
-    // "specialization-relationship",
+    // "serving-relationship",
+    "specialization-relationship",
   ],
 
   // viewName: "gen-custom",
@@ -76,9 +78,6 @@ var param = {
   debug: false,
 };
 
-// initConsoleLog(__FILE__, true);
-
-generate_view(param);
-// generate_multiple_view(param);
+// generate_view(param);
 
 // finishConsoleLog();
