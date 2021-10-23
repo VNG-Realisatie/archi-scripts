@@ -123,14 +123,14 @@ var param = {
   nestedRelation: [
     // "access-relationship",
     // "aggregation-relationship",
-    "assignment-relationship",
+    // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
     // "triggering-relationship",
   ],
 
@@ -147,7 +147,7 @@ var param = {
   // graphAlign: "UL",
 
   // algorithm: "longest-path",
-  algorithm: "tight-tree",
+  // algorithm: "tight-tree",
   // algorithm: "network-simplex",
 
   nodeWidth: 140,

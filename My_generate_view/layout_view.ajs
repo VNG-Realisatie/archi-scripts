@@ -31,10 +31,10 @@ var param = {
   reverseRelation: [
 		// "aggregation-relationship",
     // "assignment-relationship",
-    "composition-relationship",
+    // "composition-relationship",
     "realization-relationship",
     "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
   ],
 	
   nestedRelation: [
@@ -59,7 +59,7 @@ var param = {
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  algorithm: "longest-path",
+  // algorithm: "longest-path",
   // algorithm: "tight-tree",
   // algorithm: "network-simplex", // default
 

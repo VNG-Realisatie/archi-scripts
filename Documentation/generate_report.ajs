@@ -3,27 +3,20 @@
  *
  * Purpose: To generate report in markdown format with its structure defined in a view
  *
- * Based on the script from Richard Heward - Tame Blue Lion Ltd
- * See blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
- *
  * How to use this script
- * - select a view and run this script
+ * - select a view and run this script to quickly generate a report of one view
+ * - select a created 'drivingView' and run this script to generate a defined report
  * - Open the generated markdown file in a markdown viewer (mark text, typora, visual studio code, ..)
- * Or
- * - Create a "drivingView" with the structure of your report. See below how to do this.
- * - Add the property 'drivingView=true' to the view 
- * - Select the "drivingView" and run this script
- * - Open the generated markdown file in a markdown viewer (marktext, typora, visual studio code, ..)
- *     - markdown can be converted to PDF / Word Docs or anything.
  *
  * How to create a "drivingView"?
- * Define the outline of the report with (visual) groups, notes and view references.
- * - create sections and sub sections
+ * - a driving view is an outline of the report with (visual) groups, notes and view references.
+ *     - Add the property 'drivingView=true' to the view
+ * - define sections and sub sections
  *     - draw a visual group or a grouping (use groupings if they have meaning in your model)
  *       - name of the group will be the section title
  *       - documentation of the group is printed below the title
- *     - create subsections by embedding groupings
- * - create a paragraph
+ *     - define subsections by embedding groupings
+ * - define a paragraph
  *     - draw a note
  *     - the text of the note is printed where the note is drawn
  * - print an image of a view (archimate view or sketch view)
@@ -35,35 +28,44 @@
  *
  * Set properties of the driving view to change the default behavior of the script:
  *
- * |  drivingView property  |                         Description                         | Default |
- * | ---------------------- | ----------------------------------------------------------- | ------- |
- * | drivingView            | A drivingView must have this property (true)                | null    |
- * | includeTableOfView     | Print for every view a table with elements (true/false)     | true    |
- * | includeTableOfAllViews | Print a table with all elements (true/false)                | false   |
- * | tableOneLineDoc        | Print only first line of element documentation (true/false) | false   |
- * | renderViewScale        | Resolution of generated images (1 to 4)                     | 1       |
- * | renderViewEmbed        | Embed images or generate .png files (true/false)            | false   |
- * | paragraphNumber        | Generate paragraph numbers (true/false)                     | false   |
- * | path                   | Path for saving markdown (pop-up if not set)                | null    |
- * | author                 | Name of author                                              |         |
- * | organisation           | Name of organisation                                        |         |
+ * |      View property     |                       Description                       | Default |
+ * | ---------------------- | ------------------------------------------------------- | ------- |
+ * | drivingView            | A drivingView must have this property (true)            | -       |
+ * | includeTableOfView     | Print for every view a table with elements (true/false) | true    |
+ * | includeTableOfAllViews | Print a table with all elements (true/false)            | false   |
+ * | tableOneLineDoc        | Shorten element documentation (true/false)              | false   |
+ * | renderViewEmbed        | Embed images in markdown file (true/false)              | false   |
+ * | renderViewFormat       | Image format (svg or png)                               | svg     |
+ * | renderViewScale        | Resolution of generated PNG images (1 to 4)             | 2       |
+ * | paragraphNumber        | Generate paragraph numbers (true/false)                 | false   |
+ * | path                   | Path for saving markdown (pop-up if not set)            | -       |
+ * | author                 | Name of author                                          | -       |
+ * | organisation           | Name of organisation                                    | -       |
  *
- * Mark Backer
- * Created: 8-Oct-2019
+ * Based on the script from Richard Heward - Tame Blue Lion Ltd
+ * See blog for a more detailed explaination. https://www.tamebluelion.co.uk/archimate-documentation
+ *
+ * Mark Backer: 8-Oct-2019
  * - Structured to own liking
  * - Follow structure of drivingView left to right and top to bottom like reading (no need for triggering relations)
  * - Output view elements in a hierarchic HTML table
  * - Option to output a table with all elements of all views
- * Changed: sept 2021
+ * Mark Backer: sept 2021
  * - use showdown for converting markdown strings to html strings
  * - option to print only first paragraph of element documentation in a table
  * - center and scale images
+ * Mark Backer: oct 2021
+ * - Archi 4.9 and jArchi 1.2 required
+ * - added option renderViewFormat to render images in svg or png (default is svg)
  */
 
 const REGEX_SPACE = / /gi;
 
 load(__DIR__ + "../_lib/Common.js");
-// checkJavaScriptEngine(ENGINE_NASHORN);
+if (!check_JS_Engine(JS_NASHORN_ES6)) {
+  console.log("Engine does not checks out");
+  exit;
+}
 
 load("https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.1/showdown.js");
 
@@ -232,20 +234,19 @@ function reportStructure(report, settings, pLevel, pParagraphNr, pObject) {
 function getSettings(view) {
   let settings = new Object();
 
-  settings.drivingView = { value: null, description: `A drivingView must have this property (true)` };
-  settings.includeTableOfView = { value: true, description: `Print for every view a table with elements (true/false)` };
-  settings.includeTableOfAllViews = { value: false, description: `Print a table with all elements (true/false)` };
-  settings.tableOneLineDoc = { value: false, description: `Print only first line of element documentation (true/false)` };
-  settings.renderViewScale = { value: 1, description: `Resolution of generated images (1 to 4)` };
-  settings.renderViewEmbed = { value: false, description: `Embed images or generate .png files (true/false)` };
-  settings.paragraphNumber = { value: false, description: `Generate paragraph numbers (true/false)` };
-  settings.path = { value: null, description: `Path for saving markdown (pop-up if not set)` };
-  settings.author = { value: "", description: "Name of author" };
-  settings.organisation = { value: "", description: "Name of organisation" };
+  settings.drivingView = { value: null, desc: `A drivingView must have this property (true)` };
+  settings.includeTableOfView = { value: true, desc: `Print for every view a table with elements (true/false)` };
+  settings.includeTableOfAllViews = { value: false, desc: `Print a table with all elements (true/false)` };
+  settings.tableOneLineDoc = { value: false, desc: `Shorten element documentation (true/false)` };
+  settings.renderViewEmbed = { value: false, desc: `Embed images in markdown file (true/false)` };
+  settings.renderViewFormat = { value: "svg", desc: `Image format (svg or png)` };
+  settings.renderViewScale = { value: 2, desc: `Resolution of generated PNG images (1 to 4)` };
+  settings.paragraphNumber = { value: false, desc: `Generate paragraph numbers (true/false)` };
+  settings.path = { value: null, desc: `Path for saving markdown (pop-up if not set)` };
+  settings.author = { value: "", desc: "Name of author" };
+  settings.organisation = { value: "", desc: "Name of organisation" };
 
-  // set docSetting with the driving view properties
-  //  *   read the properties of the driving view as settings
-  //  *   show the properties in the console in a table
+  // read settings from the driving view properties
   let consoleTable = [];
   consoleTable.push(["View property", "Value", "Description", "Default"]);
 
@@ -262,20 +263,21 @@ function getSettings(view) {
       }
       propValue = view.prop(key);
     }
-    let truncate = 33
+    let truncate = 33;
     if (propValue.length > truncate) {
-      propValue = `${propValue.slice(0, 6)}...${propValue.slice(9-truncate)}`
+      propValue = `${propValue.slice(0, 6)}...${propValue.slice(9 - truncate)}`;
     }
-    consoleTable.push([key, propValue, settings[`${key}`]["description"], defaultValue]);
+    consoleTable.push([key, propValue, settings[`${key}`]["desc"], defaultValue]);
   }
+  // show settings in the console
   console.log(table(consoleTable, { markdown: true }));
 
   return settings;
 }
 
 function getFilename(settings) {
-  // template filename
-  settings.filename = { value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(REGEX_SPACE, "_")}
+  // pre-filled filename
+  settings.filename = { value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(REGEX_SPACE, "_") };
 
   // to skip the popup window while debugging, set path as a property
   if (!settings.path.value) {
@@ -289,26 +291,6 @@ function getFilename(settings) {
       settings.filename.value = exportFile.substring(exportFile.lastIndexOf(slash()) + 1); //, exportFile.lastIndexOf("."))
     }
   }
-}
-
-/**
- * save .png binary of view in a subdirectory next to the report file
- * @param settings object with report settings
- * @param view Archi view
- * @returns string with URL to the PNG file
- */
-function saveViewPNG(settings, view, viewBinary) {
-  // replace in filename spaces with an underscore for compatibility with markdown viewers
-  let subDir = settings.filename.value.substring(0, settings.filename.value.lastIndexOf(".")).replace(REGEX_SPACE, "_");
-  let absoluteDir = `${settings.path.value}${slash()}${subDir}`
-  let imageFile = `${view.name}.png`.replace(REGEX_SPACE, "_");
-
-  // create subdir and save binary as .png file
-  let fileObject = new Packages.java.io.File(absoluteDir);
-  fileObject.mkdir();
-  $.fs.writeFile(`${absoluteDir}${slash()}${imageFile}`, viewBinary, "BASE64");
-
-  return `${subDir}${slash()}${imageFile}`;
 }
 
 function saveReport(settings, markdownString) {
@@ -376,20 +358,38 @@ function addSection(report, settings, pLevel, pParagraphNr, pObject, pTypeText) 
  */
 function printView(settings, view) {
   let markdownString = "";
-
-  // render the view to a string
-  let viewBinary = $.model.renderViewAsBase64(view, "PNG", {
-    scale: settings.renderViewScale.value,
-    margin: settings.renderViewScale.value * 10,
-  });
+  let options = { scale: settings.renderViewScale.value, margin: settings.renderViewScale.value * 10 };
+  let format = settings.renderViewFormat.value;
 
   if (settings.renderViewEmbed.value) {
+    let viewString = "";
+
     // encode view and embed in the report
-    // console.log(`>> Embed view ${view.name} in markdown file`)
-    markdownString += `\n![${view.name}](data:image/png;base64,${viewBinary})\n`;
+    if (format == "svg") {
+      viewString = $.model.renderViewAsSVGString(view, true);
+      // encode the string
+      viewString = encodeURIComponent(b2a(viewString));
+    } else {
+      viewString = $.model.renderViewAsBase64(view, "PNG", options);
+    }
+    markdownString += `\n![${view.name}](data:image/${format};base64,${viewString})\n`;
   } else {
-    // save views as .png in a subdirectory with the name of markdown file
-    let imageURL = saveViewPNG(settings, view, viewBinary);
+    // save view in a subdirectory with the name of markdown file
+    let subDirName = settings.filename.value.substring(0, settings.filename.value.lastIndexOf("."));
+    let absoluteDir = `${settings.path.value}${slash()}${subDirName}`;
+    let imageFile = `${view.name}.${format}`.replace(REGEX_SPACE, "_");
+
+    // create subdir
+    let dirObject = new Packages.java.io.File(absoluteDir);
+    dirObject.mkdir();
+
+    let imageURL = `${subDirName}${slash()}${imageFile}`;
+
+    if (format == "svg") {
+      $.model.renderViewToSVG(view, `${absoluteDir}${slash()}${imageFile}`, true);
+    } else {
+      $.model.renderViewToFile(view, `${absoluteDir}${slash()}${imageFile}`, format.toUpperCase(), options);
+    }
 
     let viewWidth = viewSize(view);
     markdownString += `<figure align="center">\n`;
@@ -399,6 +399,34 @@ function printView(settings, view) {
   }
 
   return markdownString;
+}
+
+/**
+ * Perfect ATOB/BTOA alternatives (Base64 encoder/decoder) for JavaScript
+ *  https://gist.github.com/oeon/0ada0457194ebf70ec2428900ba76255
+ * @param a string
+ * @returns base64 encoded string
+ */
+function b2a(a) {
+  var c, d, e, f, g, h, i, j, o;
+  var b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+    k = 0,
+    l = 0,
+    m = "",
+    n = [];
+  if (!a) return a;
+  do
+    (c = a.charCodeAt(k++)),
+      (d = a.charCodeAt(k++)),
+      (e = a.charCodeAt(k++)),
+      (j = (c << 16) | (d << 8) | e),
+      (f = 63 & (j >> 18)),
+      (g = 63 & (j >> 12)),
+      (h = 63 & (j >> 6)),
+      (i = 63 & j),
+      (n[l++] = b.charAt(f) + b.charAt(g) + b.charAt(h) + b.charAt(i));
+  while (k < a.length);
+  return (m = n.join("")), (o = a.length % 3), (o ? m.slice(0, o - 3) : m) + "===".slice(o || 3);
 }
 
 /**
@@ -601,7 +629,7 @@ function printTableRow(settings, pLevel, pMaxLevel, pChildLineIsWritten, pObject
 /**
  * convert documention string to html
  *   optional reduce documentation to first line (should contain the definition)
- * 
+ *
  * @param settings object with report settings
  * @param text string with element documentation
  * @returns string with HTML
@@ -649,7 +677,7 @@ function sortAlphabetic(a, b) {
 }
 
 /**
- * calculate min and max coördinates of given view
+ * calculate width and height of given view
  */
 function viewSize(view) {
   let xMin = 1000,
@@ -686,12 +714,12 @@ function markdown2html(md) {
 /**
  * create a valid anchor link for a heading
  *
- * @param theString
+ * @param str
  * @returns string with valid link
  */
-function stringToLink(theString) {
+function stringToLink(str) {
   // this function thanks to Steven Mileham
   // remove these characters from a link '[]()#\".'
   var regex = /[\[\]\(\)\#\\\/\"\.]/gi;
-  return "#" + theString.toLowerCase().replace(regex, "").replaceAll(" ", "-").replaceAll("<", "lt").replaceAll(">", "gt");
+  return "#" + str.toLowerCase().replace(regex, "").replaceAll(" ", "-").replaceAll("<", "lt").replaceAll(">", "gt");
 }

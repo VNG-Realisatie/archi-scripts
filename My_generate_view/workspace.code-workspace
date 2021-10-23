@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "..\\.."
+		},
+		{
+			"path": "..\\..\\..\\Werkbestanden"
+		}
+	],
+	"settings": {
+		"svg.preview.background": "white"
+	}
+}

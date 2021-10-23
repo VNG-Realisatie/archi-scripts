@@ -1,6 +1,6 @@
 /**
  * Common.js
- * 
+ *
  * generic functions for use in all scripts
  * - (init|finish)ConsoleLog: log start and end messages
  * - checkEngine:             check version of jScript engine
@@ -8,15 +8,16 @@
  */
 
 var _commonScriptName;
-ENGINE_NASHORN = "jdk.nashorn.api.scripting.NashornScriptEngine";
-ENGINE_GRAAL_VM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
-ENGINES = [ENGINE_NASHORN, ENGINE_GRAAL_VM];
-
 var _startCounter = {};
 
 // default console logging is off. Override in calling function with push() and pop()
 let _logInfoMessage = [false];
 let _logDebugMessage = [false];
+
+const JS_NASHORN_ES6 = "jdk.nashorn.api.scripting.NashornScriptEngine";
+const JS_ENGINE_GRAALVM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
+const JS_ENGINES = [ JS_NASHORN_ES6, JS_ENGINE_GRAALVM];
+const JS_ENGINES_TEXT = [ "Nashorn ES6", "GraalVM"];
 
 /**
  * initConsoleLog and finishconsole
@@ -40,12 +41,10 @@ function initConsoleLog(pFile, pClear) {
   console.log("============================================");
   console.log(`Executing script "${_commonScriptName}"...`);
   console.log(`Platform: ${$.process.platform}`);
-  console.log(`Engine:   ${$.process.engine}\n`);
-  // console.log("============================================");
+  console.log(`Engine:   ${JS_ENGINES_TEXT[JS_ENGINES.indexOf($.process.engine)]}\n`);
 }
 
 function finishConsoleLog() {
-  // console.log("\n============================================");
   console.log(`\nScript "${_commonScriptName}" finished in ${endCounter("initConsoleLog")}`);
   console.log("==========================================\n");
 }
@@ -74,24 +73,38 @@ function endCounter(label) {
 }
 
 /**
- * function checkEngine(engine)
- * usage: checkJavascriptEngine(ENGINE_GRAAL_VM)
- * - throws an error and exits if a lower version engine is used
+ * Check if script run in Archi with required JS engine
+ *
+ * @param {string} required_engine
+ * @returns {boolean}
  */
-function checkJavaScriptEngine(required_engine) {
-  let current_engine = $.process.engine;
-  if (ENGINES.indexOf(current_engine) < ENGINES.indexOf(required_engine)) {
-    let line = "";
-
-    line += `\n\nThis script needs a higher JavaScript engine`;
-    line += `\n- Current engine: ${current_engine}`;
-    line += `\n- Required engine: ${required_engine}\n`;
-    line += `\nUpgrade the Archi javascript engine`;
-    line += `\n- Go to Edit > Preferences > Scripting and select de required JavaScript Engine`;
-    line += `\n- If the JavaScript engine is not selectable, upgrade the jArchi plugin\n\n`;
-    throw line;
+function check_JS_Engine(required_engine) {
+  var check = false;
+  try {
+    var js_engine = $.process.engine;
+    var current_js_index = JS_ENGINES.indexOf(js_engine);
+    var required_js_index = JS_ENGINES.indexOf(required_engine);
+    if (current_js_index < required_js_index) {
+      var line = "\nThis script needs a higher JavaScript engine";
+      line += "\n- Current engine: " + JS_ENGINES_TEXT[current_js_index];
+      line += "\n- Required engine: " + JS_ENGINES_TEXT[required_js_index] + "\n";
+      line += "\nChange your Archi settings";
+      line +=
+        "\n- Go to Edit > Preferences > Scripting and select the '" + JS_ENGINES_TEXT[required_js_index] + "' JavaScript Engine";
+      line += "\n- If the JavaScript engine is not selectable, first upgrade the jArchi plugin\n\n";
+      console.error(line);
+    } else {
+      check = true;
+    }
+  } catch (error) {
+    if (error.message == "$ is not defined") {
+      console.log("Run this script in Archi");
+    } else {
+      console.log("error: " + error);
+      return false;
+    }
   }
-  return true;
+  return check;
 }
 
 /**
@@ -101,6 +114,14 @@ function checkJavaScriptEngine(required_engine) {
  */
 function info(msg) {
   logMessage(_logInfoMessage, "Info", msg);
+}
+
+function debugPush(debugSwitch) {
+  _logDebugMessage.push(debugSwitch);
+}
+
+function debugPop() {
+  _logDebugMessage.pop();
 }
 
 /**
@@ -125,7 +146,7 @@ function logMessage(logSwitch, logType, msg) {
     }
 
     let funcName = "";
-    if (ENGINES.indexOf($.process.engine) >= ENGINES.indexOf(ENGINE_GRAAL_VM)) {
+    if (JS_ENGINES.indexOf($.process.engine) >= JS_ENGINES.indexOf(JS_ENGINE_GRAALVM)) {
       funcName = " " + getFuncName();
     }
     console.log(`${">".repeat(logSwitch.length)} ${logType}${funcName}: ${msg}`);

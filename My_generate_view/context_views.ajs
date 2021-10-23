@@ -55,7 +55,7 @@ var param = {
   ],
   reverseRelation: [
 		// "aggregation-relationship",
-    // "assignment-relationship",
+    "assignment-relationship",
     "realization-relationship",
     "serving-relationship",
     // "specialization-relationship",
