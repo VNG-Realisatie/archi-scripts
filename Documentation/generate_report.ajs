@@ -34,7 +34,6 @@
  * | includeTableOfView     | Print for every view a table with elements (true/false) | true    |
  * | includeTableOfAllViews | Print a table with all elements (true/false)            | false   |
  * | tableOneLineDoc        | Shorten element documentation (true/false)              | false   |
- * | renderViewEmbed        | Embed images in markdown file (true/false)              | false   |
  * | renderViewFormat       | Image format (svg or png)                               | svg     |
  * | renderViewScale        | Resolution of generated PNG images (1 to 4)             | 2       |
  * | paragraphNumber        | Generate paragraph numbers (true/false)                 | false   |
@@ -57,6 +56,7 @@
  * Mark Backer: oct 2021
  * - Archi 4.9 and jArchi 1.2 required
  * - added option renderViewFormat to render images in svg or png (default is svg)
+ * - removed option renderViewEmbed
  */
 
 const REGEX_SPACE = / /gi;
@@ -238,7 +238,6 @@ function getSettings(view) {
   settings.includeTableOfView = { value: true, desc: `Print for every view a table with elements (true/false)` };
   settings.includeTableOfAllViews = { value: false, desc: `Print a table with all elements (true/false)` };
   settings.tableOneLineDoc = { value: false, desc: `Shorten element documentation (true/false)` };
-  settings.renderViewEmbed = { value: false, desc: `Embed images in markdown file (true/false)` };
   settings.renderViewFormat = { value: "svg", desc: `Image format (svg or png)` };
   settings.renderViewScale = { value: 2, desc: `Resolution of generated PNG images (1 to 4)` };
   settings.paragraphNumber = { value: false, desc: `Generate paragraph numbers (true/false)` };
@@ -361,72 +360,30 @@ function printView(settings, view) {
   let options = { scale: settings.renderViewScale.value, margin: settings.renderViewScale.value * 10 };
   let format = settings.renderViewFormat.value;
 
-  if (settings.renderViewEmbed.value) {
-    let viewString = "";
+  // save view in a subdirectory with the name of markdown file
+  let subDirName = settings.filename.value.substring(0, settings.filename.value.lastIndexOf("."));
+  let absoluteDir = `${settings.path.value}${slash()}${subDirName}`;
+  let imageFile = `${view.name}.${format}`.replace(REGEX_SPACE, "_");
 
-    // encode view and embed in the report
-    if (format == "svg") {
-      viewString = $.model.renderViewAsSVGString(view, true);
-      // encode the string
-      viewString = encodeURIComponent(b2a(viewString));
-    } else {
-      viewString = $.model.renderViewAsBase64(view, "PNG", options);
-    }
-    markdownString += `\n![${view.name}](data:image/${format};base64,${viewString})\n`;
+  // create subdir
+  let dirObject = new Packages.java.io.File(absoluteDir);
+  dirObject.mkdir();
+
+  let imageURL = `${subDirName}${slash()}${imageFile}`;
+
+  if (format == "svg") {
+    $.model.renderViewToSVG(view, `${absoluteDir}${slash()}${imageFile}`, true);
   } else {
-    // save view in a subdirectory with the name of markdown file
-    let subDirName = settings.filename.value.substring(0, settings.filename.value.lastIndexOf("."));
-    let absoluteDir = `${settings.path.value}${slash()}${subDirName}`;
-    let imageFile = `${view.name}.${format}`.replace(REGEX_SPACE, "_");
-
-    // create subdir
-    let dirObject = new Packages.java.io.File(absoluteDir);
-    dirObject.mkdir();
-
-    let imageURL = `${subDirName}${slash()}${imageFile}`;
-
-    if (format == "svg") {
-      $.model.renderViewToSVG(view, `${absoluteDir}${slash()}${imageFile}`, true);
-    } else {
-      $.model.renderViewToFile(view, `${absoluteDir}${slash()}${imageFile}`, format.toUpperCase(), options);
-    }
-
-    let viewWidth = viewSize(view);
-    markdownString += `<figure align="center">\n`;
-    markdownString += `  <img width="${Math.round(viewWidth.width * 1.2)}" src="${imageURL}" alt="${view.name}">\n`;
-    markdownString += `  <figcaption><i>${view.name}</i></figcaption>\n`;
-    markdownString += `</figure>\n\n`;
+    $.model.renderViewToFile(view, `${absoluteDir}${slash()}${imageFile}`, format.toUpperCase(), options);
   }
 
-  return markdownString;
-}
+  let viewWidth = viewSize(view);
+  markdownString += `<figure align="center">\n`;
+  markdownString += `  <img width="${Math.round(viewWidth.width * 1.2)}" src="${imageURL}" alt="${view.name}">\n`;
+  markdownString += `  <figcaption><i>${view.name}</i></figcaption>\n`;
+  markdownString += `</figure>\n\n`;
 
-/**
- * Perfect ATOB/BTOA alternatives (Base64 encoder/decoder) for JavaScript
- *  https://gist.github.com/oeon/0ada0457194ebf70ec2428900ba76255
- * @param a string
- * @returns base64 encoded string
- */
-function b2a(a) {
-  var c, d, e, f, g, h, i, j, o;
-  var b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-    k = 0,
-    l = 0,
-    m = "",
-    n = [];
-  if (!a) return a;
-  do
-    (c = a.charCodeAt(k++)),
-      (d = a.charCodeAt(k++)),
-      (e = a.charCodeAt(k++)),
-      (j = (c << 16) | (d << 8) | e),
-      (f = 63 & (j >> 18)),
-      (g = 63 & (j >> 12)),
-      (h = 63 & (j >> 6)),
-      (i = 63 & j),
-      (n[l++] = b.charAt(f) + b.charAt(g) + b.charAt(h) + b.charAt(i));
-  while (k < a.length);
-  return (m = n.join("")), (o = a.length % 3), (o ? m.slice(0, o - 3) : m) + "===".slice(o || 3);
+  return markdownString;
 }
 
 /**
