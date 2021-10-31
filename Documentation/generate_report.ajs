@@ -54,29 +54,34 @@
  * - option to print only first paragraph of element documentation in a table
  * - center and scale images
  * Mark Backer: oct 2021
- * - Archi 4.9 and jArchi 1.2 required
  * - added option renderViewFormat to render images in svg or png (default is svg)
+ * - Archi 4.9 and jArchi 1.2 required for rendering .svg
  * - removed option renderViewEmbed
+ *
+ * svg or png version
  */
 
-const REGEX_SPACE = / /gi;
+const FILENAME_FILTER = /[&\/\\#,+()$~%'":*?<>{} ]/g;
+load("https://unpkg.com/showdown");
 
-load(__DIR__ + "../_lib/Common.js");
-if (!check_JS_Engine(JS_NASHORN_ES6)) {
-  console.log("Engine does not checks out");
-  exit;
+console.show();
+console.log("\n============================================\n");
+console.log(`Executing script "${__FILE__.replace(/^.*[\\\/]/, "")}"...`);
+
+try {
+  var jArchiVersion = $.process.release.jArchiVersion;
+  console.log(`You are using jArchi scripting version ${jArchiVersion}\n`);
+} catch (error) {
+  console.log("error: " + error);
+  exit
 }
 
-load("https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.1/showdown.js");
-
-initConsoleLog(__FILE__, true);
 try {
   let report = new Object();
+
+  console.log(`Selected "${selection.first()}"`);
   var view = selection.filter("archimate-diagram-model").first();
   if (view) {
-    console.log(`Selected view "${view.name}"`);
-    console.log("Change behavior of the script with the properties of selected view:\n");
-
     let settings = getSettings(view);
     getFilename(settings);
 
@@ -89,7 +94,7 @@ try {
       }
       saveReport(settings, markdownString);
     } else {
-      console.log("Canceled");
+      console.log("\nCanceled");
     }
   } else {
     console.log("Please select a View");
@@ -97,9 +102,10 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-finishConsoleLog();
 
 /**
+ * generate a view report in a markdown string 
+ * 
  * @param settings object with report settings
  * @param view Archi view to be documented
  * @returns string with report in markdown format
@@ -115,6 +121,8 @@ function document_view(settings, view) {
 }
 
 /**
+ * generate a structured report in a markdown string 
+ *  
  * @param report object for passing on markdown strings
  * @param settings object with report settings
  * @param drivingView Archi view with definition of the document structure
@@ -233,7 +241,6 @@ function reportStructure(report, settings, pLevel, pParagraphNr, pObject) {
  */
 function getSettings(view) {
   let settings = new Object();
-
   settings.drivingView = { value: null, desc: `A drivingView must have this property (true)` };
   settings.includeTableOfView = { value: true, desc: `Print for every view a table with elements (true/false)` };
   settings.includeTableOfAllViews = { value: false, desc: `Print a table with all elements (true/false)` };
@@ -245,10 +252,14 @@ function getSettings(view) {
   settings.author = { value: "", desc: "Name of author" };
   settings.organisation = { value: "", desc: "Name of organisation" };
 
-  // read settings from the driving view properties
-  let consoleTable = [];
-  consoleTable.push(["View property", "Value", "Description", "Default"]);
+  // See https://www.npmjs.com/package/ascii-table
+  load("https://unpkg.com/ascii-table/ascii-table.min.js");
 
+  let table = new AsciiTable("Change the script behavior with the view properties");
+  table.setHeading("Property", "Value", "Description", "Default")
+  table.setAlign(3, AsciiTable.CENTER);
+
+  // read settings from the driving view properties
   for (var key in settings) {
     let defaultValue = settings[`${key}`]["value"];
     if (defaultValue === null || defaultValue === "") defaultValue = "-";
@@ -266,17 +277,19 @@ function getSettings(view) {
     if (propValue.length > truncate) {
       propValue = `${propValue.slice(0, 6)}...${propValue.slice(9 - truncate)}`;
     }
-    consoleTable.push([key, propValue, settings[`${key}`]["desc"], defaultValue]);
+    table.addRow(key, propValue, settings[`${key}`]["desc"], defaultValue);
   }
   // show settings in the console
-  console.log(table(consoleTable, { markdown: true }));
+  console.log(table.toString());
 
   return settings;
 }
 
 function getFilename(settings) {
   // pre-filled filename
-  settings.filename = { value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(REGEX_SPACE, "_") };
+  settings.filename = {
+    value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(FILENAME_FILTER, "_"),
+  };
 
   // to skip the popup window while debugging, set path as a property
   if (!settings.path.value) {
@@ -320,6 +333,7 @@ function firstPage(settings, drivingView) {
  *   add the given object to the contentlist and create a heading
  *   if the object has documentation, also create a paragraph
  *
+ * @param report object for passing on markdown strings
  * @param settings object with report settings
  * @param pLevel use recursion depth as paragraph level
  * @param pParagraphNr paragraph number for heading
@@ -343,7 +357,7 @@ function addSection(report, settings, pLevel, pParagraphNr, pObject, pTypeText) 
 
   // insert documentation of the object in report
   if (pObject.documentation != "") {
-    report.body += `${pObject.documentation}\n\n`;
+    report.body += `${pObject.documentation}\n`;
   }
   console.log(`${">".repeat(pLevel)} ${pTypeText}: ${pObject.name}`);
 }
@@ -363,18 +377,18 @@ function printView(settings, view) {
   // save view in a subdirectory with the name of markdown file
   let subDirName = settings.filename.value.substring(0, settings.filename.value.lastIndexOf("."));
   let absoluteDir = `${settings.path.value}${slash()}${subDirName}`;
-  let imageFile = `${view.name}.${format}`.replace(REGEX_SPACE, "_");
+  let imageFile = `${view.name}.${format}`.replace(FILENAME_FILTER, "_");
 
   // create subdir
   let dirObject = new Packages.java.io.File(absoluteDir);
   dirObject.mkdir();
 
-  let imageURL = `${subDirName}${slash()}${imageFile}`;
+  let imageURL = `${subDirName}/${imageFile}`;
 
   if (format == "svg") {
-    $.model.renderViewToSVG(view, `${absoluteDir}${slash()}${imageFile}`, true);
+    $.model.renderViewToSVG(view, `${absoluteDir}/${imageFile}`, true);
   } else {
-    $.model.renderViewToFile(view, `${absoluteDir}${slash()}${imageFile}`, format.toUpperCase(), options);
+    $.model.renderViewToFile(view, `${absoluteDir}/${imageFile}`, format.toUpperCase(), options);
   }
 
   let viewWidth = viewSize(view);
@@ -405,6 +419,7 @@ function printTableAllViews(settings, drivingView) {
       let view = viewRef.getRefView();
       $(view)
         .find("element")
+        .not("junction")
         .each(function (element) {
           allElements.push(element.concept);
         });
@@ -470,15 +485,16 @@ function printTableHierarchic(settings, view) {
   markdownString += `    </tr>\n`;
   markdownString += `  </thead>\n`;
   markdownString += `  <tbody>\n`;
-  markdownString += `    <tr >\n`;
 
   // to show all hierarchy levels, you have to 'define' a column for every level (hack)
   // without these 'empty' columnheaders, no indendation is shown for deeper levels
-  for (let i = 1; i < maxLevel + 1; i++) {
-    markdownString += `      <td align="center"></td>\n`;
+  // markdownString += `    <tr style="display:none;">`; // negates the hack
+  markdownString += `    <tr>`;
+  for (let i = 0; i < maxLevel + 1; i++) {
+    // +1 for documentation column
+    markdownString += `<td></td>`; // "font-size: 100% line-height: 10000.5em"
   }
-  markdownString += `      <td></td>\n`;
-  markdownString += `    </tr>\n`;
+  markdownString += `</tr>\n`;
 
   // First level is a view, not an element > start with level = 0.
   markdownString += printTableRow(settings, 0, maxLevel, false, view);
@@ -533,9 +549,14 @@ function printTableRow(settings, pLevel, pMaxLevel, pChildLineIsWritten, pObject
   let markdownString = "";
   let childArray = [];
 
-  let elementsOfLevel = $(pObject).children("element").add("diagram-model-group");
+  let elementsOfLevel = $(pObject).children("element").add("diagram-model-group").not("junction");
   let visualGroupOfLevel = $(pObject).children("diagram-model-group");
   childrenOfLevel = elementsOfLevel.add(visualGroupOfLevel);
+
+  // skip legenda, perhaps this should be more explicit
+  if (pObject.name.toLowerCase() == "legenda" && pObject.type == "diagram-model-group") {
+    return "";
+  }
 
   childrenOfLevel.each(function (c) {
     // children of visual objects are skipped
@@ -623,7 +644,13 @@ function sortPosition(a, b) {
   else return a.bounds.y - b.bounds.y;
 }
 
-function sortAlphabetic(a, b) {
+/**
+ * Sorting function
+ *
+ * @param a Archi object
+ * @param b Archi object
+ */
+ function sortAlphabetic(a, b) {
   if (a.name.toLowerCase() < b.name.toLowerCase()) {
     return -1;
   }
@@ -657,26 +684,35 @@ function viewSize(view) {
 
 /**
  * convert a markdown string to html for use in the HTML tables
+ * uses http://showdownjs.com
  *
  * @param md markdownstring
  * @returns string with HTML
  */
 function markdown2html(md) {
-  // http://showdownjs.com
-  // the showdown converter converts a markdown string to a HTML string
   var converter = new showdown.Converter();
   return converter.makeHtml(md);
+  // return snarkdown(md)
 }
 
 /**
  * create a valid anchor link for a heading
+ *  remove unvalid characters from a link
+ *  this function thanks to Steven Mileham
  *
  * @param str
  * @returns string with valid link
  */
 function stringToLink(str) {
-  // this function thanks to Steven Mileham
-  // remove these characters from a link '[]()#\".'
-  var regex = /[\[\]\(\)\#\\\/\"\.]/gi;
-  return "#" + str.toLowerCase().replace(regex, "").replaceAll(" ", "-").replaceAll("<", "lt").replaceAll(">", "gt");
+  var regex = /[\[\]\(\)\#\\\/\"\.:;,–]/gi;
+  return (
+    "#" +
+    str
+      .toLowerCase()
+      .replace(regex, "")
+      .replaceAll(" ", "-")
+      .replaceAll("--", "-")
+      .replaceAll("<", "lt")
+      .replaceAll(">", "gt")
+  );
 }

@@ -3,8 +3,8 @@
 //   .setGraph({})
 //   .setDefaultEdgeLabel(function() { return {}; });
 
-JS_NASHORN_ES6 = "jdk.nashorn.api.scripting.NashornScriptEngine";
-JS_ENGINE_GRAALVM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
+const JS_NASHORN_ES6 = "jdk.nashorn.api.scripting.NashornScriptEngine";
+const JS_ENGINE_GRAALVM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
 
 const NODE_WIDTH = 140;
 const NODE_HEIGHT = 60;
@@ -12,9 +12,9 @@ const NODE_HEIGHT = 60;
 try {
 	if ($.process.engine === JS_NASHORN_ES6 || $.process.engine === JS_ENGINE_GRAALVM) {
 		if (typeof __SCRIPTS_DIR__ == "undefined") var __SCRIPTS_DIR__ = "";
-		ARCHI_SCRIPT = __SCRIPTS_DIR__ + "MyScripts/";
-		ARCHI_FILES = __SCRIPTS_DIR__ + "../Werkbestanden/";
-		NODE_MODULES = __SCRIPTS_DIR__ + "node_modules/";
+		const ARCHI_SCRIPT = __SCRIPTS_DIR__ + "MyScripts/";
+		const TEST_FILES = __SCRIPTS_DIR__ + "../Werkbestanden/";
+		const NODE_MODULES = __SCRIPTS_DIR__ + "node_modules/";
 
 		load(ARCHI_SCRIPT + "_lib/Common.js");
 		_logDebugMessage.push(true);
