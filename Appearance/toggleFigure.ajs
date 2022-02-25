@@ -1,7 +1,9 @@
 /**
  * toggleFigure
- *	Toggle the figure shape from a rectangle with icon to the icon shape and vice versa
- *	Select one element on a view or in the model tree.
+ *	Toggle the shape of the selected element and all elements of the same type
+ *  The shape changes from a rectangle with icon to the icon shape and vice versa
+ *
+ *	Select one element on a view or in the model tree
  *	- toggle figure of this element type in the view or in all views
  */
 

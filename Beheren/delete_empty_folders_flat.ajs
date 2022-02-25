@@ -7,19 +7,13 @@ let i = 0,
 	j = 0;
 
 folders.each(function (folder) {
-	// console.log(folder.name)
-
-	// if ($(model).find('folder.'+folder.name).size() == 0) {
-	// if folder is empty, delete folder
-	// console.log(`Objects in folder ${$(`#${folder.id}`).children()}`)
-	console.log(`Aantal in folder ${$(`#${folder.id}`).children().size()}`);
-	if ($(`#${folder.id}`).children().size() == 0) {
+	if ($(folder).children().size() == 0) {
 		i++;
 		console.log(`Delete ${folder.name}`);
 		folder.delete();
 	} else {
 		j++;
-		console.log(`Keep ${folder.name}`);
+		// console.log(`Keep ${folder.name}`);
 	}
 });
 

@@ -1,129 +1,82 @@
 /*
  * CopyFormat
- *
- * Bulk copy of element formatting to other (selected) elements in view
- *
- * Use this script if you want to copy the formatting of one element to multiple other elements
- * For selectively copy the formatting, use the brush tool in the Archi palette
- *
- * (c) 2019 Mark Backer
+ * Copy the formatting of the selected object and paste this to all objects of the same type
+ * Use this script in conjuntion with the brush (format painter) in the Archi palette
  *
  * behavior
- * 	select one element in view			-> copy formatting to all elements of same type (also figure)
- * 	select multiple elements in view 	-> copy formatting from first element to selected elements
+ * 	select one object in a view			-> copy formatting to all objects of same type
  *
- * idea
- * 	select one element in model tree	-> copy formatting to all elements of same type (also figure) in all views
- *
+ * (c) 2019 Mark Backer
+ * 
+ * 2022
+ * - added appearance properties textAlignment, textPosition en gradient
+ * - select all object types, not only elements
  */
+const SCRIPT_NAME = __FILE__.replace(/^.*[\\\/]/, "");
 
-// Show output in the console
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length - 1];
 console.show();
-console.clear();
-console.log(`Executing script "${scriptName}"...\n`);
-
-var FormatSource = $(selection).filter("element").first();
+// console.clear();
+console.log(`\nRunning script "${SCRIPT_NAME}"...`);
 
 try {
-	if (FormatSource) {
-		var i = 0;
-		if ($(selection).filter("element").size() == 1) {
-			// select one element in view			-> copy formatting to all elements of same type (also figure)
-			console.log(`> Copy formatting from "${FormatSource}" to all "${FormatSource.type}"`);
-			console.log(`> View is ${FormatSource.view}`);
+  if ($(selection).size() != 1) {
+    console.error(`> Select one object in a view`);
+  } else {
+    var selObj = $(selection).first();
+    if (!$(selObj.view).is("view")) {
+      console.error(`> Selected object is not on a view. Select one object in a view`);
+    } else {
+      let selType;
+      if ($(selObj).is("concept")) selType = "concept";
+      if ($(selObj).is("diagram-model-note")) selType = "diagram-model-note";
+      if ($(selObj).is("diagram-model-group")) selType = "diagram-model-group";
+      if ($(selObj).is("diagram-model-connection")) selType = "diagram-model-connection";
 
-			$(FormatSource.view)
-				.find(FormatSource.concept.type)
-				.each(function (occurrence) {
-					console.log(`> Copy to "${occurrence.name}"`);
-					CopyFormat(FormatSource, occurrence, "Multiple");
-					i++;
-				});
-		} else {
-			// select multiple elements in view 	-> copy formatting from first element to selected elements
-			let myOccurrenceSet = new Set();
-			var myOccurrenceList = [];
+      console.log(`> Selected a ${selType == "concept" ? selObj.concept.type : selType} on view "${selObj.view.name}"`);
 
-			$(selection).forEach(function (occurrence) {
-				myOccurrenceSet.add(occurrence.name);
-			});
-			for (let item of myOccurrenceSet) {
-				myOccurrenceList.push(item); // convert set to array
-			}
-			myOccurrenceList.sort();
-
-			FormatSourceName = window.prompt(
-				`Select the object to use as formatting source\n  Select Cancel if you want to use ${FormatSource}`,
-				`${myOccurrenceList}`
-			);
-			if (FormatSourceName) {
-				FormatSource = $(selection).filter(function (occurrence) {
-					if (occurrence.name == FormatSourceName) {
-						return true;
-					} else {
-						return false;
-					}
-				});
-				if (FormatSource.size() != 1) {
-					throw `Multiple elements found, number is ${FormatSource.size()}`;
-				}
-				FormatSource = FormatSource.first();
-			}
-			console.log(`> Copy formatting from "${FormatSource}"`);
-
-			$(selection)
-				.filter("element")
-				.each(function (occurrence) {
-					CopyFormat(FormatSource, occurrence, "One");
-					i++;
-				});
-		}
-		console.log(`> Formatting copied to ${i} elements`);
-	} else {
-		console.log(`> Select one or multiple elements`);
-	}
+      var i = 0;
+      $(selObj.view)
+        .find(selType == "concept" ? selObj.concept.type : selType)
+        .not($(selObj))
+        .each(function (obj) {
+          CopyFormat(selObj, obj);
+          i++;
+        });
+      console.log(`> Formatting copied to ${i} objects`);
+    }
+  }
 } catch (error) {
-	console.log("> Error: " + error);
-	console.log("> Error: " + error.stack);
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-console.log(`Script "${scriptName}" finished`);
+console.log(`Script "${SCRIPT_NAME}" finished\n`);
 
-/*
+/**
  * CopyFormat
- *
- *	Not all formatting is copied, there are no jArchi API calls for setting
- *		text alignment en position
- *		outline opacity
- *
+ * 	copy appearance properties of one object to another
  */
-function CopyFormat(pSource, pTarget, pMode) {
-	if (pTarget.fontColor != pSource.fontColor) {
-		pTarget.fontColor = pSource.fontColor;
-	}
-	if (pTarget.fontName != pSource.fontName) {
-		pTarget.fontName = pSource.fontName;
-	}
-	if (pTarget.fontSize != pSource.fontSize) {
-		pTarget.fontSize = pSource.fontSize;
-	}
-	if (pTarget.fontStyle != pSource.fontStyle) {
-		pTarget.fontStyle = pSource.fontStyle;
-	}
+function CopyFormat(copyObj, pasteObj) {
+  console.log(`- ${pasteObj.name ? pasteObj.name : pasteObj}`);
 
-	if (pTarget.opacity != pSource.opacity) {
-		pTarget.opacity = pSource.opacity;
-	}
-	if (pTarget.fillColor != pSource.fillColor) {
-		pTarget.fillColor = pSource.fillColor;
-	}
-	if (pTarget.lineColor != pSource.lineColor) {
-		pTarget.lineColor = pSource.lineColor;
-	}
-	if (pMode == "Multiple") {
-		if (pTarget.figureType != pSource.figureType) {
-			pTarget.figureType = pSource.figureType;
-		}
-	}
+  pasteObj.fontColor = copyObj.fontColor;
+  pasteObj.fontName = copyObj.fontName;
+  pasteObj.fontSize = copyObj.fontSize;
+  pasteObj.fontStyle = copyObj.fontStyle;
+  pasteObj.lineColor = copyObj.lineColor;
+
+  // for elements
+  pasteObj.figureType = copyObj.figureType;
+  pasteObj.fillColor = copyObj.fillColor;
+  pasteObj.opacity = copyObj.opacity;
+  pasteObj.outlineOpacity = copyObj.outlineOpacity;
+
+  // jArchi 0.8
+  pasteObj.textAlignment = copyObj.textAlignment;
+  pasteObj.textPosition = copyObj.textPosition;
+  // jArchi 1.2
+  pasteObj.gradient = copyObj.gradient;
+
+  // for Note and Group objects.
+  pasteObj.borderType = copyObj.borderType;
+  // for connection
+  pasteObj.lineWidth = copyObj.lineWidth;
 }

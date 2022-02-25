@@ -58,39 +58,34 @@
  * - Archi 4.9 and jArchi 1.2 required for rendering .svg
  * - removed option renderViewEmbed
  *
- * svg or png version
  */
-
-const FILENAME_FILTER = /[&\/\\#,+()$~%'":*?<>{} ]/g;
 load("https://unpkg.com/showdown");
+load("https://unpkg.com/ascii-table/ascii-table.min.js");
 
+const FILE_UNVALID_CHAR = /[&\/\\#+()$~%'":;,*?<>{} ]/g;
+const FILENAME_SPLIT = /^.*[\\\/]/;
+const SCRIPT_NAME = __FILE__.replace(FILENAME_SPLIT, "");
+
+// Show output in the console
 console.show();
-console.log("\n============================================\n");
-console.log(`Executing script "${__FILE__.replace(/^.*[\\\/]/, "")}"...`);
-
-try {
-  var jArchiVersion = $.process.release.jArchiVersion;
-  console.log(`You are using jArchi scripting version ${jArchiVersion}\n`);
-} catch (error) {
-  console.log("error: " + error);
-  exit
-}
+console.clear();
+console.log(`Running script "${SCRIPT_NAME}"`);
 
 try {
   let report = new Object();
 
   console.log(`Selected "${selection.first()}"`);
-  var view = selection.filter("archimate-diagram-model").first();
+  let view = selection.filter("archimate-diagram-model").first();
   if (view) {
     let settings = getSettings(view);
-    getFilename(settings);
+    getFilename(settings, view);
 
     if (settings.path.value) {
       let markdownString = "";
       if (settings.drivingView.value) {
-        markdownString = document_drivingView(report, settings, view);
+        markdownString = generate_drivingView_report(report, settings, view);
       } else {
-        markdownString = document_view(settings, view);
+        markdownString = generate_view_report(settings, view);
       }
       saveReport(settings, markdownString);
     } else {
@@ -102,18 +97,19 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
+console.log(`\nScript "${SCRIPT_NAME}" finished`);
 
 /**
- * generate a view report in a markdown string 
- * 
+ * generate a view report in a markdown string
+ *
  * @param settings object with report settings
  * @param view Archi view to be documented
  * @returns string with report in markdown format
  */
-function document_view(settings, view) {
+function generate_view_report(settings, view) {
+
   let markdownString = `## ${view.name}\n`;
   markdownString += view.documentation ? `${view.documentation}\n\n` : "";
-
   markdownString += printView(settings, view);
   markdownString += printTableHierarchic(settings, view);
 
@@ -121,14 +117,14 @@ function document_view(settings, view) {
 }
 
 /**
- * generate a structured report in a markdown string 
- *  
+ * generate a structured report in a markdown string
+ *
  * @param report object for passing on markdown strings
  * @param settings object with report settings
  * @param drivingView Archi view with definition of the document structure
  * @returns string with report in markdown format
  */
-function document_drivingView(report, settings, drivingView) {
+function generate_drivingView_report(report, settings, drivingView) {
   console.log(`Processing drivingView "${drivingView.name}"`);
 
   // Initialize document object
@@ -253,10 +249,8 @@ function getSettings(view) {
   settings.organisation = { value: "", desc: "Name of organisation" };
 
   // See https://www.npmjs.com/package/ascii-table
-  load("https://unpkg.com/ascii-table/ascii-table.min.js");
-
   let table = new AsciiTable("Change the script behavior with the view properties");
-  table.setHeading("Property", "Value", "Description", "Default")
+  table.setHeading("Property", "Value", "Description", "Default");
   table.setAlign(3, AsciiTable.CENTER);
 
   // read settings from the driving view properties
@@ -285,22 +279,25 @@ function getSettings(view) {
   return settings;
 }
 
-function getFilename(settings) {
-  // pre-filled filename
+function getFilename(settings, view) {
+  // create filename from view name
   settings.filename = {
-    value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(FILENAME_FILTER, "_"),
+    value: `${new Date().toLocaleDateString("nl-NL")}_${view.name}.md`.replace(FILE_UNVALID_CHAR, "_"),
   };
 
-  // to skip the popup window while debugging, set path as a property
-  if (!settings.path.value) {
+  // skip the popup window if path is set
+  if (settings.path.value) {
+    settings.path.value = settings.path.value.replace(/\\/g, "/");
+  } else {
     let exportFile = window.promptSaveFile({
       title: "Save to file",
       filterExtensions: ["*.md"],
       fileName: settings.filename.value,
     });
     if (exportFile) {
-      settings.path.value = exportFile.substring(0, exportFile.lastIndexOf(slash())); // path without slash
-      settings.filename.value = exportFile.substring(exportFile.lastIndexOf(slash()) + 1); //, exportFile.lastIndexOf("."))
+      exportFile = exportFile.replace(/\\/g, "/");
+      settings.path.value = exportFile.substring(0, exportFile.lastIndexOf("/")); // path without slash
+      settings.filename.value = exportFile.substring(exportFile.lastIndexOf("/") + 1); //, exportFile.lastIndexOf("."))
     }
   }
 }
@@ -310,7 +307,7 @@ function saveReport(settings, markdownString) {
   console.log(`- directory: ${settings.path.value}`);
   console.log(`- filename:  ${settings.filename.value}`);
 
-  $.fs.writeFile(`${settings.path.value}${slash()}${settings.filename.value}`, markdownString);
+  $.fs.writeFile(`${settings.path.value}/${settings.filename.value}`, markdownString);
 }
 
 /**
@@ -376,8 +373,8 @@ function printView(settings, view) {
 
   // save view in a subdirectory with the name of markdown file
   let subDirName = settings.filename.value.substring(0, settings.filename.value.lastIndexOf("."));
-  let absoluteDir = `${settings.path.value}${slash()}${subDirName}`;
-  let imageFile = `${view.name}.${format}`.replace(FILENAME_FILTER, "_");
+  let absoluteDir = `${settings.path.value}/${subDirName}`;
+  let imageFile = `${view.name}.${format}`.replace(FILE_UNVALID_CHAR, "_");
 
   // create subdir
   let dirObject = new Packages.java.io.File(absoluteDir);
@@ -474,7 +471,7 @@ function printTableAllViews(settings, drivingView) {
 function printTableHierarchic(settings, view) {
   let markdownString = "";
 
-  // start with level 0. Don't count the first level, this is the view
+  // determine for the given view the deepest level of embedding of children in children
   var maxLevel = getMaxEmbedding(0, view);
 
   markdownString += `<table>\n`;
@@ -490,13 +487,14 @@ function printTableHierarchic(settings, view) {
   // without these 'empty' columnheaders, no indendation is shown for deeper levels
   // markdownString += `    <tr style="display:none;">`; // negates the hack
   markdownString += `    <tr>`;
+
+  // create columns for all levels +1 for the documentation
   for (let i = 0; i < maxLevel + 1; i++) {
-    // +1 for documentation column
     markdownString += `<td></td>`; // "font-size: 100% line-height: 10000.5em"
   }
   markdownString += `</tr>\n`;
 
-  // First level is a view, not an element > start with level = 0.
+  // print a row for every child of the given view. Indent the child's name depending on the level of embedding
   markdownString += printTableRow(settings, 0, maxLevel, false, view);
 
   markdownString += `  </tbody>\n`;
@@ -543,7 +541,7 @@ function getMaxEmbedding(level, pObject) {
  * @param pMaxLevel maximum level of embedding.
  * @param pChildLineIsWritten boolean, true if the current object is a duplicate in the current level
  * @param pObject Archi object, a view or a visual element
- * @returns string with table row
+ * @returns string with one or more table rows
  */
 function printTableRow(settings, pLevel, pMaxLevel, pChildLineIsWritten, pObject) {
   let markdownString = "";
@@ -624,6 +622,18 @@ function printElementDoc(settings, text) {
 }
 
 /**
+ * convert a markdown string to html for use in the HTML tables
+ * uses http://showdownjs.com
+ *
+ * @param md markdownstring
+ * @returns string with HTML
+ */
+function markdown2html(md) {
+  var converter = new showdown.Converter();
+  return converter.makeHtml(md);
+}
+
+/**
  * Sorting function
  *   sort visual object from left to right and top to bottom like reading
  *
@@ -650,13 +660,9 @@ function sortPosition(a, b) {
  * @param a Archi object
  * @param b Archi object
  */
- function sortAlphabetic(a, b) {
-  if (a.name.toLowerCase() < b.name.toLowerCase()) {
-    return -1;
-  }
-  if (a.name.toLowerCase() > b.name.toLowerCase()) {
-    return 1;
-  }
+function sortAlphabetic(a, b) {
+  if (a.name.toLowerCase() < b.name.toLowerCase()) return -1;
+  if (a.name.toLowerCase() > b.name.toLowerCase()) return 1;
   return 0;
 }
 
@@ -664,10 +670,10 @@ function sortPosition(a, b) {
  * calculate width and height of given view
  */
 function viewSize(view) {
-  let xMin = 1000,
-    xMax = 0;
-  let yMin = 1000,
-    yMax = 0;
+  let xMin = 1000;
+  let yMin = 1000;
+  let xMax = 0;
+  let yMax = 0;
 
   $(view)
     .children()
@@ -683,19 +689,6 @@ function viewSize(view) {
 }
 
 /**
- * convert a markdown string to html for use in the HTML tables
- * uses http://showdownjs.com
- *
- * @param md markdownstring
- * @returns string with HTML
- */
-function markdown2html(md) {
-  var converter = new showdown.Converter();
-  return converter.makeHtml(md);
-  // return snarkdown(md)
-}
-
-/**
  * create a valid anchor link for a heading
  *  remove unvalid characters from a link
  *  this function thanks to Steven Mileham
@@ -704,7 +697,8 @@ function markdown2html(md) {
  * @returns string with valid link
  */
 function stringToLink(str) {
-  var regex = /[\[\]\(\)\#\\\/\"\.:;,–]/gi;
+  let regex = /[\[\]()\#\\\/\"\.:;,–]/gi;
+
   return (
     "#" +
     str

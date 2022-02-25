@@ -24,7 +24,7 @@
  *
  * Configure the behavior of generate_view with the param object properties:
  *  conceptFilter (optional, default is no filter)
- *  - Archimate concept types that will be included in the view
+ *    Archimate concept types that will be included in the view
  *    -  [] (empty array) all concept types are included
  *    -  [type, type, ...]  array of concept types like business-actor, application-component, technology-collaboration, node, ...
  *  relationFilter (optional, default is no filter)
@@ -70,8 +70,8 @@
  * - relationships on relationships are not drawn, they are skipped
  * - layout of connections can be ugly (but for simple layouts it's good)
  * - generating views with 'nested' relations is not stable
- *    - with many nesting, dagre layout sometimes throws an error. Try with less nestings or no nestings.
- *    - not sure it's a bug in dagre-cluster-fix or this script
+ *    - with many nesting, dagre layout sometimes throws an error (a bug in this script or dagre-cluster-fix)
+ *    - try with less nested relations or split your set of concepts ..
  */
 const SINGLE = 1;
 const MULTIPLE = 2;
@@ -92,16 +92,24 @@ const NODE_HEIGHT = 60;
 var graph; // graphlib graph for layout view
 var graphParents = []; // global variable for bookkeeping a parent's relations
 
+// polyfill for array method includes(), which is not supported in Nashorn ES6
+if (!Array.prototype.includes) {
+  Array.prototype.includes = function (search) {
+    return !!~this.indexOf(search);
+  };
+}
+
 /**
- * How to install the required dagre module in Windows?
+ * How to load the required dagre module?
  *
  * Use nodeJS to install dagre
  * - install nodejs (nodejs is only used for installing the modules, it's not necesary for running the script)
  * - open a command prompt
  *   - cd to Archi scripts folder as set in Archi Edit > preferences > Scripting
  *   - npm install dagre-cluster-fix (in 'Scripts folder'\node_modules)
- * Or find de dagre distribution script and copy it somewhere in the scripts folder
- * - Point the require function to the dagre.js
+ * Or go to https://unpkg.com/dagre-cluster-fix/
+ * - download from the folder /dist the file dagre.js and copy it in the scripts folder
+ * - Point the require function to the file dagre.js
  * - see code below for example
  */
 try {
@@ -152,13 +160,13 @@ function generate_view(param) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   if (param.debug !== undefined) _logDebugMessage.pop();
+}
 
-  function layoutAndRender(param, filteredSelection) {
-    graph = createGraph(param);
-    fillGraph(param, filteredSelection);
-    layoutGraph(param);
-    drawView(param);
-  }
+function layoutAndRender(param, filteredSelection) {
+  createGraph(param);
+  fillGraph(param, filteredSelection);
+  layoutGraph(param);
+  drawView(param);
 }
 
 /**
@@ -263,7 +271,8 @@ function createGraph(param) {
 
   console.log("\nCreate graph");
 
-  let graph = new dagre.graphlib.Graph({
+  // graph is globally defined
+  graph = new dagre.graphlib.Graph({
     directed: true, // A directed graph treats the order of nodes in an edge as significant whereas an undirected graph does not.
     compound: true, // A compound graph is one where a node can be the parent of other nodes.
     multigraph: true, // A multigraph is a graph that can have more than one edge between the same pair of nodes.
@@ -275,7 +284,7 @@ function createGraph(param) {
     .setDefaultEdgeLabel(function () {
       return { minlen: 1, weight: 1 };
     });
-  return graph;
+  return;
 }
 
 /**
@@ -458,7 +467,7 @@ function drawView(param) {
   console.log("Adding child-parent relations to the view ...");
   graphParents.forEach((parentRel) => drawParent(parentRel, archiViewElement, view));
 
-  console.log(`\nGenerated view '${param.viewName}'`);
+  console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   open_view(view);
 }
 

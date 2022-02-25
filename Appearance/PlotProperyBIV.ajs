@@ -24,12 +24,13 @@ function plotPropertyBIV(obj, args) {
 		console.log(`Plot notes with the BIV-values inside the application-components`);
 		this.only_once = true;
 	}
-
-	// color element with value for 'Vertrouwelijkheid'
-	obj.fillColor = `${colorscale((obj.prop("Vertrouwelijkheid") - 0.8) / 3)}`;
-
+	
 	// only plot BIV notes in referentiecomponent, not in legenda components
 	if (obj.prop("GEMMA type") == "Referentiecomponent") {
+
+		// color element with value for 'Vertrouwelijkheid'
+		obj.fillColor = `${colorscale((obj.prop("Vertrouwelijkheid") - 0.8) / 3)}`;
+
 		var x = 20;
 		for (var i = 0; i < this.BIVlist.length; i++) {
 			var BIVvalue = obj.prop(this.BIVlist[i]);

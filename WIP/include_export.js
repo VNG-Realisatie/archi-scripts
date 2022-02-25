@@ -12,7 +12,7 @@ load(__DIR__ + "include_export_import.js");
  *
  * ToDo:
  * - select elements and their relations
- * 
+ *
  * @param {*} objectType type of Archi objects to export.
  * 												- Use the constants OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT or OBJECT_TYPE_VIEW
  * @param {*} exportFile filepath to write CSV file (optional, if empty you will be prompted)
@@ -41,21 +41,25 @@ function exportObjects(objectType, exportFile) {
       console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
 
       if (!exportFile) {
-        let fileName_suggestion = `${model.name}_${$(selection).first().name}_${objectType}`.replace(/\s/g, "-");
+        let fileName_suggestion = `${model.name}_${$(selection).first().name}_${objectType}`; //.replace(/\s/g, "-");
         if (selection.is("archimate-model")) {
-          fileName_suggestion = `${model.name}_${objectType}`.replace(/\s/g, "-");
+          fileName_suggestion = `${model.name}_${objectType}`; //.replace(/\s/g, "-").replace(/[\[\]\(\)\#\\\/\"\.:;,–]/gi, "")
         }
+        fileName_suggestion = fileName_suggestion.replace(/\s/g, "-").replace(/[\[\]\(\)\#\\\/\"\.:;,–]/gi, "");
 
+
+        fileType = 'xlsx'
         let datum = new Date();
         exportFile = window.promptSaveFile({
-          title: "Export to CSV",
-          filterExtensions: ["*.csv"],
-          fileName: `${datum.toLocaleDateString("nl-NL")}_${fileName_suggestion}.csv`,
+          title: `Export to .${fileType}`,
+          filterExtensions: [`*.${fileType}`],
+          fileName: `${datum.toLocaleDateString("nl-NL")}_${fileName_suggestion}.${fileType}`,
         });
       }
 
       if (exportFile) {
-        saveRowsToFile(header, data, exportFile);
+        // saveRowsToFile(header, data, exportFile);
+        saveRowsToExcel(header, data, objectType, exportFile);
       } else {
         console.log("\nExport CSV canceled");
       }
@@ -126,7 +130,7 @@ function createRow(headerRow, object) {
 
   if (FOLDER_LABEL) {
     // row[FOLDER_LABEL] = get_folderPath($(`#${object.id}`), "");
-    row[FOLDER_LABEL] = get_folderPath(object, "");
+    row[FOLDER_LABEL] = getArchiFolder(object, "");
     debug(`row[FOLDER_LABEL]: ${row[FOLDER_LABEL]}`);
   }
 
@@ -138,28 +142,48 @@ function createRow(headerRow, object) {
 /**
  * get objects folderpath by recursively walkin up the parentfolders
  */
-function get_folderPath(child, currentFolderName) {
+function getArchiFolder(child, currentFolderName) {
   let parent = $(`#${child.id}`).parent("folder");
   if (parent.size() == 0) return currentFolderName;
 
   let folderName = `${parent.first().name}/${currentFolderName}`;
-  return get_folderPath(parent.first(), folderName);
+  return getArchiFolder(parent.first(), folderName);
 }
 
 /**
  * Save header and data to a CSV file
  */
 function saveRowsToFile(header, data, exportFile) {
-  $.fs.writeFile(
-    exportFile,
-    Papa.unparse(
-      {
-        fields: header,
-        data: data,
-      },
-      { quotes: true }
-    )
-  );
+  $.fs.writeFile(exportFile, Papa.unparse({ fields: header, data: data }, { quotes: true }));
+  let exportFileName = exportFile.split("\\").pop().split("/").pop();
+  let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
+  console.log("Saved to file: " + exportFileName);
+  console.log("In folder:     " + exportFilePath);
+}
+
+/**
+ * Save header and data to Excel
+ */
+function saveRowsToExcel(header, data, objectType, exportFile) {
+  // load("https://unpkg.com/xlsx/dist/xlsx.core.min.js");
+  load("https://unpkg.com/xlsx/dist/xlsx.full.min.js");
+  // load("https://unpkg.com/xlsx/dist/xlsx.extendscript.js");
+  
+  console.log(`XLSX version:  ${XLSX.version}`);
+
+  /* create a new blank workbook */
+  var workbook = XLSX.utils.book_new();
+
+  /* make worksheet */
+  var ws_data = [header, data];
+  var worksheet = XLSX.utils.aoa_to_sheet(ws_data);
+
+  /* Add the worksheet to the workbook */
+  XLSX.utils.book_append_sheet(workbook, worksheet, objectType);
+
+  /* output format determined by filename */
+  XLSX.writeFile(workbook, exportFile);
+
   let exportFileName = exportFile.split("\\").pop().split("/").pop();
   let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
   console.log("Saved to file: " + exportFileName);

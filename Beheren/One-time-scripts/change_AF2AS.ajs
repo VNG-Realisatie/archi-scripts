@@ -1,0 +1,66 @@
+/**
+ * Script voor het eenmalig omzetten van applicatiefuncties naar applicatieservices
+ *
+ * alleen voor AF met een relatie met referentiecomponenten
+ *
+ * flow
+ * - select grouping or grouping AF
+ *  - follow aggregations until leaf
+ *    - change AF to AS
+ *      - change inrels agg to association
+ *      - change assignment to association
+ *      - change AF to AS
+ *  - back in parent
+ *    - change AF to AS
+ *    - change outrels association with AS to agg
+ *    - change outrels association with refcomp to realization
+ */
+
+const FILENAME_SPLIT = /^.*[\\\/]/;
+const SCRIPT_NAME = __FILE__.replace(FILENAME_SPLIT, "");
+
+// Show output in the console
+console.show();
+console.clear();
+console.log(`Running script "${SCRIPT_NAME}"`);
+
+try {
+  // selecteer alle referentiecomponent
+  refCompColl = $("application-component").filter((component) => isReferentieComponent(component));
+  console.log(`Aantal referentiecomponenten: ${refCompColl.size()}`);
+
+  refCompColl.each(function (refComp) {
+    console.log(`> refComp: ${refComp.name}`);
+    // selecteer alle toegekende applicatiefuncties
+    $(refComp)
+      .outRels("assignment-relationship")
+      .each(function (rel) {
+        if ($(rel).targetEnds("application-function")) {
+          showAggregations(1, rel.target);
+        } else {
+          console.log(`>> Other: ${rel.target} `);
+        }
+      });
+  });
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+console.log(`\nScript "${SCRIPT_NAME}" finished`);
+
+function isReferentieComponent(comp) {
+  if (comp.prop("GEMMA type") == "Referentiecomponent") return true;
+  else return false;
+}
+
+function showAggregations(level, object) {
+  console.log(`${">".repeat(level + 1)} AF : ${object.name} `);
+
+  let aggColl = $(object).outRels("aggregation-relationship");
+  if (aggColl.size() > 0) {
+    aggColl.each((rel) => showAggregations(level + 1, rel.target));
+  } else {
+    // change AF to AS
+  }
+
+  return;
+}

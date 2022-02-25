@@ -1,7 +1,7 @@
 /**
  * SelectCollection.js
  *
- * Based on (user) selection, create a collection of objects for further processing
+ * Given a selection, create a collection of objects for further processing
  * Selection can be one or more concepts, views or folders in the model tree or on a view
  *
  * Behavior
@@ -128,9 +128,9 @@ function selectVisualObjectsOfType(selection) {
 			viewObjects = $(obj.view).find(obj.type);
 		}
 	} else {
-		console.log("Select one concept in the tree or on a view");
-		console.log("- if selected in the tree, the selected type will be selected on all views");
-		console.log("- if selected on a view, the selected type will be selected on the view");
+		console.error("Select one concept in the tree or on a view");
+		console.error("- if selected in the tree, the selected type will be selected on all views");
+		console.error("- if selected on a view, the selected type will be selected on the view");
 	}
 	return viewObjects;
 }

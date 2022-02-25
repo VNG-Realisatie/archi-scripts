@@ -35,13 +35,22 @@ function initConsoleLog(pFile, pClear) {
     console.clear();
   }
 
+  let ArchiVersion = "older version than 4.9";
+  let jArchiVersion = "older version than 1.2";
+  try {
+    ArchiVersion = $.process.release.archiVersion;
+    jArchiVersion = $.process.release.jArchiVersion;
+  } catch (error) {}
+
   let pattern = /^.*[\\\/]/;
   _commonScriptName = pFile.replace(pattern, "");
 
   console.log("============================================");
-  console.log(`Executing script "${_commonScriptName}"...`);
-  console.log(`Platform: ${$.process.platform}`);
-  console.log(`Engine:   ${JS_ENGINES_TEXT[JS_ENGINES.indexOf($.process.engine)]}\n`);
+  console.log(`Archi:             ${ArchiVersion}`);
+  console.log(`Platform:          ${$.process.platform}`);
+  console.log(`Javascript engine: ${JS_ENGINES_TEXT[JS_ENGINES.indexOf($.process.engine)]}`);
+  console.log(`jArchi plugin:     ${jArchiVersion}\n`);
+  console.log(`Running script:    ${_commonScriptName}\n`);
 }
 
 function finishConsoleLog() {
@@ -175,16 +184,6 @@ function getFuncName() {
   } else {
     return `${funcName[2]}()`;
   }
-}
-
-/**
- * stack()
- *   show stack message and error stack trace
- * @param msg string information message
- */
-function stack(msg) {
-  console.log("Error: " + msg);
-  console.log("Stack: " + new Error().stack);
 }
 
 /**

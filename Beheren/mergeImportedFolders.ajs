@@ -1,22 +1,29 @@
 /**
- * merge duplicated folder after an import of an archimate file into selected model
+ * merge imported folders with original folders.
  * 
- * 	this is a workaround for limitation of exporting and importing the IDs of folders in exchange format
- * 	this script repairs the duplication of folders after an import of a model that is created from an exchange format file
+ *  Synchronizing architecture models with Archi and the ArchiMate Exchange File Format leads to duplicating folders.
+ *  This happens because the AMEFF standard does not support IDs for folders.
  * 	see https://github.com/archimatetool/archi/issues/690
- *
- * Flow for synchronizing architecture model:
- * 	- Archi: export model to Open Exchange File
- * 	- Wiki: import model from Open Exchange File
- * 	- Wiki: export model to Open Exchange File
- * 		- prefix all foldernames with the string _imported_
- * 	- Archi: import model from Open Exchange File
- * 	- Archi: save model in .archimate file
- * 	- Archi: import Another model into the selected Model
- * 	- now run this script to
- * 		- move all synchronized objects back from the _imported_ folders to their original folders
- * 		- if there is no original folder, rename the folder by removing the prefix _imported_
- * 		- delete all empty _imported_ folders
+ * 
+ *  Run this script after merging 2 architecture models. 
+ * 
+ *  Prerequisite
+ *  - reference architecture model (model R)
+ *  - a copy of the reference model, as a starting point for another architecture model. Let's say a project model (model P)
+ *  
+ *  Flow for synchronizing changes in in model R into model P
+ *  - Use GEMMA softwarecatalogus
+ *    - change model R
+ *    - export model R to AMEFF file (all foldernames are prefixed with FOLDER_PREFEX)
+ *  - Use Archi
+ *    - use and change model P
+ *    - merge changes from model R in P
+ *      - import model R into Archi (file > import > Model from Open Exchange File)
+ *      - save R
+ *      - select model P
+ *      - merge model R into P (file > import > Another model into the selected Model)
+ *    - merge the imported folders with the original folders
+ *      - run this script
  */
 console.clear();
 console.log();
