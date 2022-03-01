@@ -17,48 +17,40 @@
  */
 
 load(__DIR__ + "../_lib/Common.js");
-
 initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
   elementFilter: [
-    // "application-component",
-    // "application-function",
+    // "application-collaboration",
+    "application-component",
+    // "application-event",
+    "application-function",
+    // "application-interaction",
     // "application-interface",
-    // "application-service",
-    "business-actor",
-    "business-collaboration",
-    "business-event",
-    "business-function",
-    "business-interaction",
-    "business-interface",
-    "business-object",
-    "business-process",
-    "business-role",
-    "business-service",
-    "contract",
-    "product",
-    "representation",
+    // "application-process",
+    "application-service",
+    // "data-object",
+    // "business-function",
+    // "business-object",
     // "constraint",
-    // "grouping",
+    "grouping",
   ],
-
   relationFilter: [
-    "aggregation-relationship",
     "assignment-relationship",
+    "aggregation-relationship",
     "composition-relationship",
     // "flow-relationship",
-    "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
     "realization-relationship",
+    // "serving-relationship"
   ],
   drawReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
     "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
   ],
 
   drawNested: [
@@ -83,14 +75,14 @@ var param = {
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  algorithm: "longest-path",
+  // algorithm: "longest-path",
   // algorithm: "tight-tree",
-  // algorithm: "network-simplex",
+  algorithm: "network-simplex",
 
   nodeWidth: 140,
   nodeHeight: 60,
-  hSep: 20,
-  vSep: 80,
+  hSep: 30,
+  vSep: 160,
 
   debug: false,
 };

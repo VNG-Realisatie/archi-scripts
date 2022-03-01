@@ -21,11 +21,11 @@ function debug(message) {
   // console.log(`debug: ${message}`);
 }
 
-initConsoleLog(__FILE__, true);
+// initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-  conceptFilter: [],
+  elementFilter: [],
   relationFilter: [
     "aggregation-relationship",
     "assignment-relationship",
@@ -35,7 +35,7 @@ var param = {
     "serving-relationship",
     "specialization-relationship",
   ],
-  reverseRelation: [
+  drawReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "composition-relationship",
@@ -44,7 +44,7 @@ var param = {
     "specialization-relationship",
   ],
 
-  nestedRelation: [
+  drawNested: [
     // "access-relationship",
     "aggregation-relationship",
     // "assignment-relationship",
@@ -78,6 +78,6 @@ var param = {
   debug: false,
 };
 
-// generate_view(param);
+generate_view(param);
 
 // finishConsoleLog();

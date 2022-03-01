@@ -21,7 +21,7 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-  conceptFilter: [
+  elementFilter: [
     "application-collaboration",
     "application-component",
     "application-event",
@@ -43,7 +43,7 @@ var param = {
     // "realization-relationship",
     // "serving-relationship"
   ],
-  reverseRelation: [
+  drawReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -51,7 +51,7 @@ var param = {
     // "specialization-relationship",
   ],
 
-  nestedRelation: [
+  drawNested: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

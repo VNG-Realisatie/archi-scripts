@@ -23,7 +23,7 @@ load(__DIR__ + "include_generate_view.js");
 
 var param = {
 	
-	conceptFilter: [
+	elementFilter: [
     // "assessment",
     "constraint",
     // "driver",
@@ -44,7 +44,7 @@ var param = {
     // "realization-relationship",
     // "serving-relationship"
   ],
-  reverseRelation: [
+  drawReversed: [
 		// "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -52,7 +52,7 @@ var param = {
     "specialization-relationship",
   ],
 	
-  nestedRelation: [
+  drawNested: [
 		// "access-relationship",
     "aggregation-relationship",
     // "assignment-relationship",

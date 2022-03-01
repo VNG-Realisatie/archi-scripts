@@ -23,7 +23,7 @@
  *  4  02/10/2021  Mark Backer   draw connection with bendpoints
  *
  * Configure the behavior of generate_view with the param object properties:
- *  conceptFilter (optional, default is no filter)
+ *  elementFilter (optional, default is no filter)
  *  - Archimate concept types that will be included in the view
  *    -  [] (empty array) all concept types are included
  *    -  [type, type, ...]  array of concept types like business-actor, application-component, technology-collaboration, node, ...
@@ -31,11 +31,11 @@
  *  - The relationship types that will be included in the view.
  *      - [] (empty array)  all relationship types in the model
  *      - [type, type, ...]  array of relationship types like realization-relationship,assignment-relationship, ...
- *  reverseRelation (optional, default none)
+ *  drawReversed (optional, default none)
  *  - The relationship types which are reversed in the layout. The Archi relations are not changed.
  *      - [] (empty array)  no relationships are reversed
  *      - [type, type, ...]  array of relationship types like realization-relationship,assignment-relationship, ...
- *  nestedRelation (optional, default none)
+ *  drawNested (optional, default none)
  *  - The relationship types which will be rendered nested.
  *  - The target elements (all children) will be embedded in the source element (the parent)
  *      - [] (empty array)  no relationships are nested
@@ -168,10 +168,10 @@ function generate_view(param) {
 function checkParameters(param) {
   // TODO check for valid Archi element en relation names or pop-up window with pull-downs
   // defaulting optional parameters
-  if (param.conceptFilter === undefined) param.conceptFilter = [];
+  if (param.elementFilter === undefined) param.elementFilter = [];
   if (param.relationFilter === undefined) param.relationFilter = [];
-  if (param.reverseRelation === undefined) param.reverseRelation = [];
-  if (param.nestedRelation === undefined) param.nestedRelation = [];
+  if (param.drawReversed === undefined) param.drawReversed = [];
+  if (param.drawNested === undefined) param.drawNested = [];
 
   // setting the default view name
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
@@ -181,13 +181,13 @@ function checkParameters(param) {
   const INDENT = "  - ";
   console.log("Function called with parameters");
   console.log("- concepts filter (mandatory)");
-  param.conceptFilter.forEach((p) => console.log(`${INDENT}${p}`));
+  param.elementFilter.forEach((p) => console.log(`${INDENT}${p}`));
   console.log("- relations filter");
   param.relationFilter.forEach((p) => console.log(`${INDENT}${p}`));
-  console.log("- reverseRelation");
-  param.reverseRelation.forEach((p) => console.log(`${INDENT}${p}`));
-  console.log("- nestedRelation");
-  param.nestedRelation.forEach((p) => console.log(`${INDENT}${p}`));
+  console.log("- drawReversed");
+  param.drawReversed.forEach((p) => console.log(`${INDENT}${p}`));
+  console.log("- drawNested");
+  param.drawNested.forEach((p) => console.log(`${INDENT}${p}`));
   console.log(`- viewName = "${param.viewName}"`);
   console.log("- graphDepth = " + param.graphDepth);
   console.log("- graphDirection = " + param.graphDirection);
@@ -231,7 +231,7 @@ function selectElements(param) {
   console.log(`- ${selectedElements.length} selected elements`);
 
   // filter the selected elements with the concept filter
-  let filteredSelection = selectedElements.filter((obj) => filter_object_type(obj, param.conceptFilter));
+  let filteredSelection = selectedElements.filter((obj) => filter_object_type(obj, param.elementFilter));
   console.log(`- ${filteredSelection.length} filtered elements kept`);
   if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
 
@@ -300,7 +300,7 @@ function fillGraph(param, filteredSelection) {
  *      add relations to the graph
  *
  * @param {*} archiElement Archi object to add to graph
- * @param {*} filteredSelection array with selected elements, filtered with param.conceptFilter
+ * @param {*} filteredSelection array with selected elements, filtered with param.elementFilter
  * @param {*} level integer for counting depth of recursion
  * @param {*} graphDepth integer with maximum depth of graph
  */
@@ -348,7 +348,7 @@ function addElement(level, graphDepth, archiElement, filteredSelection) {
           debug(`== skip; related_element "${related_element}" is not in selection ==`);
         } else {
           // check if the related_element is in the concepts filter
-          if (filter_object_type(related_element, param.conceptFilter)) {
+          if (filter_object_type(related_element, param.elementFilter)) {
             // add related_element to the graph
             if (addElement(level + 1, graphDepth, related_element, filteredSelection) == NOT_STOPPED) {
               // Add relation as edge
@@ -375,14 +375,14 @@ function addRelation(level, rel) {
   let rel_line = `${relSrc.name} --${rel.type}-> ${relTgt.name}`;
 
   // reverse the graph edge for given Archi relation types
-  if (param.reverseRelation.indexOf(rel.type) !== -1) {
+  if (param.drawReversed.indexOf(rel.type) !== -1) {
     relSrc = $(rel).targetEnds().first();
     relTgt = $(rel).sourceEnds().first();
     arrow = ARROW_REVERSED;
     rel_line = `${relSrc.name} <-${rel.type}-- ${relTgt.name}`;
   }
 
-  if (param.nestedRelation.indexOf(rel.type) == -1) {
+  if (param.drawNested.indexOf(rel.type) == -1) {
     createEdge(level, relSrc, relTgt, rel, arrow, rel_line);
   } else {
     if (relSrc.id == relTgt.id) {

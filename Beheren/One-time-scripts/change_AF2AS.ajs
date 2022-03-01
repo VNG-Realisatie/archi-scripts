@@ -1,66 +1,134 @@
 /**
- * Script voor het eenmalig omzetten van applicatiefuncties naar applicatieservices
+ * Script voor het eenmalig omzetten van de GEMMA applicatiefuncties naar applicatieservices
  *
- * alleen voor AF met een relatie met referentiecomponenten
- *
- * flow
- * - select grouping or grouping AF
- *  - follow aggregations until leaf
- *    - change AF to AS
- *      - change inrels agg to association
- *      - change assignment to association
- *      - change AF to AS
- *  - back in parent
- *    - change AF to AS
- *    - change outrels association with AS to agg
- *    - change outrels association with refcomp to realization
+ * Ook enkele relatietypen moeten worden gewijzigd
+ * - assignment met applicatiecomponent wordt realisation
+ * - realization applicatieservice wordt aggregation
+ * - en consistent maken met kennismodel => composition applicatieservice wordt aggregatien
  */
 
+const OLD_RELATION_TYPE = "Old_relation_type";
 const FILENAME_SPLIT = /^.*[\\\/]/;
 const SCRIPT_NAME = __FILE__.replace(FILENAME_SPLIT, "");
 
-// Show output in the console
 console.show();
 console.clear();
-console.log(`Running script "${SCRIPT_NAME}"`);
+console.log(`Running script "${SCRIPT_NAME}"\n`);
 
 try {
-  // selecteer alle referentiecomponent
-  refCompColl = $("application-component").filter((component) => isReferentieComponent(component));
-  console.log(`Aantal referentiecomponenten: ${refCompColl.size()}`);
+  if ($(".Doelgroep").filter("grouping").size() > 0) {
+    // In de GEMMA
+    // wijzig de door 'Doelgroep' gegroepeerde applicatiefuncties
+    changeChildAF(0, $(".Doelgroep").first());
+  } else {
+    // In projectarchitectuur
+    refCompColl = $("application-component").filter((comp) => comp.prop("GEMMA type") == "Referentiecomponent");
+    console.log(`Aantal referentiecomponenten: ${refCompColl.size()}`);
 
-  refCompColl.each(function (refComp) {
-    console.log(`> refComp: ${refComp.name}`);
-    // selecteer alle toegekende applicatiefuncties
-    $(refComp)
-      .outRels("assignment-relationship")
-      .each(function (rel) {
-        if ($(rel).targetEnds("application-function")) {
-          showAggregations(1, rel.target);
-        } else {
-          console.log(`>> Other: ${rel.target} `);
-        }
-      });
-  });
+    refCompColl.each(function (refComp) {
+      console.log(`> refComp: ${refComp.name}`);
+      // Wijzig de applicatiefuncties waar een referentiecomponent aan is toegekend
+      $(refComp.concept)
+        .outRels("assignment-relationship")
+        .filter((rel) => rel.target.type == "application-function")
+        .each((rel) => changeChildAF(0, rel.target));
+    });
+  }
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 console.log(`\nScript "${SCRIPT_NAME}" finished`);
 
-function isReferentieComponent(comp) {
-  if (comp.prop("GEMMA type") == "Referentiecomponent") return true;
-  else return false;
+/**
+ * Recursieve functie
+ * - doorloop vanaf de gegeven applicatiefunctie alle gegroepeerde (child) applicatiefuncties
+ * - wijzig het type van applicatie-functie naar applicatie-service
+ *    - wijzig tijdelijk de relatietypen naar associatie (prevent invalid relations)
+ *    - wijzig elementtype
+ *    - wijzig relatietype naar geldige relatietype met applicatieservice
+ *
+ * @param level integer recursion level
+ * @param AFobject Archi Object
+ */
+function changeChildAF(level, AFobject) {
+  let logPrefix = `${"  ".repeat(level)}>`;
+  console.log(`${logPrefix} ${AFobject} `);
+  // recurse into all children
+  $(AFobject)
+    .outRels()
+    .filter((rel) => ["aggregation-relationship", "composition-relationship"].includes(rel.type))
+    .filter((rel) => rel.target.type == "application-function")
+    .each((rel) => changeChildAF(level + 1, rel.target));
+
+  // wijzig relatietypen tijdelijk naar assoctiations
+  $(AFobject)
+    .rels()
+    .filter((rel) =>
+      [
+        "aggregation-relationship",
+        "composition-relationship",
+        "assignment-relationship",
+        "realization-relationship",
+      ].includes(rel.type)
+    )
+    .each((rel) => convertRelationType(logPrefix, rel, "association-relationship"));
+
+  // wijzig applicatiefunctie naar applicatie-service
+  console.log(`${logPrefix} change AF to application-service: ${AFobject.name}`);
+  AFobject.type = "application-service";
+
+  // wijzig de relatietypen weer terug naar hun oude type
+  $(AFobject)
+    .rels("association-relationship")
+    .filter((rel) => rel.prop(OLD_RELATION_TYPE))
+    .each((rel) => convertBackRelationType(logPrefix, rel));
+  return;
 }
 
-function showAggregations(level, object) {
-  console.log(`${">".repeat(level + 1)} AF : ${object.name} `);
+function convertRelationType(logPrefix, r, convertToType) {
+  // console.log(`${logPrefix} convertRelationType: ${r.type} ${r.source} -> ${r.target}`);
+  r.prop(OLD_RELATION_TYPE, r.type);
+  r.type = convertToType;
+}
 
-  let aggColl = $(object).outRels("aggregation-relationship");
-  if (aggColl.size() > 0) {
-    aggColl.each((rel) => showAggregations(level + 1, rel.target));
-  } else {
-    // change AF to AS
+function convertBackRelationType(logPrefix, r) {
+  // default wordt relatietype teruggezet naar oude type
+  let revertType = r.prop(OLD_RELATION_TYPE);
+
+  switch (r.prop(OLD_RELATION_TYPE)) {
+    case "composition-relationship":
+      // was: applicatiefunctie bestaat uit (compositie) subAF
+      // wordt: applicatieservice aggregeert applicatieservice
+      if (r.target.type == "application-service") revertType = "aggregation-relationship";
+      break;
+    case "realization-relationship":
+      // was: applicatiefunctie realiseert een applicatieservice
+      // wordt: applicatieservice aggregeert applicatieservice
+      if (r.target.type == "application-service") {
+        let source = r.source;
+        r.source = r.target;
+        r.target = source;
+        revertType = "aggregation-relationship";
+      }
+      break;
+    case "assignment-relationship":
+      // was: applicatiecomponent is toegekent aan applicatiefunctie
+      // wordt: applicatiecomponent realiseert applicatieservice
+      if (r.source.type == "application-component") revertType = "realization-relationship";
+      break;
+    case "aggregation-relationship":
+      break;
+    default:
+      console.log(`Unknown r.prop(PROP_NAME) value: ${r.prop(OLD_RELATION_TYPE)}`);
+      break;
   }
-
-  return;
+  if ($.model.isAllowedRelationship(revertType, r.source.type, r.target.type)) {
+    if (r.prop(OLD_RELATION_TYPE) != revertType) {
+      console.log(`${logPrefix} change ${r.prop(OLD_RELATION_TYPE)} to ${revertType}, ${r.source} -> ${r.target}`);
+    }
+    r.type = revertType;
+    r.removeProp(OLD_RELATION_TYPE);
+  } else {
+    console.log(`${logPrefix} skip ${r.prop(OLD_RELATION_TYPE)} to ${revertType}, ${r.source} -> ${r.target}`);
+  }
 }
