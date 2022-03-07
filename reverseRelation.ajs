@@ -22,7 +22,7 @@ finishConsoleLog();
  * function definitions
  *******************************************/
 function reverseRelation(obj) {
-	_logDebugMessage.push(false);
+	debugStackPush(false);
 
 	debug(`obj.id: ${obj.id}`);
 	debug(`obj.concept.id: ${obj.concept.id}`);
@@ -48,7 +48,7 @@ function reverseRelation(obj) {
 	} else {
 		console.log(`>> Not allowed: ${getRelationString(obj)}`);
 	}
-	_logDebugMessage.pop();
+	debugStackPop();
 }
 
 function getRelationString(rel) {

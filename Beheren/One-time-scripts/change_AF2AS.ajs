@@ -19,7 +19,11 @@ try {
   if ($(".Doelgroep").filter("grouping").size() > 0) {
     // In de GEMMA
     // wijzig de door 'Doelgroep' gegroepeerde applicatiefuncties
-    changeChildAF(0, $(".Doelgroep").first());
+    $(".Doelgroep")
+    .filter("grouping")
+    .outRels("aggregation-relationship")
+    .filter((rel) => rel.target.type == "application-function")
+    .each((rel) => changeChildAF(0, rel.target));
   } else {
     // In projectarchitectuur
     refCompColl = $("application-component").filter((comp) => comp.prop("GEMMA type") == "Referentiecomponent");

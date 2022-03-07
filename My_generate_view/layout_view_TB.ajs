@@ -19,14 +19,10 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
+  action: LAYOUT,
 	elementFilter: [
   ],
   relationFilter: [
-		// "assignment-relationship",
-    // "flow-relationship",
-    // "specialization-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
   ],
   drawReversed: [
 		// "aggregation-relationship",

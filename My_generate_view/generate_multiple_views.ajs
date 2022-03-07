@@ -18,6 +18,8 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
+  action: GENERATE_MULTIPLE,
+
   // viewName: "gen-custom",
 
   elementFilter: [
@@ -72,8 +74,6 @@ var param = {
 
   hSep: 20,
   vSep: 80,
-
-  action: MULTIPLE,
 
   debug: false,
 };

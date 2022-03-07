@@ -22,6 +22,10 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
+  action: GENERATE_SINGLE,
+  // action: GENERATE_MULTIPLE,
+  // action: EXPAND_HERE,
+  // action: LAYOUT,
   elementFilter: [
     // "application-collaboration",
     // "application-component",
@@ -115,7 +119,7 @@ var param = {
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
-    "realization-relationship",  
+    "realization-relationship",
     "serving-relationship",
     "specialization-relationship",
     // "triggering-relationship",
@@ -154,6 +158,9 @@ var param = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 80,
+
+  action: GENERATE_SINGLE,
+  // action: MULTIPLE,
 
   debug: false,
 };

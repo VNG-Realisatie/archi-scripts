@@ -19,7 +19,7 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-  action: LAYOUT,
+  action: EXPAND_HERE,
 	elementFilter: [
   ],
   relationFilter: [
@@ -45,8 +45,8 @@ var param = {
 	
 	// viewName: "gen-custom",
 
-	// graphDepth: 1,
-  graphDepth: 0, // layout selected elements and relations of these elements
+	graphDepth: 1,
+  // graphDepth: 0, // layout selected elements and relations of these elements
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
   // graphDirection: "LR",

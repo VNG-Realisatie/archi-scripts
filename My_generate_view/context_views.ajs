@@ -94,7 +94,7 @@ var param = {
   vSep: 80,
 
   action: MULTIPLE,
-  // action: SINGLE,
+  // action: GENERATE_SINGLE,
 
   debug: false,
 };

@@ -16,7 +16,7 @@
  */
 // load(__DIR__ + "../_lib/Common.js");
 
-var _logDebugMessage = [];
+var debugStack = [];
 function debug(message) {
   // console.log(`debug: ${message}`);
 }
@@ -25,6 +25,8 @@ function debug(message) {
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
+  action: GENERATE_SINGLE,
+
   elementFilter: [],
   relationFilter: [
     "aggregation-relationship",

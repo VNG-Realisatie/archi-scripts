@@ -9,20 +9,26 @@
 
 load(__DIR__ + "../_lib/SelectCollection.js");
 
-console.log("\nToggle figure of objects of selected type\n")
+console.log("\nToggle figure of objects of selected type\n");
 let collection = selectVisualObjectsOfType($(selection));
 applyToCollection(collection, toggleFigure);
 
 function toggleFigure(obj) {
-	if (typeof this.only_once == "undefined") {
-		this.only_once = true;
-		this.figure = obj.figureType;
-		figureText = ["rectangle with icon", "icon shape"];
-		console.log(`Toggle figure from '${figureText[this.figure]}' to '${figureText[this.figure == 0 ? 1 : 0]}'`);
-	}
+  if (typeof this.only_once == "undefined") {
+    this.only_once = true;
+    this.figure = obj.figureType;
+    figureText = ["rectangle with icon", "icon shape"];
+    console.log(`Toggle figure from '${figureText[this.figure]}' to '${figureText[this.figure == 0 ? 1 : 0]}'`);
+  }
 
-	// rectangle with icon
-	if (this.figure == 0) obj.figureType = 1;
-	// icon shape
-	else obj.figureType = 0;
+  // rectangle with icon
+  if (this.figure == 0) {
+    obj.figureType = 1;
+    if (obj.type == "grouping") obj.textAlignment = TEXT_ALIGNMENT.CENTER;
+  }
+  // icon shape
+  else {
+    obj.figureType = 0;
+    if (obj.type == "grouping") obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  }
 }

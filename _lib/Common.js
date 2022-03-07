@@ -10,9 +10,9 @@
 var _commonScriptName;
 var _startCounter = {};
 
-// default console logging is off. Override in calling function with push() and pop()
-let _logInfoMessage = [false];
-let _logDebugMessage = [false];
+// default console logging is on. Override in calling function with push() and pop()
+let infoStack = [true];
+let debugStack = [true];
 
 const JS_NASHORN_ES6 = "jdk.nashorn.api.scripting.NashornScriptEngine";
 const JS_ENGINE_GRAALVM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine";
@@ -120,28 +120,28 @@ function check_JS_Engine(required_engine) {
 
 /**
  * info()
- *   show informational message if global _logInfoMessage is set
+ *   show informational message if global infoStack is set
  * @param msg string information message
  */
 function info(msg) {
-  logMessage(_logInfoMessage, "Info", msg);
+  logMessage(infoStack, "Info", msg);
 }
 
-function debugPush(debugSwitch) {
-  _logDebugMessage.push(debugSwitch);
+function debugStackPush(debugSwitch) {
+  debugStack.push(debugSwitch);
 }
 
-function debugPop() {
-  _logDebugMessage.pop();
+function debugStackPop() {
+  debugStack.pop();
 }
 
 /**
  * debug()
- *   show debug message if global _logDebugMessage is set
+ *   show debug message if global debugStack is set
  * @param msg string information message
  */
 function debug(msg) {
-  logMessage(_logDebugMessage, "Debug", msg);
+  logMessage(debugStack, "Debug", msg);
 }
 
 /**
@@ -168,17 +168,16 @@ function logMessage(logSwitch, logType, msg) {
  * See https://github.com/winstonjs/winston/issues/200
  */
 function getFuncName() {
-  let stack = new Error().stack;
-  let stackLevel = 4; // archi > calling function > debug > logMessage
+  const STACK_LEVEL_START = 4; // archi > calling function > debug > logMessage
 
+  let stack = new Error().stack;
   // console.log(`stack:\n${stack}\n\n`)
 
-  // escaped regEx /Error((?:\n\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\([a-zA-Z0-9:. _/\[\]\-\\]+\))){6}/
-  let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${stackLevel}}`;
+//  let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${STACK_LEVEL_START}}`;
+  let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\)))`;
+  regExpString += `{${STACK_LEVEL_START}}`;
 
   let funcName = stack.match(regExpString);
-
-  // In Archi <program> is matched in a map/reduce/filter function
   if (funcName[2] == "<program>") {
     return "";
   } else {

@@ -20,12 +20,13 @@ load(__DIR__ + "include_generate_view.js");
 
 var param = {
   elementFilter: [],
-  relationFilter: [],
+  relationFilter: [
+  ],
   drawReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
-    "realization-relationship",
+    // "realization-relationship",
     "serving-relationship",
     "specialization-relationship",
   ],
@@ -35,7 +36,7 @@ var param = {
     "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
-    // "realization-relationship",
+    "realization-relationship",
     // "serving-relationship"
     // "specialization-relationship",
   ],

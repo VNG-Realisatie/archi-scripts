@@ -22,7 +22,8 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-	
+  action: GENERATE_SINGLE,
+
 	elementFilter: [
 		// "application-component",
     // "application-function",
@@ -94,7 +95,7 @@ var param = {
   vSep: 80,
 
   action: MULTIPLE,
-  // action: SINGLE,
+  // action: GENERATE_SINGLE,
 
   debug: false,
 };

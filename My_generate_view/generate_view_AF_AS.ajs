@@ -21,6 +21,7 @@ initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
+  action: GENERATE_SINGLE,
   elementFilter: [
     // "application-collaboration",
     "application-component",
@@ -65,8 +66,8 @@ var param = {
 
   // viewName: "gen-custom",
 
-  // graphDepth: 1,
   graphDepth: 1,
+  // graphDepth: 0,
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
   graphDirection: "LR",

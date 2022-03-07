@@ -9,91 +9,87 @@
  * relationships are no more valid, it will (optionally) convert them to associations.
  *
  * Mark:
- * 	add console logging of the changed concepts and relations
- * 	add property with info about conversion to converted relationships
- * 	for GraalVM compatibility: changed regular expression
+ *  - no popup, only relaxed mode
+ *  - try to minimize conversion of relations to associations
+ *    - when both source and target are converted
+ *      - try to restore the converted relation to the original type
+ *      - works for example for aggregations between elements of same type
+ *  - still converted relation have a property with original relation type
+ *  - and are shown in the console with a red warning
  */
- let relText=''
+
+console.show();
+console.clear();
+
+const ORG_TYPE_PROPERTY_NAME = "Type before conversion";
+const CONVERT_TO_TYPE = "association-relationship";
 
 function convertConcept(selection, filename) {
-  let countConvertConcept = 0,
-    countConvertNotAllowed = 0;
-  let modeRelaxedSelected = false;
-
-  // replace reg exp changed for GraalVM engine
-  // let convertToType = filename.replace(/^.*\//, '').replace(/\.ajs$/, '').replace(/%20/, '-').toLowerCase();
-  let convertToType = filename
-    .replace(/^.*[\\\/]/, "")
-    .replace(/\.ajs$/, "")
-    .replace(/%20/, "-")
-    .toLowerCase();
-
-  console.log(`\nConvert selected concepts to type ${convertToType}`);
-
   try {
+    let convertToType = getTypeFromFilename(filename);
+
+    console.log(`Convert selected objects to ${convertToType}\n`);
+    console.log(`Objects:`);
+
+    // convert selected objects
     $(selection).each(function (o) {
-      console.log(`> Convert concept: ${o}`);
-
-      // check all relation for not allowed relationships after conversion
+      // first convert invalid relation types to associations
       $(concept(o))
-        .rels()
+        .outRels()
         .each(function (r) {
-          relText = `${r.type}: "${r.source.name}"  -[${r.name == "" ? "empty" : r.name}]->  "${r.target.name}"`;
-
-          if (!checkRelationship(r, o, convertToType)) {
-            // Select conversion mode at first not allowed relationship
-            if (!modeRelaxedSelected) {
-              modeRelaxedSelected = window.confirm(
-                'In "relaxed" mode, not allowed relationships are converted to associations. In "strict" mode, relationships are not changed.\n\nClick Ok for "relaxed" mode, click Cancel for "strict" mode'
-              );
-            }
-
-            // In strict mode, exit at first not allowed relationship
-            if (!modeRelaxedSelected) {
-              window.alert(`For ${relText}\n\nConversion not allowed\n\nClick Ok to exit.`);
-              console.log(`> Cancel: conversion of ${relText} not allowed`);
-              console.log(`===`);
-              console.log(`Converted ${countConvertConcept} concepts to type ${convertToType}.`);
-              exit();
-            }
-
-            console.log(`>> Convert ${relText}`);
-
-            convertRelationship(r, o, convertToType);
-            countConvertNotAllowed++;
-          }
+          if (!$.model.isAllowedRelationship(r.type, convertToType, r.target.type)) convertRelationType(r);
         });
+      $(concept(o))
+        .inRels()
+        .each(function (r) {
+          if (!$.model.isAllowedRelationship(r.type, r.source.type, convertToType)) convertRelationType(r);
+        });
+      // then convert the object
       concept(o).concept.type = convertToType;
-      countConvertConcept++;
-      console.log(`> Concept converted to: ${o}`);
-      console.log(`===`);
     });
-    if (modeRelaxedSelected) {
-      console.log(
-        `Converted ${countConvertConcept} concepts to type ${convertToType} and ${countConvertNotAllowed} not allowed relationships to type 'association'`
-      );
-    } else {
-      console.log(`Converted ${countConvertConcept} concepts to type ${convertToType}.`);
-    }
+
+    // when possible, convert converted relations back to original type
+    $(selection).each(function (o) {
+      console.log(`> ${o}`);
+      $(concept(o))
+        .rels(CONVERT_TO_TYPE)
+        .filter((r) => hasProperty(r, ORG_TYPE_PROPERTY_NAME))
+        .each((r) => convertBackRelationType(r));
+    });
+
+    console.log(`\nAll selected objects converted\n`);
   } catch (error) {
-    console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+    console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
 }
 
-function checkRelationship(r, o, convertToType) {
-	console.log(`Check: ${relText}`)
-  if (r.source.id == o.id) {
-    return $.model.isAllowedRelationship(r.type, convertToType, r.target.type);
+function hasProperty(r, ORG_RELATION_TYPE) {
+  return r.prop(ORG_RELATION_TYPE) != undefined;
+}
+
+function convertRelationType(r) {
+  r.prop(ORG_TYPE_PROPERTY_NAME, r.type);
+  r.type = CONVERT_TO_TYPE;
+}
+
+function convertBackRelationType(r) {
+  // console.log(`  > r: ${r}`);
+  if ($.model.isAllowedRelationship(r.prop(ORG_TYPE_PROPERTY_NAME), r.source.type, r.target.type)) {
+    r.type = r.prop(ORG_TYPE_PROPERTY_NAME);
+    r.removeProp(ORG_TYPE_PROPERTY_NAME);
+    // console.log(`    Restored: ${r.type} ${r.source} -> ${r.target}`);
   } else {
-    return $.model.isAllowedRelationship(r.type, r.source.type, convertToType);
+    console.error(`  > ${r.prop(ORG_TYPE_PROPERTY_NAME)} changed to type ${r.type}`);
+    console.error(`    ${r.source} -> ${r.target}`);
   }
 }
 
-function convertRelationship(r, o, convertToType) {
-  let relationshipType = r.type.replace(/-relationship$/, "");
-  let convertText = `Relationship type was "${relationshipType}". Element "${o.name}" converted from "${o.type}" to "${convertToType}"`;
-  r.prop(`convertConcept`, convertText);
-  r.type = "association-relationship";
+function getTypeFromFilename(filename) {
+  return filename
+    .replace(/^.*[\/\\]/, "")
+    .replace(/\.ajs$/, "")
+    .replace(/(%20|\s)/g, "-")
+    .toLowerCase();
 }
 
 function concept(o) {
