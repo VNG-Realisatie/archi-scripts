@@ -35,8 +35,8 @@ function initConsoleLog(pFile, pClear) {
     console.clear();
   }
 
-  let ArchiVersion = "older version than 4.9";
-  let jArchiVersion = "older version than 1.2";
+  let ArchiVersion = "version older than 4.9";
+  let jArchiVersion = "version older than 1.2";
   try {
     ArchiVersion = $.process.release.archiVersion;
     jArchiVersion = $.process.release.jArchiVersion;

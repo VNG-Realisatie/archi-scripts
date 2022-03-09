@@ -14,8 +14,6 @@
  * 
  * Based on the work of Hervé Jouin
  */
-load(__DIR__ + "../_lib/Common.js");
-initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
@@ -34,30 +32,20 @@ var param = {
   ],
 	
   drawNested: [
-		// "access-relationship",
-    // "aggregation-relationship",
-    // "assignment-relationship",
-    // "composition-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
-    // "specialization-relationship",
   ],
 	
-	// viewName: "gen-custom",
-
 	graphDepth: 1,
   // graphDepth: 0, // layout selected elements and relations of these elements
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  // graphDirection: "LR",
   graphDirection: "LR",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  // algorithm: "longest-path",
-  // algorithm: "tight-tree",
-  algorithm: "network-simplex", // default
+  // ranker: "longest-path",
+  // ranker: "tight-tree",
+  ranker: "network-simplex", // default
 
   nodeWidth: 200,
   nodeHeight: 60,
@@ -67,6 +55,6 @@ var param = {
   debug: false,
 };
 
+initConsoleLog(__FILE__, true);
 generate_view(param);
-
 finishConsoleLog();

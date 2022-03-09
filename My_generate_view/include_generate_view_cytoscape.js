@@ -184,7 +184,7 @@ function checkParameters(param) {
 	console.log("- graphDepth =           " + param.graphDepth);
 	console.log("- graphDirection =       " + param.graphDirection);
 	console.log("- graphAlign (def mid) = " + param.graphAlign);
-	console.log("- algorithm =            " + param.algorithm);
+	console.log("- ranker =            " + param.ranker);
 	console.log("- layout =               " + param.layout);
 	console.log("- nodeWidth =            " + param.nodeWidth);
 	console.log("- nodeHeight =           " + param.nodeHeight);
@@ -505,7 +505,7 @@ function layoutGraph(param, graph) {
 			options.nodeSep = param.hSep;
 			options.rankSep = param.vSep;
 			options.rankDir = param.graphDirection;
-			if (param.ranker !== undefined) options.ranker = param.algorithm;
+			if (param.ranker !== undefined) options.ranker = param.ranker;
 			break;
 
 		default:

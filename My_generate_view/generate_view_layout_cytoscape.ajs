@@ -63,9 +63,9 @@ let param = {
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  // algorithm: "longest-path",
-  // algorithm: "tight-tree",
-  // algorithm: "network-simplex",
+  // ranker: "longest-path",
+  // ranker: "tight-tree",
+  // ranker: "network-simplex",
 
   // layout: "grid",
   // layout: "circle",

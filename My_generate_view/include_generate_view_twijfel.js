@@ -192,7 +192,7 @@ function checkParameters(param) {
   console.log("- graphDepth = " + param.graphDepth);
   console.log("- graphDirection = " + param.graphDirection);
   console.log("- graphAlign (def mid) = " + param.graphAlign);
-  console.log("- algorithm = " + param.algorithm);
+  console.log("- ranker = " + param.ranker);
   console.log("- hSep = " + param.hSep);
   console.log("- vSep = " + param.vSep);
   console.log("- action = " + param.action);
@@ -252,7 +252,7 @@ function createGraph(param) {
   if (param.graphAlign !== undefined) graphLayout.align = param.graphAlign;
   // if (param.hSep !== undefined) graphLayout.nodesep = param.hSep;
   // if (param.vSep !== undefined) graphLayout.ranksep = param.vSep;
-  if (param.algorithm !== undefined) graphLayout.ranker = param.algorithm;
+  if (param.ranker !== undefined) graphLayout.ranker = param.ranker;
 
   console.log("\nCreate graph");
 

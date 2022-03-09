@@ -12,9 +12,6 @@
  *  1	28/01/2019	Hervé Jouin		File creation.
  */
 
-load(__DIR__ + "../_lib/Common.js");
-
-initConsoleLog(__FILE__, true);
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
@@ -68,9 +65,9 @@ var param = {
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
-  // algorithm: "longest-path",
-  // algorithm: "tight-tree",
-  // algorithm: "network-simplex",
+  // ranker: "longest-path",
+  // ranker: "tight-tree",
+  // ranker: "network-simplex",
 
   hSep: 20,
   vSep: 80,
@@ -79,8 +76,5 @@ var param = {
 };
 
 initConsoleLog(__FILE__, true);
-
-// generate_view(param);
 generate_view(param);
-
 finishConsoleLog();
