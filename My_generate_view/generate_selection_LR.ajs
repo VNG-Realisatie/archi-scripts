@@ -1,37 +1,38 @@
 /**
  * Script that generates a view of the selected objects and related objects
- *
+ * 
  * Usage:
  * - change in this script the 'param' object to define how the view will be rendered
  *   - see include_generate_view.js for an explanation of the parameters
- * - make a selection in Archi (the model, a folder, a view or some elements) and
+ * - make a selection in Archi (the model, a folder, a view or some elements) and 
  * - run this script
- *
+ * 
  * This script calls the function generate_view in the javascript file include_generate_view.js
- *
+ * 
  * Requires:
  * 	- node module dagre-cluster-fix
- *
+ * 
  * Based on the work of Hervé Jouin
  */
-
 load(__DIR__ + "include_generate_view.js");
 
 var params = {
-  action: LAYOUT,
-  elementFilter: [],
-  relationFilter: [],
+  action: GENERATE_SINGLE,
+	elementFilter: [
+  ],
+  relationFilter: [
+  ],
   drawReversed: [
-    // "aggregation-relationship",
+		// "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
     "realization-relationship",
     "serving-relationship",
     "specialization-relationship",
   ],
-
+	
   drawNested: [
-    // "access-relationship",
+		// "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
@@ -39,27 +40,27 @@ var params = {
     // "serving-relationship"
     // "specialization-relationship",
   ],
+	
+	// viewName: "gen-custom",
 
-  // viewName: "gen-custom",
-
-  // graphDepth: 1,
+	// graphDepth: 1,
   graphDepth: 0, // layout selected elements and relations of these elements
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
   // graphDirection: "LR",
-  graphDirection: "TB",
+  graphDirection: "LR",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
 
   // ranker: "longest-path",
   // ranker: "tight-tree",
-  // ranker: "network-simplex", // default
+  ranker: "network-simplex", // default
 
-  nodeWidth: 140,
+  nodeWidth: 200,
   nodeHeight: 60,
   hSep: 20,
-  vSep: 80,
+  vSep: 180,
 
   debug: false,
 };

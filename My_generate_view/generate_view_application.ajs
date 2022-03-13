@@ -16,7 +16,7 @@
  *  Based on the work of Hervé Jouin
  */
 
-initConsoleLog(__FILE__, true);
+load(__DIR__ + "include_generate_view.js");
 
 var param = {
   action: GENERATE_SINGLE,
@@ -84,6 +84,6 @@ var param = {
   debug: false,
 };
 
-load(__DIR__ + "include_generate_view.js");
+initConsoleLog(__FILE__, true);
 generate_view(param);
 finishConsoleLog();
