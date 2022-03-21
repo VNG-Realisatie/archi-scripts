@@ -17,21 +17,21 @@
 load(__DIR__ + "include_generate_view.js");
 
 var param = {
-  action: EXPAND_HERE,
+  action: GENERATE_SINGLE,
 	elementFilter: [
   ],
   relationFilter: [
-    // "access-relationship",
-    // "aggregation-relationship",
-    // "assignment-relationship",
-    // "association-relationship",
-    // "composition-relationship",
+    "access-relationship",
+    "aggregation-relationship",
+    "assignment-relationship",
+    "association-relationship",
+    "composition-relationship",
     // "flow-relationship",
-    // "influence-relationship",
-    // "realization-relationship",
-    // "serving-relationship",
-    // "specialization-relationship",
-    // "triggering-relationship",
+    "influence-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship",
+    "triggering-relationship",
   ],
   drawReversed: [
 		// "aggregation-relationship",
@@ -43,12 +43,22 @@ var param = {
   ],
 	
   drawNested: [
+		// "access-relationship",
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "composition-relationship",
+    // "realization-relationship",
+    // "serving-relationship"
+    // "specialization-relationship",
   ],
 	
-	graphDepth: 1,
-  // graphDepth: 0, // layout selected elements and relations of these elements
+	// viewName: "gen-custom",
+
+	// graphDepth: 1,
+  graphDepth: 0, // layout selected elements and relations of these elements
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
+  // graphDirection: "LR",
   graphDirection: "LR",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"

@@ -58,7 +58,7 @@ var params = {
 
   nodeWidth: 140,
   nodeHeight: 60,
-  hSep: 20,
+  hSep: 60,
   vSep: 80,
 
   debug: false,

@@ -1,0 +1,115 @@
+/**
+ * tellen en plotten van te importeren objecten
+ *
+ */
+let script_name = __FILE__.replace(/^.*[\\\/]/, "");
+console.show();
+console.log(`\nRunning script "${script_name}"...\n`);
+
+if (getSelectedView()) {
+  let elements = selectElements();
+  // console.log(`elements: ${elements}`);
+
+  elements.each(function (e) {
+    plotGEMMAstatus(e);
+    plotStandaardStatus(e);
+  });
+} else {
+  console.log("No view or view elements selected. Select one or more elements on a view");
+}
+console.log(`\nScript "${script_name}" finished`);
+console.log("==========================================\n");
+
+function plotGEMMAstatus(obj) {
+  if (!(obj.prop("GEMMA status") == "In gebruik" || obj.prop("GEMMA status") == null)) {
+    let note = obj.createObject("note", 10, 30, 160, 25);
+    note.fontSize = obj.fontSize - 1;
+    note.text = `GEMMA status: ${obj.prop("GEMMA status")}`;
+    note.fillColor = "#ff9999";
+    console.log(`- ${obj.name}: ${note.text}`);
+  }
+}
+
+function plotStandaardStatus(obj) {
+  if (!(obj.prop("Status") == "In gebruik" || obj.prop("Status") == null)) {
+    let note = obj.createObject("note", 10, 60, 160, 25);
+    note.fontSize = obj.fontSize - 1;
+    note.text = `Status: ${obj.prop("Status")}`;
+    note.fillColor = "#009900";
+    console.log(`- ${obj.name}: ${note.text}`);
+  }
+}
+
+function plotVerbindingsrol(obj) {
+  if (!(obj.prop("Verbindingsrol") == "In gebruik" || obj.prop("Verbindingsrol") == null)) {
+    let note = obj.createObject("note", 10, 60, 160, 25);
+    note.fontSize = obj.fontSize - 1;
+    note.text = `Verbindingsrol: ${obj.prop("Verbindingsrol")}`;
+    note.fillColor = "#009900";
+    console.log(`- ${obj.name}: ${note.text}`);
+  }
+}
+
+/**
+ * create a list with the selected elements.
+ */
+function selectElements() {
+  if (model == null || model.id == null)
+    throw "Nothing selected. Select one or more objects in the model tree or a view";
+
+  // create an array with the selected elements
+  var selectedElements = $();
+  $(selection).each((obj) => addToCollection(obj, selectedElements));
+
+  console.log(`\nSelection:`);
+  console.log(`- ${selectedElements.size()} elements selected`);
+
+  return selectedElements;
+
+  // // filter the selected elements with the concept filter
+  // let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
+  // console.log(`- ${filteredElements.length} elements after filtering`);
+  // if (filteredElements.length === 0) throw "No Archimate element match your criterias.";
+
+  // return filteredElements;
+}
+
+/**
+ * recursive function
+ *   add the selected elements in a list.
+ *   if element is a container (model, view or folder), all contained elements are added
+ */
+function addToCollection(o, coll) {
+  if ($(o).is("element")) {
+    // let o = concept(obj);
+    // check for duplicates, than add element to the list
+    if (coll.filter((collEle) => collEle.id == o.id).size() == 0) {
+      coll.add(o);
+    }
+  }
+  $(o)
+    .children()
+    .each((child) => addToCollection(child, coll));
+  return coll;
+}
+
+function concept(o) {
+  return o.concept ? o.concept : o;
+}
+
+/**
+ * get the selected view or the view of selected objects
+ * @returns Archi view object
+ */
+function getSelectedView() {
+  let selectedView;
+  let obj = $(selection).first();
+  if (obj.type == "archimate-diagram-model") {
+    selectedView = obj;
+  } else {
+    if (obj.view) {
+      selectedView = obj.view;
+    }
+  }
+  return selectedView;
+}

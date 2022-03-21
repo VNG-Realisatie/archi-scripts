@@ -35,8 +35,11 @@
  *
  * Limitations
  * - relationships on relationships are not drawn, they are skipped
- * - layout of connections can be ugly (but for simple layouts it's good)
- * - layout of circular relations on a parent not supported (dagre throws an error)
+ * - layout of circular relations done outside dagre (dagre throws an error)
+ * - dagre buggy?
+ *    - layout of connections sometimes ugly (bendpoints 'overshoot')
+ *    - for connections to embedded elements, only some get bendpoints
+ *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
 
 const GENERATE_SINGLE = "GENERATE_SINGLE";
@@ -58,7 +61,8 @@ if (!Array.prototype.includes) {
 }
 
 var graph; // graphlib graph for layout view
-var graphParents = []; // Workaround for missing API graph.parents() and graph.parentsCount()
+var graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
+var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
 
 /**
  * Where to find the required dagre-cluster-fix module?
@@ -81,8 +85,6 @@ try {
   throw "\nDagre module not loaded";
 }
 
-var DEBUG;
-
 /**
  * generate and layout an ArchiMate view
  *
@@ -90,9 +92,7 @@ var DEBUG;
  */
 function generate_view(param) {
   if (param.debug == undefined) param.debug = false;
-  const DEBUG = param.debug;
-
-  debugStackPush(DEBUG);
+  debugStackPush(param.debug);
 
   try {
     if (setDefaultParameters(param)) {
@@ -163,7 +163,7 @@ function setDefaultParameters(param) {
   if (param.drawNested === undefined) param.drawNested = [];
 
   console.log("Developing");
-  console.log("- debug = " + DEBUG);
+  console.log("- debug = " + param.debug);
 
   if (!validFlag) console.error("\nCorrect the invalid type names logged in red");
   return validFlag;
@@ -265,7 +265,6 @@ function createGraph(param) {
  */
 function fillGraph(param, filteredElements) {
   const START_LEVEL = 0;
-  let selectedView = getSelectedView();
 
   switch (param.action) {
     case GENERATE_SINGLE:
@@ -277,15 +276,13 @@ function fillGraph(param, filteredElements) {
       break;
     case EXPAND_HERE:
       console.log("Expand selected objects on the view");
-      addViewObjects(START_LEVEL, param, selectedView);
+      addViewObjects(START_LEVEL, param);
       // expand the view from the selected elements
       filteredElements.forEach((archiEle) => addElement(START_LEVEL, param, archiEle, filteredElements));
-      param.viewName = selectedView.name;
       break;
     case LAYOUT:
       console.log("Layout objects on the view");
-      addViewObjects(START_LEVEL, param, selectedView);
-      param.viewName = selectedView.name;
+      addViewObjects(START_LEVEL, param);
       break;
 
     default:
@@ -298,6 +295,24 @@ function fillGraph(param, filteredElements) {
 }
 
 /**
+ * Add all elements and relations of the given view to the graph
+ */
+function addViewObjects(level, param) {
+  let view = getSelectedView();
+
+  $(view)
+    .find("element")
+    .each((e) => createNode(level, param, e));
+  $(view)
+    .find("relation")
+    .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations
+    .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
+    .each((r) => addRelation(0, param, r.concept));
+
+  param.viewName = view.name;
+}
+
+/**
  * get the selected view or the view of selected objects
  * @returns Archi view object
  */
@@ -307,31 +322,12 @@ function getSelectedView() {
   if (obj.type == "archimate-diagram-model") {
     selectedView = obj;
   } else {
-    if (obj.view) selectedView = obj.view;
+    if (obj.view) {
+      selectedView = obj.view;
+    }
   }
   if (!selectedView) throw "No view or view elements selected. Select one or more elements on a view";
   return selectedView;
-}
-
-/**
- * Add all elements and relations of the given view to the graph
- */
-function addViewObjects(level, param, view) {
-  $(view)
-    .find("element")
-    .each((e) => createNode(level, param, e));
-  $(view)
-    .find("relation")
-    .filter((rel) => rel.source.id != rel.target.id) // filter circular relations
-    .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations
-    .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
-    .each((r) => addRelation(0, param, r.concept));
-
-  // add circular relations last. all parent-child relations have to be set
-  $(view)
-    .find("relation")
-    .filter((rel) => rel.source.id == rel.target.id)
-    .each((r) => addRelation(0, param, r.concept));
 }
 
 /**
@@ -364,7 +360,6 @@ function addElement(level, param, archiEle, filteredElements) {
   $(archiEle)
     .rels()
     .filter((rel) => filterObjectType(rel, param.relationFilter))
-    .filter((rel) => rel.source.id != rel.target.id) // filter circular relations
     .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations
     .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
     .each(function (rel) {
@@ -390,14 +385,6 @@ function addElement(level, param, archiEle, filteredElements) {
           }
         }
       }
-    });
-  // now add circular relations
-  $(archiEle)
-    .rels()
-    .filter((rel) => filterObjectType(rel, param.relationFilter))
-    .filter((rel) => rel.source.id == rel.target.id)
-    .each(function (rel) {
-      addRelation(level, param, rel);
     });
   return NOT_STOPPED;
 }
@@ -427,7 +414,7 @@ function createNode(level, param, archiEle) {
  */
 function addRelation(level, param, rel) {
   if (rel.source.id == rel.target.id) {
-    createCircularEdge(level, param, rel);
+    graphCircular.push(rel);
   } else {
     if (param.drawNested.includes(rel.type)) {
       createParent(level, param, rel);
@@ -435,34 +422,6 @@ function addRelation(level, param, rel) {
       createEdge(level, param, rel);
     }
   }
-}
-
-/**
- * Add the given cicular relation to the graph
- */
-function createCircularEdge(level, param, rel) {
-  if (rel.source.id != rel.target.id) throw "circular with different source and targer";
-  let relSourceTarget = rel.source; // source and target are equal
-  let rel_line = `<-${rel.type}-> ${relSourceTarget.name}`;
-
-  if (!graph.hasEdge(relSourceTarget.id, relSourceTarget.id, rel.id)) {
-    // dagre layout throws an error for circular relation on a parent
-    // workaround: find out if the relations source is a parent
-    if (isNotParent(relSourceTarget)) {
-      graph.setEdge(relSourceTarget.id, relSourceTarget.id, { label: rel.id });
-      debug(`${"  ".repeat(level)}> Added circular relation: ${rel_line}`);
-    } else {
-      console.log(`${"  ".repeat(level)}> Skip, circular relation at parent not supported: ${rel_line}`);
-    }
-  } else {
-    debug(`${"  ".repeat(level)}> Skip, circular relation already in graph ${rel_line}`);
-  }
-}
-
-function isNotParent(relSourceTarget) {
-  debug(`nr of graph.children(${relSourceTarget.name}): ${graph.children(relSourceTarget.id).length}`);
-  if (graph.children(relSourceTarget.id).length > 0) return false;
-  else return true;
 }
 
 /**
@@ -519,7 +478,7 @@ function filterObjectType(o, filterArray) {
 function layoutGraph(param) {
   console.log("\nCalculating the graph layout...");
   var opts = { debugTiming: false };
-  if (DEBUG) opts.debugTiming = true;
+  if (param.debug) opts.debugTiming = true;
   dagre.layout(graph, opts);
 }
 
@@ -529,20 +488,32 @@ function drawView(param) {
   let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
   let view = getView(folder, param.viewName);
 
-  let archiViewElement = new Object();
+  let visualElementsIndex = new Object();
   let nodeIndex = {};
 
   console.log("Drawing graph nodes as elements ...");
-  graph.nodes().forEach((nodeId) => drawElement(param, nodeId, nodeIndex, archiViewElement, view));
+  graph.nodes().forEach((nodeId) => drawElement(param, nodeId, nodeIndex, visualElementsIndex, view));
 
   console.log("Drawing graph edges as relations ...");
-  graph.edges().forEach((edge) => drawRelation(param, edge, archiViewElement, view));
+  graph.edges().forEach((edge) => drawRelation(param, edge, visualElementsIndex, view));
 
   if (graphParents.length > 0) console.log("Adding child-parent relations to the view ...");
-  graphParents.forEach((parentRel) => drawNestedConnection(parentRel, archiViewElement, view));
+  graphParents.forEach((parentRel) => drawNestedConnection(parentRel, visualElementsIndex, view));
+
+  if (graphCircular.length > 0) console.log("Drawing circular relations ...");
+  graphCircular.forEach((rel) => drawCircularRelation(param, rel, visualElementsIndex, view));
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   openView(view);
+}
+
+function drawCircularRelation(param, rel, visualElementIndex, view) {
+  debugStackPush(param.debug);
+
+  let connection = view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[rel.target.id]);
+
+  drawCircularBendpoints(connection);
+  debugStackPop();
 }
 
 function getFolder(mainFolderName, folderName) {
@@ -577,8 +548,8 @@ function getView(folder, viewName) {
   return view;
 }
 
-function drawElement(param, nodeId, nodeIndex, archiViewElement, view) {
-  debugStackPush(DEBUG);
+function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
+  debugStackPush(param.debug);
   // if the id has not yet been added to the view
   // check because parents are drawn, at the moment a child node comes by
   if (nodeIndex[nodeId] === undefined) {
@@ -593,14 +564,14 @@ function drawElement(param, nodeId, nodeIndex, archiViewElement, view) {
 
         debug(`>> draw ${archiElement}`);
         let elePos = calcElement(node);
-        archiViewElement[nodeId] = view.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
+        visualElementIndex[nodeId] = view.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
       } else {
         // first add the parent to the view (the function checks if it's already drawn)
-        drawElement(param, parentId, nodeIndex, archiViewElement, view);
+        drawElement(param, parentId, nodeIndex, visualElementIndex, view);
 
         // draw element in parent
         let parentNode = graph.node(parentId);
-        let archiParent = archiViewElement[parentId];
+        let archiParent = visualElementIndex[parentId];
 
         // calculate the position within the parent
         let y_shift = 10; // shift to better center the child element(s) in the parent
@@ -608,7 +579,7 @@ function drawElement(param, nodeId, nodeIndex, archiViewElement, view) {
 
         debug(`>> draw nested ${archiElement} in parent ${archiParent}`);
         let elePos = calcElementNested(node, parentNode);
-        archiViewElement[nodeId] = archiParent.add(
+        visualElementIndex[nodeId] = archiParent.add(
           archiElement,
           elePos.x,
           elePos.y + y_shift,
@@ -664,27 +635,21 @@ function calcElementPosition(node) {
  * draw an Archi connection for the given edge
  *
  * @param {object} edge graphlib edge object
- * @param {object} archiViewElement index object to Archi view occurences
+ * @param {object} visualElementIndex index object to Archi view occurences
  * @param {object} view Archi view
  */
-function drawRelation(param, edge, archiViewElement, view) {
-  debugStackPush(DEBUG);
+function drawRelation(param, edge, visualElementIndex, view) {
+  debugStackPush(param.debug);
 
   let archiRelation = $("#" + graph.edge(edge).label).first();
   debug(`archiRelation: ${archiRelation}`);
 
   let connection = view.add(
     archiRelation,
-    archiViewElement[archiRelation.source.id],
-    archiViewElement[archiRelation.target.id]
+    visualElementIndex[archiRelation.source.id],
+    visualElementIndex[archiRelation.target.id]
   );
-
-  // check for a circular relation
-  if (archiRelation.source.id == archiRelation.target.id) {
-    drawCircularBendpoints(edge, connection);
-  } else {
   drawBendpoints(param, edge, connection);
-  }
   debugStackPop();
 }
 
@@ -694,12 +659,12 @@ function drawRelation(param, edge, archiViewElement, view) {
  *   See Edit > preferences > connections > ARM > enable implicit connections
  *
  * @param {object} parentRel Archi relation
- * @param {object} archiViewElement index object to Archi view occurences
+ * @param {object} visualElementIndex index object to Archi view occurences
  * @param {object} view Archi view
  */
-function drawNestedConnection(parentRel, archiViewElement, view) {
+function drawNestedConnection(parentRel, visualElementIndex, view) {
   debug(`parentRel: ${parentRel}`);
-  let connection = view.add(parentRel, archiViewElement[parentRel.source.id], archiViewElement[parentRel.target.id]);
+  view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
 }
 
 /**
@@ -719,6 +684,7 @@ function drawBendpoints(param, edge, connection) {
   let tgtCenter = getCenterBounds(connection.target);
 
   let bendpoints = [];
+  // ### edges from nested elements don't have points???
   let points = graph.edge(edge).points;
 
   debug(`dagre points: ${JSON.stringify(points)}`);
@@ -771,7 +737,7 @@ function getCenterBoundsAbsolute(element, center) {
   let parent = $(element).parent().filter("element").first();
   if (parent) {
     // debug(`coordinates relative to parent ${parent} `);
-    console.log(`center ${element}=${JSON.stringify(center)}`);
+    debug(`center ${element}=${JSON.stringify(center)}`);
     center.x += parent.bounds.x;
     center.y += parent.bounds.y;
     getCenterBoundsAbsolute(parent, center);
@@ -781,23 +747,19 @@ function getCenterBoundsAbsolute(element, center) {
 
 /**
  * add bendpoints for drawing a circular connection
+ * ### if an element has more than one circular relation, the are drawn on top of eachotHer
+ * ### todo => draw to next corner around with the clock
  *
- * dagre bendpoints for circular relations are ugly, so
- * - ignore edge points
- * - set Archi bendpoints for drawing a 'circle' at the top right corner
- * fingers crossed there's only one circular relation ..
- *
- * @param {object} edge - graph edge
  * @param {object} connection - Archi connection
  */
-function drawCircularBendpoints(edge, connection) {
+function drawCircularBendpoints(connection) {
   // bendpoint coordinates are relative to the center of the element (x,y=0,0)
   let cornerX = connection.source.bounds.width / 2;
   let cornerY = connection.source.bounds.height / 2;
-  let rightX = cornerX + 40;
-  let down_Y = -cornerY + 20;
-  let left_X = cornerX - 20;
-  let up___Y = -cornerY - 20;
+  let rightX = cornerX + 30;
+  let down_Y = -cornerY + 15;
+  let left_X = cornerX - 50;
+  let up___Y = -cornerY - 15;
 
   // Bendpoint with duplicate coördinates: {startX, startY} is equal to {endX, endY}. Don't understand?
   let bendpoints = [];
@@ -932,7 +894,7 @@ const RELATION_NAMES = [
   "triggering-relationship",
 ];
 
-const SCRIPT_NAME = __FILE__.replace(/^.*[\\\/]/, "");
+var script_name;
 
 /**
  * initConsoleLog and finishconsole
@@ -942,13 +904,14 @@ const SCRIPT_NAME = __FILE__.replace(/^.*[\\\/]/, "");
  * @param pClear : boolean for clear console
  */
 function initConsoleLog(pFile, pClear) {
+  script_name = pFile.replace(/^.*[\\\/]/, "");
   console.show();
   if (pClear) console.clear();
-  console.log(`\nRunning script "${SCRIPT_NAME}"...\n`);
+  console.log(`\nRunning script "${script_name}"...\n`);
 }
 
 function finishConsoleLog() {
-  console.log(`\nScript "${SCRIPT_NAME}" finished`);
+  console.log(`\nScript "${script_name}" finished`);
   console.log("==========================================\n");
 }
 

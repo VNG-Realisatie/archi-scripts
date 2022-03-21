@@ -16,7 +16,7 @@ function deleteUnusedElements(obj) {
 	if ($(obj.concept).objectRefs().isEmpty()) {
 		console.log(">> Delete: " + obj.name);
 		obj.delete();
-	} else {
-		console.log(">> Skip:   " + obj.name);
+	// } else {
+	// 	console.log(">> Skip:   " + obj.name);
 	}
 }

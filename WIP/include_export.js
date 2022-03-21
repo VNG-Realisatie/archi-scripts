@@ -48,7 +48,8 @@ function exportObjects(objectType, exportFile) {
         fileName_suggestion = fileName_suggestion.replace(/\s/g, "-").replace(/[\[\]\(\)\#\\\/\"\.:;,–]/gi, "");
 
 
-        fileType = 'xlsx'
+        // fileType = 'xlsx'
+        fileType = 'csv'
         let datum = new Date();
         exportFile = window.promptSaveFile({
           title: `Export to .${fileType}`,
@@ -58,8 +59,8 @@ function exportObjects(objectType, exportFile) {
       }
 
       if (exportFile) {
-        // saveRowsToFile(header, data, exportFile);
-        saveRowsToExcel(header, data, objectType, exportFile);
+        saveRowsToFile(header, data, exportFile);
+        // saveRowsToExcel(header, data, objectType, exportFile);
       } else {
         console.log("\nExport CSV canceled");
       }
