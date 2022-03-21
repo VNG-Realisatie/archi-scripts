@@ -27,13 +27,25 @@ const ENDPOINT_LABELS = [
 ];
 
 // Leave empty if you don't want a 'folder' column
-const FOLDER_LABEL = "folder";
+const FOLDER_LABEL = "Folder";
+
+// Leave empty if you don't want GEMMA special columns
+const PUBLICEREN_TOT_EN_MET = "Publiceren tot en met";
+const GEMMA_PUBLICEREN_LABELS = [
+  "Niet",
+  "Redactie",
+  "GEMMA Online en redactie",
+  "Softwarecatalogus en GEMMA Online en redactie",
+];
 
 // labels to skip when updating objects
 // - don't import the attribute type  (can't be set) and
 // - don't import the attribute id (can't be set) and
 // - don't import the endpoints (used for finding the relation)
-const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL].concat(ENDPOINT_LABELS);
+const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
+  .concat(ENDPOINT_LABELS)
+  .concat(PUBLICEREN_TOT_EN_MET)
+  .concat(GEMMA_PUBLICEREN_LABELS);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 /**

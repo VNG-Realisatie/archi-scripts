@@ -47,9 +47,8 @@ function exportObjects(objectType, exportFile) {
         }
         fileName_suggestion = fileName_suggestion.replace(/\s/g, "-").replace(/[\[\]\(\)\#\\\/\"\.:;,–]/gi, "");
 
-
         // fileType = 'xlsx'
-        fileType = 'csv'
+        fileType = "csv";
         let datum = new Date();
         exportFile = window.promptSaveFile({
           title: `Export to .${fileType}`,
@@ -68,7 +67,7 @@ function exportObjects(objectType, exportFile) {
       console.log(`Empty selection. No ${objectType}s found`);
     }
   } catch (error) {
-    console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+    console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   debugStackPop();
 }
@@ -92,6 +91,14 @@ function createHeader(objects, objectType) {
   if (FOLDER_LABEL) {
     header.push(FOLDER_LABEL);
     columnCounters += `, 1 ${FOLDER_LABEL}`;
+  }
+  if (PUBLICEREN_TOT_EN_MET) {
+    header.push(PUBLICEREN_TOT_EN_MET);
+    columnCounters += `, 1 ${PUBLICEREN_TOT_EN_MET}`;
+  }
+  if (GEMMA_PUBLICEREN_LABELS.length > 0) {
+    GEMMA_PUBLICEREN_LABELS.forEach((publiceren_label) => header.push(publiceren_label));
+    columnCounters += `, ${GEMMA_PUBLICEREN_LABELS.length} GEMMA publiceren`;
   }
 
   debug(`header: ${header}\n`);
@@ -129,10 +136,28 @@ function createRow(headerRow, object) {
     row[label] = get_attr_or_prop(object, label);
   });
 
+  // fill folder column
   if (FOLDER_LABEL) {
     // row[FOLDER_LABEL] = get_folderPath($(`#${object.id}`), "");
     row[FOLDER_LABEL] = getArchiFolder(object, "");
     debug(`row[FOLDER_LABEL]: ${row[FOLDER_LABEL]}`);
+  }
+
+  // GEMMA special
+  // fill column with the 'highest' publiceren value of all the views with the object drawn
+  if (PUBLICEREN_TOT_EN_MET) {
+    row[PUBLICEREN_TOT_EN_MET] = getPublicerenTotEnMet(object);
+    debug(`row[PUBLICEREN_TOT_EN_MET]: ${row[PUBLICEREN_TOT_EN_MET]}`);
+  }
+  // fill publiceren columns with the view names where the object is drawn
+  if (GEMMA_PUBLICEREN_LABELS.length > 0) {
+    $(object)
+      .viewRefs()
+      .each((v) => {
+        let headerLabel = v.prop("Publiceren");
+        if (!row[headerLabel]) row[headerLabel] = `${v.name}`;
+        else row[headerLabel] += `, ${v.name}`;
+      });
   }
 
   debug(`Row: ${JSON.stringify(row)}`);
@@ -149,6 +174,20 @@ function getArchiFolder(child, currentFolderName) {
 
   let folderName = `${parent.first().name}/${currentFolderName}`;
   return getArchiFolder(parent.first(), folderName);
+}
+
+function getPublicerenTotEnMet(object) {
+  let maxPublicerenIndex = -1;
+
+  $(object)
+    .viewRefs()
+    .each(function (v) {
+      let publicerenIndex = GEMMA_PUBLICEREN_LABELS.indexOf(`${v.prop("Publiceren")}`);
+      if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
+    });
+
+  if (maxPublicerenIndex == -1) return "Niet - geen view";
+  else return GEMMA_PUBLICEREN_LABELS[maxPublicerenIndex];
 }
 
 /**
@@ -169,7 +208,7 @@ function saveRowsToExcel(header, data, objectType, exportFile) {
   // load("https://unpkg.com/xlsx/dist/xlsx.core.min.js");
   load("https://unpkg.com/xlsx/dist/xlsx.full.min.js");
   // load("https://unpkg.com/xlsx/dist/xlsx.extendscript.js");
-  
+
   console.log(`XLSX version:  ${XLSX.version}`);
 
   /* create a new blank workbook */
