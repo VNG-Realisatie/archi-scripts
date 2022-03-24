@@ -22,7 +22,7 @@ var params = {
   relationFilter: [
   ],
   drawReversed: [
-    // "aggregation-relationship",
+    "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
     // "realization-relationship",

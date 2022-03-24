@@ -1,7 +1,5 @@
 /**
- * include_export.js
- *
- * Functions for exporting model elements, relations and view properties
+ * Export the selected elements, relations or views and their properties to a CSV file
  */
 
 load(__DIR__ + "../_lib/SelectCollection.js");
@@ -10,11 +8,7 @@ load(__DIR__ + "include_export_import.js");
 /**
  * export selected objects to a CSV file
  *
- * ToDo:
- * - select elements and their relations
- *
- * @param {*} objectType type of Archi objects to export.
- * 												- Use the constants OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT or OBJECT_TYPE_VIEW
+ * @param {*} objectType type of Archi objects to export (OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT or OBJECT_TYPE_VIEW)
  * @param {*} exportFile filepath to write CSV file (optional, if empty you will be prompted)
  */
 function exportObjects(objectType, exportFile) {
@@ -37,7 +31,7 @@ function exportObjects(objectType, exportFile) {
       console.log(`Creating header with columns and rows:`);
       const header = createHeader(objects, objectType);
 
-      const data = objects.map((o) => createRow(header, o));
+      const data = objects.map((o) => createRow(header, o, objectType));
       console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
 
       if (!exportFile) {
@@ -92,13 +86,24 @@ function createHeader(objects, objectType) {
     header.push(FOLDER_LABEL);
     columnCounters += `, 1 ${FOLDER_LABEL}`;
   }
-  if (PUBLICEREN_TOT_EN_MET) {
-    header.push(PUBLICEREN_TOT_EN_MET);
-    columnCounters += `, 1 ${PUBLICEREN_TOT_EN_MET}`;
-  }
-  if (GEMMA_PUBLICEREN_LABELS.length > 0) {
-    GEMMA_PUBLICEREN_LABELS.forEach((publiceren_label) => header.push(publiceren_label));
-    columnCounters += `, ${GEMMA_PUBLICEREN_LABELS.length} GEMMA publiceren`;
+  // GEMMA columns for exporting element view references
+  if (objectType == OBJECT_TYPE_ELEMENT) {
+    if (GEMMA_PUBLICEREN_TOT_EN_MET_LABEL) {
+      header.push(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
+      columnCounters += `, 1 ${GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
+    }
+    if (GEMMA_LIST_API_LABEL) {
+      header.push(GEMMA_LIST_API_LABEL);
+      columnCounters += `, 1 ${GEMMA_LIST_API_LABEL}`;
+    }
+    if (GEMMA_PUBLICEREN_NO_LABEL) {
+      header.push(GEMMA_PUBLICEREN_NO_LABEL);
+      columnCounters += `, 1 ${GEMMA_PUBLICEREN_NO_LABEL}`;
+    }
+    if (GEMMA_PUBLICEREN_LABELS.length > 0) {
+      GEMMA_PUBLICEREN_LABELS.forEach((publiceren_label) => header.push(publiceren_label));
+      columnCounters += `, ${GEMMA_PUBLICEREN_LABELS.length} GEMMA publiceren`;
+    }
   }
 
   debug(`header: ${header}\n`);
@@ -124,7 +129,7 @@ function findPropertyLabels(accumulator, object) {
 /**
  * create a CSV row for an exported object
  */
-function createRow(headerRow, object) {
+function createRow(headerRow, object, objectType) {
   let row = new Object();
 
   debugStackPush(false);
@@ -143,23 +148,36 @@ function createRow(headerRow, object) {
     debug(`row[FOLDER_LABEL]: ${row[FOLDER_LABEL]}`);
   }
 
-  // GEMMA special
-  // fill column with the 'highest' publiceren value of all the views with the object drawn
-  if (PUBLICEREN_TOT_EN_MET) {
-    row[PUBLICEREN_TOT_EN_MET] = getPublicerenTotEnMet(object);
-    debug(`row[PUBLICEREN_TOT_EN_MET]: ${row[PUBLICEREN_TOT_EN_MET]}`);
+  // GEMMA columns for checking which elements will be published
+  if (objectType == OBJECT_TYPE_ELEMENT) {
+    // fill column with the 'highest' publiceren value of all the views with the object drawn
+    if (GEMMA_PUBLICEREN_TOT_EN_MET_LABEL) {
+      row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = getPublicerenTotEnMet(object);
+      debug(`row[PUBLICEREN_TOT_EN_MET]: ${row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
+    }
+    if (GEMMA_LIST_API_LABEL) {
+      row[GEMMA_LIST_API_LABEL] = getGEMMA_ListAPI(object);
+      debug(`row[GEMMA_LIST_API]: ${row[GEMMA_LIST_API_LABEL]}`);
+    }
+    // fill publiceren columns with the view names of the elements view references
+    if (GEMMA_PUBLICEREN_LABELS.length > 0) {
+      $(object)
+        .viewRefs()
+        .each((v) => {
+          let headerLabel = v.prop("Publiceren");
+          if (!headerLabel) {
+            headerLabel = GEMMA_PUBLICEREN_NO_LABEL;
+          } else {
+            if (!GEMMA_PUBLICEREN_LABELS.includes(headerLabel)) {
+              console.log(`ERROR: ${v} met ongeldige property Publiceren = ${headerLabel}`);
+            }
+          }
+          // first cell value without a separator
+          if (!row[headerLabel]) row[headerLabel] = `${v.name}`;
+          else row[headerLabel] += `, ${v.name}`;
+        });
+    }
   }
-  // fill publiceren columns with the view names where the object is drawn
-  if (GEMMA_PUBLICEREN_LABELS.length > 0) {
-    $(object)
-      .viewRefs()
-      .each((v) => {
-        let headerLabel = v.prop("Publiceren");
-        if (!row[headerLabel]) row[headerLabel] = `${v.name}`;
-        else row[headerLabel] += `, ${v.name}`;
-      });
-  }
-
   debug(`Row: ${JSON.stringify(row)}`);
   debugStackPop();
   return row;
@@ -176,7 +194,31 @@ function getArchiFolder(child, currentFolderName) {
   return getArchiFolder(parent.first(), folderName);
 }
 
-function getPublicerenTotEnMet(object) {
+/**
+ * get the 'highest' publiceren value of the elements view references
+ */
+ function getPublicerenTotEnMet(object) {
+  let maxPublicerenIndex = -1;
+  let pubProp = "Geen view";
+
+  $(object)
+    .viewRefs()
+    .each(function (v) {
+      if (!v.prop("Publiceren") && maxPublicerenIndex == -1) {
+        pubProp = "Geen view met publiceren";
+      } else {
+        let publicerenIndex = GEMMA_PUBLICEREN_LABELS.indexOf(`${v.prop("Publiceren")}`);
+        if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
+      }
+    });
+  if (maxPublicerenIndex > -1) pubProp = GEMMA_PUBLICEREN_LABELS[maxPublicerenIndex];
+  return pubProp;
+}
+
+/**
+ * get wether the element will be published by the list API
+ */
+ function getGEMMA_ListAPI(object) {
   let maxPublicerenIndex = -1;
 
   $(object)
@@ -185,9 +227,8 @@ function getPublicerenTotEnMet(object) {
       let publicerenIndex = GEMMA_PUBLICEREN_LABELS.indexOf(`${v.prop("Publiceren")}`);
       if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
     });
-
-  if (maxPublicerenIndex == -1) return "Niet - geen view";
-  else return GEMMA_PUBLICEREN_LABELS[maxPublicerenIndex];
+  if (maxPublicerenIndex >= 2) return "List API";
+  else return "Niet";
 }
 
 /**

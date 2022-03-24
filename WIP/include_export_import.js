@@ -1,7 +1,5 @@
 /**
- * include_export_import.js
- *
- * Functions for exporting and importing model elements, relations and view properties
+ * Shared constants and functions for exporting and importing
  */
 
 load(__DIR__ + "../_lib/papaparse.min.js");
@@ -29,14 +27,16 @@ const ENDPOINT_LABELS = [
 // Leave empty if you don't want a 'folder' column
 const FOLDER_LABEL = "Folder";
 
-// Leave empty if you don't want GEMMA special columns
-const PUBLICEREN_TOT_EN_MET = "Publiceren tot en met";
+// Leave empty if you don't want GEMMA special columns for elements
 const GEMMA_PUBLICEREN_LABELS = [
   "Niet",
   "Redactie",
   "GEMMA Online en redactie",
   "Softwarecatalogus en GEMMA Online en redactie",
 ];
+const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
+const GEMMA_PUBLICEREN_NO_LABEL = "Publiceren ontbreekt";
+const GEMMA_LIST_API_LABEL = "SWC API";
 
 // labels to skip when updating objects
 // - don't import the attribute type  (can't be set) and
@@ -44,10 +44,11 @@ const GEMMA_PUBLICEREN_LABELS = [
 // - don't import the endpoints (used for finding the relation)
 const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
   .concat(ENDPOINT_LABELS)
-  .concat(PUBLICEREN_TOT_EN_MET)
+  .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
+  .concat(GEMMA_PUBLICEREN_NO_LABEL)
+  .concat(GEMMA_LIST_API_LABEL)
   .concat(GEMMA_PUBLICEREN_LABELS);
 
-//////////////////////////////////////////////////////////////////////////////////////////
 /**
  * set an attribute or property to the value from the CSV file
  */

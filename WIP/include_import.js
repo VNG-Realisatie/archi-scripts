@@ -1,7 +1,5 @@
 /**
- * include_import.js
- *
- * Functions for importing model elements, relations and view properties
+ * Import elements, relations or views and their properties
  *
  * You can use this script for
  * - roundtripping; use the export and import script to bulk update properties
@@ -20,7 +18,7 @@
  *
  * Updated are the attributes name and documentation and the properties
  *
- * Make sure you import elements before relations. You can't create relations without a source and target
+ * Import elements before relations. You can't create relations without a source and target
  *
  */
 load(__DIR__ + "include_export_import.js");
