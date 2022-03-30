@@ -1,0 +1,225 @@
+/**
+ * Create a project model of a reference model
+ *   save a copy of the reference model and keep only the for the project relevant objects
+ *
+ * Use case
+ *   Use part of a reference model as a start for a project model and keep that part in sync.
+ *   The project reuses the shared concepts of the reference model and can freely extend with project details and scenario's.
+ *
+ * How to use this script
+ * - Create the project model file
+ *   - specify the for the project relevant objects in the reference model
+ *     - create a 'project folder' with the name of the project in the reference model
+ *     - create one or more view(s) with for the project relevant objects in the 'project folder'
+ *   - select the created 'project folder'
+ *   - run this script
+ *   - use the new project model which is now opened in the model tree
+ *     - add everything you need for the project,
+ *     - don't change the objects from the reference model, these are maintained in the reference model
+ * - Sync changes in the reference model to the project model
+ *   - you have 2 models open in Archi
+ *     - an updated reference model
+ *     - the project model with added project concepts and views
+ *   - run this script again in the updated reference model
+ *   - import the just create project file in your project model
+ *     - select your project model
+ *     - import with 'File > Import > Another model into the selected model'
+ *       - do not sync model properties; uncheck the option 'Update model information and top-level folders'
+ *
+ * What this script does
+ * - save a copy of the reference model as the project model
+ * - delete everything not relevant to the project
+ *   - delete all views not in the project folder
+ *   - delete unused elements (elements not on a view anymore)
+ *   - delete empty folders
+ *
+ * Author:  Mark Backer
+ * Version: 1 (2021-03)
+ */
+const PROP_ID = "Object ID";
+const MODEL_TYPE = "Type model";
+
+initConsoleLog(__FILE__, true);
+try {
+  let projectFolders = $(selection).filter("folder");
+  if (projectFolders.size() == 1) {
+    let projectFolder = projectFolders.first();
+    console.log(`Selected project folder is "${projectFolder.name}"`);
+
+    let referenceModelPath = model.getPath();
+
+    let projectModelName = `Projectmodel ${projectFolder.name}`;
+    let projectFile = getProjectModelFileName(projectModelName);
+
+    // save a copy of the reference model as the projectmodel
+    let projectModel = model.save(projectFile);
+    projectModel.setAsCurrent()
+
+    // delete everything not relevant to the project
+    filterProjectModel(projectFolder, projectModelName);
+
+    // save filtered model
+    projectModel.save().setAsCurrent();
+    console.log(`\nProjectmodel saved in: "${projectModel.getPath()}"`);
+
+    // reload the reference model
+    $.model.load(referenceModelPath).setAsCurrent();
+    model.openInUI();
+  } else {
+    console.log("Select one folder with views containing all the elements of the project architecture");
+  }
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+finishConsoleLog();
+
+/**
+ * Save a copy of the current model, prompt for a file name
+ */
+function getProjectModelFileName(projectModelName) {
+  let fileName_suggestion = projectModelName.replace(/\s/g, "-").replace(/[\[\]\(\)\#\\\/\"\.:;,–]/gi, "");
+
+  let projectFile = window.promptSaveFile({
+    title: `Save projectmodel`,
+    filterExtensions: [`*.archimate`],
+    fileName: `${fileName_suggestion}.archimate`,
+  });
+
+  console.log(`Create projectmodel "${projectModelName}"`);
+
+  return projectFile;
+}
+
+/**
+ * delete everything not relevant to the project
+ */
+function filterProjectModel(projectFolder, projectModelName) {
+  // set project model properties for start of project model
+  // model properties should not be imported when syncing
+  model.name = projectModelName;
+  model.prop(PROP_ID, generateUUID());
+  model.prop(MODEL_TYPE, "Projectmodel");
+
+  // delete views not in selected project folder
+  projectViews = selectObjects(projectFolder, "view");
+  console.log(`\nFilter projectmodel`);
+  console.log(`Only keep objects referenced on the ${projectViews.size()} views in the folder ${projectFolder.name}`);
+
+  viewsToDelete = $("view").not(projectViews);
+  console.log(`\nDelete ${viewsToDelete.size()} views`);
+  viewsToDelete.each((v) => {
+    console.log(` - ${v.name}`);
+    v.delete();
+  });
+
+  // delete elements not on a view
+  elementsToDelete = $("element").filter((e) => $(e).viewRefs().size() == 0);
+  console.log(`\nDelete ${elementsToDelete.size()} unused elements`);
+  elementsToDelete.each((e) => {
+    console.log(` - ${e}`);
+    e.delete();
+  });
+
+  // delete empty folders
+  let nrFoldersStart = $(model).find("folder").size();
+  console.log(`\nDelete empty folders:`);
+  deleteEmptyFolders($(model).first());
+  let nrFoldersRemaining = $(model).find("folder").size();
+  console.log(`Deleted ${nrFoldersStart - nrFoldersRemaining} empty folders of total of ${nrFoldersStart} folders`);
+}
+
+/**
+ * delete empty folders by recursing over the folder tree
+ *
+ * @param {object} folderObj - current folder to traverse. For root folder, use $(model).first()
+ * @param {integer} level - current level of recursion
+ * @param {string} folderPath - path of traversed parent folders
+ */
+function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
+  // stop if folder has no subfolders
+  let subFolders = $(folderObj).children("folder");
+  if (subFolders.size() == 0) return;
+
+  subFolders.each((subFolder) => {
+    deleteEmptyFolders(subFolder, level + 1, `${folderPath}/${subFolder.name}`);
+
+    // delete empty folder
+    if ($(subFolder).children().size() == 0 && level > 0) {
+      console.log(` - ${subFolder.name != "" ? `${folderPath}/${subFolder.name}` : `${folderPath}/## no name ##`}`);
+      subFolder.delete();
+    }
+  });
+}
+
+/**
+ * 	return a generated UUID
+ * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+ */
+function generateUUID() {
+  // Public Domain/MIT
+  var d = new Date().getTime(); //Timestamp
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16; //random number between 0 and 16
+    r = (d + r) % 16 | 0;
+    d = Math.floor(d / 16);
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+/**
+ * return a collection of  the contained objects in the selection
+ *
+ * @param {object} startSelection - selection containing Archi objects
+ * @param {string} selector - Archi selector for filtering the type of contained objects
+ * @returns {object} - collection with selected objects
+ */
+function selectObjects(startSelection, selector) {
+  if (model == null || model.id == null)
+    throw "Nothing selected. Select one or more objects in the model tree or a view";
+
+  // create an empty collection
+  var selectedColl = $();
+  $(startSelection).each((obj) => addObjectInList(obj, selector, selectedColl));
+
+  return selectedColl;
+}
+
+/**
+ * recursive function
+ *   add the selected object to a collection.
+ *   if the object is a container (model, view or folder), add all contained objects
+ */
+function addObjectInList(obj, selector, coll) {
+  if ($(obj).is(selector)) {
+    let o = obj;
+    if (selector != "view") o = concept(obj);
+    // check for duplicates, than add element to the list
+    if (coll.filter((a) => a.id == o.id).size() == 0) {
+      coll.add(o);
+    }
+  }
+  $(obj)
+    .children()
+    .each((child) => addObjectInList(child, selector, coll));
+  return coll;
+}
+
+function concept(o) {
+  return o.concept ? o.concept : o;
+}
+
+/**
+ * initConsoleLog and finishconsole
+ *   first and last call in an Archi script
+ */
+function initConsoleLog(currentScript, pClear) {
+  script_name = currentScript.replace(/^.*[\\\/]/, "");
+  console.show();
+  if (pClear) console.clear();
+  console.log(`\nRunning script "${script_name}"...\n`);
+}
+
+function finishConsoleLog() {
+  console.log(`\nScript "${script_name}" finished`);
+  console.log("==========================================\n");
+}
