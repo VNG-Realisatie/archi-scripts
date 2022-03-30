@@ -1,0 +1,21 @@
+/**
+ * This is the shortest wrapper script using default parameters
+ * 
+ * Select in Archi a folder, a view or some elements and run this script
+ * 
+ * - make a selection in Archi (the model, a folder, a view or some elements) and run this script
+ * - the script will generate a view with the selected (contained) elements expanded with related elements
+ * - create another wrapper scripts with a different configuration for the view to be rendered
+ *    - see other wrapper scripts
+ *    - see readme.md for an explanation of the parameters
+ */
+
+load(__DIR__ + "include_generate_view.js");
+
+var param = {
+  action: REGENERATE,
+};
+
+initConsoleLog(__FILE__, true);
+generate_view(param);
+finishConsoleLog();
