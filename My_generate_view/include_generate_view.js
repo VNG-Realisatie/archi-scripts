@@ -46,8 +46,10 @@ const GENERATE_SINGLE = "GENERATE_SINGLE";
 const GENERATE_MULTIPLE = "GENERATE_MULTIPLE";
 const EXPAND_HERE = "EXPAND_HERE";
 const LAYOUT = "LAYOUT";
+const REGENERATE = "REGENERATE";
 
 // default settings for generated views
+const PROP_SAVE_PARAMETER = "generate_view_param";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
 const NODE_WIDTH = 140; // width of a drawn element
 const NODE_HEIGHT = 60; // height of a drawn element
@@ -143,9 +145,20 @@ function layoutAndRender(param, filteredElements) {
 function setDefaultParameters(param) {
   let validFlag = true;
 
+  if (param.action == REGENERATE) {
+    // get parameters from the selected view property
+    console.log(`Action is ${param.action}`);
+
+    let view = getSelectedView();
+    console.log(`** Reading param from selected ${view} **\n`);
+
+    Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
+  }
+
   console.log("Generate view parameters");
   if (param.action == undefined) param.action = GENERATE_SINGLE;
   console.log("- action = " + param.action);
+
   if (param.graphDepth === undefined) param.graphDepth = 1;
   console.log("- graphDepth = " + param.graphDepth);
 
@@ -488,6 +501,9 @@ function drawView(param) {
   let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
   let view = getView(folder, param.viewName);
 
+  // save generate_view parameter to a view property
+  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param));
+
   let visualElementsIndex = new Object();
   let nodeIndex = {};
 
@@ -505,6 +521,7 @@ function drawView(param) {
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   openView(view);
+  return;
 }
 
 function drawCircularRelation(param, rel, visualElementIndex, view) {
