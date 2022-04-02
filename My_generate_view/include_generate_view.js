@@ -49,6 +49,7 @@ const LAYOUT = "LAYOUT";
 const REGENERATE = "REGENERATE";
 
 // default settings for generated views
+const SEPARATOR = "___";
 const PROP_SAVE_PARAMETER = "generate_view_param";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
 const NODE_WIDTH = 140; // width of a drawn element
@@ -64,7 +65,9 @@ if (!Array.prototype.includes) {
 
 var graph; // graphlib graph for layout view
 var graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
-var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
+// Bookkeeping of circular relations.
+// Circular relation are not added to the graph, because dagre graph.layout can crash
+var graphCircular = [];
 
 /**
  * Where to find the required dagre-cluster-fix module?
@@ -154,6 +157,7 @@ function setDefaultParameters(param) {
 
     Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
     param.viewName = "";
+    param.viewName = "";
   }
 
   console.log("Generate view parameters");
@@ -195,7 +199,7 @@ function selectElements(param) {
 
   // create an array with the selected elements
   var selectedElements = [];
-  $(selection).each((obj) => addElementInList(obj, selectedElements));
+  $(selection).each((obj) => addSelectedElementInList(obj, selectedElements));
 
   console.log(`\nSelection:`);
   console.log(`- ${selectedElements.length} elements selected`);
@@ -213,7 +217,7 @@ function selectElements(param) {
  *   add the selected elements in a list.
  *   if element is a container (model, view or folder), all contained elements are added
  */
-function addElementInList(obj, list) {
+function addSelectedElementInList(obj, list) {
   if ($(obj).is("element")) {
     let o = concept(obj);
     // check for duplicates, than add element to the list
@@ -221,7 +225,7 @@ function addElementInList(obj, list) {
   }
   $(obj)
     .children()
-    .each((child) => addElementInList(child, list));
+    .each((child) => addSelectedElementInList(child, list));
   return list;
 }
 
@@ -462,25 +466,76 @@ function createEdge(level, param, rel) {
 
 /**
  * Add the given relation as a parent/child to the graph
+ *
+ * if a child has multiple parents, create for every parent a child node in the graph
+ * addElement
+ * - created first node for the child
+ * - and adds all relations to first node
+ *
+ * createParent checks
+ * - if this is the first parent
+ *   - all set
+ * - else
+ *   - addChildNode
+ *     - childNode node-id wordt `${target-id}-${source-id}` of reversed
+ *     - and occurences of relations for the childNode
+ *
  */
 function createParent(level, param, rel) {
+  debugStackPush(param.debug);
   let rel_line;
   // check if relation is already added
-  if (!graphParents.some((r) => r.id == rel.id)) {
-    // save parent relation
-    graphParents.push(rel);
-
+  if (!graphParents.some((graphParentsObj) => graphParentsObj.rel.id == rel.id)) {
+    let archiParent = rel.source;
+    let archiChild = rel.target;
+    let arrow = "->";
+    // if relation is reversed, reverse parent and child
     if (param.drawReversed.includes(rel.type)) {
-      graph.setParent(rel.target.id, rel.source.id);
-      rel_line = `Parent <- Child: ${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
-    } else {
-      graph.setParent(rel.source.id, rel.target.id);
-      rel_line = `Parent -> Child: ${rel.source.name} --${rel.type}-> ${rel.target.name}`;
+      archiParent = rel.target;
+      archiChild = rel.source;
+      arrow = "<-";
     }
-    debug(`${"  ".repeat(level)}> Added child->parent = ${rel_line}`);
+
+    // if this is the first occurrence of the child (child is not in the graphparents array)
+    if (!graphParents.some((graphParentsObj) => graphParentsObj.child.id == archiChild.id)) {
+      // there are node in the graph for de archi parent and child
+      graph.setParent(archiChild.id, archiParent.id);
+      rel_line = `${archiParent} ${arrow}${rel.type}${arrow} ${archiChild}`;
+      debug(`${"  ".repeat(level)}> Added parent-child: ${rel_line}`);
+      // save parent relation
+      graphParents.push({ rel, parent: archiParent, child: archiChild });
+    } else {
+      // add for this relation a new child node to the graph
+      let addedChildNode = new Object();
+      addedChildNode.id = `${archiParent.id}${SEPARATOR}${archiChild.id}`;
+
+      graph.setNode(addedChildNode.id, { label: archiChild.name, width: param.nodeWidth, height: param.nodeHeight });
+      graph.setParent(addedChildNode.id, archiParent.id);
+
+      debug(`archiParent = ${archiParent}`);
+      debug(`archiChild = ${archiChild}`);
+      debug(`addedChildNode.ID = ${addedChildNode.id}`);
+      debug(`graph.node(v) = ${JSON.stringify(graph.node(addedChildNode.id))}`);
+
+      debug(`graph.children(archiParent) = ${JSON.stringify(graph.children(archiParent.id))}`);
+      debug(`graph.children(addedChildNode) = ${JSON.stringify(graph.children(addedChildNode.id))}`);
+
+      debug(`graph.parent(archiChild.id) = ${graph.parent(archiChild.id)}`);
+      debug(`graph.parent(addedChildNode.id) = ${graph.parent(addedChildNode.id)}`);
+
+      // todo add childNode relations (again)
+      // skip current parent-child
+      // skip filtered relation types
+      // skip filtered sources/targets
+
+      // save parent relation
+      graphParents.push({ rel, parent: archiParent, child: addedChildNode });
+    }
   } else {
-    debug(`${"  ".repeat(level)}> Skip child->parent, already in graph = ${rel_line}`);
+    debug(`${"  ".repeat(level)}> Skip parent-child, already in graph = ${rel_line}`);
   }
+  debugStackPop();
+
   return;
 }
 
@@ -505,7 +560,7 @@ function drawView(param, filteredElements) {
   // save generate_view parameter to a view property
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
   // and get the setting for review in views documentation
-  view.documentation = "View genereated with these settings and selections\n\n"
+  view.documentation = "View genereated with these settings and selections\n\n";
   view.documentation += getSettings(param, filteredElements);
 
   let visualElementsIndex = new Object();
@@ -518,7 +573,7 @@ function drawView(param, filteredElements) {
   graph.edges().forEach((edge) => drawRelation(param, edge, visualElementsIndex, view));
 
   if (graphParents.length > 0) console.log("Adding child-parent relations to the view ...");
-  graphParents.forEach((parentRel) => drawNestedConnection(parentRel, visualElementsIndex, view));
+  graphParents.forEach((graphParentsObj) => drawNestedRelation(param, graphParentsObj, visualElementsIndex, view));
 
   if (graphCircular.length > 0) console.log("Drawing circular relations ...");
   graphCircular.forEach((rel) => drawCircularRelation(param, rel, visualElementsIndex, view));
@@ -544,8 +599,8 @@ function drawCircularRelation(param, rel, visualElementIndex, view) {
   debugStackPush(param.debug);
 
   let connection = view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[rel.target.id]);
-
   drawCircularBendpoints(connection);
+
   debugStackPop();
 }
 
@@ -585,40 +640,23 @@ function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
   debugStackPush(param.debug);
   // if the id has not yet been added to the view
   // check because parents are drawn, at the moment a child node comes by
+  //
+  // idea: use view occurences instead of nodeIndex ($(view).find(`#${nodeId}`)) (id van concept, not occurence)
   if (nodeIndex[nodeId] === undefined) {
     nodeIndex[nodeId] = true;
-    let node = graph.node(nodeId);
-    let parentId = graph.parent(nodeId);
-    let archiElement = $("#" + nodeId).first();
-
     try {
-      if (parentId === undefined) {
-        // archi coordinates for visual element on archi diagram (related to the top left corner of diagram)
+      if (graph.parent(nodeId) === undefined) {
+        let archiElement = $("#" + nodeId).first();
 
+        debug(`>> nodeId = ${nodeId}`);
         debug(`>> draw ${archiElement}`);
-        let elePos = calcElement(node);
+        // archi coordinates for visual element on archi diagram (related to the top left corner of diagram)
+        let elePos = getElementCoordinates(graph.node(nodeId));
         visualElementIndex[nodeId] = view.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
       } else {
-        // first add the parent to the view (the function checks if it's already drawn)
-        drawElement(param, parentId, nodeIndex, visualElementIndex, view);
-
-        // draw element in parent
-        let parentNode = graph.node(parentId);
-        let archiParent = visualElementIndex[parentId];
-
-        // calculate the position within the parent
-        let y_shift = 10; // shift to better center the child element(s) in the parent
-        if (param.graphDirection == "TB" || param.graphDirection == "BT") y_shift = 0;
-
-        debug(`>> draw nested ${archiElement} in parent ${archiParent}`);
-        let elePos = calcElementNested(node, parentNode);
-        visualElementIndex[nodeId] = archiParent.add(
-          archiElement,
-          elePos.x,
-          elePos.y + y_shift,
-          elePos.width,
-          elePos.height
-        );
+        // first add the parent to the view (this function checks if it's already drawn)
+        drawElement(param, graph.parent(nodeId), nodeIndex, visualElementIndex, view);
+        drawNestedElement(param, graph.parent(nodeId), nodeId, visualElementIndex);
       }
     } catch (e) {
       console.error("-->" + e + "\n" + e.stack);
@@ -627,9 +665,37 @@ function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
   debugStackPop();
 }
 
+// draw a child node in one or multiple parent nodes
+function drawNestedElement(param, parentId, childNodeId, visualElementIndex) {
+  // draw element in parent
+  let visualParent = visualElementIndex[parentId];
+
+  // an Archi element can have multiple childNodes; childNodeId = `${archiParent.id}${SEPARATOR}${archiChild.id}`;
+  let childId = childNodeId;
+  if (childNodeId.includes(SEPARATOR))
+    childId = childNodeId.substring(childNodeId.indexOf(SEPARATOR) + SEPARATOR.length);
+  debug(`>> childNodeId = ${childNodeId} childId = ${childId}`);
+
+  let archiChild = $("#" + childId).first();
+
+  // calculate the position within the parent
+  let y_shift = 10; // shift to better center the child element(s) in the parent
+  if (param.graphDirection == "TB" || param.graphDirection == "BT") y_shift = 0;
+
+  debug(`>> draw nested ${archiChild} in parent ${visualParent}`);
+  let elePos = getNestedCoordinates(graph.node(childNodeId), graph.node(parentId));
+  visualElementIndex[childNodeId] = visualParent.add(
+    archiChild,
+    elePos.x,
+    elePos.y + y_shift,
+    elePos.width,
+    elePos.height
+  );
+}
+
 // calculate the absolute coordinates of the left upper corner of the node
-function calcElement(node) {
-  let elePos = calcElementPosition(node);
+function getElementCoordinates(node) {
+  let elePos = convertCoordinates(node);
   elePos.x = parseInt(elePos.x);
   elePos.y = parseInt(elePos.y);
 
@@ -639,10 +705,10 @@ function calcElement(node) {
 }
 
 // calculate the relative coordinates of the node to the parent
-function calcElementNested(node, parentNode) {
-  let nestedPos = calcElementPosition(node);
+function getNestedCoordinates(node, parentNode) {
+  let nestedPos = convertCoordinates(node);
   debug(`>> element (${JSON.stringify(nestedPos)}`);
-  let parentPos = calcElementPosition(parentNode);
+  let parentPos = convertCoordinates(parentNode);
   debug(`>> parent (${JSON.stringify(parentPos)}`);
 
   nestedPos.x = parseInt(nestedPos.x - parentPos.x);
@@ -653,7 +719,7 @@ function calcElementNested(node, parentNode) {
   return nestedPos;
 }
 
-function calcElementPosition(node) {
+function convertCoordinates(node) {
   let elePos = {};
   elePos.x = node.x - node.width / 2;
   elePos.y = node.y - node.height / 2;
@@ -695,9 +761,30 @@ function drawRelation(param, edge, visualElementIndex, view) {
  * @param {object} visualElementIndex index object to Archi view occurences
  * @param {object} view Archi view
  */
-function drawNestedConnection(parentRel, visualElementIndex, view) {
-  debug(`parentRel: ${parentRel}`);
-  view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
+function drawNestedRelation(param, graphParentsObj, visualElementIndex, view) {
+  debug(`graphParentsObj.rel: ${graphParentsObj.rel}`);
+
+  if (graphParentsObj.child) {
+    if (param.drawReversed.includes(graphParentsObj.rel.type)) {
+      view.add(
+        graphParentsObj.rel,
+        visualElementIndex[graphParentsObj.child.id],
+        visualElementIndex[graphParentsObj.parent.id]
+      );
+    } else {
+      view.add(
+        graphParentsObj.rel,
+        visualElementIndex[graphParentsObj.parent.id],
+        visualElementIndex[graphParentsObj.child.id]
+      );
+    }
+  } else {
+    view.add(
+      graphParentsObj.rel,
+      visualElementIndex[graphParentsObj.rel.source.id],
+      visualElementIndex[graphParentsObj.rel.target.id]
+    );
+  }
 }
 
 /**

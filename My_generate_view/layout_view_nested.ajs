@@ -22,11 +22,11 @@ var params = {
   relationFilter: [
   ],
   drawReversed: [
-    "aggregation-relationship",
+    // "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
     // "realization-relationship",
-    "serving-relationship",
+    // "serving-relationship",
     "specialization-relationship",
   ],
 
@@ -35,9 +35,9 @@ var params = {
     "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
-    "realization-relationship",
+    // "realization-relationship",
     // "serving-relationship"
-    // "specialization-relationship",
+    "specialization-relationship",
   ],
 
   // viewName: "gen-custom",
