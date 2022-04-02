@@ -134,7 +134,7 @@ function layoutAndRender(param, filteredElements) {
   createGraph(param);
   fillGraph(param, filteredElements);
   layoutGraph(param);
-  drawView(param);
+  drawView(param, filteredElements);
 }
 
 /**
@@ -153,6 +153,7 @@ function setDefaultParameters(param) {
     console.log(`** Reading param from selected ${view} **\n`);
 
     Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
+    param.viewName = "";
   }
 
   console.log("Generate view parameters");
@@ -495,14 +496,17 @@ function layoutGraph(param) {
   dagre.layout(graph, opts);
 }
 
-function drawView(param) {
+function drawView(param, filteredElements) {
   console.log(`\nDrawing ArchiMate view...  `);
 
   let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
   let view = getView(folder, param.viewName);
 
   // save generate_view parameter to a view property
-  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param));
+  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
+  // and get the setting for review in views documentation
+  view.documentation = "View genereated with these settings and selections\n\n"
+  view.documentation += getSettings(param, filteredElements);
 
   let visualElementsIndex = new Object();
   let nodeIndex = {};
@@ -522,6 +526,18 @@ function drawView(param) {
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   openView(view);
   return;
+}
+
+// return a string with setting
+function getSettings(param, filteredElements) {
+  let selectionArray = [];
+  selection.not("relationship").each((o) => selectionArray.push(`${o.type}: ${o.name}`));
+  let filterEleArray = [];
+  filteredElements.forEach((e) => filterEleArray.push(`${e.type}: ${e.name}`));
+  let selString = JSON.stringify(selectionArray, null, "  ");
+  let filterEleString = JSON.stringify(filterEleArray, null, "  ");
+  let paramString = JSON.stringify(param, null, "  ");
+  return `Parameter: \n${paramString}\n\nSelection: \n${selString}\n\nResult filtered elements: \n${filterEleString}`;
 }
 
 function drawCircularRelation(param, rel, visualElementIndex, view) {
