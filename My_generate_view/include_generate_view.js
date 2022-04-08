@@ -74,13 +74,12 @@ var graphCircular = []; // Bookkeeping of circular relations. Workaround for dag
  * - download from the folder /dist the file dagre.js and copy it in the scripts folder
  */
 try {
-  // here the dagre.js file is located in the folder '_lib' next to this scripts folder
   load(__DIR__ + "../_lib/jvm-npm.js");
   require.addPath(__DIR__);
   var dagre = require("../_lib/dagre");
 
   console.log(`Dagre version:`);
-  console.log(`- dagre:    ${dagre.version}`); // dagre-cluster-fix shows wrong version, should be 0.9.3
+  console.log(`- dagre:    ${dagre.version}`); // dagre-cluster-fix should show version 0.9.3
   console.log(`- graphlib: ${dagre.graphlib.version}\n`);
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -319,8 +318,7 @@ function addViewObjects(level, param) {
     .each((e) => createNode(level, param, e));
   $(view)
     .find("relation")
-    .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations
-    .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
+    .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .each((r) => addRelation(0, param, r.concept));
 
   param.viewName = view.name;
@@ -374,8 +372,7 @@ function addElement(level, param, archiEle, filteredElements) {
   $(archiEle)
     .rels()
     .filter((rel) => filterObjectType(rel, param.relationFilter))
-    .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations
-    .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
+    .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .each(function (rel) {
       let related_element;
       if (archiEle.id == rel.target.id) {
@@ -505,7 +502,7 @@ function drawView(param, filteredElements) {
   // save generate_view parameter to a view property
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
   // and get the setting for review in views documentation
-  view.documentation = "View genereated with these settings and selections\n\n"
+  view.documentation = "View genereated with these settings and selections\n\n";
   view.documentation += getSettings(param, filteredElements);
 
   let visualElementsIndex = new Object();

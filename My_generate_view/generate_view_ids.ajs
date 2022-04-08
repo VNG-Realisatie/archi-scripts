@@ -1,0 +1,166 @@
+/**
+ * Script that generates a view of the selected objects and related objects
+ * - change in this script the param variable to define the view to be rendered
+ * - make a selection in Archi (the model, a folder, a view or some elements) and run this script
+ * - see include_generate_view.js for an explanation of the parameters
+ *
+ * This script calls the function generate_view in the javascript file include_generate_view.js
+ *
+ * Requires:
+ * 	- node module dagre-cluster-fix
+ *  - scripts:
+ * 			_lib\Common.js
+ * 			_lib\jvm-npm.js
+ * 			include_generate_view.js
+ *
+ *  Based on the work of Hervé Jouin
+ */
+
+load(__DIR__ + "include_generate_view_ids.js");
+
+var param = {
+  action: GENERATE_SINGLE,
+  // action: GENERATE_MULTIPLE,
+  // action: EXPAND_HERE,
+  // action: LAYOUT,
+
+  // graphDepth: 1,
+  graphDepth: 1,
+
+  elementFilter: [
+    // "application-collaboration",
+    // "application-component",
+    // "application-event",
+    // "application-function",
+    // "application-interaction",
+    // "application-interface",
+    // "application-process",
+    // "application-service",
+    // "artifact",
+    // "assessment",
+    // "business-actor",
+    // "business-collaboration",
+    // "business-event",
+    // "business-function",
+    // "business-interaction",
+    // "business-interface",
+    // "business-object",
+    // "business-process",
+    // "business-role",
+    // "business-service",
+    // "canvas-model-block",
+    // "canvas-model-image",
+    // "canvas-model-sticky",
+    // "capability",
+    // "communication-network",
+    // "constraint",
+    // "contract",
+    // "course-of-action",
+    // "data-object",
+    // "deliverable",
+    // "device",
+    // "diagram-model-connection",
+    // "diagram-model-group",
+    // "diagram-model-image",
+    // "diagram-model-note",
+    // "diagram-model-reference",
+    // "distribution-network",
+    // "driver",
+    // "equipment",
+    // "facility",
+    // "gap",
+    // "goal",
+    // "grouping",
+    // "implementation-even",
+    // "junction",
+    // "location",
+    // "material",
+    // "meaning",
+    // "node",
+    // "outcome",
+    // "path",
+    // "plateau",
+    // "principle",
+    // "product",
+    // "representation",
+    // "requirement",
+    // "resource",
+    // "sketch-model-actor",
+    // "sketch-model-sticky",
+    // "stakeholder",
+    // "system-software",
+    // "technology-collaboration",
+    // "technology-event",
+    // "technology-function",
+    // "technology-interaction",
+    // "technology-interface",
+    // "technology-process",
+    // "technology-service",
+    // "value",
+    // "work-package",
+  ],
+  relationFilter: [
+    // "access-relationship",
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    // "realization-relationship",
+    // "serving-relationship",
+    // "specialization-relationship",
+    // "triggering-relationship",
+  ],
+
+  // viewName: "gen-custom",
+
+  drawReversed: [
+    // "access-relationship",
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship",
+    // "triggering-relationship",
+  ],
+  drawNested: [
+    // "access-relationship",
+    "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    // "realization-relationship",
+    // "serving-relationship",
+    // "specialization-relationship",
+    // "triggering-relationship",
+  ],
+
+  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
+  graphDirection: "LR",
+  // graphDirection: "TB",
+
+  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
+  // graphAlign: "UL",
+
+  // ranker: "longest-path",
+  // ranker: "tight-tree",
+  ranker: "network-simplex",
+
+  nodeWidth: 200,
+  nodeHeight: 60,
+  hSep: 20,
+  vSep: 180,
+
+  debug: true,
+};
+
+initConsoleLog(__FILE__, true);
+generate_view(param);
+finishConsoleLog();
