@@ -25,9 +25,9 @@ var params = {
     "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
-    // "realization-relationship",
+    "realization-relationship",
     "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
   ],
 
   drawNested: [
@@ -37,7 +37,7 @@ var params = {
     // "composition-relationship",
     "realization-relationship",
     // "serving-relationship"
-    // "specialization-relationship",
+    "specialization-relationship",
   ],
 
   // viewName: "gen-custom",

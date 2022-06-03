@@ -29,19 +29,17 @@ const FOLDER_LABEL = "Folder";
 // const FOLDER_LABEL = "";
 
 // Leave empty if you don't want GEMMA special columns for elements
-const GEMMA_PUBLICEREN_LABELS = [
+const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
+// const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "";
+const GEMMA_LIST_API_LABEL = "SWC API";
+// const GEMMA_LIST_API_LABEL = "";
+
+const GEMMA_PUBLICEREN_VALUES = [
   "Niet",
   "Redactie",
   "GEMMA Online en redactie",
   "Softwarecatalogus en GEMMA Online en redactie",
 ];
-const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
-const GEMMA_PUBLICEREN_NO_LABEL = "Publiceren ontbreekt";
-const GEMMA_LIST_API_LABEL = "SWC API";
-// const GEMMA_PUBLICEREN_LABELS = [];
-// const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "";
-// const GEMMA_PUBLICEREN_NO_LABEL = "";
-// const GEMMA_LIST_API_LABEL = "";
 
 // labels to skip when updating objects
 // - don't import the attribute type  (can't be set) and
@@ -50,9 +48,7 @@ const GEMMA_LIST_API_LABEL = "SWC API";
 const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
   .concat(ENDPOINT_LABELS)
   .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
-  .concat(GEMMA_PUBLICEREN_NO_LABEL)
-  .concat(GEMMA_LIST_API_LABEL)
-  .concat(GEMMA_PUBLICEREN_LABELS);
+  .concat(GEMMA_LIST_API_LABEL);
 
 /**
  * set an attribute or property to the value from the CSV file

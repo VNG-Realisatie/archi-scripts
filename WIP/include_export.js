@@ -99,14 +99,6 @@ function createHeader(objects, objectType) {
         header.push(GEMMA_LIST_API_LABEL);
         columnLogText += `, 1 ${GEMMA_LIST_API_LABEL}`;
       }
-      if (GEMMA_PUBLICEREN_NO_LABEL) {
-        header.push(GEMMA_PUBLICEREN_NO_LABEL);
-        columnLogText += `, 1 ${GEMMA_PUBLICEREN_NO_LABEL}`;
-      }
-      if (GEMMA_PUBLICEREN_LABELS.length > 0) {
-        GEMMA_PUBLICEREN_LABELS.forEach((publiceren_label) => header.push(publiceren_label));
-        columnLogText += `, ${GEMMA_PUBLICEREN_LABELS.length} GEMMA publiceren`;
-      }
       break;
 
     default:
@@ -173,24 +165,6 @@ function createRow(headerRow, object, objectType) {
       row[GEMMA_LIST_API_LABEL] = getGEMMA_ListAPI(object);
       debug(`row[GEMMA_LIST_API]: ${row[GEMMA_LIST_API_LABEL]}`);
     }
-    // fill publiceren columns with the view names of the elements view references
-    if (GEMMA_PUBLICEREN_LABELS.length > 0) {
-      $(object)
-        .viewRefs()
-        .each((v) => {
-          let headerLabel = v.prop("Publiceren");
-          if (!headerLabel) {
-            headerLabel = GEMMA_PUBLICEREN_NO_LABEL;
-          } else {
-            if (!GEMMA_PUBLICEREN_LABELS.includes(headerLabel)) {
-              console.log(`ERROR: ${v} met ongeldige property Publiceren = ${headerLabel}`);
-            }
-          }
-          // first cell value without a separator
-          if (!row[headerLabel]) row[headerLabel] = `${v.name}`;
-          else row[headerLabel] += `, ${v.name}`;
-        });
-    }
   }
   debug(`Row: ${JSON.stringify(row)}`);
   debugStackPop();
@@ -221,11 +195,11 @@ function getPublicerenTotEnMet(object) {
       if (!v.prop("Publiceren") && maxPublicerenIndex == -1) {
         pubProp = "Geen view met publiceren";
       } else {
-        let publicerenIndex = GEMMA_PUBLICEREN_LABELS.indexOf(`${v.prop("Publiceren")}`);
+        let publicerenIndex = GEMMA_PUBLICEREN_VALUES.indexOf(`${v.prop("Publiceren")}`);
         if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
       }
     });
-  if (maxPublicerenIndex > -1) pubProp = GEMMA_PUBLICEREN_LABELS[maxPublicerenIndex];
+  if (maxPublicerenIndex > -1) pubProp = GEMMA_PUBLICEREN_VALUES[maxPublicerenIndex];
   return pubProp;
 }
 
@@ -238,7 +212,7 @@ function getGEMMA_ListAPI(object) {
   $(object)
     .viewRefs()
     .each(function (v) {
-      let publicerenIndex = GEMMA_PUBLICEREN_LABELS.indexOf(`${v.prop("Publiceren")}`);
+      let publicerenIndex = GEMMA_PUBLICEREN_VALUES.indexOf(`${v.prop("Publiceren")}`);
       if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
     });
   if (maxPublicerenIndex >= 2) return "List API";
