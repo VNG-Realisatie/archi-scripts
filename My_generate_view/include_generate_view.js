@@ -361,9 +361,8 @@ function addElement(level, param, archiEle, filteredElements) {
   debug(`${"  ".repeat(level)}> Start ${archiEle}`);
 
   // stop recursion when the recursion level is larger then the graphDepth
-  let graphDepth = param.graphDepth;
-  if ((graphDepth > 0 && level > graphDepth) || (graphDepth == 0 && level > 1)) {
-    debug(`${"  ".repeat(level)}> Stop level=${level} > graphDepth=${graphDepth}`);
+  if ((param.graphDepth > 0 && level > param.graphDepth) || (param.graphDepth == 0 && level > 1)) {
+    debug(`${"  ".repeat(level)}> Stop level=${level} > graphDepth=${param.graphDepth}`);
     return STOPPED;
   }
   // add element to the graph
@@ -374,17 +373,11 @@ function addElement(level, param, archiEle, filteredElements) {
     .filter((rel) => filterObjectType(rel, param.relationFilter))
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .each(function (rel) {
-      let related_element;
-      if (archiEle.id == rel.target.id) {
-        related_element = rel.source;
-        debug(`${"  ".repeat(level)}> In going relation; ${rel} <- ${related_element}`);
-      } else {
-        related_element = rel.target;
-        debug(`${"  ".repeat(level)}> Out going relation; ${rel} -> ${related_element}`);
-      }
+      let related_element = rel.source;
+      if (archiEle.id != rel.target.id) related_element = rel.target;
 
       // for graphDepth=0 add all selected elements and their relations
-      if (graphDepth == 0 && filteredElements.filter((e) => e.id == related_element.id).length < 1) {
+      if (param.graphDepth == 0 && filteredElements.filter((e) => e.id == related_element.id).length < 1) {
         debug(`${"  ".repeat(level)}> Skip; not in selection ${related_element}`);
       } else {
         // check if the related_element is in the concepts filter
