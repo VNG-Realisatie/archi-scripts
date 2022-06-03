@@ -1,20 +1,22 @@
-## generate_view readme
+# generate_view readme
 
 JArchi function for generating and auto layout of an Archi view
 
 Use cases:
+
 - quickly generate a starting point for a new view
 - generate multiple context views (one element and all its related elements)
 - analyse your model by generating different views.
 - Use nesting to find unexpected relations, see double relations, etc.
 
-### generate_view parameters
+## generate_view parameters
+
 All the parameters of the generate_view function are contained in one object, the param object.
 
-Configure the behavior of generate_view with the folowing parameters. 
+Configure the behavior of generate_view with the folowing parameters.
 
 - Parameters describing which elements and relations to included in the view
-  - `action`, generate and/or layout a view 
+  - `action`, generate and/or layout a view
     - Generate new views
       - GENERATE_SINGLE (default)
         generate a view with the selected elements and THEIR related elements (add elements and relations `graphDepth` relations deep)
@@ -29,7 +31,7 @@ Configure the behavior of generate_view with the folowing parameters.
     - default is 1
     - Used for the GENERATE_SINGLE and GENERATE_MULTIPLE actions
     - integer -  number of relations to follow
-  - `elementFilter`, element types that will be included in the view 
+  - `elementFilter`, element types that will be included in the view
     - default is no filter
     - [..] (empty array) all element types are included
     - [type, type, ...] array of element types like business-actor, application-component, technology-collaboration, node, ...
@@ -51,8 +53,8 @@ Configure the behavior of generate_view with the folowing parameters.
     - [..] (empty array) no relationships are nested
     - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
 - Dagre layout options
-  For more information see https://github.com/dagrejs/dagre/wiki#configuring-the-layout
-  - `graphDirection`, direction of the graph 
+  For more information see <https://github.com/dagrejs/dagre/wiki#configuring-the-layout>
+  - `graphDirection`, direction of the graph
     - TB -   Top-Bottom (default)
     - BT -   Bottom-Top
     - LR -   Left-Right
@@ -68,10 +70,9 @@ Configure the behavior of generate_view with the folowing parameters.
     - longest-path
     - tight-tree
 
-
   - `nodeWidth`, width of a drawn element
     - integer - number of pixels for the width (default NODE_WIDTH)
-  - `nodeHeight`, height of a drawn element 
+  - `nodeHeight`, height of a drawn element
     - integer - number of pixels for the height (default NODE_HEIGHT)
   - `hSep`, horizontal distance between two drawn elements
     - integer - number of pixels that separate nodes horizontally  (defaults to 50)
@@ -81,18 +82,22 @@ Configure the behavior of generate_view with the folowing parameters.
   - `debug`, print debug messages on the console
     - boolean, true or false  (default is false)
 
-### wrapper files
-include_generate_view.js
+### files
 
+file with generate view function
 
-context_views.ajs
-expand_view_LR.ajs
-generate_multiple_views.ajs
-generate_view.ajs
-generate_view_application.ajs
-generate_view_business.ajs
-generate_view_motivation.ajs
-generate_view_technology.ajs
-layout_view_LR.ajs
-layout_view_nested.ajs
-layout_view_TB.ajs
+- include_generate_view.js
+
+wrapper files with settings for generating a specific view
+
+- context_views.ajs
+- expand_view_LR.ajs
+- generate_multiple_views.ajs
+- generate_view.ajs
+- generate_view_application.ajs
+- generate_view_business.ajs
+- generate_view_motivation.ajs
+- generate_view_technology.ajs
+- layout_view_LR.ajs
+- layout_view_nested.ajs
+- layout_view_TB.ajs

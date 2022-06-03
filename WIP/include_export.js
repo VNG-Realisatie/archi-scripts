@@ -28,9 +28,10 @@ function exportObjects(objectType, exportFile) {
     collection.filter(objectType).each((object) => objects.push(object));
 
     if (objects.length > 0) {
-      console.log(`Creating header with columns and rows:`);
+      console.log(`Create header:`);
       const header = createHeader(objects, objectType);
 
+      console.log(`Create rows for selection:`);
       const data = objects.map((o) => createRow(header, o, objectType));
       console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
 
@@ -70,60 +71,73 @@ function exportObjects(objectType, exportFile) {
  * create a row with the column labels for the exported objects
  */
 function createHeader(objects, objectType) {
-  // remove duplicate property labels  ### kan dit met een filter op een array?
-  const propertyLabelsObject = objects.reduce((a, obj) => findPropertyLabels(a, obj), {});
-  // convert object with labels to array with labels
-  const propertyLabels = Object.keys(propertyLabelsObject);
+  let header = [];
+  let columnLogText = "";
 
-  let header = ATTRIBUTE_LABELS.concat(propertyLabels);
-  let columnCounters = `header with ${ATTRIBUTE_LABELS.length} attributes, ${propertyLabels.length} properties`;
+  const PROPERTY_LABELS = getPropertyLabels(objects);
 
-  if (objectType == OBJECT_TYPE_RELATION) {
-    header = header.concat(ENDPOINT_LABELS);
-    columnCounters += `, ${ENDPOINT_LABELS.length} endpoints`;
-  }
   if (FOLDER_LABEL) {
     header.push(FOLDER_LABEL);
-    columnCounters += `, 1 ${FOLDER_LABEL}`;
+    columnLogText += `1 folder`;
   }
-  // GEMMA columns for exporting element view references
-  if (objectType == OBJECT_TYPE_ELEMENT) {
-    if (GEMMA_PUBLICEREN_TOT_EN_MET_LABEL) {
-      header.push(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
-      columnCounters += `, 1 ${GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
-    }
-    if (GEMMA_LIST_API_LABEL) {
-      header.push(GEMMA_LIST_API_LABEL);
-      columnCounters += `, 1 ${GEMMA_LIST_API_LABEL}`;
-    }
-    if (GEMMA_PUBLICEREN_NO_LABEL) {
-      header.push(GEMMA_PUBLICEREN_NO_LABEL);
-      columnCounters += `, 1 ${GEMMA_PUBLICEREN_NO_LABEL}`;
-    }
-    if (GEMMA_PUBLICEREN_LABELS.length > 0) {
-      GEMMA_PUBLICEREN_LABELS.forEach((publiceren_label) => header.push(publiceren_label));
-      columnCounters += `, ${GEMMA_PUBLICEREN_LABELS.length} GEMMA publiceren`;
-    }
+  header = header.concat(ATTRIBUTE_LABELS);
+  header = header.concat(PROPERTY_LABELS);
+  columnLogText += `, ${ATTRIBUTE_LABELS.length} attributes, ${PROPERTY_LABELS.length} properties`;
+
+  switch (objectType) {
+    case OBJECT_TYPE_RELATION:
+      header = header.concat(ENDPOINT_LABELS);
+      columnLogText += `, ${ENDPOINT_LABELS.length} endpoints`;
+      break;
+    case OBJECT_TYPE_ELEMENT:
+      // GEMMA columns for exporting element view references
+      if (GEMMA_PUBLICEREN_TOT_EN_MET_LABEL) {
+        header.push(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
+        columnLogText += `, 1 ${GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
+      }
+      if (GEMMA_LIST_API_LABEL) {
+        header.push(GEMMA_LIST_API_LABEL);
+        columnLogText += `, 1 ${GEMMA_LIST_API_LABEL}`;
+      }
+      if (GEMMA_PUBLICEREN_NO_LABEL) {
+        header.push(GEMMA_PUBLICEREN_NO_LABEL);
+        columnLogText += `, 1 ${GEMMA_PUBLICEREN_NO_LABEL}`;
+      }
+      if (GEMMA_PUBLICEREN_LABELS.length > 0) {
+        GEMMA_PUBLICEREN_LABELS.forEach((publiceren_label) => header.push(publiceren_label));
+        columnLogText += `, ${GEMMA_PUBLICEREN_LABELS.length} GEMMA publiceren`;
+      }
+      break;
+
+    default:
+      break;
   }
 
   debug(`header: ${header}\n`);
-  console.log(`- ${header.length} columns (${columnCounters})`);
+  console.log(`- ${header.length} columns (${columnLogText})`);
 
   return header;
 }
 
-/**
- * loop over all objects en find all unique property names
- */
-function findPropertyLabels(accumulator, object) {
-  object.prop().forEach(function (propLabel) {
-    // accumulate all unique property labels.
-    if (typeof accumulator[propLabel] == "undefined") {
-      accumulator[propLabel] = propLabel;
-      debug(`add property to accumulator: ${accumulator[propLabel]}`);
-    }
-  });
-  return accumulator;
+function getPropertyLabels(objects) {
+  // remove duplicate property labels  ### kan dit met een filter op een array?
+  let propertyLabelsObject = objects.reduce((a, obj) => findPropertyLabels(a, obj), {});
+  // convert object with labels to array with labels
+  return Object.keys(propertyLabelsObject);
+
+  /**
+   * loop over all objects en find all unique property names
+   */
+  function findPropertyLabels(accumulator, obj) {
+    obj.prop().forEach(function (propLabel) {
+      // accumulate all unique property labels.
+      if (typeof accumulator[propLabel] == "undefined") {
+        accumulator[propLabel] = propLabel;
+        debug(`add property to accumulator: ${accumulator[propLabel]}`);
+      }
+    });
+    return accumulator;
+  }
 }
 
 /**
@@ -197,7 +211,7 @@ function getArchiFolder(child, currentFolderName) {
 /**
  * get the 'highest' publiceren value of the elements view references
  */
- function getPublicerenTotEnMet(object) {
+function getPublicerenTotEnMet(object) {
   let maxPublicerenIndex = -1;
   let pubProp = "Geen view";
 
@@ -218,7 +232,7 @@ function getArchiFolder(child, currentFolderName) {
 /**
  * get wether the element will be published by the list API
  */
- function getGEMMA_ListAPI(object) {
+function getGEMMA_ListAPI(object) {
   let maxPublicerenIndex = -1;
 
   $(object)

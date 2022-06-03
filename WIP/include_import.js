@@ -43,7 +43,7 @@ const CREATE = "CREATE";
 /**
  * import the CSV file
  * - process the given CSV file and for every row create or update an archi object
- * 
+ *
  * @param {*} importFile filepath to CSV file to import (optional, if empty you will be prompted)
  */
 function importObjects(importFile) {
@@ -99,10 +99,10 @@ function importObjects(importFile) {
             console.log("\nRows skipped:");
             skipped.map((result) => console.log(result.line));
           }
-					if (created.length > 0) {
-						console.log("\nObjects created:");
-						created.map((result) => console.log(result.line));
-					}
+          if (created.length > 0) {
+            console.log("\nObjects created:");
+            created.map((result) => console.log(result.line));
+          }
           if (updated.length > 0) {
             console.log("\nObjects updated:");
             updated.map((result) => console.log(result.line));
@@ -193,7 +193,7 @@ function processRow(row, index, rowLabels) {
   let findResult;
   let result = {};
 
-  debugStackPush(true);
+  debugStackPush(false);
   debug(`row[${index + 2}] ${row.type}: ${row.name}`);
 
   findResult = findObject(row.type, row.name, row[PROP_ID], row.id, row);
@@ -260,7 +260,7 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
     }
   }
 
-	// search relation with endpoints
+  // search relation with endpoints
   if (findCode == NOT_FOUND && row_type.endsWith("relationship")) {
     rowHasKey = true; // if row endpoints are not complete, it's signaled in the function
     let findRelResult = findWithEndpoints(row);
@@ -272,22 +272,21 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
     }
     archiColl = findRelResult.archiObj;
   } else {
-		// search other objects with name and type
-		if (row_name && row_type && findCode == NOT_FOUND) {
-			rowHasKey = true;
-			archiColl = $(`.${row_name}`).filter(row_type);
-			if (archiColl.size() == 1) {
-				findCode = FOUND;
-				findText = `found with 'name'`;
-				debug(`${findText}: ${archiColl.first()}`);
-			} else if (archiColl.size() > 1) {
-				errorCode += WARNING;
-				errorText += `Warning: Multiple objects with name=${row_name}`;
-				archiColl.each((obj) => (errorText += `\n> - ${obj}`));
-			}
-		}
-	}
-
+    // search other objects with name and type
+    if (row_name && row_type && findCode == NOT_FOUND) {
+      rowHasKey = true;
+      archiColl = $(`.${row_name}`).filter(row_type);
+      if (archiColl.size() == 1) {
+        findCode = FOUND;
+        findText = `found with 'name'`;
+        debug(`${findText}: ${archiColl.first()}`);
+      } else if (archiColl.size() > 1) {
+        errorCode += WARNING;
+        errorText += `Warning: Multiple objects with name=${row_name}`;
+        archiColl.each((obj) => (errorText += `\n> - ${obj}`));
+      }
+    }
+  }
 
   if (findCode == NOT_FOUND && row_type == "archimate-diagram-model") {
     errorCode += WARNING;
@@ -344,7 +343,7 @@ function findWithEndpoints(row) {
     srcColl = $(`#${findSrc.archiObj.id}`);
     tgtColl = $(`#${findTgt.archiObj.id}`);
 
-		archiRels = srcColl.outRels(row.type).filter(function (outRel) {
+    archiRels = srcColl.outRels(row.type).filter(function (outRel) {
       // return archiTargets.has(r.target).size() > 0; // ????
       let relationWithEndpoints = tgtColl.inRels(row.type).filter(function (inRel) {
         return outRel.id == inRel.id;
@@ -353,15 +352,15 @@ function findWithEndpoints(row) {
     });
 
     if (archiRels.size() == 1) {
-			if (row.name == archiRels.name) {
-				findCode = FOUND;
-				findText = `found with 'endpoints'`;
-				debug(`${findText}: ${archiRels.first()}`);
-			} else {
-				errorCode += INFO;
-				errorText += `Info: found relation with 'endpoints', but other name=${archiRels.name}`;
-				debug(`${findText}: ${archiRels.first()}`);
-			}
+      if (row.name == archiRels.name) {
+        findCode = FOUND;
+        findText = `found with 'endpoints'`;
+        debug(`${findText}: ${archiRels.first()}`);
+      } else {
+        errorCode += INFO;
+        errorText += `Info: found relation with 'endpoints', but other name=${archiRels.name}`;
+        debug(`${findText}: ${archiRels.first()}`);
+      }
     } else if (archiRels.size() > 1) {
       errorCode += WARNING;
       errorText += `Warning: Multiple relations with source ${srcColl} and target ${tgtColl}`;
@@ -442,6 +441,8 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
     let labelType = ATTRIBUTE_LABELS.indexOf(label) != -1 ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
     let attr_or_prop_value = get_attr_or_prop(archiObj, label);
 
+    // remove whitespace from imported values
+    row[label] = row[label].trim();
     // remove properties with the value REMOVE_PROPERTY
     if (labelType == PROPERTY_TEXT && row[label] == REMOVE_PROPERTY_VALUE) {
       if (archiObj.prop().indexOf(label) != -1) {
@@ -454,10 +455,10 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
         // if (row[label] != attr_or_prop_value) {
         if (attr_or_prop_value) {
           lineUpdated += `\n> update ${labelType} ${label}:`;
-          lineUpdated += `\n>> from: ${attr_or_prop_value}`;
-          lineUpdated += `\n>> to:   ${row[label]}`;
+          lineUpdated += `\n>> from: "${attr_or_prop_value}"`;
+          lineUpdated += `\n>> to:   "${row[label]}"`;
         } else {
-          lineUpdated += `\n> set ${labelType} ${label}: ${row[label]}`;
+          lineUpdated += `\n> set ${labelType} ${label}: "${row[label]}"`;
         }
         set_attr_or_prop(archiObj, row, label);
       }
