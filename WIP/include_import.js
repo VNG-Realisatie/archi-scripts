@@ -135,7 +135,7 @@ function get_labelsToUpdate(rows) {
   function checkLabel(labels, labelType) {
     let line = "";
     labels.forEach(function (label) {
-      if (headerLabels.indexOf(label) == -1) line += `- ${label}`;
+      if (headerLabels.includes(label)) line += `- ${label}`;
     });
     if (line) {
       console.log(`\n>> UNVALID CSV file <<\nMissing ${labelType} columns:`);
@@ -438,14 +438,14 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
 
   // update objects attributes and properties with the row cell values
   rowLabels.map((label) => {
-    let labelType = ATTRIBUTE_LABELS.indexOf(label) != -1 ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
+    let labelType = ATTRIBUTE_LABELS.includes(label) ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
     let attr_or_prop_value = get_attr_or_prop(archiObj, label);
 
     // remove whitespace from imported values
     row[label] = row[label].trim();
     // remove properties with the value REMOVE_PROPERTY
     if (labelType == PROPERTY_TEXT && row[label] == REMOVE_PROPERTY_VALUE) {
-      if (archiObj.prop().indexOf(label) != -1) {
+      if (archiObj.prop().includes(label)) {
         lineUpdated += `\n> remove ${labelType} ${label}: ${attr_or_prop_value}`;
         archiObj.removeProp(label);
       }

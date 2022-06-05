@@ -1,7 +1,7 @@
 /**
  * Export the selected elements, relations or views and their properties to a CSV file
  */
-
+// ## todo ## replace selectCollection
 load(__DIR__ + "../_lib/SelectCollection.js");
 load(__DIR__ + "include_export_import.js");
 
@@ -90,17 +90,14 @@ function createHeader(objects, objectType) {
       columnLogText += `, ${ENDPOINT_LABELS.length} endpoints`;
       break;
     case OBJECT_TYPE_ELEMENT:
-      // GEMMA columns for exporting element view references
-      if (GEMMA_PUBLICEREN_TOT_EN_MET_LABEL) {
+      if (GEMMA_COLUMNS) {
+        // GEMMA columns for exporting element view references
         header.push(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
         columnLogText += `, 1 ${GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
-      }
-      if (GEMMA_LIST_API_LABEL) {
         header.push(GEMMA_LIST_API_LABEL);
         columnLogText += `, 1 ${GEMMA_LIST_API_LABEL}`;
       }
       break;
-
     default:
       break;
   }
@@ -112,7 +109,7 @@ function createHeader(objects, objectType) {
 }
 
 function getPropertyLabels(objects) {
-  // remove duplicate property labels  ### kan dit met een filter op een array?
+  // remove duplicate property labels
   let propertyLabelsObject = objects.reduce((a, obj) => findPropertyLabels(a, obj), {});
   // convert object with labels to array with labels
   return Object.keys(propertyLabelsObject);
@@ -155,16 +152,12 @@ function createRow(headerRow, object, objectType) {
   }
 
   // GEMMA columns for checking which elements will be published
-  if (objectType == OBJECT_TYPE_ELEMENT) {
+  if (GEMMA_COLUMNS && objectType == OBJECT_TYPE_ELEMENT) {
     // fill column with the 'highest' publiceren value of all the views with the object drawn
-    if (GEMMA_PUBLICEREN_TOT_EN_MET_LABEL) {
-      row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = getPublicerenTotEnMet(object);
-      debug(`row[PUBLICEREN_TOT_EN_MET]: ${row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
-    }
-    if (GEMMA_LIST_API_LABEL) {
-      row[GEMMA_LIST_API_LABEL] = getGEMMA_ListAPI(object);
-      debug(`row[GEMMA_LIST_API]: ${row[GEMMA_LIST_API_LABEL]}`);
-    }
+    row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = getGEMMA_columns(object).publicerenTotEnMet;
+    debug(`row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]: ${row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
+    row[GEMMA_LIST_API_LABEL] = getGEMMA_columns(object).GEMMA_ListAPI;
+    debug(`row[GEMMA_LIST_API]: ${row[GEMMA_LIST_API_LABEL]}`);
   }
   debug(`Row: ${JSON.stringify(row)}`);
   debugStackPop();
@@ -184,10 +177,16 @@ function getArchiFolder(child, currentFolderName) {
 
 /**
  * get the 'highest' publiceren value of the elements view references
+ * - determine if the element will be published to the wiki
+ * - and the API
+ *
+ * @param {*} object
+ * @returns object with values for two columns
  */
-function getPublicerenTotEnMet(object) {
+function getGEMMA_columns(object) {
   let maxPublicerenIndex = -1;
   let pubProp = "Geen view";
+  let naarSWC = "Niet";
 
   $(object)
     .viewRefs()
@@ -200,23 +199,8 @@ function getPublicerenTotEnMet(object) {
       }
     });
   if (maxPublicerenIndex > -1) pubProp = GEMMA_PUBLICEREN_VALUES[maxPublicerenIndex];
-  return pubProp;
-}
-
-/**
- * get wether the element will be published by the list API
- */
-function getGEMMA_ListAPI(object) {
-  let maxPublicerenIndex = -1;
-
-  $(object)
-    .viewRefs()
-    .each(function (v) {
-      let publicerenIndex = GEMMA_PUBLICEREN_VALUES.indexOf(`${v.prop("Publiceren")}`);
-      if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
-    });
-  if (maxPublicerenIndex >= 2) return "List API";
-  else return "Niet";
+  if (maxPublicerenIndex >= 2) naarSWC = "List API";
+  return { publicerenTotEnMet: pubProp, GEMMA_ListAPI: naarSWC };
 }
 
 /**
