@@ -8,7 +8,7 @@ load(__DIR__ + "../_lib/Common.js");
 
 load("include_import.js");
 
-initConsoleLog(__FILE__);
+initConsoleLog(__FILE__,true);
 
 importObjects();
 

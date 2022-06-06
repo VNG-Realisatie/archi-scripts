@@ -26,18 +26,19 @@ load(__DIR__ + "include_export_import.js");
 // use this value in a property column to remove a property from the object
 const REMOVE_PROPERTY_VALUE = "<remove>";
 
+// find object codes
 const FOUND = "found";
 const NOT_FOUND = `Not found`;
 
+// processing error codes
 const SUCCES = 0;
-const INFO = 1;
-const WARNING = 2;
-const ERROR = 3;
+const WARNING = 1;
+const ERROR = 2;
 
 // Indexing result codes
-const UPDATE = "UPDATE";
 const NOTHING_TO_UPDATE = "NOTHING_TO_UPDATE";
 const SKIP = "SKIP";
+const UPDATE = "UPDATE";
 const CREATE = "CREATE";
 
 /**
@@ -65,11 +66,12 @@ function importObjects(importFile) {
       let importFileName = importFile.replace(/^.*[\\\/]/, "");
       console.log(`> Loaded CSV file: ${importFileName}`);
 
-      console.log(`\nTry to find objects with the keys:`);
-      console.log(`- first with property ${PROP_ID},`);
-      console.log(`- next with id,`);
-      console.log(`- next with a combination of name and type`);
-      console.log(`- next with the source- and target endpoints (if it's a relation)`);
+      console.log(`\nTry to match object types (elements, relations and views):`);
+      if (PROP_ID) console.log(`- property ${PROP_ID} and if not found with the 'Archi id'`);
+      else console.log(`- with the Archi id`);
+      console.log(`if object not found, try to match:`);
+      console.log(`- elements and views with a combination of name and type`);
+      console.log(`- relations with the endpoints and type`);
 
       let rows = getRowsFromFile(importFile);
       if (rows.length == 0) {
@@ -78,8 +80,8 @@ function importObjects(importFile) {
         console.log(`\n> Select another file and import again\n`);
       } else {
         debug("\n> check header for missing columns");
-        let rowLabels = get_labelsToUpdate(rows);
-        if (rowLabels.length == 0) {
+        let headerLabels = get_headerLabels(rows);
+        if (headerLabels.length == 0) {
           console.log(`\n> Add missing columns and run import script again`);
           console.log(`> Use export script to create a CSV file with all required columns\n`);
         } else {
@@ -87,7 +89,7 @@ function importObjects(importFile) {
 
           // process all rows from CSV file
           startCounter("importObjects");
-          let results = rows.map((row, index) => processRow(row, index, rowLabels));
+          let results = rows.map((row, index) => processRow(row, index, headerLabels));
           debug(`importObjects ${results.length} rows (${endCounter("importObjects")}`);
 
           let skipped = results.filter((result) => result.resultCode === SKIP);
@@ -96,15 +98,15 @@ function importObjects(importFile) {
           let nothing_to_update = results.filter((result) => result.resultCode === NOTHING_TO_UPDATE);
 
           if (skipped.length > 0) {
-            console.log("\nRows skipped:");
+            console.log("\nRows skipped with a WARNING or ERROR:");
             skipped.map((result) => console.log(result.line));
           }
           if (created.length > 0) {
-            console.log("\nObjects created:");
+            console.log("\nRows with objects to create:");
             created.map((result) => console.log(result.line));
           }
           if (updated.length > 0) {
-            console.log("\nObjects updated:");
+            console.log("\nRows with object updates:");
             updated.map((result) => console.log(result.line));
           }
 
@@ -127,15 +129,35 @@ function importObjects(importFile) {
 
 /**
  * check importFile for missing columns
- * return array with column labels to update objects
+ * return array with header labels to update objects
  */
-function get_labelsToUpdate(rows) {
-  let rowLabels = [];
+function get_headerLabels(rows) {
+  // papaparse stores a row in an array with {name, value} objects
+  const allHeaderLabels = Object.keys(rows[0]);
+  console.log(`\nCSV file columns:`);
+  allHeaderLabels.map((label) => console.log(`- ${label}`));
+  
+  // check 
+  // if there is a column for the attributes
+  let attrCheck = checkLabel(ATTRIBUTE_LABELS, "attribute");
+  // and for relations if the endpoints columns are present
+  let endpointCheck = true;
+  let relations = rows.filter((row) => row.type.endsWith("relationship"));
+  if (relations.length > 0) {
+    endpointCheck = checkLabel(ENDPOINT_LABELS, "endpoint");
+  }
+
+  let headerLabels = [];
+  if (attrCheck && endpointCheck) {
+    headerLabels = allHeaderLabels.filter((label) => !LABELS_NOT_TO_UPDATE.includes(label));
+    debug(`\nlabelsToUpdate: ${headerLabels}`);
+  }
+  return headerLabels;
 
   function checkLabel(labels, labelType) {
     let line = "";
-    labels.forEach(function (label) {
-      if (headerLabels.includes(label)) line += `- ${label}`;
+    labels.forEach((label) => {
+      if (!allHeaderLabels.includes(label)) line += `- ${label}\n`;
     });
     if (line) {
       console.log(`\n>> UNVALID CSV file <<\nMissing ${labelType} columns:`);
@@ -144,26 +166,6 @@ function get_labelsToUpdate(rows) {
     }
     return true;
   }
-
-  // papaparse stores a row in an array with {name, value} objects
-  let headerLabels = Object.keys(rows[0]);
-  console.log(`\nCSV file columns:`);
-  headerLabels.map((label) => console.log(`- ${label}`));
-
-  // check if there is a column for the attributes
-  let attrCheck = checkLabel(ATTRIBUTE_LABELS, "attribute");
-
-  // check for relations if the endpoints columns are present
-  let endpointCheck = true;
-  let relations = rows.filter((row) => row.type.endsWith("relationship"));
-  if (relations.length > 0) {
-    endpointCheck = checkLabel(ENDPOINT_LABELS, "endpoint");
-  }
-  if (attrCheck && endpointCheck) {
-    rowLabels = headerLabels.filter((label) => !LABELS_NOT_TO_UPDATE.includes(label));
-    debug(`\nlabelsToUpdate: ${rowLabels}`);
-  }
-  return rowLabels;
 }
 
 /**
@@ -206,7 +208,8 @@ function processRow(row, index, rowLabels) {
       result = createObject(row, index, rowLabels);
     } else {
       result.resultCode = SKIP;
-      result.line = `row[${index + 2}] > SKIP ${findResult.errorText}\n`;
+      result.line = `row[${index + 2}] ${SKIP}\n`;
+      result.line += `  > ${findResult.errorText}\n`;
     }
   }
 
@@ -243,8 +246,8 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
     } else if (archiColl.size() > 1) {
       errorCode += ERROR;
       errorText += `Error: Multiple objects with prop(${PROP_ID})=${row_prop_id}`;
-      archiColl.each((obj) => (errorText += `\n> - ${obj}`));
-      errorText += `\n>> Use script setObjectID.ajs to find and resolve duplicates`;
+      archiColl.each((obj) => (errorText += `> - ${obj}\n`));
+      errorText += `>> Use script setObjectID.ajs to find and resolve duplicates\n`;
 
       debug(errorText);
     }
@@ -282,22 +285,24 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
         debug(`${findText}: ${archiColl.first()}`);
       } else if (archiColl.size() > 1) {
         errorCode += WARNING;
-        errorText += `Warning: Multiple objects with name=${row_name}`;
-        archiColl.each((obj) => (errorText += `\n> - ${obj}`));
+        errorText += `Warning: Multiple objects with name=${row_name}\n`;
+        archiColl.each((obj) => (errorText += `  - ${obj}\n`));
       }
     }
   }
 
   if (findCode == NOT_FOUND && row_type == "archimate-diagram-model") {
     errorCode += WARNING;
-    errorText += `Warning: view not found with name=${row_name}`;
-    errorText += `\n- creation of a view is not supported`;
+    errorText += `Warning: View not found with name=${row_name}\n`;
+    errorText += `- creation of a view is not supported\n`;
+    errorText += `- only update of a views properties\n`;
   }
 
   if (!rowHasKey) {
     errorCode += ERROR;
-    errorText += `Error: missing search key`;
-    errorText += `\n- search keys are ${PROP_ID}, id or the combination of name and type`;
+    errorText += `Error: missing search key\n`;
+    if (PROP_ID) errorText += `- search keys are ${PROP_ID}, 'id' or the combination of name and type\n`;
+    else errorText += `- search keys are 'id' or the combination of name and type (PROP_ID skipped)\n`;
     debug(errorText);
   }
 
@@ -325,15 +330,15 @@ function findWithEndpoints(row) {
   let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
   if (findSrc.errorCode != SUCCES) {
     errorCode += findSrc.errorCode;
-    errorText += `\n- Error in row source.<endpoint> columns > `;
-    errorText += `${findSrc.errorText}`;
+    errorText += `- Error in row source.<endpoint> columns > `;
+    errorText += `${findSrc.errorText}\n`;
     debug(errorText);
   }
   debug(`Row target`);
   let findTgt = findObject(row["target.type"], row["target.name"], row[`target.prop.${PROP_ID}`], row["target.id"]);
   if (findTgt.errorCode != SUCCES) {
     errorCode += findTgt.errorCode;
-    errorText += `\n- Error in row target.<endpoint> columns > `;
+    errorText += `- Error in row target.<endpoint> columns > `;
     errorText += `${findTgt.errorText}`;
     debug(errorText);
   }
@@ -352,19 +357,12 @@ function findWithEndpoints(row) {
     });
 
     if (archiRels.size() == 1) {
-      if (row.name == archiRels.name) {
-        findCode = FOUND;
-        findText = `found with 'endpoints'`;
-        debug(`${findText}: ${archiRels.first()}`);
-      } else {
-        errorCode += INFO;
-        errorText += `Info: found relation with 'endpoints', but other name=${archiRels.name}`;
-        debug(`${findText}: ${archiRels.first()}`);
-      }
+      findCode = FOUND;
+      findText = `found relation with 'endpoints'`;
     } else if (archiRels.size() > 1) {
       errorCode += WARNING;
-      errorText += `Warning: Multiple relations with source ${srcColl} and target ${tgtColl}`;
-      archiRels.each((obj) => (errorText += `\n> - ${obj}`));
+      errorText += `Warning: Multiple relations with source ${srcColl} and target ${tgtColl}\n`;
+      archiRels.each((obj) => (errorText += `  - ${obj}\n`));
       debug(errorText);
     }
   }
@@ -378,16 +376,11 @@ function findWithEndpoints(row) {
  *  if row is a relation the source and target have to exist
  */
 function createObject(row, index, rowLabels) {
+  debugStackPush(false);
   startCounter("createObject");
   let line = "";
   let resultCode = SKIP;
   let archiObject = {};
-  // let newObject = { index: index, resultCode: resultCode };
-
-  debugStackPush(false);
-  // debug(`\nStart`);
-  // debug(`check index row[${index +2}] = ${JSON.stringify(row)}`);
-  // debug(`check index obj = ${JSON.stringify(archiObject)}`);
 
   if (row.type.endsWith("relationship")) {
     let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
@@ -398,16 +391,18 @@ function createObject(row, index, rowLabels) {
     if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
       archiObject = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
     } else {
-      line += `row[${index + 2}] > relation not created, no (unique) source and/or target\n`;
-      line += `> found source(s): ${findSrc.archiObj}\n`;
-      line += `> found target(s): ${findTgt.archiObj}`;
+      line += `row[${index + 2}] ${SKIP}\n`;
+      line += `  Relation not created, no (unique) source and/or target\n`;
+      line += `  - found source(s): ${findSrc.archiObj}\n`;
+      line += `  - found target(s): ${findTgt.archiObj}`;
     }
   } else {
     archiObject = model.createElement(row.type, row.name);
   }
 
   if (Object.keys(archiObject).length > 0) {
-    line += `row[${index + 2}] > ${CREATE} ${archiObject}`;
+    line += `row[${index + 2}] ${CREATE}\n`;
+    line += `  ${archiObject}\n`;
     createResult = { archiObj: archiObject };
     let result = updateObject(row, index, rowLabels, createResult, CREATE);
     line += result.line;
@@ -430,7 +425,8 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
   let resultCode = NOTHING_TO_UPDATE;
 
   let archiObj = findResult.archiObj;
-  let lineRowUpdate = `row[${index + 2}] > ${UPDATE} ${archiObj} (${findResult.findText})`;
+  let lineRowUpdate = `row[${index + 2}] ${UPDATE}\n`;
+  lineRowUpdate += `  ${archiObj} (${findResult.findText})\n`;
 
   debugStackPush(false);
   debug(`row = ${JSON.stringify(row)}`);
@@ -446,7 +442,7 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
     // remove properties with the value REMOVE_PROPERTY
     if (labelType == PROPERTY_TEXT && row[label] == REMOVE_PROPERTY_VALUE) {
       if (archiObj.prop().includes(label)) {
-        lineUpdated += `\n> remove ${labelType} ${label}: ${attr_or_prop_value}`;
+        lineUpdated += `  - remove ${labelType} ${label}: ${attr_or_prop_value}\n`;
         archiObj.removeProp(label);
       }
     } else {
@@ -454,11 +450,11 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
       if (row[label] && row[label] != attr_or_prop_value) {
         // if (row[label] != attr_or_prop_value) {
         if (attr_or_prop_value) {
-          lineUpdated += `\n> update ${labelType} ${label}:`;
-          lineUpdated += `\n>> from: "${attr_or_prop_value}"`;
-          lineUpdated += `\n>> to:   "${row[label]}"`;
+          lineUpdated += `  - update ${labelType} ${label}:\n`;
+          lineUpdated += `    - from: "${attr_or_prop_value}"\n`;
+          lineUpdated += `    - to:   "${row[label]}"\n`;
         } else {
-          lineUpdated += `\n> set ${labelType} ${label}: "${row[label]}"`;
+          lineUpdated += `  - add ${labelType} ${label}: "${row[label]}"\n`;
         }
         set_attr_or_prop(archiObj, row, label);
       }

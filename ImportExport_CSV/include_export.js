@@ -87,7 +87,7 @@ function createHeader(objects, objectType) {
   switch (objectType) {
     case OBJECT_TYPE_RELATION:
       header = header.concat(ENDPOINT_LABELS);
-      columnLogText += `, ${ENDPOINT_LABELS.length} endpoints`;
+      columnLogText += `, ${ENDPOINT_LABELS.length} endpoint labels`;
       break;
     case OBJECT_TYPE_ELEMENT:
       if (GEMMA_COLUMNS) {

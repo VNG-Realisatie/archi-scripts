@@ -8,24 +8,21 @@ const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_VIEW = "view";
 
-// The property PROP_ID is used as a tool independent identifier.
+// Set the name of the property containing a tool independent identifier.
+// If set, the import wil use the PROP_ID as the first id for matching objects
 const PROP_ID = "Object ID";
+// const PROP_ID = "";
 
 // labels for creating CSV column labels
 const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
-const ENDPOINT_LABELS = [
-  "source.name",
-  "source.type",
-  "target.name",
-  "target.type",
-  "source.id",
-  `source.prop.${PROP_ID}`,
-  "target.id",
-  `target.prop.${PROP_ID}`,
-];
+let endpointLabels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
+if (PROP_ID) {
+  endpointLabels = endpointLabels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
+}
+const ENDPOINT_LABELS = endpointLabels;
 
-// Leave FOLDER_LABEL empty if you don't want a 'folder' column
-const FOLDER_LABEL = "Folder";
+// Set a label for a folder column, leave empty to skip the 'folder' column
+const FOLDER_LABEL = "folder";
 // const FOLDER_LABEL = "";
 
 // set GEMMA_COLUMNS to false if you don't want GEMMA special columns for elements
