@@ -2,7 +2,8 @@
  * Export the selected elements, relations or views and their properties to a CSV file
  */
 // ## todo ## replace selectCollection
-load(__DIR__ + "../_lib/SelectCollection.js");
+// load(__DIR__ + "../_lib/SelectCollection.js");
+load(__DIR__ + "../_lib/selection.js");
 load(__DIR__ + "include_export_import.js");
 
 /**
@@ -16,23 +17,16 @@ function exportObjects(objectType, exportFile) {
   debug(`objectType=${objectType}`);
 
   try {
-    let collection = $();
-    if (objectType == OBJECT_TYPE_VIEW) {
-      collection = selectViews($(selection));
-    } else {
-      collection = selectConcepts($(selection));
-    }
+    // create an array with all selected objects.
+    // if folders or views are selected, then all contained objects are added to the list
+    let selectionList = selectObjectsInArray($(selection), objectType);
 
-    // filter and convert selected Archi collection to an array
-    let objects = [];
-    collection.filter(objectType).each((object) => objects.push(object));
-
-    if (objects.length > 0) {
+    if (selectionList.length > 0) {
       console.log(`Create header:`);
-      const header = createHeader(objects, objectType);
+      const header = createHeader(selectionList, objectType);
 
       console.log(`Create rows for selection:`);
-      const data = objects.map((o) => createRow(header, o, objectType));
+      const data = selectionList.map((o) => createRow(header, o, objectType));
       console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
 
       if (!exportFile) {
