@@ -9,73 +9,31 @@
  *
  */
 
-console.log(`selection.js !!!`);
-
 /**
- * ==============================================================================================
- * from generate view
+ * apply a function to the given collection
  *
- * creates an array with selected concepts
+ * @param {*} collection collection of Archi objects
+ * @param {*} pFunc function to apply to Archi (visual) objects
+ * @param {*} pArgs optional array with arguments for the function
  */
+ function applyToSelection(collection, pFunc, pArgs) {
+	console.log(`Apply ${pFunc.name} to selection`);
 
-/**
- * create a list with the selected elements.
- * filter the list according the settings in the param object.
- *
- * @param {object} param - settings for generating a view
- */
-function selectElements(param) {
-  if (model == null || model.id == null)
-    throw "Nothing selected. Select one or more objects in the model tree or a view";
+	collection.each((object) => pFunc(object, pArgs));
 
-  // create an array with the selected elements
-  var selectedElements = [];
-  $(selection).each((obj) => addElementInList(obj, selectedElements));
-
-  console.log(`\nSelection:`);
-  console.log(`- ${selectedElements.length} elements selected`);
-
-  // filter the selected elements with the concept filter
-  let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
-  console.log(`- ${filteredElements.length} elements after filtering`);
-  if (filteredElements.length === 0) throw "No Archimate element match your criterias.";
-
-  return filteredElements;
+	console.log(`${pFunc.name} applied to ${collection.size()} objects`);
 }
 
-/**
- * recursive function
- *   add the selected elements in a list.
- *   if element is a container (model, view or folder), all contained elements are added
- */
-function addElementInList(obj, list) {
-  if ($(obj).is("element")) {
-    let o = concept(obj);
-    // check for duplicates, than add element to the list
-    if (list.findIndex((a) => a.id == o.id) == -1) list.push(o);
-  }
-  $(obj)
-    .children()
-    .each((child) => addElementInList(child, list));
-  return list;
-}
 
 /**
- * ==============================================================================================
- * from createProjectmodel
- *
- * creates an Archi collection with selected concepts
- */
-
-/**
- * return an array of the contained objects in the selection
+ * return an array with the in the selection contained objects
  *
  * @param {object} startSelection - selection containing Archi objects
  * @param {string} selector - Archi selector for filtering the type of contained objects
  * @returns {array} - selected objects
  */
-function selectObjectsInArray(startSelection, selector) {
-  let collection = selectObjects(startSelection, selector);
+function getSelectionArray(startSelection, selector) {
+  let collection = getSelection(startSelection, selector);
 
   // convert Archi collection to an array
   let selectedList = [];
@@ -85,22 +43,42 @@ function selectObjectsInArray(startSelection, selector) {
 }
 
 /**
- * return a collection of the contained objects in the selection
+ * return a collection of the in the selection contained objects
  *
  * @param {object} startSelection - selection containing Archi objects
  * @param {string} selector - Archi selector for filtering the type of contained objects
  * @returns {object} - collection with selected objects
  */
-function selectObjects(startSelection, selector) {
-  console.log(`selector: ${selector}`);
+function getSelection(startSelection, selector) {
+  console.log(`Selection filter is "${selector}"`);
   if (model == null || model.id == null)
     throw "Nothing selected. Select one or more objects in the model tree or a view";
 
   // create an empty collection
   var selectedColl = $();
-  $(startSelection).each((obj) => addObjectInCollection(obj, selector, selectedColl));
+  $(startSelection).each((obj) => addObject(obj, selector, selectedColl));
 
   return selectedColl;
+}
+
+/**
+ * return a collection of the in the selection contained visual objects
+ *   selection must contain objects on a view
+ *
+ * @param {object} startSelection - selection containing Archi objects
+ * @param {string} selector - Archi selector for filtering the type of contained objects
+ * @returns {object} - collection with selected objects
+ */
+ function getVisualSelection(startSelection, selector) {
+  console.log(`Selection filter is "${selector}"`);
+  if (model == null || model.id == null)
+    throw "Nothing selected. Select views or one or more objects on a view";
+
+  // create an empty collection
+  var selectedVisualColl = $();
+  $(startSelection).each((obj) => addObject(obj, selector, selectedVisualColl));
+
+  return selectedVisualColl;
 }
 
 /**
@@ -108,7 +86,7 @@ function selectObjects(startSelection, selector) {
  *   add the selected object to a collection.
  *   if the object is a container (model, view or folder), add all contained objects
  */
-function addObjectInCollection(obj, selector, coll) {
+function addObject(obj, selector, coll) {
   if ($(obj).is(selector)) {
     let o = obj;
     if (selector != "view") o = concept(obj);
@@ -119,7 +97,7 @@ function addObjectInCollection(obj, selector, coll) {
   }
   $(obj)
     .children()
-    .each((child) => addObjectInCollection(child, selector, coll));
+    .each((child) => addObject(child, selector, coll));
   return coll;
 }
 

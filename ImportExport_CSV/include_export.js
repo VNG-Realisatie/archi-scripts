@@ -19,7 +19,7 @@ function exportObjects(objectType, exportFile) {
   try {
     // create an array with all selected objects.
     // if folders or views are selected, then all contained objects are added to the list
-    let selectionList = selectObjectsInArray($(selection), objectType);
+    let selectionList = getSelectionArray($(selection), objectType);
 
     if (selectionList.length > 0) {
       console.log(`Create header:`);

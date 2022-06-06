@@ -41,6 +41,7 @@
  *    - for connections to embedded elements, only some get bendpoints
  *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
+load(__DIR__ + "../_lib/selection.js");
 
 const GENERATE_SINGLE = "GENERATE_SINGLE";
 const GENERATE_MULTIPLE = "GENERATE_MULTIPLE";
@@ -51,6 +52,8 @@ const REGENERATE = "REGENERATE";
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
+const DEFAULT_GRAPHDEPTH = 1;
+const DEFAULT_ACTION = GENERATE_SINGLE;
 const NODE_WIDTH = 140; // width of a drawn element
 const NODE_HEIGHT = 60; // height of a drawn element
 const JUNCTION_DIAMETER = 14; // size of a junction
@@ -62,7 +65,7 @@ if (!Array.prototype.includes) {
   };
 }
 
-var graph; // graphlib graph for layout view
+var graph = {}; // graphlib graph for layout view
 var graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
 var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
 
@@ -157,24 +160,24 @@ function setDefaultParameters(param) {
   }
 
   console.log("Generate view parameters");
-  if (param.action == undefined) param.action = GENERATE_SINGLE;
+  if (param.action == undefined) param.action = DEFAULT_ACTION;
   console.log("- action = " + param.action);
 
-  if (param.graphDepth === undefined) param.graphDepth = 1;
+  if (param.graphDepth === undefined) param.graphDepth = DEFAULT_GRAPHDEPTH;
   console.log("- graphDepth = " + param.graphDepth);
 
-  if (!validArchiConcept(param.elementFilter, ELEMENT_NAMES, "elementFilter:", "no filter")) validFlag = false;
   if (param.elementFilter === undefined) param.elementFilter = [];
-  if (!validArchiConcept(param.relationFilter, RELATION_NAMES, "relationFilter:", "no filter")) validFlag = false;
+  if (!validArchiConcept(param.elementFilter, ELEMENT_NAMES, "elementFilter:", "no filter")) validFlag = false;
   if (param.relationFilter === undefined) param.relationFilter = [];
+  if (!validArchiConcept(param.relationFilter, RELATION_NAMES, "relationFilter:", "no filter")) validFlag = false;
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
   console.log(`- viewName = ${param.viewName}`);
 
   console.log("How to draw relationships");
-  if (!validArchiConcept(param.drawReversed, RELATION_NAMES, "drawReversed:", "none")) validFlag = false;
   if (param.drawReversed === undefined) param.drawReversed = [];
-  if (!validArchiConcept(param.drawNested, RELATION_NAMES, "drawNested:", "none")) validFlag = false;
+  if (!validArchiConcept(param.drawReversed, RELATION_NAMES, "drawReversed:", "none")) validFlag = false;
   if (param.drawNested === undefined) param.drawNested = [];
+  if (!validArchiConcept(param.drawNested, RELATION_NAMES, "drawNested:", "none")) validFlag = false;
 
   console.log("Developing");
   console.log("- debug = " + param.debug);
@@ -190,43 +193,16 @@ function setDefaultParameters(param) {
  * @param {object} param - settings for generating a view
  */
 function selectElements(param) {
-  if (model == null || model.id == null)
-    throw "Nothing selected. Select one or more objects in the model tree or a view";
-
-  // create an array with the selected elements
-  var selectedElements = [];
-  $(selection).each((obj) => addElementInList(obj, selectedElements));
-
-  console.log(`\nSelection:`);
-  console.log(`- ${selectedElements.length} elements selected`);
-
+  // // create an array with the selected elements
+  var selectedElements;
+  selectedElements = getSelectionArray($(selection), "element");
   // filter the selected elements with the concept filter
-  let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
-  console.log(`- ${filteredElements.length} elements after filtering`);
-  if (filteredElements.length === 0) throw "No Archimate element match your criterias.";
+  let filteredSelection = [];
+  filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
+  console.log(`- ${filteredSelection.length} elements after filtering`);
+  if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
 
-  return filteredElements;
-}
-
-/**
- * recursive function
- *   add the selected elements in a list.
- *   if element is a container (model, view or folder), all contained elements are added
- */
-function addElementInList(obj, list) {
-  if ($(obj).is("element")) {
-    let o = concept(obj);
-    // check for duplicates, than add element to the list
-    if (list.findIndex((a) => a.id == o.id) == -1) list.push(o);
-  }
-  $(obj)
-    .children()
-    .each((child) => addElementInList(child, list));
-  return list;
-}
-
-function concept(o) {
-  return o.concept ? o.concept : o;
+  return filteredSelection;
 }
 
 /**
@@ -370,11 +346,15 @@ function addElement(level, param, archiEle, filteredElements) {
   }
   // add element to the graph
   createNode(level, param, archiEle);
+  console.log("\nAdded to the graph:");
+  console.log(`- ${graph.nodeCount()} nodes and`);
+  console.log(`- ${graph.edgeCount()} edges`);
+  debug(`archiEle: ${archiEle}`);
 
   $(archiEle)
     .rels()
     .filter((rel) => filterObjectType(rel, param.relationFilter))
-    .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations
+    .filter((rel) => $(rel).sourceEnds().is("element")) // skip relations with relations ### source
     .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
     .each(function (rel) {
       let related_element;
@@ -394,8 +374,17 @@ function addElement(level, param, archiEle, filteredElements) {
         if (filterObjectType(related_element, param.elementFilter)) {
           // add related_element to the graph (and recurse into its related elements)
           if (addElement(level + 1, param, related_element, filteredElements) == NOT_STOPPED) {
+            debug(`>>>> rel: ${rel}`);
+
             // Add relation as edge
             addRelation(level, param, rel);
+
+            console.log("\nAdded to the graph:");
+            console.log(`- ${graph.nodeCount()} nodes and`);
+            console.log(`- ${graph.edgeCount()} edges`);
+            graph
+              .nodes()
+              .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
           }
         }
       }
@@ -484,9 +473,9 @@ function createParent(level, param, rel) {
   return;
 }
 
-function filterObjectType(o, filterArray) {
-  if (filterArray.length == 0) return true;
-  return filterArray.includes(o.type);
+function filterObjectType(o, objectTypeFilter) {
+  if (objectTypeFilter.length == 0) return true;
+  return objectTypeFilter.includes(o.type);
 }
 
 function layoutGraph(param) {
@@ -504,9 +493,11 @@ function drawView(param, filteredElements) {
 
   // save generate_view parameter to a view property
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
-  // and get the setting for review in views documentation
-  view.documentation = "View genereated with these settings and selections\n\n"
-  view.documentation += getSettings(param, filteredElements);
+  // and for debugging also in the views documentation
+  if (param.debug ) {
+    view.documentation = "View genereated with these settings and selections\n\n";
+    view.documentation += getTextWithSettings(param, filteredElements);
+  }
 
   let visualElementsIndex = new Object();
   let nodeIndex = {};
@@ -529,7 +520,7 @@ function drawView(param, filteredElements) {
 }
 
 // return a string with setting
-function getSettings(param, filteredElements) {
+function getTextWithSettings(param, filteredElements) {
   let selectionArray = [];
   selection.not("relationship").each((o) => selectionArray.push(`${o.type}: ${o.name}`));
   let filterEleArray = [];
@@ -563,22 +554,23 @@ function getFolder(mainFolderName, folderName) {
 
 function getView(folder, viewName) {
   // check if the corresponding view already exists in the given folder
-  let view = $(folder).children("view").filter(`.${viewName}`).first();
+  let v;
+  v = $(folder).children("view").filter(`.${viewName}`).first();
 
   // If the view already exist, empty view
-  if (view) {
-    console.log(`Found ${view}. Overwriting ...`);
-    $(view)
+  if (v) {
+    console.log(`Found ${v}. Overwriting ...`);
+    $(v)
       .find()
       .each((o) => o.delete());
   } else {
-    view = model.createArchimateView(viewName);
-    console.log(`Creating view: ${view.name}`);
+    v = model.createArchimateView(viewName);
+    console.log(`Creating view: ${v.name}`);
 
     // move view to the generated views folder
-    folder.add(view);
+    folder.add(v);
   }
-  return view;
+  return v;
 }
 
 function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {

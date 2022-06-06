@@ -1,73 +1,80 @@
 /**
- * reverseRelation
- *
- * Change the direction of a relation by switching source and target
- *
- * The applyToModelContent function allows for multiple kinds of selections
- *
+ * Reverse the selected relations by switching source and target
  */
 
 load(__DIR__ + "_lib/Common.js");
-load(__DIR__ + "_lib/SelectCollection.js");
+load(__DIR__ + "_lib/selection.js");
 
 initConsoleLog(__FILE__, true);
 
-let collection = selectConcepts($(selection));
-// collection.each((obj) => plotAttributeID(obj));
-applyToCollection(collection.filter("relation"), reverseRelation);
+let selectionList = getSelectionArray($(selection), "relation");
 
+if ((selectionList.length == 0)) {
+  console.log(`No relations selected. Select a view, a folder or objects with relations`);
+} else {
+
+	const reverse_relations = selectionList.filter((rel) =>
+    $.model.isAllowedRelationship(rel.type, rel.target.type, rel.source.type)
+  );
+  let summary = "";
+  if (reverse_relations.length > 0) {
+		console.log(`Reverse relations:`);
+    reverse_relations.map((rel) => reverseRelation(rel));
+    summary += `${reverse_relations.length} relations reversed`;
+    console.log(`${summary}\n`);
+  }
+	
+	const skip_relations = selectionList.filter(
+		(rel) => !$.model.isAllowedRelationship(rel.type, rel.target.type, rel.source.type)
+	);
+  if (skip_relations.length > 0) {
+    console.log(`Skipped relations:`);
+    skip_relations.map((rel) => console.log(`- ${getRelationString(rel)}`));
+    console.log(`${skip_relations.length} relations skipped (reverse not allowed)\n`);
+    console.log(`${summary}, ${skip_relations.length} relations skipped`);
+  }
+}
 finishConsoleLog();
 
-/********************************************
- * function definitions
- *******************************************/
+/**
+ * switch given relation source and target
+ */
 function reverseRelation(obj) {
-	debugStackPush(false);
+  debugStackPush(false);
 
-	debug(`obj.id: ${obj.id}`);
-	debug(`obj.concept.id: ${obj.concept.id}`);
-
-	source = obj.source;
-	target = obj.target;
-	// check if reversed relation is allowed
-	if ($.model.isAllowedRelationship(obj.type, target.type, source.type)) {
-		// the order of switching source and target is relevant
-		// a relation connected twice with a relation is not allowed (in Archi or in ArchiMate)
-		if (source.type.endsWith("relationship")) {
-			debug(`\tSet target first, source is a ${source}`);
-			obj.source = target;
-			obj.target = source;
-		} else {
-			if (target.type.endsWith("relationship")) {
-				debug(`\tSet source first, target is a ${target}`);
-			}
-			obj.target = source;
-			obj.source = target;
-		}
-		console.log(`>> ${getRelationString(obj)}`);
-	} else {
-		console.log(`>> Not allowed: ${getRelationString(obj)}`);
-	}
-	debugStackPop();
+  // the order of switching source and target is relevant
+  // a relation connected twice with a relation is not allowed (in Archi or in ArchiMate)
+  if (obj.source.type.endsWith("relationship")) {
+    debug(`\tSet target first, source is a ${obj.source.type}`);
+    let saveSource = obj.source;
+    obj.source = obj.target;
+    obj.target = saveSource;
+  } else {
+    if (obj.target.type.endsWith("relationship")) {
+      debug(`\tSet source first, target is a ${obj.target.type}`);
+    }
+    let saveTarget = obj.target;
+    obj.target = obj.source;
+    obj.source = saveTarget;
+  }
+  console.log(`- ${getRelationString(obj)}`);
+  debugStackPop();
 }
 
+/**
+ * return a string with the given relation definition
+ */
 function getRelationString(rel) {
-	let relationString = `${rel.type}`;
+  let text = `${rel.type}`;
 
-	if (rel.type == "access-relationship" && rel.accessType) {
-		relationString += `(${rel.accessType})`;
-	}
-	if (rel.type == "influence-relationship" && rel.influenceStrength) {
-		relationString += `(${rel.influenceStrength})`;
-	}
-	if (rel.type == "association-relationship" && rel.associationDirected) {
-		relationString += `(${rel.associationDirected})`;
-	}
+  if (rel.type == "access-relationship" && rel.accessType) text += `(${rel.accessType})`;
+  if (rel.type == "influence-relationship" && rel.influenceStrength) text += `(${rel.influenceStrength})`;
+  if (rel.type == "association-relationship" && rel.associationDirected) text += `(${rel.associationDirected})`;
 
-	let relationName = rel.name ? `[${rel.name}]` : "[no name]";
-	let sourceName = rel.source.type.endsWith("relationship") ? rel.source : rel.source.name;
-	let targetName = rel.target.type.endsWith("relationship") ? rel.target : rel.target.name;
-	relationString += `: ${sourceName} -${relationName}-> ${targetName}`;
+  let relationName = rel.name ? `[${rel.name}]` : "[no name]";
+  let sourceName = rel.source.type.endsWith("relationship") ? rel.source : rel.source.name;
+  let targetName = rel.target.type.endsWith("relationship") ? rel.target : rel.target.name;
+  text += `: ${sourceName} -${relationName}-> ${targetName}`;
 
-	return relationString;
+  return text;
 }
