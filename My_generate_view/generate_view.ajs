@@ -158,7 +158,7 @@ var param = {
   hSep: 20,
   vSep: 180,
 
-  debug: false,
+  debug: true,
 };
 
 initConsoleLog(__FILE__, true);
