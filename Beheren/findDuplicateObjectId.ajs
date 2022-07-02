@@ -1,11 +1,18 @@
+<<<<<<< HEAD
 /**
  * find objects with two or more properties PROP_ID
  */
 
+=======
+// find objects with two or more properties PROP_ID
+
+// Label of the property with the ID
+>>>>>>> develop
 const PROP_ID = "Object ID";
 
 initConsoleLog(__FILE__, false);
 
+<<<<<<< HEAD
 console.log(`Check model for objects with duplicate property ${PROP_ID}`);
 let i = 0;
 try {
@@ -22,13 +29,75 @@ try {
       }
     });
   console.log(`\nFound ${i} objects with duplicate ${PROP_ID}`);
+=======
+let i = 0;
+try {
+  selectObjects(selection, "concept").each((o) => {
+    // prop() with parameter duplicate=true returns an array with all values
+    let propValueList = o.prop(PROP_ID, true);
+    if (propValueList) {
+      if (propValueList.length > 1) {
+        console.log(`- ${o} => ${PROP_ID} ${propValueList}`);
+        i++;
+      }
+    }
+  });
+  console.log(`\nFound ${i} objects with multiple ${PROP_ID} values`);
+>>>>>>> develop
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 finishConsoleLog();
 
 /**
+<<<<<<< HEAD
  * initConsoleLog and finishConsoleLog
+=======
+ * return a collection of  the contained objects in the selection
+ *
+ * @param {object} startSelection - selection containing Archi objects
+ * @param {string} selector - Archi selector for filtering the type of contained objects
+ * @returns {object} - collection with selected objects
+ */
+function selectObjects(startSelection, selector) {
+  if (model == null || model.id == null)
+    throw "Nothing selected. Select one or more objects in the model tree or a view";
+
+  // create an empty collection
+  var selectedColl = $();
+  $(startSelection).each((obj) => addObjectInList(obj, selector, selectedColl));
+  console.log(`${selectedColl.size()} objects selected`);
+
+  return selectedColl;
+}
+
+/**
+ * recursive function
+ *   add the selected object to a collection.
+ *   if the object is a container (model, view or folder), add all contained objects
+ */
+function addObjectInList(obj, selector, coll) {
+  if ($(obj).is(selector)) {
+    let o = obj;
+    if (selector != "view") o = concept(obj);
+    // check for duplicates, than add element to the list
+    if (coll.filter((a) => a.id == o.id).size() == 0) {
+      coll.add(o);
+    }
+  }
+  $(obj)
+    .children()
+    .each((child) => addObjectInList(child, selector, coll));
+  return coll;
+}
+
+function concept(o) {
+  return o.concept ? o.concept : o;
+}
+
+/**
+ * initConsoleLog and finishconsole
+>>>>>>> develop
  *   first and last call in an Archi script
  */
 function initConsoleLog(currentScript, pClear) {
