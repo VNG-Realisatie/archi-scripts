@@ -1,0 +1,14 @@
+/**
+ * FontSet
+ *  Set the font to given fixed type and size
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection));
+applyToCollection(collection, fontSet, ["Arial", 12]);
+console.log("Script finished\n");
+
+function fontSet(obj, args) {
+  obj.fontName = args[0];
+  obj.fontSize = args[1];
+}

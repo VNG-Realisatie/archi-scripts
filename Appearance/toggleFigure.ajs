@@ -6,8 +6,7 @@
  *	Select one element on a view or in the model tree
  *	- toggle figure of this element type in the view or in all views
  */
-
-load(__DIR__ + "../_lib/SelectCollection.js");
+load(__DIR__ + "../_lib/selection.js");
 
 console.log("\nToggle figure of objects of selected type\n");
 let collection = selectVisualObjectsOfType($(selection));
@@ -15,10 +14,10 @@ applyToCollection(collection, toggleFigure);
 
 function toggleFigure(obj) {
   if (typeof this.only_once == "undefined") {
-    this.only_once = true;
+    const FIGURE_TEXT = ["icon shape", "rectangle with icon"];
     this.figure = obj.figureType;
-    figureText = ["rectangle with icon", "icon shape"];
-    console.log(`Toggle figure from '${figureText[this.figure]}' to '${figureText[this.figure == 0 ? 1 : 0]}'`);
+    console.log(`Toggle figure from '${FIGURE_TEXT[this.figure]}' to '${FIGURE_TEXT[this.figure == 0 ? 1 : 0]}'`);
+    this.only_once = true;
   }
 
   // rectangle with icon

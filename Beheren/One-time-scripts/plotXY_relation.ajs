@@ -1,0 +1,45 @@
+/**
+ * set the labelExpression with bendpoints for the selected relations
+ * 
+ * 2-10-2021 Mark Backer
+ */
+
+load(__DIR__ + "../../_lib/selection.js");
+
+try {
+  // get an array with all selected visual relations
+  let collection = getVisualSelection($(selection), "relation");
+  applyToCollection(collection, plotBendpoints);
+} catch (e) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+
+/**
+ * plot the bendpoints of a connection in it's labelExpression
+ * @param obj - Archi relationship
+ */
+function plotBendpoints(connection) {
+  let bendpoints = connection.relativeBendpoints;
+  let labelText = "Bendpoints:" + formatBendpoints(bendpoints);
+
+  connection.labelExpression = labelText;
+
+  function formatBendpoints(bp) {
+    let text = "";
+    // bp.forEach((b) => (text += `\n${JSON.stringify(b)}`));
+    bp.forEach((b) => {
+    	text += "\n{ ";
+    	let i = 1;
+    	for (let key in b) {
+    		text += `${key}=${b[key]}`;
+    		if (i % 2 === 0) {
+    			if (i % 4 != 0) text += ",\n";
+    		} else text += ", ";
+    		i++;
+    	}
+    	text += " }";
+    });
+    return text;
+  }
+}

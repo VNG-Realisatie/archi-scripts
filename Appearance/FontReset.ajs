@@ -8,22 +8,19 @@
  * Select objects in the model tree or on a view and run this script
  *
  */
-function fontReset(obj) {
-	console.log(`>>> ${obj} on view ${obj.view.name}`);
 
-	if (obj.fontName != null) {
-		obj.fontName = "Segoe UI";
-	}
-	if (obj.fontStyle != null) {
-		obj.fontStyle = null;
-	}
-	if (obj.fontColor != null) {
-		obj.fontColor = null;
-	}
-	if (obj.fontSize != null) {
-		obj.fontSize = 9;
-	}
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection), "*");
+applyToCollection(collection, fontReset);
+console.log("Script finished\n");
+
+function fontReset(obj) {
+  console.log(`- ${obj} on view ${obj.view.name}`);
+
+  if (obj.fontName != null) obj.fontName = "Segoe UI";
+  if (obj.fontStyle != null) obj.fontStyle = null;
+  if (obj.fontColor != null) obj.fontColor = null;
+  if (obj.fontSize != null) obj.fontSize = 9;
 }
 
-load(__DIR__ + "../_lib/SelectCollection.js");
-formatObjects($(selection), fontReset);

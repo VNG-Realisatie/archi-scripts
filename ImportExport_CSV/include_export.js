@@ -1,8 +1,6 @@
 /**
  * Export the selected elements, relations or views and their properties to a CSV file
  */
-// ## todo ## replace selectCollection
-// load(__DIR__ + "../_lib/SelectCollection.js");
 load(__DIR__ + "../_lib/selection.js");
 load(__DIR__ + "include_export_import.js");
 
