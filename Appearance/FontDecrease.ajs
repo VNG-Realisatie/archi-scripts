@@ -10,7 +10,7 @@ load(__DIR__ + "../_lib/selection.js");
 
 let collection = getVisualSelection($(selection));
 applyToCollection(collection, fontDecrease);
-console.log("Finished\n");
+console.log("Script finished\n");
 
 function fontDecrease(obj) {
   // console.log(`- ${obj.name} on view ${obj.view.name}`);
