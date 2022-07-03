@@ -4,7 +4,7 @@
  * 2-10-2021 Mark Backer
  */
 
-load(__DIR__ + "../../_lib/selection.js");
+load(__DIR__ + "../_lib/selection.js");
 
 try {
   // get an array with all selected visual relations

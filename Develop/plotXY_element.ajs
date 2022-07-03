@@ -4,7 +4,7 @@
  * (c) 2019 Mark Backer
  *
  */
-load(__DIR__ + "../../_lib/selection.js");
+load(__DIR__ + "../_lib/selection.js");
 
 let collection = getVisualSelection($(selection), "element");
 applyToCollection(collection, plotXYposition);
