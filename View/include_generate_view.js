@@ -489,7 +489,7 @@ function drawView(param, filteredElements) {
   console.log(`\nDrawing ArchiMate view...  `);
 
   let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
-  let view = getView(folder, param.viewName);
+  var view = getView(folder, param.viewName);
 
   // save generate_view parameter to a view property
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
@@ -554,7 +554,7 @@ function getFolder(mainFolderName, folderName) {
 
 function getView(folder, viewName) {
   // check if the corresponding view already exists in the given folder
-  let v;
+  var v;
   v = $(folder).children("view").filter(`.${viewName}`).first();
 
   // If the view already exist, empty view

@@ -9,6 +9,15 @@
  *
  */
 
+ const DIAGRAM_OBJECTS = [
+  "diagram-model-group",
+  "diagram-model-connection",
+  "diagram-model-note",
+  "diagram-model-image",
+  "diagram-model-reference",
+  "archimate-diagram-model", // jArchi return this for a reference
+];
+
 // polyfill for array method includes(), which is not supported in Nashorn ES6
 if (!Array.prototype.includes) {
   Array.prototype.includes = function (search) {
@@ -73,8 +82,7 @@ function getSelection(startSelection, selector = "*") {
   function addObject(obj, selector, coll) {
     if ($(obj).is(selector)) {
       let o = obj;
-      // ### if ($(obj).is("concept")) { o = concept(obj); ##
-      if (selector != "view") o = concept(obj);
+      if ($(obj).is("concept")) o = concept(obj);
       // check for duplicates, than add element to the list
       if (coll.filter((a) => a.id == o.id).size() == 0) {
         coll.add(o);
@@ -90,42 +98,40 @@ function getSelection(startSelection, selector = "*") {
 /**
  * return a collection of the in the selection contained visual objects
  *   selection must contain objects on a view
+ *   if only one concept is selected, select on the view all concepts of this type
  *
  * @param {object} startSelection - selection containing Archi objects
  * @param {string} selector - Archi selector for filtering the type of contained objects
  * @returns {object} - collection with selected objects
  */
 function getVisualSelection(startSelection, selector = "*") {
-  console.log(`Selection filter is "${selector}"`);
   if (model == null || model.id == null) throw "Nothing selected. Select views or one or more objects on a view";
+  console.log(`Selection filter is "${selector}"`);
 
   // create an empty collection
   var selectedVisualColl = $();
+  // add selected and all contained objects to the collection
   $(startSelection).each((obj) => addVisualObject(obj, selector, selectedVisualColl));
 
+  // if only one object is selected, select on the view all objects of this type
+  if (selectedVisualColl.size() == 1) {
+    let obj = selectedVisualColl.first();
+    console.log(`One concept selected, apply to all concepts of type ${obj.type}`);
+    selectedVisualColl = $(obj.view).find(obj.type);
+  }
   return selectedVisualColl;
 
   /**
    * recursive function
    *   add the selected visual object to a collection.
    *   if the object is a container (group with embedded objects or a view), add all contained objects
-   *   visual objects exist on a view
    *
-   * @param {Archi object} obj - selected object or container
+   * @param {object} obj - selected Archi object or -container
    * @param {string} selector - type of objects to add to collection (see Archi doc)
-   * @param {Archi collection} coll - collection of selected objects
+   * @param {object} coll - Archi collection of selected objects
    * @returns
    */
   function addVisualObject(obj, selector, coll) {
-    const DIAGRAM_OBJECTS = [
-      "diagram-model-group",
-      "diagram-model-connection",
-      "diagram-model-note",
-      "diagram-model-image",
-      "diagram-model-reference",
-      "archimate-diagram-model", // jArchi return this for a reference
-    ];
-
     // visual objects must have a view
     if (obj.view) {
       let addFlag = false;
@@ -140,14 +146,7 @@ function getVisualSelection(startSelection, selector = "*") {
           if ($(obj).is(selector)) addFlag = true;
           break;
       }
-      if (addFlag) {
-        // check for duplicates, than add element to the list
-        if (coll.filter((a) => a.id == obj.id).size() == 0) {
-          coll.add(obj);
-        } else {
-          console.log(`DUPLICATE VISUAL OBJECT (not possible ..): ${obj}`);
-        }
-      }
+      if (addFlag) coll.add(obj);
     }
     $(obj)
       .children()
@@ -155,35 +154,6 @@ function getVisualSelection(startSelection, selector = "*") {
     return coll;
   }
 }
-
-/**
- * Create a collection of visual objects of one type
- * The selection must contain one concept, selected in the model tree or on a view
- * - if selected in the model tree, create a collection of visual objects with all references of the object
- * - if selected on a view, create a collection of visual objects of the same type on the selected view
- *
- * @param {*} selection collection of Archi objects. must contain only one concept
- */
- function selectVisualObjectsOfType(selection) {
-	let viewObjects = $();
-
-	if (selection.is("concept") && selection.size() == 1) {
-		let obj = selection.first();
-		if (obj.id == obj.concept.id) {
-			console.log(`Creating collection of all view references to concepts of type ${obj.type}`);
-			viewObjects = $(obj.type).viewRefs().find(obj.type);
-		} else {
-			console.log(`Creating collection of all concepts in the view of type ${obj.type}`);
-			viewObjects = $(obj.view).find(obj.type);
-		}
-	} else {
-		console.error("Select one concept in the tree or on a view");
-		console.error("- if selected in the tree, the selected type will be selected on all views");
-		console.error("- if selected on a view, the selected type will be selected on the view");
-	}
-	return viewObjects;
-}
-
 
 /**
  * return a concept for a visual concept or concept

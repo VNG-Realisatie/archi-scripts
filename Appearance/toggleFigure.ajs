@@ -9,7 +9,7 @@
 load(__DIR__ + "../_lib/selection.js");
 
 console.log("\nToggle figure of objects of selected type\n");
-let collection = selectVisualObjectsOfType($(selection));
+let collection = getVisualSelection($(selection), "element");
 applyToCollection(collection, toggleFigure);
 
 function toggleFigure(obj) {
