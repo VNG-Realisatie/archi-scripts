@@ -16,7 +16,7 @@
  *  Based on the work of Hervé Jouin
  */
 
-load(__DIR__ + "include_generate_view.js");
+load(__DIR__ + "../include_generate_view.js");
 
 var param = {
   action: GENERATE_SINGLE,
