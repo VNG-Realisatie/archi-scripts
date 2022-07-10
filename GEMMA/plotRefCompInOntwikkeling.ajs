@@ -1,0 +1,25 @@
+/*
+ * plotNoteStatus
+ *
+ * Plot a note with the text of a property on top of an element
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection));
+applyToCollection(collection, plotNoteStatus);
+
+function plotNoteStatus(obj) {
+	if (obj.prop("GEMMA status") == "In ontwikkeling") {
+		// Add a Note to this element
+		var note = obj.createObject("note", 10, 30, 180, 25);
+		note.fillColor = obj.fillColor;
+		note.fontSize = 8;
+		// note.fontStyle = "bold";
+
+		note.text = `(Nog) niet opgenomen in SWC`;
+		console.log(`- ${obj.name}, view "${obj.view.name}"`);
+	}
+}

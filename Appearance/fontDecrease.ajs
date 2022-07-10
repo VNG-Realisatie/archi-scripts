@@ -1,0 +1,18 @@
+/*
+ * FontDecrease
+ *
+ * Decrease fontsize by 1, but don't set fontsize smaller than default 9
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection));
+applyToCollection(collection, fontDecrease);
+console.log("Script finished\n");
+
+function fontDecrease(obj) {
+  // console.log(`- ${obj.name} on view ${obj.view.name}`);
+  if (obj.fontSize - 1 >= 9) obj.fontSize = obj.fontSize - 1;
+}

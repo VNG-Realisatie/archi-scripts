@@ -1,0 +1,44 @@
+/**
+ * find objects with two or more properties PROP_ID
+ */
+
+const PROP_ID = "Object ID";
+
+initConsoleLog(__FILE__, false);
+
+console.log(`Check model for objects with duplicate property ${PROP_ID}`);
+let i = 0;
+try {
+  $("*")
+    .not("folder")
+    .each((o) => {
+      // prop() with parameter duplicate=true returns an array with all values
+      let propValueList = o.prop(PROP_ID, true);
+      if (propValueList) {
+        if (propValueList.length > 1) {
+          console.log(`- ${o} => ${PROP_ID} ${propValueList}`);
+          i++;
+        }
+      }
+    });
+  console.log(`\nFound ${i} objects with duplicate ${PROP_ID}`);
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+finishConsoleLog();
+
+/**
+ * initConsoleLog and finishConsoleLog
+ *   first and last call in an Archi script
+ */
+function initConsoleLog(currentScript, pClear) {
+  script_name = currentScript.replace(/^.*[\\\/]/, "");
+  console.show();
+  if (pClear) console.clear();
+  console.log(`\nRunning script "${script_name}"...\n`);
+}
+
+function finishConsoleLog() {
+  console.log(`\nScript "${script_name}" finished`);
+  console.log("==========================================\n");
+}

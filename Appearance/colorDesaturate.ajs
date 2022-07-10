@@ -1,0 +1,27 @@
+// chroma-js for all kinds of color conversions and color scales
+// api docs https://gka.github.io/chroma.js/
+load("https://unpkg.com/chroma-js");
+load(__DIR__ + "../_lib/selection.js");
+
+try {
+	let collection = getVisualSelection($(selection));
+	applyToCollection(collection.not("relation"), ColorDesaturate);
+	console.log("Script finished\n");
+} catch (error) {
+	console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+/*
+ * ColorDesaturate.ajs
+ */
+function ColorDesaturate(obj) {
+	let color = chroma(obj.lineColor).brighten(2); // ### doesn't change black ..
+	obj.lineColor = `${color}`;
+	if (obj.fillColor) {
+		let color = chroma(obj.fillColor).desaturate(1);
+		obj.fillColor = `${color}`;
+		console.log(`>> ${obj.name ? obj.name : obj} desaturated`);
+	} else {
+		console.log(`>>> ${obj} has no color value (set to default)`);
+	}
+}

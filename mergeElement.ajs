@@ -1,7 +1,5 @@
 /*
- * mergeElement
- *
- * Version 1: Given an element, the script merges all elements with the same name and the same type to the selected element
+ * merge all elements of the same type with the same name with to the selected element
  *
  * From the jArchi .merge method (https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#merge)
  *
@@ -14,76 +12,100 @@
  *
  * jArchi merge method always appends the documentation and property values of the merged element
  * - This script only appends if the documentation field or de propertie value is different
- * This script does delete the merged element
+ * - This script deletes the merged elements
  *
  * (c) 2019 Mark Backer
  *
+ * 2019: first version
+ * 2021: use Archi merge method
+ * july 2022: keep masters property PROP_ID
  */
 
 load(__DIR__ + "_lib/Common.js");
 
+// Label of the property with the ID
+const PROP_ID = "Object ID";
+
 initConsoleLog(__FILE__);
 
-if ($(selection)) {
-	if ($(selection).filter("element").size() == 1) {
-		// select one element in view			-> this element is the master
-		mergeElement($(selection).first());
-	} else {
-		console.log(`> Multiple elements selected, select only one element`);
-	}
-} else {
-	console.log(`> Select one element`);
+try {
+  if (model == null || model.id == null) throw "Nothing selected. Select one element in the model tree or in a view";
+
+  let mergeSelection = $(selection).filter("element");
+  // select only one element, the master element
+  if (mergeSelection.size() == 1) {
+    mergeElement(mergeSelection.first());
+  } else {
+    console.log(`Multiple elements selected, select only one element`);
+  }
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
 finishConsoleLog();
 
 /**
- *
+ * merge element with other other elements of same type and name
  */
-function mergeElement(pObject) {
-	try {
-		var masterElement = pObject.concept;
+function mergeElement(selectedElement) {
+	// let master gives error in nashorn, but runs fine in graalvm
+  var master = concept(selectedElement);
 
-		duplicateElementList = $(`.${masterElement.name}`).filter(masterElement.type);
-		duplicateElementList.not($(masterElement));
+  const mergeList = $(`.${master.name}`).filter(master.type).not($(master));
 
-		if (duplicateElementList.size() == 0) {
-			console.log(`> There are no elements with the same name and the same type as "${masterElement.name}"`);
-		} else {
-			console.log(`> Merge all objects of type "${masterElement.type}" and with the name "${masterElement.name}"`);
-			console.log(`> Selected master element has id=${masterElement.id}\n`);
+  if (mergeList.size() == 0) {
+    console.log(`There are no elements with the same name and type as "${master.name}"`);
+  } else {
+    console.log(`Selected master element "${master}" (id=${master.id})\n`);
 
-			duplicateElementList.each(function (duplicateElement) {
-				console.log(`>> Merge element: ${duplicateElement.id}`);
+		console.log(`Merge all elements with name "${master.name}" and type "${master.type}"`);
+    console.log(`Merged element id's:`);
+    mergeList.each(function (duplicate) {
+      console.log(`- ${duplicate.id}`);
 
-				// don't append documentation if documentation strings are equal
-				if (duplicateElement.documentation == masterElement.documentation) {
-					console.log(`>>> documentation is equal, not appended to documentation of master`);
-					duplicateElement.documentation = "";
-				} else {
-					console.log(`>>> documentation appended to documentation of master`);
-				}
-				var duplicatePropList = duplicateElement.prop();
-				for (var i = 0; i < duplicatePropList.length; i++) {
-					if (masterElement.prop(duplicatePropList[i])) {
-						// remove property from duplicate if property is equal to master property
-						if (masterElement.prop(duplicatePropList[i]) == duplicateElement.prop(duplicatePropList[i])) {
-							duplicateElement.removeProp(duplicatePropList[i]);
-						} else {
-							console.log(`>>> property content ${duplicatePropList[i]} appended`);
-						}
-					} else {
-						console.log(`>>> property ${duplicatePropList[i]} added`);
-					}
-				}
+      // don't append documentation if documentation strings are equal
+      master.documentation = master.documentation.trim();
+      duplicate.documentation = duplicate.documentation.trim();
+      if (duplicate.documentation == master.documentation) {
+        // console.log(`  > documentation is equal, not appended to documentation of master`);
+        duplicate.documentation = ``;
+      } else {
+        console.log(`  > documentation appended to documentation of master`);
+      }
+      var duplicatePropList = duplicate.prop();
+      duplicatePropList.forEach((property) => {
+        // remove property PROP_ID; only keep the PROP_ID of the master
+        if (property == PROP_ID) {
+          if (master.prop(property)) {
+            duplicate.removeProp(property);
+          } else {
+            console.log(`  > WARNING; master didn't have property ${PROP_ID}, added from this element`);
+          }
+        } else {
+          // remove properties equal to master properties from duplicate
+          if (master.prop(property) == duplicate.prop(property)) {
+            duplicate.removeProp(property);
+          } else {
+            if (master.prop(property)) {
+              console.log(`  > WARNING; added property ${property}. Check property ${property} of master`);
+            }
+          }
+        }
+      });
 
-				masterElement.merge(duplicateElement);
-				duplicateElement.delete();
-			});
+      // master.merge(duplicate);
+      duplicate.delete();
+    });
+    // remove newlines added by Archi merge method
+    master.documentation = master.documentation.trim();
 
-			console.log(`\n> ${duplicateElementList.size()} elements merged and deleted`);
-		}
-	} catch (error) {
-		console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == "undefined" ? error : error.stack}`);
-	}
+    console.log(`\n${mergeList.size()} duplicates merged and deleted`);
+  }
+}
+
+/**
+ * return a concept for a visual concept or concept
+ */
+function concept(o) {
+  return o.concept ? o.concept : o;
 }

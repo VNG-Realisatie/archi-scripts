@@ -101,7 +101,7 @@ function filterProjectModel(projectFolder, projectModelName) {
   model.prop(MODEL_TYPE, "Projectmodel");
 
   // delete views not in selected project folder
-  projectViews = selectObjects(projectFolder, "view");
+  projectViews = getSelection(projectFolder, "view");
   console.log(`\nFilter projectmodel`);
   console.log(`Only keep objects referenced on the ${projectViews.size()} views in the folder ${projectFolder.name}`);
 
@@ -173,7 +173,7 @@ function generateUUID() {
  * @param {string} selector - Archi selector for filtering the type of contained objects
  * @returns {object} - collection with selected objects
  */
-function selectObjects(startSelection, selector) {
+function getSelection(startSelection, selector) {
   if (model == null || model.id == null)
     throw "Nothing selected. Select one or more objects in the model tree or a view";
 

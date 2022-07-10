@@ -1,0 +1,26 @@
+/*
+ * 	add a property to selected objects
+ */
+
+load(__DIR__ + "_lib/Common.js");
+load(__DIR__ + "_lib/selection.js");
+
+initConsoleLog(__FILE__, true);
+
+let propName = window.prompt("Please enter property", "propertyName");
+let propValue = window.prompt(`Value for ${propName}`, "propertyValue");
+
+let collection = getSelection($(selection), "concept");
+applyToCollection(collection, addProperty, [propName, propValue]);
+
+finishConsoleLog();
+
+function addProperty(obj, args) {
+  let propName = args[0];
+  let propValue = args[1];
+
+  if (obj.prop(propName)) {
+    console.log(`- ${obj} => ${propName}=${obj.prop(propName, true)} updated with ${propValue}`);
+  }
+  obj.prop(propName, propValue, false);
+}

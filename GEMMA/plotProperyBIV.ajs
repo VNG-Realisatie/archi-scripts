@@ -1,0 +1,55 @@
+/*
+ * 	PlotPropertyBIV
+ *		Plot notes with the BIV-values inside the application-components
+ */
+
+// chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
+// ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+load("https://unpkg.com/chroma-js");
+
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/selection.js");
+
+
+initConsoleLog(__FILE__, true);
+
+let collection = getVisualSelection($(selection), "application-component" );
+applyToCollection(collection, plotPropertyBIV, ["Oranges"]);
+
+finishConsoleLog();
+
+function plotPropertyBIV(obj, args) {
+	if (typeof this.only_once == "undefined") {
+		this.BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
+		colorscale = chroma.scale(args[0]);
+		console.log(`Plot notes with the BIV-values inside the application-components`);
+		this.only_once = true;
+	}
+	
+	// only plot BIV notes in referentiecomponent, not in legenda components
+	if (obj.prop("GEMMA type") == "Referentiecomponent") {
+
+		// color element with value for 'Vertrouwelijkheid'
+		obj.fillColor = `${colorscale((obj.prop("Vertrouwelijkheid") - 0.8) / 3)}`;
+
+		var x = 20;
+		for (var i = 0; i < this.BIVlist.length; i++) {
+			var BIVvalue = obj.prop(this.BIVlist[i]);
+			if (BIVvalue) {
+				// Add a Note to this element
+				var note = obj.createObject("note", x, 45, 45, 25);
+				// subtract less than 1 for darker color in note than element
+				note.fillColor = `${colorscale((BIVvalue - 0.6) / 3)}`;
+				note.fontSize = 9;
+
+				var str = this.BIVlist[i];
+				note.text = `${str.substring(0, 1)} = ${obj.prop(this.BIVlist[i])}`;
+			} else {
+				console.log(`${obj.name}: no property ${this.BIVlist[i]}`);
+			}
+			x += 60;
+		}
+	} else {
+		console.log(`Skip ${obj.name}: property "GEMMA type" = ${obj.prop("GEMMA type")}`);
+	}
+}

@@ -1,0 +1,168 @@
+/*
+ * Color elements by the value of a selected property
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/selection.js");
+// chroma-js for color conversions and color scales https://gka.github.io/chroma.js/
+load("https://unpkg.com/chroma-js");
+
+const LIMIT_ONE_COLOR_SHADE = 5;
+
+initConsoleLog(__FILE__, true);
+
+try {
+  let collection = getVisualSelection($(selection), "element");
+
+  let propColorBy = selectFromProperties(collection);
+
+  if (propColorBy) {
+    let propValues = getPropValues(collection, propColorBy);
+    // ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+    // valid ranges are: 'Oranges', 'Greens', 'Blues', 'OrRd', ..
+    // let colorscale = getColorScale(propValueList, "Blues");
+    let colorscale = getColorScale(propValues, "OrRd");
+
+    drawLegenda(collection.first().view, propColorBy, propValues, colorscale);
+    applyToCollection(collection, ColorByProperty, [propColorBy, propValues, colorscale]);
+
+  } else {
+    console.log("Cancelled, no property selected");
+  }
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+finishConsoleLog();
+
+/**
+ * show all properties and let the user select one
+ */
+function selectFromProperties(collection) {
+  // create a list of all properties in the selection
+  let propList = [];
+  collection.each((obj) => (propList = propList.concat(obj.prop())));
+  propList = propList.filter((item, i) => propList.indexOf(item) == i);
+
+  // select a property of the selected element
+  let promptText = `Select property from the list of all properties in the selection:\n`;
+  let i = 1;
+  propList.forEach((prop) => (promptText += `${i++}. ${prop}\n`));
+  let index = parseInt(window.prompt(promptText, `number of the property`));
+
+  if (index > 0 && index <= propList.length) {
+    return propList[index - 1];
+  } else {
+    console.log(`Cancelled, entered number ${index} is not in the list`);
+  }
+  return;
+}
+
+/**
+ * set the color of an object based on the value of a selected property
+ */
+function ColorByProperty(obj, args) {
+  let propColorBy = args[0];
+  let propValues = args[1];
+  let colorscale = args[2];
+
+  if (obj.prop(propColorBy)) {
+    // console.log(`- ${obj} (${propColorBy}=${obj.prop(propColorBy)})`);
+    let color = colorscale(propValues.indexOf(obj.prop(propColorBy)) / propValues.length);
+    obj.fillColor = `${color}`;
+  } else {
+    obj.fillColor = "#FFFFFF";
+    obj.fontColor = "#AAAAAA";
+    obj.outlineOpacity = 100; // Value range 0-255.
+  }
+  return;
+}
+
+/*
+ * return a color code based on the properties value
+ */
+function getColorScale(list, colorRange) {
+  if (list.length > LIMIT_ONE_COLOR_SHADE) {
+    console.log(`\nProperty has more than ${LIMIT_ONE_COLOR_SHADE} different values`);
+    console.log(`Color elements with shades of red, yellow and blue\n`);
+    return chroma.scale("RdYlBu");
+  } else {
+    console.log(`\nColor elements with shades of ${colorRange}\n`);
+    return chroma.scale(colorRange).padding([0.2, 0.2]);
+  }
+}
+
+/*
+ * return an array of unique property values in the model for an object type
+ */
+function getPropValues(coll, prop) {
+  let propList = [];
+  let propIndex = {};
+
+  console.log(`Values for property "${prop}":`);
+
+  coll.forEach((o) => {
+    let propValue = o.prop(prop);
+    if (propValue) {
+      if (!propIndex[propValue]) {
+        propList.push(propValue);
+        propIndex[propValue] = true;
+        console.log(`- ${propValue}`);
+      }
+    }
+  });
+  console.log(`${propList.length} unique property values found`);
+  return propList.sort((a, b) => a.localeCompare(b));
+}
+
+/*
+ * draw a legenda / key for all property values
+ */
+function drawLegenda(view, selectedProperty, propValueList, colorscale) {
+  const HeaderHeight = 30;
+  const legendaName = `Colored by ${selectedProperty}`; // "Legenda";
+  const ItemHeigth = 30;
+  const ItemSpacingX = 10;
+  const ItemSpacingY = 5;
+
+  let maxTextLength = 0;
+  const characterWidth = 6.5;
+  propValueList.forEach((item) => (maxTextLength = Math.max(item.length, maxTextLength)));
+  const ItemWidth = characterWidth * Math.max(legendaName.length, maxTextLength);
+
+  // find coordinates of upper right corner for placing legenda
+  let maxX = 0;
+  let minY = 10000;
+  $(view)
+    .find()
+    .not("relation")
+    .forEach(function (o) {
+      maxX = Math.max(o.bounds.x + o.bounds.width, maxX);
+      minY = Math.min(o.bounds.y, minY);
+    });
+
+  let legenda = view.createObject(
+    "group",
+    maxX + ItemSpacingX,
+    minY,
+    ItemWidth + 2 * ItemSpacingX,
+    HeaderHeight + propValueList.length * (ItemSpacingY + ItemHeigth) + ItemSpacingY
+  );
+  legenda.name = legendaName;
+  legenda.borderType = BORDER.RECTANGLE;
+  legenda.fillColor = "#FFFFFF";
+
+  for (let j = 0; j < propValueList.length; j++) {
+    let item = legenda.createObject(
+      "note",
+      ItemSpacingX,
+      HeaderHeight + j * (ItemHeigth + ItemSpacingY),
+      ItemWidth,
+      ItemHeigth
+    );
+    item.fillColor = `${colorscale(j / propValueList.length)}`;
+    item.text = propValueList[j];
+    item.borderType = BORDER.RECTANGLE;
+  }
+}

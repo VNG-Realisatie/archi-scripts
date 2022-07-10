@@ -1,0 +1,25 @@
+/*
+ * For the selected elements, plot a note with the coördinates
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection), "element");
+applyToCollection(collection, plotXYposition);
+console.log("Script finished\n");
+
+function plotXYposition(obj) {
+  // console.log(`- ${obj}`);
+
+  let note = obj.createObject("note", 5, 25, 70, 35); // Add a Note to this element
+	note.fontSize = 6;
+  note.borderType = BORDER.RECTANGLE;
+
+	note.text = `x,y=${obj.bounds.x}, ${obj.bounds.y}\n`;
+	note.text += `w,h=${obj.bounds.width}, ${obj.bounds.height}`;
+
+	// note.text = `x=${obj.bounds.x} y=${obj.bounds.y}\n`;
+  // note.text += `width=${obj.bounds.width} height=${obj.bounds.height}`;
+}

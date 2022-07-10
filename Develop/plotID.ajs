@@ -1,0 +1,24 @@
+/*
+ * plot a note with the Archi id in selected elements
+ *
+ * (c) 2019 Mark Backer
+ *
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+// select visual elements
+let collection = getVisualSelection($(selection), "element");
+applyToCollection(collection, plotID);
+console.log("Script finished\n");
+
+function plotID(obj) {
+  // console.log(`- ${obj}`);
+
+  // plot a note on this element
+  var note = obj.createObject("note", 5, 40, 190, 19);
+  note.fontSize = 5;
+  note.textPosition = TEXT_POSITION.CENTER;
+  note.borderType = BORDER.RECTANGLE;
+  // use id of concept, not id of occurrence
+  note.text = `${obj.concept.id}`;
+}
