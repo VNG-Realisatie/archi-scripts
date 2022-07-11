@@ -15,7 +15,7 @@
   "diagram-model-note",
   "diagram-model-image",
   "diagram-model-reference",
-  "archimate-diagram-model", // jArchi return this for a reference
+  "archimate-diagram-model", // jArchi return this for a diagram-model-reference
 ];
 
 // polyfill for array method includes(), which is not supported in Nashorn ES6

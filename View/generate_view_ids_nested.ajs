@@ -130,7 +130,7 @@ var param = {
   ],
   drawNested: [
     // "access-relationship",
-    // "aggregation-relationship",
+    "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",

@@ -1,3 +1,8 @@
+/**
+ * Fill graph with visual id's
+ *
+ *
+ */
 const GENERATE_SINGLE = "GENERATE_SINGLE";
 const GENERATE_MULTIPLE = "GENERATE_MULTIPLE";
 const EXPAND_HERE = "EXPAND_HERE";
@@ -15,7 +20,8 @@ var dagre;
 var graph; // graphlib graph for layout view
 var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
 
-load(__DIR__ + "../_lib/common.js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/selection.js");
 
 /**
  * Where to find the required dagre-cluster-fix module?
@@ -52,34 +58,21 @@ function generate_view(param) {
 
   try {
     if (setDefaultParameters(param)) {
-      let selectedElements = selectObjects(selection, "element");
-      let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
-      console.log(`- ${filteredElements.length} elements after filtering`);
-      if (filteredElements.length === 0) throw "No Archimate element match your criterias.";
 
-      // - first create view
-      console.log(`\nDrawing ArchiMate view...  `);
+      let filteredElements = getFilteredSelection(selection, param);
 
+      console.log(`\nGet a view for drawing ...  `);
       let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
       let view = getView(folder, param.viewName);
 
       createGraph(param);
-
-      // - for every filtered element
-      // todo > collection
-      let notFilteredElements = $();
-      if ((param.graphDepth = 0)) notFilteredElements = $("element").not(filteredElements);
-      notFilteredElements = $("element").not(filteredElements);
-      //  debug(`notFilteredElements: ${notFilteredElements}`)
 
       // add elements and their relations
       filteredElements
         .rels()
         .filter((rel) => filterObjectType(rel, param.relationFilter))
         .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
-        // .filter((rel) => $(rel).targetEnds().is("element")) // skip relations with relations
-        // .filter((rel) => $(rel).ends().not(notFilteredElements)) // depth = 0
-        .filter((rel) => relEndsIn(rel, filteredElements)) // depth = 0
+        .filter((rel) => relEndsIn(rel, filteredElements)) // skip relation with filtered elements
         .each((rel) => {
           debug(`filteredElements rel: ${rel}`);
 
@@ -128,11 +121,30 @@ function generate_view(param) {
         drawBendpoints(param, edgeObj, visualRelation);
         //     - for all nestedRelations
       });
+      openView(view);
     }
   } catch (error) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   debugStackPop();
+}
+
+function addElement(param, view, e) {
+  // check if element is already added to the view
+  let visualElement = findOnView(view, e);
+  if (!visualElement) {
+    // add to the view
+    visualElement = view.add(e, 0, 0, -1, -1);
+    debug(`added to view: ${visualElement.name}`);
+
+    // add to the graph for layout
+    if (e.type == "junction") {
+      graph.setNode(visualElement.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
+    } else {
+      graph.setNode(visualElement.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });
+    }
+  }
+  return visualElement;
 }
 
 /**
@@ -141,7 +153,13 @@ function generate_view(param) {
  *   an occurence of the child is added to the parent
  *   the view will show duplicates off the child element
  *
- * recurse over alle nestedRelation
+ * recurse over alle nestedRelation until a 'root' parent is found
+ *   add the parent to the view
+ *   add children to the parent
+ * stop for cyclic parents
+ *  remember followed parents
+ * 
+ * was
  *   if the parent is a child in another nested relation
  *     then add the parent to the parents parent
  *   else add the parent to the view
@@ -232,6 +250,7 @@ function parentIsChild(param, view, child) {
       }
     });
 }
+
 /**
  * return first visual object of the given object on the view
  *
@@ -267,23 +286,6 @@ function relEndsIn(rel, filteredElements) {
 
 function eleIn(e, filteredElements) {
   return filteredElements.filter((fe) => fe.id == e.id).size() != 0;
-}
-
-function addElement(param, view, e) {
-  let visualElement = findOnView(view, e);
-
-  // check if element is already added to the view
-  if (!visualElement) {
-    // add to the view
-    visualElement = view.add(e, 0, 0, -1, -1);
-    debug(`added to view: ${visualElement.name}`);
-
-    // add to the graph for layout
-    if (e.type == "junction")
-      graph.setNode(visualElement.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
-    else graph.setNode(visualElement.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });
-  }
-  return visualElement;
 }
 
 function getFolder(mainFolderName, folderName) {
@@ -534,6 +536,22 @@ function getCenterBoundsAbsolute(element, center) {
   return;
 }
 
+// Open the view
+function openView(view) {
+  try {
+    // jArchi provides a ArchimateDiagramModelProxy class where then openDiagramEditor requires a ArchimateDiagramModel class
+    // unfortunately, the getEObject() method that provides the underlying ArchimateDiagramModel class, is protected
+    // so we use reflection to invoke this method.
+    var method =
+      Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class.getDeclaredMethod("getEObject");
+    method.setAccessible(true);
+    var v = method.invoke(view);
+    Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(v);
+  } catch (e) {
+    console.error(`"Failed to open ${view}. You may open it manually`);
+  }
+}
+
 function validArchiConcept(paramList, validNames, label, emptyLabel) {
   let validFlag = true;
 
@@ -641,45 +659,21 @@ const RELATION_NAMES = [
 ];
 
 /**
- * return a collection of  the contained objects in the selection
+ * return a collection of selected objects, filtered for the given param
  *
  * @param {object} startSelection - selection containing Archi objects
- * @param {string} selector - Archi selector for filtering the type of contained objects
  * @returns {object} - collection with selected objects
  */
-function selectObjects(startSelection, selector) {
-  if (model == null || model.id == null)
-    throw "Nothing selected. Select one or more objects in the model tree or a view";
+function getFilteredSelection(startSelection, param) {
 
-  // create an empty collection
-  var selectedColl = $();
-  $(startSelection).each((obj) => addObjectInList(obj, selector, selectedColl));
+  let selectedElements = getSelection(startSelection, "element");
 
-  return selectedColl;
-}
+  let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
 
-/**
- * recursive function
- *   add the selected object to a collection.
- *   if the object is a container (model, view or folder), add all contained objects
- */
-function addObjectInList(obj, selector, coll) {
-  if ($(obj).is(selector)) {
-    let o = obj;
-    if (selector != "view") o = concept(obj);
-    // check for duplicates, than add element to the list
-    if (coll.filter((a) => a.id == o.id).size() == 0) {
-      coll.add(o);
-    }
-  }
-  $(obj)
-    .children()
-    .each((child) => addObjectInList(child, selector, coll));
-  return coll;
-}
+  console.log(`- ${filteredElements.length} elements after filtering`);
+  if (filteredElements.length === 0) throw "No Archimate element match your criterias.";
 
-function concept(o) {
-  return o.concept ? o.concept : o;
+  return filteredElements;
 }
 
 function filterObjectType(o, filterArray) {
