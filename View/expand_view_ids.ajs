@@ -19,9 +19,9 @@
 load(__DIR__ + "include_generate_view_visual_id.js");
 
 var param = {
-  action: GENERATE_SINGLE,
+  // action: GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
-  // action: EXPAND_HERE,
+  action: EXPAND_HERE,
   // action: LAYOUT,
 
   // graphDepth: 1,

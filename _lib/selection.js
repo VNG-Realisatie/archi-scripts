@@ -9,7 +9,7 @@
  *
  */
 
- const DIAGRAM_OBJECTS = [
+const DIAGRAM_OBJECTS = [
   "diagram-model-group",
   "diagram-model-connection",
   "diagram-model-note",
@@ -64,14 +64,17 @@ function getSelectionArray(startSelection, selector) {
  * @returns {object} - collection with selected objects
  */
 function getSelection(startSelection, selector = "*") {
-  console.log(`Selection filter is "${selector}"`);
   if (model == null || model.id == null)
     throw "Nothing selected. Select one or more objects in the model tree or a view";
 
+  if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
+  else console.log(`Selected ${startSelection.size()} objects, first selected object is ${startSelection.first()}`);
+  
   // create an empty collection
   var selectedColl = $();
   $(startSelection).each((obj) => addObject(obj, selector, selectedColl));
-
+  
+  console.log(`Created a collection of ${selectedColl.size()} objects of type "${selector}"`);
   return selectedColl;
 
   /**
@@ -106,7 +109,10 @@ function getSelection(startSelection, selector = "*") {
  */
 function getVisualSelection(startSelection, selector = "*") {
   if (model == null || model.id == null) throw "Nothing selected. Select views or one or more objects on a view";
-  console.log(`Selection filter is "${selector}"`);
+
+  if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
+  else console.log(`Selected ${startSelection.size()} objects, first selected object is ${startSelection.first()}`);
+  console.log(`Select "${selector}"`);
 
   // create an empty collection
   var selectedVisualColl = $();

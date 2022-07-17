@@ -19,10 +19,10 @@
 load(__DIR__ + "include_generate_view_visual_id.js");
 
 var param = {
-  action: GENERATE_SINGLE,
+  // action: GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
-  // action: LAYOUT,
+  action: LAYOUT,
 
   // graphDepth: 1,
   graphDepth: 1,
@@ -120,7 +120,7 @@ var param = {
     // "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
-    "composition-relationship",
+    // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
     "realization-relationship",
@@ -143,8 +143,8 @@ var param = {
   ],
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  // graphDirection: "LR",
-  graphDirection: "TB",
+  graphDirection: "LR",
+  // graphDirection: "TB",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
