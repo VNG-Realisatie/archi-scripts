@@ -78,7 +78,7 @@ function getSelection(startSelection, selector = "*") {
   return selectedColl;
 
   /**
-   * recursive function
+   * private recursive function
    *   add the selected object to a collection.
    *   if the object is a container (model, view or folder), add all contained objects
    */
