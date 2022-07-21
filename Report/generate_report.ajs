@@ -190,7 +190,7 @@ function reportStructure(report, settings, pLevel, pParagraphNr, pObject) {
 
       // Print a table with the views elements, if includeTableView is set.
       // "canvas-model" views don't have elements, so skip
-      if (settings.includeTableOfView && pObject.type != "canvas-model") {
+      if (settings.includeTableOfView.value && pObject.type != "canvas-model") {
         report.body += printTableHierarchic(settings, view);
       }
     } else {
