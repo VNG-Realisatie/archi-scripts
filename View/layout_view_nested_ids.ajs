@@ -143,8 +143,8 @@ var param = {
   ],
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
+  // graphDirection: "LR",
+  graphDirection: "TB",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
@@ -155,8 +155,8 @@ var param = {
 
   nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 20,
-  vSep: 180,
+  hSep: 120,
+  vSep: 20, // with TB 2x10 space between nodes
 
   debug: true,
 };
