@@ -25,7 +25,6 @@ const JUNCTION_DIAMETER = 14; // size of a junction
 
 const START_LEVEL = 1;
 var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
-var viewObjectIndex = new Object();
 
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/selection.js");
@@ -323,7 +322,6 @@ function addVisualNestedRel(param, graph, view, rel, parent, child) {
       visualRel = view.add(rel, visualParent, visualChild);
     }
     // debug(`added nested relation to view: ${visualRel}`);
-    viewObjectIndex[rel.id] = visualRel;
 
     graph.setParent(visualChild.id, visualParent.id);
     // debug(`graph.setParent(visualChild.id, visualParent.id): ${visualChild.id}, ${visualParent.id}`);
@@ -336,7 +334,6 @@ function addVisualElement(param, graph, view, e) {
     // add to the view
     visualEle = view.add(e, 0, 0, -1, -1);
     debug(`\nadded: ${visualEle}`);
-    viewObjectIndex[e.id] = visualEle;
 
     // add to the graph for layout
     if (e.type == "junction") {
@@ -356,7 +353,6 @@ function addVisualChild(param, graph, view, visualParent, child) {
   // add to the view
   visualChild = visualParent.add(child, 0, 0, -1, -1);
   debug(`\nadded child ${visualChild.name} to parent ${visualParent.name} `);
-  viewObjectIndex[child.id] = visualChild;
 
   // add to the graph for layout
   if (child.type == "junction") {
@@ -384,7 +380,6 @@ function addVisualRelation(param, graph, view, visualSource, visualTarget, rel) 
   if (!visualRel) {
     let visualRel = view.add(rel, visualSource, visualTarget);
     debug(`\nadded: ${printRel(visualRel)}`);
-    viewObjectIndex[rel.id] = visualRel;
 
     if (param.drawReversed.includes(rel.type)) {
       // add reversed to the graph for direction in the layout
@@ -426,13 +421,11 @@ function printRel(rel) {
  * @returns
  */
 function findOnView(view, obj) {
-  let viewElement = viewObjectIndex[obj.id];
-
-  // let viewElement = $(view)
-  //   .find()
-  //   .filter("concept") // no diagram-objects, no concept.id ### todo
-  //   .filter((viewObj) => viewObj.concept.id == obj.id)
-  //   .first();
+  let viewElement = $(view)
+    .find()
+    .filter("concept") // no diagram-objects, no concept.id ### todo
+    .filter((viewObj) => viewObj.concept.id == obj.id)
+    .first();
 
   // debug(`obj: ${obj} found: ${viewElement}`);
   return viewElement;
