@@ -17,6 +17,7 @@ const REGENERATE = "REGENERATE";
 
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
+const PROP_SAVE_ROUNDROBIN = "generate_view_roundRobin";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
 const NODE_WIDTH = 140; // width of a drawn element
 const NODE_HEIGHT = 60; // height of a drawn element
@@ -24,6 +25,7 @@ const JUNCTION_DIAMETER = 14; // size of a junction
 
 const START_LEVEL = 1;
 var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
+var viewObjectIndex = new Object();
 
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/selection.js");
@@ -166,11 +168,15 @@ function growCollection(param, ele, coll) {
 }
 
 /**
- * add the collected objects to the view and
- * add them to the graph for layout calculation
- * use the visual object id's for the graph nodes and edges
+ * add the collected objects to the view and to the graph for layout calculation
+ * - sorting the collection can result in a different layout
+ *
+ * - the view is used as the container with objects to layout
  */
 function drawCollection(param, dagre, graph, collection, view) {
+  // create a different start for the layout by sortings of the collection
+  let roundRobinText = roundRobinCollection(collection, view);
+
   let nestedCollection = collection.filter("relation").filter((rel) => param.drawNested.includes(rel.type));
   drawNestedCollection(dagre, graph, nestedCollection, view);
 
@@ -193,12 +199,43 @@ function drawCollection(param, dagre, graph, collection, view) {
   calculateLayout(param, dagre, graph);
   applyLayout(graph, view);
 
+  console.log(`\n${roundRobinText}`);
+
+  // save used settings to property PROP_SAVE_PARAMETER of view
+  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
+
   openView(view);
 
   console.log("\nAdded to the graph:");
   console.log(`- ${graph.nodeCount()} nodes and`);
   console.log(`- ${graph.edgeCount()} edges`);
   if (nestedCollection.size() > 0) console.log(`- ${nestedCollection.size()} parent-child nestings`);
+
+  /**
+   * sort the collection in three different orders
+   */
+  function roundRobinCollection(collection, view) {
+    let roundRobin = view.prop(PROP_SAVE_ROUNDROBIN);
+    roundRobin = roundRobin ? ((parseInt(roundRobin) + 1) % 3) + 1 : 1;
+    view.prop(PROP_SAVE_ROUNDROBIN, `${roundRobin}`);
+
+    let JavaCollections = Java.type("java.util.Collections");
+    let sortAction = "";
+    switch (roundRobin) {
+      case 1:
+        sortAction = "sorted in ascending order";
+        JavaCollections.sort(collection);
+        break;
+      case 2:
+        sortAction = "sorted in descending order";
+        JavaCollections.sort(collection, JavaCollections.reverseOrder());
+        break;
+      case 3:
+        sortAction = "not sorted";
+        break;
+    }
+    return `Layout started with objects ${sortAction} (roundRobin=${roundRobin})`;
+  }
 }
 
 /**
@@ -215,8 +252,11 @@ function drawNestedCollection(dagre, graph, nestedCollection, view) {
 
   // Add the given relation as a parent/child to the graph
   nestedCollection.forEach((rel) => {
-    if (param.drawReversed.includes(rel.type)) nestedGraph.setParent(rel.target.id, rel.source.id);
-    else nestedGraph.setParent(rel.source.id, rel.target.id);
+    if (param.drawReversed.includes(rel.type)) {
+      nestedGraph.setParent(rel.target.id, rel.source.id);
+    } else {
+      nestedGraph.setParent(rel.source.id, rel.target.id);
+    }
     debug(`> Added child->parent to nestedGraph = ${rel}`);
   });
 
@@ -283,6 +323,7 @@ function addVisualNestedRel(param, graph, view, rel, parent, child) {
       visualRel = view.add(rel, visualParent, visualChild);
     }
     // debug(`added nested relation to view: ${visualRel}`);
+    viewObjectIndex[rel.id] = visualRel;
 
     graph.setParent(visualChild.id, visualParent.id);
     // debug(`graph.setParent(visualChild.id, visualParent.id): ${visualChild.id}, ${visualParent.id}`);
@@ -295,6 +336,7 @@ function addVisualElement(param, graph, view, e) {
     // add to the view
     visualEle = view.add(e, 0, 0, -1, -1);
     debug(`\nadded: ${visualEle}`);
+    viewObjectIndex[e.id] = visualEle;
 
     // add to the graph for layout
     if (e.type == "junction") {
@@ -314,6 +356,7 @@ function addVisualChild(param, graph, view, visualParent, child) {
   // add to the view
   visualChild = visualParent.add(child, 0, 0, -1, -1);
   debug(`\nadded child ${visualChild.name} to parent ${visualParent.name} `);
+  viewObjectIndex[child.id] = visualChild;
 
   // add to the graph for layout
   if (child.type == "junction") {
@@ -327,6 +370,10 @@ function addVisualChild(param, graph, view, visualParent, child) {
   return visualChild;
 }
 
+/**
+ *
+ * weight
+ */
 function addVisualRelation(param, graph, view, visualSource, visualTarget, rel) {
   // if (rel.source.id == rel.target.id) {
   //   // keep circular relations out of the graph because of dagre crashes
@@ -337,21 +384,28 @@ function addVisualRelation(param, graph, view, visualSource, visualTarget, rel) 
   if (!visualRel) {
     let visualRel = view.add(rel, visualSource, visualTarget);
     debug(`\nadded: ${printRel(visualRel)}`);
+    viewObjectIndex[rel.id] = visualRel;
 
     if (param.drawReversed.includes(rel.type)) {
       // add reversed to the graph for direction in the layout
       // graph.setEdge(v, w, [label], [name])
+      // g.setEdge(prev, curr, { weight: 1 });
       graph.setEdge(
         visualRel.target.id,
         visualRel.source.id,
-        { label: `Added reversed ${printRel(visualRel)}` },
+        { label: `Added reversed ${printRel(visualRel)}`, weight: RELATION_WEIGHT[rel.type] },
         visualRel.id
       );
       // debug(`added reversed to graph: ${printRel(visualRel)})`);
       // g.edge("a", "b", "edge1"); // returns "edge1-label"
       // debug(`  graph.edge(): ${JSON.stringify(graph.edge(visualRel.target.id, visualRel.source.id, visualRel.id))}`);
     } else {
-      graph.setEdge(visualRel.source.id, visualRel.target.id, { label: `Added ${printRel(visualRel)}` }, visualRel.id);
+      graph.setEdge(
+        visualRel.source.id,
+        visualRel.target.id,
+        { label: `Added ${printRel(visualRel)}`, weight: RELATION_WEIGHT[rel.type] },
+        visualRel.id
+      );
       // debug(`added to graph: ${printRel(visualRel)})`);
       // debug(`  graph.edge(): ${JSON.stringify(graph.edge(visualRel.source.id, visualRel.target.id, visualRel.id))}`);
     }
@@ -360,9 +414,8 @@ function addVisualRelation(param, graph, view, visualSource, visualTarget, rel) 
   }
 }
 
-function printRel(rel)
-{
-  return `${rel.type}: ${rel.source.name} -> ${rel.target.name} (${rel.id})`
+function printRel(rel) {
+  return `${rel.type}: ${rel.source.name} -> ${rel.target.name} (${rel.id})`;
 }
 
 /**
@@ -373,11 +426,13 @@ function printRel(rel)
  * @returns
  */
 function findOnView(view, obj) {
-  let viewElement = $(view)
-    .find()
-    .filter("concept") // no diagram-objects, no concept.id ### todo
-    .filter((viewObj) => viewObj.concept.id == obj.id)
-    .first();
+  let viewElement = viewObjectIndex[obj.id];
+
+  // let viewElement = $(view)
+  //   .find()
+  //   .filter("concept") // no diagram-objects, no concept.id ### todo
+  //   .filter((viewObj) => viewObj.concept.id == obj.id)
+  //   .first();
 
   // debug(`obj: ${obj} found: ${viewElement}`);
   return viewElement;
@@ -464,15 +519,15 @@ function setDefaultParameters(param, graphOptions) {
   console.log("- options for selection");
   if (param.graphDepth === undefined) param.graphDepth = 1;
   console.log("  - graphDepth = " + param.graphDepth);
-  if (!validArchiConcept(param.elementFilter, ELEMENT_NAMES, "elementFilter:", "no filter")) validFlag = false;
+  if (!validArchiConcept(param.elementFilter, ELEMENT_TYPES, "elementFilter:", "no filter")) validFlag = false;
   if (param.elementFilter === undefined) param.elementFilter = [];
-  if (!validArchiConcept(param.relationFilter, RELATION_NAMES, "relationFilter:", "no filter")) validFlag = false;
+  if (!validArchiConcept(param.relationFilter, RELATION_TYPES, "relationFilter:", "no filter")) validFlag = false;
   if (param.relationFilter === undefined) param.relationFilter = [];
 
   console.log("- options for drawing relationships");
-  if (!validArchiConcept(param.drawReversed, RELATION_NAMES, "drawReversed:", "none")) validFlag = false;
+  if (!validArchiConcept(param.drawReversed, RELATION_TYPES, "drawReversed:", "none")) validFlag = false;
   if (param.drawReversed === undefined) param.drawReversed = [];
-  if (!validArchiConcept(param.drawNested, RELATION_NAMES, "drawNested:", "none")) validFlag = false;
+  if (!validArchiConcept(param.drawNested, RELATION_TYPES, "drawNested:", "none")) validFlag = false;
   if (param.drawNested === undefined) param.drawNested = [];
 
   // settings for dagre graph
@@ -566,6 +621,12 @@ function createGraph(dagre, graphOptions) {
  */
 function calculateLayout(param, dagre, graph) {
   console.log("\nCalculating the layout...");
+
+  // graph = graph.nodes().sort((a, b) => 0.5 - Math.random());
+  // graph = graph.nodes().sort(function (a, b) {
+  // 	return a.data("label").localeCompare(b.data("label"));
+  // });
+
   var opts = { debugTiming: false };
   if (param.debug) opts.debugTiming = true;
   dagre.layout(graph, opts);
@@ -768,7 +829,7 @@ function openView(view) {
   }
 }
 
-const ELEMENT_NAMES = [
+const ELEMENT_TYPES = [
   "application-collaboration",
   "application-component",
   "application-event",
@@ -841,7 +902,7 @@ const ELEMENT_NAMES = [
   "work-package",
 ];
 
-const RELATION_NAMES = [
+const RELATION_TYPES = [
   "access-relationship",
   "aggregation-relationship",
   "assignment-relationship",
@@ -854,6 +915,27 @@ const RELATION_NAMES = [
   "specialization-relationship",
   "triggering-relationship",
 ];
+
+const RELATION_WEIGHT = {
+  // Structural Relationships
+  "composition-relationship": 1,
+  "aggregation-relationship": 1,
+  "assignment-relationship": 0.8,
+  "realization-relationship": 0.6,
+
+  //  Dependency Relationships
+  "serving-relationship": 0.6,
+  "access-relationship": 0.4,
+  "influence-relationship": 0.4,
+  "association-relationship": 0,
+
+  // Dynamic Relationships
+  "triggering-relationship": 0.6,
+  "flow-relationship": 0.2,
+
+  // Other Relationships
+  "specialization-relationship": 0.8,
+};
 
 function filterObjectType(o, filterArray) {
   if (filterArray.length == 0) return true;

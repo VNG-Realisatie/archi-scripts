@@ -19,25 +19,33 @@ load(__DIR__ + "include_generate_view.js");
 var params = {
   action: LAYOUT,
   elementFilter: [],
-  relationFilter: [
-  ],
-  drawReversed: [
-    "aggregation-relationship",
-    // "assignment-relationship",
-    // "composition-relationship",
-    "realization-relationship",
-    "serving-relationship",
-    // "specialization-relationship",
-  ],
+  relationFilter: [],
 
-  drawNested: [
-    "access-relationship",
+  drawReversed: [
+    // "access-relationship",
     "aggregation-relationship",
     // "assignment-relationship",
+    // "association-relationship",
     // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
     "realization-relationship",
-    // "serving-relationship"
+    // "serving-relationship",
+    // "specialization-relationship",
+    // "triggering-relationship",
+  ],
+  drawNested: [
+    // "access-relationship",
+    "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    // "realization-relationship",
+    // "serving-relationship",
     "specialization-relationship",
+    // "triggering-relationship",
   ],
 
   // viewName: "gen-custom",
@@ -54,12 +62,12 @@ var params = {
 
   // ranker: "longest-path",
   // ranker: "tight-tree",
-  // ranker: "network-simplex", // default
+  ranker: "network-simplex", // default
 
-  nodeWidth: 240,
+  nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 20,
-  vSep: 80,
+  hSep: 20, // space between nodes
+  vSep: 40, // space between ranks 
 
   debug: false,
 };

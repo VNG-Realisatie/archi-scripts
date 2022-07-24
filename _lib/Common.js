@@ -74,7 +74,7 @@ function endCounter(label) {
   let seconds = parseInt(durationInSeconds % 60);
   if (minutes > 0) {
     return `${minutes}m${seconds}s`;
-  } else if (seconds > 0) {
+  } else if (seconds > 10) {
     return `${seconds}s`;
   } else {
     return `${milliSeconds}ms`;
