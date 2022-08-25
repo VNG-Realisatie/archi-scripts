@@ -40,51 +40,60 @@ function generate_view(param) {
 
   try {
     const dagre = loadDagre();
-    let graphOptions = new Object();
-    if (setDefaultParameters(param, graphOptions)) {
+    if (setDefaultParameters(param)) {
       let selectedElements = selectElements(param);
       let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
-      let graph = createGraph(dagre, graphOptions);
-      let collection = $();
-      let view;
 
       switch (param.action) {
         case GENERATE_SINGLE:
-          selectedElements.forEach((ele) => growCollection(param, ele, collection));
-          collection.add(selectedElements);
+          {
+            console.log("\nGenerate a view with the selected objects");
+            let view = getEmptyView(folder, param.viewName);
+            let collection = $();
+            selectedElements.forEach((ele) => growCollection(param, ele, collection));
+            collection.add(selectedElements);
 
-          view = getView(folder, param.viewName);
-          drawCollection(param, dagre, graph, collection, view);
+            drawCollection(param, dagre, collection, view);
+          }
           break;
         case GENERATE_MULTIPLE:
           console.log(`\n== Generating ${selectedElements.length} views ==`);
           selectedElements.forEach(function (ele) {
-            // collection for each element
+            // create a view for each element
+            let view = getEmptyView(folder, ele.name);
             let collection = $(ele);
             growCollection(param, ele, collection);
 
-            // and a view for each element
-            let view = getView(folder, ele.name);
-            drawCollection(param, dagre, graph, collection, view);
+            drawCollection(param, dagre, collection, view);
           });
           break;
-        case EXPAND_HERE:
-          console.log("Expand selected objects on the view");
-          collection = getLayoutCollection();
-
-          // expand the collection by adding all related elements and relations
-          selectedElements.forEach((ele) => growCollection(param, ele, collection));
-          collection.add(selectedElements);
-
-          view = getView(folder, param.viewName);
-          drawCollection(param, dagre, graph, collection, view);
-          break;
         case LAYOUT:
-          console.log("Layout objects on the view");
-          collection = getLayoutCollection();
+          console.log("\nLayout objects on the selected view");
+          {
+            let view = getSelectedView();
+            let collection = getLayoutCollection(view);
+            $(view)
+              .find()
+              .each((o) => o.delete());
 
-          view = getView(folder, param.viewName);
-          drawCollection(param, dagre, graph, collection, view);
+            drawCollection(param, dagre, collection, view);
+          }
+          break;
+        case EXPAND_HERE:
+          console.log("\nAdd objects to the view for the selected object");
+          {
+            let view = getSelectedView();
+            let collection = getLayoutCollection(view);
+            $(view)
+              .find()
+              .each((o) => o.delete());
+
+            // expand the collection by adding all related elements and relations
+            selectedElements.forEach((ele) => growCollection(param, ele, collection));
+            collection.add(selectedElements);
+
+            drawCollection(param, dagre, collection, view);
+          }
           break;
 
         default:
@@ -99,11 +108,11 @@ function generate_view(param) {
 /**
  * Add all elements and relations of the selected view
  */
-function getLayoutCollection() {
+function getLayoutCollection(selectedView) {
   // ### todo filtering circular and rel on rel
   // ### todo also layout diagram objects
   let layoutCollection = $();
-  let selectedView = getSelectedView();
+  // let selectedView = getSelectedView();
   $(selectedView)
     .find("concept")
     .each((viewObject) => {
@@ -122,10 +131,9 @@ function selectElements(param) {
   // // create an array with the selected elements
   let selectedElements;
   selectedElements = getSelection($(selection), "element");
-  debug(`selectedElements: ${selectedElements}`);
 
   // only elements of given element type
-  let filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
+  let filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.includeElementType));
   console.log(`- ${filteredSelection.length} elements after filtering`);
   if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
 
@@ -146,11 +154,14 @@ function growCollection(param, ele, coll) {
   // loop over the filtered collection of relations of the element
   $(ele)
     .rels()
-    .filter((rel) => filterObjectType(rel, param.relationFilter)) // only relation of given relation types
+    .filter((rel) => filterObjectType(rel, param.includeRelationType)) // only relation of given relation types
     .filter((rel) => $(rel).ends().is("element")) // only relations with elements (relations with relations not supported)
     .each((rel) => {
       // only relations with source and target of given element type
-      if (filterObjectType(rel.source, param.elementFilter) && filterObjectType(rel.target, param.elementFilter)) {
+      if (
+        filterObjectType(rel.source, param.includeElementType) &&
+        filterObjectType(rel.target, param.includeElementType)
+      ) {
         debug(`added to collection: ${rel}`);
         coll.add(rel);
 
@@ -172,12 +183,22 @@ function growCollection(param, ele, coll) {
  *
  * - the view is used as the container with objects to layout
  */
-function drawCollection(param, dagre, graph, collection, view) {
-  // create a different start for the layout by sortings of the collection
-  let roundRobinText = roundRobinCollection(collection, view);
+function drawCollection(param, dagre, collection, view) {
+  // ### this only works for layout where also relation are part of collection.
+  // growCollection with recursion?????
+  // recursion filters for selected elements
 
-  let nestedCollection = collection.filter("relation").filter((rel) => param.drawNested.includes(rel.type));
-  drawNestedCollection(dagre, graph, nestedCollection, view);
+  let graph = createGraph(dagre, param);
+
+  // create a different start for the layout by sortings of the collection
+  let sortCollectionText = sortCollection(collection, view);
+
+  // add nested relations to the graph
+  let nestedCollection = collection.filter("relation").filter((rel) => param.layoutNested.includes(rel.type));
+  checkNestedCollection(dagre, graph, nestedCollection, view);
+  nestedCollection.forEach((rel) => {
+    procesNestedRel(START_LEVEL, param, graph, nestedCollection, view, rel);
+  });
 
   // then add all other relations
   collection
@@ -195,10 +216,10 @@ function drawCollection(param, dagre, graph, collection, view) {
     addVisualElement(param, graph, view, ele);
   });
 
-  calculateLayout(param, dagre, graph);
-  applyLayout(graph, view);
+  layoutGraph(param, dagre, graph);
+  layoutView(graph, view);
 
-  console.log(`\n${roundRobinText}`);
+  console.log(`\n${sortCollectionText}`);
 
   // save used settings to property PROP_SAVE_PARAMETER of view
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
@@ -213,7 +234,7 @@ function drawCollection(param, dagre, graph, collection, view) {
   /**
    * sort the collection in three different orders
    */
-  function roundRobinCollection(collection, view) {
+  function sortCollection(collection, view) {
     let roundRobin = view.prop(PROP_SAVE_ROUNDROBIN);
     roundRobin = roundRobin ? ((parseInt(roundRobin) + 1) % 3) + 1 : 1;
     view.prop(PROP_SAVE_ROUNDROBIN, `${roundRobin}`);
@@ -241,7 +262,7 @@ function drawCollection(param, dagre, graph, collection, view) {
  * for nested relations, the 'root' parent is added to the view
  * the children are added to the parent(s)
  */
-function drawNestedCollection(dagre, graph, nestedCollection, view) {
+function checkNestedCollection(dagre, graph, nestedCollection, view) {
   // create a graph for finding parents
   let nestedGraph = new dagre.graphlib.Graph({
     directed: true,
@@ -251,12 +272,12 @@ function drawNestedCollection(dagre, graph, nestedCollection, view) {
 
   // Add the given relation as a parent/child to the graph
   nestedCollection.forEach((rel) => {
-    if (param.drawReversed.includes(rel.type)) {
+    if (param.layoutReversed.includes(rel.type)) {
       nestedGraph.setParent(rel.target.id, rel.source.id);
     } else {
       nestedGraph.setParent(rel.source.id, rel.target.id);
     }
-    debug(`> Added child->parent to nestedGraph = ${rel}`);
+    debug(`> checked nestedGraph = ${printRel(rel)}`);
   });
 
   let cycles = dagre.graphlib.alg.findCycles(nestedGraph);
@@ -265,40 +286,39 @@ function drawNestedCollection(dagre, graph, nestedCollection, view) {
     cycles.each((cycle) => console.log(`- ${cycle}`));
     throw "\nThere are cycles in the nested relation(s). To draw the elements nested, they have to be related hierarchic";
   }
-
-  nestedCollection.forEach((rel) => {
-    procesNestedRel(START_LEVEL, param, graph, view, rel);
-  });
 }
 
-function procesNestedRel(level, param, graph, view, startRel) {
+function procesNestedRel(level, param, graph, nestedCollection, view, startRel) {
   let currentParent = startRel.source;
   let child = startRel.target;
-  if (param.drawReversed.includes(startRel.type)) {
+  if (param.layoutReversed.includes(startRel.type)) {
     currentParent = startRel.target;
     child = startRel.source;
   }
   $(currentParent)
     .rels()
     .not($(startRel)) // skip incoming relation
-    .filter((rel) => param.drawNested.includes(rel.type)) // only nested relations
+    .filter((rel) => param.layoutNested.includes(rel.type)) // only nested relations
     .each((nextRel) => {
-      let visualRel = findOnView(view, startRel);
-      if (!visualRel) {
-        // determine the child element
-        let nextRelChild = nextRel.target;
-        let nextRelParent = nextRel.source;
-        if (param.drawReversed.includes(nextRel.type)) {
-          nextRelChild = nextRel.source;
-          nextRelParent = nextRel.target;
-        }
-        // if parent is a child in one of its nested relation, first proces the parents parents
-        if (currentParent.id == nextRelChild.id) {
-          // first add the parents parent
-          debug(`${"  ".repeat(level)}>> nextRel: ${nextRelParent} -> ${nextRelChild}`);
-          procesNestedRel(level + 1, param, graph, view, nextRel);
+      // only process relations part of the nested collection
+      if (nestedCollection.filter((rel) => rel.id == nextRel.id).size() > 0) {
+        let visualRel = findOnView(view, startRel);
+        if (!visualRel) {
+          // determine the child element
+          let nextRelChild = nextRel.target;
+          let nextRelParent = nextRel.source;
+          if (param.layoutReversed.includes(nextRel.type)) {
+            nextRelChild = nextRel.source;
+            nextRelParent = nextRel.target;
+          }
+          // if parent is a child in one of its nested relation, first proces the parents parents
+          if (currentParent.id == nextRelChild.id) {
+            // first add the parents parent
+            debug(`${"  ".repeat(level)}>> nextRel: ${nextRelParent} -> ${nextRelChild}`);
+            procesNestedRel(level + 1, param, graph, nestedCollection, view, nextRel);
 
-          addVisualNestedRel(param, graph, view, nextRel, nextRelParent, nextRelChild);
+            addVisualNestedRel(param, graph, view, nextRel, nextRelParent, nextRelChild);
+          }
         }
       }
     });
@@ -307,16 +327,19 @@ function procesNestedRel(level, param, graph, view, startRel) {
 
 function addVisualNestedRel(param, graph, view, rel, parent, child) {
   let visualRel = findOnView(view, rel);
+  debug(`rel: ${printRel(rel)}`);
   if (!visualRel) {
     // add a root parent to the view
     // now all parents are added, but skipped if already added to the view
+    debug(`parent: ${parent}`);
     let visualParent = addVisualElement(param, graph, view, parent);
 
     // add visual child
+    debug(`child: ${child}`);
     let visualChild = addVisualChild(param, graph, view, visualParent, child);
     // check cyclic nested relation
 
-    if (param.drawReversed.includes(rel.type)) {
+    if (param.layoutReversed.includes(rel.type)) {
       visualRel = view.add(rel, visualChild, visualParent);
     } else {
       visualRel = view.add(rel, visualParent, visualChild);
@@ -381,7 +404,7 @@ function addVisualRelation(param, graph, view, visualSource, visualTarget, rel) 
     let visualRel = view.add(rel, visualSource, visualTarget);
     debug(`\nadded: ${printRel(visualRel)}`);
 
-    if (param.drawReversed.includes(rel.type)) {
+    if (param.layoutReversed.includes(rel.type)) {
       // add reversed to the graph for direction in the layout
       // graph.setEdge(v, w, [label], [name])
       // g.setEdge(prev, curr, { weight: 1 });
@@ -407,10 +430,6 @@ function addVisualRelation(param, graph, view, visualSource, visualTarget, rel) 
   } else {
     debug(`found on view: ${printRel(visualRel)}`);
   }
-}
-
-function printRel(rel) {
-  return `${rel.type}: ${rel.source.name} -> ${rel.target.name} (${rel.id})`;
 }
 
 /**
@@ -443,7 +462,7 @@ function getFolder(mainFolderName, folderName) {
   return folder;
 }
 
-function getView(folder, viewName) {
+function getEmptyView(folder, viewName) {
   // check if the corresponding view already exists in the given folder
   let view = $(folder)
     .children("view")
@@ -489,7 +508,7 @@ function getSelectedView() {
  *
  * @param {object} param - settings for generating a view
  */
-function setDefaultParameters(param, graphOptions) {
+function setDefaultParameters(param) {
   let validFlag = true;
 
   if (param.action == REGENERATE) {
@@ -512,36 +531,18 @@ function setDefaultParameters(param, graphOptions) {
   console.log("- options for selection");
   if (param.graphDepth === undefined) param.graphDepth = 1;
   console.log("  - graphDepth = " + param.graphDepth);
-  if (!validArchiConcept(param.elementFilter, ELEMENT_TYPES, "elementFilter:", "no filter")) validFlag = false;
-  if (param.elementFilter === undefined) param.elementFilter = [];
-  if (!validArchiConcept(param.relationFilter, RELATION_TYPES, "relationFilter:", "no filter")) validFlag = false;
-  if (param.relationFilter === undefined) param.relationFilter = [];
+  if (!validArchiConcept(param.includeElementType, ELEMENT_TYPES, "includeElementType:", "no filter"))
+    validFlag = false;
+  if (param.includeElementType === undefined) param.includeElementType = [];
+  if (!validArchiConcept(param.includeRelationType, RELATION_TYPES, "includeRelationType:", "no filter"))
+    validFlag = false;
+  if (param.includeRelationType === undefined) param.includeRelationType = [];
 
   console.log("- options for drawing relationships");
-  if (!validArchiConcept(param.drawReversed, RELATION_TYPES, "drawReversed:", "none")) validFlag = false;
-  if (param.drawReversed === undefined) param.drawReversed = [];
-  if (!validArchiConcept(param.drawNested, RELATION_TYPES, "drawNested:", "none")) validFlag = false;
-  if (param.drawNested === undefined) param.drawNested = [];
-
-  // settings for dagre graph
-  graphOptions.marginx = 10;
-  graphOptions.marginy = 10;
-
-  console.log("- options for layout");
-  if (param.graphDirection !== undefined) graphOptions.rankdir = param.graphDirection;
-  console.log("  - graphDirection = " + param.graphDirection);
-  if (param.graphAlign !== undefined) graphOptions.align = param.graphAlign;
-  console.log("  - graphAlign (undefined is middle) = " + param.graphAlign);
-  if (param.ranker !== undefined) graphOptions.ranker = param.ranker;
-  console.log("  - ranker = " + param.ranker);
-  if (param.nodeWidth == undefined) param.nodeWidth = NODE_WIDTH;
-  console.log("  - nodeWidth = " + param.nodeWidth);
-  if (param.nodeHeight == undefined) param.nodeHeight = NODE_HEIGHT;
-  console.log("  - nodeHeight = " + param.nodeHeight);
-  if (param.hSep !== undefined) graphOptions.nodesep = param.hSep;
-  console.log("  - hSep = " + param.hSep);
-  if (param.vSep !== undefined) graphOptions.ranksep = param.vSep;
-  console.log("  - vSep = " + param.vSep);
+  if (!validArchiConcept(param.layoutReversed, RELATION_TYPES, "layoutReversed:", "none")) validFlag = false;
+  if (param.layoutReversed === undefined) param.layoutReversed = [];
+  if (!validArchiConcept(param.layoutNested, RELATION_TYPES, "layoutNested:", "none")) validFlag = false;
+  if (param.layoutNested === undefined) param.layoutNested = [];
 
   console.log("- logging for developing");
   console.log("  - debug = " + param.debug);
@@ -596,7 +597,32 @@ function loadDagre() {
  * @param {object} param
  * @returns
  */
-function createGraph(dagre, graphOptions) {
+function createGraph(dagre, param) {
+  // settings for dagre graph
+  let graphOptions = new Object();
+  if (typeof this.only_once == "undefined") {
+    graphOptions.marginx = 10;
+    graphOptions.marginy = 10;
+
+    console.log("- options for layout");
+    if (param.graphDirection !== undefined) graphOptions.rankdir = param.graphDirection;
+    console.log("  - graphDirection = " + param.graphDirection);
+    if (param.graphAlign !== undefined) graphOptions.align = param.graphAlign;
+    console.log("  - graphAlign (undefined is middle) = " + param.graphAlign);
+    if (param.ranker !== undefined) graphOptions.ranker = param.ranker;
+    console.log("  - ranker = " + param.ranker);
+    if (param.nodeWidth == undefined) param.nodeWidth = NODE_WIDTH;
+    console.log("  - nodeWidth = " + param.nodeWidth);
+    if (param.nodeHeight == undefined) param.nodeHeight = NODE_HEIGHT;
+    console.log("  - nodeHeight = " + param.nodeHeight);
+    if (param.hSep !== undefined) graphOptions.nodesep = param.hSep;
+    console.log("  - hSep = " + param.hSep);
+    if (param.vSep !== undefined) graphOptions.ranksep = param.vSep;
+    console.log("  - vSep = " + param.vSep);
+    console.log();
+    this.only_once = true;
+  }
+
   let graph = new dagre.graphlib.Graph({
     directed: true, // A directed graph treats the order of nodes in an edge as significant whereas an undirected graph does not.
     compound: true, // A compound graph is one where a node can be the parent of other nodes.
@@ -612,7 +638,7 @@ function createGraph(dagre, graphOptions) {
 /**
  * let dagre do its work
  */
-function calculateLayout(param, dagre, graph) {
+function layoutGraph(param, dagre, graph) {
   console.log("\nCalculating the layout...");
 
   // graph = graph.nodes().sort((a, b) => 0.5 - Math.random());
@@ -628,7 +654,7 @@ function calculateLayout(param, dagre, graph) {
 /**
  *
  */
-function applyLayout(graph, view) {
+function layoutView(graph, view) {
   console.log("\nLayout elements and relations ...");
 
   debug(`view children:   ${$(view).children("element")}`);
@@ -639,8 +665,8 @@ function applyLayout(graph, view) {
     .children("element")
     .each((visualElement) => {
       // layout visualElement on the view
+      debug(`>> set coördinates of element: ${visualElement}`);
       let node = graph.node(visualElement.id);
-      debug(`>> layout ${visualElement}`);
       debug(`>> node ${JSON.stringify(node)}`);
       let elePos = getElementPosition(node);
       visualElement.bounds = { x: elePos.x, y: elePos.y, width: elePos.width, height: elePos.height };
@@ -665,12 +691,15 @@ function applyLayout(graph, view) {
  * layout visualElement's nested children recursively
  */
 function layoutNestedElements(level, graph, view, visualElement) {
+  debugStackPush(true);
   $(visualElement)
     .children("element")
     .each((visualChild) => {
+      debug(`visualChild = ${visualChild}`);
       layoutNestedElements(level + 1, graph, view, visualChild);
 
       let parentNode = graph.node(visualElement.id);
+      debug(`parentNode = ${parentNode}`);
       let node = graph.node(visualChild.id);
 
       debug(`${"  ".repeat(level)}>> layout ${visualChild}`);
@@ -678,6 +707,7 @@ function layoutNestedElements(level, graph, view, visualElement) {
       let elePos = getNestedElementPosition(node, parentNode);
       visualChild.bounds = { x: elePos.x, y: elePos.y, width: elePos.width, height: elePos.height };
     });
+  debugStackPop();
 }
 
 /**
@@ -755,7 +785,7 @@ function drawBendpoints(param, edgeObj, connection) {
 
   // finaly add the calculated bendpoint to the Archi connection
   for (let i = 0; i < bendpoints.length; i++) {
-    if (param.drawReversed.includes(connection.type)) {
+    if (param.layoutReversed.includes(connection.type)) {
       connection.addRelativeBendpoint(bendpoints[bendpoints.length - i - 1], i);
     } else {
       connection.addRelativeBendpoint(bendpoints[i], i);
@@ -933,4 +963,8 @@ const RELATION_WEIGHT = {
 function filterObjectType(o, filterArray) {
   if (filterArray.length == 0) return true;
   return filterArray.includes(o.type);
+}
+
+function printRel(rel) {
+  return `${rel.type}: ${rel.source.name} -> ${rel.target.name} (${rel.id})`;
 }

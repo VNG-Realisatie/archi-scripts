@@ -27,7 +27,7 @@ var param = {
   // graphDepth: 1,
   graphDepth: 1,
 
-  elementFilter: [
+  includeElementType: [
     // "application-collaboration",
     // "application-component",
     // "application-event",
@@ -99,7 +99,7 @@ var param = {
     // "value",
     // "work-package",
   ],
-  relationFilter: [
+  includeRelationType: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
@@ -115,7 +115,7 @@ var param = {
 
   // viewName: "gen-custom",
 
-  drawReversed: [
+  layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
@@ -128,7 +128,7 @@ var param = {
     "specialization-relationship",
     // "triggering-relationship",
   ],
-  drawNested: [
+  layoutNested: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

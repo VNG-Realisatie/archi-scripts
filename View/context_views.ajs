@@ -21,7 +21,7 @@ initConsoleLog(__FILE__, true);
 
 var param = {
 	
-	elementFilter: [
+	includeElementType: [
 		// "application-component",
     // "application-function",
     // "application-interface",
@@ -44,14 +44,14 @@ var param = {
     // "technology-process",
     // "technology-service",
   ],
-  relationFilter: [
+  includeRelationType: [
 		// "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
     // "realization-relationship",
     // "serving-relationship"
   ],
-  drawReversed: [
+  layoutReversed: [
 		// "aggregation-relationship",
     "assignment-relationship",
     "realization-relationship",
@@ -59,7 +59,7 @@ var param = {
     // "specialization-relationship",
   ],
 	
-  drawNested: [
+  layoutNested: [
 		// "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

@@ -5,23 +5,23 @@
  * - generate_multiple_view(param) - generate a view for every selected concept
  *
  * Param is an object that may contain the following properties:
- *	elementFilter (default ["elements"])
+ *	includeElementType (default ["elements"])
  *	- The concept types to include in the view. If empty, all types are included
  *		-	[class,class,...]	array of concept types like business-actor, application-component, technology-collaboration, node, ...
  *
- *	relationFilter (optional, default [])
+ *	includeRelationType (optional, default [])
  *	- The relationship types that will be included in the view. If empty, all types are included
  *		When graphDepth is greater than 0, this also defines which relation will be followed
  *			[class,class,...]	array of relationship types like realization-relationship,assignment-relationship, ...
  *
- *	drawReversed (optional, default [])
+ *	layoutReversed (optional, default [])
  *	- The relations types that will be rendered target to source
  *		-	[class,class,...] array of relationship types like realization-relationship,assignment-relationship, ...
  *
- *	drawNested (optional, default [])
+ *	layoutNested (optional, default [])
  *	-	The relationship types that will be rendered embedded/nested
  *		All target elements (the children) will be nested inside the source element (the parent)
- *		Use the above parameter drawReversed to switch parent and child for a relationship type
+ *		Use the above parameter layoutReversed to switch parent and child for a relationship type
  *		-	[class,class,...] array of relationship types like realization-relationship,assignment-relationship, ...
  *
  *	viewName (optional, default is name of first selected object)
@@ -154,12 +154,12 @@ function checkParameters(param) {
 	console.log("Checking parameters ...");
 
 	// default is to select all elements
-	if (param.elementFilter.length == 0) param.elementFilter.push("element");
+	if (param.includeElementType.length == 0) param.includeElementType.push("element");
 
 	// defaulting optional parameters
-	if (param.relationFilter === undefined) param.relationFilter = [];
-	if (param.drawReversed === undefined) param.drawReversed = [];
-	if (param.drawNested === undefined) param.drawNested = [];
+	if (param.includeRelationType === undefined) param.includeRelationType = [];
+	if (param.layoutReversed === undefined) param.layoutReversed = [];
+	if (param.layoutNested === undefined) param.layoutNested = [];
 
 	// calculating the default view name
 	if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
@@ -175,10 +175,10 @@ function checkParameters(param) {
 	if (param.hSep === undefined) param.hSep = 50;
 	if (param.vSep === undefined) param.vSep = 50;
 
-	console.log("- concepts (mandatory) = " + JSON.stringify(param.elementFilter));
-	console.log("- relations =            " + JSON.stringify(param.relationFilter));
-	console.log("- drawReversed =    " + JSON.stringify(param.drawReversed));
-	console.log("- drawNested =     " + JSON.stringify(param.drawNested));
+	console.log("- concepts (mandatory) = " + JSON.stringify(param.includeElementType));
+	console.log("- relations =            " + JSON.stringify(param.includeRelationType));
+	console.log("- layoutReversed =    " + JSON.stringify(param.layoutReversed));
+	console.log("- layoutNested =     " + JSON.stringify(param.layoutNested));
 	console.log("- viewName =             " + param.viewName);
 
 	console.log("- graphDepth =           " + param.graphDepth);
@@ -226,7 +226,7 @@ function containedSelection(param) {
 	}
 
 	let select_Elements = $(); // empty jArchi collection
-	for (let concept_type of param.elementFilter) {
+	for (let concept_type of param.includeElementType) {
 		console.log(`Select objects of type "${concept_type}"`);
 		$(selection).each(function (obj) {
 			addObjectToSelection(obj, concept_type, select_Elements);
@@ -289,7 +289,7 @@ function connectedSelection(containedElements, param) {
 		elementsDepth[depth] = $();
 
 		// select related elements of concept_type
-		for (let concept_type of param.elementFilter) {
+		for (let concept_type of param.includeElementType) {
 			console.log(`Filter for type "${concept_type}"`);
 			elementsDepth[depth].add(elementsDepth[depth - 1].rels().ends(concept_type).not(connected.elements));
 			// elementsDepth[depth].add(elementsDepth[depth - 1].rels().ends(concept_type).not(connected.elements));
@@ -387,7 +387,7 @@ function fillGraph(param, connected, graph) {
 		let start_line = "->";
 		let rel_arrow = `--${archiRelation.type}->`;
 		let reversed = false;
-		if (param.drawReversed.indexOf(archiRelation.type) !== -1) {
+		if (param.layoutReversed.indexOf(archiRelation.type) !== -1) {
 			graphSrc = archiRelation.target;
 			graphTgt = archiRelation.source;
 			start_line = "<- reversed";
@@ -396,7 +396,7 @@ function fillGraph(param, connected, graph) {
 		}
 		let rel_label = `${graphSrc.name} ${rel_arrow} ${graphTgt.name}`;
 
-		// if (param.drawNested.indexOf(rel.type) != -1) {
+		// if (param.layoutNested.indexOf(rel.type) != -1) {
 		// 	// graph.setParent(graphSrc.id, graphTgt.id);
 		// 	graph.add({
 		// 		data: {

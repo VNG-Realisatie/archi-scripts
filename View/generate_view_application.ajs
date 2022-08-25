@@ -20,7 +20,7 @@ load(__DIR__ + "include_generate_view.js");
 
 var param = {
   action: GENERATE_SINGLE,
-  elementFilter: [
+  includeElementType: [
     "application-collaboration",
     "application-component",
     "application-event",
@@ -35,14 +35,14 @@ var param = {
     // "constraint",
     // "grouping",
   ],
-  relationFilter: [
+  includeRelationType: [
     // "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
     // "realization-relationship",
     // "serving-relationship"
   ],
-  drawReversed: [
+  layoutReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -50,7 +50,7 @@ var param = {
     // "specialization-relationship",
   ],
 
-  drawNested: [
+  layoutNested: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

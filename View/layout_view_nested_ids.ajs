@@ -23,29 +23,11 @@ var param = {
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
   action: LAYOUT,
-  elementFilter: [],
-  relationFilter: [
-  ],
-  drawReversed: [
-    "aggregation-relationship",
-    // "assignment-relationship",
-    // "composition-relationship",
-    "realization-relationship",
-    "serving-relationship",
-    // "specialization-relationship",
+  includeElementType: [],
+  includeRelationType: [
   ],
 
-  drawNested: [
-    "access-relationship",
-    "aggregation-relationship",
-    // "assignment-relationship",
-    // "composition-relationship",
-    "realization-relationship",
-    // "serving-relationship"
-    "specialization-relationship",
-  ],
-
-  drawReversed: [
+  layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
@@ -58,7 +40,7 @@ var param = {
     "specialization-relationship",
     // "triggering-relationship",
   ],
-  drawNested: [
+  layoutNested: [
     // "access-relationship",
     "aggregation-relationship",
     // "assignment-relationship",
@@ -66,7 +48,7 @@ var param = {
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
-    // "realization-relationship",
+    "realization-relationship",
     // "serving-relationship",
     "specialization-relationship",
     // "triggering-relationship",

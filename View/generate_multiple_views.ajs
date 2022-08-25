@@ -19,7 +19,7 @@ var param = {
 
   // viewName: "gen-custom",
 
-  elementFilter: [
+  includeElementType: [
     // "business-function",
     // "business-object",
     // "constraint",
@@ -29,14 +29,14 @@ var param = {
     // "application-interface",
     // "application-service"
   ],
-  relationFilter: [
+  includeRelationType: [
     // "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
     // "realization-relationship",
     // "serving-relationship"
   ],
-  drawReversed: [
+  layoutReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -45,7 +45,7 @@ var param = {
     // "flow-relationship", // flow from bottom to top
   ],
 
-  drawNested: [
+  layoutNested: [
     // "realization-relationship",
     // "composition-relationship",
     // "access-relationship"],

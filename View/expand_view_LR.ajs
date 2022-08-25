@@ -18,9 +18,9 @@ load(__DIR__ + "include_generate_view.js");
 
 var param = {
   action: EXPAND_HERE,
-	elementFilter: [
+	includeElementType: [
   ],
-  relationFilter: [
+  includeRelationType: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
@@ -33,7 +33,7 @@ var param = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
-  drawReversed: [
+  layoutReversed: [
 		// "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
@@ -42,7 +42,7 @@ var param = {
     "specialization-relationship",
   ],
 	
-  drawNested: [
+  layoutNested: [
   ],
 	
 	graphDepth: 1,

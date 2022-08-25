@@ -19,9 +19,9 @@ load(__DIR__ + "include_generate_view.js");
 
 var params = {
   action: LAYOUT,
-  elementFilter: [],
-  relationFilter: [],
-  drawReversed: [
+  includeElementType: [],
+  includeRelationType: [],
+  layoutReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     // "composition-relationship",
@@ -30,7 +30,7 @@ var params = {
     "specialization-relationship",
   ],
 
-  drawNested: [
+  layoutNested: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

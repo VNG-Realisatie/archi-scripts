@@ -56,7 +56,7 @@ function generate_view(param) {
   try {
     if (setDefaultParameters(param)) {
       let selectedElements = selectObjects(selection, "element");
-      let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.elementFilter));
+      let filteredElements = selectedElements.filter((obj) => filterObjectType(obj, param.includeElementType));
       console.log(`- ${filteredElements.length} elements after filtering`);
       if (filteredElements.length === 0) throw "No Archimate element match your criterias.";
 
@@ -136,8 +136,8 @@ function fillGraph(param, graph) {
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .filter((rel) => !(rel.source.id == rel.target.id)) // skip cicular relations
     .filter((rel) => relEndsIn(rel, filteredElements)) // depth = 0
-    .filter((rel) => filterObjectType(rel, param.drawNested)) // select nested relations
-    .filter((rel) => filterObjectType(rel, param.relationFilter))
+    .filter((rel) => filterObjectType(rel, param.layoutNested)) // select nested relations
+    .filter((rel) => filterObjectType(rel, param.includeRelationType))
     .each((rel) => {
       debug(`addParentChild rel: ${rel}`);
       addParentChild(param, graph, rel);
@@ -149,8 +149,8 @@ function fillGraph(param, graph) {
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .filter((rel) => !(rel.source.id == rel.target.id)) // skip cicular relations
     .filter((rel) => relEndsIn(rel, filteredElements)) // depth = 0
-    .filter((rel) => !filterObjectType(rel, param.drawNested)) // skip nested relation
-    .filter((rel) => filterObjectType(rel, param.relationFilter))
+    .filter((rel) => !filterObjectType(rel, param.layoutNested)) // skip nested relation
+    .filter((rel) => filterObjectType(rel, param.includeRelationType))
     .each((rel) => {
       debug(`addElementsRelations rel: ${rel}`);
       addElementsRelations(param, graph, rel);
@@ -167,8 +167,8 @@ function drawCircular(param, filteredElements) {
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .filter((rel) => rel.source.id == rel.target.id) // select cicular relations
     .filter((rel) => relEndsIn(rel, filteredElements)) // depth = 0
-    .filter((rel) => !filterObjectType(rel, param.drawNested)) // skip nested relation
-    .filter((rel) => filterObjectType(rel, param.relationFilter))
+    .filter((rel) => !filterObjectType(rel, param.layoutNested)) // skip nested relation
+    .filter((rel) => filterObjectType(rel, param.includeRelationType))
     .each((rel) => {
       debug(`drawCircular rel: ${rel}`);
 
@@ -192,7 +192,7 @@ function drawCircular(param, filteredElements) {
 function addParentChild(param, graph, rel) {
   let parent = rel.source;
   let child = rel.target;
-  if (param.drawReversed.includes(rel.type)) {
+  if (param.layoutReversed.includes(rel.type)) {
     // reverse layout of current relation
     parent = rel.target;
     child = rel.source;
@@ -229,7 +229,7 @@ function addElementsRelations(param, graph, rel) {
   addNode(graph, rel.source);
   addNode(graph, rel.target);
 
-  if (param.drawReversed.includes(rel.type)) {
+  if (param.layoutReversed.includes(rel.type)) {
     // add reversed to the graph for direction in the layout
     graph.setEdge(rel.target.id, rel.source.id, { label: rel.id });
   } else {
@@ -384,18 +384,18 @@ function setDefaultParameters(param) {
   if (param.graphDepth === undefined) param.graphDepth = 1;
   console.log("- graphDepth = " + param.graphDepth);
 
-  if (!validArchiConcept(param.elementFilter, ELEMENT_NAMES, "elementFilter:", "no filter")) validFlag = false;
-  if (param.elementFilter === undefined) param.elementFilter = [];
-  if (!validArchiConcept(param.relationFilter, RELATION_NAMES, "relationFilter:", "no filter")) validFlag = false;
-  if (param.relationFilter === undefined) param.relationFilter = [];
+  if (!validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter")) validFlag = false;
+  if (param.includeElementType === undefined) param.includeElementType = [];
+  if (!validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter")) validFlag = false;
+  if (param.includeRelationType === undefined) param.includeRelationType = [];
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
   console.log(`- viewName = ${param.viewName}`);
 
   console.log("How to draw relationships");
-  if (!validArchiConcept(param.drawReversed, RELATION_NAMES, "drawReversed:", "none")) validFlag = false;
-  if (param.drawReversed === undefined) param.drawReversed = [];
-  if (!validArchiConcept(param.drawNested, RELATION_NAMES, "drawNested:", "none")) validFlag = false;
-  if (param.drawNested === undefined) param.drawNested = [];
+  if (!validArchiConcept(param.layoutReversed, RELATION_NAMES, "layoutReversed:", "none")) validFlag = false;
+  if (param.layoutReversed === undefined) param.layoutReversed = [];
+  if (!validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
+  if (param.layoutNested === undefined) param.layoutNested = [];
 
   console.log("Developing");
   console.log("- debug = " + param.debug);
@@ -470,7 +470,7 @@ function drawBendpoints(param, edgeObj, connection) {
 
   // finaly add the calculated bendpoint to the Archi connection
   for (let i = 0; i < bendpoints.length; i++) {
-    if (param.drawReversed.includes(connection.type)) {
+    if (param.layoutReversed.includes(connection.type)) {
       connection.addRelativeBendpoint(bendpoints[bendpoints.length - i - 1], i);
     } else {
       connection.addRelativeBendpoint(bendpoints[i], i);

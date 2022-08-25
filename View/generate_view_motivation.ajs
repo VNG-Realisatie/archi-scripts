@@ -21,7 +21,7 @@ load(__DIR__ + "include_generate_view.js");
 var param = {
   action: GENERATE_SINGLE,
 	
-	elementFilter: [
+	includeElementType: [
     // "assessment",
     "constraint",
     // "driver",
@@ -34,7 +34,7 @@ var param = {
     // "value",
     "grouping",
   ],
-  relationFilter: [
+  includeRelationType: [
 		"aggregation-relationship",
 		// "assignment-relationship",
     // "flow-relationship",
@@ -42,7 +42,7 @@ var param = {
     // "realization-relationship",
     // "serving-relationship"
   ],
-  drawReversed: [
+  layoutReversed: [
 		// "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -50,7 +50,7 @@ var param = {
     "specialization-relationship",
   ],
 	
-  drawNested: [
+  layoutNested: [
 		// "access-relationship",
     "aggregation-relationship",
     // "assignment-relationship",

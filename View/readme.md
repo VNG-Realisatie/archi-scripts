@@ -31,11 +31,11 @@ Configure the behavior of generate_view with the folowing parameters.
     - default is 1
     - Used for the GENERATE_SINGLE and GENERATE_MULTIPLE actions
     - integer -  number of relations to follow
-  - `elementFilter`, element types that will be included in the view
+  - `includeElementType`, element types that will be included in the view
     - default is no filter
     - [..] (empty array) all element types are included
     - [type, type, ...] array of element types like business-actor, application-component, technology-collaboration, node, ...
-  - `relationFilter`, relationship types that will be included in the view
+  - `includeRelationType`, relationship types that will be included in the view
     - default is no filter
     - [..] (empty array) all relationship types in the model
     - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
@@ -44,11 +44,11 @@ Configure the behavior of generate_view with the folowing parameters.
     - only used in the `action` GENERATE_SINGLE
     - string - viewname
 - Parameters with relationship types to draw different
-  - `drawReversed`, relationship types that will be reversed in the layout
+  - `layoutReversed`, relationship types that will be reversed in the layout
     - default none
     - [..] (empty array) no relationships are reversed
     - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
-  - `drawNested`, relationship types that will be rendered nested (embed target elements in the source element)
+  - `layoutNested`, relationship types that will be rendered nested (embed target elements in the source element)
     - default none
     - [..] (empty array) no relationships are nested
     - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...

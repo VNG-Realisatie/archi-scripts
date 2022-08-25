@@ -18,7 +18,7 @@ load(__DIR__ + "include_generate_view_cytoscape.js");
 let param = {
   // viewName: "gen-custom",
 
-  elementFilter: [
+  includeElementType: [
     // "business-function",
     // "business-object",
     // "constraint",
@@ -28,14 +28,14 @@ let param = {
     // "application-interface",
     // "application-service"
   ],
-  relationFilter: [
+  includeRelationType: [
     // "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
     // "realization-relationship",
     // "serving-relationship"
   ],
-  drawReversed: [
+  layoutReversed: [
     // "realization-relationship",
     // "serving-relationship",
     // "aggregation-relationship",
@@ -43,7 +43,7 @@ let param = {
     "specialization-relationship",
   ],
 
-  drawNested: [
+  layoutNested: [
     // "realization-relationship",
     // "composition-relationship",
     // "access-relationship"],

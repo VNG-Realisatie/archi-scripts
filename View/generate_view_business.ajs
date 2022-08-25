@@ -21,7 +21,7 @@ initConsoleLog(__FILE__, true);
 
 var param = {
   action: GENERATE_SINGLE,
-  elementFilter: [
+  includeElementType: [
     // "application-component",
     // "application-function",
     // "application-interface",
@@ -43,7 +43,7 @@ var param = {
     // "grouping",
   ],
 
-  relationFilter: [
+  includeRelationType: [
     "aggregation-relationship",
     "assignment-relationship",
     "composition-relationship",
@@ -52,7 +52,7 @@ var param = {
     "specialization-relationship",
     "realization-relationship",
   ],
-  drawReversed: [
+  layoutReversed: [
     // "aggregation-relationship",
     // "assignment-relationship",
     "realization-relationship",
@@ -60,7 +60,7 @@ var param = {
     "specialization-relationship",
   ],
 
-  drawNested: [
+  layoutNested: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",

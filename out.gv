@@ -1,0 +1,120 @@
+digraph G {
+concentrate=true;
+splines="ortho";
+rankdir="LR";
+subgraph legend{
+    rank = min;
+    label = "legend";
+    Legend [shape=none, margin=0, label = <
+        <table cellspacing="0" cellpadding="0" border="1"><tr><td>Code2flow Legend</td></tr><tr><td>
+        <table cellspacing="0">
+        <tr><td>Regular function</td><td width="50px" bgcolor='#cccccc'></td></tr>
+        <tr><td>Trunk function (nothing calls this)</td><td bgcolor='#966F33'></td></tr>
+        <tr><td>Leaf function (this calls nothing else)</td><td bgcolor='#6db33f'></td></tr>
+        <tr><td>Function call</td><td><font color='black'>&#8594;</font></td></tr>
+        </table></td></tr></table>
+        >];
+}node_b6fc72d4 [label="362: addVisualChild()" name="include_generate_view_visual_id::addVisualChild" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_9f6cc4d5 [label="343: addVisualElement()" name="include_generate_view_visual_id::addVisualElement" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_da01b34c [label="320: addVisualNestedRel()" name="include_generate_view_visual_id::addVisualNestedRel" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_a113a166 [label="385: addVisualRelation()" name="include_generate_view_visual_id::addVisualRelation" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_468d7072 [label="643: applyLayout()" name="include_generate_view_visual_id::applyLayout" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_c0e741ff [label="779: calcBendpoint()" name="include_generate_view_visual_id::calcBendpoint" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_8ba303e7 [label="733: calcElementPosition()" name="include_generate_view_visual_id::calcElementPosition" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_ce3dec1b [label="627: calculateLayout()" name="include_generate_view_visual_id::calculateLayout" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_74c045f8 [label="611: createGraph()" name="include_generate_view_visual_id::createGraph" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_c28b4ed3 [label="754: drawBendpoints()" name="include_generate_view_visual_id::drawBendpoints" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_b92d1882 [label="179: drawCollection()" name="include_generate_view_visual_id::drawCollection" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_e6944dcd [label="253: drawNestedCollection()" name="include_generate_view_visual_id::drawNestedCollection" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_513f2e9e [label="945: filterObjectType()" name="include_generate_view_visual_id::filterObjectType" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_54e10289 [label="435: findOnView()" name="include_generate_view_visual_id::findOnView" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_9bbadeb1 [label="37: generate_view()" name="include_generate_view_visual_id::generate_view" shape="rect" style="rounded,filled" fillcolor="#966F33" ];
+node_4ef9fffa [label="794: getCenterBounds()" name="include_generate_view_visual_id::getCenterBounds" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_645222da [label="807: getCenterBoundsAbsolute()" name="include_generate_view_visual_id::getCenterBoundsAbsolute" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_5bf3ac32 [label="698: getElementPosition()" name="include_generate_view_visual_id::getElementPosition" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_282a9c1c [label="458: getEmptyView()" name="include_generate_view_visual_id::getEmptyView" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_a2fb0086 [label="446: getFolder()" name="include_generate_view_visual_id::getFolder" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_f8f5d6f1 [label="107: getLayoutCollection()" name="include_generate_view_visual_id::getLayoutCollection" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_45ddc885 [label="714: getNestedElementPosition()" name="include_generate_view_visual_id::getNestedElementPosition" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_1347ebab [label="485: getSelectedView()" name="include_generate_view_visual_id::getSelectedView" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_650bb126 [label="149: growCollection()" name="include_generate_view_visual_id::growCollection" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_57381b58 [label="679: layoutNestedElements()" name="include_generate_view_visual_id::layoutNestedElements" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_f75c379a [label="592: loadDagre()" name="include_generate_view_visual_id::loadDagre" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_cad33c93 [label="820: openView()" name="include_generate_view_visual_id::openView" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_87d86d33 [label="423: printRel()" name="include_generate_view_visual_id::printRel" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_b43bcee5 [label="283: procesNestedRel()" name="include_generate_view_visual_id::procesNestedRel" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_94f906d2 [label="126: selectElements()" name="include_generate_view_visual_id::selectElements" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_f88e14eb [label="504: setDefaultParameters()" name="include_generate_view_visual_id::setDefaultParameters" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_d717edb1 [label="225: sortCollection()" name="include_generate_view_visual_id::sortCollection" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_1eba0072 [label="565: validArchiConcept()" name="include_generate_view_visual_id::validArchiConcept" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_9f6cc4d5 -> node_54e10289 [color="#0072B2" penwidth="2"];
+node_da01b34c -> node_b6fc72d4 [color="#F0E442" penwidth="2"];
+node_da01b34c -> node_9f6cc4d5 [color="#F0E442" penwidth="2"];
+node_da01b34c -> node_54e10289 [color="#F0E442" penwidth="2"];
+node_a113a166 -> node_54e10289 [color="#D55E00" penwidth="2"];
+node_a113a166 -> node_87d86d33 [color="#D55E00" penwidth="2"];
+node_a113a166 -> node_87d86d33 [color="#D55E00" penwidth="2"];
+node_a113a166 -> node_87d86d33 [color="#D55E00" penwidth="2"];
+node_a113a166 -> node_87d86d33 [color="#D55E00" penwidth="2"];
+node_468d7072 -> node_c28b4ed3 [color="#56B4E9" penwidth="2"];
+node_468d7072 -> node_5bf3ac32 [color="#56B4E9" penwidth="2"];
+node_468d7072 -> node_57381b58 [color="#56B4E9" penwidth="2"];
+node_c28b4ed3 -> node_c0e741ff [color="#009E73" penwidth="2"];
+node_c28b4ed3 -> node_4ef9fffa [color="#009E73" penwidth="2"];
+node_c28b4ed3 -> node_4ef9fffa [color="#009E73" penwidth="2"];
+node_b92d1882 -> node_9f6cc4d5 [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_9f6cc4d5 [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_9f6cc4d5 [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_a113a166 [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_468d7072 [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_ce3dec1b [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_e6944dcd [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_cad33c93 [color="#56B4E9" penwidth="2"];
+node_b92d1882 -> node_d717edb1 [color="#56B4E9" penwidth="2"];
+node_e6944dcd -> node_b43bcee5 [color="#0072B2" penwidth="2"];
+node_9bbadeb1 -> node_74c045f8 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_b92d1882 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_b92d1882 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_b92d1882 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_b92d1882 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_282a9c1c [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_282a9c1c [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_a2fb0086 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_f8f5d6f1 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_f8f5d6f1 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_1347ebab [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_1347ebab [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_650bb126 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_650bb126 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_650bb126 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_f75c379a [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_94f906d2 [color="#E69F00" penwidth="2"];
+node_9bbadeb1 -> node_f88e14eb [color="#E69F00" penwidth="2"];
+node_4ef9fffa -> node_645222da [color="#56B4E9" penwidth="2"];
+node_645222da -> node_645222da [color="#56B4E9" penwidth="2"];
+node_5bf3ac32 -> node_8ba303e7 [color="#56B4E9" penwidth="2"];
+node_45ddc885 -> node_8ba303e7 [color="#0072B2" penwidth="2"];
+node_45ddc885 -> node_8ba303e7 [color="#0072B2" penwidth="2"];
+node_650bb126 -> node_513f2e9e [color="#D55E00" penwidth="2"];
+node_650bb126 -> node_513f2e9e [color="#D55E00" penwidth="2"];
+node_650bb126 -> node_513f2e9e [color="#D55E00" penwidth="2"];
+node_57381b58 -> node_45ddc885 [color="#000000" penwidth="2"];
+node_57381b58 -> node_57381b58 [color="#000000" penwidth="2"];
+node_b43bcee5 -> node_da01b34c [color="#0072B2" penwidth="2"];
+node_b43bcee5 -> node_da01b34c [color="#0072B2" penwidth="2"];
+node_b43bcee5 -> node_54e10289 [color="#0072B2" penwidth="2"];
+node_b43bcee5 -> node_b43bcee5 [color="#0072B2" penwidth="2"];
+node_94f906d2 -> node_513f2e9e [color="#56B4E9" penwidth="2"];
+node_f88e14eb -> node_1347ebab [color="#009E73" penwidth="2"];
+node_f88e14eb -> node_1eba0072 [color="#009E73" penwidth="2"];
+node_f88e14eb -> node_1eba0072 [color="#009E73" penwidth="2"];
+node_f88e14eb -> node_1eba0072 [color="#009E73" penwidth="2"];
+node_f88e14eb -> node_1eba0072 [color="#009E73" penwidth="2"];
+subgraph cluster_c830fabd {
+    node_9bbadeb1 node_f8f5d6f1 node_94f906d2 node_650bb126 node_b92d1882 node_d717edb1 node_e6944dcd node_b43bcee5 node_da01b34c node_9f6cc4d5 node_b6fc72d4 node_a113a166 node_87d86d33 node_54e10289 node_a2fb0086 node_282a9c1c node_1347ebab node_f88e14eb node_1eba0072 node_f75c379a node_74c045f8 node_ce3dec1b node_468d7072 node_57381b58 node_5bf3ac32 node_45ddc885 node_8ba303e7 node_c28b4ed3 node_c0e741ff node_4ef9fffa node_645222da node_cad33c93 node_513f2e9e;
+    label="File: include_generate_view_visual_id";
+    name="include_generate_view_visual_id";
+    style="filled";
+    graph[style=dotted];
+};
+}
