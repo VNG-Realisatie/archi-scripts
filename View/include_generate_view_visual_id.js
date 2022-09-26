@@ -182,6 +182,9 @@ function growCollection(param, ele, coll) {
  * - sorting the collection can result in a different layout
  *
  * - the view is used as the container with objects to layout
+ * #### collection with selected and grown elements
+ * #### nestedCollection with relations
+ * #### no visual elements ..
  */
 function drawCollection(param, dagre, collection, view) {
   // ### this only works for layout where also relation are part of collection.
@@ -652,7 +655,9 @@ function layoutGraph(param, dagre, graph) {
 }
 
 /**
- *
+ * apply the calculated position to the visual elements and relations
+ * #### waarom elements from view en relation from edges? 
+ * #### waarom voor alle eleemnten layoutNested??
  */
 function layoutView(graph, view) {
   console.log("\nLayout elements and relations ...");
@@ -683,7 +688,7 @@ function layoutView(graph, view) {
 
     let edgeObj = graph.edge(edge); // get edge label
     debug(`edgeObj: ${JSON.stringify(edgeObj)}`);
-    drawBendpoints(param, edgeObj, visualRelation);
+    layoutRelation(param, edgeObj, visualRelation);
   });
 }
 
@@ -769,7 +774,7 @@ function calcElementPosition(node) {
  * @param {object} edgeObj - graph edge
  * @param {object} connection - Archi connection
  */
-function drawBendpoints(param, edgeObj, connection) {
+function layoutRelation(param, edgeObj, connection) {
   debugStackPush(false);
 
   let bendpoints = [];

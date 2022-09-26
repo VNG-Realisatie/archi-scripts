@@ -70,7 +70,7 @@ var param = {
   hSep: 20, // space between nodes
   vSep: 40, // space between ranks 
 
-  debug: true,
+  debug: false,
 };
 
 initConsoleLog(__FILE__, true);

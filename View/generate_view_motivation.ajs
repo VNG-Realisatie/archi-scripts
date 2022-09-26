@@ -47,7 +47,7 @@ var param = {
     // "assignment-relationship",
     "realization-relationship",
     "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
   ],
 	
   layoutNested: [
