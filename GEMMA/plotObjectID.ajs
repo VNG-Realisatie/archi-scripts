@@ -1,0 +1,27 @@
+/*
+ * plotObjectID.ajs
+ *   plot a note with the GEMMA Object ID in selected elements
+ *
+ * (c) 2022 Mark Backer
+ *
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+const PROP_ID = "Object ID";
+
+// select visual elements
+let collection = getVisualSelection($(selection), "element");
+applyToCollection(collection, plotID);
+console.log("Script finished\n");
+
+function plotID(obj) {
+  // console.log(`- ${obj}`);
+
+  // plot a note on this element
+  var note = obj.createObject("note", 5, 35, 190, 24);
+  note.fontSize = 6;
+  note.textPosition = TEXT_POSITION.CENTER;
+  note.borderType = BORDER.RECTANGLE;
+  // use id of concept, not id of occurrence
+  note.text = `${obj.concept.prop(PROP_ID)}`;
+}
