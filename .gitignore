@@ -1,1 +1,5 @@
 Testjes/*
+node_modules/*
+package-lock.json
+package.json
+output_code2flow/*

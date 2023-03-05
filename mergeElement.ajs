@@ -93,7 +93,7 @@ function mergeElement(selectedElement) {
         }
       });
 
-      // master.merge(duplicate);
+      master.merge(duplicate);
       duplicate.delete();
     });
     // remove newlines added by Archi merge method

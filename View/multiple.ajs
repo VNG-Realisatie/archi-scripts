@@ -12,7 +12,7 @@
  *  1	28/01/2019	Hervé Jouin		File creation.
  */
 
-load(__DIR__ + "include_generate_view.js");
+load(__DIR__ + "include_view.js");
 
 var param = {
   action: GENERATE_MULTIPLE,
@@ -30,6 +30,7 @@ var param = {
     // "application-service"
   ],
   includeRelationType: [
+    // "access-relationship",
     // "assignment-relationship",
     // "flow-relationship",
     // "specialization-relationship",
@@ -41,7 +42,7 @@ var param = {
     // "assignment-relationship",
     "realization-relationship",
     "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "flow-relationship", // flow from bottom to top
   ],
 
@@ -59,8 +60,8 @@ var param = {
   graphDepth: 1,
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  // graphDirection: "LR",
-  graphDirection: "TB",
+  graphDirection: "LR",
+  // graphDirection: "TB",
 
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
@@ -69,8 +70,10 @@ var param = {
   // ranker: "tight-tree",
   // ranker: "network-simplex",
 
+  nodeWidth: 200,
+  nodeHeight: 60,
   hSep: 20,
-  vSep: 80,
+  vSep: 180,
 
   debug: false,
 };

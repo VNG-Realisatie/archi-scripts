@@ -1,20 +1,9 @@
 /**
- * Script that generates a view of the selected objects and related objects
+ * Script that generates a view with all relations of the selected elements
  * 
- * Usage:
- * - change in this script the 'param' object to define how the view will be rendered
- *   - see include_generate_view.js for an explanation of the parameters
- * - make a selection in Archi (the model, a folder, a view or some elements) and 
- * - run this script
  * 
- * This script calls the function generate_view in the javascript file include_generate_view.js
- * 
- * Requires:
- * 	- node module dagre-cluster-fix
- * 
- * Based on the work of Hervé Jouin
  */
-load(__DIR__ + "include_generate_view.js");
+load(__DIR__ + "include_view.js");
 
 var param = {
   action: GENERATE_SINGLE,

@@ -1,0 +1,123 @@
+/*
+Author: Thomas Klok Rohde
+Description:    
+    Insert labels on the current view, or delete labels if no property is selected
+    If a view is selected all elements will be labeled, or if an element is selected, 
+    all view elements with the same type will be labelled.
+Dependencies:
+    Thanks to Adam Ernst Bisek: https://github.com/adambisek/string-pixel-width
+History: 
+    November 16, 2022 : Created
+    Mark: added require
+    https://forum.archimatetool.com/index.php?topic=1110.msg5971#msg5971
+*/
+
+if ($.process.engine != "com.oracle.truffle.js.scriptengine.GraalJSScriptEngine") {
+  console.log("This script only works with GraalVM script engine.");
+  exit();
+}
+
+var System = Java.type("java.lang.System");
+if (System.getProperties().get("polyglot.js.commonjs-require") != "true") {
+  System.getProperties().put("polyglot.js.commonjs-require", "true");
+  System.getProperties().put("polyglot.js.commonjs-require-cwd", __SCRIPTS_DIR__);
+  console.log("GraalJS Module loading was previously disabled. Restart your script");
+  exit();
+}
+
+const pixelWidth = require("string-pixel-width");
+
+try {
+  console.show();
+  console.clear();
+
+  // A helper function to create a prompt to select from a list op options
+  window.promptSelection = function (title, choices) {
+    var ElementListSelectionDialog = Java.type("org.eclipse.ui.dialogs.ElementListSelectionDialog");
+    var LabelProvider = Java.type("org.eclipse.jface.viewers.LabelProvider");
+    var dialog = new ElementListSelectionDialog(shell, new LabelProvider());
+
+    dialog.setElements(choices);
+    dialog.setTitle(title);
+    dialog.open();
+    return new String(dialog.getResult());
+  };
+
+  let view = $(selection).filter("archimate-diagram-model").first();
+  let prototype = $(selection).filter("element").first();
+  let filter = "element";
+
+  if (!view && !prototype) {
+    window.alert("Please select either a view or element in a view");
+    exit();
+  }
+
+  if (!view) view = prototype.view;
+  if (prototype) filter = prototype.concept.type;
+
+  let elements = $(view).find().filter(filter);
+  let target = [];
+
+  // Get a property from the user to use as label
+  let propertySet = new Set();
+  elements.each((e) => {
+    let props = e.prop();
+    props.forEach((p) => {
+      if (p) propertySet.add(p);
+    });
+  });
+
+  let property = window.promptSelection("Select a property to use as label.", Array.from(propertySet));
+
+  // Clear existing labels. If no property was selected, then all property labels will be deleted.
+  $(view)
+    .find("diagram-model-note")
+    .each((n) => {
+      if (n.prop("Label") && n.prop("Label").toLowerCase() == "yes") n.delete();
+    });
+
+  // Helper function to find absolute position of an element in a view
+  function absoluteXY(obj) {
+    x = obj.bounds.x;
+    y = obj.bounds.y;
+
+    p = $(obj).parent().first();
+    while (p && p.bounds) {
+      x = x + p.bounds.x;
+      y = y + p.bounds.y;
+      p = $(p).parent().first();
+    }
+    return {
+      x: x,
+      y: y,
+    };
+  }
+
+  // Now proceed to the fun part of actually putting labels on stuff!
+  if (property) {
+    elements.each((e) => {
+      let label = e.prop(property);
+      if (label) {
+        let posXY = absoluteXY(e);
+        let fontName = "Verdana";
+        let fontSize = 10;
+        let x = posXY.x;
+        let y = posXY.y + e.bounds.height;
+        let height = fontSize * 2 + 4; // Height of label
+        let width = pixelWidth(label, { font: fontName, size: fontSize }) + fontSize + 4; // Width of label
+        let note = view.createObject("diagram-model-note", x, y, width, height);
+
+        note.fontColor = "#ff0000"; // Sets font color to red
+        note.fontName = fontName;
+        note.fontSize = fontSize;
+        note.opacity = 0;
+        note.prop("Label", "yes");
+        note.borderType = BORDER.NONE;
+        note.setText(label);
+      }
+    });
+  }
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+  throw "\nmodule not loaded";
+}

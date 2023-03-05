@@ -1,4 +1,4 @@
-# generate_view readme
+# view readme
 
 JArchi function for generating and auto layout of an Archi view
 
@@ -8,6 +8,28 @@ Use cases:
 - generate multiple context views (one element and all its related elements)
 - analyse your model by generating different views.
 - Use nesting to find unexpected relations, see double relations, etc.
+
+Based on "generate views using graphlib" by Herve Jouin.
+See https://forum.archimatetool.com/index.php?topic=639.msg3563#msg3563
+
+## files
+
+file with generate_view function
+
+- include_view.js
+
+wrapper files with parameter for generating a specific view
+
+- view.ajs
+- view_application.ajs
+- view_business.ajs
+- view_motivation.ajs
+- view_technology.ajs
+- expand.ajs
+- multiple.ajs
+- layout_LR.ajs
+- layout_nested.ajs
+- layout_TB.ajs
 
 ## generate_view parameters
 
@@ -81,23 +103,3 @@ Configure the behavior of generate_view with the folowing parameters.
 - For jArchi script development
   - `debug`, print debug messages on the console
     - boolean, true or false  (default is false)
-
-### files
-
-file with generate view function
-
-- include_generate_view.js
-
-wrapper files with settings for generating a specific view
-
-- context_views.ajs
-- expand_view_LR.ajs
-- generate_multiple_views.ajs
-- generate_view.ajs
-- generate_view_application.ajs
-- generate_view_business.ajs
-- generate_view_motivation.ajs
-- generate_view_technology.ajs
-- layout_view_LR.ajs
-- layout_view_nested.ajs
-- layout_view_TB.ajs

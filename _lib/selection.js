@@ -1,5 +1,5 @@
 /**
- * Given a selection, create a collection of (visual) objects for further processing
+ * Given a selection, create a collection of the contained (visual) objects for further processing
  *
  * The selection can be one or more concepts, views or folders.
  * - getSelection() returns a collection of objects

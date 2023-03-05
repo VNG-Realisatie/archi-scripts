@@ -41,57 +41,49 @@ function generate_view(param) {
   try {
     const dagre = loadDagre();
     if (setDefaultParameters(param)) {
-      let selectedElements = selectElements(param);
-      let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
-
       switch (param.action) {
         case GENERATE_SINGLE:
           {
             console.log("\nGenerate a view with the selected objects");
-            let view = getEmptyView(folder, param.viewName);
+            let selectedElements = selectElements(param);
+            let view = getEmptyView(param.viewName);
             let collection = $();
             selectedElements.forEach((ele) => growCollection(param, ele, collection));
             collection.add(selectedElements);
-
             drawCollection(param, dagre, collection, view);
           }
           break;
         case GENERATE_MULTIPLE:
           console.log(`\n== Generating ${selectedElements.length} views ==`);
+          let selectedElements = selectElements(param);
           selectedElements.forEach(function (ele) {
             // create a view for each element
-            let view = getEmptyView(folder, ele.name);
+            let view = getEmptyView(ele.name);
             let collection = $(ele);
             growCollection(param, ele, collection);
-
             drawCollection(param, dagre, collection, view);
           });
           break;
         case LAYOUT:
-          console.log("\nLayout objects on the selected view");
           {
-            let view = getSelectedView();
-            let collection = getLayoutCollection(view);
-            $(view)
-              .find()
-              .each((o) => o.delete());
-
+            console.log("\nLayout objects on the selected view");
+            let selView = getSelectedView();
+            let collection = getViewCollection(selView);
+            let view = getEmptyView(selView.name);
             drawCollection(param, dagre, collection, view);
           }
           break;
         case EXPAND_HERE:
           console.log("\nAdd objects to the view for the selected object");
           {
-            let view = getSelectedView();
-            let collection = getLayoutCollection(view);
-            $(view)
-              .find()
-              .each((o) => o.delete());
+            let selView = getSelectedView();
+            let collection = getViewCollection(selView);
+            let view = getEmptyView(selView.name);
 
             // expand the collection by adding all related elements and relations
+            let selectedElements = selectElements(param);
             selectedElements.forEach((ele) => growCollection(param, ele, collection));
             collection.add(selectedElements);
-
             drawCollection(param, dagre, collection, view);
           }
           break;
@@ -108,17 +100,17 @@ function generate_view(param) {
 /**
  * Add all elements and relations of the selected view
  */
-function getLayoutCollection(selectedView) {
+function getViewCollection(selectedView) {
   // ### todo filtering circular and rel on rel
   // ### todo also layout diagram objects
-  let layoutCollection = $();
+  let viewCollection = $();
   // let selectedView = getSelectedView();
   $(selectedView)
     .find("concept")
     .each((viewObject) => {
-      layoutCollection.add(viewObject.concept);
+      viewCollection.add(viewObject.concept);
     });
-  return layoutCollection;
+  return viewCollection;
 }
 
 /**
@@ -453,38 +445,38 @@ function findOnView(view, obj) {
   return viewElement;
 }
 
-function getFolder(mainFolderName, folderName) {
-  // let mainFolder = $(model).children(`.${mainFolderName}`).first();
-  let mainFolder = $(`folder.${mainFolderName}`).first();
-  let folder = $(mainFolder).children("folder").filter(`.${folderName}`).first();
-
+/**
+ * get an empty view in the generated views folder
+ *
+ * @param {string} viewName
+ * @returns {object} Archi view
+ */
+function getEmptyView(viewName) {
+  // find or create a folder for the generated views
+  let viewsFolder = $(`folder.Views`).first();
+  let folder = $(viewsFolder).children("folder").filter(`.${GENERATED_VIEW_FOLDER}`).first();
   if (!folder) {
-    folder = mainFolder.createFolder(folderName);
-    console.log(`Created ${folder}`);
+    folder = viewsFolder.createFolder(GENERATED_VIEW_FOLDER);
+    console.log(`Create folder: Views/${folder.name}`);
   }
-  return folder;
-}
 
-function getEmptyView(folder, viewName) {
-  // check if the corresponding view already exists in the given folder
+  // find or create the view
   let view = $(folder)
     .children("view")
     .filter("." + viewName)
     .first();
-
-  // If the view already exist, empty view
-  if (view) {
-    console.log(`Found view, changing view "${folder.name}/${view.name}"`);
+  if (!view) {
+    view = model.createArchimateView(viewName);
+    folder.add(view);
+    console.log(`Create view:   Views/${folder.name}/${view.name}`);
+  } else {
+    // empty the view for reuse
     $(view)
       .find()
       .each((o) => o.delete());
-  } else {
-    view = model.createArchimateView(viewName);
-    console.log(`Creating view "${folder.name}/${view.name}"`);
-
-    // move view to the generated views folder
-    folder.add(view);
+    console.log(`Reuse view:    Views/${folder.name}/${view.name}`);
   }
+
   return view;
 }
 
@@ -607,6 +599,7 @@ function createGraph(dagre, param) {
     graphOptions.marginx = 10;
     graphOptions.marginy = 10;
 
+    console.log("\nParameters for graph and Dagre");
     console.log("- options for layout");
     if (param.graphDirection !== undefined) graphOptions.rankdir = param.graphDirection;
     console.log("  - graphDirection = " + param.graphDirection);
@@ -656,7 +649,7 @@ function layoutGraph(param, dagre, graph) {
 
 /**
  * apply the calculated position to the visual elements and relations
- * #### waarom elements from view en relation from edges? 
+ * #### waarom elements from view en relation from edges?
  * #### waarom voor alle eleemnten layoutNested??
  */
 function layoutView(graph, view) {
