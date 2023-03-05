@@ -1,5 +1,6 @@
 Testjes/*
 node_modules/*
+output_code2flow/*
+.vscode/*
 package-lock.json
 package.json
-output_code2flow/*
