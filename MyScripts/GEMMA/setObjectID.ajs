@@ -1,15 +1,13 @@
 /**
  * setObjectID
  *
- * This script ensures that all objects in the architecturemodel have a property "Object ID" with a unique GUID.
+ * Set and check all objects for having a valid property Object ID
+ * For the GEMMA ArchiMate-model a valid GUID is:
+ * - unique, no duplicates
+ * - conforms to a valid GUID patterns, also GUIDs from the SWC are valid
  *
  * The property Object ID is used as a tool-independent ID when distributing and
  * exchanging models in the Open Exchange file format.
- *
- * Most tools have their own id-system and don't use the id's from an Open Exchange file.
- * - the tool BiZZdesign ES doesn't export it's internal id's and doesn't import id's.
- * - Archi imports the id's from an Open Exchange file
- * - Archi exports its id's, but if the id starts with a number, it's prefixed with id-
  *
  * Version 1:
  * - Check all objects for empty property "Object ID"
@@ -20,24 +18,18 @@
  *  	- if id is a known Archi id => set Object ID to stripped Archi id
  *  	- if id doesn't contain a valid GUID => set Object ID to a generated GUID
  * Version 3: 26-10-2020
- * - the scripts ObjectID_set en ObjectID_check are merged into one script
+ * - the scripts is merged with the ObjectID_check script
  * - SWC guid patterns as valid GUIDs added
  * Version 3.1: 21-2-2021
- * - added to also check de model-object
- *
- * This script is used in conjunction with the php script replace_id_ObjectID.php to support the
- * roundtripping of architecture models from .archimate files to Open Exchange XML files en vice versa
- * - Archi id are a GUID prefixed with an 'id-'
- * - if Archi id is not valid, it's replace with an Object ID
+ * - also check de model-object
  *
  * (c) 2019 Mark Backer
  */
 
 console.show();
 console.clear();
-var filepath = __FILE__.split("/");
+var filepath = __FILE__.split("\\");
 var scriptName = filepath[filepath.length - 1];
-
 console.log(`Executing script "${scriptName}"...\n`);
 
 // Label of the property with the ID
@@ -46,98 +38,62 @@ const PROP_ID = "Object ID";
 // add all objects of the model to an array. Skip folders, properties of folders are not exported
 let objects = [];
 objects.push(model);
-$("*")
-	.not("folder")
-	.each(function (object) {
-		objects.push(object);
-	});
-
-// Regular expressions for validating GUID's from different sources
-// Too strict = new RegExp('^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'i');
-let pattern_guid = new RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "i");
-let pattern_guid_SWC = new RegExp("^[0-9a-f]{32}$", "i");
-let pattern_guid_SWC_pv = new RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$", "i");
-let pattern_guid_SWC_view = new RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$", "i");
+$("*").not("folder").each((o) => objects.push(o));
 
 // lists of objects with, without or with an unvalid property Object ID
-const objects_objectID = objects.filter((object) => object.prop(PROP_ID));
-const objects_no_objectID = objects.filter((object) => !object.prop(PROP_ID));
-// of the object with an Object ID, filter the unvalid ones
-const objects_unvalidGUID = objects_objectID.filter(function (object) {
-	let guid = pattern_guid.test(object.prop(PROP_ID)) === true;
-	let guid_SWC = pattern_guid_SWC.test(object.prop(PROP_ID)) === true;
-	let guid_SWC_view = pattern_guid_SWC_view.test(object.prop(PROP_ID)) === true;
-	let guid_SWC_pv = pattern_guid_SWC_pv.test(object.prop(PROP_ID)) === true;
-
-	// keep list of unvalid GUID's
-	if (guid || guid_SWC || guid_SWC_view || guid_SWC_pv) {
-		return false;
-	} else {
-		return true;
-	}
-});
+const objectsWithID = objects.filter((object) => object.prop(PROP_ID));
+const objectsWithoutID = objects.filter((object) => !object.prop(PROP_ID));
+const objectsWithUnvalidID = objectsWithID.filter((object) => !check_GUID(object))
 
 // list of objects with a duplicate property Object ID. Also unvalid Object ID's are shown in duplicate list
-const lookup = objects_objectID.reduce((a, e) => {
+const lookup = objectsWithID.reduce((a, e) => {
 	// reduce objects to lookup table with count of occurrences - 1
 	a[e.prop(PROP_ID)] = a[e.prop(PROP_ID)] + 1 || 0;
 	return a;
 }, {});
 // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
-const objects_duplicate_objectID = objects_objectID.filter((e) => lookup[e.prop(PROP_ID)]);
+const objectsWithDuplicateID = objectsWithID.filter((e) => lookup[e.prop(PROP_ID)]);
 
+console.log(`Checking ${model}`);
+console.log(`Total number of objects to check: \t${objects.length}`);
 // Do not change the model if duplicates are found. Duplicates have to be manualy resolved
-if (objects_duplicate_objectID.length > 0) {
-	console.log(
-		`There ${objects_duplicate_objectID.length == 1 ? "is" : "are"} ${
-			objects_duplicate_objectID.length
-		} object with a duplicate ${PROP_ID}`
-	);
-	// report(`Objects with duplicate ${PROP_ID}`, objects_duplicate_objectID.sort(sortProp))
-	objects_duplicate_objectID.sort(sortProp).forEach(function (object) {
-		console.log(`> ${object.prop(PROP_ID)}\t${object}`);
+if (objectsWithDuplicateID.length > 0) {
+	console.log(`\nDuplicates found`);
+	console.log(`- ${objectsWithDuplicateID.length} object${objectsWithDuplicateID.length > 1 ? "s" : ""} with duplicate ${PROP_ID}`);
+	objectsWithDuplicateID.sort(sortProp).forEach(function (object) {
+		console.log(`  > ${object.prop(PROP_ID)}\t${object}`);
 	});
-
-	console.log(`\nNo new ${PROP_ID} are set`);
-	console.log(`First resolve the reported duplicate ${PROP_ID}:`);
+	console.log(`\nFirst resolve the reported duplicate ${PROP_ID}:`);
 	console.log(`- sort out which object was the original`);
 	console.log(`- remove the property ${PROP_ID} from the other objects`);
 	console.log(`Then run this script again\n`);
-	// Set all unvalid Object ID to a valid GUID
 } else {
-	if (objects_no_objectID.length > 0) {
-		console.log(
-			`There ${objects_no_objectID.length == 1 ? "is" : "are"} ${
-				objects_no_objectID.length
-			} object without an ${PROP_ID}. Adding ${PROP_ID}:`
-		);
-		objects_no_objectID.sort().forEach(function (object) {
+	console.log(`Setting ${PROP_ID}s`);
+	if (objectsWithoutID.length > 0) {
+		console.log(`- adding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}`);
+		objectsWithoutID.sort().forEach((o) => {
 			let id_generated = generateUUID();
-			console.log(`> ${object}\t${PROP_ID}=${id_generated}`);
-			object.prop(PROP_ID, id_generated);
+			console.log(`  > ${o}\t${PROP_ID}=${id_generated}`);
+			o.prop(PROP_ID, id_generated);
 		});
 		console.log();
 	}
-	if (objects_unvalidGUID.length > 0) {
-		console.log(
-			`There ${objects_unvalidGUID.length == 1 ? "is" : "are"} ${
-				objects_unvalidGUID.length
-			} object with an unvalid GUID in ${PROP_ID}. Replacing ${PROP_ID}:`
-		);
-		objects_unvalidGUID.sort().forEach(function (object) {
+	// Set all unvalid Object ID to a valid GUID
+	if (objectsWithUnvalidID.length > 0) {
+		console.log(`- replacing ${PROP_ID} in ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""}`);
+		objectsWithUnvalidID.sort().forEach((o) => {
 			let id_generated = generateUUID();
-			console.log(`> ${object}\t${PROP_ID}=${id_generated} (replaced "${object.prop(PROP_ID)}")`);
-			object.prop(PROP_ID, id_generated);
+			console.log(`  > ${o}\t${PROP_ID}=${id_generated} (was ${o.prop(PROP_ID)})`);
+			o.prop(PROP_ID, id_generated);
 		});
 		console.log();
 	}
-	console.log(`Processed ${model}`);
-	console.log(`Total number of objects processed: \t${objects.length}`);
-	console.log(`- added ${PROP_ID}: \t${objects_no_objectID.length}`);
-	console.log(`- replaced ${PROP_ID}: \t${objects_unvalidGUID.length}`);
-	console.log(`All object have a valid ${PROP_ID}\n`);
+	console.log(`Summary:`);
+	console.log(`- no duplicates`);
+	console.log(`- added ${PROP_ID}: \t${objectsWithoutID.length}`);
+	console.log(`- replaced ${PROP_ID}: \t${objectsWithUnvalidID.length}`);
+	console.log(`\nAll object now have a valid ${PROP_ID}\n`);
 }
-
 console.log(`Script "${scriptName}" finished\n`);
 
 /**
@@ -157,6 +113,22 @@ function generateUUID() {
 }
 
 /**
+ * check_GUID()
+ *	check if GUID property conforms to 1 of 4 GUID patterns
+ */
+function check_GUID(o) {
+	let oGUID = o.prop(PROP_ID)
+	if (
+		RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "i").test(oGUID) === true // standard
+		|| RegExp("^[0-9a-f]{32}$", "i").test(oGUID) === true // SWC
+		|| RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$", "i").test(oGUID) === true // SWC pakketversie
+		|| RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$", "i").test(oGUID) === true  // SWC view
+	)
+		return true;
+	else return false;
+}
+
+/**
  * sortProp()
  * 	sort all objects on Object ID
  */
@@ -164,5 +136,4 @@ function sortProp(a, b) {
 	if (a.prop(PROP_ID) < b.prop(PROP_ID)) return -1;
 	if (a.prop(PROP_ID) > b.prop(PROP_ID)) return 1;
 	return 0;
-	//	return a.prop(PROP_ID).localeCompare(b.prop(PROP_ID))
 }
