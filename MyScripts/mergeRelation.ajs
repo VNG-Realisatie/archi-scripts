@@ -1,116 +1,22 @@
 /*
- * mergeRelation
+ * Merge all duplicate relations with the selected relations
+ *  - duplicate relations have the same type, source, target and name
+ *  - the selected concepts are kept, the duplicates are merged and then deleted
  *
- * Version 1: Given an relation, the script merges all relations with
- * 	- the same endpoints
- * 	- the same type
- * 	- and the same name
- *
- * From the jArchi .merge method (https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#merge)
- *    Existing diagram instances of the other ArchiMate relationship will be replaced with this relationship
- * 		Relationships have to be of the same type
- * 		All source and target relationships of the other relationship are set to this relationship
- *
- * jArchi merge method always appends the documentation and property values of the merged relation
- * - This script only appends if the documentation field or de propertie value is different
- *
- * This script does delete the merged relation
+ * Usage:
+ *  Select one or more relations.
+ *  - on a view or in the model-tree
+ *  - or select folders/views containing the relations.
+ *  Run the script
  *
  * (c) 2019 Mark Backer
  *
+ * 06 2023: logic is now part of includeMergeConcept
  */
 
 load(__DIR__ + "_lib/Common.js");
+load("includeMergeConcept.js");
 
 initConsoleLog(__FILE__);
-
-if ($(selection)) {
-  if ($(selection).filter("relation").size() == 1) {
-    // select one relation in view			-> this relation is the master
-    mergeRelation($(selection).first());
-  } else {
-    console.log(`> Multiple relations selected, select only one relation`);
-  }
-} else {
-  console.log(`> Select one relation`);
-}
-
+mergeElementOrRelation(OBJECT_TYPE_RELATION);
 finishConsoleLog();
-
-/**
- *
- */
-function mergeRelation(rel) {
-  debugStackPush(true);
-  try {
-    let documentationEqual = false;
-    console.log(rel);
-    var masterRel = concept(rel);
-    
-    debug(`master: ${masterRel}`);
-
-    let dupRels = $(masterRel.source)
-      .outRels(masterRel.type)
-      .filter(function (outRel) {
-        let dupRel = $(masterRel.target)
-          .inRels(masterRel.type)
-          .filter(function (inRel) {
-            return outRel.id === inRel.id && outRel.name === masterRel.name;
-          });
-        return dupRel.size() > 0;
-      });
-
-    // remove master relation from collection
-    dupRels.not($(masterRel));
-
-    let masterName = `${masterRel.name ? masterRel.name : "no-name"}`;
-    let masterString = `${masterRel.type}:  ${masterRel.source.name} -[${masterName}]-> ${masterRel.target.name}`;
-
-    if (dupRels.size() == 0) {
-      console.log(`> Only one relation like:\n>> ${masterString}`);
-    } else {
-      console.log(`> Merge all relations equal to:`);
-      console.log(`>> ${masterString}`);
-      console.log(`>> Selected relation has id=${masterRel.id}\n`);
-
-      dupRels.each(function (dupRel) {
-        console.log(`>> Merge relation: ${dupRel.id}`);
-
-        // don't append documentation if documentation strings are equal
-        if (dupRel.documentation == masterRel.documentation) {
-          console.log(`>>> documentation is equal`);
-          documentationEqual = true;
-        } else {
-          console.log(`>>> documentation appended to documentation of master`);
-        }
-        var duplicatePropList = dupRel.prop();
-        for (var i = 0; i < duplicatePropList.length; i++) {
-          if (masterRel.prop(duplicatePropList[i])) {
-            // remove property from duplicate if property is equal to master property
-            if (masterRel.prop(duplicatePropList[i]) == dupRel.prop(duplicatePropList[i])) {
-              dupRel.removeProp(duplicatePropList[i]);
-            } else {
-              console.log(`>>> property ${duplicatePropList[i]} appended`);
-            }
-          } else {
-            console.log(`>>> property ${duplicatePropList[i]} added`);
-          }
-        }
-
-        masterRel.merge(dupRel);
-        // sollution for merge append of empty documentation adds a newline
-        if (documentationEqual) masterRel.documentation = dupRel.documentation;
-        dupRel.delete();
-      });
-
-      console.log(`\n> ${dupRels.size()} relations merged and deleted`);
-    }
-  } catch (error) {
-    console.log(`>> ${arguments.callee.name}(): ${typeof error.stack == "undefined" ? error : error.stack}`);
-  }
-  debugStackPop();
-}
-
-function concept(o) {
-  return o.concept ? o.concept : o;
-}

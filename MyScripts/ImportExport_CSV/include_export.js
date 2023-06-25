@@ -2,6 +2,7 @@
  * Export the selected elements, relations or views and their properties to a CSV file
  */
 load(__DIR__ + "../_lib/selection.js");
+load(__DIR__ + "../_lib/archi_objects.js");
 load(__DIR__ + "include_export_import.js");
 
 /**
@@ -154,17 +155,6 @@ function createRow(headerRow, object, objectType) {
   debug(`Row: ${JSON.stringify(row)}`);
   debugStackPop();
   return row;
-}
-
-/**
- * get objects folderpath by recursively walkin up the parentfolders
- */
-function getArchiFolder(child, currentFolderName) {
-  let parent = $(`#${child.id}`).parent("folder");
-  if (parent.size() == 0) return currentFolderName;
-
-  let folderName = `${parent.first().name}/${currentFolderName}`;
-  return getArchiFolder(parent.first(), folderName);
 }
 
 /**
