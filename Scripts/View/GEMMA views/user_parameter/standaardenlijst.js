@@ -1,22 +1,8 @@
 /**
- * Script that generates a view of the selected objects and related objects
- * - change in this script the param variable to define the view to be rendered
- * - make a selection in Archi (the model, a folder, a view or some elements) and run this script
- * - see include_generate_view.js for an explanation of the parameters
- *
- * This script calls the function generate_view in the javascript file include_generate_view.js
- *
- * Requires:
- * 	- node module dagre-cluster-fix
- *  - scripts:
- * 			_lib\Common.js
- * 			_lib\jvm-npm.js
- * 			include_generate_view.js
- *
- *  Based on the work of Hervé Jouin
+ * genereer publicatie standaarden view
  */
 
-load(__DIR__ + "include_view.js");
+load(__DIR__ + "../include_view.js");
 
 var param = {
   action: GENERATE_SINGLE,
@@ -25,17 +11,17 @@ var param = {
   // action: LAYOUT,
 
   // graphDepth: 1,
-  graphDepth: 1,
+  graphDepth: 2,
 
   includeElementType: [
     // "application-collaboration",
-    // "application-component",
+    "application-component",
     // "application-event",
     // "application-function",
     // "application-interaction",
     // "application-interface",
     // "application-process",
-    // "application-service",
+    "application-service",
     // "artifact",
     // "assessment",
     // "business-actor",
@@ -53,7 +39,7 @@ var param = {
     // "canvas-model-sticky",
     // "capability",
     // "communication-network",
-    // "constraint",
+    "constraint",
     // "contract",
     // "course-of-action",
     // "data-object",
@@ -107,9 +93,9 @@ var param = {
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
-    // "realization-relationship",
-    // "serving-relationship",
-    // "specialization-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
 
@@ -123,14 +109,14 @@ var param = {
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
-    "realization-relationship",
+    // "realization-relationship",
     "serving-relationship",
     "specialization-relationship",
     // "triggering-relationship",
   ],
   layoutNested: [
     // "access-relationship",
-    "aggregation-relationship",
+    // "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",
@@ -138,7 +124,7 @@ var param = {
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
     // "triggering-relationship",
   ],
 
@@ -151,14 +137,15 @@ var param = {
 
   // ranker: "longest-path",
   // ranker: "tight-tree",
-  ranker: "network-simplex",
+
+  ranker: "network-simplex", // default
 
   nodeWidth: 200,
   nodeHeight: 60,
   hSep: 20,
   vSep: 180,
 
-  debug: true,
+  debug: false,
 };
 
 initConsoleLog(__FILE__, true);

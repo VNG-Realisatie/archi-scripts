@@ -1,10 +1,12 @@
 /**
- * toggleFigure
- *	Toggle the shape of the selected element and all elements of the same type
- *  The shape changes from a rectangle with icon to the icon shape and vice versa
- *
- *	Select one element on a view or in the model tree
- *	- toggle figure of this element type in the view or in all views
+ * Toggle the figure of the given visual objects 
+ * from "icon shape" to "rectangle with icon" en vice versa
+ * 
+ * Select 
+ * - one element                  => toggle figure of all elements of same type
+ * - multiple elements on a view  => toggle figure of selected elements
+ * - a view                       => toggle figure of all elements on the view
+ * - a folder with views          => toggle figure of all elements of all views in the folder(s)
  */
 load(__DIR__ + "../_lib/selection.js");
 
@@ -19,6 +21,7 @@ function toggleFigure(obj) {
     console.log(`Toggle figure from '${FIGURE_TEXT[this.figure]}' to '${FIGURE_TEXT[this.figure == 0 ? 1 : 0]}'`);
     this.only_once = true;
   }
+	console.log(`- view "${obj.view.name}", \t${obj} `);
 
   // rectangle with icon
   if (this.figure == 0) {

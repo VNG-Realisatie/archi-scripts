@@ -1,32 +1,10 @@
 /**
- * Script that generates a view of the selected objects and related objects
- * - change in this script the param variable to define the view to be rendered
- * - make a selection in Archi (the model, a folder, a view or some elements) and run this script
- * - see include_generate_view.js for an explanation of the parameters
- *
- * This script calls the function generate_view in the javascript file include_generate_view.js
- *
- * Requires:
- * 	- node module dagre-cluster-fix
- *  - scripts:
- * 			_lib\Common.js
- * 			_lib\jvm-npm.js
- * 			include_generate_view.js
- *
- *  Based on the work of Hervé Jouin
+ * User defined default view parameter
+ * 
+ * This definition is read by function get_filter_filename
  */
 
-load(__DIR__ + "include_view.js");
-
-var param = {
-  action: GENERATE_SINGLE,
-  // action: GENERATE_MULTIPLE,
-  // action: EXPAND_HERE,
-  // action: LAYOUT,
-
-  // graphDepth: 1,
-  graphDepth: 1,
-
+const USER_PARAM = {
   includeElementType: [
     // "application-collaboration",
     // "application-component",
@@ -112,9 +90,6 @@ var param = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
-
-  // viewName: "gen-custom",
-
   layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
@@ -138,29 +113,7 @@ var param = {
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
     // "triggering-relationship",
   ],
-
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
-
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-  ranker: "network-simplex",
-
-  nodeWidth: 200,
-  nodeHeight: 60,
-  hSep: 20,
-  vSep: 180,
-
-  debug: true,
 };
-
-initConsoleLog(__FILE__, true);
-generate_view(param);
-finishConsoleLog();

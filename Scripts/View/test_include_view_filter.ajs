@@ -1,0 +1,15 @@
+/**
+ * test
+ */
+load(__DIR__ + "include_view.js");
+initConsoleLog(__FILE__, true);
+
+let param = {}
+param = get_default_parameter(param)
+console.log(`Default: ${JSON.stringify(param)}`)
+
+param = get_user_parameter(__FILE__, param)
+console.log(`With filter: ${JSON.stringify(param)}`)
+
+generate_view(param);
+finishConsoleLog();

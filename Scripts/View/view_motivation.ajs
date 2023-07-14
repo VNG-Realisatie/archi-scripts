@@ -18,6 +18,8 @@
 load(__DIR__ + "include_view.js");
 
 var param = {
+
+  // action: MULTIPLE,
   action: GENERATE_SINGLE,
 	
 	includeElementType: [
@@ -80,9 +82,6 @@ var param = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 80,
-
-  // action: MULTIPLE,
-  action: GENERATE_SINGLE,
 
   debug: false,
 };

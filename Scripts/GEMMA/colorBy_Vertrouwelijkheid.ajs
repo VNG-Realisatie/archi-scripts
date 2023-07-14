@@ -24,7 +24,7 @@ function ColorBy(obj, args) {
 	let chromaColor = args[1];
 
 	if (typeof this.only_once == "undefined") {
-		this.colors = chroma.scale(chromaColor).padding([0.1, 0.2]);
+		this.colors = chroma.scale(chromaColor).padding([0.15, 0.3]);
 		console.log(`Color elements with shades of ${chromaColor}, varied by the value of ${prop}`);
 		this.only_once = true;
 	}

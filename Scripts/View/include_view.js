@@ -43,20 +43,24 @@
  */
 load(__DIR__ + "../_lib/selection.js");
 
-const GENERATE_SINGLE = "GENERATE_SINGLE";
-const GENERATE_MULTIPLE = "GENERATE_MULTIPLE";
-const EXPAND_HERE = "EXPAND_HERE";
-const LAYOUT = "LAYOUT";
-const REGENERATE = "REGENERATE";
+const GENERATE_SINGLE = "Generate";
+const GENERATE_MULTIPLE = "GenerateMultiple";
+const EXPAND_HERE = "Expand";
+const LAYOUT = "Layout";
+const REGENERATE = "Regenerate";
 
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
 const DEFAULT_GRAPHDEPTH = 1;
 const DEFAULT_ACTION = GENERATE_SINGLE;
-const NODE_WIDTH = 140; // width of a drawn element
-const NODE_HEIGHT = 60; // height of a drawn element
+const DEFAULT_DIRECTION = "LR";
+const DEFAULT_NODE_WIDTH = 140; // width of a drawn element
+const DEFAULT_NODE_HEIGHT = 60; // height of a drawn element
 const JUNCTION_DIAMETER = 14; // size of a junction
+
+const DEFAULT_PARAM_FILE = "default_parameter.js"; // optional file with user defaults, supersedes defaults above
+const USER_PARAM_FOLDER = "user_parameter"; // folder with user parameter settings for generating views
 
 // polyfill for array method includes(), which is not supported in Nashorn ES6
 if (!Array.prototype.includes) {
@@ -89,6 +93,62 @@ try {
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   throw "\nDagre module not loaded";
+}
+
+/**
+ * Get parameter from filename to generate a view
+ *
+ * Order of setting param
+ * - include-view.js defaults
+ * - superseded by DEFAULT_PARAM_FILE
+ * - superseded by 'wrapper'.ajs file
+ */
+function get_default_parameter(file, init_param) {
+  let path = file.substring(0,file.lastIndexOf("\\")+1);
+
+  try {
+    load(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
+    init_param = DEFAULT_PARAM;
+    console.log(`Default parameter read from file "${DEFAULT_PARAM_FILE}"`);
+    debug(`Default: ${JSON.stringify(init_param, null, 2)}\n`);
+  } catch (error) {
+    console.log(`NOT read default parameters ${DEFAULT_PARAM_FILE}\n`);
+    debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+  }
+  return init_param;
+}
+
+function get_user_parameter(file, filename_param) {
+  let path = file.substring(0,file.lastIndexOf("\\")+1);
+  let filename = file.replace(/^.*[\\\/]/, "");
+  let name = filename.substring(0,filename.lastIndexOf("."));
+  let [direction, action, user_param_name] = name.split("_");
+
+  filename_param.graphDirection = direction;
+  filename_param.action = action;
+  
+  if (user_param_name) {
+    console.log(`${action} with direction ${direction} and user parameter "${user_param_name}"`);
+    const PARAM_FILE = `${USER_PARAM_FOLDER}/${user_param_name}.js`;
+
+    try {
+      load(path + PARAM_FILE);
+
+      Object.keys(USER_PARAM).forEach((prop) => {
+        filename_param[prop] = USER_PARAM[prop];
+        debug(`Set ${prop} = ${USER_PARAM[prop]}`);
+      });
+
+      console.log(`User parameters read from file "${PARAM_FILE}"`);
+      debug(`With user parameter file: ${JSON.stringify(filename_param, null, 2)}\n`);
+    } catch (error) {
+      console.log(`NOT read user parameters ${PARAM_FILE}\n`);
+      debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+    }
+  } else {
+    console.log(`${action} with direction ${direction}\n`);
+  }
+  return filename_param;
 }
 
 /**
@@ -125,8 +185,11 @@ function generate_view(param) {
           break;
 
         default:
+          throw `unknown action=${param.action}`;
           break;
       }
+    } else {
+      console.error("\nError in parameter. Correct the invalid type names logged in red");
     }
   } catch (error) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -162,17 +225,19 @@ function setDefaultParameters(param) {
 
   console.log("Generate view parameters");
   if (param.action == undefined) param.action = DEFAULT_ACTION;
-  console.log("- action = " + param.action);
+  console.log("  - action = " + param.action);
 
   if (param.graphDepth === undefined) param.graphDepth = DEFAULT_GRAPHDEPTH;
-  console.log("- graphDepth = " + param.graphDepth);
+  console.log("  - graphDepth = " + param.graphDepth);
 
   if (param.includeElementType === undefined) param.includeElementType = [];
-  if (!validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter")) validFlag = false;
+  if (!validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter"))
+    validFlag = false;
   if (param.includeRelationType === undefined) param.includeRelationType = [];
-  if (!validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter")) validFlag = false;
+  if (!validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter"))
+    validFlag = false;
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
-  console.log(`- viewName = ${param.viewName}`);
+  console.log(`  - viewName = ${param.viewName}`);
 
   console.log("How to draw relationships");
   if (param.layoutReversed === undefined) param.layoutReversed = [];
@@ -181,9 +246,9 @@ function setDefaultParameters(param) {
   if (!validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
 
   console.log("Developing");
-  console.log("- debug = " + param.debug);
+  console.log("  - debug = " + param.debug);
+  console.log();
 
-  if (!validFlag) console.error("\nCorrect the invalid type names logged in red");
   return validFlag;
 }
 
@@ -221,19 +286,20 @@ function createGraph(param) {
   // if parameter is undefined, dagre uses a default
   console.log("\nDagre layout parameters");
   if (param.graphDirection !== undefined) graphLayout.rankdir = param.graphDirection;
-  console.log("- graphDirection = " + param.graphDirection);
+  console.log("  - graphDirection = " + param.graphDirection);
   if (param.graphAlign !== undefined) graphLayout.align = param.graphAlign;
-  console.log("- graphAlign (undefined is middle) = " + param.graphAlign);
+  console.log("  - graphAlign (undefined is middle) = " + param.graphAlign);
   if (param.ranker !== undefined) graphLayout.ranker = param.ranker;
-  console.log("- ranker = " + param.ranker);
-  if (param.nodeWidth == undefined) param.nodeWidth = NODE_WIDTH;
-  console.log("- nodeWidth = " + param.nodeWidth);
-  if (param.nodeHeight == undefined) param.nodeHeight = NODE_HEIGHT;
-  console.log("- nodeHeight = " + param.nodeHeight);
+  console.log("  - ranker = " + param.ranker);
+  if (param.nodeWidth == undefined) param.nodeWidth = DEFAULT_NODE_WIDTH;
+  console.log("  - nodeWidth = " + param.nodeWidth);
+  if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
+  console.log("  - nodeHeight = " + param.nodeHeight);
   if (param.hSep !== undefined) graphLayout.nodesep = param.hSep;
-  console.log("- hSep = " + param.hSep);
+  console.log("  - hSep = " + param.hSep);
   if (param.vSep !== undefined) graphLayout.ranksep = param.vSep;
-  console.log("- vSep = " + param.vSep);
+  console.log("  - vSep = " + param.vSep);
+  console.log();
 
   // graph is globally defined
   graph = new dagre.graphlib.Graph({
@@ -374,9 +440,9 @@ function addElement(level, param, archiEle, filteredElements) {
             console.log("\nAdded to the graph:");
             console.log(`- ${graph.nodeCount()} nodes and`);
             console.log(`- ${graph.edgeCount()} edges`);
-            graph
-              .nodes()
-              .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
+            // graph
+            //   .nodes()
+            //   .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
           }
         }
       }
@@ -395,7 +461,7 @@ function createNode(level, param, archiEle) {
     if (e.type == "junction")
       graph.setNode(e.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
     else graph.setNode(e.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });
-    debug(`${"  ".repeat(level)}> Added ${archiEle}`);
+    debug(`${"  ".repeat(level)}> Add ${archiEle}`);
   } else {
     debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}`);
   }
@@ -428,16 +494,18 @@ function createEdge(level, param, rel) {
   if (param.layoutReversed.includes(rel.type)) {
     if (!graph.hasEdge(rel.target.id, rel.source.id, rel.id)) {
       graph.setEdge(rel.target.id, rel.source.id, { label: rel.id });
+      // graph.setEdge(rel.target.id, rel.source.id, rel.id );
       rel_line = `${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
     }
   } else {
     if (!graph.hasEdge(rel.source.id, rel.target.id, rel.id)) {
       graph.setEdge(rel.source.id, rel.target.id, { label: rel.id });
+      // graph.setEdge(rel.source.id, rel.target.id, rel.id );
       rel_line = `${rel.source.name} --${rel.type}-> ${rel.target.name}`;
     }
   }
 
-  if (rel_line) debug(`${"  ".repeat(level)}> Added relation ${rel_line}`);
+  if (rel_line) debug(`${"  ".repeat(level)}> Add edge ${rel_line}`);
   else debug(`${"  ".repeat(level)}> Skip, edge already in graph ${rel_line}`);
 }
 
@@ -451,16 +519,21 @@ function createParent(level, param, rel) {
     // save parent relation
     graphParents.push(rel);
 
+    // # graph.setParent(v, parent)
+    // Sets the parent for v to parent if it is defined or removes the parent for v if parent is undefined.
+    // Throws an error if the graph is not compound.
+    // Returns the graph, allowing this to be chained with other functions.
     if (param.layoutReversed.includes(rel.type)) {
-      graph.setParent(rel.target.id, rel.source.id);
+      // # graph.setParent(v, parent)
+      graph.setParent(rel.source.id, rel.target.id);
       rel_line = `Parent <- Child: ${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
     } else {
-      graph.setParent(rel.source.id, rel.target.id);
+      graph.setParent(rel.target.id, rel.source.id);
       rel_line = `Parent -> Child: ${rel.source.name} --${rel.type}-> ${rel.target.name}`;
     }
-    debug(`${"  ".repeat(level)}> Added child->parent = ${rel_line}`);
+    debug(`${"  ".repeat(level)}> Add ${rel_line}`);
   } else {
-    debug(`${"  ".repeat(level)}> Skip child->parent, already in graph = ${rel_line}`);
+    debug(`${"  ".repeat(level)}> Skip, already in graph = ${rel_line}`);
   }
   return;
 }
@@ -486,10 +559,10 @@ function drawView(param, filteredElements) {
   // save generate_view parameter to a view property
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
   // and for debugging also in the views documentation
-  if (param.debug ) {
-    view.documentation = "View genereated with these settings and selections\n\n";
-    view.documentation += getTextWithSettings(param, filteredElements);
-  }
+  // if (param.debug ) {
+  //   view.documentation = "View genereated with these settings and selections\n\n";
+  //   view.documentation += getTextWithSettings(param, filteredElements);
+  // }
 
   let visualElementsIndex = new Object();
   let nodeIndex = {};
@@ -524,7 +597,7 @@ function getTextWithSettings(param, filteredElements) {
 }
 
 function drawCircularRelation(param, rel, visualElementIndex, view) {
-  debugStackPush(param.debug);
+  debugStackPush(false);
 
   let connection = view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[rel.target.id]);
 
@@ -566,7 +639,7 @@ function getView(folder, viewName) {
 }
 
 function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
-  debugStackPush(param.debug);
+  debugStackPush(false);
   // if the id has not yet been added to the view
   // check because parents are drawn, at the moment a child node comes by
   if (nodeIndex[nodeId] === undefined) {
@@ -656,7 +729,7 @@ function calcElementPosition(node) {
  * @param {object} view Archi view
  */
 function drawRelation(param, edge, visualElementIndex, view) {
-  debugStackPush(param.debug);
+  debugStackPush(false);
 
   let archiRelation = $("#" + graph.edge(edge).label).first();
   debug(`archiRelation: ${archiRelation}`);
@@ -680,8 +753,10 @@ function drawRelation(param, edge, visualElementIndex, view) {
  * @param {object} view Archi view
  */
 function layoutNestedConnection(parentRel, visualElementIndex, view) {
+  debugStackPush(false);
   debug(`parentRel: ${parentRel}`);
   view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
+  debugStackPop();
 }
 
 /**
@@ -808,15 +883,15 @@ function openView(view) {
 function validArchiConcept(paramList, validNames, label, emptyLabel) {
   let validFlag = true;
 
-  console.log(`- ${label}`);
+  console.log(`  - ${label}`);
   if (paramList.length == 0) {
-    console.log(`  - ${emptyLabel}`);
+    console.log(`    - ${emptyLabel}`);
   } else {
     paramList.forEach(function (p) {
       if (validNames.includes(p)) {
-        console.log(`  - ${p}`);
+        console.log(`    - ${p}`);
       } else {
-        console.error(`  - ${p}`);
+        console.error(`    - ${p}`);
         validFlag = false;
       }
     });

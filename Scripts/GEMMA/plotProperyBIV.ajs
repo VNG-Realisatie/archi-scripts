@@ -14,14 +14,15 @@ load(__DIR__ + "../_lib/selection.js");
 initConsoleLog(__FILE__, true);
 
 let collection = getVisualSelection($(selection), "application-component" );
-applyToCollection(collection, plotPropertyBIV, ["Oranges"]);
+// applyToCollection(collection, plotPropertyBIV, ["Oranges"]);
+applyToCollection(collection, plotPropertyBIV, ["Blues"]);
 
 finishConsoleLog();
 
 function plotPropertyBIV(obj, args) {
 	if (typeof this.only_once == "undefined") {
 		this.BIVlist = ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"];
-		colorscale = chroma.scale(args[0]);
+		colorscale = chroma.scale(args[0]).padding([0.15, 0.3]);;
 		console.log(`Plot notes with the BIV-values inside the application-components`);
 		this.only_once = true;
 	}

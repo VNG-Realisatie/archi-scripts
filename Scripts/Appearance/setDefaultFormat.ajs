@@ -3,30 +3,62 @@
  * See edit > preferences
  * - tab fonts and colors
  * - tab diagram > default figures
- * If you have changed the Archi preferences for the font and opacity, change this formatting in this function
+ * If you have changed the Archi preferences for the font and opacity, change the formatting in this function
  *
  * Not all formatting can be reset, there are not yet jArchi API calls for setting
  * - text alignment en position
  * - outline opacity
+ *
+ * Select
+ * - one element                  => set default formatting to all elements of same type
+ * - multiple elements on a view  => set default formatting to selected elements
+ * - a view                       => set default formatting to all elements on the view
+ * - a folder with views          => set default formatting to all elements of all views in the folder(s)
  */
 load(__DIR__ + "../_lib/Common.js");
 load(__DIR__ + "../_lib/selection.js");
 
 initConsoleLog(__FILE__, true);
-let collection = getVisualSelection($(selection), "diagram");
+let collection = getVisualSelection($(selection), "*");
 applyToCollection(collection, SetDefaultFormat);
 finishConsoleLog();
 
 function SetDefaultFormat(obj) {
-  console.log(`- ${obj} on view ${obj.view.name}`);
+  console.log(`- view "${obj.view.name}", \t${obj} `);
 
-	obj.fontColor = null;
-	obj.fillColor = null;
-	obj.lineColor = null;
+  // all types
+  obj.fontColor = null;
+  obj.fontName = "Segoe UI";
+  obj.fontSize = 9;
+  obj.fontStyle = "normal";
+  obj.lineColor = null;
+  obj.textAlignment = TEXT_ALIGNMENT.CENTER;
+	
+  // elements only
+  if ($(obj).is("element")) {
+		obj.textPosition = TEXT_POSITION.TOP;
+    obj.fillColor = null;
+    obj.opacity = 255;
+    //obj.outlineOpacity
+    //obj.gradient
+    // obj.figureType = 0;
+		if (obj.type == "grouping") {
+			if (obj.figure == 0) obj.textAlignment = TEXT_ALIGNMENT.CENTER;
+			else obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+		}
+  }
 
-	//	pObject.figureType = 1;
-	obj.fontName = "Segoe UI";
-	obj.fontSize = 9;
-	obj.fontStyle = "normal";
-	obj.opacity = 255;
+  // connections only
+  if ($(obj).is("relation")) {
+    obj.textPosition = CONNECTION_TEXT_POSITION.MIDDLE;
+    obj.labelVisible = true; //		Get/set the visibility of a connection label.
+    obj.lineWidth = 1; // Sets line width to normal
+  }
+
+  // non ArchiMate visual objects
+  // obj.style Set the style of a non-ArchiMate Connection.
+  // obj.borderType // Get/set the border type for Note and Group objects.
+  if ((obj.type == "diagram-model-group" && obj.borderType == BORDER.TABBED) || obj.type == "diagram-model-note") {
+    obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  }
 }

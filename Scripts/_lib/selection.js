@@ -69,11 +69,11 @@ function getSelection(startSelection, selector = "*") {
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
   else console.log(`Selected ${startSelection.size()} objects, first selected object is ${startSelection.first()}`);
-  
+
   // create an empty collection
   var selectedColl = $();
   $(startSelection).each((obj) => addObject(obj, selector, selectedColl));
-  
+
   console.log(`Created a collection of ${selectedColl.size()} objects of type "${selector}"`);
   return selectedColl;
 
