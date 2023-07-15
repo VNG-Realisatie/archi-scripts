@@ -1,40 +1,27 @@
 /*
- * ColorCodeNote
- *
- * Show colorcode in element for copy en pasting to settings
+ * 
+ * Plot colorcode in element for copy en pasting to settings
  *
  * (c) 2019 Mark Backer
  *
  */
 
-// Show output in the console
-console.show();
-console.clear();
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length - 1];
+load(__DIR__ + "../_lib/selection.js");
 
-console.log(`Executing script "${scriptName}"...\n`);
+// select visual elements
+let collection = getVisualSelection($(selection), "element");
+applyToCollection(collection, plotColorCode);
 
-var selectedView = $(selection).filter("archimate-diagram-model").first();
+collection = getVisualSelection($(selection), "diagram-model-group");
+applyToCollection(collection, plotColorCode);
+console.log("Script finished\n");
 
-var i;
-try {
-	if (!selectedView) {
-		console.log("> Please Select a View");
-	} else {
-		$(selectedView)
-			.find("element")
-			.forEach(function (VisualElement) {
-				var note = VisualElement.createObject("note", 5, 5, 60, 25); // Add a Note to this element
-				//			note.fillColor = "#white"
-				//			note.fontSize = 9;
+function plotColorCode(obj) {
+  // plot a note on this element
+  var note = obj.createObject("note",  5, 5, 60, 25); // Add a Note to this element
+  // note.fontSize = 5;
+  note.textPosition = TEXT_POSITION.CENTER;
+  note.borderType = BORDER.RECTANGLE;
 
-				note.text = `${VisualElement.fillColor}`;
-			});
-	}
-} catch (error) {
-	console.log("> Error: " + error);
-	console.log("> Error: " + error.stack);
+	note.text = `${obj.fillColor ? obj.fillColor : "default"}`;
 }
-
-console.log(`Script "${scriptName}" finished\n`);

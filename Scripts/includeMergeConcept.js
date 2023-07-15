@@ -26,7 +26,7 @@
  *
  * (c) 2019 Mark Backer
  */
-load(__DIR__ + "_lib/archi_objects.js");
+load(__DIR__ + "_lib/archi_folders.js");
 load(__DIR__ + "_lib/selection.js");
 
 const PROP_ID = "Object ID";

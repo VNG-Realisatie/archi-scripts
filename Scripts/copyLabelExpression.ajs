@@ -1,13 +1,12 @@
 /*
  * Copy the label expression of the selected object and paste this to all objects of the same type
  *
- * behavior
- * 	select one object in a view			-> copy label expression to all objects of same type
+ * Usage
+ * 	select one object in a view and run the script
+ * 			-> copy label expression to all objects of same type
  *
- * (c) 2019 Mark Backer
+ * (c) 2023 Mark Backer
  *
- * 2023
- * - start with copy of copyFormat.ajs
  */
 load(__DIR__ + "_lib/Common.js");
 load(__DIR__ + "_lib/selection.js");

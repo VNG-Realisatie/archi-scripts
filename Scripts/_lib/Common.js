@@ -185,21 +185,19 @@ function getFuncName() {
   }
 }
 
-/**
- * slash()
- *  return OS dependent filepath separator
- */
-function slash() {
-  var System = Java.type("java.lang.System");
-  var nameOS = System.getProperty("os.name", "");
 
-  if (nameOS.indexOf("Win") != -1) {
-    return "\\";
-  } else {
-    if (nameOS.indexOf("Mac") != -1 || nameOS.indexOf("X11") != -1 || nameOS.indexOf("Linux") != -1) {
-      return "/";
-    } else {
-      throw `>> Unknown OS: ${nameOS}`;
-    }
-  }
+/**
+ * 	return a generated UUID
+ * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+ */
+function generateUUID() {
+  // Public Domain/MIT
+  var d = new Date().getTime(); //Timestamp
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16; //random number between 0 and 16
+    r = (d + r) % 16 | 0;
+    d = Math.floor(d / 16);
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
+

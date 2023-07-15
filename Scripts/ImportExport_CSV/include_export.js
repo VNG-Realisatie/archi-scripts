@@ -2,7 +2,7 @@
  * Export the selected elements, relations or views and their properties to a CSV file
  */
 load(__DIR__ + "../_lib/selection.js");
-load(__DIR__ + "../_lib/archi_objects.js");
+load(__DIR__ + "../_lib/archi_folders.js");
 load(__DIR__ + "include_export_import.js");
 
 /**
