@@ -1,8 +1,8 @@
 /**
- * Toggle the figure of the given visual objects 
+ * Toggle the figure of the given visual objects
  * from "icon shape" to "rectangle with icon" en vice versa
- * 
- * Select 
+ *
+ * Select
  * - one element                  => toggle figure of all elements of same type
  * - multiple elements on a view  => toggle figure of selected elements
  * - a view                       => toggle figure of all elements on the view
@@ -11,26 +11,48 @@
 load(__DIR__ + "../_lib/selection.js");
 
 console.log("\nToggle figure of objects of selected type\n");
-let collection = getVisualSelection($(selection), "element");
+let collection = getVisualSelection($(selection), "*");
 applyToCollection(collection, toggleFigure);
 
 function toggleFigure(obj) {
   if (typeof this.only_once == "undefined") {
-    const FIGURE_TEXT = ["icon shape", "rectangle with icon"];
-    this.figure = obj.figureType;
-    console.log(`Toggle figure from '${FIGURE_TEXT[this.figure]}' to '${FIGURE_TEXT[this.figure == 0 ? 1 : 0]}'`);
+    if ($(obj).is("element")) {
+      const FIGURE_TEXT = ["rectangle with icon", "icon shape"];
+      this.figure = obj.figureType;
+      console.log(`Toggle figure from '${FIGURE_TEXT[this.figure]}' to '${FIGURE_TEXT[this.figure == 0 ? 1 : 0]}'`);
+    } else {
+      const FIGURE_TEXT = ["dog ear or tabbed", "rectangle"];
+      this.figure = obj.borderType;
+      console.log(`Toggle figure from '${FIGURE_TEXT[this.figure]}' to '${FIGURE_TEXT[this.figure == 0 ? 1 : 0]}'`);
+    }
     this.only_once = true;
   }
-	console.log(`- view "${obj.view.name}", \t${obj} `);
+  console.log(`- view "${obj.view.name}", \t${obj} `);
 
-  // rectangle with icon
-  if (this.figure == 0) {
-    obj.figureType = 1;
-    if (obj.type == "grouping") obj.textAlignment = TEXT_ALIGNMENT.CENTER;
-  }
-  // icon shape
-  else {
-    obj.figureType = 0;
-    if (obj.type == "grouping") obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  // not all objects have a 'figure'
+  if ($(obj).is("element")) {
+    if (this.figure == 0) {
+      // rectangle with icon
+      obj.figureType = 1;
+      if (obj.type == "grouping") obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+    } else {
+      // icon shape
+      obj.figureType = 0;
+      if (obj.type == "grouping") obj.textAlignment = TEXT_ALIGNMENT.CENTER;
+    }
+  } else {
+    if (obj.type == "diagram-model-group" || obj.type == "diagram-model-note") {
+      if (this.figure == 0) {
+        // dog ear or tabbed
+        obj.borderType = 1;
+        if (obj.type == "diagram-model-group") obj.textAlignment = TEXT_ALIGNMENT.CENTER;
+      } else {
+        // rectangle
+        obj.borderType = 0;
+        if (obj.type == "diagram-model-group") obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+      }
+    } else {
+      console.log(`- skip; objects of the type "${obj.type}" do not have a figure`);
+    }
   }
 }
