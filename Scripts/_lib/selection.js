@@ -84,7 +84,6 @@ function getSelection(startSelection, selector = "*") {
    */
   function addObject(obj, selector, coll) {
     if ($(obj).is(selector) || selector == "*") {
-      console.log(`selector=${selector}`);
       let o = obj;
       if ($(obj).is("concept")) o = concept(obj);
       // check for duplicates, than add element to the list
@@ -166,7 +165,5 @@ function getVisualSelection(startSelection, selector = "*") {
  * return a concept for a visual concept or concept
  */
 function concept(o) {
-  console.log(`o=${o}, o.concept=${o.concept}`);
-  console.log(`o=${o.id}, o.concept=${o.concept.id}`);
   return o.concept ? o.concept : o;
 }
