@@ -63,6 +63,8 @@ const JUNCTION_DIAMETER = 14; // size of a junction
 const DEFAULT_PARAM_FILE = "default_parameter.js"; // optional file with user defaults, supersedes defaults above
 const USER_PARAM_FOLDER = "user_parameter"; // folder with user parameter settings for generating views
 
+const START_LEVEL = 0;
+
 // polyfill for array method includes(), which is not supported in Nashorn ES6
 if (!Array.prototype.includes) {
   Array.prototype.includes = function (search) {
@@ -168,34 +170,34 @@ function get_user_parameter(file, param) {
  *
  * @param {object} param - settings for generating a view
  */
-function generate_view(param, collection = $(selection)) {
+function generate_view(param, selectedObjects = $(selection)) {
   if (param.debug == undefined) param.debug = false;
   debugStackPush(param.debug);
 
   try {
-    if (validateParameters(param, collection)) {
-      let filteredElements = selectElements(param, collection);
+    if (validateParameters(param, selectedObjects)) {
+      let filteredElements = selectElements(param, selectedObjects);
 
       if (param.action == GENERATE_MULTIPLE) {
         // generate multiple views
-        console.log(`\n== Generating ${filteredElements.length} views ==`);
+        console.log(`\n== Generating ${filteredElements.size()} views ==`);
 
-        filteredElements.forEach(function (e) {
+        filteredElements.each(function (e) {
           // set viewname to the element name
           param.action = GENERATE_SINGLE;
           param.viewName = e.name;
           console.log(`- ${param.viewName}`);
           createGraph(param);
-          fillGraph(param, collection, $(e));
+          fillGraph(param, selectedObjects, $(e));
           layoutGraph(param);
           drawView(param, $(e));
         });
       } else {
         createGraph(param);
-        fillGraph(param, collection, filteredElements);
+        fillGraph(param, selectedObjects, filteredElements);
         layoutGraph(param);
         drawView(param, filteredElements);
-        // layoutAndRender(param, collection, filteredElements);
+        // layoutAndRender(param, selectedObjects, filteredElements);
       }
     } else {
       console.error("\nError in parameter. Correct the invalid parameter logged in red");
@@ -206,9 +208,9 @@ function generate_view(param, collection = $(selection)) {
   debugStackPop();
 }
 
-// function layoutAndRender(param, collection, filteredElements) {
+// function layoutAndRender(param, selectedObjects, filteredElements) {
 //   createGraph(param);
-//   fillGraph(param, collection, filteredElements);
+//   fillGraph(param, selectedObjects, filteredElements);
 //   layoutGraph(param);
 //   drawView(param, filteredElements);
 // }
@@ -218,14 +220,14 @@ function generate_view(param, collection = $(selection)) {
  *
  * @param {object} param - settings for generating a view
  */
-function validateParameters(param, collection) {
+function validateParameters(param, selectedObjects) {
   let validFlag = true;
 
   if (param.action == REGENERATE) {
     // get parameters from the selected view property
     console.log(`Action is ${param.action}`);
 
-    let view = getSelectedView(collection);
+    let view = getSelectedView(selectedObjects);
     console.log(`** Reading param from selected ${view} **\n`);
 
     Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
@@ -268,17 +270,16 @@ function validateParameters(param, collection) {
  * filter the list according the settings in the param object.
  *
  * @param {object} param - settings for generating a view
- * @param {Archi collection} collection - list of elements to process
+ * @param {Archi collection} selectedObjects - object(s) selected in Archi
  */
-function selectElements(param, collection) {
-  // // create an array with the selected elements
-  var selectedElements;
-  selectedElements = getSelectionArray(collection, "element");
+function selectElements(param, selectedObjects) {
+  // create an Archi collection with the selected elements
+  let selectedElements = getSelection(selectedObjects, "element");
+
   // filter the selected elements with the concept filter
-  let filteredSelection = [];
-  filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.includeElementType));
-  console.log(`- ${filteredSelection.length} elements after filtering`);
-  if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
+  let filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.includeElementType));
+  console.log(`- ${filteredSelection.size()} elements after filtering`);
+  if (filteredSelection.size() === 0) throw "No Archimate element match your criterias.";
 
   return filteredSelection;
 }
@@ -332,25 +333,29 @@ function createGraph(param) {
 /**
  * process the selected Archi elements and relations
  */
-function fillGraph(param, collection, filteredElements) {
-  const START_LEVEL = 0;
-
+function fillGraph(param, selectedObjects, filteredElements) {
+  let view;
   switch (param.action) {
     case GENERATE_SINGLE:
       console.log(`\nAdding elements and relations to the graph with a depth of ${param.graphDepth}...`);
-      filteredElements.forEach((archiEle) => {
+      filteredElements.each((archiEle) => {
         processElement(START_LEVEL, param, archiEle, filteredElements);
       });
       break;
     case EXPAND_HERE:
       console.log("Expand selected objects on the view");
-      selectViewObjects(START_LEVEL, param, collection);
+
+      // start with existing view
+      processViewElements(START_LEVEL, param, selectedObjects);
+
       // expand the view from the selected elements
-      filteredElements.forEach((archiEle) => processElement(START_LEVEL, param, archiEle, filteredElements));
+      filteredElements.each((archiEle) => processElement(START_LEVEL, param, archiEle, filteredElements));
       break;
     case LAYOUT:
       console.log("Layout objects on the view");
-      selectViewObjects(START_LEVEL, param, collection);
+
+      processViewElements(START_LEVEL, param, selectedObjects);
+
       break;
     case GENERATE_MULTIPLE:
     default:
@@ -368,37 +373,25 @@ function fillGraph(param, collection, filteredElements) {
  *
  * ### added filtering of included element and relation types
  */
-function selectViewObjects(level, param, collection) {
-  let view = getSelectedView(collection);
+function processViewElements(level, param, selectedObjects) {
+  let view = getSelectedView(selectedObjects);
 
-  let filteredRelations = $(view)
-    .find("relation")
-    .filter((rel) => filterObjectType(rel, param.includeRelationType))
-    .filter((rel) => $(rel).ends().is("element")); // skip relations with relations
-
-  $(view)
-    .find("element")
-    .filter((obj) => filterObjectType(obj, param.includeElementType))
-    .each((e) => addNode(level, param, e.concept, viewRelations));
-  viewRelations.each((r) => processRelation(0, param, r.concept));
-
-  console.log("\nAdded to the graph from view:");
-  console.log(`- ${graph.nodeCount()} nodes and`);
-  console.log(`- ${graph.edgeCount()} edges`);
-  // graph
-  //   .nodes()
-  //   .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
-
+  view = getSelectedView(selectedObjects);
   param.viewName = view.name;
+  $(view)
+  .find("element")
+  .filter((obj) => filterObjectType(obj, param.includeElementType))
+  // ###todo; selectedObjects should be filteredElements. Niet nodig door view parameter
+    .each((e) => processElement(START_LEVEL, param, e.concept, selectedObjects, view));
 }
 
 /**
  * get the selected view or the view of selected objects
  * @returns Archi view object
  */
-function getSelectedView(collection) {
+function getSelectedView(selectedObjects) {
   let selectedView;
-  let obj = collection.first();
+  let obj = selectedObjects.first();
   if (obj.type == "archimate-diagram-model") {
     selectedView = obj;
   } else {
@@ -422,8 +415,9 @@ function getSelectedView(collection) {
  * @param {object} param settings for generating a view
  * @param {object} archiEle Archi element to add to graph
  * @param {array} filteredElements array with Archi elements to draw
+ * @param {object} archiView object, only process elements and relation on this view
  */
-function processElement(level, param, archiEle, filteredElements) {
+function processElement(level, param, archiEle, filteredElements, view) {
   const STOPPED = false;
   const NOT_STOPPED = true;
   debug(`${"  ".repeat(level)}> Start ${archiEle}`);
@@ -434,25 +428,26 @@ function processElement(level, param, archiEle, filteredElements) {
     return STOPPED;
   }
   // add element to the graph
-  addNode(level, param, archiEle);
+  addNode(level, param, archiEle, view);
   debug(`archiEle: ${archiEle}`);
 
   $(archiEle)
     .rels()
     .filter((rel) => filterObjectType(rel, param.includeRelationType))
+    .filter((rel) => relationIsOnView(rel, view)) // if view is given, only process relation on the view (LAYOUT and EXPAND)
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .each(function (rel) {
       let related_element = rel.source;
       if (archiEle.id != rel.target.id) related_element = rel.target;
 
       // for graphDepth=0 add all selected elements and their relations
-      if (param.graphDepth == 0 && filteredElements.filter((e) => e.id == related_element.id).length < 1) {
+      if (param.graphDepth == 0 && filteredElements.filter((e) => e.id == related_element.id).size() < 1) {
         debug(`${"  ".repeat(level)}> Skip; not in selection ${related_element}`);
       } else {
         // check if the related_element is in the concepts filter
         if (filterObjectType(related_element, param.includeElementType)) {
           // add related_element to the graph (and recurse into its related elements)
-          if (processElement(level + 1, param, related_element, filteredElements) == NOT_STOPPED) {
+          if (processElement(level + 1, param, related_element, filteredElements, view) == NOT_STOPPED) {
             debug(`>>>> rel: ${rel}`);
 
             // Add relation as edge
@@ -474,90 +469,88 @@ function processElement(level, param, archiEle, filteredElements) {
  *
  * @param {object} archiEle Archi object
  */
-function addNode(level, param, archiEle, filteredRelations) {
+function addNode(level, param, archiEle, view) {
   debugStackPush(true);
-  let isChild = false;
-  let isParent = false;
   let isNested = false;
 
-  let nodeId = archiEle.id;
-
-  // all nested relations
+  // add nested elements to the graph as a child
   $(archiEle)
+    .not("junction") // do not layout junctions as children
     .rels()
     .filter((rel) => filterObjectType(rel, param.includeRelationType))
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
-    .filter((rel) => relIsOnView(filteredRelations, rel))
+    .filter((rel) => relationIsOnView(rel, view)) // if view is given, only process relation on the view (for layout and expand)
     .filter((rel) => param.layoutNested.includes(rel.type))
     .each((rel) => {
       isNested = true;
-      // do not layout junctions as children
-      // add a child-node for every nested relation
-      if (archiEle.type != "junction") {
-        if (param.layoutReversed.includes(rel.type)) {
-          // reversed the source element is the child
-          if (rel.source.id == archiEle.id) {
-            nodeId = `${rel.source.id}___${rel.id}`;
-            isChild = true;
-            addNodeSub(level, param, nodeId, archiEle, " (as a child)");
-          }
-        } else {
-          // standard the target element is the child
-          if (rel.target.id == archiEle.id) {
-            nodeId = `${rel.target.id}___${rel.id}`;
-            isChild = true;
-            addNodeSub(level, param, nodeId, archiEle, " (as a child)");
-          }
+
+      let nodeIdChild = `${archiEle.id}___${rel.id}`;
+
+      // add element as the parent or the child
+      // reversed the source element is the child
+      if (param.layoutReversed.includes(rel.type)) {
+        if (archiEle.id == rel.source.id) {
+          addNodeToGraph(level, param, nodeIdChild, archiEle, " (as a child of reversed relation)");
+        } else if (archiEle.id == rel.target.id) {
+          addNodeToGraph(level, param, archiEle.id, archiEle, " (as a parent of reversed relation)");
+        }
+      } else {
+        if (archiEle.id == rel.target.id) {
+          addNodeToGraph(level, param, nodeIdChild, archiEle, " (as a child)");
+        } else if (archiEle.id == rel.source.id) {
+          addNodeToGraph(level, param, archiEle.id, archiEle, " (as a parent)");
         }
       }
-      isParent = !isChild;
     });
 
-  if (isParent && isNested) {
-    // add a parent node only if the element is not a child in another nested relation
-    addNodeSub(level, param, nodeId, archiEle, " (as a parent)");
-  } else {
-    addNodeSub(level, param, nodeId, archiEle);
+  if (!isNested) {
+    addNodeToGraph(level, param, archiEle.id, archiEle);
   }
   debugStackPop();
 
-  function addNodeSub(level, param, nodeId, archiEle, message = "") {
+  function addNodeToGraph(level, param, nodeId, archiEle, message = "") {
+    let nodeWidth = param.nodeWidth;
+    let nodeHeight = param.nodeHeight;
     if (!graph.hasNode(nodeId)) {
       if (archiEle.type == "junction") {
-        graph.setNode(nodeId, { label: archiEle.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
-        debug(`${"  ".repeat(level)}> Add ${archiEle}`);
-      } else {
-        graph.setNode(nodeId, { label: archiEle.name, width: param.nodeWidth, height: param.nodeHeight });
-        debug(`${"  ".repeat(level)}> Add ${archiEle}${message} nodeId=${nodeId}`);
+        nodeWidth = JUNCTION_DIAMETER;
+        nodeHeight = JUNCTION_DIAMETER;
       }
+
+      graph.setNode(nodeId, { label: archiEle.name, width: nodeWidth, height: nodeHeight });
+      debug(`${"  ".repeat(level)}> Add ${archiEle}${message}`); // nodeId=${nodeId}`);
     } else {
-      debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}${message} nodeId=${nodeId}`);
+      debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}${message} (nodeId=${nodeId})`);
     }
   }
 }
 
-function relIsOnView(filteredRelations, rel) {
-  if (filteredRelations) {
-    return filteredRelations.filter((a) => a.concept.id == rel.id).size() > 0;
-  } else return true;
-}
-
 /**
- * return first visual object of the given object on the view
+ * filter if relation is on the view
+ *   if no view is given, don't filter
  *
+ * @param {*} rel
  * @param {*} view
- * @param {*} obj
  * @returns
  */
-function findOnView(view, obj) {
-  let viewElement = $(view)
-    .find()
-    .filter("concept") // no diagram-objects, no concept.id ### todo
-    .filter((viewObj) => viewObj.concept.id == obj.id)
-    .first();
+function relationIsOnView(rel, view) {
+  if (view) {
+    let nrOfRelations = $(view)
+      .find("concept")
+      .filter((viewRel) => {
+        // console.log(`rel.id=${rel.id}\n`);
+        // console.log(`rel.concept.id=${rel.concept.id}`);
+        // test with concept
+        // else it's connectionIsOnView
+        if (viewRel.concept.id == rel.concept.id) return true;
+        else return false;
+      })
+      .size();
 
-  // debug(`obj: ${obj} found: ${viewElement}`);
-  return viewElement;
+    // debug(`nrOfRelation=${nrOfRelations}`);
+    if (nrOfRelations > 0) return true;
+    else return false;
+  } else return true;
 }
 
 /**
@@ -663,10 +656,10 @@ function drawView(param, filteredElements) {
   console.log(`\nDrawing ArchiMate view...  `);
 
   let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
-  var view = getView(folder, param.viewName);
+  var generatedView = getView(folder, param.viewName);
 
   // save generate_view parameter to a view property
-  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
+  generatedView.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
   // and for debugging also in the views documentation
   // if (param.debug ) {
   //   view.documentation = "View genereated with these settings and selections\n\n";
@@ -677,32 +670,22 @@ function drawView(param, filteredElements) {
   let nodeIndex = {};
 
   console.log("Drawing graph nodes as elements ...");
-  graph.nodes().forEach((nodeId) => drawElement(param, nodeId, nodeIndex, visualElementsIndex, view));
+  graph.nodes().forEach((nodeId) => drawElement(param, nodeId, nodeIndex, visualElementsIndex, generatedView));
 
   console.log("Drawing graph edges as relations ...");
-  graph.edges().forEach((edge) => drawRelation(param, edge, visualElementsIndex, view));
+  graph.edges().forEach((edge) => drawRelation(param, edge, visualElementsIndex, generatedView));
 
   if (graphParentsIndex.length > 0) console.log("Adding child-parent relations to the view ...");
-  graphParentsIndex.forEach((parentRel) => layoutNestedConnection(param, parentRel, visualElementsIndex, view));
+  graphParentsIndex.forEach((parentRel) =>
+    layoutNestedConnection(param, parentRel, visualElementsIndex, generatedView)
+  );
 
   if (graphCircular.length > 0) console.log("Drawing circular relations ...");
-  graphCircular.forEach((rel) => drawCircularRelation(param, rel, visualElementsIndex, view));
+  graphCircular.forEach((rel) => drawCircularRelation(param, rel, visualElementsIndex, generatedView));
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
-  openView(view);
+  openView(generatedView);
   return;
-}
-
-// return a string with setting
-function getTextWithSettings(param, filteredElements) {
-  let selectionArray = [];
-  selection.not("relationship").each((o) => selectionArray.push(`${o.type}: ${o.name}`));
-  let filterEleArray = [];
-  filteredElements.forEach((e) => filterEleArray.push(`${e.type}: ${e.name}`));
-  let selString = JSON.stringify(selectionArray, null, "  ");
-  let filterEleString = JSON.stringify(filterEleArray, null, "  ");
-  let paramString = JSON.stringify(param, null, "  ");
-  return `Parameter: \n${paramString}\n\nSelection: \n${selString}\n\nResult filtered elements: \n${filterEleString}`;
 }
 
 function drawCircularRelation(param, rel, visualElementIndex, view) {
@@ -747,7 +730,7 @@ function getView(folder, viewName) {
   return v;
 }
 
-function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
+function drawElement(param, nodeId, nodeIndex, visualElementIndex, genView) {
   debugStackPush(true);
   // if the id has not yet been added to the view
   // check because parents are drawn, at the moment a child node comes by
@@ -756,8 +739,9 @@ function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
     let node = graph.node(nodeId);
     let nodeIdParent = graph.parent(nodeId);
 
-    // let archiId = nodeId.substring(0, nodeId.indexOf("___"));
-    let archiId = nodeId.split("___")[0];
+    let archiId = nodeId;
+    if (nodeId.split("___")[0]) archiId = nodeId.split("___")[0]; // nodeId is a nodeChildId
+
     let archiElement = $("#" + archiId).first();
     debug(`\n${archiElement} archiId: ${archiId}`);
     debug(`-- nodeId: ${nodeId}; nodeIdParent: ${nodeIdParent}`);
@@ -768,10 +752,10 @@ function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
 
         debug(`>> draw ${archiElement}`);
         let elePos = calcElement(node);
-        visualElementIndex[nodeId] = view.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
+        visualElementIndex[nodeId] = genView.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
       } else {
         // first add the parent to the view (the function checks if it's already drawn)
-        drawElement(param, nodeIdParent, nodeIndex, visualElementIndex, view);
+        drawElement(param, nodeIdParent, nodeIndex, visualElementIndex, genView);
 
         // draw element in parent
         let nodeParent = graph.node(nodeIdParent);
@@ -840,15 +824,15 @@ function calcElementPosition(node) {
  *
  * @param {object} edge graphlib edge object
  * @param {object} visualElementIndex index object to Archi view occurences
- * @param {object} view Archi view
+ * @param {object} genView Archi view
  */
-function drawRelation(param, edge, visualElementIndex, view) {
+function drawRelation(param, edge, visualElementIndex, genView) {
   debugStackPush(false);
 
   let archiRelation = $("#" + graph.edge(edge).label).first();
   debug(`archiRelation: ${archiRelation}`);
 
-  let connection = view.add(
+  let connection = genView.add(
     archiRelation,
     visualElementIndex[archiRelation.source.id],
     visualElementIndex[archiRelation.target.id]
@@ -864,16 +848,16 @@ function drawRelation(param, edge, visualElementIndex, view) {
  *
  * @param {object} rel Archi relation
  * @param {object} visualElementIndex index object to Archi view occurences
- * @param {object} view Archi view
+ * @param {object} genView Archi view
  */
-function layoutNestedConnection(param, rel, visualElementIndex, view) {
+function layoutNestedConnection(param, rel, visualElementIndex, genView) {
   debugStackPush(true);
   debug(`parentRel: ${rel}`);
   if (param.layoutReversed.includes(rel.type)) {
     // reversed; child is source-element
-    view.add(rel, visualElementIndex[`${rel.source.id}___${rel.id}`], visualElementIndex[rel.target.id]);
+    genView.add(rel, visualElementIndex[`${rel.source.id}___${rel.id}`], visualElementIndex[rel.target.id]);
   } else {
-    view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[`${rel.target.id}___${rel.id}`]);
+    genView.add(rel, visualElementIndex[rel.source.id], visualElementIndex[`${rel.target.id}___${rel.id}`]);
   }
 
   debugStackPop();
@@ -985,7 +969,7 @@ function drawCircularBendpoints(connection) {
 }
 
 // Open the view
-function openView(view) {
+function openView(genView) {
   try {
     // jArchi provides a ArchimateDiagramModelProxy class where then openDiagramEditor requires a ArchimateDiagramModel class
     // unfortunately, the getEObject() method that provides the underlying ArchimateDiagramModel class, is protected
@@ -993,10 +977,10 @@ function openView(view) {
     var method =
       Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class.getDeclaredMethod("getEObject");
     method.setAccessible(true);
-    var v = method.invoke(view);
+    var v = method.invoke(genView);
     Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(v);
   } catch (e) {
-    console.error(`"Failed to open ${view}. You may open it manually`);
+    console.error(`"Failed to open ${genView}. You may open it manually`);
   }
 }
 
