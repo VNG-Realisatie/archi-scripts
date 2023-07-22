@@ -41,6 +41,7 @@
  *    - for connections to embedded elements, only some get bendpoints
  *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
+
 load(__DIR__ + "../_lib/selection.js");
 
 const GENERATE_SINGLE = "Generate";
@@ -48,12 +49,12 @@ const GENERATE_MULTIPLE = "GenerateMultiple";
 const EXPAND_HERE = "Expand";
 const LAYOUT = "Layout";
 const REGENERATE = "Regenerate";
+const ACTIONS = [GENERATE_SINGLE, GENERATE_MULTIPLE, EXPAND_HERE, LAYOUT, REGENERATE];
 
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
 const DEFAULT_GRAPHDEPTH = 1;
-const DEFAULT_ACTION = GENERATE_SINGLE;
 const DEFAULT_DIRECTION = "LR";
 const DEFAULT_NODE_WIDTH = 140; // width of a drawn element
 const DEFAULT_NODE_HEIGHT = 60; // height of a drawn element
@@ -70,7 +71,7 @@ if (!Array.prototype.includes) {
 }
 
 var graph = {}; // graphlib graph for layout view
-var graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
+var graphParentsIndex = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
 var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
 
 /**
@@ -96,59 +97,70 @@ try {
 }
 
 /**
- * Get parameter from filename to generate a view
+ * set the default param from the DEFAULT_PARAM_FILE
  *
  * Order of setting param
- * - include-view.js defaults
  * - superseded by DEFAULT_PARAM_FILE
- * - superseded by 'wrapper'.ajs file
+ * - superseded by USER_PARAM file
+ * - function validateParameters() defaults
  */
-function get_default_parameter(file, init_param) {
-  let path = file.substring(0,file.lastIndexOf("\\")+1);
-
+function get_default_parameter(file, param) {
+  let path = file.substring(0, file.lastIndexOf("\\") + 1);
+  let default_parameter_file = `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`;
   try {
-    load(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
-    init_param = DEFAULT_PARAM;
-    console.log(`Default parameter read from file "${DEFAULT_PARAM_FILE}"`);
-    debug(`Default: ${JSON.stringify(init_param, null, 2)}\n`);
+    load(default_parameter_file);
+    param = DEFAULT_PARAM;
+    console.log(`Default parameters read from file "${default_parameter_file}"`);
+    debug(`Default: ${JSON.stringify(param, null, 2)}\n`);
   } catch (error) {
-    console.log(`NOT read default parameters ${DEFAULT_PARAM_FILE}\n`);
-    debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+    console.error(`Default parameters file not found: ${default_parameter_file}\n`);
+    throw error;
   }
-  return init_param;
+  return param;
 }
 
-function get_user_parameter(file, filename_param) {
-  let path = file.substring(0,file.lastIndexOf("\\")+1);
+/**
+ * read parameters
+ * - action,
+ * - direction and
+ * - an optional USER_PARAM file
+ * from the filename
+ *
+ * use the USER_PARAM_FILE to replace attributes in the given param object
+ */
+function get_user_parameter(file, param) {
+  let path = file.substring(0, file.lastIndexOf("\\") + 1);
   let filename = file.replace(/^.*[\\\/]/, "");
-  let name = filename.substring(0,filename.lastIndexOf("."));
-  let [direction, action, user_param_name] = name.split("_");
+  let name = filename.substring(0, filename.lastIndexOf("."));
 
-  filename_param.graphDirection = direction;
-  filename_param.action = action;
-  
-  if (user_param_name) {
-    console.log(`${action} with direction ${direction} and user parameter "${user_param_name}"`);
-    const PARAM_FILE = `${USER_PARAM_FOLDER}/${user_param_name}.js`;
+  let [direction, action, userParamName] = name.split("_");
+
+  if (userParamName) {
+    let userParamFile = `${USER_PARAM_FOLDER}/${userParamName}.js`;
 
     try {
-      load(path + PARAM_FILE);
+      load(path + userParamFile);
 
       Object.keys(USER_PARAM).forEach((prop) => {
-        filename_param[prop] = USER_PARAM[prop];
+        param[prop] = USER_PARAM[prop];
         debug(`Set ${prop} = ${USER_PARAM[prop]}`);
       });
 
-      console.log(`User parameters read from file "${PARAM_FILE}"`);
-      debug(`With user parameter file: ${JSON.stringify(filename_param, null, 2)}\n`);
+      console.log(`User parameters read from file "${userParamFile}"`);
+      debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
-      console.log(`NOT read user parameters ${PARAM_FILE}\n`);
-      debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+      console.error(`User parameters file not found: ${userParamFile}\n`);
+      throw error;
     }
-  } else {
-    console.log(`${action} with direction ${direction}\n`);
   }
-  return filename_param;
+
+  console.log(`Parameters read from filename:`);
+  console.log(`- direction = ${direction}`);
+  console.log(`- action = ${action}\n`);
+  param.graphDirection = direction;
+  param.action = action;
+
+  return param;
 }
 
 /**
@@ -156,40 +168,37 @@ function get_user_parameter(file, filename_param) {
  *
  * @param {object} param - settings for generating a view
  */
-function generate_view(param) {
+function generate_view(param, collection = $(selection)) {
   if (param.debug == undefined) param.debug = false;
   debugStackPush(param.debug);
 
   try {
-    if (setDefaultParameters(param)) {
-      let filteredElements = selectElements(param);
+    if (validateParameters(param, collection)) {
+      let filteredElements = selectElements(param, collection);
 
-      switch (param.action) {
-        case GENERATE_SINGLE:
-        case EXPAND_HERE:
-        case LAYOUT:
-          // generate one view
-          layoutAndRender(param, filteredElements);
-          break;
+      if (param.action == GENERATE_MULTIPLE) {
+        // generate multiple views
+        console.log(`\n== Generating ${filteredElements.length} views ==`);
 
-        case GENERATE_MULTIPLE:
-          // generate multiple views
-          console.log(`\n== Generating ${filteredElements.length} views ==`);
-
-          filteredElements.forEach(function (e) {
-            // set viewname to the element name
-            param.viewName = e.name;
-            console.log(`- ${param.viewName}`);
-            layoutAndRender(param, $(e));
-          });
-          break;
-
-        default:
-          throw `unknown action=${param.action}`;
-          break;
+        filteredElements.forEach(function (e) {
+          // set viewname to the element name
+          param.action = GENERATE_SINGLE;
+          param.viewName = e.name;
+          console.log(`- ${param.viewName}`);
+          createGraph(param);
+          fillGraph(param, collection, $(e));
+          layoutGraph(param);
+          drawView(param, $(e));
+        });
+      } else {
+        createGraph(param);
+        fillGraph(param, collection, filteredElements);
+        layoutGraph(param);
+        drawView(param, filteredElements);
+        // layoutAndRender(param, collection, filteredElements);
       }
     } else {
-      console.error("\nError in parameter. Correct the invalid type names logged in red");
+      console.error("\nError in parameter. Correct the invalid parameter logged in red");
     }
   } catch (error) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -197,26 +206,26 @@ function generate_view(param) {
   debugStackPop();
 }
 
-function layoutAndRender(param, filteredElements) {
-  createGraph(param);
-  fillGraph(param, filteredElements);
-  layoutGraph(param);
-  drawView(param, filteredElements);
-}
+// function layoutAndRender(param, collection, filteredElements) {
+//   createGraph(param);
+//   fillGraph(param, collection, filteredElements);
+//   layoutGraph(param);
+//   drawView(param, filteredElements);
+// }
 
 /**
- * set defaults for undefined parameters
+ * check and set defaults for parameters
  *
  * @param {object} param - settings for generating a view
  */
-function setDefaultParameters(param) {
+function validateParameters(param, collection) {
   let validFlag = true;
 
   if (param.action == REGENERATE) {
     // get parameters from the selected view property
     console.log(`Action is ${param.action}`);
 
-    let view = getSelectedView();
+    let view = getSelectedView(collection);
     console.log(`** Reading param from selected ${view} **\n`);
 
     Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
@@ -224,9 +233,11 @@ function setDefaultParameters(param) {
   }
 
   console.log("Generate view parameters");
-  if (param.action == undefined) param.action = DEFAULT_ACTION;
+  if (!ACTIONS.includes(param.action)) {
+    console.error("Unknown action = " + param.action);
+    validFlag = false;
+  }
   console.log("  - action = " + param.action);
-
   if (param.graphDepth === undefined) param.graphDepth = DEFAULT_GRAPHDEPTH;
   console.log("  - graphDepth = " + param.graphDepth);
 
@@ -257,11 +268,12 @@ function setDefaultParameters(param) {
  * filter the list according the settings in the param object.
  *
  * @param {object} param - settings for generating a view
+ * @param {Archi collection} collection - list of elements to process
  */
-function selectElements(param) {
+function selectElements(param, collection) {
   // // create an array with the selected elements
   var selectedElements;
-  selectedElements = getSelectionArray($(selection), "element");
+  selectedElements = getSelectionArray(collection, "element");
   // filter the selected elements with the concept filter
   let filteredSelection = [];
   filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.includeElementType));
@@ -318,52 +330,64 @@ function createGraph(param) {
 }
 
 /**
- * add the filtered selection to the graph
+ * process the selected Archi elements and relations
  */
-function fillGraph(param, filteredElements) {
+function fillGraph(param, collection, filteredElements) {
   const START_LEVEL = 0;
 
   switch (param.action) {
     case GENERATE_SINGLE:
-    case GENERATE_MULTIPLE:
       console.log(`\nAdding elements and relations to the graph with a depth of ${param.graphDepth}...`);
       filteredElements.forEach((archiEle) => {
-        addElement(START_LEVEL, param, archiEle, filteredElements);
+        processElement(START_LEVEL, param, archiEle, filteredElements);
       });
       break;
     case EXPAND_HERE:
       console.log("Expand selected objects on the view");
-      addViewObjects(START_LEVEL, param);
+      selectViewObjects(START_LEVEL, param, collection);
       // expand the view from the selected elements
-      filteredElements.forEach((archiEle) => addElement(START_LEVEL, param, archiEle, filteredElements));
+      filteredElements.forEach((archiEle) => processElement(START_LEVEL, param, archiEle, filteredElements));
       break;
     case LAYOUT:
       console.log("Layout objects on the view");
-      addViewObjects(START_LEVEL, param);
+      selectViewObjects(START_LEVEL, param, collection);
       break;
-
+    case GENERATE_MULTIPLE:
     default:
+      console.error(`Error, wrong action ${param.action}`);
       break;
   }
   console.log("\nAdded to the graph:");
   console.log(`- ${graph.nodeCount()} nodes and`);
   console.log(`- ${graph.edgeCount()} edges`);
-  if (graphParents.length > 0) console.log(`- ${graphParents.length} parent-child nestings`);
+  if (graphParentsIndex.length > 0) console.log(`- ${graphParentsIndex.length} parent-child nestings`);
 }
 
 /**
  * Add all elements and relations of the given view to the graph
+ *
+ * ### added filtering of included element and relation types
  */
-function addViewObjects(level, param) {
-  let view = getSelectedView();
+function selectViewObjects(level, param, collection) {
+  let view = getSelectedView(collection);
+
+  let filteredRelations = $(view)
+    .find("relation")
+    .filter((rel) => filterObjectType(rel, param.includeRelationType))
+    .filter((rel) => $(rel).ends().is("element")); // skip relations with relations
 
   $(view)
     .find("element")
-    .each((e) => createNode(level, param, e));
-  $(view)
-    .find("relation")
-    .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
-    .each((r) => addRelation(0, param, r.concept));
+    .filter((obj) => filterObjectType(obj, param.includeElementType))
+    .each((e) => addNode(level, param, e.concept, viewRelations));
+  viewRelations.each((r) => processRelation(0, param, r.concept));
+
+  console.log("\nAdded to the graph from view:");
+  console.log(`- ${graph.nodeCount()} nodes and`);
+  console.log(`- ${graph.edgeCount()} edges`);
+  // graph
+  //   .nodes()
+  //   .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
 
   param.viewName = view.name;
 }
@@ -372,9 +396,9 @@ function addViewObjects(level, param) {
  * get the selected view or the view of selected objects
  * @returns Archi view object
  */
-function getSelectedView() {
+function getSelectedView(collection) {
   let selectedView;
-  let obj = $(selection).first();
+  let obj = collection.first();
   if (obj.type == "archimate-diagram-model") {
     selectedView = obj;
   } else {
@@ -387,9 +411,9 @@ function getSelectedView() {
 }
 
 /**
- * main recursive function
- *   add the given element to the graph and
- *   recurse into the elements related elements
+ *   recursively process the given elements
+ *    select the elements relations to find related elements
+ *    add elements and relations to the graph
  *
  * graphDepth=0 generates a view with the selected elements and the elements relations
  * graphDepth=1 generates a view with the selected elements, all related elements and their relations
@@ -399,7 +423,7 @@ function getSelectedView() {
  * @param {object} archiEle Archi element to add to graph
  * @param {array} filteredElements array with Archi elements to draw
  */
-function addElement(level, param, archiEle, filteredElements) {
+function processElement(level, param, archiEle, filteredElements) {
   const STOPPED = false;
   const NOT_STOPPED = true;
   debug(`${"  ".repeat(level)}> Start ${archiEle}`);
@@ -410,10 +434,7 @@ function addElement(level, param, archiEle, filteredElements) {
     return STOPPED;
   }
   // add element to the graph
-  createNode(level, param, archiEle);
-  console.log("\nAdded to the graph:");
-  console.log(`- ${graph.nodeCount()} nodes and`);
-  console.log(`- ${graph.edgeCount()} edges`);
+  addNode(level, param, archiEle);
   debug(`archiEle: ${archiEle}`);
 
   $(archiEle)
@@ -431,18 +452,11 @@ function addElement(level, param, archiEle, filteredElements) {
         // check if the related_element is in the concepts filter
         if (filterObjectType(related_element, param.includeElementType)) {
           // add related_element to the graph (and recurse into its related elements)
-          if (addElement(level + 1, param, related_element, filteredElements) == NOT_STOPPED) {
+          if (processElement(level + 1, param, related_element, filteredElements) == NOT_STOPPED) {
             debug(`>>>> rel: ${rel}`);
 
             // Add relation as edge
-            addRelation(level, param, rel);
-
-            console.log("\nAdded to the graph:");
-            console.log(`- ${graph.nodeCount()} nodes and`);
-            console.log(`- ${graph.edgeCount()} edges`);
-            // graph
-            //   .nodes()
-            //   .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
+            processRelation(level, param, rel);
           }
         }
       }
@@ -453,34 +467,113 @@ function addElement(level, param, archiEle, filteredElements) {
 /**
  * Add the given element as a node to the graph
  *
+ * A nested elements (a child) is added as a unique node to the graph for every nested relation
+ * - the nodeID of a child is the combination of the elementId and the nested relationId
+ * - a parent can be a child in another nested relation
+ * Not nested elements are added only once to the graph
+ *
  * @param {object} archiEle Archi object
  */
-function createNode(level, param, archiEle) {
-  if (!graph.hasNode(archiEle.id)) {
-    e = concept(archiEle);
-    if (e.type == "junction")
-      graph.setNode(e.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
-    else graph.setNode(e.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });
-    debug(`${"  ".repeat(level)}> Add ${archiEle}`);
+function addNode(level, param, archiEle, filteredRelations) {
+  debugStackPush(true);
+  let isChild = false;
+  let isParent = false;
+  let isNested = false;
+
+  let nodeId = archiEle.id;
+
+  // all nested relations
+  $(archiEle)
+    .rels()
+    .filter((rel) => filterObjectType(rel, param.includeRelationType))
+    .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
+    .filter((rel) => relIsOnView(filteredRelations, rel))
+    .filter((rel) => param.layoutNested.includes(rel.type))
+    .each((rel) => {
+      isNested = true;
+      // do not layout junctions as children
+      // add a child-node for every nested relation
+      if (archiEle.type != "junction") {
+        if (param.layoutReversed.includes(rel.type)) {
+          // reversed the source element is the child
+          if (rel.source.id == archiEle.id) {
+            nodeId = `${rel.source.id}___${rel.id}`;
+            isChild = true;
+            addNodeSub(level, param, nodeId, archiEle, " (as a child)");
+          }
+        } else {
+          // standard the target element is the child
+          if (rel.target.id == archiEle.id) {
+            nodeId = `${rel.target.id}___${rel.id}`;
+            isChild = true;
+            addNodeSub(level, param, nodeId, archiEle, " (as a child)");
+          }
+        }
+      }
+      isParent = !isChild;
+    });
+
+  if (isParent && isNested) {
+    // add a parent node only if the element is not a child in another nested relation
+    addNodeSub(level, param, nodeId, archiEle, " (as a parent)");
   } else {
-    debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}`);
+    addNodeSub(level, param, nodeId, archiEle);
+  }
+  debugStackPop();
+
+  function addNodeSub(level, param, nodeId, archiEle, message = "") {
+    if (!graph.hasNode(nodeId)) {
+      if (archiEle.type == "junction") {
+        graph.setNode(nodeId, { label: archiEle.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
+        debug(`${"  ".repeat(level)}> Add ${archiEle}`);
+      } else {
+        graph.setNode(nodeId, { label: archiEle.name, width: param.nodeWidth, height: param.nodeHeight });
+        debug(`${"  ".repeat(level)}> Add ${archiEle}${message} nodeId=${nodeId}`);
+      }
+    } else {
+      debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}${message} nodeId=${nodeId}`);
+    }
   }
 }
 
+function relIsOnView(filteredRelations, rel) {
+  if (filteredRelations) {
+    return filteredRelations.filter((a) => a.concept.id == rel.id).size() > 0;
+  } else return true;
+}
+
 /**
- * Add the given relation to the graph
+ * return first visual object of the given object on the view
+ *
+ * @param {*} view
+ * @param {*} obj
+ * @returns
+ */
+function findOnView(view, obj) {
+  let viewElement = $(view)
+    .find()
+    .filter("concept") // no diagram-objects, no concept.id ### todo
+    .filter((viewObj) => viewObj.concept.id == obj.id)
+    .first();
+
+  // debug(`obj: ${obj} found: ${viewElement}`);
+  return viewElement;
+}
+
+/**
+ * Process the given relation and add to the graph
  *
  * @param {integer} level counter for depth of recursion
  * @param {object} rel Archi relation
  */
-function addRelation(level, param, rel) {
+function processRelation(level, param, rel) {
   if (rel.source.id == rel.target.id) {
     graphCircular.push(rel);
   } else {
     if (param.layoutNested.includes(rel.type)) {
-      createParent(level, param, rel);
+      addParentChild(level, param, rel);
     } else {
-      createEdge(level, param, rel);
+      addEdge(level, param, rel);
     }
   }
 }
@@ -488,7 +581,7 @@ function addRelation(level, param, rel) {
 /**
  * Add the given relation to the graph
  */
-function createEdge(level, param, rel) {
+function addEdge(level, param, rel) {
   let rel_line;
   // reverse the graph edge for given Archi relation types
   if (param.layoutReversed.includes(rel.type)) {
@@ -511,30 +604,46 @@ function createEdge(level, param, rel) {
 
 /**
  * Add the given relation as a parent/child to the graph
+ *
+ * graph.setParent(v, parent)
+ *   Sets the parent for v to parent if it is defined or removes the parent for v if parent is undefined.
+ *   Throws an error if the graph is not compound.
+ *   Returns the graph, allowing this to be chained with other functions.
  */
-function createParent(level, param, rel) {
+function addParentChild(level, param, rel) {
+  debugStackPush(true);
   let rel_line;
   // check if relation is already added
-  if (!graphParents.some((r) => r.id == rel.id)) {
-    // save parent relation
-    graphParents.push(rel);
+  if (!graphParentsIndex.some((r) => r.id == rel.id)) {
+    let nodeIdChild;
+    let nodeIdParent;
 
-    // # graph.setParent(v, parent)
-    // Sets the parent for v to parent if it is defined or removes the parent for v if parent is undefined.
-    // Throws an error if the graph is not compound.
-    // Returns the graph, allowing this to be chained with other functions.
+    // save parent relation
+    graphParentsIndex.push(rel);
+
     if (param.layoutReversed.includes(rel.type)) {
-      // # graph.setParent(v, parent)
-      graph.setParent(rel.source.id, rel.target.id);
+      nodeIdChild = `${rel.source.id}___${rel.id}`;
+      nodeIdParent = `${rel.target.id}___${rel.id}`;
       rel_line = `Parent <- Child: ${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
     } else {
-      graph.setParent(rel.target.id, rel.source.id);
+      nodeIdChild = `${rel.target.id}___${rel.id}`;
+      nodeIdParent = `${rel.source.id}___${rel.id}`;
       rel_line = `Parent -> Child: ${rel.source.name} --${rel.type}-> ${rel.target.name}`;
     }
-    debug(`${"  ".repeat(level)}> Add ${rel_line}`);
+
+    nodeParent = graph.node(nodeIdParent);
+    debug(`>> nodeParent ${JSON.stringify(nodeParent)}`);
+
+    debug(`graph.node(${nodeIdParent})=${graph.node(nodeIdParent)}`);
+    if (!graph.node(nodeIdParent)) {
+      nodeIdParent = nodeIdParent.split("___")[0];
+    }
+    graph.setParent(nodeIdChild, nodeIdParent);
+    debug(`${"  ".repeat(level)}> Add ${rel_line} (${nodeIdParent} --> ${nodeIdChild})`);
   } else {
     debug(`${"  ".repeat(level)}> Skip, already in graph = ${rel_line}`);
   }
+  debugStackPop();
   return;
 }
 
@@ -573,8 +682,8 @@ function drawView(param, filteredElements) {
   console.log("Drawing graph edges as relations ...");
   graph.edges().forEach((edge) => drawRelation(param, edge, visualElementsIndex, view));
 
-  if (graphParents.length > 0) console.log("Adding child-parent relations to the view ...");
-  graphParents.forEach((parentRel) => layoutNestedConnection(parentRel, visualElementsIndex, view));
+  if (graphParentsIndex.length > 0) console.log("Adding child-parent relations to the view ...");
+  graphParentsIndex.forEach((parentRel) => layoutNestedConnection(param, parentRel, visualElementsIndex, view));
 
   if (graphCircular.length > 0) console.log("Drawing circular relations ...");
   graphCircular.forEach((rel) => drawCircularRelation(param, rel, visualElementsIndex, view));
@@ -639,17 +748,22 @@ function getView(folder, viewName) {
 }
 
 function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
-  debugStackPush(false);
+  debugStackPush(true);
   // if the id has not yet been added to the view
   // check because parents are drawn, at the moment a child node comes by
   if (nodeIndex[nodeId] === undefined) {
     nodeIndex[nodeId] = true;
     let node = graph.node(nodeId);
-    let parentId = graph.parent(nodeId);
-    let archiElement = $("#" + nodeId).first();
+    let nodeIdParent = graph.parent(nodeId);
+
+    // let archiId = nodeId.substring(0, nodeId.indexOf("___"));
+    let archiId = nodeId.split("___")[0];
+    let archiElement = $("#" + archiId).first();
+    debug(`\n${archiElement} archiId: ${archiId}`);
+    debug(`-- nodeId: ${nodeId}; nodeIdParent: ${nodeIdParent}`);
 
     try {
-      if (parentId === undefined) {
+      if (nodeIdParent === undefined) {
         // archi coordinates for visual element on archi diagram (related to the top left corner of diagram)
 
         debug(`>> draw ${archiElement}`);
@@ -657,18 +771,18 @@ function drawElement(param, nodeId, nodeIndex, visualElementIndex, view) {
         visualElementIndex[nodeId] = view.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
       } else {
         // first add the parent to the view (the function checks if it's already drawn)
-        drawElement(param, parentId, nodeIndex, visualElementIndex, view);
+        drawElement(param, nodeIdParent, nodeIndex, visualElementIndex, view);
 
         // draw element in parent
-        let parentNode = graph.node(parentId);
-        let archiParent = visualElementIndex[parentId];
+        let nodeParent = graph.node(nodeIdParent);
+        let archiParent = visualElementIndex[nodeIdParent];
 
         // calculate the position within the parent
         let y_shift = 10; // shift to better center the child element(s) in the parent
         if (param.graphDirection == "TB" || param.graphDirection == "BT") y_shift = 0;
 
         debug(`>> draw nested ${archiElement} in parent ${archiParent}`);
-        let elePos = calcElementNested(node, parentNode);
+        let elePos = calcElementNested(node, nodeParent);
         visualElementIndex[nodeId] = archiParent.add(
           archiElement,
           elePos.x,
@@ -748,14 +862,20 @@ function drawRelation(param, edge, visualElementIndex, view) {
  *   depending on the Archi preferences, the connection is or is not drawn
  *   See Edit > preferences > connections > ARM > enable implicit connections
  *
- * @param {object} parentRel Archi relation
+ * @param {object} rel Archi relation
  * @param {object} visualElementIndex index object to Archi view occurences
  * @param {object} view Archi view
  */
-function layoutNestedConnection(parentRel, visualElementIndex, view) {
-  debugStackPush(false);
-  debug(`parentRel: ${parentRel}`);
-  view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
+function layoutNestedConnection(param, rel, visualElementIndex, view) {
+  debugStackPush(true);
+  debug(`parentRel: ${rel}`);
+  if (param.layoutReversed.includes(rel.type)) {
+    // reversed; child is source-element
+    view.add(rel, visualElementIndex[`${rel.source.id}___${rel.id}`], visualElementIndex[rel.target.id]);
+  } else {
+    view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[`${rel.target.id}___${rel.id}`]);
+  }
+
   debugStackPop();
 }
 
