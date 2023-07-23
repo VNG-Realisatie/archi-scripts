@@ -346,7 +346,7 @@ function fillGraph(param, selectedObjects, filteredElements) {
       console.log("Expand selected objects on the view");
 
       // start with existing view
-      processViewElements(START_LEVEL, param, selectedObjects);
+      processViewElements(START_LEVEL, param, selectedObjects, filteredElements);
 
       // expand the view from the selected elements
       filteredElements.each((archiEle) => processElement(START_LEVEL, param, archiEle, filteredElements));
@@ -354,7 +354,7 @@ function fillGraph(param, selectedObjects, filteredElements) {
     case LAYOUT:
       console.log("Layout objects on the view");
 
-      processViewElements(START_LEVEL, param, selectedObjects);
+      processViewElements(START_LEVEL, param, selectedObjects, filteredElements);
 
       break;
     case GENERATE_MULTIPLE:
@@ -369,20 +369,19 @@ function fillGraph(param, selectedObjects, filteredElements) {
 }
 
 /**
- * Add all elements and relations of the given view to the graph
- *
- * ### added filtering of included element and relation types
+ * Process all elements of the given view
  */
-function processViewElements(level, param, selectedObjects) {
+function processViewElements(level, param, selectedObjects, filteredElements) {
   let view = getSelectedView(selectedObjects);
+  // let graphDepth = param.graphDepth;
 
   view = getSelectedView(selectedObjects);
   param.viewName = view.name;
-  $(view)
-  .find("element")
-  .filter((obj) => filterObjectType(obj, param.includeElementType))
-  // ###todo; selectedObjects should be filteredElements. Niet nodig door view parameter
-    .each((e) => processElement(START_LEVEL, param, e.concept, selectedObjects, view));
+  // param.graphDepth = 0;
+
+  filteredElements.each((e) => processElement(START_LEVEL, param, e.concept, filteredElements, view));
+
+  // param.graphDepth = graphDepth;
 }
 
 /**
@@ -462,6 +461,22 @@ function processElement(level, param, archiEle, filteredElements, view) {
 /**
  * Add the given element as a node to the graph
  *
+ * Process all nested relation of an element
+ * - add the element as a child
+ *    - if the element is a child in one or more relations
+ * - add the element as a parent
+ *    - if the element is a parent in one or more relation and
+ *    - is not a child in another
+ * - add nested relations as parentChild edge
+ *
+ *
+ * drawing
+ * - draw parents first
+ * - nest children
+ * - nodes rela
+ *
+ * non nested relations relate to all children and parents
+ *
  * A nested elements (a child) is added as a unique node to the graph for every nested relation
  * - the nodeID of a child is the combination of the elementId and the nested relationId
  * - a parent can be a child in another nested relation
@@ -472,6 +487,7 @@ function processElement(level, param, archiEle, filteredElements, view) {
 function addNode(level, param, archiEle, view) {
   debugStackPush(true);
   let isNested = false;
+  let isChild = false;
 
   // add nested elements to the graph as a child
   $(archiEle)
@@ -484,25 +500,39 @@ function addNode(level, param, archiEle, view) {
     .each((rel) => {
       isNested = true;
 
+      // for every nested relation where the element is a child
+      // - add element with unique id of element and relation
+      // - node will be drawn nested in parent
       let nodeIdChild = `${archiEle.id}___${rel.id}`;
 
-      // add element as the parent or the child
       // reversed the source element is the child
       if (param.layoutReversed.includes(rel.type)) {
         if (archiEle.id == rel.source.id) {
-          addNodeToGraph(level, param, nodeIdChild, archiEle, " (as a child of reversed relation)");
-        } else if (archiEle.id == rel.target.id) {
-          addNodeToGraph(level, param, archiEle.id, archiEle, " (as a parent of reversed relation)");
+          addNodeToGraph(level, param, nodeIdChild, archiEle, ` (as a child of ${rel.target.name}) (reversed)`); 
+          isChild = true;
         }
       } else {
         if (archiEle.id == rel.target.id) {
-          addNodeToGraph(level, param, nodeIdChild, archiEle, " (as a child)");
-        } else if (archiEle.id == rel.source.id) {
-          addNodeToGraph(level, param, archiEle.id, archiEle, " (as a parent)");
+          addNodeToGraph(level, param, nodeIdChild, archiEle, ` (as a child of ${rel.source.name})`);
+          // save every instance of a child
+          // find id for adding parent-child relation with correct relation
+          // or recurse until canvas parent is found
+          // - draw parent
+          // - for every child
+          //   - draw child and add parent-child
+          isChild = true;
         }
       }
     });
 
+  if (isNested && !isChild) {
+    // add the element as a parent
+    // - if there are one or more nested relations
+    // - and the element is not a child in any of these relations
+    // except for the message text this is equal to not nested elements
+    // - node will be drawn on canvas
+    addNodeToGraph(level, param, archiEle.id, archiEle, " (as a parent)");
+  }
   if (!isNested) {
     addNodeToGraph(level, param, archiEle.id, archiEle);
   }
@@ -518,9 +548,9 @@ function addNode(level, param, archiEle, view) {
       }
 
       graph.setNode(nodeId, { label: archiEle.name, width: nodeWidth, height: nodeHeight });
-      debug(`${"  ".repeat(level)}> Add ${archiEle}${message}`); // nodeId=${nodeId}`);
+      debug(`${"  ".repeat(level)}> Add ${archiEle.name}${message}`); // nodeId=${nodeId}`);
     } else {
-      debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}${message} (nodeId=${nodeId})`);
+      debug(`${"  ".repeat(level)}> Skip; ${archiEle.name}${message}`); // (nodeId=${nodeId})`);
     }
   }
 }
@@ -605,7 +635,7 @@ function addEdge(level, param, rel) {
  */
 function addParentChild(level, param, rel) {
   debugStackPush(true);
-  let rel_line;
+  let rel_line 
   // check if relation is already added
   if (!graphParentsIndex.some((r) => r.id == rel.id)) {
     let nodeIdChild;
@@ -617,24 +647,23 @@ function addParentChild(level, param, rel) {
     if (param.layoutReversed.includes(rel.type)) {
       nodeIdChild = `${rel.source.id}___${rel.id}`;
       nodeIdParent = `${rel.target.id}___${rel.id}`;
-      rel_line = `Parent <- Child: ${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
+      if (!graph.node(nodeIdParent)) nodeIdParent = rel.target.id;
+      rel_line = `Parent->Child: (reversed) ${rel.target.name} --${rel.type}--> ${rel.source.name}`;
     } else {
-      nodeIdChild = `${rel.target.id}___${rel.id}`;
       nodeIdParent = `${rel.source.id}___${rel.id}`;
-      rel_line = `Parent -> Child: ${rel.source.name} --${rel.type}-> ${rel.target.name}`;
+      nodeIdChild = `${rel.target.id}___${rel.id}`;
+      if (!graph.node(nodeIdParent)) nodeIdParent = rel.source.id;
+      rel_line = `Parent->Child: ${rel.source.name} --${rel.type}--> ${rel.target.name}`;
     }
+    id_line = `${nodeIdParent} -> ${nodeIdChild}`
 
-    nodeParent = graph.node(nodeIdParent);
-    debug(`>> nodeParent ${JSON.stringify(nodeParent)}`);
-
-    debug(`graph.node(${nodeIdParent})=${graph.node(nodeIdParent)}`);
-    if (!graph.node(nodeIdParent)) {
-      nodeIdParent = nodeIdParent.split("___")[0];
-    }
     graph.setParent(nodeIdChild, nodeIdParent);
-    debug(`${"  ".repeat(level)}> Add ${rel_line} (${nodeIdParent} --> ${nodeIdChild})`);
+    debug(`${"  ".repeat(level)}> Add:  ${rel_line} `); // (${nodeIdParent} --> ${nodeIdChild})`);
+    debug(`${"  ".repeat(level)}>       ${nodeIdParent} -> ${nodeIdChild}`);
+    debug(`${"  ".repeat(level)}>       graph.node(${nodeIdParent})=${JSON.stringify(graph.node(nodeIdParent))}\n`);
+
   } else {
-    debug(`${"  ".repeat(level)}> Skip, already in graph = ${rel_line}`);
+    debug(`${"  ".repeat(level)}> Skip: ${rel_line}`);
   }
   debugStackPop();
   return;
