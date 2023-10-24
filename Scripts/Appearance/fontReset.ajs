@@ -12,10 +12,10 @@
 load(__DIR__ + "../_lib/selection.js");
 
 let collection = getVisualSelection($(selection), "*");
-applyToCollection(collection, fontReset);
+applyToCollection(collection, colorWhite);
 console.log("Script finished\n");
 
-function fontReset(obj) {
+function colorWhite(obj) {
   console.log(`- ${obj} on view ${obj.view.name}`);
 
   if (obj.fontName != null) obj.fontName = "Segoe UI";

@@ -409,6 +409,26 @@ function getSelectedView(selectedObjects) {
  *
  * graphDepth=0 generates a view with the selected elements and the elements relations
  * graphDepth=1 generates a view with the selected elements, all related elements and their relations
+ * 
+ * design nested
+ *  - children of a nested relation have a view-instance for every relation
+ *  - relations with children get an instance for every child-instance
+ *  recursion
+ *  - for drawing (draw canvas parent)
+ *    - recurse over nested relations until parent without parent (circular reference possible, keep counter, stop at 2?)
+ *    - draw parent
+ *    - draw children nested
+ *    - add parent child
+ *  - for adding and drawing relations  
+ *    - recurse over relation until child without children (circular reference possible)
+ * 
+ * select elements and/or relations?
+ * - elements more natural
+ * - for layout only process relation on view
+ * - generate view of relations?
+ * recursion flow
+ * - process selected elements
+ *    - 
  *
  * @param {integer} level counter for depth of recursion
  * @param {object} param settings for generating a view
@@ -647,12 +667,16 @@ function addParentChild(level, param, rel) {
     if (param.layoutReversed.includes(rel.type)) {
       nodeIdChild = `${rel.source.id}___${rel.id}`;
       nodeIdParent = `${rel.target.id}___${rel.id}`;
-      if (!graph.node(nodeIdParent)) nodeIdParent = rel.target.id;
+      if (!graph.node(nodeIdParent)) {
+        nodeIdParent = rel.target.id;
+      }
+      if (graph.node(nodeIdParent))  return // wrong relation
       rel_line = `Parent->Child: (reversed) ${rel.target.name} --${rel.type}--> ${rel.source.name}`;
     } else {
       nodeIdParent = `${rel.source.id}___${rel.id}`;
       nodeIdChild = `${rel.target.id}___${rel.id}`;
       if (!graph.node(nodeIdParent)) nodeIdParent = rel.source.id;
+      if (!graph.node(nodeIdParent)) return // wrong relation
       rel_line = `Parent->Child: ${rel.source.name} --${rel.type}--> ${rel.target.name}`;
     }
     id_line = `${nodeIdParent} -> ${nodeIdChild}`

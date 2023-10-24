@@ -1,18 +1,14 @@
 /**
  * genereer publicatie standaarden view
+ * 
+ * User defined parameter
+ *
+ * This definition is read by function get_user_parameter.
+ * - the parameter name has to be USER_PARAM
+ * - defined attributes are inserted (or overwrite) the previous param
+ * 
  */
-
-load(__DIR__ + "../include_view.js");
-
-var param = {
-  action: GENERATE_SINGLE,
-  // action: GENERATE_MULTIPLE,
-  // action: EXPAND_HERE,
-  // action: LAYOUT,
-
-  // graphDepth: 1,
-  graphDepth: 2,
-
+const USER_PARAM = {
   includeElementType: [
     // "application-collaboration",
     "application-component",
@@ -24,66 +20,7 @@ var param = {
     "application-service",
     // "artifact",
     // "assessment",
-    // "business-actor",
-    // "business-collaboration",
-    // "business-event",
-    // "business-function",
-    // "business-interaction",
-    // "business-interface",
-    // "business-object",
-    // "business-process",
-    // "business-role",
-    // "business-service",
-    // "canvas-model-block",
-    // "canvas-model-image",
-    // "canvas-model-sticky",
-    // "capability",
-    // "communication-network",
     "constraint",
-    // "contract",
-    // "course-of-action",
-    // "data-object",
-    // "deliverable",
-    // "device",
-    // "diagram-model-connection",
-    // "diagram-model-group",
-    // "diagram-model-image",
-    // "diagram-model-note",
-    // "diagram-model-reference",
-    // "distribution-network",
-    // "driver",
-    // "equipment",
-    // "facility",
-    // "gap",
-    // "goal",
-    // "grouping",
-    // "implementation-even",
-    // "junction",
-    // "location",
-    // "material",
-    // "meaning",
-    // "node",
-    // "outcome",
-    // "path",
-    // "plateau",
-    // "principle",
-    // "product",
-    // "representation",
-    // "requirement",
-    // "resource",
-    // "sketch-model-actor",
-    // "sketch-model-sticky",
-    // "stakeholder",
-    // "system-software",
-    // "technology-collaboration",
-    // "technology-event",
-    // "technology-function",
-    // "technology-interaction",
-    // "technology-interface",
-    // "technology-process",
-    // "technology-service",
-    // "value",
-    // "work-package",
   ],
   includeRelationType: [
     // "access-relationship",
@@ -98,9 +35,6 @@ var param = {
     "specialization-relationship",
     // "triggering-relationship",
   ],
-
-  // viewName: "gen-custom",
-
   layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
@@ -127,27 +61,4 @@ var param = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
-
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
-
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-
-  ranker: "network-simplex", // default
-
-  nodeWidth: 200,
-  nodeHeight: 60,
-  hSep: 20,
-  vSep: 180,
-
-  debug: false,
 };
-
-initConsoleLog(__FILE__, true);
-generate_view(param);
-finishConsoleLog();

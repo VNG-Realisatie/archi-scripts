@@ -1,0 +1,18 @@
+/*
+ * color object with property kleur=wit white
+ *
+ * (c) 2023 Mark Backer
+ *
+ * Select objects in the model tree or on a view and run this script
+ *
+ */
+
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection), "*");
+applyToCollection(collection, colorWhite);
+console.log("Script finished\n");
+
+function colorWhite(obj) {
+  if (obj.prop("Kleur") == "Wit") obj.fillColor = "#ffffff"; 
+}

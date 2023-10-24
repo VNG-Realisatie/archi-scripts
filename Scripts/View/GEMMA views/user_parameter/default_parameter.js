@@ -9,6 +9,10 @@ const DEFAULT_PARAM = {
   // action: EXPAND_HERE,
   // action: LAYOUT,
 
+  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
+  graphDirection: "LR",
+  // graphDirection: "TB",
+  
   // graphDepth: 1,
   graphDepth: 1,
 
@@ -41,10 +45,6 @@ const DEFAULT_PARAM = {
     // "triggering-relationship",
   ],
 
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
-  
   // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
   // graphAlign: "UL",
   

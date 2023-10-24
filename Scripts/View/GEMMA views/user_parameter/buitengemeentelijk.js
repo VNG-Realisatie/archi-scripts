@@ -1,8 +1,13 @@
 /**
  * genereer view met buitengemeentelijke componenten
+ * 
+ * User defined parameter
+ *
+ * This definition is read by function get_user_parameter.
+ * - the parameter name has to be USER_PARAM
+ * - defined attributes are inserted (or overwrite) the previous param
+ * 
  */
-
-load(__DIR__ + "../include_view.js");
 
 const USER_PARAM = {
   includeElementType: [
