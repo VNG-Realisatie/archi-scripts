@@ -11,10 +11,15 @@ const OBJECT_TYPE_VIEW = "view";
 // Set the name of the property containing a tool independent identifier.
 // If set, the import wil use the PROP_ID as the first id for matching objects
 const PROP_ID = "Object ID";
-// const PROP_ID = "";
+// const PROP_ID = "ggm-guid";
 
 // labels for creating CSV column labels
 const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
+// if set, the RELATION_ATTRIBUTES will be imported and exported
+// this will add 3 compulsory CSV column labels
+const ASSOCIATION_DIRECTED = "associationDirected";
+const RELATION_ATTRIBUTE_LABELS = ["accessType", ASSOCIATION_DIRECTED, "influenceStrength"];
+
 let endpointLabels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
 if (PROP_ID) {
   endpointLabels = endpointLabels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
@@ -49,8 +54,12 @@ const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
  * set an attribute or property to the value from the CSV file
  */
 function set_attr_or_prop(object, row, label) {
-  if (ATTRIBUTE_LABELS.indexOf(label) != -1) {
-    object[label] = row[label];
+  if (ATTRIBUTE_LABELS.indexOf(label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(label) != -1) {
+    if (label == ASSOCIATION_DIRECTED && object.type == "association-relationship") {
+      object[label] = parseBool(row[label]);
+    } else {
+      object[label] = row[label];
+    }
   } else {
     object.prop(label, row[label]);
   }
@@ -64,12 +73,18 @@ function get_attr_or_prop(archi_object, row_label) {
   let value = "";
 
   // get attribute, for instance "documentation", "name",
-  if (ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
+  if (ATTRIBUTE_LABELS.indexOf(row_label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
     debug(`row_label = ${row_label}`);
     debug(`archi_object = ${archi_object}`);
     debug(`archi_object.name = ${archi_object.name}`);
     debug(`archi_object[row_label] = ${archi_object[row_label]}`);
-    value = archi_object[row_label];
+    if (row_label == ASSOCIATION_DIRECTED) {
+      if (archi_object.type == "association-relationship") {
+        value = archi_object[row_label].toString();
+      }
+    } else {
+      value = archi_object[row_label];
+    }
     debug(`attr archi_object.${row_label}=${value}`);
   } else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
     // get endpoint label, for instance source.id, target.prop.Object ID
@@ -97,4 +112,13 @@ function get_attr_or_prop(archi_object, row_label) {
 
   debugStackPop();
   return value;
+}
+
+function parseBool(value) {
+  if (typeof value === "string") {
+     value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
+     if (value === "true" || value === "false")
+       return value === "true";
+  }
+  return; // returns undefined
 }

@@ -136,8 +136,8 @@ function get_headerLabels(rows) {
   const allHeaderLabels = Object.keys(rows[0]);
   console.log(`\nCSV file columns:`);
   allHeaderLabels.map((label) => console.log(`- ${label}`));
-  
-  // check 
+
+  // check
   // if there is a column for the attributes
   let attrCheck = checkLabel(ATTRIBUTE_LABELS, "attribute");
   // and for relations if the endpoints columns are present
@@ -198,6 +198,10 @@ function processRow(row, index, rowLabels) {
   debugStackPush(false);
   debug(`row[${index + 2}] ${row.type}: ${row.name}`);
 
+  // Search without whitespaces
+  row.type = row.type.trim();
+  row.name = row.name.trim();
+  row.id = row.id.trim();
   findResult = findObject(row.type, row.name, row[PROP_ID], row.id, row);
   debug(`findResult: ${JSON.stringify(findResult)}`);
 
@@ -434,7 +438,8 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
 
   // update objects attributes and properties with the row cell values
   rowLabels.map((label) => {
-    let labelType = ATTRIBUTE_LABELS.includes(label) ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
+    let labelType =
+      ATTRIBUTE_LABELS.includes(label) || RELATION_ATTRIBUTE_LABELS.includes(label) ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
     let attr_or_prop_value = get_attr_or_prop(archiObj, label);
 
     // remove whitespace from imported values
@@ -446,17 +451,21 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
         archiObj.removeProp(label);
       }
     } else {
-      // skip row cell if empty or if equal to object value
-      if (row[label] && row[label] != attr_or_prop_value) {
-        // if (row[label] != attr_or_prop_value) {
-        if (attr_or_prop_value) {
-          lineUpdated += `  - update ${labelType} ${label}:\n`;
-          lineUpdated += `    - from: "${attr_or_prop_value}"\n`;
-          lineUpdated += `    - to:   "${row[label]}"\n`;
-        } else {
-          lineUpdated += `  - add ${labelType} ${label}: "${row[label]}"\n`;
+      if (
+        label != ASSOCIATION_DIRECTED ||
+        (label == ASSOCIATION_DIRECTED && archiObj.type == "association-relationship")
+      ) {
+        // skip row cell if empty or if equal to object value
+        if (row[label] && row[label] != attr_or_prop_value) {
+          if (attr_or_prop_value) {
+            lineUpdated += `  - update ${labelType} ${label}:\n`;
+            lineUpdated += `    - from: "${attr_or_prop_value}"\n`;
+            lineUpdated += `    - to:   "${row[label]}"\n`;
+          } else {
+            lineUpdated += `  - add ${labelType} ${label}: "${row[label]}"\n`;
+          }
+          set_attr_or_prop(archiObj, row, label);
         }
-        set_attr_or_prop(archiObj, row, label);
       }
     }
   });
