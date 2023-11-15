@@ -18,7 +18,7 @@ const DEFAULT_PARAM = {
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
-    // "association-relationship",
+    "association-relationship",
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
