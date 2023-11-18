@@ -1,0 +1,150 @@
+load("include-ggm-gemma.js");
+initConsoleLog(__FILE__, true);
+
+let viewFolder = getFolder("Views", FOLDER_NAME);
+
+let newView = {};
+let viewColl = getSelection($(selection), "view");
+
+viewColl.each((view) => copyGGMview(view, newView, viewFolder));
+
+finishConsoleLog();
+
+/**
+ * Create or update a copy of the GGM views
+ * - follow the GGM Iv3 folder hierarchy
+ *    - copy folders
+ *    - copy or update every view
+ */
+function copyGGMview(view, newView, viewFolder) {
+  if ((view.type = "view")) {
+    newView = getView(viewFolder, view.name);
+    copyProp(view, newView);
+    copyViewElements(view, newView);
+    copyViewRelations(view, newView);
+  }
+}
+
+function copyViewElements(object, newView) {
+  $(object)
+    .children()
+    .filter("element")
+    .each((child) => {
+      // find objectToDraw, replace data-object with the copy business-object
+      let objectToDraw = find_GGM_GEMMA_object(concept(child));
+      debug(`child = ${child}`);
+      debug(`objectToDraw = ${objectToDraw}`);
+
+      // exclude data-objects which do not have a business-object copy
+      if (objectToDraw.type != "data-object") {
+        let visualObject = newView.add(
+          objectToDraw,
+          child.bounds.x,
+          child.bounds.y,
+          child.bounds.width,
+          child.bounds.height
+        );
+        copyViewElements(child, visualObject);
+      }
+    });
+}
+
+function copyViewRelations(view, newView) {
+  $(view)
+    .find()
+    .filter("relation")
+    .each((visualRel) => {
+      // find relation, replace relation to data-object with relation to business-object
+      let relationToDraw = find_GGM_GEMMA_relation(concept(visualRel));
+
+      if (relationToDraw) {
+        if (relationToDraw.source.type != "data-object" && relationToDraw.target.type != "data-object") {
+          let visualSource = findOnView(newView, relationToDraw.source);
+          let visualTarget = findOnView(newView, relationToDraw.target);
+          debug(`5 Visual rel ${visualSource} --${relationToDraw.name}--> ${visualTarget}`);
+
+          let connection = newView.add(relationToDraw, visualSource, visualTarget);
+          let i = 0;
+          visualRel.getRelativeBendpoints().forEach((bp) => {
+            connection.addRelativeBendpoint(bp, i);
+            i++;
+          });
+        }
+      }
+    });
+}
+
+function getView(folder, viewName) {
+  // check if the corresponding view already exists in the given folder
+  var v;
+  v = $(folder).children("view").filter(`.${viewName}`).first();
+
+  // If the view already exist, empty view
+  if (v) {
+    console.log(`Found ${v}. Overwriting ...`);
+    $(v)
+      .find()
+      .each((o) => o.delete());
+  } else {
+    v = model.createArchimateView(viewName);
+    console.log(`Creating view: ${v.name}`);
+
+    // move view to the generated views folder
+    folder.add(v);
+  }
+  return v;
+}
+
+function find_GGM_GEMMA_relation(rel) {
+  let foundRelation;
+  debug(`> 0 ${rel.source} --${rel.name}--> ${rel.target} (${rel.type})`);
+  if (rel.prop(GGM_ID)) {
+    // created business object relations
+    foundRelation = $(rel.type)
+      .filter((r) => r.prop(GGM_ID) == rel.prop(GGM_ID))
+      .filter((r) => r.prop(PROP_GGM_GEMMA) != null)
+      .first();
+    if (foundRelation) debug(`>> 0.1 ${foundRelation.source} --${foundRelation.name}--> ${foundRelation.target}`);
+  } else {
+    // search other relation with business-objects
+    let source = find_GGM_GEMMA_object(rel.source);
+    let target = find_GGM_GEMMA_object(rel.target);
+    debug(`> 1 ${source} --${rel.name}--> ${target} (${rel.type})`);
+
+    if (source.type == "business-object" || target.type == "business-object") {
+      let foundColl = $(rel.type)
+        .filter((r) => r.target.id == target.id && r.source.id == source.id)
+        .filter((r) => r.name == rel.name);
+      debug(`> 2 foundColl = ${foundColl}`);
+      if (foundColl.size() == 1) {
+        foundRelation = foundColl.first();
+      } else {
+        debug(`>> 3 copyViewRelation: duplicate relations ${JSON.stringify(foundColl)} `);
+      }
+    } else {
+      // catch all other relation
+      foundRelation = concept(rel);
+    }
+    if (foundRelation) debug(`>> 4 ${foundRelation.source} --${foundRelation.name}--> ${foundRelation.target}`);
+    else debug(`ERROR: No relation found`);
+  }
+  return foundRelation;
+}
+
+/**
+ * return first visual object of the given object on the view
+ *
+ * @param {*} view
+ * @param {*} obj
+ * @returns
+ */
+function findOnView(view, obj) {
+  let viewElement = $(view)
+    .find()
+    .filter("concept") // no diagram-objects, no concept.id ### todo
+    .filter((viewObj) => viewObj.concept.id == obj.id)
+    .first();
+
+  // debug(`obj: ${obj} found: ${viewElement}`);
+  return viewElement;
+}

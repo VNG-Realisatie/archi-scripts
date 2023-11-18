@@ -24,7 +24,7 @@
 //        Configuration is now done using JS object syntaxe
 //        (easier to read/write for a Human)
 // v0.2 - jb.sarrodie@accenture.com
-//        Is now fully configuration (includes relationships) and 
+//        Is now fully configuration (includes relationships) and
 //        updates an existing model instead of creating a new one
 // v0.1 - jb.sarrodie@accenture.com
 //        First version which is partly configurable and successfully
@@ -53,21 +53,27 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-
-
 // Don't change this unless you really know what you are doing ==================================================
-var syncPropName = 'Latest Sync Date';
-var deletedPropName = 'Deleted from CSV Datasource';
-// Compute the date which will appear in every new or updated concepts - Has to be 
+var syncPropName = "Latest Sync Date";
+var deletedPropName = "Deleted from CSV Datasource";
+// Compute the date which will appear in every new or updated concepts - Has to be
 var currentDateTime = new Date();
-currentDateTime = lpad(currentDateTime.getDate()) +'/'+ lpad(currentDateTime.getMonth()+1) +'/'+ currentDateTime.getFullYear() +' '+ lpad(currentDateTime.getHours()) +':'+ lpad(currentDateTime.getMinutes()) +':'+ lpad(currentDateTime.getSeconds());
-
+currentDateTime =
+  lpad(currentDateTime.getDate()) +
+  "/" +
+  lpad(currentDateTime.getMonth() + 1) +
+  "/" +
+  currentDateTime.getFullYear() +
+  " " +
+  lpad(currentDateTime.getHours()) +
+  ":" +
+  lpad(currentDateTime.getMinutes()) +
+  ":" +
+  lpad(currentDateTime.getSeconds());
 
 // In production I recommend dowloading papaparse.min.js and load it locally
 //load(__DIR__+'papaparse.min.js');
-load('https://unpkg.com/papaparse@latest/papaparse.min.js');
-
-
+load("https://unpkg.com/papaparse@latest/papaparse.min.js");
 
 // Functions ====================================================================================================
 function loadAndSync(dataSource) {
@@ -76,74 +82,80 @@ function loadAndSync(dataSource) {
   syncModelElements(dataSource);
 }
 
-
 function lpad(text) {
-  return ('0'+text).substr(-2);
+  return ("0" + text).substr(-2);
 }
-
 
 function loadData(dataSource) {
   if (dataSource._loaded) {
     console.log('WARNING - Datasource "', dataSource.label, '" has already been loaded');
-    return
+    return;
   }
-  
+
   console.log('INFO - Loading "', dataSource.label, '" from CSV...');
-  
-  var rows = Papa.parse(readFully(dataSource.csv, 'utf-8'), { header: true, encoding: 'utf-8', skipEmptyLines: true }).data;
+
+  var rows = Papa.parse(readFully(dataSource.csv, "utf-8"), {
+    header: true,
+    encoding: "utf-8",
+    skipEmptyLines: true,
+  }).data;
   dataSource.rows = {};
-  
-  for (var i=0; i<rows.length; i++) {
-    var id = (typeof dataSource.id === 'function')? dataSource.id(rows[i]) : rows[i][dataSource.id];
-    if(id) {
-      dataSource.rows[id] = rows[i];
-      dataSource.rows[id]['_id'] = id;
+
+  for (var i = 0; i < rows.length; i++) {
+    var filter = typeof dataSource.filter === "function" ? dataSource.filter(rows[i]) : true;
+    var id = typeof dataSource.id === "function" ? dataSource.id(rows[i]) : rows[i][dataSource.id];
+    if (filter) {
+      if (id) {
+        dataSource.rows[id] = rows[i];
+        dataSource.rows[id]["_id"] = id;
+      } else {
+        console.log("ERROR - Row #", i, " of ", dataSource.label, " doesn't have a valid id");
+      }
     } else {
-      console.log('ERROR - Row #', i, ' of ', dataSource.label, ' doesn\'t have a valid id');
+      // console.log(`Skipped: filter=${filter}`);
     }
   }
-  
+
   dataSource._loaded = true;
 }
-
 
 function buildModelIndex(dataSource) {
   if (dataSource._modelIndexed) {
     console.log('WARNING - Model elements associated with "', dataSource.label, '" have already been indexed');
-    return
+    return;
   }
-  
+
   console.log('INFO - Indexing "', dataSource.label, '" from model...');
-  
+
   dataSource.model = {};
-  
-  $(dataSource.targetType).each(function(element) {
+
+  $(dataSource.targetType).each(function (element) {
     var id = dataSource.getId(element);
     if (id) {
       dataSource.model[id] = element;
     }
   });
-  
+
   dataSource._modelIndexed = true;
 }
-
 
 function syncModelElements(dataSource) {
   if (dataSource._modelElementsSynced) {
     console.log('WARNING - Datasource "', dataSource.label, '" has already been synced');
-    return
+    return;
   }
-  
+
   console.log('INFO - Syncing "', dataSource.label, '" elements from CSV with model...');
   var created = 0;
   var updated = 0;
-  
+
   for (var id in dataSource.rows) {
     var row = dataSource.rows[id];
     var element = dataSource.model[id];
-    var name = (typeof dataSource.name === 'function')? dataSource.name(row) : row[dataSource.name];
-    var documentation = (typeof dataSource.documentation === 'function')? dataSource.documentation(row) : row[dataSource.documentation];
-    
+    var name = typeof dataSource.name === "function" ? dataSource.name(row) : row[dataSource.name];
+    var documentation =
+      typeof dataSource.documentation === "function" ? dataSource.documentation(row) : row[dataSource.documentation];
+
     if (element) {
       updated++;
     } else {
@@ -152,52 +164,78 @@ function syncModelElements(dataSource) {
       dataSource.model[id] = element;
       created++;
     }
-    
+
     // Brute force update
-    if(dataSource.targetFolder) {
+    if (dataSource.targetFolder) {
       dataSource.targetFolder.add(element);
     }
     element.prop(syncPropName, currentDateTime);
     element.name = name;
     element.documentation = documentation;
     for (var propName in dataSource.propMapping) {
-      var propValue = (typeof dataSource.propMapping[propName] === 'function')? dataSource.propMapping[propName](row) : row[dataSource.propMapping[propName]];
+      var propValue =
+        typeof dataSource.propMapping[propName] === "function"
+          ? dataSource.propMapping[propName](row)
+          : row[dataSource.propMapping[propName]];
       // Cast propValue to String to avoid ambiguity between prop(String, String) and prop(String, boolean) in rare occasions
       element.prop(propName, String(propValue));
     }
   }
-  
-  dataSource._modelElementsSynced = true;
-  console.log('INFO - Datasource "', dataSource.label, '" has been synced: ', created, ' element(s) created and ', updated, ' updated');
-}
 
+  dataSource._modelElementsSynced = true;
+  console.log(
+    'INFO - Datasource "',
+    dataSource.label,
+    '" has been synced: ',
+    created,
+    " element(s) created and ",
+    updated,
+    " updated"
+  );
+}
 
 function syncModelRelationships(dataSource) {
   if (dataSource._modelRelationshipsSynced) {
     console.log('WARNING - Model relationships associated with "', dataSource.label, '" have already been synced');
-    return
+    return;
   }
-  
+
   console.log('INFO - Syncing "', dataSource.label, '" relationships from CSV with model...');
   var createdOrUpdated = 0;
-  
+
   for (var id in dataSource.rows) {
     var row = dataSource.rows[id];
     var element = dataSource.model[id];
-    
+
     if (!element) {
-      console.log('WARNING - No element found for "', dataSource.label, '" with id=', id, ' (maybe model elements haven\'t been synced before?)');
+      console.log(
+        'WARNING - No element found for "',
+        dataSource.label,
+        '" with id=',
+        id,
+        " (maybe model elements haven't been synced before?)"
+      );
     } else {
       for (var relationName in dataSource.relations) {
         var relation = dataSource.relations[relationName];
         var otherEndsIds = row[relation.column];
         if (otherEndsIds) {
-          otherEndsIds = otherEndsIds.split('\n');
-        
-          for (var i=0; i<otherEndsIds.length; i++) {
+          otherEndsIds = otherEndsIds.split("\n");
+
+          for (var i = 0; i < otherEndsIds.length; i++) {
             var otherEnd = relation.reference.model[otherEndsIds[i]];
             if (!otherEnd) {
-              console.log('WARNING - Element "', dataSource.label, '" with id=', id, ' references another element ', relation.reference.label, ' with id=', otherEndsIds[i], ' which doesn\'t exist (maybe model elements haven\'t been synced before?)');
+              console.log(
+                'WARNING - Element "',
+                dataSource.label,
+                '" with id=',
+                id,
+                " references another element ",
+                relation.reference.label,
+                " with id=",
+                otherEndsIds[i],
+                " which doesn't exist (maybe model elements haven't been synced before?)"
+              );
             } else {
               if (relation.isReversed) {
                 createOrUpdateRelationship(relation, otherEnd, relation.targetType, element);
@@ -211,92 +249,109 @@ function syncModelRelationships(dataSource) {
       }
     }
   }
-  
-  dataSource._modelRelationshipsSynced = true;
-  console.log('INFO - ', createdOrUpdated, ' relationship(s) associated with datasource "', dataSource.label, '" have been created or updated');
 
+  dataSource._modelRelationshipsSynced = true;
+  console.log(
+    "INFO - ",
+    createdOrUpdated,
+    ' relationship(s) associated with datasource "',
+    dataSource.label,
+    '" have been created or updated'
+  );
 }
 
 function tagDeletedConcepts() {
-  console.log('INFO - Looking for deleted elements or relationships and tagging them as deleted...');
+  console.log("INFO - Looking for deleted elements or relationships and tagging them as deleted...");
   var deleted = 0;
-  
-  $('concept').filter(function(c){
-    lastUpdateDate = c.prop(syncPropName);
-    if(lastUpdateDate) {
-      return lastUpdateDate != currentDateTime;
-    } else {
-      return false;
-    }
-  }).each(function(c){
-    if(!c.prop(deletedPropName)) {
-      c.name = '[DELETED] ' + c.name;
-      c.prop(deletedPropName, currentDateTime);
-      deleted++;
-    }
-  });
-  
-  console.log('INFO - ', deleted, ' elements or relationships have been tagged as deleted');
+
+  $("concept")
+    .filter(function (c) {
+      lastUpdateDate = c.prop(syncPropName);
+      if (lastUpdateDate) {
+        return lastUpdateDate != currentDateTime;
+      } else {
+        return false;
+      }
+    })
+    .each(function (c) {
+      if (!c.prop(deletedPropName)) {
+        c.name = "[DELETED] " + c.name;
+        c.prop(deletedPropName, currentDateTime);
+        deleted++;
+      }
+    });
+
+  console.log("INFO - ", deleted, " elements or relationships have been tagged as deleted");
 }
 
-
 function createOrUpdateRelationship(config, source, type, target) {
-  var relationship = $(source).outRels(type).filter(function(r) {return r.target.equals(target)}).filter(function(r) {return r.prop(syncPropName)}).first();
-  
+  var relationship = $(source)
+    .outRels(type)
+    .filter(function (r) {
+      return r.target.equals(target);
+    })
+    .filter(function (r) {
+      return r.prop(syncPropName);
+    })
+    .first();
+
   if (!relationship) {
-    relationship = model.createRelationship(type, '', source, target);
+    relationship = model.createRelationship(type, "", source, target);
   }
-  
+
   relationship.prop(syncPropName, currentDateTime);
-  
-  if (type == 'access-relationship') {
+
+  if (type == "access-relationship") {
     relationship.accessType = config.accessType;
   }
-  
-  if (type == 'association-relationship') {
+
+  if (type == "association-relationship") {
     relationship.associationDirected = config.associationDirected;
   }
 }
 
-
 function getFolder(layer, folderName) {
-  layerFolder = $(model).children().filter('folder.'+layer).first();
-  folder = $(layerFolder).children().filter('folder.'+folderName).first();
-  
-  if(!folder) {
+  layerFolder = $(model)
+    .children()
+    .filter("folder." + layer)
+    .first();
+  folder = $(layerFolder)
+    .children()
+    .filter("folder." + folderName)
+    .first();
+
+  if (!folder) {
     folder = layerFolder.createFolder(folderName);
   }
-  
+
   return folder;
 }
 
-
 // Some Polyfills for Nashorn ====================================================================================
 function readFully(url, charset) {
-    var result = '';
-    var imports = new JavaImporter(java.net, java.lang, java.io);
+  var result = "";
+  var imports = new JavaImporter(java.net, java.lang, java.io);
 
-    with (imports) {
+  with (imports) {
+    var urlObj = null;
 
-        var urlObj = null;
-
-        try {
-            urlObj = new URL(url);
-        } catch (e) {
-            // If the URL cannot be built, assume it is a file path.
-            urlObj = new URL(new File(url).toURI().toURL());
-        }
-
-        var reader = new BufferedReader(new InputStreamReader(urlObj.openStream(), charset));
-
-        var line = reader.readLine();
-        while (line != null) {
-            result += line + '\n';
-            line = reader.readLine();
-        }
-
-        reader.close();
+    try {
+      urlObj = new URL(url);
+    } catch (e) {
+      // If the URL cannot be built, assume it is a file path.
+      urlObj = new URL(new File(url).toURI().toURL());
     }
 
-    return result;
+    var reader = new BufferedReader(new InputStreamReader(urlObj.openStream(), charset));
+
+    var line = reader.readLine();
+    while (line != null) {
+      result += line + "\n";
+      line = reader.readLine();
+    }
+
+    reader.close();
+  }
+
+  return result;
 }

@@ -360,15 +360,38 @@ function findWithEndpoints(row) {
       return relationWithEndpoints.size() > 0;
     });
 
-    if (archiRels.size() == 1) {
-      findCode = FOUND;
-      findText = `found relation with 'endpoints'`;
-    } else if (archiRels.size() > 1) {
-      errorCode += WARNING;
-      errorText += `Warning: Multiple relations with source ${srcColl} and target ${tgtColl}\n`;
-      archiRels.each((obj) => (errorText += `  - ${obj}\n`));
-      debug(errorText);
-    }
+    archiRels.each((rel) => {
+      if (findCode != FOUND) {
+        if (row[`prop.${PROP_ID}`]) {
+          findText = `not found. There is no relation with the rows ${PROP_ID}`;
+        } else {
+          if (row.name == rel.name && row.type == rel.type) {
+            findCode = FOUND;
+            findText = `found relation with 'endpoints' and name and type`;
+          } else {
+            findText = `not found; found a relation with 'endpoints', but different name and type`;
+          }
+        }
+      }
+    });
+
+    // if (archiRels.size() == 1) {
+    //   if (row[`prop.${PROP_ID}`]) {
+    //     findText = `not found. There is no relation with the rows ${PROP_ID}`;
+    //   } else {
+    //     if (row.name == archiRels.first().name && row.type == archiRels.first().type) {
+    //       findCode = FOUND;
+    //       findText = `found relation with 'endpoints' and name and type`;
+    //     } else {
+    //       findText = `not found; found a relation with 'endpoints', but different name and type`;
+    //     }
+    //   }
+    // } else if (archiRels.size() > 1) {
+    //   errorCode += WARNING;
+    //   errorText += `Warning: Multiple relations with source ${srcColl} and target ${tgtColl}\n`;
+    //   archiRels.each((obj) => (errorText += `  - ${obj}\n`));
+    //   debug(errorText);
+    // }
   }
 
   debug(`>>> findRelation: ${endCounter("findRelation")}`);

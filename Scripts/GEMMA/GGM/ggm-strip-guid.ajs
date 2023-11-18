@@ -1,0 +1,11 @@
+/**
+ * copy ggm-guid to Object ID
+ *  strip curly braces
+ */
+const PROP_ID = "Object ID";
+
+$("*").each(obj => {
+  if (obj.prop("ggm-guid")) {
+    obj.prop(PROP_ID, obj.prop("ggm-guid").replace(/[\{\}]+/g, ''));
+  }
+})

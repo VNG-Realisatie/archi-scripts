@@ -7,11 +7,11 @@
 
 /**
  * get objects folderpath by recursively walkin up the parentfolders
- * 
+ *
  * How to call
  *     let folder = getArchiFolder(object, "");
  */
-function getArchiFolder(child, currentFolderName="") {
+function getArchiFolder(child, currentFolderName = "") {
   // let parent = $(`#${child.id}`).parent("folder");
   let parent = $(child).parent("folder");
   if (parent.size() == 0) return `/${currentFolderName}`;
@@ -41,4 +41,21 @@ function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
       subFolder.delete();
     }
   });
+}
+
+function getFolder(layer, folderName) {
+  layerFolder = $(model)
+    .children()
+    .filter("folder." + layer)
+    .first();
+  folder = $(layerFolder)
+    .children()
+    .filter("folder." + folderName)
+    .first();
+
+  if (!folder) {
+    folder = layerFolder.createFolder(folderName);
+  }
+
+  return folder;
 }
