@@ -10,6 +10,7 @@ const FOLDER_NAME = "GGM bedrijfsobjecten";
 const currentDate = new Date().toLocaleDateString("nl-NL");
 
 function copyProp(from, to) {
+  to.name = from.name;
   to.documentation = from.documentation;
   from.prop().forEach((curProperty) => {
     if (curProperty != PROP_ID) {

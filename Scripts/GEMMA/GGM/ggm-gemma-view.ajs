@@ -18,7 +18,8 @@ finishConsoleLog();
  */
 function copyGGMview(view, newView, viewFolder) {
   if ((view.type = "view")) {
-    newView = getView(viewFolder, view.name);
+    let viewName = view.name.replace(" (GGM)", "");
+    newView = getView(viewFolder, viewName);
     copyProp(view, newView);
     copyViewElements(view, newView);
     copyViewRelations(view, newView);
@@ -26,6 +27,7 @@ function copyGGMview(view, newView, viewFolder) {
 }
 
 function copyViewElements(object, newView) {
+  debugStackPush(false);
   $(object)
     .children()
     .filter("element")
@@ -47,9 +49,11 @@ function copyViewElements(object, newView) {
         copyViewElements(child, visualObject);
       }
     });
+  debugStackPop();
 }
 
 function copyViewRelations(view, newView) {
+  debugStackPush(false);
   $(view)
     .find()
     .filter("relation")
@@ -72,6 +76,7 @@ function copyViewRelations(view, newView) {
         }
       }
     });
+  debugStackPop();
 }
 
 function getView(folder, viewName) {
@@ -96,6 +101,7 @@ function getView(folder, viewName) {
 }
 
 function find_GGM_GEMMA_relation(rel) {
+  debugStackPush(false);
   let foundRelation;
   debug(`> 0 ${rel.source} --${rel.name}--> ${rel.target} (${rel.type})`);
   if (rel.prop(GGM_ID)) {
@@ -128,6 +134,7 @@ function find_GGM_GEMMA_relation(rel) {
     if (foundRelation) debug(`>> 4 ${foundRelation.source} --${foundRelation.name}--> ${foundRelation.target}`);
     else debug(`ERROR: No relation found`);
   }
+  debugStackPop();
   return foundRelation;
 }
 

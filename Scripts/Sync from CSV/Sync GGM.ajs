@@ -59,7 +59,7 @@ var xxx = {
 let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje/"
 let GGM_objects = "ggm_export_objects_06112023-07_59_13.csv";
 let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
-let GEMMA_sync_dir = "_Sync GGM";
+let GEMMA_sync_dir = "GGM data-objecten";
 
 var iv3_domeinen = {
   label: "Iv3",
@@ -88,7 +88,7 @@ var dataobjecten = {
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";
   // },
-  targetFolder: getFolder("Application", "GGM data-objecten"),
+  targetFolder: getFolder("Application", GEMMA_sync_dir),
   getId: function (element) {
     return element.prop("ggm-guid");
   },

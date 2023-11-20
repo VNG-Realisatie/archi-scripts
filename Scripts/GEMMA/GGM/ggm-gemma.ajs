@@ -1,6 +1,6 @@
 /**
  * Create GEMMA bedrijfsobjectenmodel gebaseerd op GGM
- * 
+ *
  * Uitgangssituatie
  * - GGM ArchiMate-model met een geïmporteerd GGM model
  *   - data-objecten en iv3-domeinen met script ggm-sync.ajs (ggm_export_objects_<date>.csv)
@@ -8,15 +8,15 @@
  * - GGM import bestaat uit
  *   - data-objecten en onderlinge relaties met ggm-guid
  *   - Iv3 domeinen en aggregatie-relaties zonder ggm-guid
- * 
+ *
  * Aanmaken GEMMA bedrijfsobjectenmodel
  * - GGM data-objecten en relaties worden gekopieerd als GEMMA bedrijfsobjectenmodel (met identieke ggm-guid)
- * - Iv3 domeinen worden niet gekopieerd 
- *   - ggm relaties groeperen de GGM data-objecten 
+ * - Iv3 domeinen worden niet gekopieerd
+ *   - ggm relaties groeperen de GGM data-objecten
  *   - gekopieerde ggm relaties groeperen de GEMMA bedrijfsobjecten
- * 
+ *
  * Stappen:
- * 
+ *
  * Create or update for every data-object a business-object
  * - if prop Business Object="ja"
  * - if duplicate name, add postfix (domein-iv3)
@@ -63,17 +63,25 @@ finishConsoleLog();
 function updateBusinessObjects(coll, businessObjectFolder, relsFolder, dataObjectColl, businessObjectsColl) {
   console.log(`Created business-object:`);
   coll
-    .filter((dataObject) => dataObject.prop("Business Object") == "Ja")
+    // .filter((dataObject) => dataObject.prop("Business Object") == "Ja")
+    .filter((dataObject) => dataObject.prop("archimate-type") == "Business object")
     .each((dataObject) => {
-      let businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
-      copyProp(dataObject, businessObject);
+      let businessObject = $("business-object")
+        .filter((obj) => obj.prop(GGM_ID) == dataObject.prop(GGM_ID))
+        .first();
+      if (businessObject) {
+        console.log(`> update ${businessObject}`);
+        copyProp(dataObject, businessObject);
+      } else {
+        businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
 
-      // create a realization relation between the GGM data-object and created business object
-      model.createRelationship("realization-relationship", REALIZATION_LABEL, dataObject, businessObject, relsFolder);
-
+        // create a realization relation between the GGM data-object and created business object
+        model.createRelationship("realization-relationship", REALIZATION_LABEL, dataObject, businessObject, relsFolder);
+        businessObjectsColl.add(businessObject);
+        copyProp(dataObject, businessObject);
+        console.log(`> Create ${businessObject}`);
+      }
       dataObjectColl.add(dataObject);
-      businessObjectsColl.add(businessObject);
-      console.log(`> ${businessObject}`);
     });
 
   console.log();
@@ -97,33 +105,41 @@ function updateRelations(dataObjectColl, relsFolder, relationsColl) {
       // check if relation is already processed
       if (!index.some((r) => r.id == rel.id)) {
         index.push(rel);
+        let businessRel = $(rel.type)
+        .filter((bRel) => bRel.prop(GGM_ID) == rel.prop(GGM_ID))
+        .first();
 
-        let source = find_GGM_GEMMA_object(rel.source);
-        let target = find_GGM_GEMMA_object(rel.target);
-        // debug(`> ${source} --${rel.name}--> ${target}`);
-
-        if (source && target) {
-          if (source.type == "data-object" || target.type == "data-object") {
-            debug(`>>> SKIP relation with data-object ${source} --${rel.name}--> ${target}`);
-          } else {
-            let businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
-            copyProp(rel, businessRel);
-            if (rel.type == "association-relationship") {
-              businessRel.associationDirected = rel.associationDirected;
-            }
-            relationsColl.add(businessRel);
-            console.log(`> ${businessRel.source.name} --${businessRel.name}--> ${businessRel.target.name}`);
-          }
+        if (businessRel) {
+          console.log(`> update ${businessRel}`);
+          copyProp(rel, businessRel);
         } else {
-          // kan niet meer. weg 
-          debug(`>>> ENDPOINT NOT FOUND ${rel.source.name} --${rel.name}--> ${rel.target.name}`);
-          debug(`>>>                    ${source} --${rel.name}--> ${target}`);
+        
+          let source = find_GGM_GEMMA_object(rel.source);
+          let target = find_GGM_GEMMA_object(rel.target);
+          // debug(`> ${source} --${rel.name}--> ${target}`);
+  
+          if (source && target) {
+            if (source.type == "data-object" || target.type == "data-object") {
+              debug(`>>> SKIP relation with data-object ${source} --${rel.name}--> ${target}`);
+            } else {
+              let businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
+              copyProp(rel, businessRel);
+              if (rel.type == "association-relationship") {
+                businessRel.associationDirected = rel.associationDirected;
+              }
+              relationsColl.add(businessRel);
+              console.log(`> ${businessRel.source.name} --${businessRel.name}--> ${businessRel.target.name}`);
+            }
+          } else {
+            // kan niet meer. weg
+            debug(`>>> ENDPOINT NOT FOUND ${rel.source.name} --${rel.name}--> ${rel.target.name}`);
+            debug(`>>>                    ${source} --${rel.name}--> ${target}`);
+          }
         }
       }
     });
   console.log();
 }
-
 
 /**
  * Append a suffix after the name of duplicate objects
