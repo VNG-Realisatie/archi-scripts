@@ -85,7 +85,8 @@ try {
   load(__DIR__ + "../_lib/jvm-npm.js");
   require.addPath(__DIR__);
   // var dagre = require("../_lib/dagre");
-  var dagre = require("../_lib/dagre-cluster-fix");
+  // var dagre = require("../_lib/dagre-cluster-fix");
+  var dagre = require("../_lib/dagre");  // @dagrejs/dagre 1.04
 
   console.log(`Dagre version:`);
   console.log(`- dagre:    ${dagre.version}`); // dagre-cluster-fix should show version 0.9.3

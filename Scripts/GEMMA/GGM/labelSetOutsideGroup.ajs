@@ -1,0 +1,13 @@
+/**
+ * Set the label domein_iv3 for object not nested in a grouping
+ */
+load(__DIR__ + "../_lib/selection.js");
+
+let collection = getVisualSelection($(selection));
+let notNestedColl = collection.children
+applyToCollection(collection, labelSet, ["${name} (${property:domein-iv3})"]);
+console.log("Script finished\n");
+
+function labelSet(obj, args) {
+  obj.labelExpression = args[0];
+}

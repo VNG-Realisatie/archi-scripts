@@ -1,24 +1,27 @@
-/**
- * User defined default view parameter
- *
- * This definition is read by function get_default_parameter
- */
-const DEFAULT_PARAM = {
-  action: GENERATE_SINGLE,
-  // action: GENERATE_MULTIPLE,
-  // action: EXPAND_HERE,
-  // action: LAYOUT,
-
-  // graphDepth: 1,
+const USER_PARAM = {
   graphDepth: 1,
-
-  includeElementType: [],
-  includeRelationType: [],
+  includeElementType: [
+    "business-object",
+    "grouping",
+  ],
+  includeRelationType: [
+    // "access-relationship",
+    "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    // "realization-relationship",
+    // "serving-relationship",
+    // "specialization-relationship",
+    // "triggering-relationship",
+  ],
   layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
-    "association-relationship",
+    // "association-relationship",
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
@@ -29,7 +32,7 @@ const DEFAULT_PARAM = {
   ],
   layoutNested: [
     // "access-relationship",
-    // "aggregation-relationship",
+    "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",
@@ -41,22 +44,9 @@ const DEFAULT_PARAM = {
     // "triggering-relationship",
   ],
 
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
-  
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-  
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-  ranker: "network-simplex",
-  
   nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 40,
-  vSep: 180,
+  hSep: 20,
+  vSep: 40,
   
-  // viewName: "gen-custom",
-  debug: false,
-};
+  };
