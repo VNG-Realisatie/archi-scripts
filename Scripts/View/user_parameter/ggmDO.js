@@ -48,6 +48,6 @@ const USER_PARAM = {
   nodeWidth: 180,
   nodeHeight: 60,
   hSep: 20,
-  vSep: 40,
+  vSep: 60,
   
   };

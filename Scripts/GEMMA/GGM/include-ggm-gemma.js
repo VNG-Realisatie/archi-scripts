@@ -3,11 +3,11 @@ load(__DIR__ + "../../_lib/archi_folders.js");
 load(__DIR__ + "../../_lib/Common.js");
 
 const PROP_ID = "Object ID";
+const PROP_ID_DATA_OBJECT = "Object ID data-object";
 const PROP_IV3 = "domein-iv3";
 const PROP_GGM_GEMMA = "Latest GGM GEMMA sync";
 const PROP_SPECIALIZATON = "Meer specifiek";
 const GGM_ID = "ggm-guid";
-const FOLDER_NAME = "GGM bedrijfsobjecten";
 const currentDate = new Date().toLocaleDateString("nl-NL");
 
 /**
@@ -57,12 +57,15 @@ function documentSpecializations(dataObject, businessObject) {
     .inRels("specialization-relationship")
     .each((rel) => {
       if (meerSpecifiek) {
-        meerSpecifiek += " ," + rel.source.name;
+        meerSpecifiek += ", " + rel.source.name;
       } else {
         meerSpecifiek += rel.source.name;
       }
     });
-  businessObject.prop(PROP_SPECIALIZATON, meerSpecifiek);
+  if (meerSpecifiek) {
+    businessObject.prop(PROP_SPECIALIZATON, meerSpecifiek);
+    console.log(`  > added property ${PROP_SPECIALIZATON}`)
+  }
 }
 
 /**
@@ -70,7 +73,7 @@ function documentSpecializations(dataObject, businessObject) {
  * - copy relations from corresponding data-object
  * - copy properties
  */
-function updateRelations(dataObjects, relsFolder, processedRelations) {
+function updateRelationsBusinessObject(dataObjects, relsFolder, processedRelations) {
   let index = [];
 
   console.log(`\nCopie data-object relations to business-object relations`);
@@ -115,34 +118,44 @@ function updateRelations(dataObjects, relsFolder, processedRelations) {
         }
       }
     });
+}
 
+/**
+ * Create or update iv3 grouping for business object
+ * - copy relations from corresponding data-object
+ * - copy properties
+ */
+function updateRelationsIv3(dataObjects, relsFolder, processedRelations) {
   console.log(`\nCopie iv3-domeinen aggregations to business-object relations`);
 
+  let aantalAggr = dataObjects
+    .rels("aggregation-relationship")
+    .filter((rel) => rel.target.prop("archimate-type") == "Business object");
+  console.log(`aantalAggr = ${aantalAggr}`);
+
   // process iv3 relations
-  dataObjects.rels("aggregation-relationship").each((rel) => {
-    // check if relation is already processed
-    if (!index.some((r) => r.id == rel.id)) {
-      index.push(rel);
+  dataObjects
+    .rels("aggregation-relationship")
+    .filter((rel) => rel.target.prop("archimate-type") == "Business object")
+    .each((rel) => {
+      // find copy aggregation with business-object
+      let iv3Relation = $("aggregation-relationship")
+        .filter((aggrRel) => aggrRel.prop(PROP_ID_DATA_OBJECT) == rel.prop(PROP_ID))
+        .filter((aggrRel) => aggrRel.target.type == "business-object")
+        .first();
 
-      let target = find_GGM_GEMMA_object(rel.target);
-
-      if (target) {
-        if (target.type == "business-object") {
-          businessRel = $("aggregation-relationship")
-            .filter((bRel) => bRel.source.id == rel.source.id)
-            .filter((bRel) => bRel.target.id == rel.target.id)
-            .first();
-          console.log(`> update ${businessRel.source} --${businessRel.name}--> ${businessRel.target}`);
-          copyProp(rel, businessRel);
-        } else {
-          let businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
-          copyProp(rel, businessRel);
-          processedRelations.add(businessRel);
-          console.log(`> create ${businessRel.source.name} --${businessRel.name}--> ${businessRel.target.name}`);
-        }
+      if (iv3Relation) {
+        console.log(`> update ${iv3Relation.source.name} --${iv3Relation.name}--> ${iv3Relation.target.name}`);
+        copyProp(rel, iv3Relation);
+      } else {
+        let target = find_GGM_GEMMA_object(rel.target);
+        iv3Relation = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
+        copyProp(rel, iv3Relation);
+        iv3Relation.prop(PROP_ID_DATA_OBJECT, rel.prop(PROP_ID))
+        processedRelations.add(iv3Relation);
+        console.log(`> create ${iv3Relation.source.name} --${iv3Relation.name}--> ${iv3Relation.target.name}`);
       }
-    }
-  });
+    });
   console.log();
 }
 
@@ -160,9 +173,8 @@ function copyProp(from, to) {
       to.prop(curProperty, from.prop(curProperty));
     }
   });
-  // maak 
+  // maak
   if (!to.prop(PROP_ID)) {
-
   }
   to.prop(
     PROP_GGM_GEMMA,

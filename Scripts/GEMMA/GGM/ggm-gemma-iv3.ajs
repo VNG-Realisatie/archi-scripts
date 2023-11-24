@@ -27,25 +27,25 @@
 
 load("include-ggm-gemma.js");
 const FOLDER_NAME = "Bedrijfsobjecten";
-const REALIZATION_LABEL = "realiseert bedrijfsobject";
 
 initConsoleLog(__FILE__, true);
 
+const REALIZATION_LABEL = "realiseert bedrijfsobject";
+
+let businessObjectFolder = getFolder("Business", FOLDER_NAME);
+let relationsBusinessObjectFolder = getFolder("Relations", FOLDER_NAME);
+let relationsIv3Folder = getFolder("Relations", "Domein iv3");
+
+let selectedObjects = getSelection($(selection), "data-object");
 let businessObjectsColl = $();
 let dataObjectColl = $();
 let relationColl = $();
 
-let selectedObjects = getSelection($(selection), "data-object");
-updateBusinessObjects(
-  selectedObjects,
-  getFolder("Business", FOLDER_NAME),
-  getFolder("Relations", "realiseert bedrijfsobject"),
-  dataObjectColl,
-  businessObjectsColl
-);
-appendSuffix(businessObjectsColl);
-updateRelationsBusinessObject(dataObjectColl, getFolder("Relations", FOLDER_NAME), relationColl);
-updateRelationsIv3(dataObjectColl, getFolder("Relations", "Domein iv3"), relationColl);
+// updateBusinessObjects(selectedObjects, businessObjectFolder, relationFolder, dataObjectColl, businessObjectsColl);
+// appendSuffix(businessObjectsColl);
+// updateRelationsBusinessObject(dataObjectColl, relationsBusinessObjectFolder, relationColl);
+
+updateRelationsIv3(selectedObjects, relationsIv3Folder, relationColl);
 
 console.log(`> from ${selectedObjects.size()} data-objects`);
 console.log(`> ${businessObjectsColl.size()} business-objects  and`);

@@ -14,6 +14,23 @@ try {
   console.log();
   let specializations = getVisualSelection($(selection), "specialization-relationship");
   applyToCollection(specializations, styleSpecialization);
+
+  console.log();
+  let views = getSelection($(selection), "view");
+  let notNestedElements = views.children("element").not("grouping");
+  applyToCollection(notNestedElements, labelSet);
+
+  console.log();
+  // publiceren bedrijfsobjecten views 
+  views
+    .filter((view) => !view.name.endsWith(" (GGM)"))
+    .each((view) => view.prop("Publiceren", "GEMMA Online en redactie"));
+  // set view property domein for wiki queries
+  views.each((view) => {
+    let grouping = $(view).children("grouping").first();
+    let domeinIv3 = grouping.prop("domein-iv3");
+    if (domeinIv3) view.prop("domein-iv3", domeinIv3);
+  });
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
@@ -55,4 +72,11 @@ function styleGroupings(obj) {
 function styleSpecialization(obj) {
   obj.lineColor = "#229954"; // Sets line color to green
   obj.lineWidth = 1;
+}
+
+/**
+ * Set the label domein_iv3 for object not nested in a grouping domein
+ */
+function labelSet(obj) {
+  obj.labelExpression = "${name}\n(${property:domein-iv3})";
 }

@@ -64,9 +64,9 @@ var iv3_domeinen = {
   label: "Iv3",
   csv: GGM_csv_dir + GGM_objects,
   targetType: "grouping",
-  targetFolder: getFolder("Other", "domein iv3"),
+  targetFolder: getFolder("Other", "Domein iv3"),
   getId: function (element) {
-    return element.prop("domein-iv3");
+    return element.prop("omein-iv3");
   },
   setId: function (element, row) {
     element.prop("domein-iv3", row["_id"]);
@@ -87,7 +87,7 @@ var dataobjecten = {
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";
   // },
-  targetFolder: getFolder("Application", "data-objecten (GGM)"),
+  targetFolder: getFolder("Application", "Data-objecten (GGM)"),
   getId: function (element) {
     return element.prop("ggm-guid");
   },
@@ -121,7 +121,7 @@ var dataobjecten = {
       column: "domein-iv3",
       reference: iv3_domeinen,
       targetType: "aggregation-relationship",
-      targetFolder: getFolder("Relations", "domein iv3 (GGM)"),
+      targetFolder: getFolder("Relations", "Domein iv3 (GGM)"),
       isReversed: true,
     },
   },

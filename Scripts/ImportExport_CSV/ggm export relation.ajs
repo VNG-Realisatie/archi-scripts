@@ -1,0 +1,17 @@
+/**
+ * export_relation
+ * 	export selected relations to a CSV file
+ * 	if a container (a view or a folder) is selected, all relations in the container are exported
+ */
+
+// matchen op ID ggm-guid ipv Object ID
+var PROP_ID = "ggm-guid";
+
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "include_export.js");
+
+initConsoleLog(__FILE__);
+
+exportObjects(OBJECT_TYPE_RELATION);
+
+finishConsoleLog();
