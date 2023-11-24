@@ -10,8 +10,9 @@ const OBJECT_TYPE_VIEW = "view";
 
 // Set the name of the property containing a tool independent identifier.
 // If set, the import wil use the PROP_ID as the first id for matching objects
-const PROP_ID = "Object ID";
-// const PROP_ID = "ggm-guid";
+if (!PROP_ID) {
+  var PROP_ID = "Object ID";
+}
 
 // labels for creating CSV column labels
 const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
@@ -116,9 +117,8 @@ function get_attr_or_prop(archi_object, row_label) {
 
 function parseBool(value) {
   if (typeof value === "string") {
-     value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
-     if (value === "true" || value === "false")
-       return value === "true";
+    value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
+    if (value === "true" || value === "false") return value === "true";
   }
   return; // returns undefined
 }

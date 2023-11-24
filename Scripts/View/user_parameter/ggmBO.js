@@ -1,5 +1,5 @@
 const USER_PARAM = {
-  graphDepth: 1,
+  graphDepth: 2,
   includeElementType: [
     "business-object",
     "grouping",
@@ -27,7 +27,7 @@ const USER_PARAM = {
     // "influence-relationship",
     "realization-relationship",
     "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
   layoutNested: [
@@ -44,7 +44,11 @@ const USER_PARAM = {
     // "triggering-relationship",
   ],
 
-  nodeWidth: 200,
+  // nodeWidth: 200,
+  // nodeHeight: 60,
+  // nodeWidth: 116,
+  // nodeHeight: 65,
+  nodeWidth: 180,
   nodeHeight: 60,
   hSep: 20,
   vSep: 40,

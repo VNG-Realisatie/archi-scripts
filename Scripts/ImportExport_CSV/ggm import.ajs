@@ -1,0 +1,17 @@
+/**
+ * import
+ * 	import all object from a CSV file
+ */
+
+load(__DIR__ + "../_lib/Common.js");
+
+// matchen op ID ggm-guid ipv Object ID
+var PROP_ID = "ggm-guid";
+
+load("include_import.js");
+
+initConsoleLog(__FILE__,true);
+
+importObjects();
+
+finishConsoleLog();

@@ -52,6 +52,7 @@ function importObjects(importFile) {
 
   try {
     console.log(`Importing objects of CSV`);
+    console.log(`>>> ENDPOINT_LABELS = ${ENDPOINT_LABELS}`)
 
     if (!importFile) {
       importFile = window.promptOpenFile({

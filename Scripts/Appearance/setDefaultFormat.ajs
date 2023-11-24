@@ -24,7 +24,8 @@ applyToCollection(collection, SetDefaultFormat);
 finishConsoleLog();
 
 function SetDefaultFormat(obj) {
-  console.log(`- view "${obj.view.name}", \t${obj} `);
+  debugStackPush(false);
+  debug(`- view "${obj.view.name}", \t${obj} `);
 
   // all types
   obj.fontColor = null;
@@ -40,7 +41,7 @@ function SetDefaultFormat(obj) {
     obj.fillColor = null;
     obj.opacity = 255;
     //obj.outlineOpacity
-    //obj.gradient
+    obj.gradient = GRADIENT.NONE 
     // obj.figureType = 0;
 		if (obj.type == "grouping") {
 			if (obj.figure == 0) obj.textAlignment = TEXT_ALIGNMENT.CENTER;
@@ -61,4 +62,5 @@ function SetDefaultFormat(obj) {
   if ((obj.type == "diagram-model-group" && obj.borderType == BORDER.TABBED) || obj.type == "diagram-model-note") {
     obj.textAlignment = TEXT_ALIGNMENT.LEFT;
   }
+  debugStackPop();
 }

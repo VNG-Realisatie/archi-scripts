@@ -1,3 +1,11 @@
+/**
+ * Create or update GEMMA bedrijfsobject views
+ * - for every DO-view
+ * - create view
+ *  - copy all object, replace data-objects with business objects
+ *  - copy all relations, replace relations with data-objects to business-objects
+ */
+
 load("include-ggm-gemma.js");
 initConsoleLog(__FILE__, true);
 

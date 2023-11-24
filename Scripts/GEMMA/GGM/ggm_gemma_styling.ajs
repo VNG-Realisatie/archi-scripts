@@ -1,0 +1,58 @@
+load(__DIR__ + "../../_lib/Common.js");
+load(__DIR__ + "../../_lib/selection.js");
+
+initConsoleLog(__FILE__, true);
+
+try {
+  let dataObjects = getVisualSelection($(selection), "data-object");
+  applyToCollection(dataObjects, styleDataObjects);
+
+  console.log();
+  let groupings = getVisualSelection($(selection), "grouping");
+  applyToCollection(groupings, styleGroupings);
+
+  console.log();
+  let specializations = getVisualSelection($(selection), "specialization-relationship");
+  applyToCollection(specializations, styleSpecialization);
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();
+
+/**
+ * Styling functions
+ */
+function styleDataObjects(obj) {
+  switch (obj.prop("archimate-type")) {
+    case "Data object":
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = null;
+      break;
+    case "Business object":
+      obj.opacity = 200;
+      obj.gradient = GRADIENT.LEFT;
+      obj.fillColor = "#FFFFCC"; // "Cream"
+      break;
+
+    default:
+      obj.fillColor = "#C0C0C0"; // "Silver"
+      break;
+  }
+  if (obj.prop("uml-type") == "Enumeration") {
+    obj.opacity = 100;
+    obj.labelExpression = "${name}\n(${property:uml-type})";
+  }
+}
+
+function styleGroupings(obj) {
+  obj.fontSize = 12;
+  obj.fontStyle = "bold";
+  obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+}
+
+function styleSpecialization(obj) {
+  obj.lineColor = "#229954"; // Sets line color to green
+  obj.lineWidth = 1;
+}

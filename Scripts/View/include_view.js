@@ -68,7 +68,6 @@ if (!Array.prototype.includes) {
     return !!~this.indexOf(search);
   };
 }
-
 var graph = {}; // graphlib graph for layout view
 var graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
 var graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
@@ -86,7 +85,7 @@ try {
   require.addPath(__DIR__);
   // var dagre = require("../_lib/dagre");
   // var dagre = require("../_lib/dagre-cluster-fix");
-  var dagre = require("../_lib/dagre");  // @dagrejs/dagre 1.04
+  var dagre = require("../_lib/dagre"); // @dagrejs/dagre 1.04
 
   console.log(`Dagre version:`);
   console.log(`- dagre:    ${dagre.version}`); // dagre-cluster-fix should show version 0.9.3
@@ -105,7 +104,7 @@ try {
  * - superseded by 'wrapper'.ajs file
  */
 function get_default_parameter(file, init_param) {
-  let path = file.substring(0,file.lastIndexOf("\\")+1);
+  let path = file.substring(0, file.lastIndexOf("\\") + 1);
 
   try {
     load(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
@@ -120,16 +119,18 @@ function get_default_parameter(file, init_param) {
 }
 
 function get_user_parameter(file, filename_param) {
-  let path = file.substring(0,file.lastIndexOf("\\")+1);
+  let path = file.substring(0, file.lastIndexOf("\\") + 1);
   let filename = file.replace(/^.*[\\\/]/, "");
-  let name = filename.substring(0,filename.lastIndexOf("."));
-  let [direction, action, user_param_name] = name.split("_");
+  let name = filename.substring(0, filename.lastIndexOf("."));
+
+  // let [direction, action, user_param_name] = name.split("_");
+  let [user_param_name, action, direction] = name.split("_");
 
   filename_param.graphDirection = direction;
   filename_param.action = action;
-  
+
   if (user_param_name) {
-    console.log(`${action} with direction ${direction} and user parameter "${user_param_name}"`);
+    console.log(`User parameter "${user_param_name}", action ${action} with direction ${direction}`);
     const PARAM_FILE = `${USER_PARAM_FOLDER}/${user_param_name}.js`;
 
     try {
@@ -179,7 +180,7 @@ function generate_view(param) {
 
           filteredElements.forEach(function (e) {
             // set viewname to the element name
-            param.viewName = e.name;
+            param.viewName = e.name + param.viewNameSuffix;
             console.log(`- ${param.viewName}`);
             layoutAndRender(param, $(e));
           });
@@ -199,6 +200,10 @@ function generate_view(param) {
 }
 
 function layoutAndRender(param, filteredElements) {
+  graph = {}; // graphlib graph for layout view
+  graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
+  graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
+
   createGraph(param);
   fillGraph(param, filteredElements);
   layoutGraph(param);
@@ -237,7 +242,9 @@ function setDefaultParameters(param) {
   if (param.includeRelationType === undefined) param.includeRelationType = [];
   if (!validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter"))
     validFlag = false;
-  if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
+  if (param.viewNameSuffix === undefined || param.viewNameSuffix === "") param.viewNameSuffix = ""
+  console.log(`  - viewName = ${param.viewName}`);
+  if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name + param.viewNameSuffix;
   console.log(`  - viewName = ${param.viewName}`);
 
   console.log("How to draw relationships");
@@ -412,9 +419,6 @@ function addElement(level, param, archiEle, filteredElements) {
   }
   // add element to the graph
   createNode(level, param, archiEle);
-  console.log("\nAdded to the graph:");
-  console.log(`- ${graph.nodeCount()} nodes and`);
-  console.log(`- ${graph.edgeCount()} edges`);
   debug(`archiEle: ${archiEle}`);
 
   $(archiEle)
@@ -438,9 +442,6 @@ function addElement(level, param, archiEle, filteredElements) {
             // Add relation as edge
             addRelation(level, param, rel);
 
-            console.log("\nAdded to the graph:");
-            console.log(`- ${graph.nodeCount()} nodes and`);
-            console.log(`- ${graph.edgeCount()} edges`);
             // graph
             //   .nodes()
             //   .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
@@ -754,8 +755,8 @@ function drawRelation(param, edge, visualElementIndex, view) {
  * @param {object} view Archi view
  */
 function layoutNestedConnection(parentRel, visualElementIndex, view) {
-  debugStackPush(false);
-  debug(`parentRel: ${parentRel}`);
+  debugStackPush(true);
+  debug(`parentRel: ${parentRel.source} --${parentRel.name}--> ${parentRel.targets}`);
   view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
   debugStackPop();
 }

@@ -59,13 +59,12 @@ var xxx = {
 let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje/"
 let GGM_objects = "ggm_export_objects_06112023-07_59_13.csv";
 let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
-let GEMMA_sync_dir = "GGM data-objecten";
 
 var iv3_domeinen = {
   label: "Iv3",
   csv: GGM_csv_dir + GGM_objects,
   targetType: "grouping",
-  targetFolder: getFolder("Other", GEMMA_sync_dir),
+  targetFolder: getFolder("Other", "domein iv3"),
   getId: function (element) {
     return element.prop("domein-iv3");
   },
@@ -88,7 +87,7 @@ var dataobjecten = {
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";
   // },
-  targetFolder: getFolder("Application", GEMMA_sync_dir),
+  targetFolder: getFolder("Application", "data-objecten (GGM)"),
   getId: function (element) {
     return element.prop("ggm-guid");
   },
@@ -101,19 +100,19 @@ var dataobjecten = {
   propMapping: {
     "uml-type": "uml-type",
     "archimate-type": "archimate-type",
-    "gemma-guid": "gemma-guid",
-    "Object ID": function (row) {
-			if (row["ggm-guid"]) {
-				return  row["ggm-guid"].replace(/[\{\}]+/g, '');
-			}
-		},
+    // "gemma-guid": "gemma-guid",
+    // "Object ID": function (row) {
+		// 	if (row["ggm-guid"]) {
+		// 		return  row["ggm-guid"].replace(/[\{\}]+/g, '');
+		// 	}
+		// },
     "ggm-guid": "ggm-guid",
     "bron": "bron",
-    toelichting: "toelichting",
-    // toelichting: "toelichting",
+    toelichting: "toelichting1",
+    toelichting: "toelichting2",
     "synoniemen": "synoniemen",
     "domein-iv3": "domein-iv3",
-    "domein-dcat": "domein-dcat",
+    // "domein-dcat": "domein-dcat",
     // "domein-gemma": "domein-gemma",
     "datum-tijd-export": "datum-tijd-export",
   },
@@ -122,6 +121,7 @@ var dataobjecten = {
       column: "domein-iv3",
       reference: iv3_domeinen,
       targetType: "aggregation-relationship",
+      targetFolder: getFolder("Relations", "domein iv3 (GGM)"),
       isReversed: true,
     },
   },
@@ -151,7 +151,7 @@ syncModelRelationships(dataobjecten);
 // syncModelRelationships(objectRelations);
 
 // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-//tagDeletedConcepts();
+tagDeletedConcepts();
 
 var endTime = new Date().getTime();
 console.log("Elapse time: ", (endTime - startTime) / 1000, " sec");

@@ -1,14 +1,15 @@
 const USER_PARAM = {
   graphDepth: 2,
+  viewNameSuffix: " (GGM)",
   includeElementType: [
     "data-object",
     "grouping",
   ],
   includeRelationType: [
     // "access-relationship",
-    "aggregation-relationship",
+    // "aggregation-relationship",
     // "assignment-relationship",
-    "association-relationship",
+    // "association-relationship",
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
@@ -44,7 +45,7 @@ const USER_PARAM = {
     // "triggering-relationship",
   ],
 
-  nodeWidth: 200,
+  nodeWidth: 180,
   nodeHeight: 60,
   hSep: 20,
   vSep: 40,

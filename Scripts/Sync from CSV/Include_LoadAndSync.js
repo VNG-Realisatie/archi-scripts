@@ -242,6 +242,7 @@ function syncModelRelationships(dataSource) {
               } else {
                 createOrUpdateRelationship(relation, element, relation.targetType, otherEnd);
               }
+
               createdOrUpdated++;
             }
           }
@@ -307,6 +308,9 @@ function createOrUpdateRelationship(config, source, type, target) {
 
   if (type == "association-relationship") {
     relationship.associationDirected = config.associationDirected;
+  }
+  if (config.targetFolder) {
+    config.targetFolder.add(relationship);
   }
 }
 
