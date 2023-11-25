@@ -1,35 +1,43 @@
+/**
+ * Opmaken van GGM data- en bedrijfsobjectenviews
+ */
 load(__DIR__ + "../../_lib/Common.js");
 load(__DIR__ + "../../_lib/selection.js");
 
 initConsoleLog(__FILE__, true);
 
 try {
-  let dataObjects = getVisualSelection($(selection), "data-object");
-  applyToCollection(dataObjects, styleDataObjects);
+  // kleur voor onderscheid op archimate-type (data- en bedrijfsobject)
+  applyToCollection(getVisualSelection($(selection), "data-object"), styleDataObjects);
 
+  // bold font domein-grouping
   console.log();
-  let groupings = getVisualSelection($(selection), "grouping");
-  applyToCollection(groupings, styleGroupings);
+  applyToCollection(getVisualSelection($(selection), "grouping"), styleGroupings);
 
+  // specialisatie-relaties groen
   console.log();
-  let specializations = getVisualSelection($(selection), "specialization-relationship");
-  applyToCollection(specializations, styleSpecialization);
+  applyToCollection(getVisualSelection($(selection), "specialization-relationship"), styleSpecialization);
 
-  console.log();
   let views = getSelection($(selection), "view");
-  let notNestedElements = views.children("element").not("grouping");
-  applyToCollection(notNestedElements, labelSet);
 
+  // toon domein voor data- of bedrijfsobjecten die niet in een domeingroup zijn genest
   console.log();
-  // publiceren bedrijfsobjecten views 
+  let notNestedElements = views.children("element").not("grouping");
+  applyToCollection(notNestedElements, setLabelExpression);
+
+  // publiceren bedrijfsobjecten views
+  console.log();
   views
     .filter((view) => !view.name.endsWith(" (GGM)"))
     .each((view) => view.prop("Publiceren", "GEMMA Online en redactie"));
   // set view property domein for wiki queries
   views.each((view) => {
-    let grouping = $(view).children("grouping").first();
-    let domeinIv3 = grouping.prop("domein-iv3");
-    if (domeinIv3) view.prop("domein-iv3", domeinIv3);
+    $(view)
+      .children("grouping")
+      .filter((group) => group.prop("domein-iv3"))
+      .each((grouping) => {
+        view.prop("domein-iv3", grouping.prop("domein-iv3"));
+      });
   });
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -54,6 +62,8 @@ function styleDataObjects(obj) {
       break;
 
     default:
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
       obj.fillColor = "#C0C0C0"; // "Silver"
       break;
   }
@@ -75,8 +85,8 @@ function styleSpecialization(obj) {
 }
 
 /**
- * Set the label domein_iv3 for object not nested in a grouping domein
+ * Append (<domein_iv3>) to the label of an visual object
  */
-function labelSet(obj) {
+function setLabelExpression(obj) {
   obj.labelExpression = "${name}\n(${property:domein-iv3})";
 }

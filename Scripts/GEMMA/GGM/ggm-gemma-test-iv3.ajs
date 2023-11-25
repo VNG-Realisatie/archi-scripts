@@ -1,28 +1,7 @@
 /**
  * Create GEMMA bedrijfsobjectenmodel gebaseerd op GGM
- *
- * Uitgangssituatie
- * - GGM ArchiMate-model met een geïmporteerd GGM model
- *   - data-objecten en iv3-domeinen met script ggm-sync.ajs (ggm_export_objects_<date>.csv)
- *   - data-object relaties met import_relations.ajs (convert GGM relations.ods met bewerkt ggm_export_relations_<date>.csv)
- * - GGM import bestaat uit
- *   - data-objecten en onderlinge relaties met ggm-guid
- *   - Iv3 domeinen en aggregatie-relaties zonder ggm-guid
- *
- * Aanmaken GEMMA bedrijfsobjectenmodel
- * - GGM data-objecten en relaties worden gekopieerd als GEMMA bedrijfsobjectenmodel (met identieke ggm-guid)
- * - Iv3 domeinen worden niet gekopieerd
- *   - ggm relaties groeperen de GGM data-objecten
- *   - gekopieerde ggm relaties groeperen de GEMMA bedrijfsobjecten
- *
- * ID's GGM
- * - GGM objecten en relaties hebben een uniek id ggm-guid
- * - iv3 domeinen en relaties met deze domeinen echter niet
- * ID's GEMMA
- * - GGM ID's worden gekopieerd
- * - iv3 domeinen en relaties krijgen een gemma-id (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
- * - alle objecten en relaties krijgen een gemma Object ID
- *
+ * 
+ * draai stap updateRelationsIv3
  */
 
 load("include-ggm-gemma.js");

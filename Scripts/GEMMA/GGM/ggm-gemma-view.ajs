@@ -112,11 +112,11 @@ function find_GGM_GEMMA_relation(rel) {
   debugStackPush(false);
   let foundRelation;
   debug(`> 0 ${rel.source} --${rel.name}--> ${rel.target} (${rel.type})`);
-  if (rel.prop(GGM_ID)) {
+  if (rel.prop(PROP_GGM_ID)) {
     // created business object relations
     foundRelation = $(rel.type)
-      .filter((r) => r.prop(GGM_ID) == rel.prop(GGM_ID))
-      .filter((r) => r.prop(PROP_GGM_GEMMA) != null)
+      .filter((r) => r.prop(PROP_GGM_ID) == rel.prop(PROP_GGM_ID))
+      .filter((r) => r.prop(PROP_GGM_GEMMA_DATE) != null)
       .first();
     if (foundRelation) debug(`>> 0.1 ${foundRelation.source} --${foundRelation.name}--> ${foundRelation.target}`);
   } else {

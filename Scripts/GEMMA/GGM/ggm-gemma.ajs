@@ -16,12 +16,17 @@
  *   - gekopieerde ggm relaties groeperen de GEMMA bedrijfsobjecten
  *
  * ID's GGM
- * - GGM objecten en relaties hebben een uniek id ggm-guid
- * - iv3 domeinen en relaties met deze domeinen echter niet
- * ID's GEMMA
- * - GGM ID's worden gekopieerd
- * - iv3 domeinen en relaties krijgen een gemma-id (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
- * - alle objecten en relaties krijgen een gemma Object ID
+ * - GGM objecten en relaties hebben een uniek id ggm-guid (aangeleverd in GGM csv)
+ * - iv3 domeinen en aggregaties hebben géén GGM id (aangemaakt met Sync ggm.ajs)
+ * GEMMA ID's
+ * - alle objecten krijgen een Object ID
+ * gebruik ID's voor matchen
+ * - gekopieerde bedrijfsobjecten en relaties (van data-objecten en relaties) krijgen
+ *    - kopie ggm-guid van bron object
+ *    - uniek Object ID
+ * - iv3 domeinen en aggregaties krijgen 
+ *    - uniek Object ID (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
+ *    - kopie Object ID in afgeleide aggregatie relaties domein -> bedrijfsobject
  *
  */
 
@@ -43,7 +48,7 @@ updateBusinessObjects(
   dataObjectColl,
   businessObjectsColl
 );
-appendSuffix(businessObjectsColl);
+addPropAlternateName(businessObjectsColl);
 updateRelationsBusinessObject(dataObjectColl, getFolder("Relations", FOLDER_NAME), relationColl);
 updateRelationsIv3(dataObjectColl, getFolder("Relations", "Domein iv3"), relationColl);
 

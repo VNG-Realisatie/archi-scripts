@@ -12,5 +12,9 @@ let param = {};
 param = get_default_parameter(__FILE__, param);
 param = get_user_parameter(__FILE__, param);
 
+// param.ranker = "longest-path";
+param.ranker = "tight-tree";
+// param.ranker = "network-simplex";
+
 generate_view(param);
 finishConsoleLog();
