@@ -44,8 +44,9 @@ let selectedObjects = getSelection($(selection), "data-object");
 updateBusinessObjects(
   selectedObjects,
   getFolder("Business", FOLDER_NAME),
-  getFolder("Relations", "realiseert bedrijfsobject"), stats_BO
+  getFolder("Relations", "Data-object realiseert bedrijfsobject"), stats_BO
 );
+
 updateRelationsBusinessObject(selectedObjects, getFolder("Relations", FOLDER_NAME), stats_relBO);
 updateRelationsIv3(selectedObjects, getFolder("Relations", "Domein iv3"), stats_relIv3);
 

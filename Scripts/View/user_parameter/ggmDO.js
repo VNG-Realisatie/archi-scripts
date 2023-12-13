@@ -3,7 +3,7 @@ const USER_PARAM = {
   viewNameSuffix: " (GGM)",
   includeElementType: [
     "data-object",
-    "grouping",
+    "grouping"
   ],
   includeRelationType: [
     // "access-relationship",
@@ -44,10 +44,10 @@ const USER_PARAM = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
+  excludeFromView: true,
 
-  nodeWidth: 180,
+  nodeWidth: 140,
   nodeHeight: 60,
   hSep: 20,
-  vSep: 60,
-  
-  };
+  vSep: 50,
+};

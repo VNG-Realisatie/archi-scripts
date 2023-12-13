@@ -7,6 +7,19 @@
  * 
  */
 const USER_PARAM = {
+  layoutReversed: [
+    // "access-relationship",
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    "realization-relationship",
+    // "serving-relationship",
+    // "specialization-relationship",
+    // "triggering-relationship",
+  ],
   layoutNested: [
     // "access-relationship",
     "aggregation-relationship",
@@ -17,8 +30,12 @@ const USER_PARAM = {
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
+  nodeWidth: 200,
+  nodeHeight: 60,
+  hSep: 80, // space between nodes
+  vSep: 20, // space between ranks 
 
 };

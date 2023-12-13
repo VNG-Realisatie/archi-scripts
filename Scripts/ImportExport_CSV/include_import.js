@@ -242,7 +242,8 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
   // search with property PROP_ID
   if (row_prop_id) {
     rowHasKey = true;
-    archiColl = $("*").filter((obj) => obj.prop(PROP_ID) == row_prop_id);
+    if (!row_type) row_type = "*"
+    archiColl = $(row_type).filter((obj) => obj.prop(PROP_ID) == row_prop_id);
     // a PROP_ID has to be unique
     if (archiColl.size() == 1) {
       findCode = FOUND;

@@ -43,14 +43,16 @@ const USER_PARAM = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
+  excludeFromView: true,
 
   // nodeWidth: 200,
   // nodeHeight: 60,
   // nodeWidth: 116,
   // nodeHeight: 65,
-  nodeWidth: 180,
+
+  nodeWidth: 140,
   nodeHeight: 60,
   hSep: 20,
-  vSep: 60,
+  vSep: 30,
   
   };

@@ -11,6 +11,7 @@ const OBJECT_TYPE_VIEW = "view";
 // Set the name of the property containing a tool independent identifier.
 // If set, the import wil use the PROP_ID as the first id for matching objects
 if (!PROP_ID) {
+  // global type var, because const is block scoped 
   var PROP_ID = "Object ID";
 }
 

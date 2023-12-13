@@ -28,8 +28,23 @@ try {
   // publiceren bedrijfsobjecten views
   console.log();
   views
-    .filter((view) => !view.name.endsWith(" (GGM)"))
-    .each((view) => view.prop("Publiceren", "GEMMA Online en redactie"));
+    .each((view) => {
+      view.prop("Bron", "GGM");
+      view.prop("Scope", "Gemeente");
+      view.prop("Detailniveau", "Samenhang");
+      // view.prop("Domein", gemmaDomein);
+      view.prop("ViewType", "Basis");
+
+      if (view.name.endsWith(" (GGM)")) {
+        view.prop("Architectuurlaag", "Applicatiearchitectuur");
+      } else {
+        // Bedrijfsobjectmodellen publiceren
+        view.prop("Publiceren", "GEMMA Online en redactie");
+        view.prop("Architectuurlaag", "Bedrijfsarchitectuur");
+      }
+      view.removeProp("generate_view_param")
+    });
+
   // set view property domein for wiki queries
   views.each((view) => {
     $(view)
@@ -77,16 +92,17 @@ function styleGroupings(obj) {
   obj.fontSize = 12;
   obj.fontStyle = "bold";
   obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  obj.fillColor = "#FAFAFA"
 }
 
 function styleSpecialization(obj) {
-  obj.lineColor = "#229954"; // Sets line color to green
-  obj.lineWidth = 1;
+  obj.lineColor = "#5dade2"; // Sets line color to blue
+  obj.lineWidth = 2;
 }
 
 /**
  * Append (<domein_iv3>) to the label of an visual object
  */
 function setLabelExpression(obj) {
-  obj.labelExpression = "${name}\n(${property:domein-iv3})";
+  obj.labelExpression = "${name}\n($aggregation:source{name})";
 }

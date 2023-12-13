@@ -51,10 +51,10 @@ const REGENERATE = "Regenerate";
 
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
+const PROP_EXCLUDE = "excludeFromView";
 const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
 const DEFAULT_GRAPHDEPTH = 1;
 const DEFAULT_ACTION = GENERATE_SINGLE;
-const DEFAULT_DIRECTION = "LR";
 const DEFAULT_NODE_WIDTH = 140; // width of a drawn element
 const DEFAULT_NODE_HEIGHT = 60; // height of a drawn element
 const JUNCTION_DIAMETER = 14; // size of a junction
@@ -242,6 +242,8 @@ function setDefaultParameters(param) {
   if (param.includeRelationType === undefined) param.includeRelationType = [];
   if (!validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter"))
     validFlag = false;
+  if (param.excludeFromView === undefined) param.excludeFromView = false;
+  console.log(`  - excludeFromView = ${param.excludeFromView} (exclude objects with property ${PROP_EXCLUDE}=true)`);
   if (param.viewNameSuffix === undefined || param.viewNameSuffix === "") param.viewNameSuffix = ""
   console.log(`  - viewName = ${param.viewName}`);
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name + param.viewNameSuffix;
@@ -424,6 +426,7 @@ function addElement(level, param, archiEle, filteredElements) {
   $(archiEle)
     .rels()
     .filter((rel) => filterObjectType(rel, param.includeRelationType))
+    .filter((rel) => !(rel.prop(PROP_EXCLUDE) == "true" && param.excludeFromView)) // skip object with PROP_EXCLUDE
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .each(function (rel) {
       let related_element = rel.source;

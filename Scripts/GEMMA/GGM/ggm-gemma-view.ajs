@@ -28,7 +28,7 @@ function copyGGMview(view, newView, viewFolder) {
   if ((view.type = "view")) {
     let viewName = view.name.replace(" (GGM)", "");
     newView = getView(viewFolder, viewName);
-    copyProp(view, newView);
+    syncObject(view, newView);
     copyViewElements(view, newView);
     copyViewRelations(view, newView);
   }

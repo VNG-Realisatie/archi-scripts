@@ -178,7 +178,7 @@ function syncModelElements(dataSource) {
           ? dataSource.propMapping[propName](row)
           : row[dataSource.propMapping[propName]];
       // Cast propValue to String to avoid ambiguity between prop(String, String) and prop(String, boolean) in rare occasions
-      element.prop(propName, String(propValue));
+      if (propValue) element.prop(propName, String(propValue));
     }
   }
 

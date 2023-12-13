@@ -8,14 +8,16 @@ load(__DIR__ + "../../_lib/archi_folders.js");
 load(__DIR__ + "../../_lib/Common.js");
 
 const PROP_ID = "Object ID";
-const PROP_GGM_ID = "ggm-guid";
+const PROP_GGM_ID = "imported-ggm-guid";
+const PROP_GGM_ID_COPY = "ggm-guid"; // ##was## necesary for ggm_import script, lookup any type object with ggm-id
 const PROP_DATA_OBJECT_ID = "Object ID data-object";
 const PROP_IV3 = "domein-iv3";
-const PROP_GGM_GEMMA_DATE = "Latest GGM GEMMA sync";
-const PROP_GGM_SYNC = "is GGM copy";
+const PROP_GGM_SYNC = "Let op";
 const PROP_SPECIALIZATON = "Meer specifiek";
-
-const CURRENT_DATE = new Date().toLocaleDateString("nl-NL");
+const PROP_GGM_GEMMA_COPY = {};
+const PROP_GEMMA_URL = "GEMMA URL";
+// const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
+const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 
 /**
  * Create or update a business object for every GGM data-object
@@ -25,31 +27,35 @@ const CURRENT_DATE = new Date().toLocaleDateString("nl-NL");
  * - create realization-relation from data-object to business object
  */
 function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, stats) {
-  let processBusinessObjectsColl=$()
+  let processBusinessObjectsColl = $();
   console.log(`Created business-object:`);
   dataObjects
     .filter((dataObject) => dataObject.prop("archimate-type") == "Business object")
     .each((dataObject) => {
       let businessObject = $("business-object")
-        .filter((obj) => obj.prop(PROP_GGM_ID) == dataObject.prop(PROP_GGM_ID))
+        .filter((obj) => obj.prop(PROP_GGM_ID_COPY) == dataObject.prop(PROP_GGM_ID))
         .first();
       if (businessObject) {
         console.log(`> update ${businessObject}`);
         stats.nr_update += 1;
       } else {
         businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
-
         // create a realization relation between the GGM data-object and created business object
-        model.createRelationship("realization-relationship", REALIZATION_LABEL, dataObject, businessObject, relsFolder);
+        realizationRel = model.createRelationship("realization-relationship", REALIZATION_LABEL, dataObject, businessObject, relsFolder);
+        realizationRel.prop(PROP_GGM_SYNC, "Gegenereerd met ggm-gemma.ajs")
+
         console.log(`> create ${businessObject}`);
         stats.nr_create += 1;
       }
-      copyProp(dataObject, businessObject);
+      syncObject(dataObject, businessObject);
       addPropSpecializations(dataObject, businessObject);
+      addPropGEMMA_URL(businessObject);
+
       processBusinessObjectsColl.add(businessObject);
     });
 
   addPropAlternateName(processBusinessObjectsColl);
+  addPropGEMMA_URL(processBusinessObjectsColl);
 
   console.log();
   return;
@@ -96,12 +102,12 @@ function updateRelationsBusinessObject(dataObjects, relsFolder, stats) {
         index.push(rel);
 
         let businessRel = $(rel.type)
-          .filter((bRel) => bRel.prop(PROP_GGM_ID) == rel.prop(PROP_GGM_ID))
+          .filter((bRel) => bRel.prop(PROP_GGM_ID_COPY) == rel.prop(PROP_GGM_ID))
           .filter((bRel) => bRel.source.type == "business-object")
           .first();
         if (businessRel) {
           console.log(`> update ${printRelation(businessRel)}`);
-          copyProp(rel, businessRel);
+          syncObject(rel, businessRel);
           stats.nr_update += 1;
         } else {
           let source = find_GGM_GEMMA_object(rel.source);
@@ -109,7 +115,7 @@ function updateRelationsBusinessObject(dataObjects, relsFolder, stats) {
 
           if (source && target) {
             let businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
-            copyProp(rel, businessRel);
+            syncObject(rel, businessRel);
 
             console.log(`> create ${printRelation(businessRel)}`);
             stats.nr_create += 1;
@@ -141,16 +147,16 @@ function updateRelationsIv3(dataObjects, relsFolder, stats) {
 
       if (iv3Relation) {
         console.log(`> update ${printRelation(iv3Relation)}`);
-        copyProp(rel, iv3Relation);
-        stats.nr_update +=1
+        syncObject(rel, iv3Relation);
+        stats.nr_update += 1;
       } else {
         let target = find_GGM_GEMMA_object(rel.target);
         if (target) {
           iv3Relation = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
-          copyProp(rel, iv3Relation);
+          syncObject(rel, iv3Relation);
           iv3Relation.prop(PROP_DATA_OBJECT_ID, rel.prop(PROP_ID));
           console.log(`> create ${printRelation(iv3Relation)}`);
-          stats.nr_create +=1
+          stats.nr_create += 1;
         }
       }
     });
@@ -159,24 +165,65 @@ function updateRelationsIv3(dataObjects, relsFolder, stats) {
 
 /**
  * Copy GGM properties to the synchronised element/relation
- * - new properties will be added
+ * - keep GEMMA properties
+ *   - name
+ *   - documentation
+ *   - object ID
+ * - add or update ggm properties with ggm-prefix
  * - update is overwrite
  * - no deletion of properties
  */
-function copyProp(from, to) {
-  to.name = from.name;
-  to.documentation = from.documentation;
+function syncObject(from, to) {
+  // sync objects attributes
+  syncAttribute("name");
+  syncAttribute("documentation");
+
+  // sync objects properties
   from.prop().forEach((curProperty) => {
-    if (curProperty != PROP_ID) {
-      to.prop(curProperty, from.prop(curProperty));
+    switch (curProperty) {
+      case "Toelichting":
+        // do not overwrite property Toelichting
+        if (to.prop(curProperty) == "") {
+          to.prop(curProperty, from.prop(curProperty));
+        } else {
+          if (from.prop(curProperty) != to.prop(curProperty)) {
+            to.prop(`ggm-${curProperty.toLowerCase()}`, from.prop(curProperty));
+          }
+        }
+        break;
+      case PROP_GGM_ID:
+        to.prop(PROP_GGM_ID_COPY, from.prop(PROP_GGM_ID));
+        break;
+      // skip next properties
+      case PROP_ID: // Object ID, data- and bedrijfsobject have their own PROP_ID
+      case "archimate-type":
+      // case "uml-type":
+      case "Latest Sync Date":
+        // skip for bedrijfsobjecten irrelevant properties
+        break;
+      default:
+        // prefix property label with 'ggm-'
+        to.prop(`ggm-${curProperty}`, from.prop(curProperty));
+        break;
     }
   });
+  // association relation are directed (show 'half' arrow in views)
   if (from.type == "association-relationship") {
     to.associationDirected = from.associationDirected;
   }
-  to.prop(PROP_GGM_GEMMA_DATE, CURRENT_DATE);
-  to.prop(PROP_GGM_SYNC, `Wijzigingen worden overschreven, wijzigingen via het GGM model`);
+  // add a warning in every created object
+  to.prop(PROP_GGM_SYNC, `"ggm-" properties worden beheerd in het GGM informatiemodel`);
   return;
+
+  function syncAttribute(attribute) {
+    if (to[attribute] == "") {
+      to[attribute] = from[attribute];
+    } else {
+      if (from[attribute] != to[attribute]) {
+        to.prop(`ggm-${attribute.toLowerCase()}`, from[attribute]);
+      }
+    }
+  }
 }
 
 /**
@@ -219,6 +266,14 @@ function addPropAlternateName(archiObjColl) {
   }
 }
 
+// add property met GEMMA online URL
+function addPropGEMMA_URL(archiObj) {
+  if (!archiObj.prop(PROP_ID)) {
+    archiObj.prop(PROP_ID, generateUUID());
+  }
+  archiObj.prop(PROP_GEMMA_URL, GEMMA_URL + archiObj.prop(PROP_ID));
+}
+
 /**
  * return the from the data-object created business-object
  */
@@ -227,7 +282,7 @@ function find_GGM_GEMMA_object(searchObject) {
   if (searchObject.prop(PROP_GGM_ID)) {
     // find created GEMMA bedrijfsobject
     foundObject = $("business-object")
-      .filter((obj) => obj.prop(PROP_GGM_ID) == searchObject.prop(PROP_GGM_ID))
+      .filter((obj) => obj.prop(PROP_GGM_ID_COPY) == searchObject.prop(PROP_GGM_ID))
       .first();
   } else {
     console.log(`ERROR: searchobject=${searchObject} zonder "${PROP_GGM_ID}"`);
@@ -252,4 +307,20 @@ function printRelation(rel, debug) {
  */
 function concept(o) {
   return o.concept ? o.concept : o;
+}
+
+/**
+ * generateUUID()
+ * 	return a generated UUID
+ * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+ */
+function generateUUID() {
+  // Public Domain/MIT
+  var d = new Date().getTime(); //Timestamp
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16; //random number between 0 and 16
+    r = (d + r) % 16 | 0;
+    d = Math.floor(d / 16);
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }

@@ -54,10 +54,9 @@ var xxx = {
  *    C:/Users/marks/Vereniging van Nederlandse Gemeenten/Unit Architectuur en Standaarden - Documents/GEMMA ontwikkelstraat/GGM
  */
 
-
 // C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/GGM
-let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje/"
-let GGM_objects = "ggm_export_objects_06112023-07_59_13.csv";
+let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje/";
+let GGM_objects = "ggm_export_objects_06112023-07_59_13_toelichting.csv";
 let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
 
 var iv3_domeinen = {
@@ -66,16 +65,18 @@ var iv3_domeinen = {
   targetType: "grouping",
   targetFolder: getFolder("Other", "Domein iv3"),
   getId: function (element) {
-    return element.prop("omein-iv3");
+    // return element.prop("domein-iv3");
+    return element.name;
   },
   setId: function (element, row) {
-    element.prop("domein-iv3", row["_id"]);
+    // element.prop("domein-iv3", row["_id"]);
+    element.name = row["_id"];
   },
-  id: "domein-iv3",
+  id: "domein-iv3", // per id wordt een object aangemaakt
   name: "domein-iv3",
-  documentation: "",
+  documentation: "geen",
   propMapping: {
-    datumTijdExport: "datum-tijd-export",
+    "ggm-datum-tijd-export": "datum-tijd-export",
   },
   relations: {},
 };
@@ -89,29 +90,23 @@ var dataobjecten = {
   // },
   targetFolder: getFolder("Application", "Data-objecten (GGM)"),
   getId: function (element) {
-    return element.prop("ggm-guid");
+    return element.prop("imported-ggm-guid");
   },
   setId: function (element, row) {
-    element.prop("ggm-guid", row["_id"]);
+    element.prop("imported-ggm-guid", row["_id"]);
   },
   id: "ggm-guid",
   name: "naam",
   documentation: "definitie",
   propMapping: {
     "uml-type": "uml-type",
-    "archimate-type": "archimate-type",
-    // "gemma-guid": "gemma-guid",
-    // "Object ID": function (row) {
-		// 	if (row["ggm-guid"]) {
-		// 		return  row["ggm-guid"].replace(/[\{\}]+/g, '');
-		// 	}
-		// },
-    "ggm-guid": "ggm-guid",
-    "bron": "bron",
-    toelichting: "toelichting1",
-    toelichting: "toelichting2",
-    "synoniemen": "synoniemen",
-    "domein-iv3": "domein-iv3",
+    // "ggm-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
+    "imported-ggm-guid": "ggm-guid",
+    bron: "bron",
+    // "toelichting": "Toelichting",
+    Toelichting: "toelichting",
+    synoniemen: "synoniemen",
+    // "domein-iv3": "domein-iv3", // added as relation
     // "domein-dcat": "domein-dcat",
     // "domein-gemma": "domein-gemma",
     "datum-tijd-export": "datum-tijd-export",
@@ -139,19 +134,12 @@ console.log(
 var startTime = new Date().getTime();
 
 loadAndSync(iv3_domeinen);
-// syncModelRelationships(iv3_domeinen);
-
-// loadAndSync(bedrijfsobjecten);
-// syncModelRelationships(bedrijfsobjecten);
 
 loadAndSync(dataobjecten);
 syncModelRelationships(dataobjecten);
 
-// loadAndSync(objectRelations);
-// syncModelRelationships(objectRelations);
-
 // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-tagDeletedConcepts();
+// tagDeletedConcepts();
 
 var endTime = new Date().getTime();
 console.log("Elapse time: ", (endTime - startTime) / 1000, " sec");
