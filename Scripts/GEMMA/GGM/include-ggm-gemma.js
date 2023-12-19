@@ -16,8 +16,8 @@ const PROP_GGM_SYNC = "Let op";
 const PROP_SPECIALIZATON = "Meer specifiek";
 const PROP_GGM_GEMMA_COPY = {};
 const PROP_GEMMA_URL = "GEMMA URL";
-// const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
-const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
+const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
+// const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 
 /**
  * Create or update a business object for every GGM data-object

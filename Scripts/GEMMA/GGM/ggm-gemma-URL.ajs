@@ -1,0 +1,31 @@
+/**
+ * Set URL property in bedrijfsobjecten en views
+ *
+ * Uitgangssituatie
+ * - GGM ArchiMate-model met een geïmporteerd GGM model en aangemaakte bedrijfsobjecten
+ */
+
+load("include-ggm-gemma.js");
+
+initConsoleLog(__FILE__, true);
+
+let businessFolder = findFolder("Business", "_Sync GEMMA en project");
+if (businessFolder) {
+  let selectedObjects = getSelection($(businessFolder), "business-object");
+  applyToCollection(selectedObjects, addPropGEMMA_URL);
+} else {
+  console.log("Business folder is not found");
+}
+
+console.log();
+
+let viewsFolder = findFolder("Views", "_Sync GEMMA en project");
+viewsFolder = $(viewsFolder).children().filter("folder.GGM").first();
+if (viewsFolder) {
+  let selectedObjects = getSelection($(viewsFolder), "view");
+  applyToCollection(selectedObjects, addPropGEMMA_URL);
+} else {
+  console.log("Views folder is not found");
+}
+
+finishConsoleLog();

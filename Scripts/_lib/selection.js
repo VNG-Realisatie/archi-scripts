@@ -72,7 +72,7 @@ function getSelection(startSelection, selector = "*") {
 
   // create an empty collection
   var selectedColl = $();
-  $(startSelection).each((obj) => addObject(obj, selector, selectedColl));
+  startSelection.each((obj) => addObject(obj, selector, selectedColl));
 
   console.log(`Created a collection of ${selectedColl.size()} objects of type "${selector}"`);
   return selectedColl;
@@ -83,6 +83,7 @@ function getSelection(startSelection, selector = "*") {
    *   if the object is a container (model, view or folder), add all contained objects
    */
   function addObject(obj, selector, coll) {
+    // console.log(`obj=${obj}, selector=${selector}`)
     if ($(obj).is(selector)) {
       let o = obj;
       if ($(obj).is("concept")) o = concept(obj);

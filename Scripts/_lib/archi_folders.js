@@ -44,18 +44,25 @@ function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
 }
 
 function getFolder(layer, folderName) {
-  layerFolder = $(model)
-    .children()
-    .filter("folder." + layer)
-    .first();
-  folder = $(layerFolder)
-    .children()
-    .filter("folder." + folderName)
-    .first();
+
+  let folder = findFolder(layer, folderName) 
 
   if (!folder) {
     folder = layerFolder.createFolder(folderName);
   }
+
+  return folder;
+}
+
+function findFolder(layer, folderName) {
+  let layerFolder = $(model)
+    .children()
+    .filter("folder." + layer)
+    .first();
+  let folder = $(layerFolder)
+    .children()
+    .filter("folder." + folderName)
+    .first();
 
   return folder;
 }
