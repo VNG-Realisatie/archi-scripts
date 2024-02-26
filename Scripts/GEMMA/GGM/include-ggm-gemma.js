@@ -8,8 +8,8 @@ load(__DIR__ + "../../_lib/archi_folders.js");
 load(__DIR__ + "../../_lib/Common.js");
 
 const PROP_ID = "Object ID";
-const PROP_GGM_ID = "imported-ggm-guid";
-const PROP_GGM_ID_COPY = "ggm-guid"; // ##was## necesary for ggm_import script, lookup any type object with ggm-id
+const PROP_GGM_ID = "Imported-ggm-guid";
+const PROP_GGM_ID_COPY = "GGM-guid"; // ##was## necesary for ggm_import script, lookup any type object with ggm-id
 const PROP_DATA_OBJECT_ID = "Object ID data-object";
 const PROP_IV3 = "domein-iv3";
 const PROP_GGM_SYNC = "Let op";
@@ -21,16 +21,16 @@ const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicat
 
 /**
  * Create or update a business object for every GGM data-object
- * - if prop archimate-type="business-object"
+ * - if prop ArchiMate-type="business-object"
  * - copy properties
- * - if duplicate name, create unique name in property alternateName (or add postfix (domein-iv3))
+ * - if duplicate name, create unique name in property Alternate-name (or add postfix (domein-iv3))
  * - create realization-relation from data-object to business object
  */
 function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, stats) {
   let processBusinessObjectsColl = $();
   console.log(`Created business-object:`);
   dataObjects
-    .filter((dataObject) => dataObject.prop("archimate-type") == "Business object")
+    .filter((dataObject) => dataObject.prop("ArchiMate-type") == "Business object")
     .each((dataObject) => {
       let businessObject = $("business-object")
         .filter((obj) => obj.prop(PROP_GGM_ID_COPY) == dataObject.prop(PROP_GGM_ID))
@@ -94,8 +94,8 @@ function updateRelationsBusinessObject(dataObjects, relsFolder, stats) {
   dataObjects
     .rels()
     .filter((rel) => !(rel.type == "realization-relationship" && rel.name == REALIZATION_LABEL))
-    .filter((rel) => rel.source.prop("archimate-type") == "Business object")
-    .filter((rel) => rel.target.prop("archimate-type") == "Business object")
+    .filter((rel) => rel.source.prop("ArchiMate-type") == "Business object")
+    .filter((rel) => rel.target.prop("ArchiMate-type") == "Business object")
     .each((rel) => {
       // check if relation is already processed
       if (!index.some((r) => r.id == rel.id)) {
@@ -137,7 +137,7 @@ function updateRelationsIv3(dataObjects, relsFolder, stats) {
   // process iv3 relations
   dataObjects
     .rels("aggregation-relationship")
-    .filter((rel) => rel.target.prop("archimate-type") == "Business object")
+    .filter((rel) => rel.target.prop("ArchiMate-type") == "Business object")
     .each((rel) => {
       // find copy aggregation with business-object
       let iv3Relation = $("aggregation-relationship")
@@ -187,7 +187,7 @@ function syncObject(from, to) {
           to.prop(curProperty, from.prop(curProperty));
         } else {
           if (from.prop(curProperty) != to.prop(curProperty)) {
-            to.prop(`ggm-${curProperty.toLowerCase()}`, from.prop(curProperty));
+            to.prop(`GGM-${curProperty.toLowerCase()}`, from.prop(curProperty));
           }
         }
         break;
@@ -196,14 +196,14 @@ function syncObject(from, to) {
         break;
       // skip next properties
       case PROP_ID: // Object ID, data- and bedrijfsobject have their own PROP_ID
-      case "archimate-type":
+      case "ArchiMate-type":
       // case "uml-type":
       case "Latest Sync Date":
         // skip for bedrijfsobjecten irrelevant properties
         break;
       default:
-        // prefix property label with 'ggm-'
-        to.prop(`ggm-${curProperty}`, from.prop(curProperty));
+        // prefix property label with 'GGM-'
+        to.prop(`GGM-${curProperty}`, from.prop(curProperty));
         break;
     }
   });
@@ -212,7 +212,7 @@ function syncObject(from, to) {
     to.associationDirected = from.associationDirected;
   }
   // add a warning in every created object
-  to.prop(PROP_GGM_SYNC, `"ggm-" properties worden beheerd in het GGM informatiemodel`);
+  to.prop(PROP_GGM_SYNC, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
   return;
 
   function syncAttribute(attribute) {
@@ -220,7 +220,7 @@ function syncObject(from, to) {
       to[attribute] = from[attribute];
     } else {
       if (from[attribute] != to[attribute]) {
-        to.prop(`ggm-${attribute.toLowerCase()}`, from[attribute]);
+        to.prop(`GGM-${attribute.toLowerCase()}`, from[attribute]);
       }
     }
   }
@@ -252,7 +252,7 @@ function addPropAlternateName(archiObjColl) {
       let alternateName = `${item.archiObj.name} (${item.archiObj.prop(PROP_IV3)})`;
       console.log(`- ${item.archiObj.name} > ${alternateName}`);
       // item.archiObj.name = alternateName;
-      item.archiObj.prop("alternate name", alternateName);
+      item.archiObj.prop("Alternate name", alternateName);
     });
   } else console.log(`- geen`);
 

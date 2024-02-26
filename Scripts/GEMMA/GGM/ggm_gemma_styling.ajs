@@ -33,7 +33,7 @@ try {
       view.prop("Scope", "Gemeente");
       view.prop("Detailniveau", "Samenhang");
       // view.prop("Domein", gemmaDomein);
-      view.prop("ViewType", "Basis");
+      view.prop("Viewtype", "Basis");
 
       if (view.name.endsWith(" (GGM)")) {
         view.prop("Architectuurlaag", "Applicatiearchitectuur");

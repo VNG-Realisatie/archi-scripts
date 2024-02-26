@@ -59,7 +59,7 @@ let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje/";
 let GGM_objects = "ggm_export_objects_06112023-07_59_13_toelichting.csv";
 let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
 
-var iv3_domeinen = {
+var domeinen_iv3 = {
   label: "Iv3",
   csv: GGM_csv_dir + GGM_objects,
   targetType: "grouping",
@@ -76,7 +76,7 @@ var iv3_domeinen = {
   name: "domein-iv3",
   documentation: "geen",
   propMapping: {
-    "ggm-datum-tijd-export": "datum-tijd-export",
+    "GGM-datum-tijd-export": "datum-tijd-export",
   },
   relations: {},
 };
@@ -90,31 +90,31 @@ var dataobjecten = {
   // },
   targetFolder: getFolder("Application", "Data-objecten (GGM)"),
   getId: function (element) {
-    return element.prop("imported-ggm-guid");
+    return element.prop("Imported-ggm-guid");
   },
   setId: function (element, row) {
-    element.prop("imported-ggm-guid", row["_id"]);
+    element.prop("Imported-ggm-guid", row["_id"]);
   },
   id: "ggm-guid",
   name: "naam",
   documentation: "definitie",
   propMapping: {
-    "uml-type": "uml-type",
+    "UML-type": "uml-type",
     // "ggm-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
-    "imported-ggm-guid": "ggm-guid",
-    bron: "bron",
+    "Imported-ggm-guid": "ggm-guid",
+    Bron: "bron",
     // "toelichting": "Toelichting",
     Toelichting: "toelichting",
-    synoniemen: "synoniemen",
+    Synoniemen: "synoniemen",
     // "domein-iv3": "domein-iv3", // added as relation
     // "domein-dcat": "domein-dcat",
     // "domein-gemma": "domein-gemma",
-    "datum-tijd-export": "datum-tijd-export",
+    "Datum-tijd-export": "datum-tijd-export",
   },
   relations: {
-    iv3_domeinen_rel: {
+    domeinen_iv3_rel: {
       column: "domein-iv3",
-      reference: iv3_domeinen,
+      reference: domeinen_iv3,
       targetType: "aggregation-relationship",
       targetFolder: getFolder("Relations", "Domein iv3 (GGM)"),
       isReversed: true,
@@ -133,7 +133,7 @@ console.log(
 );
 var startTime = new Date().getTime();
 
-loadAndSync(iv3_domeinen);
+loadAndSync(domeinen_iv3);
 
 loadAndSync(dataobjecten);
 syncModelRelationships(dataobjecten);
