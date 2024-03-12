@@ -44,10 +44,13 @@ function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
 }
 
 function getFolder(layer, folderName) {
-
-  let folder = findFolder(layer, folderName) 
+  let folder = findFolder(layer, folderName);
 
   if (!folder) {
+    let layerFolder = $(model)
+      .children()
+      .filter("folder." + layer)
+      .first();
     folder = layerFolder.createFolder(folderName);
   }
 
