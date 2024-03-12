@@ -1,53 +1,16 @@
+/**
+ * Import GGM objecten in GEMMA-GGM Archi-repository
+ *
+ * Specificatie CSV-bestanden
+ *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
+ *
+ * Dit script leest de GGM objecten in als
+ * - data-objecten
+ * - grouping beleidsdomeinen (iv3-domein)
+ *
+ */
+
 load(__DIR__ + "Include_LoadAndSync.js");
-
-// Configuration starts here ======================================================================================
-
-// Each source of information (data source) has its own object which contains:
-// - The label describing the datasource (label)
-// - The path of the CSV file (csv)
-// - The ArchiMate concept type used when importing (targetType)
-// - The function which extracts "logical" id from an ArchiMate element, or null if
-//   element should be skipped (getId)
-// - The function which stores external id into an ArchiMate element (setId)
-// - The column name (or function) used to get (or compute) a unique id (id)
-// - The column name (or function) used to get (or compute) element's name (name)
-// - The column name (or function) used to get (or compute) element's documentation (documentation)
-// - A mapping of external attributes to elements' properties (propMapping)
-// - A description of external relations to map to ArchiMate relationships (relations)
-
-/* Template
-var xxx = {
-  'label': '',
-  'csv': __DIR__+'xxx.csv',
-  'targetType': '',
-  'targetFolder': getFolder('layer', 'folderName'),
-  'getId': function(element) {
-    // Do something to extract id
-  },
-  'setId': function(element, row) {
-    // Do something to store id
-  },
-  'id': '', // Can also be a function
-  'name': '', // Can also be a function
-  'documentation': '', // Can also be a function
-  'propMapping': {
-    'Property_name': 'Column_name',
-    'Property_name': 'Column_name'
-  },
-  'relations': {
-    'Relation_Label': {               // can be changed, will be used in logs
-      'column': '',                   // column name
-      'reference': dataSourceObject,  // reference of the referenced data dource object
-      'targetType': '',               // ArchiMate relationship type
-                                      //  see https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Collection#object-selector-type
-      'accessType': '',               // sets access type if targetType='access-relationship'
-                                      //  see https://github.com/archimatetool/archi-scripting-plugin/wiki/jArchi-Object#accesstype
-      'isReversed': true|false        // sets direction of the relationship
-    },
-    // You can add other relations if needed
-  }
-};
-*/
 
 /**
  * file: GGM Enterprise Architect CSV export
@@ -55,15 +18,15 @@ var xxx = {
  */
 
 // C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/GGM
-let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje/";
-let GGM_objects = "ggm_export_objects_06112023-07_59_13_toelichting.csv";
-let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
+let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje2.1/";
+let GGM_objects = "ggm_export_objects_21022024-11_03_02.csv";
+// let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
 
-var domeinen_iv3 = {
-  label: "Iv3",
+var beleidsdomeinen = {
+  label: "Beleidsdomeinen",
   csv: GGM_csv_dir + GGM_objects,
   targetType: "grouping",
-  targetFolder: getFolder("Other", "Domein iv3"),
+  targetFolder: getFolder("Other", "Beleidsdomeinen"),
   getId: function (element) {
     // return element.prop("domein-iv3");
     return element.name;
@@ -74,9 +37,12 @@ var domeinen_iv3 = {
   },
   id: "domein-iv3", // per id wordt een object aangemaakt
   name: "domein-iv3",
-  documentation: "geen",
+  documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
   propMapping: {
     "GGM-datum-tijd-export": "datum-tijd-export",
+    "GEMMA type": function () {
+      return "Beleidsdomein";
+    },
   },
   relations: {},
 };
@@ -90,33 +56,32 @@ var dataobjecten = {
   // },
   targetFolder: getFolder("Application", "Data-objecten (GGM)"),
   getId: function (element) {
-    return element.prop("Imported-ggm-guid");
+    return element.prop("GGM-guid-imported");
   },
   setId: function (element, row) {
-    element.prop("Imported-ggm-guid", row["_id"]);
+    element.prop("GGM-guid-imported", row["_id"]);
   },
-  id: "ggm-guid",
-  name: "naam",
-  documentation: "definitie",
+  id: "GGM-guid",
+  name: "GGM-naam",
+  documentation: "GGM-definitie",
   propMapping: {
-    "UML-type": "uml-type",
-    // "ggm-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
-    "Imported-ggm-guid": "ggm-guid",
-    Bron: "bron",
-    // "toelichting": "Toelichting",
-    Toelichting: "toelichting",
-    Synoniemen: "synoniemen",
+    "GGM-uml-type": "GGM-uml-type",
+    // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
+    "GGM-toelichting": "GGM-toelichting",
+    "GGM-synoniemen": "GGM-synoniemen",
+    "GGM-bron": "GGM-bron",
+    "GGM-guid-imported": "GGM-guid",
     // "domein-iv3": "domein-iv3", // added as relation
     // "domein-dcat": "domein-dcat",
     // "domein-gemma": "domein-gemma",
     "Datum-tijd-export": "datum-tijd-export",
   },
   relations: {
-    domeinen_iv3_rel: {
+    beleidsdomeinen_rel: {
       column: "domein-iv3",
-      reference: domeinen_iv3,
+      reference: beleidsdomeinen,
       targetType: "aggregation-relationship",
-      targetFolder: getFolder("Relations", "Domein iv3 (GGM)"),
+      targetFolder: getFolder("Relations", "Beleidsdomeinen (GGM)"),
       isReversed: true,
     },
   },
@@ -133,7 +98,7 @@ console.log(
 );
 var startTime = new Date().getTime();
 
-loadAndSync(domeinen_iv3);
+loadAndSync(beleidsdomeinen);
 
 loadAndSync(dataobjecten);
 syncModelRelationships(dataobjecten);
