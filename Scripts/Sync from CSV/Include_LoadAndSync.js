@@ -8,7 +8,6 @@
 // the name of a column from the CSV file or through a function (which allows more advanced computation).
 //
 // Dataset used as example comes from https://datahub.io/core/country-codes
-//
 // v0.5 - jb.sarrodie@accenture.com
 //        Cast property's value to String to avoid ambiguity between prop(String, String) and prop(String, boolean)
 //        propMapping's values can now be functions
@@ -52,6 +51,10 @@
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
+
+// Changes
+// MB : trim spaces for all csv values
+
 
 // Don't change this unless you really know what you are doing ==================================================
 var syncPropName = "Latest Sync Date";
@@ -98,6 +101,9 @@ function loadData(dataSource) {
     header: true,
     encoding: "utf-8",
     skipEmptyLines: true,
+    transform: function (value) {
+      return value.trim()
+    },
   }).data;
   dataSource.rows = {};
 
@@ -312,6 +318,7 @@ function createOrUpdateRelationship(config, source, type, target) {
   if (config.targetFolder) {
     config.targetFolder.add(relationship);
   }
+  
 }
 
 function getFolder(layer, folderName) {
