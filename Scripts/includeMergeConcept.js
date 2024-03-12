@@ -127,11 +127,13 @@ function getDuplicates(primary) {
 
 function prepareProperties(primary, duplicate) {
   // don't append documentation if documentation strings are equal
-  if (primary.documentation.trim() == duplicate.documentation.trim()) {
-    // console.log(`    - documentation is equal, not appended`);
-    duplicate.documentation = ``;
-  } else {
-    console.log(`    - INFO; documentation of duplicate appended`);
+  if ((primary.documentation) && (duplicate.documentation)) {
+    if (primary.documentation.trim() == duplicate.documentation.trim()) { 
+      // console.log(`    - documentation is equal, not appended`);
+      duplicate.documentation = ``;
+    } else {
+      console.log(`    - INFO; documentation of duplicate appended`);
+    }
   }
 
   // merge primary properties with duplicate properties
