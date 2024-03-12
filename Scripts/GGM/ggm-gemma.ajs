@@ -3,56 +3,56 @@
  *
  * Uitgangssituatie
  * - GGM ArchiMate-model met een geïmporteerd GGM model
- *   - data-objecten en iv3-domeinen met script ggm-sync.ajs (ggm_export_objects_<date>.csv)
+ *   - data-objecten en beleidsdomeinen met script ggm-sync.ajs (ggm_export_objects_<date>.csv)
  *   - data-object relaties met import_relations.ajs (convert GGM relations.ods met bewerkt ggm_export_relations_<date>.csv)
  * - GGM import bestaat uit
  *   - data-objecten en onderlinge relaties met ggm-guid
- *   - Iv3 domeinen en aggregatie-relaties zonder ggm-guid
+ *   - Beleidsdomeinen (iv3) en aggregatie-relaties zonder ggm-guid
  *
  * Aanmaken GEMMA bedrijfsobjectenmodel
  * - GGM data-objecten en relaties worden gekopieerd als GEMMA bedrijfsobjectenmodel (met identieke ggm-guid)
- * - Iv3 domeinen worden niet gekopieerd
+ * - Beleidsdomeinen (iv3) worden niet gekopieerd
  *   - ggm relaties groeperen de GGM data-objecten
  *   - gekopieerde ggm relaties groeperen de GEMMA bedrijfsobjecten
  *
  * ID's GGM
  * - GGM objecten en relaties hebben een uniek id ggm-guid (aangeleverd in GGM csv)
- * - iv3 domeinen en aggregaties hebben géén GGM id (aangemaakt met Sync ggm.ajs)
+ * - Beleidsdomeinen (iv3) en aggregaties hebben géén GGM id (aangemaakt met Sync ggm.ajs)
  * GEMMA ID's
  * - alle objecten krijgen een Object ID
  * gebruik ID's voor matchen
  * - gekopieerde bedrijfsobjecten en relaties (van data-objecten en relaties) krijgen
  *    - kopie ggm-guid van bron object
  *    - uniek Object ID
- * - iv3 domeinen en aggregaties krijgen 
+ * - Beleidsdomeinen (iv3) en aggregaties krijgen
  *    - uniek Object ID (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
  *    - kopie Object ID in afgeleide aggregatie relaties domein -> bedrijfsobject
  */
 
 load("include-ggm-gemma.js");
 
-const FOLDER_NAME = "Bedrijfsobjecten";
-const REALIZATION_LABEL = "realiseert bedrijfsobject";
+const BO_FOLDER_NAME = "Bedrijfsobjecten";
 
-let stats_BO = {nr_update: 0, nr_create: 0 }
-let stats_relBO = {nr_update: 0, nr_create: 0 }
-let stats_relIv3 = {nr_update: 0, nr_create: 0 }
+let stats_BO = { nr_update: 0, nr_create: 0 };
+let stats_relBO = { nr_update: 0, nr_create: 0 };
+let stats_relBD = { nr_update: 0, nr_create: 0 };
 
 initConsoleLog(__FILE__, true);
 
 let selectedObjects = getSelection($(selection), "data-object");
+
 updateBusinessObjects(
   selectedObjects,
-  getFolder("Business", FOLDER_NAME),
-  getFolder("Relations", "Data-object realiseert bedrijfsobject"), stats_BO
+  getFolder("Business", BO_FOLDER_NAME),
+  getFolder("Relations", "Data-object realiseert bedrijfsobject"),
+  stats_BO
 );
-
-updateRelationsBusinessObject(selectedObjects, getFolder("Relations", FOLDER_NAME), stats_relBO);
-updateRelationsIv3(selectedObjects, getFolder("Relations", "Domein iv3"), stats_relIv3);
+updateRelationsBusinessObject(selectedObjects, getFolder("Relations", BO_FOLDER_NAME), stats_relBO);
+updateRelationBeleidsdomein(selectedObjects, getFolder("Relations", "Beleidsdomeinen"), stats_relBD);
 
 console.log(`> from ${selectedObjects.size()} data-objects`);
-console.log(`> business-objects: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated`);
-console.log(`> business-object relations: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated`);
-console.log(`> Iv3 relations: ${stats_relIv3.nr_create} created, ${stats_relIv3.nr_update} updated`);
+console.log(`> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated`);
+console.log(`> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated`);
+console.log(`> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated`);
 
 finishConsoleLog();

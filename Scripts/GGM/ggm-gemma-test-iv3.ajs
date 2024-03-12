@@ -24,7 +24,7 @@ let relationColl = $();
 // appendSuffix(businessObjectsColl);
 // updateRelationsBusinessObject(dataObjectColl, relationsBusinessObjectFolder, relationColl);
 
-updateRelationsIv3(selectedObjects, relationsIv3Folder, relationColl);
+updateRelationBeleidsdomein(selectedObjects, relationsIv3Folder, relationColl);
 
 console.log(`> from ${selectedObjects.size()} data-objects`);
 console.log(`> ${businessObjectsColl.size()} business-objects  and`);

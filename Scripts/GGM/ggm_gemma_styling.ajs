@@ -1,13 +1,12 @@
 /**
- * Opmaken van GGM data- en bedrijfsobjectenviews
+ * Opmaken van de GGM data-objectenviews en de GEMMA bedrijfsobjectenviews
  */
-load(__DIR__ + "../../_lib/Common.js");
-load(__DIR__ + "../../_lib/selection.js");
+load("include-ggm-gemma.js");
 
 initConsoleLog(__FILE__, true);
 
 try {
-  // kleur voor onderscheid op archimate-type (data- en bedrijfsobject)
+  // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
   applyToCollection(getVisualSelection($(selection), "data-object"), styleDataObjects);
 
   // bold font domein-grouping
@@ -64,7 +63,7 @@ finishConsoleLog();
  * Styling functions
  */
 function styleDataObjects(obj) {
-  switch (obj.prop("archimate-type")) {
+  switch (obj.prop(PROP_ARCHIMATE_TYPE)) {
     case "Data object":
       obj.opacity = 255;
       obj.gradient = GRADIENT.NONE;
