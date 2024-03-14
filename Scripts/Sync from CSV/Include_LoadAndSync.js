@@ -55,7 +55,6 @@
 // Changes
 // MB : trim spaces for all csv values
 
-
 // Don't change this unless you really know what you are doing ==================================================
 var syncPropName = "Latest Sync Date";
 var deletedPropName = "Deleted from CSV Datasource";
@@ -102,7 +101,7 @@ function loadData(dataSource) {
     encoding: "utf-8",
     skipEmptyLines: true,
     transform: function (value) {
-      return value.trim()
+      return value.trim();
     },
   }).data;
   dataSource.rows = {};
@@ -308,6 +307,14 @@ function createOrUpdateRelationship(config, source, type, target) {
 
   relationship.prop(syncPropName, currentDateTime);
 
+  for (var propName in config.propMapping) {
+    if (typeof config.propMapping[propName] === "function") {
+      var propValue = config.propMapping[propName](relationship);
+      // Cast propValue to String to avoid ambiguity between prop(String, String) and prop(String, boolean) in rare occasions
+      if (propValue) relationship.prop(propName, String(propValue));
+    }
+  }
+
   if (type == "access-relationship") {
     relationship.accessType = config.accessType;
   }
@@ -318,7 +325,6 @@ function createOrUpdateRelationship(config, source, type, target) {
   if (config.targetFolder) {
     config.targetFolder.add(relationship);
   }
-  
 }
 
 function getFolder(layer, folderName) {

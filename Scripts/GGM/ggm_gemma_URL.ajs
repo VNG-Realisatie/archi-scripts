@@ -4,12 +4,14 @@
  * Uitgangssituatie
  * - GGM ArchiMate-model met een geïmporteerd GGM model en aangemaakte bedrijfsobjecten
  */
-
-load("include-ggm-gemma.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("../_lib/Common.js");
+load("include_ggm_gemma.js");
 
 initConsoleLog(__FILE__, true);
 
-let businessFolder = findFolder("Business", "_Sync GEMMA en project");
+let businessFolder = getFolderPath("Business/_Sync GEMMA en project/GGM");
 if (businessFolder) {
   let selectedObjects = getSelection($(businessFolder), "business-object");
   applyToCollection(selectedObjects, addPropGEMMA_URL);
@@ -19,8 +21,7 @@ if (businessFolder) {
 
 console.log();
 
-let viewsFolder = findFolder("Views", "_Sync GEMMA en project");
-viewsFolder = $(viewsFolder).children().filter("folder.GGM").first();
+let viewsFolder = getFolderPath("Views/_Sync GEMMA en project/GGM")
 if (viewsFolder) {
   let selectedObjects = getSelection($(viewsFolder), "view");
   applyToCollection(selectedObjects, addPropGEMMA_URL);

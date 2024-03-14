@@ -6,6 +6,8 @@
  * - checkEngine:             check version of jScript engine
  * - (info|debug):            log message
  */
+const COMMON_FUNCTIONS_LOADED = true;
+console.log("Loading common.js")
 
 var _commonScriptName;
 var _startCounter = {};
@@ -173,7 +175,7 @@ function getFuncName() {
   let stack = new Error().stack;
   // console.log(`stack:\n${stack}\n\n`)
 
-//  let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${STACK_LEVEL_START}}`;
+  //  let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${STACK_LEVEL_START}}`;
   let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\)))`;
   regExpString += `{${STACK_LEVEL_START}}`;
 
@@ -184,7 +186,6 @@ function getFuncName() {
     return `${funcName[2]}()`;
   }
 }
-
 
 /**
  * 	return a generated UUID
@@ -200,4 +201,3 @@ function generateUUID() {
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
-

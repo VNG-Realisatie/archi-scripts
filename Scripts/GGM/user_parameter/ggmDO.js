@@ -50,4 +50,6 @@ const USER_PARAM = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 50,
+  
+  viewFolder: "/Data-object (GGM)",
 };

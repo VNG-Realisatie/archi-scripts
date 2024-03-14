@@ -55,4 +55,5 @@ const USER_PARAM = {
   hSep: 20,
   vSep: 30,
   
-  };
+  viewFolder: FOLDER_SYNC_GGM + "/GGM naar GEMMA/Bedrijfsobjecten"
+};

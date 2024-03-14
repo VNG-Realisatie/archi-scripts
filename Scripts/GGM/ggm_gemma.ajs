@@ -28,27 +28,30 @@
  *    - uniek Object ID (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
  *    - kopie Object ID in afgeleide aggregatie relaties domein -> bedrijfsobject
  */
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("../_lib/Common.js");
+load("include_ggm_gemma.js");
 
-load("include-ggm-gemma.js");
+initConsoleLog(__FILE__, true);
 
-const BO_FOLDER_NAME = "Bedrijfsobjecten";
+// _Sync folders
+let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + "/Bedrijfsobjecten");
+let relationsBedrijfsobjectFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + "/Bedrijfsobjecten");
+let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + "/Beleidsdomeinen");
+
+// relatie met data-objecten
+let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
 
 let stats_BO = { nr_update: 0, nr_create: 0 };
 let stats_relBO = { nr_update: 0, nr_create: 0 };
 let stats_relBD = { nr_update: 0, nr_create: 0 };
 
-initConsoleLog(__FILE__, true);
-
 let selectedObjects = getSelection($(selection), "data-object");
 
-updateBusinessObjects(
-  selectedObjects,
-  getFolder("Business", BO_FOLDER_NAME),
-  getFolder("Relations", "Data-object realiseert bedrijfsobject"),
-  stats_BO
-);
-updateRelationsBusinessObject(selectedObjects, getFolder("Relations", BO_FOLDER_NAME), stats_relBO);
-updateRelationBeleidsdomein(selectedObjects, getFolder("Relations", "Beleidsdomeinen"), stats_relBD);
+updateBusinessObjects(selectedObjects, businessObjectFolder, realizesBedrijfsobjectFolder, stats_BO);
+updateRelationsBusinessObject(selectedObjects, relationsBedrijfsobjectFolder, stats_relBO);
+updateRelationBeleidsdomein(selectedObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
 
 console.log(`> from ${selectedObjects.size()} data-objects`);
 console.log(`> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated`);

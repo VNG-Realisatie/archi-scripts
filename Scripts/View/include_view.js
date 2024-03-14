@@ -41,8 +41,6 @@
  *    - for connections to embedded elements, only some get bendpoints
  *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
-load(__DIR__ + "../_lib/selection.js");
-
 const GENERATE_SINGLE = "Generate";
 const GENERATE_MULTIPLE = "GenerateMultiple";
 const EXPAND_HERE = "Expand";
@@ -52,7 +50,7 @@ const REGENERATE = "Regenerate";
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
 const PROP_EXCLUDE = "excludeFromView";
-const GENERATED_VIEW_FOLDER = "_Generated"; // generated views are created in this folder
+const GENERATED_VIEW_FOLDER = "/_Generated"; // generated views are created in this folder
 const DEFAULT_GRAPHDEPTH = 1;
 const DEFAULT_ACTION = GENERATE_SINGLE;
 const DEFAULT_NODE_WIDTH = 140; // width of a drawn element
@@ -245,6 +243,8 @@ function setDefaultParameters(param) {
   if (param.excludeFromView === undefined) param.excludeFromView = false;
   console.log(`  - excludeFromView = ${param.excludeFromView} (exclude objects with property ${PROP_EXCLUDE}=true)`);
   if (param.viewNameSuffix === undefined || param.viewNameSuffix === "") param.viewNameSuffix = ""
+  console.log(`  - viewName = ${param.viewName}`);
+  if (param.viewFolder === undefined || param.viewFolder === "") param.viewFolder = "";
   console.log(`  - viewName = ${param.viewName}`);
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name + param.viewNameSuffix;
   console.log(`  - viewName = ${param.viewName}`);
@@ -558,7 +558,11 @@ function layoutGraph(param) {
 function drawView(param, filteredElements) {
   console.log(`\nDrawing ArchiMate view...  `);
 
-  let folder = getFolder("Views", GENERATED_VIEW_FOLDER);
+  let folder = getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
+  if (param.viewFolder != "") {
+    folder = getFolderPath("/Views" + param.viewFolder);
+  } 
+
   var view = getView(folder, param.viewName);
 
   // save generate_view parameter to a view property
@@ -608,18 +612,6 @@ function drawCircularRelation(param, rel, visualElementIndex, view) {
 
   drawCircularBendpoints(connection);
   debugStackPop();
-}
-
-function getFolder(mainFolderName, folderName) {
-  // let mainFolder = $(model).children(`.${mainFolderName}`).first();
-  let mainFolder = $(`folder.${mainFolderName}`).first();
-  let folder = $(mainFolder).children("folder").filter(`.${folderName}`).first();
-
-  if (!folder) {
-    folder = mainFolder.createFolder(folderName);
-    console.log(`Created ${folder}`);
-  }
-  return folder;
 }
 
 function getView(folder, viewName) {
@@ -990,56 +982,3 @@ const RELATION_NAMES = [
   "specialization-relationship",
   "triggering-relationship",
 ];
-
-var script_name;
-
-/**
- * initConsoleLog and finishconsole
- *   first and last call in an Archi script
- *
- * @param pFile : string __FILE__ as current script
- * @param pClear : boolean for clear console
- */
-function initConsoleLog(pFile, pClear) {
-  script_name = pFile.replace(/^.*[\\\/]/, "");
-  console.show();
-  if (pClear) console.clear();
-  console.log(`\nRunning script "${script_name}"...\n`);
-}
-
-function finishConsoleLog() {
-  console.log(`\nScript "${script_name}" finished`);
-  console.log("==========================================\n");
-}
-
-var debugStack = [false];
-function debugStackPush(debugSwitch) {
-  debugStack.push(debugSwitch);
-}
-function debugStackPop() {
-  debugStack.pop();
-}
-
-/**
- * debug()
- *   show debug message if global debugStack is set
- * @param msg string information message
- */
-function debug(msg) {
-  logMessage(debugStack, "Debug", msg);
-}
-
-/**
- * logMessage()
- *   show message with prefix
- * @param msg string information message
- */
-function logMessage(logSwitch, logType, msg) {
-  if (logSwitch[logSwitch.length - 1]) {
-    if (msg.startsWith("\n")) {
-      console.log();
-      msg = msg.substring("\n".length);
-    }
-    console.log(`${">".repeat(logSwitch.length)} ${logType}: ${msg}`);
-  }
-}

@@ -6,13 +6,7 @@
  * todo
  * - genereren Object ID voor nieuwe objecten
  * - PROP_OBJECT_ID_SYNC - (nw) Object ID in BD->BO rel en bewaar dit in BD->DO relatie
- *
- *
- *
  */
-load(__DIR__ + "../_lib/selection.js");
-load(__DIR__ + "../_lib/archi_folders.js");
-load(__DIR__ + "../_lib/Common.js");
 
 const PROP_ID = "Object ID";
 const PROP_GGM_ID = "GGM-guid"; // property with original GGM-guid in business-objects
@@ -21,9 +15,6 @@ const PROP_OBJECT_ID_SYNC = "Object ID sync"; // property to find and sync belei
 const PROP_GGM_SYNC = "Let op";
 const PROP_SPECIALIZATON = "Meer specifiek";
 const PROP_GEMMA_URL = "GEMMA URL";
-const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
-const REALIZATION_LABEL = "realiseert bedrijfsobject";
-// const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 
 const PROP_GGM_NAAM = "GGM-naam"; // 	Naam van het objecttype
 const PROP_GGM_DEFINITIE = "GGM-definitie"; // 	samenvattende omschrijving van de kenmerken van het object
@@ -32,8 +23,14 @@ const PROP_GGM_SYNONIEMEN = "GGM-synoniemen"; // 	Alternatieve naam met min of m
 const PROP_GGM_BRON = "GGM-bron"; // 	Extern informatiemodel waaruit GGM de definities heeft overgenomen
 const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt type, zoals class of enumeration
 const PROP_GGM_GUID = "GGM-guid"; // 	Uniek en niet wijzigend id van het object
+const PROP_ARCHIMATE_TYPE = "ArchiMate-type";
 
-const PROP_ARCHIMATE_TYPE = "ArchiMate-type"
+const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
+// const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
+
+const REALIZATION_LABEL = "realiseert bedrijfsobject";
+const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
+
 /**
  * Create or update a business object for every GGM data-object
  * - if prop ArchiMate-type="business-object"
@@ -179,7 +176,9 @@ function updateRelationBeleidsdomein(dataObjects, relsFolder, stats) {
           console.log(`> create ${printRelation(relBeleidsdomein)}`);
           stats.nr_create += 1;
         }
+        // move to sync folder
       }
+      relsFolder.add(relBeleidsdomein);
     });
   console.log();
 }

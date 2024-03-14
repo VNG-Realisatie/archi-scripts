@@ -2,22 +2,26 @@
  * Functions for working with Archi folders
  *
  * (c) 2023 Mark Backer
- *
  */
-
+console.log("Loading archi_folders.js")
+const ARCHI_FOLDERS_LOADED = true;
 /**
- * get objects folderpath by recursively walkin up the parentfolders
+ * get the path of an object
+ *  by recursively walkin up the parentfolders
  *
  * How to call
- *     let folder = getArchiFolder(object, "");
+ *     let folder = printFolderPath(object);
+ *
+ * @param {Archi object} child
+ * @param {string} childFolderName, builds up recursively
+ * @returns string with path
  */
-function getArchiFolder(child, currentFolderName = "") {
-  // let parent = $(`#${child.id}`).parent("folder");
-  let parent = $(child).parent("folder");
-  if (parent.size() == 0) return `/${currentFolderName}`;
+function printFolderPath(child, childFolderName = "") {
+  let parent = $(child).parent("folder").first();
+  if (!parent) return `/${childFolderName}`;
 
-  let folderName = `${parent.first().name}/${currentFolderName}`;
-  return getArchiFolder(parent.first(), folderName);
+  let path = `${parent.name}/${childFolderName}`;
+  return printFolderPath(parent, path);
 }
 
 /**
@@ -43,29 +47,32 @@ function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
   });
 }
 
-function getFolder(layer, folderName) {
-  let folder = findFolder(layer, folderName);
+/**
+ * Get or create the folder of the path-string
+ *
+ * @param {string} path
+ *    Example "/Application/sub/sub"
+ *    Start with 'layer' folders, like Business, Other, Relations, ..
+ * @returns
+ */
+function getFolderPath(path) {
+  const EMPTY_LABEL = "";
 
-  if (!folder) {
-    let layerFolder = $(model)
-      .children()
-      .filter("folder." + layer)
-      .first();
-    folder = layerFolder.createFolder(folderName);
+  let startFolder, folder;
+  for (const folderLabel of path.split("/")) {
+    // skip empty label from optional starting or trailing "/"
+    if (folderLabel != EMPTY_LABEL) {
+      if (!startFolder) {
+        // set Archi layer folder
+        startFolder = $(`folder.${folderLabel}`).first();
+      } else {
+        folder = $(startFolder).children(`folder.${folderLabel}`).first();
+        if (!folder) {
+          folder = startFolder.createFolder(folderLabel);
+        }
+        startFolder = folder;
+      }
+    }
   }
-
-  return folder;
-}
-
-function findFolder(layer, folderName) {
-  let layerFolder = $(model)
-    .children()
-    .filter("folder." + layer)
-    .first();
-  let folder = $(layerFolder)
-    .children()
-    .filter("folder." + folderName)
-    .first();
-
   return folder;
 }

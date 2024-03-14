@@ -9,16 +9,16 @@
 
 load(__DIR__ + "../_lib/Common.js");
 
-// matchen op ID GGM-guid-imported ipv Object ID
+// Overrule PROP_ID: vind bestaande relaties met GGM-guid-imported ipv Object ID
 var PROP_ID = "GGM-guid-imported";
+load(__DIR__ + "../ImportExport_CSV/include_import.js");
 
-load("include_import.js");
 
 initConsoleLog(__FILE__,true);
 
 let dir ="C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/GGM/Rondje2.1/"
 // let fileName = "convert GGM relations from ods.csv"
-let fileName = "gemma_import_relations (convert ggm).csv"
+let fileName = "2024-03-13_GGM_Data-objecten-GGM_element.csv"
 importObjects(dir + fileName);
 
 finishConsoleLog();

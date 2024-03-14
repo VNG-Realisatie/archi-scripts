@@ -1,0 +1,3 @@
+load(__DIR__ + "../_lib/archi_folders.js");
+
+console.log( printFolderPath($(selection).first()))

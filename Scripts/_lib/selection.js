@@ -8,6 +8,8 @@
  * (c) 2021 Mark Backer
  *
  */
+const SELECTION_LOADED = true;
+console.log("Loading selection.js")
 
 const DIAGRAM_OBJECTS = [
   "diagram-model-group",

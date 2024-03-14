@@ -1,0 +1,14 @@
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/archi_folders.js");
+
+initConsoleLog(__FILE__, false);
+
+console.log(`Created or found: ${getFolderPath("/Application/Data-objecten (GGM)/test")}`);
+console.log(`Created or found: ${getFolderPath("/Application/Data-objecten (GGM)")}`);
+console.log(`Created or found: ${getFolderPath("/Business/test/Data-objecten (GGM)")}`);
+console.log(`Created or found: ${getFolderPath("Views/Application/Data-objecten (GGM)")}`);
+console.log(`Created or found: ${getFolderPath("Application/Data-objecten/")}`);
+
+let folder = getFolderPath("Views/Testing/Data/objecten/GGM/")
+console.log(`folder: ${folder}`);
+console.log(`printFolderPath: ${printFolderPath(folder)}`);

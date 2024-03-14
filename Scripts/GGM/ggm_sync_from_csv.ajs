@@ -10,7 +10,9 @@
  *
  */
 
-load(__DIR__ + "Include_LoadAndSync.js");
+load("include_ggm_gemma.js");
+load("../_lib/archi_folders.js");
+load("../Sync from CSV/Include_LoadAndSync.js");
 
 /**
  * file: GGM Enterprise Architect CSV export
@@ -26,7 +28,7 @@ var beleidsdomeinen = {
   label: "Beleidsdomeinen",
   csv: GGM_csv_dir + GGM_objects,
   targetType: "grouping",
-  targetFolder: getFolder("Other", "Beleidsdomeinen"),
+  targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + "/Beleidsdomeinen"),
   getId: function (element) {
     // return element.prop("domein-iv3");
     return element.name;
@@ -54,7 +56,7 @@ var dataobjecten = {
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";
   // },
-  targetFolder: getFolder("Application", "Data-objecten (GGM)"),
+  targetFolder: getFolderPath("/Application/Data-objecten (GGM)"),
   getId: function (element) {
     return element.prop("GGM-guid-imported");
   },
@@ -81,11 +83,48 @@ var dataobjecten = {
       column: "domein-iv3",
       reference: beleidsdomeinen,
       targetType: "aggregation-relationship",
-      targetFolder: getFolder("Relations", "Beleidsdomeinen (GGM)"),
+      targetFolder: getFolderPath("/Relations/Beleidsdomeinen (GGM)"),
       isReversed: true,
+      propMapping: {
+        "Object ID": function (relationship) {
+          if (!relationship.prop("Object ID")) {
+            return generateUUID();
+          }
+        },
+      },    
     },
   },
 };
+
+/**
+ * @returns UUID
+ * https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
+ * Note: The use of any UUID generator that relies on Math.random() is strongly discouraged 
+ * 
+ * Test: console.log(uuidv4());
+ */
+function uuidv4() {
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
+}
+
+/**
+ * generateUUID()
+ * 	return a generated UUID
+ * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
+ */
+function generateUUID() {
+	// Public Domain/MIT
+	var d = new Date().getTime(); //Timestamp
+	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+		var r = Math.random() * 16; //random number between 0 and 16
+		r = (d + r) % 16 | 0;
+		d = Math.floor(d / 16);
+		return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+	});
+}
+
 
 // End of configuration =========================================================================================
 

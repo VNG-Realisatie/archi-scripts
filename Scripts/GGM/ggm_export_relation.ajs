@@ -1,8 +1,24 @@
+/**
+ * export_relation
+ * 	export selected relations to a CSV file
+ * 	if a container (a view or a folder) is selected, all relations in the container are exported
+ */
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../ImportExport_CSV/include_export.js");
+
+// matchen op ID ggm-guid ipv Object ID
+var PROP_ID = "ggm-guid";
+
+initConsoleLog(__FILE__);
+
+exportObjects(OBJECT_TYPE_RELATION);
+
+finishConsoleLog();
+
 /** GGM import en export definies 
  * 
  * mapping CSV importbestand relaties (objecten gaan met Sync GGM)
  * mapping functies CSV exportbestanden
-*/
 
 // matchen op ID ggm-guid ipv Object ID
 var PROP_ID = "ggm-guid";
@@ -10,13 +26,28 @@ var PROP_ID = "ggm-guid";
 
 function headerMapping(header) {
 
+  let importMapping = {
+    "naam": name,
+    "definitie": "definitie"
+    "uml-type": 
+    "ggm-guid": 
+    "ggm-source-guid": source.prop.ggm-guid
+    "ggm-target-guid": target.prop.ggm-guid
+    "toelichting": 
+    "archimate-type": 
+    "gemma-guid": 
+    "gemma-source-guid": 
+    "gemma-target-guid": 
+    "datum-tijd-export": 
+  }
+  
   let exportMapping = {
     "name": "naam"
     "definitie": "definitie"
     "uml-type": 
     "ggm-guid": 
-    "ggm-source-guid": source.prop.ggm-guid
-    "ggm-target-guid": target.prop.ggm-guid
+    "ggm-source-guid": source.prop.ggm-guid,
+    "ggm-target-guid": target.prop.ggm-guid,
     "toelichting": 
     "archimate-type": 
     "gemma-guid": 
@@ -24,22 +55,9 @@ function headerMapping(header) {
     "gemma-target-guid": 
     "datum-tijd-export": 
   }
-
-  let importMapping = {
-    "naam": name
-    "definitie": "definitie"
-    "uml-type": 
-    "ggm-guid": 
-    "ggm-source-guid": source.prop.ggm-guid
-    "ggm-target-guid": target.prop.ggm-guid
-    "toelichting": 
-    "archimate-type": 
-    "gemma-guid": 
-    "gemma-source-guid": 
-    "gemma-target-guid": 
-    "datum-tijd-export": 
-  }
-
   
   return modifiedHeader
 }
+
+
+*/

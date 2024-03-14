@@ -1,7 +1,9 @@
 /**
  * Opmaken van de GGM data-objectenviews en de GEMMA bedrijfsobjectenviews
  */
-load("include-ggm-gemma.js");
+load("../_lib/selection.js");
+load("../_lib/Common.js");
+load("include_ggm_gemma.js");
 
 initConsoleLog(__FILE__, true);
 
@@ -44,7 +46,7 @@ try {
       view.removeProp("generate_view_param")
     });
 
-  // set view property domein for wiki queries
+  // set view property domein for wiki queries ####
   views.each((view) => {
     $(view)
       .children("grouping")

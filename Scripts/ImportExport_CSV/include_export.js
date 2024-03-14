@@ -142,7 +142,7 @@ function createRow(headerRow, object, objectType) {
   // fill folder column
   if (FOLDER_LABEL) {
     // row[FOLDER_LABEL] = get_folderPath($(`#${object.id}`), "");
-    row[FOLDER_LABEL] = getArchiFolder(object, "");
+    row[FOLDER_LABEL] = printFolderPath(object, "");
     debug(`row[FOLDER_LABEL]: ${row[FOLDER_LABEL]}`);
   }
 

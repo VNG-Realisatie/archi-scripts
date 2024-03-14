@@ -77,12 +77,12 @@ function mergeConcept(selectedConcept, count) {
         let primaryString = `${primary.type}:  ${primary.source.name}  ===${primaryName}==>  ${primary.target.name}`;
         console.log(`- ${primaryString}`);
       }
-      console.log(`    folder = ${getArchiFolder(primary)}`);
+      console.log(`    folder = ${printFolderPath(primary)}`);
       console.log(`    id     = ${primary.id}`);
       console.log(`  has duplicates:`);
 
       duplicateList.each((duplicate) => {
-        console.log(`    folder = ${getArchiFolder(duplicate)}`);
+        console.log(`    folder = ${printFolderPath(duplicate)}`);
         console.log(`    id     = ${duplicate.id}`);
 
         prepareProperties(primary, duplicate);
