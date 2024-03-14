@@ -331,19 +331,3 @@ function printRelation(rel, debug) {
 function concept(o) {
   return o.concept ? o.concept : o;
 }
-
-/**
- * generateUUID()
- * 	return a generated UUID
- * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
- */
-function generateUUID() {
-  // Public Domain/MIT
-  var d = new Date().getTime(); //Timestamp
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    var r = Math.random() * 16; //random number between 0 and 16
-    r = (d + r) % 16 | 0;
-    d = Math.floor(d / 16);
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
