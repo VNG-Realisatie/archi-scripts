@@ -180,7 +180,7 @@ function syncModelElements(dataSource) {
     for (var propName in dataSource.propMapping) {
       var propValue =
         typeof dataSource.propMapping[propName] === "function"
-          ? dataSource.propMapping[propName](row)
+          ? dataSource.propMapping[propName](element, row)
           : row[dataSource.propMapping[propName]];
       // Cast propValue to String to avoid ambiguity between prop(String, String) and prop(String, boolean) in rare occasions
       if (propValue) element.prop(propName, String(propValue));

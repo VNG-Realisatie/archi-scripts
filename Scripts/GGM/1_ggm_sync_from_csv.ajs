@@ -29,7 +29,7 @@ var beleidsdomeinen = {
   label: "Beleidsdomeinen",
   csv: GGM_csv_dir + GGM_objects,
   targetType: "grouping",
-  targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + "/Beleidsdomeinen"),
+  targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN),
   getId: function (element) {
     // return element.prop("domein-iv3");
     return element.name;
@@ -42,6 +42,11 @@ var beleidsdomeinen = {
   name: "domein-iv3",
   documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
   propMapping: {
+    "Object ID": function (element) {
+      if (!element.prop("Object ID")) {
+        return generateUUID();
+      }
+    },
     "GGM-datum-tijd-export": "datum-tijd-export",
     "GEMMA type": function () {
       return "Beleidsdomein";
@@ -57,7 +62,7 @@ var dataobjecten = {
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";
   // },
-  targetFolder: getFolderPath("/Application/Data-objecten (GGM)"),
+  targetFolder: getFolderPath("/Application" + FOLDER_GGM_DATAOBJECT),
   getId: function (element) {
     return element.prop("GGM-guid-imported");
   },
@@ -68,6 +73,11 @@ var dataobjecten = {
   name: "GGM-naam",
   documentation: "GGM-definitie",
   propMapping: {
+    "Object ID": function (element) {
+      if (!element.prop("Object ID")) {
+        return generateUUID();
+      }
+    },
     "GGM-uml-type": "GGM-uml-type",
     // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
     "GGM-toelichting": "GGM-toelichting",
@@ -84,7 +94,7 @@ var dataobjecten = {
       column: "domein-iv3",
       reference: beleidsdomeinen,
       targetType: "aggregation-relationship",
-      targetFolder: getFolderPath("/Relations/Beleidsdomeinen (GGM)"),
+      targetFolder: getFolderPath("/Relations" + FOLDER_GGM_BELEIDSDOMEIN),
       isReversed: true,
       propMapping: {
         "Object ID": function (relationship) {
@@ -92,7 +102,7 @@ var dataobjecten = {
             return generateUUID();
           }
         },
-      },    
+      },
     },
   },
 };

@@ -3,7 +3,7 @@
  *
  * (c) 2023 Mark Backer
  */
-console.log("Loading archi_folders.js")
+console.log("Loading archi_folders.js");
 const ARCHI_FOLDERS_LOADED = true;
 /**
  * get the path of an object
@@ -65,6 +65,7 @@ function getFolderPath(path) {
       if (!startFolder) {
         // set Archi layer folder
         startFolder = $(`folder.${folderLabel}`).first();
+        folder = startFolder;
       } else {
         folder = $(startFolder).children(`folder.${folderLabel}`).first();
         if (!folder) {

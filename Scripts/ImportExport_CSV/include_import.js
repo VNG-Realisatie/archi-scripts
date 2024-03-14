@@ -52,7 +52,6 @@ function importObjects(importFile) {
 
   try {
     console.log(`Importing objects of CSV`);
-    console.log(`>>> ENDPOINT_LABELS = ${ENDPOINT_LABELS}`)
 
     if (!importFile) {
       importFile = window.promptOpenFile({
@@ -68,7 +67,7 @@ function importObjects(importFile) {
       console.log(`> Loaded CSV file: ${importFileName}`);
 
       console.log(`\nTry to match object types (elements, relations and views):`);
-      if (PROP_ID) console.log(`- property ${PROP_ID} and if not found with the 'Archi id'`);
+      if (PROP_ID) console.log(`- property '${PROP_ID}' and if not found with the 'Archi id'`);
       else console.log(`- with the Archi id`);
       console.log(`if object not found, try to match:`);
       console.log(`- elements and views with a combination of name and type`);

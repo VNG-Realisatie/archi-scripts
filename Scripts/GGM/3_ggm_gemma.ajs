@@ -36,9 +36,9 @@ load("include_ggm_gemma.js");
 initConsoleLog(__FILE__, true);
 
 // _Sync folders
-let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + "/Bedrijfsobjecten");
-let relationsBedrijfsobjectFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + "/Bedrijfsobjecten");
-let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + "/Beleidsdomeinen");
+let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
+let relationsBedrijfsobjectFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
+let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN);
 
 // relatie met data-objecten
 let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");

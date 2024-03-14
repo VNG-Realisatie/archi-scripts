@@ -8,7 +8,11 @@
  * - PROP_OBJECT_ID_SYNC - (nw) Object ID in BD->BO rel en bewaar dit in BD->DO relatie
  */
 
-const PROP_ID = "Object ID";
+// const PROP_ID = "Object ID";
+if (!PROP_ID) {
+  // global type var, because const is block scoped
+  var PROP_ID = "Object ID";
+}
 const PROP_GGM_ID = "GGM-guid"; // property with original GGM-guid in business-objects
 const PROP_GGM_ID_IMPORTED = "GGM-guid-imported"; // property with original GGM-guid in data-objects. different property name for ggm_import.ajs script
 const PROP_OBJECT_ID_SYNC = "Object ID sync"; // property to find and sync beleidsdomein aggregations
@@ -30,6 +34,10 @@ const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicat
 
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
 const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
+const FOLDER_GGM_DATAOBJECT = "/Data-objecten (GGM)";
+const FOLDER_GGM_BELEIDSDOMEIN = "/Beleidsdomeinen (GGM)";
+const FOLDER_BELEIDSDOMEIN = "/Beleidsdomeinen";
+const FOLDER_BEDRIJFSOBJECT = "/Bedrijfsobjecten";
 
 /**
  * Create or update a business object for every GGM data-object
@@ -52,6 +60,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
         stats.nr_update += 1;
       } else {
         businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
+
         // create a realization relation between the GGM data-object and created business object
         realizationRel = model.createRelationship(
           "realization-relationship",
@@ -60,7 +69,9 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
           businessObject,
           relsFolder
         );
+        // realizationRel properties
         realizationRel.prop(PROP_GGM_SYNC, "Gegenereerd met ggm-gemma.ajs");
+        if (!realizationRel.prop(PROP_ID)) realizationRel.prop(PROP_ID, generateUUID());
 
         console.log(`> create ${businessObject}`);
         stats.nr_create += 1;
@@ -201,8 +212,10 @@ function updateObjectProp(from, to) {
   to.prop("GGM-synoniemen", from.prop("GGM-synoniemen"));
   to.prop("GGM-datum-tijd-export", from.prop("Datum-tijd-export"));
 
+  // set Object ID for object without one
+  if (!to.prop(PROP_ID)) to.prop(PROP_ID, generateUUID());
+
   // Skip
-  //  PROP_ID // Object ID, data- and bedrijfsobject have their own PROP_ID
   //  PROP_ARCHIMATE_TYPE
   //  "Latest Sync Date"
 
@@ -235,6 +248,39 @@ function updateObjectProp(from, to) {
       }
     }
   }
+}
+
+/**
+ * Set view properties
+ *  - GEMMA online view table filtering
+ *  - publiceren
+ */
+function updateViewProp(view) {
+  view.prop("Bron", "GGM");
+  view.prop("Scope", "Gemeente");
+  view.prop("Detailniveau", "Samenhang");
+  view.prop("Viewtype", "Basis");
+
+  if (view.name.endsWith(" (GGM)")) {
+    view.prop("Architectuurlaag", "Applicatiearchitectuur");
+  } else {
+    // Bedrijfsobjectmodellen publiceren
+    view.prop("Publiceren", "GEMMA Online en redactie");
+    view.prop("Architectuurlaag", "Bedrijfsarchitectuur");
+  }
+  view.removeProp("generate_view_param");
+  // set property beleidsdomein
+  view.removeprop("Beleidsdomein");
+  $(view)
+    .children("grouping")
+    .filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein")
+    .each((grouping) => {
+      if (view.prop("Beleidsdomein")) {
+        view.prop("Beleidsdomein", `${view.prop("Beleidsdomein")}, ${grouping.name}`);
+      } else {
+        view.prop("Beleidsdomein", grouping.name);
+      }
+    });
 }
 
 /**
@@ -295,6 +341,53 @@ function addPropGEMMA_URL(archiObj) {
     archiObj.prop(PROP_ID, generateUUID());
   }
   archiObj.prop(PROP_GEMMA_URL, GEMMA_URL + archiObj.prop(PROP_ID));
+}
+
+/**
+ * Styling functions
+ */
+function styleDataObjects(obj) {
+  switch (obj.prop(PROP_ARCHIMATE_TYPE)) {
+    case "Data object":
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = null;
+      break;
+    case "Business object":
+      obj.opacity = 200;
+      obj.gradient = GRADIENT.LEFT;
+      obj.fillColor = "#FFFFCC"; // "Cream"
+      break;
+
+    default:
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = "#C0C0C0"; // "Silver"
+      break;
+  }
+  if (obj.prop("uml-type") == "Enumeration") {
+    obj.opacity = 100;
+    obj.labelExpression = "${name}\n(${property:uml-type})";
+  }
+}
+
+function styleGroupings(obj) {
+  obj.fontSize = 12;
+  obj.fontStyle = "bold";
+  obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  obj.fillColor = "#FAFAFA";
+}
+
+function styleSpecialization(obj) {
+  obj.lineColor = "#5dade2"; // Sets line color to blue
+  obj.lineWidth = 2;
+}
+
+/**
+ * Append (<Beleidsdomein>) to the label of an visual object
+ */
+function setLabelExpression(obj) {
+  obj.labelExpression = "${name}\n($aggregation:source{name})";
 }
 
 /**
