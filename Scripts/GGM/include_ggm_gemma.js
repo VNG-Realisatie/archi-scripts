@@ -1,43 +1,48 @@
 /**
- * GGM - GEMMA functions
+ * GGM - GEMMA functies
  *
- * run from multiple (test)scripts
- *
- * todo
- * - genereren Object ID voor nieuwe objecten
- * - PROP_OBJECT_ID_SYNC - (nw) Object ID in BD->BO rel en bewaar dit in BD->DO relatie
+ * - maken van de GEMMA bedrijfsobjectmodellen gebaseerd op GGM data-objecten
+ * - definities van oa properynames, folders en file-directies
  */
 
-// const PROP_ID = "Object ID";
-if (!PROP_ID) {
-  // global type var, because const is block scoped
-  var PROP_ID = "Object ID";
-}
-const PROP_GGM_ID = "GGM-guid"; // property with original GGM-guid in business-objects
-const PROP_GGM_ID_IMPORTED = "GGM-guid-imported"; // property with original GGM-guid in data-objects. different property name for ggm_import.ajs script
-const PROP_OBJECT_ID_SYNC = "Object ID sync"; // property to find and sync beleidsdomein aggregations
-const PROP_GGM_SYNC = "Let op";
-const PROP_SPECIALIZATON = "Meer specifiek";
-const PROP_GEMMA_URL = "GEMMA URL";
+// Windows directory with CSV import files
+const GGM_CSV_DIR = __DIR__ + "../../../../Werkbestanden/GGM/Rondje2.1/";
 
+// folders in GEMMA ArchiMate-model
+const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
+const FOLDER_GGM_DATAOBJECT = "/Data-objecten (GGM)";
+const FOLDER_GGM_BELEIDSDOMEIN = "/Beleidsdomeinen (GGM)";
+const FOLDER_BELEIDSDOMEIN = "/Beleidsdomeinen";
+const FOLDER_BEDRIJFSOBJECT = "/Bedrijfsobjecten";
+
+// GGM imported properties
+const PROP_OBJECT_ID_SYNC = "Object ID sync"; // property to find and sync beleidsdomein aggregations
+const PROP_GGM_ID = "GGM-guid"; // Uniek en niet wijzigend id van geïmporteerde GGM objecten
+const PROP_GGM_ID_IMPORTED = "GGM-guid-imported"; // property with original GGM-guid in data-objects. different property name for ggm_import.ajs script
 const PROP_GGM_NAAM = "GGM-naam"; // 	Naam van het objecttype
 const PROP_GGM_DEFINITIE = "GGM-definitie"; // 	samenvattende omschrijving van de kenmerken van het object
 const PROP_GGM_TOELICHTING = "GGM-toelichting"; // 	Aanvullende toelichting op de definitie
 const PROP_GGM_SYNONIEMEN = "GGM-synoniemen"; // 	Alternatieve naam met min of meer dezelfde betekenis (meerdere mogelijk, comma separated)
 const PROP_GGM_BRON = "GGM-bron"; // 	Extern informatiemodel waaruit GGM de definities heeft overgenomen
 const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt type, zoals class of enumeration
-const PROP_GGM_GUID = "GGM-guid"; // 	Uniek en niet wijzigend id van het object
+
+// GGM afgeleid gegeven
+const PROP_SPECIALIZATON = "GGM-specialisaties";
+const PROP_ALTERNATE_NAME = "Alternate name";
+
+// GEMMA managed properties
+if (!PROP_ID) {
+  // global type var, because const is block scoped
+  var PROP_ID = "Object ID"; // property with GEMMA GUID, assigned to all objects and relations
+}
+const PROP_SYNC_WARNING = "Let op";
+const PROP_GEMMA_URL = "GEMMA URL";
 const PROP_ARCHIMATE_TYPE = "ArchiMate-type";
 
+// Values
 const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
 // const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
-
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
-const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
-const FOLDER_GGM_DATAOBJECT = "/Data-objecten (GGM)";
-const FOLDER_GGM_BELEIDSDOMEIN = "/Beleidsdomeinen (GGM)";
-const FOLDER_BELEIDSDOMEIN = "/Beleidsdomeinen";
-const FOLDER_BEDRIJFSOBJECT = "/Bedrijfsobjecten";
 
 /**
  * Create or update a business object for every GGM data-object
@@ -47,8 +52,8 @@ const FOLDER_BEDRIJFSOBJECT = "/Bedrijfsobjecten";
  * - create realization-relation from data-object to business object
  */
 function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, stats) {
-  let processBusinessObjectsColl = $();
-  console.log(`Created business-object:`);
+  let updatedBusinessObjects = $();
+  console.log(`Created and updated business-object:`);
   dataObjects
     .filter((dataObject) => dataObject.prop(PROP_ARCHIMATE_TYPE) == "Business object")
     .each((dataObject) => {
@@ -56,38 +61,44 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
         .filter((obj) => obj.prop(PROP_GGM_ID) == dataObject.prop(PROP_GGM_ID_IMPORTED))
         .first();
       if (businessObject) {
+        // update GEMMA with GGM properties
         console.log(`> update ${businessObject}`);
-        stats.nr_update += 1;
+        if (updateObjectProp(dataObject, businessObject)) {
+          stats.nr_update += 1;
+        } else {
+          stats.nr_no_updates += 1;
+        }
       } else {
+        console.log(`> create ${businessObject}`);
         businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
+        // update GEMMA with GGM properties
+        updateObjectProp(dataObject, businessObject);
 
         // create a realization relation between the GGM data-object and created business object
-        realizationRel = model.createRelationship(
+        let realizationRel = model.createRelationship(
           "realization-relationship",
           REALIZATION_LABEL,
           dataObject,
           businessObject,
           relsFolder
         );
-        // realizationRel properties
-        realizationRel.prop(PROP_GGM_SYNC, "Gegenereerd met ggm-gemma.ajs");
-        if (!realizationRel.prop(PROP_ID)) realizationRel.prop(PROP_ID, generateUUID());
+        // set realizationRel properties
+        setObjectID(realizationRel);
+        realizationRel.prop(PROP_SYNC_WARNING, "Gegenereerd met ggm-gemma.ajs");
 
-        console.log(`> create ${businessObject}`);
         stats.nr_create += 1;
       }
-      updateObjectProp(dataObject, businessObject);
+
+      // set GEMMA properties
+      setObjectID(businessObject);
       addPropSpecializations(dataObject, businessObject);
-      addPropGEMMA_URL(businessObject);
+      // GEMMA online URL
+      businessObject.prop(PROP_GEMMA_URL, GEMMA_URL + businessObject.prop(PROP_ID));
 
-      processBusinessObjectsColl.add(businessObject);
+      updatedBusinessObjects.add(businessObject);
     });
-
-  addPropAlternateName(processBusinessObjectsColl);
-  addPropGEMMA_URL(processBusinessObjectsColl);
-
   console.log();
-  return;
+  return updatedBusinessObjects;
 
   // document specialization-relations in property
   function addPropSpecializations(dataObject, businessObject) {
@@ -113,11 +124,11 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
  * - copy relations from corresponding data-object
  * - copy properties
  */
-function updateRelationsBusinessObject(dataObjects, relsFolder, stats) {
+function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
   debugStackPush(false);
   let index = [];
 
-  console.log(`\nCopie data-object relations to business-object relations`);
+  console.log(`\nProcessing data-object relations to business-object relations`);
 
   // process all GGM data-object relations
   dataObjects
@@ -135,20 +146,22 @@ function updateRelationsBusinessObject(dataObjects, relsFolder, stats) {
           .filter((bRel) => bRel.source.type == "business-object")
           .first();
         if (businessRel) {
-          console.log(`> update ${printRelation(businessRel)}`);
-          updateObjectProp(rel, businessRel);
+          debug(`> update ${printRelation(businessRel)}`);
           stats.nr_update += 1;
         } else {
           let source = find_GGM_GEMMA_object(rel.source);
           let target = find_GGM_GEMMA_object(rel.target);
 
           if (source && target) {
-            let businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
-            updateObjectProp(rel, businessRel);
+            businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
 
             console.log(`> create ${printRelation(businessRel)}`);
             stats.nr_create += 1;
           }
+        }
+        if (businessRel) {
+          updateObjectProp(rel, businessRel);
+          setObjectID(businessRel);
         }
       }
     });
@@ -160,8 +173,8 @@ function updateRelationsBusinessObject(dataObjects, relsFolder, stats) {
  * - copy relations from corresponding data-object
  * - copy properties
  */
-function updateRelationBeleidsdomein(dataObjects, relsFolder, stats) {
-  console.log(`\nCopy Beleidsdomein-aggregations to business-object relations`);
+function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
+  console.log(`\nProcessing Beleidsdomein-aggregations to business-object relations`);
 
   // process beleidsdomein relations
   dataObjects
@@ -175,78 +188,112 @@ function updateRelationBeleidsdomein(dataObjects, relsFolder, stats) {
         .first();
 
       if (relBeleidsdomein) {
-        console.log(`> update ${printRelation(relBeleidsdomein)}`);
-        updateObjectProp(rel, relBeleidsdomein);
+        debug(`> update ${printRelation(relBeleidsdomein)}`);
         stats.nr_update += 1;
       } else {
         let target = find_GGM_GEMMA_object(rel.target);
         if (target) {
           relBeleidsdomein = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
-          updateObjectProp(rel, relBeleidsdomein);
           relBeleidsdomein.prop(PROP_OBJECT_ID_SYNC, rel.prop(PROP_ID));
           console.log(`> create ${printRelation(relBeleidsdomein)}`);
           stats.nr_create += 1;
         }
-        // move to sync folder
       }
-      relsFolder.add(relBeleidsdomein);
+      if (relBeleidsdomein) {
+        updateObjectProp(rel, relBeleidsdomein);
+        setObjectID(relBeleidsdomein);
+        // move to sync folder
+        relsFolder.add(relBeleidsdomein);
+      }
     });
   console.log();
 }
 
 /**
- * Copy GGM properties to the GEMMA bedrijfsobjecten and relations
+ * Update GEMMA bedrijfsobjecten and relations properties with GGM properties
  */
 function updateObjectProp(from, to) {
   // update objects attributes and properties
-  // Save these attribute and property value if current GEMMA value is different
-  updateAttribute("name", "GGM-naam");
-  updateAttribute("documentation", "GGM-definitie");
+  let updatedFlag = false;
 
-  updateProperty("GGM-toelichting", "Toelichting");
-  updateProperty("GGM-bron", "Bron");
-
-  // copy these properties from GGM
+  // copy imported GGM_ID and GGM export date
   to.prop(PROP_GGM_ID, from.prop(PROP_GGM_ID_IMPORTED));
-  to.prop("GGM-uml-type", from.prop("GGM-uml-type"));
-  to.prop("GGM-synoniemen", from.prop("GGM-synoniemen"));
   to.prop("GGM-datum-tijd-export", from.prop("Datum-tijd-export"));
 
-  // set Object ID for object without one
-  if (!to.prop(PROP_ID)) to.prop(PROP_ID, generateUUID());
+  // update attribute and property to a GGM-property, keep the GEMMA value
+  updatedFlag = updateAttribute("name", "GGM-naam");
+  updatedFlag = updateAttribute("documentation", "GGM-definitie");
+  updatedFlag = updateProperty("Toelichting", "GGM-toelichting");
+  updatedFlag = updateProperty("Bron", "GGM-bron");
+  updatedFlag = updateProperty("Synoniemen", "GGM-synoniemen");
 
-  // Skip
-  //  PROP_ARCHIMATE_TYPE
-  //  "Latest Sync Date"
+  // copy these properties from GGM
+  updatedFlag = copyProperty("GGM-uml-type");
+
+  // don't copy these properties to GEMMA bedrijfsobjecten
+  // - PROP_ARCHIMATE_TYPE
+  // - "Latest Sync Date"
 
   // association relation are directed (show 'half' arrow in views)
   if (from.type == "association-relationship") {
     to.associationDirected = from.associationDirected;
   }
   // add a warning in every created object
-  to.prop(PROP_GGM_SYNC, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
-  return;
+  to.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
 
-  function updateAttribute(attribute, boProp) {
-    if (to[attribute].trim() == "") {
+  return updatedFlag;
+
+  function updateAttribute(attribute, ggmProp) {
+    let updated = false;
+    if (to[attribute].trim() == "" && from[attribute] != "") {
+      console.log(`  > ${attribute}:\n  > new: ${from[attribute].trim()}`);
       to[attribute] = from[attribute].trim();
+      updated = true;
     } else {
       if (to[attribute].trim() != from[attribute].trim()) {
-        to.prop(boProp, from[attribute].trim());
-      }
-    }
-  }
-
-  function updateProperty(ggmProp, gemmaProp) {
-    if (from.prop(ggmProp)) {
-      if (!to.prop(gemmaProp)) {
-        to.prop(gemmaProp, from.prop(ggmProp).trim());
-      } else {
-        if (to.prop(gemmaProp).trim() != from.prop(ggmProp).trim()) {
-          to.prop(ggmProp, from.prop(ggmProp).trim());
+        if (to.prop(ggmProp) != from[attribute].trim()) {
+          console.log(`  > ${attribute}:`);
+          console.log(`    > GEMMA ${attribute}: ${to[attribute].trim()}`);
+          console.log(`    > GGM ${attribute}:   ${from[attribute].trim()}`);
+          console.log(`    > previous ${ggmProp}:    ${to.prop(ggmProp) ? to.prop(ggmProp) : "none"}`);
+          to.prop(ggmProp, from[attribute].trim());
+          updated = true;
         }
       }
     }
+    return updated;
+  }
+
+  function updateProperty(gemmaProp, ggmProp) {
+    let updated = false;
+    if (from.prop(ggmProp)) {
+      if (!to.prop(gemmaProp)) {
+        console.log(`  > ${gemmaProp}:`);
+        console.log(`    > new: ${from.prop(ggmProp).trim()}`);
+        to.prop(gemmaProp, from.prop(ggmProp).trim());
+        updated = true;
+      } else {
+        if (to.prop(gemmaProp).trim() != from.prop(ggmProp).trim()) {
+          // check if ggmProp is changed and log
+          updated = copyProperty(ggmProp);
+        }
+      }
+    }
+    return updated;
+  }
+
+  function copyProperty(property) {
+    let updated = false;
+    if (from.prop(property)) {
+      if (to.prop(property) != from.prop(property).trim()) {
+        console.log(`  > ${property}:`);
+        console.log(`    > from: ${to.prop(property)}`);
+        console.log(`    > to:   ${from.prop(property).trim()}`);
+        to.prop(property, from.prop(property).trim());
+        updated = true;
+      }
+    }
+    return updated;
   }
 }
 
@@ -270,7 +317,7 @@ function updateViewProp(view) {
   }
   view.removeProp("generate_view_param");
   // set property beleidsdomein
-  view.removeprop("Beleidsdomein");
+  view.removeProp("Beleidsdomein");
   $(view)
     .children("grouping")
     .filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein")
@@ -281,66 +328,72 @@ function updateViewProp(view) {
         view.prop("Beleidsdomein", grouping.name);
       }
     });
+  setObjectID(view);
 }
 
 /**
  * Find objects with duplicate name
  *  and add a property with a unique name
  */
-function addPropAlternateName(archiObjColl) {
-  let archiObjArray = [];
-  archiObjColl.each((o) => archiObjArray.push(o));
+function updateAlternateName(archiObjColl) {
+  // find objects with equal names
+  const duplicateNames = findDuplicateNames(archiObjColl);
 
-  const objectNameArray = archiObjArray.map((obj) => ({ objKey: obj.name.toLowerCase(), archiObj: obj }));
-
-  // create list of duplicates
-  const lookup = objectNameArray.reduce((accumulator, entry) => {
-    // reduce objects to lookup table with count of occurrences - 1
-    accumulator[entry.objKey] = accumulator[entry.objKey] + 1 || 0;
-    return accumulator;
-  }, {});
-  // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
-  const duplicate_Array = objectNameArray.filter((entry) => lookup[entry.objKey]).sort(sortObjName);
-
-  // append suffix
-  console.log(`Alternate name for duplicates`);
-  if (duplicate_Array.length > 0) {
-    duplicate_Array.forEach((item) => {
+  // add property with alternate name (suffix Beleidsdomein)
+  if (duplicateNames.length > 0) {
+    duplicateNames.forEach((duplicateItem) => {
       // find grouping beleidsdomein
-      let relBeleidsdomein = $(item.archiObj)
+      let relBeleidsdomein = $(duplicateItem.archiObj)
         .inRels("aggregation-relationship")
         .filter((rel) => rel.source.type == "grouping")
         .filter((rel) => rel.source.prop("GEMMA type") == "Beleidsdomein");
 
       if (relBeleidsdomein.size() == 1) {
-        let alternateName = `${item.archiObj.name} (${relBeleidsdomein.first().source.name})`;
-        console.log(`- ${item.archiObj.name} > ${alternateName}`);
+        let alternateName = `${duplicateItem.archiObj.name} (${relBeleidsdomein.first().source.name})`;
+        debug(`- ${duplicateItem.archiObj.name} > ${alternateName}`);
         // item.archiObj.name = alternateName;
-        item.archiObj.prop("Alternate name", alternateName);
+        if (duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME) != alternateName) {
+          console.log(
+            `  > ${duplicateItem.archiObj.name} >  ${
+              duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME) == undefined
+                ? "''"
+                : duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME)
+            } => ${alternateName}`
+          );
+        }
+        duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME, alternateName);
       } else {
         console.log(
-          `Warning: ${item.archiObj} does not have 1 'beleidsdomein'. Found relation(s): ${relBeleidsdomein}`
+          `  > Warning: ${duplicateItem.archiObj} does not have 1 'beleidsdomein'. Found relation(s): ${relBeleidsdomein}`
         );
       }
     });
   } else console.log(`- geen`);
 
-  /**
-   * sort entries on objKey
-   */
-  function sortObjName(a, b) {
-    if (a.objKey < b.objKey) return -1;
-    if (a.objKey > b.objKey) return 1;
-    return 0;
-  }
-}
+  function findDuplicateNames(archiObjColl) {
+    let archiObjArray = [];
+    archiObjColl.each((o) => archiObjArray.push(o));
 
-// add property met GEMMA online URL
-function addPropGEMMA_URL(archiObj) {
-  if (!archiObj.prop(PROP_ID)) {
-    archiObj.prop(PROP_ID, generateUUID());
+    const objectNameArray = archiObjArray.map((obj) => ({ objKey: obj.name.toLowerCase(), archiObj: obj }));
+
+    // create list of duplicates
+    const lookup = objectNameArray.reduce((accumulator, entry) => {
+      // reduce objects to lookup table with count of occurrences - 1
+      accumulator[entry.objKey] = accumulator[entry.objKey] + 1 || 0;
+      return accumulator;
+    }, {});
+    // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
+    return objectNameArray.filter((entry) => lookup[entry.objKey]).sort(sortObjName);
+
+    /**
+     * sort entries on objKey
+     */
+    function sortObjName(a, b) {
+      if (a.objKey < b.objKey) return -1;
+      if (a.objKey > b.objKey) return 1;
+      return 0;
+    }
   }
-  archiObj.prop(PROP_GEMMA_URL, GEMMA_URL + archiObj.prop(PROP_ID));
 }
 
 /**
@@ -416,6 +469,12 @@ function printRelation(rel, debug) {
       return `${rel.source.name} --${rel.type.replace("-relationship", "")}--> ${rel.target.name}`;
     }
   }
+}
+
+// set Object ID for object without one
+function setObjectID(obj) {
+  if (!obj.prop(PROP_ID)) obj.prop(PROP_ID, generateUUID());
+  // else debug(`Keep ${PROP_ID}: ${obj}`);
 }
 
 /**

@@ -1,9 +1,12 @@
-const USER_PARAM = {
+// workaround for reading multiple USER_PARAM
+// https://www.w3docs.com/snippets/javascript/how-to-unset-a-javascript-variable.html
+// - If the property is created without let, the operator can delete it
+
+USER_PARAM = {
   graphDepth: 2,
-  viewNameSuffix: " (GGM)",
   includeElementType: [
     "data-object",
-    "grouping"
+     "grouping"
   ],
   includeRelationType: [
     // "access-relationship",
@@ -50,6 +53,7 @@ const USER_PARAM = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 50,
-  
-  viewFolder: "/Data-object (GGM)",
+
+  viewNameSuffix: " (GGM)",
+  viewFolder: "/Data-objecten (GGM)",
 };

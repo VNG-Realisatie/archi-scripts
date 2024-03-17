@@ -34,6 +34,7 @@ load("../_lib/Common.js");
 load("include_ggm_gemma.js");
 
 initConsoleLog(__FILE__, true);
+debugStackPush(false);
 
 // _Sync folders
 let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
@@ -43,19 +44,43 @@ let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_G
 // relatie met data-objecten
 let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
 
-let stats_BO = { nr_update: 0, nr_create: 0 };
-let stats_relBO = { nr_update: 0, nr_create: 0 };
-let stats_relBD = { nr_update: 0, nr_create: 0 };
+let stats_BO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+let stats_relBO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+let stats_relBD = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
 
-let selectedObjects = getSelection($(selection), "data-object");
+let selectedDataObjects = getSelection($(selection), "data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
+if (selectedDataObjects.size() == 0) {
+  selectedDataObjects = $("data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
+  console.log(`Selected ${selectedDataObjects.size()} GGM data-object\n`);
+}
 
-updateBusinessObjects(selectedObjects, businessObjectFolder, realizesBedrijfsobjectFolder, stats_BO);
-updateRelationsBusinessObject(selectedObjects, relationsBedrijfsobjectFolder, stats_relBO);
-updateRelationBeleidsdomein(selectedObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
+let updatedBusinessObjects = updateBusinessObjects(
+  selectedDataObjects,
+  businessObjectFolder,
+  realizesBedrijfsobjectFolder,
+  stats_BO
+);
+updateBusinessObjectRelations(selectedDataObjects, relationsBedrijfsobjectFolder, stats_relBO);
+updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
 
-console.log(`> from ${selectedObjects.size()} data-objects`);
-console.log(`> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated`);
-console.log(`> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated`);
-console.log(`> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated`);
+console.log(`Update alternate names for duplicates`);
+console.log(`> data-objects:`);
+updateAlternateName(selectedDataObjects); // also for GGM data-objecten
+console.log(`> bedrijfsobjecten:`);
+updateAlternateName(updatedBusinessObjects);
 
+console.log();
+console.log("Statistieken");
+console.log(`> from ${selectedDataObjects.size()} data-objects`);
+console.log(
+  `> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated, ${stats_BO.nr_no_updates} no updates`
+);
+console.log(
+  `> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated, ${stats_relBO.nr_no_updates} no updates`
+);
+console.log(
+  `> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated, ${stats_relBD.nr_no_updates} no updates`
+);
+
+debugStackPop();
 finishConsoleLog();

@@ -4,10 +4,10 @@
  * Uitgangssituatie
  * - GGM ArchiMate-model met een geïmporteerd GGM model en aangemaakte bedrijfsobjecten
  */
-load("../_lib/selection.js");
-load("../_lib/archi_folders.js");
-load("../_lib/Common.js");
-load("include_ggm_gemma.js");
+load("../../_lib/selection.js");
+load("../../_lib/archi_folders.js");
+load("../../_lib/Common.js");
+load("../include_ggm_gemma.js");
 
 initConsoleLog(__FILE__, true);
 

@@ -1,12 +1,16 @@
 /**
- * Import the ggm relations
- *  - read from spreadsheet, match with 
- *  - move to folder
- *  - set Object ID
- *
- * The GGM data-object must be synced with previous step 1_ggm_sync_from_csv
+ * Import van de GGM relaties
+ * 
+ * Specificatie CSV-bestanden
+ * - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
+ * 
+ * Voordat dit script gedraaid wordt:
+ * - maak een Archi compatible versie van de GGM csv met LibreOffice calc
+ * - de GGM data-objecten moeten ingelezen zijn 
+ * 
+ * Dit script leest de GGM relaties
+ * - associaties en specialisaties tussen data-objecten
  */
-
 load(__DIR__ + "../_lib/Common.js");
 load("../_lib/archi_folders.js");
 load("include_ggm_gemma.js");
@@ -17,10 +21,9 @@ load(__DIR__ + "../ImportExport_CSV/include_import.js");
 
 initConsoleLog(__FILE__, true);
 
-let dir = "C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/GGM/Rondje2.1/";
 // let fileName = "convert GGM relations from ods.csv"
 let fileName = "gemma_import_relations (convert ggm).csv";
-importObjects(dir + fileName);
+importObjects(GGM_CSV_DIR + fileName);
 
 let dataobjectRelations = $(getFolderPath("/Relations"))
 .children("relationship")

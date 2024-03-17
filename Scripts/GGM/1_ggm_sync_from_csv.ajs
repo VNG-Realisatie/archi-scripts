@@ -4,10 +4,9 @@
  * Specificatie CSV-bestanden
  *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
  *
- * Dit script leest de GGM objecten in als
+ * Dit script leest de GGM objecten in als 
  * - data-objecten
- * - grouping beleidsdomeinen (iv3-domein)
- *
+ * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
  */
 
 load("include_ggm_gemma.js");
@@ -19,15 +18,12 @@ load("../Sync from CSV/Include_LoadAndSync.js");
  * file: GGM Enterprise Architect CSV export
  *    C:/Users/marks/Vereniging van Nederlandse Gemeenten/Unit Architectuur en Standaarden - Documents/GEMMA ontwikkelstraat/GGM
  */
-
-// C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/GGM
-let GGM_csv_dir = __DIR__ + "../../../../Werkbestanden/GGM/Rondje2.1/";
 let GGM_objects = "ggm_export_objects_21022024-11_03_02.csv";
 // let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
 
 var beleidsdomeinen = {
   label: "Beleidsdomeinen",
-  csv: GGM_csv_dir + GGM_objects,
+  csv: GGM_CSV_DIR + GGM_objects,
   targetType: "grouping",
   targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN),
   getId: function (element) {
@@ -57,7 +53,7 @@ var beleidsdomeinen = {
 
 var dataobjecten = {
   label: "Dataobject",
-  csv: GGM_csv_dir + GGM_objects,
+  csv: GGM_CSV_DIR + GGM_objects,
   targetType: "data-object",
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";

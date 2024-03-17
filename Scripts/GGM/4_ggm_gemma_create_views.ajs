@@ -1,0 +1,73 @@
+/**
+ * Genereer de views van de GGM data-objecten en de GEMMA bedrijfsobjecten
+ *
+ * Configuratie van de te genereren views in 
+ * - ggmDO en ggmBO
+ * 
+ * Dit script
+ * - genereert views
+ * - styled de views
+ * - zet eigenschappen van de views
+ */
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("../View/include_view.js");
+load("include_ggm_gemma.js");
+
+const FOLDER_SYNC_GGM_VIEWS = FOLDER_SYNC_GGM + "/GGM naar GEMMA";
+
+initConsoleLog(__FILE__, true);
+try {
+  let beleidsthemas = $("grouping").filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
+  console.log(`Aantal beleidsthemas: ${beleidsthemas.size()}`);
+  let drawCollection = beleidsthemas;
+  // let drawCollection = $(beleidsthemas.first()); // one beleidsthema for test
+  let viewFolders = [];
+
+  let param = read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
+  param.viewFolder = FOLDER_GGM_DATAOBJECT;
+  viewFolders.push(getFolderPath("/Views" + param.viewFolder));
+  console.log("Generate GGM data-object view");
+  generate_view(param, drawCollection);
+
+  param = read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
+  param.viewFolder = FOLDER_SYNC_GGM_VIEWS + FOLDER_BEDRIJFSOBJECT;
+  viewFolders.push(getFolderPath("/Views" + param.viewFolder));
+  console.log("Generate GEMMA bedrijfsobjectmodellen views");
+  generate_view(param, drawCollection);
+
+  // Styling, labels and properties
+  viewFolders.forEach((folder) => {
+    let views = $(folder).children("view");
+
+    // styling
+    styleView(views);
+
+    // toon label Beleidsdomein voor data- of bedrijfsobjecten die niet in een Beleidsdomein zijn genest
+    console.log();
+    let notNestedElements = getSelection($(folder), "view").children("element").not("grouping");
+    applyToCollection(notNestedElements, setLabelExpression);
+
+    // set view properties
+    console.log();
+    views.each((view) => updateViewProp(view));
+  });
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();
+
+function styleView(views) {
+  console.log();
+
+  // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
+  applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
+  // bold font domein-grouping
+  console.log();
+  applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
+  // specialisatie-relaties groen
+  console.log();
+  applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
+}

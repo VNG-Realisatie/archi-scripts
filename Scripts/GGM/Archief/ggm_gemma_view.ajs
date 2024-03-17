@@ -12,7 +12,7 @@ load("include_ggm_gemma.js");
 
 initConsoleLog(__FILE__, true);
 
-let viewFolder = getFolderPath("/Views" + FOLDER_SYNC_GGM + "/Bedrijfsobjecten");
+let viewFolder = getFolderPath("/Views" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
 
 let newView = {};
 let viewColl = getSelection($(selection), "view");

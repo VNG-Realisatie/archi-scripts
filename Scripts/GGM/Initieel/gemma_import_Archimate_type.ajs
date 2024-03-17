@@ -1,0 +1,26 @@
+/**
+ * Importeer CSV met property Archimate-type
+ * 
+ * Stappen
+ * - exporteer de data-objecten uit het GGM ArchiMate-model
+ *    - met prop Archimate-type => welke data-objecten worden een bedrijfsobject
+ * - maak een leeg model en start met
+ *    - run 1_ggm_sync_from_csv
+ *    - run dit script en importeer de data-objecten export
+ *    - etc
+ */
+load("../../_lib/Common.js");
+load("../include_ggm_gemma.js");
+
+// Overrule PROP_ID: vind bestaande relaties met GGM-guid-imported ipv Object ID
+var PROP_ID = "GGM-guid-imported";
+load(__DIR__ + "../../ImportExport_CSV/include_import.js");
+
+initConsoleLog(__FILE__,true);
+
+// let dir ="C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/GGM/Rondje2.1/"
+// let fileName = "convert GGM relations from ods.csv"
+let fileName = "2024-03-16_GGM_Data-objecten-GGM_element.csv"
+importObjects(GGM_CSV_DIR + fileName);
+
+finishConsoleLog();
