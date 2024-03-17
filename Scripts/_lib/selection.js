@@ -76,7 +76,7 @@ function getSelection(startSelection, selector = "*") {
   var selectedColl = $();
   startSelection.each((obj) => addObject(obj, selector, selectedColl));
 
-  console.log(`Created a collection of ${selectedColl.size()} objects of type "${selector}"`);
+  console.log(`Created a collection of ${selectedColl.size()} object${selectedColl.size()==1?"":"s"} of type "${selector}"`);
   return selectedColl;
 
   /**
@@ -120,7 +120,8 @@ function getVisualSelection(startSelection, selector = "*") {
   // create an empty collection
   var selectedVisualColl = $();
   // add selected and all contained objects to the collection
-  $(startSelection).each((obj) => addVisualObject(obj, selector, selectedVisualColl));
+  startSelection.each((obj) => addVisualObject(obj, selector, selectedVisualColl));
+  debug(`selectedVisualColl: ${selectedVisualColl.size()}`)
 
   // if only one object is selected, select on the view all objects of this type
   if (selectedVisualColl.size() == 1) {
