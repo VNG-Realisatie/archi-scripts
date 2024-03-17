@@ -1,13 +1,13 @@
 # view readme
 
-JArchi function for generating and auto layout of an Archi view
+Generate and auto layout Archi view(s)
 
 Use cases:
 
 - quickly generate a starting point for a new view
 - generate multiple context views (one element and all its related elements)
 - analyse your model by generating different views.
-- Use nesting to find unexpected relations, see double relations, etc.
+- use nesting to find unexpected relations, see double relations, etc.
 
 Based on "generate views using graphlib" by Herve Jouin.
 See https://forum.archimatetool.com/index.php?topic=639.msg3563#msg3563
@@ -37,7 +37,7 @@ All the parameters of the generate_view function are contained in one object, th
 
 Configure the behavior of generate_view with the folowing parameters.
 
-- Parameters describing which elements and relations to included in the view
+- Which elements and relations to include in the view
   - `action`, generate and/or layout a view
     - Generate new views
       - GENERATE_SINGLE (default)
@@ -61,11 +61,11 @@ Configure the behavior of generate_view with the folowing parameters.
     - default is no filter
     - [..] (empty array) all relationship types in the model
     - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
-  - `viewName`, name of the view to create
-    - default is "name of first selected object"
-    - only used in the `action` GENERATE_SINGLE
-    - string - viewname
-- Parameters with relationship types to draw different
+  - `excludeFromView`, exclude a marked set of relations from the view
+    - default is false
+    - boolean [true, false]
+    - in the model you 'mark' the to exclude relations with the property excludeFromView=true. The marked relation and ITS related element are skipped
+- How to draw given relationship types
   - `layoutReversed`, relationship types that will be reversed in the layout
     - default none
     - [..] (empty array) no relationships are reversed
@@ -74,8 +74,24 @@ Configure the behavior of generate_view with the folowing parameters.
     - default none
     - [..] (empty array) no relationships are nested
     - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
-- Dagre layout options
-  For more information see <https://github.com/dagrejs/dagre/wiki#configuring-the-layout>
+- View to generate
+  - `viewName`, name of the view to create
+    - default is none
+    - "" (empty string) or none, the "name of first selected object" is used as the viewName
+    - "foo" is used as viewname
+    - only valid in the `action` GENERATE_SINGLE, ignored for other actions
+    - In the action GENERATE_MULTIPLE the individual names of the selected elements are used as the viewName
+  - `viewNameSuffix`, suffix added to the viewName
+    - default is no suffix
+    - "" (empty string), no suffix
+    - " (GGM)" string is appended to the viewName
+  - `viewFolder`, view is added to the folder `/Views/<viewFolder>`
+    - default is empty
+    - "" (emtpy string), view is added to the folder `/Views/_Generated`
+    - "/sub/sub/foldername" string starting with a `/`, containing one or more subfolders
+    - don't include the main folder /Views
+- How to layout and size the view
+  - Dagre layout options - for more information see <https://github.com/dagrejs/dagre/wiki#configuring-the-layout>
   - `graphDirection`, direction of the graph
     - TB -   Top-Bottom (default)
     - BT -   Bottom-Top

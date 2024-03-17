@@ -101,68 +101,100 @@ try {
  * - superseded by DEFAULT_PARAM_FILE
  * - superseded by 'wrapper'.ajs file
  */
-function get_default_parameter(file, init_param) {
+function get_default_parameter(file, param) {
   let path = file.substring(0, file.lastIndexOf("\\") + 1);
 
   try {
     load(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
-    init_param = DEFAULT_PARAM;
+    param = DEFAULT_PARAM;
     console.log(`Default parameter read from file "${DEFAULT_PARAM_FILE}"`);
-    debug(`Default: ${JSON.stringify(init_param, null, 2)}\n`);
+    debug(`Default: ${JSON.stringify(param, null, 2)}\n`);
   } catch (error) {
     console.log(`NOT read default parameters ${DEFAULT_PARAM_FILE}\n`);
     debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  return init_param;
+  return param;
 }
 
-function get_user_parameter(file, filename_param) {
-  let path = file.substring(0, file.lastIndexOf("\\") + 1);
+/**
+ * parse script filename into param values
+ * - filename format <filename of PARAM_FILE>_<action>_<direction>.ajs
+ *
+ * @param {string} file - script filename (use __FILE__)
+ * @param {object} param - put values into param object
+ * @returns param object
+ */
+function get_user_parameter(file, param) {
   let filename = file.replace(/^.*[\\\/]/, "");
   let name = filename.substring(0, filename.lastIndexOf("."));
-
-  // let [direction, action, user_param_name] = name.split("_");
   let [user_param_name, action, direction] = name.split("_");
 
-  filename_param.graphDirection = direction;
-  filename_param.action = action;
+  return read_user_parameter(file, user_param_name, action, direction, param);
+}
 
+/**
+ * Read PARAM_FILE and overwrite param with given user_param.values
+ *
+ * @param {string} file - to deduct path
+ * @param {string} user_param_name - filename of PARAM_FILE
+ * @param {string} action
+ * @param {string} direction
+ * @param {object} param - put values into param object
+ * @returns
+ */
+function read_user_parameter(file, user_param_name, action, direction, param = {}) {
+  debugStackPush(false);
+  let path = file.substring(0, file.lastIndexOf("\\") + 1);
   if (user_param_name) {
-    console.log(`User parameter "${user_param_name}", action ${action} with direction ${direction}`);
-    const PARAM_FILE = `${USER_PARAM_FOLDER}/${user_param_name}.js`;
+    console.log();
+    console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
 
+    let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
+    let printUserParamFile = userParamFile.substring(__SCRIPTS_DIR__.length - 1);
     try {
-      load(path + PARAM_FILE);
+      load(userParamFile);
 
       Object.keys(USER_PARAM).forEach((prop) => {
-        filename_param[prop] = USER_PARAM[prop];
-        debug(`Set ${prop} = ${USER_PARAM[prop]}`);
+        param[prop] = USER_PARAM[prop];
+        debug(`Read_user_parameter: Set ${prop} = ${USER_PARAM[prop]}`);
       });
+      // SyntaxError: Variable "USER_PARAM" has already been declared
+      // occurred when using read_user_parameter multiple times.
+      // workaround; https://www.w3docs.com/snippets/javascript/how-to-unset-a-javascript-variable.html
+      // - If the property is created without let, the operator can delete it
+      USER_PARAM = undefined;
+      delete USER_PARAM;
 
-      console.log(`User parameters read from file "${PARAM_FILE}"`);
-      debug(`With user parameter file: ${JSON.stringify(filename_param, null, 2)}\n`);
+      console.log(`User parameters read from file "${printUserParamFile}"`);
+      debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
-      console.log(`NOT read user parameters ${PARAM_FILE}\n`);
-      debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+      console.log(`NOT read user parameters "${printUserParamFile}"`);
+      debug(`> ${typeof error.stack == "undefined" ? error : error.stack}\n`);
     }
   } else {
     console.log(`${action} with direction ${direction}\n`);
   }
-  return filename_param;
+
+  param.graphDirection = direction;
+  param.action = action;
+
+  debugStackPop();
+  return param;
 }
 
 /**
  * generate and layout an ArchiMate view
  *
- * @param {object} param - settings for generating a view
+ * @param {object}     param - settings for generating a view
+ * @param {collection} drawCollection - collection to draw (optional, default is $(selection))
  */
-function generate_view(param) {
+function generate_view(param, drawCollection) {
   if (param.debug == undefined) param.debug = false;
   debugStackPush(param.debug);
 
   try {
     if (setDefaultParameters(param)) {
-      let filteredElements = selectElements(param);
+      let filteredElements = selectElements(param, drawCollection);
 
       switch (param.action) {
         case GENERATE_SINGLE:
@@ -242,12 +274,13 @@ function setDefaultParameters(param) {
     validFlag = false;
   if (param.excludeFromView === undefined) param.excludeFromView = false;
   console.log(`  - excludeFromView = ${param.excludeFromView} (exclude objects with property ${PROP_EXCLUDE}=true)`);
-  if (param.viewNameSuffix === undefined || param.viewNameSuffix === "") param.viewNameSuffix = ""
+  if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
   console.log(`  - viewName = ${param.viewName}`);
+  if (param.viewNameSuffix === undefined || param.viewNameSuffix === "") param.viewNameSuffix = "";
+  console.log(`  - viewNameSuffix = ${param.viewNameSuffix}`);
   if (param.viewFolder === undefined || param.viewFolder === "") param.viewFolder = "";
-  console.log(`  - viewName = ${param.viewName}`);
-  if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name + param.viewNameSuffix;
-  console.log(`  - viewName = ${param.viewName}`);
+  console.log(`  - viewFolder = ${param.viewFolder}`);
+  param.viewName = param.viewName + param.viewNameSuffix;
 
   console.log("How to draw relationships");
   if (param.layoutReversed === undefined) param.layoutReversed = [];
@@ -258,6 +291,22 @@ function setDefaultParameters(param) {
   console.log("Developing");
   console.log("  - debug = " + param.debug);
   console.log();
+  switch (param.action) {
+    case GENERATE_SINGLE:
+      console.log(`Create or update view:\n- /Views${param.viewFolder}/${param.viewName}`);
+      break;
+    case GENERATE_MULTIPLE:
+      console.log(`Create or update view(s):\n- /Views${param.viewFolder}/<elementName>${param.viewNameSuffix}`);
+      break;
+    case EXPAND_HERE:
+    case LAYOUT:
+    case REGENERATE:
+      console.log("Update selected view");
+      break;
+    default:
+      break;
+  }
+  console.log();
 
   return validFlag;
 }
@@ -267,15 +316,19 @@ function setDefaultParameters(param) {
  * filter the list according the settings in the param object.
  *
  * @param {object} param - settings for generating a view
+ * @param {collection} drawCollection - collection to draw (optional, default is $(selection))
+ *
  */
-function selectElements(param) {
-  // // create an array with the selected elements
+function selectElements(param, drawCollection = $(selection)) {
+  // create an array with the selected elements
+  debug(`drawCollection: ${drawCollection}`);
   var selectedElements;
-  selectedElements = getSelectionArray($(selection), "element");
+  selectedElements = getSelectionArray(drawCollection, "element");
+
   // filter the selected elements with the concept filter
   let filteredSelection = [];
   filteredSelection = selectedElements.filter((obj) => filterObjectType(obj, param.includeElementType));
-  console.log(`- ${filteredSelection.length} elements after filtering`);
+  console.log(`- ${filteredSelection.length} element${filteredSelection.length == 1 ? "" : "s"} after filtering`);
   if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
 
   return filteredSelection;
@@ -561,7 +614,7 @@ function drawView(param, filteredElements) {
   let folder = getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
   if (param.viewFolder != "") {
     folder = getFolderPath("/Views" + param.viewFolder);
-  } 
+  }
 
   var view = getView(folder, param.viewName);
 
@@ -750,8 +803,8 @@ function drawRelation(param, edge, visualElementIndex, view) {
  * @param {object} view Archi view
  */
 function layoutNestedConnection(parentRel, visualElementIndex, view) {
-  debugStackPush(true);
-  debug(`parentRel: ${parentRel.source} --${parentRel.name}--> ${parentRel.targets}`);
+  debugStackPush(false);
+  debug(`parentRel: ${parentRel.source} --${parentRel.name}--> ${parentRel.target}`);
   view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
   debugStackPop();
 }
