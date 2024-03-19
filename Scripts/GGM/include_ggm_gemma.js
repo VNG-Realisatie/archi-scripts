@@ -198,8 +198,6 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
       // find copy aggregation with business-object
       let relBeleidsdomein = $("aggregation-relationship")
         .filter((bRel) => bRel.prop(PROP_OBJECT_ID_SYNC) == rel.prop(PROP_ID))
-        // .filter((aggrRel) => aggrRel.target.type == "business-object")
-        // .filter((aggrRel) => aggrRel.source.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN)
         .first();
 
       if (relBeleidsdomein) {
