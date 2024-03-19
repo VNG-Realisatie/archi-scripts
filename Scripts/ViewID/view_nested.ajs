@@ -16,7 +16,10 @@
  *  Based on the work of Hervé Jouin
  */
 
-load(__DIR__ + "include_view.js");
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("include_view.js");
+load("../_lib/archi_folders.js");
 
 var param = {
   action: GENERATE_SINGLE,

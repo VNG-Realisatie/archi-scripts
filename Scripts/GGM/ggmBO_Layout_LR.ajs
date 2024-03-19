@@ -19,4 +19,4 @@ param = get_user_parameter(__FILE__, param);
 // param.viewFolder = FOLDER_SYNC_GGM + "/GGM naar GEMMA/Bedrijfsobjecten"
 
 generate_view(param);
-finishConsoleLog();
+finishConsoleLog(); 
