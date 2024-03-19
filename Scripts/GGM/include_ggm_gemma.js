@@ -25,24 +25,30 @@ const PROP_GGM_TOELICHTING = "GGM-toelichting"; // 	Aanvullende toelichting op d
 const PROP_GGM_SYNONIEMEN = "GGM-synoniemen"; // 	Alternatieve naam met min of meer dezelfde betekenis (meerdere mogelijk, comma separated)
 const PROP_GGM_BRON = "GGM-bron"; // 	Extern informatiemodel waaruit GGM de definities heeft overgenomen
 const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt type, zoals class of enumeration
+const PROP_GGM_DATUM_TIJD = "GGM-datum-tijd-export";
+const PROP_DATUM_TIJD = "Datum-tijd-export";
 
 // GGM afgeleid gegeven
 const PROP_SPECIALIZATON = "GGM-specialisaties";
 const PROP_ALTERNATE_NAME = "Alternate name";
 
-// GEMMA managed properties
+// GEMMA properties
 if (!PROP_ID) {
   // global type var, because const is block scoped
   var PROP_ID = "Object ID"; // property with GEMMA GUID, assigned to all objects and relations
 }
 const PROP_SYNC_WARNING = "Let op";
 const PROP_GEMMA_URL = "GEMMA URL";
+const PROP_GEMMA_TYPE = "GEMMA type";
 const PROP_ARCHIMATE_TYPE = "ArchiMate-type";
+const PROP_BRON = "Bron";
 
 // Values
+const GGM_MEMO_TEXT = "<memo>";
 const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
 // const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
+const GEMMA_TYPE_BELEIDSDOMEIN = "Beleidsdomein";
 
 /**
  * Create or update a business object for every GGM data-object
@@ -71,20 +77,12 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
       } else {
         console.log(`> create ${businessObject}`);
         businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
-        // update GEMMA with GGM properties
+        // update GEMMA bedrijfsobject with GGM properties
         updateObjectProp(dataObject, businessObject);
+        // add a warning in every created object
+        businessObject.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
 
-        // create a realization relation between the GGM data-object and created business object
-        let realizationRel = model.createRelationship(
-          "realization-relationship",
-          REALIZATION_LABEL,
-          dataObject,
-          businessObject,
-          relsFolder
-        );
-        // set realizationRel properties
-        setObjectID(realizationRel);
-        realizationRel.prop(PROP_SYNC_WARNING, "Gegenereerd met ggm-gemma.ajs");
+        createRealizationRel(dataObject, businessObject, relsFolder);
 
         stats.nr_create += 1;
       }
@@ -99,6 +97,20 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
     });
   console.log();
   return updatedBusinessObjects;
+
+  // create a realization relation between the GGM data-object and created business object
+  function createRealizationRel(dataObject, businessObject, relsFolder) {
+    let realizationRel = model.createRelationship(
+      "realization-relationship",
+      REALIZATION_LABEL,
+      dataObject,
+      businessObject,
+      relsFolder
+    );
+    // set realizationRel properties
+    setObjectID(realizationRel);
+    realizationRel.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
+  }
 
   // document specialization-relations in property
   function addPropSpecializations(dataObject, businessObject) {
@@ -146,7 +158,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
           .filter((bRel) => bRel.source.type == "business-object")
           .first();
         if (businessRel) {
-          debug(`> update ${printRelation(businessRel)}`);
+          console.log(`> update ${printRelation(businessRel)}`);
           stats.nr_update += 1;
         } else {
           let source = find_GGM_GEMMA_object(rel.source);
@@ -162,6 +174,8 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
         if (businessRel) {
           updateObjectProp(rel, businessRel);
           setObjectID(businessRel);
+          // add a warning in every created object
+          businessRel.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
         }
       }
     });
@@ -183,18 +197,20 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
     .each((rel) => {
       // find copy aggregation with business-object
       let relBeleidsdomein = $("aggregation-relationship")
-        .filter((aggrRel) => aggrRel.prop(PROP_OBJECT_ID_SYNC) == rel.prop(PROP_ID))
-        .filter((aggrRel) => aggrRel.target.type == "business-object")
+        .filter((bRel) => bRel.prop(PROP_OBJECT_ID_SYNC) == rel.prop(PROP_ID))
+        // .filter((aggrRel) => aggrRel.target.type == "business-object")
+        // .filter((aggrRel) => aggrRel.source.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN)
         .first();
 
       if (relBeleidsdomein) {
-        debug(`> update ${printRelation(relBeleidsdomein)}`);
+        console.log(`> update ${printRelation(relBeleidsdomein)}`);
         stats.nr_update += 1;
       } else {
         let target = find_GGM_GEMMA_object(rel.target);
         if (target) {
           relBeleidsdomein = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
           relBeleidsdomein.prop(PROP_OBJECT_ID_SYNC, rel.prop(PROP_ID));
+          relBeleidsdomein.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
           console.log(`> create ${printRelation(relBeleidsdomein)}`);
           stats.nr_create += 1;
         }
@@ -204,6 +220,8 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
         setObjectID(relBeleidsdomein);
         // move to sync folder
         relsFolder.add(relBeleidsdomein);
+        // init, verplaatsen naar create tak
+        relBeleidsdomein.prop(PROP_GEMMA_TYPE, GEMMA_TYPE_BELEIDSDOMEIN);
       }
     });
   console.log();
@@ -218,17 +236,20 @@ function updateObjectProp(from, to) {
 
   // copy imported GGM_ID and GGM export date
   to.prop(PROP_GGM_ID, from.prop(PROP_GGM_ID_IMPORTED));
-  to.prop("GGM-datum-tijd-export", from.prop("Datum-tijd-export"));
+  to.prop(PROP_GGM_DATUM_TIJD, from.prop(PROP_DATUM_TIJD));
 
   // update attribute and property to a GGM-property, keep the GEMMA value
-  updatedFlag = updateAttribute("name", "GGM-naam");
-  updatedFlag = updateAttribute("documentation", "GGM-definitie");
-  updatedFlag = updateProperty("Toelichting", "GGM-toelichting");
-  updatedFlag = updateProperty("Bron", "GGM-bron");
-  updatedFlag = updateProperty("Synoniemen", "GGM-synoniemen");
+  updatedFlag = updateAttribute("name", PROP_GGM_NAAM);
+  updatedFlag = updateAttribute("documentation", PROP_GGM_DEFINITIE);
+  updatedFlag = updateProperty("Toelichting", PROP_GGM_TOELICHTING, updatedFlag);
+  updatedFlag = updateProperty(PROP_BRON, PROP_GGM_BRON, updatedFlag);
+  updatedFlag = updateProperty("Synoniemen", PROP_GGM_SYNONIEMEN, updatedFlag);
 
   // copy these properties from GGM
-  updatedFlag = copyProperty("GGM-uml-type");
+  updatedFlag = copyProperty(PROP_GGM_UML_TYPE, updatedFlag);
+
+  // beleidsdomein relaties
+  updatedFlag = updateProperty("Synoniemen", PROP_GGM_SYNONIEMEN, updatedFlag);
 
   // don't copy these properties to GEMMA bedrijfsobjecten
   // - PROP_ARCHIMATE_TYPE
@@ -238,8 +259,6 @@ function updateObjectProp(from, to) {
   if (from.type == "association-relationship") {
     to.associationDirected = from.associationDirected;
   }
-  // add a warning in every created object
-  to.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
 
   return updatedFlag;
 
@@ -264,9 +283,8 @@ function updateObjectProp(from, to) {
     return updated;
   }
 
-  function updateProperty(gemmaProp, ggmProp) {
-    let updated = false;
-    if (from.prop(ggmProp)) {
+  function updateProperty(gemmaProp, ggmProp, updated = false) {
+    if (from.prop(ggmProp) && from.prop(ggmProp) != GGM_MEMO_TEXT) {
       if (!to.prop(gemmaProp)) {
         console.log(`  > ${gemmaProp}:`);
         console.log(`    > new: ${from.prop(ggmProp).trim()}`);
@@ -275,15 +293,14 @@ function updateObjectProp(from, to) {
       } else {
         if (to.prop(gemmaProp).trim() != from.prop(ggmProp).trim()) {
           // check if ggmProp is changed and log
-          updated = copyProperty(ggmProp);
+          updated = copyProperty(ggmProp, updated);
         }
       }
     }
     return updated;
   }
 
-  function copyProperty(property) {
-    let updated = false;
+  function copyProperty(property, updated = false) {
     if (from.prop(property)) {
       if (to.prop(property) != from.prop(property).trim()) {
         console.log(`  > ${property}:`);
@@ -303,7 +320,7 @@ function updateObjectProp(from, to) {
  *  - publiceren
  */
 function updateViewProp(view) {
-  view.prop("Bron", "GGM");
+  view.prop(PROP_BRON, "GGM");
   view.prop("Scope", "Gemeente");
   view.prop("Detailniveau", "Samenhang");
   view.prop("Viewtype", "Basis");
@@ -320,7 +337,7 @@ function updateViewProp(view) {
   view.removeProp("Beleidsdomein");
   $(view)
     .children("grouping")
-    .filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein")
+    .filter((grouping) => grouping.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN)
     .each((grouping) => {
       if (view.prop("Beleidsdomein")) {
         view.prop("Beleidsdomein", `${view.prop("Beleidsdomein")}, ${grouping.name}`);
@@ -346,7 +363,7 @@ function updateAlternateName(archiObjColl) {
       let relBeleidsdomein = $(duplicateItem.archiObj)
         .inRels("aggregation-relationship")
         .filter((rel) => rel.source.type == "grouping")
-        .filter((rel) => rel.source.prop("GEMMA type") == "Beleidsdomein");
+        .filter((rel) => rel.source.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN);
 
       if (relBeleidsdomein.size() == 1) {
         let alternateName = `${duplicateItem.archiObj.name} (${relBeleidsdomein.first().source.name})`;
@@ -418,9 +435,9 @@ function styleDataObjects(obj) {
       obj.fillColor = "#C0C0C0"; // "Silver"
       break;
   }
-  if (obj.prop("uml-type") == "Enumeration") {
+  if (obj.prop(PROP_GGM_UML_TYPE) == "Enumeration") {
     obj.opacity = 100;
-    obj.labelExpression = "${name}\n(${property:uml-type})";
+    obj.labelExpression = `\${name}\n<<\${property:${PROP_GGM_UML_TYPE}}>>`;
   }
 }
 

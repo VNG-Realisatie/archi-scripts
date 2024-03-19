@@ -4,7 +4,7 @@
  * Specificatie CSV-bestanden
  *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
  *
- * Dit script leest de GGM objecten in als 
+ * Dit script leest de GGM objecten in als
  * - data-objecten
  * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
  */
@@ -38,14 +38,14 @@ var beleidsdomeinen = {
   name: "domein-iv3",
   documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
   propMapping: {
-    "Object ID": function (element) {
-      if (!element.prop("Object ID")) {
+    [PROP_ID]: function (element) {
+      if (!element.prop(PROP_ID)) {
         return generateUUID();
       }
     },
     "GGM-datum-tijd-export": "datum-tijd-export",
-    "GEMMA type": function () {
-      return "Beleidsdomein";
+    [PROP_GEMMA_TYPE]: function () {
+      return GEMMA_TYPE_BELEIDSDOMEIN;
     },
   },
   relations: {},
@@ -60,30 +60,30 @@ var dataobjecten = {
   // },
   targetFolder: getFolderPath("/Application" + FOLDER_GGM_DATAOBJECT),
   getId: function (element) {
-    return element.prop("GGM-guid-imported");
+    return element.prop(PROP_GGM_ID_IMPORTED);
   },
   setId: function (element, row) {
-    element.prop("GGM-guid-imported", row["_id"]);
+    element.prop(PROP_GGM_ID_IMPORTED, row["_id"]);
   },
-  id: "GGM-guid",
+  id: PROP_GGM_ID,
   name: "GGM-naam",
   documentation: "GGM-definitie",
   propMapping: {
-    "Object ID": function (element) {
-      if (!element.prop("Object ID")) {
+    [PROP_ID]: function (element) {
+      if (!element.prop(PROP_ID)) {
         return generateUUID();
       }
     },
-    "GGM-uml-type": "GGM-uml-type",
+    [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
     // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
-    "GGM-toelichting": "GGM-toelichting",
-    "GGM-synoniemen": "GGM-synoniemen",
-    "GGM-bron": "GGM-bron",
-    "GGM-guid-imported": "GGM-guid",
+    [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+    [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+    [PROP_GGM_BRON]: PROP_GGM_BRON,
+    [PROP_GGM_ID_IMPORTED]: PROP_GGM_ID,
     // "domein-iv3": "domein-iv3", // added as relation
     // "domein-dcat": "domein-dcat",
     // "domein-gemma": "domein-gemma",
-    "Datum-tijd-export": "datum-tijd-export",
+    [PROP_DATUM_TIJD]: "datum-tijd-export",
   },
   relations: {
     beleidsdomeinen_rel: {
@@ -93,10 +93,13 @@ var dataobjecten = {
       targetFolder: getFolderPath("/Relations" + FOLDER_GGM_BELEIDSDOMEIN),
       isReversed: true,
       propMapping: {
-        "Object ID": function (relationship) {
-          if (!relationship.prop("Object ID")) {
+        [PROP_ID]: function (relationship) {
+          if (!relationship.prop(PROP_ID)) {
             return generateUUID();
           }
+        },
+        [PROP_GEMMA_TYPE]: function (relationship) {
+          return GEMMA_TYPE_BELEIDSDOMEIN;
         },
       },
     },
