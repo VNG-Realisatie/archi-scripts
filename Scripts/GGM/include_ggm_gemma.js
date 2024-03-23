@@ -322,6 +322,7 @@ function updateViewProp(view) {
   view.prop("Scope", "Gemeente");
   view.prop("Detailniveau", "Samenhang");
   view.prop("Viewtype", "Basis");
+  view.prop("GEMMA thema", "Data");
 
   if (view.name.endsWith(" (GGM)")) {
     view.prop("Architectuurlaag", "Applicatiearchitectuur");
@@ -344,6 +345,7 @@ function updateViewProp(view) {
       }
     });
   setObjectID(view);
+  view.prop(PROP_GEMMA_URL, GEMMA_URL + view.prop(PROP_ID));
 }
 
 /**
