@@ -9,7 +9,13 @@
  * - a copy of the view is created in de folder _generated (if the view is not in folder _generated)
  * - the layout of the copy is changed using the parameters in this file
  */
-load(__DIR__ + "include_view.js");
+
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("include_view.js");
+load("../_lib/archi_folders.js");
+
+initConsoleLog(__FILE__, true);
 
 var params = {
   action: LAYOUT,

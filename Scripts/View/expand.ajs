@@ -8,7 +8,13 @@
  * In the view the selected elements are 'expanded' with their missing relations
  * 
  */
-load(__DIR__ + "include_view.js");
+
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("include_view.js");
+load("../_lib/archi_folders.js");
+
+initConsoleLog(__FILE__, true);
 
 var param = {
   action: EXPAND_HERE,

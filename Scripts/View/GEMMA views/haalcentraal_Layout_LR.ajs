@@ -1,46 +1,32 @@
 /**
- * Script that changes the layout a view
- * 
- * Usage:
- * - select a view (in the model or click in a view on the background)
- * - run this script
- * 
- * Action of the script
- * - a copy of the view is created in de folder _generated (if the view is not in folder _generated)
- * - the layout of the copy is changed using the parameters in this file
+ * Layout voor Haal Centraal view
  */
-load(__DIR__ + "include_view.js");
+load("../../_lib/Common.js");
+load("../../_lib/selection.js");
+load("../include_view.js");
+load("../../_lib/archi_folders.js");
 
-var params = {
+var param = {
   action: LAYOUT,
   includeElementType: [],
   includeRelationType: [],
-
   layoutReversed: [
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "composition-relationship",
+    "realization-relationship",
+    // "serving-relationship",
+    "specialization-relationship",
+  ],
+
+  layoutNested: [
     // "access-relationship",
     // "aggregation-relationship",
     // "assignment-relationship",
-    // "association-relationship",
     // "composition-relationship",
-    // "flow-relationship",
-    // "influence-relationship",
-    "realization-relationship",
-    // "serving-relationship",
-    // "specialization-relationship",
-    // "triggering-relationship",
-  ],
-  layoutNested: [
-    // "access-relationship",
-    "aggregation-relationship",
-    // "assignment-relationship",
-    // "association-relationship",
-    // "composition-relationship",
-    // "flow-relationship",
-    // "influence-relationship",
     // "realization-relationship",
-    // "serving-relationship",
-    "specialization-relationship",
-    // "triggering-relationship",
+    // "serving-relationship"
+    // "specialization-relationship",
   ],
 
   // viewName: "gen-custom",
@@ -61,12 +47,12 @@ var params = {
 
   nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 40, // space between nodes
-  vSep: 20, // space between ranks 
+  hSep: 20,
+  vSep: 200,
 
   debug: false,
 };
 
 initConsoleLog(__FILE__, true);
-generate_view(params);
+generate_view(param);
 finishConsoleLog();

@@ -2,8 +2,6 @@
  * genereer publicatie standaarden view
  */
 
-load(__DIR__ + "../include_view.js");
-
 var param = {
   action: GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
@@ -124,7 +122,7 @@ var param = {
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
 

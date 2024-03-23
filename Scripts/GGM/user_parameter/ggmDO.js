@@ -49,7 +49,7 @@ USER_PARAM = {
   ],
   excludeFromView: true,
 
-  nodeWidth: 140,
+  nodeWidth: 160,
   nodeHeight: 60,
   hSep: 20,
   vSep: 50,
