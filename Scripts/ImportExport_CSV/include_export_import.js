@@ -1,19 +1,33 @@
 /**
  * Shared constants and functions for exporting and importing
  */
-
-load(__DIR__ + "../_lib/papaparse.min.js");
+// load(__DIR__ + "../_lib/papaparse.min.js");
+load("https://unpkg.com/papaparse@latest/papaparse.min.js");
 
 const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_VIEW = "view";
 
-// Set the name of the property containing a tool independent identifier.
-// If set, the import wil use the PROP_ID as the first id for matching objects
-if (!PROP_ID) {
-  // global type var, because const is block scoped 
-  var PROP_ID = "Object ID";
-}
+// export a column with the export date
+const LABEL_TODAY = "<today>";
+let currentDate = new Date().toJSON().slice(0, 10); // "2024-03-19"
+
+// If set, the import wil use the PROP_ID as the first id for matching objects (global type var, because const is block scoped)
+if (PROP_ID == undefined) var PROP_ID = "Object ID"; // set default tool independent identifier.
+
+// Set a label for a folder column, leave empty to skip the 'folder' column
+if (FOLDER_LABEL == undefined) var FOLDER_LABEL = "folder"; // default create a folder column 'folder'
+
+// set GEMMA_COLUMNS to false if you don't want GEMMA special columns for elements
+if (GEMMA_COLUMNS == undefined) var GEMMA_COLUMNS = false; // default do not create the GEMMA columns
+const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
+const GEMMA_LIST_API_LABEL = "SWC API";
+const GEMMA_PUBLICEREN_VALUES = [
+  "Niet",
+  "Redactie",
+  "GEMMA Online en redactie",
+  "Softwarecatalogus en GEMMA Online en redactie",
+];
 
 // labels for creating CSV column labels
 const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
@@ -27,21 +41,6 @@ if (PROP_ID) {
   endpointLabels = endpointLabels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
 }
 const ENDPOINT_LABELS = endpointLabels;
-
-// Set a label for a folder column, leave empty to skip the 'folder' column
-const FOLDER_LABEL = "folder";
-// const FOLDER_LABEL = "";
-
-// set GEMMA_COLUMNS to false if you don't want GEMMA special columns for elements
-const GEMMA_COLUMNS = false;
-const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
-const GEMMA_LIST_API_LABEL = "SWC API";
-const GEMMA_PUBLICEREN_VALUES = [
-  "Niet",
-  "Redactie",
-  "GEMMA Online en redactie",
-  "Softwarecatalogus en GEMMA Online en redactie",
-];
 
 // labels to skip when updating objects
 // - don't import the attribute type (can't be set) and
@@ -107,9 +106,13 @@ function get_attr_or_prop(archi_object, row_label) {
       debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
     }
   } else {
-    // get property, for instance 'Object ID'
-    value = archi_object.prop(row_label);
-    debug(`prop archi_object.prop(${row_label})=${value}`);
+    if (row_label == LABEL_TODAY) {
+      value = currentDate;
+    } else {
+      // get property, for instance 'Object ID'
+      value = archi_object.prop(row_label);
+      debug(`prop archi_object.prop(${row_label})=${value}`);
+    }
   }
 
   debugStackPop();

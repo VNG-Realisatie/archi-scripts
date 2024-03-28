@@ -10,22 +10,41 @@ load(__DIR__ + "include_export_import.js");
  *
  * @param {*} objectType type of Archi objects to export (OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT or OBJECT_TYPE_VIEW)
  * @param {*} exportFile filepath to write CSV file (optional, if empty you will be prompted)
+ * @param {object} headerMapping object with key-column mapping (key is ArchiObject attribute or property, value is export column)
  */
-function exportObjects(objectType, exportFile) {
+function exportObjects(objectType, exportFile, headerMapping, collection) {
   debugStackPush(false);
   debug(`objectType=${objectType}`);
 
   try {
     // create an array with all selected objects.
-    // if folders or views are selected, then all contained objects are added to the list
-    let selectionList = getSelectionArray($(selection), objectType);
+    let selectionList = [];
+    if (collection) {
+      collection.each((o) => selectionList.push(o));
+    } else {
+      // if folders or views are selected, then all contained objects are added to the list
+      selectionList = getSelectionArray($(selection), objectType);
+    }
 
     if (selectionList.length > 0) {
       console.log(`Create header:`);
-      const header = createHeader(selectionList, objectType);
+      let propsHeader = [];
+      let columnsHeader = [];
+      if (headerMapping == undefined) {
+        propsHeader = createHeader(selectionList, objectType);
+        columnsHeader = propsHeader;
+      } else {
+        console.log("Header mapping (get_attr_prop=write header column):");
+        Object.keys(headerMapping).forEach((key) => {
+          console.log(`- ${key}=${headerMapping[key]}`);
+          propsHeader.push(key);
+          columnsHeader.push(headerMapping[key]);
+        });
+      }
+      console.log(`propsHeader: ${propsHeader}`);
 
       console.log(`Create rows for selection:`);
-      const data = selectionList.map((o) => createRow(header, o, objectType));
+      const data = selectionList.map((o) => createRow(propsHeader, o, objectType, headerMapping));
       console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
 
       if (!exportFile) {
@@ -46,7 +65,7 @@ function exportObjects(objectType, exportFile) {
       }
 
       if (exportFile) {
-        saveRowsToFile(header, data, exportFile);
+        saveRowsToFile(columnsHeader, data, exportFile);
         // saveRowsToExcel(header, data, objectType, exportFile);
       } else {
         console.log("\nExport CSV canceled");
@@ -127,7 +146,7 @@ function getPropertyLabels(objects) {
 /**
  * create a CSV row for an exported object
  */
-function createRow(headerRow, object, objectType) {
+function createRow(headerRow, object, objectType, headerMapping) {
   let row = new Object();
 
   debugStackPush(false);
@@ -135,9 +154,15 @@ function createRow(headerRow, object, objectType) {
   debug(`${object}`);
 
   // fill row with the attributes and property values of the object
-  headerRow.forEach((label) => {
-    row[label] = get_attr_or_prop(object, label);
-  });
+  if (headerMapping == undefined) {
+    headerRow.forEach((label) => {
+      row[label] = get_attr_or_prop(object, label);
+    });
+  } else {
+    Object.keys(headerMapping).forEach((key) => {
+      row[headerMapping[key]] = get_attr_or_prop(object, key);
+    });
+  }
 
   // fill folder column
   if (FOLDER_LABEL) {

@@ -3,61 +3,169 @@
  * 	export selected relations to a CSV file
  * 	if a container (a view or a folder) is selected, all relations in the container are exported
  */
-load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../ImportExport_CSV/include_export.js");
-
-// matchen op ID ggm-guid ipv Object ID
-var PROP_ID = "ggm-guid";
-
+load("../_lib/Common.js");
 initConsoleLog(__FILE__);
 
-exportObjects(OBJECT_TYPE_RELATION);
+load("include_ggm_gemma.js");
+load("../ImportExport_CSV/include_export.js");
+// load("../_lib/archi_folders.js");
+
+/** GGM import mappings
+ * - import GGM data-objects with 1_ggm_sync_from_csv.ajs
+ * - import GGM data-objects relations with 2_ggm_import.ajs
+ *
+ * GEMMA export mappings
+ * - export business objects to CSV
+ * - export business object relations to CSV
+ *
+ * export header
+ * - header with mapping-object keys for getting data
+ * - header with mapping-object values for CSV header
+ *
+ * import header
+ * - Object.keys(mapping-object).each
+ */
+
+const BUSINESS_OBJECT_MAPPING = {
+  // not exported GEMMA properties
+  // - id => Archi id is intern
+  // - folder
+  // - GGM-datum-tijd-export
+  // - GGM-specialisaties
+  // - GEMMA type
+  // - Let op
+  name: "GEMMA-naam",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  [PROP_ID]: "GEMMA-guid",
+  [PROP_GGM_ID]: PROP_GGM_ID,
+  type: "GEMMA-type",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  documentation: "GEMMA-definitie",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  Toelichting: "GEMMA-toelichting",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  Synoniemen: "GEMMA-synoniemen",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  Bron: "GEMMA-bron",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  [PROP_GEMMA_URL]: PROP_GEMMA_URL,
+  [PROP_ALTERNATE_NAME] : "GEMMA-alternate-name",
+  [LABEL_TODAY]: [LABEL_DATUM_TIJD], // "2024-03-19"
+};
+
+// mapping used in Papa.parse transform en transformheader
+const BUSINESS_RELATION_MAPPING = {
+  name: "GEMMA-naam",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  [PROP_ID]: "GEMMA-guid",
+  [PROP_GGM_ID]: PROP_GGM_ID,
+  type: "GEMMA-type",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  documentation: "GEMMA-definitie",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  Toelichting: "GEMMA-toelichting",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  // "source.name"	: 	",
+  // "source.type"	: 	",
+  // "target.name"	: 	",
+  // "target.type"	: 	",
+  // "source.id"	: 	",
+  // "target.id"	: 	",
+  "source.prop.Object ID": "GEMMA-source-guid",
+  "target.prop.Object ID": "GEMMA-target-guid",
+  // "accessType	: 	",
+  // "associationDirected	: 	",
+  // "influenceStrength	: 	",
+  // "GGM-datum-tijd-export	: 	",
+  // "Let op	: 	",
+  [LABEL_TODAY]: [LABEL_DATUM_TIJD], // "2024-03-19"
+};
+
+// matchen op ID ggm-guid ipv Object ID
+var PROP_ID = PROP_GGM_ID;
+
+try {
+  let bedrijfsobjectenFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
+  let bedrijfsobjecten = $(bedrijfsobjectenFolder).children("business-object")
+  // let bedrijfsobjecten = $("business-object").filter((obj) => obj.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BEDRIJFSOBJECT);
+  console.log(`Aantal bedrijfsobjecten: ${bedrijfsobjecten.size()}`);
+
+  // let fileName = "GEMMA_Bedrijfsobjecten_element.csv";
+  exportObjects(
+    OBJECT_TYPE_ELEMENT,
+    GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
+    BUSINESS_OBJECT_MAPPING,
+    bedrijfsobjecten
+  );
+
+  // select all assignment en specialization-relations between business-objects
+  let bedrijfsobjectRelations = bedrijfsobjecten.rels("association-relationship");
+  console.log(`Aantal association-relationship: ${bedrijfsobjectRelations.size()}`);
+  bedrijfsobjectRelations = bedrijfsobjectRelations.add(bedrijfsobjecten.rels("specialization-relationship"));
+  console.log(`Aantal bedrijfsobjectRelations: ${bedrijfsobjectRelations.size()}`);
+
+  // let fileName = "GEMMA_Bedrijfsobjecten_relatie.csv";
+  exportObjects(
+    OBJECT_TYPE_RELATION,
+    GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
+    BUSINESS_RELATION_MAPPING,
+    bedrijfsobjectRelations
+  );
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
 
 finishConsoleLog();
 
-/** GGM import en export definies 
- * 
- * mapping CSV importbestand relaties (objecten gaan met Sync GGM)
- * mapping functies CSV exportbestanden
+const IMPORT_BUSINESS_OBJECT_MAPPING = {
+  // not exported GEMMA properties
+  // - id => Archi id is intern
+  // - folder
+  // - Alternate name
+  // - GGM-datum-tijd-export
+  // - GGM-specialisaties
+  // - Let op
+  [PROP_GGM_ID]: PROP_GGM_ID,
+  "GEMMA-guid": "Object ID",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  "GEMMA-naam": "name",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  "GEMMA-type": "type",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  "GEMMA-definitie": "documentation",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  "GEMMA-toelichting": "Toelichting",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  "GEMMA-synoniemen": "Synoniemen",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  "GEMMA-bron": "Bron",
+  [PROP_GEMMA_URL]: PROP_GEMMA_URL,
+  [LABEL_TODAY]: [LABEL_DATUM_TIJD], // "2024-03-19"
+};
 
-// matchen op ID ggm-guid ipv Object ID
-var PROP_ID = "ggm-guid";
-
-
-function headerMapping(header) {
-
-  let importMapping = {
-    "naam": name,
-    "definitie": "definitie"
-    "uml-type": 
-    "ggm-guid": 
-    "ggm-source-guid": source.prop.ggm-guid
-    "ggm-target-guid": target.prop.ggm-guid
-    "toelichting": 
-    "archimate-type": 
-    "gemma-guid": 
-    "gemma-source-guid": 
-    "gemma-target-guid": 
-    "datum-tijd-export": 
-  }
-  
-  let exportMapping = {
-    "name": "naam"
-    "definitie": "definitie"
-    "uml-type": 
-    "ggm-guid": 
-    "ggm-source-guid": source.prop.ggm-guid,
-    "ggm-target-guid": target.prop.ggm-guid,
-    "toelichting": 
-    "archimate-type": 
-    "gemma-guid": 
-    "gemma-source-guid": 
-    "gemma-target-guid": 
-    "datum-tijd-export": 
-  }
-  
-  return modifiedHeader
-}
-
-
-*/
+const IMPORT_RELATION_MAPPING = {
+  // not exported GEMMA properties
+  // - id => Archi id is intern
+  // - folder
+  // - Alternate name
+  // - GGM-uml-type
+  // - GGM-datum-tijd-export
+  // - GGM-specialisaties
+  // - Let op
+  "GGM-guid": "GGM-guid",
+  "GEMMA-guid": "Object ID",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  "GEMMA-naam": "name",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  [PROP_GEMMA_TYPE]: "type",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  "GEMMA-definitie": "documentation",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  "GEMMA-toelichting": "Toelichting",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  "GEMMA-synoniemen": "Synoniemen",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  "GEMMA-bron": "Bron",
+  [PROP_GEMMA_URL]: PROP_GEMMA_URL,
+  [LABEL_TODAY]: [LABEL_DATUM_TIJD], // "2024-03-19"
+};

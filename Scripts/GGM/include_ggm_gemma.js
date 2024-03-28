@@ -4,6 +4,7 @@
  * - maken van de GEMMA bedrijfsobjectmodellen gebaseerd op GGM data-objecten
  * - definities van oa properynames, folders en file-directies
  */
+console.log("Loading include_ggm_gemma.js");
 
 // Windows directory with CSV import files
 const GGM_CSV_DIR = __DIR__ + "../../../../Werkbestanden/GGM/Rondje2.1/";
@@ -26,22 +27,22 @@ const PROP_GGM_SYNONIEMEN = "GGM-synoniemen"; // 	Alternatieve naam met min of m
 const PROP_GGM_BRON = "GGM-bron"; // 	Extern informatiemodel waaruit GGM de definities heeft overgenomen
 const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt type, zoals class of enumeration
 const PROP_GGM_DATUM_TIJD = "GGM-datum-tijd-export";
-const PROP_DATUM_TIJD = "Datum-tijd-export";
 
 // GGM afgeleid gegeven
 const PROP_SPECIALIZATON = "GGM-specialisaties";
 const PROP_ALTERNATE_NAME = "Alternate name";
 
 // GEMMA properties
-if (!PROP_ID) {
+if (PROP_ID == undefined) {
   // global type var, because const is block scoped
   var PROP_ID = "Object ID"; // property with GEMMA GUID, assigned to all objects and relations
 }
 const PROP_SYNC_WARNING = "Let op";
-const PROP_GEMMA_URL = "GEMMA URL";
-const PROP_GEMMA_TYPE = "GEMMA type";
 const PROP_ARCHIMATE_TYPE = "ArchiMate-type";
 const PROP_BRON = "Bron";
+const PROP_GEMMA_URL = "GEMMA URL";
+const PROP_GEMMA_TYPE = "GEMMA type";
+const LABEL_DATUM_TIJD = "Datum-tijd-export"; // Label voor column met export datum
 
 // Values
 const GGM_MEMO_TEXT = "<memo>";
@@ -49,6 +50,7 @@ const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicat
 // const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
 const GEMMA_TYPE_BELEIDSDOMEIN = "Beleidsdomein";
+const GEMMA_TYPE_BEDRIJFSOBJECT = "Bedrijfsobject";
 
 /**
  * Create or update a business object for every GGM data-object
@@ -81,6 +83,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
         updateObjectProp(dataObject, businessObject);
         // add a warning in every created object
         businessObject.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
+        businessObject.prop(PROP_GEMMA_TYPE, GEMMA_TYPE_BEDRIJFSOBJECT);
 
         createRealizationRel(dataObject, businessObject, relsFolder);
 
@@ -234,7 +237,7 @@ function updateObjectProp(from, to) {
 
   // copy imported GGM_ID and GGM export date
   to.prop(PROP_GGM_ID, from.prop(PROP_GGM_ID_IMPORTED));
-  to.prop(PROP_GGM_DATUM_TIJD, from.prop(PROP_DATUM_TIJD));
+  to.prop(PROP_GGM_DATUM_TIJD, from.prop(LABEL_DATUM_TIJD));
 
   // update attribute and property to a GGM-property, keep the GEMMA value
   updatedFlag = updateAttribute("name", PROP_GGM_NAAM);
