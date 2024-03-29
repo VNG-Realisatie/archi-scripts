@@ -59,5 +59,4 @@ USER_PARAM = {
   hSep: 20,
   vSep: 50,
   
-  viewFolder: FOLDER_SYNC_GGM + "/GGM naar GEMMA/Bedrijfsobjecten"
 };

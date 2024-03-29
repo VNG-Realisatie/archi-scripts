@@ -53,7 +53,4 @@ USER_PARAM = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 50,
-
-  viewNameSuffix: " (GGM)",
-  viewFolder: "/Data-objecten (GGM)",
 };

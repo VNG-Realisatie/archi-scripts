@@ -16,6 +16,8 @@ const FOLDER_GGM_BELEIDSDOMEIN = "/Beleidsdomeinen (GGM)";
 const FOLDER_BELEIDSDOMEIN = "/Beleidsdomeinen";
 const FOLDER_BEDRIJFSOBJECT = "/Bedrijfsobjecten";
 
+const VIEW_NAME_SUFFIX = " (GGM)"
+
 // GGM imported properties
 const PROP_OBJECT_ID_SYNC = "Object ID sync"; // property to find and sync beleidsdomein aggregations
 const PROP_GGM_ID = "GGM-guid"; // Uniek en niet wijzigend id van geïmporteerde GGM objecten
@@ -321,18 +323,19 @@ function updateObjectProp(from, to) {
  *  - publiceren
  */
 function updateViewProp(view) {
-  view.prop(PROP_BRON, "GGM");
   view.prop("Scope", "Gemeente");
   view.prop("Detailniveau", "Samenhang");
   view.prop("Viewtype", "Basis");
   view.prop("GEMMA thema", "Data");
-
-  if (view.name.endsWith(" (GGM)")) {
+  
+  if (view.name.endsWith(VIEW_NAME_SUFFIX)) {
+    view.prop(PROP_BRON, "GGM");
     view.prop("Architectuurlaag", "Applicatiearchitectuur");
   } else {
     // Bedrijfsobjectmodellen publiceren
     view.prop("Publiceren", "GEMMA Online en redactie");
     view.prop("Architectuurlaag", "Bedrijfsarchitectuur");
+    view.prop(PROP_GEMMA_URL, GEMMA_URL + view.prop(PROP_ID))
   }
   view.removeProp("generate_view_param");
   // set property beleidsdomein
@@ -348,7 +351,6 @@ function updateViewProp(view) {
       }
     });
   setObjectID(view);
-  view.prop(PROP_GEMMA_URL, GEMMA_URL + view.prop(PROP_ID));
 }
 
 /**
@@ -459,7 +461,7 @@ function styleSpecialization(obj) {
 /**
  * Append (<Beleidsdomein>) to the label of an visual object
  */
-function setLabelExpression(obj) {
+function setLabelBeleidsdomein(obj) {
   obj.labelExpression = "${name}\n($aggregation:source{name})";
 }
 
