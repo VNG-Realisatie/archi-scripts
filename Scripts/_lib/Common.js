@@ -57,7 +57,7 @@ function initConsoleLog(pFile, pClear) {
 
 function finishConsoleLog() {
   console.log(`\nScript "${_commonScriptName}" finished in ${endCounter("initConsoleLog")}`);
-  console.log("==========================================\n");
+  console.log("\n==========================================\n");
 }
 
 /**

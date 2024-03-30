@@ -121,7 +121,6 @@ function getVisualSelection(startSelection, selector = "*") {
   var selectedVisualColl = $();
   // add selected and all contained objects to the collection
   startSelection.each((obj) => addVisualObject(obj, selector, selectedVisualColl));
-  debug(`selectedVisualColl: ${selectedVisualColl.size()}`)
 
   // if only one object is selected, select on the view all objects of this type
   if (selectedVisualColl.size() == 1) {
