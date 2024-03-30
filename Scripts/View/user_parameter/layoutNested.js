@@ -6,7 +6,12 @@
  * - defined attributes are inserted (or overwrite) the previous param
  * 
  */
-const USER_PARAM = {
+
+// workaround for reading multiple USER_PARAM
+// https://www.w3docs.com/snippets/javascript/how-to-unset-a-javascript-variable.html
+// - If the property is created without let, the operator can delete it
+
+USER_PARAM = {
   layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
@@ -17,7 +22,7 @@ const USER_PARAM = {
     // "influence-relationship",
     "realization-relationship",
     // "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
   layoutNested: [

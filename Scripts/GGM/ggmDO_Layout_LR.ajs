@@ -14,7 +14,7 @@ load("include_ggm_gemma.js");
 initConsoleLog(__FILE__, true);
 
 let param = {};
-param = get_default_parameter(__FILE__, param);
+param = get_default_parameter(__FILE__);
 param = get_user_parameter(__FILE__, param);
 
 // param.ranker = "longest-path";

@@ -1,0 +1,37 @@
+/**
+ * Script that generates a view of the selected objects and related objects
+ * 
+ * Usage:
+ * - select one or more elements or a view/folder containing elements
+ * - run this script
+ * 
+ * Action of the script
+ * - generates a view with the selected elements and related elements
+ * - the generated view has the name of selected object and is located in the folder _generated
+ * 
+ * Change the generated view
+ * - change in this script the var param to define the view to be rendered
+ * - see the readme.md for an explanation of the param parameter
+ */
+/**
+ * Expand in a view the selected element(s) with their related elements (add elements and relations 1 
+ * 
+ * Usage:
+ * - in a view select one or more elements
+ * - run this script
+ * 
+ * In the view the selected elements are 'expanded' with their missing relations
+ * 
+ */
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("include_view.js");
+
+initConsoleLog(__FILE__, true);
+
+let param = get_default_parameter(__FILE__);
+param.action = GENERATE_SINGLE
+
+generate_view(param);
+finishConsoleLog();

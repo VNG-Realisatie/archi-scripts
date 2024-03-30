@@ -1,0 +1,53 @@
+/**
+ * Wrapper file for generating and/or layout a view
+ *
+ * The filename defines which parameter are used
+ * Format of the filename:
+ * - <direction>_<action>_<user parameter filename>.ajs
+ */
+
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("include_view.js");
+
+initConsoleLog(__FILE__, true);
+
+let param = {};
+param = get_default_parameter(__FILE__);
+
+param.action = LAYOUT;
+param.graphDirection = "TB";
+param.layoutReversed = [
+  // "access-relationship",
+  // "aggregation-relationship",
+  // "assignment-relationship",
+  // "association-relationship",
+  // "composition-relationship",
+  // "flow-relationship",
+  // "influence-relationship",
+  "realization-relationship",
+  // "serving-relationship",
+  "specialization-relationship",
+  // "triggering-relationship",
+];
+param.layoutNested = [
+  // "access-relationship",
+  "aggregation-relationship",
+  // "assignment-relationship",
+  // "association-relationship",
+  // "composition-relationship",
+  // "flow-relationship",
+  // "influence-relationship",
+  // "realization-relationship",
+  // "serving-relationship",
+  "specialization-relationship",
+  // "triggering-relationship",
+];
+// param.nodeWidth = 140;
+// param.nodeHeight = 61;
+// param.hSep = 40;
+// param.vSep = 20;
+
+generate_view(param);
+finishConsoleLog();

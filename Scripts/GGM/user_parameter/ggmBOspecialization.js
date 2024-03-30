@@ -31,7 +31,7 @@ USER_PARAM = {
     // "influence-relationship",
     "realization-relationship",
     "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
   layoutNested: [
@@ -58,6 +58,4 @@ USER_PARAM = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 50,
-  
-  // viewFolder: FOLDER_SYNC_GGM + "/GGM naar GEMMA/Bedrijfsobjecten"
 };

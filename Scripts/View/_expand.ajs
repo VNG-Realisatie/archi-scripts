@@ -1,0 +1,22 @@
+/**
+ * Expand in a view the selected element(s) with their related elements (add elements and relations 1 
+ * 
+ * Usage:
+ * - in a view select one or more elements
+ * - run this script
+ * 
+ * In the view the selected elements are 'expanded' with their missing relations
+ * 
+ */
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("include_view.js");
+
+initConsoleLog(__FILE__, true);
+
+let param = get_default_parameter(__FILE__);
+param.action = EXPAND_HERE
+
+generate_view(param);
+finishConsoleLog();

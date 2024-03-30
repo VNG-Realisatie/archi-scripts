@@ -1,0 +1,25 @@
+/**
+ * JArchi script that generates a view for every selected element
+ * - define with the param objects what to include in the generated views
+ * - the views will be called "<element name> generated"
+ *
+ * Requires:
+ *     Archi:			https://www.archimatetool.com
+ *     jArchi plugin:	https://www.archimatetool.com/plugins
+ *     Java script:		generate_view.js
+ *
+ *  #	date		Author			Comments
+ *  1	28/01/2019	Hervé Jouin		File creation.
+ */
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("include_view.js");
+
+initConsoleLog(__FILE__, true);
+
+let param = get_default_parameter(__FILE__);
+param.action = GENERATE_MULTIPLE
+
+generate_view(param);
+finishConsoleLog();

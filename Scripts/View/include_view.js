@@ -79,8 +79,8 @@ try {
   load(__DIR__ + "../_lib/jvm-npm.js");
   require.addPath(__DIR__);
   // var dagre = require("../_lib/dagre");
-  // var dagre = require("../_lib/dagre-cluster-fix");
-  var dagre = require("../_lib/dagre"); // @dagrejs/dagre 1.04
+  var dagre = require("../_lib/dagre-cluster-fix");
+  // var dagre = require("../_lib/dagre"); // @dagrejs/dagre 1.04
 
   console.log(`Dagre version:`);
   console.log(`- dagre:    ${dagre.version}`); // dagre-cluster-fix should show version 0.9.3
@@ -98,7 +98,9 @@ try {
  * - superseded by DEFAULT_PARAM_FILE
  * - superseded by 'wrapper'.ajs file
  */
-function get_default_parameter(file, param) {
+function get_default_parameter(file) {
+  let param = {}
+  debugStackPush(false);
   let path = file.substring(0, file.lastIndexOf("\\") + 1);
 
   try {
@@ -110,6 +112,7 @@ function get_default_parameter(file, param) {
     console.log(`NOT read default parameters ${DEFAULT_PARAM_FILE}\n`);
     debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
+  debugStackPop();
   return param;
 }
 
@@ -143,14 +146,15 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
   debugStackPush(false);
   let path = file.substring(0, file.lastIndexOf("\\") + 1);
   if (user_param_name) {
-    console.log();
-    console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
-
+    
     let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
     let printUserParamFile = userParamFile.substring(__SCRIPTS_DIR__.length - 1);
+    console.log(`User parameters read from file "${printUserParamFile}"`);
+    console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
+    console.log();
     try {
       load(userParamFile);
-
+      
       Object.keys(USER_PARAM).forEach((prop) => {
         param[prop] = USER_PARAM[prop];
         debug(`Read_user_parameter: Set ${prop} = ${USER_PARAM[prop]}`);
@@ -161,8 +165,7 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
       // - If the property is created without let, the operator can delete it
       USER_PARAM = undefined;
       delete USER_PARAM;
-
-      console.log(`User parameters read from file "${printUserParamFile}"`);
+      
       debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
       console.log(`NOT read user parameters "${printUserParamFile}"`);
@@ -204,8 +207,8 @@ function generate_view(param, drawCollection) {
 
         case GENERATE_MULTIPLE:
           // generate multiple views
-          console.log(`Generating views:`);
-          filteredElements.forEach(function (e) {`- ${e}`})
+          console.log(`Generating views for elements:`);
+          filteredElements.forEach(function (e) {console.log(`- ${e}`)})
           console.log();
 
           filteredElements.forEach(function (e) {

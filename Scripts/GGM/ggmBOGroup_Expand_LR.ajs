@@ -5,22 +5,16 @@
  * Format of the filename:
  * - <direction>_<action>_<user parameter filename>.ajs
  */
-
 load("../_lib/Common.js");
 load("../_lib/selection.js");
-load("include_view.js");
 load("../_lib/archi_folders.js");
+load("include_view.js");
 
 initConsoleLog(__FILE__, true);
 
 let param = {};
-param = get_default_parameter(__FILE__, param);
+param = get_default_parameter(__FILE__);
 param = get_user_parameter(__FILE__, param);
-
-param.nodeWidth= 140
-param.nodeHeight= 61
-param.hSep= 40
-param.vSep= 20
 
 generate_view(param);
 finishConsoleLog();

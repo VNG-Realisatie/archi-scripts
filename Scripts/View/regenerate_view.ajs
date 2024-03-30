@@ -11,8 +11,8 @@
 
 load("../_lib/Common.js");
 load("../_lib/selection.js");
-load("include_view.js");
 load("../_lib/archi_folders.js");
+load("include_view.js");
 
 var param = {
   action: REGENERATE,

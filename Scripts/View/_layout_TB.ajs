@@ -7,14 +7,14 @@
  */
 load("../_lib/Common.js");
 load("../_lib/selection.js");
-load("include_view.js");
 load("../_lib/archi_folders.js");
+load("include_view.js");
 
 initConsoleLog(__FILE__, true);
 
-let param = {};
-param = get_default_parameter(__FILE__, param);
-param = get_user_parameter(__FILE__, param);
+let param = get_default_parameter(__FILE__);
+param.action = LAYOUT
+param.graphDirection="TB"
 
 generate_view(param);
 finishConsoleLog();
