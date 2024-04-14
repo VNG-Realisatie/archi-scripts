@@ -109,7 +109,7 @@ try {
     // update Release property in the model
     // let currentDate = new Date().toJSON().replace("T", " ").slice(0, 19); // "2024-03-19 17:10:23"
     let currentDate = new Date().toJSON().slice(0, 10); // "2024-03-19"
-    console.log(`Finaly, update the model'  s Release property to ${currentDate}\n`);
+    console.log(`Finaly, update the model 'Release' property to ${currentDate}\n`);
     model.prop(PROP_RELEASE, currentDate);
   }
 } catch (error) {
