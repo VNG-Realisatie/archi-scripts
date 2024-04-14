@@ -1,0 +1,21 @@
+/**
+ * Wrapper file for generating and/or layout a view
+ *
+ * The filename defines which parameter are used
+ * Format of the filename:
+ * - <direction>_<action>_<user parameter filename>.ajs
+ */
+load("../_lib/Common.js");
+load("../_lib/selection.js");
+load("../_lib/archi_folders.js");
+load("../View/include_view.js");
+load("include_ggm_gemma.js");
+
+initConsoleLog(__FILE__, true);
+
+let param = {};
+param = get_default_parameter(__FILE__);
+param = get_user_parameter(__FILE__, param);
+
+generate_view(param);
+finishConsoleLog(); 

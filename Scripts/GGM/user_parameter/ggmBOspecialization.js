@@ -3,22 +3,22 @@
 // - If the property is created without let, the operator can delete it
 
 USER_PARAM = {
-  graphDepth: 2,
+  graphDepth: 1,
   includeElementType: [
     "business-object",
     "grouping",
   ],
   includeRelationType: [
     // "access-relationship",
-    // "aggregation-relationship",
+    "aggregation-relationship",
     // "assignment-relationship",
-    // "association-relationship",
+    "association-relationship",
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    // "specialization-relationship",
+    "specialization-relationship",
     // "triggering-relationship",
   ],
   layoutReversed: [
