@@ -1,0 +1,64 @@
+/**
+ * Color objects and plot a note with the BIV-values inside the application-components
+ *
+ * uses:
+ *  chroma.js for all kinds of color conversions and color scales https://gka.github.io/chroma.js/
+ *  ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
+ */
+load("https://unpkg.com/chroma-js");
+load(__DIR__ + "../_lib/Common.js");
+load(__DIR__ + "../_lib/selection.js");
+
+const PROP_GEMMA_TYPE = "GEMMA type";
+const PROP_BIV_SCORE = "BIV score BBN";
+const MAX_SOM = 9;
+
+initConsoleLog(__FILE__, true);
+
+let collection = getVisualSelection($(selection), "application-component");
+
+// applyToCollection(collection, plotPropertyBIV, ["Oranges"]);
+applyToCollection(collection, plotBetrouwbaarheidSom, ["Blues"]);
+
+finishConsoleLog();
+
+function plotBetrouwbaarheidSom(obj, args) {
+  if (typeof this.only_once == "undefined") {
+    colorscale = chroma.scale(args[0]).padding([0.1, 0.3]);
+    console.log(`Plot notes with the BIV-values inside the application-components`);
+    this.only_once = true;
+  }
+
+  // color by value all objects, use the sum of BIV score
+  let somCriteria = 0;
+  ["Beschikbaarheid", "Integriteit", "Vertrouwelijkheid"].forEach(
+    (criterium) => (somCriteria += Number(obj.prop(criterium)))
+  );
+  obj.fillColor = `${colorscale(somCriteria / MAX_SOM)}`;
+
+  // plot BIV notes in referentiecomponent
+  if (obj.prop(PROP_GEMMA_TYPE) == "Referentiecomponent" && somCriteria >= 3) {
+    // if element has a note, remove it first
+    $(obj)
+      .children("diagram-model-note")
+      .each((note) => note.delete());
+
+    let text = `BIV = ${obj.prop(PROP_BIV_SCORE)}`;
+    let textWidth = text.length * 8; // guess 8 pixel per character
+
+    // Add a Note to this element
+    var note = obj.createObject("note", (obj.bounds.width - textWidth) / 2, obj.bounds.height - 27, textWidth, 22);
+    // subtract less than 1 for darker color in note than element
+    note.fillColor = `${colorscale(1 / MAX_SOM)}`;
+    note.fontSize = 9;
+    note.borderType = BORDER.NONE;
+    note.text = text;
+  } else {
+    // legenda components don't have a property PROP_GEMMA_TYPE
+    console.log(
+      `Skip ${obj.name}: property "${PROP_GEMMA_TYPE}" = ${obj.prop(
+        PROP_GEMMA_TYPE
+      )} and 'som BIV criteria' = ${somCriteria}`
+    );
+  }
+}
