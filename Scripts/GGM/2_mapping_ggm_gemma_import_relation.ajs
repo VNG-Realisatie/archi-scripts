@@ -1,17 +1,18 @@
 /**
- * GEMMA export
- * - export business-objects to CSV
- * - export business-object relations to CSV
+ * GEMMA GGM import
+ * - import business-object relations from CSV
  *
  * Mapping specification, see
  *  https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/blob/develop/CSV%20export/Specificatie%20GGM-GEMMA%20data-uitwisseling.md
  */
 load("../_lib/Common.js");
-initConsoleLog(__FILE__, true);
+initConsoleLog(__FILE__);
 load("include_ggm_gemma.js");
 load("../ImportExport_CSV/include_export.js");
 // load("../_lib/archi_folders.js");
 
+// matchen op ID ggm-guid ipv Object ID
+var PROP_ID = PROP_GGM_ID;
 const GGM_REPO_CSV_DIR = "C:/Users/marks/Documents/Archi/model-repository/gemma-ggm-archi-repository/CSV export/";
 
 /**
@@ -42,7 +43,7 @@ const BUSINESS_OBJECT_MAPPING = {
   [PROP_GGM_BRON]: PROP_GGM_BRON,
   [PROP_GEMMA_URL]: "GEMMA-URL", // correctie nav opm Arjen
   [PROP_ALTERNATE_NAME]: "GEMMA-alternate-name",
-  [PROP_ADD]: { key: LABEL_DATUM_TIJD, value: getFormattedDateTime() }, //
+  [PROP_ADD]: { key: LABEL_DATUM_TIJD, value: getFormattedDateTime() }, // 
 };
 const BUSINESS_RELATION_MAPPING = {
   name: "GEMMA-naam",
@@ -75,39 +76,98 @@ try {
   let bedrijfsobjectenFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
   let bedrijfsobjecten = $(bedrijfsobjectenFolder).children("business-object");
   // let bedrijfsobjecten = $(selection).filter("business-object")//.filter((obj) => obj.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BEDRIJFSOBJECT);
-  console.log(`\nExport bedrijfsobjecten`);
-  console.log(`Aantal: ${bedrijfsobjecten.size()}`);
+  console.log(`Aantal bedrijfsobjecten: ${bedrijfsobjecten.size()}`);
 
   // let fileName = "GEMMA_Bedrijfsobjecten_element.csv";
   exportObjects(
     OBJECT_TYPE_ELEMENT,
     // GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
     GGM_REPO_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
-    bedrijfsobjecten,
-    BUSINESS_OBJECT_MAPPING
+    BUSINESS_OBJECT_MAPPING,
+    bedrijfsobjecten
   );
 
   // select all assignment en specialization-relations between business-objects
-  console.log(`\nExport bedrijfsobject relaties:`);
   let bedrijfsobjectRelations = bedrijfsobjecten.rels("association-relationship");
-  console.log(`- association-relationship: ${bedrijfsobjectRelations.size()}`);
-  console.log(`- specialization-relationship: ${bedrijfsobjecten.rels("specialization-relationship").size()}`);
+  console.log(`Aantal association-relationship: ${bedrijfsobjectRelations.size()}`);
   bedrijfsobjectRelations = bedrijfsobjectRelations.add(bedrijfsobjecten.rels("specialization-relationship"));
-  console.log(`Totaal: ${bedrijfsobjectRelations.size()}\n`);
+  console.log(`Aantal bedrijfsobjectRelations: ${bedrijfsobjectRelations.size()}`);
 
   // let fileName = "GEMMA_Bedrijfsobjecten_relatie.csv";
   exportObjects(
     OBJECT_TYPE_RELATION,
     // GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
     GGM_REPO_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
-    bedrijfsobjectRelations,
-    BUSINESS_RELATION_MAPPING
+    BUSINESS_RELATION_MAPPING,
+    bedrijfsobjectRelations
   );
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
 finishConsoleLog();
+
+/**
+ * GGM import mappings
+ * - import GGM data-objects with 1_ggm_sync_from_csv.ajs
+ * - import GGM data-objects relations with 2_ggm_import.ajs
+ *
+ * Import CSV-column mappings
+ *  wordt nog niet gebruikt
+ *  import nu met 1_ggm_sync
+ */
+const IMPORT_BUSINESS_OBJECT_MAPPING = {
+  // not exported GEMMA properties
+  // - id => Archi id is intern
+  // - folder
+  // - Alternate name
+  // - GGM-datum-tijd-export
+  // - GGM-specialisaties
+  // - Let op
+  [PROP_GGM_ID]: PROP_GGM_ID,
+  "GEMMA-guid": "Object ID",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  "GEMMA-naam": "name",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  "GEMMA-type": "type",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  "GEMMA-definitie": "documentation",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  "GEMMA-toelichting": "Toelichting",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  "GEMMA-synoniemen": "Synoniemen",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  "GEMMA-bron": "Bron",
+  ["GEMMA-URL"]: PROP_GEMMA_URL, // correctie nav opm Arjen
+  [LABEL_DATUM_TIJD]: LABEL_DATUM_TIJD, // GGM export datumtijd
+};
+
+const IMPORT_RELATION_MAPPING = {
+  // not exported GEMMA properties
+  // - id => Archi id is intern
+  // - folder
+  // - Alternate name
+  // - GGM-uml-type
+  // - GGM-datum-tijd-export
+  // - GGM-specialisaties
+  // - Let op
+  "GGM-guid": "GGM-guid",
+  "GEMMA-guid": "Object ID",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  "GEMMA-naam": "name",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  [PROP_GEMMA_TYPE]: "type",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  "GEMMA-definitie": "documentation",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  "GEMMA-toelichting": "Toelichting",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  "GEMMA-synoniemen": "Synoniemen",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  "GEMMA-bron": "Bron",
+  [PROP_GEMMA_URL]: PROP_GEMMA_URL,
+  [LABEL_DATUM_TIJD]: LABEL_DATUM_TIJD, // GGM export datumtijd
+};
 
 // 10-04-2024 17:11:29
 function getFormattedDateTime() {

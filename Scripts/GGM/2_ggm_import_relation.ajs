@@ -1,13 +1,13 @@
 /**
  * Import van de GGM relaties
- * 
+ *
  * Specificatie CSV-bestanden
  * - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
- * 
+ *
  * Voordat dit script gedraaid wordt:
  * - maak een Archi compatible versie van de GGM csv met LibreOffice calc
- * - de GGM data-objecten moeten ingelezen zijn 
- * 
+ * - de GGM data-objecten moeten ingelezen zijn
+ *
  * Dit script leest de GGM relaties
  * - associaties en specialisaties tussen data-objecten
  */
@@ -22,20 +22,22 @@ load(__DIR__ + "../ImportExport_CSV/include_import.js");
 initConsoleLog(__FILE__, true);
 
 // let fileName = "convert GGM relations from ods.csv"
-let fileName = "gemma_import_relations (convert ggm).csv";
+// let fileName = "gemma_import_relations (convert ggm).csv";
+let fileName = "gemma_import_relations (convert ggm) 2024-04-10.csv";
 importObjects(GGM_CSV_DIR + fileName);
 
 let dataobjectRelations = $(getFolderPath("/Relations"))
-.children("relationship")
-.filter((rel) => rel.prop(PROP_GGM_ID_IMPORTED) != undefined);
+  .children("relationship")
+  .filter((rel) => rel.prop(PROP_GGM_ID_IMPORTED) != undefined);
 let folderDataobjectRelations = getFolderPath("/Relations" + FOLDER_GGM_DATAOBJECT);
 
 console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
 
 // move added data-objectrelations
-dataobjectRelations.each((rel) => { 
+dataobjectRelations.each((rel) => {
   // debug(`rel: ${rel}`)
-  folderDataobjectRelations.add(rel)});
+  folderDataobjectRelations.add(rel);
+});
 
 // and set Object ID
 console.log(`> and set a property 'Object ID'`);

@@ -8,9 +8,8 @@ const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_VIEW = "view";
 
-// export a column with the export date
-const LABEL_TODAY = "<today>";
-let currentDate = new Date().toJSON().slice(0, 10); // "2024-03-19"
+// define a mapping object with PROP_ADD as an extra column
+const PROP_ADD = "add column to export";
 
 // If set, the import wil use the PROP_ID as the first id for matching objects (global type var, because const is block scoped)
 if (PROP_ID == undefined) var PROP_ID = "Object ID"; // set default tool independent identifier.
@@ -106,13 +105,9 @@ function get_attr_or_prop(archi_object, row_label) {
       debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
     }
   } else {
-    if (row_label == LABEL_TODAY) {
-      value = currentDate;
-    } else {
       // get property, for instance 'Object ID'
       value = archi_object.prop(row_label);
       debug(`prop archi_object.prop(${row_label})=${value}`);
-    }
   }
 
   debugStackPop();

@@ -18,8 +18,9 @@ load("../Sync from CSV/Include_LoadAndSync.js");
  * file: GGM Enterprise Architect CSV export
  *    C:/Users/marks/Vereniging van Nederlandse Gemeenten/Unit Architectuur en Standaarden - Documents/GEMMA ontwikkelstraat/GGM
  */
-let GGM_objects = "ggm_export_objects_21022024-11_03_02.csv";
 // let GGM_relations = "ggm_export_relations_06112023-07_59_13.csv";
+// let GGM_objects = "ggm_export_objects_21022024-11_03_02.csv";
+let GGM_objects = "ggm_export_objects_10042024-13_29_09.csv"
 
 var beleidsdomeinen = {
   label: "Beleidsdomeinen",
@@ -83,7 +84,7 @@ var dataobjecten = {
     // "domein-iv3": "domein-iv3", // added as relation
     // "domein-dcat": "domein-dcat",
     // "domein-gemma": "domein-gemma",
-    [PROP_DATUM_TIJD]: "datum-tijd-export",
+    [LABEL_DATUM_TIJD]: "datum-tijd-export",
   },
   relations: {
     beleidsdomeinen_rel: {

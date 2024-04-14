@@ -10,9 +10,11 @@ load(__DIR__ + "include_export_import.js");
  *
  * @param {*} objectType type of Archi objects to export (OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT or OBJECT_TYPE_VIEW)
  * @param {*} exportFile filepath to write CSV file (optional, if empty you will be prompted)
- * @param {object} headerMapping object with key-column mapping (key is ArchiObject attribute or property, value is export column)
+ * @param {Archi collection} collection with objects to export (optional, if empty $(selection) is used)
+ * @param {object} headerMapping object with key-column mapping (optional)
+ *          Mapping object keys are used as ArchiObject attribute or property, values as CSV column header)
  */
-function exportObjects(objectType, exportFile, headerMapping, collection) {
+function exportObjects(objectType, exportFile, collection, headerMapping) {
   debugStackPush(false);
   debug(`objectType=${objectType}`);
 
@@ -27,25 +29,31 @@ function exportObjects(objectType, exportFile, headerMapping, collection) {
     }
 
     if (selectionList.length > 0) {
-      console.log(`Create header:`);
       let propsHeader = [];
       let columnsHeader = [];
       if (headerMapping == undefined) {
-        propsHeader = createHeader(selectionList, objectType);
-        columnsHeader = propsHeader;
+        console.log(`Create header:`);
+        columnsHeader = createHeader(selectionList, objectType);
+        // column labels are equal to property labels
+        propsHeader=columnsHeader 
       } else {
-        console.log("Header mapping (get_attr_prop=write header column):");
-        Object.keys(headerMapping).forEach((key) => {
-          console.log(`- ${key}=${headerMapping[key]}`);
-          propsHeader.push(key);
-          columnsHeader.push(headerMapping[key]);
+        console.log("Mapping (property=CSV column header):");
+        Object.keys(headerMapping).forEach((headerKey) => {
+          if (headerKey == PROP_ADD) {
+            console.log(`- ${PROP_ADD}=${headerMapping[headerKey].key}`);
+            propsHeader.push(PROP_ADD);
+            columnsHeader.push(headerMapping[headerKey].key);
+          } else {
+            console.log(`- ${headerKey}=${headerMapping[headerKey]}`);
+            propsHeader.push(headerKey);
+            columnsHeader.push(headerMapping[headerKey]);
+          }
         });
       }
-      console.log(`propsHeader: ${propsHeader}`);
 
       console.log(`Create rows for selection:`);
       const data = selectionList.map((o) => createRow(propsHeader, o, objectType, headerMapping));
-      console.log(`- ${data.length} rows for ${data.length} ${objectType}\n`);
+      console.log(`- ${data.length} rows created\n`);
 
       if (!exportFile) {
         let fileName_suggestion = `${model.name}_${$(selection).first().name}_${objectType}`; //.replace(/\s/g, "-");
@@ -116,7 +124,6 @@ function createHeader(objects, objectType) {
       break;
   }
 
-  debug(`header: ${header}\n`);
   console.log(`- ${header.length} columns (${columnLogText})`);
 
   return header;
@@ -159,8 +166,19 @@ function createRow(headerRow, object, objectType, headerMapping) {
       row[label] = get_attr_or_prop(object, label);
     });
   } else {
-    Object.keys(headerMapping).forEach((key) => {
-      row[headerMapping[key]] = get_attr_or_prop(object, key);
+    Object.keys(headerMapping).forEach((headerKey) => {
+      if (headerKey == PROP_ADD) {
+        debug(`headerMapping[headerKey].key: ${headerMapping[headerKey].key}`);
+        debug(`headerMapping[headerKey].value: ${headerMapping[headerKey].value}`);
+        // fill row with in mapping defined function or value
+        if (typeof headerMapping[headerKey].value === "function") {
+          row[headerMapping[headerKey].key] = headerMapping[headerKey].value(); // Call the function
+        } else {
+          row[headerMapping[headerKey].key] = headerMapping[headerKey].value;
+        }
+      } else {
+        row[headerMapping[headerKey]] = get_attr_or_prop(object, headerKey);
+      }
     });
   }
 
@@ -219,8 +237,8 @@ function saveRowsToFile(header, data, exportFile) {
   $.fs.writeFile(exportFile, Papa.unparse({ fields: header, data: data }, { quotes: true }));
   let exportFileName = exportFile.split("\\").pop().split("/").pop();
   let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
+  console.log("Folder: " + exportFilePath);
   console.log("Saved to file: " + exportFileName);
-  console.log("In folder:     " + exportFilePath);
 }
 
 /**
@@ -248,6 +266,6 @@ function saveRowsToExcel(header, data, objectType, exportFile) {
 
   let exportFileName = exportFile.split("\\").pop().split("/").pop();
   let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
+  console.log("Folder: " + exportFilePath);
   console.log("Saved to file: " + exportFileName);
-  console.log("In folder:     " + exportFilePath);
 }
