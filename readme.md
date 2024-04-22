@@ -1,10 +1,7 @@
 
-Hier vind je de scripts die worden gebruikt voor het beheren van de GEMMA en VNG Realisatie projectarchitecturen.
+Hier vind je de Archi scripts die worden gebruikt bij maken en onderhouden van het [GEMMA ArchiMate-model](https://github.com/VNG-Realisatie/GEMMA-Archi-repository) en VNG Realisatie projectarchitecturen (zie bijvoorbeeld de [omgevingswet](https://github.com/VNG-Realisatie/Omgevingswet-Archi-repository)).
 
-Je kunt de scripts kopieëren naar je lokale Archi Scripts folder. Enkele scripts verwijzen naar elkaar. Het beste is om de archi-scripts repository te \'clonen\'. Zie voor de locatie van deze map Edit \> Preferences \> Scripting
-
-    cd &lt;jArchi scripts folder&gt;
-    git clone git@gitlab.com:vng-realisatie/architectuur/tools/archi-scripts.git
+Zie de pagina [Archi scripting](https://redactie.gemmaonline.nl/index.php/Archi_scripting) voor een handleiding installeren van de jArchi plugin.
 
 
 De repo bevat onder andere de volgende scripts:
