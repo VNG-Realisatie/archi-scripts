@@ -5,24 +5,17 @@ Zie de pagina [Archi scripting](https://redactie.gemmaonline.nl/index.php/Archi_
 
 
 De repo bevat onder andere de volgende scripts:
-
--   GEMMA/SetObjectID
-    -   Scripts om te controleren of alle objecten in een model een uniek Object ID hebben.
--   mergeElement
-    -   Voeg 2 concepten (van hetzelfde type) samen tot één concept. Alle relaties, view-occurences en properties worden overgezet en blijven dus bewaard.
--   copyFormat
-    -   selecteer in een view een object en draai dit script. Alle objecten op de view hebben nu dezelfde opmaak
--   Beheer/deleteUnusedElements
-    -   Verwijderd alle concepten die niet op een view voorkomen.
--   ImportExport_CSV
-    -   scripts voor het exporteren en weer importeren van elementen, relaties en views met alle hun properties
-        -   export_element - selecteer een map, view of set van objecten en draai het script
-        -   open de csv met LibreOffice Calc en bewerk de waarden van de properties (of voeg met een nieuwe kolom een property toe)
-        -   import - gewijzigde properties worden bijgewerkt
-    -   het gebruik is veilig
-        -   exporteren leest je architectuurmodel alleen
-        -   importeren kan in je model van alles overschrijven, maar een simpel Ctrl-z zet alles weer terug 
--   Appearance - scripts voor het in bulk wijzigen van views
-    -   toggleFigure - toggle alle figures in één of meerdere views
-    -   colorByProperty - wijzige de kleur van objecten op basis van de waarde van een te kiezen property
--   etc
+| Folder  | Scripts  |
+|--|---|
+|_lib | Modules met door de scripts gebruikte generieke functies en javascript libraries
+| root folder | Veel gebruikte scripts, geplaatst in de root om snel te kunnen draaien <ul><li>**addProperty**: Voeg een property met inhoud/waarde toe aan de geselecteerde concepten</li><li>**copyFormat**: Selecteer in een view een object en draai dit script. Alle objecten op de view hebben nu dezelfde opmaak</li><li>**mergeElement**: Voeg 2 elementen (van hetzelfde type) samen tot één element. Alle relaties, view-occurences en properties worden overgezet en blijven dus bewaard </li><li>**mergeRelation**: Voeg 2 relaties (van hetzelfde type) samen tot één relatie. Alle view-occurences en properties worden overgezet en blijven dus bewaard </li><li>**removeBendpoints**: Selecteer een view of relaties op een view en verwijder alle bendpoints</li><li>**reverseRelation**: Selecteer één of meerdere relaties en keer de richting van de relaties om</li></ul> |
+| Appearance  | Scripts voor het opmaken van views <ul><li>**toggleFigure**: Toggle alle figures in één of meerdere views</li><li>**colorByProperty**: Wijzig de kleur van objecten op basis van de waarde van een te kiezen property</li></ul>  |
+| Beheren | Scripts voor het in bulk vinden of bewerken van objecten <ul><li> **deleteUnusedElements**: Verwijderd alle concepten die niet op een view voorkomen</li></ul>  |
+| Convert to | Het wijzigen van het ArchiMate-type van een object. Dit is een standaard functie van Archi vanaf versie 5.1 (rechts klikken op object > set concept type). <br>Toegevoegde waarde van het script: als tijdens het omzetten een ongeldig relatietype ontstaat, dan maakt Archi hier een associatie van. Dit script probeert na alle omzettingen of dit weer kan worden teruggezet naar het oorspronkelijk type 
+| Develop | Scripts nuttig voor het ontwikkelen van scripts <ul><li>**plotID**: Toon in de view de Archi-id's van de objecten</li><li>**plotColorCode**: Toon in de view de color codes van de objecten</li></ul> |
+| GEMMA  | Scripts specifiek voor het beheer van het GEMMA ArchiMate-model of afgeleide modellen <ul><li>**setObjectID**: Geef alle elementen, relaties en views in een model een uniek Object ID. Controleert of er geen dubbelingen zijn </li><li>**plotObjectID**: Toon in de view de Object ID's van de objecten</li><li>**plotBetrouwbaarheidSom**: Script voor view Betrouwbaarheidscriteria, toont de BIV-waarden en kleurt de objecten met de som van deze waarden</li></ul>De folder **used_once** bevat scripts voor een eenmalige bulk acties. Eén van deze scripts is **change_AF2AS**, gebruikt voor het doorvoeren van een GEMMA kennismodel wijziging in het GEMMA ArchiMate-model |
+| GGM| Scripts voor het importeren en exporteren van de GGM CSV bestanden. Op de redactieomgeving van GEMMA online is de [koppeling met GGM](https://redactie.gemmaonline.nl/index.php/Koppeling_met_GGM) gedocumenteerd
+| ImportExport_CSV  | Scripts voor het exporteren en weer importeren van elementen, relaties en views met alle hun properties. <ul><li> **export_element**: Selecteer een map, view of set van objecten en draai het script.</li><li> open de csv met LibreOffice Calc en bewerk de waarden van de properties (of voeg met een nieuwe kolom een property toe)</li><li>**import**: Gewijzigde properties worden bijgewerkt</li></ul>het gebruik is veilig: Exporteren leest je architectuurmodel alleen. Importeren kan in je model van alles overschrijven, maar een simpel Ctrl-z zet alles weer terug |
+|Report| Genereren van een rapport gedefinieerd in een view. Gebaseerd op het script van  [Richard Heward - Tame Blue Lion Ltd](https://www.tamebluelion.co.uk/archimate-documentation) <ul><li>**exportImage**: Genereer een markdown tekst met view en tabel van de getoonde elementen van de geselecteerde view(s)</li><li>**generate_report**: Genereer een markdown rapport zoals gedefinieerd in een 'driving view'</li></ul> |
+| Sync from CSV | Importeren van CSV bestanden. Uit het CSV bestand kunnen meerdere objecttypen en relaties worden aangemaakt en bijgewerkt.|
+| View | Genereren van views met een directed layout. Nesting is beperkt ondersteund en geeft soms fouten. Het gedrag is configureerbaar, zie hiervoor de **readme.md**. Hieronder wordt het default gedrag beschreven<ul><li>**_generate**: Genereer een view van de geselecteerde elementen. Als je één element selecteerd, wordt een view gegenereerd met dit element én alle gerelateerde elementen</li><li>**_generate_multiple**: Genereer voor ieder geselecteerd element een view</li><li>**_layout_LR** en **_layout_TB**: Selecteer een view en maak een layout van Links_naar_Recht of van Top_to_Bottom</li><li>**_expand**: Selecteer één of meerdere elementen op een view. In de view worden van de geselecteerde elementen de gerelateerde elementen toegevoegd</li></ul> |
