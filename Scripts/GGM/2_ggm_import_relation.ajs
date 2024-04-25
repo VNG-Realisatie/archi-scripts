@@ -23,7 +23,10 @@ initConsoleLog(__FILE__, true);
 
 // let fileName = "convert GGM relations from ods.csv"
 // let fileName = "gemma_import_relations (convert ggm).csv";
-let fileName = "gemma_import_relations (convert ggm) 2024-04-10.csv";
+// let fileName = "gemma_import_relations (convert ggm) 2024-04-10.csv";
+// let fileName = "gemma_import_relations (convert ggm) 2024-04-12.csv";
+let fileName = "gemma_import_relations (convert ggm 2.1).csv";
+
 importObjects(GGM_CSV_DIR + fileName);
 
 let dataobjectRelations = $(getFolderPath("/Relations"))

@@ -1,0 +1,94 @@
+/**
+ * GEMMA GGM import
+ * - import business-object relations from CSV
+ *
+ * Mapping specification, see
+ *  https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/blob/develop/CSV%20export/Specificatie%20GGM-GEMMA%20data-uitwisseling.md
+ */
+load("../_lib/Common.js");
+initConsoleLog(__FILE__);
+load("include_ggm_gemma.js");
+load("../ImportExport_CSV/include_export.js");
+// load("../_lib/archi_folders.js");
+
+// matchen op ID ggm-guid ipv Object ID
+var PROP_ID = PROP_GGM_ID;
+const GGM_REPO_CSV_DIR = "C:/Users/marks/Documents/Archi/model-repository/gemma-ggm-archi-repository/CSV export/";
+
+/**
+ * Import mapping objects
+ *  key= CSV column header
+ *  value=Archi property name
+ */
+const IMPORT_BUSINESS_OBJECT_MAPPING = {
+  [PROP_GGM_ID]: PROP_GGM_ID,
+  "Object ID": "GEMMA-guid",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  "name": "GEMMA-naam",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  "type": "GEMMA-type",
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  "documentation": "GEMMA-definitie",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  "Toelichting": "GEMMA-toelichting",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  "Synoniemen": "GEMMA-synoniemen",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  "Bron": "GEMMA-bron",
+  [PROP_GEMMA_URL]: "GEMMA-URL",
+  [LABEL_DATUM_TIJD]: LABEL_DATUM_TIJD,
+};
+
+const IMPORT_RELATION_MAPPING = {
+  "GGM-guid": "GGM-guid",
+  "Object ID": "GEMMA-guid",
+  [PROP_GGM_NAAM]: PROP_GGM_NAAM,
+  "name": "GEMMA-naam",
+  [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+  "type": PROP_GEMMA_TYPE,
+  [PROP_GGM_DEFINITIE]: PROP_GGM_DEFINITIE,
+  "documentation": "GEMMA-definitie",
+  [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+  "Toelichting": "GEMMA-toelichting",
+  [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+  "Synoniemen": "GEMMA-synoniemen",
+  [PROP_GGM_BRON]: PROP_GGM_BRON,
+  "Bron": "GEMMA-bron",
+  [PROP_GEMMA_URL]: PROP_GEMMA_URL,
+  [LABEL_DATUM_TIJD]: LABEL_DATUM_TIJD,
+};
+
+try {
+  let bedrijfsobjectenFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
+  let bedrijfsobjecten = $(bedrijfsobjectenFolder).children("business-object");
+  // let bedrijfsobjecten = $(selection).filter("business-object")//.filter((obj) => obj.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BEDRIJFSOBJECT);
+  console.log(`Aantal bedrijfsobjecten: ${bedrijfsobjecten.size()}`);
+
+  // let fileName = "GEMMA_Bedrijfsobjecten_element.csv";
+  exportObjects(
+    OBJECT_TYPE_ELEMENT,
+    // GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
+    GGM_REPO_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
+    BUSINESS_OBJECT_MAPPING,
+    bedrijfsobjecten
+  );
+
+  // select all assignment en specialization-relations between business-objects
+  let bedrijfsobjectRelations = bedrijfsobjecten.rels("association-relationship");
+  console.log(`Aantal association-relationship: ${bedrijfsobjectRelations.size()}`);
+  bedrijfsobjectRelations = bedrijfsobjectRelations.add(bedrijfsobjecten.rels("specialization-relationship"));
+  console.log(`Aantal bedrijfsobjectRelations: ${bedrijfsobjectRelations.size()}`);
+
+  // let fileName = "GEMMA_Bedrijfsobjecten_relatie.csv";
+  exportObjects(
+    OBJECT_TYPE_RELATION,
+    // GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
+    GGM_REPO_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
+    BUSINESS_RELATION_MAPPING,
+    bedrijfsobjectRelations
+  );
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();
