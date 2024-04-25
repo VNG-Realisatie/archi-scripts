@@ -20,16 +20,24 @@ file with generate_view function
 
 wrapper files with parameter for generating a specific view
 
-- view.ajs
-- view_application.ajs
-- view_business.ajs
-- view_motivation.ajs
-- view_technology.ajs
-- expand.ajs
-- multiple.ajs
-- layout_LR.ajs
-- layout_nested.ajs
-- layout_TB.ajs
+- _generate.ajs
+- _generate_multiple.ajs
+- _expand.ajs
+- _layout_LR.ajs
+- _layout_TB.ajs
+- _layout_nested_LR.ajs
+- _layout_nested_TB.ajs
+
+## wrapper files with user_parameter
+
+Create a file with a layout configuration in the user_parameter folder. Use this configuration parameter with a wrapper file using this name-format:
+- <user_parameter>\_\<action>\_\<direction>.ajs
+
+Examples:
+- application_Generate_LR.ajs
+  - use the param configuration in the file **./user_parameter/application.js**
+  - generate a view for the selected elements
+  - use directed layout left-to-right
 
 ## generate_view parameters
 
