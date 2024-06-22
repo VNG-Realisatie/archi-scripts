@@ -48,7 +48,7 @@ const LABEL_DATUM_TIJD = "Datum-tijd-export"; // Label voor column met export da
 
 // Values
 const GGM_MEMO_TEXT = "<memo>";
-const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA2/0.9/id-"; // publicatie-omgeving
+const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA/id-"; // publicatie-omgeving
 // const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
 const GEMMA_TYPE_BELEIDSDOMEIN = "Beleidsdomein";

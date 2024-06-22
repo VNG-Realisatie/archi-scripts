@@ -1,0 +1,138 @@
+/**
+ * Create a filtered copy of an ArchiMate model for release.
+ *
+ * How to Use This Script:
+ * - Select the model.
+ * - Run this script.
+ *
+ * What This Script Does:
+ * - Checks models Object IDs. Exits if an error is found.
+ * - Sets a release date in the model's properties.
+ * - Saves the model
+ * - Creates a releaseModel (a copy of the model)
+ * - Filters the releaseModel:
+ *   - Only keeps views with the property `publicatie=GEMMA online`
+ *   - Deletes unused elements and relation
+ *   - Deletes empty folders
+ *
+ * Steps to release the model:
+ * - publish the model to it's GitHub Archi-repository
+ * - export the releaseModel to an AMEFF
+ * - import the AMEFF
+ *
+ * Author:  Mark Backer
+ * Version: 1 (2024-05-22)
+ */
+
+load("../_lib/Common.js");
+load("../_lib/archi_folders.js");
+load("include_GEMMA.js");
+
+initConsoleLog(__FILE__, true);
+
+try {
+  // source model to release
+  console.log(`Create a release model from: ${model.name}:\t(${model.getPath()})\n`);
+  let sourceModelPath = model.getPath();
+
+  // Gather all objects excluding folders
+  let objects = gatherObjects();
+
+  // Set IDs for objects without ID or with invalid ID
+  let IDsValid = setObjectID(objects);
+
+  if (IDsValid) {
+    // Set the release date
+    let currentDate = new Date().toISOString().slice(0, 10);
+    console.log(`Update the model 'Release' property to ${currentDate}`);
+    model.prop(PROP_RELEASE, currentDate);
+    model.save()
+
+    // copy the source model
+    copyModel(model, "release");
+
+    // filter the release model
+    filterReleaseModel(model);
+
+    // Save the filtered model
+    model.save();
+    console.log(`\nRelease model saved in: "${model.getPath()}"`);
+
+    // load the sourceModel again
+    let sourceModel = $.model.load(sourceModelPath);
+    // Open the original model in the UI for export
+    sourceModel.openInUI();
+    console.log(`Export the release model: File > Export > Model to Open Exchange file`);
+  }
+} catch (error) {
+  console.error(`> ${error.stack || error}`);
+}
+
+finishConsoleLog();
+
+/**
+ * create copy of the source model
+ * - save the model to a file
+ * - load the file
+ *
+ * @param {string} modelToSave - The name of the release model.
+ * @returns {suffix} - suffix for filename
+ */
+function copyModel(modelToSave, suffix) {
+  let today = new Date().toISOString().slice(0, 10);
+  let fileNameSuggestion = `${today} ${modelToSave.name} ${suffix}`
+    .replace(/\s/g, "_")
+    .replace(/[\[\]\(\)\#\\\/\"\.:;,–]/g, "");
+
+  let copyModelFileName = window.promptSaveFile({
+    title: `Save ${suffix} model`,
+    filterExtensions: [`*.archimate`],
+    fileName: `${fileNameSuggestion}.archimate`,
+  });
+
+  modelToSave.save(copyModelFileName);
+  modelToSave.setAsCurrent();
+  return;
+}
+
+/**
+ * Delete everything not relevant for release
+ */
+function filterReleaseModel() {
+  // Filter views to keep only those that are published
+  let viewsToDelete = $("view").filter((view) => filterViews(view));
+  let viewsToPublish = $("view").not(viewsToDelete);
+
+  console.log(`\nFilter release model, keeping ${viewsToPublish.size()} views`);
+  console.log(`\nDelete ${viewsToDelete.size()} views`);
+  viewsToDelete.each((view) => {
+    console.log(` - ${view.name}`);
+    view.delete();
+  });
+
+  // Delete elements not used in any view
+  let elementsToDelete = $("element").filter((element) => $(element).viewRefs().size() === 0);
+  console.log(`\nDelete ${elementsToDelete.size()} unused elements`);
+  elementsToDelete.each((element) => {
+    console.log(` - ${element}`);
+    element.delete();
+  });
+
+  // Delete empty folders
+  let initialFolderCount = $(model).find("folder").size();
+  console.log(`\nDelete empty folders:`);
+  deleteEmptyFolders($(model).first());
+  let remainingFolderCount = $(model).find("folder").size();
+  console.log(
+    `Deleted ${initialFolderCount - remainingFolderCount} empty folders of a total of ${initialFolderCount} folders`
+  );
+}
+
+function filterViews(view) {
+  if (view.prop("Publiceren")) {
+    if (view.prop("Publiceren").endsWith("GEMMA Online en redactie")) {
+      return false;
+    }
+  }
+  return true;
+}

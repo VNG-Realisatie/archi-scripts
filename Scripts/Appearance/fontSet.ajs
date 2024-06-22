@@ -1,6 +1,6 @@
 /**
  * FontSet
- *  Set the font to given fixed type and size
+ *  Set the font to given type and size
  */
 load(__DIR__ + "../_lib/selection.js");
 

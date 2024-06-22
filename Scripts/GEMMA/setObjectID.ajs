@@ -26,122 +26,26 @@
  * - generateUUID() moved to _lib/common.js
  * Version 3.3: 19-3-2024
  * - add property Release=<today> to model object
+ * Version 4.0: 22-5-2024
+ * - refactored with ChatGPT
+ * - create include_GEMMA.js for reuse setObjectID functions
+ * - set release property moved to createReleaseModel.ajs
  *
  * (c) 2019 Mark Backer
  */
 load("../_lib/Common.js");
+load("include_GEMMA.js");
 
 initConsoleLog(__FILE__, true);
 
-// Label of the property with the ID
-const PROP_ID = "Object ID";
-const PROP_RELEASE = "Release";
-
 try {
-  // add all objects of the model to an array. Skip folders, properties of folders are not exported
-  let objects = [];
-  objects.push(model);
-  $("*")
-    .not("folder")
-    .each((o) => objects.push(o));
+  // Gather all objects excluding folders
+  let objects = gatherObjects();
 
-  // lists of objects with, without or with an unvalid property Object ID
-  const objectsWithID = objects.filter((object) => object.prop(PROP_ID));
-  const objectsWithoutID = objects.filter((object) => !object.prop(PROP_ID));
-  const objectsWithUnvalidID = objectsWithID.filter((object) => unvalidGUID(object));
-
-  // list of objects with a duplicate property Object ID. Also unvalid Object ID's are shown in duplicate list
-  const lookup = objectsWithID.reduce((a, e) => {
-    // reduce objects to lookup table with count of occurrences - 1
-    a[e.prop(PROP_ID)] = a[e.prop(PROP_ID)] + 1 || 0;
-    return a;
-  }, {});
-  // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
-  const objectsWithDuplicateID = objectsWithID.filter((e) => lookup[e.prop(PROP_ID)]);
-
-  console.log(`Checking ${model}`);
-  console.log(`Total number of objects to check: \t${objects.length}`);
-  // Do not change the model if duplicates are found. Duplicates have to be manualy resolved
-  if (objectsWithDuplicateID.length > 0) {
-    console.log(`\nDuplicates found`);
-    console.log(
-      `- ${objectsWithDuplicateID.length} object${
-        objectsWithDuplicateID.length > 1 ? "s" : ""
-      } with duplicate ${PROP_ID}`
-    );
-    objectsWithDuplicateID.sort(sortProp).forEach(function (object) {
-      console.log(`  > ${object.prop(PROP_ID)}\t${object}`);
-    });
-    console.log(`\nFirst resolve the reported duplicate ${PROP_ID}:`);
-    console.log(`- sort out which object was the original`);
-    console.log(`- remove the property ${PROP_ID} from the other objects`);
-    console.log(`Then run this script again\n`);
-  } else {
-    console.log(`Setting ${PROP_ID}s`);
-    if (objectsWithoutID.length > 0) {
-      console.log(`- adding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}`);
-      objectsWithoutID.sort().forEach((o) => {
-        let id_generated = generateUUID();
-        console.log(`  > ${o}\t${PROP_ID}=${id_generated}`);
-        o.prop(PROP_ID, id_generated);
-      });
-      console.log();
-    }
-    // Set all unvalid Object ID to a valid GUID
-    if (objectsWithUnvalidID.length > 0) {
-      console.log(
-        `- replacing ${PROP_ID} in ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""}`
-      );
-      objectsWithUnvalidID.sort().forEach((o) => {
-        let id_generated = generateUUID();
-        console.log(`  > ${o}\t${PROP_ID}=${id_generated} (was ${o.prop(PROP_ID)})`);
-        o.prop(PROP_ID, id_generated);
-      });
-      console.log();
-    }
-
-    console.log(`Summary:`);
-    console.log(`- no duplicates`);
-    console.log(`- added ${PROP_ID}: \t${objectsWithoutID.length}`);
-    console.log(`- replaced ${PROP_ID}: \t${objectsWithUnvalidID.length}`);
-    console.log(`\nAll object now have a valid ${PROP_ID}\n`);
-
-    // update Release property in the model
-    // let currentDate = new Date().toJSON().replace("T", " ").slice(0, 19); // "2024-03-19 17:10:23"
-    let currentDate = new Date().toJSON().slice(0, 10); // "2024-03-19"
-    console.log(`Finaly, update the model 'Release' property to ${currentDate}\n`);
-    model.prop(PROP_RELEASE, currentDate);
-  }
+  // Set IDs for objects without ID or with invalid ID
+  setObjectID(objects);
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
 finishConsoleLog();
-
-/**
- * unvalidGUID()
- *	check if GUID property conforms to 1 of 4 GUID patterns
- */
-function unvalidGUID(o) {
-  let oGUID = o.prop(PROP_ID);
-  if (
-    RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "i").test(oGUID) === true || // standard
-    RegExp("^[0-9a-f]{32}$", "i").test(oGUID) === true || // SWC
-    RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}-pv$", "i").test(oGUID) === true || // SWC pakketversie
-    RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{10}$", "i").test(oGUID) === true // SWC view
-  ) {
-    return false;
-  } else {
-    return true;
-  }
-}
-
-/**
- * sortProp()
- * 	sort all objects on Object ID
- */
-function sortProp(a, b) {
-  if (a.prop(PROP_ID) < b.prop(PROP_ID)) return -1;
-  if (a.prop(PROP_ID) > b.prop(PROP_ID)) return 1;
-  return 0;
-}

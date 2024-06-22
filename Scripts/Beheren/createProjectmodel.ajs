@@ -56,7 +56,7 @@ try {
     projectModel.setAsCurrent()
 
     // delete everything not relevant to the project
-    filterProjectModel(projectFolder, projectModelName);
+    filterReleaseModel(projectFolder, projectModelName);
 
     // save filtered model
     projectModel.save().setAsCurrent();
@@ -93,7 +93,7 @@ function getProjectModelFileName(projectModelName) {
 /**
  * delete everything not relevant to the project
  */
-function filterProjectModel(projectFolder, projectModelName) {
+function filterReleaseModel(projectFolder, projectModelName) {
   // set project model properties for start of project model
   // model properties should not be imported when syncing
   model.name = projectModelName;
