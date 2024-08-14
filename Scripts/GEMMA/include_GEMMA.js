@@ -89,17 +89,16 @@ function checkDuplicateID(objects) {
     acc[obj.prop(PROP_ID)] = acc[obj.prop(PROP_ID)] + 1 || 0;
     return acc;
   }, {});
-  // const objWithDupID = objectsWithID.filter((obj) => lookup[obj.prop(PROP_ID)] > 0);
 
-  const objWithDupID = objectsWithID.filter(obj => lookup[obj.prop(PROP_ID)].length > 0).map(obj => ({
+  const objWithDupID = objectsWithID.filter(obj => lookup[obj.prop(PROP_ID)] ).map(obj => ({
     "Object ID": obj.prop(PROP_ID),
-    "Objects": lookup[obj.prop(PROP_ID)].join(', ')
+    "Objects": obj.name
   }));
 
   if (objWithDupID.length > 0) {
     console.log(`\nDuplicates found`);
     console.log(`- ${objWithDupID.length} object${objWithDupID.length > 1 ? "s" : ""} with duplicate ${PROP_ID}`);
-    logInColumns(dupIDs, ["Object ID", "Objects"]);
+    logInColumns(objWithDupID, ["Object ID", "Objects"]);
   }
 
   return objWithDupID;

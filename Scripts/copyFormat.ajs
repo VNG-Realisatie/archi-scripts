@@ -25,9 +25,10 @@ try {
     console.error(`> Selected object is not on a view. Select one object in a view`);
   } else {
     if ($(selection).size() != 1) {
-      console.error(`> Selected multiple objects. Select one object with the formatting`);
+      console.error(`> Selected none or multiple objects. Select one object with the formatting`);
     } else {
-      let collection = getVisualSelection($(selection), "*");
+      selectedView = copyFrom.view
+      let collection = getVisualSelection($(selectedView), copyFrom.type);
       collection.not($(copyFrom)).each((copyToObj) => copyFormat(copyFrom, copyToObj));
 
       console.log(`> Formatting copied to ${collection.size()} objects`);

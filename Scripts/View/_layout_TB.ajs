@@ -3,7 +3,7 @@
  *
  * The filename defines which parameter are used
  * Format of the filename:
- * - <direction>_<action>_<user parameter filename>.ajs
+ * - <user parameter filename>_<action>_<direction>.ajs
  */
 load("../_lib/Common.js");
 load("../_lib/selection.js");

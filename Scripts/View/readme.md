@@ -51,10 +51,10 @@ Configure the behavior of generate_view with the folowing parameters.
       - GENERATE_SINGLE (default)
         generate a view with the selected elements and THEIR related elements (add elements and relations `graphDepth` relations deep)
       - GENERATE_MULTIPLE
-        generate a view for every selected element and ITS related elements (add elements and relations `graphDepth` relations deep)
+        generate for each selected element a view of the element and ITS related elements (add elements and relations `graphDepth` relations deep)
     - Change an existing view
       - EXPAND_HERE
-        expand in the view the selected element(s) with their related elements (add elements and relations 1 relation deep)
+        expand the in the view selected element(s) with their related elements (add elements and relations 1 relation deep)
       - LAYOUT
         layout the selected view. Do not add elements or relations
   - `graphDepth`, add elements and relation to the selection `graphDepth` relation deep

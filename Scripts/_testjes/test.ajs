@@ -1,0 +1,3 @@
+$(selection).each(
+  obj => obj == true
+).selection

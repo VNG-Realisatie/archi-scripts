@@ -2,7 +2,7 @@
  * genereer publicatie standaarden view
  */
 
-var param = {
+USER_PARAM = {
   action: GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
