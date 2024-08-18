@@ -14,16 +14,18 @@
  *  - Changed merge behavior of this script:
  *    - append the duplicates documentation only if the value is different
  *    - idem for properties
- *    - if the selected concept has a property Object ID, the Object ID's of duplicates are ignored
+ *    - Retain the property 'Object ID' from the primary element and discard from the duplicates
+ *    - Before merging an element, remove identical relations from the duplicates
  *    - delete the merged duplicates
  *
  * Versions
  *     2019 first version
  *     2021 use Archi merge method
- *  07 2022 keep one property Object ID, drop the other Object ID's
+ *  07 2022 Retain the property 'Object ID' from the primary element and discard from the duplicates
  *  06 2023 Select one or multiple elements, all these elements will be merged.
- *  06 2023 Renamed from mergeElement to mergeConcept. Also merge relations
- *
+ *  06 2023 Also merge relations. Renamed from mergeElement to mergeConcept
+ *  08 2024 Before merging an element, remove identical relations from the duplicates
+ * 
  * (c) 2019 Mark Backer
  */
 load(__DIR__ + "_lib/archi_folders.js");
@@ -42,11 +44,11 @@ function mergeElementOrRelation(conceptType) {
     }
 
     let selectedConcepts = getSelection($(selection), (selector = conceptType));
-    console.log()
+    console.log();
     let count = { merged: 0, noduplicates: 0, skipped: 0, duplicates: 0 };
-  
+
     selectedConcepts.each((concept) => mergeConcept(concept, count));
-  
+
     console.log(`Selected ${conceptType}s: ${selectedConcepts.size()}`);
     console.log(`- merged: ${count.merged}`);
     console.log(`- has no duplicates: ${count.noduplicates}`);
@@ -86,6 +88,9 @@ function mergeConcept(selectedConcept, count) {
         console.log(`    id     = ${duplicate.id}`);
 
         prepareProperties(primary, duplicate);
+        // if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
+        prepareRelations(primary, duplicate);
+        // }
 
         primary.merge(duplicate);
         duplicate.delete();
@@ -114,28 +119,38 @@ function getDuplicates(primary) {
   if ($(primary).is(OBJECT_TYPE_RELATION)) {
     duplicateList = $(primary.type)
       .not($(primary))
-      .filter((rel) => filterRelationDuplicates(rel));
+      .filter((rel) => filterRelationDuplicates(primary, rel));
   }
   return duplicateList;
 
-  function filterRelationDuplicates(rel) {
-    if (primary.source.id == rel.source.id && primary.target.id == rel.target.id && primary.name.trim() == rel.name.trim())
+  /**
+   * Select duplicate relations
+   */
+  function filterRelationDuplicates(primaryRel, dupRel) {
+    if (
+      primaryRel.type == dupRel.type &&
+      primaryRel.source.id == dupRel.source.id &&
+      primaryRel.target.id == dupRel.target.id &&
+      primaryRel.name.trim() == dupRel.name.trim()
+    )
       return true;
     else return false;
   }
 }
 
+/**
+ * Remove properties from the duplicate that already exist in the primary
+ */
 function prepareProperties(primary, duplicate) {
   // don't append documentation if documentation strings are equal
-  if ((primary.documentation) && (duplicate.documentation)) {
-    if (primary.documentation.trim() == duplicate.documentation.trim()) { 
+  if (primary.documentation && duplicate.documentation) {
+    if (primary.documentation.trim() == duplicate.documentation.trim()) {
       // console.log(`    - documentation is equal, not appended`);
       duplicate.documentation = ``;
     } else {
       console.log(`    - INFO; documentation of duplicate appended`);
     }
   }
-
   // merge primary properties with duplicate properties
   let duplicatePropList = duplicate.prop();
   duplicatePropList.forEach((property) => {
@@ -157,6 +172,46 @@ function prepareProperties(primary, duplicate) {
       }
     }
   });
+}
+
+/**
+ * Remove relations from the duplicate that already exist for the primary
+ */
+function prepareRelations(primary, duplicate) {
+  console.log("    - Delete duplicate incoming relation with objects:");
+  $(primary)
+    .inRels()
+    .each((rel) => {
+      let duplicateInRels = $(duplicate)
+        .inRels(rel.type)
+        .filter((dupRel) => filterInRel(rel, dupRel));
+      duplicateInRels.each((dupRel) => {
+        console.log(`      - ${dupRel.source}`);
+        dupRel.delete();
+      });
+    });
+
+    console.log("    - Delete duplicate outgoing relation with objects:");
+    $(primary)
+    .outRels()
+    .each((rel) => {
+      let duplicateOutRels = $(duplicate)
+        .outRels(rel.type)
+        .filter((dupRel) => filterOutRel(rel, dupRel));
+      duplicateOutRels.each((dupRel) => {
+        console.log(`      - ${dupRel.target}`);
+        dupRel.delete();
+      });
+    });
+
+  function filterInRel(rel, dupRel) {
+    if (dupRel.source.id == rel.source.id && dupRel.name.trim() == rel.name.trim()) return true;
+    return false;
+  }
+  function filterOutRel(rel, dupRel) {
+    if (dupRel.target.id == rel.target.id && dupRel.name.trim() == rel.name.trim()) return true;
+    return false;
+  }
 }
 
 /**

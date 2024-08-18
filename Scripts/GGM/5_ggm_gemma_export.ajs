@@ -1,7 +1,11 @@
 /**
- * GEMMA export
+ * Maak CSV-bestanden met de GEMMA bedrijfsobjecten en relaties
+ * 
+ * Selecteer het GEMMA-GGM ArchiMate-model en draai dit script
  * - export business-objects to CSV
  * - export business-object relations to CSV
+ * 
+ * De CSV bestanden worden in de mappen van de GEMMA-GGM Archi-repository bewaard.
  *
  * Mapping specification, see
  *  https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/blob/develop/CSV%20export/Specificatie%20GGM-GEMMA%20data-uitwisseling.md

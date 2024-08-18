@@ -2,12 +2,17 @@
  * Genereer de views van de GGM data-objecten en de GEMMA bedrijfsobjecten
  *
  * Configuratie van de te genereren views in
- * - ggmDO en ggmBO
+ * - GGM/user_parameter/ggmDO.js en
+ * - GGM/user_parameter/ggmBO.js
+ *
+ * Hoe te gebruiken:
+ * - selecteer één of meerdere Beleidsdomeinen
+ * - draai dit script
  *
  * Dit script
- * - genereert views
+ * - genereert van ieder beleidsdomein een view van de data-objecten en een view van de bedrijfsobjecten
  * - styled de views
- * - zet eigenschappen van de views
+ * - set de eigenschappen van de views
  */
 load("../_lib/Common.js");
 load("../_lib/selection.js");
@@ -19,14 +24,17 @@ const FOLDER_SYNC_GGM_VIEWS = FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 
 initConsoleLog(__FILE__, true);
 try {
-  let Beleidsdomeinen = $(selection).filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
+  let Beleidsdomeinen = getSelection($(selection), "grouping")
+  Beleidsdomeinen = Beleidsdomeinen.filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
   if (Beleidsdomeinen.size() < 1) {
-    Beleidsdomeinen = $("grouping").filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
+    // Beleidsdomeinen = $("grouping").filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
+    console.log("Selecteer de folder beleidsdomeinen of één of meer beleidsdomeinen");
   }
 
   console.log(`Maak of update de views voor ${Beleidsdomeinen.size()} beleidsdomeinen\n`);
-  let drawCollection = Beleidsdomeinen;
-  // let drawCollection = $(beleidsthemas.first()); // one beleidsthema for test
+  // voorkom dat in visueel beleidsdomein de embedded objecten worden gebruikt als start voor de views
+  let drawCollection = $();
+  Beleidsdomeinen.each((bd) => drawCollection.add(concept(bd)));
 
   console.log(`Genereer GGM data-object views`);
   console.log(`==============================`);
@@ -62,7 +70,7 @@ try {
     applyToCollection(notNestedElements, setLabelBeleidsdomein);
 
     // Update view properties
-    console.log("\nUpdate view properties")
+    console.log("\nUpdate view properties");
     views.each((view) => updateViewProp(view));
   });
 
@@ -78,10 +86,17 @@ function styleView(views) {
 
   // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
   applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
+  console.log();
+
+  // tekst in het midden
+  applyToCollection(getVisualSelection(views, "business-object"), styleBusinessObjects);
+  console.log();
+
   // bold font domein-grouping
-  console.log();
   applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
-  // specialisatie-relaties groen
   console.log();
+
+  // specialisatie-relaties groen
   applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
+  console.log();
 }

@@ -7,7 +7,7 @@
 console.log("Loading include_ggm_gemma.js");
 
 // Windows directory with CSV import files
-const GGM_CSV_DIR = __DIR__ + "../../../../Werkbestanden/GGM/Rondje2.1/";
+const GGM_CSV_DIR = __DIR__ + "../../../../Werkbestanden/GGM/Release 2.1/";
 
 // folders in GEMMA ArchiMate-model
 const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
@@ -16,7 +16,7 @@ const FOLDER_GGM_BELEIDSDOMEIN = "/Beleidsdomeinen (GGM)";
 const FOLDER_BELEIDSDOMEIN = "/Beleidsdomeinen";
 const FOLDER_BEDRIJFSOBJECT = "/Bedrijfsobjecten";
 
-const VIEW_NAME_SUFFIX = " (GGM)"
+const VIEW_NAME_SUFFIX = " (GGM)";
 
 // GGM imported properties
 const PROP_OBJECT_ID_SYNC = "Object ID sync"; // property to find and sync beleidsdomein aggregations
@@ -79,7 +79,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
           stats.nr_no_updates += 1;
         }
       } else {
-        console.log(`> create ${businessObject}`);
+        console.log(`> create business-object from ${dataObject}`);
         businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
         // update GEMMA bedrijfsobject with GGM properties
         updateObjectProp(dataObject, businessObject);
@@ -327,7 +327,7 @@ function updateViewProp(view) {
   view.prop("Detailniveau", "Samenhang");
   view.prop("Viewtype", "Basis");
   view.prop("GEMMA thema", "Data");
-  
+
   if (view.name.endsWith(VIEW_NAME_SUFFIX)) {
     view.prop(PROP_BRON, "GGM");
     view.prop("Architectuurlaag", "Applicatiearchitectuur");
@@ -335,7 +335,7 @@ function updateViewProp(view) {
     // Bedrijfsobjectmodellen publiceren
     view.prop("Publiceren", "GEMMA Online en redactie");
     view.prop("Architectuurlaag", "Bedrijfsarchitectuur");
-    view.prop(PROP_GEMMA_URL, GEMMA_URL + view.prop(PROP_ID))
+    view.prop(PROP_GEMMA_URL, GEMMA_URL + view.prop(PROP_ID));
   }
   view.removeProp("generate_view_param");
   // set property beleidsdomein
@@ -444,6 +444,11 @@ function styleDataObjects(obj) {
     obj.opacity = 100;
     obj.labelExpression = `\${name}\n<<\${property:${PROP_GGM_UML_TYPE}}>>`;
   }
+  obj.textPosition = TEXT_POSITION.CENTER;
+}
+
+function styleBusinessObjects(obj) {
+  obj.textPosition = TEXT_POSITION.CENTER;
 }
 
 function styleGroupings(obj) {

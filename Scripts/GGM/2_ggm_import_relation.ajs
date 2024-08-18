@@ -25,7 +25,8 @@ initConsoleLog(__FILE__, true);
 // let fileName = "gemma_import_relations (convert ggm).csv";
 // let fileName = "gemma_import_relations (convert ggm) 2024-04-10.csv";
 // let fileName = "gemma_import_relations (convert ggm) 2024-04-12.csv";
-let fileName = "gemma_import_relations (convert ggm 2.1).csv";
+// let fileName = "gemma_import_relations (convert ggm 2.1).csv";
+let fileName = "2024-08-14 Converted relations 2.1.csv"
 
 importObjects(GGM_CSV_DIR + fileName);
 

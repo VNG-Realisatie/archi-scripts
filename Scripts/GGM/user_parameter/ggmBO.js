@@ -54,9 +54,9 @@ USER_PARAM = {
   // nodeWidth: 116,
   // nodeHeight: 65,
 
-  nodeWidth: 160,
+  nodeWidth: 180,
   nodeHeight: 60,
   hSep: 20,
-  vSep: 50,
+  vSep: 100,
   
 };
