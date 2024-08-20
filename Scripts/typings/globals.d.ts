@@ -244,6 +244,7 @@ interface FileSystem {
 }
 
 interface jArchi {
+    process: any;
     (selector?: Selector|Collection|ArchiConcept): OCollection;
     model: GlobalModel;
     fs: FileSystem;

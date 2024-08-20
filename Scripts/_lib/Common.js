@@ -7,7 +7,7 @@
  * - (info|debug):            log message
  */
 const COMMON_FUNCTIONS_LOADED = true;
-console.log("Loading common.js")
+console.log("Loading common.js");
 
 var _commonScriptName;
 var _startCounter = {};
@@ -70,10 +70,10 @@ function startCounter(label) {
 
 function endCounter(label) {
   let _endCounter = Date.now();
-  let milliSeconds = parseInt(_endCounter - _startCounter[label]);
-  let durationInSeconds = parseInt((_endCounter - _startCounter[label]) / 1000);
-  let minutes = parseInt(durationInSeconds / 60);
-  let seconds = parseInt(durationInSeconds % 60);
+  let milliSeconds = parseInt(String(_endCounter - _startCounter[label]));
+  let durationInSeconds = parseInt(String((_endCounter - _startCounter[label]) / 1000));
+  let minutes = parseInt(String(durationInSeconds / 60));
+  let seconds = parseInt(String(durationInSeconds % 60));
   if (minutes > 0) {
     return `${minutes}m${seconds}s`;
   } else if (seconds > 10) {
@@ -205,16 +205,23 @@ function generateUUID() {
 /**
  * @returns UUID
  * https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
- * Note: The use of any UUID generator that relies on Math.random() is strongly discouraged 
- * 
+ * Note: The use of any UUID generator that relies on Math.random() is strongly discouraged
+ *
  * Test: console.log(uuidv4());
- * 
+ *
  * Not used yet. How to load module crypto?
- * 
+ *
  */
+// function uuidv4() {
+//   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+//     (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
+//   );
+// }
+// ChatGPT improved version
 function uuidv4() {
-  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-  );
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16; // Generate random number between 0-15
+    const v = c === "x" ? r : (r & 0x3) | 0x8; // For 'y', ensure the variant is 10xx
+    return v.toString(16);
+  });
 }
-
