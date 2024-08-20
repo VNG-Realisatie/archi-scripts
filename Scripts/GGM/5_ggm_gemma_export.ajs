@@ -8,15 +8,20 @@
  * De CSV bestanden worden in de mappen van de GEMMA-GGM Archi-repository bewaard.
  *
  * Mapping specification, see
- *  https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/blob/develop/CSV%20export/Specificatie%20GGM-GEMMA%20data-uitwisseling.md
+ *  https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/blob/develop/exports/Specificatie%20GGM-GEMMA%20data-uitwisseling.md
  */
 load("../_lib/Common.js");
 initConsoleLog(__FILE__, true);
+
 load("include_ggm_gemma.js");
 load("../ImportExport_CSV/include_export.js");
-// load("../_lib/archi_folders.js");
 
-const GGM_REPO_CSV_DIR = "C:/Users/marks/Documents/Archi/model-repository/gemma-ggm-archi-repository/CSV export/";
+/**
+ * GEMMA CSV exportbestanden in de lokale GEMMA-GGM archi-repository
+ */
+const GEMMA_GGM_REPO_EXPORTS_DIR = GEMMA_GGM_REPO_DIR + "exports/";
+const GEMMA_BEDRIJFSOBJECTEN_ELEMENT_CSV = GEMMA_GGM_REPO_EXPORTS_DIR + "GEMMA_Bedrijfsobjecten_element.csv";
+const GEMMA_BEDRIJFSOBJECTEN_RELATIE_CSV = GEMMA_GGM_REPO_EXPORTS_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv";
 
 /**
  * Mapping objects
@@ -82,11 +87,9 @@ try {
   console.log(`\nExport bedrijfsobjecten`);
   console.log(`Aantal: ${bedrijfsobjecten.size()}`);
 
-  // let fileName = "GEMMA_Bedrijfsobjecten_element.csv";
   exportObjects(
     OBJECT_TYPE_ELEMENT,
-    // GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
-    GGM_REPO_CSV_DIR + "GEMMA_Bedrijfsobjecten_element.csv",
+    GEMMA_BEDRIJFSOBJECTEN_ELEMENT_CSV,
     bedrijfsobjecten,
     BUSINESS_OBJECT_MAPPING
   );
@@ -99,11 +102,9 @@ try {
   bedrijfsobjectRelations = bedrijfsobjectRelations.add(bedrijfsobjecten.rels("specialization-relationship"));
   console.log(`Totaal: ${bedrijfsobjectRelations.size()}\n`);
 
-  // let fileName = "GEMMA_Bedrijfsobjecten_relatie.csv";
   exportObjects(
     OBJECT_TYPE_RELATION,
-    // GGM_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
-    GGM_REPO_CSV_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv",
+    GEMMA_BEDRIJFSOBJECTEN_RELATIE_CSV,
     bedrijfsobjectRelations,
     BUSINESS_RELATION_MAPPING
   );

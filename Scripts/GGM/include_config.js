@@ -1,4 +1,0 @@
-/**
- * Configuratiebestand met lokale folders
- */
-

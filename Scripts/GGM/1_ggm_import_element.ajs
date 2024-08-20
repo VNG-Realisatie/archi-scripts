@@ -8,126 +8,132 @@
  * - data-objecten
  * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
  */
+load("../_lib/Common.js"); // init en generateUUID()
+initConsoleLog(__FILE__, true);
 
 load("include_ggm_gemma.js");
 load("../_lib/archi_folders.js");
-load("../_lib/Common.js"); // generateUUID()
 load("../Sync from CSV/Include_LoadAndSync.js");
 
-/**
- * file: GGM Enterprise Architect CSV export
- *    C:/Users/marks/Vereniging van Nederlandse Gemeenten/Unit Architectuur en Standaarden - Documents/GEMMA ontwikkelstraat/GGM
- */
-// let GGM_objects = "ggm_export_objects_21022024-11_03_02.csv";
-// let GGM_objects = "ggm_export_objects_10042024-13_29_09.csv"
-// let GGM_objects = "ggm_export_objects_12042024-12_57_38.csv"
-// let GGM_objects = "ggm_export_objects_17042024-14_45_57.csv"
-let GGM_objects = "ggm_export_objects_14082024-08_34_36.csv"
-
-var beleidsdomeinen = {
-  label: "Beleidsdomeinen",
-  csv: GGM_CSV_DIR + GGM_objects,
-  targetType: "grouping",
-  targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN),
-  getId: function (element) {
-    // return element.prop("domein-iv3");
-    return element.name;
-  },
-  setId: function (element, row) {
-    // element.prop("domein-iv3", row["_id"]);
-    element.name = row["_id"];
-  },
-  id: "domein-iv3", // per id wordt een object aangemaakt
-  name: "domein-iv3",
-  documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
-  propMapping: {
-    [PROP_ID]: function (element) {
-      if (!element.prop(PROP_ID)) {
-        return generateUUID();
-      }
-    },
-    "GGM-datum-tijd-export": "datum-tijd-export",
-    [PROP_GEMMA_TYPE]: function () {
-      return GEMMA_TYPE_BELEIDSDOMEIN;
-    },
-  },
-  relations: {},
-};
-
-var dataobjecten = {
-  label: "Dataobject",
-  csv: GGM_CSV_DIR + GGM_objects,
-  targetType: "data-object",
-  // filter: function (row) {
-  //   return row["archimate-type"] != "Business object";
-  // },
-  targetFolder: getFolderPath("/Application" + FOLDER_GGM_DATAOBJECT),
-  getId: function (element) {
-    return element.prop(PROP_GGM_ID_IMPORTED);
-  },
-  setId: function (element, row) {
-    element.prop(PROP_GGM_ID_IMPORTED, row["_id"]);
-  },
-  id: PROP_GGM_ID,
-  name: "GGM-naam",
-  documentation: "GGM-definitie",
-  propMapping: {
-    [PROP_ID]: function (element) {
-      if (!element.prop(PROP_ID)) {
-        return generateUUID();
-      }
-    },
-    [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
-    // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
-    [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
-    [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
-    [PROP_GGM_BRON]: PROP_GGM_BRON,
-    [PROP_GGM_ID_IMPORTED]: PROP_GGM_ID,
-    // "domein-iv3": "domein-iv3", // added as relation
-    // "domein-dcat": "domein-dcat",
-    // "domein-gemma": "domein-gemma",
-    [LABEL_DATUM_TIJD]: "datum-tijd-export",
-  },
-  relations: {
-    beleidsdomeinen_rel: {
-      column: "domein-iv3",
-      reference: beleidsdomeinen,
-      targetType: "aggregation-relationship",
-      targetFolder: getFolderPath("/Relations" + FOLDER_GGM_BELEIDSDOMEIN),
-      isReversed: true,
+try {
+  let importFile = GGM_EXPORT_OBJECTS;
+  if (!importFile) {
+    importFile = window.promptOpenFile({
+      title: "Open GGM export objects CSV",
+      filterExtensions: ["*.csv"],
+    });
+  }
+  if (!importFile) {
+    console.log("> Canceled");
+  } else {
+    var beleidsdomeinen = {
+      label: "Beleidsdomeinen",
+      csv: importFile,
+      targetType: "grouping",
+      targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN),
+      getId: function (element) {
+        // return element.prop("domein-iv3");
+        return element.name;
+      },
+      setId: function (element, row) {
+        // element.prop("domein-iv3", row["_id"]);
+        element.name = row["_id"];
+      },
+      id: "domein-iv3", // per id wordt een object aangemaakt
+      name: "domein-iv3",
+      documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
       propMapping: {
-        [PROP_ID]: function (relationship) {
-          if (!relationship.prop(PROP_ID)) {
+        [PROP_ID]: function (element) {
+          if (!element.prop(PROP_ID)) {
             return generateUUID();
           }
         },
-        [PROP_GEMMA_TYPE]: function (relationship) {
+        "GGM-datum-tijd-export": "datum-tijd-export",
+        [PROP_GEMMA_TYPE]: function () {
           return GEMMA_TYPE_BELEIDSDOMEIN;
         },
       },
-    },
-  },
-};
+      relations: {},
+    };
 
-// End of configuration =========================================================================================
+    var dataobjecten = {
+      label: "Dataobject",
+      csv: importFile,
+      targetType: "data-object",
+      // filter: function (row) {
+      //   return row["archimate-type"] != "Business object";
+      // },
+      targetFolder: getFolderPath("/Application" + FOLDER_GGM_DATAOBJECT),
+      getId: function (element) {
+        return element.prop(PROP_GGM_ID_IMPORTED);
+      },
+      setId: function (element, row) {
+        element.prop(PROP_GGM_ID_IMPORTED, row["_id"]);
+      },
+      id: PROP_GGM_ID,
+      name: "GGM-naam",
+      documentation: "GGM-definitie",
+      propMapping: {
+        [PROP_ID]: function (element) {
+          if (!element.prop(PROP_ID)) {
+            return generateUUID();
+          }
+        },
+        [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
+        // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
+        [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
+        [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
+        [PROP_GGM_BRON]: PROP_GGM_BRON,
+        [PROP_GGM_ID_IMPORTED]: PROP_GGM_ID,
+        // "domein-iv3": "domein-iv3", // added as relation
+        // "domein-dcat": "domein-dcat",
+        // "domein-gemma": "domein-gemma",
+        [LABEL_DATUM_TIJD]: "datum-tijd-export",
+      },
+      relations: {
+        beleidsdomeinen_rel: {
+          column: "domein-iv3",
+          reference: beleidsdomeinen,
+          targetType: "aggregation-relationship",
+          targetFolder: getFolderPath("/Relations" + FOLDER_GGM_BELEIDSDOMEIN),
+          isReversed: true,
+          propMapping: {
+            [PROP_ID]: function (relationship) {
+              if (!relationship.prop(PROP_ID)) {
+                return generateUUID();
+              }
+            },
+            [PROP_GEMMA_TYPE]: function (relationship) {
+              return GEMMA_TYPE_BELEIDSDOMEIN;
+            },
+          },
+        },
+      },
+    };
 
-// Things start here ============================================================================================
-// Load data from CSV Files and sync model elements
-console.show();
-console.clear();
-console.log(
-  "Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'"
-);
-var startTime = new Date().getTime();
+    // End of configuration =========================================================================================
 
-loadAndSync(beleidsdomeinen);
+    // Things start here ============================================================================================
+    // Load data from CSV Files and sync model elements
+    console.log(
+      "Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'"
+    );
+    var startTime = new Date().getTime();
 
-loadAndSync(dataobjecten);
-syncModelRelationships(dataobjecten);
+    loadAndSync(beleidsdomeinen);
 
-// Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-// tagDeletedConcepts();
+    loadAndSync(dataobjecten);
+    syncModelRelationships(dataobjecten);
 
-var endTime = new Date().getTime();
-console.log("Elapse time: ", (endTime - startTime) / 1000, " sec");
-console.log("End of synchronization. Check previous messages for errors and undo in case of doubt.");
+    // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
+    // tagDeletedConcepts();
+
+    var endTime = new Date().getTime();
+    console.log("Elapse time: ", (endTime - startTime) / 1000, " sec");
+    console.log("End of synchronization. Check previous messages for errors and undo in case of doubt.");
+  }
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+finishConsoleLog();

@@ -12,41 +12,48 @@
  * - associaties en specialisaties tussen data-objecten
  */
 load(__DIR__ + "../_lib/Common.js");
+initConsoleLog(__FILE__, true);
+
 load("../_lib/archi_folders.js");
 load("include_ggm_gemma.js");
-
 // Overrule PROP_ID: vind bestaande relaties met PROP_GGM_ID_IMPORTED ipv Object ID
 var PROP_ID = PROP_GGM_ID_IMPORTED;
 load(__DIR__ + "../ImportExport_CSV/include_import.js");
 
-initConsoleLog(__FILE__, true);
+try {
 
-// let fileName = "convert GGM relations from ods.csv"
-// let fileName = "gemma_import_relations (convert ggm).csv";
-// let fileName = "gemma_import_relations (convert ggm) 2024-04-10.csv";
-// let fileName = "gemma_import_relations (convert ggm) 2024-04-12.csv";
-// let fileName = "gemma_import_relations (convert ggm 2.1).csv";
-let fileName = "2024-08-14 Converted relations 2.1.csv"
+  let importFile = GGM_CONVERTED_RELATIONS;
+  if (!importFile) {
+    importFile = window.promptOpenFile({
+      title: "Open GGM converted relations CSV",
+      filterExtensions: ["*.csv"],
+    });
+  }
+  if (!importFile) {
+    console.log("> Canceled");
+  } else {
+    importObjects(importFile);
 
-importObjects(GGM_CSV_DIR + fileName);
+    let dataobjectRelations = $(getFolderPath("/Relations"))
+      .children("relationship")
+      .filter((rel) => rel.prop(PROP_GGM_ID_IMPORTED) != undefined);
+    let folderDataobjectRelations = getFolderPath("/Relations" + FOLDER_GGM_DATAOBJECT);
 
-let dataobjectRelations = $(getFolderPath("/Relations"))
-  .children("relationship")
-  .filter((rel) => rel.prop(PROP_GGM_ID_IMPORTED) != undefined);
-let folderDataobjectRelations = getFolderPath("/Relations" + FOLDER_GGM_DATAOBJECT);
+    console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
 
-console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
+    // move added data-objectrelations
+    dataobjectRelations.each((rel) => {
+      // debug(`rel: ${rel}`)
+      folderDataobjectRelations.add(rel);
+    });
 
-// move added data-objectrelations
-dataobjectRelations.each((rel) => {
-  // debug(`rel: ${rel}`)
-  folderDataobjectRelations.add(rel);
-});
-
-// and set Object ID
-console.log(`> and set a property 'Object ID'`);
-dataobjectRelations.each((rel) => {
-  if (!rel.prop("Object ID")) rel.prop("Object ID", generateUUID());
-});
-
+    // and set Object ID
+    console.log(`> and set a property 'Object ID'`);
+    dataobjectRelations.each((rel) => {
+      if (!rel.prop("Object ID")) rel.prop("Object ID", generateUUID());
+    });
+  }
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
 finishConsoleLog();

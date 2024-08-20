@@ -28,59 +28,64 @@
  *    - uniek Object ID (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
  *    - kopie Object ID in afgeleide aggregatie relaties domein -> bedrijfsobject
  */
+load("../_lib/Common.js");
+initConsoleLog(__FILE__, true);
+
 load("../_lib/selection.js");
 load("../_lib/archi_folders.js");
-load("../_lib/Common.js");
 load("include_ggm_gemma.js");
 
-initConsoleLog(__FILE__, true);
-debugStackPush(false);
+try {
+  debugStackPush(false);
 
-// _Sync folders
-let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
-let relationsBedrijfsobjectFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
-let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN);
+  // _Sync folders
+  let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
+  let relationsBedrijfsobjectFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
+  let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN);
 
-// relatie met data-objecten
-let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
+  // relatie met data-objecten
+  let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
 
-let stats_BO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
-let stats_relBO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
-let stats_relBD = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+  let stats_BO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+  let stats_relBO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+  let stats_relBD = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
 
-let selectedDataObjects = getSelection($(selection), "data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
-if (selectedDataObjects.size() == 0) {
-  selectedDataObjects = $("data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
-  console.log(`Selected ${selectedDataObjects.size()} GGM data-object\n`);
+  let selectedDataObjects = getSelection($(selection), "data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
+  if (selectedDataObjects.size() == 0) {
+    selectedDataObjects = $("data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
+    console.log(`Selected ${selectedDataObjects.size()} GGM data-object\n`);
+  }
+
+  let updatedBusinessObjects = updateBusinessObjects(
+    selectedDataObjects,
+    businessObjectFolder,
+    realizesBedrijfsobjectFolder,
+    stats_BO
+  );
+  updateBusinessObjectRelations(selectedDataObjects, relationsBedrijfsobjectFolder, stats_relBO);
+  updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
+
+  console.log(`Update alternate names for duplicates`);
+  console.log(`> data-objects:`);
+  updateAlternateName(selectedDataObjects); // also for GGM data-objecten
+  console.log(`> bedrijfsobjecten:`);
+  updateAlternateName(updatedBusinessObjects);
+
+  console.log();
+  console.log("Statistieken");
+  console.log(`> from ${selectedDataObjects.size()} data-objects`);
+  console.log(
+    `> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated, ${stats_BO.nr_no_updates} no updates`
+  );
+  console.log(
+    `> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated, ${stats_relBO.nr_no_updates} no updates`
+  );
+  console.log(
+    `> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated, ${stats_relBD.nr_no_updates} no updates`
+  );
+
+  debugStackPop();
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-
-let updatedBusinessObjects = updateBusinessObjects(
-  selectedDataObjects,
-  businessObjectFolder,
-  realizesBedrijfsobjectFolder,
-  stats_BO
-);
-updateBusinessObjectRelations(selectedDataObjects, relationsBedrijfsobjectFolder, stats_relBO);
-updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
-
-console.log(`Update alternate names for duplicates`);
-console.log(`> data-objects:`);
-updateAlternateName(selectedDataObjects); // also for GGM data-objecten
-console.log(`> bedrijfsobjecten:`);
-updateAlternateName(updatedBusinessObjects);
-
-console.log();
-console.log("Statistieken");
-console.log(`> from ${selectedDataObjects.size()} data-objects`);
-console.log(
-  `> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated, ${stats_BO.nr_no_updates} no updates`
-);
-console.log(
-  `> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated, ${stats_relBO.nr_no_updates} no updates`
-);
-console.log(
-  `> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated, ${stats_relBD.nr_no_updates} no updates`
-);
-
-debugStackPop();
 finishConsoleLog();

@@ -15,6 +15,8 @@
  * - set de eigenschappen van de views
  */
 load("../_lib/Common.js");
+initConsoleLog(__FILE__, true);
+
 load("../_lib/selection.js");
 load("../_lib/archi_folders.js");
 load("../View/include_view.js");
@@ -22,7 +24,6 @@ load("include_ggm_gemma.js");
 
 const FOLDER_SYNC_GGM_VIEWS = FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 
-initConsoleLog(__FILE__, true);
 try {
   let Beleidsdomeinen = getSelection($(selection), "grouping")
   Beleidsdomeinen = Beleidsdomeinen.filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
@@ -80,23 +81,3 @@ try {
 }
 
 finishConsoleLog();
-
-function styleView(views) {
-  console.log();
-
-  // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
-  applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
-  console.log();
-
-  // tekst in het midden
-  applyToCollection(getVisualSelection(views, "business-object"), styleBusinessObjects);
-  console.log();
-
-  // bold font domein-grouping
-  applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
-  console.log();
-
-  // specialisatie-relaties groen
-  applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
-  console.log();
-}

@@ -2,12 +2,22 @@
  * GGM - GEMMA functies
  *
  * - maken van de GEMMA bedrijfsobjectmodellen gebaseerd op GGM data-objecten
- * - definities van oa properynames, folders en file-directies
+ * - definities van oa property names, folders en file-directies
  */
-console.log("Loading include_ggm_gemma.js");
+const GGM_CONFIG = "include_ggm_config.js"
 
-// Windows directory with CSV import files
-const GGM_CSV_DIR = __DIR__ + "../../../../Werkbestanden/GGM/Release 2.1/";
+console.log("Loading include_ggm_gemma.js");
+try {
+  load(__SCRIPTS_DIR__ + GGM_CONFIG);
+} catch (error) {
+  console.log();
+  console.log(`Open de jArchi script directory ${__SCRIPTS_DIR__}`)
+  console.log(`- kopieer "GGM/include_ggm_config_example.js" in de script dir`)
+  console.log(`- wijzig filenaam naar ${GGM_CONFIG}`)
+  console.log(`- configureer je lokale folders`)
+  console.log();
+  throw(error)
+}
 
 // folders in GEMMA ArchiMate-model
 const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
@@ -358,6 +368,9 @@ function updateViewProp(view) {
  *  and add a property with a unique name
  */
 function updateAlternateName(archiObjColl) {
+  // start without, delete prop alternateName
+  archiObjColl.each((obj) => obj.removeProp(PROP_ALTERNATE_NAME));
+
   // find objects with equal names
   const duplicateNames = findDuplicateNames(archiObjColl);
 
@@ -421,12 +434,33 @@ function updateAlternateName(archiObjColl) {
 /**
  * Styling functions
  */
+function styleView(views) {
+  console.log();
+
+  // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
+  applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
+  console.log();
+
+  // tekst in het midden
+  applyToCollection(getVisualSelection(views, "business-object"), styleBusinessObjects);
+  console.log();
+
+  // bold font domein-grouping
+  applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
+  console.log();
+
+  // specialisatie-relaties groen
+  applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
+  console.log();
+}
+
 function styleDataObjects(obj) {
+  obj.textPosition = TEXT_POSITION.CENTER;
   switch (obj.prop(PROP_ARCHIMATE_TYPE)) {
     case "Data object":
       obj.opacity = 255;
       obj.gradient = GRADIENT.NONE;
-      obj.fillColor = null;
+      obj.fillColor = null; // default color blue
       break;
     case "Business object":
       obj.opacity = 200;
@@ -444,7 +478,6 @@ function styleDataObjects(obj) {
     obj.opacity = 100;
     obj.labelExpression = `\${name}\n<<\${property:${PROP_GGM_UML_TYPE}}>>`;
   }
-  obj.textPosition = TEXT_POSITION.CENTER;
 }
 
 function styleBusinessObjects(obj) {
@@ -459,12 +492,12 @@ function styleGroupings(obj) {
 }
 
 function styleSpecialization(obj) {
-  obj.lineColor = "#5dade2"; // Sets line color to blue
+  obj.lineColor = "#5DADE2"; // Set the line color to blue
   obj.lineWidth = 2;
 }
 
 /**
- * Append (<Beleidsdomein>) to the label of an visual object
+ * Append (<Beleidsdomein>) to a visual objects label
  */
 function setLabelBeleidsdomein(obj) {
   obj.labelExpression = "${name}\n($aggregation:source{name})";
@@ -490,11 +523,8 @@ function printRelation(rel, debug) {
   if (debug) {
     return `${rel.source} --${rel.name}--> ${rel.target} (${rel.type.replace("-relationship", "")})`;
   } else {
-    if (rel.name) {
-      return `${rel.source.name} --${rel.name}--> ${rel.target.name}`;
-    } else {
-      return `${rel.source.name} --${rel.type.replace("-relationship", "")}--> ${rel.target.name}`;
-    }
+    let printLabel = rel.name ? rel.name : rel.type.replace("-relationship", "");
+    return `${rel.source.name} --${printLabel}--> ${rel.target.name}`;
   }
 }
 
