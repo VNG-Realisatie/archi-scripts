@@ -6,45 +6,82 @@
  *  Definition of duplicate relation
  *  - same type
  *  - source and target element are equal
+ *
+ * changes
+ * - find duplicate with and without name
  */
 
-console.clear();
-console.log("Starting findDuplicateRelations\n");
+load("../_lib/Common.js");
+initConsoleLog(__FILE__, true);
 
 // add all relations of the model to an array.
 let relations = [];
 $("relation").each((relation) => relations.push(relation));
 
-const relationArray = relations.map((relation) => getRelationStrings(relation));
+findDuplicateRelations(relations, false);
+//Nogmaal, maar nu is het pas een duplicate als ook de naam hetzelfde is.
+findDuplicateRelations(relations, true);
 
-// create list of duplicate relations.
-const lookup = relationArray.reduce((accumulator, entry) => {
-  // reduce relations to lookup table with count of occurrences - 1
-  accumulator[entry.relKey] = accumulator[entry.relKey] + 1 || 0;
-  return accumulator;
-}, {});
-// If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
-const duplicate_Array = relationArray.filter((entry) => lookup[entry.relKey]).sort(sortRelName);
+finishConsoleLog();
 
-if (duplicate_Array.length > 0) {
-  console.log(`Duplicate relations with the same type, source and target`);
-  printDuplicates(duplicate_Array);
+/**
+ * Find and print duplicate relation
+ *
+ * @param relations
+ * @param {boolean} keyWithName - Also use label in the key
+ */
+function findDuplicateRelations(relations, keyWithName = false) {
+  const relationArray = relations.map((relation) => getRelationKey(relation, keyWithName));
+
+  // create list of duplicate relations.
+  const lookup = relationArray.reduce((accumulator, entry) => {
+    // reduce relations to lookup table with count of occurrences - 1
+    accumulator[entry.relKey] = accumulator[entry.relKey] + 1 || 0;
+    return accumulator;
+  }, {});
+
+  // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
+  const duplicate_Array = relationArray.filter((entry) => lookup[entry.relKey]).sort(sortRelName);
+
+  printDuplicates(duplicate_Array, keyWithName);
 }
-console.log(`\nFound ${duplicate_Array.length} duplicate relations (source -> target)`);
-console.log("\nEnding findDuplicateRelations");
 
-function getRelationStrings(r) {
-  let relKey = `${r.type}:`;
-  if (r.type == "access-relationship") relKey += ` (${r.accessType})`;
-  if (r.type == "influence-relationship") relKey += ` (${r.influenceStrength})`;
-  if (r.type == "association-relationship") relKey += ` (${r.associationDirected})`;
-
+/**
+ * create key that points to one or duplicate relations
+ *
+ * @param {object} r - Archi relation
+ * @param {boolean} keyWithName - Also use label in the key
+ * @returns {object} met key en printstring
+ */
+function getRelationKey(r, keyWithName = false) {
   //  let relName = `${relKey} ${r.source.name} -[${r.name}]-> ${r.target.name}`;
-  let relName = `${relKey} ${r.source.name} --> ${r.target.name}`;
-  //  relKey += `${r.source.id} -[${r.name}]-> ${r.target.id}`;
-  relKey += `${r.source.id} ${r.target.id}`;
+  let relPrintName = `${r.source} --> ${r.target}`;
+  let relSortName = `${r.source.name}${r.source.type}__${r.target.name}${r.target.type}_${r.name}`;
+  let relKey = `${r.source.id}_${r.target.id}_${r.type}`;
 
-  return { relKey: relKey, relName: relName, relation: r };
+  switch (r.type) {
+    case "access-relationship":
+      relKey += `_${r.accessType}`;
+      relPrintName += ` (${r.accessType} ${r.type})`;
+      relSortName += ` (${r.accessType} ${r.type})`;
+      break;
+    case "influence-relationship":
+      // relKey += `_${r.influenceStrength}`;
+      relPrintName += ` (${r.type} strength=${r.influenceStrength})`;
+      relSortName += ` (${r.type} strength=${r.influenceStrength})`;
+      break;
+    case "association-relationship":
+      // relKey += `_${r.associationDirected}`;
+      relPrintName += ` (${r.associationDirected ? "directed " : ""}${r.type})`;
+      relSortName += ` (${r.associationDirected ? "directed " : ""}${r.type})`;
+      break;
+
+    default:
+      relPrintName += ` (${r.type})`;
+      break;
+  }
+  if (keyWithName) relKey += `_${r.name}`;
+  return { relKey: relKey, relPrintName: relPrintName, relSortName: relSortName, relation: r };
 }
 
 /**
@@ -52,26 +89,48 @@ function getRelationStrings(r) {
  * 	sort all entries on property key
  */
 function sortRelName(a, b) {
-  if (a.relKey + a.relation.name < b.relKey + b.relation.name) return -1;
-  if (a.relKey + a.relation.name > b.relKey + b.relation.name) return 1;
+  if (a.relSortName + a.relKey < b.relSortName + b.relKey) return -1;
+  if (a.relSortName + a.relKey > b.relSortName + b.relKey) return 1;
   return 0;
   //	return a.key + a.relation.name.localeCompare(b.key + a.relation.name)
 }
 
-function printDuplicates(duprels) {
+/**
+ * print duplicates in format
+ *
+ * 18) data-object: KadastraleOnroerendeZaak --> data-object: KadastraleOnroerendeZaak (directed association-relationship)
+ *    1) --gerelateerd->	 ObjectID=fa6d6a7e-d4c2-4bad-a881-9785b4a99d42
+ *    2) --is ontstaan uit andere kadastrale onroerende zaak bij->	 ObjectID=ebae0133-bc8e-4836-a687-ff91c307ca7e
+ *
+ */
+function printDuplicates(duprels, keyWithName) {
+  console.log();
+  if (duprels.length > 1) console.log(`Duplicate relations:`);
+  let nr_duprel = 1;
+  let nr_rel = 0;
   for (let i = 0; i < duprels.length; i++) {
     if (i == 0) {
-      console.log(`- ${duprels[i].relName}`);
+      console.log(`${nr_duprel}) ${duprels[i].relPrintName}`);
     } else {
       if (duprels[i].relKey !== duprels[i - 1].relKey) {
+        nr_duprel++;
+        nr_rel = 0;
         console.log();
-        console.log(`- ${duprels[i].relName}`);
+        console.log(`${nr_duprel}) ${duprels[i].relPrintName}`);
       }
     }
+    nr_rel++;
+    let labelText = duprels[i].relation.name ? duprels[i].relation.name : "[geen label]";
     console.log(
-      `   ${i}) --${duprels[i].relation.name}->\t id=${
-        duprels[i].relation.id
-      }     "Object id"=${duprels[i].relation.prop("Object ID")}`
+      `   ${nr_rel}) --${labelText}->\t ObjectID=${duprels[i].relation.prop("Object ID")} (used in ${$(duprels[i].relation)
+        .viewRefs()
+        .size()} views)`
     );
+  }
+  let duptext = keyWithName ? "with identical label" : "without checking label";
+  if (duprels.length > 1) {
+    console.log(`Found ${nr_duprel} relations ${duptext}`);
+  } else {
+    console.log(`No duplicates found ${duptext}`);
   }
 }
