@@ -47,6 +47,9 @@ const EXPAND_HERE = "Expand";
 const LAYOUT = "Layout";
 const REGENERATE = "Regenerate";
 
+const LAYOUT_CIRCULAR_DAGRE = false; // default
+const LAYOUT_CIRCULAR_WORKAROUND = true;
+
 // default settings for generated views
 const PROP_SAVE_PARAMETER = "generate_view_param";
 const PROP_EXCLUDE = "excludeFromView";
@@ -99,7 +102,7 @@ try {
  * - superseded by 'wrapper'.ajs file
  */
 function get_default_parameter(file) {
-  let param = {}
+  let param = {};
   debugStackPush(false);
   let path = file.substring(0, file.lastIndexOf("\\") + 1);
 
@@ -146,7 +149,6 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
   debugStackPush(false);
   let path = file.substring(0, file.lastIndexOf("\\") + 1);
   if (user_param_name) {
-    
     let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
     let printUserParamFile = userParamFile.substring(__SCRIPTS_DIR__.length - 1);
     console.log(`User parameters read from file "${printUserParamFile}"`);
@@ -154,7 +156,7 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
     console.log();
     try {
       load(userParamFile);
-      
+
       Object.keys(USER_PARAM).forEach((prop) => {
         param[prop] = USER_PARAM[prop];
         debug(`Read_user_parameter: Set ${prop} = ${USER_PARAM[prop]}`);
@@ -165,7 +167,7 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
       // - If the property is created without let, the operator can delete it
       USER_PARAM = undefined;
       delete USER_PARAM;
-      
+
       debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
       console.log(`NOT read user parameters "${printUserParamFile}"`);
@@ -208,7 +210,9 @@ function generate_view(param, drawCollection) {
         case GENERATE_MULTIPLE:
           // generate multiple views
           console.log(`Generating views for elements:`);
-          filteredElements.forEach(function (e) {console.log(`- ${e}`)})
+          filteredElements.forEach(function (e) {
+            console.log(`- ${e}`);
+          });
           console.log();
 
           filteredElements.forEach(function (e) {
@@ -289,6 +293,8 @@ function setDefaultParameters(param) {
   if (!validArchiConcept(param.layoutReversed, RELATION_NAMES, "layoutReversed:", "none")) validFlag = false;
   if (param.layoutNested === undefined) param.layoutNested = [];
   if (!validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
+  if (param.layoutCircular === undefined) param.layoutCircular = LAYOUT_CIRCULAR_DAGRE;
+  console.log(`- layoutCircular = ${param.layoutCircular ? "LAYOUT_CIRCULAR_WORKAROUND" : "LAYOUT_CIRCULAR_DAGRE"}`);
 
   console.log("Developing");
   console.log("- debug = " + param.debug);
@@ -547,7 +553,8 @@ function createNode(level, param, graph, archiEle) {
  * @param {object} rel Archi relation
  */
 function addRelation(level, param, graph, graphParents, graphCircular, rel) {
-  if (rel.source.id == rel.target.id) {
+  if (rel.source.id == rel.target.id && param.layoutCircular) {
+    // don't use Dagre for layout circular relation, use function drawlayoutCircular
     graphCircular.push(rel);
   } else {
     if (param.layoutNested.includes(rel.type)) {
@@ -562,31 +569,33 @@ function addRelation(level, param, graph, graphParents, graphCircular, rel) {
  * Add the given relation to the graph
  */
 function createEdge(level, param, graph, rel) {
-  let rel_line;
+  debugStackPush(true);
   // reverse the graph edge for given Archi relation types
   if (param.layoutReversed.includes(rel.type)) {
     if (!graph.hasEdge(rel.target.id, rel.source.id, rel.id)) {
-      graph.setEdge(rel.target.id, rel.source.id, { label: rel.id });
+      graph.setEdge({ v: rel.target.id, w: rel.source.id, name: rel.id }, { id: rel.id });
       // graph.setEdge(rel.target.id, rel.source.id, rel.id );
-      rel_line = `${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
+      debug(`${"  ".repeat(level)}> Add edge reversed: ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_REVERSED)}`);
+    } else {
+      debug(`${"  ".repeat(level)}> Skip, edge found: ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_REVERSED)}`);
     }
   } else {
     if (!graph.hasEdge(rel.source.id, rel.target.id, rel.id)) {
-      graph.setEdge(rel.source.id, rel.target.id, { label: rel.id });
+      graph.setEdge({ v: rel.source.id, w: rel.target.id, name: rel.id }, { id: rel.id });
       // graph.setEdge(rel.source.id, rel.target.id, rel.id );
-      rel_line = `${rel.source.name} --${rel.type}-> ${rel.target.name}`;
+      debug(`${"  ".repeat(level)}> Add edge : ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_NOT_REVERSED)}`);
+    } else {
+      debug(`${"  ".repeat(level)}> Skip, edge found: ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_NOT_REVERSED)}`);
     }
   }
-
-  if (rel_line) debug(`${"  ".repeat(level)}> Add edge ${rel_line}`);
-  else debug(`${"  ".repeat(level)}> Skip, edge already in graph ${rel_line}`);
+  debugStackPop();
 }
 
 /**
  * Add the given relation as a parent/child to the graph
  */
 function createParent(level, param, graph, graphParents, rel) {
-  let rel_line;
+  debugStackPush(true);
   // check if relation is already added
   if (!graphParents.some((r) => r.id == rel.id)) {
     // save parent relation
@@ -599,15 +608,15 @@ function createParent(level, param, graph, graphParents, rel) {
     if (param.layoutReversed.includes(rel.type)) {
       // # graph.setParent(v, parent)
       graph.setParent(rel.source.id, rel.target.id);
-      rel_line = `Parent <- Child: ${rel.target.name} <-${rel.type}-- ${rel.source.name}`;
+      debug(`${"  ".repeat(level)}> Add Parent<-Child: ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_REVERSED)}`);
     } else {
       graph.setParent(rel.target.id, rel.source.id);
-      rel_line = `Parent -> Child: ${rel.source.name} --${rel.type}-> ${rel.target.name}`;
+      debug(`${"  ".repeat(level)}> Add Parent->Child: ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_NOT_REVERSED)}`);
     }
-    debug(`${"  ".repeat(level)}> Add ${rel_line}`);
   } else {
-    debug(`${"  ".repeat(level)}> Skip, already in graph = ${rel_line}`);
+    debug(`${"  ".repeat(level)}> Skip, already in graph ${formatRelation(rel, FORMAT_NO_TYPES, FORMAT_NOT_REVERSED)}`);
   }
+  debugStackPop();
   return;
 }
 
@@ -649,14 +658,14 @@ function drawView(param, graph, graphParents, graphCircular) {
   graphParents.forEach((parentRel) => layoutNestedConnection(parentRel, visualElementsIndex, view));
 
   if (graphCircular.length > 0) console.log("Drawing circular relations ...");
-  graphCircular.forEach((rel) => drawCircularRelation(param, rel, visualElementsIndex, view));
+  graphCircular.forEach((rel) => drawlayoutCircular(param, rel, visualElementsIndex, view));
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   openView(view);
   return;
 }
 
-function drawCircularRelation(param, rel, visualElementIndex, view) {
+function drawlayoutCircular(param, rel, visualElementIndex, view) {
   debugStackPush(false);
 
   let connection = view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[rel.target.id]);
@@ -778,9 +787,10 @@ function calcElementPosition(node) {
  */
 function drawRelation(param, graph, edge, visualElementIndex, view) {
   debugStackPush(false);
+  debug(`graph.edge(edge): ${JSON.stringify(graph.edge(edge))}`);
 
-  let archiRelation = $("#" + graph.edge(edge).label).first();
-  debug(`archiRelation: ${archiRelation}`);
+  let archiRelation = $("#" + graph.edge(edge).id).first();
+  debug(`archiRelation: ${formatRelation(archiRelation, true)}`);
 
   let connection = view.add(
     archiRelation,
@@ -802,7 +812,7 @@ function drawRelation(param, graph, edge, visualElementIndex, view) {
  */
 function layoutNestedConnection(parentRel, visualElementIndex, view) {
   debugStackPush(false);
-  debug(`parentRel: ${parentRel.source} --${parentRel.name}--> ${parentRel.target}`);
+  debug(`parentRel: ${formatRelation(parentRel, true)}`);
   view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
   debugStackPop();
 }

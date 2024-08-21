@@ -40,6 +40,8 @@ const DEFAULT_PARAM = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
+  // layoutCircular: LAYOUT_CIRCULAR_WORKAROUND, // layout circular relation with script (try this when dagre crashes)
+  layoutCircular: LAYOUT_CIRCULAR_DAGRE, // default: layout circular relation with dagre
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
   graphDirection: "LR",
