@@ -225,3 +225,24 @@ function uuidv4() {
     return v.toString(16);
   });
 }
+
+/**
+ * returns formatted string with relation info
+*/
+const FORMAT_WITH_TYPES = true
+const FORMAT_NO_TYPES = false
+const FORMAT_REVERSED = true
+const FORMAT_NOT_REVERSED = false
+function formatRelation(rel, withTypes=FORMAT_NO_TYPES, reversed=FORMAT_NOT_REVERSED) {
+  let relLeft = withTypes ? rel.source : rel.source.name
+  let relLabel = rel.name ? rel.name : "[geen label]"
+  let relMiddle = `--${relLabel}-->`;
+  let relRight = withTypes ? rel.target : rel.target.name
+
+  if (reversed) {
+    relLeft = withTypes ? rel.target : rel.target.name
+    relMiddle = `<--${relLabel}--`;
+    relRight = withTypes ? rel.source : rel.source.name
+  }
+  return `${relLeft} ${relMiddle} ${relRight} (${rel.type.replace("-relationship", "")})`;
+}
