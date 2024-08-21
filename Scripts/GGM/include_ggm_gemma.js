@@ -71,7 +71,7 @@ const GEMMA_TYPE_BEDRIJFSOBJECT = "Bedrijfsobject";
  * - if duplicate name, create unique name in property Alternate-name with a postfix '(<beleidsdomein>)'
  * - create realization-relation from data-object to business object
  */
-function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, stats) {
+function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrijfsobjectFolder, stats) {
   let updatedBusinessObjects = $();
   console.log(`Created and updated business-object:`);
   dataObjects
@@ -97,7 +97,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
         businessObject.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
         businessObject.prop(PROP_GEMMA_TYPE, GEMMA_TYPE_BEDRIJFSOBJECT);
 
-        createRealizationRel(dataObject, businessObject, relsFolder);
+        createRealizationRel(dataObject, businessObject, realizesBedrijfsobjectFolder);
 
         stats.nr_create += 1;
       }
@@ -114,13 +114,13 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, relsFolder, st
   return updatedBusinessObjects;
 
   // create a realization relation between the GGM data-object and created business object
-  function createRealizationRel(dataObject, businessObject, relsFolder) {
+  function createRealizationRel(dataObject, businessObject, realizesBedrijfsobjectFolder) {
     let realizationRel = model.createRelationship(
       "realization-relationship",
       REALIZATION_LABEL,
       dataObject,
       businessObject,
-      relsFolder
+      realizesBedrijfsobjectFolder
     );
     // set realizationRel properties
     setObjectID(realizationRel);
@@ -173,7 +173,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
           .filter((bRel) => bRel.source.type == "business-object")
           .first();
         if (businessRel) {
-          console.log(`> update ${printRelation(businessRel)}`);
+          console.log(`> update ${formatRelation(businessRel)}`);
           stats.nr_update += 1;
         } else {
           let source = find_GGM_GEMMA_object(rel.source);
@@ -182,7 +182,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
           if (source && target) {
             businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
 
-            console.log(`> create ${printRelation(businessRel)}`);
+            console.log(`> create ${formatRelation(businessRel)}`);
             stats.nr_create += 1;
           }
         }
@@ -216,7 +216,7 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
         .first();
 
       if (relBeleidsdomein) {
-        console.log(`> update ${printRelation(relBeleidsdomein)}`);
+        console.log(`> update ${formatRelation(relBeleidsdomein)}`);
         stats.nr_update += 1;
       } else {
         let target = find_GGM_GEMMA_object(rel.target);
@@ -224,7 +224,7 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
           relBeleidsdomein = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
           relBeleidsdomein.prop(PROP_OBJECT_ID_SYNC, rel.prop(PROP_ID));
           relBeleidsdomein.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
-          console.log(`> create ${printRelation(relBeleidsdomein)}`);
+          console.log(`> create ${formatRelation(relBeleidsdomein)}`);
           stats.nr_create += 1;
         }
       }
@@ -343,10 +343,10 @@ function updateViewProp(view) {
     view.prop("Architectuurlaag", "Applicatiearchitectuur");
   } else {
     // Bedrijfsobjectmodellen publiceren
-    view.prop("Publiceren", "GEMMA Online en redactie");
     view.prop("Architectuurlaag", "Bedrijfsarchitectuur");
     view.prop(PROP_GEMMA_URL, GEMMA_URL + view.prop(PROP_ID));
   }
+  view.prop("Publiceren", "GEMMA Online en redactie");
   view.removeProp("generate_view_param");
   // set property beleidsdomein
   view.removeProp("Beleidsdomein");
@@ -517,15 +517,6 @@ function find_GGM_GEMMA_object(searchObject) {
     console.log(`ERROR: searchobject=${searchObject} zonder "${PROP_GGM_ID_IMPORTED}"`);
   }
   return foundObject;
-}
-
-function printRelation(rel, debug) {
-  if (debug) {
-    return `${rel.source} --${rel.name}--> ${rel.target} (${rel.type.replace("-relationship", "")})`;
-  } else {
-    let printLabel = rel.name ? rel.name : rel.type.replace("-relationship", "");
-    return `${rel.source.name} --${printLabel}--> ${rel.target.name}`;
-  }
 }
 
 // set Object ID for object without one
