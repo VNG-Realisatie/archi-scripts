@@ -11,10 +11,13 @@ try {
   load(__SCRIPTS_DIR__ + GGM_CONFIG);
 } catch (error) {
   console.log();
-  console.log(`Open de jArchi script directory ${__SCRIPTS_DIR__}`)
-  console.log(`- kopieer "GGM/include_ggm_config_example.js" in de script dir`)
-  console.log(`- wijzig filenaam naar ${GGM_CONFIG}`)
-  console.log(`- configureer je lokale folders`)
+  console.setTextColor(255, 0 , 0);
+  console.log(`>>> Configuratiefile niet gevonden <<<`);
+  console.log(`Open de jArchi script directory ${__SCRIPTS_DIR__}`);
+  console.log(`- kopieer "GGM/include_ggm_config_example.js" in de script dir`);
+  console.log(`- wijzig filenaam naar ${GGM_CONFIG}`);
+  console.log(`- configureer je lokale folders`);
+  console.setDefaultTextColor();
   console.log();
   throw(error)
 }

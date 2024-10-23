@@ -147,7 +147,9 @@ function get_user_parameter(file, param) {
  */
 function read_user_parameter(file, user_param_name, action, direction, param = {}) {
   debugStackPush(false);
-  let path = file.substring(0, file.lastIndexOf("\\") + 1);
+  // let path = file.substring(0, file.lastIndexOf("\\") + 1);
+  let path = file.substring(0, Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\")) + 1);
+
   if (user_param_name) {
     let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
     let printUserParamFile = userParamFile.substring(__SCRIPTS_DIR__.length - 1);
@@ -170,7 +172,7 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
 
       debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
-      console.log(`NOT read user parameters "${printUserParamFile}"`);
+      console.log(`NOT read user parameters from file "${printUserParamFile}"`);
       debug(`> ${typeof error.stack == "undefined" ? error : error.stack}\n`);
     }
   } else {
