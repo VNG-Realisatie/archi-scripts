@@ -3,6 +3,7 @@
  */
 // load(__DIR__ + "../_lib/papaparse.min.js");
 load("https://unpkg.com/papaparse@latest/papaparse.min.js");
+// const Papa = require("papaparse");
 
 const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";
