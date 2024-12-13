@@ -46,7 +46,7 @@ try {
   // relatie met data-objecten
   let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
 
-  let stats_BO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+  let stats_BO = { nr_update: 0, nr_create: 0, nr_delete: 0, nr_no_updates: 0 };
   let stats_relBO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
   let stats_relBD = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
 
@@ -56,6 +56,10 @@ try {
     console.log(`Selected ${selectedDataObjects.size()} GGM data-object\n`);
   }
 
+  // First delete business object for GGM data-object with changed ArchiMate-type
+  deleteBusinessObjects(selectedDataObjects, stats_BO);
+
+  // Next create and update business object
   let updatedBusinessObjects = updateBusinessObjects(
     selectedDataObjects,
     businessObjectFolder,
@@ -75,7 +79,7 @@ try {
   console.log("Statistieken");
   console.log(`> from ${selectedDataObjects.size()} data-objects`);
   console.log(
-    `> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated, ${stats_BO.nr_no_updates} no updates`
+    `> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated, ${stats_BO.nr_delete} deleted, ${stats_BO.nr_no_updates} no updates`
   );
   console.log(
     `> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated, ${stats_relBO.nr_no_updates} no updates`

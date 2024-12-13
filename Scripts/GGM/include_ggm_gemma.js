@@ -4,14 +4,13 @@
  * - maken van de GEMMA bedrijfsobjectmodellen gebaseerd op GGM data-objecten
  * - definities van oa property names, folders en file-directies
  */
-const GGM_CONFIG = "include_ggm_config.js"
-
-console.log("Loading include_ggm_gemma.js");
+const GGM_CONFIG = "include_ggm_config.js";
 try {
-  load(__SCRIPTS_DIR__ + GGM_CONFIG);
+  console.log("Loading " + GGM_CONFIG);
+  load(GGM_CONFIG);
 } catch (error) {
   console.log();
-  console.setTextColor(255, 0 , 0);
+  console.setTextColor(255, 0, 0);
   console.log(`>>> Configuratiefile niet gevonden <<<`);
   console.log(`Open de jArchi script directory ${__SCRIPTS_DIR__}`);
   console.log(`- kopieer "GGM/include_ggm_config_example.js" in de script dir`);
@@ -19,7 +18,7 @@ try {
   console.log(`- configureer je lokale folders`);
   console.setDefaultTextColor();
   console.log();
-  throw(error)
+  throw error;
 }
 
 // folders in GEMMA ArchiMate-model
@@ -41,6 +40,7 @@ const PROP_GGM_TOELICHTING = "GGM-toelichting"; // 	Aanvullende toelichting op d
 const PROP_GGM_SYNONIEMEN = "GGM-synoniemen"; // 	Alternatieve naam met min of meer dezelfde betekenis (meerdere mogelijk, comma separated)
 const PROP_GGM_BRON = "GGM-bron"; // 	Extern informatiemodel waaruit GGM de definities heeft overgenomen
 const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt type, zoals class of enumeration
+const PROP_GGM_TYPE = "GGM-type"; // toegevoegd type voor de in het GGM UML model aangeleverde beleidsdomeinen of iv3-domeinen
 const PROP_GGM_DATUM_TIJD = "GGM-datum-tijd-export";
 
 // GGM afgeleid gegeven
@@ -61,6 +61,7 @@ const LABEL_DATUM_TIJD = "Datum-tijd-export"; // Label voor column met export da
 
 // Values
 const GGM_MEMO_TEXT = "<memo>";
+const GGM_TYPE_BELEIDSDOMEIN = "Beleidsdomein";
 const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA/id-"; // publicatie-omgeving
 // const GEMMA_URL = "https://redactie.gemmaonline.nl/index.php/GGM/id-"; // voor testen GGM import naar redactie.
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
@@ -147,6 +148,27 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
       console.log(`  > added property ${PROP_SPECIALIZATON}`);
     }
   }
+}
+
+/**
+ * Delete business object for GGM data-object with changed ArchiMate-type
+ */
+function deleteBusinessObjects(dataObjects, stats) {
+  debugStackPush(false);
+  console.log(`Delete business object for GGM data-object with changed ArchiMate-type:`);
+
+  dataObjects
+    .filter((dataObject) => dataObject.prop(PROP_ARCHIMATE_TYPE) == "Data object")
+    .outRels("realization-relationship")
+    .each((rel) => {
+      debug(`rel.target: ${rel.target}`);
+      if (rel.name == REALIZATION_LABEL) {
+        console.log(`> delete business-object ${rel.target}`);
+        rel.target.delete();
+        stats.nr_delete += 1;
+      }
+    });
+  debugStackPop();
 }
 
 /**
@@ -432,78 +454,6 @@ function updateAlternateName(archiObjColl) {
       return 0;
     }
   }
-}
-
-/**
- * Styling functions
- */
-function styleView(views) {
-  console.log();
-
-  // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
-  applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
-  console.log();
-
-  // tekst in het midden
-  applyToCollection(getVisualSelection(views, "business-object"), styleBusinessObjects);
-  console.log();
-
-  // bold font domein-grouping
-  applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
-  console.log();
-
-  // specialisatie-relaties groen
-  applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
-  console.log();
-}
-
-function styleDataObjects(obj) {
-  obj.textPosition = TEXT_POSITION.CENTER;
-  switch (obj.prop(PROP_ARCHIMATE_TYPE)) {
-    case "Data object":
-      obj.opacity = 255;
-      obj.gradient = GRADIENT.NONE;
-      obj.fillColor = null; // default color blue
-      break;
-    case "Business object":
-      obj.opacity = 200;
-      obj.gradient = GRADIENT.LEFT;
-      obj.fillColor = "#FFFFCC"; // "Cream"
-      break;
-
-    default:
-      obj.opacity = 255;
-      obj.gradient = GRADIENT.NONE;
-      obj.fillColor = "#C0C0C0"; // "Silver"
-      break;
-  }
-  if (obj.prop(PROP_GGM_UML_TYPE) == "Enumeration") {
-    obj.opacity = 100;
-    obj.labelExpression = `\${name}\n<<\${property:${PROP_GGM_UML_TYPE}}>>`;
-  }
-}
-
-function styleBusinessObjects(obj) {
-  obj.textPosition = TEXT_POSITION.CENTER;
-}
-
-function styleGroupings(obj) {
-  obj.fontSize = 12;
-  obj.fontStyle = "bold";
-  obj.textAlignment = TEXT_ALIGNMENT.LEFT;
-  obj.fillColor = "#FAFAFA";
-}
-
-function styleSpecialization(obj) {
-  obj.lineColor = "#5DADE2"; // Set the line color to blue
-  obj.lineWidth = 2;
-}
-
-/**
- * Append (<Beleidsdomein>) to a visual objects label
- */
-function setLabelBeleidsdomein(obj) {
-  obj.labelExpression = "${name}\n($aggregation:source{name})";
 }
 
 /**
