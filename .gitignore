@@ -4,3 +4,4 @@ output_code2flow/*
 .vscode/*
 package-lock.json
 package.json
+Scripts/GGM/include_ggm_config.js
