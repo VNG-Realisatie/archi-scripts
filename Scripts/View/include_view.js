@@ -191,10 +191,12 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
  *
  * @param {object}     param - settings for generating a view
  * @param {collection} drawCollection - collection to draw (optional, default is $(selection))
+ * @returns {collection} archi views
  */
 function generate_view(param, drawCollection) {
   if (param.debug == undefined) param.debug = false;
   debugStackPush(param.debug);
+  let generatedViews = $()
 
   try {
     if (setDefaultParameters(param)) {
@@ -206,7 +208,7 @@ function generate_view(param, drawCollection) {
         case EXPAND_HERE:
         case LAYOUT:
           // generate one view
-          layoutAndRender(param, graphLayout, filteredElements);
+          generatedViews.add(layoutAndRender(param, graphLayout, filteredElements));
           break;
 
         case GENERATE_MULTIPLE:
@@ -222,7 +224,7 @@ function generate_view(param, drawCollection) {
             param.viewName = e.name + param.viewNameSuffix;
             console.log(`\nGenerating view "${param.viewName}"`);
             console.log(`------------------${"-".repeat(param.viewName.length)}`);
-            layoutAndRender(param, graphLayout, $(e));
+            generatedViews.add(layoutAndRender(param, graphLayout, $(e)));
           });
           break;
 
@@ -236,8 +238,12 @@ function generate_view(param, drawCollection) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   debugStackPop();
+  return generatedViews
 }
 
+/**
+ * @returns Archi view
+ */
 function layoutAndRender(param, graphLayout, filteredElements) {
   let graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
   let graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
@@ -245,7 +251,7 @@ function layoutAndRender(param, graphLayout, filteredElements) {
   let graph = createGraph(graphLayout); // graphlib graph for layout view
   fillGraph(param, graph, graphParents, graphCircular, filteredElements);
   layoutGraph(param, graph);
-  drawView(param, graph, graphParents, graphCircular);
+  return drawView(param, graph, graphParents, graphCircular);
 }
 
 /**
@@ -571,7 +577,7 @@ function addRelation(level, param, graph, graphParents, graphCircular, rel) {
  * Add the given relation to the graph
  */
 function createEdge(level, param, graph, rel) {
-  debugStackPush(true);
+  debugStackPush(false);
   // reverse the graph edge for given Archi relation types
   if (param.layoutReversed.includes(rel.type)) {
     if (!graph.hasEdge(rel.target.id, rel.source.id, rel.id)) {
@@ -597,7 +603,7 @@ function createEdge(level, param, graph, rel) {
  * Add the given relation as a parent/child to the graph
  */
 function createParent(level, param, graph, graphParents, rel) {
-  debugStackPush(true);
+  debugStackPush(false);
   // check if relation is already added
   if (!graphParents.some((r) => r.id == rel.id)) {
     // save parent relation
@@ -664,7 +670,7 @@ function drawView(param, graph, graphParents, graphCircular) {
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   openView(view);
-  return;
+  return view;
 }
 
 function drawlayoutCircular(param, rel, visualElementIndex, view) {
