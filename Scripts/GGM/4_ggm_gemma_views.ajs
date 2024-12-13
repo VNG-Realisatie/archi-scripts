@@ -25,59 +25,136 @@ load("include_ggm_gemma.js");
 const FOLDER_SYNC_GGM_VIEWS = FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 
 try {
-  let Beleidsdomeinen = getSelection($(selection), "grouping")
-  Beleidsdomeinen = Beleidsdomeinen.filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
-  if (Beleidsdomeinen.size() < 1) {
-    // Beleidsdomeinen = $("grouping").filter((grouping) => grouping.prop("GEMMA type") == "Beleidsdomein");
-    console.log("Selecteer de folder beleidsdomeinen of één of meer beleidsdomeinen");
+  console.log();
+  let GGMdomeinen = getSelection($(selection), "grouping");
+  GGMdomeinen = GGMdomeinen.filter((grouping) => grouping.prop(PROP_GGM_TYPE) == GGM_TYPE_BELEIDSDOMEIN);
+
+  if (GGMdomeinen.size() < 1) {
+    console.log("Geen beleidsdomeinen geselecteerd, selecteer één of meer beleidsdomeinen");
+  } else {
+    // console.log(`Genereer de views voor ${GGM_Beleidsdomeinen.size()} GGM beleidsdomeinen\n`);
+    // let dataObjectBeleidsdomeinen = $();
+    // GGM_Beleidsdomeinen.each((bd) => dataObjectBeleidsdomeinen.add(concept(bd))); //
+
+    console.log(`Genereer GGM data-object views`);
+    console.log(`==============================`);
+    let param = read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
+    param.viewFolder = FOLDER_GGM_DATAOBJECT;
+    param.viewNameSuffix = VIEW_NAME_SUFFIX;
+
+    let generatedViews = generate_view(param, GGMdomeinen);
+    styleLabelsProperties(generatedViews);
   }
 
-  console.log(`Maak of update de views voor ${Beleidsdomeinen.size()} beleidsdomeinen\n`);
-  // voorkom dat in visueel beleidsdomein de embedded objecten worden gebruikt als start voor de views
-  let drawCollection = $();
-  Beleidsdomeinen.each((bd) => drawCollection.add(concept(bd)));
-
-  console.log(`Genereer GGM data-object views`);
-  console.log(`==============================`);
-  let param = read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
-  param.viewFolder = FOLDER_GGM_DATAOBJECT;
-  param.viewNameSuffix = VIEW_NAME_SUFFIX;
-  let folderGGM = getFolderPath("/Views" + param.viewFolder);
-
-  generate_view(param, drawCollection);
-
   console.log();
-  console.log(`Genereer GEMMA bedrijfsobjectmodellen`);
-  console.log(`=====================================`);
-  param = read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
-  param.viewFolder = FOLDER_SYNC_GGM_VIEWS + FOLDER_BEDRIJFSOBJECT;
-  let folderGEMMA = getFolderPath("/Views" + param.viewFolder);
+  let GEMMA_Beleidsdomeinen = getSelection($(selection), "grouping");
+  GEMMA_Beleidsdomeinen = GEMMA_Beleidsdomeinen.filter(
+    (grouping) => grouping.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN
+  );
+  if (GEMMA_Beleidsdomeinen.size() < 1) {
+    console.log("Geen beleidsdomeinen met inhoud voor GEMMA");
+  } else {
+    console.log(`Genereer GEMMA bedrijfsobjectmodellen`);
+    console.log(`=====================================`);
+    param = read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
+    param.viewFolder = FOLDER_SYNC_GGM_VIEWS + FOLDER_BEDRIJFSOBJECT;
 
-  generate_view(param, drawCollection);
-
-  console.log(`\nStyling, labels and properties`);
-  console.log(`==============================`);
-  [folderGGM, folderGEMMA].forEach((folder) => {
-    console.log(`\n${folder}`);
-    console.log("-".repeat(`\n${folder}`.length));
-    let views = $(folder).children("view");
-
-    // styling
-    styleView(views);
-
-    // toon label Beleidsdomein voor data- of bedrijfsobjecten die niet in een Beleidsdomein zijn genest
-    console.log();
-    let notNestedElements = getSelection($(folder), "view").children("element").not("grouping");
-    applyToCollection(notNestedElements, setLabelBeleidsdomein);
-
-    // Update view properties
-    console.log("\nUpdate view properties");
-    views.each((view) => updateViewProp(view));
-  });
-
+    let generatedViews = generate_view(param, GEMMA_Beleidsdomeinen);
+    styleLabelsProperties(generatedViews);
+  }
   console.log();
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
 finishConsoleLog();
+
+/**
+ *
+ * @param {Archi collection} views
+ */
+function styleLabelsProperties(views) {
+  console.log(`\nStyling, labels and properties`);
+  console.log(`==============================`);
+
+  console.log("\nStyle view");
+  styleView(views);
+  console.log("\nSet view properties");
+  setLabelBeleidsdomein(views);
+  console.log("\nUpdate view properties");
+  views.each((view) => updateViewProp(view));
+}
+
+/**
+ * Append (<Beleidsdomein>) to a visual objects label
+ */
+function setLabelBeleidsdomein(views) {
+  // toon label Beleidsdomein voor data- of bedrijfsobjecten die niet in een Beleidsdomein zijn genest
+  let notNestedElements = views.children("element").not("grouping");
+  notNestedElements.each((obj) => (obj.labelExpression = "${name}\n($aggregation:source{name})"));
+}
+
+/**
+ * Styling functions
+ */
+function styleView(views) {
+  console.log();
+
+  // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
+  applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
+  console.log();
+
+  // tekst in het midden
+  applyToCollection(getVisualSelection(views, "business-object"), styleBusinessObjects);
+  console.log();
+
+  // bold font domein-grouping
+  applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
+  console.log();
+
+  // specialisatie-relaties groen
+  applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
+  console.log();
+}
+
+function styleDataObjects(obj) {
+  obj.textPosition = TEXT_POSITION.CENTER;
+  switch (obj.prop(PROP_ARCHIMATE_TYPE)) {
+    case "Data object":
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = null; // default color blue
+      break;
+    case "Business object":
+      obj.opacity = 200;
+      obj.gradient = GRADIENT.LEFT;
+      obj.fillColor = "#FFFFCC"; // "Cream"
+      break;
+
+    default:
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = "#C0C0C0"; // "Silver"
+      break;
+  }
+  if (obj.prop(PROP_GGM_UML_TYPE) == "Enumeration") {
+    obj.opacity = 100;
+    obj.labelExpression = `\${name}\n<<\${property:${PROP_GGM_UML_TYPE}}>>`;
+  }
+}
+
+function styleBusinessObjects(obj) {
+  obj.textPosition = TEXT_POSITION.CENTER;
+}
+
+function styleGroupings(obj) {
+  obj.fontSize = 12;
+  obj.fontStyle = "bold";
+  obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  obj.fillColor = "#FAFAFA";
+}
+
+function styleSpecialization(obj) {
+  obj.lineColor = "#5DADE2"; // Set the line color to blue
+  obj.lineWidth = 2;
+}
