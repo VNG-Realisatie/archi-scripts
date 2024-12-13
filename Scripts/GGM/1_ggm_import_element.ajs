@@ -49,8 +49,20 @@ try {
           }
         },
         "GGM-datum-tijd-export": "datum-tijd-export",
-        [PROP_GEMMA_TYPE]: function () {
-          return GEMMA_TYPE_BELEIDSDOMEIN;
+        // initieel kregen alle GGM iv3-domeinen de property GEMMA type="Beleidsdomein"
+        // [PROP_GEMMA_TYPE]: function () {
+        //   return GEMMA_TYPE_BELEIDSDOMEIN;
+        // },
+        [PROP_GEMMA_TYPE]: function (element) {
+          if (!element.prop(PROP_GEMMA_TYPE)) {
+            return "te bepalen";
+          }
+        },
+        // Geef alle geïmporteerde beleidsdomeinen de property GGM type="Beleidsdomein"
+        [PROP_GGM_TYPE]: function (element) {
+          if (!element.prop(PROP_GGM_TYPE)) {
+            return GGM_TYPE_BELEIDSDOMEIN;
+          }
         },
       },
       relations: {},
@@ -80,11 +92,16 @@ try {
           }
         },
         [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
-        // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
         [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
         [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
         [PROP_GGM_BRON]: PROP_GGM_BRON,
         [PROP_GGM_ID_IMPORTED]: PROP_GGM_ID,
+        // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
+        [PROP_ARCHIMATE_TYPE]: function (element) {
+          if (!element.prop(PROP_ARCHIMATE_TYPE)) {
+            return "te bepalen";
+          }
+        },
         // "domein-iv3": "domein-iv3", // added as relation
         // "domein-dcat": "domein-dcat",
         // "domein-gemma": "domein-gemma",
