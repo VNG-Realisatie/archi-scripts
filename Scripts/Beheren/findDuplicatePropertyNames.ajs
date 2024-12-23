@@ -1,0 +1,37 @@
+/**
+ * find objects with two or more properties with the same name
+ */
+load(__DIR__ + "../_lib/Common.js");
+
+initConsoleLog(__FILE__, false);
+
+console.log(`Check model for objects with duplicate property names`);
+let i = 0;
+try {
+  $("concept").each((obj) => {
+  // $(selection).each((obj) => {
+    // console.log(`- ${obj} => ${propValueList.join(",")}`);
+    let duplicates = findDuplicates(obj);
+    if (duplicates.length > 0) {
+      console.log(`- ${obj} (duplicates: ${duplicates.join(", ")})`);
+      i++;
+    }
+  });
+  console.log(`\nFound ${i} objects with duplicate property names`);
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+finishConsoleLog();
+
+function findDuplicates(obj) {
+  const duplicates = [];
+
+  let propValueList = obj.prop();
+  for (const propKey of propValueList) {
+    // obj.prop() with parameter duplicate=true returns an array with all values
+    if (obj.prop(propKey, true).length > 1) {
+      duplicates.push(propKey)
+    }
+  }
+  return duplicates;
+}
