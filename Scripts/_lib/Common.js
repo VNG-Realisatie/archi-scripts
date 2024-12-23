@@ -246,3 +246,18 @@ function formatRelation(rel, withTypes=FORMAT_NO_TYPES, reversed=FORMAT_NOT_REVE
   }
   return `${relLeft} ${relMiddle} ${relRight} (${rel.type.replace("-relationship", "")})`;
 }
+
+// 10-04-2024 17:11:29
+function getFormattedDateTime() {
+  const now = new Date();
+
+  const day = now.getDate().toString().padStart(2, "0");
+  const month = (now.getMonth() + 1).toString().padStart(2, "0"); // getMonth() is 0-indexed
+  const year = now.getFullYear();
+
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const seconds = now.getSeconds().toString().padStart(2, "0");
+
+  return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+}
