@@ -32,7 +32,7 @@ try {
   if (!importFile) {
     console.log("> Canceled");
   } else {
-    importObjects(importFile);
+    importObjects(importFile, ADD_SYNC_PROPERTIES);
 
     let dataobjectRelations = $(getFolderPath("/Relations"))
       .children("relationship")

@@ -43,6 +43,14 @@ const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt t
 const PROP_GGM_TYPE = "GGM-type"; // toegevoegd type voor de in het GGM UML model aangeleverde beleidsdomeinen of iv3-domeinen
 const PROP_GGM_DATUM_TIJD = "GGM-datum-tijd-export";
 
+const PROP_GGM_SYNC ="Latest Sync Date"
+const PROP_GGM_SYNC_DELETED = "Sync deleted";
+const PROP_GGM_SYNC_CREATED ="Sync created";
+
+const PROP_GGM_IMPORT ="Latest Import Date"
+const PROP_GGM_IMPORT_DELETED = "Import deleted";
+const PROP_GGM_IMPORT_CREATED ="Import created";
+
 // GGM afgeleid gegeven
 const PROP_SPECIALIZATON = "GGM-specialisaties";
 const PROP_ALTERNATE_NAME = "Alternate name";

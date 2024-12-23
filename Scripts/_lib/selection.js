@@ -9,7 +9,7 @@
  *
  */
 const SELECTION_LOADED = true;
-console.log("Loading selection.js")
+console.log("Loading selection.js");
 
 const DIAGRAM_OBJECTS = [
   "diagram-model-group",
@@ -66,8 +66,7 @@ function getSelectionArray(startSelection, selector) {
  * @returns {object} - collection with selected objects
  */
 function getSelection(startSelection, selector = "*") {
-  if (model == null || model.id == null)
-    throw "Nothing selected. Select one or more objects in the model tree or a view";
+  if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
   else console.log(`Selected ${startSelection.size()} objects, first selected object is ${startSelection.first()}`);
@@ -76,7 +75,9 @@ function getSelection(startSelection, selector = "*") {
   var selectedColl = $();
   startSelection.each((obj) => addObject(obj, selector, selectedColl));
 
-  console.log(`Created a collection of ${selectedColl.size()} object${selectedColl.size()==1?"":"s"} of type "${selector}"`);
+  console.log(
+    `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`
+  );
   return selectedColl;
 
   /**
@@ -125,7 +126,9 @@ function getVisualSelection(startSelection, selector = "*") {
   // if only one object is selected, select on the view all objects of this type
   if (selectedVisualColl.size() == 1) {
     let obj = selectedVisualColl.first();
+    // @ts-ignore
     console.log(`One concept selected, apply to all concepts of type ${obj.type}`);
+    // @ts-ignore
     selectedVisualColl = $(obj.view).find(obj.type);
   }
   return selectedVisualColl;

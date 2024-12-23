@@ -1,13 +1,13 @@
 /**
  * Import GGM objecten in GEMMA-GGM Archi-repository
- *
- * Specificatie CSV-bestanden
- *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
- *
- * Dit script leest de GGM objecten in als
- * - data-objecten
- * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
- */
+*
+* Specificatie CSV-bestanden
+*  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
+*
+* Dit script leest de GGM objecten in als
+* - data-objecten
+* - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
+*/
 load("../_lib/Common.js"); // init en generateUUID()
 initConsoleLog(__FILE__, true);
 
@@ -130,12 +130,13 @@ try {
 
     // End of configuration =========================================================================================
 
+    // Compute the date which will appear in every new or updated concepts - Has to be
+    var currentDateTime = getFormattedDateTime();
+
     // Things start here ============================================================================================
     // Load data from CSV Files and sync model elements
-    console.log(
-      "Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'"
-    );
-    var startTime = new Date().getTime();
+    console.log("Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then");
+    console.log("check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'");
 
     loadAndSync(beleidsdomeinen);
 
@@ -143,10 +144,8 @@ try {
     syncModelRelationships(dataobjecten);
 
     // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-    // tagDeletedConcepts();
+    tagDeletedConcepts();
 
-    var endTime = new Date().getTime();
-    console.log("Elapse time: ", (endTime - startTime) / 1000, " sec");
     console.log("End of synchronization. Check previous messages for errors and undo in case of doubt.");
   }
 } catch (error) {

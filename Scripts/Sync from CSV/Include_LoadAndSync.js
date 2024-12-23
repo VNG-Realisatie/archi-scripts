@@ -53,11 +53,14 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 // Changes
-// MB : trim spaces for all csv values
+// MB: trim spaces for all csv values
+// MB: tag with action
 
 // Don't change this unless you really know what you are doing ==================================================
 var syncPropName = "Latest Sync Date";
-var deletedPropName = "Deleted from CSV Datasource";
+var deletedPropName = "Sync deleted";
+var createdPropName = "Sync created";
+
 // Compute the date which will appear in every new or updated concepts - Has to be
 var currentDateTime = new Date();
 currentDateTime =
@@ -90,11 +93,11 @@ function lpad(text) {
 
 function loadData(dataSource) {
   if (dataSource._loaded) {
-    console.log('WARNING - Datasource "', dataSource.label, '" has already been loaded');
+    console.log(`WARNING - Datasource "${dataSource.label}" has already been loaded`);
     return;
   }
 
-  console.log('INFO - Loading "', dataSource.label, '" from CSV...');
+  console.log(`INFO - Loading "${dataSource.label}" from CSV...`);
 
   var rows = Papa.parse(readFully(dataSource.csv, "utf-8"), {
     header: true,
@@ -114,7 +117,7 @@ function loadData(dataSource) {
         dataSource.rows[id] = rows[i];
         dataSource.rows[id]["_id"] = id;
       } else {
-        console.log("ERROR - Row #", i, " of ", dataSource.label, " doesn't have a valid id");
+        console.log(`ERROR - Row #${i} of ${dataSource.label} doesn't have a valid id`);
       }
     } else {
       // console.log(`Skipped: filter=${filter}`);
@@ -126,11 +129,11 @@ function loadData(dataSource) {
 
 function buildModelIndex(dataSource) {
   if (dataSource._modelIndexed) {
-    console.log('WARNING - Model elements associated with "', dataSource.label, '" have already been indexed');
+    console.log(`WARNING - Model elements associated with "${dataSource.label}" have already been indexed`);
     return;
   }
 
-  console.log('INFO - Indexing "', dataSource.label, '" from model...');
+  console.log(`INFO - Indexing "${dataSource.label}" from model...`);
 
   dataSource.model = {};
 
@@ -146,11 +149,11 @@ function buildModelIndex(dataSource) {
 
 function syncModelElements(dataSource) {
   if (dataSource._modelElementsSynced) {
-    console.log('WARNING - Datasource "', dataSource.label, '" has already been synced');
+    console.log(`WARNING - Datasource "${dataSource.label}" has already been synced`);
     return;
   }
 
-  console.log('INFO - Syncing "', dataSource.label, '" elements from CSV with model...');
+  console.log(`INFO - Syncing "${dataSource.label}" elements from CSV with model...`);
   var created = 0;
   var updated = 0;
 
@@ -167,6 +170,7 @@ function syncModelElements(dataSource) {
       element = model.createElement(dataSource.targetType, name);
       dataSource.setId(element, row);
       dataSource.model[id] = element;
+      element.prop(createdPropName, currentDateTime)
       created++;
     }
 
@@ -188,24 +192,16 @@ function syncModelElements(dataSource) {
   }
 
   dataSource._modelElementsSynced = true;
-  console.log(
-    'INFO - Datasource "',
-    dataSource.label,
-    '" has been synced: ',
-    created,
-    " element(s) created and ",
-    updated,
-    " updated"
-  );
+  console.log(`INFO - Datasource "${dataSource.label}" has been synced: ${created} element(s) created and ${updated} updated`);
 }
 
 function syncModelRelationships(dataSource) {
   if (dataSource._modelRelationshipsSynced) {
-    console.log('WARNING - Model relationships associated with "', dataSource.label, '" have already been synced');
+    console.log(`WARNING - Model relationships associated with "${dataSource.label}" have already been synced`);
     return;
   }
 
-  console.log('INFO - Syncing "', dataSource.label, '" relationships from CSV with model...');
+  console.log(`INFO - Syncing "${dataSource.label}" relationships from CSV with model...`);
   var createdOrUpdated = 0;
 
   for (var id in dataSource.rows) {
@@ -214,11 +210,7 @@ function syncModelRelationships(dataSource) {
 
     if (!element) {
       console.log(
-        'WARNING - No element found for "',
-        dataSource.label,
-        '" with id=',
-        id,
-        " (maybe model elements haven't been synced before?)"
+        `WARNING - No element found for "${dataSource.label}" with id=${id} (maybe model elements haven't been synced before?)`
       );
     } else {
       for (var relationName in dataSource.relations) {
@@ -231,15 +223,7 @@ function syncModelRelationships(dataSource) {
             var otherEnd = relation.reference.model[otherEndsIds[i]];
             if (!otherEnd) {
               console.log(
-                'WARNING - Element "',
-                dataSource.label,
-                '" with id=',
-                id,
-                " references another element ",
-                relation.reference.label,
-                " with id=",
-                otherEndsIds[i],
-                " which doesn't exist (maybe model elements haven't been synced before?)"
+                `WARNING - Element "${dataSource.label}" with id=${id} references another element "${relation.reference.label}" with id=${otherEndsIds[i]} which doesn't exist (maybe model elements haven't been synced before?)`
               );
             } else {
               if (relation.isReversed) {
@@ -258,11 +242,7 @@ function syncModelRelationships(dataSource) {
 
   dataSource._modelRelationshipsSynced = true;
   console.log(
-    "INFO - ",
-    createdOrUpdated,
-    ' relationship(s) associated with datasource "',
-    dataSource.label,
-    '" have been created or updated'
+    `INFO - ${createdOrUpdated} relationship(s) associated with datasource "${dataSource.label}" have been created or updated`
   );
 }
 
@@ -281,13 +261,13 @@ function tagDeletedConcepts() {
     })
     .each(function (c) {
       if (!c.prop(deletedPropName)) {
-        c.name = "[DELETED] " + c.name;
+        c.name = `[DELETED] ${c.name}`;
         c.prop(deletedPropName, currentDateTime);
         deleted++;
       }
     });
 
-  console.log("INFO - ", deleted, " elements or relationships have been tagged as deleted");
+  console.log(`INFO - ${deleted} elements or relationships have been tagged as deleted`);
 }
 
 function createOrUpdateRelationship(config, source, type, target) {
@@ -303,6 +283,7 @@ function createOrUpdateRelationship(config, source, type, target) {
 
   if (!relationship) {
     relationship = model.createRelationship(type, "", source, target);
+    relationship.prop(createdPropName, currentDateTime)
   }
 
   relationship.prop(syncPropName, currentDateTime);

@@ -41,13 +41,23 @@ const SKIP = "SKIP";
 const UPDATE = "UPDATE";
 const CREATE = "CREATE";
 
+const ADD_SYNC_PROPERTIES = true;
+const PROP_IMPORT = "Latest Import Date";
+const PROP_IMPORT_DELETED = "Import deleted";
+const PROP_IMPORT_CREATED = "Import created";
+const PROP_IMPORT_UPDATED = "Import updated";
+
+// Compute the date which will appear in every new or updated concepts - Has to be
+var currentDateTime = getFormattedDateTime();
+
 /**
  * import the CSV file
  * - process the given CSV file and for every row create or update an archi object
  *
- * @param {*} importFile filepath to CSV file to import (optional, if empty you will be prompted)
+ * @param {string} importFile -  filepath to CSV file to import (optional, if empty you will be prompted)
+ * @param {boolean} sync  - add PROP_IMPORT properties
  */
-function importObjects(importFile) {
+function importObjects(importFile, sync = false) {
   debugStackPush(false);
 
   try {
@@ -89,7 +99,7 @@ function importObjects(importFile) {
 
           // process all rows from CSV file
           startCounter("importObjects");
-          let results = rows.map((row, index) => processRow(row, index, headerLabels));
+          let results = rows.map((row, index) => processRow(row, index, headerLabels, sync));
           debug(`importObjects ${results.length} rows (${endCounter("importObjects")}`);
 
           let skipped = results.filter((result) => result.resultCode === SKIP);
@@ -116,7 +126,12 @@ function importObjects(importFile) {
           console.log(`>> objects updated :      ${updated.length}`);
           console.log(`>> Total rows processed : ${rows.length}`);
 
-          console.log(`\n> CSV file: ${importFileName} imported`);
+          if (sync) {
+            tagDeletedConcepts();
+            console.log(`\n> CSV file: ${importFileName} synchronized`);
+          } else {
+            console.log(`\n> CSV file: ${importFileName} imported`);
+          }
         }
       }
     }
@@ -125,6 +140,30 @@ function importObjects(importFile) {
   }
   debug(`< `);
   debugStackPop();
+}
+
+function tagDeletedConcepts() {
+  console.log("INFO - Looking for deleted elements or relationships and tagging them as deleted...");
+  var deleted = 0;
+
+  $("concept")
+    .filter(function (c) {
+      lastUpdateDate = c.prop(PROP_IMPORT);
+      if (lastUpdateDate) {
+        return lastUpdateDate != currentDateTime;
+      } else {
+        return false;
+      }
+    })
+    .each(function (c) {
+      if (!c.prop(PROP_IMPORT_DELETED)) {
+        c.name = `[DELETED] ${c.name}`;
+        c.prop(PROP_IMPORT_DELETED, currentDateTime);
+        deleted++;
+      }
+    });
+
+  console.log(`INFO - ${deleted} elements or relationships have been tagged as deleted`);
 }
 
 /**
@@ -189,7 +228,7 @@ function get_headerLabels(rows) {
  *
  * 	return result object with log info
  */
-function processRow(row, index, rowLabels) {
+function processRow(row, index, rowLabels, sync) {
   startCounter("processRow");
 
   let findResult;
@@ -206,10 +245,10 @@ function processRow(row, index, rowLabels) {
   debug(`findResult: ${JSON.stringify(findResult)}`);
 
   if (findResult.findCode == FOUND) {
-    result = updateObject(row, index, rowLabels, findResult);
+    result = updateObject(row, index, rowLabels, findResult, "uitzoeken", sync);
   } else {
     if (findResult.errorCode == SUCCES) {
-      result = createObject(row, index, rowLabels);
+      result = createObject(row, index, rowLabels, sync);
     } else {
       result.resultCode = SKIP;
       result.line = `row[${index + 2}] ${SKIP}\n`;
@@ -241,7 +280,7 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
   // search with property PROP_ID
   if (row_prop_id) {
     rowHasKey = true;
-    if (!row_type) row_type = "*"
+    if (!row_type) row_type = "*";
     archiColl = $(row_type).filter((obj) => obj.prop(PROP_ID) == row_prop_id);
     // a PROP_ID has to be unique
     if (archiColl.size() == 1) {
@@ -403,12 +442,12 @@ function findWithEndpoints(row) {
  * 	create a new object for the row
  *  if row is a relation the source and target have to exist
  */
-function createObject(row, index, rowLabels) {
+function createObject(row, index, rowLabels, sync) {
   debugStackPush(false);
   startCounter("createObject");
   let line = "";
   let resultCode = SKIP;
-  let archiObject = {};
+  let archiObj = {};
 
   if (row.type.endsWith("relationship")) {
     let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
@@ -417,7 +456,7 @@ function createObject(row, index, rowLabels) {
     debug(`findTgt: ${JSON.stringify(findTgt)}`);
 
     if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
-      archiObject = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
+      archiObj = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
     } else {
       line += `row[${index + 2}] ${SKIP}\n`;
       line += `  Relation not created, no (unique) source and/or target\n`;
@@ -425,17 +464,18 @@ function createObject(row, index, rowLabels) {
       line += `  - found target(s): ${findTgt.archiObj}`;
     }
   } else {
-    archiObject = model.createElement(row.type, row.name);
+    archiObj = model.createElement(row.type, row.name);
   }
 
-  if (Object.keys(archiObject).length > 0) {
+  if (Object.keys(archiObj).length > 0) {
     line += `row[${index + 2}] ${CREATE}\n`;
-    line += `  ${archiObject}\n`;
-    createResult = { archiObj: archiObject };
-    let result = updateObject(row, index, rowLabels, createResult, CREATE);
+    line += `  ${archiObj}\n`;
+    createResult = { archiObj: archiObj };
+    let result = updateObject(row, index, rowLabels, createResult, CREATE, sync);
     line += result.line;
     resultCode = CREATE;
   }
+  if (sync) archiObj.prop(PROP_IMPORT_CREATED, currentDateTime);
   debugStackPop();
   debug(`createObject: ${resultCode} ${endCounter("createObject")}`);
   return { index: index, resultCode: resultCode, line: line };
@@ -444,7 +484,7 @@ function createObject(row, index, rowLabels) {
 /**
  * 	update the attributes and properties of the object with the CSV row values
  */
-function updateObject(row, index, rowLabels, findResult, calledFrom) {
+function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
   startCounter("updateObject");
   const ATTRIBUTE_TEXT = "attribute";
   const PROPERTY_TEXT = "property";
@@ -475,10 +515,7 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
         archiObj.removeProp(label);
       }
     } else {
-      if (
-        label != ASSOCIATION_DIRECTED ||
-        (label == ASSOCIATION_DIRECTED && archiObj.type == "association-relationship")
-      ) {
+      if (label != ASSOCIATION_DIRECTED || (label == ASSOCIATION_DIRECTED && archiObj.type == "association-relationship")) {
         // skip row cell if empty or if equal to object value
         if (row[label] && row[label] != attr_or_prop_value) {
           if (attr_or_prop_value) {
@@ -498,7 +535,9 @@ function updateObject(row, index, rowLabels, findResult, calledFrom) {
     if (calledFrom != CREATE) line += lineRowUpdate; // there is already a row create line
     line += lineUpdated;
     debug(`line: ${line}`);
+    if (sync && calledFrom != CREATE) archiObj.prop(PROP_IMPORT_UPDATED, currentDateTime);
   }
+  if (sync) archiObj.prop(PROP_IMPORT, currentDateTime);
   debug(`updateObject: ${endCounter("updateObject")}`);
   debugStackPop();
 
