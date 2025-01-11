@@ -65,6 +65,7 @@ const PROP_ARCHIMATE_TYPE = "ArchiMate-type";
 const PROP_BRON = "Bron";
 const PROP_GEMMA_URL = "GEMMA URL";
 const PROP_GEMMA_TYPE = "GEMMA type";
+const PROP_GEMMA_GGM_STATUS = "GEMMA-GGM status";
 const LABEL_DATUM_TIJD = "Datum-tijd-export"; // Label voor column met export datum
 
 // Values
@@ -75,6 +76,8 @@ const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA/id-"; // publicatie-om
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
 const GEMMA_TYPE_BELEIDSDOMEIN = "Beleidsdomein";
 const GEMMA_TYPE_BEDRIJFSOBJECT = "Bedrijfsobject";
+const GEMMA_GGM_STATUS_LEEG = "Leeg";
+const GEMMA_GGM_STATUS_NIEUW = "Nieuw";
 
 /**
  * Create or update a business object for every GGM data-object

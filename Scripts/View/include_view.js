@@ -25,6 +25,7 @@
  *  3  25/09/2021  Mark Backer   use dagre-cluster-fix version
  *  4  02/10/2021  Mark Backer   draw connection with bendpoints
  *  5  08/03/2022  Mark Backer   add actions LAYOUT and EXPAND_HERE
+ *  6  11/01/2025  Mark Backer   do not add relations with PROP_EXCLUDE = "excludeFromView" to view 
  *
  * Prefered settings
  * - use the jArchi JavaScript engine GraalVM, much faster with large graphs

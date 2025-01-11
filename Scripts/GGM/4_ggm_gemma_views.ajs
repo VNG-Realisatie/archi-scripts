@@ -27,7 +27,11 @@ const FOLDER_SYNC_GGM_VIEWS = FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 try {
   console.log();
   let GGMdomeinen = getSelection($(selection), "grouping");
-  GGMdomeinen = GGMdomeinen.filter((grouping) => grouping.prop(PROP_GGM_TYPE) == GGM_TYPE_BELEIDSDOMEIN);
+  GGMdomeinen = GGMdomeinen.filter(
+    (grouping) =>
+      grouping.prop(PROP_GGM_TYPE) == GGM_TYPE_BELEIDSDOMEIN && 
+      grouping.prop(PROP_GEMMA_GGM_STATUS) != GEMMA_GGM_STATUS_LEEG
+  );
 
   if (GGMdomeinen.size() < 1) {
     console.log("Geen beleidsdomeinen geselecteerd, selecteer één of meer beleidsdomeinen");
@@ -49,7 +53,9 @@ try {
   console.log();
   let GEMMA_Beleidsdomeinen = getSelection($(selection), "grouping");
   GEMMA_Beleidsdomeinen = GEMMA_Beleidsdomeinen.filter(
-    (grouping) => grouping.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN
+    (grouping) =>
+      grouping.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN &&
+      grouping.prop(PROP_GEMMA_GGM_STATUS) != GEMMA_GGM_STATUS_LEEG
   );
   if (GEMMA_Beleidsdomeinen.size() < 1) {
     console.log("Geen beleidsdomeinen met inhoud voor GEMMA");
