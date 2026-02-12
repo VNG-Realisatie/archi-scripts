@@ -12,6 +12,8 @@
  * - associaties en specialisaties tussen data-objecten
  */
 load(__DIR__ + "../_lib/Common.js");
+initConsoleLog(__FILE__, true);
+
 load("../_lib/archi_folders.js");
 load("include_ggm_gemma.js");
 
@@ -19,15 +21,22 @@ load("include_ggm_gemma.js");
 var PROP_ID = PROP_GGM_ID_IMPORTED;
 load(__DIR__ + "../ImportExport_CSV/include_import.js");
 
-initConsoleLog(__FILE__, true);
+let relationsCSV = Config.getPath("relations");
+if (!relationsCSV) {
+  relationsCSV = window.promptOpenFile({
+    title: "Enter path for GGM relations CSV file:",
+    filterExtensions: ["*.csv"],
+    fileName: "*.csv",
+  });
+  if (!relationsCSV) {
+    console.log("Geen relations CSV file gekozen.");
+    exit();
+  }
+}
 
-// let fileName = "convert GGM relations from ods.csv"
-// let fileName = "gemma_import_relations (convert ggm).csv";
-// let fileName = "gemma_import_relations (convert ggm) 2024-04-10.csv";
-// let fileName = "gemma_import_relations (convert ggm) 2024-04-12.csv";
-let fileName = "gemma_import_relations (convert ggm 2.1).csv";
+console.log("Using relations CSV file: " + relationsCSV);
 
-importObjects(GGM_CSV_DIR + fileName);
+importObjects(relationsCSV);
 
 let dataobjectRelations = $(getFolderPath("/Relations"))
   .children("relationship")

@@ -8,24 +8,32 @@
  * - data-objecten
  * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
  */
+console.show();
+console.clear();
 
 load("include_ggm_gemma.js");
 load("../_lib/archi_folders.js");
 load("../_lib/Common.js"); // generateUUID()
 load("../Sync from CSV/Include_LoadAndSync.js");
 
-/**
- * file: GGM Enterprise Architect CSV export
- *    C:/Users/marks/Vereniging van Nederlandse Gemeenten/Unit Architectuur en Standaarden - Documents/GEMMA ontwikkelstraat/GGM
- */
-// let GGM_objects = "ggm_export_objects_21022024-11_03_02.csv";
-// let GGM_objects = "ggm_export_objects_10042024-13_29_09.csv"
-// let GGM_objects = "ggm_export_objects_12042024-12_57_38.csv"
-let GGM_objects = "ggm_export_objects_17042024-14_45_57.csv"
+let elementsCSV = Config.getPath("elements");
+if (!elementsCSV) {
+  elementsCSV = window.promptOpenFile({
+    title: "Enter path for GGM elements CSV file:",
+    filterExtensions: ["*.csv"],
+    fileName: "*.csv",
+  });
+  if (!elementsCSV) {
+    console.log("Geen elements CSV file gekozen.");
+    exit();
+  }
+}
+
+console.log("Using elements CSV file: " + elementsCSV);
 
 var beleidsdomeinen = {
   label: "Beleidsdomeinen",
-  csv: GGM_CSV_DIR + GGM_objects,
+  csv: elementsCSV,
   targetType: "grouping",
   targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN),
   getId: function (element) {
@@ -55,7 +63,7 @@ var beleidsdomeinen = {
 
 var dataobjecten = {
   label: "Dataobject",
-  csv: GGM_CSV_DIR + GGM_objects,
+  csv: elementsCSV,
   targetType: "data-object",
   // filter: function (row) {
   //   return row["archimate-type"] != "Business object";
@@ -112,10 +120,8 @@ var dataobjecten = {
 
 // Things start here ============================================================================================
 // Load data from CSV Files and sync model elements
-console.show();
-console.clear();
 console.log(
-  "Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'"
+  "Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'",
 );
 var startTime = new Date().getTime();
 

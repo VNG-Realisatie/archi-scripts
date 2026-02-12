@@ -7,7 +7,8 @@
 console.log("Loading include_ggm_gemma.js");
 
 // Windows directory with CSV import files
-const GGM_CSV_DIR = __DIR__ + "../../../../Werkbestanden/GGM/Rondje2.1/";
+load("config.default.js");
+console.log("CSV folder: " + Config.folderPath);
 
 // folders in GEMMA ArchiMate-model
 const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";

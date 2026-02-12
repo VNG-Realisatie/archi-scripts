@@ -75,7 +75,8 @@ currentDateTime =
 
 // In production I recommend dowloading papaparse.min.js and load it locally
 //load(__DIR__+'papaparse.min.js');
-load("https://unpkg.com/papaparse@latest/papaparse.min.js");
+// load("https://unpkg.com/papaparse@latest/papaparse.min.js"); => latest version of papaparse (5.3.2) is not compatible
+load("https://unpkg.com/papaparse@4/papaparse.min.js");
 
 // Functions ====================================================================================================
 function loadAndSync(dataSource) {

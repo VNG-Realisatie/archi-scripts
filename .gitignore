@@ -4,3 +4,4 @@ output_code2flow/*
 .vscode/*
 package-lock.json
 package.json
+config.js
