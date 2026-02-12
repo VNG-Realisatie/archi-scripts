@@ -1,4 +1,7 @@
-
+| Eigenaar | Ingevuld door |
+| --- | --- |
+| Kennis Centrum Architectuur | Mark Backer |
+<hr/>
 Hier vind je de Archi scripts die worden gebruikt bij maken en onderhouden van het [GEMMA ArchiMate-modellen](https://github.com/VNG-Realisatie/GEMMA-Archi-repository) en de VNGR projectarchitecturen (zoals de projectarchitectuur [omgevingswet](https://github.com/VNG-Realisatie/Omgevingswet-Archi-repository)).
 
 Zie de pagina [Archi scripting](https://redactie.gemmaonline.nl/index.php/Archi_scripting) voor een handleiding installeren van de jArchi plugin.

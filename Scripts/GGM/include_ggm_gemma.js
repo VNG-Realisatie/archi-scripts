@@ -4,22 +4,11 @@
  * - maken van de GEMMA bedrijfsobjectmodellen gebaseerd op GGM data-objecten
  * - definities van oa property names, folders en file-directies
  */
-const GGM_CONFIG = "include_ggm_config.js";
-try {
-  console.log("Loading " + GGM_CONFIG);
-  load(GGM_CONFIG);
-} catch (error) {
-  console.log();
-  console.setTextColor(255, 0, 0);
-  console.log(`>>> Configuratiefile niet gevonden <<<`);
-  console.log(`Open de jArchi script directory ${__SCRIPTS_DIR__}`);
-  console.log(`- kopieer "GGM/include_ggm_config_example.js" in de script dir`);
-  console.log(`- wijzig filenaam naar ${GGM_CONFIG}`);
-  console.log(`- configureer je lokale folders`);
-  console.setDefaultTextColor();
-  console.log();
-  throw error;
-}
+console.log("Loading include_ggm_gemma.js");
+
+// Windows directory with CSV import files
+load("config.default.js");
+console.log("CSV folder: " + Config.folderPath);
 
 // folders in GEMMA ArchiMate-model
 const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";

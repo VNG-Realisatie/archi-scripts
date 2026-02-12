@@ -20,24 +20,22 @@ load("include_ggm_gemma.js");
 var PROP_ID = PROP_GGM_ID_IMPORTED;
 load(__DIR__ + "../ImportExport_CSV/include_import.js");
 
-try {
-
-  let importFile = GGM_CONVERTED_RELATIONS;
-  if (!importFile) {
-    importFile = window.promptOpenFile({
-      title: "Open GGM converted relations CSV",
-      filterExtensions: ["*.csv"],
-    });
+let relationsCSV = Config.getPath("relations");
+if (!relationsCSV) {
+  relationsCSV = window.promptOpenFile({
+    title: "Enter path for GGM relations CSV file:",
+    filterExtensions: ["*.csv"],
+    fileName: "*.csv",
+  });
+  if (!relationsCSV) {
+    console.log("Geen relations CSV file gekozen.");
+    exit();
   }
-  if (!importFile) {
-    console.log("> Canceled");
-  } else {
-    importObjects(importFile, ADD_SYNC_PROPERTIES);
+}
 
-    let dataobjectRelations = $(getFolderPath("/Relations"))
-      .children("relationship")
-      .filter((rel) => rel.prop(PROP_GGM_ID_IMPORTED) != undefined);
-    let folderDataobjectRelations = getFolderPath("/Relations" + FOLDER_GGM_DATAOBJECT);
+console.log("Using relations CSV file: " + relationsCSV);
+
+importObjects(relationsCSV);
 
     console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
 
