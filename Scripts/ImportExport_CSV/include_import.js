@@ -56,8 +56,9 @@ var currentDateTime = getFormattedDateTime();
  *
  * @param {string} importFile -  filepath to CSV file to import (optional, if empty you will be prompted)
  * @param {boolean} sync  - add PROP_IMPORT properties
+ * @param {*} transformRowFn - mapping function for data
  */
-function importObjects(importFile, sync = false) {
+function importObjects(importFile, sync = false, transformRowFn) {
   debugStackPush(false);
 
   try {
@@ -83,7 +84,7 @@ function importObjects(importFile, sync = false) {
       console.log(`- elements and views with a combination of name and type`);
       console.log(`- relations with the endpoints and type`);
 
-      let rows = getRowsFromFile(importFile);
+      let rows = getRowsFromFile(importFile, transformRowFn);
       if (rows.length == 0) {
         console.log("\n> ======== ");
         console.log(`> no data in CSV file: ${importFileName}`);
@@ -171,19 +172,15 @@ function tagDeletedConcepts() {
  * return array with header labels to update objects
  */
 function get_headerLabels(rows) {
-  // papaparse stores a row in an array with {name, value} objects
+  // check if there is a column for the attributes
   const allHeaderLabels = Object.keys(rows[0]);
-  console.log(`\nCSV file columns:`);
-  allHeaderLabels.map((label) => console.log(`- ${label}`));
-
-  // check
-  // if there is a column for the attributes
-  let attrCheck = checkLabel(ATTRIBUTE_LABELS, "attribute");
+  let attrCheck = checkLabel(ATTRIBUTE_LABELS, "attribute", allHeaderLabels);
   // and for relations if the endpoints columns are present
   let endpointCheck = true;
   let relations = rows.filter((row) => row.type.endsWith("relationship"));
+
   if (relations.length > 0) {
-    endpointCheck = checkLabel(ENDPOINT_LABELS, "endpoint");
+    endpointCheck = checkLabel(ENDPOINT_LABELS, "endpoint", allHeaderLabels);
   }
 
   let headerLabels = [];
@@ -193,7 +190,7 @@ function get_headerLabels(rows) {
   }
   return headerLabels;
 
-  function checkLabel(labels, labelType) {
+  function checkLabel(labels, labelType, allHeaderLabels) {
     let line = "";
     labels.forEach((label) => {
       if (!allHeaderLabels.includes(label)) line += `- ${label}\n`;
@@ -547,17 +544,42 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
 /**
  * Read CSV file in UTF-8 encoding and return file parsed into an array
  */
-function getRowsFromFile(importFile) {
-  let rows = [];
+function getRowsFromFile(importFile, transformRowFn) {
+  let debugFlag = false;
+  debugStackPush(debugFlag);
 
   startCounter("getRowsFromFile");
-  rows = Papa.parse(readFully(importFile, "utf-8"), {
+  const parsed = Papa.parse(readFully(importFile, "utf-8"), {
     header: true,
+    preview: debugFlag ? 20 : 0,
     encoding: "utf-8",
     skipEmptyLines: true,
   }).data;
+
+  debug("");
+  debug("Rows before transform");
+  debug(`${JSON.stringify(parsed, null, 2)}`);
+  debug("");
+
+  console.log("\nShowing the first row as an example:\n", JSON.stringify(parsed[0], null, 2));
+
+  let rows;
+  if (typeof transformRowFn === "function") {
+    // Only map when needed
+    rows = parsed.map((row) => transformRowFn(row));
+    console.log("\nTransforming input CSV… showing transformed row:\n", JSON.stringify(rows[0], null, 2));
+    console.log();
+  } else {
+    rows = parsed;
+  }
+  debug("");
+  debug("Rows after transform");
+  debug(JSON.stringify(rows, null, 2));
+  debug("");
+
   debug(`getRowsFromFile: ${endCounter("getRowsFromFile")}`);
 
+  debugStackPop();
   return rows;
 }
 
