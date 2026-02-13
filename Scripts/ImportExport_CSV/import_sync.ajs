@@ -1,6 +1,7 @@
 /**
- * import
+ * import_sync
  *   Import all objects from a CSV file.
+ *   Track synchronization status by marking created, updated, and deleted items.
  */
 
 load(__DIR__ + "../_lib/Common.js");
@@ -10,6 +11,6 @@ load("include_import.js");
 
 initConsoleLog(__FILE__,true);
 
-importObjects();
+importObjects(null, true);
 
 finishConsoleLog();

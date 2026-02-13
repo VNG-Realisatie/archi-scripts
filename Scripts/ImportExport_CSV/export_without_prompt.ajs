@@ -10,7 +10,6 @@ load(__DIR__ + "include_export.js");
 initConsoleLog(__FILE__);
 
 let dir = "C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/";
-
 // let fileName = "2021-05-31_test.csv"
 let fileName = "BO roundtrip element.csv"
 
