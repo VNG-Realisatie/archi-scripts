@@ -1,12 +1,23 @@
+
 | Eigenaar | Ingevuld door |
-| --- | --- |
+|---------|----------------|
 | Kennis Centrum Architectuur | Mark Backer |
-<hr/>
-Hier vind je de Archi scripts die worden gebruikt bij maken en onderhouden van het [GEMMA ArchiMate-modellen](https://github.com/VNG-Realisatie/GEMMA-Archi-repository) en de VNGR projectarchitecturen (zoals de projectarchitectuur [omgevingswet](https://github.com/VNG-Realisatie/Omgevingswet-Archi-repository)).
 
-Zie de pagina [Archi scripting](https://redactie.gemmaonline.nl/index.php/Archi_scripting) voor een handleiding installeren van de jArchi plugin.
+---
 
-Hoe de scripts gebruikt moeten worden, is (meestal) bovenin het script beschreven. Kijk hieronder voor welke scripts er zijn en wat deze doen. De tabel is niet uitputtend, opgesomd worden de meest gebruikte scripts:
+Hier vind je de Archi scripts die worden gebruikt bij het maken en onderhouden van de  
+[GEMMA ArchiMate-modellen](https://github.com/VNG-Realisatie/GEMMA-Archi-repository)  
+en de VNGR projectarchitecturen, zoals de projectarchitectuur  
+[Omgevingswet](https://github.com/VNG-Realisatie/Omgevingswet-Archi-repository).
+
+Zie de pagina  
+[Archi scripting](https://redactie.gemmaonline.nl/index.php/Archi_scripting)  
+voor een handleiding voor het installeren van de jArchi plugin.
+
+Hoe de scripts gebruikt moeten worden, is (meestal) bovenin het script beschreven.  
+Hieronder vind je welke scripts er zijn en wat deze doen.  
+De tabel is niet uitputtend; het zijn de meest gebruikte scripts.
+
 | Folder  | Scripts  |
 |--|---|
 |_lib | Door de scripts gebruikte generieke functies. Naast enkele node javascript libraries vind je hier: <ul><li>**common.js**: generieke functies voor logging en debugging</li><li>**selection.js**: generieke functies voor het selecteren van objecten in de model tree of in een view</li></ul>Modules hebben de extensie `.js` en zijn niet zichtbaar in  Archi. Een uitvoerbaar Archi script heeft de extensie `.ajs`
