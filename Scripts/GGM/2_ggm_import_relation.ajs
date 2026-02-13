@@ -35,23 +35,97 @@ if (!relationsCSV) {
 
 console.log("Using relations CSV file: " + relationsCSV);
 
-importObjects(relationsCSV);
+// importObjects(relationsCSV, null, transformHeaderGGM, transformRowGGM);
+importObjects(relationsCSV, null, transformRowGGM);
 
-    console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
+// move added data-objectrelations
+let dataobjectRelations = $(getFolderPath("/Relations"))
+  .children("relationship")
+  .filter((rel) => rel.prop(PROP_GGM_ID_IMPORTED) != undefined);
+let folderDataobjectRelations = getFolderPath("/Relations" + FOLDER_GGM_DATAOBJECT);
+console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
 
-    // move added data-objectrelations
-    dataobjectRelations.each((rel) => {
-      // debug(`rel: ${rel}`)
-      folderDataobjectRelations.add(rel);
-    });
+dataobjectRelations.each((rel) => {
+  // debug(`rel: ${rel}`)
+  folderDataobjectRelations.add(rel);
+});
 
-    // and set Object ID
-    console.log(`> and set a property 'Object ID'`);
-    dataobjectRelations.each((rel) => {
-      if (!rel.prop("Object ID")) rel.prop("Object ID", generateUUID());
-    });
-  }
-} catch (error) {
-  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-}
+// and set Object ID
+console.log(`> and set a property 'Object ID'`);
+dataobjectRelations.each((rel) => {
+  if (!rel.prop("Object ID")) rel.prop("Object ID", generateUUID());
+});
+
 finishConsoleLog();
+
+/*
+================================================================================
+TRANSFORM GGM CSV-file for Archi import
+================================================================================
+name                                 ← GGM-naam
+                                      Used as the output relation name.
+type                                 ← GGM-uml-type
+                                      Derived: Association → "association-relationship",
+                                      otherwise "specialization-relationship".
+documentation                        ← GGM-definitie
+                                      Copied to output documentation.
+id                                   ← (constant "")
+                                      Empty placeholder; Archi fills this later.
+source.id                            ← GEMMA-source-guid
+                                      Output source element ID.
+target.id                            ← GEMMA-target-guid
+                                      Output target element ID.
+GGM-toelichting                      ← GGM-toelichting
+                                      Copied unchanged.
+GGM-guid-imported                    ← GGM-guid
+                                      Imported original GGM relation GUID.
+source.prop.GGM-guid-imported        ← GGM-source-guid
+                                      Imported original GGM source GUID.
+target.prop.GGM-guid-imported        ← GGM-target-guid
+                                      Imported original GGM target GUID.
+Datum-tijd-export                    ← datum-tijd-export
+                                      Copied unchanged.
+source.name                          ← (constant "")
+                                      Empty placeholder; filled later.
+source.type                          ← (constant "data-object")
+                                      Fixed element type.
+target.name                          ← (constant "")
+                                      Empty placeholder; filled later.
+target.type                          ← (constant "data-object")
+                                      Fixed element type.
+GGM-uml-type                         ← GGM-uml-type
+                                      Copied unchanged.
+associationDirected                  ← GGM-uml-type
+                                      "true" if Association, otherwise "false".
+================================================================================
+*/
+
+function transformRowGGM(row) {
+  const uml = row["GGM-uml-type"] || "";
+  const isAssociation = uml === "Association";
+
+  return {
+    name: row["GGM-naam"] || "",
+    type: isAssociation ? "association-relationship" : "specialization-relationship",
+    documentation: row["GGM-definitie"] || "",
+    id: "",
+
+    "source.id": row["GEMMA-source-guid"] || "",
+    "target.id": row["GEMMA-target-guid"] || "",
+
+    "GGM-toelichting": row["GGM-toelichting"] || "",
+    "GGM-guid-imported": row["GGM-guid"] || "",
+    "source.prop.GGM-guid-imported": row["GGM-source-guid"] || "",
+    "target.prop.GGM-guid-imported": row["GGM-target-guid"] || "",
+
+    "Datum-tijd-export": row["datum-tijd-export"] || "",
+
+    "source.name": "",
+    "source.type": "data-object",
+    "target.name": "",
+    "target.type": "data-object",
+
+    "GGM-uml-type": uml,
+    associationDirected: isAssociation ? "true" : "false"
+  };
+}
