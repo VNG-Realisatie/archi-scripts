@@ -4,13 +4,11 @@
  * 	if a conainer (a view or a folder) is selected, all elements in the container are exported
  */
 
-load(__DIR__ + "../_lib/Common.js");
-// check_JS_Engine(JS_ENGINE_GRAALVM);
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Export = require(__DIR__ + "/include_export.js");
 
-load(__DIR__ + "include_export.js");
+Common.initConsoleLog(__FILE__);
 
-initConsoleLog(__FILE__);
+Export.exportObjects(Export.OBJECT_TYPE_ELEMENT);
 
-exportObjects(OBJECT_TYPE_ELEMENT);
-
-finishConsoleLog();
+Common.finishConsoleLog();

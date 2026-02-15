@@ -5,21 +5,16 @@
  * Format of the filename:
  * - <user parameter filename>_<action>_<direction>.ajs
  */
-load("../_lib/Common.js");
-load("../_lib/selection.js");
-load("../_lib/archi_folders.js");
-load("../View/include_view.js");
-load("include_ggm_gemma.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Selection = require(__DIR__ + "/../_lib/selection.js");
+const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const View = require(__DIR__ + "/../View/include_view.js");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
 let param = {};
-param = get_default_parameter(__FILE__);
-param = get_user_parameter(__FILE__, param);
+param = View.get_default_parameter(__FILE__);
+param = View.get_user_parameter(__FILE__, param);
 
-// param.ranker = "longest-path";
-param.ranker = "tight-tree";
-// param.ranker = "network-simplex";
-
-generate_view(param);
-finishConsoleLog();
+View.generate_view(param);
+Common.finishConsoleLog();

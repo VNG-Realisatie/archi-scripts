@@ -1,22 +1,22 @@
 /**
  * Import GGM objecten in GEMMA-GGM Archi-repository
-*
-* Specificatie CSV-bestanden
-*  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
-*
-* Dit script leest de GGM objecten in als
-* - data-objecten
-* - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
-*/
-load("../_lib/Common.js"); // init en generateUUID()
-initConsoleLog(__FILE__, true);
+ *
+ * Specificatie CSV-bestanden
+ *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
+ *
+ * Dit script leest de GGM objecten in als
+ * - data-objecten
+ * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
+ */
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
+const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const Sync = require(__DIR__ + "/../Sync from CSV/Include_LoadAndSync.js");
 
-load("include_ggm_gemma.js");
-load("../_lib/archi_folders.js");
-load("../Sync from CSV/Include_LoadAndSync.js");
+Common.initConsoleLog(__FILE__, true);
 
 try {
-  let importFile = GGM_EXPORT_OBJECTS;
+  let importFile = GgmGemma.Config.csvFiles.elements ? GgmGemma.Config.getPath("elements") : null;
   if (!importFile) {
     importFile = window.promptOpenFile({
       title: "Open GGM export objects CSV",
@@ -30,7 +30,7 @@ try {
       label: "Beleidsdomeinen",
       csv: importFile,
       targetType: "grouping",
-      targetFolder: getFolderPath("/Other" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN),
+      targetFolder: ArchiFolders.getFolderPath("/Other" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BELEIDSDOMEIN),
       getId: function (element) {
         // return element.prop("domein-iv3");
         return element.name;
@@ -43,25 +43,25 @@ try {
       name: "domein-iv3",
       documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
       propMapping: {
-        [PROP_ID]: function (element) {
-          if (!element.prop(PROP_ID)) {
-            return generateUUID();
+        [GgmGemma.PROP_ID]: function (element) {
+          if (!element.prop(GgmGemma.PROP_ID)) {
+            return Common.generateUUID();
           }
         },
-        "GGM-datum-tijd-export": "datum-tijd-export",
+        [GgmGemma.LABEL_DATUM_TIJD]: "datum-tijd-export",
         // initieel kregen alle GGM iv3-domeinen de property GEMMA type="Beleidsdomein"
-        // [PROP_GEMMA_TYPE]: function () {
-        //   return GEMMA_TYPE_BELEIDSDOMEIN;
+        // [GgmGemma.PROP_GEMMA_TYPE]: function () {
+        //   return GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN;
         // },
-        [PROP_GEMMA_TYPE]: function (element) {
-          if (!element.prop(PROP_GEMMA_TYPE)) {
+        [GgmGemma.PROP_GEMMA_TYPE]: function (element) {
+          if (!element.prop(GgmGemma.PROP_GEMMA_TYPE)) {
             return "te bepalen";
           }
         },
         // Geef alle geïmporteerde beleidsdomeinen de property GGM type="Beleidsdomein"
-        [PROP_GGM_TYPE]: function (element) {
-          if (!element.prop(PROP_GGM_TYPE)) {
-            return GGM_TYPE_BELEIDSDOMEIN;
+        [GgmGemma.PROP_GGM_TYPE]: function (element) {
+          if (!element.prop(GgmGemma.PROP_GGM_TYPE)) {
+            return GgmGemma.GGM_TYPE_BELEIDSDOMEIN;
           }
         },
       },
@@ -75,53 +75,53 @@ try {
       // filter: function (row) {
       //   return row["archimate-type"] != "Business object";
       // },
-      targetFolder: getFolderPath("/Application" + FOLDER_GGM_DATAOBJECT),
+      targetFolder: ArchiFolders.getFolderPath("/Application" + GgmGemma.FOLDER_GGM_DATAOBJECT),
       getId: function (element) {
-        return element.prop(PROP_GGM_ID_IMPORTED);
+        return element.prop(GgmGemma.PROP_GGM_ID_IMPORTED);
       },
       setId: function (element, row) {
-        element.prop(PROP_GGM_ID_IMPORTED, row["_id"]);
+        element.prop(GgmGemma.PROP_GGM_ID_IMPORTED, row["_id"]);
       },
-      id: PROP_GGM_ID,
+      id: GgmGemma.PROP_GGM_ID,
       name: "GGM-naam",
       documentation: "GGM-definitie",
       propMapping: {
-        [PROP_ID]: function (element) {
-          if (!element.prop(PROP_ID)) {
-            return generateUUID();
+        [GgmGemma.PROP_ID]: function (element) {
+          if (!element.prop(GgmGemma.PROP_ID)) {
+            return Common.generateUUID();
           }
         },
-        [PROP_GGM_UML_TYPE]: PROP_GGM_UML_TYPE,
-        [PROP_GGM_TOELICHTING]: PROP_GGM_TOELICHTING,
-        [PROP_GGM_SYNONIEMEN]: PROP_GGM_SYNONIEMEN,
-        [PROP_GGM_BRON]: PROP_GGM_BRON,
-        [PROP_GGM_ID_IMPORTED]: PROP_GGM_ID,
+        [GgmGemma.PROP_GGM_UML_TYPE]: GgmGemma.PROP_GGM_UML_TYPE,
+        [GgmGemma.PROP_GGM_TOELICHTING]: GgmGemma.PROP_GGM_TOELICHTING,
+        [GgmGemma.PROP_GGM_SYNONIEMEN]: GgmGemma.PROP_GGM_SYNONIEMEN,
+        [GgmGemma.PROP_GGM_BRON]: GgmGemma.PROP_GGM_BRON,
+        [GgmGemma.PROP_GGM_ID_IMPORTED]: GgmGemma.PROP_GGM_ID,
         // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
-        [PROP_ARCHIMATE_TYPE]: function (element) {
-          if (!element.prop(PROP_ARCHIMATE_TYPE)) {
+        [GgmGemma.PROP_ARCHIMATE_TYPE]: function (element) {
+          if (!element.prop(GgmGemma.PROP_ARCHIMATE_TYPE)) {
             return "te bepalen";
           }
         },
         // "domein-iv3": "domein-iv3", // added as relation
         // "domein-dcat": "domein-dcat",
         // "domein-gemma": "domein-gemma",
-        [LABEL_DATUM_TIJD]: "datum-tijd-export",
+        [GgmGemma.LABEL_DATUM_TIJD]: "datum-tijd-export",
       },
       relations: {
         beleidsdomeinen_rel: {
           column: "domein-iv3",
           reference: beleidsdomeinen,
           targetType: "aggregation-relationship",
-          targetFolder: getFolderPath("/Relations" + FOLDER_GGM_BELEIDSDOMEIN),
+          targetFolder: ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_GGM_BELEIDSDOMEIN),
           isReversed: true,
           propMapping: {
-            [PROP_ID]: function (relationship) {
-              if (!relationship.prop(PROP_ID)) {
-                return generateUUID();
+            [GgmGemma.PROP_ID]: function (relationship) {
+              if (!relationship.prop(GgmGemma.PROP_ID)) {
+                return Common.generateUUID();
               }
             },
-            [PROP_GEMMA_TYPE]: function (relationship) {
-              return GEMMA_TYPE_BELEIDSDOMEIN;
+            [GgmGemma.PROP_GEMMA_TYPE]: function (relationship) {
+              return GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN;
             },
           },
         },
@@ -131,20 +131,20 @@ try {
     // End of configuration =========================================================================================
 
     // Compute the date which will appear in every new or updated concepts - Has to be
-    var currentDateTime = getFormattedDateTime();
+    var currentDateTime = Common.getFormattedDateTime();
 
     // Things start here ============================================================================================
     // Load data from CSV Files and sync model elements
     console.log("Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then");
     console.log("check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'");
 
-    loadAndSync(beleidsdomeinen);
+    Sync.loadAndSync(beleidsdomeinen);
 
-    loadAndSync(dataobjecten);
-    syncModelRelationships(dataobjecten);
+    Sync.loadAndSync(dataobjecten);
+    Sync.syncModelRelationships(dataobjecten);
 
     // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-    tagDeletedConcepts();
+    Sync.tagDeletedConcepts();
 
     console.log("End of synchronization. Check previous messages for errors and undo in case of doubt.");
   }
@@ -152,4 +152,4 @@ try {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
-finishConsoleLog();
+Common.finishConsoleLog();

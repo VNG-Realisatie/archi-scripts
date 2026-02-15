@@ -1,9 +1,8 @@
 /**
  * Shared constants and functions for exporting and importing
  */
-// load(__DIR__ + "../_lib/papaparse.min.js");
-load("https://unpkg.com/papaparse@latest/papaparse.min.js");
-// const Papa = require("papaparse");
+const Papa = require("papaparse");
+const Common = require(__DIR__ + "/../_lib/Common.js");
 
 const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";
@@ -13,13 +12,14 @@ const OBJECT_TYPE_VIEW = "view";
 const PROP_ADD = "add column to export";
 
 // If set, the import wil use the PROP_ID as the first id for matching objects (global type var, because const is block scoped)
-if (PROP_ID == undefined) var PROP_ID = "Object ID"; // set default tool independent identifier.
+var PROP_ID = "Object ID"; // set default tool independent identifier.
 
 // Set a label for a folder column, leave empty to skip the 'folder' column
-if (FOLDER_LABEL == undefined) var FOLDER_LABEL = "folder"; // default create a folder column 'folder'
+var FOLDER_LABEL = "folder"; // default create a folder column 'folder'
 
 // set GEMMA_COLUMNS to false if you don't want GEMMA special columns for elements
-if (GEMMA_COLUMNS == undefined) var GEMMA_COLUMNS = false; // default do not create the GEMMA columns
+var GEMMA_COLUMNS = false; // default do not create the GEMMA columns
+
 const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
 const GEMMA_LIST_API_LABEL = "SWC API";
 const GEMMA_PUBLICEREN_VALUES = [
@@ -36,20 +36,20 @@ const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
 const ASSOCIATION_DIRECTED = "associationDirected";
 const RELATION_ATTRIBUTE_LABELS = ["accessType", ASSOCIATION_DIRECTED, "influenceStrength"];
 
-let endpointLabels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
-if (PROP_ID) {
-  endpointLabels = endpointLabels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
+function get_ENDPOINT_LABELS() {
+  let labels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
+  if (PROP_ID) {
+    labels = labels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
+  }
+  return labels;
 }
-const ENDPOINT_LABELS = endpointLabels;
 
-// labels to skip when updating objects
-// - don't import the attribute type (can't be set) and
-// - don't import the attribute id (can't be set) and
-// - don't import the endpoints (used for finding the relation)
-const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
-  .concat(ENDPOINT_LABELS)
-  .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
-  .concat(GEMMA_LIST_API_LABEL);
+function get_LABELS_NOT_TO_UPDATE() {
+  return ["type", "id", FOLDER_LABEL]
+    .concat(get_ENDPOINT_LABELS())
+    .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
+    .concat(GEMMA_LIST_API_LABEL);
+}
 
 /**
  * set an attribute or property to the value from the CSV file
@@ -70,15 +70,15 @@ function set_attr_or_prop(object, row, label) {
  * get the given attribute or property value of an Archi object
  */
 function get_attr_or_prop(archi_object, row_label) {
-  debugStackPush(false);
+  Common.debugStackPush(false);
   let value = "";
 
   // get attribute, for instance "documentation", "name",
   if (ATTRIBUTE_LABELS.indexOf(row_label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
-    debug(`row_label = ${row_label}`);
-    debug(`archi_object = ${archi_object}`);
-    debug(`archi_object.name = ${archi_object.name}`);
-    debug(`archi_object[row_label] = ${archi_object[row_label]}`);
+    Common.debug(`row_label = ${row_label}`);
+    Common.debug(`archi_object = ${archi_object}`);
+    Common.debug(`archi_object.name = ${archi_object.name}`);
+    Common.debug(`archi_object[row_label] = ${archi_object[row_label]}`);
     if (row_label == ASSOCIATION_DIRECTED) {
       if (archi_object.type == "association-relationship") {
         value = archi_object[row_label].toString();
@@ -86,8 +86,8 @@ function get_attr_or_prop(archi_object, row_label) {
     } else {
       value = archi_object[row_label];
     }
-    debug(`attr archi_object.${row_label}=${value}`);
-  } else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
+    Common.debug(`attr archi_object.${row_label}=${value}`);
+  } else if (get_ENDPOINT_LABELS().indexOf(row_label) != -1) {
     // get endpoint label, for instance source.id, target.prop.Object ID
     // const [endpoint, attr, prop] = row_label.split("."); // GRAALVM only
     const endpoint = row_label.substring(0, row_label.indexOf("."));
@@ -100,18 +100,18 @@ function get_attr_or_prop(archi_object, row_label) {
 
     if (secondSubString == "prop") {
       value = archi_object[endpoint].prop(prop);
-      debug(`endpoint archi_object[${endpoint}].prop(${prop})=${value}`);
+      Common.debug(`endpoint archi_object[${endpoint}].prop(${prop})=${value}`);
     } else {
       value = archi_object[endpoint][attr];
-      debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
+      Common.debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
     }
   } else {
       // get property, for instance 'Object ID'
       value = archi_object.prop(row_label);
-      debug(`prop archi_object.prop(${row_label})=${value}`);
+      Common.debug(`prop archi_object.prop(${row_label})=${value}`);
   }
 
-  debugStackPop();
+  Common.debugStackPop();
   return value;
 }
 
@@ -121,4 +121,31 @@ function parseBool(value) {
     if (value === "true" || value === "false") return value === "true";
   }
   return; // returns undefined
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    Papa,
+    OBJECT_TYPE_RELATION,
+    OBJECT_TYPE_ELEMENT,
+    OBJECT_TYPE_VIEW,
+    PROP_ADD,
+    get PROP_ID() { return PROP_ID; },
+    set PROP_ID(val) { PROP_ID = val; },
+    get FOLDER_LABEL() { return FOLDER_LABEL; },
+    set FOLDER_LABEL(val) { FOLDER_LABEL = val; },
+    get GEMMA_COLUMNS() { return GEMMA_COLUMNS; },
+    set GEMMA_COLUMNS(val) { GEMMA_COLUMNS = val; },
+    GEMMA_PUBLICEREN_TOT_EN_MET_LABEL,
+    GEMMA_LIST_API_LABEL,
+    GEMMA_PUBLICEREN_VALUES,
+    ATTRIBUTE_LABELS,
+    ASSOCIATION_DIRECTED,
+    RELATION_ATTRIBUTE_LABELS,
+    get ENDPOINT_LABELS() { return get_ENDPOINT_LABELS(); },
+    get LABELS_NOT_TO_UPDATE() { return get_LABELS_NOT_TO_UPDATE(); },
+    set_attr_or_prop,
+    get_attr_or_prop,
+    parseBool,
+  };
 }

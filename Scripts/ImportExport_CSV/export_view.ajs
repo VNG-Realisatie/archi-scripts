@@ -4,11 +4,11 @@
  * 	if a container (a view or a folder) is selected, all views in the container are exported
  */
 
-load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "include_export.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Export = require(__DIR__ + "/include_export.js");
 
-initConsoleLog(__FILE__);
+Common.initConsoleLog(__FILE__);
 
-exportObjects(OBJECT_TYPE_VIEW);
+Export.exportObjects(Export.OBJECT_TYPE_VIEW);
 
-finishConsoleLog();
+Common.finishConsoleLog();

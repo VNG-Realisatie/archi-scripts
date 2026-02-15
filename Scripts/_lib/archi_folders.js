@@ -77,3 +77,12 @@ function getFolderPath(path) {
   }
   return folder;
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    printFolderPath,
+    deleteEmptyFolders,
+    getFolderPath,
+    ARCHI_FOLDERS_LOADED,
+  };
+}

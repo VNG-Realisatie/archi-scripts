@@ -3,13 +3,13 @@
  *   Import all objects from a CSV file.
  */
 
-load(__DIR__ + "../_lib/Common.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
 // check_JS_Engine(JS_ENGINE_GRAALVM)
 
-load("include_import.js");
+const Import = require(__DIR__ + "/include_import.js");
 
-initConsoleLog(__FILE__,true);
+Common.initConsoleLog(__FILE__,true);
 
-importObjects();
+Import.importObjects();
 
-finishConsoleLog();
+Common.finishConsoleLog();

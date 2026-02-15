@@ -9,6 +9,8 @@ Hier vind je de Archi scripts die worden gebruikt bij het maken en onderhouden v
 
 Zie de pagina [Archi scripting](https://redactie.gemmaonline.nl/index.php/Archi_scripting) voor een handleiding voor het installeren van de jArchi plugin.
 
+**CommonJS (aanbevolen):** De scripts gebruiken `require()` voor modules. In Archi: **Edit > Preferences > Scripting** — kies de **GraalVM** JavaScript-engine en schakel **CommonJS** in. Stel de scriptmap in op de map die de `Scripts`-map bevat (waar `_lib`, `View`, enz. in staan). Optioneel: zie [Scripts/SETUP_NODE_MODULES.md](Scripts/SETUP_NODE_MODULES.md) voor het handmatig toevoegen van bibliotheken (papaparse, xlsx, enz.) zonder npm.
+
 Hoe de scripts gebruikt moeten worden, is (meestal) bovenin het script beschreven. Hieronder vind je welke scripts er zijn en wat deze doen. De tabel is niet uitputtend; het zijn de meest gebruikte scripts.
 
 | Folder  | Scripts  |

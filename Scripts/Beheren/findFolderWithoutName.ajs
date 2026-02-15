@@ -2,8 +2,9 @@
  * findFolderWithoutName.ajs
  *
  */
-console.clear();
-console.log();
+const Common = require(__DIR__ + "/../_lib/Common.js");
+
+Common.initConsoleLog(__FILE__, true);
 
 var nrFolderWithoutName = 0;
 
@@ -14,6 +15,8 @@ findFolderWithoutName($(model).first());
 
 console.log();
 console.log(`${nrFolderWithoutName} folders without a name`);
+
+Common.finishConsoleLog();
 
 /**
  * findFolderWithoutName

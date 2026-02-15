@@ -1,6 +1,6 @@
-// Sync UPL.ajs
+// Sync PvE SWC.ajs
 
-load(__DIR__ + "Include_LoadAndSync.js");
+const Sync = require(__DIR__ + "/Include_LoadAndSync.js");
 
 // Configuration starts here ======================================================================================
 
@@ -22,7 +22,7 @@ var xxx = {
   'label': '',
   'csv': __DIR__+'xxx.csv',
   'targetType': '',
-  'targetFolder': getFolder('layer', 'folderName'),
+  'targetFolder': Sync.getFolder('layer', 'folderName'),
   'getId': function(element) {
     // Do something to extract id
   },
@@ -59,7 +59,7 @@ var Functionaliteitgroep = {
   'label': 'Functionaliteitgroep',
   'csv': __DIR__+'../../../../WerkbestandenLinux/Programma van eisen.csv',
   'targetType': 'application-service',
-  'targetFolder': getFolder('Application', 'PvE SWC'),
+  'targetFolder': Sync.getFolder('Application', 'PvE SWC'),
   'getId': function(element) {
     return element.name
   },
@@ -81,7 +81,7 @@ var Functionaliteit = {
   'label': 'Functionaliteit',
   'csv': __DIR__+'../../../../WerkbestandenLinux/Programma van eisen.csv',
   'targetType': 'application-service',
-  'targetFolder': getFolder('Application', 'PvE SWC'),
+  'targetFolder': Sync.getFolder('Application', 'PvE SWC'),
   'getId': function(element) {
     return element.name
   },
@@ -101,7 +101,7 @@ var Functionaliteit = {
       'column': 'Functionaliteitgroep',
       'reference': Functionaliteitgroep,
       'targetType': 'aggregation-relationship',
-      'targetFolder': getFolder('Relations', 'PvE SWC'),
+      'targetFolder': Sync.getFolder('Relations', 'PvE SWC'),
       'isReversed': true
     },
   }
@@ -116,13 +116,13 @@ console.clear();
 console.log("Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'");
 var startTime = new Date().getTime();
 
-loadAndSync(Functionaliteit);
+Sync.loadAndSync(Functionaliteit);
 
-loadAndSync(Functionaliteitgroep);
-syncModelRelationships(Functionaliteit);
+Sync.loadAndSync(Functionaliteitgroep);
+Sync.syncModelRelationships(Functionaliteit);
 
 // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-//tagDeletedConcepts();
+//Sync.tagDeletedConcepts();
 
 var endTime = new Date().getTime();
 console.log("Elapse time: ", (endTime - startTime)/1000, " sec");

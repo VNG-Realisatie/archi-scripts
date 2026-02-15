@@ -1,19 +1,18 @@
-/*
+/**
  * 	add a property to selected objects
  */
+const Common = require(__DIR__ + "/_lib/Common.js");
+const Selection = require(__DIR__ + "/_lib/selection.js");
 
-load(__DIR__ + "_lib/Common.js");
-load(__DIR__ + "_lib/selection.js");
-
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
 let propName = window.prompt("Please enter property", "propertyName");
 let propValue = window.prompt(`Value for ${propName}`, "propertyValue");
 
-let collection = getSelection($(selection), "concept");
-applyToCollection(collection, addProperty, [propName, propValue]);
+let collection = Selection.getSelection($(selection), "concept");
+Selection.applyToCollection(collection, addProperty, [propName, propValue]);
 
-finishConsoleLog();
+Common.finishConsoleLog();
 
 function addProperty(obj, args) {
   let propName = args[0];

@@ -25,8 +25,9 @@
  *    - merge the imported folders with the original folders
  *      - run this script
  */
-console.clear();
-console.log();
+const Common = require(__DIR__ + "/../_lib/Common.js");
+
+Common.initConsoleLog(__FILE__, true);
 
 const FOLDER_PREFEX = "(import) ";
 
@@ -44,6 +45,8 @@ console.log(
   } folders with prefix '${FOLDER_PREFEX}' of total of ${nrFoldersStart} folders`
 );
 console.log(`${nrFoldersRemaining} folders remaining`);
+
+Common.finishConsoleLog();
 
 /**
  * mergeImportedFolders()

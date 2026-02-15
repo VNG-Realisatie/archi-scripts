@@ -23,15 +23,13 @@
  * In the view the selected elements are 'expanded' with their missing relations
  * 
  */
-load("../_lib/Common.js");
-load("../_lib/selection.js");
-load("../_lib/archi_folders.js");
-load("include_view.js");
+const Common = require(__DIR__ + "../_lib/Common");
+const View = require(__DIR__ + "include_view");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
-let param = get_default_parameter(__FILE__);
-param.action = GENERATE_SINGLE
+let param = View.get_default_parameter(__FILE__);
+param.action = View.GENERATE_SINGLE
 
-generate_view(param);
-finishConsoleLog();
+View.generate_view(param);
+Common.finishConsoleLog();

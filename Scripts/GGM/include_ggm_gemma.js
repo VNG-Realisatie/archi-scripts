@@ -1,13 +1,21 @@
-/**
- * GGM - GEMMA functies
- *
- * - maken van de GEMMA bedrijfsobjectmodellen gebaseerd op GGM data-objecten
- * - definities van oa property names, folders en file-directies
- */
-console.log("Loading include_ggm_gemma.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const DefaultConfig = require(__DIR__ + "/config.default.js");
 
-// Windows directory with CSV import files
-load("config.default.js");
+let Config = DefaultConfig;
+try {
+  const LocalConfig = require(__DIR__ + "/config.js");
+  if (LocalConfig && Object.keys(LocalConfig).length > 0) {
+    Config = Object.assign({}, DefaultConfig, LocalConfig);
+    // Deep merge csvFiles
+    if (LocalConfig.csvFiles) {
+      Config.csvFiles = Object.assign({}, DefaultConfig.csvFiles, LocalConfig.csvFiles);
+    }
+  }
+} catch (e) {
+  // Use DefaultConfig
+}
+
+console.log("Loading include_ggm_gemma.js");
 console.log("CSV folder: " + Config.folderPath);
 
 // folders in GEMMA ArchiMate-model
@@ -45,10 +53,7 @@ const PROP_SPECIALIZATON = "GGM-specialisaties";
 const PROP_ALTERNATE_NAME = "Alternate name";
 
 // GEMMA properties
-if (PROP_ID == undefined) {
-  // global type var, because const is block scoped
-  var PROP_ID = "Object ID"; // property with GEMMA GUID, assigned to all objects and relations
-}
+const PROP_ID = "Object ID"; // property with GEMMA GUID, assigned to all objects and relations
 const PROP_SYNC_WARNING = "Let op";
 const PROP_ARCHIMATE_TYPE = "ArchiMate-type";
 const PROP_BRON = "Bron";
@@ -154,21 +159,21 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
  * Delete business object for GGM data-object with changed ArchiMate-type
  */
 function deleteBusinessObjects(dataObjects, stats) {
-  debugStackPush(false);
+  Common.debugStackPush(false);
   console.log(`Delete business object for GGM data-object with changed ArchiMate-type:`);
 
   dataObjects
     .filter((dataObject) => dataObject.prop(PROP_ARCHIMATE_TYPE) == "Data object")
     .outRels("realization-relationship")
     .each((rel) => {
-      debug(`rel.target: ${rel.target}`);
+      Common.debug(`rel.target: ${rel.target}`);
       if (rel.name == REALIZATION_LABEL) {
         console.log(`> delete business-object ${rel.target}`);
         rel.target.delete();
         stats.nr_delete += 1;
       }
     });
-  debugStackPop();
+  Common.debugStackPop();
 }
 
 /**
@@ -177,7 +182,7 @@ function deleteBusinessObjects(dataObjects, stats) {
  * - copy properties
  */
 function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
-  debugStackPush(false);
+  Common.debugStackPush(false);
   let index = [];
 
   console.log(`\nProcessing data-object relations to business-object relations`);
@@ -219,7 +224,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
         }
       }
     });
-  debugStackPop();
+  Common.debugStackPop();
 }
 
 /**
@@ -410,7 +415,7 @@ function updateAlternateName(archiObjColl) {
 
       if (relBeleidsdomein.size() == 1) {
         let alternateName = `${duplicateItem.archiObj.name} (${relBeleidsdomein.first().source.name})`;
-        debug(`- ${duplicateItem.archiObj.name} > ${alternateName}`);
+        Common.debug(`- ${duplicateItem.archiObj.name} > ${alternateName}`);
         // item.archiObj.name = alternateName;
         if (duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME) != alternateName) {
           console.log(
@@ -457,7 +462,7 @@ function updateAlternateName(archiObjColl) {
 }
 
 /**
- * return the from the data-object created business-object
+ * Find the from the data-object created business-object
  */
 function find_GGM_GEMMA_object(searchObject) {
   let foundObject;
@@ -474,7 +479,7 @@ function find_GGM_GEMMA_object(searchObject) {
 
 // set Object ID for object without one
 function setObjectID(obj) {
-  if (!obj.prop(PROP_ID)) obj.prop(PROP_ID, generateUUID());
+  if (!obj.prop(PROP_ID)) obj.prop(PROP_ID, Common.generateUUID());
   // else debug(`Keep ${PROP_ID}: ${obj}`);
 }
 
@@ -483,4 +488,61 @@ function setObjectID(obj) {
  */
 function concept(o) {
   return o.concept ? o.concept : o;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    Config,
+    FOLDER_SYNC_GGM,
+    FOLDER_GGM_DATAOBJECT,
+    FOLDER_GGM_BELEIDSDOMEIN,
+    FOLDER_BELEIDSDOMEIN,
+    FOLDER_BEDRIJFSOBJECT,
+    VIEW_NAME_SUFFIX,
+    PROP_OBJECT_ID_SYNC,
+    PROP_GGM_ID,
+    PROP_GGM_ID_IMPORTED,
+    PROP_GGM_NAAM,
+    PROP_GGM_DEFINITIE,
+    PROP_GGM_TOELICHTING,
+    PROP_GGM_SYNONIEMEN,
+    PROP_GGM_BRON,
+    PROP_GGM_UML_TYPE,
+    PROP_GGM_TYPE,
+    PROP_GGM_DATUM_TIJD,
+    PROP_GGM_SYNC,
+    PROP_GGM_SYNC_DELETED,
+    PROP_GGM_SYNC_CREATED,
+    PROP_GGM_IMPORT,
+    PROP_GGM_IMPORT_DELETED,
+    PROP_GGM_IMPORT_CREATED,
+    PROP_SPECIALIZATON,
+    PROP_ALTERNATE_NAME,
+    PROP_ID,
+    PROP_SYNC_WARNING,
+    PROP_ARCHIMATE_TYPE,
+    PROP_BRON,
+    PROP_GEMMA_URL,
+    PROP_GEMMA_TYPE,
+    PROP_GEMMA_GGM_STATUS,
+    LABEL_DATUM_TIJD,
+    GGM_MEMO_TEXT,
+    GGM_TYPE_BELEIDSDOMEIN,
+    GEMMA_URL,
+    REALIZATION_LABEL,
+    GEMMA_TYPE_BELEIDSDOMEIN,
+    GEMMA_TYPE_BEDRIJFSOBJECT,
+    GEMMA_GGM_STATUS_LEEG,
+    GEMMA_GGM_STATUS_NIEUW,
+    updateBusinessObjects,
+    deleteBusinessObjects,
+    updateBusinessObjectRelations,
+    updateBeleidsdomeinRelations,
+    updateObjectProp,
+    updateViewProp,
+    updateAlternateName,
+    find_GGM_GEMMA_object,
+    setObjectID,
+    concept
+  };
 }

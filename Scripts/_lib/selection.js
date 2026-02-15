@@ -66,6 +66,7 @@ function getSelectionArray(startSelection, selector) {
  * @returns {object} - collection with selected objects
  */
 function getSelection(startSelection, selector = "*") {
+  startSelection = $(startSelection);
   if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
@@ -112,6 +113,7 @@ function getSelection(startSelection, selector = "*") {
  * @returns {object} - collection with selected objects
  */
 function getVisualSelection(startSelection, selector = "*") {
+  startSelection = $(startSelection);
   if (model == null || model.id == null) throw "Nothing selected. Select views or one or more objects on a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
@@ -172,4 +174,16 @@ function getVisualSelection(startSelection, selector = "*") {
  */
 function concept(o) {
   return o.concept ? o.concept : o;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    getSelection,
+    getSelectionArray,
+    getVisualSelection,
+    applyToCollection,
+    concept,
+    SELECTION_LOADED,
+    DIAGRAM_OBJECTS,
+  };
 }

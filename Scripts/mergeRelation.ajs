@@ -1,4 +1,4 @@
-/*
+/**
  * Merge all duplicate relations with the selected relations
  *  - duplicate relations have the same type, source, target and name
  *  - the selected concepts are kept, the duplicates are merged and then deleted
@@ -13,10 +13,9 @@
  *
  * 06 2023: logic is now part of includeMergeConcept
  */
+const Common = require(__DIR__ + "/_lib/Common.js");
+const Merge = require(__DIR__ + "/includeMergeConcept.js");
 
-load(__DIR__ + "_lib/Common.js");
-load("includeMergeConcept.js");
-
-initConsoleLog(__FILE__);
-mergeElementOrRelation(OBJECT_TYPE_RELATION);
-finishConsoleLog();
+Common.initConsoleLog(__FILE__);
+Merge.mergeElementOrRelation(Merge.OBJECT_TYPE_RELATION);
+Common.finishConsoleLog();

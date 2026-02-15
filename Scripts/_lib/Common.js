@@ -261,3 +261,30 @@ function getFormattedDateTime() {
 
   return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    initConsoleLog,
+    finishConsoleLog,
+    startCounter,
+    endCounter,
+    check_JS_Engine,
+    info,
+    debug,
+    debugStackPush,
+    debugStackPop,
+    logMessage,
+    getFuncName,
+    generateUUID,
+    uuidv4,
+    formatRelation,
+    getFormattedDateTime,
+    COMMON_FUNCTIONS_LOADED,
+    JS_ENGINES,
+    JS_ENGINES_TEXT,
+    FORMAT_WITH_TYPES,
+    FORMAT_NO_TYPES,
+    FORMAT_REVERSED,
+    FORMAT_NOT_REVERSED,
+  };
+}

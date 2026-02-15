@@ -7,13 +7,9 @@
  * - en consistent maken met kennismodel => composition applicatieservice wordt aggregatien
  */
 
-const OLD_RELATION_TYPE = "Old_relation_type";
-const FILENAME_SPLIT = /^.*[\\\/]/;
-const SCRIPT_NAME = __FILE__.replace(FILENAME_SPLIT, "");
+const Common = require(__DIR__ + "/../../_lib/Common.js");
 
-console.show();
-console.clear();
-console.log(`Running script "${SCRIPT_NAME}"\n`);
+Common.initConsoleLog(__FILE__, true);
 
 try {
   if ($(".Doelgroep").filter("grouping").size() > 0) {
@@ -38,10 +34,12 @@ try {
         .each((rel) => changeChildAF(0, rel.target));
     });
   }
-} catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-console.log(`\nScript "${SCRIPT_NAME}" finished`);
+
+Common.finishConsoleLog();
+
+const OLD_RELATION_TYPE = "Old_relation_type";
 
 /**
  * Recursieve functie

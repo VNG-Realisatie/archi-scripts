@@ -1,14 +1,12 @@
 /**
  * Layout voor overerving view
  */
+const Common = require(__DIR__ + "../../_lib/Common");
+const View = require(__DIR__ + "../include_view");
 
-load("../../_lib/Common.js");
-load("../../_lib/selection.js");
-load("../../_lib/archi_folders.js");
-load("../include_view.js");
 
 var param = {
-  action: LAYOUT,
+  action: View.LAYOUT,
   includeElementType: [],
   includeRelationType: [],
   layoutReversed: [
@@ -56,6 +54,6 @@ var param = {
   debug: false,
 };
 
-initConsoleLog(__FILE__, true);
-generate_view(param);
-finishConsoleLog();
+Common.initConsoleLog(__FILE__, true);
+View.generate_view(param);
+Common.finishConsoleLog();

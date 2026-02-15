@@ -18,13 +18,13 @@
  *  - and are shown in the console with a red warning
  */
 
-console.show();
-console.clear();
-
 const ORG_TYPE_PROPERTY_NAME = "Type before conversion";
 const CONVERT_TO_TYPE = "association-relationship";
 
 function convertConcept(selection, filename) {
+  console.show();
+  console.clear();
+
   try {
     let convertToType = getTypeFromFilename(filename);
 
@@ -94,4 +94,10 @@ function getTypeFromFilename(filename) {
 
 function concept(o) {
   return o.concept ? o.concept : o;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    convertConcept
+  };
 }

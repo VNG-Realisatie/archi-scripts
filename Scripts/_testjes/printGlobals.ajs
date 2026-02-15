@@ -1,0 +1,14 @@
+console.log("jArchi globals:");
+console.log("----------------");
+
+function printGlobal(name, value) {
+  console.log(name + " = " + value);
+}
+
+printGlobal("__DIR__", __DIR__);
+printGlobal("__FILE__", __FILE__);
+printGlobal("__LINE__", __LINE__);
+printGlobal("__SCRIPTS_DIR__", __SCRIPTS_DIR__);
+
+console.log("----------------");
+console.log("Done.");

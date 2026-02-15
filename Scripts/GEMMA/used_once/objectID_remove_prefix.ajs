@@ -7,12 +7,9 @@
  *
  */
 
-// Show output in the console
-console.show();
-console.clear();
-var filepath = __FILE__.split("/");
-var scriptName = filepath[filepath.length - 1];
-console.log(`Executing script "${scriptName}"...\n`);
+const Common = require(__DIR__ + "/../../_lib/Common.js");
+
+Common.initConsoleLog(__FILE__, true);
 
 // label_ID_property for finding existing elements
 var label_ID_property = "Object ID";
@@ -45,7 +42,7 @@ if (notValidList.length > 0) {
 	console.log(`\nAll [${label_ID_property}] valid :)`);
 }
 
-console.log(`\nScript "${scriptName}" finished`);
+Common.finishConsoleLog();
 
 /**
  *

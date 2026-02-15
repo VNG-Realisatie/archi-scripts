@@ -14,58 +14,54 @@
  * - styled de views
  * - set de eigenschappen van de views
  */
-load("../_lib/Common.js");
-initConsoleLog(__FILE__, true);
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Selection = require(__DIR__ + "/../_lib/selection.js");
+const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const View = require(__DIR__ + "/../View/include_view.js");
+const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
 
-load("../_lib/selection.js");
-load("../_lib/archi_folders.js");
-load("../View/include_view.js");
-load("include_ggm_gemma.js");
+const FOLDER_SYNC_GGM_VIEWS = GgmGemma.FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 
-const FOLDER_SYNC_GGM_VIEWS = FOLDER_SYNC_GGM + "/GGM naar GEMMA";
+Common.initConsoleLog(__FILE__, true);
 
 try {
   console.log();
-  let GGMdomeinen = getSelection($(selection), "grouping");
+  let GGMdomeinen = Selection.getSelection($(selection), "grouping");
   GGMdomeinen = GGMdomeinen.filter(
     (grouping) =>
-      grouping.prop(PROP_GGM_TYPE) == GGM_TYPE_BELEIDSDOMEIN && 
-      grouping.prop(PROP_GEMMA_GGM_STATUS) != GEMMA_GGM_STATUS_LEEG
+      grouping.prop(GgmGemma.PROP_GGM_TYPE) == GgmGemma.GGM_TYPE_BELEIDSDOMEIN && 
+      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG
   );
 
   if (GGMdomeinen.size() < 1) {
     console.log("Geen beleidsdomeinen geselecteerd, selecteer één of meer beleidsdomeinen");
   } else {
-    // console.log(`Genereer de views voor ${GGM_Beleidsdomeinen.size()} GGM beleidsdomeinen\n`);
-    // let dataObjectBeleidsdomeinen = $();
-    // GGM_Beleidsdomeinen.each((bd) => dataObjectBeleidsdomeinen.add(concept(bd))); //
-
     console.log(`Genereer GGM data-object views`);
     console.log(`==============================`);
-    let param = read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
-    param.viewFolder = FOLDER_GGM_DATAOBJECT;
-    param.viewNameSuffix = VIEW_NAME_SUFFIX;
+    let param = View.read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
+    param.viewFolder = GgmGemma.FOLDER_GGM_DATAOBJECT;
+    param.viewNameSuffix = GgmGemma.VIEW_NAME_SUFFIX;
 
-    let generatedViews = generate_view(param, GGMdomeinen);
+    let generatedViews = View.generate_view(param, GGMdomeinen);
     styleLabelsProperties(generatedViews);
   }
 
   console.log();
-  let GEMMA_Beleidsdomeinen = getSelection($(selection), "grouping");
+  let GEMMA_Beleidsdomeinen = Selection.getSelection($(selection), "grouping");
   GEMMA_Beleidsdomeinen = GEMMA_Beleidsdomeinen.filter(
     (grouping) =>
-      grouping.prop(PROP_GEMMA_TYPE) == GEMMA_TYPE_BELEIDSDOMEIN &&
-      grouping.prop(PROP_GEMMA_GGM_STATUS) != GEMMA_GGM_STATUS_LEEG
+      grouping.prop(GgmGemma.PROP_GEMMA_TYPE) == GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN &&
+      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG
   );
   if (GEMMA_Beleidsdomeinen.size() < 1) {
     console.log("Geen beleidsdomeinen met inhoud voor GEMMA");
   } else {
     console.log(`Genereer GEMMA bedrijfsobjectmodellen`);
     console.log(`=====================================`);
-    param = read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
-    param.viewFolder = FOLDER_SYNC_GGM_VIEWS + FOLDER_BEDRIJFSOBJECT;
+    let param = View.read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
+    param.viewFolder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
 
-    let generatedViews = generate_view(param, GEMMA_Beleidsdomeinen);
+    let generatedViews = View.generate_view(param, GEMMA_Beleidsdomeinen);
     styleLabelsProperties(generatedViews);
   }
   console.log();
@@ -73,7 +69,7 @@ try {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
-finishConsoleLog();
+Common.finishConsoleLog();
 
 /**
  *
@@ -88,7 +84,7 @@ function styleLabelsProperties(views) {
   console.log("\nSet view properties");
   setLabelBeleidsdomein(views);
   console.log("\nUpdate view properties");
-  views.each((view) => updateViewProp(view));
+  views.each((view) => GgmGemma.updateViewProp(view));
 }
 
 /**
@@ -107,25 +103,29 @@ function styleView(views) {
   console.log();
 
   // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
-  applyToCollection(getVisualSelection(views, "data-object"), styleDataObjects);
+  applyToCollection(Selection.getVisualSelection(views, "data-object"), styleDataObjects);
   console.log();
 
   // tekst in het midden
-  applyToCollection(getVisualSelection(views, "business-object"), styleBusinessObjects);
+  applyToCollection(Selection.getVisualSelection(views, "business-object"), styleBusinessObjects);
   console.log();
 
   // bold font domein-grouping
-  applyToCollection(getVisualSelection(views, "grouping"), styleGroupings);
+  applyToCollection(Selection.getVisualSelection(views, "grouping"), styleGroupings);
   console.log();
 
   // specialisatie-relaties groen
-  applyToCollection(getVisualSelection(views, "specialization-relationship"), styleSpecialization);
+  applyToCollection(Selection.getVisualSelection(views, "specialization-relationship"), styleSpecialization);
   console.log();
+}
+
+function applyToCollection(collection, fn) {
+  collection.each((obj) => fn(obj));
 }
 
 function styleDataObjects(obj) {
   obj.textPosition = TEXT_POSITION.CENTER;
-  switch (obj.prop(PROP_ARCHIMATE_TYPE)) {
+  switch (obj.prop(GgmGemma.PROP_ARCHIMATE_TYPE)) {
     case "Data object":
       obj.opacity = 255;
       obj.gradient = GRADIENT.NONE;
@@ -143,9 +143,9 @@ function styleDataObjects(obj) {
       obj.fillColor = "#C0C0C0"; // "Silver"
       break;
   }
-  if (obj.prop(PROP_GGM_UML_TYPE) == "Enumeration") {
+  if (obj.prop(GgmGemma.PROP_GGM_UML_TYPE) == "Enumeration") {
     obj.opacity = 100;
-    obj.labelExpression = `\${name}\n<<\${property:${PROP_GGM_UML_TYPE}}>>`;
+    obj.labelExpression = `\${name}\n<<\${property:${GgmGemma.PROP_GGM_UML_TYPE}}>>`;
   }
 }
 

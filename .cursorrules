@@ -1,0 +1,13 @@
+Rules for AI Assistant:
+
+1.  **Refactoring**: Always use CommonJS modules (`require` with `__DIR__` and `module.exports`) instead of global mixins.
+2.  **Naming**: Use **PascalCase** for require variables (e.g., `const Showdown = require("showdown")`).
+3.  **Dependencies**: Use explicit namespaces (e.g., `Common.debug()`) rather than polluting the global scope.
+4.  **No NPM**: Vendor dependencies manually in `Scripts/node_modules/`. Do not assume `npm` is available or desired.
+5.  **Paths**: Use `__DIR__` for robust relative path resolution in `require()`.
+6.  **Logging**: Use `Common.debug()` over `console.log()` for internal debugging.
+7.  **Java Integ**: Use explicit Java types (`Java.type()`) instead of `with(JavaImporter(...))`.
+
+11. **Refactoring Scope**: Touch only for namespace corrections, unless converting global mixins to CommonJS modules.
+12. **Preservation**: Leave comments completely untouched.
+13. **Preservation**: Leave parameter definitions untouched.

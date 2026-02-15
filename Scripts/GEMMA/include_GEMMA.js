@@ -6,6 +6,8 @@
  * (c) 2024 Mark Backer
  */
 
+const Common = require(__DIR__ + "/../_lib/Common.js");
+
 // Label of the property with the ID
 const PROP_ID = "Object ID";
 const PROP_RELEASE = "Release";
@@ -49,7 +51,7 @@ function setObjectID(objects) {
         `Replacing ${PROP_ID} in ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""}\n`
       );
       const replacedIDs = objectsWithUnvalidID.sort().map((o) => {
-        let id_generated = generateUUID();
+        let id_generated = Common.generateUUID();
         const oldID = o.prop(PROP_ID);
         o.prop(PROP_ID, id_generated);
         return { Object: o.toString(), "Old Object ID": oldID, "New Object ID": id_generated };
@@ -63,7 +65,7 @@ function setObjectID(objects) {
         `\nAdding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}\n`
       );
       const newIDs = objectsWithoutID.sort().map((o) => {
-        let id_generated = generateUUID();
+        let id_generated = Common.generateUUID();
         o.prop(PROP_ID, id_generated);
         return { Object: o.toString(), "New Object ID": id_generated };
       });
@@ -150,4 +152,16 @@ function logInColumns(data, headers) {
     const rowString = headers.map((header, i) => (row[header] || "").toString().padEnd(columnWidths[i])).join(" | ");
     console.log(rowString);
   });
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    PROP_ID,
+    PROP_RELEASE,
+    gatherObjects,
+    setObjectID,
+    checkDuplicateID,
+    checkUnvalidID,
+    logInColumns,
+  };
 }

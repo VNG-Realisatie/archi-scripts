@@ -4,9 +4,9 @@
  * 	Report views with more than one font
  */
 
-load(__DIR__ + "../_lib/Common.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
 
-initConsoleLog(__FILE__);
+Common.initConsoleLog(__FILE__);
 
 var fonts = new Set();
 
@@ -41,4 +41,4 @@ for (let item of fonts) {
 }
 console.log(`\n${model} heeft ${fonts.size} fonts > ${fontString}`);
 
-finishConsoleLog();
+Common.finishConsoleLog();

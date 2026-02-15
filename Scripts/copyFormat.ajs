@@ -14,10 +14,10 @@
  * 2023
  * - use selection.js functions
  */
-load(__DIR__ + "_lib/Common.js");
-load(__DIR__ + "_lib/selection.js");
+const Common = require(__DIR__ + "/_lib/Common.js");
+const selectionMod = require(__DIR__ + "/_lib/selection.js");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
 try {
   let copyFrom = $(selection).first();
@@ -28,7 +28,7 @@ try {
       console.error(`> Selected none or multiple objects. Select one object with the formatting`);
     } else {
       selectedView = copyFrom.view
-      let collection = getVisualSelection($(selectedView), copyFrom.type);
+      let collection = selectionMod.getVisualSelection($(selectedView), copyFrom.type);
       collection.not($(copyFrom)).each((copyToObj) => copyFormat(copyFrom, copyToObj));
 
       console.log(`> Formatting copied to ${collection.size()} objects`);
@@ -37,7 +37,7 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-finishConsoleLog();
+Common.finishConsoleLog();
 
 /**
  * 	copy formatting of one object to another

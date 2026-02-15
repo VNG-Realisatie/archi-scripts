@@ -1,25 +1,25 @@
 /**
  * Opmaken van de GGM data-objectenviews en de GEMMA bedrijfsobjectenviews
  */
-load("../_lib/selection.js");
-load("../_lib/Common.js");
-load("include_ggm_gemma.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Selection = require(__DIR__ + "/../_lib/selection.js");
+const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
 try {
   // kleur voor onderscheid op PROP_ARCHIMATE_TYPE (data- en bedrijfsobject)
-  applyToCollection(getVisualSelection($(selection), "data-object"), styleDataObjects);
+  applyToCollection(Selection.getVisualSelection($(selection), "data-object"), styleDataObjects);
 
   // bold font domein-grouping
   console.log();
-  applyToCollection(getVisualSelection($(selection), "grouping"), styleGroupings);
+  applyToCollection(Selection.getVisualSelection($(selection), "grouping"), styleGroupings);
 
   // specialisatie-relaties groen
   console.log();
-  applyToCollection(getVisualSelection($(selection), "specialization-relationship"), styleSpecialization);
+  applyToCollection(Selection.getVisualSelection($(selection), "specialization-relationship"), styleSpecialization);
 
-  let views = getSelection($(selection), "view");
+  let views = Selection.getSelection($(selection), "view");
 
   // toon Beleidsdomein voor data- of bedrijfsobjecten die niet in een Beleidsdomein zijn genest
   console.log();
@@ -29,10 +29,56 @@ try {
   // set view properties
   console.log();
   views.each((view) => {
-    updateViewProp(view);
+    GgmGemma.updateViewProp(view);
   });
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
-finishConsoleLog();
+Common.finishConsoleLog();
+
+function applyToCollection(collection, fn) {
+  collection.each((obj) => fn(obj));
+}
+
+function setLabelExpression(obj) {
+  obj.labelExpression = "${name}\n($aggregation:source{name})";
+}
+
+function styleDataObjects(obj) {
+  obj.textPosition = TEXT_POSITION.CENTER;
+  switch (obj.prop(GgmGemma.PROP_ARCHIMATE_TYPE)) {
+    case "Data object":
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = null; // default color blue
+      break;
+    case "Business object":
+      obj.opacity = 200;
+      obj.gradient = GRADIENT.LEFT;
+      obj.fillColor = "#FFFFCC"; // "Cream"
+      break;
+
+    default:
+      obj.opacity = 255;
+      obj.gradient = GRADIENT.NONE;
+      obj.fillColor = "#C0C0C0"; // "Silver"
+      break;
+  }
+  if (obj.prop(GgmGemma.PROP_GGM_UML_TYPE) == "Enumeration") {
+    obj.opacity = 100;
+    obj.labelExpression = `\${name}\n<<\${property:${GgmGemma.PROP_GGM_UML_TYPE}}>>`;
+  }
+}
+
+function styleGroupings(obj) {
+  obj.fontSize = 12;
+  obj.fontStyle = "bold";
+  obj.textAlignment = TEXT_ALIGNMENT.LEFT;
+  obj.fillColor = "#FAFAFA";
+}
+
+function styleSpecialization(obj) {
+  obj.lineColor = "#5DADE2"; // Set the line color to blue
+  obj.lineWidth = 2;
+}

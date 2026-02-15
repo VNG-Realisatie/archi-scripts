@@ -9,10 +9,10 @@
  *
  */
 
-load(__DIR__ + "../_lib/selection.js");
+const Selection = require(__DIR__ + "/../_lib/selection.js");
 
-let collection = getVisualSelection($(selection), "*");
-applyToCollection(collection, fontReset);
+let collection = Selection.getVisualSelection($(selection), "*");
+Selection.applyToCollection(collection, fontReset);
 console.log("Script finished\n");
 
 function fontReset(obj) {

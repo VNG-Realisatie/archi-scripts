@@ -28,52 +28,52 @@
  *    - uniek Object ID (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
  *    - kopie Object ID in afgeleide aggregatie relaties domein -> bedrijfsobject
  */
-load("../_lib/Common.js");
-initConsoleLog(__FILE__, true);
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Selection = require(__DIR__ + "/../_lib/selection.js");
+const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
 
-load("../_lib/selection.js");
-load("../_lib/archi_folders.js");
-load("include_ggm_gemma.js");
+Common.initConsoleLog(__FILE__, true);
 
 try {
-  debugStackPush(false);
+  Common.debugStackPush(false);
 
   // _Sync folders
-  let businessObjectFolder = getFolderPath("/Business" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
-  let relationsBedrijfsobjectFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BEDRIJFSOBJECT);
-  let aggregatedByBeleidsdomeinFolder = getFolderPath("/Relations" + FOLDER_SYNC_GGM + FOLDER_BELEIDSDOMEIN);
+  let businessObjectFolder = ArchiFolders.getFolderPath("/Business" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BEDRIJFSOBJECT);
+  let relationsBedrijfsobjectFolder = ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BEDRIJFSOBJECT);
+  let aggregatedByBeleidsdomeinFolder = ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BELEIDSDOMEIN);
 
   // relatie met data-objecten
-  let realizesBedrijfsobjectFolder = getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
+  let realizesBedrijfsobjectFolder = ArchiFolders.getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
 
   let stats_BO = { nr_update: 0, nr_create: 0, nr_delete: 0, nr_no_updates: 0 };
   let stats_relBO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
   let stats_relBD = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
 
-  let selectedDataObjects = getSelection($(selection), "data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
+  let selectedDataObjects = Selection.getSelection($(selection), "data-object").filter((obj) => obj.prop(GgmGemma.PROP_GGM_ID_IMPORTED));
   if (selectedDataObjects.size() == 0) {
-    selectedDataObjects = $("data-object").filter((obj) => obj.prop(PROP_GGM_ID_IMPORTED));
+    selectedDataObjects = $("data-object").filter((obj) => obj.prop(GgmGemma.PROP_GGM_ID_IMPORTED));
     console.log(`Selected ${selectedDataObjects.size()} GGM data-object\n`);
   }
 
   // First delete business object for GGM data-object with changed ArchiMate-type
-  deleteBusinessObjects(selectedDataObjects, stats_BO);
+  GgmGemma.deleteBusinessObjects(selectedDataObjects, stats_BO);
 
   // Next create and update business object
-  let updatedBusinessObjects = updateBusinessObjects(
+  let updatedBusinessObjects = GgmGemma.updateBusinessObjects(
     selectedDataObjects,
     businessObjectFolder,
     realizesBedrijfsobjectFolder,
     stats_BO
   );
-  updateBusinessObjectRelations(selectedDataObjects, relationsBedrijfsobjectFolder, stats_relBO);
-  updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
+  GgmGemma.updateBusinessObjectRelations(selectedDataObjects, relationsBedrijfsobjectFolder, stats_relBO);
+  GgmGemma.updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
 
   console.log(`Update alternate names for duplicates`);
   console.log(`> data-objects:`);
-  updateAlternateName(selectedDataObjects); // also for GGM data-objecten
+  GgmGemma.updateAlternateName(selectedDataObjects); // also for GGM data-objecten
   console.log(`> bedrijfsobjecten:`);
-  updateAlternateName(updatedBusinessObjects);
+  GgmGemma.updateAlternateName(updatedBusinessObjects);
 
   console.log();
   console.log("Statistieken");
@@ -88,8 +88,8 @@ try {
     `> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated, ${stats_relBD.nr_no_updates} no updates`
   );
 
-  debugStackPop();
+  Common.debugStackPop();
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-finishConsoleLog();
+Common.finishConsoleLog();

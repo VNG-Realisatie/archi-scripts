@@ -8,11 +8,11 @@
  * - a view                       => toggle figure of all elements on the view
  * - a folder with views          => toggle figure of all elements of all views in the folder(s)
  */
-load(__DIR__ + "../_lib/selection.js");
+const Selection = require(__DIR__ + "/../_lib/selection.js");
 
 console.log("\nToggle figure of objects of selected type\n");
-let collection = getVisualSelection($(selection), "element");
-applyToCollection(collection, toggleFigure);
+let collection = Selection.getVisualSelection($(selection), "element");
+Selection.applyToCollection(collection, toggleFigure);
 
 function toggleFigure(obj) {
   if (typeof this.only_once == "undefined") {

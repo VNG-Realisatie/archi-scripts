@@ -1,0 +1,7 @@
+const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
+
+console.log("Verified Config:");
+console.log("- folderPath: " + GgmGemma.Config.folderPath);
+console.log("- csvFiles.elements: " + GgmGemma.Config.csvFiles.elements);
+console.log("- csvFiles.relations: " + GgmGemma.Config.csvFiles.relations);
+console.log("- getPath('elements'): " + GgmGemma.Config.getPath("elements"));

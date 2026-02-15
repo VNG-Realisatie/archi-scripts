@@ -4,18 +4,18 @@
  * 	give an objecttype and filename for exporting without a filename prompt
  */
 
-load(__DIR__ + "../_lib/Common.js");
-load("include_import.js");
+const Common = require(__DIR__ + "/../_lib/Common.js");
+const Import = require(__DIR__ + "/include_import.js");
 
-initConsoleLog(__FILE__);
+Common.initConsoleLog(__FILE__);
 
-let dir ="C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/"
+let dir = "C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/";
 
 // let fileName = "2021-05-27_GEMMA-import-en-publicatietest_element.csv"
 // let fileName = "2021-05-27_GEMMA-import-en-publicatietest_relation.csv"
 // let fileName = "2021-05-27_GEMMA-import-en-publicatietest_view.csv"
 let fileName = "BO roundtrip element.csv"
 
-importObjects(dir + fileName);
+Import.importObjects(dir + fileName);
 
-finishConsoleLog();
+Common.finishConsoleLog();
