@@ -42,7 +42,7 @@ function initConsoleLog(pFile, pClear) {
   try {
     ArchiVersion = $.process.release.archiVersion;
     jArchiVersion = $.process.release.jArchiVersion;
-  } catch (error) {}
+  } catch (error) { }
 
   let pattern = /^.*[\\\/]/;
   _commonScriptName = pFile.replace(pattern, "");
@@ -126,7 +126,7 @@ function check_JS_Engine(required_engine) {
  * @param msg string information message
  */
 function info(msg) {
-  logMessage(infoStack, "Info", msg);
+  _logMessage(infoStack, "Info", msg);
 }
 
 function debugStackPush(debugSwitch) {
@@ -143,7 +143,7 @@ function debugStackPop() {
  * @param msg string information message
  */
 function debug(msg) {
-  logMessage(debugStack, "Debug", msg);
+  _logMessage(debugStack, "Debug", msg);
 }
 
 /**
@@ -151,7 +151,7 @@ function debug(msg) {
  *   show message with prefix
  * @param msg string information message
  */
-function logMessage(logSwitch, logType, msg) {
+function _logMessage(logSwitch, logType, msg) {
   if (logSwitch[logSwitch.length - 1]) {
     if (msg.startsWith("\n")) {
       console.log();
@@ -160,7 +160,7 @@ function logMessage(logSwitch, logType, msg) {
 
     let funcName = "";
     if (JS_ENGINES.indexOf($.process.engine) >= JS_ENGINES.indexOf(JS_ENGINE_GRAALVM)) {
-      funcName = " " + getFuncName();
+      funcName = " " + _getFuncName();
     }
     console.log(`${">".repeat(logSwitch.length)} ${logType}${funcName}: ${msg}`);
   }
@@ -169,7 +169,7 @@ function logMessage(logSwitch, logType, msg) {
 /**
  * See https://github.com/winstonjs/winston/issues/200
  */
-function getFuncName() {
+function _getFuncName() {
   const STACK_LEVEL_START = 4; // archi > calling function > debug > logMessage
 
   let stack = new Error().stack;
@@ -233,7 +233,7 @@ const FORMAT_WITH_TYPES = true
 const FORMAT_NO_TYPES = false
 const FORMAT_REVERSED = true
 const FORMAT_NOT_REVERSED = false
-function formatRelation(rel, withTypes=FORMAT_NO_TYPES, reversed=FORMAT_NOT_REVERSED) {
+function formatRelation(rel, withTypes = FORMAT_NO_TYPES, reversed = FORMAT_NOT_REVERSED) {
   let relLeft = withTypes ? rel.source : rel.source.name
   let relLabel = rel.name ? rel.name : "[geen label]"
   let relMiddle = `--${relLabel}-->`;
@@ -299,8 +299,6 @@ if (typeof module !== "undefined" && module.exports) {
     debug,
     debugStackPush,
     debugStackPop,
-    logMessage,
-    getFuncName,
     generateUUID,
     uuidv4,
     formatRelation,

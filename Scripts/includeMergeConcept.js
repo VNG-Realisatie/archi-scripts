@@ -45,7 +45,7 @@ function mergeElementOrRelation(conceptType) {
     console.log();
     let count = { merged: 0, noduplicates: 0, skipped: 0, duplicates: 0 };
 
-    selectedConcepts.each((concept) => mergeConcept(concept, count));
+    selectedConcepts.each((concept) => _mergeConcept(concept, count));
 
     console.log(`Selected ${conceptType}s: ${selectedConcepts.size()}`);
     console.log(`- merged: ${count.merged}`);
@@ -57,15 +57,12 @@ function mergeElementOrRelation(conceptType) {
   }
 }
 
-/**
- * merge a concept with its duplicates
- */
-function mergeConcept(selectedConcept, count) {
+function _mergeConcept(selectedConcept, count) {
   // check if the concept still exists in the model, can be deleted as a duplicate
   if (selectedConcept.model) {
     let primary = Common.concept(selectedConcept);
 
-    let duplicateList = getDuplicates(primary);
+    let duplicateList = _getDuplicates(primary);
     if (duplicateList.size() > 0) {
       if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
         console.log(`- ${primary}`);
@@ -83,8 +80,8 @@ function mergeConcept(selectedConcept, count) {
         console.log(`    folder = ${ArchiFolders.printFolderPath(duplicate)}`);
         console.log(`    id     = ${duplicate.id}`);
 
-        prepareProperties(primary, duplicate);
-        prepareRelations(primary, duplicate);
+        _prepareProperties(primary, duplicate);
+        _prepareRelations(primary, duplicate);
 
         primary.merge(duplicate);
         duplicate.delete();
@@ -103,7 +100,7 @@ function mergeConcept(selectedConcept, count) {
   }
 }
 
-function getDuplicates(primary) {
+function _getDuplicates(primary) {
   let duplicateList = $();
 
   if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
@@ -128,7 +125,7 @@ function getDuplicates(primary) {
   }
 }
 
-function prepareProperties(primary, duplicate) {
+function _prepareProperties(primary, duplicate) {
   if (primary.documentation && duplicate.documentation) {
     if (primary.documentation.trim() == duplicate.documentation.trim()) {
       duplicate.documentation = ``;
@@ -156,7 +153,7 @@ function prepareProperties(primary, duplicate) {
   });
 }
 
-function prepareRelations(primary, duplicate) {
+function _prepareRelations(primary, duplicate) {
   console.log("    - Delete duplicate incoming relation with objects:");
   $(primary)
     .inRels()
@@ -170,8 +167,8 @@ function prepareRelations(primary, duplicate) {
       });
     });
 
-    console.log("    - Delete duplicate outgoing relation with objects:");
-    $(primary)
+  console.log("    - Delete duplicate outgoing relation with objects:");
+  $(primary)
     .outRels()
     .each((rel) => {
       let duplicateOutRels = $(duplicate)
@@ -195,7 +192,9 @@ function prepareRelations(primary, duplicate) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    PROP_ID, OBJECT_TYPE_RELATION, OBJECT_TYPE_ELEMENT,
-    mergeElementOrRelation, mergeConcept, getDuplicates, prepareProperties, prepareRelations
+    PROP_ID,
+    OBJECT_TYPE_RELATION,
+    OBJECT_TYPE_ELEMENT,
+    mergeElementOrRelation,
   };
 }

@@ -38,14 +38,14 @@ function setObjectID(objects) {
   console.log(`Total number of objects to check: \t${objects.length}`);
 
   // Check for duplicates
-  const objectsWithDuplicateID = checkDuplicateID(objectsWithID);
+  const objectsWithDuplicateID = _checkDuplicateID(objectsWithID);
   if (objectsWithDuplicateID.length > 0) {
     console.log(`Not all objects have a valid ${PROP_ID}\n`);
     console.log(`Resolve the reported duplicate ${PROP_ID} by deleting one of them\n`);
     return false;
   } else {
     // Check for invalid IDs
-    const objectsWithUnvalidID = checkUnvalidID(objectsWithID);
+    const objectsWithUnvalidID = _checkUnvalidID(objectsWithID);
     if (objectsWithUnvalidID.length > 0) {
       console.log(
         `Replacing ${PROP_ID} in ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""}\n`
@@ -85,14 +85,14 @@ function setObjectID(objects) {
  * @param {Array} objectsWithID - Array of objects with IDs to check for duplicates
  * @returns {Array} An array of objects with duplicate IDs
  */
-function checkDuplicateID(objects) {
+function _checkDuplicateID(objects) {
   const objectsWithID = objects.filter((object) => object.prop(PROP_ID));
   const lookup = objectsWithID.reduce((acc, obj) => {
     acc[obj.prop(PROP_ID)] = acc[obj.prop(PROP_ID)] + 1 || 0;
     return acc;
   }, {});
 
-  const objWithDupID = objectsWithID.filter(obj => lookup[obj.prop(PROP_ID)] ).map(obj => ({
+  const objWithDupID = objectsWithID.filter(obj => lookup[obj.prop(PROP_ID)]).map(obj => ({
     "Object ID": obj.prop(PROP_ID),
     "Objects": obj.name
   }));
@@ -111,7 +111,7 @@ function checkDuplicateID(objects) {
  * @param {Array} objectsWithID - Array of objects with IDs to check for invalid IDs
  * @returns {Array} An array of objects with invalid IDs
  */
-function checkUnvalidID(objects) {
+function _checkUnvalidID(objects) {
   const objectsWithID = objects.filter((object) => object.prop(PROP_ID));
   const objectsWithUnvalidID = objectsWithID.filter((object) => unvalidGUID(object));
   function unvalidGUID(o) {
@@ -147,7 +147,5 @@ if (typeof module !== "undefined" && module.exports) {
     PROP_RELEASE,
     gatherObjects,
     setObjectID,
-    checkDuplicateID,
-    checkUnvalidID,
   };
 }

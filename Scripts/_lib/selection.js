@@ -76,7 +76,7 @@ function getSelection(startSelection, selector = "*") {
 
   // create an empty collection
   var selectedColl = $();
-  startSelection.each((obj) => addObject(obj, selector, selectedColl));
+  startSelection.each((obj) => _addObject(obj, selector, selectedColl));
 
   console.log(
     `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`
@@ -88,7 +88,7 @@ function getSelection(startSelection, selector = "*") {
    *   add the selected object to a collection.
    *   if the object is a container (model, view or folder), add all contained objects
    */
-  function addObject(obj, selector, coll) {
+  function _addObject(obj, selector, coll) {
     // console.log(`obj=${obj}, selector=${selector}`)
     if ($(obj).is(selector)) {
       let o = obj;
@@ -100,7 +100,7 @@ function getSelection(startSelection, selector = "*") {
     }
     $(obj)
       .children()
-      .each((child) => addObject(child, selector, coll));
+      .each((child) => _addObject(child, selector, coll));
     return coll;
   }
 }
@@ -125,7 +125,7 @@ function getVisualSelection(startSelection, selector = "*") {
   // create an empty collection
   var selectedVisualColl = $();
   // add selected and all contained objects to the collection
-  startSelection.each((obj) => addVisualObject(obj, selector, selectedVisualColl));
+  startSelection.each((obj) => _addVisualObject(obj, selector, selectedVisualColl));
 
   // if only one object is selected, select on the view all objects of this type
   if (selectedVisualColl.size() == 1) {
@@ -147,7 +147,7 @@ function getVisualSelection(startSelection, selector = "*") {
    * @param {object} coll - Archi collection of selected objects
    * @returns
    */
-  function addVisualObject(obj, selector, coll) {
+  function _addVisualObject(obj, selector, coll) {
     // visual objects must have a view
     if (obj.view) {
       let addFlag = false;
@@ -166,7 +166,7 @@ function getVisualSelection(startSelection, selector = "*") {
     }
     $(obj)
       .children()
-      .each((child) => addVisualObject(child, selector, coll));
+      .each((child) => _addVisualObject(child, selector, coll));
     return coll;
   }
 }

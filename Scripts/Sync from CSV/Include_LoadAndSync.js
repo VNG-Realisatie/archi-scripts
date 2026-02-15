@@ -64,33 +64,33 @@ var createdPropName = "Sync created";
 // Compute the date which will appear in every new or updated concepts - Has to be
 var currentDateTime = new Date();
 currentDateTime =
-  lpad(currentDateTime.getDate()) +
+  _lpad(currentDateTime.getDate()) +
   "/" +
-  lpad(currentDateTime.getMonth() + 1) +
+  _lpad(currentDateTime.getMonth() + 1) +
   "/" +
   currentDateTime.getFullYear() +
   " " +
-  lpad(currentDateTime.getHours()) +
+  _lpad(currentDateTime.getHours()) +
   ":" +
-  lpad(currentDateTime.getMinutes()) +
+  _lpad(currentDateTime.getMinutes()) +
   ":" +
-  lpad(currentDateTime.getSeconds());
+  _lpad(currentDateTime.getSeconds());
 
 // Use local papaparse from node_modules (see SETUP_NODE_MODULES.md). Uses Scripts/_lib/papaparse.min.js (v5).
 const Papa = require("papaparse");
 
 // Functions ====================================================================================================
 function loadAndSync(dataSource) {
-  loadData(dataSource);
-  buildModelIndex(dataSource);
-  syncModelElements(dataSource);
+  _loadData(dataSource);
+  _buildModelIndex(dataSource);
+  _syncModelElements(dataSource);
 }
 
-function lpad(text) {
+function _lpad(text) {
   return ("0" + text).substr(-2);
 }
 
-function loadData(dataSource) {
+function _loadData(dataSource) {
   if (dataSource._loaded) {
     console.log(`WARNING - Datasource "${dataSource.label}" has already been loaded`);
     return;
@@ -98,7 +98,7 @@ function loadData(dataSource) {
 
   console.log(`INFO - Loading "${dataSource.label}" from CSV...`);
 
-  var rows = Papa.parse(readFully(dataSource.csv, "utf-8"), {
+  var rows = Papa.parse(_readFully(dataSource.csv, "utf-8"), {
     header: true,
     encoding: "utf-8",
     skipEmptyLines: true,
@@ -126,7 +126,7 @@ function loadData(dataSource) {
   dataSource._loaded = true;
 }
 
-function buildModelIndex(dataSource) {
+function _buildModelIndex(dataSource) {
   if (dataSource._modelIndexed) {
     console.log(`WARNING - Model elements associated with "${dataSource.label}" have already been indexed`);
     return;
@@ -146,7 +146,7 @@ function buildModelIndex(dataSource) {
   dataSource._modelIndexed = true;
 }
 
-function syncModelElements(dataSource) {
+function _syncModelElements(dataSource) {
   if (dataSource._modelElementsSynced) {
     console.log(`WARNING - Datasource "${dataSource.label}" has already been synced`);
     return;
@@ -226,9 +226,9 @@ function syncModelRelationships(dataSource) {
               );
             } else {
               if (relation.isReversed) {
-                createOrUpdateRelationship(relation, otherEnd, relation.targetType, element);
+                _createOrUpdateRelationship(relation, otherEnd, relation.targetType, element);
               } else {
-                createOrUpdateRelationship(relation, element, relation.targetType, otherEnd);
+                _createOrUpdateRelationship(relation, element, relation.targetType, otherEnd);
               }
 
               createdOrUpdated++;
@@ -269,7 +269,7 @@ function tagDeletedConcepts() {
   console.log(`INFO - ${deleted} elements or relationships have been tagged as deleted`);
 }
 
-function createOrUpdateRelationship(config, source, type, target) {
+function _createOrUpdateRelationship(config, source, type, target) {
   var relationship = $(source)
     .outRels(type)
     .filter(function (r) {
@@ -325,7 +325,7 @@ function getFolder(layer, folderName) {
 }
 
 // Some Polyfills for Nashorn ====================================================================================
-function readFully(url, charset) {
+function _readFully(url, charset) {
   let result = "";
   const URL = Java.type("java.net.URL");
   const File = Java.type("java.io.File");
@@ -360,12 +360,6 @@ if (typeof module !== "undefined" && module.exports) {
     syncModelRelationships,
     getFolder,
     tagDeletedConcepts,
-    loadData,
-    buildModelIndex,
-    syncModelElements,
-    createOrUpdateRelationship,
-    readFully,
-    lpad,
     currentDateTime,
     syncPropName,
     deletedPropName,

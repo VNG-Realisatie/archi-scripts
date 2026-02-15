@@ -11,3 +11,6 @@ Rules for AI Assistant:
 11. **Refactoring Scope**: Touch only for namespace corrections, unless converting global mixins to CommonJS modules.
 12. **Preservation**: Leave comments completely untouched.
 13. **Preservation**: Leave parameter definitions untouched.
+14. **Modules**: Distinguish between public and private functions:
+    - **Private**: Prefix with underscore (e.g., `_helper()`) and do not export.
+    - **Public**: Standard naming and explicitly include in `module.exports`.
