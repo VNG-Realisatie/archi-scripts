@@ -63,7 +63,7 @@ function mergeElementOrRelation(conceptType) {
 function mergeConcept(selectedConcept, count) {
   // check if the concept still exists in the model, can be deleted as a duplicate
   if (selectedConcept.model) {
-    let primary = Selection.concept(selectedConcept);
+    let primary = Common.concept(selectedConcept);
 
     let duplicateList = getDuplicates(primary);
     if (duplicateList.size() > 0) {

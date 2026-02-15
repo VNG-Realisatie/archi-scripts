@@ -539,7 +539,7 @@ function addElement(level, param, graph, graphParents, graphCircular, archiEle, 
  */
 function createNode(level, param, graph, archiEle) {
   if (!graph.hasNode(archiEle.id)) {
-    e = Selection.concept(archiEle);
+    e = Common.concept(archiEle);
     if (e.type == "junction")
       graph.setNode(e.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
     else graph.setNode(e.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });

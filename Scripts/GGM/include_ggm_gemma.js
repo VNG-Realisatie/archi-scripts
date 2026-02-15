@@ -1,4 +1,5 @@
 const Common = require(__DIR__ + "/../_lib/Common.js");
+const GEMMA = require(__DIR__ + "/../GEMMA/include_GEMMA.js");
 const DefaultConfig = require(__DIR__ + "/config.default.js");
 
 let Config = DefaultConfig;
@@ -112,7 +113,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
       }
 
       // set GEMMA properties
-      setObjectID(businessObject);
+      GEMMA.setObjectID(businessObject);
       addPropSpecializations(dataObject, businessObject);
       // GEMMA online URL
       businessObject.prop(PROP_GEMMA_URL, GEMMA_URL + businessObject.prop(PROP_ID));
@@ -132,7 +133,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
       realizesBedrijfsobjectFolder
     );
     // set realizationRel properties
-    setObjectID(realizationRel);
+    GEMMA.setObjectID(realizationRel);
     realizationRel.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
   }
 
@@ -218,7 +219,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
         }
         if (businessRel) {
           updateObjectProp(rel, businessRel);
-          setObjectID(businessRel);
+          GEMMA.setObjectID(businessRel);
           // add a warning in every created object
           businessRel.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
         }
@@ -260,7 +261,7 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
       }
       if (relBeleidsdomein) {
         updateObjectProp(rel, relBeleidsdomein);
-        setObjectID(relBeleidsdomein);
+        GEMMA.setObjectID(relBeleidsdomein);
         // move to sync folder
         relsFolder.add(relBeleidsdomein);
         // init, verplaatsen naar create tak
@@ -390,7 +391,7 @@ function updateViewProp(view) {
         view.prop("Beleidsdomein", grouping.name);
       }
     });
-  setObjectID(view);
+  GEMMA.setObjectID(view);
 }
 
 /**
@@ -477,18 +478,7 @@ function find_GGM_GEMMA_object(searchObject) {
   return foundObject;
 }
 
-// set Object ID for object without one
-function setObjectID(obj) {
-  if (!obj.prop(PROP_ID)) obj.prop(PROP_ID, Common.generateUUID());
-  // else debug(`Keep ${PROP_ID}: ${obj}`);
-}
 
-/**
- * return a concept for a visual concept or concept
- */
-function concept(o) {
-  return o.concept ? o.concept : o;
-}
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -542,7 +532,5 @@ if (typeof module !== "undefined" && module.exports) {
     updateViewProp,
     updateAlternateName,
     find_GGM_GEMMA_object,
-    setObjectID,
-    concept
   };
 }

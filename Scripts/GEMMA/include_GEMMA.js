@@ -56,7 +56,7 @@ function setObjectID(objects) {
         o.prop(PROP_ID, id_generated);
         return { Object: o.toString(), "Old Object ID": oldID, "New Object ID": id_generated };
       });
-      logInColumns(replacedIDs, ["Object", "Old Object ID", "New Object ID"]);
+      Common.logInColumns(replacedIDs, ["Object", "Old Object ID", "New Object ID"]);
       console.log();
     }
 
@@ -69,7 +69,7 @@ function setObjectID(objects) {
         o.prop(PROP_ID, id_generated);
         return { Object: o.toString(), "New Object ID": id_generated };
       });
-      logInColumns(newIDs, ["Object", "New Object ID"]);
+      Common.logInColumns(newIDs, ["Object", "New Object ID"]);
       console.log();
     }
     console.log(`Summary:`);
@@ -100,7 +100,7 @@ function checkDuplicateID(objects) {
   if (objWithDupID.length > 0) {
     console.log(`\nDuplicates found`);
     console.log(`- ${objWithDupID.length} object${objWithDupID.length > 1 ? "s" : ""} with duplicate ${PROP_ID}`);
-    logInColumns(objWithDupID, ["Object ID", "Objects"]);
+    Common.logInColumns(objWithDupID, ["Object ID", "Objects"]);
   }
 
   return objWithDupID;
@@ -129,7 +129,7 @@ function checkUnvalidID(objects) {
     console.log(
       `- ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""} with invalid GUID`
     );
-    logInColumns(objectsWithUnvalidID, ["Object ID", "Object"]);
+    Common.logInColumns(objectsWithUnvalidID, ["Object ID", "Object"]);
   }
 
   return objectsWithUnvalidID;
@@ -140,19 +140,6 @@ function checkUnvalidID(objects) {
  * @param {Array} data - The data to log
  * @param {Array} headers - The headers for the columns
  */
-function logInColumns(data, headers) {
-  const columnWidths = headers.map((header) =>
-    Math.max(...data.map((row) => (row[header] || "").toString().length), header.length)
-  );
-  const headerRow = headers.map((header, i) => header.padEnd(columnWidths[i])).join(" | ");
-  const separatorRow = columnWidths.map((width) => "-".repeat(width)).join("-|-");
-  console.log(headerRow);
-  console.log(separatorRow);
-  data.forEach((row) => {
-    const rowString = headers.map((header, i) => (row[header] || "").toString().padEnd(columnWidths[i])).join(" | ");
-    console.log(rowString);
-  });
-}
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -162,6 +149,5 @@ if (typeof module !== "undefined" && module.exports) {
     setObjectID,
     checkDuplicateID,
     checkUnvalidID,
-    logInColumns,
   };
 }

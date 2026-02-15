@@ -11,6 +11,8 @@
 const SELECTION_LOADED = true;
 console.log("Loading selection.js");
 
+const Common = require(__DIR__ + "/Common.js");
+
 const DIAGRAM_OBJECTS = [
   "diagram-model-group",
   "diagram-model-connection",
@@ -90,7 +92,7 @@ function getSelection(startSelection, selector = "*") {
     // console.log(`obj=${obj}, selector=${selector}`)
     if ($(obj).is(selector)) {
       let o = obj;
-      if ($(obj).is("concept")) o = concept(obj);
+      if ($(obj).is("concept")) o = Common.concept(obj);
       // check for duplicates, than add element to the list
       if (coll.filter((a) => a.id == o.id).size() == 0) {
         coll.add(o);
@@ -169,12 +171,6 @@ function getVisualSelection(startSelection, selector = "*") {
   }
 }
 
-/**
- * return a concept for a visual concept or concept
- */
-function concept(o) {
-  return o.concept ? o.concept : o;
-}
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -182,7 +178,6 @@ if (typeof module !== "undefined" && module.exports) {
     getSelectionArray,
     getVisualSelection,
     applyToCollection,
-    concept,
     SELECTION_LOADED,
     DIAGRAM_OBJECTS,
   };

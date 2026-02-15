@@ -262,6 +262,32 @@ function getFormattedDateTime() {
   return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
 }
 
+/**
+ * return a concept for a visual concept or concept
+ */
+function concept(o) {
+  return o.concept ? o.concept : o;
+}
+
+/**
+ * Log a list of objects in columns.
+ * @param {Array} data - The data to log
+ * @param {Array} headers - The headers for the columns
+ */
+function logInColumns(data, headers) {
+  const columnWidths = headers.map((header) =>
+    Math.max(...data.map((row) => (row[header] || "").toString().length), header.length)
+  );
+  const headerRow = headers.map((header, i) => header.padEnd(columnWidths[i])).join(" | ");
+  const separatorRow = columnWidths.map((width) => "-".repeat(width)).join("-|-");
+  console.log(headerRow);
+  console.log(separatorRow);
+  data.forEach((row) => {
+    const rowString = headers.map((header, i) => (row[header] || "").toString().padEnd(columnWidths[i])).join(" | ");
+    console.log(rowString);
+  });
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     initConsoleLog,
@@ -279,6 +305,8 @@ if (typeof module !== "undefined" && module.exports) {
     uuidv4,
     formatRelation,
     getFormattedDateTime,
+    concept,
+    logInColumns,
     COMMON_FUNCTIONS_LOADED,
     JS_ENGINES,
     JS_ENGINES_TEXT,

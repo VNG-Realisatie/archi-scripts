@@ -17,6 +17,7 @@
  *  - still converted relation have a property with original relation type
  *  - and are shown in the console with a red warning
  */
+const Common = require(__DIR__ + "/../_lib/Common.js");
 
 const ORG_TYPE_PROPERTY_NAME = "Type before conversion";
 const CONVERT_TO_TYPE = "association-relationship";
@@ -34,24 +35,24 @@ function convertConcept(selection, filename) {
     // convert selected objects
     $(selection).each(function (o) {
       // first convert invalid relation types to associations
-      $(concept(o))
+      $(Common.concept(o))
         .outRels()
         .each(function (r) {
           if (!$.model.isAllowedRelationship(r.type, convertToType, r.target.type)) convertRelationType(r);
         });
-      $(concept(o))
+      $(Common.concept(o))
         .inRels()
         .each(function (r) {
           if (!$.model.isAllowedRelationship(r.type, r.source.type, convertToType)) convertRelationType(r);
         });
       // then convert the object
-      concept(o).concept.type = convertToType;
+      Common.concept(o).concept.type = convertToType;
     });
 
     // when possible, convert converted relations back to original type
     $(selection).each(function (o) {
       console.log(`> ${o}`);
-      $(concept(o))
+      $(Common.concept(o))
         .rels(CONVERT_TO_TYPE)
         .filter((r) => hasProperty(r, ORG_TYPE_PROPERTY_NAME))
         .each((r) => convertBackRelationType(r));
@@ -92,12 +93,8 @@ function getTypeFromFilename(filename) {
     .toLowerCase();
 }
 
-function concept(o) {
-  return o.concept ? o.concept : o;
-}
-
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    convertConcept
+    convertConcept,
   };
 }
