@@ -1,0 +1,42 @@
+/*
+ *
+ * Plot ID tag in lower right corner of element
+ *
+ * (c) 2025 Mark Backer
+ *
+ */
+
+load(__DIR__ + "../_lib/selection.js");
+
+// select visual elements
+let collection = getVisualSelection($(selection), "element");
+applyToCollection(collection, plotPrincipeID);
+
+console.log("Script finished\n");
+
+function plotPrincipeID(obj) {
+  // plot a note on this element
+  var note = obj.createObject("note", obj.bounds.width - 55, obj.bounds.height - 22, 50, 20); // Add a Note to this element
+  // note.fontSize = 5;
+  note.text = obj.prop("ID")
+
+  note.borderType = BORDER.RECTANGLE;
+
+  note.fontName = "Segoe UI";
+  note.fontSize = 8;
+  note.fontStyle = "normal";
+  note.lineColor = null;
+  note.outlineOpacity = 0;
+  note.textAlignment = TEXT_ALIGNMENT.RIGHT;
+
+  note.textPosition = TEXT_POSITION.TOP;
+  note.fillColor = null;
+  note.opacity = 0;
+  //obj.outlineOpacity
+  note.gradient = GRADIENT.NONE;
+  // obj.figureType = 0;
+  if (note.type == "grouping") {
+    if (note.figure == 0) note.textAlignment = TEXT_ALIGNMENT.CENTER;
+    else note.textAlignment = TEXT_ALIGNMENT.LEFT;
+  }
+}

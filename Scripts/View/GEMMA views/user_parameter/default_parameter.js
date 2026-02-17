@@ -51,6 +51,9 @@ const DEFAULT_PARAM = {
   // ranker: "longest-path",
   // ranker: "tight-tree",
   ranker: "network-simplex",
+
+  layoutCircular: LAYOUT_CIRCULAR_WORKAROUND, // layout circular relation with script (try this when dagre crashes)
+  // layoutCircular: LAYOUT_CIRCULAR_DAGRE, // default: layout circular relation with dagre
   
   nodeWidth: 200,
   nodeHeight: 60,

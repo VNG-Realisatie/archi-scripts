@@ -153,7 +153,7 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
 
   if (user_param_name) {
     let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
-    let printUserParamFile = userParamFile.substring(__SCRIPTS_DIR__.length - 1);
+    let printUserParamFile = userParamFile.substring(__SCRIPTS_DIR__.length - 2);
     console.log(`User parameters read from file "${printUserParamFile}"`);
     console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
     console.log();

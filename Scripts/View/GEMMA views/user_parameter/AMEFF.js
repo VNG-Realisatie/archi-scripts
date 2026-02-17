@@ -5,7 +5,7 @@
 USER_PARAM = { 
   includeElementType: [
     // "application-collaboration",
-    "application-component",
+    // "application-component",
     // "application-event",
     // "application-function",
     // "application-interaction",
@@ -14,18 +14,18 @@ USER_PARAM = {
     // "application-service",
     // "constraint",
     // "grouping",
-    "system-software",
+    // "system-software",
     // "technology-collaboration",
     // "technology-event",
     // "technology-function",
     // "technology-interaction",
     // "technology-interface",
     // "technology-process",
-    "technology-service",
+    // "technology-service",
   ],
   includeRelationType: [
     "aggregation-relationship",
-    // "assignment-relationship",
+    "assignment-relationship",
     "association-relationship",
     "composition-relationship",
     "realization-relationship",
@@ -43,18 +43,18 @@ USER_PARAM = {
   ],
 
   layoutNested: [
-    "access-relationship",
-    "aggregation-relationship",
+    // "access-relationship",
+    // "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",
     // "realization-relationship",
     // "serving-relationship"
-    // "specialization-relationship",
+    "specialization-relationship",
   ],
 
-    nodeWidth: 270,
-      nodeHeight: 25,
-      hSep: 15,
-      vSep: 120,
+    // nodeWidth: 270,
+    //   nodeHeight: 25,
+    //   hSep: 15,
+      vSep: 80,
 };
