@@ -4,8 +4,8 @@
  * (c) 2019 Mark Backer
  *
  */
-const Common = require(__DIR__ + "/../_lib/Common.js");
-const Selection = require(__DIR__ + "/../_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 // chroma-js for color conversions and color scales https://gka.github.io/chroma.js/
 const Chroma = require("chroma-js");
 
@@ -47,16 +47,7 @@ function selectFromProperties(collection) {
 
   // select a property of the selected element
   let promptText = `Select property from the list of all properties in the selection:\n`;
-  let i = 1;
-  propList.forEach((prop) => (promptText += `${i++}. ${prop}\n`));
-  let index = parseInt(window.prompt(promptText, `number of the property`));
-
-  if (index > 0 && index <= propList.length) {
-    return propList[index - 1];
-  } else {
-    console.log(`Cancelled, entered number ${index} is not in the list`);
-  }
-  return;
+  return window.promptSelection(promptText, propList);
 }
 
 /**

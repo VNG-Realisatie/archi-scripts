@@ -14,7 +14,7 @@ All scripts must use the CommonJS module system.
 *   **Explicit Requires**: Load dependencies using `const Module = require(...)`.
     *   **Naming Convention**: Use **PascalCase** for the variable name assigned to the require (e.g., `const Showdown = require("showdown")`, `const Common = require(...)`).
 *   **Absolute Paths**: Always use `__DIR__` for robust path resolution.
-    *   Example: `const Common = require(__DIR__ + "/../_lib/Common.js");`
+    *   Example: `const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");`
 *   **No NPM**: Do not use `npm` to manage runtime dependencies.
     *   **Manual Vendoring**: Download third-party libraries (e.g., from unpkg.com) and place them in `Scripts/node_modules/<package>/index.js`.
     *   This ensures scripts are self-contained and run in Archi without requiring a system Node.js installation.

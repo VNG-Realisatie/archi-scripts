@@ -21,6 +21,9 @@ const JS_ENGINE_GRAALVM = "com.oracle.truffle.js.scriptengine.GraalJSScriptEngin
 const JS_ENGINES = [JS_NASHORN_ES6, JS_ENGINE_GRAALVM];
 const JS_ENGINES_TEXT = ["Nashorn ES6", "GraalVM"];
 
+// Minimum jArchi version for CommonJS support
+const MIN_JARCHI_VERSION_COMMONJS = "1.3";
+
 /**
  * initConsoleLog and finishconsole
  *   first and last call in an Archi script
@@ -42,7 +45,7 @@ function initConsoleLog(pFile, pClear) {
   try {
     ArchiVersion = $.process.release.archiVersion;
     jArchiVersion = $.process.release.jArchiVersion;
-  } catch (error) { }
+  } catch (error) {}
 
   let pattern = /^.*[\\\/]/;
   _commonScriptName = pFile.replace(pattern, "");
@@ -121,6 +124,49 @@ function check_JS_Engine(required_engine) {
 }
 
 /**
+ * Check if CommonJS is supported in current jArchi version
+ *
+ * @returns {boolean}
+ */
+function check_CommonJS_Support() {
+  try {
+    var jArchiVersion = $.process.release.jArchiVersion;
+
+    // Parse version string (e.g., "1.3.0" -> [1, 3, 0])
+    var versionParts = jArchiVersion.split(".").map(function (part) {
+      return parseInt(part);
+    });
+
+    var minVersionParts = MIN_JARCHI_VERSION_COMMONJS.split(".").map(function (part) {
+      return parseInt(part);
+    });
+
+    // Compare versions
+    for (var i = 0; i < Math.max(versionParts.length, minVersionParts.length); i++) {
+      var current = versionParts[i] || 0;
+      var required = minVersionParts[i] || 0;
+
+      if (current > required) {
+        return true;
+      } else if (current < required) {
+        var line = "\nCommonJS is not supported in this jArchi version";
+        line += "\n- Current jArchi version: " + jArchiVersion;
+        line += "\n- Required jArchi version: " + MIN_JARCHI_VERSION_COMMONJS + " or higher\n";
+        line += "\nPlease upgrade the jArchi plugin from:";
+        line += "\n- Go to https://github.com/archimatetool/archi-plugins\n";
+        console.error(line);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error checking CommonJS support: " + error);
+    return false;
+  }
+}
+
+/**
  * info()
  *   show informational message if global infoStack is set
  * @param msg string information message
@@ -196,7 +242,7 @@ function generateUUID() {
   var d = new Date().getTime(); //Timestamp
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
     var r = Math.random() * 16; //random number between 0 and 16
-    r = (d + r) % 16 | 0;
+    r = ((d + r) % 16) | 0;
     d = Math.floor(d / 16);
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
@@ -228,21 +274,21 @@ function uuidv4() {
 
 /**
  * returns formatted string with relation info
-*/
-const FORMAT_WITH_TYPES = true
-const FORMAT_NO_TYPES = false
-const FORMAT_REVERSED = true
-const FORMAT_NOT_REVERSED = false
+ */
+const FORMAT_WITH_TYPES = true;
+const FORMAT_NO_TYPES = false;
+const FORMAT_REVERSED = true;
+const FORMAT_NOT_REVERSED = false;
 function formatRelation(rel, withTypes = FORMAT_NO_TYPES, reversed = FORMAT_NOT_REVERSED) {
-  let relLeft = withTypes ? rel.source : rel.source.name
-  let relLabel = rel.name ? rel.name : "[geen label]"
+  let relLeft = withTypes ? rel.source : rel.source.name;
+  let relLabel = rel.name ? rel.name : "[geen label]";
   let relMiddle = `--${relLabel}-->`;
-  let relRight = withTypes ? rel.target : rel.target.name
+  let relRight = withTypes ? rel.target : rel.target.name;
 
   if (reversed) {
-    relLeft = withTypes ? rel.target : rel.target.name
+    relLeft = withTypes ? rel.target : rel.target.name;
     relMiddle = `<--${relLabel}--`;
-    relRight = withTypes ? rel.source : rel.source.name
+    relRight = withTypes ? rel.source : rel.source.name;
   }
   return `${relLeft} ${relMiddle} ${relRight} (${rel.type.replace("-relationship", "")})`;
 }
@@ -276,7 +322,7 @@ function concept(o) {
  */
 function logInColumns(data, headers) {
   const columnWidths = headers.map((header) =>
-    Math.max(...data.map((row) => (row[header] || "").toString().length), header.length)
+    Math.max(...data.map((row) => (row[header] || "").toString().length), header.length),
   );
   const headerRow = headers.map((header, i) => header.padEnd(columnWidths[i])).join(" | ");
   const separatorRow = columnWidths.map((width) => "-".repeat(width)).join("-|-");
@@ -295,6 +341,7 @@ if (typeof module !== "undefined" && module.exports) {
     startCounter,
     endCounter,
     check_JS_Engine,
+    check_CommonJS_Support,
     info,
     debug,
     debugStackPush,
@@ -306,8 +353,6 @@ if (typeof module !== "undefined" && module.exports) {
     concept,
     logInColumns,
     COMMON_FUNCTIONS_LOADED,
-    JS_ENGINES,
-    JS_ENGINES_TEXT,
     FORMAT_WITH_TYPES,
     FORMAT_NO_TYPES,
     FORMAT_REVERSED,

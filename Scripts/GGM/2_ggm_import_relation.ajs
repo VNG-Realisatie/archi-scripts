@@ -11,8 +11,8 @@
  * Dit script leest de GGM relaties
  * - associaties en specialisaties tussen data-objecten
  */
-const Common = require(__DIR__ + "/../_lib/Common.js");
-const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
 const ExportImport = require(__DIR__ + "/../ImportExport_CSV/include_export_import.js");
 const CSVImport = require(__DIR__ + "/../ImportExport_CSV/include_import.js");

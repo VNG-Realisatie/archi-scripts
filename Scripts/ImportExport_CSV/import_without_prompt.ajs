@@ -4,7 +4,7 @@
  * 	give an objecttype and filename for exporting without a filename prompt
  */
 
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const Import = require(__DIR__ + "/include_import.js");
 
 Common.initConsoleLog(__FILE__);

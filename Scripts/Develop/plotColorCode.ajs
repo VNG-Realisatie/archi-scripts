@@ -6,7 +6,7 @@
  *
  */
 
-const Selection = require(__DIR__ + "/../_lib/selection.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 // select visual elements
 let collection = Selection.getVisualSelection($(selection), "element");

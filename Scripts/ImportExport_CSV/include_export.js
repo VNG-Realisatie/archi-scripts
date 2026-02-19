@@ -1,10 +1,10 @@
 /**
  * Export the selected elements, relations or views and their properties to a CSV file
  */
-const Selection = require(__DIR__ + "/../_lib/selection.js");
-const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 const ExportImport = require(__DIR__ + "/include_export_import.js");
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 /**
  * export selected objects to a CSV file

@@ -21,7 +21,7 @@
  * Import elements before relations. You can't create relations without a source and target
  *
  */
-var Common = require(__DIR__ + "/../_lib/Common.js");
+var Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 var ExportImport = require(__DIR__ + "/include_export_import.js");
 
 // use this value in a property column to remove a property from the object

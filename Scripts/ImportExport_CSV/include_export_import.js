@@ -2,7 +2,7 @@
  * Shared constants and functions for exporting and importing
  */
 const Papa = require("papaparse");
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";

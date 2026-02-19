@@ -6,7 +6,7 @@
  * (c) 2024 Mark Backer
  */
 
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 // Label of the property with the ID
 const PROP_ID = "Object ID";

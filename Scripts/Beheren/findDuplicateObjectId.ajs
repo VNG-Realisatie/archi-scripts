@@ -2,7 +2,7 @@
  * find objects with two or more properties PROP_ID
  */
 
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const PROP_ID = "Object ID";
 

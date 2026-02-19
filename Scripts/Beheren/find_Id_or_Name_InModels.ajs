@@ -7,7 +7,7 @@
  *
  */
 
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const AsciiTable = require("ascii-table");
 
 Common.initConsoleLog(__FILE__);

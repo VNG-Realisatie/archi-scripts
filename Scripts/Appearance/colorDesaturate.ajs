@@ -3,7 +3,7 @@
 // chroma-js for all kinds of color conversions and color scales
 // api docs https://gka.github.io/chroma.js/
 const Chroma = require("chroma-js");
-const Selection = require(__DIR__ + "/../_lib/selection.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 try {
 	let collection = Selection.getVisualSelection($(selection));

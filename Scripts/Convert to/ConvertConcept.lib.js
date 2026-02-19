@@ -17,7 +17,7 @@
  *  - still converted relation have a property with original relation type
  *  - and are shown in the console with a red warning
  */
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const ORG_TYPE_PROPERTY_NAME = "Type before conversion";
 const CONVERT_TO_TYPE = "association-relationship";

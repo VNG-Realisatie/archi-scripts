@@ -6,8 +6,8 @@
  *  ColorBrewer colors, see http://colorbrewer2.org/#type=sequential&scheme=Greens&n=3
  */
 const Chroma = require("chroma-js");
-const Common = require(__DIR__ + "/../_lib/Common.js");
-const Selection = require(__DIR__ + "/../_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 const PROP_GEMMA_TYPE = "GEMMA type";
 const PROP_BIV_SCORE = "BIV score BBN";

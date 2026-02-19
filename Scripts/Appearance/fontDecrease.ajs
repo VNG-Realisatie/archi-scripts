@@ -6,7 +6,7 @@
  * (c) 2019 Mark Backer
  *
  */
-const Selection = require(__DIR__ + "/../_lib/selection.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 let collection = Selection.getVisualSelection($(selection));
 Selection.applyToCollection(collection, fontDecrease);

@@ -14,9 +14,9 @@
  * - styled de views
  * - set de eigenschappen van de views
  */
-const Common = require(__DIR__ + "/../_lib/Common.js");
-const Selection = require(__DIR__ + "/../_lib/selection.js");
-const ArchiFolders = require(__DIR__ + "/../_lib/archi_folders.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 const View = require(__DIR__ + "/../View/include_view.js");
 const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
 

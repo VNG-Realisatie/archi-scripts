@@ -1,4 +1,4 @@
-const Common = require(__DIR__ + "/../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const GEMMA = require(__DIR__ + "/../GEMMA/include_GEMMA.js");
 const DefaultConfig = require(__DIR__ + "/config.default.js");
 
