@@ -98,7 +98,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
       }
 
       // set GEMMA properties
-      GEMMA.setObjectID($(businessObject));
+      GEMMA.setObjectID([businessObject]);
       _addPropSpecializations(dataObject, businessObject);
       // GEMMA online URL
       businessObject.prop(PROP_GEMMA_URL, GEMMA_URL + businessObject.prop(PROP_ID));
@@ -118,8 +118,8 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
       realizesBedrijfsobjectFolder,
     );
     // set realizationRel properties
-    GEMMA.setObjectID(realizationRel);
-    realizationRel.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
+    GEMMA.setObjectID([realizationRel]);
+    realizationRel.prop(PROP_SYNC_WARNING, "Gegenereerd met GGM script");
   }
 
   // document specialization-relations in property
@@ -182,6 +182,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
     .filter((rel) => rel.target.prop(PROP_ARCHIMATE_TYPE) == "Business object")
     .each((rel) => {
       // check if relation is already processed
+      Common.debug(`Processing relation ${rel} (${rel.type}) from ${rel.source} to ${rel.target})`);
       if (!index.some((r) => r.id == rel.id)) {
         index.push(rel);
 
@@ -205,7 +206,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
         }
         if (businessRel) {
           _updateObjectProp(rel, businessRel);
-          GEMMA.setObjectID($(businessRel));
+          GEMMA.setObjectID([businessRel]);
           // add a warning in every created object
           businessRel.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
         }
@@ -241,14 +242,14 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
         if (target) {
           relBeleidsdomein = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
           relBeleidsdomein.prop(PROP_OBJECT_ID_SYNC, rel.prop(PROP_ID));
-          relBeleidsdomein.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
+          relBeleidsdomein.prop(PROP_SYNC_WARNING, "Gegenereerd met GGM script");
           console.log(`> create ${Common.formatRelation(relBeleidsdomein)}`);
           stats.nr_create += 1;
         }
       }
       if (relBeleidsdomein) {
         _updateObjectProp(rel, relBeleidsdomein);
-        GEMMA.setObjectID($(relBeleidsdomein));
+        GEMMA.setObjectID([relBeleidsdomein]);
         // move to sync folder
         relsFolder.add(relBeleidsdomein);
         // init, verplaatsen naar create tak
@@ -378,7 +379,7 @@ function updateViewProp(view) {
         view.prop("Beleidsdomein", grouping.name);
       }
     });
-  GEMMA.setObjectID($(view));
+  GEMMA.setObjectID([view]);
 }
 
 /**

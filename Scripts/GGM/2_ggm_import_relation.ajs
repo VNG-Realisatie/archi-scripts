@@ -5,7 +5,6 @@
  * - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
  *
  * Voordat dit script gedraaid wordt:
- * - maak een Archi compatible versie van de GGM csv met LibreOffice calc
  * - de GGM data-objecten moeten ingelezen zijn
  *
  * Dit script leest de GGM relaties
@@ -66,6 +65,7 @@ Common.finishConsoleLog();
 function transformRowGGM(row) {
   const uml = row["GGM-uml-type"] || "";
   const isAssociation = uml === "Association";
+  const isMemo = row["GGM-toelichting"] === "<memo>";
 
   return {
     name: row["GGM-naam"] || "",
@@ -76,7 +76,7 @@ function transformRowGGM(row) {
     "source.id": row["GEMMA-source-guid"] || "",
     "target.id": row["GEMMA-target-guid"] || "",
 
-    "GGM-toelichting": row["GGM-toelichting"] || "",
+    "GGM-toelichting": isMemo ? "" : row["GGM-toelichting"] || "",
     "GGM-guid-imported": row["GGM-guid"] || "",
     "source.prop.GGM-guid-imported": row["GGM-source-guid"] || "",
     "target.prop.GGM-guid-imported": row["GGM-target-guid"] || "",

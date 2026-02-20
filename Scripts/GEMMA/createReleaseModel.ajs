@@ -36,10 +36,10 @@ try {
   let sourceModelPath = model.getPath();
 
   // Gather all objects excluding folders
-  let objects = Gemma.gatherObjects();
+  let objectArray = Gemma.collectobjectArray();
 
   // Set IDs for objects without ID or with invalid ID
-  let IDsValid = Gemma.setObjectID(objects);
+  let IDsValid = Gemma.setObjectID(objectArray);
 
   if (IDsValid) {
     // Set the release date

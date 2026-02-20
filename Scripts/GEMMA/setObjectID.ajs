@@ -40,10 +40,10 @@ Common.initConsoleLog(__FILE__, true);
 
 try {
   // Gather all objects excluding folders
-  let objects = Gemma.gatherObjects();
+  let objectArray = Gemma.collectobjectArray();
 
   // Set IDs for objects without ID or with invalid ID
-  Gemma.setObjectID(objects);
+  Gemma.setObjectID(objectArray);
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
