@@ -1,10 +1,10 @@
 /**
  * Maak CSV-bestanden met de GEMMA bedrijfsobjecten en relaties
- * 
+ *
  * Selecteer het GEMMA-GGM ArchiMate-model en draai dit script
  * - export business-objects to CSV
  * - export business-object relations to CSV
- * 
+ *
  * De CSV bestanden worden in de mappen van de GEMMA-GGM Archi-repository bewaard.
  *
  * Mapping specification, see
@@ -21,11 +21,9 @@ Common.initConsoleLog(__FILE__, true);
 /**
  * GEMMA CSV exportbestanden in de lokale GEMMA-GGM archi-repository
  */
-// GEMMA_GGM_REPO_DIR is expected to be defined in GgmGemma.Config or locally
-const GEMMA_GGM_REPO_DIR = GgmGemma.Config.GEMMA_GGM_REPO_DIR || ""; 
-const GEMMA_GGM_REPO_EXPORTS_DIR = GEMMA_GGM_REPO_DIR + "exports/";
-const GEMMA_BEDRIJFSOBJECTEN_ELEMENT_CSV = GEMMA_GGM_REPO_EXPORTS_DIR + "GEMMA_Bedrijfsobjecten_element.csv";
-const GEMMA_BEDRIJFSOBJECTEN_RELATIE_CSV = GEMMA_GGM_REPO_EXPORTS_DIR + "GEMMA_Bedrijfsobjecten_relatie.csv";
+const Config = require(__DIR__ + "/config.default.js");
+const BEDRIJFSOBJECTEN_CSV = "GEMMA_Bedrijfsobjecten_element.csv";
+const BEDRIJFSOBJECTRELATIES_CSV = "GEMMA_Bedrijfsobjecten_relatie.csv";
 
 /**
  * Mapping objects
@@ -69,16 +67,18 @@ const BUSINESS_RELATION_MAPPING = {
 };
 
 try {
-  let bedrijfsobjectenFolder = ArchiFolders.getFolderPath("/Business" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BEDRIJFSOBJECT);
+  let bedrijfsobjectenFolder = ArchiFolders.getFolderPath(
+    "/Business" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BEDRIJFSOBJECT,
+  );
   let bedrijfsobjecten = $(bedrijfsobjectenFolder).children("business-object");
   console.log(`\nExport bedrijfsobjecten`);
   console.log(`Aantal: ${bedrijfsobjecten.size()}`);
 
   CSVExport.exportObjects(
     ExportImport.OBJECT_TYPE_ELEMENT,
-    GEMMA_BEDRIJFSOBJECTEN_ELEMENT_CSV,
+    Config.GEMMA_exportFolder + BEDRIJFSOBJECTEN_CSV,
     bedrijfsobjecten,
-    BUSINESS_OBJECT_MAPPING
+    BUSINESS_OBJECT_MAPPING,
   );
 
   // select all assignment en specialization-relations between business-objects
@@ -91,9 +91,9 @@ try {
 
   CSVExport.exportObjects(
     ExportImport.OBJECT_TYPE_RELATION,
-    GEMMA_BEDRIJFSOBJECTEN_RELATIE_CSV,
+    Config.GEMMA_exportFolder + BEDRIJFSOBJECTRELATIES_CSV,
     bedrijfsobjectRelations,
-    BUSINESS_RELATION_MAPPING
+    BUSINESS_RELATION_MAPPING,
   );
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -104,13 +104,13 @@ Common.finishConsoleLog();
 // Sort Archi-objects at 'name'
 function sortArchiObjectName(archiObject) {
   return archiObject.get().sort((a, b) => {
-      // Haal de 'name' property op van de bedrijfsobjecten
-      let nameA = $(a).attr("name").toLowerCase(); // Omzetten naar lowercase
-      let nameB = $(b).attr("name").toLowerCase(); // Omzetten naar lowercase
+    // Haal de 'name' property op van de bedrijfsobjecten
+    let nameA = $(a).attr("name").toLowerCase(); // Omzetten naar lowercase
+    let nameB = $(b).attr("name").toLowerCase(); // Omzetten naar lowercase
 
-      // Vergelijk de namen
-      if (nameA < nameB) return -1; // nameA komt vóór nameB
-      if (nameA > nameB) return 1;  // nameA komt ná nameB
-      return 0;                      // namen zijn gelijk
+    // Vergelijk de namen
+    if (nameA < nameB) return -1; // nameA komt vóór nameB
+    if (nameA > nameB) return 1; // nameA komt ná nameB
+    return 0; // namen zijn gelijk
   });
 }

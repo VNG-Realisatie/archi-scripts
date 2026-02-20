@@ -70,8 +70,10 @@ try {
   GgmGemma.updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
 
   console.log(`Update alternate names for duplicates`);
+  console.log(`\n=============================================================`);
   console.log(`> data-objects:`);
   GgmGemma.updateAlternateName(selectedDataObjects); // also for GGM data-objecten
+  console.log(`\n=============================================================`);
   console.log(`> bedrijfsobjecten:`);
   GgmGemma.updateAlternateName(updatedBusinessObjects);
 

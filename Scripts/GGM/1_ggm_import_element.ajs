@@ -2,7 +2,7 @@
  * Import GGM objecten in GEMMA-GGM Archi-repository
  *
  * Specificatie CSV-bestanden
- *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
+ *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/master/exports
  *
  * Dit script leest de GGM objecten in als
  * - data-objecten
@@ -15,8 +15,13 @@ const Sync = require(__DIR__ + "/../Sync from CSV/Include_LoadAndSync.js");
 
 Common.initConsoleLog(__FILE__, true);
 
+/**
+ * GGM CSV importbestanden in de lokale GGM import folder
+ */
+const Config = require(__DIR__ + "/config.default.js");
+
 try {
-  let importFile = GgmGemma.Config.csvFiles.elements ? GgmGemma.Config.getPath("elements") : null;
+  let importFile = Config.GGM_importFolder + Config.elementCSV;
   if (!importFile) {
     importFile = window.promptOpenFile({
       title: "Open GGM export objects CSV",

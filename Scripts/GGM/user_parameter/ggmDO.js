@@ -53,4 +53,5 @@ USER_PARAM = {
   nodeHeight: 60,
   hSep: 20,
   vSep: 100,
+  debug: false,
 };

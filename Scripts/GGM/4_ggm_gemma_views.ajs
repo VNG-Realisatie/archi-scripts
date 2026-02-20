@@ -29,14 +29,14 @@ try {
   let GGMdomeinen = Selection.getSelection($(selection), "grouping");
   GGMdomeinen = GGMdomeinen.filter(
     (grouping) =>
-      grouping.prop(GgmGemma.PROP_GGM_TYPE) == GgmGemma.GGM_TYPE_BELEIDSDOMEIN && 
-      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG
+      grouping.prop(GgmGemma.PROP_GGM_TYPE) == GgmGemma.GGM_TYPE_BELEIDSDOMEIN &&
+      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG,
   );
 
   if (GGMdomeinen.size() < 1) {
     console.log("Geen beleidsdomeinen geselecteerd, selecteer één of meer beleidsdomeinen");
   } else {
-    console.log(`Genereer GGM data-object views`);
+    console.log(`\nGenereer GGM data-object views`);
     console.log(`==============================`);
     let param = View.read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
     param.viewFolder = GgmGemma.FOLDER_GGM_DATAOBJECT;
@@ -51,12 +51,12 @@ try {
   GEMMA_Beleidsdomeinen = GEMMA_Beleidsdomeinen.filter(
     (grouping) =>
       grouping.prop(GgmGemma.PROP_GEMMA_TYPE) == GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN &&
-      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG
+      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG,
   );
   if (GEMMA_Beleidsdomeinen.size() < 1) {
     console.log("Geen beleidsdomeinen met inhoud voor GEMMA");
   } else {
-    console.log(`Genereer GEMMA bedrijfsobjectmodellen`);
+    console.log(`\nGenereer GEMMA bedrijfsobjectmodellen`);
     console.log(`=====================================`);
     let param = View.read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
     param.viewFolder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
@@ -78,6 +78,7 @@ Common.finishConsoleLog();
 function styleLabelsProperties(views) {
   console.log(`\nStyling, labels and properties`);
   console.log(`==============================`);
+  Common.debug(`views: ${views}`);
 
   console.log("\nStyle view");
   styleView(views);

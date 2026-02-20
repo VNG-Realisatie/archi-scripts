@@ -8,7 +8,6 @@
  * (c) 2021 Mark Backer
  *
  */
-const SELECTION_LOADED = true;
 console.log("Loading selection.js");
 
 const Common = require(__DIR__ + "/Common.js");
@@ -51,12 +50,16 @@ function applyToCollection(collection, pFunc, pArgs) {
  * @returns {array} - selected objects
  */
 function getSelectionArray(startSelection, selector) {
+  Common.debugStackPush(false);
+  Common.debug(`startSelection: ${startSelection}`);
   let collection = getSelection(startSelection, selector);
+  Common.debug(`collection: ${collection}`);
 
   // convert Archi collection to an array
   let selectedList = [];
   collection.each((o) => selectedList.push(o));
 
+  Common.debugStackPop();
   return selectedList;
 }
 
@@ -68,7 +71,8 @@ function getSelectionArray(startSelection, selector) {
  * @returns {object} - collection with selected objects
  */
 function getSelection(startSelection, selector = "*") {
-  startSelection = $(startSelection);
+  Common.debug(`startSelection: ${startSelection}`);
+
   if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
@@ -79,7 +83,7 @@ function getSelection(startSelection, selector = "*") {
   startSelection.each((obj) => _addObject(obj, selector, selectedColl));
 
   console.log(
-    `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`
+    `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`,
   );
   return selectedColl;
 
@@ -115,7 +119,7 @@ function getSelection(startSelection, selector = "*") {
  * @returns {object} - collection with selected objects
  */
 function getVisualSelection(startSelection, selector = "*") {
-  startSelection = $(startSelection);
+  // startSelection = $(startSelection);
   if (model == null || model.id == null) throw "Nothing selected. Select views or one or more objects on a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
@@ -171,14 +175,12 @@ function getVisualSelection(startSelection, selector = "*") {
   }
 }
 
-
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     getSelection,
     getSelectionArray,
     getVisualSelection,
     applyToCollection,
-    SELECTION_LOADED,
     DIAGRAM_OBJECTS,
   };
 }

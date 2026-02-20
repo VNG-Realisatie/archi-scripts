@@ -22,7 +22,12 @@ ExportImport.PROP_ID = GgmGemma.PROP_GGM_ID_IMPORTED;
 
 Common.initConsoleLog(__FILE__, true);
 
-let relationsCSV = GgmGemma.Config.getPath("relations");
+/**
+ * GGM CSV importbestanden in de lokale GGM import folder
+ */
+const Config = require(__DIR__ + "/config.default.js");
+
+let relationsCSV = Config.GGM_importFolder + Config.relatieCSV;
 if (!relationsCSV) {
   relationsCSV = window.promptOpenFile({
     title: "Enter path for GGM relations CSV file:",
@@ -84,6 +89,6 @@ function transformRowGGM(row) {
     "target.type": "data-object",
 
     "GGM-uml-type": uml,
-    associationDirected: isAssociation ? "true" : "false"
+    associationDirected: isAssociation ? "true" : "false",
   };
 }

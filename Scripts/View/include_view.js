@@ -25,7 +25,7 @@
  *  3  25/09/2021  Mark Backer   use dagre-cluster-fix version
  *  4  02/10/2021  Mark Backer   draw connection with bendpoints
  *  5  08/03/2022  Mark Backer   add actions LAYOUT and EXPAND_HERE
- *  6  11/01/2025  Mark Backer   do not add relations with PROP_EXCLUDE = "excludeFromView" to view 
+ *  6  11/01/2025  Mark Backer   do not add relations with PROP_EXCLUDE = "excludeFromView" to view
  *
  * Prefered settings
  * - use the jArchi JavaScript engine GraalVM, much faster with large graphs
@@ -191,11 +191,11 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
 function generate_view(param, drawCollection) {
   if (param.debug == undefined) param.debug = false;
   Common.debugStackPush(param.debug);
-  let generatedViews = $()
+  let generatedViews = $();
 
   try {
     if (_setDefaultParameters(param)) {
-      let filteredElements = _selectElements(param, drawCollection);
+      let filteredElements = _includedElements(param, drawCollection);
       let graphLayout = _setGraphLayout(param);
 
       switch (param.action) {
@@ -233,7 +233,7 @@ function generate_view(param, drawCollection) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
   Common.debugStackPop();
-  return generatedViews
+  return generatedViews;
 }
 
 /**
@@ -276,11 +276,9 @@ function _setDefaultParameters(param) {
   console.log("- graphDepth = " + param.graphDepth);
 
   if (param.includeElementType === undefined) param.includeElementType = [];
-  if (!_validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter"))
-    validFlag = false;
+  if (!_validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter")) validFlag = false;
   if (param.includeRelationType === undefined) param.includeRelationType = [];
-  if (!_validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter"))
-    validFlag = false;
+  if (!_validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter")) validFlag = false;
   if (param.excludeFromView === undefined) param.excludeFromView = false;
   console.log(`- excludeFromView = ${param.excludeFromView} (exclude objects with property ${PROP_EXCLUDE}=true)`);
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
@@ -330,11 +328,12 @@ function _setDefaultParameters(param) {
  * @param {collection} drawCollection - collection to draw (optional, default is $(selection))
  *
  */
-function _selectElements(param, drawCollection = $(selection)) {
+function _includedElements(param, drawCollection = $(selection)) {
   // create an array with the selected elements
   Common.debug(`drawCollection: ${drawCollection}`);
   var selectedElements;
   selectedElements = Selection.getSelectionArray(drawCollection, "element");
+  Common.debug(`selectedElements: ${selectedElements}`);
 
   // filter the selected elements with the concept filter
   let filteredSelection = [];
@@ -418,7 +417,7 @@ function _fillGraph(param, graph, graphParents, graphCircular, filteredElements)
       _addViewObjects(START_LEVEL, param, graph, graphParents, graphCircular);
       // expand the view from the selected elements
       filteredElements.forEach((archiEle) =>
-        _addElement(START_LEVEL, param, graph, graphParents, graphCircular, archiEle, filteredElements)
+        _addElement(START_LEVEL, param, graph, graphParents, graphCircular, archiEle, filteredElements),
       );
       break;
     case LAYOUT:
@@ -514,8 +513,7 @@ function _addElement(level, param, graph, graphParents, graphCircular, archiEle,
         if (_filterObjectType(related_element, param.includeElementType)) {
           // add related_element to the graph (and recurse into its related elements)
           if (
-            _addElement(level + 1, param, graph, graphParents, graphCircular, related_element, filteredElements) ==
-            NOT_STOPPED
+            _addElement(level + 1, param, graph, graphParents, graphCircular, related_element, filteredElements) == NOT_STOPPED
           ) {
             Common.debug(`>>>> rel: ${rel}`);
 
@@ -540,8 +538,7 @@ function _addElement(level, param, graph, graphParents, graphCircular, archiEle,
 function _createNode(level, param, graph, archiEle) {
   if (!graph.hasNode(archiEle.id)) {
     e = Common.concept(archiEle);
-    if (e.type == "junction")
-      graph.setNode(e.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
+    if (e.type == "junction") graph.setNode(e.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
     else graph.setNode(e.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });
     Common.debug(`${"  ".repeat(level)}> Add ${archiEle}`);
   } else {
@@ -578,17 +575,25 @@ function _createEdge(level, param, graph, rel) {
     if (!graph.hasEdge(rel.target.id, rel.source.id, rel.id)) {
       graph.setEdge({ v: rel.target.id, w: rel.source.id, name: rel.id }, { id: rel.id });
       // graph.setEdge(rel.target.id, rel.source.id, rel.id );
-      Common.debug(`${"  ".repeat(level)}> Add edge reversed: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`);
+      Common.debug(
+        `${"  ".repeat(level)}> Add edge reversed: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
+      );
     } else {
-      Common.debug(`${"  ".repeat(level)}> Skip, edge found: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`);
+      Common.debug(
+        `${"  ".repeat(level)}> Skip, edge found: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
+      );
     }
   } else {
     if (!graph.hasEdge(rel.source.id, rel.target.id, rel.id)) {
       graph.setEdge({ v: rel.source.id, w: rel.target.id, name: rel.id }, { id: rel.id });
       // graph.setEdge(rel.source.id, rel.target.id, rel.id );
-      Common.debug(`${"  ".repeat(level)}> Add edge : ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`);
+      Common.debug(
+        `${"  ".repeat(level)}> Add edge : ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
+      );
     } else {
-      Common.debug(`${"  ".repeat(level)}> Skip, edge found: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`);
+      Common.debug(
+        `${"  ".repeat(level)}> Skip, edge found: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
+      );
     }
   }
   Common.debugStackPop();
@@ -611,13 +616,19 @@ function _createParent(level, param, graph, graphParents, rel) {
     if (param.layoutReversed.includes(rel.type)) {
       // # graph.setParent(v, parent)
       graph.setParent(rel.source.id, rel.target.id);
-      Common.debug(`${"  ".repeat(level)}> Add Parent<-Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`);
+      Common.debug(
+        `${"  ".repeat(level)}> Add Parent<-Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
+      );
     } else {
       graph.setParent(rel.target.id, rel.source.id);
-      Common.debug(`${"  ".repeat(level)}> Add Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`);
+      Common.debug(
+        `${"  ".repeat(level)}> Add Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
+      );
     }
   } else {
-    Common.debug(`${"  ".repeat(level)}> Skip, already in graph ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`);
+    Common.debug(
+      `${"  ".repeat(level)}> Skip, already in graph ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
+    );
   }
   Common.debugStackPop();
   return;
@@ -729,13 +740,7 @@ function _drawElement(param, graph, nodeId, nodeIndex, visualElementIndex, view)
 
         Common.debug(`>> draw nested ${archiElement} in parent ${archiParent}`);
         let elePos = _calcElementNested(node, parentNode);
-        visualElementIndex[nodeId] = archiParent.add(
-          archiElement,
-          elePos.x,
-          elePos.y + y_shift,
-          elePos.width,
-          elePos.height
-        );
+        visualElementIndex[nodeId] = archiParent.add(archiElement, elePos.x, elePos.y + y_shift, elePos.width, elePos.height);
       }
     } catch (e) {
       console.error("-->" + e + "\n" + e.stack);
@@ -798,7 +803,7 @@ function _drawRelation(param, graph, edge, visualElementIndex, view) {
   let connection = view.add(
     archiRelation,
     visualElementIndex[archiRelation.source.id],
-    visualElementIndex[archiRelation.target.id]
+    visualElementIndex[archiRelation.target.id],
   );
   _drawBendpoints(param, graph, edge, connection);
   Common.debugStackPop();
@@ -931,8 +936,7 @@ function _openView(view) {
     // jArchi provides a ArchimateDiagramModelProxy class where then openDiagramEditor requires a ArchimateDiagramModel class
     // unfortunately, the getEObject() method that provides the underlying ArchimateDiagramModel class, is protected
     // so we use reflection to invoke this method.
-    var method =
-      Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class.getDeclaredMethod("getEObject");
+    var method = Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class.getDeclaredMethod("getEObject");
     method.setAccessible(true);
     var v = method.invoke(view);
     Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(v);

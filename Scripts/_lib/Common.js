@@ -6,7 +6,6 @@
  * - checkEngine:             check version of jScript engine
  * - (info|debug):            log message
  */
-const COMMON_FUNCTIONS_LOADED = true;
 console.log("Loading common.js");
 
 var _commonScriptName;
@@ -352,7 +351,6 @@ if (typeof module !== "undefined" && module.exports) {
     getFormattedDateTime,
     concept,
     logInColumns,
-    COMMON_FUNCTIONS_LOADED,
     FORMAT_WITH_TYPES,
     FORMAT_NO_TYPES,
     FORMAT_REVERSED,

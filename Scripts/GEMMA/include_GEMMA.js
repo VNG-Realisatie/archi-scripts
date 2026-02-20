@@ -34,8 +34,10 @@ function setObjectID(objects) {
   const objectsWithID = objects.filter((object) => object.prop(PROP_ID));
   const objectsWithoutID = objects.filter((object) => !object.prop(PROP_ID));
 
-  console.log(`Checking property ${PROP_ID}'s in ${model}`);
-  console.log(`Total number of objects to check: \t${objects.length}`);
+  if (objects.length > 1) {
+    console.log(`Checking property ${PROP_ID}'s in ${model}`);
+    console.log(`Total number of objects to check: \t${objects.length}`);
+  }
 
   // Check for duplicates
   const objectsWithDuplicateID = _checkDuplicateID(objectsWithID);
@@ -48,7 +50,7 @@ function setObjectID(objects) {
     const objectsWithUnvalidID = _checkUnvalidID(objectsWithID);
     if (objectsWithUnvalidID.length > 0) {
       console.log(
-        `Replacing ${PROP_ID} in ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""}\n`
+        `Replacing ${PROP_ID} in ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""}\n`,
       );
       const replacedIDs = objectsWithUnvalidID.sort().map((o) => {
         let id_generated = Common.generateUUID();
@@ -61,9 +63,7 @@ function setObjectID(objects) {
     }
 
     if (objectsWithoutID.length > 0) {
-      console.log(
-        `\nAdding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}\n`
-      );
+      console.log(`\nAdding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}\n`);
       const newIDs = objectsWithoutID.sort().map((o) => {
         let id_generated = Common.generateUUID();
         o.prop(PROP_ID, id_generated);
@@ -72,10 +72,12 @@ function setObjectID(objects) {
       Common.logInColumns(newIDs, ["Object", "New Object ID"]);
       console.log();
     }
-    console.log(`Summary:`);
-    console.log(`- added ${PROP_ID}: \t${objectsWithoutID.length}`);
-    console.log(`- replaced ${PROP_ID}: \t${objectsWithUnvalidID.length}`);
-    console.log(`All objects now have a valid ${PROP_ID}\n`);
+    if (objects.length > 1) {
+      console.log(`Summary:`);
+      console.log(`- added ${PROP_ID}: \t${objectsWithoutID.length}`);
+      console.log(`- replaced ${PROP_ID}: \t${objectsWithUnvalidID.length}`);
+      console.log(`All objects now have a valid ${PROP_ID}\n`);
+    }
     return true;
   }
 }
@@ -92,10 +94,12 @@ function _checkDuplicateID(objects) {
     return acc;
   }, {});
 
-  const objWithDupID = objectsWithID.filter(obj => lookup[obj.prop(PROP_ID)]).map(obj => ({
-    "Object ID": obj.prop(PROP_ID),
-    "Objects": obj.name
-  }));
+  const objWithDupID = objectsWithID
+    .filter((obj) => lookup[obj.prop(PROP_ID)])
+    .map((obj) => ({
+      "Object ID": obj.prop(PROP_ID),
+      Objects: obj.name,
+    }));
 
   if (objWithDupID.length > 0) {
     console.log(`\nDuplicates found`);
@@ -126,9 +130,7 @@ function _checkUnvalidID(objects) {
 
   if (objectsWithUnvalidID.length > 0) {
     console.log(`\nInvalid GUIDs found`);
-    console.log(
-      `- ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""} with invalid GUID`
-    );
+    console.log(`- ${objectsWithUnvalidID.length} object${objectsWithUnvalidID.length > 1 ? "s" : ""} with invalid GUID`);
     Common.logInColumns(objectsWithUnvalidID, ["Object ID", "Object"]);
   }
 

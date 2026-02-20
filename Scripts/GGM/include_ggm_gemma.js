@@ -1,23 +1,7 @@
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const GEMMA = require(__DIR__ + "/../GEMMA/include_GEMMA.js");
-const DefaultConfig = require(__DIR__ + "/config.default.js");
-
-let Config = DefaultConfig;
-try {
-  const LocalConfig = require(__DIR__ + "/config.js");
-  if (LocalConfig && Object.keys(LocalConfig).length > 0) {
-    Config = Object.assign({}, DefaultConfig, LocalConfig);
-    // Deep merge csvFiles
-    if (LocalConfig.csvFiles) {
-      Config.csvFiles = Object.assign({}, DefaultConfig.csvFiles, LocalConfig.csvFiles);
-    }
-  }
-} catch (e) {
-  // Use DefaultConfig
-}
 
 console.log("Loading include_ggm_gemma.js");
-console.log("CSV folder: " + Config.folderPath);
 
 // folders in GEMMA ArchiMate-model
 const FOLDER_SYNC_GGM = "/_Sync GEMMA en project/GGM";
@@ -41,13 +25,13 @@ const PROP_GGM_UML_TYPE = "GGM-uml-type"; // Het in het GGM UML model gebruikt t
 const PROP_GGM_TYPE = "GGM-type"; // toegevoegd type voor de in het GGM UML model aangeleverde beleidsdomeinen of iv3-domeinen
 const PROP_GGM_DATUM_TIJD = "GGM-datum-tijd-export";
 
-const PROP_GGM_SYNC ="Latest Sync Date"
+const PROP_GGM_SYNC = "Latest Sync Date";
 const PROP_GGM_SYNC_DELETED = "Sync deleted";
-const PROP_GGM_SYNC_CREATED ="Sync created";
+const PROP_GGM_SYNC_CREATED = "Sync created";
 
-const PROP_GGM_IMPORT ="Latest Import Date"
+const PROP_GGM_IMPORT = "Latest Import Date";
 const PROP_GGM_IMPORT_DELETED = "Import deleted";
-const PROP_GGM_IMPORT_CREATED ="Import created";
+const PROP_GGM_IMPORT_CREATED = "Import created";
 
 // GGM afgeleid gegeven
 const PROP_SPECIALIZATON = "GGM-specialisaties";
@@ -83,6 +67,7 @@ const GEMMA_GGM_STATUS_NIEUW = "Nieuw";
  */
 function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrijfsobjectFolder, stats) {
   let updatedBusinessObjects = $();
+  console.log(`\n===================================`);
   console.log(`Created and updated business-object:`);
   dataObjects
     .filter((dataObject) => dataObject.prop(PROP_ARCHIMATE_TYPE) == "Business object")
@@ -93,7 +78,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
       if (businessObject) {
         // update GEMMA with GGM properties
         console.log(`> update ${businessObject}`);
-        if (updateObjectProp(dataObject, businessObject)) {
+        if (_updateObjectProp(dataObject, businessObject)) {
           stats.nr_update += 1;
         } else {
           stats.nr_no_updates += 1;
@@ -102,19 +87,19 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
         console.log(`> create business-object from ${dataObject}`);
         businessObject = model.createElement("business-object", dataObject.name, businessObjectFolder);
         // update GEMMA bedrijfsobject with GGM properties
-        updateObjectProp(dataObject, businessObject);
+        _updateObjectProp(dataObject, businessObject);
         // add a warning in every created object
         businessObject.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
         businessObject.prop(PROP_GEMMA_TYPE, GEMMA_TYPE_BEDRIJFSOBJECT);
 
-        createRealizationRel(dataObject, businessObject, realizesBedrijfsobjectFolder);
+        _createRealizationRel(dataObject, businessObject, realizesBedrijfsobjectFolder);
 
         stats.nr_create += 1;
       }
 
       // set GEMMA properties
-      GEMMA.setObjectID(businessObject);
-      addPropSpecializations(dataObject, businessObject);
+      GEMMA.setObjectID($(businessObject));
+      _addPropSpecializations(dataObject, businessObject);
       // GEMMA online URL
       businessObject.prop(PROP_GEMMA_URL, GEMMA_URL + businessObject.prop(PROP_ID));
 
@@ -124,13 +109,13 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
   return updatedBusinessObjects;
 
   // create a realization relation between the GGM data-object and created business object
-  function createRealizationRel(dataObject, businessObject, realizesBedrijfsobjectFolder) {
+  function _createRealizationRel(dataObject, businessObject, realizesBedrijfsobjectFolder) {
     let realizationRel = model.createRelationship(
       "realization-relationship",
       REALIZATION_LABEL,
       dataObject,
       businessObject,
-      realizesBedrijfsobjectFolder
+      realizesBedrijfsobjectFolder,
     );
     // set realizationRel properties
     GEMMA.setObjectID(realizationRel);
@@ -138,7 +123,7 @@ function updateBusinessObjects(dataObjects, businessObjectFolder, realizesBedrij
   }
 
   // document specialization-relations in property
-  function addPropSpecializations(dataObject, businessObject) {
+  function _addPropSpecializations(dataObject, businessObject) {
     let meerSpecifiek = "";
     $(dataObject)
       .inRels("specialization-relationship")
@@ -186,7 +171,8 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
   Common.debugStackPush(false);
   let index = [];
 
-  console.log(`\nProcessing data-object relations to business-object relations`);
+  console.log(`\n=============================================================`);
+  console.log(`Processing data-object relations to business-object relations`);
 
   // process all GGM data-object relations
   dataObjects
@@ -204,7 +190,7 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
           .filter((bRel) => bRel.source.type == "business-object")
           .first();
         if (businessRel) {
-          console.log(`> update ${formatRelation(businessRel)}`);
+          console.log(`> update ${Common.formatRelation(businessRel)}`);
           stats.nr_update += 1;
         } else {
           let source = find_GGM_GEMMA_object(rel.source);
@@ -213,13 +199,13 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
           if (source && target) {
             businessRel = model.createRelationship(rel.type, rel.name, source, target, relsFolder);
 
-            console.log(`> create ${formatRelation(businessRel)}`);
+            console.log(`> create ${Common.formatRelation(businessRel)}`);
             stats.nr_create += 1;
           }
         }
         if (businessRel) {
-          updateObjectProp(rel, businessRel);
-          GEMMA.setObjectID(businessRel);
+          _updateObjectProp(rel, businessRel);
+          GEMMA.setObjectID($(businessRel));
           // add a warning in every created object
           businessRel.prop(PROP_SYNC_WARNING, `"GGM-" properties worden beheerd in het GGM informatiemodel`);
         }
@@ -234,7 +220,8 @@ function updateBusinessObjectRelations(dataObjects, relsFolder, stats) {
  * - copy properties
  */
 function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
-  console.log(`\nProcessing Beleidsdomein-aggregations to business-object relations`);
+  console.log(`\n=============================================================`);
+  console.log(`Processing Beleidsdomein-aggregations to business-object relations`);
 
   // process beleidsdomein relations
   dataObjects
@@ -247,7 +234,7 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
         .first();
 
       if (relBeleidsdomein) {
-        console.log(`> update ${formatRelation(relBeleidsdomein)}`);
+        console.log(`> update ${Common.formatRelation(relBeleidsdomein)}`);
         stats.nr_update += 1;
       } else {
         let target = find_GGM_GEMMA_object(rel.target);
@@ -255,13 +242,13 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
           relBeleidsdomein = model.createRelationship(rel.type, rel.name, rel.source, target, relsFolder);
           relBeleidsdomein.prop(PROP_OBJECT_ID_SYNC, rel.prop(PROP_ID));
           relBeleidsdomein.prop(PROP_SYNC_WARNING, "Gegenereerd met script ggm-gemma.ajs");
-          console.log(`> create ${formatRelation(relBeleidsdomein)}`);
+          console.log(`> create ${Common.formatRelation(relBeleidsdomein)}`);
           stats.nr_create += 1;
         }
       }
       if (relBeleidsdomein) {
-        updateObjectProp(rel, relBeleidsdomein);
-        GEMMA.setObjectID(relBeleidsdomein);
+        _updateObjectProp(rel, relBeleidsdomein);
+        GEMMA.setObjectID($(relBeleidsdomein));
         // move to sync folder
         relsFolder.add(relBeleidsdomein);
         // init, verplaatsen naar create tak
@@ -274,7 +261,7 @@ function updateBeleidsdomeinRelations(dataObjects, relsFolder, stats) {
 /**
  * Update GEMMA bedrijfsobjecten and relations properties with GGM properties
  */
-function updateObjectProp(from, to) {
+function _updateObjectProp(from, to) {
   // update objects attributes and properties
   let updatedFlag = false;
 
@@ -283,17 +270,17 @@ function updateObjectProp(from, to) {
   to.prop(PROP_GGM_DATUM_TIJD, from.prop(LABEL_DATUM_TIJD));
 
   // update attribute and property to a GGM-property, keep the GEMMA value
-  updatedFlag = updateAttribute("name", PROP_GGM_NAAM);
-  updatedFlag = updateAttribute("documentation", PROP_GGM_DEFINITIE);
-  updatedFlag = updateProperty("Toelichting", PROP_GGM_TOELICHTING, updatedFlag);
-  updatedFlag = updateProperty(PROP_BRON, PROP_GGM_BRON, updatedFlag);
-  updatedFlag = updateProperty("Synoniemen", PROP_GGM_SYNONIEMEN, updatedFlag);
+  updatedFlag = _updateAttribute("name", PROP_GGM_NAAM);
+  updatedFlag = _updateAttribute("documentation", PROP_GGM_DEFINITIE);
+  updatedFlag = _updateProperty("Toelichting", PROP_GGM_TOELICHTING, updatedFlag);
+  updatedFlag = _updateProperty(PROP_BRON, PROP_GGM_BRON, updatedFlag);
+  updatedFlag = _updateProperty("Synoniemen", PROP_GGM_SYNONIEMEN, updatedFlag);
 
   // copy these properties from GGM
-  updatedFlag = copyProperty(PROP_GGM_UML_TYPE, updatedFlag);
+  updatedFlag = _copyProperty(PROP_GGM_UML_TYPE, updatedFlag);
 
   // beleidsdomein relaties
-  updatedFlag = updateProperty("Synoniemen", PROP_GGM_SYNONIEMEN, updatedFlag);
+  updatedFlag = _updateProperty("Synoniemen", PROP_GGM_SYNONIEMEN, updatedFlag);
 
   // don't copy these properties to GEMMA bedrijfsobjecten
   // - PROP_ARCHIMATE_TYPE
@@ -306,7 +293,7 @@ function updateObjectProp(from, to) {
 
   return updatedFlag;
 
-  function updateAttribute(attribute, ggmProp) {
+  function _updateAttribute(attribute, ggmProp) {
     let updated = false;
     if (to[attribute].trim() == "" && from[attribute] != "") {
       console.log(`  > ${attribute}:\n  > new: ${from[attribute].trim()}`);
@@ -327,7 +314,7 @@ function updateObjectProp(from, to) {
     return updated;
   }
 
-  function updateProperty(gemmaProp, ggmProp, updated = false) {
+  function _updateProperty(gemmaProp, ggmProp, updated = false) {
     if (from.prop(ggmProp) && from.prop(ggmProp) != GGM_MEMO_TEXT) {
       if (!to.prop(gemmaProp)) {
         console.log(`  > ${gemmaProp}:`);
@@ -337,14 +324,14 @@ function updateObjectProp(from, to) {
       } else {
         if (to.prop(gemmaProp).trim() != from.prop(ggmProp).trim()) {
           // check if ggmProp is changed and log
-          updated = copyProperty(ggmProp, updated);
+          updated = _copyProperty(ggmProp, updated);
         }
       }
     }
     return updated;
   }
 
-  function copyProperty(property, updated = false) {
+  function _copyProperty(property, updated = false) {
     if (from.prop(property)) {
       if (to.prop(property) != from.prop(property).trim()) {
         console.log(`  > ${property}:`);
@@ -391,7 +378,7 @@ function updateViewProp(view) {
         view.prop("Beleidsdomein", grouping.name);
       }
     });
-  GEMMA.setObjectID(view);
+  GEMMA.setObjectID($(view));
 }
 
 /**
@@ -403,7 +390,7 @@ function updateAlternateName(archiObjColl) {
   archiObjColl.each((obj) => obj.removeProp(PROP_ALTERNATE_NAME));
 
   // find objects with equal names
-  const duplicateNames = findDuplicateNames(archiObjColl);
+  const duplicateNames = _findDuplicateNames(archiObjColl);
 
   // add property with alternate name (suffix Beleidsdomein)
   if (duplicateNames.length > 0) {
@@ -417,26 +404,18 @@ function updateAlternateName(archiObjColl) {
       if (relBeleidsdomein.size() == 1) {
         let alternateName = `${duplicateItem.archiObj.name} (${relBeleidsdomein.first().source.name})`;
         Common.debug(`- ${duplicateItem.archiObj.name} > ${alternateName}`);
-        // item.archiObj.name = alternateName;
-        if (duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME) != alternateName) {
-          console.log(
-            `  > ${duplicateItem.archiObj.name} >  ${
-              duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME) == undefined
-                ? "''"
-                : duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME)
-            } => ${alternateName}`
-          );
-        }
+        // log als alternateName is gewijzigd
+        console.log(`  > ${duplicateItem.archiObj.name} => ${alternateName}`);
         duplicateItem.archiObj.prop(PROP_ALTERNATE_NAME, alternateName);
       } else {
         console.log(
-          `  > Warning: ${duplicateItem.archiObj} does not have 1 'beleidsdomein'. Found relation(s): ${relBeleidsdomein}`
+          `  > Warning: ${duplicateItem.archiObj} does not have 1 'beleidsdomein'. Found relation(s): ${relBeleidsdomein}`,
         );
       }
     });
   } else console.log(`- geen`);
 
-  function findDuplicateNames(archiObjColl) {
+  function _findDuplicateNames(archiObjColl) {
     let archiObjArray = [];
     archiObjColl.each((o) => archiObjArray.push(o));
 
@@ -449,12 +428,12 @@ function updateAlternateName(archiObjColl) {
       return accumulator;
     }, {});
     // If the lookup entry is 0 (false), it was only seen once and filter omits it from the result set, else it's kept
-    return objectNameArray.filter((entry) => lookup[entry.objKey]).sort(sortObjName);
+    return objectNameArray.filter((entry) => lookup[entry.objKey]).sort(_sortObjName);
 
     /**
      * sort entries on objKey
      */
-    function sortObjName(a, b) {
+    function _sortObjName(a, b) {
       if (a.objKey < b.objKey) return -1;
       if (a.objKey > b.objKey) return 1;
       return 0;
@@ -478,11 +457,8 @@ function find_GGM_GEMMA_object(searchObject) {
   return foundObject;
 }
 
-
-
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    Config,
     FOLDER_SYNC_GGM,
     FOLDER_GGM_DATAOBJECT,
     FOLDER_GGM_BELEIDSDOMEIN,
@@ -528,7 +504,6 @@ if (typeof module !== "undefined" && module.exports) {
     deleteBusinessObjects,
     updateBusinessObjectRelations,
     updateBeleidsdomeinRelations,
-    updateObjectProp,
     updateViewProp,
     updateAlternateName,
     find_GGM_GEMMA_object,
