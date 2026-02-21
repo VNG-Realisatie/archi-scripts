@@ -24,19 +24,27 @@ let _config = {
   GEMMA_exportFolder: '',
 };
 
+console.log("Default configuratie in " + __FILE__);
+validateConfig(_config)
+
 try {
   // Probeer config.js in te lezen
   const LocalConfig = require(__DIR__ + "/config.js");
   Object.assign(_config, LocalConfig);
+  console.log("Overruled met lokale configuratie in /config.js");
+  validateConfig(_config)
 } catch (err) {
   // Bestand ontbreekt: blijf bij lege defaults
+  console.log("File /config.js niet gevonden, gebruik default configuratie");
 }
 
+function validateConfig(config) {
 console.log('> GGM import folder:', _config.GGM_importFolder);
 console.log('  - Element CSV:', _config.elementCSV);
 console.log('  - Relatie CSV:', _config.relatieCSV);
 console.log('> GEMMA export folder:', _config.GEMMA_exportFolder);
 console.log();
+}
 
 module.exports = {
   GGM_importFolder: _config.GGM_importFolder,

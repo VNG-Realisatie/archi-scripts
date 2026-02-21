@@ -22,8 +22,8 @@ Common.initConsoleLog(__FILE__, true);
  * GEMMA CSV exportbestanden in de lokale GEMMA-GGM archi-repository
  */
 const Config = require(__DIR__ + "/config.default.js");
-const BEDRIJFSOBJECTEN_CSV = "exports/GEMMA_Bedrijfsobjecten_element.csv";
-const BEDRIJFSOBJECTRELATIES_CSV = "exports/GEMMA_Bedrijfsobjecten_relatie.csv";
+const BEDRIJFSOBJECTEN_CSV = "GEMMA_Bedrijfsobjecten_element.csv";
+const BEDRIJFSOBJECTRELATIES_CSV = "GEMMA_Bedrijfsobjecten_relatie.csv";
 
 /**
  * Mapping objects

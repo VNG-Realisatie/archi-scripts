@@ -1,7 +1,9 @@
-const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
+/**
+ * GGM CSV importbestanden in de lokale GGM import folder
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
-console.log("Verified Config:");
-console.log("- folderPath: " + GgmGemma.Config.folderPath);
-console.log("- csvFiles.elements: " + GgmGemma.Config.csvFiles.elements);
-console.log("- csvFiles.relations: " + GgmGemma.Config.csvFiles.relations);
-console.log("- getPath('elements'): " + GgmGemma.Config.getPath("elements"));
+Common.initConsoleLog(__FILE__, true);
+const Config = require(__DIR__ + "/config.default.js");
+
+Common.finishConsoleLog();

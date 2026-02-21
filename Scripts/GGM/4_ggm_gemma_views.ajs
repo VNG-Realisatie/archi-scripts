@@ -25,43 +25,33 @@ const FOLDER_SYNC_GGM_VIEWS = GgmGemma.FOLDER_SYNC_GGM + "/GGM naar GEMMA";
 Common.initConsoleLog(__FILE__, true);
 
 try {
-  console.log();
-  let GGMdomeinen = Selection.getSelection($(selection), "grouping");
-  GGMdomeinen = GGMdomeinen.filter(
-    (grouping) =>
-      grouping.prop(GgmGemma.PROP_GGM_TYPE) == GgmGemma.GGM_TYPE_BELEIDSDOMEIN &&
-      grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG,
-  );
-
-  if (GGMdomeinen.size() < 1) {
-    console.log("Geen beleidsdomeinen geselecteerd, selecteer één of meer beleidsdomeinen");
-  } else {
-    console.log(`\nGenereer GGM data-object views`);
-    console.log(`==============================`);
-    let param = View.read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
-    param.viewFolder = GgmGemma.FOLDER_GGM_DATAOBJECT;
-    param.viewNameSuffix = GgmGemma.VIEW_NAME_SUFFIX;
-
-    let generatedViews = View.generate_view(param, GGMdomeinen);
-    styleLabelsProperties(generatedViews);
-  }
-
-  console.log();
   let GEMMA_Beleidsdomeinen = Selection.getSelection($(selection), "grouping");
   GEMMA_Beleidsdomeinen = GEMMA_Beleidsdomeinen.filter(
     (grouping) =>
       grouping.prop(GgmGemma.PROP_GEMMA_TYPE) == GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN &&
       grouping.prop(GgmGemma.PROP_GEMMA_GGM_STATUS) != GgmGemma.GEMMA_GGM_STATUS_LEEG,
   );
+
+  console.log();
   if (GEMMA_Beleidsdomeinen.size() < 1) {
-    console.log("Geen beleidsdomeinen met inhoud voor GEMMA");
+    console.log("Geen beleidsdomeinen geselecteerd, selecteer één of meer beleidsdomeinen");
   } else {
+    console.log(`\nGenereer GGM data-objectmodellen`);
+    console.log(`==============================`);
+    
+    let param = View.read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
+    param.viewFolder = GgmGemma.FOLDER_GGM_DATAOBJECT;
+    param.viewNameSuffix = GgmGemma.VIEW_NAME_SUFFIX;
+    let generatedViews = View.generate_view(param, GEMMA_Beleidsdomeinen);
+    styleLabelsProperties(generatedViews);
+
+    console.log();
     console.log(`\nGenereer GEMMA bedrijfsobjectmodellen`);
     console.log(`=====================================`);
-    let param = View.read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
+    
+    param = View.read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
     param.viewFolder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
-
-    let generatedViews = View.generate_view(param, GEMMA_Beleidsdomeinen);
+    generatedViews = View.generate_view(param, GEMMA_Beleidsdomeinen);
     styleLabelsProperties(generatedViews);
   }
   console.log();
