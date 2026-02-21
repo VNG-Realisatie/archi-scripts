@@ -1,7 +1,12 @@
-_testjes/*
-node_modules/*
-output_code2flow/*
-.vscode/*
+# distribute node_modules with scripts for easy install
+# node_modules/*
 package-lock.json
 package.json
+
+# local config file with user-specific settings, e.g. file paths
 config.js
+
+# AI refactoring files
+.cursorrules
+REFACTORING_GUIDE.md
+SETUP_NODE_MODULES.md
