@@ -9,16 +9,16 @@
  * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
  */
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const Sync = require(__DIR__ + "/../Sync from CSV/Include_LoadAndSync.js");
+const Sync = require(__SCRIPTS_DIR__ + "Scripts/Sync from CSV/Include_LoadAndSync.js");
 
 Common.initConsoleLog(__FILE__, true);
 
 /**
  * GGM CSV importbestanden in de lokale GGM import folder
  */
-const Config = require(__DIR__ + "/config.default.js");
+const Config = require(__DIR__ + "config.default.js");
 
 try {
   let importFile = Config.GGM_importFolder + Config.elementCSV;

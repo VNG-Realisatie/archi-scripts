@@ -16,8 +16,8 @@
  * 07 2022: keep masters property Object ID, drop the other Object ID's
  * 06 2023: Select one or multiple master elements, all these elements will be merged.
  */
-const Common = require(__DIR__ + "/_lib/Common.js");
-const Merge = require(__DIR__ + "/includeMergeConcept.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Merge = require(__DIR__ + "includeMergeConcept.js");
 
 Common.initConsoleLog(__FILE__);
 Merge.mergeElementOrRelation(Merge.OBJECT_TYPE_ELEMENT);

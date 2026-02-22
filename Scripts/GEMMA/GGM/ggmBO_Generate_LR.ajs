@@ -8,8 +8,8 @@
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const View = require(__DIR__ + "/../View/include_view.js");
-const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
+const View = require(__SCRIPTS_DIR__ + "Scripts/View/include_view.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 
 Common.initConsoleLog(__FILE__, true);
 

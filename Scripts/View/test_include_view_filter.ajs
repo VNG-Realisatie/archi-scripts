@@ -1,7 +1,7 @@
 /**
  * test
  */
-const Common = require(__DIR__ + "../_lib/Common");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
 const View = require(__DIR__ + "include_view");
 
 Common.initConsoleLog(__FILE__, true);

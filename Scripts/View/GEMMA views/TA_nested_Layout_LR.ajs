@@ -1,8 +1,8 @@
 /**
  * Layout voor overerving view
  */
-const Common = require(__DIR__ + "../../_lib/Common");
-const View = require(__DIR__ + "../include_view");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
+const View = require(__SCRIPTS_DIR__ + "Scripts/View/include_view");
 
 
 var param = {

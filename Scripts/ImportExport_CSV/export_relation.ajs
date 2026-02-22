@@ -5,7 +5,7 @@
  */
 
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const Export = require(__DIR__ + "/include_export.js");
+const Export = require(__DIR__ + "include_export.js");
 
 Common.initConsoleLog(__FILE__);
 

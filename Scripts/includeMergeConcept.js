@@ -28,8 +28,8 @@
  * 
  * (c) 2019 Mark Backer
  */
-const ArchiFolders = require(__DIR__ + "/_lib/archi_folders.js");
-const Selection = require(__DIR__ + "/_lib/selection.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 const PROP_ID = "Object ID";
 const OBJECT_TYPE_RELATION = "relation";

@@ -42,9 +42,9 @@
  *    - for connections to embedded elements, only some get bendpoints
  *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
-const Common = require(__DIR__ + "../_lib/Common");
-const Selection = require(__DIR__ + "../_lib/selection");
-const ArchiFolders = require(__DIR__ + "../_lib/archi_folders");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders");
 
 const GENERATE_SINGLE = "Generate";
 const GENERATE_MULTIPLE = "GenerateMultiple";
@@ -68,19 +68,12 @@ const JUNCTION_DIAMETER = 14; // size of a junction
 const DEFAULT_PARAM_FILE = "default_parameter.js"; // optional file with user defaults, supersedes defaults above
 const USER_PARAM_FOLDER = "user_parameter"; // folder with user parameter settings for generating views
 
-// polyfill for array method includes(), which is not supported in Nashorn ES6
-if (!Array.prototype.includes) {
-  Array.prototype.includes = function (search) {
-    return !!~this.indexOf(search);
-  };
-}
-
 /**
  * Dagre is loaded via native jArchi CommonJS require (no jvm-npm).
  * Ensure Archi Preferences > Scripting: CommonJS is enabled and engine is GraalVM.
  */
 try {
-  var dagre = require(__DIR__ + "../node_modules/dagre-cluster-fix");
+  var dagre = require(__SCRIPTS_DIR__ + "Scripts/node_modules/dagre-cluster-fix");
   console.log(`Dagre version:`);
   console.log(`- dagre:    ${dagre.version}`);
   console.log(`- graphlib: ${dagre.graphlib.version}\n`);

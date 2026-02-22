@@ -3,7 +3,7 @@
  */
 const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const ExportImport = require(__DIR__ + "/include_export_import.js");
+const ExportImport = require(__DIR__ + "include_export_import.js");
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 /**
@@ -34,7 +34,7 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       let columnsHeader = [];
       if (headerMapping == undefined) {
         console.log(`Create header:`);
-        columnsHeader = createHeader(selectionList, objectType);
+        columnsHeader = _createHeader(selectionList, objectType);
         // column labels are equal to property labels
         propsHeader=columnsHeader 
       } else {
@@ -53,7 +53,7 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       }
 
       console.log(`Create rows for selection:`);
-      const data = selectionList.map((o) => createRow(propsHeader, o, objectType, headerMapping));
+      const data = selectionList.map((o) => _createRow(propsHeader, o, objectType, headerMapping));
       console.log(`- ${data.length} rows created\n`);
 
       if (!exportFile) {
@@ -74,7 +74,7 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       }
 
       if (exportFile) {
-        saveRowsToFile(columnsHeader, data, exportFile);
+        _saveRowsToFile(columnsHeader, data, exportFile);
         // saveRowsToExcel(header, data, objectType, exportFile);
       } else {
         console.log("\nExport CSV canceled");
@@ -91,11 +91,11 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
 /**
  * create a row with the column labels for the exported objects
  */
-function createHeader(objects, objectType) {
+function _createHeader(objects, objectType) {
   let header = [];
   let columnLogText = "";
 
-  const PROPERTY_LABELS = getPropertyLabels(objects);
+  const PROPERTY_LABELS = _getPropertyLabels(objects);
 
   if (ExportImport.FOLDER_LABEL) {
     header.push(ExportImport.FOLDER_LABEL);
@@ -130,7 +130,7 @@ function createHeader(objects, objectType) {
   return header;
 }
 
-function getPropertyLabels(objects) {
+function _getPropertyLabels(objects) {
   // remove duplicate property labels
   let propertyLabelsObject = objects.reduce((a, obj) => findPropertyLabels(a, obj), {});
   // convert object with labels to array with labels
@@ -154,7 +154,7 @@ function getPropertyLabels(objects) {
 /**
  * create a CSV row for an exported object
  */
-function createRow(headerRow, object, objectType, headerMapping) {
+function _createRow(headerRow, object, objectType, headerMapping) {
   let row = new Object();
 
   Common.debugStackPush(false);
@@ -193,9 +193,9 @@ function createRow(headerRow, object, objectType, headerMapping) {
   // GEMMA columns for checking which elements will be published
   if (ExportImport.GEMMA_COLUMNS && objectType == ExportImport.OBJECT_TYPE_ELEMENT) {
     // fill column with the 'highest' publiceren value of all the views with the object drawn
-    row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = getGEMMA_columns(object).publicerenTotEnMet;
+    row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = _getGEMMA_columns(object).publicerenTotEnMet;
     Common.debug(`row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]: ${row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
-    row[ExportImport.GEMMA_LIST_API_LABEL] = getGEMMA_columns(object).GEMMA_ListAPI;
+    row[ExportImport.GEMMA_LIST_API_LABEL] = _getGEMMA_columns(object).GEMMA_ListAPI;
     Common.debug(`row[GEMMA_LIST_API]: ${row[ExportImport.GEMMA_LIST_API_LABEL]}`);
   }
   Common.debug(`Row: ${JSON.stringify(row)}`);
@@ -211,7 +211,7 @@ function createRow(headerRow, object, objectType, headerMapping) {
  * @param {*} object
  * @returns object with values for two columns
  */
-function getGEMMA_columns(object) {
+function _getGEMMA_columns(object) {
   let maxPublicerenIndex = -1;
   let pubProp = "Geen view";
   let naarSWC = "Niet";
@@ -234,7 +234,7 @@ function getGEMMA_columns(object) {
 /**
  * Save header and data to a CSV file
  */
-function saveRowsToFile(header, data, exportFile) {
+function _saveRowsToFile(header, data, exportFile) {
   $.fs.writeFile(exportFile, ExportImport.Papa.unparse({ fields: header, data: data }, { quotes: true }));
   let exportFileName = exportFile.split("\\").pop().split("/").pop();
   let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
@@ -245,7 +245,7 @@ function saveRowsToFile(header, data, exportFile) {
 /**
  * Save header and data to Excel
  */
-function saveRowsToExcel(header, data, objectType, exportFile) {
+function _saveRowsToExcel(header, data, objectType, exportFile) {
   var XLSX;
   try {
     XLSX = require("xlsx");
@@ -280,8 +280,6 @@ function saveRowsToExcel(header, data, objectType, exportFile) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     exportObjects,
-    saveRowsToFile,
-    saveRowsToExcel,
     OBJECT_TYPE_ELEMENT: ExportImport.OBJECT_TYPE_ELEMENT,
     OBJECT_TYPE_RELATION: ExportImport.OBJECT_TYPE_RELATION,
     OBJECT_TYPE_VIEW: ExportImport.OBJECT_TYPE_VIEW

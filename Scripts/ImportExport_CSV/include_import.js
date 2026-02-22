@@ -22,7 +22,7 @@
  *
  */
 var Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-var ExportImport = require(__DIR__ + "/include_export_import.js");
+var ExportImport = require(__DIR__ + "include_export_import.js");
 
 // use this value in a property column to remove a property from the object
 const REMOVE_PROPERTY_VALUE = "<remove>";
@@ -85,14 +85,14 @@ function importObjects(importFile, sync = false, transformRowFn) {
       console.log(`- elements and views with a combination of name and type`);
       console.log(`- relations with the endpoints and type`);
 
-      let rows = getRowsFromFile(importFile, transformRowFn);
+      let rows = _getRowsFromFile(importFile, transformRowFn);
       if (rows.length == 0) {
         console.log("\n> ======== ");
         console.log(`> no data in CSV file: ${importFileName}`);
         console.log(`\n> Select another file and import again\n`);
       } else {
         Common.debug("\n> check header for missing columns");
-        let headerLabels = get_headerLabels(rows);
+        let headerLabels = _get_headerLabels(rows);
         if (headerLabels.length == 0) {
           console.log(`\n> Add missing columns and run import script again`);
           console.log(`> Use export script to create a CSV file with all required columns\n`);
@@ -101,7 +101,7 @@ function importObjects(importFile, sync = false, transformRowFn) {
 
           // process all rows from CSV file
           Common.startCounter("importObjects");
-          let results = rows.map((row, index) => processRow(row, index, headerLabels, sync));
+          let results = rows.map((row, index) => _processRow(row, index, headerLabels, sync));
           Common.debug(`importObjects ${results.length} rows (${Common.endCounter("importObjects")}`);
 
           let skipped = results.filter((result) => result.resultCode === SKIP);
@@ -129,7 +129,7 @@ function importObjects(importFile, sync = false, transformRowFn) {
           console.log(`>> Total rows processed : ${rows.length}`);
 
           if (sync) {
-            tagDeletedConcepts();
+            _tagDeletedConcepts();
             console.log(`\n> CSV file: ${importFileName} synchronized`);
           } else {
             console.log(`\n> CSV file: ${importFileName} imported`);
@@ -144,7 +144,7 @@ function importObjects(importFile, sync = false, transformRowFn) {
   Common.debugStackPop();
 }
 
-function tagDeletedConcepts() {
+function _tagDeletedConcepts() {
   console.log("INFO - Looking for deleted elements or relationships and tagging them as deleted...");
   var deleted = 0;
 
@@ -172,26 +172,26 @@ function tagDeletedConcepts() {
  * check importFile for missing columns
  * return array with header labels to update objects
  */
-function get_headerLabels(rows) {
+function _get_headerLabels(rows) {
   // check if there is a column for the attributes
   const allHeaderLabels = Object.keys(rows[0]);
-  let attrCheck = checkLabel(ExportImport.ATTRIBUTE_LABELS, "attribute", allHeaderLabels);
+  let attrCheck = _checkLabel(ExportImport.ATTRIBUTE_LABELS, "attribute", allHeaderLabels);
+
   // and for relations if the endpoints columns are present
   let endpointCheck = true;
-  let relations = rows.filter((row) => row.type.endsWith("relationship"));
-
-  if (relations.length > 0) {
-    endpointCheck = checkLabel(ExportImport.ENDPOINT_LABELS, "endpoint", allHeaderLabels);
+  let relationRows = rows.filter((row) => row.type.endsWith("relationship"));
+  if (relationRows.length > 0) {
+    endpointCheck = _checkLabel(ExportImport.ENDPOINT_LABELS, "endpoint", allHeaderLabels);
   }
 
   let headerLabels = [];
   if (attrCheck && endpointCheck) {
-    headerLabels = allHeaderLabels.filter((label) => !ExportImport.LABELS_NOT_TO_UPDATE.includes(label));
+    headerLabels = allHeaderLabels.filter((label) => !ExportImport.COLUMNS_NOT_TO_IMPORT.includes(label));
     Common.debug(`\nlabelsToUpdate: ${headerLabels}`);
   }
   return headerLabels;
 
-  function checkLabel(labels, labelType, allHeaderLabels) {
+  function _checkLabel(labels, labelType, allHeaderLabels) {
     let line = "";
     labels.forEach((label) => {
       if (!allHeaderLabels.includes(label)) line += `- ${label}\n`;
@@ -226,7 +226,7 @@ function get_headerLabels(rows) {
  *
  * 	return result object with log info
  */
-function processRow(row, index, rowLabels, sync) {
+function _processRow(row, index, rowLabels, sync) {
   Common.startCounter("processRow");
 
   let findResult;
@@ -239,14 +239,14 @@ function processRow(row, index, rowLabels, sync) {
   row.type = row.type.trim();
   row.name = row.name.trim();
   row.id = row.id.trim();
-  findResult = findObject(row.type, row.name, row[ExportImport.PROP_ID], row.id, row);
+  findResult = _findObject(row.type, row.name, row[ExportImport.PROP_ID], row.id, row);
   Common.debug(`findResult: ${JSON.stringify(findResult)}`);
 
   if (findResult.findCode == FOUND) {
-    result = updateObject(row, index, rowLabels, findResult, "uitzoeken", sync);
+    result = _updateObject(row, index, rowLabels, findResult, "uitzoeken", sync);
   } else {
     if (findResult.errorCode == SUCCES) {
-      result = createObject(row, index, rowLabels, sync);
+      result = _createObject(row, index, rowLabels, sync);
     } else {
       result.resultCode = SKIP;
       result.line = `row[${index + 2}] ${SKIP}\n`;
@@ -266,7 +266,7 @@ function processRow(row, index, rowLabels, sync) {
  *  - by id
  *  - by name and type
  */
-function findObject(row_type, row_name, row_prop_id, row_id, row) {
+function _findObject(row_type, row_name, row_prop_id, row_id, row) {
   Common.startCounter("findObjects");
   let archiColl = $();
   let rowHasKey = false;
@@ -308,7 +308,7 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
   // search relation with endpoints
   if (findCode == NOT_FOUND && row_type.endsWith("relationship")) {
     rowHasKey = true; // if row endpoints are not complete, it's signaled in the function
-    let findRelResult = findWithEndpoints(row);
+    let findRelResult = _findWithEndpoints(row);
     findCode = findRelResult.findCode;
     findText = findRelResult.findText;
     if (findRelResult.errorCode != SUCCES) {
@@ -360,7 +360,7 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
  * 	- for finding source and target the function findObjects is used
  * 	- source and target columns must have a valid search key
  */
-function findWithEndpoints(row) {
+function _findWithEndpoints(row) {
   Common.startCounter("findRelation");
   let archiRels = $();
   let findCode = NOT_FOUND;
@@ -369,7 +369,7 @@ function findWithEndpoints(row) {
   let errorText = "";
 
   Common.debug(`Row source`);
-  let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
+  let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
   if (findSrc.errorCode != SUCCES) {
     errorCode += findSrc.errorCode;
     errorText += `- Error in row source.<endpoint> columns > `;
@@ -377,7 +377,7 @@ function findWithEndpoints(row) {
     Common.debug(errorText);
   }
   Common.debug(`Row target`);
-  let findTgt = findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
+  let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
   if (findTgt.errorCode != SUCCES) {
     errorCode += findTgt.errorCode;
     errorText += `- Error in row target.<endpoint> columns > `;
@@ -440,7 +440,7 @@ function findWithEndpoints(row) {
  * 	create a new object for the row
  *  if row is a relation the source and target have to exist
  */
-function createObject(row, index, rowLabels, sync) {
+function _createObject(row, index, rowLabels, sync) {
   Common.debugStackPush(false);
   Common.startCounter("createObject");
   let line = "";
@@ -448,9 +448,9 @@ function createObject(row, index, rowLabels, sync) {
   let archiObj = {};
 
   if (row.type.endsWith("relationship")) {
-    let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
+    let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
     Common.debug(`findSrc: ${JSON.stringify(findSrc)}`);
-    let findTgt = findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
+    let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
     Common.debug(`findTgt: ${JSON.stringify(findTgt)}`);
 
     if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
@@ -469,7 +469,7 @@ function createObject(row, index, rowLabels, sync) {
     line += `row[${index + 2}] ${CREATE}\n`;
     line += `  ${archiObj}\n`;
     createResult = { archiObj: archiObj };
-    let result = updateObject(row, index, rowLabels, createResult, CREATE, sync);
+    let result = _updateObject(row, index, rowLabels, createResult, CREATE, sync);
     line += result.line;
     resultCode = CREATE;
   }
@@ -482,7 +482,7 @@ function createObject(row, index, rowLabels, sync) {
 /**
  * 	update the attributes and properties of the object with the CSV row values
  */
-function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
+function _updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
   Common.startCounter("updateObject");
   const ATTRIBUTE_TEXT = "attribute";
   const PROPERTY_TEXT = "property";
@@ -545,12 +545,12 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
 /**
  * Read CSV file in UTF-8 encoding and return file parsed into an array
  */
-function getRowsFromFile(importFile, transformRowFn) {
+function _getRowsFromFile(importFile, transformRowFn) {
   let debugFlag = false;
   Common.debugStackPush(debugFlag);
 
   Common.startCounter("getRowsFromFile");
-  const parsed = ExportImport.Papa.parse(readFully(importFile, "utf-8"), {
+  const parsed = ExportImport.Papa.parse(_readFully_csv(importFile, "utf-8"), {
     header: true,
     preview: debugFlag ? 20 : 0,
     encoding: "utf-8",
@@ -585,7 +585,7 @@ function getRowsFromFile(importFile, transformRowFn) {
 }
 
 // Some Polyfills for Nashorn =================================
-function readFully(url, charset) {
+function _readFully_csv(url, charset) {
   // From https://github.com/sindresorhus/strip-bom
   function stripBom(string) {
     if (typeof string !== "string") {

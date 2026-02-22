@@ -10,9 +10,9 @@
  */
 console.log("Loading selection.js");
 
-const Common = require(__DIR__ + "/Common.js");
+const Common = require(__DIR__ + "Common.js");
 
-const DIAGRAM_OBJECTS = [
+const _DIAGRAM_OBJECTS = [
   "diagram-model-group",
   "diagram-model-connection",
   "diagram-model-note",
@@ -20,13 +20,6 @@ const DIAGRAM_OBJECTS = [
   "diagram-model-reference",
   "archimate-diagram-model", // jArchi return this for a diagram-model-reference
 ];
-
-// polyfill for array method includes(), which is not supported in Nashorn ES6
-if (!Array.prototype.includes) {
-  Array.prototype.includes = function (search) {
-    return !!~this.indexOf(search);
-  };
-}
 
 /**
  * apply a function to the given collection
@@ -160,7 +153,7 @@ function getVisualSelection(startSelection, selector = "*") {
           addFlag = true;
           break;
         case "diagram":
-          if (DIAGRAM_OBJECTS.includes(obj.type)) addFlag = true;
+          if (_DIAGRAM_OBJECTS.includes(obj.type)) addFlag = true;
           break;
         default:
           if ($(obj).is(selector)) addFlag = true;
@@ -181,6 +174,5 @@ if (typeof module !== "undefined" && module.exports) {
     getSelectionArray,
     getVisualSelection,
     applyToCollection,
-    DIAGRAM_OBJECTS,
   };
 }

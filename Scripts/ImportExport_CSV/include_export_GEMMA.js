@@ -13,7 +13,7 @@ const GEMMA_PUBLICEREN_VALUES = [
 // - don't import the attribute type (can't be set) and
 // - don't import the attribute id (can't be set) and
 // - don't import the endpoints (used for finding the relation)
-const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
+const COLUMNS_NOT_TO_IMPORT = ["type", "id", FOLDER_LABEL]
   .concat(ENDPOINT_LABELS)
   .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
   .concat(GEMMA_LIST_API_LABEL);

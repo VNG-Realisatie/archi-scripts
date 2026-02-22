@@ -36,7 +36,8 @@ const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
 const ASSOCIATION_DIRECTED = "associationDirected";
 const RELATION_ATTRIBUTE_LABELS = ["accessType", ASSOCIATION_DIRECTED, "influenceStrength"];
 
-function get_ENDPOINT_LABELS() {
+const ENDPOINT_LABELS = _get_ENDPOINT_LABELS();
+function _get_ENDPOINT_LABELS() {
   let labels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
   if (PROP_ID) {
     labels = labels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
@@ -44,12 +45,14 @@ function get_ENDPOINT_LABELS() {
   return labels;
 }
 
-function get_LABELS_NOT_TO_UPDATE() {
-  return ["type", "id", FOLDER_LABEL]
-    .concat(get_ENDPOINT_LABELS())
-    .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
-    .concat(GEMMA_LIST_API_LABEL);
-}
+// labels to skip when updating objects
+// - don't import the attribute type (can't be set) and
+// - don't import the attribute id (can't be set) and
+// - don't import the endpoints (used for finding the relation)
+const COLUMNS_NOT_TO_IMPORT = ["type", "id", FOLDER_LABEL]
+  .concat(ENDPOINT_LABELS)
+  .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
+  .concat(GEMMA_LIST_API_LABEL);
 
 /**
  * set an attribute or property to the value from the CSV file
@@ -57,7 +60,7 @@ function get_LABELS_NOT_TO_UPDATE() {
 function set_attr_or_prop(object, row, label) {
   if (ATTRIBUTE_LABELS.indexOf(label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(label) != -1) {
     if (label == ASSOCIATION_DIRECTED && object.type == "association-relationship") {
-      object[label] = parseBool(row[label]);
+      object[label] = _parseBool(row[label]);
     } else {
       object[label] = row[label];
     }
@@ -87,7 +90,7 @@ function get_attr_or_prop(archi_object, row_label) {
       value = archi_object[row_label];
     }
     Common.debug(`attr archi_object.${row_label}=${value}`);
-  } else if (get_ENDPOINT_LABELS().indexOf(row_label) != -1) {
+  } else if (_get_ENDPOINT_LABELS().indexOf(row_label) != -1) {
     // get endpoint label, for instance source.id, target.prop.Object ID
     // const [endpoint, attr, prop] = row_label.split("."); // GRAALVM only
     const endpoint = row_label.substring(0, row_label.indexOf("."));
@@ -115,7 +118,7 @@ function get_attr_or_prop(archi_object, row_label) {
   return value;
 }
 
-function parseBool(value) {
+function _parseBool(value) {
   if (typeof value === "string") {
     value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
     if (value === "true" || value === "false") return value === "true";
@@ -130,22 +133,15 @@ if (typeof module !== "undefined" && module.exports) {
     OBJECT_TYPE_ELEMENT,
     OBJECT_TYPE_VIEW,
     PROP_ADD,
-    get PROP_ID() { return PROP_ID; },
-    set PROP_ID(val) { PROP_ID = val; },
-    get FOLDER_LABEL() { return FOLDER_LABEL; },
-    set FOLDER_LABEL(val) { FOLDER_LABEL = val; },
-    get GEMMA_COLUMNS() { return GEMMA_COLUMNS; },
-    set GEMMA_COLUMNS(val) { GEMMA_COLUMNS = val; },
+    PROP_ID,
     GEMMA_PUBLICEREN_TOT_EN_MET_LABEL,
     GEMMA_LIST_API_LABEL,
     GEMMA_PUBLICEREN_VALUES,
     ATTRIBUTE_LABELS,
     ASSOCIATION_DIRECTED,
     RELATION_ATTRIBUTE_LABELS,
-    get ENDPOINT_LABELS() { return get_ENDPOINT_LABELS(); },
-    get LABELS_NOT_TO_UPDATE() { return get_LABELS_NOT_TO_UPDATE(); },
+    COLUMNS_NOT_TO_IMPORT,
     set_attr_or_prop,
     get_attr_or_prop,
-    parseBool,
   };
 }

@@ -29,7 +29,7 @@ validateConfig(_config)
 
 try {
   // Probeer config.js in te lezen
-  const LocalConfig = require(__DIR__ + "/config.js");
+  const LocalConfig = require(__DIR__ + "config.js");
   Object.assign(_config, LocalConfig);
   console.log("Overruled met lokale configuratie in /config.js");
   validateConfig(_config)

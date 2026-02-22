@@ -6,7 +6,7 @@
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 // check_JS_Engine(JS_ENGINE_GRAALVM)
 
-const Import = require(__DIR__ + "/include_import.js");
+const Import = require(__DIR__ + "include_import.js");
 
 Common.initConsoleLog(__FILE__,true);
 

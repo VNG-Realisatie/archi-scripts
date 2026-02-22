@@ -12,9 +12,9 @@
  */
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const GgmGemma = require(__DIR__ + "/include_ggm_gemma.js");
-const ExportImport = require(__DIR__ + "/../ImportExport_CSV/include_export_import.js");
-const CSVImport = require(__DIR__ + "/../ImportExport_CSV/include_import.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
+const ExportImport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_export_import.js");
+const CSVImport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_import.js");
 
 // Overrule PROP_ID: vind bestaande relaties met PROP_GGM_ID_IMPORTED ipv Object ID
 ExportImport.PROP_ID = GgmGemma.PROP_GGM_ID_IMPORTED;
@@ -24,7 +24,7 @@ Common.initConsoleLog(__FILE__, true);
 /**
  * GGM CSV importbestanden in de lokale GGM import folder
  */
-const Config = require(__DIR__ + "/config.default.js");
+const Config = require(__DIR__ + "config.default.js");
 
 let relationsCSV = Config.GGM_importFolder + Config.relatieCSV;
 if (!relationsCSV) {

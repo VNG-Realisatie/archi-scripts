@@ -26,7 +26,7 @@
 
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const Gemma = require(__DIR__ + "/include_GEMMA.js");
+const Gemma = require(__DIR__ + "include_GEMMA.js");
 
 Common.initConsoleLog(__FILE__, true);
 

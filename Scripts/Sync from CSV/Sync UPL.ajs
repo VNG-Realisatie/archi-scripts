@@ -1,6 +1,6 @@
 // Sync UPL.ajs
 
-const Sync = require(__DIR__ + "/Include_LoadAndSync.js");
+const Sync = require(__DIR__ + "Include_LoadAndSync.js");
 
 // Configuration starts here ======================================================================================
 
