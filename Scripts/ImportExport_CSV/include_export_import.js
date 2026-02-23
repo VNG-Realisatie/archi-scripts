@@ -4,24 +4,17 @@
 const Papa = require("papaparse");
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
-const OBJECT_TYPE_RELATION = "relation";
-const OBJECT_TYPE_ELEMENT = "element";
-const OBJECT_TYPE_VIEW = "view";
-
 // define a mapping object with PROP_ADD as an extra column
 const PROP_ADD = "add column to export";
 
 // If set, the import wil use the PROP_ID as the first id for matching objects (global type var, because const is block scoped)
-var PROP_ID = "Object ID"; // set default tool independent identifier.
+const PROP_ID = "Object ID"; // set default tool independent identifier.
 
-// Set a label for a folder column, leave empty to skip the 'folder' column
-var FOLDER_LABEL = "folder"; // default create a folder column 'folder'
-
-// set GEMMA_COLUMNS to false if you don't want GEMMA special columns for elements
-var GEMMA_COLUMNS = false; // default do not create the GEMMA columns
-
+// Extra column labels voor export
+const FOLDER_LABEL = "archi folder"; 
 const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
 const GEMMA_LIST_API_LABEL = "SWC API";
+
 const GEMMA_PUBLICEREN_VALUES = [
   "Niet",
   "Redactie",
@@ -129,17 +122,16 @@ function _parseBool(value) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     Papa,
-    OBJECT_TYPE_RELATION,
-    OBJECT_TYPE_ELEMENT,
-    OBJECT_TYPE_VIEW,
     PROP_ADD,
     PROP_ID,
     GEMMA_PUBLICEREN_TOT_EN_MET_LABEL,
     GEMMA_LIST_API_LABEL,
     GEMMA_PUBLICEREN_VALUES,
     ATTRIBUTE_LABELS,
-    ASSOCIATION_DIRECTED,
     RELATION_ATTRIBUTE_LABELS,
+    FOLDER_LABEL,
+    ENDPOINT_LABELS,
+    ASSOCIATION_DIRECTED,
     COLUMNS_NOT_TO_IMPORT,
     set_attr_or_prop,
     get_attr_or_prop,

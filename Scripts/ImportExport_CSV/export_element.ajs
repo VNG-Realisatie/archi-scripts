@@ -3,12 +3,10 @@
  * 	export selected elements to a CSV file
  * 	if a conainer (a view or a folder) is selected, all elements in the container are exported
  */
-
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+Common.initConsoleLog(__FILE__, true);
 const Export = require(__DIR__ + "include_export.js");
 
-Common.initConsoleLog(__FILE__);
-
-Export.exportObjects(Export.OBJECT_TYPE_ELEMENT);
+Export.exportObjects(Common.OBJECT_TYPE_ELEMENT);
 
 Common.finishConsoleLog();

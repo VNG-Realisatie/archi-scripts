@@ -75,7 +75,7 @@ try {
   console.log(`Aantal: ${bedrijfsobjecten.size()}`);
 
   CSVExport.exportObjects(
-    ExportImport.OBJECT_TYPE_ELEMENT,
+    Common.OBJECT_TYPE_ELEMENT,
     Config.GEMMA_exportFolder + BEDRIJFSOBJECTEN_CSV,
     bedrijfsobjecten,
     BUSINESS_OBJECT_MAPPING,
@@ -90,7 +90,7 @@ try {
   console.log(`Totaal: ${bedrijfsobjectRelations.size()}\n`);
 
   CSVExport.exportObjects(
-    ExportImport.OBJECT_TYPE_RELATION,
+    Common.OBJECT_TYPE_RELATION,
     Config.GEMMA_exportFolder + BEDRIJFSOBJECTRELATIES_CSV,
     bedrijfsobjectRelations,
     BUSINESS_RELATION_MAPPING,

@@ -20,5 +20,5 @@ const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const Merge = require(__DIR__ + "includeMergeConcept.js");
 
 Common.initConsoleLog(__FILE__);
-Merge.mergeElementOrRelation(Merge.OBJECT_TYPE_ELEMENT);
+Merge.mergeElementOrRelation(Common.OBJECT_TYPE_ELEMENT);
 Common.finishConsoleLog();

@@ -5,10 +5,9 @@
  */
 
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+Common.initConsoleLog(__FILE__, true);
 const Export = require(__DIR__ + "include_export.js");
 
-Common.initConsoleLog(__FILE__);
-
-Export.exportObjects(Export.OBJECT_TYPE_VIEW);
+Export.exportObjects(Common.OBJECT_TYPE_VIEW);
 
 Common.finishConsoleLog();

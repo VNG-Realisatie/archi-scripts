@@ -3,12 +3,10 @@
  * 	export selected relations to a CSV file
  * 	if a container (a view or a folder) is selected, all relations in the container are exported
  */
-
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+Common.initConsoleLog(__FILE__, true);
 const Export = require(__DIR__ + "include_export.js");
 
-Common.initConsoleLog(__FILE__);
-
-Export.exportObjects(Export.OBJECT_TYPE_RELATION);
+Export.exportObjects(Common.OBJECT_TYPE_RELATION);
 
 Common.finishConsoleLog();

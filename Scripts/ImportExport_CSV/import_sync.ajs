@@ -5,11 +5,8 @@
  */
 
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-// check_JS_Engine(JS_ENGINE_GRAALVM)
-
+Common.initConsoleLog(__FILE__, true);
 const Import = require(__DIR__ + "include_import.js");
-
-Common.initConsoleLog(__FILE__,true);
 
 Import.importObjects(null, true);
 

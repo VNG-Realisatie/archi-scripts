@@ -30,10 +30,9 @@
  */
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const PROP_ID = "Object ID";
-const OBJECT_TYPE_RELATION = "relation";
-const OBJECT_TYPE_ELEMENT = "element";
 
 function mergeElementOrRelation(conceptType) {
   try {
@@ -64,10 +63,10 @@ function _mergeConcept(selectedConcept, count) {
 
     let duplicateList = _getDuplicates(primary);
     if (duplicateList.size() > 0) {
-      if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
+      if ($(primary).is(Common.OBJECT_TYPE_ELEMENT)) {
         console.log(`- ${primary}`);
       }
-      if ($(primary).is(OBJECT_TYPE_RELATION)) {
+      if ($(primary).is(Common.OBJECT_TYPE_RELATION)) {
         let primaryName = `${primary.name ? primary.name : "no-name"}`;
         let primaryString = `${primary.type}:  ${primary.source.name}  ===${primaryName}==>  ${primary.target.name}`;
         console.log(`- ${primaryString}`);
@@ -103,10 +102,10 @@ function _mergeConcept(selectedConcept, count) {
 function _getDuplicates(primary) {
   let duplicateList = $();
 
-  if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
+  if ($(primary).is(Common.OBJECT_TYPE_ELEMENT)) {
     duplicateList = $(`.${primary.name}`).filter(primary.type).not($(primary));
   }
-  if ($(primary).is(OBJECT_TYPE_RELATION)) {
+  if ($(primary).is(Common.OBJECT_TYPE_RELATION)) {
     duplicateList = $(primary.type)
       .not($(primary))
       .filter((rel) => filterRelationDuplicates(primary, rel));
@@ -193,8 +192,6 @@ function _prepareRelations(primary, duplicate) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     PROP_ID,
-    OBJECT_TYPE_RELATION,
-    OBJECT_TYPE_ELEMENT,
     mergeElementOrRelation,
   };
 }

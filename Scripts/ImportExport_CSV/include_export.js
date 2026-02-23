@@ -5,6 +5,7 @@ const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 const ExportImport = require(__DIR__ + "include_export_import.js");
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Config = require(__DIR__ + "config.default.js");
 
 /**
  * export selected objects to a CSV file
@@ -55,6 +56,7 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       console.log(`Create rows for selection:`);
       const data = selectionList.map((o) => _createRow(propsHeader, o, objectType, headerMapping));
       console.log(`- ${data.length} rows created\n`);
+      console.log(`Inhoud eerste regel:\n${JSON.stringify(data[0], null, 2)}\n`);
 
       if (!exportFile) {
         let fileName_suggestion = `${model.name}_${$(selection).first().name}_${objectType}`; //.replace(/\s/g, "-");
@@ -97,23 +99,23 @@ function _createHeader(objects, objectType) {
 
   const PROPERTY_LABELS = _getPropertyLabels(objects);
 
-  if (ExportImport.FOLDER_LABEL) {
+  if (Config.FOLDER_COLUMN) {
     header.push(ExportImport.FOLDER_LABEL);
-    columnLogText += `1 folder`;
+    columnLogText += `1 folder, `;
   }
   header = header.concat(ExportImport.ATTRIBUTE_LABELS);
   header = header.concat(PROPERTY_LABELS);
-  columnLogText += `, ${ExportImport.ATTRIBUTE_LABELS.length} attributes, ${PROPERTY_LABELS.length} properties`;
+  columnLogText += `${ExportImport.ATTRIBUTE_LABELS.length} attributes, ${PROPERTY_LABELS.length} properties`;
 
   switch (objectType) {
-    case ExportImport.OBJECT_TYPE_RELATION:
+    case Common.OBJECT_TYPE_RELATION:
       header = header.concat(ExportImport.ENDPOINT_LABELS);
       columnLogText += `, ${ExportImport.ENDPOINT_LABELS.length} endpoint labels`;
       header = header.concat(ExportImport.RELATION_ATTRIBUTE_LABELS);
       columnLogText += `, ${ExportImport.RELATION_ATTRIBUTE_LABELS.length} relation attribute labels`;
       break;
-    case ExportImport.OBJECT_TYPE_ELEMENT:
-      if (ExportImport.GEMMA_COLUMNS) {
+    case Common.OBJECT_TYPE_ELEMENT:
+      if (Config.GEMMA_COLUMNS) {
         // GEMMA columns for exporting element view references
         header.push(ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
         columnLogText += `, 1 ${ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
@@ -158,8 +160,7 @@ function _createRow(headerRow, object, objectType, headerMapping) {
   let row = new Object();
 
   Common.debugStackPush(false);
-  Common.debug(`\n> `);
-  Common.debug(`${object}`);
+  Common.debug(`\n ${object}`);
 
   // fill row with the attributes and property values of the object
   if (headerMapping == undefined) {
@@ -184,21 +185,19 @@ function _createRow(headerRow, object, objectType, headerMapping) {
   }
 
   // fill folder column
-  if (ExportImport.FOLDER_LABEL) {
-    // row[FOLDER_LABEL] = get_folderPath($(`#${object.id}`), "");
+  if (Config.FOLDER_COLUMN) {
     row[ExportImport.FOLDER_LABEL] = ArchiFolders.printFolderPath(object, "");
-    Common.debug(`row[FOLDER_LABEL]: ${row[ExportImport.FOLDER_LABEL]}`);
+    Common.debug(`row[${ExportImport.FOLDER_LABEL}]: ${row[ExportImport.FOLDER_LABEL]}`);
   }
 
   // GEMMA columns for checking which elements will be published
-  if (ExportImport.GEMMA_COLUMNS && objectType == ExportImport.OBJECT_TYPE_ELEMENT) {
+  if (Config.GEMMA_COLUMNS && objectType == Common.OBJECT_TYPE_ELEMENT) {
     // fill column with the 'highest' publiceren value of all the views with the object drawn
     row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = _getGEMMA_columns(object).publicerenTotEnMet;
-    Common.debug(`row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]: ${row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
+    Common.debug(`row[${ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}]: ${row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
     row[ExportImport.GEMMA_LIST_API_LABEL] = _getGEMMA_columns(object).GEMMA_ListAPI;
-    Common.debug(`row[GEMMA_LIST_API]: ${row[ExportImport.GEMMA_LIST_API_LABEL]}`);
+    Common.debug(`row[${ExportImport.GEMMA_LIST_API_LABEL}]: ${row[ExportImport.GEMMA_LIST_API_LABEL]}`);
   }
-  Common.debug(`Row: ${JSON.stringify(row)}`);
   Common.debugStackPop();
   return row;
 }
@@ -280,8 +279,5 @@ function _saveRowsToExcel(header, data, objectType, exportFile) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     exportObjects,
-    OBJECT_TYPE_ELEMENT: ExportImport.OBJECT_TYPE_ELEMENT,
-    OBJECT_TYPE_RELATION: ExportImport.OBJECT_TYPE_RELATION,
-    OBJECT_TYPE_VIEW: ExportImport.OBJECT_TYPE_VIEW
   };
 }

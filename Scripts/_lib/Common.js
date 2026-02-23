@@ -8,6 +8,10 @@
  */
 console.log("Loading common.js");
 
+const OBJECT_TYPE_RELATION = "relation";
+const OBJECT_TYPE_ELEMENT = "element";
+const OBJECT_TYPE_VIEW = "view";
+
 var _commonScriptName;
 var _startCounter = {};
 
@@ -351,6 +355,9 @@ if (typeof module !== "undefined" && module.exports) {
     getFormattedDateTime,
     concept,
     logInColumns,
+    OBJECT_TYPE_RELATION,
+    OBJECT_TYPE_ELEMENT,
+    OBJECT_TYPE_VIEW,
     FORMAT_WITH_TYPES,
     FORMAT_NO_TYPES,
     FORMAT_REVERSED,
