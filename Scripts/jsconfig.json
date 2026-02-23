@@ -6,8 +6,7 @@
     },
     "files": [
         "typings/globals.d.ts",
-        "_lib/common.js",
-        "_lib/selection.js",
+        "_lib/selection.js"
     ],
     "exclude": [
     ]

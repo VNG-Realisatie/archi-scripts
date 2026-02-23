@@ -42,11 +42,11 @@ function analyzeView() {
     var elements = [];
     var rels = [];
     
-    $(view).find().each(function(child) {
+    $(view).children().each(function(child) {
         if (child.bounds) elements.push(child);
     });
     
-    $(view).find("relationship").each(function(rel) {
+    $(view).children("relationship").each(function(rel) {
         rels.push(rel);
     });
     
@@ -503,7 +503,7 @@ console.log("Options: Optimize=" + config.optimizeCrossings);
 
 function getVisualElements() {
     var elements = [];
-    $(view).find().each(function(child) {
+    $(view).children().each(function(child) {
         if (child.bounds) {
             elements.push({
                 element: child,
@@ -516,7 +516,7 @@ function getVisualElements() {
 
 function getRelationships() {
     var relationships = [];
-    $(view).find("relationship").each(function(rel) {
+    $(view).children("relationship").each(function(rel) {
         relationships.push({
             relation: rel,
             source: rel.source,
