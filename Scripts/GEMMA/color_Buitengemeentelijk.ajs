@@ -5,20 +5,18 @@
  * (c) 2023 Mark Backer
  *
  */
-// chroma-js for all kinds of color conversions and color scales
-// api docs https://gka.github.io/chroma.js/
-load("https://unpkg.com/chroma-js");
-load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../_lib/selection.js");
+const Chroma = require("chroma-js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
-let colors = chroma.scale("Blues"); //.padding([0.1, 0.4]);
+let colors = Chroma.scale("Blues"); //.padding([0.1, 0.4]);
 let colorShade = colors(0.0);
 
 try {
 	// Given a selection, create a collection of all visual objects 
-  let collection = getVisualSelection($(selection), "application-component");
+  let collection = Selection.getVisualSelection($(selection), "application-component");
   collection.each((obj) => {
     if (obj.prop("GEMMA type") == "Buitengemeentelijke voorziening") {
       console.log(`- view "${obj.view.name}", \t${obj.name} `);
@@ -29,4 +27,4 @@ try {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
-finishConsoleLog();
+Common.finishConsoleLog();

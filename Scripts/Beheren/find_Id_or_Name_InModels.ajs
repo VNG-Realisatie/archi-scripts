@@ -7,20 +7,17 @@
  *
  */
 
-load(__DIR__ + "../_lib/Common.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const AsciiTable = require("ascii-table");
 
-initConsoleLog(__FILE__);
+Common.initConsoleLog(__FILE__);
 
-promptText = `Find objects in all opened models by "name", "id" or property "Object ID"\nYou can use wildcards for finding "name"`;
-var searchString = window.prompt(promptText, "Enter name or ID");
+let promptText = `Find objects in all opened models by "name", "id" or property "Object ID"\nYou can use wildcards for finding "name"`;
+let searchString = window.prompt(promptText, "Enter name or ID");
 
 try {
   if (searchString) {
-    var loadedModelsList = $.model.getLoadedModels();
-
-    // See https://www.npmjs.com/package/ascii-table
-    load("https://unpkg.com/ascii-table/ascii-table.min.js");
-
+    let loadedModelsList = $.model.getLoadedModels();
     let table = new AsciiTable(`Search results for: ${searchString}`);
     table.setHeading("Model", "view", "Concept", "id", "Object ID");
     // table.setAlign(3, AsciiTable.CENTER);
@@ -72,7 +69,7 @@ try {
   console.log("> Stack: " + error.stack);
 }
 
-finishConsoleLog();
+Common.finishConsoleLog();
 
 /**
  * "a*b" => everything that starts with "a" and ends with "b"

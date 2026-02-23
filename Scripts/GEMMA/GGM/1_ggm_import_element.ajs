@@ -1,0 +1,160 @@
+/**
+ * Import GGM objecten in GEMMA-GGM Archi-repository
+ *
+ * Specificatie CSV-bestanden
+ *  - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/master/exports
+ *
+ * Dit script leest de GGM objecten in als
+ * - data-objecten
+ * - groupings met GEMMA type=Beleidsdomeinen (uit kolom iv3-domein)
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const Sync = require(__SCRIPTS_DIR__ + "Scripts/Sync from CSV/Include_LoadAndSync.js");
+
+Common.initConsoleLog(__FILE__, true);
+
+/**
+ * GGM CSV importbestanden in de lokale GGM import folder
+ */
+const Config = require(__DIR__ + "config.default.js");
+
+try {
+  let importFile = Config.GGM_importFolder + Config.elementCSV;
+  if (!importFile) {
+    importFile = window.promptOpenFile({
+      title: "Open GGM export objects CSV",
+      filterExtensions: ["*.csv"],
+    });
+  }
+  if (!importFile) {
+    console.log("> Canceled");
+  } else {
+    var beleidsdomeinen = {
+      label: "Beleidsdomeinen",
+      csv: importFile,
+      targetType: "grouping",
+      targetFolder: ArchiFolders.getFolderPath("/Other" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BELEIDSDOMEIN),
+      getId: function (element) {
+        // return element.prop("domein-iv3");
+        return element.name;
+      },
+      setId: function (element, row) {
+        // element.prop("domein-iv3", row["_id"]);
+        element.name = row["_id"];
+      },
+      id: "domein-iv3", // per id wordt een object aangemaakt
+      name: "domein-iv3",
+      documentation: "geen", // ggm_sync zoekt naar kolom "geen" => documentation is leeg
+      propMapping: {
+        [GgmGemma.PROP_ID]: function (element) {
+          if (!element.prop(GgmGemma.PROP_ID)) {
+            return Common.generateUUID();
+          }
+        },
+        [GgmGemma.LABEL_DATUM_TIJD]: "datum-tijd-export",
+        // initieel kregen alle GGM iv3-domeinen de property GEMMA type="Beleidsdomein"
+        // [GgmGemma.PROP_GEMMA_TYPE]: function () {
+        //   return GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN;
+        // },
+        [GgmGemma.PROP_GEMMA_TYPE]: function (element) {
+          if (!element.prop(GgmGemma.PROP_GEMMA_TYPE)) {
+            return "te bepalen";
+          }
+        },
+        // Geef alle geïmporteerde beleidsdomeinen de property GGM type="Beleidsdomein"
+        [GgmGemma.PROP_GGM_TYPE]: function (element) {
+          if (!element.prop(GgmGemma.PROP_GGM_TYPE)) {
+            return GgmGemma.GGM_TYPE_BELEIDSDOMEIN;
+          }
+        },
+      },
+      relations: {},
+    };
+
+    var dataobjecten = {
+      label: "Dataobject",
+      csv: importFile,
+      targetType: "data-object",
+      // filter: function (row) {
+      //   return row["archimate-type"] != "Business object";
+      // },
+      targetFolder: ArchiFolders.getFolderPath("/Application" + GgmGemma.FOLDER_GGM_DATAOBJECT),
+      getId: function (element) {
+        return element.prop(GgmGemma.PROP_GGM_ID_IMPORTED);
+      },
+      setId: function (element, row) {
+        element.prop(GgmGemma.PROP_GGM_ID_IMPORTED, row["_id"]);
+      },
+      id: GgmGemma.PROP_GGM_ID,
+      name: "GGM-naam",
+      documentation: "GGM-definitie",
+      propMapping: {
+        [GgmGemma.PROP_ID]: function (element) {
+          if (!element.prop(GgmGemma.PROP_ID)) {
+            return Common.generateUUID();
+          }
+        },
+        [GgmGemma.PROP_GGM_UML_TYPE]: GgmGemma.PROP_GGM_UML_TYPE,
+        [GgmGemma.PROP_GGM_TOELICHTING]: GgmGemma.PROP_GGM_TOELICHTING,
+        [GgmGemma.PROP_GGM_SYNONIEMEN]: GgmGemma.PROP_GGM_SYNONIEMEN,
+        [GgmGemma.PROP_GGM_BRON]: GgmGemma.PROP_GGM_BRON,
+        [GgmGemma.PROP_GGM_ID_IMPORTED]: GgmGemma.PROP_GGM_ID,
+        // "GGM-archimate-type": "archimate-type", // niet inlezen. dit wordt door GEMMA beheerd
+        [GgmGemma.PROP_ARCHIMATE_TYPE]: function (element) {
+          if (!element.prop(GgmGemma.PROP_ARCHIMATE_TYPE)) {
+            return "te bepalen";
+          }
+        },
+        // "domein-iv3": "domein-iv3", // added as relation
+        // "domein-dcat": "domein-dcat",
+        // "domein-gemma": "domein-gemma",
+        [GgmGemma.LABEL_DATUM_TIJD]: "datum-tijd-export",
+      },
+      relations: {
+        beleidsdomeinen_rel: {
+          column: "domein-iv3",
+          reference: beleidsdomeinen,
+          targetType: "aggregation-relationship",
+          targetFolder: ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_GGM_BELEIDSDOMEIN),
+          isReversed: true,
+          propMapping: {
+            [GgmGemma.PROP_ID]: function (relationship) {
+              if (!relationship.prop(GgmGemma.PROP_ID)) {
+                return Common.generateUUID();
+              }
+            },
+            [GgmGemma.PROP_GEMMA_TYPE]: function (relationship) {
+              return GgmGemma.GEMMA_TYPE_BELEIDSDOMEIN;
+            },
+          },
+        },
+      },
+    };
+
+    // End of configuration =========================================================================================
+
+    // Compute the date which will appear in every new or updated concepts - Has to be
+    var currentDateTime = Common.getFormattedDateTime();
+
+    // Things start here ============================================================================================
+    // Load data from CSV Files and sync model elements
+    console.log("Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then");
+    console.log("check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'");
+
+    Sync.loadAndSync(beleidsdomeinen);
+
+    Sync.loadAndSync(dataobjecten);
+    Sync.syncModelRelationships(dataobjecten);
+
+    // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
+    Sync.tagDeletedConcepts();
+
+    console.log("End of synchronization. Check previous messages for errors and undo in case of doubt.");
+  }
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+Common.finishConsoleLog();

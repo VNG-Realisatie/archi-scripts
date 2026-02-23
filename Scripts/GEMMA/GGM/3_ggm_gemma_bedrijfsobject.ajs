@@ -1,0 +1,97 @@
+/**
+ * Create GEMMA bedrijfsobjectenmodel gebaseerd op GGM
+ *
+ * Uitgangssituatie
+ * - GGM ArchiMate-model met een geïmporteerd GGM model
+ *   - data-objecten en beleidsdomeinen met script ggm-sync.ajs (ggm_export_objects_<date>.csv)
+ *   - data-object relaties met import_relations.ajs (convert GGM relations.ods met bewerkt ggm_export_relations_<date>.csv)
+ * - GGM import bestaat uit
+ *   - data-objecten en onderlinge relaties met ggm-guid
+ *   - Beleidsdomeinen (iv3) en aggregatie-relaties zonder ggm-guid
+ *
+ * Aanmaken GEMMA bedrijfsobjectenmodel
+ * - GGM data-objecten en relaties worden gekopieerd als GEMMA bedrijfsobjectenmodel (met identieke ggm-guid)
+ * - Beleidsdomeinen (iv3) worden niet gekopieerd
+ *   - ggm relaties groeperen de GGM data-objecten
+ *   - gekopieerde ggm relaties groeperen de GEMMA bedrijfsobjecten
+ *
+ * ID's GGM
+ * - GGM objecten en relaties hebben een uniek id ggm-guid (aangeleverd in GGM csv)
+ * - Beleidsdomeinen (iv3) en aggregaties hebben géén GGM id (aangemaakt met Sync ggm.ajs)
+ * GEMMA ID's
+ * - alle objecten krijgen een Object ID
+ * gebruik ID's voor matchen
+ * - gekopieerde bedrijfsobjecten en relaties (van data-objecten en relaties) krijgen
+ *    - kopie ggm-guid van bron object
+ *    - uniek Object ID
+ * - Beleidsdomeinen (iv3) en aggregaties krijgen
+ *    - uniek Object ID (voor matchen aggregatie-relaties DO én BO met iv3-domeinen)
+ *    - kopie Object ID in afgeleide aggregatie relaties domein -> bedrijfsobject
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
+
+Common.initConsoleLog(__FILE__, true);
+
+try {
+  Common.debugStackPush(false);
+
+  // _Sync folders
+  let businessObjectFolder = ArchiFolders.getFolderPath("/Business" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BEDRIJFSOBJECT);
+  let relationsBedrijfsobjectFolder = ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BEDRIJFSOBJECT);
+  let aggregatedByBeleidsdomeinFolder = ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_SYNC_GGM + GgmGemma.FOLDER_BELEIDSDOMEIN);
+
+  // relatie met data-objecten
+  let realizesBedrijfsobjectFolder = ArchiFolders.getFolderPath("/Relations/Data-object realiseert bedrijfsobject");
+
+  let stats_BO = { nr_update: 0, nr_create: 0, nr_delete: 0, nr_no_updates: 0 };
+  let stats_relBO = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+  let stats_relBD = { nr_update: 0, nr_create: 0, nr_no_updates: 0 };
+
+  let selectedDataObjects = Selection.getSelection($(selection), "data-object").filter((obj) => obj.prop(GgmGemma.PROP_GGM_ID_IMPORTED));
+  if (selectedDataObjects.size() == 0) {
+    selectedDataObjects = $("data-object").filter((obj) => obj.prop(GgmGemma.PROP_GGM_ID_IMPORTED));
+    console.log(`Selected ${selectedDataObjects.size()} GGM data-object\n`);
+  }
+
+  // First delete business object for GGM data-object with changed ArchiMate-type
+  GgmGemma.deleteBusinessObjects(selectedDataObjects, stats_BO);
+
+  // Next create and update business object
+  let updatedBusinessObjects = GgmGemma.updateBusinessObjects(
+    selectedDataObjects,
+    businessObjectFolder,
+    realizesBedrijfsobjectFolder,
+    stats_BO
+  );
+  GgmGemma.updateBusinessObjectRelations(selectedDataObjects, relationsBedrijfsobjectFolder, stats_relBO);
+  GgmGemma.updateBeleidsdomeinRelations(selectedDataObjects, aggregatedByBeleidsdomeinFolder, stats_relBD);
+
+  console.log(`Update alternate names for duplicates`);
+  console.log(`\n=============================================================`);
+  console.log(`> data-objects:`);
+  GgmGemma.updateAlternateName(selectedDataObjects); // also for GGM data-objecten
+  console.log(`\n=============================================================`);
+  console.log(`> bedrijfsobjecten:`);
+  GgmGemma.updateAlternateName(updatedBusinessObjects);
+
+  console.log();
+  console.log("Statistieken");
+  console.log(`> from ${selectedDataObjects.size()} data-objects`);
+  console.log(
+    `> Bedrijfsobjecten: ${stats_BO.nr_create} created, ${stats_BO.nr_update} updated, ${stats_BO.nr_delete} deleted, ${stats_BO.nr_no_updates} no updates`
+  );
+  console.log(
+    `> Bedrijfsobject-relaties: ${stats_relBO.nr_create} created, ${stats_relBO.nr_update} updated, ${stats_relBO.nr_no_updates} no updates`
+  );
+  console.log(
+    `> Beleidsdomein-relaties: ${stats_relBD.nr_create} created, ${stats_relBD.nr_update} updated, ${stats_relBD.nr_no_updates} no updates`
+  );
+
+  Common.debugStackPop();
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+Common.finishConsoleLog();

@@ -11,8 +11,9 @@
  * - find duplicate with and without name
  */
 
-load("../_lib/Common.js");
-initConsoleLog(__FILE__, true);
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+
+Common.initConsoleLog(__FILE__, true);
 
 // add all relations of the model to an array.
 let relations = [];
@@ -22,7 +23,7 @@ findDuplicateRelations(relations, false);
 //Nogmaal, maar nu is het pas een duplicate als ook de naam hetzelfde is.
 findDuplicateRelations(relations, true);
 
-finishConsoleLog();
+Common.finishConsoleLog();
 
 /**
  * Find and print duplicate relation

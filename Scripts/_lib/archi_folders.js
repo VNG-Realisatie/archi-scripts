@@ -4,7 +4,6 @@
  * (c) 2023 Mark Backer
  */
 console.log("Loading archi_folders.js");
-const ARCHI_FOLDERS_LOADED = true;
 /**
  * get the path of an object
  *  by recursively walkin up the parentfolders
@@ -76,4 +75,12 @@ function getFolderPath(path) {
     }
   }
   return folder;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    printFolderPath,
+    deleteEmptyFolders,
+    getFolderPath,
+  };
 }

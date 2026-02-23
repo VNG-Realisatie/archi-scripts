@@ -5,14 +5,18 @@
  * (c) 2022 Mark Backer
  *
  */
-load(__DIR__ + "../_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+
+Common.initConsoleLog(__FILE__, true);
 
 const PROP_ID = "Object ID";
 
 // select visual elements
-let collection = getVisualSelection($(selection), "element");
-applyToCollection(collection, plotID);
-console.log("Script finished\n");
+let collection = Selection.getVisualSelection($(selection), "element");
+Selection.applyToCollection(collection, plotID);
+
+Common.finishConsoleLog();
 
 function plotID(obj) {
   // console.log(`- ${obj}`);

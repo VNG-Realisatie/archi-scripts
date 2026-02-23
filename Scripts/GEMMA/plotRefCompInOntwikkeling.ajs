@@ -6,10 +6,15 @@
  * (c) 2019 Mark Backer
  *
  */
-load(__DIR__ + "../_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
-let collection = getVisualSelection($(selection));
-applyToCollection(collection, plotNoteStatus);
+Common.initConsoleLog(__FILE__, true);
+
+let collection = Selection.getVisualSelection($(selection));
+Selection.applyToCollection(collection, plotNoteStatus);
+
+Common.finishConsoleLog();
 
 function plotNoteStatus(obj) {
 	if (obj.prop("GEMMA status") == "In ontwikkeling") {

@@ -1,21 +1,14 @@
 /**
  * import_without_prompt
  * 	for fast roundtripping with one export and import CSV file
- * 	give an objecttype and filename for exporting without a filename prompt
+ * 	configure path and filename in config.js
  */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+Common.initConsoleLog(__FILE__, true);
 
-load(__DIR__ + "../_lib/Common.js");
-load("include_import.js");
+const Import = require(__DIR__ + "include_import.js");
+const Config = require(__DIR__ + "config.default.js");
 
-initConsoleLog(__FILE__);
+Import.importObjects(Config.importfile);
 
-let dir ="C:/D-schijf/Data/Dropbox/KING/KING ICT/Archi/Werkbestanden/ExportImport/"
-
-// let fileName = "2021-05-27_GEMMA-import-en-publicatietest_element.csv"
-// let fileName = "2021-05-27_GEMMA-import-en-publicatietest_relation.csv"
-// let fileName = "2021-05-27_GEMMA-import-en-publicatietest_view.csv"
-let fileName = "BO roundtrip element.csv"
-
-importObjects(dir + fileName);
-
-finishConsoleLog();
+Common.finishConsoleLog();

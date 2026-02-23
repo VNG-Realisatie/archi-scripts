@@ -17,16 +17,17 @@
  *  - still converted relation have a property with original relation type
  *  - and are shown in the console with a red warning
  */
-
-console.show();
-console.clear();
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const ORG_TYPE_PROPERTY_NAME = "Type before conversion";
 const CONVERT_TO_TYPE = "association-relationship";
 
 function convertConcept(selection, filename) {
+  console.show();
+  console.clear();
+
   try {
-    let convertToType = getTypeFromFilename(filename);
+    let convertToType = _getTypeFromFilename(filename);
 
     console.log(`Convert selected objects to ${convertToType}\n`);
     console.log(`Objects:`);
@@ -34,27 +35,27 @@ function convertConcept(selection, filename) {
     // convert selected objects
     $(selection).each(function (o) {
       // first convert invalid relation types to associations
-      $(concept(o))
+      $(Common.concept(o))
         .outRels()
         .each(function (r) {
-          if (!$.model.isAllowedRelationship(r.type, convertToType, r.target.type)) convertRelationType(r);
+          if (!$.model.isAllowedRelationship(r.type, convertToType, r.target.type)) _convertRelationType(r);
         });
-      $(concept(o))
+      $(Common.concept(o))
         .inRels()
         .each(function (r) {
-          if (!$.model.isAllowedRelationship(r.type, r.source.type, convertToType)) convertRelationType(r);
+          if (!$.model.isAllowedRelationship(r.type, r.source.type, convertToType)) _convertRelationType(r);
         });
       // then convert the object
-      concept(o).concept.type = convertToType;
+      Common.concept(o).concept.type = convertToType;
     });
 
     // when possible, convert converted relations back to original type
     $(selection).each(function (o) {
       console.log(`> ${o}`);
-      $(concept(o))
+      $(Common.concept(o))
         .rels(CONVERT_TO_TYPE)
-        .filter((r) => hasProperty(r, ORG_TYPE_PROPERTY_NAME))
-        .each((r) => convertBackRelationType(r));
+        .filter((r) => _hasProperty(r, ORG_TYPE_PROPERTY_NAME))
+        .each((r) => _convertBackRelationType(r));
     });
 
     console.log(`\nAll selected objects converted\n`);
@@ -63,16 +64,16 @@ function convertConcept(selection, filename) {
   }
 }
 
-function hasProperty(r, ORG_RELATION_TYPE) {
+function _hasProperty(r, ORG_RELATION_TYPE) {
   return r.prop(ORG_RELATION_TYPE) != undefined;
 }
 
-function convertRelationType(r) {
+function _convertRelationType(r) {
   r.prop(ORG_TYPE_PROPERTY_NAME, r.type);
   r.type = CONVERT_TO_TYPE;
 }
 
-function convertBackRelationType(r) {
+function _convertBackRelationType(r) {
   // console.log(`  > r: ${r}`);
   if ($.model.isAllowedRelationship(r.prop(ORG_TYPE_PROPERTY_NAME), r.source.type, r.target.type)) {
     r.type = r.prop(ORG_TYPE_PROPERTY_NAME);
@@ -84,7 +85,7 @@ function convertBackRelationType(r) {
   }
 }
 
-function getTypeFromFilename(filename) {
+function _getTypeFromFilename(filename) {
   return filename
     .replace(/^.*[\/\\]/, "")
     .replace(/\.ajs$/, "")
@@ -92,6 +93,8 @@ function getTypeFromFilename(filename) {
     .toLowerCase();
 }
 
-function concept(o) {
-  return o.concept ? o.concept : o;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    convertConcept,
+  };
 }

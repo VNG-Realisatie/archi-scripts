@@ -2,10 +2,10 @@
  * FontSet
  *  Set the font to given type and size
  */
-load(__DIR__ + "../_lib/selection.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
-let collection = getVisualSelection($(selection));
-applyToCollection(collection, labelSet, ["Arial", 12]);
+let collection = Selection.getVisualSelection($(selection));
+Selection.applyToCollection(collection, labelSet, ["Arial", 12]);
 console.log("Script finished\n");
 
 function labelSet(obj, args) {

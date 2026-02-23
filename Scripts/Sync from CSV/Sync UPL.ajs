@@ -1,6 +1,6 @@
 // Sync UPL.ajs
 
-load(__DIR__ + "Include_LoadAndSync.js");
+const Sync = require(__DIR__ + "Include_LoadAndSync.js");
 
 // Configuration starts here ======================================================================================
 
@@ -22,7 +22,7 @@ var xxx = {
   'label': '',
   'csv': __DIR__+'xxx.csv',
   'targetType': '',
-  'targetFolder': getFolder('layer', 'folderName'),
+  'targetFolder': Sync.getFolder('layer', 'folderName'),
   'getId': function(element) {
     // Do something to extract id
   },
@@ -60,7 +60,7 @@ var producten = {
   'label': 'Unieke productnaam',
   'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-actueel.csv',
   'targetType': 'product',
-  'targetFolder': getFolder('Business', 'UPL'),
+  'targetFolder': Sync.getFolder('Business', 'UPL'),
   'getId': function(element) {
     return element.prop('URI')
   },
@@ -93,7 +93,7 @@ var thema = {
   'label': 'Thema',
   'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-Thema.csv',
   'targetType': 'grouping',
-  'targetFolder': getFolder('Other', 'Thema (Taxonomie Beleidsagenda)'),
+  'targetFolder': Sync.getFolder('Other', 'Thema (Taxonomie Beleidsagenda)'),
   'getId': function(element) {
     return element.prop('TBAThemaURI')
   },
@@ -112,7 +112,7 @@ var topthema = {
   'label': 'TopThema',
   'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-Thema.csv',
   'targetType': 'grouping',
-  'targetFolder': getFolder('Other', 'TopThema'),
+  'targetFolder': Sync.getFolder('Other', 'TopThema'),
   'getId': function(element) {
     return element.prop('TOPThemaURI')
   },
@@ -133,7 +133,7 @@ var thema_producten = {
   'label': 'Thema producten',
   'csv': __DIR__+'../../../Werkbestanden/UPL/UPL-Thema.csv',
   'targetType': 'product',
-  'targetFolder': getFolder('Business', 'UPL'),
+  'targetFolder': Sync.getFolder('Business', 'UPL'),
   'getId': function(element) {
     return element.prop('URI')
   },
@@ -170,19 +170,19 @@ console.clear();
 console.log("Start of synchronization. If script doesn't ends with an 'End of synchronization' message, then check Archi error log in 'Help > About Archi > Installation Details > Configuration > View Error Log'");
 var startTime = new Date().getTime();
 
-loadAndSync(producten);
+Sync.loadAndSync(producten);
 
-loadAndSync(thema);
-syncModelRelationships(thema);
+Sync.loadAndSync(thema);
+Sync.syncModelRelationships(thema);
 
-loadAndSync(topthema);
-syncModelRelationships(topthema);
+Sync.loadAndSync(topthema);
+Sync.syncModelRelationships(topthema);
 
-loadAndSync(thema_producten);
-syncModelRelationships(thema_producten);
+Sync.loadAndSync(thema_producten);
+Sync.syncModelRelationships(thema_producten);
 
 // Uncomment next line to enable tagging of concepts previously imported but no more present in current CSV files
-//tagDeletedConcepts();
+//Sync.tagDeletedConcepts();
 
 var endTime = new Date().getTime();
 console.log("Elapse time: ", (endTime - startTime)/1000, " sec");

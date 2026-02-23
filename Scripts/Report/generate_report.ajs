@@ -59,8 +59,8 @@
  * - removed option renderViewEmbed
  *
  */
-load("https://unpkg.com/showdown");
-load("https://unpkg.com/ascii-table/ascii-table.min.js");
+const Showdown = require("showdown");
+const AsciiTable = require("ascii-table");
 
 const FILE_UNVALID_CHAR = /[&\/\\#+()$~%'":;,*?<>{} ]/g;
 const FILENAME_SPLIT = /^.*[\\\/]/;
@@ -377,7 +377,8 @@ function printView(settings, view) {
   let imageFile = `${view.name}.${format}`.replace(FILE_UNVALID_CHAR, "_");
 
   // create subdir
-  let dirObject = new Packages.java.io.File(absoluteDir);
+  const File = Java.type("java.io.File");
+  let dirObject = new File(absoluteDir);
   dirObject.mkdir();
 
   let imageURL = `${subDirName}/${imageFile}`;
@@ -629,7 +630,7 @@ function printElementDoc(settings, text) {
  * @returns string with HTML
  */
 function markdown2html(md) {
-  var converter = new showdown.Converter();
+  var converter = new Showdown.Converter();
   return converter.makeHtml(md);
 }
 

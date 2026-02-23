@@ -24,11 +24,11 @@
  * Version: 1 (2024-05-22)
  */
 
-load("../_lib/Common.js");
-load("../_lib/archi_folders.js");
-load("include_GEMMA.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const Gemma = require(__DIR__ + "include_GEMMA.js");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
 try {
   // source model to release
@@ -36,16 +36,16 @@ try {
   let sourceModelPath = model.getPath();
 
   // Gather all objects excluding folders
-  let objects = gatherObjects();
+  let objectArray = Gemma.collectobjectArray();
 
   // Set IDs for objects without ID or with invalid ID
-  let IDsValid = setObjectID(objects);
+  let IDsValid = Gemma.setObjectID(objectArray);
 
   if (IDsValid) {
     // Set the release date
     let currentDate = new Date().toISOString().slice(0, 10);
     console.log(`Update the model 'Release' property to ${currentDate}`);
-    model.prop(PROP_RELEASE, currentDate);
+    model.prop(Gemma.PROP_RELEASE, currentDate);
     model.save()
 
     // copy the source model
@@ -68,7 +68,7 @@ try {
   console.error(`> ${error.stack || error}`);
 }
 
-finishConsoleLog();
+Common.finishConsoleLog();
 
 /**
  * create copy of the source model
@@ -121,7 +121,7 @@ function filterReleaseModel() {
   // Delete empty folders
   let initialFolderCount = $(model).find("folder").size();
   console.log(`\nDelete empty folders:`);
-  deleteEmptyFolders($(model).first());
+  ArchiFolders.deleteEmptyFolders($(model).first());
   let remainingFolderCount = $(model).find("folder").size();
   console.log(
     `Deleted ${initialFolderCount - remainingFolderCount} empty folders of a total of ${initialFolderCount} folders`

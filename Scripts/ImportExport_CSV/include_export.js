@@ -1,9 +1,11 @@
 /**
  * Export the selected elements, relations or views and their properties to a CSV file
  */
-load(__DIR__ + "../_lib/selection.js");
-load(__DIR__ + "../_lib/archi_folders.js");
-load(__DIR__ + "include_export_import.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const ExportImport = require(__DIR__ + "include_export_import.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Config = require(__DIR__ + "config.default.js");
 
 /**
  * export selected objects to a CSV file
@@ -15,8 +17,8 @@ load(__DIR__ + "include_export_import.js");
  *          Mapping object keys are used as ArchiObject attribute or property, values as CSV column header)
  */
 function exportObjects(objectType, exportFile, collection, headerMapping) {
-  debugStackPush(false);
-  debug(`objectType=${objectType}`);
+  Common.debugStackPush(false);
+  Common.debug(`objectType=${objectType}`);
 
   try {
     // create an array with all selected objects.
@@ -25,7 +27,7 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       collection.each((o) => selectionList.push(o));
     } else {
       // if folders or views are selected, then all contained objects are added to the list
-      selectionList = getSelectionArray($(selection), objectType);
+      selectionList = Selection.getSelectionArray($(selection), objectType);
     }
 
     if (selectionList.length > 0) {
@@ -33,15 +35,15 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       let columnsHeader = [];
       if (headerMapping == undefined) {
         console.log(`Create header:`);
-        columnsHeader = createHeader(selectionList, objectType);
+        columnsHeader = _createHeader(selectionList, objectType);
         // column labels are equal to property labels
         propsHeader=columnsHeader 
       } else {
         console.log("Mapping (property=CSV column header):");
         Object.keys(headerMapping).forEach((headerKey) => {
-          if (headerKey == PROP_ADD) {
-            console.log(`- ${PROP_ADD}=${headerMapping[headerKey].key}`);
-            propsHeader.push(PROP_ADD);
+          if (headerKey == ExportImport.PROP_ADD) {
+            console.log(`- ${ExportImport.PROP_ADD}=${headerMapping[headerKey].key}`);
+            propsHeader.push(ExportImport.PROP_ADD);
             columnsHeader.push(headerMapping[headerKey].key);
           } else {
             console.log(`- ${headerKey}=${headerMapping[headerKey]}`);
@@ -52,8 +54,9 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       }
 
       console.log(`Create rows for selection:`);
-      const data = selectionList.map((o) => createRow(propsHeader, o, objectType, headerMapping));
+      const data = selectionList.map((o) => _createRow(propsHeader, o, objectType, headerMapping));
       console.log(`- ${data.length} rows created\n`);
+      console.log(`Inhoud eerste regel:\n${JSON.stringify(data[0], null, 2)}\n`);
 
       if (!exportFile) {
         let fileName_suggestion = `${model.name}_${$(selection).first().name}_${objectType}`; //.replace(/\s/g, "-");
@@ -73,7 +76,7 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
       }
 
       if (exportFile) {
-        saveRowsToFile(columnsHeader, data, exportFile);
+        _saveRowsToFile(columnsHeader, data, exportFile);
         // saveRowsToExcel(header, data, objectType, exportFile);
       } else {
         console.log("\nExport CSV canceled");
@@ -84,40 +87,40 @@ function exportObjects(objectType, exportFile, collection, headerMapping) {
   } catch (error) {
     console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  debugStackPop();
+  Common.debugStackPop();
 }
 
 /**
  * create a row with the column labels for the exported objects
  */
-function createHeader(objects, objectType) {
+function _createHeader(objects, objectType) {
   let header = [];
   let columnLogText = "";
 
-  const PROPERTY_LABELS = getPropertyLabels(objects);
+  const PROPERTY_LABELS = _getPropertyLabels(objects);
 
-  if (FOLDER_LABEL) {
-    header.push(FOLDER_LABEL);
-    columnLogText += `1 folder`;
+  if (Config.FOLDER_COLUMN) {
+    header.push(ExportImport.FOLDER_LABEL);
+    columnLogText += `1 folder, `;
   }
-  header = header.concat(ATTRIBUTE_LABELS);
+  header = header.concat(ExportImport.ATTRIBUTE_LABELS);
   header = header.concat(PROPERTY_LABELS);
-  columnLogText += `, ${ATTRIBUTE_LABELS.length} attributes, ${PROPERTY_LABELS.length} properties`;
+  columnLogText += `${ExportImport.ATTRIBUTE_LABELS.length} attributes, ${PROPERTY_LABELS.length} properties`;
 
   switch (objectType) {
-    case OBJECT_TYPE_RELATION:
-      header = header.concat(ENDPOINT_LABELS);
-      columnLogText += `, ${ENDPOINT_LABELS.length} endpoint labels`;
-      header = header.concat(RELATION_ATTRIBUTE_LABELS);
-      columnLogText += `, ${RELATION_ATTRIBUTE_LABELS.length} relation attribute labels`;
+    case Common.OBJECT_TYPE_RELATION:
+      header = header.concat(ExportImport.ENDPOINT_LABELS);
+      columnLogText += `, ${ExportImport.ENDPOINT_LABELS.length} endpoint labels`;
+      header = header.concat(ExportImport.RELATION_ATTRIBUTE_LABELS);
+      columnLogText += `, ${ExportImport.RELATION_ATTRIBUTE_LABELS.length} relation attribute labels`;
       break;
-    case OBJECT_TYPE_ELEMENT:
-      if (GEMMA_COLUMNS) {
+    case Common.OBJECT_TYPE_ELEMENT:
+      if (Config.GEMMA_COLUMNS) {
         // GEMMA columns for exporting element view references
-        header.push(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
-        columnLogText += `, 1 ${GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
-        header.push(GEMMA_LIST_API_LABEL);
-        columnLogText += `, 1 ${GEMMA_LIST_API_LABEL}`;
+        header.push(ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL);
+        columnLogText += `, 1 ${ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}`;
+        header.push(ExportImport.GEMMA_LIST_API_LABEL);
+        columnLogText += `, 1 ${ExportImport.GEMMA_LIST_API_LABEL}`;
       }
       break;
     default:
@@ -129,7 +132,7 @@ function createHeader(objects, objectType) {
   return header;
 }
 
-function getPropertyLabels(objects) {
+function _getPropertyLabels(objects) {
   // remove duplicate property labels
   let propertyLabelsObject = objects.reduce((a, obj) => findPropertyLabels(a, obj), {});
   // convert object with labels to array with labels
@@ -143,7 +146,7 @@ function getPropertyLabels(objects) {
       // accumulate all unique property labels.
       if (typeof accumulator[propLabel] == "undefined") {
         accumulator[propLabel] = propLabel;
-        debug(`add property to accumulator: ${accumulator[propLabel]}`);
+        Common.debug(`add property to accumulator: ${accumulator[propLabel]}`);
       }
     });
     return accumulator;
@@ -153,23 +156,22 @@ function getPropertyLabels(objects) {
 /**
  * create a CSV row for an exported object
  */
-function createRow(headerRow, object, objectType, headerMapping) {
+function _createRow(headerRow, object, objectType, headerMapping) {
   let row = new Object();
 
-  debugStackPush(false);
-  debug(`\n> `);
-  debug(`${object}`);
+  Common.debugStackPush(false);
+  Common.debug(`\n ${object}`);
 
   // fill row with the attributes and property values of the object
   if (headerMapping == undefined) {
     headerRow.forEach((label) => {
-      row[label] = get_attr_or_prop(object, label);
+      row[label] = ExportImport.get_attr_or_prop(object, label);
     });
   } else {
     Object.keys(headerMapping).forEach((headerKey) => {
-      if (headerKey == PROP_ADD) {
-        debug(`headerMapping[headerKey].key: ${headerMapping[headerKey].key}`);
-        debug(`headerMapping[headerKey].value: ${headerMapping[headerKey].value}`);
+      if (headerKey == ExportImport.PROP_ADD) {
+        Common.debug(`headerMapping[headerKey].key: ${headerMapping[headerKey].key}`);
+        Common.debug(`headerMapping[headerKey].value: ${headerMapping[headerKey].value}`);
         // fill row with in mapping defined function or value
         if (typeof headerMapping[headerKey].value === "function") {
           row[headerMapping[headerKey].key] = headerMapping[headerKey].value(); // Call the function
@@ -177,28 +179,26 @@ function createRow(headerRow, object, objectType, headerMapping) {
           row[headerMapping[headerKey].key] = headerMapping[headerKey].value;
         }
       } else {
-        row[headerMapping[headerKey]] = get_attr_or_prop(object, headerKey);
+        row[headerMapping[headerKey]] = ExportImport.get_attr_or_prop(object, headerKey);
       }
     });
   }
 
   // fill folder column
-  if (FOLDER_LABEL) {
-    // row[FOLDER_LABEL] = get_folderPath($(`#${object.id}`), "");
-    row[FOLDER_LABEL] = printFolderPath(object, "");
-    debug(`row[FOLDER_LABEL]: ${row[FOLDER_LABEL]}`);
+  if (Config.FOLDER_COLUMN) {
+    row[ExportImport.FOLDER_LABEL] = ArchiFolders.printFolderPath(object, "");
+    Common.debug(`row[${ExportImport.FOLDER_LABEL}]: ${row[ExportImport.FOLDER_LABEL]}`);
   }
 
   // GEMMA columns for checking which elements will be published
-  if (GEMMA_COLUMNS && objectType == OBJECT_TYPE_ELEMENT) {
+  if (Config.GEMMA_COLUMNS && objectType == Common.OBJECT_TYPE_ELEMENT) {
     // fill column with the 'highest' publiceren value of all the views with the object drawn
-    row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = getGEMMA_columns(object).publicerenTotEnMet;
-    debug(`row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]: ${row[GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
-    row[GEMMA_LIST_API_LABEL] = getGEMMA_columns(object).GEMMA_ListAPI;
-    debug(`row[GEMMA_LIST_API]: ${row[GEMMA_LIST_API_LABEL]}`);
+    row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL] = _getGEMMA_columns(object).publicerenTotEnMet;
+    Common.debug(`row[${ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL}]: ${row[ExportImport.GEMMA_PUBLICEREN_TOT_EN_MET_LABEL]}`);
+    row[ExportImport.GEMMA_LIST_API_LABEL] = _getGEMMA_columns(object).GEMMA_ListAPI;
+    Common.debug(`row[${ExportImport.GEMMA_LIST_API_LABEL}]: ${row[ExportImport.GEMMA_LIST_API_LABEL]}`);
   }
-  debug(`Row: ${JSON.stringify(row)}`);
-  debugStackPop();
+  Common.debugStackPop();
   return row;
 }
 
@@ -210,7 +210,7 @@ function createRow(headerRow, object, objectType, headerMapping) {
  * @param {*} object
  * @returns object with values for two columns
  */
-function getGEMMA_columns(object) {
+function _getGEMMA_columns(object) {
   let maxPublicerenIndex = -1;
   let pubProp = "Geen view";
   let naarSWC = "Niet";
@@ -221,11 +221,11 @@ function getGEMMA_columns(object) {
       if (!v.prop("Publiceren") && maxPublicerenIndex == -1) {
         pubProp = "Geen view met publiceren";
       } else {
-        let publicerenIndex = GEMMA_PUBLICEREN_VALUES.indexOf(`${v.prop("Publiceren")}`);
+        let publicerenIndex = ExportImport.GEMMA_PUBLICEREN_VALUES.indexOf(`${v.prop("Publiceren")}`);
         if (publicerenIndex > maxPublicerenIndex) maxPublicerenIndex = publicerenIndex;
       }
     });
-  if (maxPublicerenIndex > -1) pubProp = GEMMA_PUBLICEREN_VALUES[maxPublicerenIndex];
+  if (maxPublicerenIndex > -1) pubProp = ExportImport.GEMMA_PUBLICEREN_VALUES[maxPublicerenIndex];
   if (maxPublicerenIndex >= 2) naarSWC = "List API";
   return { publicerenTotEnMet: pubProp, GEMMA_ListAPI: naarSWC };
 }
@@ -233,8 +233,8 @@ function getGEMMA_columns(object) {
 /**
  * Save header and data to a CSV file
  */
-function saveRowsToFile(header, data, exportFile) {
-  $.fs.writeFile(exportFile, Papa.unparse({ fields: header, data: data }, { quotes: true }));
+function _saveRowsToFile(header, data, exportFile) {
+  $.fs.writeFile(exportFile, ExportImport.Papa.unparse({ fields: header, data: data }, { quotes: true }));
   let exportFileName = exportFile.split("\\").pop().split("/").pop();
   let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
   console.log("Folder: " + exportFilePath);
@@ -244,10 +244,16 @@ function saveRowsToFile(header, data, exportFile) {
 /**
  * Save header and data to Excel
  */
-function saveRowsToExcel(header, data, objectType, exportFile) {
-  // load("https://unpkg.com/xlsx/dist/xlsx.core.min.js");
-  load("https://unpkg.com/xlsx/dist/xlsx.full.min.js");
-  // load("https://unpkg.com/xlsx/dist/xlsx.extendscript.js");
+function _saveRowsToExcel(header, data, objectType, exportFile) {
+  var XLSX;
+  try {
+    XLSX = require("xlsx");
+  } catch (e) {
+    load("https://unpkg.com/xlsx/dist/xlsx.full.min.js");
+    var g = typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : this;
+    XLSX = g.XLSX;
+  }
+  if (!XLSX) throw "XLSX not loaded. Add node_modules/xlsx (see SETUP_NODE_MODULES.md) or allow load from unpkg.";
 
   console.log(`XLSX version:  ${XLSX.version}`);
 
@@ -268,4 +274,10 @@ function saveRowsToExcel(header, data, objectType, exportFile) {
   let exportFilePath = exportFile.substring(0, exportFile.indexOf(exportFileName));
   console.log("Folder: " + exportFilePath);
   console.log("Saved to file: " + exportFileName);
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    exportObjects,
+  };
 }

@@ -1,27 +1,20 @@
 /**
  * Shared constants and functions for exporting and importing
  */
-// load(__DIR__ + "../_lib/papaparse.min.js");
-load("https://unpkg.com/papaparse@latest/papaparse.min.js");
-// const Papa = require("papaparse");
-
-const OBJECT_TYPE_RELATION = "relation";
-const OBJECT_TYPE_ELEMENT = "element";
-const OBJECT_TYPE_VIEW = "view";
+const Papa = require("papaparse");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 // define a mapping object with PROP_ADD as an extra column
 const PROP_ADD = "add column to export";
 
 // If set, the import wil use the PROP_ID as the first id for matching objects (global type var, because const is block scoped)
-if (PROP_ID == undefined) var PROP_ID = "Object ID"; // set default tool independent identifier.
+const PROP_ID = "Object ID"; // set default tool independent identifier.
 
-// Set a label for a folder column, leave empty to skip the 'folder' column
-if (FOLDER_LABEL == undefined) var FOLDER_LABEL = "folder"; // default create a folder column 'folder'
-
-// set GEMMA_COLUMNS to false if you don't want GEMMA special columns for elements
-if (GEMMA_COLUMNS == undefined) var GEMMA_COLUMNS = false; // default do not create the GEMMA columns
+// Extra column labels voor export
+const FOLDER_LABEL = "archi folder"; 
 const GEMMA_PUBLICEREN_TOT_EN_MET_LABEL = "Publiceren tot en met";
 const GEMMA_LIST_API_LABEL = "SWC API";
+
 const GEMMA_PUBLICEREN_VALUES = [
   "Niet",
   "Redactie",
@@ -36,17 +29,20 @@ const ATTRIBUTE_LABELS = ["name", "type", "documentation", "id"];
 const ASSOCIATION_DIRECTED = "associationDirected";
 const RELATION_ATTRIBUTE_LABELS = ["accessType", ASSOCIATION_DIRECTED, "influenceStrength"];
 
-let endpointLabels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
-if (PROP_ID) {
-  endpointLabels = endpointLabels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
+const ENDPOINT_LABELS = _get_ENDPOINT_LABELS();
+function _get_ENDPOINT_LABELS() {
+  let labels = ["source.name", "source.type", "target.name", "target.type", "source.id", "target.id"];
+  if (PROP_ID) {
+    labels = labels.concat([`source.prop.${PROP_ID}`, `target.prop.${PROP_ID}`]);
+  }
+  return labels;
 }
-const ENDPOINT_LABELS = endpointLabels;
 
 // labels to skip when updating objects
 // - don't import the attribute type (can't be set) and
 // - don't import the attribute id (can't be set) and
 // - don't import the endpoints (used for finding the relation)
-const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
+const COLUMNS_NOT_TO_IMPORT = ["type", "id", FOLDER_LABEL]
   .concat(ENDPOINT_LABELS)
   .concat(GEMMA_PUBLICEREN_TOT_EN_MET_LABEL)
   .concat(GEMMA_LIST_API_LABEL);
@@ -57,7 +53,7 @@ const LABELS_NOT_TO_UPDATE = ["type", "id", FOLDER_LABEL]
 function set_attr_or_prop(object, row, label) {
   if (ATTRIBUTE_LABELS.indexOf(label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(label) != -1) {
     if (label == ASSOCIATION_DIRECTED && object.type == "association-relationship") {
-      object[label] = parseBool(row[label]);
+      object[label] = _parseBool(row[label]);
     } else {
       object[label] = row[label];
     }
@@ -70,15 +66,15 @@ function set_attr_or_prop(object, row, label) {
  * get the given attribute or property value of an Archi object
  */
 function get_attr_or_prop(archi_object, row_label) {
-  debugStackPush(false);
+  Common.debugStackPush(false);
   let value = "";
 
   // get attribute, for instance "documentation", "name",
   if (ATTRIBUTE_LABELS.indexOf(row_label) != -1 || RELATION_ATTRIBUTE_LABELS.indexOf(row_label) != -1) {
-    debug(`row_label = ${row_label}`);
-    debug(`archi_object = ${archi_object}`);
-    debug(`archi_object.name = ${archi_object.name}`);
-    debug(`archi_object[row_label] = ${archi_object[row_label]}`);
+    Common.debug(`row_label = ${row_label}`);
+    Common.debug(`archi_object = ${archi_object}`);
+    Common.debug(`archi_object.name = ${archi_object.name}`);
+    Common.debug(`archi_object[row_label] = ${archi_object[row_label]}`);
     if (row_label == ASSOCIATION_DIRECTED) {
       if (archi_object.type == "association-relationship") {
         value = archi_object[row_label].toString();
@@ -86,8 +82,8 @@ function get_attr_or_prop(archi_object, row_label) {
     } else {
       value = archi_object[row_label];
     }
-    debug(`attr archi_object.${row_label}=${value}`);
-  } else if (ENDPOINT_LABELS.indexOf(row_label) != -1) {
+    Common.debug(`attr archi_object.${row_label}=${value}`);
+  } else if (_get_ENDPOINT_LABELS().indexOf(row_label) != -1) {
     // get endpoint label, for instance source.id, target.prop.Object ID
     // const [endpoint, attr, prop] = row_label.split("."); // GRAALVM only
     const endpoint = row_label.substring(0, row_label.indexOf("."));
@@ -100,25 +96,44 @@ function get_attr_or_prop(archi_object, row_label) {
 
     if (secondSubString == "prop") {
       value = archi_object[endpoint].prop(prop);
-      debug(`endpoint archi_object[${endpoint}].prop(${prop})=${value}`);
+      Common.debug(`endpoint archi_object[${endpoint}].prop(${prop})=${value}`);
     } else {
       value = archi_object[endpoint][attr];
-      debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
+      Common.debug(`endpoint archi_object[${endpoint}][${attr}]=${value}`);
     }
   } else {
       // get property, for instance 'Object ID'
       value = archi_object.prop(row_label);
-      debug(`prop archi_object.prop(${row_label})=${value}`);
+      Common.debug(`prop archi_object.prop(${row_label})=${value}`);
   }
 
-  debugStackPop();
+  Common.debugStackPop();
   return value;
 }
 
-function parseBool(value) {
+function _parseBool(value) {
   if (typeof value === "string") {
     value = value.replace(/^\s+|\s+$/g, "").toLowerCase();
     if (value === "true" || value === "false") return value === "true";
   }
   return; // returns undefined
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    Papa,
+    PROP_ADD,
+    PROP_ID,
+    GEMMA_PUBLICEREN_TOT_EN_MET_LABEL,
+    GEMMA_LIST_API_LABEL,
+    GEMMA_PUBLICEREN_VALUES,
+    ATTRIBUTE_LABELS,
+    RELATION_ATTRIBUTE_LABELS,
+    FOLDER_LABEL,
+    ENDPOINT_LABELS,
+    ASSOCIATION_DIRECTED,
+    COLUMNS_NOT_TO_IMPORT,
+    set_attr_or_prop,
+    get_attr_or_prop,
+  };
 }

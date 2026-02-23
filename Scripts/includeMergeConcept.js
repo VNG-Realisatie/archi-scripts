@@ -28,14 +28,11 @@
  * 
  * (c) 2019 Mark Backer
  */
-load(__DIR__ + "_lib/archi_folders.js");
-load(__DIR__ + "_lib/selection.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const PROP_ID = "Object ID";
-const OBJECT_TYPE_RELATION = "relation";
-const OBJECT_TYPE_ELEMENT = "element";
-
-initConsoleLog(__FILE__);
 
 function mergeElementOrRelation(conceptType) {
   try {
@@ -43,11 +40,11 @@ function mergeElementOrRelation(conceptType) {
       throw `Nothing selected. Select one or more ${conceptType}s, or select a view or a folder containing ${conceptType}s`;
     }
 
-    let selectedConcepts = getSelection($(selection), (selector = conceptType));
+    let selectedConcepts = Selection.getSelection($(selection), conceptType);
     console.log();
     let count = { merged: 0, noduplicates: 0, skipped: 0, duplicates: 0 };
 
-    selectedConcepts.each((concept) => mergeConcept(concept, count));
+    selectedConcepts.each((concept) => _mergeConcept(concept, count));
 
     console.log(`Selected ${conceptType}s: ${selectedConcepts.size()}`);
     console.log(`- merged: ${count.merged}`);
@@ -59,38 +56,31 @@ function mergeElementOrRelation(conceptType) {
   }
 }
 
-finishConsoleLog();
-
-/**
- * merge a concept with its duplicates
- */
-function mergeConcept(selectedConcept, count) {
+function _mergeConcept(selectedConcept, count) {
   // check if the concept still exists in the model, can be deleted as a duplicate
   if (selectedConcept.model) {
-    let primary = concept(selectedConcept);
+    let primary = Common.concept(selectedConcept);
 
-    let duplicateList = getDuplicates(primary);
+    let duplicateList = _getDuplicates(primary);
     if (duplicateList.size() > 0) {
-      if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
+      if ($(primary).is(Common.OBJECT_TYPE_ELEMENT)) {
         console.log(`- ${primary}`);
       }
-      if ($(primary).is(OBJECT_TYPE_RELATION)) {
+      if ($(primary).is(Common.OBJECT_TYPE_RELATION)) {
         let primaryName = `${primary.name ? primary.name : "no-name"}`;
         let primaryString = `${primary.type}:  ${primary.source.name}  ===${primaryName}==>  ${primary.target.name}`;
         console.log(`- ${primaryString}`);
       }
-      console.log(`    folder = ${printFolderPath(primary)}`);
+      console.log(`    folder = ${ArchiFolders.printFolderPath(primary)}`);
       console.log(`    id     = ${primary.id}`);
       console.log(`  has duplicates:`);
 
       duplicateList.each((duplicate) => {
-        console.log(`    folder = ${printFolderPath(duplicate)}`);
+        console.log(`    folder = ${ArchiFolders.printFolderPath(duplicate)}`);
         console.log(`    id     = ${duplicate.id}`);
 
-        prepareProperties(primary, duplicate);
-        // if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
-        prepareRelations(primary, duplicate);
-        // }
+        _prepareProperties(primary, duplicate);
+        _prepareRelations(primary, duplicate);
 
         primary.merge(duplicate);
         duplicate.delete();
@@ -105,27 +95,23 @@ function mergeConcept(selectedConcept, count) {
       count.noduplicates += 1;
     }
   } else {
-    // console.log(`Already merged concept ${selectedConcept}`);
     count.skipped += 1;
   }
 }
 
-function getDuplicates(primary) {
+function _getDuplicates(primary) {
   let duplicateList = $();
 
-  if ($(primary).is(OBJECT_TYPE_ELEMENT)) {
+  if ($(primary).is(Common.OBJECT_TYPE_ELEMENT)) {
     duplicateList = $(`.${primary.name}`).filter(primary.type).not($(primary));
   }
-  if ($(primary).is(OBJECT_TYPE_RELATION)) {
+  if ($(primary).is(Common.OBJECT_TYPE_RELATION)) {
     duplicateList = $(primary.type)
       .not($(primary))
       .filter((rel) => filterRelationDuplicates(primary, rel));
   }
   return duplicateList;
 
-  /**
-   * Select duplicate relations
-   */
   function filterRelationDuplicates(primaryRel, dupRel) {
     if (
       primaryRel.type == dupRel.type &&
@@ -138,31 +124,23 @@ function getDuplicates(primary) {
   }
 }
 
-/**
- * Remove properties from the duplicate that already exist in the primary
- */
-function prepareProperties(primary, duplicate) {
-  // don't append documentation if documentation strings are equal
+function _prepareProperties(primary, duplicate) {
   if (primary.documentation && duplicate.documentation) {
     if (primary.documentation.trim() == duplicate.documentation.trim()) {
-      // console.log(`    - documentation is equal, not appended`);
       duplicate.documentation = ``;
     } else {
       console.log(`    - INFO; documentation of duplicate appended`);
     }
   }
-  // merge primary properties with duplicate properties
   let duplicatePropList = duplicate.prop();
   duplicatePropList.forEach((property) => {
     if (property == PROP_ID) {
-      // remove property PROP_ID; only keep the PROP_ID of the primary
       if (primary.prop(property)) {
         duplicate.removeProp(property);
       } else {
         console.log(`    - WARNING; added property ${PROP_ID} from duplicate`);
       }
     } else {
-      // remove properties equal to primary properties from duplicate
       if (primary.prop(property)) {
         if (primary.prop(property).trim() == duplicate.prop(property).trim()) {
           duplicate.removeProp(property);
@@ -174,10 +152,7 @@ function prepareProperties(primary, duplicate) {
   });
 }
 
-/**
- * Remove relations from the duplicate that already exist for the primary
- */
-function prepareRelations(primary, duplicate) {
+function _prepareRelations(primary, duplicate) {
   console.log("    - Delete duplicate incoming relation with objects:");
   $(primary)
     .inRels()
@@ -191,8 +166,8 @@ function prepareRelations(primary, duplicate) {
       });
     });
 
-    console.log("    - Delete duplicate outgoing relation with objects:");
-    $(primary)
+  console.log("    - Delete duplicate outgoing relation with objects:");
+  $(primary)
     .outRels()
     .each((rel) => {
       let duplicateOutRels = $(duplicate)
@@ -214,9 +189,9 @@ function prepareRelations(primary, duplicate) {
   }
 }
 
-/**
- * return a concept for a visual concept or concept
- */
-function concept(o) {
-  return o.concept ? o.concept : o;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    PROP_ID,
+    mergeElementOrRelation,
+  };
 }

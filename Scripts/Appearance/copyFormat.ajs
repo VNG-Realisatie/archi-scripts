@@ -1,0 +1,76 @@
+/*
+ * CopyFormat
+ * Copy the formatting of the selected object and paste this to all objects of the same type
+ * Use this script in conjuntion with the brush (format painter) in the Archi palette
+ *
+ * behavior
+ * 	select one object in a view			-> copy formatting to all objects of same type
+ *
+ * (c) 2019 Mark Backer
+ *
+ * 2022
+ * - added appearance properties textAlignment, textPosition en gradient
+ * - select all object types, not only elements
+ * 2023
+ * - use selection.js functions
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const selectionMod = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+
+Common.initConsoleLog(__FILE__, true);
+
+try {
+  let copyFrom = $(selection).first();
+  if (!$(copyFrom.view).is("view")) {
+    console.error(`> Selected object is not on a view. Select one object in a view`);
+  } else {
+    if ($(selection).size() != 1) {
+      console.error(`> Selected none or multiple objects. Select one object with the formatting`);
+    } else {
+      selectedView = copyFrom.view
+      let collection = selectionMod.getVisualSelection($(selectedView), copyFrom.type);
+      collection.not($(copyFrom)).each((copyToObj) => copyFormat(copyFrom, copyToObj));
+
+      console.log(`> Formatting copied to ${collection.size()} objects`);
+    }
+  }
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+Common.finishConsoleLog();
+
+/**
+ * 	copy formatting of one object to another
+ */
+function copyFormat(copyObj, pasteObj) {
+  console.log(`- ${pasteObj}`);
+
+  pasteObj.fontColor = copyObj.fontColor;
+  pasteObj.fontName = copyObj.fontName;
+  pasteObj.fontSize = copyObj.fontSize;
+  pasteObj.fontStyle = copyObj.fontStyle;
+  pasteObj.lineColor = copyObj.lineColor;
+
+  // for elements
+  pasteObj.figureType = copyObj.figureType;
+  pasteObj.fillColor = copyObj.fillColor;
+  pasteObj.opacity = copyObj.opacity;
+  pasteObj.outlineOpacity = copyObj.outlineOpacity;
+
+  // jArchi 0.8
+  pasteObj.textAlignment = copyObj.textAlignment;
+  pasteObj.textPosition = copyObj.textPosition;
+  // jArchi 1.2
+  pasteObj.gradient = copyObj.gradient;
+
+  // for connection
+  pasteObj.lineWidth = copyObj.lineWidth;
+  
+  // for non ArchiMate objects.
+  pasteObj.borderType = copyObj.borderType;
+  if ($(copyObj).is("diagram-model-connection")) {
+    pasteObj.style = copyObj.style;
+  }
+
+  // pasteObj.labelVisible = copyObj.labelVisible;
+}

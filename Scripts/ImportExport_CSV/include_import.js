@@ -21,7 +21,8 @@
  * Import elements before relations. You can't create relations without a source and target
  *
  */
-load(__DIR__ + "include_export_import.js");
+var Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+var ExportImport = require(__DIR__ + "include_export_import.js");
 
 // use this value in a property column to remove a property from the object
 const REMOVE_PROPERTY_VALUE = "<remove>";
@@ -48,7 +49,7 @@ const PROP_IMPORT_CREATED = "Import created";
 const PROP_IMPORT_UPDATED = "Import updated";
 
 // Compute the date which will appear in every new or updated concepts - Has to be
-var currentDateTime = getFormattedDateTime();
+var currentDateTime = Common.getFormattedDateTime();
 
 /**
  * import the CSV file
@@ -59,7 +60,7 @@ var currentDateTime = getFormattedDateTime();
  * @param {*} transformRowFn - mapping function for data
  */
 function importObjects(importFile, sync = false, transformRowFn) {
-  debugStackPush(false);
+  Common.debugStackPush(false);
 
   try {
     console.log(`Importing objects of CSV`);
@@ -78,30 +79,30 @@ function importObjects(importFile, sync = false, transformRowFn) {
       console.log(`> Loaded CSV file: ${importFileName}`);
 
       console.log(`\nTry to match object types (elements, relations and views):`);
-      if (PROP_ID) console.log(`- property '${PROP_ID}' and if not found with the 'Archi id'`);
+      if (ExportImport.PROP_ID) console.log(`- property '${ExportImport.PROP_ID}' and if not found with the 'Archi id'`);
       else console.log(`- with the Archi id`);
       console.log(`if object not found, try to match:`);
       console.log(`- elements and views with a combination of name and type`);
       console.log(`- relations with the endpoints and type`);
 
-      let rows = getRowsFromFile(importFile, transformRowFn);
+      let rows = _getRowsFromFile(importFile, transformRowFn);
       if (rows.length == 0) {
         console.log("\n> ======== ");
         console.log(`> no data in CSV file: ${importFileName}`);
         console.log(`\n> Select another file and import again\n`);
       } else {
-        debug("\n> check header for missing columns");
-        let headerLabels = get_headerLabels(rows);
+        Common.debug("\n> check header for missing columns");
+        let headerLabels = _get_headerLabels(rows);
         if (headerLabels.length == 0) {
           console.log(`\n> Add missing columns and run import script again`);
           console.log(`> Use export script to create a CSV file with all required columns\n`);
         } else {
-          debug("\n> process all rows, find necesary action for every row");
+          Common.debug("\n> process all rows, find necesary action for every row");
 
           // process all rows from CSV file
-          startCounter("importObjects");
-          let results = rows.map((row, index) => processRow(row, index, headerLabels, sync));
-          debug(`importObjects ${results.length} rows (${endCounter("importObjects")}`);
+          Common.startCounter("importObjects");
+          let results = rows.map((row, index) => _processRow(row, index, headerLabels, sync));
+          Common.debug(`importObjects ${results.length} rows (${Common.endCounter("importObjects")}`);
 
           let skipped = results.filter((result) => result.resultCode === SKIP);
           let created = results.filter((result) => result.resultCode === CREATE);
@@ -128,7 +129,7 @@ function importObjects(importFile, sync = false, transformRowFn) {
           console.log(`>> Total rows processed : ${rows.length}`);
 
           if (sync) {
-            tagDeletedConcepts();
+            _tagDeletedConcepts();
             console.log(`\n> CSV file: ${importFileName} synchronized`);
           } else {
             console.log(`\n> CSV file: ${importFileName} imported`);
@@ -139,11 +140,11 @@ function importObjects(importFile, sync = false, transformRowFn) {
   } catch (error) {
     console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   }
-  debug(`< `);
-  debugStackPop();
+  Common.debug(`< `);
+  Common.debugStackPop();
 }
 
-function tagDeletedConcepts() {
+function _tagDeletedConcepts() {
   console.log("INFO - Looking for deleted elements or relationships and tagging them as deleted...");
   var deleted = 0;
 
@@ -171,26 +172,26 @@ function tagDeletedConcepts() {
  * check importFile for missing columns
  * return array with header labels to update objects
  */
-function get_headerLabels(rows) {
+function _get_headerLabels(rows) {
   // check if there is a column for the attributes
   const allHeaderLabels = Object.keys(rows[0]);
-  let attrCheck = checkLabel(ATTRIBUTE_LABELS, "attribute", allHeaderLabels);
+  let attrCheck = _checkLabel(ExportImport.ATTRIBUTE_LABELS, "attribute", allHeaderLabels);
+
   // and for relations if the endpoints columns are present
   let endpointCheck = true;
-  let relations = rows.filter((row) => row.type.endsWith("relationship"));
-
-  if (relations.length > 0) {
-    endpointCheck = checkLabel(ENDPOINT_LABELS, "endpoint", allHeaderLabels);
+  let relationRows = rows.filter((row) => row.type.endsWith("relationship"));
+  if (relationRows.length > 0) {
+    endpointCheck = _checkLabel(ExportImport.ENDPOINT_LABELS, "endpoint", allHeaderLabels);
   }
 
   let headerLabels = [];
   if (attrCheck && endpointCheck) {
-    headerLabels = allHeaderLabels.filter((label) => !LABELS_NOT_TO_UPDATE.includes(label));
-    debug(`\nlabelsToUpdate: ${headerLabels}`);
+    headerLabels = allHeaderLabels.filter((label) => !ExportImport.COLUMNS_NOT_TO_IMPORT.includes(label));
+    Common.debug(`\nlabelsToUpdate: ${headerLabels}`);
   }
   return headerLabels;
 
-  function checkLabel(labels, labelType, allHeaderLabels) {
+  function _checkLabel(labels, labelType, allHeaderLabels) {
     let line = "";
     labels.forEach((label) => {
       if (!allHeaderLabels.includes(label)) line += `- ${label}\n`;
@@ -225,27 +226,27 @@ function get_headerLabels(rows) {
  *
  * 	return result object with log info
  */
-function processRow(row, index, rowLabels, sync) {
-  startCounter("processRow");
+function _processRow(row, index, rowLabels, sync) {
+  Common.startCounter("processRow");
 
   let findResult;
   let result = {};
 
-  debugStackPush(false);
-  debug(`row[${index + 2}] ${row.type}: ${row.name}`);
+  Common.debugStackPush(false);
+  Common.debug(`row[${index + 2}] ${row.type}: ${row.name}`);
 
   // Search without whitespaces
   row.type = row.type.trim();
   row.name = row.name.trim();
   row.id = row.id.trim();
-  findResult = findObject(row.type, row.name, row[PROP_ID], row.id, row);
-  debug(`findResult: ${JSON.stringify(findResult)}`);
+  findResult = _findObject(row.type, row.name, row[ExportImport.PROP_ID], row.id, row);
+  Common.debug(`findResult: ${JSON.stringify(findResult)}`);
 
   if (findResult.findCode == FOUND) {
-    result = updateObject(row, index, rowLabels, findResult, "uitzoeken", sync);
+    result = _updateObject(row, index, rowLabels, findResult, "uitzoeken", sync);
   } else {
     if (findResult.errorCode == SUCCES) {
-      result = createObject(row, index, rowLabels, sync);
+      result = _createObject(row, index, rowLabels, sync);
     } else {
       result.resultCode = SKIP;
       result.line = `row[${index + 2}] ${SKIP}\n`;
@@ -253,8 +254,8 @@ function processRow(row, index, rowLabels, sync) {
     }
   }
 
-  debug(`>> processRow: ${endCounter("processRow")}\n`);
-  debugStackPop();
+  Common.debug(`>> processRow: ${Common.endCounter("processRow")}\n`);
+  Common.debugStackPop();
 
   return result;
 }
@@ -265,8 +266,8 @@ function processRow(row, index, rowLabels, sync) {
  *  - by id
  *  - by name and type
  */
-function findObject(row_type, row_name, row_prop_id, row_id, row) {
-  startCounter("findObjects");
+function _findObject(row_type, row_name, row_prop_id, row_id, row) {
+  Common.startCounter("findObjects");
   let archiColl = $();
   let rowHasKey = false;
   let findCode = NOT_FOUND;
@@ -278,19 +279,19 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
   if (row_prop_id) {
     rowHasKey = true;
     if (!row_type) row_type = "*";
-    archiColl = $(row_type).filter((obj) => obj.prop(PROP_ID) == row_prop_id);
+    archiColl = $(row_type).filter((obj) => obj.prop(ExportImport.PROP_ID) == row_prop_id);
     // a PROP_ID has to be unique
     if (archiColl.size() == 1) {
       findCode = FOUND;
-      findText = `found with '${PROP_ID}'`;
-      debug(`${findText}: ${archiColl.first()}; prop(${PROP_ID})=${archiColl.first().prop(row_prop_id)}`);
+      findText = `found with '${ExportImport.PROP_ID}'`;
+      Common.debug(`${findText}: ${archiColl.first()}; prop(${ExportImport.PROP_ID})=${archiColl.first().prop(row_prop_id)}`);
     } else if (archiColl.size() > 1) {
       errorCode += ERROR;
-      errorText += `Error: Multiple objects with prop(${PROP_ID})=${row_prop_id}`;
+      errorText += `Error: Multiple objects with prop(${ExportImport.PROP_ID})=${row_prop_id}`;
       archiColl.each((obj) => (errorText += `> - ${obj}\n`));
       errorText += `>> Use script setObjectID.ajs to find and resolve duplicates\n`;
 
-      debug(errorText);
+      Common.debug(errorText);
     }
   }
   // search with Archi id
@@ -300,14 +301,14 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
     if (archiColl.size() == 1) {
       findCode = FOUND;
       findText = `found with 'id'`;
-      debug(`${findText}: ${archiColl.first()}; id=${archiColl.first().id}`);
+      Common.debug(`${findText}: ${archiColl.first()}; id=${archiColl.first().id}`);
     }
   }
 
   // search relation with endpoints
   if (findCode == NOT_FOUND && row_type.endsWith("relationship")) {
     rowHasKey = true; // if row endpoints are not complete, it's signaled in the function
-    let findRelResult = findWithEndpoints(row);
+    let findRelResult = _findWithEndpoints(row);
     findCode = findRelResult.findCode;
     findText = findRelResult.findText;
     if (findRelResult.errorCode != SUCCES) {
@@ -323,7 +324,7 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
       if (archiColl.size() == 1) {
         findCode = FOUND;
         findText = `found with 'name'`;
-        debug(`${findText}: ${archiColl.first()}`);
+        Common.debug(`${findText}: ${archiColl.first()}`);
       } else if (archiColl.size() > 1) {
         errorCode += WARNING;
         errorText += `Warning: Multiple objects with name=${row_name}\n`;
@@ -342,13 +343,13 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
   if (!rowHasKey) {
     errorCode += ERROR;
     errorText += `Error: missing search key\n`;
-    if (PROP_ID) errorText += `- search keys are ${PROP_ID}, 'id' or the combination of name and type\n`;
+    if (ExportImport.PROP_ID) errorText += `- search keys are ${ExportImport.PROP_ID}, 'id' or the combination of name and type\n`;
     else errorText += `- search keys are 'id' or the combination of name and type (PROP_ID skipped)\n`;
-    debug(errorText);
+    Common.debug(errorText);
   }
 
   let archiObj = archiColl.first();
-  debug(`>>> findObjects: ${endCounter("findObjects")}`);
+  Common.debug(`>>> findObjects: ${Common.endCounter("findObjects")}`);
 
   // returns the object and how it was found
   return { findCode: findCode, findText: findText, errorCode: errorCode, errorText: errorText, archiObj: archiObj };
@@ -359,29 +360,29 @@ function findObject(row_type, row_name, row_prop_id, row_id, row) {
  * 	- for finding source and target the function findObjects is used
  * 	- source and target columns must have a valid search key
  */
-function findWithEndpoints(row) {
-  startCounter("findRelation");
+function _findWithEndpoints(row) {
+  Common.startCounter("findRelation");
   let archiRels = $();
   let findCode = NOT_FOUND;
   let findText = "";
   let errorCode = SUCCES;
   let errorText = "";
 
-  debug(`Row source`);
-  let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
+  Common.debug(`Row source`);
+  let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
   if (findSrc.errorCode != SUCCES) {
     errorCode += findSrc.errorCode;
     errorText += `- Error in row source.<endpoint> columns > `;
     errorText += `${findSrc.errorText}\n`;
-    debug(errorText);
+    Common.debug(errorText);
   }
-  debug(`Row target`);
-  let findTgt = findObject(row["target.type"], row["target.name"], row[`target.prop.${PROP_ID}`], row["target.id"]);
+  Common.debug(`Row target`);
+  let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
   if (findTgt.errorCode != SUCCES) {
     errorCode += findTgt.errorCode;
     errorText += `- Error in row target.<endpoint> columns > `;
     errorText += `${findTgt.errorText}`;
-    debug(errorText);
+    Common.debug(errorText);
   }
 
   if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
@@ -399,8 +400,8 @@ function findWithEndpoints(row) {
 
     archiRels.each((rel) => {
       if (findCode != FOUND) {
-        if (row[`prop.${PROP_ID}`]) {
-          findText = `not found. There is no relation with the rows ${PROP_ID}`;
+        if (row[`prop.${ExportImport.PROP_ID}`]) {
+          findText = `not found. There is no relation with the rows ${ExportImport.PROP_ID}`;
         } else {
           if (row.name == rel.name && row.type == rel.type) {
             findCode = FOUND;
@@ -413,8 +414,8 @@ function findWithEndpoints(row) {
     });
 
     // if (archiRels.size() == 1) {
-    //   if (row[`prop.${PROP_ID}`]) {
-    //     findText = `not found. There is no relation with the rows ${PROP_ID}`;
+    //   if (row[`prop.${ExportImport.PROP_ID}`]) {
+    //     findText = `not found. There is no relation with the rows ${ExportImport.PROP_ID}`;
     //   } else {
     //     if (row.name == archiRels.first().name && row.type == archiRels.first().type) {
     //       findCode = FOUND;
@@ -431,7 +432,7 @@ function findWithEndpoints(row) {
     // }
   }
 
-  debug(`>>> findRelation: ${endCounter("findRelation")}`);
+  Common.debug(`>>> findRelation: ${Common.endCounter("findRelation")}`);
   return { findCode: findCode, findText: findText, errorCode: errorCode, errorText: errorText, archiObj: archiRels };
 }
 
@@ -439,18 +440,18 @@ function findWithEndpoints(row) {
  * 	create a new object for the row
  *  if row is a relation the source and target have to exist
  */
-function createObject(row, index, rowLabels, sync) {
-  debugStackPush(false);
-  startCounter("createObject");
+function _createObject(row, index, rowLabels, sync) {
+  Common.debugStackPush(false);
+  Common.startCounter("createObject");
   let line = "";
   let resultCode = SKIP;
   let archiObj = {};
 
   if (row.type.endsWith("relationship")) {
-    let findSrc = findObject(row["source.type"], row["source.name"], row[`source.prop.${PROP_ID}`], row["source.id"]);
-    debug(`findSrc: ${JSON.stringify(findSrc)}`);
-    let findTgt = findObject(row["target.type"], row["target.name"], row[`target.prop.${PROP_ID}`], row["target.id"]);
-    debug(`findTgt: ${JSON.stringify(findTgt)}`);
+    let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
+    Common.debug(`findSrc: ${JSON.stringify(findSrc)}`);
+    let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
+    Common.debug(`findTgt: ${JSON.stringify(findTgt)}`);
 
     if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
       archiObj = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
@@ -468,21 +469,21 @@ function createObject(row, index, rowLabels, sync) {
     line += `row[${index + 2}] ${CREATE}\n`;
     line += `  ${archiObj}\n`;
     createResult = { archiObj: archiObj };
-    let result = updateObject(row, index, rowLabels, createResult, CREATE, sync);
+    let result = _updateObject(row, index, rowLabels, createResult, CREATE, sync);
     line += result.line;
     resultCode = CREATE;
   }
   if (sync) archiObj.prop(PROP_IMPORT_CREATED, currentDateTime);
-  debugStackPop();
-  debug(`createObject: ${resultCode} ${endCounter("createObject")}`);
+  Common.debugStackPop();
+  Common.debug(`createObject: ${resultCode} ${Common.endCounter("createObject")}`);
   return { index: index, resultCode: resultCode, line: line };
 }
 
 /**
  * 	update the attributes and properties of the object with the CSV row values
  */
-function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
-  startCounter("updateObject");
+function _updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
+  Common.startCounter("updateObject");
   const ATTRIBUTE_TEXT = "attribute";
   const PROPERTY_TEXT = "property";
   let lineUpdated = "";
@@ -493,15 +494,15 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
   let lineRowUpdate = `row[${index + 2}] ${UPDATE}\n`;
   lineRowUpdate += `  ${archiObj} (${findResult.findText})\n`;
 
-  debugStackPush(false);
-  debug(`row = ${JSON.stringify(row)}`);
-  debug(`obj = ${archiObj}`);
+  Common.debugStackPush(false);
+  Common.debug(`row = ${JSON.stringify(row)}`);
+  Common.debug(`obj = ${archiObj}`);
 
   // update objects attributes and properties with the row cell values
   rowLabels.map((label) => {
     let labelType =
-      ATTRIBUTE_LABELS.includes(label) || RELATION_ATTRIBUTE_LABELS.includes(label) ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
-    let attr_or_prop_value = get_attr_or_prop(archiObj, label);
+    ExportImport.ATTRIBUTE_LABELS.includes(label) || ExportImport.RELATION_ATTRIBUTE_LABELS.includes(label) ? ATTRIBUTE_TEXT : PROPERTY_TEXT;
+    let attr_or_prop_value = ExportImport.get_attr_or_prop(archiObj, label);
 
     // remove whitespace from imported values
     row[label] = row[label].trim();
@@ -512,7 +513,7 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
         archiObj.removeProp(label);
       }
     } else {
-      if (label != ASSOCIATION_DIRECTED || (label == ASSOCIATION_DIRECTED && archiObj.type == "association-relationship")) {
+      if (label != ExportImport.ASSOCIATION_DIRECTED || (label == ExportImport.ASSOCIATION_DIRECTED && archiObj.type == "association-relationship")) {
         // skip row cell if empty or if equal to object value
         if (row[label] && row[label] != attr_or_prop_value) {
           if (attr_or_prop_value) {
@@ -522,7 +523,7 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
           } else {
             lineUpdated += `  - add ${labelType} ${label}: "${row[label]}"\n`;
           }
-          set_attr_or_prop(archiObj, row, label);
+          ExportImport.set_attr_or_prop(archiObj, row, label);
         }
       }
     }
@@ -531,12 +532,12 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
     resultCode = UPDATE;
     if (calledFrom != CREATE) line += lineRowUpdate; // there is already a row create line
     line += lineUpdated;
-    debug(`line: ${line}`);
+    Common.debug(`line: ${line}`);
     if (sync && calledFrom != CREATE) archiObj.prop(PROP_IMPORT_UPDATED, currentDateTime);
   }
   if (sync) archiObj.prop(PROP_IMPORT, currentDateTime);
-  debug(`updateObject: ${endCounter("updateObject")}`);
-  debugStackPop();
+  Common.debug(`updateObject: ${Common.endCounter("updateObject")}`);
+  Common.debugStackPop();
 
   return { index: index, resultCode: resultCode, line: line };
 }
@@ -544,22 +545,22 @@ function updateObject(row, index, rowLabels, findResult, calledFrom, sync) {
 /**
  * Read CSV file in UTF-8 encoding and return file parsed into an array
  */
-function getRowsFromFile(importFile, transformRowFn) {
+function _getRowsFromFile(importFile, transformRowFn) {
   let debugFlag = false;
-  debugStackPush(debugFlag);
+  Common.debugStackPush(debugFlag);
 
-  startCounter("getRowsFromFile");
-  const parsed = Papa.parse(readFully(importFile, "utf-8"), {
+  Common.startCounter("getRowsFromFile");
+  const parsed = ExportImport.Papa.parse(_readFully_csv(importFile, "utf-8"), {
     header: true,
     preview: debugFlag ? 20 : 0,
     encoding: "utf-8",
     skipEmptyLines: true,
   }).data;
 
-  debug("");
-  debug("Rows before transform");
-  debug(`${JSON.stringify(parsed, null, 2)}`);
-  debug("");
+  Common.debug("");
+  Common.debug("Rows before transform");
+  Common.debug(`${JSON.stringify(parsed, null, 2)}`);
+  Common.debug("");
 
   console.log("\nShowing the first row as an example:\n", JSON.stringify(parsed[0], null, 2));
 
@@ -572,19 +573,19 @@ function getRowsFromFile(importFile, transformRowFn) {
   } else {
     rows = parsed;
   }
-  debug("");
-  debug("Rows after transform");
-  debug(JSON.stringify(rows, null, 2));
-  debug("");
+  Common.debug("");
+  Common.debug("Rows after transform");
+  Common.debug(JSON.stringify(rows, null, 2));
+  Common.debug("");
 
-  debug(`getRowsFromFile: ${endCounter("getRowsFromFile")}`);
+  Common.debug(`getRowsFromFile: ${Common.endCounter("getRowsFromFile")}`);
 
-  debugStackPop();
+  Common.debugStackPop();
   return rows;
 }
 
 // Some Polyfills for Nashorn =================================
-function readFully(url, charset) {
+function _readFully_csv(url, charset) {
   // From https://github.com/sindresorhus/strip-bom
   function stripBom(string) {
     if (typeof string !== "string") {
@@ -593,26 +594,26 @@ function readFully(url, charset) {
     // Catches EFBBBF (UTF-8 BOM) because the buffer-to-string
     // conversion translates it to FEFF (UTF-16 BOM).
     if (string.charCodeAt(0) === 0xfeff) {
-      debug("Strip BOM from CSV file");
+      Common.debug("Strip BOM from CSV file");
       return string.slice(1);
     }
     return string;
   }
 
   var result = "";
-  var imports = new JavaImporter(java.net, java.lang, java.io);
+  // var imports = new JavaImporter(java.net, java.lang, java.io);
 
-  with (imports) {
+  // with (imports) {
     var urlObj = null;
 
     try {
-      urlObj = new URL(url);
+      urlObj = new java.net.URL(url);
     } catch (e) {
       // If the URL cannot be built, assume it is a file path.
-      urlObj = new URL(new File(url).toURI().toURL());
+      urlObj = new java.net.URL(new java.io.File(url).toURI().toURL());
     }
 
-    var reader = new BufferedReader(new InputStreamReader(urlObj.openStream(), charset));
+    var reader = new java.io.BufferedReader(new java.io.InputStreamReader(urlObj.openStream(), charset));
     var line = reader.readLine();
     line = stripBom(line);
     while (line != null) {
@@ -620,6 +621,10 @@ function readFully(url, charset) {
       line = reader.readLine();
     }
     reader.close();
-  }
+  // }
   return result;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { importObjects };
 }

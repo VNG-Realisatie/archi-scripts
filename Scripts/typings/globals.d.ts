@@ -2,10 +2,8 @@
  * Types for JArchi v1.2
  * 
  */
-
 type Selector = string;
 type Filter = (e: ArchiConcept & VisualObject ) => boolean;
-
 
 interface Image {
     width: number;

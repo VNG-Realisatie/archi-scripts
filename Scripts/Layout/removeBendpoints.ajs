@@ -1,0 +1,28 @@
+/**
+ * Remove all bendpoints from selected relationships
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+
+Common.initConsoleLog(__FILE__, true);
+
+let viewObjects;
+if ($(selection).is("view")) {
+  viewObjects = $(selection).find();
+} else if ($(selection).first() && $(selection).first().view) {
+  viewObjects = $(selection);
+} else {
+  console.log("Selection not valid, select a view or select objects on a view");
+}
+
+if (viewObjects) {
+  viewObjects
+    .filter("relationship")
+    .filter(function (o) {
+      return o.id != o.concept.id;
+    })
+    .each(function (o) {
+      o.deleteAllBendpoints();
+    });
+}
+
+Common.finishConsoleLog();

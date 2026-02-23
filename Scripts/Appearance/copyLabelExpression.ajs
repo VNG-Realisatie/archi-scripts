@@ -1,0 +1,25 @@
+/**
+ * Copy the label expression of the selected object and apply to all objects of the same type in the view.
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+
+Common.initConsoleLog(__FILE__, true);
+
+try {
+  let copyFrom = $(selection).first();
+  if (!copyFrom || !copyFrom.view) {
+    console.error(`> Select one object in a view`);
+  } else {
+    let collection = Selection.getVisualSelection($(copyFrom.view), copyFrom.type);
+    collection.not($(copyFrom)).each((pasteTo) => {
+      pasteTo.labelExpression = copyFrom.labelExpression;
+    });
+
+    console.log(`> Label expression copied to ${collection.size()} objects`);
+  }
+} catch (error) {
+  console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+Common.finishConsoleLog();

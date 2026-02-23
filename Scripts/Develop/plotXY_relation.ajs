@@ -4,14 +4,14 @@
  * 2-10-2021 Mark Backer
  */
 
-load(__DIR__ + "../_lib/selection.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 try {
   // get an array with all selected visual relations
-  let collection = getVisualSelection($(selection), "relation");
-  applyToCollection(collection, plotBendpoints);
+  let collection = Selection.getVisualSelection($(selection), "relation");
+  Selection.applyToCollection(collection, plotBendpoints);
 } catch (e) {
-  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+  console.log(`> ${typeof e.stack == "undefined" ? e : e.stack}`);
 }
 
 

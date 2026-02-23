@@ -64,35 +64,33 @@ var createdPropName = "Sync created";
 // Compute the date which will appear in every new or updated concepts - Has to be
 var currentDateTime = new Date();
 currentDateTime =
-  lpad(currentDateTime.getDate()) +
+  _lpad(currentDateTime.getDate()) +
   "/" +
-  lpad(currentDateTime.getMonth() + 1) +
+  _lpad(currentDateTime.getMonth() + 1) +
   "/" +
   currentDateTime.getFullYear() +
   " " +
-  lpad(currentDateTime.getHours()) +
+  _lpad(currentDateTime.getHours()) +
   ":" +
-  lpad(currentDateTime.getMinutes()) +
+  _lpad(currentDateTime.getMinutes()) +
   ":" +
-  lpad(currentDateTime.getSeconds());
+  _lpad(currentDateTime.getSeconds());
 
-// In production I recommend dowloading papaparse.min.js and load it locally
-//load(__DIR__+'papaparse.min.js');
-// load("https://unpkg.com/papaparse@latest/papaparse.min.js"); => latest version of papaparse (5.3.2) is not compatible
-load("https://unpkg.com/papaparse@4/papaparse.min.js");
+// Use local papaparse from node_modules (see SETUP_NODE_MODULES.md). Uses Scripts/_lib/papaparse.min.js (v5).
+const Papa = require("papaparse");
 
 // Functions ====================================================================================================
 function loadAndSync(dataSource) {
-  loadData(dataSource);
-  buildModelIndex(dataSource);
-  syncModelElements(dataSource);
+  _loadData(dataSource);
+  _buildModelIndex(dataSource);
+  _syncModelElements(dataSource);
 }
 
-function lpad(text) {
+function _lpad(text) {
   return ("0" + text).substr(-2);
 }
 
-function loadData(dataSource) {
+function _loadData(dataSource) {
   if (dataSource._loaded) {
     console.log(`WARNING - Datasource "${dataSource.label}" has already been loaded`);
     return;
@@ -100,7 +98,7 @@ function loadData(dataSource) {
 
   console.log(`INFO - Loading "${dataSource.label}" from CSV...`);
 
-  var rows = Papa.parse(readFully(dataSource.csv, "utf-8"), {
+  var rows = Papa.parse(_readFully(dataSource.csv, "utf-8"), {
     header: true,
     encoding: "utf-8",
     skipEmptyLines: true,
@@ -128,7 +126,7 @@ function loadData(dataSource) {
   dataSource._loaded = true;
 }
 
-function buildModelIndex(dataSource) {
+function _buildModelIndex(dataSource) {
   if (dataSource._modelIndexed) {
     console.log(`WARNING - Model elements associated with "${dataSource.label}" have already been indexed`);
     return;
@@ -148,7 +146,7 @@ function buildModelIndex(dataSource) {
   dataSource._modelIndexed = true;
 }
 
-function syncModelElements(dataSource) {
+function _syncModelElements(dataSource) {
   if (dataSource._modelElementsSynced) {
     console.log(`WARNING - Datasource "${dataSource.label}" has already been synced`);
     return;
@@ -228,9 +226,9 @@ function syncModelRelationships(dataSource) {
               );
             } else {
               if (relation.isReversed) {
-                createOrUpdateRelationship(relation, otherEnd, relation.targetType, element);
+                _createOrUpdateRelationship(relation, otherEnd, relation.targetType, element);
               } else {
-                createOrUpdateRelationship(relation, element, relation.targetType, otherEnd);
+                _createOrUpdateRelationship(relation, element, relation.targetType, otherEnd);
               }
 
               createdOrUpdated++;
@@ -271,7 +269,7 @@ function tagDeletedConcepts() {
   console.log(`INFO - ${deleted} elements or relationships have been tagged as deleted`);
 }
 
-function createOrUpdateRelationship(config, source, type, target) {
+function _createOrUpdateRelationship(config, source, type, target) {
   var relationship = $(source)
     .outRels(type)
     .filter(function (r) {
@@ -327,30 +325,44 @@ function getFolder(layer, folderName) {
 }
 
 // Some Polyfills for Nashorn ====================================================================================
-function readFully(url, charset) {
-  var result = "";
-  var imports = new JavaImporter(java.net, java.lang, java.io);
+function _readFully(url, charset) {
+  let result = "";
+  const URL = Java.type("java.net.URL");
+  const File = Java.type("java.io.File");
+  const BufferedReader = Java.type("java.io.BufferedReader");
+  const InputStreamReader = Java.type("java.io.InputStreamReader");
 
-  with (imports) {
-    var urlObj = null;
+  let urlObj = null;
 
-    try {
-      urlObj = new URL(url);
-    } catch (e) {
-      // If the URL cannot be built, assume it is a file path.
-      urlObj = new URL(new File(url).toURI().toURL());
-    }
-
-    var reader = new BufferedReader(new InputStreamReader(urlObj.openStream(), charset));
-
-    var line = reader.readLine();
-    while (line != null) {
-      result += line + "\n";
-      line = reader.readLine();
-    }
-
-    reader.close();
+  try {
+    urlObj = new URL(url);
+  } catch (e) {
+    // If the URL cannot be built, assume it is a file path.
+    urlObj = new File(url).toURI().toURL();
   }
 
+  const reader = new BufferedReader(new InputStreamReader(urlObj.openStream(), charset));
+
+  let line = reader.readLine();
+  while (line != null) {
+    result += line + "\n";
+    line = reader.readLine();
+  }
+
+  reader.close();
+
   return result;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    loadAndSync,
+    syncModelRelationships,
+    getFolder,
+    tagDeletedConcepts,
+    currentDateTime,
+    syncPropName,
+    deletedPropName,
+    createdPropName,
+  };
 }

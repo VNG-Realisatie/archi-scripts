@@ -1,0 +1,94 @@
+/**
+ * Import van de GGM relaties
+ *
+ * Specificatie CSV-bestanden
+ * - https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/tree/develop/CSV%20export
+ *
+ * Voordat dit script gedraaid wordt:
+ * - de GGM data-objecten moeten ingelezen zijn
+ *
+ * Dit script leest de GGM relaties
+ * - associaties en specialisaties tussen data-objecten
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
+const ExportImport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_export_import.js");
+const CSVImport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_import.js");
+
+// Overrule PROP_ID: vind bestaande relaties met PROP_GGM_ID_IMPORTED ipv Object ID
+ExportImport.PROP_ID = GgmGemma.PROP_GGM_ID_IMPORTED;
+
+Common.initConsoleLog(__FILE__, true);
+
+/**
+ * GGM CSV importbestanden in de lokale GGM import folder
+ */
+const Config = require(__DIR__ + "config.default.js");
+
+let relationsCSV = Config.GGM_importFolder + Config.relatieCSV;
+if (!relationsCSV) {
+  relationsCSV = window.promptOpenFile({
+    title: "Enter path for GGM relations CSV file:",
+    filterExtensions: ["*.csv"],
+    fileName: "*.csv",
+  });
+}
+
+if (!relationsCSV) {
+  console.log("Geen relations CSV file gekozen of geconfigureerd.");
+} else {
+  console.log("Using relations CSV file: " + relationsCSV);
+
+  CSVImport.importObjects(relationsCSV, null, transformRowGGM);
+
+  // move added data-objectrelations
+  let dataobjectRelations = $(ArchiFolders.getFolderPath("/Relations"))
+    .children("relationship")
+    .filter((rel) => rel.prop(GgmGemma.PROP_GGM_ID_IMPORTED) != undefined);
+  let folderDataobjectRelations = ArchiFolders.getFolderPath("/Relations" + GgmGemma.FOLDER_GGM_DATAOBJECT);
+  console.log(`\n> move ${dataobjectRelations.size()} created relations to ${folderDataobjectRelations}`);
+
+  dataobjectRelations.each((rel) => {
+    folderDataobjectRelations.add(rel);
+  });
+
+  // and set Object ID
+  console.log(`> and set a property 'Object ID'`);
+  dataobjectRelations.each((rel) => {
+    if (!rel.prop(GgmGemma.PROP_ID)) rel.prop(GgmGemma.PROP_ID, Common.generateUUID());
+  });
+}
+
+Common.finishConsoleLog();
+
+function transformRowGGM(row) {
+  const uml = row["GGM-uml-type"] || "";
+  const isAssociation = uml === "Association";
+  const isMemo = row["GGM-toelichting"] === "<memo>";
+
+  return {
+    name: row["GGM-naam"] || "",
+    type: isAssociation ? "association-relationship" : "specialization-relationship",
+    documentation: row["GGM-definitie"] || "",
+    id: "",
+
+    "source.id": row["GEMMA-source-guid"] || "",
+    "target.id": row["GEMMA-target-guid"] || "",
+
+    "GGM-toelichting": isMemo ? "" : row["GGM-toelichting"] || "",
+    "GGM-guid-imported": row["GGM-guid"] || "",
+    "source.prop.GGM-guid-imported": row["GGM-source-guid"] || "",
+    "target.prop.GGM-guid-imported": row["GGM-target-guid"] || "",
+
+    "Datum-tijd-export": row["datum-tijd-export"] || "",
+
+    "source.name": "",
+    "source.type": "data-object",
+    "target.name": "",
+    "target.type": "data-object",
+
+    "GGM-uml-type": uml,
+    associationDirected: isAssociation ? "true" : "false",
+  };
+}

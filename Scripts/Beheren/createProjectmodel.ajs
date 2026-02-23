@@ -36,10 +36,14 @@
  * Author:  Mark Backer
  * Version: 1 (2021-03)
  */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+
 const PROP_ID = "Object ID";
 const MODEL_TYPE = "Type model";
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 try {
   let projectFolders = $(selection).filter("folder");
   if (projectFolders.size() == 1) {
@@ -71,7 +75,7 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-finishConsoleLog();
+Common.finishConsoleLog();
 
 /**
  * Save a copy of the current model, prompt for a file name
@@ -97,11 +101,11 @@ function filterReleaseModel(projectFolder, projectModelName) {
   // set project model properties for start of project model
   // model properties should not be imported when syncing
   model.name = projectModelName;
-  model.prop(PROP_ID, generateUUID());
+  model.prop(PROP_ID, Common.generateUUID());
   model.prop(MODEL_TYPE, "Projectmodel");
 
   // delete views not in selected project folder
-  projectViews = getSelection(projectFolder, "view");
+  projectViews = Selection.getSelection(projectFolder, "view");
   console.log(`\nFilter projectmodel`);
   console.log(`Only keep objects referenced on the ${projectViews.size()} views in the folder ${projectFolder.name}`);
 
@@ -123,103 +127,9 @@ function filterReleaseModel(projectFolder, projectModelName) {
   // delete empty folders
   let nrFoldersStart = $(model).find("folder").size();
   console.log(`\nDelete empty folders:`);
-  deleteEmptyFolders($(model).first());
+  ArchiFolders.deleteEmptyFolders($(model).first());
   let nrFoldersRemaining = $(model).find("folder").size();
   console.log(`Deleted ${nrFoldersStart - nrFoldersRemaining} empty folders of total of ${nrFoldersStart} folders`);
 }
 
-/**
- * delete empty folders by recursing over the folder tree
- *
- * @param {object} folderObj - current folder to traverse. For root folder, use $(model).first()
- * @param {integer} level - current level of recursion
- * @param {string} folderPath - path of traversed parent folders
- */
-function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
-  // stop if folder has no subfolders
-  let subFolders = $(folderObj).children("folder");
-  if (subFolders.size() == 0) return;
 
-  subFolders.each((subFolder) => {
-    deleteEmptyFolders(subFolder, level + 1, `${folderPath}/${subFolder.name}`);
-
-    // delete empty folder
-    if ($(subFolder).children().size() == 0 && level > 0) {
-      console.log(` - ${subFolder.name != "" ? `${folderPath}/${subFolder.name}` : `${folderPath}/## no name ##`}`);
-      subFolder.delete();
-    }
-  });
-}
-
-/**
- * 	return a generated UUID
- * 	from : https://stackoverflow.com/questions/105034/how-to-create-guid-uuid
- */
-function generateUUID() {
-  // Public Domain/MIT
-  var d = new Date().getTime(); //Timestamp
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    var r = Math.random() * 16; //random number between 0 and 16
-    r = (d + r) % 16 | 0;
-    d = Math.floor(d / 16);
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
-
-/**
- * return a collection of  the contained objects in the selection
- *
- * @param {object} startSelection - selection containing Archi objects
- * @param {string} selector - Archi selector for filtering the type of contained objects
- * @returns {object} - collection with selected objects
- */
-function getSelection(startSelection, selector) {
-  if (model == null || model.id == null)
-    throw "Nothing selected. Select one or more objects in the model tree or a view";
-
-  // create an empty collection
-  var selectedColl = $();
-  $(startSelection).each((obj) => addObjectInList(obj, selector, selectedColl));
-
-  return selectedColl;
-}
-
-/**
- * recursive function
- *   add the selected object to a collection.
- *   if the object is a container (model, view or folder), add all contained objects
- */
-function addObjectInList(obj, selector, coll) {
-  if ($(obj).is(selector)) {
-    let o = obj;
-    if (selector != "view") o = concept(obj);
-    // check for duplicates, than add element to the list
-    if (coll.filter((a) => a.id == o.id).size() == 0) {
-      coll.add(o);
-    }
-  }
-  $(obj)
-    .children()
-    .each((child) => addObjectInList(child, selector, coll));
-  return coll;
-}
-
-function concept(o) {
-  return o.concept ? o.concept : o;
-}
-
-/**
- * initConsoleLog and finishconsole
- *   first and last call in an Archi script
- */
-function initConsoleLog(currentScript, pClear) {
-  script_name = currentScript.replace(/^.*[\\\/]/, "");
-  console.show();
-  if (pClear) console.clear();
-  console.log(`\nRunning script "${script_name}"...\n`);
-}
-
-function finishConsoleLog() {
-  console.log(`\nScript "${script_name}" finished`);
-  console.log("==========================================\n");
-}

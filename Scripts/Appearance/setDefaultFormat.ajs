@@ -15,17 +15,17 @@
  * - a view                       => set default formatting to all elements on the view
  * - a folder with views          => set default formatting to all elements of all views in the folder(s)
  */
-load(__DIR__ + "../_lib/Common.js");
-load(__DIR__ + "../_lib/selection.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
-initConsoleLog(__FILE__, true);
-let collection = getVisualSelection($(selection), "*");
-applyToCollection(collection, SetDefaultFormat);
-finishConsoleLog();
+Common.initConsoleLog(__FILE__, true);
+let collection = Selection.getVisualSelection($(selection), "*");
+Selection.applyToCollection(collection, SetDefaultFormat);
+Common.finishConsoleLog();
 
 function SetDefaultFormat(obj) {
-  debugStackPush(false);
-  debug(`- view "${obj.view.name}", \t${obj} `);
+  Common.debugStackPush(false);
+  Common.debug(`- view "${obj.view.name}", \t${obj} `);
 
   // all types
   obj.fontColor = null;
@@ -62,5 +62,5 @@ function SetDefaultFormat(obj) {
   if ((obj.type == "diagram-model-group" && obj.borderType == BORDER.TABBED) || obj.type == "diagram-model-note") {
     obj.textAlignment = TEXT_ALIGNMENT.LEFT;
   }
-  debugStackPop();
+  Common.debugStackPop();
 }

@@ -1,8 +1,6 @@
-/*
- * Property2Documentation
- */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
-console.log("Property2Documentation");
+Common.initConsoleLog(__FILE__);
 
 $("element").each(function (ele) {
 	if (ele.prop("Beschrijving")) {
@@ -16,3 +14,5 @@ $("element").each(function (ele) {
 		console.log("Property empty  : " + ele.name);
 	}
 });
+
+Common.finishConsoleLog();

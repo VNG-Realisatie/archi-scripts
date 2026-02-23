@@ -1,4 +1,4 @@
-/*
+/**
  * Merge all duplicate elements with the selected elements
  *  - duplicate elements have the same type and the same name
  *  - the selected elements are kept, the duplicates are merged and then deleted
@@ -16,10 +16,9 @@
  * 07 2022: keep masters property Object ID, drop the other Object ID's
  * 06 2023: Select one or multiple master elements, all these elements will be merged.
  */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Merge = require(__DIR__ + "includeMergeConcept.js");
 
-load(__DIR__ + "_lib/Common.js");
-load("includeMergeConcept.js");
-
-initConsoleLog(__FILE__);
-mergeElementOrRelation(OBJECT_TYPE_ELEMENT);
-finishConsoleLog();
+Common.initConsoleLog(__FILE__);
+Merge.mergeElementOrRelation(Common.OBJECT_TYPE_ELEMENT);
+Common.finishConsoleLog();

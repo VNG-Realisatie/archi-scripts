@@ -9,6 +9,8 @@
  * Version 2: Added layers to results
  */
 
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+
 function findInArray(array, value) {
 	var found = false;
 	for (item in array) {

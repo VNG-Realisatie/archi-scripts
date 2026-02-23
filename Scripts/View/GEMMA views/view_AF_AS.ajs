@@ -1,13 +1,12 @@
 /**
  * GEMMA views voor omzetting AF naar AS
  */
-load("../../_lib/Common.js");
-load("../../_lib/selection.js");
-load("../../_lib/archi_folders.js");
-load("../include_view.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
+const View = require(__SCRIPTS_DIR__ + "Scripts/View/include_view");
+
 
 var param = {
-  action: GENERATE_SINGLE,
+  action: View.GENERATE_SINGLE,
   includeElementType: [
     // "application-collaboration",
     "application-component",
@@ -75,6 +74,6 @@ var param = {
   debug: false,
 };
 
-initConsoleLog(__FILE__, true);
-generate_view(param);
-finishConsoleLog();
+Common.initConsoleLog(__FILE__, true);
+View.generate_view(param);
+Common.finishConsoleLog();

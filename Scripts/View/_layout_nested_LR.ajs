@@ -6,17 +6,15 @@
  * - <user parameter filename>_<action>_<direction>.ajs
  */
 
-load("../_lib/Common.js");
-load("../_lib/selection.js");
-load("../_lib/archi_folders.js");
-load("include_view.js");
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
+const View = require(__DIR__ + "include_view");
 
-initConsoleLog(__FILE__, true);
+Common.initConsoleLog(__FILE__, true);
 
 let param = {};
-param = get_default_parameter(__FILE__);
+param = View.get_default_parameter(__FILE__);
 
-param.action = LAYOUT;
+param.action = View.LAYOUT;
 param.graphDirection = "LR";
 param.layoutReversed = [
   // "access-relationship",
@@ -49,5 +47,5 @@ param.layoutNested = [
 // param.hSep = 40;
 // param.vSep = 20;
 
-generate_view(param);
-finishConsoleLog();
+View.generate_view(param);
+Common.finishConsoleLog();

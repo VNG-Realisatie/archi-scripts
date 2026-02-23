@@ -8,10 +8,11 @@
  * (c) 2021 Mark Backer
  *
  */
-const SELECTION_LOADED = true;
 console.log("Loading selection.js");
 
-const DIAGRAM_OBJECTS = [
+const Common = require(__DIR__ + "Common.js");
+
+const _DIAGRAM_OBJECTS = [
   "diagram-model-group",
   "diagram-model-connection",
   "diagram-model-note",
@@ -19,13 +20,6 @@ const DIAGRAM_OBJECTS = [
   "diagram-model-reference",
   "archimate-diagram-model", // jArchi return this for a diagram-model-reference
 ];
-
-// polyfill for array method includes(), which is not supported in Nashorn ES6
-if (!Array.prototype.includes) {
-  Array.prototype.includes = function (search) {
-    return !!~this.indexOf(search);
-  };
-}
 
 /**
  * apply a function to the given collection
@@ -49,12 +43,16 @@ function applyToCollection(collection, pFunc, pArgs) {
  * @returns {array} - selected objects
  */
 function getSelectionArray(startSelection, selector) {
+  Common.debugStackPush(false);
+  Common.debug(`startSelection: ${startSelection}`);
   let collection = getSelection(startSelection, selector);
+  Common.debug(`collection: ${collection}`);
 
   // convert Archi collection to an array
   let selectedList = [];
   collection.each((o) => selectedList.push(o));
 
+  Common.debugStackPop();
   return selectedList;
 }
 
@@ -66,6 +64,8 @@ function getSelectionArray(startSelection, selector) {
  * @returns {object} - collection with selected objects
  */
 function getSelection(startSelection, selector = "*") {
+  Common.debug(`startSelection: ${startSelection}`);
+
   if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
@@ -73,10 +73,10 @@ function getSelection(startSelection, selector = "*") {
 
   // create an empty collection
   var selectedColl = $();
-  startSelection.each((obj) => addObject(obj, selector, selectedColl));
+  startSelection.each((obj) => _addObject(obj, selector, selectedColl));
 
   console.log(
-    `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`
+    `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`,
   );
   return selectedColl;
 
@@ -85,11 +85,11 @@ function getSelection(startSelection, selector = "*") {
    *   add the selected object to a collection.
    *   if the object is a container (model, view or folder), add all contained objects
    */
-  function addObject(obj, selector, coll) {
+  function _addObject(obj, selector, coll) {
     // console.log(`obj=${obj}, selector=${selector}`)
     if ($(obj).is(selector)) {
       let o = obj;
-      if ($(obj).is("concept")) o = concept(obj);
+      if ($(obj).is("concept")) o = Common.concept(obj);
       // check for duplicates, than add element to the list
       if (coll.filter((a) => a.id == o.id).size() == 0) {
         coll.add(o);
@@ -97,7 +97,7 @@ function getSelection(startSelection, selector = "*") {
     }
     $(obj)
       .children()
-      .each((child) => addObject(child, selector, coll));
+      .each((child) => _addObject(child, selector, coll));
     return coll;
   }
 }
@@ -112,6 +112,7 @@ function getSelection(startSelection, selector = "*") {
  * @returns {object} - collection with selected objects
  */
 function getVisualSelection(startSelection, selector = "*") {
+  // startSelection = $(startSelection);
   if (model == null || model.id == null) throw "Nothing selected. Select views or one or more objects on a view";
 
   if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
@@ -121,7 +122,7 @@ function getVisualSelection(startSelection, selector = "*") {
   // create an empty collection
   var selectedVisualColl = $();
   // add selected and all contained objects to the collection
-  startSelection.each((obj) => addVisualObject(obj, selector, selectedVisualColl));
+  startSelection.each((obj) => _addVisualObject(obj, selector, selectedVisualColl));
 
   // if only one object is selected, select on the view all objects of this type
   if (selectedVisualColl.size() == 1) {
@@ -143,7 +144,7 @@ function getVisualSelection(startSelection, selector = "*") {
    * @param {object} coll - Archi collection of selected objects
    * @returns
    */
-  function addVisualObject(obj, selector, coll) {
+  function _addVisualObject(obj, selector, coll) {
     // visual objects must have a view
     if (obj.view) {
       let addFlag = false;
@@ -152,7 +153,7 @@ function getVisualSelection(startSelection, selector = "*") {
           addFlag = true;
           break;
         case "diagram":
-          if (DIAGRAM_OBJECTS.includes(obj.type)) addFlag = true;
+          if (_DIAGRAM_OBJECTS.includes(obj.type)) addFlag = true;
           break;
         default:
           if ($(obj).is(selector)) addFlag = true;
@@ -162,14 +163,16 @@ function getVisualSelection(startSelection, selector = "*") {
     }
     $(obj)
       .children()
-      .each((child) => addVisualObject(child, selector, coll));
+      .each((child) => _addVisualObject(child, selector, coll));
     return coll;
   }
 }
 
-/**
- * return a concept for a visual concept or concept
- */
-function concept(o) {
-  return o.concept ? o.concept : o;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    getSelection,
+    getSelectionArray,
+    getVisualSelection,
+    applyToCollection,
+  };
 }

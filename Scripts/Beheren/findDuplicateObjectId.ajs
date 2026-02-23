@@ -2,9 +2,11 @@
  * find objects with two or more properties PROP_ID
  */
 
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+
 const PROP_ID = "Object ID";
 
-initConsoleLog(__FILE__, false);
+Common.initConsoleLog(__FILE__, false);
 
 console.log(`Check model for objects with duplicate property ${PROP_ID}`);
 let i = 0;
@@ -25,20 +27,6 @@ try {
 } catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
-finishConsoleLog();
+Common.finishConsoleLog();
 
-/**
- * initConsoleLog and finishConsoleLog
- *   first and last call in an Archi script
- */
-function initConsoleLog(currentScript, pClear) {
-  script_name = currentScript.replace(/^.*[\\\/]/, "");
-  console.show();
-  if (pClear) console.clear();
-  console.log(`\nRunning script "${script_name}"...\n`);
-}
 
-function finishConsoleLog() {
-  console.log(`\nScript "${script_name}" finished`);
-  console.log("==========================================\n");
-}
