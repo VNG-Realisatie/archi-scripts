@@ -4,10 +4,10 @@
  * This definition is read by function get_default_parameter
  */
 const DEFAULT_PARAM = {
-  action: GENERATE_SINGLE,
+  action: View.GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
-  // action: LAYOUT,
+  // action: View.LAYOUT,
 
   // graphDepth: 1,
   graphDepth: 1,

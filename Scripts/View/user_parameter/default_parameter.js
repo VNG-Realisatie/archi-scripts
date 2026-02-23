@@ -4,10 +4,10 @@
  * This definition is read by function get_default_parameter
  */
 const DEFAULT_PARAM = {
-  action: GENERATE_SINGLE,
+  action: View.GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
-  // action: LAYOUT,
+  // action: View.LAYOUT,
 
   // graphDepth: 1,
   graphDepth: 1,
@@ -40,7 +40,7 @@ const DEFAULT_PARAM = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
-  layoutCircular: LAYOUT_CIRCULAR_WORKAROUND, // layout circular relation with script (try this when dagre crashes)
+  layoutCircular: View.LAYOUT_CIRCULAR_WORKAROUND, // layout circular relation with script (try this when dagre crashes)
   // layoutCircular: LAYOUT_CIRCULAR_DAGRE, // default: layout circular relation with dagre
 
   // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"

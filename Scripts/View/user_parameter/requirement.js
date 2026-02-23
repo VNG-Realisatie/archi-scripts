@@ -12,7 +12,7 @@
 // - If the property is created without let, the operator can delete it
 
 USER_PARAM = {
-  action: LAYOUT,
+  action: View.LAYOUT,
   includeElementType: [],
   includeRelationType: [],
   layoutReversed: [

@@ -3,10 +3,10 @@
  */
 
 USER_PARAM = {
-  action: GENERATE_SINGLE,
+  action: View.GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
-  // action: LAYOUT,
+  // action: View.LAYOUT,
 
   // graphDepth: 1,
   graphDepth: 2,
