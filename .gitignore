@@ -5,6 +5,7 @@ package.json
 
 # local config file with user-specific settings, e.g. file paths
 config.js
+archi-scripts.code-workspace
 
 # AI refactoring files
 .cursorrules

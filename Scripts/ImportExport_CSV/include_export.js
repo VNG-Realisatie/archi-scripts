@@ -1,6 +1,8 @@
 /**
  * Export the selected elements, relations or views and their properties to a CSV file
  */
+console.log("Loading include_export.js");
+
 const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 const ExportImport = require(__DIR__ + "include_export_import.js");

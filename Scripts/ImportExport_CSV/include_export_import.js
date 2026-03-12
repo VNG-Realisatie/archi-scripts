@@ -7,8 +7,15 @@ const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 // define a mapping object with PROP_ADD as an extra column
 const PROP_ADD = "add column to export";
 
+let PROP_ID; // global variable for the property name to use as id for matching objects when importing. If not set, Object ID is used as default.
+
 // If set, the import wil use the PROP_ID as the first id for matching objects (global type var, because const is block scoped)
-const PROP_ID = "Object ID"; // set default tool independent identifier.
+if (typeof PROP_ID === undefined) {
+  PROP_ID = "Object ID"; // default
+  console.log(`Default PROP_ID for matching objects: ${PROP_ID}`);
+} else {
+  console.log(`Using configured PROP_ID for matching objects: ${PROP_ID}`);
+}
 
 // Extra column labels voor export
 const FOLDER_LABEL = "archi folder"; 
