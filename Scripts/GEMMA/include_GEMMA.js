@@ -33,8 +33,8 @@ function collectobjectArray() {
 function setObjectID(objectArray) {
   Common.debugStackPush(false);
   Common.debug(`start ${objectArray}`);
-  const objectsWithID = objectArray.filter((object) => object.prop(PROP_ID)=="");
-  const objectsWithoutID = objectArray.filter((object) => object.prop(PROP_ID)!= "");
+  const objectsWithID = objectArray.filter((object) => object.prop(PROP_ID));
+  const objectsWithoutID = objectArray.filter((object) => !object.prop(PROP_ID));
 
   if (objectArray.length > 1) {
     console.log(`Checking property ${PROP_ID}'s in ${model}`);
@@ -61,7 +61,11 @@ function setObjectID(objectArray) {
         let id_generated = Common.generateUUID();
         const oldID = o.prop(PROP_ID);
         o.prop(PROP_ID, id_generated);
-        return { Object: o.toString(), "Old Object ID": oldID, "New Object ID": id_generated };
+        if (o.type.endsWith("relationship")) {
+          return { Object: Common.formatRelation(o, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED), "Old Object ID": oldID, "New Object ID": id_generated };
+        } else {
+          return { Object: o.toString(), "Old Object ID": oldID, "New Object ID": id_generated };
+        }
       });
       Common.logInColumns(replacedIDs, ["Object", "Old Object ID", "New Object ID"]);
       console.log();
@@ -71,7 +75,11 @@ function setObjectID(objectArray) {
       const newIDs = objectsWithoutID.sort().map((o) => {
         let id_generated = Common.generateUUID();
         o.prop(PROP_ID, id_generated);
-        return { Object: o.toString(), "New Object ID": id_generated };
+        if (o.type.endsWith("relationship")) {
+          return { Object: Common.formatRelation(o, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED), "New Object ID": id_generated };
+        } else {
+          return { Object: o.toString(), "New Object ID": id_generated };
+        }
       });
       if (objectArray.length > 1) {
       console.log(`\nAdding ${PROP_ID} to ${objectsWithoutID.length} object${objectsWithoutID.length > 1 ? "s" : ""}\n`);
