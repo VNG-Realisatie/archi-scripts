@@ -792,7 +792,7 @@ function _drawRelation(param, graph, edge, visualElementIndex, view) {
   Common.debug(`graph.edge(edge): ${JSON.stringify(graph.edge(edge))}`);
 
   let archiRelation = $("#" + graph.edge(edge).id).first();
-  Common.debug(`archiRelation: ${Common.formatRelation(archiRelation, true)}`);
+  Common.debug(`archiRelation: ${Common.formatRelation(archiRelation, Common.FORMAT_WITH_TYPES)}`);
 
   let connection = view.add(
     archiRelation,
@@ -814,7 +814,7 @@ function _drawRelation(param, graph, edge, visualElementIndex, view) {
  */
 function _layoutNestedConnection(parentRel, visualElementIndex, view) {
   Common.debugStackPush(false);
-  Common.debug(`parentRel: ${Common.formatRelation(parentRel, true)}`);
+  Common.debug(`parentRel: ${Common.formatRelation(parentRel, Common.FORMAT_WITH_TYPES)}`);
   view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
   Common.debugStackPop();
 }
