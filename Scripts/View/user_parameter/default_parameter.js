@@ -3,7 +3,7 @@
  *
  * This definition is read by function get_default_parameter
  */
-const DEFAULT_PARAM = {
+module.exports = {
   action: View.GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
@@ -22,7 +22,7 @@ const DEFAULT_PARAM = {
     // "composition-relationship",
     // "flow-relationship",
     // "influence-relationship",
-    // "realization-relationship",
+    "realization-relationship",
     "serving-relationship",
     "specialization-relationship",
     // "triggering-relationship",

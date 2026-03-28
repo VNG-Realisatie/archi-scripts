@@ -11,8 +11,8 @@
 // https://www.w3docs.com/snippets/javascript/how-to-unset-a-javascript-variable.html
 // - If the property is created without let, the operator can delete it
 
-USER_PARAM = {
-nodeWidth: 270,
+module.exports = {
+nodeWidth: 350,
   nodeHeight: 25,
   hSep: 15,
   vSep: 180,

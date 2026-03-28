@@ -97,7 +97,7 @@ function get_default_parameter(file) {
   Common.debug(`path: ${path}"`);
 
   try {
-    load(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
+    const DEFAULT_PARAM = require(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
     param = DEFAULT_PARAM;
     console.log(`Default parameter read from file "${DEFAULT_PARAM_FILE}"`);
     Common.debug(`Default: ${JSON.stringify(param, null, 2)}\n`);
@@ -147,17 +147,14 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
     console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
     console.log();
     try {
-      load(userParamFile);
+      const USER_PARAM = require(userParamFile);
 
       Object.keys(USER_PARAM).forEach((prop) => {
         param[prop] = USER_PARAM[prop];
         Common.debug(`Read_user_parameter: Set ${prop} = ${USER_PARAM[prop]}`);
       });
-      // SyntaxError: Variable "USER_PARAM" has already been declared
-      // occurred when using read_user_parameter multiple times.
-      // workaround; https://www.w3docs.com/snippets/javascript/how-to-unset-a-javascript-variable.html
-      // - If the property is created without let, the operator can delete it
-      USER_PARAM = undefined;
+      // Object export no longer requires cleanup
+      // USER_PARAM = undefined;
 
       Common.debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {

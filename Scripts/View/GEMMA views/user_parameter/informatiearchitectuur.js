@@ -11,8 +11,38 @@
 // https://www.w3docs.com/snippets/javascript/how-to-unset-a-javascript-variable.html
 // - If the property is created without let, the operator can delete it
 
-module.exports = {
-  action: View.LAYOUT,
+USER_PARAM = {
+  includeElementType: [
+    "application-component",
+    "application-service",
+    // "artifact",
+    // "assessment",
+    // "business-actor",
+    // "business-collaboration",
+    // "business-event",
+    "business-function",
+    // "business-interaction",
+    // "business-interface",
+    // "business-object",
+    // "business-process",
+    // "business-role",
+    // "business-service",
+    // "constraint",
+    // "grouping",
+  ],
+  includeRelationType: [
+    // "access-relationship",
+    "aggregation-relationship",
+    // "assignment-relationship",
+    // "association-relationship",
+    // "composition-relationship",
+    // "flow-relationship",
+    // "influence-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    // "specialization-relationship",
+    // "triggering-relationship",
+  ],
   layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
@@ -28,20 +58,15 @@ module.exports = {
   ],
   layoutNested: [
     // "access-relationship",
-    "aggregation-relationship",
+    // "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",
     // "flow-relationship",
-    "influence-relationship",
+    // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
     // "triggering-relationship",
   ],
-  nodeWidth: 200,
-  nodeHeight: 60,
-  hSep: 40, // space between nodes
-  vSep: 20, // space between ranks 
-
 };
