@@ -6,11 +6,11 @@
  *
  */
 
-load(__DIR__ + "../_lib/selection.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection");
 
 // select visual elements
-let collection = getVisualSelection($(selection), "element");
-applyToCollection(collection, plotPrincipeID);
+let collection = Selection.getVisualSelection($(selection), "element");
+Selection.applyToCollection(collection, plotPrincipeID);
 
 console.log("Script finished\n");
 
@@ -18,7 +18,7 @@ function plotPrincipeID(obj) {
   // plot a note on this element
   var note = obj.createObject("note", obj.bounds.width - 55, obj.bounds.height - 22, 50, 20); // Add a Note to this element
   // note.fontSize = 5;
-  note.text = obj.prop("ID")
+  note.text = obj.prop("ID");
 
   note.borderType = BORDER.RECTANGLE;
 
