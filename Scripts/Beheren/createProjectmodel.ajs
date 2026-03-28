@@ -105,7 +105,7 @@ function filterReleaseModel(projectFolder, projectModelName) {
   model.prop(MODEL_TYPE, "Projectmodel");
 
   // delete views not in selected project folder
-  projectViews = Selection.getSelection(projectFolder, "view");
+  projectViews = Selection.getSelection($(projectFolder), "view");
   console.log(`\nFilter projectmodel`);
   console.log(`Only keep objects referenced on the ${projectViews.size()} views in the folder ${projectFolder.name}`);
 

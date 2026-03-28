@@ -64,6 +64,7 @@ function getSelectionArray(startSelection, selector) {
  * @returns {object} - collection with selected objects
  */
 function getSelection(startSelection, selector = "*") {
+  Common.debugStackPush(false);
   Common.debug(`startSelection: ${startSelection}`);
 
   if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
@@ -78,6 +79,7 @@ function getSelection(startSelection, selector = "*") {
   console.log(
     `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`,
   );
+  Common.debugStackPop();
   return selectedColl;
 
   /**
