@@ -2,14 +2,14 @@
  * genereer publicatie standaarden view
  */
 
-USER_PARAM = {
+module.exports = {
   action: View.GENERATE_SINGLE,
   // action: GENERATE_MULTIPLE,
   // action: EXPAND_HERE,
   // action: View.LAYOUT,
 
   // graphDepth: 1,
-  graphDepth: 2,
+  // graphDepth: 2,
 
   includeElementType: [
     // "application-collaboration",
@@ -114,7 +114,7 @@ USER_PARAM = {
   ],
   layoutNested: [
     // "access-relationship",
-    // "aggregation-relationship",
+    "aggregation-relationship",
     // "assignment-relationship",
     // "association-relationship",
     // "composition-relationship",
@@ -122,7 +122,7 @@ USER_PARAM = {
     // "influence-relationship",
     // "realization-relationship",
     // "serving-relationship",
-    "specialization-relationship",
+    // "specialization-relationship",
     // "triggering-relationship",
   ],
 
@@ -145,7 +145,3 @@ USER_PARAM = {
 
   debug: false,
 };
-
-initConsoleLog(__FILE__, true);
-generate_view(param);
-finishConsoleLog();

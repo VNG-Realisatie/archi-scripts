@@ -2,7 +2,7 @@
  * genereer view van technische architectuur en link met referentiecomponenten
  */
 
-USER_PARAM = { 
+module.exports = { 
   includeElementType: [
     // "application-collaboration",
     // "application-component",

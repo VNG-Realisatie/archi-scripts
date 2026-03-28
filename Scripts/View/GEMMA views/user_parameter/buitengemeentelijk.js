@@ -2,7 +2,7 @@
  * genereer view met buitengemeentelijke componenten
  */
 
-USER_PARAM = {
+module.exports = {
   includeElementType: [
     "application-component",
     // "application-function",

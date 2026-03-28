@@ -1,0 +1,50 @@
+/**
+ * Layout voor Haal Centraal view
+ */
+
+module.exports = {
+  action: View.LAYOUT,
+  includeElementType: [],
+  includeRelationType: [],
+  layoutReversed: [
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "composition-relationship",
+    "realization-relationship",
+    // "serving-relationship",
+    "specialization-relationship",
+  ],
+
+  layoutNested: [
+    // "access-relationship",
+    // "aggregation-relationship",
+    // "assignment-relationship",
+    // "composition-relationship",
+    // "realization-relationship",
+    // "serving-relationship"
+    // "specialization-relationship",
+  ],
+
+  // viewName: "gen-custom",
+
+  // graphDepth: 1,
+  graphDepth: 0, // layout selected elements and relations of these elements
+
+  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
+  graphDirection: "LR",
+  // graphDirection: "TB",
+
+  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
+  // graphAlign: "UL",
+
+  // ranker: "longest-path",
+  // ranker: "tight-tree",
+  ranker: "network-simplex", // default
+
+  nodeWidth: 200,
+  nodeHeight: 60,
+  hSep: 20,
+  vSep: 200,
+
+  debug: false,
+};

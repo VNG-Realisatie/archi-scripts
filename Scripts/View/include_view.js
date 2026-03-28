@@ -91,16 +91,16 @@ try {
  * - superseded by 'wrapper'.ajs file
  */
 function get_default_parameter(file) {
-  let param = {};
   Common.debugStackPush(false);
-  let path = file.substring(0, file.lastIndexOf("/") + 1);
-  Common.debug(`path: ${path}"`);
 
+  let param = {};
   try {
-    const DEFAULT_PARAM = require(path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`);
-    param = DEFAULT_PARAM;
-    console.log(`Default parameter read from file "${DEFAULT_PARAM_FILE}"`);
-    Common.debug(`Default: ${JSON.stringify(param, null, 2)}\n`);
+    let path = file.substring(0, file.lastIndexOf("/") + 1);
+    let default_param_file = path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`;
+    Common.debug(`default_param_file: ${default_param_file}`);
+    param = require(default_param_file);
+    console.log(`Default parameter read from file "${default_param_file}"`);
+    Common.debug(`Default: \n${JSON.stringify(param, null, 2)}\n`);
   } catch (error) {
     console.log(`NOT read default parameters ${DEFAULT_PARAM_FILE}\n`);
     Common.debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
@@ -153,10 +153,8 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
         param[prop] = USER_PARAM[prop];
         Common.debug(`Read_user_parameter: Set ${prop} = ${USER_PARAM[prop]}`);
       });
-      // Object export no longer requires cleanup
-      // USER_PARAM = undefined;
 
-      Common.debug(`With user parameter file: ${JSON.stringify(param, null, 2)}\n`);
+      Common.debug(`With user parameter file: \n${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
       console.log(`NOT read user parameters from file "${printUserParamFile}"`);
       Common.debug(`> ${typeof error.stack == "undefined" ? error : error.stack}\n`);
@@ -1057,6 +1055,8 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_ACTION,
     DEFAULT_NODE_WIDTH,
     DEFAULT_NODE_HEIGHT,
+    LAYOUT_CIRCULAR_DAGRE,
+    LAYOUT_CIRCULAR_WORKAROUND,
     GENERATED_VIEW_FOLDER,
     PROP_SAVE_PARAMETER,
     PROP_EXCLUDE,
