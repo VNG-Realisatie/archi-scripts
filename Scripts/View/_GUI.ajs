@@ -296,9 +296,16 @@ let layoutDialog = {
         
         if(this.widgets.grpCircular) setRadio(this.widgets.grpCircular, this.config.layoutCircular === View.LAYOUT_CIRCULAR_DAGRE ? "Dagre" : "Workaround");
 
-        if(this.config.viewName !== undefined) this.widgets.txtViewName.setText(this.config.viewName);
-        if(this.config.viewNameSuffix !== undefined) this.widgets.txtViewSuffix.setText(this.config.viewNameSuffix);
-        if(this.config.viewFolder !== undefined) this.widgets.txtViewFolder.setText(this.config.viewFolder);
+        if (initialSelection && initialSelection.length > 0) {
+            let firstObj = initialSelection.first();
+            if(firstObj && firstObj.name) {
+                this.widgets.txtViewName.setText(firstObj.name);
+            } else {
+                this.widgets.txtViewName.setText("");
+            }
+        } else {
+            this.widgets.txtViewName.setText("");
+        }
         
         if(this.widgets.chkDebug && this.config.debug !== undefined) this.widgets.chkDebug.setSelection(this.config.debug);
     },
@@ -351,9 +358,9 @@ let layoutDialog = {
         let circ = getRadioVal(this.widgets.grpCircular);
         this.config.layoutCircular = (circ === "Dagre") ? View.LAYOUT_CIRCULAR_DAGRE : View.LAYOUT_CIRCULAR_WORKAROUND;
             
-        this.config.viewName = this.widgets.txtViewName.getText();
-        this.config.viewNameSuffix = this.widgets.txtViewSuffix.getText();
-        this.config.viewFolder = this.widgets.txtViewFolder.getText();
+        this.config.viewName = String(this.widgets.txtViewName.getText()).trim();
+        this.config.viewNameSuffix = undefined;
+        this.config.viewFolder = undefined;
         
         this.config.debug = this.widgets.chkDebug.getSelection();
     },
@@ -365,7 +372,7 @@ let layoutDialog = {
     dialog: new ConfigDialog(shell) {
         create: function() {
             Java.super(layoutDialog.dialog).create();
-            layoutDialog.dialog.setTitle("Archi View Generator Parameters");
+            layoutDialog.dialog.setTitle("View generation and layout");
             layoutDialog.dialog.setMessage(
                 "Modify parameters to auto-generate and layout your selection or view.",
                 IMessageProvider.INFORMATION
@@ -387,85 +394,94 @@ let layoutDialog = {
             function createRadios(parentGrp, options) {
                 options.forEach(opt => {
                     let r = new ButtonWidget(parentGrp, SWT.RADIO);
-                    r.setText(opt.label);
+                    r.setText(opt.label + "   ");
                     r.setData("val", opt.val);
                     if(opt.tooltip) r.setToolTipText(opt.tooltip);
                 });
             }
 
-            // --- TAB 1: Action & Layout Options ---
+            // --- TAB 1: Generate and layout ---
             let tabLayout = new TabItemWidget(tabFolder, SWT.NONE);
-            tabLayout.setText("  Action & Layout Options  ");
+            tabLayout.setText("  Generate and layout  ");
             let layoutContainer = new CompositeWidget(tabFolder, SWT.NONE);
-            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(layoutContainer);
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(layoutContainer);
             tabLayout.setControl(layoutContainer);
             
+            // View Metadata Group
+            let grpMeta = new GroupWidget(layoutContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpMeta);
+            grpMeta.setText('View');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpMeta);
+            
+            layoutDialog.createWidget('txtViewName', TextWidget, grpMeta, "View Name:", 
+                "Explicit name (default follows selection name)", function(w) {
+                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
+            });
+            let lblFolder = new LabelWidget(grpMeta, SWT.NONE);
+            lblFolder.setText("Views are stored in the Archi folder: Views/_Generated");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblFolder);
+
+            // Action Group
             let grpActionControls = new GroupWidget(layoutContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(grpActionControls);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpActionControls);
             grpActionControls.setText('Action');
-            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpActionControls);
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(grpActionControls);
             layoutDialog.widgets.grpActionControls = grpActionControls;
             
             let actionOpts = [
-                {label: "Generate single view (Selected elements + related)", val: View.GENERATE_SINGLE},
-                {label: "Generate multiple context views (One view per select)", val: View.GENERATE_MULTIPLE},
-                {label: "Expand selected (Add surrounding related elements)", val: View.EXPAND_HERE},
-                {label: "Layout (Apply layout algorithm to existing view)", val: View.LAYOUT},
-                {label: "Regenerate view (Update elements in existing view)", val: View.REGENERATE}
+                {label: "Generate view", tooltip: "Generate a view with selected elements and their related elements", val: View.GENERATE_SINGLE},
+                {label: "Generate multiple context views", tooltip: "Generate a context view for each selected element. Views will be named after the central element.", val: View.GENERATE_MULTIPLE},
+                {label: "Expand selected elements", tooltip: "For the selected elements the related elements will be added to the view", val: View.EXPAND_HERE},
+                {label: "Layout selected view", tooltip: "Apply layout settings to the selected view", val: View.LAYOUT}
             ];
-            
-            // Placed horizontally in two columns
             createRadios(grpActionControls, actionOpts);
-
-            // Spacer label
-            new LabelWidget(grpActionControls, SWT.NONE);
             
             layoutDialog.createWidget('spinDepth', SpinnerWidget, grpActionControls, "Graph Depth (Generate actions only):", 
                 "Number of relations to follow outward from the selected elements.", function(w) {
                 w.setValues(1, 0, 10, 0, 1, 1);
             });
             
-            // Dagre Options
+            // Algorithm Group
             let grpDagre = new GroupWidget(layoutContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(grpDagre);
-            grpDagre.setText('Algorithm Config');
-            GridLayoutFactory.swtDefaults().numColumns(3).margins(10, 10).applyTo(grpDagre);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpDagre);
+            grpDagre.setText('Algorithm');
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(grpDagre);
             
             let cDir = new CompositeWidget(grpDagre, SWT.NONE);
-            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cDir);
+            GridLayoutFactory.swtDefaults().numColumns(5).applyTo(cDir);
             new LabelWidget(cDir, SWT.NONE).setText("Direction:");
             layoutDialog.widgets.grpDir = cDir;
             createRadios(cDir, [
-                {label: "Top-Bottom", val: "TB"},
-                {label: "Bottom-Top", val: "BT"},
-                {label: "Left-Right", val: "LR"},
-                {label: "Right-Left", val: "RL"}
+                {label: "Top-Bottom", val: "TB", tooltip: "Top to Bottom"},
+                {label: "Bottom-Top", val: "BT", tooltip: "Bottom to Top"},
+                {label: "Left-Right", val: "LR", tooltip: "Left to Right"},
+                {label: "Right-Left", val: "RL", tooltip: "Right to Left"}
             ]);
             
             let cAlign = new CompositeWidget(grpDagre, SWT.NONE);
-            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cAlign);
+            GridLayoutFactory.swtDefaults().numColumns(6).applyTo(cAlign);
             new LabelWidget(cAlign, SWT.NONE).setText("Alignment:");
             layoutDialog.widgets.grpAlign = cAlign;
             createRadios(cAlign, [
-                {label: "Centered (None)", val: "None"},
-                {label: "Up Left", val: "UL"},
-                {label: "Up Right", val: "UR"},
-                {label: "Down Left", val: "DL"},
-                {label: "Down Right", val: "DR"}
+                {label: "Centered", val: "None", tooltip: "Centered (None)"},
+                {label: "Up Left", val: "UL", tooltip: "Up Left"},
+                {label: "Up Right", val: "UR", tooltip: "Up Right"},
+                {label: "Down Left", val: "DL", tooltip: "Down Left"},
+                {label: "Down Right", val: "DR", tooltip: "Down Right"}
             ]);
             
             let cRanker = new CompositeWidget(grpDagre, SWT.NONE);
-            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cRanker);
-            new LabelWidget(cRanker, SWT.NONE).setText("Ranker Algorithm:");
+            GridLayoutFactory.swtDefaults().numColumns(4).applyTo(cRanker);
+            new LabelWidget(cRanker, SWT.NONE).setText("Ranker:");
             layoutDialog.widgets.grpRanker = cRanker;
             createRadios(cRanker, [
-                {label: "network-simplex", val: "network-simplex"},
-                {label: "longest-path", val: "longest-path"},
-                {label: "tight-tree", val: "tight-tree"}
+                {label: "network-simplex", val: "network-simplex", tooltip: "network-simplex"},
+                {label: "longest-path", val: "longest-path", tooltip: "longest-path"},
+                {label: "tight-tree", val: "tight-tree", tooltip: "tight-tree"}
             ]);
             
             let grpDimensions = new GroupWidget(layoutContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(grpDimensions);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpDimensions);
             grpDimensions.setText('Dimensions (pixels)');
             GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 10).applyTo(grpDimensions);
             
@@ -481,7 +497,7 @@ let layoutDialog = {
             layoutDialog.createWidget('spinvSep', SpinnerWidget, grpDimensions, "Vertical separation:", "Vertical distance between levels", function(w) {
                 w.setValues(180, 0, 600, 0, 10, 50);
             });
-            
+
 
             // --- TAB 2: Filtering ---
             let tabData = new TabItemWidget(tabFolder, SWT.NONE);
@@ -490,104 +506,148 @@ let layoutDialog = {
             GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(5, 5).applyTo(dataContainer);
             tabData.setControl(dataContainer);
             
-            let grpFilters = new GroupWidget(dataContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpFilters);
-            grpFilters.setText('Component Filters');
-            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpFilters);
+            let grpElemFilter = new GroupWidget(dataContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpElemFilter);
+            grpElemFilter.setText('Element filter');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpElemFilter);
             
-            layoutDialog.createListBuilder('lstElemTypes', grpFilters, "Element Types (Include):", 
-                "Element types that will be included in the view (empty = no filter).", 
+            let lblElemDesc = new LabelWidget(grpElemFilter, SWT.NONE);
+            lblElemDesc.setText("Element types that will be included in the view. Leave empty to include all elements.");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblElemDesc);
+            
+            layoutDialog.createListBuilder('lstElemTypes', grpElemFilter, null, null, 
                 View.ELEMENT_NAMES, layoutDialog.config.includeElementType);
                 
-            layoutDialog.createListBuilder('lstRelTypes', grpFilters, "Relationship Types (Include):", 
-                "Relationship types that will be included in the view (empty = no filter).", 
+            let grpRelFilter = new GroupWidget(dataContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpRelFilter);
+            grpRelFilter.setText('Relationship filter');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpRelFilter);
+            
+            let lblRelDesc = new LabelWidget(grpRelFilter, SWT.NONE);
+            lblRelDesc.setText("Relationship types that will be included in the view. Leave empty to include all relationships.");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRelDesc);
+
+            layoutDialog.createListBuilder('lstRelTypes', grpRelFilter, null, null, 
                 View.RELATION_NAMES, layoutDialog.config.includeRelationType);
 
 
-            // --- TAB 3: Rendering ---
+            // --- TAB 3: Nesting and show reversed ---
             let tabRendering = new TabItemWidget(tabFolder, SWT.NONE);
-            tabRendering.setText("  Relationship Layout  ");
+            tabRendering.setText("  Nesting and show reversed  ");
             let rendContainer = new CompositeWidget(tabFolder, SWT.NONE);
             GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(rendContainer);
             tabRendering.setControl(rendContainer);
             
-            let grpOverrides = new GroupWidget(rendContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpOverrides);
-            grpOverrides.setText('Specific Relationship Overrides');
-            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpOverrides);
+            let grpNested = new GroupWidget(rendContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpNested);
+            grpNested.setText('Nested');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpNested);
+            let lblNestDesc = new LabelWidget(grpNested, SWT.NONE);
+            lblNestDesc.setText("Relationship types rendered as nested parent/child boxes instead of lines.");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblNestDesc);
+
+            layoutDialog.createListBuilder('lstNested', grpNested, null, null, 
+                View.RELATION_NAMES, layoutDialog.config.layoutNested);
+
+            let grpReverse = new GroupWidget(rendContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpReverse);
+            grpReverse.setText('Reverse');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpReverse);
+            let lblRevDesc = new LabelWidget(grpReverse, SWT.NONE);
+            lblRevDesc.setText("Relationship types to reverse visually in the graph structure.");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRevDesc);
             
-            layoutDialog.createListBuilder('lstReversed', grpOverrides, "Reversed Layout:", 
-                "Relationship types to reverse visually in the graph structure.", 
+            layoutDialog.createListBuilder('lstReversed', grpReverse, null, null, 
                 View.RELATION_NAMES, layoutDialog.config.layoutReversed);
                 
-            layoutDialog.createListBuilder('lstNested', grpOverrides, "Nested Layout:", 
-                "Relationship types rendered as nested parent/child boxes instead of lines.", 
-                View.RELATION_NAMES, layoutDialog.config.layoutNested);
-                
-            let cCirc = new CompositeWidget(grpOverrides, SWT.NONE);
-            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cCirc);
-            new LabelWidget(cCirc, SWT.NONE).setText("Circular Relations Handling:");
+            let grpCirc = new GroupWidget(rendContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpCirc);
+            grpCirc.setText('Circular');
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(grpCirc);
+            let lblCircDesc = new LabelWidget(grpCirc, SWT.NONE);
+            lblCircDesc.setText("How to safely draw relationships linking back to themselves.");
+            
+            let cCirc = new CompositeWidget(grpCirc, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(2).applyTo(cCirc);
             layoutDialog.widgets.grpCircular = cCirc;
             createRadios(cCirc, [
-                {label: "Dagre Built-In", val: "Dagre"},
-                {label: "Custom Workaround", val: "Workaround"}
+                {label: "Dagre Built-In", val: "Dagre", tooltip: "Dagre Built-In"},
+                {label: "Custom Workaround", val: "Workaround", tooltip: "Custom Workaround"}
             ]);
-            GridDataFactory.fillDefaults().span(2, 1).applyTo(cCirc);
 
 
-            // --- TAB 4: Output & Presets ---
+            // --- TAB 4: Load and save ---
             let tabOutput = new TabItemWidget(tabFolder, SWT.NONE);
-            tabOutput.setText("  Output & Presets  ");
+            tabOutput.setText("  Load and save  ");
             let outContainer = new CompositeWidget(tabFolder, SWT.NONE);
             GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(outContainer);
             tabOutput.setControl(outContainer);
             
-            let grpOutput = new GroupWidget(outContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpOutput);
-            grpOutput.setText('Generated View Dest');
-            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpOutput);
+            let grpLoad = new GroupWidget(outContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpLoad);
+            grpLoad.setText('Load Setup');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpLoad);
             
-            layoutDialog.createWidget('txtViewName', TextWidget, grpOutput, "View Name:", 
-                "Explicit name (default follows selection name)", function(w) {
-                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
-            });
-            layoutDialog.createWidget('txtViewSuffix', TextWidget, grpOutput, "View Suffix:", 
-                "Suffix added to view name", function(w) {
-                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
-            });
-            layoutDialog.createWidget('txtViewFolder', TextWidget, grpOutput, "Folder Path:", 
-                "Added under /Views. Example: /_Generated", function(w) {
-                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
-            });
+            let lblLoadDesc = new LabelWidget(grpLoad, SWT.NONE);
+            lblLoadDesc.setText("Select a parameter preset file to instantly load its configured options.");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblLoadDesc);
             
-            let grpPresets = new GroupWidget(outContainer, SWT.NONE);
-            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpPresets);
-            grpPresets.setText('Manage Presets');
-            GridLayoutFactory.swtDefaults().numColumns(3).margins(10, 10).applyTo(grpPresets);
-            
-            let lblPresets = new LabelWidget(grpPresets, SWT.NONE);
-            lblPresets.setText("Presets under user_parameters:");
-            GridDataFactory.fillDefaults().span(3, 1).applyTo(lblPresets);
-            
-            let lstPresets = new ListWidget(grpPresets, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
-            GridDataFactory.fillDefaults().span(3, 1).grab(true, true).hint(SWT.DEFAULT, 150).applyTo(lstPresets);
+            let lstPresets = new ListWidget(grpLoad, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
+            GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 150).span(1, 2).applyTo(lstPresets);
             let pFiles = getPresetFiles();
             pFiles.forEach(f => lstPresets.add(f));
             
-            let btnLoad = new ButtonWidget(grpPresets, SWT.PUSH);
-            btnLoad.setText("Load Setup");
+            let btnLoad = new ButtonWidget(grpLoad, SWT.PUSH);
+            btnLoad.setText("Load Selected Preset");
+            GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnLoad);
             btnLoad.addListener(SWT.Selection, function() {
                 if(lstPresets.getSelectionIndex() >= 0) {
                     layoutDialog.updateFromPreset(lstPresets.getSelection()[0]);
                 }
             });
+
+            let btnDel = new ButtonWidget(grpLoad, SWT.PUSH);
+            btnDel.setText("Delete Selected Preset");
+            GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnDel);
+            btnDel.addListener(SWT.Selection, function() {
+                let idx = lstPresets.getSelectionIndex();
+                if(idx >= 0) {
+                    let fname = lstPresets.getSelection()[0];
+                    if (fname === "default_parameter.js") {
+                        window.alert("Cannot delete the default parameter file.");
+                        return;
+                    }
+                    if(window.confirm("Are you sure you want to delete preset: " + fname + "?")) {
+                        try {
+                            var fileToDelete = new java.io.File(__DIR__ + "user_parameter/" + fname);
+                            if (fileToDelete.exists()) {
+                                fileToDelete.delete();
+                                lstPresets.remove(idx);
+                            } else {
+                                window.alert("File not found: " + fname);
+                            }
+                        } catch(e) {
+                            window.alert("Error deleting file: " + e);
+                        }
+                    }
+                }
+            });
+
+            let grpSave = new GroupWidget(outContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpSave);
+            grpSave.setText('Save Current');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpSave);
             
-            let txtSaveName = new TextWidget(grpPresets, SWT.BORDER);
-            txtSaveName.setMessage("new_preset_name");
+            let lblSaveDesc = new LabelWidget(grpSave, SWT.NONE);
+            lblSaveDesc.setText("Save your settings into a reusable parameter file.");
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(lblSaveDesc);
+            
+            let txtSaveName = new TextWidget(grpSave, SWT.BORDER);
+            txtSaveName.setMessage("Enter new parameter file name...");
             GridDataFactory.fillDefaults().grab(true, false).applyTo(txtSaveName);
             
-            let btnSave = new ButtonWidget(grpPresets, SWT.PUSH);
-            btnSave.setText("Save Current");
+            let btnSave = new ButtonWidget(grpSave, SWT.PUSH);
+            btnSave.setText("Save to User Parameters");
             btnSave.addListener(SWT.Selection, function() {
                 let fname = txtSaveName.getText();
                 if(fname.trim() !== "") {
@@ -600,7 +660,7 @@ let layoutDialog = {
             });
             
             layoutDialog.createWidget('chkDebug', ButtonWidget, outContainer, null, "Print debug logs to console", function(w) {
-                w.setText("Execute with Debug Trace");
+                w.setText("Execute with Debug Trace   ");
             }, SWT.CHECK);
             
             layoutDialog.syncConfigToUI();

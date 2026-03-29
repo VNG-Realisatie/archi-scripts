@@ -437,7 +437,8 @@ function _addViewObjects(level, param, graph, graphParents, graphCircular) {
     .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
     .each((r) => _addRelation(0, param, graph, graphParents, graphCircular, r.concept));
 
-  param.viewName = view.name;
+  // Do not override param.viewName here, so the user-provided name from the GUI is respected
+  // param.viewName = view.name;
 }
 
 /**
