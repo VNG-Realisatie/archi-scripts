@@ -1,0 +1,629 @@
+/**
+ * Interactive Graphical User Interface for View Layout Parameters
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
+const View = require(__DIR__ + "include_view");
+
+const File = Java.type("java.io.File");
+const FileWriter = Java.type("java.io.FileWriter");
+const FileReader = Java.type("java.io.FileReader");
+const BufferedReader = Java.type("java.io.BufferedReader");
+
+console.clear();
+console.show();
+
+Common.debug("=== Parameters GUI ===");
+
+// Capture selection before opening the SWT dialog causes focus loss
+const initialSelection = $(selection);
+
+
+const SWT = Java.type('org.eclipse.swt.SWT');
+const LabelWidget = Java.type('org.eclipse.swt.widgets.Label');
+const CompositeWidget = Java.type('org.eclipse.swt.widgets.Composite');
+const SpinnerWidget = Java.type('org.eclipse.swt.widgets.Spinner');
+const GroupWidget = Java.type('org.eclipse.swt.widgets.Group');
+const ButtonWidget = Java.type('org.eclipse.swt.widgets.Button');
+const ComboWidget = Java.type('org.eclipse.swt.widgets.Combo');
+const TabFolderWidget = Java.type('org.eclipse.swt.widgets.TabFolder');
+const TabItemWidget = Java.type('org.eclipse.swt.widgets.TabItem');
+const TextWidget = Java.type('org.eclipse.swt.widgets.Text');
+const ListWidget = Java.type('org.eclipse.swt.widgets.List');
+const GridDataFactory = Java.type('org.eclipse.jface.layout.GridDataFactory');
+const GridLayoutFactory = Java.type('org.eclipse.jface.layout.GridLayoutFactory');
+const TitleAreaDialog = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
+const IMessageProvider = Java.type('org.eclipse.jface.dialogs.IMessageProvider');
+
+// Helper to list parameter files
+function getPresetFiles() {
+    var dir = new File(__DIR__ + "user_parameter");
+    var files = dir.listFiles();
+    var names = [];
+    if (files) {
+        for (var i = 0; i < files.length; i++) {
+            if (files[i].isFile() && files[i].getName().endsWith(".js")) {
+                names.push(files[i].getName());
+            }
+        }
+    }
+    return names;
+}
+
+// Interacting with File system natively to avoid Node.js limitations
+function writeJSON(path, obj) {
+    try {
+        var writer = new FileWriter(path);
+        writer.write(JSON.stringify(obj, null, 2));
+        writer.close();
+    } catch(e) {
+        console.error("Failed to write state:", e);
+    }
+}
+
+function readJSON(path) {
+    try {
+        var reader = new BufferedReader(new FileReader(path));
+        var line = "";
+        var content = "";
+        while ((line = reader.readLine()) != null) content += line;
+        reader.close();
+        return JSON.parse(content);
+    } catch(e) {
+        return null;
+    }
+}
+
+function writePreset(filename, obj) {
+    if(!filename.endsWith(".js")) filename += ".js";
+    var path = __DIR__ + "user_parameter/" + filename;
+    var writer = new FileWriter(path);
+    writer.write("/**\n * Saved from _GUI.ajs\n */\n\nmodule.exports = " + JSON.stringify(obj, null, 2) + ";\n");
+    writer.close();
+}
+
+// Determine defaults
+let lastRunFile = __DIR__ + ".last_gui_run_params.json";
+let defaultParams = readJSON(lastRunFile);
+
+if (!defaultParams) {
+    try {
+        defaultParams = require(__DIR__ + "user_parameter/default_parameter.js");
+    } catch(e) {
+        defaultParams = {
+            action: View.GENERATE_SINGLE,
+            graphDepth: 1,
+            includeElementType: [],
+            includeRelationType: [],
+            excludeFromView: false,
+            layoutReversed: [],
+            layoutNested: [],
+            layoutCircular: View.LAYOUT_CIRCULAR_WORKAROUND,
+            viewName: "",
+            viewNameSuffix: "",
+            viewFolder: "",
+            graphDirection: "LR",
+            graphAlign: "UL",
+            ranker: "network-simplex",
+            nodeWidth: 200,
+            nodeHeight: 60,
+            hSep: 40,
+            vSep: 180,
+            debug: false
+        };
+    }
+}
+
+const ConfigDialog = Java.extend(TitleAreaDialog);
+
+let layoutDialog = {
+    config: defaultParams,
+    widgets: {},
+    
+    createWidget: function(name, widgetClass, container, label, tooltip, init, flags) {
+        if (flags === undefined) flags = SWT.BORDER;
+        
+        if (label != null) {
+            let txt = new LabelWidget(container, SWT.NONE);
+            txt.setText(label);
+            if(tooltip) txt.setToolTipText(tooltip);
+        }
+        
+        let widget = new widgetClass(container, flags);
+        if(tooltip) widget.setToolTipText(tooltip);
+        if (init != null) init(widget);
+        if (name != null) this.widgets[name] = widget;
+        
+        return widget;
+    },
+    
+    createListBuilder: function(name, container, label, tooltip, availableItems, initialSelected) {
+        if (label != null) {
+            let txt = new LabelWidget(container, SWT.NONE);
+            txt.setText(label);
+            if(tooltip) txt.setToolTipText(tooltip);
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(txt);
+        }
+
+        let mainComp = new CompositeWidget(container, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, true).span(2, 1).applyTo(mainComp);
+        GridLayoutFactory.swtDefaults().numColumns(3).margins(0,0).applyTo(mainComp);
+
+        // Left: Search + Available
+        let leftComp = new CompositeWidget(mainComp, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, true).applyTo(leftComp);
+        GridLayoutFactory.swtDefaults().numColumns(1).margins(0,0).applyTo(leftComp);
+        
+        let txtSearch = new TextWidget(leftComp, SWT.BORDER | SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL);
+        txtSearch.setMessage("Type to search...");
+        GridDataFactory.fillDefaults().grab(true, false).applyTo(txtSearch);
+
+        let lstAvailable = new ListWidget(leftComp, SWT.BORDER | SWT.V_SCROLL);
+        GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 100).applyTo(lstAvailable);
+
+        function updateAvailable() {
+            lstAvailable.removeAll();
+            let q = txtSearch.getText().toLowerCase();
+            availableItems.forEach(function(item) {
+                if(item.toLowerCase().indexOf(q) >= 0) {
+                    lstAvailable.add(item);
+                }
+            });
+        }
+        updateAvailable();
+
+        txtSearch.addListener(SWT.Modify, function() {
+            updateAvailable();
+        });
+
+        // Middle: Buttons
+        let btnComp = new CompositeWidget(mainComp, SWT.NONE);
+        GridDataFactory.fillDefaults().align(SWT.CENTER, SWT.CENTER).applyTo(btnComp);
+        GridLayoutFactory.swtDefaults().numColumns(1).margins(5,0).applyTo(btnComp);
+
+        let btnAdd = new ButtonWidget(btnComp, SWT.PUSH);
+        btnAdd.setText("Add >");
+        GridDataFactory.fillDefaults().hint(70, SWT.DEFAULT).applyTo(btnAdd);
+
+        let btnRemove = new ButtonWidget(btnComp, SWT.PUSH);
+        btnRemove.setText("< Remove");
+        GridDataFactory.fillDefaults().hint(70, SWT.DEFAULT).applyTo(btnRemove);
+
+        // Right: Selected
+        let rightComp = new CompositeWidget(mainComp, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, true).applyTo(rightComp);
+        GridLayoutFactory.swtDefaults().numColumns(1).margins(0,0).applyTo(rightComp);
+
+        let lblSelected = new LabelWidget(rightComp, SWT.NONE);
+        lblSelected.setText("Selected (Double-click to remove):");
+
+        let lstSelected = new ListWidget(rightComp, SWT.BORDER | SWT.V_SCROLL | SWT.MULTI);
+        GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 100).applyTo(lstSelected);
+
+        function applySelection() {
+            let sel = lstAvailable.getSelection();
+            if(sel.length === 0) {
+                let q = txtSearch.getText().trim();
+                if(q !== "" && q !== "Type to search...") sel = [q];
+            }
+            for(let i=0; i<sel.length; i++) {
+                let has = false;
+                for(let j=0; j<lstSelected.getItemCount(); j++) {
+                    if(lstSelected.getItem(j) === sel[i]) has = true;
+                }
+                if(!has) lstSelected.add(sel[i]);
+            }
+            txtSearch.setText(""); // clear search
+        }
+
+        function removeSelection() {
+            let indices = lstSelected.getSelectionIndices();
+            lstSelected.remove(indices);
+        }
+
+        btnAdd.addListener(SWT.Selection, applySelection);
+        lstAvailable.addListener(SWT.MouseDoubleClick, applySelection);
+        txtSearch.addListener(SWT.DefaultSelection, applySelection); // Enter key
+
+        btnRemove.addListener(SWT.Selection, removeSelection);
+        lstSelected.addListener(SWT.MouseDoubleClick, removeSelection);
+
+        // Save reference to the selected list for data extraction
+        this.widgets[name] = lstSelected;
+
+        // Initialize values
+        if(initialSelected && initialSelected.length > 0) {
+            initialSelected.forEach(function(item) {
+                lstSelected.add(item);
+            });
+        }
+    },
+    
+    updateFromPreset: function(presetName) {
+        try {
+            let newCfg = require(__DIR__ + "user_parameter/" + presetName);
+            Object.keys(newCfg).forEach(k => this.config[k] = newCfg[k]);
+            this.syncConfigToUI();
+        } catch(e) {
+            console.error("Could not load preset " + presetName, e);
+        }
+    },
+    
+    syncConfigToUI: function() {
+        let setRadio = (group, val) => {
+            let children = group.getChildren();
+            let hasSelection = false;
+            let firstRadio = null;
+            for(let i=0; i<children.length; i++) {
+                let dataVal = children[i].getData("val");
+                if (dataVal !== null && dataVal !== undefined) {
+                    if (!firstRadio) firstRadio = children[i];
+                    if (dataVal === val) {
+                        children[i].setSelection(true);
+                        hasSelection = true;
+                    } else {
+                        children[i].setSelection(false);
+                    }
+                }
+            }
+            if(!hasSelection && firstRadio !== null) {
+                firstRadio.setSelection(true);
+            }
+        };
+        
+        let setBuilder = (wList, arr) => {
+            wList.removeAll();
+            if(!arr || !arr.length) return;
+            arr.forEach(item => wList.add(item));
+        };
+
+        if(this.widgets.grpActionControls) setRadio(this.widgets.grpActionControls, this.config.action);
+        if(this.config.graphDepth !== undefined) this.widgets.spinDepth.setSelection(this.config.graphDepth);
+
+        setBuilder(this.widgets.lstElemTypes, this.config.includeElementType);
+        setBuilder(this.widgets.lstRelTypes, this.config.includeRelationType);
+        
+        if(this.widgets.grpDir) setRadio(this.widgets.grpDir, this.config.graphDirection);
+        if(this.widgets.grpAlign) setRadio(this.widgets.grpAlign, this.config.graphAlign || "None");
+        if(this.widgets.grpRanker) setRadio(this.widgets.grpRanker, this.config.ranker);
+        
+        if(this.config.nodeWidth) this.widgets.spinWidth.setSelection(this.config.nodeWidth);
+        if(this.config.nodeHeight) this.widgets.spinHeight.setSelection(this.config.nodeHeight);
+        if(this.config.hSep) this.widgets.spinhSep.setSelection(this.config.hSep);
+        if(this.config.vSep) this.widgets.spinvSep.setSelection(this.config.vSep);
+        
+        setBuilder(this.widgets.lstReversed, this.config.layoutReversed);
+        setBuilder(this.widgets.lstNested, this.config.layoutNested);
+        
+        if(this.widgets.grpCircular) setRadio(this.widgets.grpCircular, this.config.layoutCircular === View.LAYOUT_CIRCULAR_DAGRE ? "Dagre" : "Workaround");
+
+        if(this.config.viewName !== undefined) this.widgets.txtViewName.setText(this.config.viewName);
+        if(this.config.viewNameSuffix !== undefined) this.widgets.txtViewSuffix.setText(this.config.viewNameSuffix);
+        if(this.config.viewFolder !== undefined) this.widgets.txtViewFolder.setText(this.config.viewFolder);
+        
+        if(this.widgets.chkDebug && this.config.debug !== undefined) this.widgets.chkDebug.setSelection(this.config.debug);
+    },
+    
+    saveInput: function() {
+        let getRadioVal = (group) => {
+            let children = group.getChildren();
+            for(let i=0; i<children.length; i++) {
+                let dataVal = children[i].getData("val");
+                if (dataVal !== null && dataVal !== undefined && typeof children[i].getSelection === 'function') {
+                    if(children[i].getSelection()) {
+                        return dataVal;
+                    }
+                }
+            }
+            return undefined;
+        };
+
+        this.config.action = getRadioVal(this.widgets.grpActionControls);
+        if(this.config.action === "None") this.config.action = undefined;
+        
+        this.config.graphDepth = this.widgets.spinDepth.getSelection();
+        this.config.excludeFromView = false; // User requested to omit it
+        
+        let toJsArray = (wList) => {
+            let res = [];
+            let items = wList.getItems();
+            if(items) {
+                for(let i=0; i<items.length; i++) res.push(String(items[i]));
+            }
+            return res;
+        };
+
+        this.config.includeElementType = toJsArray(this.widgets.lstElemTypes);
+        this.config.includeRelationType = toJsArray(this.widgets.lstRelTypes);
+        
+        this.config.graphDirection = getRadioVal(this.widgets.grpDir);
+        let align = getRadioVal(this.widgets.grpAlign);
+        this.config.graphAlign = (align === "None") ? undefined : align;
+        this.config.ranker = getRadioVal(this.widgets.grpRanker);
+        
+        this.config.nodeWidth = this.widgets.spinWidth.getSelection();
+        this.config.nodeHeight = this.widgets.spinHeight.getSelection();
+        this.config.hSep = this.widgets.spinhSep.getSelection();
+        this.config.vSep = this.widgets.spinvSep.getSelection();
+        
+        this.config.layoutReversed = toJsArray(this.widgets.lstReversed);
+        this.config.layoutNested = toJsArray(this.widgets.lstNested);
+        
+        let circ = getRadioVal(this.widgets.grpCircular);
+        this.config.layoutCircular = (circ === "Dagre") ? View.LAYOUT_CIRCULAR_DAGRE : View.LAYOUT_CIRCULAR_WORKAROUND;
+            
+        this.config.viewName = this.widgets.txtViewName.getText();
+        this.config.viewNameSuffix = this.widgets.txtViewSuffix.getText();
+        this.config.viewFolder = this.widgets.txtViewFolder.getText();
+        
+        this.config.debug = this.widgets.chkDebug.getSelection();
+    },
+    
+    open: function() {
+        return (this.dialog.open() == 0);
+    },
+    
+    dialog: new ConfigDialog(shell) {
+        create: function() {
+            Java.super(layoutDialog.dialog).create();
+            layoutDialog.dialog.setTitle("Archi View Generator Parameters");
+            layoutDialog.dialog.setMessage(
+                "Modify parameters to auto-generate and layout your selection or view.",
+                IMessageProvider.INFORMATION
+            );
+            layoutDialog.dialog.getShell().setSize(800, 850);
+        },
+        
+        createDialogArea: function(parent) {
+            let area = Java.super(layoutDialog.dialog).createDialogArea(parent);
+            
+            let container = new CompositeWidget(area, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(container);
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(container);
+            
+            let tabFolder = new TabFolderWidget(container, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
+            
+            // Helper for mapping radio buttons
+            function createRadios(parentGrp, options) {
+                options.forEach(opt => {
+                    let r = new ButtonWidget(parentGrp, SWT.RADIO);
+                    r.setText(opt.label);
+                    r.setData("val", opt.val);
+                    if(opt.tooltip) r.setToolTipText(opt.tooltip);
+                });
+            }
+
+            // --- TAB 1: Action & Layout Options ---
+            let tabLayout = new TabItemWidget(tabFolder, SWT.NONE);
+            tabLayout.setText("  Action & Layout Options  ");
+            let layoutContainer = new CompositeWidget(tabFolder, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(layoutContainer);
+            tabLayout.setControl(layoutContainer);
+            
+            let grpActionControls = new GroupWidget(layoutContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(grpActionControls);
+            grpActionControls.setText('Action');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpActionControls);
+            layoutDialog.widgets.grpActionControls = grpActionControls;
+            
+            let actionOpts = [
+                {label: "Generate single view (Selected elements + related)", val: View.GENERATE_SINGLE},
+                {label: "Generate multiple context views (One view per select)", val: View.GENERATE_MULTIPLE},
+                {label: "Expand selected (Add surrounding related elements)", val: View.EXPAND_HERE},
+                {label: "Layout (Apply layout algorithm to existing view)", val: View.LAYOUT},
+                {label: "Regenerate view (Update elements in existing view)", val: View.REGENERATE}
+            ];
+            
+            // Placed horizontally in two columns
+            createRadios(grpActionControls, actionOpts);
+
+            // Spacer label
+            new LabelWidget(grpActionControls, SWT.NONE);
+            
+            layoutDialog.createWidget('spinDepth', SpinnerWidget, grpActionControls, "Graph Depth (Generate actions only):", 
+                "Number of relations to follow outward from the selected elements.", function(w) {
+                w.setValues(1, 0, 10, 0, 1, 1);
+            });
+            
+            // Dagre Options
+            let grpDagre = new GroupWidget(layoutContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(grpDagre);
+            grpDagre.setText('Algorithm Config');
+            GridLayoutFactory.swtDefaults().numColumns(3).margins(10, 10).applyTo(grpDagre);
+            
+            let cDir = new CompositeWidget(grpDagre, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cDir);
+            new LabelWidget(cDir, SWT.NONE).setText("Direction:");
+            layoutDialog.widgets.grpDir = cDir;
+            createRadios(cDir, [
+                {label: "Top-Bottom", val: "TB"},
+                {label: "Bottom-Top", val: "BT"},
+                {label: "Left-Right", val: "LR"},
+                {label: "Right-Left", val: "RL"}
+            ]);
+            
+            let cAlign = new CompositeWidget(grpDagre, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cAlign);
+            new LabelWidget(cAlign, SWT.NONE).setText("Alignment:");
+            layoutDialog.widgets.grpAlign = cAlign;
+            createRadios(cAlign, [
+                {label: "Centered (None)", val: "None"},
+                {label: "Up Left", val: "UL"},
+                {label: "Up Right", val: "UR"},
+                {label: "Down Left", val: "DL"},
+                {label: "Down Right", val: "DR"}
+            ]);
+            
+            let cRanker = new CompositeWidget(grpDagre, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cRanker);
+            new LabelWidget(cRanker, SWT.NONE).setText("Ranker Algorithm:");
+            layoutDialog.widgets.grpRanker = cRanker;
+            createRadios(cRanker, [
+                {label: "network-simplex", val: "network-simplex"},
+                {label: "longest-path", val: "longest-path"},
+                {label: "tight-tree", val: "tight-tree"}
+            ]);
+            
+            let grpDimensions = new GroupWidget(layoutContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(grpDimensions);
+            grpDimensions.setText('Dimensions (pixels)');
+            GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 10).applyTo(grpDimensions);
+            
+            layoutDialog.createWidget('spinWidth', SpinnerWidget, grpDimensions, "Node Width:", null, function(w) {
+                w.setValues(200, 10, 600, 0, 10, 50);
+            });
+            layoutDialog.createWidget('spinHeight', SpinnerWidget, grpDimensions, "Node Height:", null, function(w) {
+                w.setValues(60, 10, 400, 0, 10, 20);
+            });
+            layoutDialog.createWidget('spinhSep', SpinnerWidget, grpDimensions, "Horizontal separation:", "Horizontal distance between two elements", function(w) {
+                w.setValues(40, 0, 600, 0, 10, 50);
+            });
+            layoutDialog.createWidget('spinvSep', SpinnerWidget, grpDimensions, "Vertical separation:", "Vertical distance between levels", function(w) {
+                w.setValues(180, 0, 600, 0, 10, 50);
+            });
+            
+
+            // --- TAB 2: Filtering ---
+            let tabData = new TabItemWidget(tabFolder, SWT.NONE);
+            tabData.setText("  Filtering  ");
+            let dataContainer = new CompositeWidget(tabFolder, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(5, 5).applyTo(dataContainer);
+            tabData.setControl(dataContainer);
+            
+            let grpFilters = new GroupWidget(dataContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpFilters);
+            grpFilters.setText('Component Filters');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpFilters);
+            
+            layoutDialog.createListBuilder('lstElemTypes', grpFilters, "Element Types (Include):", 
+                "Element types that will be included in the view (empty = no filter).", 
+                View.ELEMENT_NAMES, layoutDialog.config.includeElementType);
+                
+            layoutDialog.createListBuilder('lstRelTypes', grpFilters, "Relationship Types (Include):", 
+                "Relationship types that will be included in the view (empty = no filter).", 
+                View.RELATION_NAMES, layoutDialog.config.includeRelationType);
+
+
+            // --- TAB 3: Rendering ---
+            let tabRendering = new TabItemWidget(tabFolder, SWT.NONE);
+            tabRendering.setText("  Relationship Layout  ");
+            let rendContainer = new CompositeWidget(tabFolder, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(rendContainer);
+            tabRendering.setControl(rendContainer);
+            
+            let grpOverrides = new GroupWidget(rendContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpOverrides);
+            grpOverrides.setText('Specific Relationship Overrides');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpOverrides);
+            
+            layoutDialog.createListBuilder('lstReversed', grpOverrides, "Reversed Layout:", 
+                "Relationship types to reverse visually in the graph structure.", 
+                View.RELATION_NAMES, layoutDialog.config.layoutReversed);
+                
+            layoutDialog.createListBuilder('lstNested', grpOverrides, "Nested Layout:", 
+                "Relationship types rendered as nested parent/child boxes instead of lines.", 
+                View.RELATION_NAMES, layoutDialog.config.layoutNested);
+                
+            let cCirc = new CompositeWidget(grpOverrides, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).applyTo(cCirc);
+            new LabelWidget(cCirc, SWT.NONE).setText("Circular Relations Handling:");
+            layoutDialog.widgets.grpCircular = cCirc;
+            createRadios(cCirc, [
+                {label: "Dagre Built-In", val: "Dagre"},
+                {label: "Custom Workaround", val: "Workaround"}
+            ]);
+            GridDataFactory.fillDefaults().span(2, 1).applyTo(cCirc);
+
+
+            // --- TAB 4: Output & Presets ---
+            let tabOutput = new TabItemWidget(tabFolder, SWT.NONE);
+            tabOutput.setText("  Output & Presets  ");
+            let outContainer = new CompositeWidget(tabFolder, SWT.NONE);
+            GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(outContainer);
+            tabOutput.setControl(outContainer);
+            
+            let grpOutput = new GroupWidget(outContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(grpOutput);
+            grpOutput.setText('Generated View Dest');
+            GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpOutput);
+            
+            layoutDialog.createWidget('txtViewName', TextWidget, grpOutput, "View Name:", 
+                "Explicit name (default follows selection name)", function(w) {
+                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
+            });
+            layoutDialog.createWidget('txtViewSuffix', TextWidget, grpOutput, "View Suffix:", 
+                "Suffix added to view name", function(w) {
+                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
+            });
+            layoutDialog.createWidget('txtViewFolder', TextWidget, grpOutput, "Folder Path:", 
+                "Added under /Views. Example: /_Generated", function(w) {
+                GridDataFactory.fillDefaults().grab(true, false).applyTo(w);
+            });
+            
+            let grpPresets = new GroupWidget(outContainer, SWT.NONE);
+            GridDataFactory.fillDefaults().grab(true, true).applyTo(grpPresets);
+            grpPresets.setText('Manage Presets');
+            GridLayoutFactory.swtDefaults().numColumns(3).margins(10, 10).applyTo(grpPresets);
+            
+            let lblPresets = new LabelWidget(grpPresets, SWT.NONE);
+            lblPresets.setText("Presets under user_parameters:");
+            GridDataFactory.fillDefaults().span(3, 1).applyTo(lblPresets);
+            
+            let lstPresets = new ListWidget(grpPresets, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
+            GridDataFactory.fillDefaults().span(3, 1).grab(true, true).hint(SWT.DEFAULT, 150).applyTo(lstPresets);
+            let pFiles = getPresetFiles();
+            pFiles.forEach(f => lstPresets.add(f));
+            
+            let btnLoad = new ButtonWidget(grpPresets, SWT.PUSH);
+            btnLoad.setText("Load Setup");
+            btnLoad.addListener(SWT.Selection, function() {
+                if(lstPresets.getSelectionIndex() >= 0) {
+                    layoutDialog.updateFromPreset(lstPresets.getSelection()[0]);
+                }
+            });
+            
+            let txtSaveName = new TextWidget(grpPresets, SWT.BORDER);
+            txtSaveName.setMessage("new_preset_name");
+            GridDataFactory.fillDefaults().grab(true, false).applyTo(txtSaveName);
+            
+            let btnSave = new ButtonWidget(grpPresets, SWT.PUSH);
+            btnSave.setText("Save Current");
+            btnSave.addListener(SWT.Selection, function() {
+                let fname = txtSaveName.getText();
+                if(fname.trim() !== "") {
+                    layoutDialog.saveInput(); 
+                    writePreset(fname, layoutDialog.config);
+                    lstPresets.removeAll();
+                    getPresetFiles().forEach(f => lstPresets.add(f));
+                    window.alert("Preset saved to user_parameter/" + fname + (fname.endsWith(".js")?"":".js"));
+                }
+            });
+            
+            layoutDialog.createWidget('chkDebug', ButtonWidget, outContainer, null, "Print debug logs to console", function(w) {
+                w.setText("Execute with Debug Trace");
+            }, SWT.CHECK);
+            
+            layoutDialog.syncConfigToUI();
+            
+            return area;
+        },
+        
+        okPressed: function() {
+            layoutDialog.saveInput();
+            Java.super(layoutDialog.dialog).okPressed();
+        }
+    }
+};
+
+const OK = layoutDialog.open();
+
+if (!OK) {
+    console.log("Operation cancelled.");
+    exit();
+}
+
+writeJSON(lastRunFile, layoutDialog.config);
+
+Common.initConsoleLog(__FILE__, true);
+View.generate_view(layoutDialog.config, initialSelection);
+Common.finishConsoleLog();

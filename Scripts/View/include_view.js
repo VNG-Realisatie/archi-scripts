@@ -1060,5 +1060,7 @@ if (typeof module !== "undefined" && module.exports) {
     GENERATED_VIEW_FOLDER,
     PROP_SAVE_PARAMETER,
     PROP_EXCLUDE,
+    ELEMENT_NAMES,
+    RELATION_NAMES,
   };
 }
