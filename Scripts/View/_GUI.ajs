@@ -238,13 +238,127 @@ let layoutDialog = {
         }
     },
     
+    promptPresetReview: function(presetName, newConfig) {
+        let diffs = [];
+        
+        // mapping for human readability
+        let map = {
+            action: "Action",
+            graphDepth: "Graph Depth",
+            includeElementType: "Element Filter",
+            includeRelationType: "Relationship Filter",
+            excludeFromView: "Exclude Flag",
+            layoutReversed: "Reverse Relations",
+            layoutNested: "Nested Relations",
+            layoutCircular: "Circular Handling",
+            viewName: "View Name",
+            viewNameSuffix: "View Suffix",
+            viewFolder: "View Folder",
+            graphDirection: "Direction",
+            graphAlign: "Alignment",
+            ranker: "Layout Ranker",
+            nodeWidth: "Node Width",
+            nodeHeight: "Node Height",
+            hSep: "Horizontal Separation",
+            vSep: "Vertical Separation",
+            debug: "Debug Trace"
+        };
+    
+        Object.keys(newConfig).forEach(k => {
+            let oldVal = this.config[k];
+            let newVal = newConfig[k];
+            let oldStr = Array.isArray(oldVal) ? oldVal.join(", ") : String(oldVal);
+            let newStr = Array.isArray(newVal) ? newVal.join(", ") : String(newVal);
+            
+            if (oldStr !== newStr) {
+                diffs.push({
+                    key: map[k] || k,
+                    oldV: oldStr ? oldStr : "(empty)",
+                    newV: newStr ? newStr : "(empty)"
+                });
+            }
+        });
+    
+        if (diffs.length === 0) {
+            window.alert("Preset '" + presetName + "' is identical to your current settings.");
+            return false;
+        }
+    
+        let ReviewDialog = Java.extend(TitleAreaDialog);
+        let okPressed = false;
+        
+        let dlg = new ReviewDialog(shell) {
+            create: function() {
+                Java.super(dlg).create();
+                dlg.setTitle("Review Preset: " + presetName);
+                dlg.setMessage("Please review the parameter changes before applying them.", IMessageProvider.INFORMATION);
+                dlg.getShell().setSize(700, 500);
+                dlg.getShell().setText("Preset Review");
+            },
+            createDialogArea: function(parent) {
+                let area = Java.super(dlg).createDialogArea(parent);
+                let container = new CompositeWidget(area, SWT.NONE);
+                GridDataFactory.fillDefaults().grab(true, true).applyTo(container);
+                GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(container);
+                
+                let table = new org.eclipse.swt.widgets.Table(container, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL);
+                table.setHeaderVisible(true);
+                table.setLinesVisible(true);
+                GridDataFactory.fillDefaults().grab(true, true).applyTo(table);
+                
+                let col1 = new org.eclipse.swt.widgets.TableColumn(table, SWT.NONE);
+                col1.setText("Parameter");
+                col1.setWidth(150);
+                
+                let col2 = new org.eclipse.swt.widgets.TableColumn(table, SWT.NONE);
+                col2.setText("Current Value");
+                col2.setWidth(250);
+                
+                let col3 = new org.eclipse.swt.widgets.TableColumn(table, SWT.NONE);
+                col3.setText("Preset Value");
+                col3.setWidth(250);
+                
+                let TableItem = Java.type("org.eclipse.swt.widgets.TableItem");
+                diffs.forEach(d => {
+                    let item = new TableItem(table, SWT.NONE);
+                    item.setText(0, d.key);
+                    item.setText(1, d.oldV);
+                    item.setText(2, d.newV);
+                });
+                
+                return area;
+            },
+            isResizable: function() {
+                return true;
+            },
+            createButtonsForButtonBar: function(parent) {
+                let IDialogConstants = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
+                Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, "Apply Changes", true);
+                Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
+            },
+            okPressed: function() {
+                okPressed = true;
+                Java.super(dlg).okPressed();
+            }
+        };
+        
+        dlg.open();
+        return okPressed;
+    },
+    
     updateFromPreset: function(presetName) {
         try {
             let newCfg = require(__DIR__ + "user_parameter/" + presetName);
-            Object.keys(newCfg).forEach(k => this.config[k] = newCfg[k]);
-            this.syncConfigToUI();
+            
+            if(this.promptPresetReview(presetName, newCfg)) {
+                Object.keys(newCfg).forEach(k => {
+                    this.config[k] = newCfg[k];
+                });
+                this.syncConfigToUI();
+            }
         } catch(e) {
             console.error("Could not load preset " + presetName, e);
+            window.alert("Error loading preset: " + e);
         }
     },
     
