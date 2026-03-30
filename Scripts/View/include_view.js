@@ -26,6 +26,11 @@
  *  4  02/10/2021  Mark Backer   draw connection with bendpoints
  *  5  08/03/2022  Mark Backer   add actions LAYOUT and EXPAND_HERE
  *  6  11/01/2025  Mark Backer   do not add relations with PROP_EXCLUDE = "excludeFromView" to view
+ *  7  30/03/2026  Mark Backer   multi-parent nesting: create duplicate visual occurrences per parent;
+ *                               propagate occurrences to children of occurrence nodes;
+ *                               draw connections to/from all visual occurrences;
+ *                               dagre robustness: virtual connectivity edges, ranker fallback chain,
+ *                               simple hierarchical positional layout as last resort
  *
  * Prefered settings
  * - use the jArchi JavaScript engine GraalVM, much faster with large graphs
@@ -590,6 +595,65 @@ function _createEdge(level, param, graph, rel) {
 }
 
 /**
+ * Ensure an occurrence node exists in the graph for the given conceptId.
+ * Creates the node (copying label/size from the concept) and a virtual zero-weight edge
+ * back to the concept node so dagre's networkSimplex ranker keeps it connected.
+ */
+function _ensureOccurrenceNode(graph, conceptId, occurrenceId) {
+  if (!graph.hasNode(occurrenceId)) {
+    let origNode = graph.node(conceptId);
+    if (!origNode) return;
+    graph.setNode(occurrenceId, { label: origNode.label, width: origNode.width, height: origNode.height });
+    graph.setEdge(
+      { v: conceptId, w: occurrenceId, name: "__virt__" + occurrenceId },
+      { id: null, _virtual: true, minlen: 0, weight: 0 },
+    );
+  }
+}
+
+/**
+ * Forward propagation: a child is being nested in a parent.
+ * If the parent already has occurrence nodes (parent__occ__X), create corresponding
+ * occurrence nodes for the child nested inside each parent occurrence.
+ * This ensures the entire subtree is mirrored in each visual context of the parent.
+ */
+function _addChildToParentOccurrences(graph, graphParents, rel, childId, parentId) {
+  graph.nodes().forEach((nodeId) => {
+    if (nodeId.startsWith(parentId + "__occ__")) {
+      let childOccId = childId + "__occ__" + nodeId;
+      _ensureOccurrenceNode(graph, childId, childOccId);
+      graph.setParent(childOccId, nodeId);
+      graphParents.push({ rel: rel, childVisualId: childOccId, parentVisualId: nodeId });
+      Common.debug(`> Propagate child occurrence ${childOccId} into parent occurrence ${nodeId}`);
+    }
+  });
+}
+
+/**
+ * Backward propagation: a new occurrence of a parent was just created (parentOccId).
+ * If the parent concept already had children nested inside it, create corresponding
+ * occurrence nodes for each child inside the new parent occurrence.
+ * Recurses so that grandchildren are also propagated correctly.
+ */
+function _addExistingChildrenToOccurrence(graph, graphParents, parentConceptId, parentOccId) {
+  (graph.children(parentConceptId) || [])
+    .filter((c) => !c.includes("__occ__")) // only concept nodes, skip occurrence nodes
+    .forEach((childId) => {
+      let childOccId = childId + "__occ__" + parentOccId;
+      _ensureOccurrenceNode(graph, childId, childOccId);
+      graph.setParent(childOccId, parentOccId);
+      // Look up the original graphParents entry to carry the correct relation
+      let entry = graphParents.find((e) => e.childVisualId === childId && e.parentVisualId === parentConceptId);
+      if (entry) {
+        graphParents.push({ rel: entry.rel, childVisualId: childOccId, parentVisualId: parentOccId });
+      }
+      Common.debug(`> Propagate existing child ${childOccId} into new parent occurrence ${parentOccId}`);
+      // Recurse: propagate grandchildren into childOccId
+      _addExistingChildrenToOccurrence(graph, graphParents, childId, childOccId);
+    });
+}
+
+/**
  * Add the given relation as a parent/child to the graph.
  *
  * In jArchi a concept can have multiple visual objects (view occurrences) on a diagram.
@@ -597,6 +661,12 @@ function _createEdge(level, param, graph, rel) {
  * per node), an extra occurrence node is created with id "<conceptId>__occ__<parentId>".
  * This occurrence node is nested in the new parent while the original node stays nested
  * in the first parent. Both occurrence nodes reference the same ArchiMate concept.
+ *
+ * Occurrence propagation ensures the whole subtree is mirrored in every visual context:
+ * - Forward: when child D is added to parent C that already has occurrence C__occ__B,
+ *   D__occ__C__occ__B is created inside C__occ__B.
+ * - Backward: when occurrence C__occ__B is created and C already has child D,
+ *   D__occ__C__occ__B is created inside C__occ__B.
  */
 function _createParent(level, param, graph, graphParents, rel) {
   Common.debugStackPush(false);
@@ -613,6 +683,8 @@ function _createParent(level, param, graph, graphParents, rel) {
       // No parent yet — normal nesting
       graph.setParent(childId, parentId);
       graphParents.push({ rel: rel, childVisualId: childId, parentVisualId: parentId });
+      // Forward propagation: if parentId already has occurrences, mirror child into each
+      _addChildToParentOccurrences(graph, graphParents, rel, childId, parentId);
       if (isReversed) {
         Common.debug(
           `${"  ".repeat(level)}> Add Parent<-Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
@@ -630,21 +702,12 @@ function _createParent(level, param, graph, graphParents, rel) {
     } else {
       // Child already has a DIFFERENT parent → create a view-occurrence node for this parent
       let occurrenceId = childId + "__occ__" + parentId;
-      if (!graph.hasNode(occurrenceId)) {
-        let origNode = graph.node(childId);
-        graph.setNode(occurrenceId, { label: origNode.label, width: origNode.width, height: origNode.height });
-        // Connect the occurrence node to the original concept node with a virtual zero-weight edge.
-        // Dagre's networkSimplex ranker requires a connected edge graph; nodes that only have
-        // a graph.setParent() relationship (compound nesting) are isolated in the edge graph
-        // and cause a "Cannot read property 'v' from undefined" crash on larger models.
-        graph.setEdge(
-          { v: childId, w: occurrenceId, name: "__virt__" + occurrenceId },
-          { id: null, _virtual: true, minlen: 0, weight: 0 },
-        );
-        Common.debug(`${"  ".repeat(level)}> Create occurrence node ${occurrenceId}`);
-      }
+      _ensureOccurrenceNode(graph, childId, occurrenceId);
+      Common.debug(`${"  ".repeat(level)}> Create occurrence node ${occurrenceId}`);
       graph.setParent(occurrenceId, parentId);
       graphParents.push({ rel: rel, childVisualId: occurrenceId, parentVisualId: parentId });
+      // Backward propagation: mirror existing children of childId into this new occurrence
+      _addExistingChildrenToOccurrence(graph, graphParents, childId, occurrenceId);
       Common.debug(
         `${"  ".repeat(level)}> Add occurrence Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
       );
