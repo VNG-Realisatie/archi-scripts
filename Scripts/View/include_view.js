@@ -590,29 +590,63 @@ function _createEdge(level, param, graph, rel) {
 }
 
 /**
- * Add the given relation as a parent/child to the graph
+ * Add the given relation as a parent/child to the graph.
+ *
+ * In jArchi a concept can have multiple visual objects (view occurrences) on a diagram.
+ * When a child concept already has a parent in the graph (dagre supports only one parent
+ * per node), an extra occurrence node is created with id "<conceptId>__occ__<parentId>".
+ * This occurrence node is nested in the new parent while the original node stays nested
+ * in the first parent. Both occurrence nodes reference the same ArchiMate concept.
  */
 function _createParent(level, param, graph, graphParents, rel) {
   Common.debugStackPush(false);
-  // check if relation is already added
-  if (!graphParents.some((r) => r.id == rel.id)) {
-    // save parent relation
-    graphParents.push(rel);
+  // check if this relation is already processed (dedup by relation id)
+  if (!graphParents.some((e) => (e.rel !== undefined ? e.rel.id : e.id) === rel.id)) {
+    // determine child and parent concept ids based on layout direction
+    let isReversed = param.layoutReversed.includes(rel.type);
+    let childId  = isReversed ? rel.source.id : rel.target.id;
+    let parentId = isReversed ? rel.target.id : rel.source.id;
 
-    // # graph.setParent(v, parent)
-    // Sets the parent for v to parent if it is defined or removes the parent for v if parent is undefined.
-    // Throws an error if the graph is not compound.
-    // Returns the graph, allowing this to be chained with other functions.
-    if (param.layoutReversed.includes(rel.type)) {
-      // # graph.setParent(v, parent)
-      graph.setParent(rel.source.id, rel.target.id);
+    let existingParent = graph.parent(childId);
+
+    if (existingParent === undefined) {
+      // No parent yet — normal nesting
+      graph.setParent(childId, parentId);
+      graphParents.push({ rel: rel, childVisualId: childId, parentVisualId: parentId });
+      if (isReversed) {
+        Common.debug(
+          `${"  ".repeat(level)}> Add Parent<-Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
+        );
+      } else {
+        Common.debug(
+          `${"  ".repeat(level)}> Add Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
+        );
+      }
+    } else if (existingParent === parentId) {
+      // Same parent already set — skip
       Common.debug(
-        `${"  ".repeat(level)}> Add Parent<-Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
+        `${"  ".repeat(level)}> Skip, already nested in same parent: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
       );
     } else {
-      graph.setParent(rel.target.id, rel.source.id);
+      // Child already has a DIFFERENT parent → create a view-occurrence node for this parent
+      let occurrenceId = childId + "__occ__" + parentId;
+      if (!graph.hasNode(occurrenceId)) {
+        let origNode = graph.node(childId);
+        graph.setNode(occurrenceId, { label: origNode.label, width: origNode.width, height: origNode.height });
+        // Connect the occurrence node to the original concept node with a virtual zero-weight edge.
+        // Dagre's networkSimplex ranker requires a connected edge graph; nodes that only have
+        // a graph.setParent() relationship (compound nesting) are isolated in the edge graph
+        // and cause a "Cannot read property 'v' from undefined" crash on larger models.
+        graph.setEdge(
+          { v: childId, w: occurrenceId, name: "__virt__" + occurrenceId },
+          { id: null, _virtual: true, minlen: 0, weight: 0 },
+        );
+        Common.debug(`${"  ".repeat(level)}> Create occurrence node ${occurrenceId}`);
+      }
+      graph.setParent(occurrenceId, parentId);
+      graphParents.push({ rel: rel, childVisualId: occurrenceId, parentVisualId: parentId });
       Common.debug(
-        `${"  ".repeat(level)}> Add Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
+        `${"  ".repeat(level)}> Add occurrence Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
       );
     }
   } else {
@@ -629,12 +663,141 @@ function _filterObjectType(o, objectTypeFilter) {
   return objectTypeFilter.includes(o.type);
 }
 
+/**
+ * Ensure the dagre graph is fully connected for the networkSimplex ranker.
+ *
+ * networkSimplex builds a spanning tree over edges and crashes when the graph has
+ * disconnected components. Nodes that only participate in parent-child nesting
+ * (graph.setParent) have NO dagre edges and form isolated components.
+ *
+ * longest-path and tight-tree handle disconnected graphs natively and must NOT
+ * receive these virtual edges (weight:0 edges cause zero-length edge intersections).
+ *
+ * Returns the list of added virtual edge descriptors so they can be removed on fallback.
+ */
+function _connectDisconnectedComponents(graph) {
+  if (!dagre.graphlib.alg || typeof dagre.graphlib.alg.components !== "function") {
+    console.log("> _connectDisconnectedComponents: graphlib.alg.components not available, skipping");
+    return [];
+  }
+
+  let components = dagre.graphlib.alg.components(graph);
+  if (components.length <= 1) return []; // already connected
+
+  console.log(`> Connecting ${components.length} disconnected graph components for dagre layout`);
+  let anchorId = components[0][0]; // anchor: first node of the first component
+  let virtualEdges = [];
+  for (let i = 1; i < components.length; i++) {
+    let nodeId = components[i][0];
+    let edgeName = "__virt_comp__" + i;
+    graph.setEdge(
+      { v: anchorId, w: nodeId, name: edgeName },
+      { id: null, _virtual: true, minlen: 0, weight: 0 },
+    );
+    virtualEdges.push({ v: anchorId, w: nodeId, name: edgeName });
+  }
+  return virtualEdges;
+}
+
+/**
+ * Simple recursive hierarchical positional layout — last-resort fallback when all dagre
+ * rankers fail on heavily-nested compound graphs.
+ *
+ * Recursively sizes and positions children within their parents (stacked vertically),
+ * then arranges top-level nodes in a row. No edge routing is performed.
+ */
+function _simpleLayout(graph) {
+  const PAD = 15;
+  const GAP = 8;
+  const LABEL_H = 30; // vertical room for the parent element's label
+
+  // Recursively position children inside a parent node and expand the parent to fit.
+  function layoutChildren(nodeId) {
+    let children = (graph.children(nodeId) || []).filter((c) => !!graph.node(c));
+    if (children.length === 0) return;
+
+    let childY = LABEL_H + PAD;
+    let maxChildW = 0;
+
+    children.forEach((childId) => {
+      layoutChildren(childId); // size children first (bottom-up)
+      let child = graph.node(childId);
+      child.x = PAD + child.width / 2;
+      child.y = childY + child.height / 2;
+      childY += child.height + GAP;
+      if (child.width > maxChildW) maxChildW = child.width;
+    });
+
+    // Expand parent to contain all children
+    let node = graph.node(nodeId);
+    node.width = Math.max(node.width || 0, maxChildW + 2 * PAD);
+    node.height = childY + PAD;
+  }
+
+  // Arrange top-level nodes (no parent) left-to-right
+  let topNodes = graph.nodes().filter((n) => !graph.parent(n) && !!graph.node(n));
+  let x = 10;
+  topNodes.forEach((nodeId) => {
+    layoutChildren(nodeId);
+    let node = graph.node(nodeId);
+    node.x = x + node.width / 2;
+    node.y = 10 + node.height / 2;
+    x += node.width + 20;
+  });
+}
+
+/**
+ * Remove all edges from the graph that are marked as virtual layout edges.
+ * Called before switching dagre rankers — virtual edges cause their own dagre crashes.
+ */
+function _removeVirtualEdges(graph) {
+  let toRemove = graph.edges().filter((e) => graph.edge(e) && graph.edge(e)._virtual);
+  toRemove.forEach((e) => graph.removeEdge(e.v, e.w, e.name));
+  if (toRemove.length > 0) Common.debug(`> Removed ${toRemove.length} virtual layout edges`);
+}
+
 function _layoutGraph(param, graph) {
   console.log("\nCalculating the graph layout...");
   var opts = { debugTiming: false };
   if (param.debug) opts.debugTiming = true;
-  dagre.layout(graph, opts);
+
+  // networkSimplex requires a connected edge graph; longest-path and tight-tree do not.
+  // Only add virtual connectivity edges for networkSimplex — they cause intersection
+  // crashes ("Not possible to find intersection inside of the rectangle") with other rankers.
+  let startRanker = graph.graph().ranker; // undefined = dagre default = network-simplex
+  let needsConnectivity = !startRanker || startRanker === "network-simplex";
+  if (needsConnectivity) _connectDisconnectedComponents(graph);
+
+  // Try all dagre rankers in order; fall back to simple layout if all fail.
+  let rankers = ["network-simplex", "tight-tree", "longest-path"];
+  // Start with the user-configured ranker; then try the others
+  if (startRanker && startRanker !== "network-simplex") {
+    rankers = [startRanker, ...rankers.filter((r) => r !== startRanker)];
+  }
+
+  for (let i = 0; i < rankers.length; i++) {
+    let ranker = rankers[i];
+    graph.graph().ranker = ranker;
+    try {
+      dagre.layout(graph, opts);
+      if (i > 0) console.log(`> Succeeded with '${ranker}' ranker.`);
+      return; // layout succeeded
+    } catch (e) {
+      console.log(`> Layout failed with '${ranker}' (${e.message})`);
+      // Remove all virtual edges before trying the next ranker
+      _removeVirtualEdges(graph);
+      if (i + 1 < rankers.length) {
+        console.log(`> Retrying with '${rankers[i + 1]}' ranker...`);
+      }
+    }
+  }
+
+  // All dagre rankers failed — apply simple hierarchical positional layout
+  console.log("> All dagre rankers failed. Applying simple hierarchical positional layout.");
+  console.log("> Note: edge bendpoints will not be computed in this fallback mode.");
+  _simpleLayout(graph);
 }
+
 
 function _drawView(param, graph, graphParents, graphCircular) {
   console.log(`\nDrawing ArchiMate view...  `);
@@ -707,7 +870,10 @@ function _drawElement(param, graph, nodeId, nodeIndex, visualElementIndex, view)
     nodeIndex[nodeId] = true;
     let node = graph.node(nodeId);
     let parentId = graph.parent(nodeId);
-    let archiElement = $("#" + nodeId).first();
+    // For occurrence nodes (id = "<conceptId>__occ__<parentId>"), strip the suffix to look up
+    // the ArchiMate concept. jArchi supports multiple visual objects per concept on a diagram.
+    let conceptId = nodeId.includes("__occ__") ? nodeId.split("__occ__")[0] : nodeId;
+    let archiElement = $("#" + conceptId).first();
 
     try {
       if (parentId === undefined) {
@@ -777,25 +943,71 @@ function _calcElementPosition(node) {
 }
 
 /**
+ * Return all node ids in the graph that are visual occurrences of the given concept.
+ * The primary node (concept id itself) comes first, followed by any __occ__ nodes.
+ *
+ * @param {object} graph       dagre graph
+ * @param {string} conceptId   ArchiMate concept id
+ * @param {object} visualElementIndex  keyed by nodeId
+ * @returns {string[]} one or more node ids
+ */
+function _getOccurrenceNodeIds(graph, conceptId, visualElementIndex) {
+  let ids = [];
+  // Primary node (concept id as-is)
+  if (visualElementIndex[conceptId] !== undefined) ids.push(conceptId);
+  // Additional occurrence nodes created for multi-parent nesting
+  graph.nodes().forEach((nodeId) => {
+    if (nodeId.startsWith(conceptId + "__occ__") && visualElementIndex[nodeId] !== undefined) {
+      ids.push(nodeId);
+    }
+  });
+  // Fallback: return concept id even if not in index (preserves original error behaviour)
+  return ids.length > 0 ? ids : [conceptId];
+}
+
+/**
  * draw an Archi connection for the given edge
  *
+ * When source or target has multiple visual occurrences (view objects for the same concept),
+ * a connection is drawn for every occurrence combination so each visual object stays connected.
+ * The primary pair (first source × first target) receives dagre bendpoints; extras do not.
+ *
  * @param {object} edge graphlib edge object
- * @param {object} visualElementIndex index object to Archi view occurences
+ * @param {object} visualElementIndex index object to Archi view occurrences
  * @param {object} view Archi view
  */
 function _drawRelation(param, graph, edge, visualElementIndex, view) {
   Common.debugStackPush(false);
+  // Skip virtual layout edges (added to keep occurrence nodes connected in dagre's edge graph)
+  if (graph.edge(edge)._virtual) {
+    Common.debugStackPop();
+    return;
+  }
   Common.debug(`graph.edge(edge): ${JSON.stringify(graph.edge(edge))}`);
 
   let archiRelation = $("#" + graph.edge(edge).id).first();
   Common.debug(`archiRelation: ${Common.formatRelation(archiRelation, Common.FORMAT_WITH_TYPES)}`);
 
+  let sourceIds = _getOccurrenceNodeIds(graph, archiRelation.source.id, visualElementIndex);
+  let targetIds = _getOccurrenceNodeIds(graph, archiRelation.target.id, visualElementIndex);
+
+  // Primary connection — first source occurrence to first target occurrence — gets bendpoints
   let connection = view.add(
     archiRelation,
-    visualElementIndex[archiRelation.source.id],
-    visualElementIndex[archiRelation.target.id],
+    visualElementIndex[sourceIds[0]],
+    visualElementIndex[targetIds[0]],
   );
   _drawBendpoints(param, graph, edge, connection);
+
+  // Draw plain connections for all additional occurrence combinations
+  for (let si = 0; si < sourceIds.length; si++) {
+    for (let ti = 0; ti < targetIds.length; ti++) {
+      if (si === 0 && ti === 0) continue; // already drawn as primary
+      Common.debug(`> Add occurrence connection: ${sourceIds[si]} -> ${targetIds[ti]}`);
+      view.add(archiRelation, visualElementIndex[sourceIds[si]], visualElementIndex[targetIds[ti]]);
+    }
+  }
+
   Common.debugStackPop();
 }
 
@@ -804,14 +1016,37 @@ function _drawRelation(param, graph, edge, visualElementIndex, view) {
  *   depending on the Archi preferences, the connection is or is not drawn
  *   See Edit > preferences > connections > ARM > enable implicit connections
  *
- * @param {object} parentRel Archi relation
- * @param {object} visualElementIndex index object to Archi view occurences
+ * @param {object} entry { rel, childVisualId, parentVisualId } — the nesting entry from graphParents
+ * @param {object} visualElementIndex index object to Archi view occurrences (keyed by nodeId)
  * @param {object} view Archi view
  */
-function _layoutNestedConnection(parentRel, visualElementIndex, view) {
+function _layoutNestedConnection(entry, visualElementIndex, view) {
   Common.debugStackPush(false);
-  Common.debug(`parentRel: ${Common.formatRelation(parentRel, Common.FORMAT_WITH_TYPES)}`);
-  view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
+  // entry is { rel, childVisualId, parentVisualId }
+  // childVisualId is either the concept id (normal nesting) or "<conceptId>__occ__<parentId>" (occurrence)
+  let rel = entry.rel !== undefined ? entry.rel : entry;
+  let srcVisualId, tgtVisualId;
+
+  if (entry.childVisualId !== undefined) {
+    // Determine which side of the relation is the child by matching its concept id
+    let childConceptId = entry.childVisualId.split("__occ__")[0];
+    if (rel.source.id === childConceptId) {
+      // child is the source (reversed layout) — rare case
+      srcVisualId = entry.childVisualId;
+      tgtVisualId = entry.parentVisualId;
+    } else {
+      // child is the target (normal layout)
+      srcVisualId = entry.parentVisualId;
+      tgtVisualId = entry.childVisualId;
+    }
+  } else {
+    // Legacy: plain rel object — fall back to concept ids
+    srcVisualId = rel.source.id;
+    tgtVisualId = rel.target.id;
+  }
+
+  Common.debug(`parentRel: ${Common.formatRelation(rel, Common.FORMAT_WITH_TYPES)}`);
+  view.add(rel, visualElementIndex[srcVisualId], visualElementIndex[tgtVisualId]);
   Common.debugStackPop();
 }
 
