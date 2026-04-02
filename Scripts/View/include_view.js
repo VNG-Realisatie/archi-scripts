@@ -47,6 +47,8 @@
  *    - for connections to embedded elements, only some get bendpoints
  *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
+console.log("include_view.js");
+
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
 const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection");
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders");
@@ -142,13 +144,14 @@ function get_user_parameter(file, param) {
  */
 function read_user_parameter(file, user_param_name, action, direction, param = {}) {
   Common.debugStackPush(false);
-  // let path = file.substring(0, file.lastIndexOf("\\") + 1);
+  Common.debug(`file:\n- ${file}`);
+
   let path = file.substring(0, Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\")) + 1);
 
   if (user_param_name) {
     let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
-    let printUserParamFile = userParamFile.substring(__DIR__.length - 1);
-    console.log(`User parameters read from file "${printUserParamFile}"`);
+
+    console.log(`User parameters read from file: \n- ${userParamFile}`);
     console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
     console.log();
     try {
