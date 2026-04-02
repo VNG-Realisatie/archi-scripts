@@ -169,7 +169,7 @@ function _syncModelElements(dataSource) {
       element = model.createElement(dataSource.targetType, name);
       dataSource.setId(element, row);
       dataSource.model[id] = element;
-      element.prop(createdPropName, currentDateTime)
+      element.prop(createdPropName, currentDateTime);
       created++;
     }
 
@@ -209,7 +209,7 @@ function syncModelRelationships(dataSource) {
 
     if (!element) {
       console.log(
-        `WARNING - No element found for "${dataSource.label}" with id=${id} (maybe model elements haven't been synced before?)`
+        `WARNING - No element found for "${dataSource.label}" with id=${id} (maybe model elements haven't been synced before?)`,
       );
     } else {
       for (var relationName in dataSource.relations) {
@@ -222,7 +222,7 @@ function syncModelRelationships(dataSource) {
             var otherEnd = relation.reference.model[otherEndsIds[i]];
             if (!otherEnd) {
               console.log(
-                `WARNING - Element "${dataSource.label}" with id=${id} references another element "${relation.reference.label}" with id=${otherEndsIds[i]} which doesn't exist (maybe model elements haven't been synced before?)`
+                `WARNING - Element "${dataSource.label}" with id=${id} references another element "${relation.reference.label}" with id=${otherEndsIds[i]} which doesn't exist (maybe model elements haven't been synced before?)`,
               );
             } else {
               if (relation.isReversed) {
@@ -241,15 +241,15 @@ function syncModelRelationships(dataSource) {
 
   dataSource._modelRelationshipsSynced = true;
   console.log(
-    `INFO - ${createdOrUpdated} relationship(s) associated with datasource "${dataSource.label}" have been created or updated`
+    `INFO - ${createdOrUpdated} relationship(s) associated with datasource "${dataSource.label}" have been created or updated`,
   );
 }
 
-function tagDeletedConcepts() {
+function tagDeletedConcepts(concepts = $("concept")) {
   console.log("INFO - Looking for deleted elements or relationships and tagging them as deleted...");
   var deleted = 0;
 
-  $("concept")
+  concepts
     .filter(function (c) {
       lastUpdateDate = c.prop(syncPropName);
       if (lastUpdateDate) {
@@ -282,7 +282,7 @@ function _createOrUpdateRelationship(config, source, type, target) {
 
   if (!relationship) {
     relationship = model.createRelationship(type, "", source, target);
-    relationship.prop(createdPropName, currentDateTime)
+    relationship.prop(createdPropName, currentDateTime);
   }
 
   relationship.prop(syncPropName, currentDateTime);

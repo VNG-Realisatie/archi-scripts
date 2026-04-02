@@ -1,0 +1,66 @@
+/**
+ * Import GGM Data-objecten in GEMMA-GGM Archi-repository
+ *
+ * This script imports GGM data-objects and their relations to Beleidsdomeinen.
+ * Also tags deleted GGM concepts.
+ */
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
+const Sync = require(__SCRIPTS_DIR__ + "Scripts/Sync from CSV/Include_LoadAndSync.js");
+const Config = require(__DIR__ + "config.default.js");
+const GgmImport = require(__DIR__ + "include_ggm_import.js");
+
+Common.initConsoleLog(__FILE__, true);
+
+try {
+  const importFile = GgmImport.getImportFile(Config);
+  if (!importFile) {
+    console.log("> Canceled");
+  } else {
+    const importConfig = GgmImport.getConfiguration(importFile);
+
+    console.log("Start of synchronization Data-objecten...");
+    // We need to load Beleidsdomeinen even if we don't sync them,
+    // because Data-objecten relations reference them.
+    Sync.loadAndSync(importConfig.beleidsdomeinen);
+
+    Sync.loadAndSync(importConfig.dataobjecten);
+    Sync.syncModelRelationships(importConfig.dataobjecten);
+
+    // Tag deleted data-objecten (and other previously synced GGM concepts)
+    Sync.tagDeletedConcepts();
+
+    // Propagate deleted status to the business-objects they realize
+    _tagDeletedBusinessObjects();
+
+    console.log("End of synchronization Data-objecten.");
+  }
+} catch (error) {
+  console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+}
+
+Common.finishConsoleLog();
+
+/**
+ * Propagate deleted status from Data-objects to the Business-objects they realize
+ */
+function _tagDeletedBusinessObjects() {
+  console.log("INFO - Propagating deleted status from data-objects to realized business-objects...");
+  let deletedCount = 0;
+
+  $("data-object")
+    .filter((doObj) => doObj.prop(Sync.deletedPropName) == Sync.currentDateTime)
+    .outRels("realization-relationship")
+    .filter((rel) => rel.name == GgmGemma.REALIZATION_LABEL && rel.target.type == "business-object")
+    .each((rel) => {
+      let boObj = rel.target;
+      if (!boObj.prop(Sync.deletedPropName)) {
+        console.log(`> Tagging realized business-object as deleted: ${boObj.name}`);
+        boObj.name = `[DELETED] ${boObj.name}`;
+        boObj.prop(Sync.deletedPropName, Sync.currentDateTime);
+        deletedCount++;
+      }
+    });
+
+  console.log(`INFO - Tagged ${deletedCount} business-objects as deleted.`);
+}

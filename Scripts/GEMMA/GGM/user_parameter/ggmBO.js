@@ -12,19 +12,7 @@ module.exports = {
     "business-object",
     "grouping",
   ],
-  includeRelationType: [
-    // "access-relationship",
-    // "aggregation-relationship",
-    // "assignment-relationship",
-    // "association-relationship",
-    // "composition-relationship",
-    // "flow-relationship",
-    // "influence-relationship",
-    // "realization-relationship",
-    // "serving-relationship",
-    // "specialization-relationship",
-    // "triggering-relationship",
-  ],
+  includeRelationType: [  ],
   layoutReversed: [
     // "access-relationship",
     // "aggregation-relationship",
@@ -53,14 +41,8 @@ module.exports = {
   ],
   excludeFromView: true,
 
-  // nodeWidth: 200,
-  // nodeHeight: 60,
-  // nodeWidth: 116,
-  // nodeHeight: 65,
-
   nodeWidth: 200,
-  nodeHeight: 60,
+  nodeHeight: 80,
   hSep: 20,
   vSep: 160,
-  
 };
