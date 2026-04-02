@@ -605,7 +605,10 @@ function _createEdge(level, param, graph, rel) {
 function _ensureOccurrenceNode(graph, conceptId, occurrenceId) {
   if (!graph.hasNode(occurrenceId)) {
     let origNode = graph.node(conceptId);
-    if (!origNode) return;
+    if (!origNode) {
+      // Fallback if concept node not yet created
+      origNode = { label: "", width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
+    }
     graph.setNode(occurrenceId, { label: origNode.label, width: origNode.width, height: origNode.height });
     graph.setEdge(
       { v: conceptId, w: occurrenceId, name: "__virt__" + occurrenceId },
@@ -751,10 +754,22 @@ function _connectDisconnectedComponents(graph) {
   if (components.length <= 1) return []; // already connected
 
   console.log(`> Connecting ${components.length} disconnected graph components for dagre layout`);
-  let anchorId = components[0][0]; // anchor: first node of the first component
+
+  // Find a root node for each component if possible (nodes without parents or incoming edges)
+  let componentRoots = components.map((comp) => {
+    // Prefer nodes without parents (top-level nodes in compound graph)
+    let roots = comp.filter((nodeId) => !graph.parent(nodeId));
+    if (roots.length > 0) return roots[0];
+    // Fallback: search for nodes with no incoming edges within the component
+    let noInEdges = comp.filter((nodeId) => graph.inEdges(nodeId).length === 0);
+    if (noInEdges.length > 0) return noInEdges[0];
+    return comp[0];
+  });
+
+  let anchorId = componentRoots[0];
   let virtualEdges = [];
-  for (let i = 1; i < components.length; i++) {
-    let nodeId = components[i][0];
+  for (let i = 1; i < componentRoots.length; i++) {
+    let nodeId = componentRoots[i];
     let edgeName = "__virt_comp__" + i;
     graph.setEdge(
       { v: anchorId, w: nodeId, name: edgeName },
@@ -774,41 +789,59 @@ function _connectDisconnectedComponents(graph) {
  */
 function _simpleLayout(graph) {
   const PAD = 15;
-  const GAP = 8;
+  const GAP = 10;
   const LABEL_H = 30; // vertical room for the parent element's label
 
-  // Recursively position children inside a parent node and expand the parent to fit.
-  function layoutChildren(nodeId) {
+  // First pass: Recursively calculate sizes of children and expand parents (bottom-up)
+  function calculateSizesRecursive(nodeId) {
     let children = (graph.children(nodeId) || []).filter((c) => !!graph.node(c));
     if (children.length === 0) return;
 
-    let childY = LABEL_H + PAD;
+    let totalY = LABEL_H + PAD;
     let maxChildW = 0;
 
     children.forEach((childId) => {
-      layoutChildren(childId); // size children first (bottom-up)
+      calculateSizesRecursive(childId);
       let child = graph.node(childId);
-      child.x = PAD + child.width / 2;
-      child.y = childY + child.height / 2;
-      childY += child.height + GAP;
+      totalY += child.height + GAP;
       if (child.width > maxChildW) maxChildW = child.width;
     });
 
-    // Expand parent to contain all children
     let node = graph.node(nodeId);
     node.width = Math.max(node.width || 0, maxChildW + 2 * PAD);
-    node.height = childY + PAD;
+    node.height = totalY + PAD - GAP; // use last totalY but remove last GAP
   }
 
-  // Arrange top-level nodes (no parent) left-to-right
+  // Second pass: Recursively position children based on parent top-left (top-down)
+  function positionChildrenRecursive(nodeId, parentX, parentY) {
+    let children = (graph.children(nodeId) || []).filter((c) => !!graph.node(c));
+    if (children.length === 0) return;
+
+    let childY = parentY + LABEL_H + PAD;
+    children.forEach((childId) => {
+      let child = graph.node(childId);
+      child.x = parentX + PAD + child.width / 2;
+      child.y = childY + child.height / 2;
+      positionChildrenRecursive(childId, parentX + PAD, childY);
+      childY += child.height + GAP;
+    });
+  }
+
+  // Find all top-level nodes
   let topNodes = graph.nodes().filter((n) => !graph.parent(n) && !!graph.node(n));
-  let x = 10;
+
+  // Step 1: Calculate sizes recursively
+  topNodes.forEach((nodeId) => calculateSizesRecursive(nodeId));
+
+  // Step 2: Arrange top-level nodes in a simple grid/row and position their children
+  let currentX = 20;
+  let currentY = 20;
   topNodes.forEach((nodeId) => {
-    layoutChildren(nodeId);
     let node = graph.node(nodeId);
-    node.x = x + node.width / 2;
-    node.y = 10 + node.height / 2;
-    x += node.width + 20;
+    node.x = currentX + node.width / 2;
+    node.y = currentY + node.height / 2;
+    positionChildrenRecursive(nodeId, currentX, currentY);
+    currentX += node.width + 40;
   });
 }
 
@@ -850,6 +883,11 @@ function _layoutGraph(param, graph) {
       return; // layout succeeded
     } catch (e) {
       console.log(`> Layout failed with '${ranker}' (${e.message})`);
+      if (param.debug) {
+        console.error(`Dagre layout error details for ranker '${ranker}':`);
+        console.error(e);
+        if (e.stack) console.error(e.stack);
+      }
       // Remove all virtual edges before trying the next ranker
       _removeVirtualEdges(graph);
       if (i + 1 < rankers.length) {
