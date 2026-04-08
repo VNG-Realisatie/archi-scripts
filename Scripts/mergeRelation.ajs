@@ -14,8 +14,13 @@
  * 06 2023: logic is now part of includeMergeConcept
  */
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const Merge = require(__DIR__ + "includeMergeConcept.js");
+const Merge = require(__SCRIPTS_DIR__ + "Scripts/_lib/includeMergeConcept.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 Common.initConsoleLog(__FILE__);
-Merge.mergeElementOrRelation(Common.OBJECT_TYPE_RELATION);
+
+let selectedConcepts = Selection.getSelection($(selection), Common.OBJECT_TYPE_RELATION);
+// console.log(`Selected concepts: ${selectedConcepts}`);
+Merge.mergeConcept(selectedConcepts, Common.OBJECT_TYPE_RELATION);
+
 Common.finishConsoleLog();

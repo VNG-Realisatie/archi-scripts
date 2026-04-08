@@ -1,0 +1,39 @@
+/**
+ * Merge all duplicate elements with the selected elements
+ *  - duplicate elements have the same type and the same name
+ *  - the selected elements are kept, the duplicates are merged and then deleted
+ *
+ * GGM extensie
+ * - merge beleidsdomein en maak de GEMMA en GGM properties kloppend
+ */
+
+const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Merge = require(__SCRIPTS_DIR__ + "Scripts/_lib/includeMergeConcept.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
+
+Common.initConsoleLog(__FILE__);
+
+let selectedConcepts = Selection.getSelection($(selection), Common.OBJECT_TYPE_ELEMENT);
+Merge.mergeConcept(selectedConcepts, Common.OBJECT_TYPE_ELEMENT, ggm_beleidsdomein_prop);
+
+// selectedConcepts.each((concept) => ggm_beleidsdomein_prop(concept));
+
+Common.finishConsoleLog();
+
+// voorlopige functie, werkt alleen met 1 duplicate
+// een prepare functie die duplicaten bijwerkt lost dit op
+function ggm_beleidsdomein_prop(concept) {
+  // neem export datum en tijd over
+  concept.prop(GgmGemma.PROP_GGM_DATUM_TIJD, concept.prop(GgmGemma.LABEL_DATUM_TIJD));
+
+  // neem sync datum tijd over van deleted
+  concept.prop(GgmGemma.PROP_GGM_SYNC_CREATED, concept.prop(GgmGemma.PROP_GGM_SYNC_DELETED));
+  concept.prop(GgmGemma.PROP_GGM_SYNC, concept.prop(GgmGemma.PROP_GGM_SYNC_DELETED));
+  concept.removeProp(GgmGemma.PROP_GGM_SYNC_DELETED);
+
+  // verwijder property GEMMA_type met waarde "te bepalen"
+  console.log(`  ${concept.prop(GgmGemma.PROP_GEMMA_TYPE)}`);
+  concept.removeProp(GgmGemma.PROP_GEMMA_TYPE, GgmGemma.GEMMA_TYPE_TE_BEPALEN);
+  console.log(`  ${concept.prop(GgmGemma.PROP_GEMMA_TYPE)}`);
+}

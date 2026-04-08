@@ -55,6 +55,7 @@ const GEMMA_URL = "https://gemmaonline.nl/index.php/GEMMA/id-"; // publicatie-om
 const REALIZATION_LABEL = "realiseert bedrijfsobject";
 const GEMMA_TYPE_BELEIDSDOMEIN = "Beleidsdomein";
 const GEMMA_TYPE_BEDRIJFSOBJECT = "Bedrijfsobject";
+const GEMMA_TYPE_TE_BEPALEN = "te bepalen";
 const GEMMA_GGM_STATUS_LEEG = "Leeg";
 const GEMMA_GGM_STATUS_NIEUW = "Nieuw";
 

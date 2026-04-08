@@ -25,7 +25,7 @@
  *  06 2023 Select one or multiple elements, all these elements will be merged.
  *  06 2023 Also merge relations. Renamed from mergeElement to mergeConcept
  *  08 2024 Before merging an element, remove identical relations from the duplicates
- * 
+ *
  * (c) 2019 Mark Backer
  */
 const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
@@ -34,17 +34,18 @@ const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 
 const PROP_ID = "Object ID";
 
-function mergeElementOrRelation(conceptType) {
+function mergeConcept(selectedConcepts, conceptType, propfunction) {
+  console.log(`Selected concepts: ${selectedConcepts}`);
   try {
     if (model == null || model.id == null) {
       throw `Nothing selected. Select one or more ${conceptType}s, or select a view or a folder containing ${conceptType}s`;
     }
 
-    let selectedConcepts = Selection.getSelection($(selection), conceptType);
+    // let selectedConcepts = Selection.getSelection($(selection), conceptType);
     console.log();
     let count = { merged: 0, noduplicates: 0, skipped: 0, duplicates: 0 };
 
-    selectedConcepts.each((concept) => _mergeConcept(concept, count));
+    selectedConcepts.each((concept) => _mergeConcept(concept, count, propfunction));
 
     console.log(`Selected ${conceptType}s: ${selectedConcepts.size()}`);
     console.log(`- merged: ${count.merged}`);
@@ -56,38 +57,40 @@ function mergeElementOrRelation(conceptType) {
   }
 }
 
-function _mergeConcept(selectedConcept, count) {
+function _mergeConcept(selectedConcept, count, propfunction) {
   // check if the concept still exists in the model, can be deleted as a duplicate
   if (selectedConcept.model) {
-    let primary = Common.concept(selectedConcept);
+    let original = Common.concept(selectedConcept);
 
-    let duplicateList = _getDuplicates(primary);
+    let duplicateList = _getDuplicates(original);
     if (duplicateList.size() > 0) {
-      if ($(primary).is(Common.OBJECT_TYPE_ELEMENT)) {
-        console.log(`- ${primary}`);
+      if ($(original).is(Common.OBJECT_TYPE_ELEMENT)) {
+        console.log(`- ${original}`);
       }
-      if ($(primary).is(Common.OBJECT_TYPE_RELATION)) {
-        let primaryName = `${primary.name ? primary.name : "no-name"}`;
-        let primaryString = `${primary.type}:  ${primary.source.name}  ===${primaryName}==>  ${primary.target.name}`;
+      if ($(original).is(Common.OBJECT_TYPE_RELATION)) {
+        let primaryName = `${original.name ? original.name : "no-name"}`;
+        let primaryString = `${original.type}:  ${original.source.name}  ===${primaryName}==>  ${original.target.name}`;
         console.log(`- ${primaryString}`);
       }
-      console.log(`    folder = ${ArchiFolders.printFolderPath(primary)}`);
-      console.log(`    id     = ${primary.id}`);
+      console.log(`    folder = ${ArchiFolders.printFolderPath(original)}`);
+      console.log(`    id     = ${original.id}`);
       console.log(`  has duplicates:`);
 
       duplicateList.each((duplicate) => {
         console.log(`    folder = ${ArchiFolders.printFolderPath(duplicate)}`);
         console.log(`    id     = ${duplicate.id}`);
 
-        _prepareProperties(primary, duplicate);
-        _prepareRelations(primary, duplicate);
+        _prepareProperties(original, duplicate);
+        _prepareRelations(original, duplicate);
 
-        primary.merge(duplicate);
+        original.merge(duplicate);
         duplicate.delete();
         count.duplicates += 1;
       });
       // remove newlines added by Archi merge method
-      primary.documentation = primary.documentation.trim();
+      original.documentation = original.documentation.trim();
+      // apply additional property function if provided
+      if (propfunction) propfunction(original);
 
       console.log(`  > ${duplicateList.size()} duplicates merged and deleted\n`);
       count.merged += 1;
@@ -99,16 +102,16 @@ function _mergeConcept(selectedConcept, count) {
   }
 }
 
-function _getDuplicates(primary) {
+function _getDuplicates(original) {
   let duplicateList = $();
 
-  if ($(primary).is(Common.OBJECT_TYPE_ELEMENT)) {
-    duplicateList = $(`.${primary.name}`).filter(primary.type).not($(primary));
+  if ($(original).is(Common.OBJECT_TYPE_ELEMENT)) {
+    duplicateList = $(`.${original.name}`).filter(original.type).not($(original));
   }
-  if ($(primary).is(Common.OBJECT_TYPE_RELATION)) {
-    duplicateList = $(primary.type)
-      .not($(primary))
-      .filter((rel) => filterRelationDuplicates(primary, rel));
+  if ($(original).is(Common.OBJECT_TYPE_RELATION)) {
+    duplicateList = $(original.type)
+      .not($(original))
+      .filter((rel) => filterRelationDuplicates(original, rel));
   }
   return duplicateList;
 
@@ -124,9 +127,9 @@ function _getDuplicates(primary) {
   }
 }
 
-function _prepareProperties(primary, duplicate) {
-  if (primary.documentation && duplicate.documentation) {
-    if (primary.documentation.trim() == duplicate.documentation.trim()) {
+function _prepareProperties(original, duplicate) {
+  if (original.documentation && duplicate.documentation) {
+    if (original.documentation.trim() == duplicate.documentation.trim()) {
       duplicate.documentation = ``;
     } else {
       console.log(`    - INFO; documentation of duplicate appended`);
@@ -135,14 +138,14 @@ function _prepareProperties(primary, duplicate) {
   let duplicatePropList = duplicate.prop();
   duplicatePropList.forEach((property) => {
     if (property == PROP_ID) {
-      if (primary.prop(property)) {
+      if (original.prop(property)) {
         duplicate.removeProp(property);
       } else {
         console.log(`    - WARNING; added property ${PROP_ID} from duplicate`);
       }
     } else {
-      if (primary.prop(property)) {
-        if (primary.prop(property).trim() == duplicate.prop(property).trim()) {
+      if (original.prop(property)) {
+        if (original.prop(property).trim() == duplicate.prop(property).trim()) {
           duplicate.removeProp(property);
         } else {
           console.log(`    - INFO; appended multiple properties "${property}"`);
@@ -152,9 +155,9 @@ function _prepareProperties(primary, duplicate) {
   });
 }
 
-function _prepareRelations(primary, duplicate) {
+function _prepareRelations(original, duplicate) {
   console.log("    - Delete duplicate incoming relation with objects:");
-  $(primary)
+  $(original)
     .inRels()
     .each((rel) => {
       let duplicateInRels = $(duplicate)
@@ -167,7 +170,7 @@ function _prepareRelations(primary, duplicate) {
     });
 
   console.log("    - Delete duplicate outgoing relation with objects:");
-  $(primary)
+  $(original)
     .outRels()
     .each((rel) => {
       let duplicateOutRels = $(duplicate)
@@ -192,6 +195,6 @@ function _prepareRelations(primary, duplicate) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     PROP_ID,
-    mergeElementOrRelation,
+    mergeConcept,
   };
 }

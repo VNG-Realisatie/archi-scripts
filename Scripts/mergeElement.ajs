@@ -17,8 +17,13 @@
  * 06 2023: Select one or multiple master elements, all these elements will be merged.
  */
 const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const Merge = require(__DIR__ + "includeMergeConcept.js");
+const Merge = require(__SCRIPTS_DIR__ + "Scripts/_lib/includeMergeConcept.js");
+const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
 
 Common.initConsoleLog(__FILE__);
-Merge.mergeElementOrRelation(Common.OBJECT_TYPE_ELEMENT);
+
+let selectedConcepts = Selection.getSelection($(selection), Common.OBJECT_TYPE_ELEMENT);
+// console.log(`Selected concepts: ${selectedConcepts}`);
+Merge.mergeConcept(selectedConcepts, Common.OBJECT_TYPE_ELEMENT);
+
 Common.finishConsoleLog();
