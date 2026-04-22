@@ -10,7 +10,8 @@
  */
 console.log("Loading selection.js");
 
-const Common = require(__DIR__ + "Common.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common");
 
 const _DIAGRAM_OBJECTS = [
   "diagram-model-group",
