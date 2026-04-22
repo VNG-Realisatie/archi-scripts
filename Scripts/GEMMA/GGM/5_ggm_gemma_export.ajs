@@ -10,11 +10,13 @@
  * Mapping specification, see
  *  https://github.com/VNG-Realisatie/GEMMA-GGM-Archi-repository/blob/develop/exports/Specificatie%20GGM-GEMMA%20data-uitwisseling.md
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
+const CSVExport = require(REPO_ROOT + "ImportExport_CSV/include_export.js");
+const ExportImport = require(REPO_ROOT + "ImportExport_CSV/include_export_import.js");
+
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
-const CSVExport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_export.js");
-const ExportImport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_export_import.js");
 
 Common.initConsoleLog(__FILE__, true);
 

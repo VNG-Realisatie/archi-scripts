@@ -1,0 +1,158 @@
+/**
+Resize Elements to Fit Wrapped Labels
+
+Usage
+- Open a view in Archi
+- Select one or more elements you want to adjust
+- Run the jArchi script
+ */
+// === configuratie ===
+var CONFIG = {
+  maxLineWidth: 160, // gewenste max breedte per regel (px)
+  charWidth: 7, // gemiddelde breedte per karakter (heuristiek)
+  padding: 20, // extra ruimte links/rechts
+  lineHeight: 14, // voor optionele hoogte-aanpassing
+  adjustHeight: false, // true = hoogte aanpassen
+};
+
+// === helpers ===
+function normalize(text) {
+  return text ? text.trim().replace(/\s+/g, " ") : "";
+}
+
+function wrapText(name, maxWidthPx, charWidth) {
+  var words = normalize(name).split(" ");
+  var lines = [];
+  var currentLine = "";
+
+  words.forEach((word) => {
+    var testLine = currentLine ? currentLine + " " + word : word;
+    var testWidth = testLine.length * charWidth;
+
+    if (testWidth > maxWidthPx && currentLine !== "") {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+
+  return lines;
+}
+
+function calculateSize(obj) {
+  var name = obj.concept ? obj.concept.name : "";
+  if (!name) return null;
+
+  var lines = wrapText(name, CONFIG.maxLineWidth, CONFIG.charWidth);
+
+  var longest = 0;
+  lines.forEach((l) => {
+    if (l.length > longest) longest = l.length;
+  });
+
+  var width = longest * CONFIG.charWidth + CONFIG.padding;
+
+  var height = obj.bounds.height;
+  if (CONFIG.adjustHeight) {
+    height = lines.length * CONFIG.lineHeight + CONFIG.padding;
+  }
+
+  return {
+    width: Math.max(width, obj.bounds.width),
+    height: height,
+  };
+}
+
+function resizeObject(obj, newSize) {
+  var b = obj.bounds;
+  obj.bounds = {
+    x: b.x,
+    y: b.y,
+    width: newSize.width,
+    height: newSize.height,
+  };
+}
+
+function getRightEdge(obj) {
+  var b = obj.bounds;
+  return b.x + b.width;
+}
+
+function adjustParents(obj) {
+  var parent = obj.container;
+
+  while (parent) {
+    var children = parent.children;
+
+    var maxRight = 0;
+    children.each((child) => {
+      var right = getRightEdge(child);
+      if (right > maxRight) maxRight = right;
+    });
+
+    var parentBounds = parent.bounds;
+    var neededWidth = maxRight - parentBounds.x + CONFIG.padding;
+
+    if (neededWidth > parentBounds.width) {
+      parent.bounds = {
+        x: parentBounds.x,
+        y: parentBounds.y,
+        width: neededWidth,
+        height: parentBounds.height,
+      };
+    }
+
+    parent = parent.container;
+  }
+}
+
+function adjustConnections(view, changedObjects) {
+  var changedIds = changedObjects.map((o) => o.id);
+
+  view.connections.each((conn) => {
+    var src = conn.source;
+    var tgt = conn.target;
+
+    if ((src && changedIds.includes(src.id)) || (tgt && changedIds.includes(tgt.id))) {
+      conn.deleteAllBendpoints();
+    }
+  });
+}
+
+// === main ===
+function main() {
+  var selected = $(selection)
+  if (selected.length === 0) {
+    console.log("Geen elementen geselecteerd");
+    return;
+  }
+
+  var view = selected.first().view;
+
+  var changed = [];
+
+  // eerst alle elementen resizen
+  selected.each((obj) => {
+    var newSize = calculateSize(obj);
+    if (!newSize) return;
+
+    if (newSize.width > obj.bounds.width || (CONFIG.adjustHeight && newSize.height !== obj.bounds.height)) {
+      resizeObject(obj, newSize);
+      changed.push(obj);
+    }
+  });
+
+  // daarna parents aanpassen
+  changed.forEach((obj) => {
+    adjustParents(obj);
+  });
+
+  // relaties aanpassen
+  adjustConnections(view, changed);
+  console.log("Klaar. Aangepaste elementen: " + changed.length);
+}
+
+main();

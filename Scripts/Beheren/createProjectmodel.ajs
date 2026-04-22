@@ -36,9 +36,10 @@
  * Author:  Mark Backer
  * Version: 1 (2021-03)
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
+const Selection = require(REPO_ROOT + "_lib/selection.js");
 
 const PROP_ID = "Object ID";
 const MODEL_TYPE = "Type model";

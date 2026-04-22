@@ -1,2 +1,3 @@
-const { doEachRel, sRel } = require(__SCRIPTS_DIR__ + "Scripts/_lib/doEach");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const { doEachRel, sRel } = require(REPO_ROOT + "_lib/doEach");
 doEachRel(sRel)(selection, 1); // start vertical and create an S-Shape relationship

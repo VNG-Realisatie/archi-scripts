@@ -1,9 +1,9 @@
 /**
  * GGM Import configuration for Beleidsdomeinen and Data-objecten
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
 
 function getImportFile(Config) {
   let importFile = Config.GGM_importFolder + Config.elementCSV;

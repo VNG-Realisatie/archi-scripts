@@ -22,7 +22,7 @@
  *
  */
 console.log("Loading include_import.js");
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+
 const ExportImport = require(__DIR__ + "include_export_import.js");
 
 // use this value in a property column to remove a property from the object

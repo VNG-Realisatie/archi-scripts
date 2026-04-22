@@ -16,9 +16,11 @@
  * 07 2022: keep masters property Object ID, drop the other Object ID's
  * 06 2023: Select one or multiple master elements, all these elements will be merged.
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const Merge = require(__SCRIPTS_DIR__ + "Scripts/_lib/includeMergeConcept.js");
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const Merge = require(REPO_ROOT + "_lib/includeMergeConcept.js");
+const Selection = require(REPO_ROOT + "_lib/selection.js");
 
 Common.initConsoleLog(__FILE__);
 

@@ -28,9 +28,7 @@
  *
  * (c) 2019 Mark Backer
  */
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 
 const PROP_ID = "Object ID";
 

@@ -44,9 +44,9 @@
  */
 console.log("include_view.js");
 
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders");
+const Common = require(REPO_ROOT + "_lib/Common");
+const Selection = require(REPO_ROOT + "_lib/selection");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
 const GENERATE_SINGLE = "Generate";
 const GENERATE_MULTIPLE = "GenerateMultiple";
@@ -75,7 +75,7 @@ const USER_PARAM_FOLDER = "user_parameter"; // folder with user parameter settin
  * Ensure Archi Preferences > Scripting: CommonJS is enabled and engine is GraalVM.
  */
 try {
-  var dagre = require(__SCRIPTS_DIR__ + "Scripts/node_modules/dagre-cluster-fix");
+  var dagre = require("dagre-cluster-fix");
   console.log(`Dagre version:`);
   console.log(`- dagre:    ${dagre.version}`);
   console.log(`- graphlib: ${dagre.graphlib.version}\n`);

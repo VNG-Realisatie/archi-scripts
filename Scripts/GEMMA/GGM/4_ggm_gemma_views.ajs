@@ -14,10 +14,11 @@
  * - styled de views
  * - set de eigenschappen van de views
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
-const View = require(__SCRIPTS_DIR__ + "Scripts/View/include_view.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const Selection = require(REPO_ROOT + "_lib/selection.js");
+const View = require(REPO_ROOT + "View/include_view.js");
+
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 
 const FOLDER_SYNC_GGM_VIEWS = GgmGemma.FOLDER_SYNC_GGM + "/GGM naar GEMMA";

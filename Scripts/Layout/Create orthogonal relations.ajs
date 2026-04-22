@@ -1,2 +1,3 @@
-const { doEachRel, ortho } = require(__SCRIPTS_DIR__ + "Scripts/_lib/doEach");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const { doEachRel, ortho } = require(REPO_ROOT + "_lib/doEach");
 doEachRel(ortho)(selection); // make all existing visual relationships orthogonal (especially after moving an object in a view)

@@ -1,11 +1,12 @@
 /**
  * Interactive Graphical User Interface for View Layout Parameters
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common");
 
 Common.initConsoleLog(__FILE__, true);
 
-const View = require(__DIR__ + "include_view");
+const View = require(REPO_ROOT + "View/include_view");
 const File = Java.type("java.io.File");
 const FileWriter = Java.type("java.io.FileWriter");
 const FileReader = Java.type("java.io.FileReader");

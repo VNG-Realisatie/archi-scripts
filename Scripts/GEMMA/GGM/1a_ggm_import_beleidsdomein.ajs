@@ -4,10 +4,12 @@
  * This script imports GGM "iv3-domeinen" as groupings with GGM types "Beleidsdomein".
  * Also tags deleted beleidsdomeinen.
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
-const Sync = require(__SCRIPTS_DIR__ + "Scripts/Sync from CSV/Include_LoadAndSync.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const Sync = require(REPO_ROOT + "Sync from CSV/Include_LoadAndSync.js");
+
 const Config = require(__DIR__ + "config.default.js");
+const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 const GgmImport = require(__DIR__ + "include_ggm_import.js");
 
 Common.initConsoleLog(__FILE__, true);

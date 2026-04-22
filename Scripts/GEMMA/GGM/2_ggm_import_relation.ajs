@@ -10,8 +10,9 @@
  * Dit script leest de GGM relaties
  * - associaties en specialisaties tussen data-objecten
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common.js");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
 
 Common.initConsoleLog(__FILE__, true);
 
@@ -19,7 +20,7 @@ const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 
 // Moet var zijn, const is block scoped.
 var EXTERNAL_PROP_ID = GgmGemma.PROP_GGM_ID_IMPORTED; // EXTERNAL_PROP_ID overruled DEFAULT_PROP_ID for matching objects when importing
-const CSVImport = require(__SCRIPTS_DIR__ + "Scripts/ImportExport_CSV/include_import.js");
+const CSVImport = require(REPO_ROOT + "ImportExport_CSV/include_import.js");
 
 /**
  * GGM CSV importbestanden in de lokale GGM import folder

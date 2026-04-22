@@ -8,7 +8,8 @@
  * - a view                       => toggle figure of all elements on the view
  * - a folder with views          => toggle figure of all elements of all views in the folder(s)
  */
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Selection = require(REPO_ROOT + "_lib/selection.js");
 
 console.log("\nToggle figure of objects of selected type\n");
 let collection = Selection.getVisualSelection($(selection), "element");

@@ -1,5 +1,4 @@
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
-const GEMMA = require(__SCRIPTS_DIR__ + "Scripts/GEMMA/include_GEMMA.js");
+const GEMMA = require(__DIR__ + "../include_GEMMA.js");
 
 console.log("Loading include_ggm_gemma.js");
 

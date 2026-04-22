@@ -5,8 +5,9 @@
  * Format of the filename:
  * - <user parameter filename>_<action>_<direction>.ajs
  */
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common");
-const View = require(__SCRIPTS_DIR__ + "Scripts/View/include_view");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common");
+const View = require(REPO_ROOT + "View/include_view");
 
 Common.initConsoleLog(__FILE__, true);
 

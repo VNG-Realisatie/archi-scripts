@@ -2,7 +2,7 @@
  * Shared constants and functions for exporting and importing
  */
 const Papa = require("papaparse");
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
+const Common = require(REPO_ROOT + "_lib/Common.js");
 
 // define a mapping object with PROP_ADD as an extra column
 const PROP_ADD = "add column to export";

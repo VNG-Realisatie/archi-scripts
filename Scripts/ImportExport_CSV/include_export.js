@@ -3,10 +3,10 @@
  */
 console.log("Loading include_export.js");
 
-const Selection = require(__SCRIPTS_DIR__ + "Scripts/_lib/selection.js");
-const ArchiFolders = require(__SCRIPTS_DIR__ + "Scripts/_lib/archi_folders.js");
+const Selection = require(REPO_ROOT + "_lib/selection.js");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
+
 const ExportImport = require(__DIR__ + "include_export_import.js");
-const Common = require(__SCRIPTS_DIR__ + "Scripts/_lib/Common.js");
 const Config = require(__DIR__ + "config.default.js");
 
 /**

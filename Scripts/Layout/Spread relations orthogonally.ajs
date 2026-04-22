@@ -1,2 +1,3 @@
-const { doEachElem, distributeConnections } = require(__SCRIPTS_DIR__ + "Scripts/_lib/doEach");
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const { doEachElem, distributeConnections } = require(REPO_ROOT + "_lib/doEach");
 doEachElem(distributeConnections)(selection); // arrange and spread equally multiple visual relationships along the edges of an element
