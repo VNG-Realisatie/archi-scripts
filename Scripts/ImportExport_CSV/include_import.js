@@ -448,22 +448,29 @@ function _createObject(row, index, rowLabels, sync) {
   let resultCode = SKIP;
   let archiObj = {};
 
-  if (row.type.endsWith("relationship")) {
-    let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
-    Common.debug(`findSrc: ${JSON.stringify(findSrc)}`);
-    let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
-    Common.debug(`findTgt: ${JSON.stringify(findTgt)}`);
+  try {
 
-    if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
-      archiObj = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
+    if (row.type.endsWith("relationship")) {
+      let findSrc = _findObject(row["source.type"], row["source.name"], row[`source.prop.${ExportImport.PROP_ID}`], row["source.id"]);
+      Common.debug(`findSrc: ${JSON.stringify(findSrc)}`);
+      let findTgt = _findObject(row["target.type"], row["target.name"], row[`target.prop.${ExportImport.PROP_ID}`], row["target.id"]);
+      Common.debug(`findTgt: ${JSON.stringify(findTgt)}`);
+      
+      if (findSrc.findCode == FOUND && findTgt.findCode == FOUND) {
+        archiObj = model.createRelationship(row.type, row.name, findSrc.archiObj, findTgt.archiObj);
+      } else {
+        line += `row[${index + 2}] ${SKIP}\n`;
+        line += `  Relation not created, no (unique) source and/or target\n`;
+        line += `  - found source(s): ${findSrc.archiObj}\n`;
+        line += `  - found target(s): ${findTgt.archiObj}`;
+      }
     } else {
-      line += `row[${index + 2}] ${SKIP}\n`;
-      line += `  Relation not created, no (unique) source and/or target\n`;
-      line += `  - found source(s): ${findSrc.archiObj}\n`;
-      line += `  - found target(s): ${findTgt.archiObj}`;
+      archiObj = model.createElement(row.type, row.name);
     }
-  } else {
-    archiObj = model.createElement(row.type, row.name);
+  } catch (error) {
+    line += `row[${index + 2}] ${SKIP}\n`;
+    line += `  Error when creating object: ${error}\n`;
+    Common.debug(line);
   }
 
   if (Object.keys(archiObj).length > 0) {
