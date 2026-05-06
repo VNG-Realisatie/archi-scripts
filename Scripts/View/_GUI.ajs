@@ -24,6 +24,7 @@ const ButtonWidget = Java.type("org.eclipse.swt.widgets.Button");
 const ComboWidget = Java.type("org.eclipse.swt.widgets.Combo");
 const TabFolderWidget = Java.type("org.eclipse.swt.widgets.TabFolder");
 const TabItemWidget = Java.type("org.eclipse.swt.widgets.TabItem");
+const ScrolledCompositeWidget = Java.type("org.eclipse.swt.custom.ScrolledComposite");
 const TextWidget = Java.type("org.eclipse.swt.widgets.Text");
 const ListWidget = Java.type("org.eclipse.swt.widgets.List");
 const GridDataFactory = Java.type("org.eclipse.jface.layout.GridDataFactory");
@@ -494,6 +495,7 @@ let layoutDialog = {
       box:     { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'box: Direction, Node placement, Edge Routing and Layer Spacing are ignored.' },
       stress:  { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'stress: Direction, Node placement, Edge Routing and Layer Spacing are ignored.' },
       radial:  { dir: false, nodePlacement: false, routing: false, layerSep: true,  note: 'radial: Direction, Node placement and Edge Routing are ignored; Layer Spacing sets the radius.' },
+      dagre:   { dir: true,  nodePlacement: false, routing: false, layerSep: true,  note: 'dagre: Direction, Node Spacing and Layer Spacing apply. Node placement and Edge Routing are ELK-only. Add ranker to parameter file (default: network-simplex).' },
     };
     var c = CAPS[algo] || CAPS['layered'];
     function setRowEnabled(comp, enabled) {
@@ -520,7 +522,9 @@ let layoutDialog = {
         "Modify parameters to auto-generate and layout your selection or view.",
         IMessageProvider.INFORMATION,
       );
-      layoutDialog.dialog.getShell().setSize(800, 900);
+      let _sh = layoutDialog.dialog.getShell();
+      let _ca = _sh.getMonitor().getClientArea();
+      _sh.setSize(Math.min(820, _ca.width - 50), Math.min(900, _ca.height - 80));
     },
 
     createDialogArea: function (parent) {
@@ -546,9 +550,12 @@ let layoutDialog = {
       // --- TAB 1: Generate and layout ---
       let tabLayout = new TabItemWidget(tabFolder, SWT.NONE);
       tabLayout.setText("  Generate and layout  ");
-      let layoutContainer = new CompositeWidget(tabFolder, SWT.NONE);
+      let scrolled1 = new ScrolledCompositeWidget(tabFolder, SWT.H_SCROLL | SWT.V_SCROLL);
+      scrolled1.setExpandHorizontal(true);
+      scrolled1.setExpandVertical(true);
+      let layoutContainer = new CompositeWidget(scrolled1, SWT.NONE);
       GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(layoutContainer);
-      tabLayout.setControl(layoutContainer);
+      tabLayout.setControl(scrolled1);
 
       // View Metadata Group
       let grpMeta = new GroupWidget(layoutContainer, SWT.NONE);
@@ -616,7 +623,7 @@ let layoutDialog = {
 
       // Algorithm row
       let cAlgo = new CompositeWidget(grpELK, SWT.NONE);
-      GridLayoutFactory.swtDefaults().numColumns(7).applyTo(cAlgo);
+      GridLayoutFactory.swtDefaults().numColumns(8).applyTo(cAlgo);
       new LabelWidget(cAlgo, SWT.NONE).setText("Algorithm:");
       layoutDialog.widgets.grpAlgorithm = cAlgo;
       createRadios(cAlgo, [
@@ -626,6 +633,7 @@ let layoutDialog = {
         { label: "box",      val: "box",      tooltip: "Box packing — disconnected elements" },
         { label: "stress",   val: "stress",   tooltip: "Stress minimization — similar to force" },
         { label: "radial",   val: "radial",   tooltip: "Radial — circular tree from center root" },
+        { label: "dagre",    val: "dagre",    tooltip: "Dagre (cluster-fix) — better cross-compound edge routing; use ranker param for network-simplex / tight-tree / longest-path" },
       ]);
       // Wire algorithm selection → enable/disable dependent controls
       let algoChildren = cAlgo.getChildren();
@@ -643,8 +651,8 @@ let layoutDialog = {
       new LabelWidget(cDir, SWT.NONE).setText("Direction:");
       layoutDialog.widgets.grpDir = cDir;
       createRadios(cDir, [
-        { label: "Right",  val: "RIGHT", tooltip: "Left to Right (default)" },
-        { label: "Down",   val: "DOWN",  tooltip: "Top to Bottom" },
+        { label: "Right",  val: "RIGHT", tooltip: "Left to Right (default). With nesting: external neighbors appear left/right of container — use Down for above/below placement." },
+        { label: "Down",   val: "DOWN",  tooltip: "Top to Bottom. Recommended for nested layouts: external neighbors appear above/below containers." },
         { label: "Up",     val: "UP",    tooltip: "Bottom to Top" },
         { label: "Left",   val: "LEFT",  tooltip: "Right to Left" },
       ]);
@@ -668,9 +676,9 @@ let layoutDialog = {
       new LabelWidget(cRouting, SWT.NONE).setText("Edge routing:");
       layoutDialog.widgets.grpEdgeRouting = cRouting;
       createRadios(cRouting, [
-        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Orthogonal — right-angle bends (default; best with layered)" },
-        { label: "Polyline",   val: "POLYLINE",   tooltip: "Polyline — straight segments (recommended for force/stress)" },
-        { label: "Splines",    val: "SPLINES",    tooltip: "Splines — smooth curves" },
+        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Orthogonal — right-angle bends; best with layered. Edges within the same nested container are always drawn straight." },
+        { label: "Polyline",   val: "POLYLINE",   tooltip: "Polyline — routed segments with bends; works well with all algorithms." },
+        { label: "Straight",   val: "STRAIGHT",   tooltip: "Straight — direct line from source to target, no routing." },
       ]);
 
       // Note updated by updateAlgoControls to name ignored parameters for the active algorithm
@@ -720,6 +728,10 @@ let layoutDialog = {
           w.setValues(20, 0, 100, 0, 5, 10);
         },
       );
+
+      // Finalize Tab 1 scrolled composite
+      scrolled1.setContent(layoutContainer);
+      scrolled1.setMinSize(layoutContainer.computeSize(SWT.DEFAULT, SWT.DEFAULT));
 
       // --- TAB 2: Filtering ---
       let tabData = new TabItemWidget(tabFolder, SWT.NONE);

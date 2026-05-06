@@ -40,8 +40,10 @@ module.exports = {
     // "triggering-relationship",
   ],
 
-  // ELK layout parameters (replaces dagre params)
-  // elkAlgorithm: "layered" | "mrtree" | "force" | "box" | "stress" | "radial"
+  // Layout engine + algorithm
+  // elkAlgorithm: "layered" | "mrtree" | "force" | "box" | "stress" | "radial"  — ELK engine
+  // elkAlgorithm: "dagre"  — Dagre cluster-fix engine (better cross-compound edge routing)
+  //   dagre extra: ranker: "network-simplex" | "tight-tree" | "longest-path"
   elkAlgorithm: "layered",
   // elkDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
   elkDirection: "RIGHT",
@@ -49,7 +51,7 @@ module.exports = {
   elkLayerSpacing:    180,  // space between layers (replaces vSep)
   // elkNodePlacementAlignment: "NONE" | "LEFTUP" (top) | "BALANCED" (center) | "RIGHTDOWN" (bottom)
   elkNodePlacementAlignment: "NONE",
-  // elkEdgeRouting: "ORTHOGONAL" | "POLYLINE" | "SPLINES"
+  // elkEdgeRouting: "ORTHOGONAL" | "POLYLINE" | "STRAIGHT"
   elkEdgeRouting: "ORTHOGONAL",
   elkPadding: 20,           // padding inside nested containers
 

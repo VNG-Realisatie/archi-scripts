@@ -61,6 +61,7 @@ const DEFAULT_ELK_LAYER_SEP    = 180;
 const DEFAULT_ELK_NODE_PLACEMENT = "NONE";
 const DEFAULT_ELK_EDGE_ROUTING = "ORTHOGONAL";
 const DEFAULT_ELK_PADDING      = 20;
+const NESTED_LABEL_TOP_EXTRA   = 20; // extra top padding so Archi's container label doesn't overlap children
 
 const DEFAULT_PARAM_FILE = "default_parameter.js";
 const USER_PARAM_FOLDER  = "user_parameter";
@@ -76,6 +77,12 @@ try {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   throw "\nELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.";
 }
+
+let dagre = null;
+try {
+  dagre = require(REPO_ROOT + "node_modules/dagre-cluster-fix/index.js");
+  console.log("dagre-cluster-fix layout engine loaded.\n");
+} catch(e) { /* optional — ELK-only mode if absent */ }
 
 /**
  * Get parameter from filename to generate a view
@@ -224,6 +231,8 @@ function generate_view(param, drawCollection) {
  * @returns Archi view
  */
 function _layoutAndRender(param, filteredElements) {
+  if (param.elkAlgorithm === "dagre") return _layoutAndRenderDagre(param, filteredElements);
+
   let elkNodeMap   = {};  // archi/occ id → ELK node object
   let elkEdgeList  = [];  // all edges at root level
   let elkParentMap = {};  // child elk-id → parent archi-id
@@ -233,12 +242,12 @@ function _layoutAndRender(param, filteredElements) {
   _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
 
   const layoutOptions = _buildElkLayoutOptions(param);
-  const elkGraph      = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
+  const { elkGraph, liftedEdgesMap } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
 
   console.log("\nCalculating the graph layout...");
   const layoutedGraph = elk.layout(elkGraph);
 
-  return _drawView(param, layoutedGraph, elkParentRels);
+  return _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap);
 }
 
 /**
@@ -369,13 +378,13 @@ function _buildElkLayoutOptions(param) {
     "elk.direction":    param.elkDirection,
     "elk.spacing.nodeNode":                      String(param.elkSpacingNodeNode),
     "elk.layered.spacing.nodeNodeBetweenLayers": String(param.elkLayerSpacing),
-    "elk.edgeRouting":  param.elkEdgeRouting,
+    // STRAIGHT: pseudo-value — tell ELK POLYLINE but suppress bendpoints in draw step.
+    // SPLINES: unsupported in Archi (bezier control points ≠ polyline waypoints).
+    "elk.edgeRouting": (param.elkEdgeRouting === "STRAIGHT" || param.elkEdgeRouting === "SPLINES")
+      ? "POLYLINE" : param.elkEdgeRouting,
   };
   if (param.elkNodePlacementAlignment && param.elkNodePlacementAlignment !== "NONE") {
     opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.elkNodePlacementAlignment;
-  }
-  if (param.layoutNested && param.layoutNested.length > 0) {
-    opts["elk.hierarchyHandling"] = "INCLUDE_CHILDREN";
   }
   return opts;
 }
@@ -391,8 +400,9 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     const childNode  = elkNodeMap[childId];
     if (parentNode && childNode) {
       parentNode.layoutOptions = parentNode.layoutOptions || {};
-      const p = param.elkPadding;
-      parentNode.layoutOptions["elk.padding"] = `[top=${p},left=${p},bottom=${p},right=${p}]`;
+      const p   = param.elkPadding;
+      const top = p + NESTED_LABEL_TOP_EXTRA;
+      parentNode.layoutOptions["elk.padding"] = `[top=${top},left=${p},bottom=${p},right=${p}]`;
       if (!parentNode.children.some(function(c) { return c.id === childId; })) {
         parentNode.children.push(childNode);
       }
@@ -404,7 +414,59 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     .filter(function(id) { return elkParentMap[id] === undefined; })
     .map(function(id) { return elkNodeMap[id]; });
 
-  return { id: "root", layoutOptions: layoutOptions, children: rootChildren, edges: elkEdgeList };
+  // Classify edges: internal (both endpoints under the same compound parent) go into
+  // the compound node's own edges array so ELK routes them within the container.
+  // Cross-level and root-level edges stay in root.
+  const rootEdges = [];
+  elkEdgeList.forEach(function(edge) {
+    const srcParent = elkParentMap[edge.sources[0]];
+    const tgtParent = elkParentMap[edge.targets[0]];
+    if (srcParent !== undefined && tgtParent !== undefined && srcParent === tgtParent) {
+      const parentNode = elkNodeMap[srcParent];
+      if (parentNode) {
+        parentNode.edges = parentNode.edges || [];
+        parentNode.edges.push(edge);
+        return;
+      }
+    }
+    rootEdges.push(edge);
+  });
+
+  // Propagate root layout options to every compound node that has internal edges,
+  // so its sub-layout uses the same algorithm/direction/routing as the root.
+  // Preserve the elk.padding that was set during child-parent attachment above.
+  Object.keys(elkNodeMap).forEach(function(nodeId) {
+    const node = elkNodeMap[nodeId];
+    if (node.edges && node.edges.length > 0) {
+      const padding = node.layoutOptions && node.layoutOptions["elk.padding"];
+      node.layoutOptions = Object.assign({}, layoutOptions);
+      if (padding) node.layoutOptions["elk.padding"] = padding;
+    }
+  });
+
+  // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
+  // Lift such endpoints to their root-level ancestor so ELK can use the edges for
+  // root-level layering. The original IDs are preserved in liftedEdgesMap for drawing.
+  const liftedEdgesMap = {};
+  const liftedRootEdges = rootEdges.map(function(edge) {
+    const srcId = edge.sources[0];
+    const tgtId = edge.targets[0];
+    let liftedSrc = srcId;
+    let p = elkParentMap[liftedSrc];
+    while (p !== undefined) { liftedSrc = p; p = elkParentMap[liftedSrc]; }
+    let liftedTgt = tgtId;
+    p = elkParentMap[liftedTgt];
+    while (p !== undefined) { liftedTgt = p; p = elkParentMap[liftedTgt]; }
+    if (liftedSrc === liftedTgt) return null; // both sides same compound after lifting — skip
+    if (liftedSrc !== srcId || liftedTgt !== tgtId) {
+      liftedEdgesMap[edge.id] = { origSrcId: srcId, origTgtId: tgtId };
+      return Object.assign({}, edge, { sources: [liftedSrc], targets: [liftedTgt] });
+    }
+    return edge;
+  }).filter(Boolean);
+
+  const elkGraph = { id: "root", layoutOptions: layoutOptions, children: rootChildren, edges: liftedRootEdges };
+  return { elkGraph: elkGraph, liftedEdgesMap: liftedEdgesMap };
 }
 
 /**
@@ -636,7 +698,7 @@ function _filterObjectType(o, objectTypeFilter) {
 /**
  * Draw the ELK-layouted graph as an Archi view
  */
-function _drawView(param, layoutedGraph, elkParentRels) {
+function _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap) {
   console.log(`\nDrawing ArchiMate view...  `);
 
   let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
@@ -655,11 +717,25 @@ function _drawView(param, layoutedGraph, elkParentRels) {
   });
 
   console.log("Drawing graph edges as relations ...");
-  _drawEdgesRecursive(layoutedGraph, param, visualElementIndex, view);
+  _drawEdgesRecursive(layoutedGraph, param, visualElementIndex, view, liftedEdgesMap);
 
   if (elkParentRels.length > 0) console.log("Adding child-parent relations to the view ...");
   elkParentRels.forEach(function(parentRel) {
-    _layoutNestedConnection(parentRel, visualElementIndex, view);
+    const srcId = parentRel.source.id;
+    const tgtId = parentRel.target.id;
+    let srcVisual, tgtVisual;
+    const tgtOccs = (occurrenceMap && occurrenceMap[tgtId]) || [tgtId];
+    const tgtOcc  = tgtOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === srcId; });
+    if (tgtOcc) {
+      srcVisual = visualElementIndex[srcId];
+      tgtVisual = visualElementIndex[tgtOcc];
+    } else {
+      const srcOccs = (occurrenceMap && occurrenceMap[srcId]) || [srcId];
+      const srcOcc  = srcOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === tgtId; });
+      srcVisual = visualElementIndex[srcOcc || srcId];
+      tgtVisual = visualElementIndex[tgtId];
+    }
+    if (srcVisual && tgtVisual) view.add(parentRel, srcVisual, tgtVisual);
   });
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
@@ -701,23 +777,31 @@ function _drawNodeRecursive(param, elkNode, parentVisual, visualElementIndex, vi
 /**
  * Recursively draw all ELK edges in the graph tree
  */
-function _drawEdgesRecursive(elkNode, param, visualElementIndex, view) {
+function _drawEdgesRecursive(elkNode, param, visualElementIndex, view, liftedEdgesMap) {
+  // Edges in a compound node (id !== "root") have container-relative ELK coords.
+  const containerNodeId = (elkNode.id === "root") ? null : elkNode.id;
   (elkNode.edges || []).forEach(function(edge) {
-    _drawEdge(param, edge, visualElementIndex, view);
+    _drawEdge(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap);
   });
   (elkNode.children || []).forEach(function(child) {
-    _drawEdgesRecursive(child, param, visualElementIndex, view);
+    _drawEdgesRecursive(child, param, visualElementIndex, view, liftedEdgesMap);
   });
 }
 
-function _drawEdge(param, edge, visualElementIndex, view) {
+function _drawEdge(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap) {
   Common.debugStackPush(false);
   const archiRelId = edge._archiRelId || edge.id;
   const archiRel   = $("#" + archiRelId).first();
-  const srcId      = edge.sources[0];
-  const tgtId      = edge.targets[0];
-  const srcVisual  = visualElementIndex[srcId];
-  const tgtVisual  = visualElementIndex[tgtId];
+  // Cross-hierarchy edges have their endpoints lifted to compound IDs for root layout;
+  // use the original child IDs for drawing the actual Archi connection.
+  const liftedIds = liftedEdgesMap && liftedEdgesMap[edge.id];
+  const srcId = (liftedIds && liftedIds.origSrcId) || edge.sources[0];
+  const tgtId = (liftedIds && liftedIds.origTgtId) || edge.targets[0];
+  // For reversed relations, sources/targets in the ELK edge are swapped for layout;
+  // swap back so view.add() receives the correct ArchiMate connection direction.
+  const isReversed = param.layoutReversed.includes(archiRel.type);
+  const srcVisual  = visualElementIndex[isReversed ? tgtId : srcId];
+  const tgtVisual  = visualElementIndex[isReversed ? srcId : tgtId];
 
   if (!srcVisual || !tgtVisual) {
     Common.debug(`>> skip edge ${archiRelId}: missing visual for src=${srcId} or tgt=${tgtId}`);
@@ -725,9 +809,27 @@ function _drawEdge(param, edge, visualElementIndex, view) {
     return;
   }
 
+  // For internal edges, compute the container's absolute top-left so bendpoints
+  // can be converted from container-relative to absolute coords.
+  let containerOffset = null;
+  if (containerNodeId) {
+    const cv = visualElementIndex[containerNodeId];
+    if (cv) {
+      let ox = cv.bounds.x, oy = cv.bounds.y;
+      let p = $(cv).parent().filter("element").first();
+      while (p) { ox += p.bounds.x; oy += p.bounds.y; p = $(p).parent().filter("element").first(); }
+      containerOffset = { x: ox, y: oy };
+    }
+  }
+
   Common.debug(`>> draw edge ${archiRel}`);
   let connection = view.add(archiRel, srcVisual, tgtVisual);
-  _drawBendpoints(param, edge, connection);
+  // Lifted cross-compound edges were routed by ELK between compound boundaries,
+  // not between the actual child elements — those bendpoints produce wrong visuals.
+  // Skip them: a straight child-to-child line is cleaner than an exit/re-entry path.
+  if (!liftedIds) {
+    _drawBendpoints(param, edge, connection, containerOffset);
+  }
   Common.debugStackPop();
 }
 
@@ -770,16 +872,25 @@ function _layoutNestedConnection(parentRel, visualElementIndex, view) {
  * ELK sections[0].bendPoints are the intermediate waypoints (absolute coords).
  * Archi bendpoints are relative to the center of source and target.
  */
-function _drawBendpoints(param, edge, connection) {
+function _drawBendpoints(param, edge, connection, containerOffset) {
   Common.debugStackPush(false);
 
-  let srcCenter = _getCenterBounds(connection.source);
-  let tgtCenter = _getCenterBounds(connection.target);
+  if (param.elkEdgeRouting === "STRAIGHT") { Common.debugStackPop(); return; }
 
   let points = (edge.sections && edge.sections[0] && edge.sections[0].bendPoints) || [];
   Common.debug(`ELK bendPoints: ${JSON.stringify(points)}`);
 
-  let bendpoints = points.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
+  // Internal edges are routed by ELK in container-relative coordinates.
+  // containerOffset (set by _drawEdge) converts them to absolute.
+  const offsetX = containerOffset ? containerOffset.x : 0;
+  const offsetY = containerOffset ? containerOffset.y : 0;
+
+  let srcCenter = _getCenterBounds(connection.source);
+  let tgtCenter = _getCenterBounds(connection.target);
+
+  let bendpoints = points.map(function(p) {
+    return _calcBendpoint({ x: p.x + offsetX, y: p.y + offsetY }, srcCenter, tgtCenter);
+  });
 
   for (let i = 0; i < bendpoints.length; i++) {
     if (param.layoutReversed.includes(connection.type)) {
@@ -840,6 +951,156 @@ function _openView(view) {
     console.error(`"Failed to open ${view}. You may open it manually`);
   }
 }
+
+// ── Dagre (dagre-cluster-fix) engine ────────────────────────────────────────
+
+function _layoutAndRenderDagre(param, filteredElements) {
+  if (!dagre) throw "dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.";
+
+  let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
+  _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
+
+  const graph = _buildDagreGraph(param, elkNodeMap, elkEdgeList, elkParentMap);
+  console.log("\nCalculating the Dagre graph layout...");
+  dagre.layout(graph);
+
+  return _drawDagreView(param, graph, elkParentRels, elkParentMap, occurrenceMap);
+}
+
+function _buildDagreGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
+  const elkToDir = { RIGHT: "LR", LEFT: "RL", DOWN: "TB", UP: "BT" };
+  const graph = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
+    .setGraph({
+      rankdir: elkToDir[param.elkDirection] || "LR",
+      nodesep: param.elkSpacingNodeNode,
+      ranksep: param.elkLayerSpacing,
+      ranker:  param.ranker || "network-simplex",
+      marginx: 10, marginy: 10,
+    })
+    .setDefaultNodeLabel(function() { return {}; })
+    .setDefaultEdgeLabel(function() { return { minlen: 1, weight: 1 }; });
+
+  Object.keys(elkNodeMap).forEach(function(nodeId) {
+    const node = elkNodeMap[nodeId];
+    graph.setNode(nodeId, { label: nodeId, width: node.width, height: node.height, _archiId: node._archiId || nodeId });
+  });
+  Object.keys(elkParentMap).forEach(function(childId) {
+    const parentId = elkParentMap[childId];
+    if (graph.hasNode(childId) && graph.hasNode(parentId)) graph.setParent(childId, parentId);
+  });
+  elkEdgeList.forEach(function(edge) {
+    const src = edge.sources[0], tgt = edge.targets[0];
+    if (src === tgt) return; // skip self-loops — Dagre errors on those
+    // Skip edges involving duplicate occurrence nodes — they appear as boxes but get no relations
+    const srcIsDup = elkNodeMap[src] && elkNodeMap[src]._archiId !== src;
+    const tgtIsDup = elkNodeMap[tgt] && elkNodeMap[tgt]._archiId !== tgt;
+    if (srcIsDup || tgtIsDup) return;
+    const archiRelId = edge._archiRelId || edge.id;
+    if (!graph.hasEdge(src, tgt, edge.id)) {
+      graph.setEdge({ v: src, w: tgt, name: edge.id }, { id: archiRelId });
+    }
+  });
+  return graph;
+}
+
+function _drawDagreView(param, graph, elkParentRels, elkParentMap, occurrenceMap) {
+  console.log("\nDrawing ArchiMate view (Dagre)...");
+  let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
+  if (param.viewFolder !== "") folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
+
+  let view = _getView(folder, param.viewName);
+  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
+
+  let visualElementIndex = {}, nodeIndex = {};
+  console.log("Drawing graph nodes as elements ...");
+  graph.nodes().forEach(function(nodeId) {
+    _drawDagreNode(graph, nodeId, nodeIndex, visualElementIndex, view);
+  });
+  console.log("Drawing graph edges as relations ...");
+  graph.edges().forEach(function(edge) {
+    _drawDagreEdge(param, graph, edge, visualElementIndex, view);
+  });
+  if (elkParentRels.length > 0) console.log("Adding child-parent relations to the view ...");
+  elkParentRels.forEach(function(parentRel) {
+    const srcId = parentRel.source.id;
+    const tgtId = parentRel.target.id;
+    let srcVisual, tgtVisual;
+    // Find the occurrence of tgt that is a direct child of src
+    const tgtOccs = (occurrenceMap && occurrenceMap[tgtId]) || [tgtId];
+    const tgtOcc  = tgtOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === srcId; });
+    if (tgtOcc) {
+      srcVisual = visualElementIndex[srcId];
+      tgtVisual = visualElementIndex[tgtOcc];
+    } else {
+      // Reversed nesting: src is child of tgt
+      const srcOccs = (occurrenceMap && occurrenceMap[srcId]) || [srcId];
+      const srcOcc  = srcOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === tgtId; });
+      srcVisual = visualElementIndex[srcOcc || srcId];
+      tgtVisual = visualElementIndex[tgtId];
+    }
+    if (srcVisual && tgtVisual) view.add(parentRel, srcVisual, tgtVisual);
+  });
+  console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
+  _openView(view);
+  return view;
+}
+
+function _drawDagreNode(graph, nodeId, nodeIndex, visualElementIndex, view) {
+  Common.debugStackPush(false);
+  if (nodeIndex[nodeId] !== undefined) { Common.debugStackPop(); return; }
+  nodeIndex[nodeId] = true;
+
+  const node     = graph.node(nodeId);
+  const parentId = graph.parent(nodeId);
+  const archiEl  = $("#" + (node._archiId || nodeId)).first();
+
+  try {
+    if (parentId === undefined) {
+      const x = parseInt(node.x - node.width / 2);
+      const y = parseInt(node.y - node.height / 2);
+      visualElementIndex[nodeId] = view.add(archiEl, x, y, node.width + 1, node.height + 1);
+    } else {
+      _drawDagreNode(graph, parentId, nodeIndex, visualElementIndex, view);
+      const parentNode = graph.node(parentId);
+      const relX = parseInt((node.x - node.width / 2) - (parentNode.x - parentNode.width / 2));
+      const relY = parseInt((node.y - node.height / 2) - (parentNode.y - parentNode.height / 2));
+      visualElementIndex[nodeId] = visualElementIndex[parentId].add(archiEl, relX, relY, node.width + 1, node.height + 1);
+    }
+  } catch(e) { console.error("-->" + e + "\n" + e.stack); }
+  Common.debugStackPop();
+}
+
+function _drawDagreEdge(param, graph, edge, visualElementIndex, view) {
+  Common.debugStackPush(false);
+  const edgeData  = graph.edge(edge);
+  const archiRel  = $("#" + edgeData.id).first();
+  // Always use the ArchiMate relation's own source/target for the Archi connection.
+  // Dagre edge v/w may be reversed (layoutReversed) to control layout direction —
+  // that reversal must NOT carry over to the actual connection endpoints.
+  const srcVisual = visualElementIndex[archiRel.source.id];
+  const tgtVisual = visualElementIndex[archiRel.target.id];
+  if (!srcVisual || !tgtVisual) { Common.debugStackPop(); return; }
+
+  const connection = view.add(archiRel, srcVisual, tgtVisual);
+  const points     = edgeData.points || [];
+  const srcCenter  = _getCenterBounds(connection.source);
+  const tgtCenter  = _getCenterBounds(connection.target);
+  // Skip first and last Dagre points (on node boundary); build bendpoint array,
+  // then reverse it for reversed relations before adding sequentially.
+  const bendpoints = [];
+  for (let i = 1; i < points.length - 1; i++) {
+    bendpoints.push(_calcBendpoint(points[i], srcCenter, tgtCenter));
+  }
+  for (let i = 0; i < bendpoints.length; i++) {
+    const bp = param.layoutReversed.includes(connection.type)
+      ? bendpoints[bendpoints.length - 1 - i]
+      : bendpoints[i];
+    connection.addRelativeBendpoint(bp, i);
+  }
+  Common.debugStackPop();
+}
+
+// ── end Dagre ────────────────────────────────────────────────────────────────
 
 function _validArchiConcept(paramList, validNames, label, emptyLabel) {
   let validFlag = true;
