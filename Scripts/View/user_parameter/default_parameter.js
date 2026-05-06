@@ -9,7 +9,6 @@ module.exports = {
   // action: EXPAND_HERE,
   // action: View.LAYOUT,
 
-  // graphDepth: 1,
   graphDepth: 1,
 
   includeElementType: [],
@@ -40,24 +39,22 @@ module.exports = {
     // "specialization-relationship",
     // "triggering-relationship",
   ],
-  layoutCircular: View.LAYOUT_CIRCULAR_WORKAROUND, // layout circular relation with script (try this when dagre crashes)
-  // layoutCircular: View.LAYOUT_CIRCULAR_DAGRE, // default: layout circular relation with dagre
 
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
+  // ELK layout parameters (replaces dagre params)
+  // elkAlgorithm: "layered" | "mrtree" | "force" | "box" | "stress" | "radial"
+  elkAlgorithm: "layered",
+  // elkDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
+  elkDirection: "RIGHT",
+  elkSpacingNodeNode: 40,   // space between nodes in same layer (replaces hSep)
+  elkLayerSpacing:    180,  // space between layers (replaces vSep)
+  // elkNodePlacementAlignment: "NONE" | "LEFTUP" (top) | "BALANCED" (center) | "RIGHTDOWN" (bottom)
+  elkNodePlacementAlignment: "NONE",
+  // elkEdgeRouting: "ORTHOGONAL" | "POLYLINE" | "SPLINES"
+  elkEdgeRouting: "ORTHOGONAL",
+  elkPadding: 20,           // padding inside nested containers
 
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-  ranker: "network-simplex",
-
-  nodeWidth: 200,
+  nodeWidth:  200,
   nodeHeight: 60,
-  hSep: 40,
-  vSep: 180,
 
   // viewName: "gen-custom",
   debug: false,

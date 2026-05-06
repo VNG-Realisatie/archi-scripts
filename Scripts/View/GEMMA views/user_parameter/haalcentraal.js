@@ -30,21 +30,13 @@ module.exports = {
   // graphDepth: 1,
   graphDepth: 0, // layout selected elements and relations of these elements
 
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
-
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-  ranker: "network-simplex", // default
+  // elkDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
+  elkDirection: "RIGHT",
 
   nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 20,
-  vSep: 200,
+  elkSpacingNodeNode: 20,
+  elkLayerSpacing:    200,
 
   debug: false,
 };

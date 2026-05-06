@@ -41,24 +41,13 @@ module.exports = {
     // "triggering-relationship",
   ],
 
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  graphDirection: "LR",
-  // graphDirection: "TB",
-
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-  ranker: "network-simplex",
-
-  layoutCircular: View.LAYOUT_CIRCULAR_WORKAROUND, // layout circular relation with script (try this when dagre crashes)
-  // layoutCircular: View.LAYOUT_CIRCULAR_DAGRE, // default: layout circular relation with dagre
+  // elkDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
+  elkDirection: "RIGHT",
 
   nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 20,
-  vSep: 180,
+  elkSpacingNodeNode: 20,
+  elkLayerSpacing:    180,
 
   // viewName: "gen-custom",
   debug: false,

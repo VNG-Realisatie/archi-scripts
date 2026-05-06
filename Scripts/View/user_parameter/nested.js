@@ -36,7 +36,7 @@ module.exports = {
   ],
   nodeWidth: 200,
   nodeHeight: 60,
-  hSep: 40, // space between nodes
-  vSep: 20, // space between ranks 
+  elkSpacingNodeNode: 40,  // space between nodes in same layer
+  elkLayerSpacing:    20,  // space between layers
 
 };

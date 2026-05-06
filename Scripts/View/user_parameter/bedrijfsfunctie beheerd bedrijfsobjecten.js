@@ -20,13 +20,11 @@ module.exports = {
     "assignment-relationship",
     "access-relationship"
   ],
-  "layoutCircular": true,
-  "graphDirection": "LR",
-  "ranker": "network-simplex",
+  "elkDirection": "RIGHT",
   "nodeWidth": 200,
   "nodeHeight": 60,
-  "hSep": 20,
-  "vSep": 180,
+  "elkSpacingNodeNode": 20,
+  "elkLayerSpacing": 180,
   "debug": false,
   "excludeFromView": false,
   "viewName": "Veiligheid en Vergunningen"

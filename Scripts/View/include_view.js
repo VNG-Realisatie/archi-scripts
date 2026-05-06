@@ -11,36 +11,25 @@
  * See https://forum.archimatetool.com/index.php?topic=639.msg3563#msg3563
  *
  * Requires:
- *     Archi:      https://www.archimatetool.com
- *     jArchi plugin:  https://www.archimatetool.com/plugins
- *     nodejs modules:
- *      jvm-npm:  https://github.com/nodyn/jvm-npm
- *      dagre with cluster fix:
- *       see https://github.com/dagrejs/dagre and
- *       download from https://unpkg.com/dagre-cluster-fix/
+ *     Archi:       https://www.archimatetool.com
+ *     jArchi:      https://www.archimatetool.com/plugins
+ *     ELK.js:      bundled in node_modules/elkjs (no npm install needed)
  *
- *  #  date    Author      Comments
+ *  #  date        Author        Comments
  *  1  28/01/2019  Hervé Jouin   File creation.
  *  2  03/04/2021  Mark Backer   Restructure and add parameters
  *  3  25/09/2021  Mark Backer   use dagre-cluster-fix version
  *  4  02/10/2021  Mark Backer   draw connection with bendpoints
  *  5  08/03/2022  Mark Backer   add actions LAYOUT and EXPAND_HERE
  *  6  11/01/2025  Mark Backer   do not add relations with PROP_EXCLUDE = "excludeFromView" to view
+ *  7  06/05/2026  Mark Backer   replace dagre with ELK.js layout engine
  *
- * Prefered settings
- * - use the jArchi JavaScript engine GraalVM, much faster with large graphs
+ * Preferred settings
+ * - use the jArchi JavaScript engine GraalVM
  *   - go to Edit > Preferences > Scripting: JavaScript engine: GraalVM
- * - for allignment with the grid use the following settings in Archi
+ * - for alignment with the grid use the following settings in Archi
  *   - go to Edit > Preferences > Diagram: set grid = 10
  *   - go to Edit > Preferences > Diagram > Appearance: set figure width=141 and height=61
- *
- * Limitations
- * - relationships on relationships are not drawn, they are skipped
- * - layout of circular relations done outside dagre (dagre throws an error)
- * - dagre buggy?
- *    - layout of connections sometimes ugly (bendpoints 'overshoot')
- *    - for connections to embedded elements, only some get bendpoints
- *    - sometimes this error https://github.com/dagrejs/dagre/issues/234
  */
 console.log("include_view.js");
 
@@ -48,40 +37,44 @@ const Common = require(REPO_ROOT + "_lib/Common");
 const Selection = require(REPO_ROOT + "_lib/selection");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
-const GENERATE_SINGLE = "Generate";
+const GENERATE_SINGLE   = "Generate";
 const GENERATE_MULTIPLE = "GenerateMultiple";
-const EXPAND_HERE = "Expand";
-const LAYOUT = "Layout";
-const REGENERATE = "Regenerate";
-
-const LAYOUT_CIRCULAR_DAGRE = false; // default
-const LAYOUT_CIRCULAR_WORKAROUND = true;
+const EXPAND_HERE       = "Expand";
+const LAYOUT            = "Layout";
+const REGENERATE        = "Regenerate";
 
 // default settings for generated views
-const PROP_SAVE_PARAMETER = "generate_view_param";
-const PROP_EXCLUDE = "excludeFromView";
-const GENERATED_VIEW_FOLDER = "/_Generated"; // generated views are created in this folder
-const DEFAULT_GRAPHDEPTH = 1;
-const DEFAULT_ACTION = GENERATE_SINGLE;
-const DEFAULT_NODE_WIDTH = 140; // width of a drawn element
-const DEFAULT_NODE_HEIGHT = 60; // height of a drawn element
-const JUNCTION_DIAMETER = 14; // size of a junction
+const PROP_SAVE_PARAMETER  = "generate_view_param";
+const PROP_EXCLUDE         = "excludeFromView";
+const GENERATED_VIEW_FOLDER = "/_Generated";
+const DEFAULT_GRAPHDEPTH   = 1;
+const DEFAULT_ACTION       = GENERATE_SINGLE;
+const DEFAULT_NODE_WIDTH   = 140;
+const DEFAULT_NODE_HEIGHT  = 60;
+const JUNCTION_DIAMETER    = 14;
 
-const DEFAULT_PARAM_FILE = "default_parameter.js"; // optional file with user defaults, supersedes defaults above
-const USER_PARAM_FOLDER = "user_parameter"; // folder with user parameter settings for generating views
+// ELK layout defaults
+const DEFAULT_ELK_ALGORITHM    = "layered";
+const DEFAULT_ELK_DIRECTION    = "RIGHT";
+const DEFAULT_ELK_SPACING      = 40;
+const DEFAULT_ELK_LAYER_SEP    = 180;
+const DEFAULT_ELK_NODE_PLACEMENT = "NONE";
+const DEFAULT_ELK_EDGE_ROUTING = "ORTHOGONAL";
+const DEFAULT_ELK_PADDING      = 20;
+
+const DEFAULT_PARAM_FILE = "default_parameter.js";
+const USER_PARAM_FOLDER  = "user_parameter";
 
 /**
- * Dagre is loaded via native jArchi CommonJS require (no jvm-npm).
+ * ELK.js is loaded via native jArchi CommonJS require (no jvm-npm).
  * Ensure Archi Preferences > Scripting: CommonJS is enabled and engine is GraalVM.
  */
 try {
-  var dagre = require("dagre-cluster-fix");
-  console.log(`Dagre version:`);
-  console.log(`- dagre:    ${dagre.version}`);
-  console.log(`- graphlib: ${dagre.graphlib.version}\n`);
+  var elk = require(REPO_ROOT + "node_modules/elkjs/index.js");
+  console.log("ELK.js layout engine loaded.\n");
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-  throw "\nDagre module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.";
+  throw "\nELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.";
 }
 
 /**
@@ -133,7 +126,7 @@ function get_user_parameter(file, param) {
  * @param {string} file - to deduct path
  * @param {string} user_param_name - filename of PARAM_FILE
  * @param {string} action
- * @param {string} direction
+ * @param {string} direction - dagre-style direction (LR/TB/RL/BT); migrated to elkDirection by _setDefaultParameters
  * @param {object} param - put values into param object
  * @returns
  */
@@ -159,13 +152,14 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
 
       Common.debug(`With user parameter file: \n${JSON.stringify(param, null, 2)}\n`);
     } catch (error) {
-      console.log(`NOT read user parameters from file "${printUserParamFile}"`);
+      console.log(`NOT read user parameters from file`);
       Common.debug(`> ${typeof error.stack == "undefined" ? error : error.stack}\n`);
     }
   } else {
     console.log(`${action} with direction ${direction}\n`);
   }
 
+  // Store direction from filename; _setDefaultParameters will migrate to elkDirection
   param.graphDirection = direction;
   param.action = action;
 
@@ -188,18 +182,15 @@ function generate_view(param, drawCollection) {
   try {
     if (_setDefaultParameters(param)) {
       let filteredElements = _includedElements(param, drawCollection);
-      let graphLayout = _setGraphLayout(param);
 
       switch (param.action) {
         case GENERATE_SINGLE:
         case EXPAND_HERE:
         case LAYOUT:
-          // generate one view
-          generatedViews.add(_layoutAndRender(param, graphLayout, filteredElements));
+          generatedViews.add(_layoutAndRender(param, filteredElements));
           break;
 
         case GENERATE_MULTIPLE:
-          // generate multiple views
           console.log(`Generating views for elements:`);
           filteredElements.forEach(function (e) {
             console.log(`- ${e}`);
@@ -207,11 +198,10 @@ function generate_view(param, drawCollection) {
           console.log();
 
           filteredElements.forEach(function (e) {
-            // set viewname to the element name
             param.viewName = e.name + param.viewNameSuffix;
             console.log(`\nGenerating view "${param.viewName}"`);
             console.log(`------------------${"-".repeat(param.viewName.length)}`);
-            generatedViews.add(_layoutAndRender(param, graphLayout, $(e)));
+            generatedViews.add(_layoutAndRender(param, $(e)));
           });
           break;
 
@@ -229,16 +219,26 @@ function generate_view(param, drawCollection) {
 }
 
 /**
+ * Build ELK data structures, run layout, draw view.
+ *
  * @returns Archi view
  */
-function _layoutAndRender(param, graphLayout, filteredElements) {
-  let graphParents = []; // Bookkeeping of parents. Workaround for missing API graph.parents() and graph.parentsCount()
-  let graphCircular = []; // Bookkeeping of circular relations. Workaround for dagre error and ugly circular relations
+function _layoutAndRender(param, filteredElements) {
+  let elkNodeMap   = {};  // archi/occ id → ELK node object
+  let elkEdgeList  = [];  // all edges at root level
+  let elkParentMap = {};  // child elk-id → parent archi-id
+  let elkParentRels = []; // archi relations used as nesting (for adding nested connections)
+  let occurrenceMap = {}; // archi element id → [elk node id, ...]
 
-  let graph = _createGraph(graphLayout); // graphlib graph for layout view
-  _fillGraph(param, graph, graphParents, graphCircular, filteredElements);
-  _layoutGraph(param, graph);
-  return _drawView(param, graph, graphParents, graphCircular);
+  _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
+
+  const layoutOptions = _buildElkLayoutOptions(param);
+  const elkGraph      = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
+
+  console.log("\nCalculating the graph layout...");
+  const layoutedGraph = elk.layout(elkGraph);
+
+  return _drawView(param, layoutedGraph, elkParentRels);
 }
 
 /**
@@ -250,14 +250,26 @@ function _setDefaultParameters(param) {
   let validFlag = true;
 
   if (param.action == REGENERATE) {
-    // get parameters from the selected view property
-    console.log(`Action is ${param.action}`);
-
     let view = _getSelectedView();
+    console.log(`Action is ${param.action}`);
     console.log(`** Reading param from selected ${view} **\n`);
-
     Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
     param.viewName = "";
+  }
+
+  // Migration shim: convert old dagre param names to ELK equivalents (with warning)
+  const dagreToElkDir = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
+  if (param.graphDirection !== undefined && param.elkDirection === undefined) {
+    param.elkDirection = dagreToElkDir[param.graphDirection] || DEFAULT_ELK_DIRECTION;
+    console.log(`> Migrated graphDirection="${param.graphDirection}" → elkDirection="${param.elkDirection}"`);
+  }
+  if (param.hSep !== undefined && param.elkSpacingNodeNode === undefined) {
+    param.elkSpacingNodeNode = param.hSep;
+    console.log(`> Migrated hSep=${param.hSep} → elkSpacingNodeNode=${param.elkSpacingNodeNode}`);
+  }
+  if (param.vSep !== undefined && param.elkLayerSpacing === undefined) {
+    param.elkLayerSpacing = param.vSep;
+    console.log(`> Migrated vSep=${param.vSep} → elkLayerSpacing=${param.elkLayerSpacing}`);
   }
 
   console.log("Generate view parameters");
@@ -286,8 +298,28 @@ function _setDefaultParameters(param) {
   if (!_validArchiConcept(param.layoutReversed, RELATION_NAMES, "layoutReversed:", "none")) validFlag = false;
   if (param.layoutNested === undefined) param.layoutNested = [];
   if (!_validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
-  if (param.layoutCircular === undefined) param.layoutCircular = LAYOUT_CIRCULAR_DAGRE;
-  console.log(`- layoutCircular = ${param.layoutCircular ? "LAYOUT_CIRCULAR_WORKAROUND" : "LAYOUT_CIRCULAR_DAGRE"}`);
+  if (param.nestingMultipleOccurrences === undefined) param.nestingMultipleOccurrences = false;
+  console.log(`- nestingMultipleOccurrences = ${param.nestingMultipleOccurrences}`);
+
+  console.log("\nELK layout parameters");
+  if (param.elkAlgorithm    === undefined) param.elkAlgorithm    = DEFAULT_ELK_ALGORITHM;
+  console.log("- elkAlgorithm = "    + param.elkAlgorithm);
+  if (param.elkDirection    === undefined) param.elkDirection    = DEFAULT_ELK_DIRECTION;
+  console.log("- elkDirection = "    + param.elkDirection);
+  if (param.elkSpacingNodeNode === undefined) param.elkSpacingNodeNode = DEFAULT_ELK_SPACING;
+  console.log("- elkSpacingNodeNode = " + param.elkSpacingNodeNode);
+  if (param.elkLayerSpacing === undefined) param.elkLayerSpacing = DEFAULT_ELK_LAYER_SEP;
+  console.log("- elkLayerSpacing = " + param.elkLayerSpacing);
+  if (param.elkNodePlacementAlignment === undefined) param.elkNodePlacementAlignment = DEFAULT_ELK_NODE_PLACEMENT;
+  console.log("- elkNodePlacementAlignment = " + param.elkNodePlacementAlignment);
+  if (param.elkEdgeRouting  === undefined) param.elkEdgeRouting  = DEFAULT_ELK_EDGE_ROUTING;
+  console.log("- elkEdgeRouting = "  + param.elkEdgeRouting);
+  if (param.elkPadding      === undefined) param.elkPadding      = DEFAULT_ELK_PADDING;
+  console.log("- elkPadding = "      + param.elkPadding);
+  if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
+  console.log("- nodeWidth = "  + param.nodeWidth);
+  if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
+  console.log("- nodeHeight = " + param.nodeHeight);
 
   console.log("Developing");
   console.log("- debug = " + param.debug);
@@ -315,21 +347,13 @@ function _setDefaultParameters(param) {
 /**
  * create a list with the selected elements.
  * filter the list according the settings in the param object.
- *
- * @param {object} param - settings for generating a view
- * @param {collection} drawCollection - collection to draw (optional, default is $(selection))
- *
  */
 function _includedElements(param, drawCollection = $(selection)) {
-  // create an array with the selected elements
   Common.debug(`drawCollection: ${drawCollection}`);
-  var selectedElements;
-  selectedElements = Selection.getSelectionArray(drawCollection, "element");
+  var selectedElements = Selection.getSelectionArray(drawCollection, "element");
   Common.debug(`selectedElements: ${selectedElements}`);
 
-  // filter the selected elements with the concept filter
-  let filteredSelection = [];
-  filteredSelection = selectedElements.filter((obj) => _filterObjectType(obj, param.includeElementType));
+  let filteredSelection = selectedElements.filter((obj) => _filterObjectType(obj, param.includeElementType));
   console.log(`- ${filteredSelection.length} element${filteredSelection.length == 1 ? "" : "s"} after filtering`);
   if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
 
@@ -337,116 +361,106 @@ function _includedElements(param, drawCollection = $(selection)) {
 }
 
 /**
- * create a graphLayout settings object from param
- *
- * @param {object} param
- * @returns {object} graphLayout
+ * Build ELK layout options object from param
  */
-function _setGraphLayout(param) {
-  let graphLayout = new Object();
-  graphLayout.marginx = 10;
-  graphLayout.marginy = 10;
-
-  // settings for dagre layout
-  // if parameter is undefined, dagre uses a default
-  console.log("\nDagre layout parameters");
-  if (param.graphDirection !== undefined) graphLayout.rankdir = param.graphDirection;
-  console.log("- graphDirection = " + param.graphDirection);
-  if (param.graphAlign !== undefined) graphLayout.align = param.graphAlign;
-  console.log("- graphAlign (undefined is middle) = " + param.graphAlign);
-  if (param.ranker !== undefined) graphLayout.ranker = param.ranker;
-  console.log("- ranker = " + param.ranker);
-  if (param.nodeWidth == undefined) param.nodeWidth = DEFAULT_NODE_WIDTH;
-  console.log("- nodeWidth = " + param.nodeWidth);
-  if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
-  console.log("- nodeHeight = " + param.nodeHeight);
-  if (param.hSep !== undefined) graphLayout.nodesep = param.hSep;
-  console.log("- hSep = " + param.hSep);
-  if (param.vSep !== undefined) graphLayout.ranksep = param.vSep;
-  console.log("- vSep = " + param.vSep);
-  console.log();
-  return graphLayout;
+function _buildElkLayoutOptions(param) {
+  const opts = {
+    "elk.algorithm":    param.elkAlgorithm,
+    "elk.direction":    param.elkDirection,
+    "elk.spacing.nodeNode":                      String(param.elkSpacingNodeNode),
+    "elk.layered.spacing.nodeNodeBetweenLayers": String(param.elkLayerSpacing),
+    "elk.edgeRouting":  param.elkEdgeRouting,
+  };
+  if (param.elkNodePlacementAlignment && param.elkNodePlacementAlignment !== "NONE") {
+    opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.elkNodePlacementAlignment;
+  }
+  if (param.layoutNested && param.layoutNested.length > 0) {
+    opts["elk.hierarchyHandling"] = "INCLUDE_CHILDREN";
+  }
+  return opts;
 }
 
 /**
- * create a graph
- *
- * @param {object} graphLayout
- * @returns {object} graph
+ * Assemble the ELK graph object from pre-built maps
  */
-function _createGraph(graphLayout) {
-  let graph = new dagre.graphlib.Graph({
-    directed: true, // A directed graph treats the order of nodes in an edge as significant whereas an undirected graph does not.
-    compound: true, // A compound graph is one where a node can be the parent of other nodes.
-    multigraph: true, // A multigraph is a graph that can have more than one edge between the same pair of nodes.
-  })
-    .setGraph(graphLayout)
-    .setDefaultNodeLabel(function () {
-      return {};
-    })
-    .setDefaultEdgeLabel(function () {
-      return { minlen: 1, weight: 1 };
-    });
-  return graph;
+function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap) {
+  // Attach children to their parents and set padding
+  Object.keys(elkParentMap).forEach(function(childId) {
+    const parentId  = elkParentMap[childId];
+    const parentNode = elkNodeMap[parentId];
+    const childNode  = elkNodeMap[childId];
+    if (parentNode && childNode) {
+      parentNode.layoutOptions = parentNode.layoutOptions || {};
+      const p = param.elkPadding;
+      parentNode.layoutOptions["elk.padding"] = `[top=${p},left=${p},bottom=${p},right=${p}]`;
+      if (!parentNode.children.some(function(c) { return c.id === childId; })) {
+        parentNode.children.push(childNode);
+      }
+    }
+  });
+
+  // Root children = nodes not assigned to a parent
+  const rootChildren = Object.keys(elkNodeMap)
+    .filter(function(id) { return elkParentMap[id] === undefined; })
+    .map(function(id) { return elkNodeMap[id]; });
+
+  return { id: "root", layoutOptions: layoutOptions, children: rootChildren, edges: elkEdgeList };
 }
 
 /**
- * add the filtered selection to the graph
+ * Add the filtered selection to the ELK data structures
  */
-function _fillGraph(param, graph, graphParents, graphCircular, filteredElements) {
+function _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements) {
   const START_LEVEL = 0;
 
   switch (param.action) {
     case GENERATE_SINGLE:
     case GENERATE_MULTIPLE:
       console.log(`\nAdding elements and relations to the graph with a depth of ${param.graphDepth}...`);
-      filteredElements.forEach((archiEle) => {
-        _addElement(START_LEVEL, param, graph, graphParents, graphCircular, archiEle, filteredElements);
+      filteredElements.forEach(function(archiEle) {
+        _addElement(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, archiEle, filteredElements);
       });
       break;
     case EXPAND_HERE:
       console.log("Expand selected objects on the view");
-      _addViewObjects(START_LEVEL, param, graph, graphParents, graphCircular);
-      // expand the view from the selected elements
-      filteredElements.forEach((archiEle) =>
-        _addElement(START_LEVEL, param, graph, graphParents, graphCircular, archiEle, filteredElements),
-      );
+      _addViewObjects(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
+      filteredElements.forEach(function(archiEle) {
+        _addElement(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, archiEle, filteredElements);
+      });
       break;
     case LAYOUT:
       console.log("Layout objects on the view");
-      _addViewObjects(START_LEVEL, param, graph, graphParents, graphCircular);
+      _addViewObjects(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
       break;
-
     default:
       break;
   }
+
   console.log("\nAdded to the graph:");
-  console.log(`- ${graph.nodeCount()} nodes and`);
-  console.log(`- ${graph.edgeCount()} edges`);
-  if (graphParents.length > 0) console.log(`- ${graphParents.length} parent-child nestings`);
+  console.log(`- ${Object.keys(elkNodeMap).length} nodes and`);
+  console.log(`- ${elkEdgeList.length} edges`);
+  if (elkParentRels.length > 0) console.log(`- ${elkParentRels.length} parent-child nestings`);
 }
 
 /**
- * Add all elements and relations of the given view to the graph
+ * Add all elements and relations of the selected view to the ELK data structures
  */
-function _addViewObjects(level, param, graph, graphParents, graphCircular) {
+function _addViewObjects(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap) {
   let view = _getSelectedView();
 
   $(view)
     .find("element")
-    .each((e) => _createNode(level, param, graph, e));
+    .each(function(e) { _createNode(level, param, elkNodeMap, occurrenceMap, e); });
   $(view)
     .find("relation")
-    .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
-    .each((r) => _addRelation(0, param, graph, graphParents, graphCircular, r.concept));
-
-  // Do not override param.viewName here, so the user-provided name from the GUI is respected
-  // param.viewName = view.name;
+    .filter(function(rel) { return $(rel).ends().is("element"); })
+    .each(function(r) {
+      _addRelation(0, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, r.concept);
+    });
 }
 
 /**
  * get the selected view or the view of selected objects
- * @returns Archi view object
  */
 function _getSelectedView() {
   let selectedView;
@@ -454,68 +468,44 @@ function _getSelectedView() {
   if (obj.type == "archimate-diagram-model") {
     selectedView = obj;
   } else {
-    if (obj.view) {
-      selectedView = obj.view;
-    }
+    if (obj.view) selectedView = obj.view;
   }
   if (!selectedView) throw "No view or view elements selected. Select one or more elements on a view";
   return selectedView;
 }
 
 /**
- * main recursive function
- *   add the given element to the graph and
- *   recurse into the elements related elements
- *
- * graphDepth=0 generates a view with the selected elements and the elements relations
- * graphDepth=1 generates a view with the selected elements, all related elements and their relations
- *
- * @param {integer} level counter for depth of recursion
- * @param {object} param settings for generating a view
- * @param {object} archiEle Archi element to add to graph
- * @param {array} filteredElements array with Archi elements to draw
+ * Main recursive function: add the given element and its related elements to the graph
  */
-function _addElement(level, param, graph, graphParents, graphCircular, archiEle, filteredElements) {
-  const STOPPED = false;
+function _addElement(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, archiEle, filteredElements) {
+  const STOPPED     = false;
   const NOT_STOPPED = true;
   Common.debug(`${"  ".repeat(level)}> Start ${archiEle}`);
 
-  // stop recursion when the recursion level is larger then the graphDepth
   if ((param.graphDepth > 0 && level > param.graphDepth) || (param.graphDepth == 0 && level > 1)) {
     Common.debug(`${"  ".repeat(level)}> Stop level=${level} > graphDepth=${param.graphDepth}`);
     return STOPPED;
   }
-  // add element to the graph
-  _createNode(level, param, graph, archiEle);
+
+  _createNode(level, param, elkNodeMap, occurrenceMap, archiEle);
   Common.debug(`archiEle: ${archiEle}`);
 
   $(archiEle)
     .rels()
-    .filter((rel) => _filterObjectType(rel, param.includeRelationType))
-    .filter((rel) => !(rel.prop(PROP_EXCLUDE) == "true" && param.excludeFromView)) // skip object with PROP_EXCLUDE
-    .filter((rel) => $(rel).ends().is("element")) // skip relations with relations
-    .each(function (rel) {
+    .filter(function(rel) { return _filterObjectType(rel, param.includeRelationType); })
+    .filter(function(rel) { return !(rel.prop(PROP_EXCLUDE) == "true" && param.excludeFromView); })
+    .filter(function(rel) { return $(rel).ends().is("element"); })
+    .each(function(rel) {
       let related_element = rel.source;
       if (archiEle.id != rel.target.id) related_element = rel.target;
 
-      // for graphDepth=0 add all selected elements and their relations
-      if (param.graphDepth == 0 && filteredElements.filter((e) => e.id == related_element.id).length < 1) {
+      if (param.graphDepth == 0 && filteredElements.filter(function(e) { return e.id == related_element.id; }).length < 1) {
         Common.debug(`${"  ".repeat(level)}> Skip; not in selection ${related_element}`);
       } else {
-        // check if the related_element is in the concepts filter
         if (_filterObjectType(related_element, param.includeElementType)) {
-          // add related_element to the graph (and recurse into its related elements)
-          if (
-            _addElement(level + 1, param, graph, graphParents, graphCircular, related_element, filteredElements) == NOT_STOPPED
-          ) {
+          if (_addElement(level + 1, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, related_element, filteredElements) == NOT_STOPPED) {
             Common.debug(`>>>> rel: ${rel}`);
-
-            // Add relation as edge
-            _addRelation(level, param, graph, graphParents, graphCircular, rel);
-
-            // graph
-            //   .nodes()
-            //   .forEach((nodeId) => console.log(`graph.nodes().forEach((node): ${JSON.stringify(graph.node(nodeId))}`));
+            _addRelation(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, rel);
           }
         }
       }
@@ -524,107 +514,118 @@ function _addElement(level, param, graph, graphParents, graphCircular, archiEle,
 }
 
 /**
- * Add the given element as a node to the graph
- *
- * @param {object} archiEle Archi object
+ * Add the given element as a node to the ELK node map
  */
-function _createNode(level, param, graph, archiEle) {
-  if (!graph.hasNode(archiEle.id)) {
-    e = Common.concept(archiEle);
-    if (e.type == "junction") graph.setNode(e.id, { label: e.name, width: JUNCTION_DIAMETER, height: JUNCTION_DIAMETER });
-    else graph.setNode(e.id, { label: e.name, width: param.nodeWidth, height: param.nodeHeight });
-    Common.debug(`${"  ".repeat(level)}> Add ${archiEle}`);
+function _createNode(level, param, elkNodeMap, occurrenceMap, archiEle) {
+  const e = Common.concept(archiEle);
+  if (!elkNodeMap[e.id]) {
+    const isJunction = e.type === "junction";
+    const w = isJunction ? JUNCTION_DIAMETER : param.nodeWidth;
+    const h = isJunction ? JUNCTION_DIAMETER : param.nodeHeight;
+    elkNodeMap[e.id] = { id: e.id, _archiId: e.id, width: w, height: h, children: [], edges: [] };
+    occurrenceMap[e.id] = [e.id];
+    Common.debug(`${"  ".repeat(level)}> Add node ${archiEle}`);
   } else {
     Common.debug(`${"  ".repeat(level)}> Skip; already added ${archiEle}`);
   }
 }
 
 /**
- * Add the given relation to the graph
+ * Route a relation to edge or parent creation
+ * ELK handles cyclic relations natively — no separate circular list needed.
+ */
+function _addRelation(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, rel) {
+  if (param.layoutNested.includes(rel.type)) {
+    _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, elkParentRels, rel);
+  } else {
+    _createEdge(level, param, occurrenceMap, elkEdgeList, rel);
+  }
+}
+
+/**
+ * Add the given relation as an ELK edge
  *
- * @param {integer} level counter for depth of recursion
- * @param {object} rel Archi relation
+ * In nestingMultipleOccurrences mode, edges are created for each occurrence combination.
  */
-function _addRelation(level, param, graph, graphParents, graphCircular, rel) {
-  if (rel.source.id == rel.target.id && param.layoutCircular) {
-    // don't use Dagre for layout circular relation, use function drawlayoutCircular
-    graphCircular.push(rel);
-  } else {
-    if (param.layoutNested.includes(rel.type)) {
-      _createParent(level, param, graph, graphParents, rel);
-    } else {
-      _createEdge(level, param, graph, rel);
-    }
-  }
-}
-
-/**
- * Add the given relation to the graph
- */
-function _createEdge(level, param, graph, rel) {
+function _createEdge(level, param, occurrenceMap, elkEdgeList, rel) {
   Common.debugStackPush(false);
-  // reverse the graph edge for given Archi relation types
-  if (param.layoutReversed.includes(rel.type)) {
-    if (!graph.hasEdge(rel.target.id, rel.source.id, rel.id)) {
-      graph.setEdge({ v: rel.target.id, w: rel.source.id, name: rel.id }, { id: rel.id });
-      // graph.setEdge(rel.target.id, rel.source.id, rel.id );
-      Common.debug(
-        `${"  ".repeat(level)}> Add edge reversed: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
-      );
-    } else {
-      Common.debug(
-        `${"  ".repeat(level)}> Skip, edge found: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
-      );
-    }
-  } else {
-    if (!graph.hasEdge(rel.source.id, rel.target.id, rel.id)) {
-      graph.setEdge({ v: rel.source.id, w: rel.target.id, name: rel.id }, { id: rel.id });
-      // graph.setEdge(rel.source.id, rel.target.id, rel.id );
-      Common.debug(
-        `${"  ".repeat(level)}> Add edge : ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
-      );
-    } else {
-      Common.debug(
-        `${"  ".repeat(level)}> Skip, edge found: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
-      );
-    }
-  }
+  const reversed = param.layoutReversed.includes(rel.type);
+
+  const srcOccs = occurrenceMap[rel.source.id] || [rel.source.id];
+  const tgtOccs = occurrenceMap[rel.target.id] || [rel.target.id];
+
+  srcOccs.forEach(function(srcId, si) {
+    tgtOccs.forEach(function(tgtId, ti) {
+      const edgeId = (srcOccs.length === 1 && tgtOccs.length === 1)
+        ? rel.id
+        : `${rel.id}_${si}_${ti}`;
+
+      if (!elkEdgeList.some(function(e) { return e.id === edgeId; })) {
+        elkEdgeList.push({
+          id: edgeId,
+          _archiRelId: rel.id,
+          sources: [reversed ? tgtId : srcId],
+          targets: [reversed ? srcId : tgtId],
+        });
+        Common.debug(
+          `${"  ".repeat(level)}> Add edge: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, reversed ? Common.FORMAT_REVERSED : Common.FORMAT_NOT_REVERSED)}`
+        );
+      }
+    });
+  });
   Common.debugStackPop();
 }
 
 /**
- * Add the given relation as a parent/child to the graph
+ * Record the given relation as a parent-child nesting in elkParentMap.
+ *
+ * nestingMultipleOccurrences=false (default): child goes into the first parent only.
+ * nestingMultipleOccurrences=true:  a separate visual occurrence is created for each parent.
  */
-function _createParent(level, param, graph, graphParents, rel) {
+function _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, elkParentRels, rel) {
   Common.debugStackPush(false);
-  // check if relation is already added
-  if (!graphParents.some((r) => r.id == rel.id)) {
-    // save parent relation
-    graphParents.push(rel);
 
-    // # graph.setParent(v, parent)
-    // Sets the parent for v to parent if it is defined or removes the parent for v if parent is undefined.
-    // Throws an error if the graph is not compound.
-    // Returns the graph, allowing this to be chained with other functions.
-    if (param.layoutReversed.includes(rel.type)) {
-      // # graph.setParent(v, parent)
-      graph.setParent(rel.source.id, rel.target.id);
-      Common.debug(
-        `${"  ".repeat(level)}> Add Parent<-Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_REVERSED)}`,
-      );
+  if (elkParentRels.some(function(r) { return r.id === rel.id; })) {
+    Common.debug(`${"  ".repeat(level)}> Skip, already in parent-list ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`);
+    Common.debugStackPop();
+    return;
+  }
+
+  const reversed     = param.layoutReversed.includes(rel.type);
+  const childArchiId = reversed ? rel.source.id : rel.target.id;
+  const parentArchiId = reversed ? rel.target.id : rel.source.id;
+
+  if (!param.nestingMultipleOccurrences) {
+    // Default: assign to first parent only
+    if (elkParentMap[childArchiId] !== undefined) {
+      console.log(`> Multi-parent: ${childArchiId} already in ${elkParentMap[childArchiId]}, skipping ${parentArchiId}. Set nestingMultipleOccurrences=true to render in both.`);
     } else {
-      graph.setParent(rel.target.id, rel.source.id);
-      Common.debug(
-        `${"  ".repeat(level)}> Add Parent->Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
-      );
+      elkParentMap[childArchiId] = parentArchiId;
+      Common.debug(`${"  ".repeat(level)}> Add Parent${reversed ? "<-" : "->"}Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, reversed ? Common.FORMAT_REVERSED : Common.FORMAT_NOT_REVERSED)}`);
     }
   } else {
-    Common.debug(
-      `${"  ".repeat(level)}> Skip, already in graph ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`,
-    );
+    // Multiple occurrences: assign base occurrence if unassigned; else create new occurrence
+    const occs = occurrenceMap[childArchiId] || [];
+    const unassigned = occs.find(function(occId) { return elkParentMap[occId] === undefined; });
+    if (unassigned) {
+      elkParentMap[unassigned] = parentArchiId;
+      Common.debug(`${"  ".repeat(level)}> Assign occurrence ${unassigned} to parent ${parentArchiId}`);
+    } else {
+      const alreadyInParent = occs.find(function(occId) { return elkParentMap[occId] === parentArchiId; });
+      if (!alreadyInParent) {
+        const n = occs.length;
+        const occId = `${childArchiId}_occ_${n}`;
+        const baseNode = elkNodeMap[childArchiId];
+        elkNodeMap[occId] = { id: occId, _archiId: childArchiId, width: baseNode.width, height: baseNode.height, children: [], edges: [] };
+        occurrenceMap[childArchiId].push(occId);
+        elkParentMap[occId] = parentArchiId;
+        Common.debug(`${"  ".repeat(level)}> Create occurrence ${occId} in parent ${parentArchiId}`);
+      }
+    }
   }
+
+  elkParentRels.push(rel);
   Common.debugStackPop();
-  return;
 }
 
 function _filterObjectType(o, objectTypeFilter) {
@@ -632,14 +633,10 @@ function _filterObjectType(o, objectTypeFilter) {
   return objectTypeFilter.includes(o.type);
 }
 
-function _layoutGraph(param, graph) {
-  console.log("\nCalculating the graph layout...");
-  var opts = { debugTiming: false };
-  if (param.debug) opts.debugTiming = true;
-  dagre.layout(graph, opts);
-}
-
-function _drawView(param, graph, graphParents, graphCircular) {
+/**
+ * Draw the ELK-layouted graph as an Archi view
+ */
+function _drawView(param, layoutedGraph, elkParentRels) {
   console.log(`\nDrawing ArchiMate view...  `);
 
   let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
@@ -647,205 +644,143 @@ function _drawView(param, graph, graphParents, graphCircular) {
     folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
   }
 
-  var view = _getView(folder, param.viewName);
-
-  // save generate_view parameter to a view property
+  let view = _getView(folder, param.viewName);
   view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
 
-  let visualElementsIndex = new Object();
-  let nodeIndex = {};
+  let visualElementIndex = {};
 
   console.log("Drawing graph nodes as elements ...");
-  graph.nodes().forEach((nodeId) => _drawElement(param, graph, nodeId, nodeIndex, visualElementsIndex, view));
+  (layoutedGraph.children || []).forEach(function(node) {
+    _drawNodeRecursive(param, node, null, visualElementIndex, view);
+  });
 
   console.log("Drawing graph edges as relations ...");
-  graph.edges().forEach((edge) => _drawRelation(param, graph, edge, visualElementsIndex, view));
+  _drawEdgesRecursive(layoutedGraph, param, visualElementIndex, view);
 
-  if (graphParents.length > 0) console.log("Adding child-parent relations to the view ...");
-  graphParents.forEach((parentRel) => _layoutNestedConnection(parentRel, visualElementsIndex, view));
-
-  if (graphCircular.length > 0) console.log("Drawing circular relations ...");
-  graphCircular.forEach((rel) => _drawlayoutCircular(param, rel, visualElementsIndex, view));
+  if (elkParentRels.length > 0) console.log("Adding child-parent relations to the view ...");
+  elkParentRels.forEach(function(parentRel) {
+    _layoutNestedConnection(parentRel, visualElementIndex, view);
+  });
 
   console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
   _openView(view);
   return view;
 }
 
-function _drawlayoutCircular(param, rel, visualElementIndex, view) {
+/**
+ * Recursively draw an ELK node and its children.
+ * ELK coords: x,y = top-left corner; child coords are relative to parent.
+ */
+function _drawNodeRecursive(param, elkNode, parentVisual, visualElementIndex, view) {
+  const archiId      = elkNode._archiId || elkNode.id;
+  const archiElement = $("#" + archiId).first();
+  const x = parseInt(elkNode.x || 0);
+  const y = parseInt(elkNode.y || 0);
+  const w = (elkNode.width  || param.nodeWidth)  + 1;
+  const h = (elkNode.height || param.nodeHeight) + 1;
+
+  try {
+    Common.debug(`>> draw ${archiElement} at (${x},${y}) w=${w} h=${h} parent=${parentVisual ? parentVisual : "view"}`);
+    let visual;
+    if (parentVisual === null) {
+      visual = view.add(archiElement, x, y, w, h);
+    } else {
+      visual = parentVisual.add(archiElement, x, y, w, h);
+    }
+    visualElementIndex[elkNode.id] = visual;
+
+    // ELK child x,y are already relative to parent — recurse
+    (elkNode.children || []).forEach(function(child) {
+      _drawNodeRecursive(param, child, visual, visualElementIndex, view);
+    });
+  } catch (e) {
+    console.error("-->" + e + "\n" + e.stack);
+  }
+}
+
+/**
+ * Recursively draw all ELK edges in the graph tree
+ */
+function _drawEdgesRecursive(elkNode, param, visualElementIndex, view) {
+  (elkNode.edges || []).forEach(function(edge) {
+    _drawEdge(param, edge, visualElementIndex, view);
+  });
+  (elkNode.children || []).forEach(function(child) {
+    _drawEdgesRecursive(child, param, visualElementIndex, view);
+  });
+}
+
+function _drawEdge(param, edge, visualElementIndex, view) {
   Common.debugStackPush(false);
+  const archiRelId = edge._archiRelId || edge.id;
+  const archiRel   = $("#" + archiRelId).first();
+  const srcId      = edge.sources[0];
+  const tgtId      = edge.targets[0];
+  const srcVisual  = visualElementIndex[srcId];
+  const tgtVisual  = visualElementIndex[tgtId];
 
-  let connection = view.add(rel, visualElementIndex[rel.source.id], visualElementIndex[rel.target.id]);
+  if (!srcVisual || !tgtVisual) {
+    Common.debug(`>> skip edge ${archiRelId}: missing visual for src=${srcId} or tgt=${tgtId}`);
+    Common.debugStackPop();
+    return;
+  }
 
-  _drawCircularBendpoints(connection);
+  Common.debug(`>> draw edge ${archiRel}`);
+  let connection = view.add(archiRel, srcVisual, tgtVisual);
+  _drawBendpoints(param, edge, connection);
   Common.debugStackPop();
 }
 
 function _getView(folder, viewName) {
-  // check if the corresponding view already exists in the given folder
   var v;
   v = $(folder).children("view").filter(`.${viewName}`).first();
 
-  // If the view already exist, empty view
   if (v) {
     console.log(`Found ${v}. Overwriting ...`);
     $(v)
       .find()
-      .each((o) => o.delete());
+      .each(function(o) { o.delete(); });
   } else {
     v = model.createArchimateView(viewName);
     console.log(`Creating view: ${v.name}`);
-
-    // move view to the generated views folder
     folder.add(v);
   }
   return v;
-}
-
-function _drawElement(param, graph, nodeId, nodeIndex, visualElementIndex, view) {
-  Common.debugStackPush(false);
-  // if the id has not yet been added to the view
-  // check because parents are drawn, at the moment a child node comes by
-  if (nodeIndex[nodeId] === undefined) {
-    nodeIndex[nodeId] = true;
-    let node = graph.node(nodeId);
-    let parentId = graph.parent(nodeId);
-    let archiElement = $("#" + nodeId).first();
-
-    try {
-      if (parentId === undefined) {
-        // archi coordinates for visual element on archi diagram (related to the top left corner of diagram)
-
-        Common.debug(`>> draw ${archiElement}`);
-        let elePos = _calcElement(node);
-        visualElementIndex[nodeId] = view.add(archiElement, elePos.x, elePos.y, elePos.width, elePos.height);
-      } else {
-        // first add the parent to the view (the function checks if it's already drawn)
-        _drawElement(param, graph, parentId, nodeIndex, visualElementIndex, view);
-
-        // draw element in parent
-        let parentNode = graph.node(parentId);
-        let archiParent = visualElementIndex[parentId];
-
-        // calculate the position within the parent
-        let y_shift = 10; // shift to better center the child element(s) in the parent
-        if (param.graphDirection == "TB" || param.graphDirection == "BT") y_shift = 0;
-
-        Common.debug(`>> draw nested ${archiElement} in parent ${archiParent}`);
-        let elePos = _calcElementNested(node, parentNode);
-        visualElementIndex[nodeId] = archiParent.add(archiElement, elePos.x, elePos.y + y_shift, elePos.width, elePos.height);
-      }
-    } catch (e) {
-      console.error("-->" + e + "\n" + e.stack);
-    }
-  }
-  Common.debugStackPop();
-}
-
-// calculate the absolute coordinates of the left upper corner of the node
-function _calcElement(node) {
-  let elePos = _calcElementPosition(node);
-  elePos.x = parseInt(elePos.x);
-  elePos.y = parseInt(elePos.y);
-
-  Common.debug(`>> coördinates (${JSON.stringify(elePos)}`);
-
-  return elePos;
-}
-
-// calculate the relative coordinates of the node to the parent
-function _calcElementNested(node, parentNode) {
-  let nestedPos = _calcElementPosition(node);
-  Common.debug(`>> element (${JSON.stringify(nestedPos)}`);
-  let parentPos = _calcElementPosition(parentNode);
-  Common.debug(`>> parent (${JSON.stringify(parentPos)}`);
-
-  nestedPos.x = parseInt(nestedPos.x - parentPos.x);
-  nestedPos.y = parseInt(nestedPos.y - parentPos.y);
-
-  Common.debug(`>> nested element (relative to parent) (${JSON.stringify(nestedPos)}`);
-
-  return nestedPos;
-}
-
-function _calcElementPosition(node) {
-  let elePos = {};
-  elePos.x = node.x - node.width / 2;
-  elePos.y = node.y - node.height / 2;
-
-  // the +1 is for alignment of right bottom conrner on grid in Archi
-  elePos.width = node.width + 1;
-  elePos.height = node.height + 1;
-  return elePos;
-}
-
-/**
- * draw an Archi connection for the given edge
- *
- * @param {object} edge graphlib edge object
- * @param {object} visualElementIndex index object to Archi view occurences
- * @param {object} view Archi view
- */
-function _drawRelation(param, graph, edge, visualElementIndex, view) {
-  Common.debugStackPush(false);
-  Common.debug(`graph.edge(edge): ${JSON.stringify(graph.edge(edge))}`);
-
-  let archiRelation = $("#" + graph.edge(edge).id).first();
-  Common.debug(`archiRelation: ${Common.formatRelation(archiRelation, Common.FORMAT_WITH_TYPES)}`);
-
-  let connection = view.add(
-    archiRelation,
-    visualElementIndex[archiRelation.source.id],
-    visualElementIndex[archiRelation.target.id],
-  );
-  _drawBendpoints(param, graph, edge, connection);
-  Common.debugStackPop();
 }
 
 /**
  * add a connection for a nested relation
  *   depending on the Archi preferences, the connection is or is not drawn
  *   See Edit > preferences > connections > ARM > enable implicit connections
- *
- * @param {object} parentRel Archi relation
- * @param {object} visualElementIndex index object to Archi view occurences
- * @param {object} view Archi view
  */
 function _layoutNestedConnection(parentRel, visualElementIndex, view) {
   Common.debugStackPush(false);
   Common.debug(`parentRel: ${Common.formatRelation(parentRel, Common.FORMAT_WITH_TYPES)}`);
-  view.add(parentRel, visualElementIndex[parentRel.source.id], visualElementIndex[parentRel.target.id]);
+  const srcVisual = visualElementIndex[parentRel.source.id];
+  const tgtVisual = visualElementIndex[parentRel.target.id];
+  if (srcVisual && tgtVisual) {
+    view.add(parentRel, srcVisual, tgtVisual);
+  }
   Common.debugStackPop();
 }
 
 /**
- * add bendpoints to an Archi connection
+ * Add bendpoints to an Archi connection from ELK edge sections.
  *
- * calculate Archi bendpoint coordinates from a Dagre point
- *  - coordinates of Dagre points are absolute to the diagram
- *  - coordinates of Archi bendpoints are given relative to center of the connections source and target
- *
- * @param {object} edge - graph edge
- * @param {object} connection - Archi connection
+ * ELK sections[0].bendPoints are the intermediate waypoints (absolute coords).
+ * Archi bendpoints are relative to the center of source and target.
  */
-function _drawBendpoints(param, graph, edge, connection) {
+function _drawBendpoints(param, edge, connection) {
   Common.debugStackPush(false);
 
   let srcCenter = _getCenterBounds(connection.source);
   let tgtCenter = _getCenterBounds(connection.target);
 
-  let bendpoints = [];
-  // ### edges from nested elements don't have points???
-  let points = graph.edge(edge).points;
+  let points = (edge.sections && edge.sections[0] && edge.sections[0].bendPoints) || [];
+  Common.debug(`ELK bendPoints: ${JSON.stringify(points)}`);
 
-  Common.debug(`dagre points: ${JSON.stringify(points)}`);
+  let bendpoints = points.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
 
-  // skip first and last point. These are not bendpoints, but connecting points on the edge of the node
-  for (let i = 1; i < points.length - 1; i++) {
-    bendpoints.push(_calcBendpoint(points[i], srcCenter, tgtCenter));
-  }
-
-  // finaly add the calculated bendpoint to the Archi connection
   for (let i = 0; i < bendpoints.length; i++) {
     if (param.layoutReversed.includes(connection.type)) {
       connection.addRelativeBendpoint(bendpoints[bendpoints.length - i - 1], i);
@@ -860,11 +795,11 @@ function _calcBendpoint(point, srcCenter, tgtCenter) {
   let bendpoint = {
     startX: parseInt(point.x - srcCenter.x),
     startY: parseInt(point.y - srcCenter.y),
-    endX: parseInt(point.x - tgtCenter.x),
-    endY: parseInt(point.y - tgtCenter.y),
+    endX:   parseInt(point.x - tgtCenter.x),
+    endY:   parseInt(point.y - tgtCenter.y),
   };
 
-  Common.debug(`dagre point: ${JSON.stringify(point)}`);
+  Common.debug(`ELK point: ${JSON.stringify(point)}`);
   Common.debug(`Archi bendpoint: ${JSON.stringify(bendpoint)}`);
 
   return bendpoint;
@@ -882,12 +817,11 @@ function _getCenterBounds(element) {
   center.y = parseInt(center.y);
   return center;
 }
-// recursive function
-// if element is nested, coordinates are relative to the parent (and parent's parent)
+
+// recursive: if element is nested, add parent offsets to get absolute coordinates
 function _getCenterBoundsAbsolute(element, center) {
   let parent = $(element).parent().filter("element").first();
   if (parent) {
-    // Common.debug(`coordinates relative to parent ${parent} `);
     Common.debug(`center ${element}=${JSON.stringify(center)}`);
     center.x += parent.bounds.x;
     center.y += parent.bounds.y;
@@ -896,39 +830,8 @@ function _getCenterBoundsAbsolute(element, center) {
   return;
 }
 
-/**
- * add bendpoints for drawing a circular connection
- * ### if an element has more than one circular relation, the are drawn on top of eachotHer
- * ### todo => draw to next corner around with the clock
- *
- * @param {object} connection - Archi connection
- */
-function _drawCircularBendpoints(connection) {
-  // bendpoint coordinates are relative to the center of the element (x,y=0,0)
-  let cornerX = connection.source.bounds.width / 2;
-  let cornerY = connection.source.bounds.height / 2;
-  let rightX = cornerX + 30;
-  let down_Y = -cornerY + 15;
-  let left_X = cornerX - 50;
-  let up___Y = -cornerY - 15;
-
-  // Bendpoint with duplicate coördinates: {startX, startY} is equal to {endX, endY}. Don't understand?
-  let bendpoints = [];
-  bendpoints[0] = { startX: rightX, startY: down_Y, endX: rightX, endY: down_Y };
-  bendpoints[1] = { startX: rightX, startY: up___Y, endX: rightX, endY: up___Y };
-  bendpoints[2] = { startX: left_X, startY: up___Y, endX: left_X, endY: up___Y };
-
-  for (let i = 0; i < bendpoints.length; i++) {
-    connection.addRelativeBendpoint(bendpoints[i], i);
-  }
-}
-
-// Open the view
 function _openView(view) {
   try {
-    // jArchi provides a ArchimateDiagramModelProxy class where then openDiagramEditor requires a ArchimateDiagramModel class
-    // unfortunately, the getEObject() method that provides the underlying ArchimateDiagramModel class, is protected
-    // so we use reflection to invoke this method.
     var method = Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class.getDeclaredMethod("getEObject");
     method.setAccessible(true);
     var v = method.invoke(view);
@@ -1059,8 +962,13 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_ACTION,
     DEFAULT_NODE_WIDTH,
     DEFAULT_NODE_HEIGHT,
-    LAYOUT_CIRCULAR_DAGRE,
-    LAYOUT_CIRCULAR_WORKAROUND,
+    DEFAULT_ELK_ALGORITHM,
+    DEFAULT_ELK_DIRECTION,
+    DEFAULT_ELK_SPACING,
+    DEFAULT_ELK_LAYER_SEP,
+    DEFAULT_ELK_NODE_PLACEMENT,
+    DEFAULT_ELK_EDGE_ROUTING,
+    DEFAULT_ELK_PADDING,
     GENERATED_VIEW_FOLDER,
     PROP_SAVE_PARAMETER,
     PROP_EXCLUDE,

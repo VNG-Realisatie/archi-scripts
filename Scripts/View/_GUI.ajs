@@ -94,17 +94,19 @@ if (!defaultParams) {
       excludeFromView: false,
       layoutReversed: [],
       layoutNested: [],
-      layoutCircular: View.LAYOUT_CIRCULAR_WORKAROUND,
+      nestingMultipleOccurrences: false,
       viewName: "",
       viewNameSuffix: "",
       viewFolder: "",
-      graphDirection: "LR",
-      graphAlign: "UL",
-      ranker: "network-simplex",
-      nodeWidth: 200,
+      elkAlgorithm:       View.DEFAULT_ELK_ALGORITHM,
+      elkDirection:       View.DEFAULT_ELK_DIRECTION,
+      elkSpacingNodeNode: View.DEFAULT_ELK_SPACING,
+      elkLayerSpacing:    View.DEFAULT_ELK_LAYER_SEP,
+      elkNodePlacementAlignment: View.DEFAULT_ELK_NODE_PLACEMENT,
+      elkEdgeRouting:     View.DEFAULT_ELK_EDGE_ROUTING,
+      elkPadding:         View.DEFAULT_ELK_PADDING,
+      nodeWidth:  200,
       nodeHeight: 60,
-      hSep: 40,
-      vSep: 180,
       debug: false,
     };
   }
@@ -123,6 +125,7 @@ let layoutDialog = {
       let txt = new LabelWidget(container, SWT.NONE);
       txt.setText(label);
       if (tooltip) txt.setToolTipText(tooltip);
+      if (name != null) this.widgets[name + '_lbl'] = txt;
     }
 
     let widget = new widgetClass(container, flags);
@@ -240,25 +243,27 @@ let layoutDialog = {
 
     // mapping for human readability
     let map = {
-      action: "Action",
-      graphDepth: "Graph Depth",
-      includeElementType: "Element Filter",
-      includeRelationType: "Relationship Filter",
-      excludeFromView: "Exclude Flag",
-      layoutReversed: "Reverse Relations",
-      layoutNested: "Nested Relations",
-      layoutCircular: "Circular Handling",
-      viewName: "View Name",
-      viewNameSuffix: "View Suffix",
-      viewFolder: "View Folder",
-      graphDirection: "Direction",
-      graphAlign: "Alignment",
-      ranker: "Layout Ranker",
-      nodeWidth: "Node Width",
-      nodeHeight: "Node Height",
-      hSep: "Horizontal Separation",
-      vSep: "Vertical Separation",
-      debug: "Debug Trace",
+      action:                 "Action",
+      graphDepth:             "Graph Depth",
+      includeElementType:     "Element Filter",
+      includeRelationType:    "Relationship Filter",
+      excludeFromView:        "Exclude Flag",
+      layoutReversed:         "Reverse Relations",
+      layoutNested:           "Nested Relations",
+      nestingMultipleOccurrences: "Multiple Occurrences",
+      viewName:               "View Name",
+      viewNameSuffix:         "View Suffix",
+      viewFolder:             "View Folder",
+      elkAlgorithm:           "ELK Algorithm",
+      elkDirection:           "Direction",
+      elkNodePlacementAlignment: "Node placement",
+      elkEdgeRouting:         "Edge Routing",
+      elkSpacingNodeNode:     "Node Spacing",
+      elkLayerSpacing:        "Layer Spacing",
+      elkPadding:             "Nested Padding",
+      nodeWidth:              "Node Width",
+      nodeHeight:             "Node Height",
+      debug:                  "Debug Trace",
     };
 
     Object.keys(newConfig).forEach((k) => {
@@ -391,22 +396,26 @@ let layoutDialog = {
     if (this.config.graphDepth !== undefined) this.widgets.spinDepth.setSelection(this.config.graphDepth);
 
     setBuilder(this.widgets.lstElemTypes, this.config.includeElementType);
-    setBuilder(this.widgets.lstRelTypes, this.config.includeRelationType);
+    setBuilder(this.widgets.lstRelTypes,  this.config.includeRelationType);
 
-    if (this.widgets.grpDir) setRadio(this.widgets.grpDir, this.config.graphDirection);
-    if (this.widgets.grpAlign) setRadio(this.widgets.grpAlign, this.config.graphAlign || "None");
-    if (this.widgets.grpRanker) setRadio(this.widgets.grpRanker, this.config.ranker);
+    if (this.widgets.grpAlgorithm) {
+      setRadio(this.widgets.grpAlgorithm, this.config.elkAlgorithm || View.DEFAULT_ELK_ALGORITHM);
+      this.updateAlgoControls(this.config.elkAlgorithm || View.DEFAULT_ELK_ALGORITHM);
+    }
+    if (this.widgets.grpDir)         setRadio(this.widgets.grpDir,         this.config.elkDirection    || View.DEFAULT_ELK_DIRECTION);
+    if (this.widgets.grpNodePlacement) setRadio(this.widgets.grpNodePlacement, this.config.elkNodePlacementAlignment || View.DEFAULT_ELK_NODE_PLACEMENT);
+    if (this.widgets.grpEdgeRouting) setRadio(this.widgets.grpEdgeRouting, this.config.elkEdgeRouting  || View.DEFAULT_ELK_EDGE_ROUTING);
 
-    if (this.config.nodeWidth) this.widgets.spinWidth.setSelection(this.config.nodeWidth);
-    if (this.config.nodeHeight) this.widgets.spinHeight.setSelection(this.config.nodeHeight);
-    if (this.config.hSep) this.widgets.spinhSep.setSelection(this.config.hSep);
-    if (this.config.vSep) this.widgets.spinvSep.setSelection(this.config.vSep);
+    if (this.config.nodeWidth)          this.widgets.spinWidth.setSelection(this.config.nodeWidth);
+    if (this.config.nodeHeight)         this.widgets.spinHeight.setSelection(this.config.nodeHeight);
+    if (this.config.elkSpacingNodeNode) this.widgets.spinNodeSep.setSelection(this.config.elkSpacingNodeNode);
+    if (this.config.elkLayerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.elkLayerSpacing);
+    if (this.config.elkPadding !== undefined) this.widgets.spinPadding.setSelection(this.config.elkPadding);
 
     setBuilder(this.widgets.lstReversed, this.config.layoutReversed);
-    setBuilder(this.widgets.lstNested, this.config.layoutNested);
+    setBuilder(this.widgets.lstNested,   this.config.layoutNested);
 
-    if (this.widgets.grpCircular)
-      setRadio(this.widgets.grpCircular, this.config.layoutCircular === View.LAYOUT_CIRCULAR_DAGRE ? "Dagre" : "Workaround");
+    if (this.widgets.chkMultiOcc) this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
 
     if (initialSelection && initialSelection.length > 0) {
       let firstObj = initialSelection.first();
@@ -439,8 +448,8 @@ let layoutDialog = {
     this.config.action = getRadioVal(this.widgets.grpActionControls);
     if (this.config.action === "None") this.config.action = undefined;
 
-    this.config.graphDepth = this.widgets.spinDepth.getSelection();
-    this.config.excludeFromView = false; // User requested to omit it
+    this.config.graphDepth    = this.widgets.spinDepth.getSelection();
+    this.config.excludeFromView = false;
 
     let toJsArray = (wList) => {
       let res = [];
@@ -451,30 +460,52 @@ let layoutDialog = {
       return res;
     };
 
-    this.config.includeElementType = toJsArray(this.widgets.lstElemTypes);
+    this.config.includeElementType  = toJsArray(this.widgets.lstElemTypes);
     this.config.includeRelationType = toJsArray(this.widgets.lstRelTypes);
 
-    this.config.graphDirection = getRadioVal(this.widgets.grpDir);
-    let align = getRadioVal(this.widgets.grpAlign);
-    this.config.graphAlign = align === "None" ? undefined : align;
-    this.config.ranker = getRadioVal(this.widgets.grpRanker);
+    this.config.elkAlgorithm       = getRadioVal(this.widgets.grpAlgorithm);
+    this.config.elkDirection        = getRadioVal(this.widgets.grpDir);
+    this.config.elkNodePlacementAlignment = getRadioVal(this.widgets.grpNodePlacement);
+    this.config.elkEdgeRouting      = getRadioVal(this.widgets.grpEdgeRouting);
 
-    this.config.nodeWidth = this.widgets.spinWidth.getSelection();
-    this.config.nodeHeight = this.widgets.spinHeight.getSelection();
-    this.config.hSep = this.widgets.spinhSep.getSelection();
-    this.config.vSep = this.widgets.spinvSep.getSelection();
+    this.config.nodeWidth           = this.widgets.spinWidth.getSelection();
+    this.config.nodeHeight          = this.widgets.spinHeight.getSelection();
+    this.config.elkSpacingNodeNode  = this.widgets.spinNodeSep.getSelection();
+    this.config.elkLayerSpacing     = this.widgets.spinLayerSep.getSelection();
+    this.config.elkPadding          = this.widgets.spinPadding.getSelection();
 
-    this.config.layoutReversed = toJsArray(this.widgets.lstReversed);
-    this.config.layoutNested = toJsArray(this.widgets.lstNested);
+    this.config.layoutReversed      = toJsArray(this.widgets.lstReversed);
+    this.config.layoutNested        = toJsArray(this.widgets.lstNested);
+    this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
 
-    let circ = getRadioVal(this.widgets.grpCircular);
-    this.config.layoutCircular = circ === "Dagre" ? View.LAYOUT_CIRCULAR_DAGRE : View.LAYOUT_CIRCULAR_WORKAROUND;
-
-    this.config.viewName = String(this.widgets.txtViewName.getText()).trim();
+    this.config.viewName       = String(this.widgets.txtViewName.getText()).trim();
     this.config.viewNameSuffix = undefined;
-    this.config.viewFolder = undefined;
+    this.config.viewFolder     = undefined;
 
     this.config.debug = this.widgets.chkDebug.getSelection();
+  },
+
+  updateAlgoControls: function (algo) {
+    if (!this.widgets.grpDir) return;
+    var CAPS = {
+      layered: { dir: true,  nodePlacement: true,  routing: true,  layerSep: true,  note: 'layered: all parameters apply.' },
+      mrtree:  { dir: true,  nodePlacement: false, routing: true,  layerSep: true,  note: 'mrtree: Node placement is ignored.' },
+      force:   { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'force: Direction, Node placement, Edge Routing and Layer Spacing are ignored.' },
+      box:     { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'box: Direction, Node placement, Edge Routing and Layer Spacing are ignored.' },
+      stress:  { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'stress: Direction, Node placement, Edge Routing and Layer Spacing are ignored.' },
+      radial:  { dir: false, nodePlacement: false, routing: false, layerSep: true,  note: 'radial: Direction, Node placement and Edge Routing are ignored; Layer Spacing sets the radius.' },
+    };
+    var c = CAPS[algo] || CAPS['layered'];
+    function setRowEnabled(comp, enabled) {
+      var ch = comp.getChildren();
+      for (var i = 0; i < ch.length; i++) ch[i].setEnabled(enabled);
+    }
+    setRowEnabled(this.widgets.grpDir,           c.dir);
+    setRowEnabled(this.widgets.grpNodePlacement,  c.nodePlacement);
+    setRowEnabled(this.widgets.grpEdgeRouting,    c.routing);
+    if (this.widgets.spinLayerSep)     this.widgets.spinLayerSep.setEnabled(c.layerSep);
+    if (this.widgets.spinLayerSep_lbl) this.widgets.spinLayerSep_lbl.setEnabled(c.layerSep);
+    if (this.widgets.lblAlgoNote)      this.widgets.lblAlgoNote.setText(c.note);
   },
 
   open: function () {
@@ -489,7 +520,7 @@ let layoutDialog = {
         "Modify parameters to auto-generate and layout your selection or view.",
         IMessageProvider.INFORMATION,
       );
-      layoutDialog.dialog.getShell().setSize(800, 850);
+      layoutDialog.dialog.getShell().setSize(800, 900);
     },
 
     createDialogArea: function (parent) {
@@ -577,49 +608,81 @@ let layoutDialog = {
         },
       );
 
-      // Algorithm Group
-      let grpDagre = new GroupWidget(layoutContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpDagre);
-      grpDagre.setText("Algorithm");
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(grpDagre);
+      // Algorithm Group (ELK)
+      let grpELK = new GroupWidget(layoutContainer, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpELK);
+      grpELK.setText("Algorithm");
+      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(grpELK);
 
-      let cDir = new CompositeWidget(grpDagre, SWT.NONE);
+      // Algorithm row
+      let cAlgo = new CompositeWidget(grpELK, SWT.NONE);
+      GridLayoutFactory.swtDefaults().numColumns(7).applyTo(cAlgo);
+      new LabelWidget(cAlgo, SWT.NONE).setText("Algorithm:");
+      layoutDialog.widgets.grpAlgorithm = cAlgo;
+      createRadios(cAlgo, [
+        { label: "layered",  val: "layered",  tooltip: "Layered — ArchiMate hierarchy, DAGs (default)" },
+        { label: "mrtree",   val: "mrtree",   tooltip: "MR Tree — pure trees, org charts" },
+        { label: "force",    val: "force",    tooltip: "Force-directed — exploratory, organic feel" },
+        { label: "box",      val: "box",      tooltip: "Box packing — disconnected elements" },
+        { label: "stress",   val: "stress",   tooltip: "Stress minimization — similar to force" },
+        { label: "radial",   val: "radial",   tooltip: "Radial — circular tree from center root" },
+      ]);
+      // Wire algorithm selection → enable/disable dependent controls
+      let algoChildren = cAlgo.getChildren();
+      for (let i = 0; i < algoChildren.length; i++) {
+        if (algoChildren[i].getData('val') !== null) {
+          algoChildren[i].addListener(SWT.Selection, function(e) {
+            if (e.widget.getSelection()) layoutDialog.updateAlgoControls(e.widget.getData('val'));
+          });
+        }
+      }
+
+      // Direction row
+      let cDir = new CompositeWidget(grpELK, SWT.NONE);
       GridLayoutFactory.swtDefaults().numColumns(5).applyTo(cDir);
       new LabelWidget(cDir, SWT.NONE).setText("Direction:");
       layoutDialog.widgets.grpDir = cDir;
       createRadios(cDir, [
-        { label: "Top-Bottom", val: "TB", tooltip: "Top to Bottom" },
-        { label: "Bottom-Top", val: "BT", tooltip: "Bottom to Top" },
-        { label: "Left-Right", val: "LR", tooltip: "Left to Right" },
-        { label: "Right-Left", val: "RL", tooltip: "Right to Left" },
+        { label: "Right",  val: "RIGHT", tooltip: "Left to Right (default)" },
+        { label: "Down",   val: "DOWN",  tooltip: "Top to Bottom" },
+        { label: "Up",     val: "UP",    tooltip: "Bottom to Top" },
+        { label: "Left",   val: "LEFT",  tooltip: "Right to Left" },
       ]);
 
-      let cAlign = new CompositeWidget(grpDagre, SWT.NONE);
-      GridLayoutFactory.swtDefaults().numColumns(6).applyTo(cAlign);
-      new LabelWidget(cAlign, SWT.NONE).setText("Alignment:");
-      layoutDialog.widgets.grpAlign = cAlign;
+      // Node placement row — layered only: controls BRANDES_KOEPF fixedAlignment
+      // This determines where the root lands vertically (top / center / bottom)
+      let cAlign = new CompositeWidget(grpELK, SWT.NONE);
+      GridLayoutFactory.swtDefaults().numColumns(5).applyTo(cAlign);
+      new LabelWidget(cAlign, SWT.NONE).setText("Node placement:");
+      layoutDialog.widgets.grpNodePlacement = cAlign;
       createRadios(cAlign, [
-        { label: "Centered", val: "None", tooltip: "Centered (None)" },
-        { label: "Up Left", val: "UL", tooltip: "Up Left" },
-        { label: "Up Right", val: "UR", tooltip: "Up Right" },
-        { label: "Down Left", val: "DL", tooltip: "Down Left" },
-        { label: "Down Right", val: "DR", tooltip: "Down Right" },
+        { label: "Default",  val: "NONE",       tooltip: "Let the algorithm decide (default)" },
+        { label: "Top",      val: "LEFTUP",     tooltip: "Align nodes upward — root tends to top-left" },
+        { label: "Center",   val: "BALANCED",   tooltip: "Balance all alignment candidates — root tends to center-left" },
+        { label: "Bottom",   val: "RIGHTDOWN",  tooltip: "Align nodes downward — root tends to bottom-left" },
       ]);
 
-      let cRanker = new CompositeWidget(grpDagre, SWT.NONE);
-      GridLayoutFactory.swtDefaults().numColumns(4).applyTo(cRanker);
-      new LabelWidget(cRanker, SWT.NONE).setText("Ranker:");
-      layoutDialog.widgets.grpRanker = cRanker;
-      createRadios(cRanker, [
-        { label: "network-simplex", val: "network-simplex", tooltip: "network-simplex" },
-        { label: "longest-path", val: "longest-path", tooltip: "longest-path" },
-        { label: "tight-tree", val: "tight-tree", tooltip: "tight-tree" },
+      // Edge Routing row
+      let cRouting = new CompositeWidget(grpELK, SWT.NONE);
+      GridLayoutFactory.swtDefaults().numColumns(4).applyTo(cRouting);
+      new LabelWidget(cRouting, SWT.NONE).setText("Edge routing:");
+      layoutDialog.widgets.grpEdgeRouting = cRouting;
+      createRadios(cRouting, [
+        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Orthogonal — right-angle bends (default; best with layered)" },
+        { label: "Polyline",   val: "POLYLINE",   tooltip: "Polyline — straight segments (recommended for force/stress)" },
+        { label: "Splines",    val: "SPLINES",    tooltip: "Splines — smooth curves" },
       ]);
 
+      // Note updated by updateAlgoControls to name ignored parameters for the active algorithm
+      let lblAlgoNote = new LabelWidget(grpELK, SWT.WRAP);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(lblAlgoNote);
+      layoutDialog.widgets.lblAlgoNote = lblAlgoNote;
+
+      // Dimensions Group
       let grpDimensions = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(grpDimensions);
       grpDimensions.setText("Dimensions (pixels)");
-      GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 10).applyTo(grpDimensions);
+      GridLayoutFactory.swtDefaults().numColumns(6).margins(10, 10).applyTo(grpDimensions);
 
       layoutDialog.createWidget("spinWidth", SpinnerWidget, grpDimensions, "Node Width:", null, function (w) {
         w.setValues(200, 10, 600, 0, 10, 50);
@@ -628,23 +691,33 @@ let layoutDialog = {
         w.setValues(60, 10, 400, 0, 10, 20);
       });
       layoutDialog.createWidget(
-        "spinhSep",
+        "spinNodeSep",
         SpinnerWidget,
         grpDimensions,
-        "Horizontal separation:",
-        "Horizontal distance between two elements",
+        "Node spacing:",
+        "Space between nodes in the same rank (elk.spacing.nodeNode)",
         function (w) {
           w.setValues(40, 0, 600, 0, 10, 50);
         },
       );
       layoutDialog.createWidget(
-        "spinvSep",
+        "spinLayerSep",
         SpinnerWidget,
         grpDimensions,
-        "Vertical separation:",
-        "Vertical distance between levels",
+        "Layer spacing:",
+        "Space between ranks/layers (elk.layered.spacing.nodeNodeBetweenLayers)",
         function (w) {
           w.setValues(180, 0, 600, 0, 10, 50);
+        },
+      );
+      layoutDialog.createWidget(
+        "spinPadding",
+        SpinnerWidget,
+        grpDimensions,
+        "Nested padding:",
+        "Padding inside nested (compound) containers",
+        function (w) {
+          w.setValues(20, 0, 100, 0, 5, 10);
         },
       );
 
@@ -708,6 +781,20 @@ let layoutDialog = {
 
       layoutDialog.createListBuilder("lstNested", grpNested, null, null, View.RELATION_NAMES, layoutDialog.config.layoutNested);
 
+      // Multiple occurrences checkbox
+      layoutDialog.createWidget(
+        "chkMultiOcc",
+        ButtonWidget,
+        grpNested,
+        null,
+        "If checked: an element nested in multiple parents appears once in each parent container.\nIf unchecked (default): it appears only in the first parent.",
+        function (w) {
+          w.setText("Multiple occurrences — render element in each parent container   ");
+          GridDataFactory.fillDefaults().span(2, 1).applyTo(w);
+        },
+        SWT.CHECK,
+      );
+
       let grpReverse = new GroupWidget(rendContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(grpReverse);
       grpReverse.setText("Reverse");
@@ -724,21 +811,6 @@ let layoutDialog = {
         View.RELATION_NAMES,
         layoutDialog.config.layoutReversed,
       );
-
-      let grpCirc = new GroupWidget(rendContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpCirc);
-      grpCirc.setText("Circular");
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(grpCirc);
-      let lblCircDesc = new LabelWidget(grpCirc, SWT.NONE);
-      lblCircDesc.setText("How to safely draw relationships linking back to themselves.");
-
-      let cCirc = new CompositeWidget(grpCirc, SWT.NONE);
-      GridLayoutFactory.swtDefaults().numColumns(2).applyTo(cCirc);
-      layoutDialog.widgets.grpCircular = cCirc;
-      createRadios(cCirc, [
-        { label: "Dagre Built-In", val: "Dagre", tooltip: "Dagre Built-In" },
-        { label: "Custom Workaround", val: "Workaround", tooltip: "Custom Workaround" },
-      ]);
 
       // --- TAB 4: Load and save ---
       let tabOutput = new TabItemWidget(tabFolder, SWT.NONE);
