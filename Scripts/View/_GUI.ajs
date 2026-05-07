@@ -183,11 +183,11 @@ let layoutDialog = {
 
     let btnAdd = new ButtonWidget(btnComp, SWT.PUSH);
     btnAdd.setText("Add >");
-    GridDataFactory.fillDefaults().hint(70, SWT.DEFAULT).applyTo(btnAdd);
+    GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnAdd);
 
     let btnRemove = new ButtonWidget(btnComp, SWT.PUSH);
     btnRemove.setText("< Remove");
-    GridDataFactory.fillDefaults().hint(70, SWT.DEFAULT).applyTo(btnRemove);
+    GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnRemove);
 
     // Right: Selected
     let rightComp = new CompositeWidget(mainComp, SWT.NONE);
@@ -195,7 +195,7 @@ let layoutDialog = {
     GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).applyTo(rightComp);
 
     let lblSelected = new LabelWidget(rightComp, SWT.NONE);
-    lblSelected.setText("Selected (Double-click to remove):");
+    lblSelected.setText("Active selection — double-click to remove:");
 
     let lstSelected = new ListWidget(rightComp, SWT.BORDER | SWT.V_SCROLL | SWT.MULTI);
     GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 100).applyTo(lstSelected);
@@ -245,26 +245,26 @@ let layoutDialog = {
     // mapping for human readability
     let map = {
       action:                 "Action",
-      graphDepth:             "Graph Depth",
-      includeElementType:     "Element Filter",
-      includeRelationType:    "Relationship Filter",
-      excludeFromView:        "Exclude Flag",
-      layoutReversed:         "Reverse Relations",
-      layoutNested:           "Nested Relations",
-      nestingMultipleOccurrences: "Multiple Occurrences",
+      graphDepth:             "Relation levels",
+      includeElementType:     "Element types",
+      includeRelationType:    "Relationship types",
+      excludeFromView:        "Respect excluded relations",
+      layoutReversed:         "Reversed relationships",
+      layoutNested:           "Nested relationships",
+      nestingMultipleOccurrences: "Show in every parent",
       viewName:               "View Name",
       viewNameSuffix:         "View Suffix",
       viewFolder:             "View Folder",
-      elkAlgorithm:           "ELK Algorithm",
-      elkDirection:           "Direction",
-      elkNodePlacementAlignment: "Node placement",
-      elkEdgeRouting:         "Edge Routing",
-      elkSpacingNodeNode:     "Node Spacing",
-      elkLayerSpacing:        "Layer Spacing",
-      elkPadding:             "Nested Padding",
-      nodeWidth:              "Node Width",
-      nodeHeight:             "Node Height",
-      debug:                  "Debug Trace",
+      elkAlgorithm:           "Layout style",
+      elkDirection:           "Flow direction",
+      elkNodePlacementAlignment: "Element alignment",
+      elkEdgeRouting:         "Connector style",
+      elkSpacingNodeNode:     "Element spacing",
+      elkLayerSpacing:        "Level spacing",
+      elkPadding:             "Container padding",
+      nodeWidth:              "Element width",
+      nodeHeight:             "Element height",
+      debug:                  "Console log",
     };
 
     Object.keys(newConfig).forEach((k) => {
@@ -294,7 +294,7 @@ let layoutDialog = {
       create: function () {
         Java.super(dlg).create();
         dlg.setTitle("Review Preset: " + presetName);
-        dlg.setMessage("Please review the parameter changes before applying them.", IMessageProvider.INFORMATION);
+        dlg.setMessage("The following settings will change when this preset is applied.", IMessageProvider.INFORMATION);
         dlg.getShell().setSize(700, 500);
         dlg.getShell().setText("Preset Review");
       },
@@ -310,15 +310,15 @@ let layoutDialog = {
         GridDataFactory.fillDefaults().grab(true, true).applyTo(table);
 
         let col1 = new org.eclipse.swt.widgets.TableColumn(table, SWT.NONE);
-        col1.setText("Parameter");
+        col1.setText("Setting");
         col1.setWidth(150);
 
         let col2 = new org.eclipse.swt.widgets.TableColumn(table, SWT.NONE);
-        col2.setText("Current Value");
+        col2.setText("Current");
         col2.setWidth(250);
 
         let col3 = new org.eclipse.swt.widgets.TableColumn(table, SWT.NONE);
-        col3.setText("Preset Value");
+        col3.setText("Preset");
         col3.setWidth(250);
 
         let TableItem = Java.type("org.eclipse.swt.widgets.TableItem");
@@ -419,7 +419,8 @@ let layoutDialog = {
     setBuilder(this.widgets.lstReversed, this.config.layoutReversed);
     setBuilder(this.widgets.lstNested,   this.config.layoutNested);
 
-    if (this.widgets.chkMultiOcc) this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
+    if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
+    if (this.widgets.chkExcludeFromView)   this.widgets.chkExcludeFromView.setSelection(!!this.config.excludeFromView);
 
     if (initialSelection && initialSelection.length > 0) {
       let firstObj = initialSelection.first();
@@ -452,8 +453,8 @@ let layoutDialog = {
     this.config.action = getRadioVal(this.widgets.grpActionControls);
     if (this.config.action === "None") this.config.action = undefined;
 
-    this.config.graphDepth    = this.widgets.spinDepth.getSelection();
-    this.config.excludeFromView = false;
+    this.config.graphDepth      = this.widgets.spinDepth.getSelection();
+    this.config.excludeFromView = this.widgets.chkExcludeFromView ? this.widgets.chkExcludeFromView.getSelection() : false;
 
     let toJsArray = (wList) => {
       let res = [];
@@ -501,13 +502,13 @@ let layoutDialog = {
   updateAlgoControls: function (algo) {
     if (!this.widgets.grpDir) return;
     var CAPS = {
-      layered: { dir: true,  nodePlacement: true,  routing: true,  layerSep: true,  note: 'Layered ranking — best for ArchiMate hierarchies and directed graphs. All parameters apply.' },
-      mrtree:  { dir: true,  nodePlacement: false, routing: true,  layerSep: true,  note: 'MR Tree — tree layouts and org charts.' },
-      force:   { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'Force-directed — organic, exploratory layouts.' },
-      box:     { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'Box packing — arranges disconnected elements in a compact grid.' },
-      stress:  { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'Stress minimisation — similar to force, good for undirected graphs.' },
-      radial:  { dir: false, nodePlacement: false, routing: false, layerSep: true,  note: 'Radial — circular tree radiating from a center root; layer spacing sets the ring distance.' },
-      dagre:   { dir: true,  nodePlacement: false, routing: false, layerSep: true,  note: 'Dagre — cluster-fix variant with better cross-compound edge routing. Add ranker to preset file (default: network-simplex).' },
+      layered: { dir: true,  nodePlacement: true,  routing: true,  layerSep: true,  note: 'Hierarchical — best for ArchiMate structures and directed diagrams. All layout options apply.' },
+      mrtree:  { dir: true,  nodePlacement: false, routing: true,  layerSep: true,  note: 'Tree — ideal for pure tree structures and organisation charts.' },
+      force:   { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'Organic — free-form layout, useful for exploratory overviews without a clear hierarchy.' },
+      box:     { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'Grid — neatly arranges elements that have no or few connections.' },
+      stress:  { dir: false, nodePlacement: false, routing: false, layerSep: false, note: 'Balanced organic — similar to Organic, but aims for more uniform spacing.' },
+      radial:  { dir: false, nodePlacement: false, routing: false, layerSep: true,  note: 'Radial — elements radiate outward in rings from the starting element. Ring spacing is controlled by level spacing.' },
+      dagre:   { dir: true,  nodePlacement: false, routing: false, layerSep: true,  note: 'Hierarchical (nested) — like Hierarchical but with improved relation lines across nested containers.' },
     };
     var c = CAPS[algo] || CAPS['layered'];
     function setRowEnabled(comp, enabled) {
@@ -531,7 +532,7 @@ let layoutDialog = {
       Java.super(layoutDialog.dialog).create();
       layoutDialog.dialog.setTitle("View generation and layout");
       layoutDialog.dialog.setMessage(
-        "Modify parameters to auto-generate and layout your selection or view.",
+        "Configure how the view is built and how elements are arranged.",
         IMessageProvider.INFORMATION,
       );
       let _sh = layoutDialog.dialog.getShell();
@@ -555,12 +556,13 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       layoutDialog.widgets.tabFolder = tabFolder;
 
-      function createRadios(parentGrp, options) {
+      function createRadios(parentGrp, options, colWidth) {
         options.forEach((opt) => {
           let r = new ButtonWidget(parentGrp, SWT.RADIO);
           r.setText(opt.label + "   ");
           r.setData("val", opt.val);
           if (opt.tooltip) r.setToolTipText(opt.tooltip);
+          if (colWidth) GridDataFactory.fillDefaults().hint(colWidth, SWT.DEFAULT).applyTo(r);
         });
       }
 
@@ -594,9 +596,9 @@ let layoutDialog = {
 
       // Radio 1 (col 1, row 1) — View name + Depth appear in col 2 spanning all 4 rows
       makeActionRadio(grpActionControls,
-        "Generate view — follow N relation levels from the selection",
+        "Create a view from the selection",
         View.GENERATE_SINGLE,
-        "Creates (or overwrites) a view starting from the selected elements,\nthen follows relations outward for the given number of levels.");
+        "Creates or updates a single view starting from the selected elements, including all related elements up to the specified number of relation levels.");
 
       // Right composite: View name + Depth, spans rows 1-4
       let compActionRight = new CompositeWidget(grpActionControls, SWT.NONE);
@@ -607,7 +609,7 @@ let layoutDialog = {
       lblViewNameLbl.setText("View name:");
       layoutDialog.widgets.txtViewName_lbl = lblViewNameLbl;
       let txtViewNameWidget = new TextWidget(compActionRight, SWT.BORDER);
-      txtViewNameWidget.setToolTipText("Name of the view to create or update.\nLeave blank to use the name of the first selected element.\nOnly used by Generate (single view).");
+      txtViewNameWidget.setToolTipText("The name of the view to create or update.\nLeave blank to use the name of the first selected element.\nOnly used by 'Create a view from the selection'.");
       GridDataFactory.fillDefaults().grab(true, false).applyTo(txtViewNameWidget);
       layoutDialog.widgets.txtViewName = txtViewNameWidget;
 
@@ -616,23 +618,23 @@ let layoutDialog = {
       layoutDialog.widgets.spinDepth_lbl = lblDepthLbl;
       let spinDepthWidget = new SpinnerWidget(compActionRight, SWT.BORDER);
       spinDepthWidget.setValues(1, 0, 10, 0, 1, 1);
-      spinDepthWidget.setToolTipText("How many relation-steps to follow outward from the selected elements.\nDepth 1 = direct neighbours only. Not used by Layout.");
-      GridDataFactory.fillDefaults().hint(55, SWT.DEFAULT).applyTo(spinDepthWidget);
+      spinDepthWidget.setToolTipText("How many steps to follow along relations from the selected elements.\n1 = direct neighbours only. Not used when re-arranging the current view.");
+      GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepthWidget);
       layoutDialog.widgets.spinDepth = spinDepthWidget;
 
       // Radios 2-4 (col 1, rows 2-4)
       makeActionRadio(grpActionControls,
-        "Generate one view per selected element — N relation levels each",
+        "Create one view per selected element",
         View.GENERATE_MULTIPLE,
-        "Creates one context view for every selected element.\nEach view contains that element plus the given number of levels of related elements.\nViews are named after the central element.");
+        "Creates a separate view for each selected element, showing that element and its related elements up to the specified number of levels. Each view is named after its central element.");
       makeActionRadio(grpActionControls,
-        "Expand current view — add related elements N relation levels deep",
+        "Add related elements to the current view",
         View.EXPAND_HERE,
-        "Adds elements to the CURRENTLY SELECTED VIEW by following relations outward.\nExisting elements stay.");
+        "Adds elements to the current view by following relations outward. Existing elements are kept.");
       makeActionRadio(grpActionControls,
-        "Layout current view — re-arrange existing elements, nothing added",
+        "Re-arrange the current view",
         View.LAYOUT,
-        "Applies the layout algorithm to all elements currently on the selected view.\nNo elements are added or removed.");
+        "Re-arranges all elements on the current view using the selected layout settings. No elements are added or removed.");
 
       // Group: Element filter
       let grpElemFilter = new GroupWidget(genContainer, SWT.NONE);
@@ -640,7 +642,7 @@ let layoutDialog = {
       grpElemFilter.setText("Element filter");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpElemFilter);
       let lblElemDesc = new LabelWidget(grpElemFilter, SWT.NONE);
-      lblElemDesc.setText("Element types to include. Leave empty to include all elements.");
+      lblElemDesc.setText("Restrict which element types are included. Leave empty to include all.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblElemDesc);
       layoutDialog.createListBuilder("lstElemTypes", grpElemFilter, null, null,
         View.ELEMENT_NAMES, layoutDialog.config.includeElementType);
@@ -651,15 +653,15 @@ let layoutDialog = {
       grpRelFilter.setText("Relationship filter");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpRelFilter);
       let lblRelDesc = new LabelWidget(grpRelFilter, SWT.NONE);
-      lblRelDesc.setText("Relationship types to include. Leave empty to include all relationships.");
+      lblRelDesc.setText("Restrict which relationship types are followed. Leave empty to follow all.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRelDesc);
       layoutDialog.createListBuilder("lstRelTypes", grpRelFilter, null, null,
         View.RELATION_NAMES, layoutDialog.config.includeRelationType);
 
       // Debug checkbox — bottom of Generate tab
       layoutDialog.createWidget("chkDebug", ButtonWidget, genContainer, null,
-        "Print debug logs to console",
-        function (w) { w.setText("Debug trace   "); }, SWT.CHECK);
+        "Writes step-by-step processing details to the console. Useful for diagnosing unexpected results.",
+        function (w) { w.setText("Write detailed log to console   "); }, SWT.CHECK);
 
       scrolled1.setContent(genContainer);
       scrolled1.setMinSize(genContainer.computeSize(SWT.DEFAULT, SWT.DEFAULT));
@@ -677,7 +679,7 @@ let layoutDialog = {
       // Group: Algorithm — description at top, then list left + options right
       let grpELK = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(grpELK);
-      grpELK.setText("Algorithm");
+      grpELK.setText("Layout style");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).spacing(10, 4).applyTo(grpELK);
 
       let lblAlgoDesc = new LabelWidget(grpELK, SWT.WRAP);
@@ -690,13 +692,13 @@ let layoutDialog = {
       GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).spacing(4, 2).applyTo(cLeft);
       layoutDialog.widgets.grpAlgorithm = cLeft;
       createRadios(cLeft, [
-        { label: "layered", val: "layered", tooltip: "Layered — ArchiMate hierarchy, DAGs (default)" },
-        { label: "mrtree",  val: "mrtree",  tooltip: "MR Tree — pure trees, org charts" },
-        { label: "force",   val: "force",   tooltip: "Force-directed — exploratory, organic feel" },
-        { label: "box",     val: "box",     tooltip: "Box packing — disconnected elements" },
-        { label: "stress",  val: "stress",  tooltip: "Stress minimization — similar to force" },
-        { label: "radial",  val: "radial",  tooltip: "Radial — circular tree from center root" },
-        { label: "dagre",   val: "dagre",   tooltip: "Dagre (cluster-fix) — better cross-compound edge routing;\nadd ranker to preset: network-simplex / tight-tree / longest-path" },
+        { label: "Hierarchical",         val: "layered", tooltip: "Best for ArchiMate structures and directed diagrams. All layout options apply. This is the default." },
+        { label: "Tree",                 val: "mrtree",  tooltip: "Ideal for pure tree structures and organisation charts." },
+        { label: "Organic",              val: "force",   tooltip: "Free-form layout driven by relation weights. Good for exploratory overviews." },
+        { label: "Grid",                 val: "box",     tooltip: "Arranges elements with few or no connections in a compact grid." },
+        { label: "Balanced organic",     val: "stress",  tooltip: "Similar to Organic but aims for more even spacing between elements." },
+        { label: "Radial",               val: "radial",  tooltip: "Elements radiate outward in rings from the starting element." },
+        { label: "Hierarchical (nested)", val: "dagre",  tooltip: "Like Hierarchical but with improved relation lines when elements are nested in containers." },
       ]);
       let algoChildren = cLeft.getChildren();
       for (let i = 0; i < algoChildren.length; i++) {
@@ -713,70 +715,96 @@ let layoutDialog = {
       let cDir = new CompositeWidget(cRight, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cDir);
       GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).applyTo(cDir);
-      new LabelWidget(cDir, SWT.NONE).setText("Direction:");
+      let lblDir = new LabelWidget(cDir, SWT.NONE);
+      lblDir.setText("Flow direction:");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblDir);
       layoutDialog.widgets.grpDir = cDir;
       createRadios(cDir, [
-        { label: "Right", val: "RIGHT", tooltip: "Left to Right (default). With nesting: external neighbours appear left/right of container." },
-        { label: "Down",  val: "DOWN",  tooltip: "Top to Bottom. Recommended for nested layouts: external neighbours appear above/below containers." },
-        { label: "Up",    val: "UP",    tooltip: "Bottom to Top" },
-        { label: "Left",  val: "LEFT",  tooltip: "Right to Left" },
-      ]);
+        { label: "Right", val: "RIGHT", tooltip: "Relations flow from left to right. With nested containers, elements outside a container appear to the left or right of it." },
+        { label: "Down",  val: "DOWN",  tooltip: "Relations flow downward. Recommended when using nested containers." },
+        { label: "Up",    val: "UP",    tooltip: "Relations flow upward." },
+        { label: "Left",  val: "LEFT",  tooltip: "Relations flow from right to left." },
+      ], 90);
 
       let cAlign = new CompositeWidget(cRight, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cAlign);
       GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).applyTo(cAlign);
-      new LabelWidget(cAlign, SWT.NONE).setText("Node placement:");
+      let lblAlign = new LabelWidget(cAlign, SWT.NONE);
+      lblAlign.setText("Element alignment:");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblAlign);
       layoutDialog.widgets.grpNodePlacement = cAlign;
       createRadios(cAlign, [
-        { label: "Default", val: "NONE",      tooltip: "Let the algorithm decide (default)" },
-        { label: "Top",     val: "LEFTUP",    tooltip: "Align nodes upward — root tends to top-left" },
-        { label: "Center",  val: "BALANCED",  tooltip: "Balance alignment candidates — root tends to center-left" },
-        { label: "Bottom",  val: "RIGHTDOWN", tooltip: "Align nodes downward — root tends to bottom-left" },
-      ]);
+        { label: "Default", val: "NONE",      tooltip: "Let the layout decide (default)." },
+        { label: "Top",     val: "LEFTUP",    tooltip: "Align elements toward the top." },
+        { label: "Center",  val: "BALANCED",  tooltip: "Align elements toward the center." },
+        { label: "Bottom",  val: "RIGHTDOWN", tooltip: "Align elements toward the bottom." },
+      ], 90);
 
       let cRouting = new CompositeWidget(cRight, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cRouting);
-      GridLayoutFactory.swtDefaults().numColumns(4).margins(0, 0).applyTo(cRouting);
-      new LabelWidget(cRouting, SWT.NONE).setText("Edge routing:");
+      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).applyTo(cRouting);
+      let lblRouting = new LabelWidget(cRouting, SWT.NONE);
+      lblRouting.setText("Connector style:");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblRouting);
       layoutDialog.widgets.grpEdgeRouting = cRouting;
       createRadios(cRouting, [
-        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Right-angle bends; best with layered." },
-        { label: "Polyline",   val: "POLYLINE",   tooltip: "Routed segments with bends; works well with all algorithms." },
-        { label: "Straight",   val: "STRAIGHT",   tooltip: "Direct line from source to target, no routing." },
-      ]);
+        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Relations are drawn with right-angle bends. Works best with Hierarchical layout." },
+        { label: "Polyline",   val: "POLYLINE",   tooltip: "Relations follow a path with diagonal bends. Works with all layout styles." },
+        { label: "Straight",   val: "STRAIGHT",   tooltip: "Relations are drawn as straight lines between elements." },
+      ], 90);
+
+      // Separator between options and dimension spinners
+      let sepDim = new LabelWidget(cRight, SWT.SEPARATOR | SWT.HORIZONTAL);
+      GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(sepDim);
 
       // Dimension spinners: 2 per row inside cRight (4 cols = lbl+spin lbl+spin)
-      layoutDialog.createWidget("spinWidth",    SpinnerWidget, cRight, "Node width:",   null, function (w) { w.setValues(200, 10, 600, 0, 10, 50); });
-      layoutDialog.createWidget("spinHeight",   SpinnerWidget, cRight, "Node height:",  null, function (w) { w.setValues(60,  10, 400, 0, 10, 20); });
-      layoutDialog.createWidget("spinNodeSep",  SpinnerWidget, cRight, "Node spacing:", "Space between nodes in the same rank (elk.spacing.nodeNode)",          function (w) { w.setValues(40,  0, 600, 0, 10, 50); });
-      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, cRight, "Layer spacing:", "Space between ranks/layers (elk.layered.spacing.nodeNodeBetweenLayers)", function (w) { w.setValues(180, 0, 600, 0, 10, 50); });
+      layoutDialog.createWidget("spinWidth",    SpinnerWidget, cRight, "Element width:",      null,                                                    function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinHeight",   SpinnerWidget, cRight, "Element height:",     null,                                                    function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinNodeSep",  SpinnerWidget, cRight, "Element spacing:",    "Space between elements on the same level.",             function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, cRight, "Level spacing:",      "Space between levels or layers in the diagram.",        function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
 
-      // Group: Nested — padding at top, then relation list
+      // Group: Nested — relation list, then options below
       let grpNested = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(grpNested);
       grpNested.setText("Nested");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpNested);
 
       let lblNestDesc = new LabelWidget(grpNested, SWT.NONE);
-      lblNestDesc.setText("Relationship types rendered as nested parent/child boxes. Padding applies to all algorithms.");
+      lblNestDesc.setText("Select which relationship types are shown as nested containers. The container padding applies to all layout styles.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblNestDesc);
-
-      layoutDialog.createWidget("spinPadding", SpinnerWidget, grpNested,
-        "Container padding (px):", "Space between the container border and its nested children.\nApplies to all algorithms when nesting relations are selected.",
-        function (w) {
-          w.setValues(20, 0, 100, 0, 5, 10);
-          GridDataFactory.fillDefaults().hint(70, SWT.DEFAULT).applyTo(w);
-        });
 
       layoutDialog.createListBuilder("lstNested", grpNested, null, null,
         View.RELATION_NAMES, layoutDialog.config.layoutNested);
 
+      let sepMultiOcc = new LabelWidget(grpNested, SWT.SEPARATOR | SWT.HORIZONTAL);
+      GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(sepMultiOcc);
+
       layoutDialog.createWidget("chkMultiOcc", ButtonWidget, grpNested, null,
-        "If checked: an element nested in multiple parents appears once in each parent container.\nIf unchecked (default): it appears only in the first parent.",
+        "When enabled, an element that belongs to multiple parent containers is shown inside each of them.\nWhen disabled (default), it appears only in the first matching parent.",
         function (w) {
-          w.setText("Multiple occurrences — render element in each parent container   ");
+          w.setText("Show element in every parent container   ");
           GridDataFactory.fillDefaults().span(2, 1).applyTo(w);
         }, SWT.CHECK);
+
+      let sepExclude = new LabelWidget(grpNested, SWT.SEPARATOR | SWT.HORIZONTAL);
+      GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(sepExclude);
+
+      layoutDialog.createWidget("chkExcludeFromView", ButtonWidget, grpNested, null,
+        "When enabled, relations marked with the Archi property 'excludeFromView = true' are ignored.\nElements reachable only via those relations will not be included in the view.",
+        function (w) {
+          w.setText("Respect 'excludeFromView' markers — skip relations marked to be excluded   ");
+          GridDataFactory.fillDefaults().span(2, 1).applyTo(w);
+        }, SWT.CHECK);
+
+      let sepExcludeEnd = new LabelWidget(grpNested, SWT.SEPARATOR | SWT.HORIZONTAL);
+      GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(sepExcludeEnd);
+
+      layoutDialog.createWidget("spinPadding", SpinnerWidget, grpNested,
+        "Container padding:", "Space between the edge of a container element and its nested children.\nApplies to all layout styles when nesting is active.",
+        function (w) {
+          w.setValues(20, 0, 100, 0, 5, 10);
+          GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w);
+        });
 
       // Group: Reverse
       let grpReverse = new GroupWidget(layoutContainer, SWT.NONE);
@@ -784,7 +812,7 @@ let layoutDialog = {
       grpReverse.setText("Reverse");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpReverse);
       let lblRevDesc = new LabelWidget(grpReverse, SWT.NONE);
-      lblRevDesc.setText("Relationship types to reverse visually in the graph structure.");
+      lblRevDesc.setText("Select which relationship types should be drawn in the opposite direction in the layout.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRevDesc);
       layoutDialog.createListBuilder("lstReversed", grpReverse, null, null,
         View.RELATION_NAMES, layoutDialog.config.layoutReversed);
@@ -804,20 +832,20 @@ let layoutDialog = {
       grpLoad.setText("Load preset");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpLoad);
       let lblLoadDesc = new LabelWidget(grpLoad, SWT.NONE);
-      lblLoadDesc.setText("Select a parameter preset file to load its configured options.");
+      lblLoadDesc.setText("Select a saved settings file to restore a previous configuration.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblLoadDesc);
       let lstPresets = new ListWidget(grpLoad, SWT.SINGLE | SWT.BORDER | SWT.V_SCROLL);
       GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 150).span(1, 2).applyTo(lstPresets);
       layoutDialog.widgets.lstPresets = lstPresets;
       getPresetFiles().forEach((f) => lstPresets.add(f));
       let btnLoad = new ButtonWidget(grpLoad, SWT.PUSH);
-      btnLoad.setText("Load Selected Preset");
+      btnLoad.setText("Load");
       GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnLoad);
       btnLoad.addListener(SWT.Selection, function () {
         if (lstPresets.getSelectionIndex() >= 0) layoutDialog.updateFromPreset(lstPresets.getSelection()[0]);
       });
       let btnDel = new ButtonWidget(grpLoad, SWT.PUSH);
-      btnDel.setText("Delete Selected Preset");
+      btnDel.setText("Delete");
       GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnDel);
       btnDel.addListener(SWT.Selection, function () {
         let idx = lstPresets.getSelectionIndex();
@@ -839,10 +867,10 @@ let layoutDialog = {
       grpSave.setText("Save current settings as preset");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpSave);
       let lblSaveDesc = new LabelWidget(grpSave, SWT.NONE);
-      lblSaveDesc.setText("Save your current settings into a reusable parameter file.");
+      lblSaveDesc.setText("Save your current settings as a named preset for future reuse.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblSaveDesc);
       let txtSaveName = new TextWidget(grpSave, SWT.BORDER);
-      txtSaveName.setMessage("Enter new parameter file name...");
+      txtSaveName.setMessage("Preset name...");
       GridDataFactory.fillDefaults().grab(true, false).applyTo(txtSaveName);
       layoutDialog.widgets.txtSaveName = txtSaveName;
       let btnSave = new ButtonWidget(grpSave, SWT.PUSH);
@@ -866,7 +894,7 @@ let layoutDialog = {
       let IDialogConstants = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
       Java.super(layoutDialog.dialog).createButton(parent, 100, "Save preset...", false);
       Java.super(layoutDialog.dialog).createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
-      Java.super(layoutDialog.dialog).createButton(parent, IDialogConstants.OK_ID, "Run", true);
+      Java.super(layoutDialog.dialog).createButton(parent, IDialogConstants.OK_ID, "Generate", true);
     },
 
     buttonPressed: function (buttonId) {
