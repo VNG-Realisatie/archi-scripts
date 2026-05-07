@@ -409,10 +409,19 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     }
   });
 
-  // Root children = nodes not assigned to a parent
+  // Sort each container's children alphabetically by name
+  Object.keys(elkNodeMap).forEach(function(nodeId) {
+    const node = elkNodeMap[nodeId];
+    if (node.children && node.children.length > 1) {
+      node.children.sort(function(a, b) { return (a._name).localeCompare(b._name); });
+    }
+  });
+
+  // Root children = nodes not assigned to a parent, sorted alphabetically
   const rootChildren = Object.keys(elkNodeMap)
     .filter(function(id) { return elkParentMap[id] === undefined; })
-    .map(function(id) { return elkNodeMap[id]; });
+    .map(function(id) { return elkNodeMap[id]; })
+    .sort(function(a, b) { return (a._name).localeCompare(b._name); });
 
   // Classify edges: internal (both endpoints under the same compound parent) go into
   // the compound node's own edges array so ELK routes them within the container.
@@ -584,7 +593,7 @@ function _createNode(level, param, elkNodeMap, occurrenceMap, archiEle) {
     const isJunction = e.type === "junction";
     const w = isJunction ? JUNCTION_DIAMETER : param.nodeWidth;
     const h = isJunction ? JUNCTION_DIAMETER : param.nodeHeight;
-    elkNodeMap[e.id] = { id: e.id, _archiId: e.id, width: w, height: h, children: [], edges: [] };
+    elkNodeMap[e.id] = { id: e.id, _archiId: e.id, _name: e.name || "", width: w, height: h, children: [], edges: [] };
     occurrenceMap[e.id] = [e.id];
     Common.debug(`${"  ".repeat(level)}> Add node ${archiEle}`);
   } else {

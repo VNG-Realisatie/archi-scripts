@@ -508,7 +508,8 @@ let layoutDialog = {
       box:     { dir: false, nodePlacement: false, routing: false, layerSep: false, ranker: false, note: 'Neatly arranges elements with no or few connections.' },
       stress:  { dir: false, nodePlacement: false, routing: false, layerSep: false, ranker: false, note: 'Similar to Organic, but produces more uniform spacing between elements.' },
       radial:  { dir: false, nodePlacement: false, routing: false, layerSep: true,  ranker: false, note: 'Elements radiate outward in rings from the starting element.\nRing spacing is set by level spacing.' },
-      dagre:   { dir: true,routing: false, layerSep: true,  ranker: true,  note: 'Uses a different ranking method — faster on large diagrams.\nLayer ranking controls how elements are assigned to levels.' },
+      dagre:   { dir: true,  routing: false, layerSep: true,  ranker: true,  note: 'Uses a different ranking method — faster on large diagrams.\nLayer ranking controls how elements are assigned to levels.' },
+      disco:   { dir: false, routing: false, layerSep: false, ranker: false, note: 'Lays out each disconnected cluster separately, then arranges the clusters together.\nEach cluster uses Hierarchical by default — change via a preset.' },
     };
     var c = CAPS[algo] || CAPS['layered'];
     function setRowEnabled(comp, enabled) {
@@ -556,13 +557,16 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       layoutDialog.widgets.tabFolder = tabFolder;
 
-      function createRadios(parentGrp, options, colWidth) {
+      function createRadios(parentGrp, options, colWidth, indent) {
         options.forEach((opt) => {
           let r = new ButtonWidget(parentGrp, SWT.RADIO);
           r.setText(opt.label + "   ");
           r.setData("val", opt.val);
           if (opt.tooltip) r.setToolTipText(opt.tooltip);
-          if (colWidth) GridDataFactory.fillDefaults().hint(colWidth, SWT.DEFAULT).applyTo(r);
+          let gd = GridDataFactory.fillDefaults();
+          if (colWidth) gd = gd.hint(colWidth, SWT.DEFAULT);
+          if (indent)   gd = gd.indent(indent, 0);
+          if (colWidth || indent) gd.applyTo(r);
         });
       }
 
@@ -698,20 +702,40 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(cLeft);
       GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).spacing(4, 2).applyTo(cLeft);
       layoutDialog.widgets.grpAlgorithm = cLeft;
+
+      let lblGrpHierarchical = new LabelWidget(cLeft, SWT.NONE);
+      lblGrpHierarchical.setText("Hierarchical");
+      lblGrpHierarchical.setToolTipText("Styles that arrange elements in ranked layers following the direction of relations.\nBest for diagrams with a clear hierarchy or flow.");
       createRadios(cLeft, [
-        { label: "Hierarchical",          val: "layered", tooltip: "Arranges elements in ranked layers following the direction of relations. The most thorough and configurable style — handles complex structures, cross-hierarchy connections, and fine-grained control. Best choice for most ArchiMate views." },
-        { label: "Tree",                  val: "mrtree",  tooltip: "Ideal for pure tree structures and organisation charts." },
-        { label: "Organic",               val: "force",   tooltip: "Free-form layout driven by relation weights. Good for exploratory overviews." },
-        { label: "Grid",                  val: "box",     tooltip: "Arranges elements with few or no connections in a compact grid." },
-        { label: "Balanced organic",      val: "stress",  tooltip: "Similar to Organic but aims for more even spacing between elements." },
-        { label: "Radial",                val: "radial",  tooltip: "Elements radiate outward in rings from the starting element." },
+        { label: "Hierarchical",               val: "layered", tooltip: "Arranges elements in ranked layers following the direction of relations. The most thorough and configurable style — handles complex structures, cross-hierarchy connections, and fine-grained control. Best choice for most ArchiMate views." },
         { label: "Hierarchical (alternative)", val: "dagre",   tooltip: "Alternative hierarchical layout using a different ranking method. Faster on larger diagrams. Try this when Hierarchical produces unsatisfactory results. Supports layer ranking." },
-      ]);
+        { label: "Tree",                       val: "mrtree",  tooltip: "Ideal for pure tree structures and organisation charts." },
+      ], undefined, 8);
+
+      let lblGrpOrganic = new LabelWidget(cLeft, SWT.NONE);
+      lblGrpOrganic.setText("Organic");
+      lblGrpOrganic.setToolTipText("Styles that position elements based on relation weights, without a fixed direction.\nBest for exploratory or undirected diagrams.");
+      createRadios(cLeft, [
+        { label: "Organic",                    val: "force",   tooltip: "Free-form layout driven by relation weights. Good for exploratory overviews." },
+        { label: "Balanced organic",           val: "stress",  tooltip: "Similar to Organic but aims for more even spacing between elements." },
+        { label: "Radial",                     val: "radial",  tooltip: "Elements radiate outward in rings from the starting element." },
+      ], undefined, 8);
+
+      let lblGrpPacking = new LabelWidget(cLeft, SWT.NONE);
+      lblGrpPacking.setText("Packing");
+      lblGrpPacking.setToolTipText("Styles that arrange elements in a compact area without following relation direction.\nBest for diagrams with disconnected or loosely related elements.");
+      createRadios(cLeft, [
+        { label: "Grid",                       val: "box",     tooltip: "Arranges elements with few or no connections in a compact grid." },
+        { label: "Disconnected",               val: "disco",   tooltip: "Lays out each disconnected cluster of elements separately, then arranges the clusters together. Use when your diagram contains multiple unrelated element groups that should not be packed into a single grid." },
+      ], undefined, 8);
+
       let algoChildren = cLeft.getChildren();
       for (let i = 0; i < algoChildren.length; i++) {
-        algoChildren[i].addListener(SWT.Selection, function (e) {
-          if (e.widget.getSelection()) layoutDialog.updateAlgoControls(e.widget.getData('val'));
-        });
+        if (algoChildren[i].getData("val") !== null && algoChildren[i].getData("val") !== undefined) {
+          algoChildren[i].addListener(SWT.Selection, function (e) {
+            if (e.widget.getSelection()) layoutDialog.updateAlgoControls(e.widget.getData('val'));
+          });
+        }
       }
 
       // Right column: description above parameter block
