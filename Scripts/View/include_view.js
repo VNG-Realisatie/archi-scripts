@@ -299,7 +299,9 @@ function _layoutAndRender(param, filteredElements) {
       if (!hasContainerSibling) return;
       node.children.forEach(function(c) {
         if (!c.children || c.children.length === 0) {
-          equalizedSizes[c.id] = { width: globalMinW, height: globalMinH };
+          if (param.elkExpandExcludeTypes.indexOf(c._type) < 0) {
+            equalizedSizes[c.id] = { width: globalMinW, height: globalMinH };
+          }
         } else if (c.width < globalMinW) {
           extraHPaddings[c.id] = (globalMinW - c.width) / 2;
         }
@@ -438,6 +440,7 @@ function _setDefaultParameters(param) {
   console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
   if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
   if (param.elkNestedExpandToFill     === undefined) param.elkNestedExpandToFill     = false;
+  if (param.elkExpandExcludeTypes      === undefined) param.elkExpandExcludeTypes      = [];
   if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
   if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", expandToFill = " + param.elkNestedExpandToFill);
   if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
