@@ -287,8 +287,11 @@ function _layoutAndRender(param, filteredElements) {
     }
     collectMinContainerSize(g1);
 
-    // Pass 1b: set leaf nodes that have at least one container sibling to global min size
-    const equalizedSizes = {};
+    // Pass 1b: equalize siblings
+    // - leaf next to container  → global min size (width + height)
+    // - container narrower than globalMinW → extra horizontal padding to reach globalMinW
+    const equalizedSizes  = {};  // leaf id       → { width, height }
+    const extraHPaddings  = {};  // container id  → extra px per side (left + right)
     function equalizeSiblings(node) {
       if (!node.children || node.children.length === 0) return;
       node.children.forEach(equalizeSiblings);
@@ -297,19 +300,22 @@ function _layoutAndRender(param, filteredElements) {
       node.children.forEach(function(c) {
         if (!c.children || c.children.length === 0) {
           equalizedSizes[c.id] = { width: globalMinW, height: globalMinH };
+        } else if (c.width < globalMinW) {
+          extraHPaddings[c.id] = (globalMinW - c.width) / 2;
         }
       });
     }
     equalizeSiblings(g1);
 
     // Reset ALL nodes to original sizes (so compound nodes are recomputed freely in pass 2),
-    // then apply the equalized dimensions only to the leaf nodes that need them.
+    // then apply equalized leaf sizes and extra padding hints for narrow containers.
     Object.keys(elkNodeMap).forEach(function(id) {
       elkNodeMap[id].children = [];
       elkNodeMap[id].edges    = [];
       delete elkNodeMap[id].layoutOptions;
       delete elkNodeMap[id].x;
       delete elkNodeMap[id].y;
+      delete elkNodeMap[id]._extraHPadding;
       elkNodeMap[id].width  = origSizes[id].width;
       elkNodeMap[id].height = origSizes[id].height;
     });
@@ -318,6 +324,9 @@ function _layoutAndRender(param, filteredElements) {
         elkNodeMap[id].width  = equalizedSizes[id].width;
         elkNodeMap[id].height = equalizedSizes[id].height;
       }
+    });
+    Object.keys(extraHPaddings).forEach(function(id) {
+      if (elkNodeMap[id]) elkNodeMap[id]._extraHPadding = extraHPaddings[id];
     });
     console.log("Calculating the graph layout (pass 2 — equalised sizes)...");
   } else {
@@ -512,9 +521,10 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     const childNode  = elkNodeMap[childId];
     if (parentNode && childNode) {
       parentNode.layoutOptions = parentNode.layoutOptions || {};
-      const p   = param.elkPadding;
+      const p  = param.elkPadding;
+      const ph = p + (parentNode._extraHPadding || 0);
       const top = p + NESTED_LABEL_TOP_EXTRA;
-      parentNode.layoutOptions["elk.padding"] = `[top=${top},left=${p},bottom=${p},right=${p}]`;
+      parentNode.layoutOptions["elk.padding"] = `[top=${top},left=${ph},bottom=${p},right=${ph}]`;
       if (!parentNode.children.some(function(c) { return c.id === childId; })) {
         parentNode.children.push(childNode);
       }
