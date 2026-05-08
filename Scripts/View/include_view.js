@@ -249,18 +249,82 @@ function generate_view(param, drawCollection) {
 function _layoutAndRender(param, filteredElements) {
   if (param.elkAlgorithm === "dagre") return _layoutAndRenderDagre(param, filteredElements);
 
-  let elkNodeMap   = {};  // archi/occ id → ELK node object
-  let elkEdgeList  = [];  // all edges at root level
-  let elkParentMap = {};  // child elk-id → parent archi-id
-  let elkParentRels = []; // archi relations used as nesting (for adding nested connections)
-  let occurrenceMap = {}; // archi element id → [elk node id, ...]
+  let elkNodeMap   = {};
+  let elkEdgeList  = [];
+  let elkParentMap = {};
+  let elkParentRels = [];
+  let occurrenceMap = {};
 
   _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
 
   const layoutOptions = _buildElkLayoutOptions(param);
-  const { elkGraph, liftedEdgesMap } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
 
-  console.log("\nCalculating the graph layout...");
+  // Two-pass layout when elkNestedExpandToFill is set:
+  // Pass 1 discovers actual container sizes; leaf siblings are equalized (width AND height)
+  // to the largest sibling before pass 2 so mixed rows look visually uniform.
+  if (param.elkNestedExpandToFill && param.elkNestedAlgorithm) {
+    // Snapshot original sizes so compound nodes can be reset cleanly before pass 2
+    const origSizes = {};
+    Object.keys(elkNodeMap).forEach(function(id) {
+      origSizes[id] = { width: elkNodeMap[id].width, height: elkNodeMap[id].height };
+    });
+
+    const { elkGraph: g1 } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
+    console.log("\nCalculating the graph layout (pass 1 — equalise siblings)...");
+    elk.layout(g1);
+
+    // For each compound node in the result, collect the max sibling width and height,
+    // then record equalized sizes for leaf children only.
+    // Pass 1a: find global minimum container dimensions across the entire diagram
+    let globalMinW = Infinity, globalMinH = Infinity;
+    function collectMinContainerSize(node) {
+      if (!node.children || node.children.length === 0) return;
+      if (node.id !== "root") {
+        if (node.width  < globalMinW) globalMinW = node.width;
+        if (node.height < globalMinH) globalMinH = node.height;
+      }
+      node.children.forEach(collectMinContainerSize);
+    }
+    collectMinContainerSize(g1);
+
+    // Pass 1b: set leaf nodes that have at least one container sibling to global min size
+    const equalizedSizes = {};
+    function equalizeSiblings(node) {
+      if (!node.children || node.children.length === 0) return;
+      node.children.forEach(equalizeSiblings);
+      let hasContainerSibling = node.children.some(function(c) { return c.children && c.children.length > 0; });
+      if (!hasContainerSibling) return;
+      node.children.forEach(function(c) {
+        if (!c.children || c.children.length === 0) {
+          equalizedSizes[c.id] = { width: globalMinW, height: globalMinH };
+        }
+      });
+    }
+    equalizeSiblings(g1);
+
+    // Reset ALL nodes to original sizes (so compound nodes are recomputed freely in pass 2),
+    // then apply the equalized dimensions only to the leaf nodes that need them.
+    Object.keys(elkNodeMap).forEach(function(id) {
+      elkNodeMap[id].children = [];
+      elkNodeMap[id].edges    = [];
+      delete elkNodeMap[id].layoutOptions;
+      delete elkNodeMap[id].x;
+      delete elkNodeMap[id].y;
+      elkNodeMap[id].width  = origSizes[id].width;
+      elkNodeMap[id].height = origSizes[id].height;
+    });
+    Object.keys(equalizedSizes).forEach(function(id) {
+      if (elkNodeMap[id]) {
+        elkNodeMap[id].width  = equalizedSizes[id].width;
+        elkNodeMap[id].height = equalizedSizes[id].height;
+      }
+    });
+    console.log("Calculating the graph layout (pass 2 — equalised sizes)...");
+  } else {
+    console.log("\nCalculating the graph layout...");
+  }
+
+  const { elkGraph, liftedEdgesMap } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
   const layoutedGraph = elk.layout(elkGraph);
 
   return _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap);
@@ -359,8 +423,13 @@ function _setDefaultParameters(param) {
   console.log("- elkNodePlacementAlignment = " + param.elkNodePlacementAlignment);
   if (param.elkEdgeRouting  === undefined) param.elkEdgeRouting  = DEFAULT_ELK_EDGE_ROUTING;
   console.log("- elkEdgeRouting = "  + param.elkEdgeRouting);
-  if (param.elkPadding      === undefined) param.elkPadding      = DEFAULT_ELK_PADDING;
-  console.log("- elkPadding = "      + param.elkPadding);
+  if (param.elkPadding           === undefined) param.elkPadding           = DEFAULT_ELK_PADDING;
+  console.log("- elkPadding = "           + param.elkPadding);
+  if (param.elkNestedAlgorithm        === undefined) param.elkNestedAlgorithm        = "";
+  console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
+  if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
+  if (param.elkNestedExpandToFill     === undefined) param.elkNestedExpandToFill     = false;
+  if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", expandToFill = " + param.elkNestedExpandToFill);
   if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
   console.log("- nodeWidth = "  + param.nodeWidth);
   if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
@@ -425,6 +494,10 @@ function _buildElkLayoutOptions(param) {
   if (param.elkNodePlacementAlignment && param.elkNodePlacementAlignment !== "NONE") {
     opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.elkNodePlacementAlignment;
   }
+  if (param.elkAlgorithm === "rectpacking") {
+    opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
+    opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
+  }
   return opts;
 }
 
@@ -452,7 +525,7 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
   Object.keys(elkNodeMap).forEach(function(nodeId) {
     const node = elkNodeMap[nodeId];
     if (node.children && node.children.length > 1) {
-      node.children.sort(function(a, b) { return (a._name).localeCompare(b._name); });
+      node.children.sort(function(a, b) { return (a._type).localeCompare(b._type) || (a._name).localeCompare(b._name); });
     }
   });
 
@@ -460,7 +533,7 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
   const rootChildren = Object.keys(elkNodeMap)
     .filter(function(id) { return elkParentMap[id] === undefined; })
     .map(function(id) { return elkNodeMap[id]; })
-    .sort(function(a, b) { return (a._name).localeCompare(b._name); });
+    .sort(function(a, b) { return (a._type).localeCompare(b._type) || (a._name).localeCompare(b._name); });
 
   // Classify edges: internal (both endpoints under the same compound parent) go into
   // the compound node's own edges array so ELK routes them within the container.
@@ -491,6 +564,23 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
       if (padding) node.layoutOptions["elk.padding"] = padding;
     }
   });
+
+  // Override algorithm for all compound nodes when elkNestedAlgorithm is set.
+  // Runs after the propagation loop so it wins over any inherited root algorithm.
+  if (param.elkNestedAlgorithm) {
+    Object.keys(elkNodeMap).forEach(function(nodeId) {
+      const node = elkNodeMap[nodeId];
+      if (node.children && node.children.length > 0) {
+        node.layoutOptions = node.layoutOptions || {};
+        node.layoutOptions["elk.algorithm"] = param.elkNestedAlgorithm;
+        if (param.elkNestedAlgorithm === "rectpacking") {
+          node.layoutOptions["elk.spacing.nodeNode"]                                       = param.elkNestedSpacingNodeNode;
+          node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
+          node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
+        }
+      }
+    });
+  }
 
   // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
   // Lift such endpoints to their root-level ancestor so ELK can use the edges for
@@ -632,7 +722,7 @@ function _createNode(level, param, elkNodeMap, occurrenceMap, archiEle) {
     const isJunction = e.type === "junction";
     const w = isJunction ? JUNCTION_DIAMETER : param.nodeWidth;
     const h = isJunction ? JUNCTION_DIAMETER : param.nodeHeight;
-    elkNodeMap[e.id] = { id: e.id, _archiId: e.id, _name: e.name || "", width: w, height: h, children: [], edges: [] };
+    elkNodeMap[e.id] = { id: e.id, _archiId: e.id, _name: e.name || "", _type: e.type || "", width: w, height: h, children: [], edges: [] };
     occurrenceMap[e.id] = [e.id];
     Common.debug(`${"  ".repeat(level)}> Add node ${archiEle}`);
   } else {
@@ -728,7 +818,7 @@ function _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, el
         const n = occs.length;
         const occId = `${childArchiId}_occ_${n}`;
         const baseNode = elkNodeMap[childArchiId];
-        elkNodeMap[occId] = { id: occId, _archiId: childArchiId, _name: baseNode._name || "", width: baseNode.width, height: baseNode.height, children: [], edges: [] };
+        elkNodeMap[occId] = { id: occId, _archiId: childArchiId, _name: baseNode._name || "", _type: baseNode._type || "", width: baseNode.width, height: baseNode.height, children: [], edges: [] };
         occurrenceMap[childArchiId].push(occId);
         elkParentMap[occId] = parentArchiId;
         Common.debug(`${"  ".repeat(level)}> Create occurrence ${occId} in parent ${parentArchiId}`);

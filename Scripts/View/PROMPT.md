@@ -100,20 +100,24 @@ Applied in both `_drawView` (ELK) and `_drawDagreView` (Dagre).
 
 ## GUI (`_GUI.ajs`)
 
-- SWT/JFace `TitleAreaDialog` with **three tabs**: Generate / Layout / Presets
+- SWT/JFace `TitleAreaDialog` with **three tabs**: Selection / Layout / Presets
 - Window height capped at `min(1080, screen_height - 40)`; tabs wrap in `ScrolledComposite` if content exceeds window height
-- **Persistent strip** between tab folder and button bar: "View to create or update" — `txtViewName` + `lblViewNote` always visible regardless of active tab
+- **Action group above tabs** (always visible): 4 radio buttons + View name field + Relation levels spinner
 - Last-run params saved to `.last_gui_run_params.json` and pre-loaded next run
 - Presets stored in `user_parameter/` as CommonJS modules; Presets tab shows diff before applying
 - Preset files may carry an optional `doc` field (string) — displayed in table, editable in place; excluded from run params on Apply
 
-### Tab 1 — Generate
+### Action group (above tabs)
 
-- **Action** group: 4 radio buttons; graph depth spinner enabled for Generate/Expand, disabled for Layout
-  - Generate (single view) — adds N relation levels of elements from selection
-  - Generate (multiple views) — one view per selected element
-  - Expand existing view — adds N relation levels to elements already in view
-  - Layout only — re-runs layout on current view without adding elements
+- 4 radio buttons; graph depth spinner enabled for Generate/Expand, disabled for Layout
+  - Create a view from the selection (single view)
+  - Create one view per selected element
+  - Add related elements to the current view (Expand)
+  - Re-arrange the current view (Layout only)
+- **View name** field + **Relation levels** spinner in right column, span all 4 rows
+
+### Tab 1 — Selection
+
 - **Element filter** — list builder: search + available list | Add/Remove buttons | active selection list
 - **Relationship filter** — same 3-panel list builder with direction radios below the active list:
   - `← In` — follow only relations where traversed element is **target**
