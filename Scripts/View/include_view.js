@@ -438,6 +438,7 @@ function _setDefaultParameters(param) {
   console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
   if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
   if (param.elkNestedExpandToFill     === undefined) param.elkNestedExpandToFill     = false;
+  if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
   if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", expandToFill = " + param.elkNestedExpandToFill);
   if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
   console.log("- nodeWidth = "  + param.nodeWidth);
@@ -531,19 +532,44 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     }
   });
 
-  // Sort each container's children alphabetically by name
+  // Sort children: containers first (sorted by type+name), then leaf nodes (sorted by type+name).
+  // With elkSortLeavesOnly: containers keep model order, only leaf nodes are sorted.
+  function byTypeName(a, b) {
+    return (a._type || '').localeCompare(b._type || '') || (a._name || '').localeCompare(b._name || '');
+  }
+  function sortChildren(nodes) {
+    if (param.elkSortLeavesOnly) {
+      // Containers stay in model insertion order — ELK is free to optimise placement.
+      // Only leaf nodes are sorted alphabetically, reinserted at their original leaf slots.
+      const leafIdxs = [], sortedLeaves = [];
+      nodes.forEach(function(n, i) {
+        if (!n.children || n.children.length === 0) { leafIdxs.push(i); sortedLeaves.push(n); }
+      });
+      sortedLeaves.sort(byTypeName);
+      const result = nodes.slice();
+      leafIdxs.forEach(function(pos, i) { result[pos] = sortedLeaves[i]; });
+      return result;
+    }
+    // Default: containers first (sorted by type+name), then leaves (sorted by type+name)
+    const ctrs   = nodes.filter(function(n) { return n.children && n.children.length > 0; });
+    const leaves = nodes.filter(function(n) { return !n.children || n.children.length === 0; });
+    ctrs.sort(byTypeName);
+    leaves.sort(byTypeName);
+    return ctrs.concat(leaves);
+  }
   Object.keys(elkNodeMap).forEach(function(nodeId) {
     const node = elkNodeMap[nodeId];
     if (node.children && node.children.length > 1) {
-      node.children.sort(function(a, b) { return (a._type).localeCompare(b._type) || (a._name).localeCompare(b._name); });
+      node.children = sortChildren(node.children);
     }
   });
 
-  // Root children = nodes not assigned to a parent, sorted alphabetically
-  const rootChildren = Object.keys(elkNodeMap)
-    .filter(function(id) { return elkParentMap[id] === undefined; })
-    .map(function(id) { return elkNodeMap[id]; })
-    .sort(function(a, b) { return (a._type).localeCompare(b._type) || (a._name).localeCompare(b._name); });
+  // Root children = nodes not assigned to a parent
+  const rootChildren = sortChildren(
+    Object.keys(elkNodeMap)
+      .filter(function(id) { return elkParentMap[id] === undefined; })
+      .map(function(id) { return elkNodeMap[id]; })
+  );
 
   // Classify edges: internal (both endpoints under the same compound parent) go into
   // the compound node's own edges array so ELK routes them within the container.
@@ -585,6 +611,7 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
         node.layoutOptions["elk.algorithm"] = param.elkNestedAlgorithm;
         if (param.elkNestedAlgorithm === "rectpacking") {
           node.layoutOptions["elk.spacing.nodeNode"]                                       = param.elkNestedSpacingNodeNode;
+          node.layoutOptions["elk.rectpacking.orderBySize"]                                = param.elkSortLeavesOnly;
           node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
           node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
         }
