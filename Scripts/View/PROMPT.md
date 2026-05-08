@@ -23,7 +23,7 @@ Edit > Preferences > Scripting.
   action:           "Generate" | "GenerateMultiple" | "Expand" | "Layout" | "Regenerate",
   graphDepth:       1,          // relations to follow outward from selection
   includeElementType:  [],      // [] = all; otherwise ArchiMate type names
-  includeRelationType: [],
+  includeRelationType: [],      // entries may carry direction suffix: "type:in" | "type:out" | "type" (both)
   excludeFromView:  false,      // skip elements with property excludeFromView=true
 
   layoutReversed:   ["serving-relationship", ...],     // flip layout direction of these rel types
@@ -37,7 +37,7 @@ Edit > Preferences > Scripting.
   elkNodePlacementAlignment: "NONE" | "LEFTUP" | "BALANCED" | "RIGHTDOWN",
   elkEdgeRouting:   "ORTHOGONAL" | "POLYLINE" | "STRAIGHT",
   elkPadding:       20,         // padding inside nested containers
-  ranker:           "network-simplex", // Dagre only; not in GUI — set via preset file
+  dagreRanker:      "network-simplex", // Dagre only; GUI dropdown (Layout tab); also accepts legacy key "ranker"
 
   nodeWidth:  200,
   nodeHeight:  60,
@@ -51,7 +51,7 @@ Edit > Preferences > Scripting.
 ## Core data structures (built by `_fillGraph`)
 
 ```
-elkNodeMap     : { [id]: { id, _archiId, width, height, children[], edges[], layoutOptions? } }
+elkNodeMap     : { [id]: { id, _archiId, _name, width, height, children[], edges[], layoutOptions? } }
 elkEdgeList    : [ { id, _archiRelId, sources:[id], targets:[id] } ]
 elkParentMap   : { [childId]: parentId }
 elkParentRels  : [ archiRelation, ... ]           // nesting relations drawn as connections
@@ -101,10 +101,11 @@ Applied in both `_drawView` (ELK) and `_drawDagreView` (Dagre).
 ## GUI (`_GUI.ajs`)
 
 - SWT/JFace `TitleAreaDialog` with **three tabs**: Generate / Layout / Presets
-- Window sized to 88% of screen dimensions; tabs wrap in `ScrolledComposite` if content exceeds screen height
+- Window height capped at `min(1080, screen_height - 40)`; tabs wrap in `ScrolledComposite` if content exceeds window height
 - **Persistent strip** between tab folder and button bar: "View to create or update" — `txtViewName` + `lblViewNote` always visible regardless of active tab
 - Last-run params saved to `.last_gui_run_params.json` and pre-loaded next run
 - Presets stored in `user_parameter/` as CommonJS modules; Presets tab shows diff before applying
+- Preset files may carry an optional `doc` field (string) — displayed in table, editable in place; excluded from run params on Apply
 
 ### Tab 1 — Generate
 
@@ -113,34 +114,42 @@ Applied in both `_drawView` (ELK) and `_drawDagreView` (Dagre).
   - Generate (multiple views) — one view per selected element
   - Expand existing view — adds N relation levels to elements already in view
   - Layout only — re-runs layout on current view without adding elements
-- **Element filter** multi-select list (`includeElementType`)
-- **Relationship filter** multi-select list (`includeRelationType`)
+- **Element filter** — list builder: search + available list | Add/Remove buttons | active selection list
+- **Relationship filter** — same 3-panel list builder with direction radios below the active list:
+  - `← In` — follow only relations where traversed element is **target**
+  - `Both` — follow relations in either direction (default)
+  - `Out →` — follow only relations where traversed element is **source**
+  - Direction encoded as suffix in saved param: `"type:in"` / `"type:out"` / `"type"` (both)
+  - Double-click active item to remove; direction radio applies to the selected item
 - **Debug** checkbox (bottom of tab)
 
 ### Tab 2 — Layout
 
 - **Algorithm** group — two-column layout:
-  - Left (`cLeft`): radio list of 7 algorithms — `layered`, `mrtree`, `force`, `box`, `stress`, `radial`, `dagre`
-  - Right (`cRight`): Direction / Node Placement / Edge Routing dropdowns (span 4 cols each) + Node W / Node H / Node Sep / Layer Sep spinners (2×2 grid)
-  - `updateAlgoControls(algo)` enables/disables Direction, Node Placement, Edge Routing, Layer Spacing based on selected algorithm
+  - Left: radio list of 8 algorithms — `layered`, `mrtree`, `force`, `box`, `stress`, `radial`, `dagre`, `disco`
+  - Right: Direction / Node Placement / Edge Routing dropdowns + Node W / Node H / Node Sep / Layer Sep spinners
+  - `updateAlgoControls(algo)` enables/disables controls based on selected algorithm
+  - Dagre only: **Layer ranking** radio group (`network-simplex` / `tight-tree` / `longest-path`) → saved as `dagreRanker`
 - **Nested** group:
-  - Container padding spinner (top — not algorithm-dependent, depends on nesting relations)
+  - Container padding spinner
   - Multi-select list of relation types to render as compound containers (`layoutNested`)
   - "Multiple occurrences" checkbox (`nestingMultipleOccurrences`)
 - **Show reversed** group: multi-select list of relation types to flip layout direction (`layoutReversed`)
 
 ### Tab 3 — Presets
 
-- **Load** group: list of saved preset files + Apply button + Delete button; shows diff before applying
-- **Save** group: `txtSaveName` text field + Save button
+- **Save** group (top): `txtSaveName` text field + Save button; `txtSaveDoc` multi-line textarea for new-preset description
+- **Load** group: 2-column table — **Preset** (name) + **Description** columns
+  - Owner-draw rows: text wraps inside each column; row height auto-expands
+  - Description column: click to open inline `SWT.MULTI | SWT.WRAP` editor; Ctrl+Enter commits, Escape cancels; FocusOut commits
+  - Apply button loads selected preset (diff shown first); Delete button removes the file
 - "Save preset…" button in button bar switches to this tab and focuses `txtSaveName`
 
 ## Known limitations / suggested improvements
 
 1. **Lifted-edge routing**: cross-compound edges draw straight between child elements. Synthetic bendpoints at compound boundary exit/entry points would improve routing without `INCLUDE_CHILDREN`.
 2. **Graph-context object**: `elkNodeMap`, `elkEdgeList`, `elkParentMap`, `elkParentRels`, `occurrenceMap` are passed as five separate arguments to 7+ functions. A single `graphCtx` object would reduce noise.
-3. **Dagre `ranker` in GUI**: `network-simplex` / `tight-tree` / `longest-path` noticeably affects Dagre quality but requires a preset file. A dropdown in the Layout tab when "dagre" is selected would make it discoverable.
-4. **Junction elements**: sized to `JUNCTION_DIAMETER` (14 px) but treated as small nodes by ELK, not as routing points.
-5. **`REGENERATE` action not in GUI**: reads saved `generate_view_param` property from the selected view and re-runs. A button in the Presets tab would make it discoverable.
-6. **Undo**: view is rebuilt from scratch (all children deleted, re-added). Wrapping in a single transaction would make the whole render undoable in one step.
-7. **Conflicting params**: no check prevents the same relation type appearing in both `layoutNested` and `layoutReversed`; a warning in `_setDefaultParameters` would surface this early.
+3. **Junction elements**: sized to `JUNCTION_DIAMETER` (14 px) but treated as small nodes by ELK, not as routing points.
+4. **`REGENERATE` action not in GUI**: reads saved `generate_view_param` property from the selected view and re-runs. A button in the Presets tab would make it discoverable.
+5. **Undo**: view is rebuilt from scratch (all children deleted, re-added). Wrapping in a single transaction would make the whole render undoable in one step.
+6. **Conflicting params**: no check prevents the same relation type appearing in both `layoutNested` and `layoutReversed`; a warning in `_setDefaultParameters` would surface this early.

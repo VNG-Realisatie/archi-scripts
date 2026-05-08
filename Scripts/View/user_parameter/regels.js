@@ -1,14 +1,11 @@
 /**
- * User defined parameter
- *
- * This definition is read by function get_user_parameter.
- * - defined attributes are inserted (or overwrite) the previous param
- * 
+ * Saved from _GUI.ajs
  */
 
 module.exports = {
-nodeWidth: 350,
-  nodeHeight: 25,
-  elkSpacingNodeNode: 15,
-  elkLayerSpacing:    180,
+  "nodeWidth": 350,
+  "nodeHeight": 25,
+  "elkSpacingNodeNode": 15,
+  "elkLayerSpacing": 180,
+  "doc": "Brede en lage elementen voor goede leesbaarheid. Werkt goed in tree"
 };

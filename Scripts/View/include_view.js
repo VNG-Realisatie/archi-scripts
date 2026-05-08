@@ -307,7 +307,27 @@ function _setDefaultParameters(param) {
   if (param.includeElementType === undefined) param.includeElementType = [];
   if (!_validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter")) validFlag = false;
   if (param.includeRelationType === undefined) param.includeRelationType = [];
-  if (!_validArchiConcept(param.includeRelationType, RELATION_NAMES, "includeRelationType:", "no filter")) validFlag = false;
+  (function() {
+    const validDirs = ["", "in", "out", "both"];
+    console.log("- includeRelationType:");
+    if (param.includeRelationType.length === 0) {
+      console.log("  - no filter");
+    } else {
+      param.includeRelationType.forEach(function(entry) {
+        let ci   = entry.indexOf(":");
+        let type = ci >= 0 ? entry.substring(0, ci) : entry;
+        let dir  = ci >= 0 ? entry.substring(ci + 1) : "";
+        if (RELATION_NAMES.includes(type) && validDirs.includes(dir)) {
+          console.log("  - " + entry);
+        } else {
+          console.error("  - " + entry
+            + (!RELATION_NAMES.includes(type) ? " (unknown type)" : "")
+            + (!validDirs.includes(dir)        ? " (unknown direction)" : ""));
+          validFlag = false;
+        }
+      });
+    }
+  })();
   if (param.excludeFromView === undefined) param.excludeFromView = false;
   console.log(`- excludeFromView = ${param.excludeFromView} (exclude objects with property ${PROP_EXCLUDE}=true)`);
   if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
@@ -582,7 +602,7 @@ function _addElement(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkPar
 
   $(archiEle)
     .rels()
-    .filter(function(rel) { return _filterObjectType(rel, param.includeRelationType); })
+    .filter(function(rel) { return _filterRelationType(rel, param.includeRelationType, archiEle); })
     .filter(function(rel) { return !(rel.prop(PROP_EXCLUDE) == "true" && param.excludeFromView); })
     .filter(function(rel) { return $(rel).ends().is("element"); })
     .each(function(rel) {
@@ -708,7 +728,7 @@ function _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, el
         const n = occs.length;
         const occId = `${childArchiId}_occ_${n}`;
         const baseNode = elkNodeMap[childArchiId];
-        elkNodeMap[occId] = { id: occId, _archiId: childArchiId, width: baseNode.width, height: baseNode.height, children: [], edges: [] };
+        elkNodeMap[occId] = { id: occId, _archiId: childArchiId, _name: baseNode._name || "", width: baseNode.width, height: baseNode.height, children: [], edges: [] };
         occurrenceMap[childArchiId].push(occId);
         elkParentMap[occId] = parentArchiId;
         Common.debug(`${"  ".repeat(level)}> Create occurrence ${occId} in parent ${parentArchiId}`);
@@ -723,6 +743,22 @@ function _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, el
 function _filterObjectType(o, objectTypeFilter) {
   if (objectTypeFilter.length == 0) return true;
   return objectTypeFilter.includes(o.type);
+}
+
+function _filterRelationType(rel, includeRelationType, fromElement) {
+  if (includeRelationType.length === 0) return true;
+  for (let i = 0; i < includeRelationType.length; i++) {
+    let entry = includeRelationType[i];
+    let ci    = entry.indexOf(":");
+    let type  = ci >= 0 ? entry.substring(0, ci) : entry;
+    let dir   = ci >= 0 ? entry.substring(ci + 1) : "";
+    if (type !== rel.type) continue;
+    if (dir === "" || dir === "both")  return true;
+    if (dir === "out") return fromElement.id === rel.source.id;
+    if (dir === "in")  return fromElement.id === rel.target.id;
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -1004,7 +1040,7 @@ function _buildDagreGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
       rankdir: elkToDir[param.elkDirection] || "LR",
       nodesep: param.elkSpacingNodeNode,
       ranksep: param.elkLayerSpacing,
-      ranker:  param.ranker || "network-simplex",
+      ranker:  param.dagreRanker || param.ranker || "network-simplex",
       marginx: 10, marginy: 10,
     })
     .setDefaultNodeLabel(function() { return {}; })

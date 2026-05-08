@@ -1,48 +1,22 @@
 /**
- * User defined parameter
- *
- * This definition is read by function get_user_parameter.
- * - defined attributes are inserted (or overwrite) the previous param
- *
+ * Saved from _GUI.ajs
  */
 
 module.exports = {
-	includeElementType: [
-    // "assessment",
+  "includeElementType": [
     "constraint",
-    // "driver",
-    // "goal",
-    // "meaning",
-    // "outcome",
-    // "principle",
-    // "requirement",
-    // "stakeholder",
-    // "value",
-    "grouping",
+    "grouping"
   ],
-  includeRelationType: [
-		"aggregation-relationship",
-		// "assignment-relationship",
-    // "flow-relationship",
-    "specialization-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
-  ],
-  layoutReversed: [
-		// "aggregation-relationship",
-    // "assignment-relationship",
-    "realization-relationship",
-    "serving-relationship",
-    // "specialization-relationship",
-  ],
-	
-  layoutNested: [
-		// "access-relationship",
+  "includeRelationType": [
     "aggregation-relationship",
-    // "assignment-relationship",
-    // "composition-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
-    "specialization-relationship",
+    "specialization-relationship"
   ],
+  "layoutReversed": [
+    "realization-relationship",
+    "serving-relationship"
+  ],
+  "layoutNested": [
+    "aggregation-relationship",
+    "specialization-relationship"
+  ]
 };

@@ -3,21 +3,20 @@
  */
 
 module.exports = {
-  "action": "Expand",
-  "graphDepth": 1,
+  "action": "Layout",
+  "graphDepth": 2,
   "includeElementType": [
-    "grouping",
-    "business-function",
-    "business-object"
+    "business-object",
+    "business-function"
   ],
   "includeRelationType": [
-    "association-relationship",
-    "specialization-relationship",
-    "aggregation-relationship"
+    "aggregation-relationship:out",
+    "access-relationship:out"
   ],
   "layoutReversed": [
     "serving-relationship",
-    "realization-relationship"
+    "realization-relationship",
+    "specialization-relationship"
   ],
   "layoutNested": [
     "access-relationship",
@@ -26,20 +25,22 @@ module.exports = {
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
-  "nodeWidth": 150,
+  "nodeWidth": 250,
   "nodeHeight": 30,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "NatuurlijkPersoon",
+  "viewName": "BA01 Bedrijfsfunctiemodel en bedrijfsobjecten",
   "elkAlgorithm": "layered",
   "elkDirection": "RIGHT",
-  "elkNodePlacementAlignment": "NONE",
-  "elkEdgeRouting": "POLYLINE",
-  "elkSpacingNodeNode": 80,
+  "elkAlignment": "TOP_LEFT",
+  "elkEdgeRouting": "ORTHOGONAL",
+  "elkSpacingNodeNode": 10,
   "elkLayerSpacing": 150,
   "elkPadding": 20,
   "nestingMultipleOccurrences": true,
-  "doc": "BO test"
+  "elkNodePlacementAlignment": "BALANCED",
+  "dagreRanker": "network-simplex",
+  "doc": "test documentatie gewijzigd zonder enter"
 };
