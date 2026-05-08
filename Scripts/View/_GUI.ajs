@@ -106,6 +106,7 @@ if (!defaultParams) {
       elkEdgeRouting:     View.DEFAULT_ELK_EDGE_ROUTING,
       elkPadding:         View.DEFAULT_ELK_PADDING,
       dagreRanker:        "network-simplex",
+      useRelationWeights: false,
       nodeWidth:  200,
       nodeHeight: 60,
       debug: false,
@@ -262,6 +263,7 @@ let layoutDialog = {
       elkSpacingNodeNode:     "Element spacing",
       elkLayerSpacing:        "Level spacing",
       elkPadding:             "Container padding",
+      useRelationWeights:     "Relation weights",
       nodeWidth:              "Element width",
       nodeHeight:             "Element height",
       debug:                  "Console log",
@@ -419,6 +421,7 @@ let layoutDialog = {
     setBuilder(this.widgets.lstReversed, this.config.layoutReversed);
     setBuilder(this.widgets.lstNested,   this.config.layoutNested);
 
+    if (this.widgets.chkUseWeights)        this.widgets.chkUseWeights.setSelection(!!this.config.useRelationWeights);
     if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
     if (this.widgets.chkExcludeFromView)   this.widgets.chkExcludeFromView.setSelection(!!this.config.excludeFromView);
 
@@ -472,6 +475,7 @@ let layoutDialog = {
     this.config.elkDirection        = getRadioVal(this.widgets.grpDir);
     this.config.elkEdgeRouting      = getRadioVal(this.widgets.grpEdgeRouting);
     this.config.dagreRanker         = this.widgets.grpRanker ? (getRadioVal(this.widgets.grpRanker) || "network-simplex") : "network-simplex";
+    this.config.useRelationWeights  = this.widgets.chkUseWeights ? this.widgets.chkUseWeights.getSelection() : false;
 
     this.config.nodeWidth           = this.widgets.spinWidth.getSelection();
     this.config.nodeHeight          = this.widgets.spinHeight.getSelection();
@@ -502,14 +506,13 @@ let layoutDialog = {
   updateAlgoControls: function (algo) {
     if (!this.widgets.grpDir) return;
     var CAPS = {
-      layered: { dir: true,routing: true,  layerSep: true,  ranker: false, note: 'Arranges elements in ranked layers following relation direction.\nThe most thorough and configurable style — all options apply.' },
-      mrtree:  { dir: true,routing: true,  layerSep: true,  ranker: false, note: 'Ideal for pure tree structures and organisation charts.' },
-      force:   { dir: false, nodePlacement: false, routing: false, layerSep: false, ranker: false, note: 'Free-form layout driven by relation weights.\nGood for exploratory overviews without a clear hierarchy.' },
-      box:     { dir: false, nodePlacement: false, routing: false, layerSep: false, ranker: false, note: 'Neatly arranges elements with no or few connections.' },
-      stress:  { dir: false, nodePlacement: false, routing: false, layerSep: false, ranker: false, note: 'Similar to Organic, but produces more uniform spacing between elements.' },
-      radial:  { dir: false, nodePlacement: false, routing: false, layerSep: true,  ranker: false, note: 'Elements radiate outward in rings from the starting element.\nRing spacing is set by level spacing.' },
-      dagre:   { dir: true,  routing: false, layerSep: true,  ranker: true,  note: 'Uses a different ranking method — faster on large diagrams.\nLayer ranking controls how elements are assigned to levels.' },
-      disco:   { dir: false, routing: false, layerSep: false, ranker: false, note: 'Lays out each disconnected cluster separately, then arranges the clusters together.\nEach cluster uses Hierarchical by default — change via a preset.' },
+      layered: { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, note: 'Arranges elements in ranked layers following relation direction.\nThe most thorough and configurable style — all options apply.' },
+      mrtree:  { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, note: 'Ideal for pure tree structures and organisation charts.' },
+      force:   { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  note: 'Free-form layout driven by relation weights.\nGood for exploratory overviews without a clear hierarchy.' },
+      box:     { dir: false, routing: false, layerSep: false, ranker: false, weights: false, note: 'Neatly arranges elements with no or few connections.' },
+      stress:  { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  note: 'Similar to Organic, but produces more uniform spacing between elements.' },
+      radial:  { dir: false, routing: false, layerSep: true,  ranker: false, weights: true,  note: 'Elements radiate outward in rings from the starting element.\nRing spacing is set by level spacing.' },
+      dagre:   { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false, note: 'Uses a different ranking method — faster on large diagrams.\nLayer ranking controls how elements are assigned to levels.' },
     };
     var c = CAPS[algo] || CAPS['layered'];
     function setRowEnabled(comp, enabled) {
@@ -519,6 +522,7 @@ let layoutDialog = {
     setRowEnabled(this.widgets.grpDir,           c.dir);
     setRowEnabled(this.widgets.grpEdgeRouting,    c.routing);
     if (this.widgets.grpRanker)        setRowEnabled(this.widgets.grpRanker, c.ranker);
+    if (this.widgets.chkUseWeights)    this.widgets.chkUseWeights.setEnabled(c.weights);
     if (this.widgets.spinLayerSep)     this.widgets.spinLayerSep.setEnabled(c.layerSep);
     if (this.widgets.spinLayerSep_lbl) this.widgets.spinLayerSep_lbl.setEnabled(c.layerSep);
     if (this.widgets.lblAlgoNote)      this.widgets.lblAlgoNote.setText(c.note);
@@ -726,7 +730,6 @@ let layoutDialog = {
       lblGrpPacking.setToolTipText("Styles that arrange elements in a compact area without following relation direction.\nBest for diagrams with disconnected or loosely related elements.");
       createRadios(cLeft, [
         { label: "Grid",                       val: "box",     tooltip: "Arranges elements with few or no connections in a compact grid." },
-        { label: "Disconnected",               val: "disco",   tooltip: "Lays out each disconnected cluster of elements separately, then arranges the clusters together. Use when your diagram contains multiple unrelated element groups that should not be packed into a single grid." },
       ], undefined, 8);
 
       let algoChildren = cLeft.getChildren();
@@ -793,6 +796,13 @@ let layoutDialog = {
         { label: "Uniform",     val: "tight-tree",      tooltip: "Nearly the same quality as Balanced but significantly faster. Good choice for large diagrams with many elements." },
         { label: "Top-aligned", val: "longest-path",    tooltip: "Fastest option. Places elements as high as possible — leaf elements appear at the bottom. May produce longer relation lines." },
       ], 90);
+
+      layoutDialog.createWidget("chkUseWeights", ButtonWidget, grpParams, null,
+        "Assigns a weight to each relation type that controls how strongly connected elements attract each other.\nHighest: Composition, Aggregation. Lowest: Influence.",
+        function (w) {
+          w.setText("Use relation weights — attract elements by relation type   ");
+          GridDataFactory.fillDefaults().span(4, 1).applyTo(w);
+        }, SWT.CHECK);
 
       // Separator between options and dimension spinners
       let sepDim = new LabelWidget(grpParams, SWT.SEPARATOR | SWT.HORIZONTAL);

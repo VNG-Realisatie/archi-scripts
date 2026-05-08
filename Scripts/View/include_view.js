@@ -63,6 +63,22 @@ const DEFAULT_ELK_EDGE_ROUTING = "ORTHOGONAL";
 const DEFAULT_ELK_PADDING      = 20;
 const NESTED_LABEL_TOP_EXTRA   = 20; // extra top padding so Archi's container label doesn't overlap children
 
+// Relation type weights for weight-driven layout (elk.priority).
+// Higher weight = stronger attraction between connected elements.
+const RELATION_WEIGHTS = {
+  "composition-relationship":    3.0, // structural containment — tightest coupling
+  "aggregation-relationship":    2.5, // structural grouping
+  "realization-relationship":    2.0, // interface-to-implementation dependency
+  "specialization-relationship": 2.0, // inheritance — strong conceptual coupling
+  "assignment-relationship":     1.5, // role-to-behaviour assignment
+  "serving-relationship":        1.5, // functional dependency
+  "triggering-relationship":     1.5, // ordered behavioural sequence
+  "flow-relationship":           1.2, // information or material flow
+  "access-relationship":         1.0, // functional use
+  "association-relationship":    1.0, // general connection
+  "influence-relationship":      0.5, // soft, indirect effect — weakest
+};
+
 const DEFAULT_PARAM_FILE = "default_parameter.js";
 const USER_PARAM_FOLDER  = "user_parameter";
 
@@ -329,6 +345,9 @@ function _setDefaultParameters(param) {
   console.log("- nodeWidth = "  + param.nodeWidth);
   if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
   console.log("- nodeHeight = " + param.nodeHeight);
+
+  if (param.useRelationWeights === undefined) param.useRelationWeights = false;
+  console.log(`- useRelationWeights = ${param.useRelationWeights}`);
 
   console.log("Developing");
   console.log("- debug = " + param.debug);
@@ -632,11 +651,13 @@ function _createEdge(level, param, occurrenceMap, elkEdgeList, rel) {
         : `${rel.id}_${si}_${ti}`;
 
       if (!elkEdgeList.some(function(e) { return e.id === edgeId; })) {
+        const weight = param.useRelationWeights ? (RELATION_WEIGHTS[rel.type] || 1.0) : undefined;
         elkEdgeList.push({
           id: edgeId,
           _archiRelId: rel.id,
           sources: [reversed ? tgtId : srcId],
           targets: [reversed ? srcId : tgtId],
+          ...(weight !== undefined ? { properties: { "elk.priority": weight } } : {}),
         });
         Common.debug(
           `${"  ".repeat(level)}> Add edge: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, reversed ? Common.FORMAT_REVERSED : Common.FORMAT_NOT_REVERSED)}`
