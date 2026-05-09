@@ -675,14 +675,14 @@ let layoutDialog = {
   updateAlgoControls: function (algo) {
     if (!this.widgets.grpDir) return;
     var CAPS = {
-      layered: { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, note: 'Arranges elements in ranked layers following relation direction.\nThe most thorough and configurable style — all options apply.' },
-      mrtree:  { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, note: 'Ideal for pure tree structures and organisation charts.' },
-      force:   { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  note: 'Free-form layout driven by relation weights.\nGood for exploratory overviews without a clear hierarchy.' },
-      box:     { dir: false, routing: false, layerSep: false, ranker: false, weights: false, note: 'Neatly arranges elements with no or few connections.' },
-      stress:  { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  note: 'Similar to Organic, but produces more uniform spacing between elements.' },
-      radial:  { dir: false, routing: false, layerSep: true,  ranker: false, weights: true,  note: 'Elements radiate outward in rings from the starting element.\nRing spacing is set by level spacing.' },
-      dagre:       { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false, note: 'Uses a different ranking method — faster on large diagrams.\nLayer ranking controls how elements are assigned to levels.' },
-      rectpacking: { dir: false, routing: false, layerSep: false, ranker: false, weights: false, note: 'Packs elements into the smallest rectangle — no gaps, no edge routing.\nIdeal for nesting views where all relations are containers (no visible connections).' },
+      layered:     { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
+      mrtree:      { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
+      force:       { dir: false, routing: false, layerSep: false, ranker: false, weights: true  },
+      box:         { dir: false, routing: false, layerSep: false, ranker: false, weights: false },
+      stress:      { dir: false, routing: false, layerSep: false, ranker: false, weights: true  },
+      radial:      { dir: false, routing: false, layerSep: true,  ranker: false, weights: true  },
+      dagre:       { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false },
+      rectpacking: { dir: false, routing: false, layerSep: false, ranker: false, weights: false },
     };
     var c = CAPS[algo] || CAPS['layered'];
     function setRowEnabled(comp, enabled) {
@@ -695,7 +695,6 @@ let layoutDialog = {
     if (this.widgets.chkUseWeights)    this.widgets.chkUseWeights.setEnabled(c.weights);
     if (this.widgets.spinLayerSep)     this.widgets.spinLayerSep.setEnabled(c.layerSep);
     if (this.widgets.spinLayerSep_lbl) this.widgets.spinLayerSep_lbl.setEnabled(c.layerSep);
-    if (this.widgets.lblAlgoNote)      this.widgets.lblAlgoNote.setText(c.note);
   },
 
   open: function () {
@@ -925,13 +924,13 @@ let layoutDialog = {
       let lblRelDesc = new LabelWidget(grpRelFilter, SWT.NONE);
       lblRelDesc.setText("Restrict which relationship types are followed. Leave empty to follow all.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRelDesc);
-      // Relationship filter: fixed 2-column grid [Option C]
+      // Relationship filter: fixed 3-column grid
       // Each row: [checkbox] [short name] [← toggle] [→ toggle]
-      // Selecting neither toggle = both directions. Toggles are mutually exclusive.
+      // Selecting neither or both toggles = both directions.
       (function() {
         let outerComp = new CompositeWidget(grpRelFilter, SWT.NONE);
         GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(outerComp);
-        GridLayoutFactory.swtDefaults().numColumns(2).margins(0, 2).spacing(24, 2).applyTo(outerComp);
+        GridLayoutFactory.swtDefaults().numColumns(3).margins(0, 2).spacing(16, 2).applyTo(outerComp);
 
         let rows = [];
         View.RELATION_NAMES.forEach(function(type) {
@@ -951,11 +950,13 @@ let layoutDialog = {
           tglIn.setText("←");
           tglIn.setToolTipText("Incoming only — traversed element is the target.\nSelect neither for both directions.");
           tglIn.setEnabled(false);
+          GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglIn);
 
           let tglOut = new ButtonWidget(rowComp, SWT.TOGGLE);
           tglOut.setText("→");
           tglOut.setToolTipText("Outgoing only — traversed element is the source.\nSelect neither for both directions.");
           tglOut.setEnabled(false);
+          GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglOut);
 
           function updateDirColors() {
             let display = tglIn.getDisplay();
@@ -1017,41 +1018,46 @@ let layoutDialog = {
       let grpELK = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(grpELK);
       grpELK.setText("Layout style");
-      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).spacing(10, 4).applyTo(grpELK);
+      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(4, 4).applyTo(grpELK);
 
-      // Left column: layout style radio list
-      let cLeft = new CompositeWidget(grpELK, SWT.NONE);
-      GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(cLeft);
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).spacing(4, 2).applyTo(cLeft);
-      layoutDialog.widgets.grpAlgorithm = cLeft;
+      // Algorithm selection: inline rows — [group label] [radio...] per row
+      // grpAlgorithm is the flat composite; setRadio iterates its direct children
+      let compAlgo = new CompositeWidget(grpELK, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(compAlgo);
+      GridLayoutFactory.swtDefaults().numColumns(4).margins(0, 0).spacing(8, 2).applyTo(compAlgo);
+      layoutDialog.widgets.grpAlgorithm = compAlgo;
 
-      let lblGrpHierarchical = new LabelWidget(cLeft, SWT.NONE);
-      lblGrpHierarchical.setText("Hierarchical");
-      lblGrpHierarchical.setToolTipText("Styles that arrange elements in ranked layers following the direction of relations.\nBest for diagrams with a clear hierarchy or flow.");
-      createRadios(cLeft, [
-        { label: "Hierarchical",               val: "layered", tooltip: "Arranges elements in ranked layers following the direction of relations. The most thorough and configurable style — handles complex structures, cross-hierarchy connections, and fine-grained control. Best choice for most ArchiMate views." },
-        { label: "Hierarchical (alternative)", val: "dagre",   tooltip: "Alternative hierarchical layout using a different ranking method. Faster on larger diagrams. Try this when Hierarchical produces unsatisfactory results. Supports layer ranking." },
-        { label: "Tree",                       val: "mrtree",  tooltip: "Ideal for pure tree structures and organisation charts." },
-      ], undefined, 8);
+      let lblHier = new LabelWidget(compAlgo, SWT.NONE);
+      lblHier.setText("Hierarchical:");
+      lblHier.setToolTipText("Arrange elements in ranked layers following relation direction.\nBest for diagrams with a clear hierarchy or flow.");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblHier);
+      createRadios(compAlgo, [
+        { label: "Layered", val: "layered", tooltip: "Arranges elements in ranked layers following the direction of relations. The most thorough and configurable style — handles complex structures, cross-hierarchy connections, and fine-grained control. Best choice for most ArchiMate views." },
+        { label: "Dagre",   val: "dagre",   tooltip: "Alternative hierarchical layout using a different ranking method. Faster on larger diagrams. Try this when Layered produces unsatisfactory results. Supports layer ranking." },
+        { label: "Tree",    val: "mrtree",  tooltip: "Ideal for pure tree structures and organisation charts." },
+      ]);
 
-      let lblGrpOrganic = new LabelWidget(cLeft, SWT.NONE);
-      lblGrpOrganic.setText("Organic");
-      lblGrpOrganic.setToolTipText("Styles that position elements based on relation weights, without a fixed direction.\nBest for exploratory or undirected diagrams.");
-      createRadios(cLeft, [
-        { label: "Organic",                    val: "force",   tooltip: "Free-form layout driven by relation weights. Good for exploratory overviews." },
-        { label: "Balanced organic",           val: "stress",  tooltip: "Similar to Organic but aims for more even spacing between elements." },
-        { label: "Radial",                     val: "radial",  tooltip: "Elements radiate outward in rings from the starting element." },
-      ], undefined, 8);
+      let lblOrg = new LabelWidget(compAlgo, SWT.NONE);
+      lblOrg.setText("Organic:");
+      lblOrg.setToolTipText("Position elements based on relation weights, without a fixed direction.\nBest for exploratory or undirected diagrams.");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblOrg);
+      createRadios(compAlgo, [
+        { label: "Force",   val: "force",  tooltip: "Free-form layout driven by relation weights. Good for exploratory overviews." },
+        { label: "Stress",  val: "stress", tooltip: "Similar to Force but aims for more even spacing between elements." },
+        { label: "Radial",  val: "radial", tooltip: "Elements radiate outward in rings from the starting element. Ring spacing is set by level spacing." },
+      ]);
 
-      let lblGrpPacking = new LabelWidget(cLeft, SWT.NONE);
-      lblGrpPacking.setText("Packing");
-      lblGrpPacking.setToolTipText("Styles that arrange elements in a compact area without following relation direction.\nBest for diagrams with disconnected or loosely related elements.");
-      createRadios(cLeft, [
-        { label: "Grid",                       val: "box",         tooltip: "Arranges elements with few or no connections in a compact grid." },
-        { label: "Pack tightly",               val: "rectpacking", tooltip: "Packs elements into the smallest rectangle with no gaps. Best for nesting views where all relations render as containers — no visible connections." },
-      ], undefined, 8);
+      let lblPack = new LabelWidget(compAlgo, SWT.NONE);
+      lblPack.setText("Packing:");
+      lblPack.setToolTipText("Arrange elements compactly without following relation direction.\nBest for diagrams with disconnected or loosely related elements.");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblPack);
+      createRadios(compAlgo, [
+        { label: "Grid", val: "box",         tooltip: "Arranges elements with few or no connections in a compact grid." },
+        { label: "Pack", val: "rectpacking", tooltip: "Packs elements into the smallest rectangle with no gaps. Best for nesting views where all relations render as containers — no visible connections." },
+      ]);
+      new LabelWidget(compAlgo, SWT.NONE); // filler to complete the row
 
-      let algoChildren = cLeft.getChildren();
+      let algoChildren = compAlgo.getChildren();
       for (let i = 0; i < algoChildren.length; i++) {
         if (algoChildren[i].getData("val") !== null && algoChildren[i].getData("val") !== undefined) {
           algoChildren[i].addListener(SWT.Selection, function (e) {
@@ -1060,23 +1066,13 @@ let layoutDialog = {
         }
       }
 
-      // Right column: description above parameter block
-      let cRight = new CompositeWidget(grpELK, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(cRight);
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).spacing(0, 6).applyTo(cRight);
+      // Spacer between algo selection and parameters
+      new LabelWidget(grpELK, SWT.NONE);
 
-      let lblAlgoDesc = new LabelWidget(cRight, SWT.WRAP);
-      GridDataFactory.fillDefaults().grab(true, false).hint(1, SWT.DEFAULT).applyTo(lblAlgoDesc);
-      layoutDialog.widgets.lblAlgoNote = lblAlgoDesc;
-
-      // Parameter block: direction, routing, ranker, weights
-      let grpParams = new GroupWidget(cRight, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpParams);
-      GridLayoutFactory.swtDefaults().numColumns(4).margins(6, 6).spacing(6, 4).applyTo(grpParams);
-
-      let cDir = new CompositeWidget(grpParams, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cDir);
-      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).applyTo(cDir);
+      // Parameters: flat rows below algo selection — no box, just whitespace above
+      let cDir = new CompositeWidget(grpELK, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cDir);
+      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(cDir);
       let lblDir = new LabelWidget(cDir, SWT.NONE);
       lblDir.setText("Flow direction:");
       GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblDir);
@@ -1086,24 +1082,25 @@ let layoutDialog = {
         { label: "Down",  val: "DOWN",  tooltip: "Relations flow downward. Recommended when using nested containers." },
         { label: "Up",    val: "UP",    tooltip: "Relations flow upward." },
         { label: "Left",  val: "LEFT",  tooltip: "Relations flow from right to left." },
-      ], 90);
+      ]);
 
-      let cRouting = new CompositeWidget(grpParams, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cRouting);
-      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).applyTo(cRouting);
+      let cRouting = new CompositeWidget(grpELK, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cRouting);
+      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(cRouting);
       let lblRouting = new LabelWidget(cRouting, SWT.NONE);
       lblRouting.setText("Relation style:");
       GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblRouting);
       layoutDialog.widgets.grpEdgeRouting = cRouting;
       createRadios(cRouting, [
-        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Relations are drawn with right-angle bends. Works best with Hierarchical layout." },
+        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Relations are drawn with right-angle bends. Works best with Layered layout." },
         { label: "Polyline",   val: "POLYLINE",   tooltip: "Relations follow a path with diagonal bends. Works with all layout styles." },
         { label: "Straight",   val: "STRAIGHT",   tooltip: "Relations are drawn as straight lines between elements." },
-      ], 90);
+      ]);
+      new LabelWidget(cRouting, SWT.NONE); // filler
 
-      let cRanker = new CompositeWidget(grpParams, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cRanker);
-      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).applyTo(cRanker);
+      let cRanker = new CompositeWidget(grpELK, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cRanker);
+      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(cRanker);
       let lblRanker = new LabelWidget(cRanker, SWT.NONE);
       lblRanker.setText("Layer ranking:");
       GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblRanker);
@@ -1112,13 +1109,13 @@ let layoutDialog = {
         { label: "Balanced",    val: "network-simplex", tooltip: "Minimises relation lengths and crossings. Produces the most polished result. Best for most diagrams. This is the default." },
         { label: "Uniform",     val: "tight-tree",      tooltip: "Nearly the same quality as Balanced but significantly faster. Good choice for large diagrams with many elements." },
         { label: "Top-aligned", val: "longest-path",    tooltip: "Fastest option. Places elements as high as possible — leaf elements appear at the bottom. May produce longer relation lines." },
-      ], 90);
+      ]);
+      new LabelWidget(cRanker, SWT.NONE); // filler
 
-      layoutDialog.createWidget("chkUseWeights", ButtonWidget, grpParams, null,
+      layoutDialog.createWidget("chkUseWeights", ButtonWidget, grpELK, null,
         "Assigns a weight to each relation type that controls how strongly connected elements attract each other.\nHighest: Composition, Aggregation. Lowest: Influence.",
         function (w) {
           w.setText("Use relation weights — attract elements by relation type   ");
-          GridDataFactory.fillDefaults().span(4, 1).applyTo(w);
         }, SWT.CHECK);
 
       // Group: Spacing & size [E]
