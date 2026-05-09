@@ -381,6 +381,107 @@ let layoutDialog = {
     return okPressed;
   },
 
+  openPresetManager: function (shell) {
+    let ManagerClass = Java.extend(TitleAreaDialog);
+    let mgr = new ManagerClass(shell, {
+      create: function () {
+        Java.super(mgr).create();
+        mgr.setTitle("Manage Presets");
+        mgr.setMessage("Click the description cell to edit it inline. Ctrl+Enter to confirm.", IMessageProvider.INFORMATION);
+        mgr.getShell().setSize(820, 580);
+        mgr.getShell().setText("Manage Presets");
+      },
+      createDialogArea: function (parent) {
+        let area = Java.super(mgr).createDialogArea(parent);
+        let cont = new CompositeWidget(area, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, true).applyTo(cont);
+        GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(cont);
+
+        let tbl = new TableWidget(cont, SWT.SINGLE | SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL);
+        tbl.setHeaderVisible(true);
+        tbl.setLinesVisible(true);
+        GridDataFactory.fillDefaults().grab(true, true).span(1, 2).applyTo(tbl);
+
+        let colN = new TableColumnWidget(tbl, SWT.NONE);
+        colN.setText("Preset");
+        let colD = new TableColumnWidget(tbl, SWT.NONE);
+        colD.setText("Description — click to edit");
+
+        tbl.addListener(SWT.Resize, function () {
+          let w = tbl.getClientArea().width;
+          let nw = Math.min(200, Math.floor(w * 0.35));
+          colN.setWidth(nw); colD.setWidth(w - nw);
+        });
+
+        function refreshTbl() {
+          tbl.removeAll();
+          getPresetFiles().forEach(function (f) {
+            let row = new TableItemWidget(tbl, SWT.NONE);
+            row.setText(0, f);
+            let obj = readPresetObj(f);
+            row.setText(1, obj && obj.doc ? obj.doc : "");
+          });
+        }
+        refreshTbl();
+
+        let tblEd = new TableEditorWidget(tbl);
+        tblEd.horizontalAlignment = SWT.LEFT;
+        tblEd.grabHorizontal = true;
+        tblEd.minimumWidth = 50;
+
+        tbl.addListener(SWT.MouseDown, function (event) {
+          let item = tbl.getItem(new SWTPoint(event.x, event.y));
+          if (!item || event.x < colN.getWidth()) return;
+          let prev = tblEd.getEditor();
+          if (prev && !prev.isDisposed()) prev.dispose();
+          let txtEd = new TextWidget(tbl, SWT.MULTI | SWT.WRAP);
+          txtEd.setText(String(item.getText(1)));
+          tblEd.setEditor(txtEd, item, 1);
+          tbl.getDisplay().asyncExec(function () {
+            if (!txtEd.isDisposed()) { txtEd.setFocus(); txtEd.setSelection(0, 0); }
+          });
+          function commit() {
+            if (txtEd.isDisposed()) return;
+            let newDoc = txtEd.getText().trim();
+            item.setText(1, newDoc);
+            txtEd.dispose();
+            let obj = readPresetObj(String(item.getText(0)));
+            if (obj) { if (newDoc) obj.doc = newDoc; else delete obj.doc; writePreset(String(item.getText(0)), obj); }
+          }
+          txtEd.addListener(SWT.FocusOut, function () { commit(); });
+          txtEd.addListener(SWT.Traverse, function (ev) {
+            if (ev.detail === SWT.TRAVERSE_ESCAPE) { txtEd.dispose(); ev.doit = false; }
+            else if (ev.detail === SWT.TRAVERSE_RETURN && (ev.stateMask & SWT.CTRL) !== 0) { commit(); ev.doit = false; }
+          });
+        });
+
+        let btnDel = new ButtonWidget(cont, SWT.PUSH);
+        btnDel.setText("Delete");
+        GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnDel);
+        btnDel.addListener(SWT.Selection, function () {
+          let sel = tbl.getSelection();
+          if (!sel.length) return;
+          let fname = String(sel[0].getText(0));
+          if (fname === "default_parameter.js") { window.alert("Cannot delete the default preset."); return; }
+          if (window.confirm("Delete: " + fname + "?")) {
+            let jf = new java.io.File(__DIR__ + "user_parameter/" + fname);
+            if (jf.exists()) { jf.delete(); tbl.remove(tbl.getSelectionIndex()); }
+          }
+        });
+
+        new LabelWidget(cont, SWT.NONE); // filler — keeps Delete top-aligned
+        return area;
+      },
+      isResizable: function () { return true; },
+      createButtonsForButtonBar: function (parent) {
+        let IDC = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
+        Java.super(mgr).createButton(parent, IDC.OK_ID, "Close", true);
+      },
+      okPressed: function () { Java.super(mgr).okPressed(); },
+    });
+    mgr.open();
+  },
+
   updateFromPreset: function (presetName) {
     try {
       let newCfg = require(__DIR__ + "user_parameter/" + presetName);
@@ -427,15 +528,27 @@ let layoutDialog = {
 
     if (this.widgets.grpActionControls) {
       setRadio(this.widgets.grpActionControls, this.config.action);
+      if (layoutDialog._updateActionColors) layoutDialog._updateActionColors();
       this.updateActionControls(this.config.action);
     }
     if (this.config.graphDepth !== undefined) this.widgets.spinDepth.setSelection(this.config.graphDepth);
 
     setBuilder(this.widgets.lstElemTypes, this.config.includeElementType);
-    if (this.widgets.lstRelTypes) this.widgets.lstRelTypes.removeAll();
-    if (layoutDialog._addRelTypeRow) {
-      (this.config.includeRelationType || []).forEach(function(entry) { layoutDialog._addRelTypeRow(entry); });
-    }
+    // Sync relation filter fixed grid [Option C]
+    (this.widgets._relTypeRows || []).forEach(row => {
+      let dir = null;
+      (this.config.includeRelationType || []).forEach(entry => {
+        let ci = entry.indexOf(":");
+        if ((ci >= 0 ? entry.substring(0, ci) : entry) === row.type)
+          dir = ci >= 0 ? entry.substring(ci + 1) : "both";
+      });
+      let on = dir !== null;
+      row.chk.setSelection(on);
+      row.rdoIn.setSelection(dir === "in");
+      row.rdoOut.setSelection(dir === "out");
+      row.rdoIn.setEnabled(on); row.rdoOut.setEnabled(on);
+      if (row.updateDirColors) row.updateDirColors();
+    });
 
     if (this.widgets.grpAlgorithm) {
       setRadio(this.widgets.grpAlgorithm, this.config.elkAlgorithm || View.DEFAULT_ELK_ALGORITHM);
@@ -451,8 +564,8 @@ let layoutDialog = {
     if (this.config.elkLayerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.elkLayerSpacing);
     if (this.config.elkPadding !== undefined) this.widgets.spinPadding.setSelection(this.config.elkPadding);
 
-    setBuilder(this.widgets.lstReversed, this.config.layoutReversed);
-    setBuilder(this.widgets.lstNested,   this.config.layoutNested);
+    (this.widgets.lstReversed_checks || []).forEach(r => r.chk.setSelection((this.config.layoutReversed || []).indexOf(r.type) >= 0));
+    (this.widgets.lstNested_checks   || []).forEach(r => r.chk.setSelection((this.config.layoutNested   || []).indexOf(r.type) >= 0));
 
     if (this.widgets.chkUseWeights)        this.widgets.chkUseWeights.setSelection(!!this.config.useRelationWeights);
     if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
@@ -513,17 +626,14 @@ let layoutDialog = {
     };
 
     this.config.includeElementType  = toJsArray(this.widgets.lstElemTypes);
-    this.config.includeRelationType = (function(wList) {
-      if (!wList) return [];
-      let res = [], items = wList.getItems();
-      if (items) for (let i = 0; i < items.length; i++) {
-        let t = String(items[i]);
-        if      (t.endsWith("  →")) res.push(t.slice(0, -3) + ":out");
-        else if (t.endsWith("  ←")) res.push(t.slice(0, -3) + ":in");
-        else                         res.push(t);
-      }
-      return res;
-    })(this.widgets.lstRelTypes);
+    this.config.includeRelationType = (this.widgets._relTypeRows || [])
+      .filter(r => r.chk.getSelection())
+      .map(r => {
+        let inOn = r.rdoIn.getSelection(), outOn = r.rdoOut.getSelection();
+        if (inOn && !outOn) return r.type + ":in";
+        if (outOn && !inOn) return r.type + ":out";
+        return r.type; // neither or both = both directions
+      });
 
     this.config.elkAlgorithm       = getRadioVal(this.widgets.grpAlgorithm);
     this.config.elkDirection        = getRadioVal(this.widgets.grpDir);
@@ -537,8 +647,8 @@ let layoutDialog = {
     this.config.elkLayerSpacing     = this.widgets.spinLayerSep.getSelection();
     this.config.elkPadding          = this.widgets.spinPadding.getSelection();
 
-    this.config.layoutReversed      = toJsArray(this.widgets.lstReversed);
-    this.config.layoutNested        = toJsArray(this.widgets.lstNested);
+    this.config.layoutReversed = (this.widgets.lstReversed_checks || []).filter(r => r.chk.getSelection()).map(r => r.type);
+    this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
     this.config.elkNestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? "rectpacking" : "";
     this.config.elkNestedSpacingNodeNode = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : 10;
@@ -604,6 +714,13 @@ let layoutDialog = {
       let _ca = _sh.getMonitor().getClientArea();
       _sh.pack();
       _sh.setSize(_sh.getSize().x, Math.min(1080, _ca.height - 40));
+      // Re-apply toggle colors after the first paint (GTK needs this)
+      _sh.getDisplay().asyncExec(function() {
+        if (layoutDialog._updateActionColors) layoutDialog._updateActionColors();
+        (layoutDialog.widgets._relTypeRows || []).forEach(function(row) {
+          if (row.updateDirColors) row.updateDirColors();
+        });
+      });
     },
 
     createDialogArea: function (parent) {
@@ -613,65 +730,136 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(container);
       GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(container);
 
-      // ── Action group — above tabs, always visible ────────────────────────────
-      let grpActionControls = new GroupWidget(container, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpActionControls);
-      grpActionControls.setText("Action");
-      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).spacing(8, 4).applyTo(grpActionControls);
-      layoutDialog.widgets.grpActionControls = grpActionControls;
+      // ── Row 1: Action — flat toggle bar, no group border ────────────────────
+      let compAction = new CompositeWidget(container, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(compAction);
+      GridLayoutFactory.swtDefaults().numColumns(5).margins(2, 4).spacing(4, 0).applyTo(compAction);
+      layoutDialog.widgets.grpActionControls = compAction;
 
-      function makeActionRadio(parent, label, val, tooltip) {
-        let r = new ButtonWidget(parent, SWT.RADIO);
-        r.setText(label + "   ");
-        r.setData("val", val);
-        if (tooltip) r.setToolTipText(tooltip);
-        r.addListener(SWT.Selection, function (e) {
-          if (e.widget.getSelection()) layoutDialog.updateActionControls(e.widget.getData('val'));
+      let lblGenerate = new LabelWidget(compAction, SWT.NONE);
+      lblGenerate.setText("Generate:");
+
+      (function() {
+        let actions = [
+          { label: "New view",     val: View.GENERATE_SINGLE,   tip: "Creates or updates a single view from the selected elements and their relations." },
+          { label: "Per element",  val: View.GENERATE_MULTIPLE, tip: "Creates a separate view for each selected element. The view name will be the element's name." },
+          { label: "Expand",       val: View.EXPAND_HERE,        tip: "Adds related elements to the current view. Select one or more elements in the view to expand their relations. Existing elements are kept." },
+          { label: "Layout only",  val: View.LAYOUT,             tip: "Re-arranges all elements and relations on the selected current view. Nothing is added or removed." },
+        ];
+        actions.forEach(function(a) {
+          let btn = new ButtonWidget(compAction, SWT.TOGGLE);
+          btn.setText("  " + a.label + "  ");
+          btn.setData("val", a.val);
+          btn.setToolTipText(a.tip);
+          btn.addListener(SWT.Selection, function() {
+            if (btn.getSelection()) {
+              let ch = compAction.getChildren();
+              for (let i = 0; i < ch.length; i++) {
+                if (ch[i] !== btn && typeof ch[i].setSelection === "function") ch[i].setSelection(false);
+              }
+              layoutDialog._updateActionColors();
+              layoutDialog.updateActionControls(a.val);
+            } else {
+              btn.setSelection(true); // always keep one active
+              layoutDialog._updateActionColors();
+            }
+          });
         });
-        return r;
-      }
 
-      // Radio 1 (col 1, row 1) — View name + Depth appear in col 2 spanning all 4 rows
-      makeActionRadio(grpActionControls,
-        "New view",
-        View.GENERATE_SINGLE,
-        "Creates or updates a single view starting from the selected elements, including all related elements up to the specified number of relation levels.");
+        layoutDialog._updateActionColors = function() {
+          let display = compAction.getDisplay();
+          let white  = display.getSystemColor(SWT.COLOR_WHITE);
+          let defBg  = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
+          let ch = compAction.getChildren();
+          for (let i = 0; i < ch.length; i++) {
+            if (typeof ch[i].getSelection === "function")
+              ch[i].setBackground(ch[i].getSelection() ? white : defBg);
+          }
+        };
+      })();
 
-      // Right composite: View name + Depth, spans rows 1-4
-      let compActionRight = new CompositeWidget(grpActionControls, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).span(1, 4).align(SWT.FILL, SWT.BEGINNING).applyTo(compActionRight);
-      GridLayoutFactory.swtDefaults().numColumns(2).margins(0, 2).spacing(6, 6).applyTo(compActionRight);
+      // ── Row 2: View name + Relation levels ───────────────────────────────────
+      let compViewFields = new CompositeWidget(container, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(compViewFields);
+      GridLayoutFactory.swtDefaults().numColumns(4).margins(2, 0).spacing(20, 0).applyTo(compViewFields);
 
-      let lblViewNameLbl = new LabelWidget(compActionRight, SWT.NONE);
+      let lblViewNameLbl = new LabelWidget(compViewFields, SWT.NONE);
       lblViewNameLbl.setText("View name:");
       layoutDialog.widgets.txtViewName_lbl = lblViewNameLbl;
-      let txtViewNameWidget = new TextWidget(compActionRight, SWT.BORDER);
-      txtViewNameWidget.setToolTipText("The name of the view to create or update.\nLeave blank to use the name of the first selected element.\nOnly used by 'Create a view from the selection'.");
+      let txtViewNameWidget = new TextWidget(compViewFields, SWT.BORDER);
+      txtViewNameWidget.setToolTipText("The name of the view to create or update.\nLeave blank to use the name of the first selected element.\nOnly used by 'New view'.");
       GridDataFactory.fillDefaults().grab(true, false).applyTo(txtViewNameWidget);
       layoutDialog.widgets.txtViewName = txtViewNameWidget;
 
-      let lblDepthLbl = new LabelWidget(compActionRight, SWT.NONE);
+      let lblDepthLbl = new LabelWidget(compViewFields, SWT.NONE);
       lblDepthLbl.setText("Relation levels:");
       layoutDialog.widgets.spinDepth_lbl = lblDepthLbl;
-      let spinDepthWidget = new SpinnerWidget(compActionRight, SWT.BORDER);
+      let spinDepthWidget = new SpinnerWidget(compViewFields, SWT.BORDER);
       spinDepthWidget.setValues(1, 0, 10, 0, 1, 1);
-      spinDepthWidget.setToolTipText("How many steps to follow along relations from the selected elements.\n1 = direct neighbours only. Not used when re-arranging the current view.");
+      spinDepthWidget.setToolTipText("How many steps to follow along relations from the selected elements.\n1 = direct neighbours only. Not used for Layout only.");
       GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepthWidget);
       layoutDialog.widgets.spinDepth = spinDepthWidget;
 
-      // Radios 2-4 (col 1, rows 2-4)
-      makeActionRadio(grpActionControls,
-        "Multiple new views",
-        View.GENERATE_MULTIPLE,
-        "Creates a separate view for each selected element, showing that element and its related elements up to the specified number of levels. Each view is named after its central element.");
-      makeActionRadio(grpActionControls,
-        "Expand the current view",
-        View.EXPAND_HERE,
-        "Adds elements to the current view by following relations outward. Existing elements are kept.");
-      makeActionRadio(grpActionControls,
-        "Layout the current view",
-        View.LAYOUT,
-        "Re-arranges all elements on the current view using the selected layout settings. No elements are added or removed.");
+      // ── Row 3: Preset bar ─────────────────────────────────────────────────────
+      let compPreset = new CompositeWidget(container, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(compPreset);
+      GridLayoutFactory.swtDefaults().numColumns(5).margins(2, 2).spacing(6, 0).applyTo(compPreset);
+
+      let lblPreset = new LabelWidget(compPreset, SWT.NONE);
+      lblPreset.setText("Preset:");
+
+      let cmbPreset = new ComboWidget(compPreset, SWT.DROP_DOWN | SWT.READ_ONLY);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cmbPreset);
+      layoutDialog.widgets.cmbPreset = cmbPreset;
+
+      function refreshPresetCombo() {
+        let prevSel = cmbPreset.getSelectionIndex() >= 0 ? cmbPreset.getItem(cmbPreset.getSelectionIndex()) : null;
+        cmbPreset.removeAll();
+        getPresetFiles().forEach(function(f) { cmbPreset.add(f); });
+        if (prevSel) { let i = cmbPreset.indexOf(prevSel); if (i >= 0) cmbPreset.select(i); }
+      }
+      refreshPresetCombo();
+      layoutDialog._refreshPresetCombo = refreshPresetCombo;
+
+      cmbPreset.addListener(SWT.Selection, function() {
+        let idx = cmbPreset.getSelectionIndex();
+        if (idx >= 0) {
+          let obj = readPresetObj(cmbPreset.getItem(idx));
+          cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
+        }
+      });
+
+      let btnPresetApply = new ButtonWidget(compPreset, SWT.PUSH);
+      btnPresetApply.setText("Apply");
+      GridDataFactory.fillDefaults().applyTo(btnPresetApply);
+      btnPresetApply.setToolTipText("Load the selected preset into the form.");
+      btnPresetApply.addListener(SWT.Selection, function() {
+        let idx = cmbPreset.getSelectionIndex();
+        if (idx >= 0) layoutDialog.updateFromPreset(cmbPreset.getItem(idx));
+      });
+
+      let btnPresetSave = new ButtonWidget(compPreset, SWT.PUSH);
+      btnPresetSave.setText("Save as…");
+      GridDataFactory.fillDefaults().applyTo(btnPresetSave);
+      btnPresetSave.setToolTipText("Save the current settings as a new preset.");
+      btnPresetSave.addListener(SWT.Selection, function() {
+        let fname = window.prompt("Preset name:", "");
+        if (fname && fname.trim() !== "") {
+          layoutDialog.saveInput();
+          let saveObj = JSON.parse(JSON.stringify(layoutDialog.config));
+          writePreset(fname.trim(), saveObj);
+          refreshPresetCombo();
+        }
+      });
+
+      let btnPresetManage = new ButtonWidget(compPreset, SWT.PUSH);
+      btnPresetManage.setText("Manage…");
+      GridDataFactory.fillDefaults().applyTo(btnPresetManage);
+      btnPresetManage.setToolTipText("Edit descriptions or delete presets.");
+      btnPresetManage.addListener(SWT.Selection, function() {
+        layoutDialog.openPresetManager(shell);
+        refreshPresetCombo();
+      });
 
       let tabFolder = new TabFolderWidget(container, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
@@ -690,9 +878,27 @@ let layoutDialog = {
         });
       }
 
+      function shortRelName(type) { return type.replace(/-relationship$/, ""); }
+
+      // Checkbox grid for relation type multi-select (Nesting, Reverse)
+      function createRelCheckGrid(name, container, cols, initialSelected) {
+        let comp = new CompositeWidget(container, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(comp);
+        GridLayoutFactory.swtDefaults().numColumns(cols).margins(0, 2).spacing(6, 2).applyTo(comp);
+        let checks = [];
+        View.RELATION_NAMES.forEach(function(type) {
+          let chk = new ButtonWidget(comp, SWT.CHECK);
+          chk.setText(shortRelName(type) + "  ");
+          chk.setToolTipText(type);
+          chk.setSelection((initialSelected || []).indexOf(type) >= 0);
+          checks.push({ type: type, chk: chk });
+        });
+        layoutDialog.widgets[name + "_checks"] = checks;
+      }
+
       // ── TAB 1: Selection ─────────────────────────────────────────────────────
       let tabGenerate = new TabItemWidget(tabFolder, SWT.NONE);
-      tabGenerate.setText("  Selection  ");
+      tabGenerate.setText("  Selection of elements and relations  ");
       let scrolled1 = new ScrolledCompositeWidget(tabFolder, SWT.H_SCROLL | SWT.V_SCROLL);
       scrolled1.setExpandHorizontal(true);
       scrolled1.setExpandVertical(true);
@@ -719,171 +925,61 @@ let layoutDialog = {
       let lblRelDesc = new LabelWidget(grpRelFilter, SWT.NONE);
       lblRelDesc.setText("Restrict which relationship types are followed. Leave empty to follow all.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRelDesc);
-      // Relation filter: equal-width lists + direction radios below active selection
+      // Relationship filter: fixed 2-column grid [Option C]
+      // Each row: [checkbox] [short name] [← toggle] [→ toggle]
+      // Selecting neither toggle = both directions. Toggles are mutually exclusive.
       (function() {
-        // ── 3-column: [available] [add/remove] [selected + radios] ────────────
-        let mainComp = new CompositeWidget(grpRelFilter, SWT.NONE);
-        GridDataFactory.fillDefaults().grab(true, true).span(2, 1).applyTo(mainComp);
-        GridLayoutFactory.swtDefaults().numColumns(3).margins(0, 0).applyTo(mainComp);
+        let outerComp = new CompositeWidget(grpRelFilter, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(outerComp);
+        GridLayoutFactory.swtDefaults().numColumns(2).margins(0, 2).spacing(24, 2).applyTo(outerComp);
 
-        // Left: search + available list
-        let leftComp = new CompositeWidget(mainComp, SWT.NONE);
-        GridDataFactory.fillDefaults().grab(true, true).applyTo(leftComp);
-        GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).applyTo(leftComp);
+        let rows = [];
+        View.RELATION_NAMES.forEach(function(type) {
+          let rowComp = new CompositeWidget(outerComp, SWT.NONE);
+          GridDataFactory.fillDefaults().grab(true, false).applyTo(rowComp);
+          GridLayoutFactory.swtDefaults().numColumns(4).margins(2, 1).spacing(1, 0).applyTo(rowComp);
 
-        let txtSearch = new TextWidget(leftComp, SWT.BORDER | SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL);
-        txtSearch.setMessage("Type to search...");
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(txtSearch);
+          let chk = new ButtonWidget(rowComp, SWT.CHECK);
+          chk.setToolTipText(type);
 
-        let lstAvailable = new ListWidget(leftComp, SWT.BORDER | SWT.V_SCROLL);
-        GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 100).applyTo(lstAvailable);
-        layoutDialog.widgets["lstRelTypes_avail"] = lstAvailable;
+          let lbl = new LabelWidget(rowComp, SWT.NONE);
+          lbl.setText(" " + shortRelName(type));
+          lbl.setToolTipText(type);
+          GridDataFactory.fillDefaults().grab(true, false).applyTo(lbl);
 
-        function updateAvailable() {
-          lstAvailable.removeAll();
-          let q = txtSearch.getText().toLowerCase();
-          View.RELATION_NAMES.forEach(function(item) {
-            if (item.toLowerCase().indexOf(q) >= 0) lstAvailable.add(item);
+          let tglIn  = new ButtonWidget(rowComp, SWT.TOGGLE);
+          tglIn.setText("←");
+          tglIn.setToolTipText("Incoming only — traversed element is the target.\nSelect neither for both directions.");
+          tglIn.setEnabled(false);
+
+          let tglOut = new ButtonWidget(rowComp, SWT.TOGGLE);
+          tglOut.setText("→");
+          tglOut.setToolTipText("Outgoing only — traversed element is the source.\nSelect neither for both directions.");
+          tglOut.setEnabled(false);
+
+          function updateDirColors() {
+            let display = tglIn.getDisplay();
+            let white  = display.getSystemColor(SWT.COLOR_WHITE);
+            let defBg  = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
+            tglIn.setBackground(tglIn.getSelection()  ? white : defBg);
+            tglOut.setBackground(tglOut.getSelection() ? white : defBg);
+          }
+          tglIn.addListener(SWT.Selection,  function() { updateDirColors(); });
+          tglOut.addListener(SWT.Selection, function() { updateDirColors(); });
+
+          chk.addListener(SWT.Selection, function() {
+            let on = chk.getSelection();
+            tglIn.setEnabled(on); tglOut.setEnabled(on);
+            if (!on) { tglIn.setSelection(false); tglOut.setSelection(false); }
+            updateDirColors();
           });
-        }
-        updateAvailable();
-        txtSearch.addListener(SWT.Modify, function() { updateAvailable(); });
 
-        // Middle: Add / Remove buttons
-        let btnComp = new CompositeWidget(mainComp, SWT.NONE);
-        GridDataFactory.fillDefaults().align(SWT.CENTER, SWT.CENTER).applyTo(btnComp);
-        GridLayoutFactory.swtDefaults().numColumns(1).margins(5, 0).applyTo(btnComp);
-
-        let btnAdd = new ButtonWidget(btnComp, SWT.PUSH);
-        btnAdd.setText("Add >");
-        GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnAdd);
-
-        let btnRemove = new ButtonWidget(btnComp, SWT.PUSH);
-        btnRemove.setText("< Remove");
-        GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnRemove);
-
-        // Right: label + active selection list + direction radios below
-        let rightComp = new CompositeWidget(mainComp, SWT.NONE);
-        GridDataFactory.fillDefaults().grab(true, true).applyTo(rightComp);
-        GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).applyTo(rightComp);
-
-        let lblSelected = new LabelWidget(rightComp, SWT.NONE);
-        lblSelected.setText("Active selection — double-click to remove:");
-
-        let lstSelected = new ListWidget(rightComp, SWT.BORDER | SWT.V_SCROLL | SWT.SINGLE);
-        GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 100).applyTo(lstSelected);
-        layoutDialog.widgets.lstRelTypes = lstSelected;
-
-        // Direction radios row — below the selected list, each button grabs equal width
-        let dirComp = new CompositeWidget(rightComp, SWT.NONE);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(dirComp);
-        GridLayoutFactory.swtDefaults().numColumns(3).margins(0, 2).spacing(0, 0).applyTo(dirComp);
-
-        let rdoIn = new ButtonWidget(dirComp, SWT.RADIO);
-        rdoIn.setText("← In");
-        rdoIn.setToolTipText("Follow only incoming relations — the selected element must be the target.\nExample: 'serving-relationship ← In' collects elements that serve the selected element.");
-        rdoIn.setEnabled(false);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(rdoIn);
-
-        let rdoBoth = new ButtonWidget(dirComp, SWT.RADIO);
-        rdoBoth.setText("Both");
-        rdoBoth.setToolTipText("Follow relations in both directions regardless of which end is the selected element (default).");
-        rdoBoth.setEnabled(false);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(rdoBoth);
-
-        let rdoOut = new ButtonWidget(dirComp, SWT.RADIO);
-        rdoOut.setText("Out →");
-        rdoOut.setToolTipText("Follow only outgoing relations — the selected element must be the source.\nExample: 'serving-relationship Out →' collects elements that the selected element serves.");
-        rdoOut.setEnabled(false);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(rdoOut);
-
-        // ── Direction encoding helpers ─────────────────────────────────────────
-        function encodeDisplay(type, dir) {
-          if (dir === "in")  return type + "  ←";
-          if (dir === "out") return type + "  →";
-          return type;
-        }
-
-        function decodeDisplay(text) {
-          if (text.endsWith("  ←")) return { type: text.slice(0, -3), dir: "in" };
-          if (text.endsWith("  →")) return { type: text.slice(0, -3), dir: "out" };
-          return { type: text, dir: "both" };
-        }
-
-        function updateDirRadios() {
-          let idx = lstSelected.getSelectionIndex();
-          if (idx < 0) {
-            rdoIn.setEnabled(false); rdoBoth.setEnabled(false); rdoOut.setEnabled(false);
-            rdoIn.setSelection(false); rdoBoth.setSelection(true); rdoOut.setSelection(false);
-            return;
-          }
-          rdoIn.setEnabled(true); rdoBoth.setEnabled(true); rdoOut.setEnabled(true);
-          let d = decodeDisplay(String(lstSelected.getItem(idx)));
-          rdoIn.setSelection(d.dir === "in");
-          rdoBoth.setSelection(d.dir === "both");
-          rdoOut.setSelection(d.dir === "out");
-        }
-
-        function applyDirToSelected() {
-          let idx = lstSelected.getSelectionIndex();
-          if (idx < 0) return;
-          let d = decodeDisplay(String(lstSelected.getItem(idx)));
-          let dir = rdoIn.getSelection() ? "in" : rdoOut.getSelection() ? "out" : "both";
-          lstSelected.setItem(idx, encodeDisplay(d.type, dir));
-        }
-
-        function addRelTypeRow(encoded) {
-          let ci   = encoded.indexOf(":");
-          let type = ci >= 0 ? encoded.substring(0, ci) : encoded;
-          let dir  = ci >= 0 ? encoded.substring(ci + 1) : "both";
-          let items = lstSelected.getItems();
-          for (let i = 0; i < items.length; i++) {
-            if (decodeDisplay(String(items[i])).type === type) return;
-          }
-          lstSelected.add(encodeDisplay(type, dir));
-        }
-
-        // Hoist for syncConfigToUI
-        layoutDialog._addRelTypeRow    = addRelTypeRow;
-        layoutDialog._removeRelTypeRow = function(type) {
-          let items = lstSelected.getItems();
-          for (let i = 0; i < items.length; i++) {
-            if (decodeDisplay(String(items[i])).type === type) { lstSelected.remove(i); break; }
-          }
-          updateDirRadios();
-        };
-        layoutDialog.widgets._relTypeRows = null;
-
-        // ── Listeners ─────────────────────────────────────────────────────────
-        lstSelected.addListener(SWT.Selection, function() { updateDirRadios(); });
-        lstSelected.addListener(SWT.MouseDoubleClick, function() {
-          let idx = lstSelected.getSelectionIndex();
-          if (idx >= 0) { lstSelected.remove(idx); updateDirRadios(); }
+          rows.push({ type: type, chk: chk, rdoIn: tglIn, rdoOut: tglOut, updateDirColors: updateDirColors });
         });
 
-        [rdoIn, rdoBoth, rdoOut].forEach(function(rdo) {
-          rdo.addListener(SWT.Selection, function() { if (rdo.getSelection()) applyDirToSelected(); });
-        });
-
-        function applyAvailSelection() {
-          let sel = lstAvailable.getSelection();
-          if (sel.length === 0) {
-            let q = txtSearch.getText().trim();
-            if (q !== "") sel = [q];
-          }
-          for (let i = 0; i < sel.length; i++) addRelTypeRow(String(sel[i]));
-          txtSearch.setText("");
-          updateAvailable();
-        }
-
-        btnAdd.addListener(SWT.Selection, applyAvailSelection);
-        lstAvailable.addListener(SWT.MouseDoubleClick, applyAvailSelection);
-        txtSearch.addListener(SWT.DefaultSelection, applyAvailSelection);
-
-        btnRemove.addListener(SWT.Selection, function() {
-          let idx = lstSelected.getSelectionIndex();
-          if (idx >= 0) { lstSelected.remove(idx); updateDirRadios(); }
-        });
+        layoutDialog.widgets._relTypeRows = rows;
+        layoutDialog.widgets.lstRelTypes  = null;
+        layoutDialog._addRelTypeRow       = null;
       })();
 
       let lblExcludeDesc = new LabelWidget(grpRelFilter, SWT.NONE);
@@ -909,7 +1005,7 @@ let layoutDialog = {
 
       // ── TAB 2: Layout ────────────────────────────────────────────────────────
       let tabLayout = new TabItemWidget(tabFolder, SWT.NONE);
-      tabLayout.setText("  Layout  ");
+      tabLayout.setText("  Layout and nesting  ");
       let scrolled2 = new ScrolledCompositeWidget(tabFolder, SWT.H_SCROLL | SWT.V_SCROLL);
       scrolled2.setExpandHorizontal(true);
       scrolled2.setExpandVertical(true);
@@ -1044,8 +1140,7 @@ let layoutDialog = {
       let lblRevDesc = new LabelWidget(grpReverse, SWT.NONE);
       lblRevDesc.setText("Select which relationship types should be drawn in the opposite direction in the layout.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRevDesc);
-      layoutDialog.createListBuilder("lstReversed", grpReverse, null, null,
-        View.RELATION_NAMES, layoutDialog.config.layoutReversed);
+      createRelCheckGrid("lstReversed", grpReverse, 4, layoutDialog.config.layoutReversed);
 
       // Group: Nesting [A — relation list + occurrence options only]
       let grpNested = new GroupWidget(layoutContainer, SWT.NONE);
@@ -1057,8 +1152,7 @@ let layoutDialog = {
       lblNestDesc.setText("Select which relationship types render the related element inside a container.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblNestDesc);
 
-      layoutDialog.createListBuilder("lstNested", grpNested, null, null,
-        View.RELATION_NAMES, layoutDialog.config.layoutNested);
+      createRelCheckGrid("lstNested", grpNested, 4, layoutDialog.config.layoutNested);
 
       let sepNestOpts = new LabelWidget(grpNested, SWT.SEPARATOR | SWT.HORIZONTAL);
       GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(sepNestOpts);
@@ -1143,211 +1237,6 @@ let layoutDialog = {
       layoutDialog.widgets._scrolled2       = scrolled2;
       layoutDialog.widgets._layoutContainer = layoutContainer;
 
-      // ── TAB 3: Presets ───────────────────────────────────────────────────────
-      let tabPresets = new TabItemWidget(tabFolder, SWT.NONE);
-      tabPresets.setText("  Presets  ");
-      let presetsContainer = new CompositeWidget(tabFolder, SWT.NONE);
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(presetsContainer);
-      tabPresets.setControl(presetsContainer);
-
-      // ── Group 1: Save current settings ──────────────────────────────────────
-      let grpSave = new GroupWidget(presetsContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpSave);
-      grpSave.setText("Save current settings as preset");
-      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpSave);
-      let lblSaveDesc = new LabelWidget(grpSave, SWT.NONE);
-      lblSaveDesc.setText("Save your current settings as a named preset for future reuse.");
-      GridDataFactory.fillDefaults().span(2, 1).applyTo(lblSaveDesc);
-      let txtSaveName = new TextWidget(grpSave, SWT.BORDER);
-      txtSaveName.setMessage("Preset name...");
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(txtSaveName);
-      layoutDialog.widgets.txtSaveName = txtSaveName;
-      let btnSave = new ButtonWidget(grpSave, SWT.PUSH);
-      btnSave.setText("Save");
-      let txtSaveDoc = new TextWidget(grpSave, SWT.MULTI | SWT.BORDER | SWT.WRAP | SWT.V_SCROLL);
-      txtSaveDoc.setMessage("Description for this preset (optional)...");
-      GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, 60).span(2, 1).applyTo(txtSaveDoc);
-      layoutDialog.widgets.txtSaveDoc = txtSaveDoc;
-      btnSave.addListener(SWT.Selection, function () {
-        let fname = txtSaveName.getText().trim();
-        if (fname !== "") {
-          layoutDialog.saveInput();
-          let saveObj = JSON.parse(JSON.stringify(layoutDialog.config));
-          let docText = txtSaveDoc.getText().trim();
-          if (docText) saveObj.doc = docText;
-          writePreset(fname, saveObj);
-          refreshPresetTable();
-          txtSaveDoc.setText("");
-          window.alert("Saved: user_parameter/" + fname + (fname.endsWith(".js") ? "" : ".js"));
-        }
-      });
-
-      // ── Group 2: Load preset ─────────────────────────────────────────────────
-      let grpLoad = new GroupWidget(presetsContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, true).applyTo(grpLoad);
-      grpLoad.setText("Load preset");
-      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpLoad);
-      let lblLoadDesc = new LabelWidget(grpLoad, SWT.NONE);
-      lblLoadDesc.setText("Select a preset and click Load. Click the description column to edit it inline.");
-      GridDataFactory.fillDefaults().span(2, 1).applyTo(lblLoadDesc);
-
-      let tblPresets = new TableWidget(grpLoad, SWT.SINGLE | SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL);
-      tblPresets.setHeaderVisible(true);
-      tblPresets.setLinesVisible(true);
-      GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 120).span(1, 2).applyTo(tblPresets);
-      layoutDialog.widgets.lstPresets = tblPresets;
-
-      let colPresetName = new TableColumnWidget(tblPresets, SWT.NONE);
-      colPresetName.setText("Preset");
-      let colPresetDoc = new TableColumnWidget(tblPresets, SWT.NONE);
-      colPresetDoc.setText("Description");
-
-      tblPresets.addListener(SWT.Resize, function() {
-        let w = tblPresets.getClientArea().width;
-        let nameW = Math.min(180, Math.floor(w * 0.35));
-        colPresetName.setWidth(nameW);
-        colPresetDoc.setWidth(w - nameW);
-      });
-
-      // Owner-draw: wrapped text + top alignment + column separator line
-      tblPresets.addListener(SWT.MeasureItem, function(event) {
-        if (!event.item) return;
-        let col = tblPresets.getColumn(event.index);
-        let colW = col ? Math.max(10, col.getWidth() - 6) : 10;
-        let text = String(event.item.getText(event.index));
-        if (!text) return;
-        let tl = new TextLayout(event.display);
-        tl.setFont(event.gc.getFont());
-        tl.setText(text);
-        tl.setWidth(colW);
-        let h = tl.getBounds().height + 6;
-        tl.dispose();
-        if (h > event.height) event.height = h;
-      });
-
-      tblPresets.addListener(SWT.EraseItem, function(event) {
-        event.detail &= ~SWT.FOREGROUND; // we draw text in PaintItem
-      });
-
-      tblPresets.addListener(SWT.PaintItem, function(event) {
-        if (!event.item) return;
-        let text = String(event.item.getText(event.index));
-        let col = tblPresets.getColumn(event.index);
-        let colW = col ? Math.max(10, col.getWidth() - 6) : 10;
-        let gc = event.gc;
-
-        if ((event.detail & SWT.SELECTED) !== 0) {
-          gc.setForeground(event.display.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT));
-        }
-        if (text) {
-          let tl = new TextLayout(event.display);
-          tl.setFont(gc.getFont());
-          tl.setText(text);
-          tl.setWidth(colW);
-          tl.draw(gc, event.x + 3, event.y + 3);
-          tl.dispose();
-        }
-
-        // Vertical column separator at the actual column right edge
-        let sepX = event.x + (col ? col.getWidth() : event.width) - 1;
-        let savedFg = gc.getForeground();
-        gc.setForeground(event.display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
-        gc.drawLine(sepX, event.y, sepX, event.y + event.height - 1);
-        gc.setForeground(savedFg);
-      });
-
-      function refreshPresetTable() {
-        tblPresets.removeAll();
-        getPresetFiles().forEach(function(f) {
-          let row = new TableItemWidget(tblPresets, SWT.NONE);
-          row.setText(0, f);
-          let obj = readPresetObj(f);
-          row.setText(1, obj && obj.doc ? obj.doc : "");
-        });
-      }
-      refreshPresetTable();
-
-      // In-place editing of the description column
-      let tblEditor = new TableEditorWidget(tblPresets);
-      tblEditor.horizontalAlignment = SWT.LEFT;
-      tblEditor.grabHorizontal = true;
-      tblEditor.grabVertical = true;
-      tblEditor.minimumWidth = 50;
-      tblEditor.minimumHeight = 40;
-
-      tblPresets.addListener(SWT.MouseDown, function(event) {
-        let item = tblPresets.getItem(new SWTPoint(event.x, event.y));
-        if (item === null) return;
-        // Only open editor when clicking in the description column
-        if (event.x < colPresetName.getWidth()) return;
-
-        let prev = tblEditor.getEditor();
-        if (prev !== null && !prev.isDisposed()) prev.dispose();
-
-        let docText = String(item.getText(1));
-        let txtEd = new TextWidget(tblPresets, SWT.MULTI | SWT.WRAP);
-        txtEd.setText(docText);
-
-        tblEditor.setEditor(txtEd, item, 1);
-        // Defer focus + cursor to after the editor widget is fully laid out.
-        // Setting focus before layout causes the Text widget to scroll to reveal
-        // wherever the cursor is, pushing the first line out of sight.
-        tblPresets.getDisplay().asyncExec(function() {
-          if (!txtEd.isDisposed()) {
-            txtEd.setFocus();
-            txtEd.setSelection(0, 0);
-          }
-        });
-
-        function commitEdit() {
-          if (txtEd.isDisposed()) return;
-          let newDoc = txtEd.getText().trim();
-          item.setText(1, newDoc);
-          txtEd.dispose();
-          let fname = String(item.getText(0));
-          let obj = readPresetObj(fname);
-          if (obj) {
-            if (newDoc) obj.doc = newDoc; else delete obj.doc;
-            writePreset(fname, obj);
-          }
-          tblPresets.redraw(); // refresh row height after doc change
-        }
-
-        txtEd.addListener(SWT.FocusOut, function() { commitEdit(); });
-        // Ctrl+Enter commits; plain Enter inserts newline (normal multi-line behaviour)
-        txtEd.addListener(SWT.KeyDown, function(ev) {
-          if (ev.keyCode === SWT.CR && (ev.stateMask & SWT.CTRL) !== 0) commitEdit();
-        });
-        txtEd.addListener(SWT.Traverse, function(ev) {
-          if (ev.detail === SWT.TRAVERSE_ESCAPE) { txtEd.dispose(); ev.doit = false; }
-        });
-      });
-
-      let btnLoad = new ButtonWidget(grpLoad, SWT.PUSH);
-      btnLoad.setText("Load");
-      GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnLoad);
-      btnLoad.addListener(SWT.Selection, function() {
-        let sel = tblPresets.getSelection();
-        if (sel.length > 0) layoutDialog.updateFromPreset(String(sel[0].getText(0)));
-      });
-
-      let btnDel = new ButtonWidget(grpLoad, SWT.PUSH);
-      btnDel.setText("Delete");
-      GridDataFactory.fillDefaults().align(SWT.FILL, SWT.BEGINNING).applyTo(btnDel);
-      btnDel.addListener(SWT.Selection, function() {
-        let sel = tblPresets.getSelection();
-        if (sel.length > 0) {
-          let fname = String(sel[0].getText(0));
-          if (fname === "default_parameter.js") { window.alert("Cannot delete the default parameter file."); return; }
-          if (window.confirm("Delete preset: " + fname + "?")) {
-            try {
-              var jf = new java.io.File(__DIR__ + "user_parameter/" + fname);
-              if (jf.exists()) { jf.delete(); tblPresets.remove(tblPresets.getSelectionIndex()); }
-              else window.alert("File not found: " + fname);
-            } catch(e) { window.alert("Error: " + e); }
-          }
-        }
-      });
 
       layoutDialog.syncConfigToUI();
       return area;
@@ -1359,19 +1248,8 @@ let layoutDialog = {
 
     createButtonsForButtonBar: function (parent) {
       let IDialogConstants = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
-      Java.super(layoutDialog.dialog).createButton(parent, 100, "Save preset...", false);
       Java.super(layoutDialog.dialog).createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
       Java.super(layoutDialog.dialog).createButton(parent, IDialogConstants.OK_ID, "Generate", true);
-    },
-
-    buttonPressed: function (buttonId) {
-      if (buttonId === 100) {
-        layoutDialog.saveInput();
-        if (layoutDialog.widgets.tabFolder) layoutDialog.widgets.tabFolder.setSelection(2);
-        if (layoutDialog.widgets.txtSaveName) layoutDialog.widgets.txtSaveName.setFocus();
-      } else {
-        Java.super(layoutDialog.dialog).buttonPressed(buttonId);
-      }
     },
 
     okPressed: function () {

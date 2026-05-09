@@ -1,20 +1,9 @@
 /**
- * User defined parameter
- *
- * This definition is read by function get_user_parameter.
- * - defined attributes are inserted (or overwrite) the previous param
- *
+ * Saved from _GUI.ajs
  */
 
 module.exports = {
-	includeElementType: [
-		// "application-component",
-    // "application-function",
-    // "application-interface",
-    // "application-service",
-    // "business-function",
-    // "business-object",
-    // "constraint",
+  "includeElementType": [
     "grouping",
     "artifact",
     "communication-network",
@@ -28,31 +17,13 @@ module.exports = {
     "technology-interaction",
     "technology-interface",
     "technology-process",
-    "technology-service",
+    "technology-service"
   ],
-  includeRelationType: [
-		// "assignment-relationship",
-    // "flow-relationship",
-    // "specialization-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
-  ],
-  layoutReversed: [
-		// "aggregation-relationship",
-    // "assignment-relationship",
+  "includeRelationType": [],
+  "layoutReversed": [
     "realization-relationship",
-    "serving-relationship",
-    // "specialization-relationship",
+    "serving-relationship"
   ],
-	
-  layoutNested: [
-		// "access-relationship",
-    // "aggregation-relationship",
-    // "assignment-relationship",
-    // "composition-relationship",
-    // "realization-relationship",
-    // "serving-relationship"
-    // "specialization-relationship",
-  ],
-	
+  "layoutNested": [],
+  "doc": "Filter technology layer"
 };

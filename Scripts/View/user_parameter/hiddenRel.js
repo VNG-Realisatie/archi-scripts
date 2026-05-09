@@ -1,5 +1,7 @@
-
+/**
+ * Saved from _GUI.ajs
+ */
 
 module.exports = {
-  graphDepth: 0,
-  };
+  "graphDepth": 0
+};
