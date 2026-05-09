@@ -255,8 +255,9 @@ let layoutDialog = {
     btnRemove.addListener(SWT.Selection, removeSelection);
     lstSelected.addListener(SWT.MouseDoubleClick, removeSelection);
 
-    // Save reference to the selected list for data extraction
-    this.widgets[name] = lstSelected;
+    // Save references for data extraction and enable/disable
+    this.widgets[name]           = lstSelected;
+    if (name != null) this.widgets[name + "_comp"] = mainComp;
 
     // Initialize values
     if (initialSelected && initialSelected.length > 0) {
@@ -456,18 +457,16 @@ let layoutDialog = {
     if (this.widgets.chkUseWeights)        this.widgets.chkUseWeights.setSelection(!!this.config.useRelationWeights);
     if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
     if (this.widgets.chkNestedPack) {
-      let packOn = this.config.elkNestedAlgorithm === "rectpacking";
-      this.widgets.chkNestedPack.setSelection(packOn);
-      if (this.widgets.spinNestedSpacing) {
+      this.widgets.chkNestedPack.setSelection(this.config.elkNestedAlgorithm === "rectpacking");
+      if (this.widgets.spinNestedSpacing)
         this.widgets.spinNestedSpacing.setSelection(this.config.elkNestedSpacingNodeNode !== undefined ? this.config.elkNestedSpacingNodeNode : 10);
-        this.widgets.spinNestedSpacing.setEnabled(packOn);
-      }
-      if (this.widgets._lblNestedSpacing) this.widgets._lblNestedSpacing.setEnabled(packOn);
-      if (this.widgets.chkExpandToFill)    this.widgets.chkExpandToFill.setSelection(!!this.config.elkNestedExpandToFill);
-      if (this.widgets.chkExpandToFill)    this.widgets.chkExpandToFill.setEnabled(packOn);
-      if (this.widgets.lstExpandExclude)   setBuilder(this.widgets.lstExpandExclude, this.config.elkExpandExcludeTypes || []);
-      if (this.widgets.chkSortLeavesOnly)  this.widgets.chkSortLeavesOnly.setSelection(!!this.config.elkSortLeavesOnly);
+      if (this.widgets.chkExpandToFill)
+        this.widgets.chkExpandToFill.setSelection(!!this.config.elkNestedExpandToFill);
+      if (this.widgets.lstExpandExclude)
+        setBuilder(this.widgets.lstExpandExclude, this.config.elkExpandExcludeTypes || []);
+      if (layoutDialog._updatePackControls) layoutDialog._updatePackControls();
     }
+    if (this.widgets.chkSortLeavesOnly)  this.widgets.chkSortLeavesOnly.setSelection(!!this.config.elkSortLeavesOnly);
     if (this.widgets.chkExcludeFromView)   this.widgets.chkExcludeFromView.setSelection(!!this.config.excludeFromView);
 
     if (initialSelection && initialSelection.length > 0) {
@@ -634,7 +633,7 @@ let layoutDialog = {
 
       // Radio 1 (col 1, row 1) — View name + Depth appear in col 2 spanning all 4 rows
       makeActionRadio(grpActionControls,
-        "Create a view from the selection",
+        "New view",
         View.GENERATE_SINGLE,
         "Creates or updates a single view starting from the selected elements, including all related elements up to the specified number of relation levels.");
 
@@ -662,15 +661,15 @@ let layoutDialog = {
 
       // Radios 2-4 (col 1, rows 2-4)
       makeActionRadio(grpActionControls,
-        "Create one view per selected element",
+        "Multiple new views",
         View.GENERATE_MULTIPLE,
         "Creates a separate view for each selected element, showing that element and its related elements up to the specified number of levels. Each view is named after its central element.");
       makeActionRadio(grpActionControls,
-        "Add related elements to the current view",
+        "Expand the current view",
         View.EXPAND_HERE,
         "Adds elements to the current view by following relations outward. Existing elements are kept.");
       makeActionRadio(grpActionControls,
-        "Re-arrange the current view",
+        "Layout the current view",
         View.LAYOUT,
         "Re-arranges all elements on the current view using the selected layout settings. No elements are added or removed.");
 
@@ -918,7 +917,7 @@ let layoutDialog = {
       GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(layoutContainer);
       tabLayout.setControl(scrolled2);
 
-      // Group: Layout style — list left, description + parameter block right
+      // Group: Layout style — algorithm list left, description + options right
       let grpELK = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(grpELK);
       grpELK.setText("Layout style");
@@ -970,12 +969,11 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(cRight);
       GridLayoutFactory.swtDefaults().numColumns(1).margins(0, 0).spacing(0, 6).applyTo(cRight);
 
-      // Description — shown next to the layout list, above the parameter block
       let lblAlgoDesc = new LabelWidget(cRight, SWT.WRAP);
       GridDataFactory.fillDefaults().grab(true, false).hint(1, SWT.DEFAULT).applyTo(lblAlgoDesc);
       layoutDialog.widgets.lblAlgoNote = lblAlgoDesc;
 
-      // Parameter block
+      // Parameter block: direction, routing, ranker, weights
       let grpParams = new GroupWidget(cRight, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(grpParams);
       GridLayoutFactory.swtDefaults().numColumns(4).margins(6, 6).spacing(6, 4).applyTo(grpParams);
@@ -993,7 +991,6 @@ let layoutDialog = {
         { label: "Up",    val: "UP",    tooltip: "Relations flow upward." },
         { label: "Left",  val: "LEFT",  tooltip: "Relations flow from right to left." },
       ], 90);
-
 
       let cRouting = new CompositeWidget(grpParams, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(cRouting);
@@ -1028,20 +1025,32 @@ let layoutDialog = {
           GridDataFactory.fillDefaults().span(4, 1).applyTo(w);
         }, SWT.CHECK);
 
-      // Separator between options and dimension spinners
-      let sepDim = new LabelWidget(grpParams, SWT.SEPARATOR | SWT.HORIZONTAL);
-      GridDataFactory.fillDefaults().grab(true, false).span(4, 1).applyTo(sepDim);
+      // Group: Spacing & size [E]
+      let grpSpacing = new GroupWidget(layoutContainer, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpSpacing);
+      grpSpacing.setText("Spacing & size");
+      GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 10).spacing(6, 4).applyTo(grpSpacing);
 
-      // Dimension spinners: 2 per row inside grpParams (4 cols = lbl+spin lbl+spin)
-      layoutDialog.createWidget("spinWidth",    SpinnerWidget, grpParams, "Element width:",    null,                                              function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
-      layoutDialog.createWidget("spinHeight",   SpinnerWidget, grpParams, "Element height:",   null,                                              function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
-      layoutDialog.createWidget("spinNodeSep",  SpinnerWidget, grpParams, "Element spacing:",  "Space between elements on the same level.",       function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
-      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpParams, "Level spacing:",    "Space between levels or layers in the diagram.",  function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinWidth",    SpinnerWidget, grpSpacing, "Element width:",    null,                                             function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinHeight",   SpinnerWidget, grpSpacing, "Element height:",   null,                                             function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinNodeSep",  SpinnerWidget, grpSpacing, "Element spacing:",  "Space between elements on the same level.",      function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:",    "Space between levels or layers in the diagram.", function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
 
-      // Group: Nested — relation list, then options below
+      // Group: Reverse [C — before Nesting; affects direction of hierarchical algorithms]
+      let grpReverse = new GroupWidget(layoutContainer, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, true).applyTo(grpReverse);
+      grpReverse.setText("Reverse");
+      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpReverse);
+      let lblRevDesc = new LabelWidget(grpReverse, SWT.NONE);
+      lblRevDesc.setText("Select which relationship types should be drawn in the opposite direction in the layout.");
+      GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRevDesc);
+      layoutDialog.createListBuilder("lstReversed", grpReverse, null, null,
+        View.RELATION_NAMES, layoutDialog.config.layoutReversed);
+
+      // Group: Nesting [A — relation list + occurrence options only]
       let grpNested = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(grpNested);
-      grpNested.setText("Nested");
+      grpNested.setText("Nesting");
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpNested);
 
       let lblNestDesc = new LabelWidget(grpNested, SWT.NONE);
@@ -1051,8 +1060,8 @@ let layoutDialog = {
       layoutDialog.createListBuilder("lstNested", grpNested, null, null,
         View.RELATION_NAMES, layoutDialog.config.layoutNested);
 
-      let sepMultiOcc = new LabelWidget(grpNested, SWT.SEPARATOR | SWT.HORIZONTAL);
-      GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(sepMultiOcc);
+      let sepNestOpts = new LabelWidget(grpNested, SWT.SEPARATOR | SWT.HORIZONTAL);
+      GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(sepNestOpts);
 
       layoutDialog.createWidget("chkMultiOcc", ButtonWidget, grpNested, null,
         "When enabled, an element that belongs to multiple containers is shown inside each of them.\nWhen disabled (default), it appears only in the first matching container.",
@@ -1068,57 +1077,66 @@ let layoutDialog = {
           GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w);
         });
 
-      let chkNestedPack = new ButtonWidget(grpNested, SWT.CHECK);
-      chkNestedPack.setText("Pack container children tightly (rectpacking)   ");
-      chkNestedPack.setToolTipText("Uses rectangle packing inside each container instead of the root layout algorithm.\nEliminates empty space in containers. Best when all relations are nesting — no visible connections.");
-      GridDataFactory.fillDefaults().span(2, 1).applyTo(chkNestedPack);
-      layoutDialog.widgets.chkNestedPack = chkNestedPack;
-
-      let lblNestedSpacing = new LabelWidget(grpNested, SWT.NONE);
-      lblNestedSpacing.setText("Child spacing:");
-      lblNestedSpacing.setToolTipText("Space between child elements inside a packed container.");
-      layoutDialog.widgets._lblNestedSpacing = lblNestedSpacing;
-      let spinNestedSpacing = new SpinnerWidget(grpNested, SWT.BORDER);
-      spinNestedSpacing.setValues(10, 0, 100, 0, 2, 10);
-      spinNestedSpacing.setToolTipText("Space between child elements inside a packed container.");
-      GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinNestedSpacing);
-      layoutDialog.widgets.spinNestedSpacing = spinNestedSpacing;
-
-      let chkExpandToFill = new ButtonWidget(grpNested, SWT.CHECK);
-      chkExpandToFill.setText("Equal row height — expand elements to match containers   ");
-      chkExpandToFill.setToolTipText("When a row contains both sub-containers (tall) and leaf elements (short), expands all items in the row to the same height.\nUse this when containers and plain elements appear side by side and you want them visually equal.");
-      GridDataFactory.fillDefaults().span(2, 1).applyTo(chkExpandToFill);
-      layoutDialog.widgets.chkExpandToFill = chkExpandToFill;
-
-      layoutDialog.createListBuilder("lstExpandExclude", grpNested,
-        "Keep original size for (not expanded):", "Element types that are never resized to match containers — they keep their natural nodeWidth × nodeHeight.",
-        View.ELEMENT_NAMES, layoutDialog.config.elkExpandExcludeTypes || []);
-
       let chkSortLeavesOnly = new ButtonWidget(grpNested, SWT.CHECK);
       chkSortLeavesOnly.setText("Sort elements only — keep containers in model order   ");
       chkSortLeavesOnly.setToolTipText("When checked, only leaf elements are sorted alphabetically.\nContainers stay in the order they appear in the model.\nWhen unchecked (default), containers are placed first and also sorted.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(chkSortLeavesOnly);
       layoutDialog.widgets.chkSortLeavesOnly = chkSortLeavesOnly;
 
-      function updateNestedPackControls() {
-        let on = chkNestedPack.getSelection();
-        lblNestedSpacing.setEnabled(on);
-        spinNestedSpacing.setEnabled(on);
-        chkExpandToFill.setEnabled(on);
-      }
-      updateNestedPackControls();
-      chkNestedPack.addListener(SWT.Selection, function() { updateNestedPackControls(); });
+      // Group: Packed layout [A — pack options split out; D — lstExpandExclude greyed when expand is off]
+      let grpPacked = new GroupWidget(layoutContainer, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, true).applyTo(grpPacked);
+      grpPacked.setText("Packed layout");
+      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpPacked);
 
-      // Group: Reverse
-      let grpReverse = new GroupWidget(layoutContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, true).applyTo(grpReverse);
-      grpReverse.setText("Reverse");
-      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpReverse);
-      let lblRevDesc = new LabelWidget(grpReverse, SWT.NONE);
-      lblRevDesc.setText("Select which relationship types should be drawn in the opposite direction in the layout.");
-      GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRevDesc);
-      layoutDialog.createListBuilder("lstReversed", grpReverse, null, null,
-        View.RELATION_NAMES, layoutDialog.config.layoutReversed);
+      let chkNestedPack = new ButtonWidget(grpPacked, SWT.CHECK);
+      chkNestedPack.setText("Pack container children tightly (rectpacking)   ");
+      chkNestedPack.setToolTipText("Uses rectangle packing inside each container instead of the root layout algorithm.\nEliminates empty space in containers. Best when all relations are nesting — no visible connections.");
+      GridDataFactory.fillDefaults().span(2, 1).applyTo(chkNestedPack);
+      layoutDialog.widgets.chkNestedPack = chkNestedPack;
+
+      let lblNestedSpacing = new LabelWidget(grpPacked, SWT.NONE);
+      lblNestedSpacing.setText("Child spacing:");
+      lblNestedSpacing.setToolTipText("Space between child elements inside a packed container.");
+      layoutDialog.widgets._lblNestedSpacing = lblNestedSpacing;
+      let spinNestedSpacing = new SpinnerWidget(grpPacked, SWT.BORDER);
+      spinNestedSpacing.setValues(10, 0, 100, 0, 2, 10);
+      spinNestedSpacing.setToolTipText("Space between child elements inside a packed container.");
+      GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinNestedSpacing);
+      layoutDialog.widgets.spinNestedSpacing = spinNestedSpacing;
+
+      let chkExpandToFill = new ButtonWidget(grpPacked, SWT.CHECK);
+      chkExpandToFill.setText("Equal row height — expand elements to match containers   ");
+      chkExpandToFill.setToolTipText("When a row contains both sub-containers (tall) and leaf elements (short), expands all items in the row to the same height.\nUse this when containers and plain elements appear side by side and you want them visually equal.");
+      GridDataFactory.fillDefaults().span(2, 1).applyTo(chkExpandToFill);
+      layoutDialog.widgets.chkExpandToFill = chkExpandToFill;
+
+      layoutDialog.createListBuilder("lstExpandExclude", grpPacked,
+        "Keep original size for (not expanded):", "Element types that are never resized to match containers — they keep their natural nodeWidth × nodeHeight.",
+        View.ELEMENT_NAMES, layoutDialog.config.elkExpandExcludeTypes || []);
+
+      // Recursive enable/disable for composite widget trees [D]
+      function setTreeEnabled(comp, enabled) {
+        comp.setEnabled(enabled);
+        var ch = comp.getChildren();
+        for (var i = 0; i < ch.length; i++) {
+          if (typeof ch[i].getChildren === 'function') setTreeEnabled(ch[i], enabled);
+          else ch[i].setEnabled(enabled);
+        }
+      }
+      function updatePackControls() {
+        let packOn   = chkNestedPack.getSelection();
+        let expandOn = packOn && chkExpandToFill.getSelection();
+        lblNestedSpacing.setEnabled(packOn);
+        spinNestedSpacing.setEnabled(packOn);
+        chkExpandToFill.setEnabled(packOn);
+        if (layoutDialog.widgets.lstExpandExclude_comp)
+          setTreeEnabled(layoutDialog.widgets.lstExpandExclude_comp, expandOn);
+      }
+      layoutDialog._updatePackControls = updatePackControls;
+      updatePackControls();
+      chkNestedPack.addListener(SWT.Selection,   function() { updatePackControls(); });
+      chkExpandToFill.addListener(SWT.Selection, function() { updatePackControls(); });
 
       scrolled2.setContent(layoutContainer);
       scrolled2.setMinSize(layoutContainer.computeSize(SWT.DEFAULT, SWT.DEFAULT));

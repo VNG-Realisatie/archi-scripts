@@ -41,10 +41,8 @@ const GENERATE_SINGLE   = "Generate";
 const GENERATE_MULTIPLE = "GenerateMultiple";
 const EXPAND_HERE       = "Expand";
 const LAYOUT            = "Layout";
-const REGENERATE        = "Regenerate";
 
 // default settings for generated views
-const PROP_SAVE_PARAMETER  = "generate_view_param";
 const PROP_EXCLUDE         = "excludeFromView";
 const GENERATED_VIEW_FOLDER = "/_Generated";
 const DEFAULT_GRAPHDEPTH   = 1;
@@ -61,7 +59,7 @@ const DEFAULT_ELK_LAYER_SEP    = 180;
 const DEFAULT_ELK_NODE_PLACEMENT = "NONE";
 const DEFAULT_ELK_EDGE_ROUTING = "ORTHOGONAL";
 const DEFAULT_ELK_PADDING      = 20;
-const NESTED_LABEL_TOP_EXTRA   = 20; // extra top padding so Archi's container label doesn't overlap children
+const NESTED_LABEL_TOP_EXTRA   = 30; // extra top padding so Archi's container label doesn't overlap children
 
 // Relation type weights for weight-driven layout (elk.priority).
 // Higher weight = stronger attraction between connected elements.
@@ -276,12 +274,11 @@ function _layoutAndRender(param, filteredElements) {
     // For each compound node in the result, collect the max sibling width and height,
     // then record equalized sizes for leaf children only.
     // Pass 1a: find global minimum container dimensions across the entire diagram
-    let globalMinW = Infinity, globalMinH = Infinity;
+    let globalMinW = Infinity;
     function collectMinContainerSize(node) {
       if (!node.children || node.children.length === 0) return;
       if (node.id !== "root") {
-        if (node.width  < globalMinW) globalMinW = node.width;
-        if (node.height < globalMinH) globalMinH = node.height;
+        if (node.width < globalMinW) globalMinW = node.width;
       }
       node.children.forEach(collectMinContainerSize);
     }
@@ -300,7 +297,7 @@ function _layoutAndRender(param, filteredElements) {
       node.children.forEach(function(c) {
         if (!c.children || c.children.length === 0) {
           if (param.elkExpandExcludeTypes.indexOf(c._type) < 0) {
-            equalizedSizes[c.id] = { width: globalMinW, height: globalMinH };
+            equalizedSizes[c.id] = { width: globalMinW };
           }
         } else if (c.width < globalMinW) {
           extraHPaddings[c.id] = (globalMinW - c.width) / 2;
@@ -324,7 +321,6 @@ function _layoutAndRender(param, filteredElements) {
     Object.keys(equalizedSizes).forEach(function(id) {
       if (elkNodeMap[id]) {
         elkNodeMap[id].width  = equalizedSizes[id].width;
-        elkNodeMap[id].height = equalizedSizes[id].height;
       }
     });
     Object.keys(extraHPaddings).forEach(function(id) {
@@ -348,14 +344,6 @@ function _layoutAndRender(param, filteredElements) {
  */
 function _setDefaultParameters(param) {
   let validFlag = true;
-
-  if (param.action == REGENERATE) {
-    let view = _getSelectedView();
-    console.log(`Action is ${param.action}`);
-    console.log(`** Reading param from selected ${view} **\n`);
-    Object.assign(param, JSON.parse(view.prop(PROP_SAVE_PARAMETER)));
-    param.viewName = "";
-  }
 
   // Migration shim: convert old dagre param names to ELK equivalents (with warning)
   const dagreToElkDir = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
@@ -463,7 +451,6 @@ function _setDefaultParameters(param) {
       break;
     case EXPAND_HERE:
     case LAYOUT:
-    case REGENERATE:
       console.log("Update selected view");
       break;
     default:
@@ -903,7 +890,6 @@ function _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParen
   }
 
   let view = _getView(folder, param.viewName);
-  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
 
   let visualElementIndex = {};
 
@@ -1205,7 +1191,6 @@ function _drawDagreView(param, graph, elkParentRels, elkParentMap, occurrenceMap
   if (param.viewFolder !== "") folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
 
   let view = _getView(folder, param.viewName);
-  view.prop(PROP_SAVE_PARAMETER, JSON.stringify(param, null, " "));
 
   let visualElementIndex = {}, nodeIndex = {};
   console.log("Drawing graph nodes as elements ...");
@@ -1414,7 +1399,6 @@ if (typeof module !== "undefined" && module.exports) {
     GENERATE_MULTIPLE,
     EXPAND_HERE,
     LAYOUT,
-    REGENERATE,
     DEFAULT_GRAPHDEPTH,
     DEFAULT_ACTION,
     DEFAULT_NODE_WIDTH,
@@ -1427,7 +1411,6 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_ELK_EDGE_ROUTING,
     DEFAULT_ELK_PADDING,
     GENERATED_VIEW_FOLDER,
-    PROP_SAVE_PARAMETER,
     PROP_EXCLUDE,
     ELEMENT_NAMES,
     RELATION_NAMES,
