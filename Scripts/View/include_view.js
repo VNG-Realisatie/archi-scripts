@@ -257,10 +257,10 @@ function _layoutAndRender(param, filteredElements) {
 
   const layoutOptions = _buildElkLayoutOptions(param);
 
-  // Two-pass layout when elkNestedExpandToFill is set:
+  // Two-pass layout when elkSameTypeResize is set:
   // Pass 1 discovers actual container sizes; leaf siblings are equalized (width AND height)
   // to the largest sibling before pass 2 so mixed rows look visually uniform.
-  if (param.elkNestedExpandToFill && param.elkNestedAlgorithm) {
+  if (param.elkSameTypeResize && param.elkNestedAlgorithm) {
     // Snapshot original sizes so compound nodes can be reset cleanly before pass 2
     const origSizes = {};
     Object.keys(elkNodeMap).forEach(function(id) {
@@ -294,9 +294,10 @@ function _layoutAndRender(param, filteredElements) {
       node.children.forEach(equalizeSiblings);
       let hasContainerSibling = node.children.some(function(c) { return c.children && c.children.length > 0; });
       if (!hasContainerSibling) return;
+      var containerType = node._type; // only resize leaf children whose type matches the container
       node.children.forEach(function(c) {
         if (!c.children || c.children.length === 0) {
-          if (param.elkExpandExcludeTypes.indexOf(c._type) < 0) {
+          if (containerType && c._type === containerType) {
             equalizedSizes[c.id] = { width: globalMinW };
           }
         } else if (c.width < globalMinW) {
@@ -427,10 +428,9 @@ function _setDefaultParameters(param) {
   if (param.elkNestedAlgorithm        === undefined) param.elkNestedAlgorithm        = "";
   console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
   if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
-  if (param.elkNestedExpandToFill     === undefined) param.elkNestedExpandToFill     = false;
-  if (param.elkExpandExcludeTypes      === undefined) param.elkExpandExcludeTypes      = [];
+  if (param.elkSameTypeResize          === undefined) param.elkSameTypeResize          = false;
   if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
-  if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", expandToFill = " + param.elkNestedExpandToFill);
+  if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
   if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
   console.log("- nodeWidth = "  + param.nodeWidth);
   if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
