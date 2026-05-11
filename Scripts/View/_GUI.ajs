@@ -809,6 +809,16 @@ let layoutDialog = {
 
       let _lblW = 100; // shared label width — keeps Action / View name / Preset fields aligned
 
+      // Shared toggle colors — explicit RGB so they are identical on Windows and Linux.
+      // SWT.FLAT on toggle buttons suppresses the native Windows selection border (double-line fix).
+      let _SWTColor = Java.type("org.eclipse.swt.graphics.Color");
+      let _disp     = area.getDisplay();
+      let _selBg    = new _SWTColor(_disp, 197, 242, 237); // light teal, color picked from radio button
+      let _selFg    = _disp.getSystemColor(SWT.COLOR_BLACK);
+      let _defBg    = _disp.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
+      let _inactFg  = _disp.getSystemColor(SWT.COLOR_DARK_GRAY);
+      area.addListener(SWT.Dispose, function() { if (!_selBg.isDisposed()) _selBg.dispose(); });
+
       // ── Row 1: Action — segmented control style ──────────────────────────────
       let compAction = new CompositeWidget(container, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(compAction);
@@ -832,7 +842,7 @@ let layoutDialog = {
           { label: "Re-layout",     val: View.LAYOUT,             tip: "Re-lays out all elements on the selected view. No elements or relations are added or removed." },
         ];
         actions.forEach(function(a) {
-          let btn = new ButtonWidget(btnGroup, SWT.TOGGLE);
+          let btn = new ButtonWidget(btnGroup, SWT.TOGGLE | SWT.FLAT);
           btn.setText("  " + a.label + "  ");
           btn.setData("val", a.val);
           btn.setToolTipText(a.tip);
@@ -853,17 +863,12 @@ let layoutDialog = {
         });
 
         layoutDialog._updateActionColors = function() {
-          let display = btnGroup.getDisplay();
-          let selBg   = display.getSystemColor(SWT.COLOR_LIST_SELECTION);
-          let selFg   = display.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT);
-          let defBg   = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
-          let grey    = display.getSystemColor(SWT.COLOR_DARK_GRAY);
           let ch = btnGroup.getChildren();
           for (let i = 0; i < ch.length; i++) {
             if (typeof ch[i].getSelection === "function") {
               let sel = ch[i].getSelection();
-              ch[i].setBackground(sel ? selBg : defBg);
-              ch[i].setForeground(sel ? selFg : grey);
+              ch[i].setBackground(sel ? _selBg : _defBg);
+              ch[i].setForeground(sel ? _selFg : _inactFg);
             }
           }
         };
@@ -1072,27 +1077,23 @@ let layoutDialog = {
           lbl.setToolTipText(type);
           GridDataFactory.fillDefaults().grab(true, false).applyTo(lbl);
 
-          let tglIn  = new ButtonWidget(rowComp, SWT.TOGGLE);
+          let tglIn  = new ButtonWidget(rowComp, SWT.TOGGLE | SWT.FLAT);
           tglIn.setText("←");
           tglIn.setToolTipText("Follow this relation type only when it arrives at the selected element (incoming). Leave both arrows active to follow both directions.");
           tglIn.setEnabled(false);
           GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglIn);
 
-          let tglOut = new ButtonWidget(rowComp, SWT.TOGGLE);
+          let tglOut = new ButtonWidget(rowComp, SWT.TOGGLE | SWT.FLAT);
           tglOut.setText("→");
           tglOut.setToolTipText("Follow this relation type only when it leaves the selected element (outgoing). Leave both arrows active to follow both directions.");
           tglOut.setEnabled(false);
           GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglOut);
 
           function updateDirColors() {
-            let display = tglIn.getDisplay();
-            let white  = display.getSystemColor(SWT.COLOR_WHITE);
-            let defBg  = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
-            let grey   = display.getSystemColor(SWT.COLOR_DARK_GRAY);
             let inSel  = tglIn.getSelection();
             let outSel = tglOut.getSelection();
-            tglIn.setBackground(inSel   ? white : defBg); tglIn.setForeground(inSel   ? null : grey);
-            tglOut.setBackground(outSel ? white : defBg); tglOut.setForeground(outSel ? null : grey);
+            tglIn.setBackground(inSel   ? _selBg : _defBg); tglIn.setForeground(inSel   ? _selFg : _inactFg);
+            tglOut.setBackground(outSel ? _selBg : _defBg); tglOut.setForeground(outSel ? _selFg : _inactFg);
           }
           tglIn.addListener(SWT.Selection,  function() { updateDirColors(); });
           tglOut.addListener(SWT.Selection, function() { updateDirColors(); });
