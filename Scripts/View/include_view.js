@@ -1493,6 +1493,38 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
   let view = _getView(folder, param.viewName);
 
   let coords = _collectDotObjects(jsonOut);
+
+  // Fallback: for containers whose cluster bb was not in the DOT JSON
+  // (force-directed engines like sfdp/neato/fdp never emit cluster bbs),
+  // derive the bounding box from the child node positions + padding.
+  let _pad = param.elkPadding !== undefined ? param.elkPadding : 20;
+  let _bbAcc = {};
+  Object.keys(elkParentMap).forEach(function(childId) {
+    let cid = elkParentMap[childId];
+    if (coords.clusters[cid]) return;        // already have it from JSON
+    let cp = coords.nodes[childId];
+    let pp = coords.nodes[cid];              // container node itself
+    [cp, pp].forEach(function(p) {
+      if (!p) return;
+      if (!_bbAcc[cid]) _bbAcc[cid] = { minX: p.x, minY: p.y, maxX: p.x + p.w, maxY: p.y + p.h };
+      else {
+        _bbAcc[cid].minX = Math.min(_bbAcc[cid].minX, p.x);
+        _bbAcc[cid].minY = Math.min(_bbAcc[cid].minY, p.y);
+        _bbAcc[cid].maxX = Math.max(_bbAcc[cid].maxX, p.x + p.w);
+        _bbAcc[cid].maxY = Math.max(_bbAcc[cid].maxY, p.y + p.h);
+      }
+    });
+  });
+  Object.keys(_bbAcc).forEach(function(cid) {
+    let b = _bbAcc[cid];
+    coords.clusters[cid] = {
+      x: b.minX - _pad, y: b.minY - _pad,
+      w: (b.maxX - b.minX) + 2 * _pad,
+      h: (b.maxY - b.minY) + 2 * _pad,
+    };
+    console.log("  cluster bb computed from children for " + cid + " → " + JSON.stringify(coords.clusters[cid]));
+  });
+
   let visualElementIndex = {};
   let reversedSet  = new Set(param.layoutReversed || []);
   let containerIds = new Set();

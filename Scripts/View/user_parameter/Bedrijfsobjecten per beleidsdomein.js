@@ -3,7 +3,7 @@
  */
 
 module.exports = {
-  "action": "Generate",
+  "action": "Layout",
   "graphDepth": 2,
   "includeElementType": [
     "business-object",
@@ -16,8 +16,7 @@ module.exports = {
   ],
   "layoutReversed": [
     "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
+    "serving-relationship"
   ],
   "layoutNested": [
     "aggregation-relationship"
@@ -26,34 +25,41 @@ module.exports = {
   "graphDirection": "LR",
   "ranker": "network-simplex",
   "nodeWidth": 250,
-  "nodeHeight": 30,
+  "nodeHeight": 80,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Afval",
+  "viewName": "Dienstverlening",
   "elkAlgorithm": "dagre",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "ORTHOGONAL",
-  "elkSpacingNodeNode": 10,
-  "elkLayerSpacing": 150,
+  "elkSpacingNodeNode": 50,
+  "elkLayerSpacing": 200,
   "elkPadding": 20,
   "nestingMultipleOccurrences": false,
   "elkNodePlacementAlignment": "BALANCED",
   "dagreRanker": "network-simplex",
   "useRelationWeights": false,
   "elkNestedAlgorithm": "rectpacking",
-  "elkNestedSpacingNodeNode": 10,
+  "elkNestedSpacingNodeNode": 30,
   "elkNestedExpandToFill": true,
-  "elkSortLeavesOnly": true,
+  "elkSortLeavesOnly": false,
   "elkExpandExcludeTypes": [
     "business-object"
   ],
   "elkSameTypeResize": true,
   "_lastTabIndex": 1,
-  "_lastPresetName": "Bedrijfsfuncties en bedrijfsobjecten.js",
+  "_lastPresetName": "Per beleidsdomein.js",
   "graphvizEngine": "dot",
   "graphvizBin": "",
+  "_windowBounds": {
+    "x": 1641,
+    "y": 709,
+    "width": 1007,
+    "height": 1300
+  },
+  "graphvizSplines": "ORTHOGONAL",
   "doc": "Selecteer 1 of meer beleidsdomeinen en genereer 1 view voor ieder"
 };
