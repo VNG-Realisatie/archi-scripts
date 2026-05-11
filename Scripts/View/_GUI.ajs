@@ -52,6 +52,7 @@ function getPresetFiles() {
       }
     }
   }
+  names.sort();
   return names;
 }
 
@@ -389,8 +390,8 @@ let layoutDialog = {
       create: function () {
         Java.super(mgr).create();
         mgr.setTitle("Manage presets");
-        mgr.setMessage("Click any description to edit it in place. Press Ctrl+Enter to save, or Escape to cancel.", IMessageProvider.INFORMATION);
-        mgr.getShell().setSize(820, 580);
+        mgr.setMessage("Click a description to edit it. Enter saves, Alt+Enter adds a new line, Escape cancels.", IMessageProvider.INFORMATION);
+        mgr.getShell().setSize(shell.getSize().x - 40, 580);
         mgr.getShell().setText("Manage presets");
       },
       createDialogArea: function (parent) {
@@ -452,8 +453,18 @@ let layoutDialog = {
           }
           txtEd.addListener(SWT.FocusOut, function () { commit(); });
           txtEd.addListener(SWT.Traverse, function (ev) {
-            if (ev.detail === SWT.TRAVERSE_ESCAPE) { txtEd.dispose(); ev.doit = false; }
-            else if (ev.detail === SWT.TRAVERSE_RETURN && (ev.stateMask & SWT.CTRL) !== 0) { commit(); ev.doit = false; }
+            if (ev.detail === SWT.TRAVERSE_ESCAPE) {
+              txtEd.dispose(); ev.doit = false;
+            } else if (ev.detail === SWT.TRAVERSE_RETURN) {
+              if ((ev.stateMask & SWT.ALT) !== 0) {
+                let pos = txtEd.getCaretPosition(), t = txtEd.getText();
+                txtEd.setText(t.substring(0, pos) + "\n" + t.substring(pos));
+                txtEd.setSelection(pos + 1);
+              } else {
+                commit();
+              }
+              ev.doit = false;
+            }
           });
         });
 
@@ -475,6 +486,7 @@ let layoutDialog = {
         return area;
       },
       isResizable: function () { return true; },
+      isHelpAvailable: function () { return false; },
       createButtonsForButtonBar: function (parent) {
         let IDC = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
         Java.super(mgr).createButton(parent, IDC.OK_ID, "Close", true);
@@ -482,6 +494,64 @@ let layoutDialog = {
       okPressed: function () { Java.super(mgr).okPressed(); },
     });
     mgr.open();
+  },
+
+  openSavePresetDialog: function (shell, initialName, initialDoc) {
+    let IDC = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
+    let result = null;
+    let _cmb = null, _txt = null;
+    let DlgClass = Java.extend(TitleAreaDialog);
+    let dlg = new DlgClass(shell, {
+      create: function () {
+        Java.super(dlg).create();
+        dlg.setTitle("Save preset");
+        dlg.setMessage("Choose an existing preset to overwrite, or type a new name.");
+        dlg.getShell().setText("Save preset");
+        dlg.getShell().setSize(shell.getSize().x - 40, 300);
+      },
+      createDialogArea: function (parent) {
+        let area = Java.super(dlg).createDialogArea(parent);
+        let comp = new CompositeWidget(area, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, false).applyTo(comp);
+        GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(comp);
+
+        new LabelWidget(comp, SWT.NONE).setText("Name:");
+        _cmb = new ComboWidget(comp, SWT.DROP_DOWN);
+        GridDataFactory.fillDefaults().grab(true, false).applyTo(_cmb);
+        getPresetFiles().forEach(function (f) {
+          _cmb.add(f.endsWith(".js") ? f.slice(0, -3) : f);
+        });
+        if (initialName) {
+          let n = initialName.endsWith(".js") ? initialName.slice(0, -3) : initialName;
+          _cmb.setText(n);
+          let i = _cmb.indexOf(n);
+          if (i >= 0) _cmb.select(i);
+        }
+
+        let lblDoc = new LabelWidget(comp, SWT.NONE);
+        lblDoc.setText("Description:");
+        GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.BEGINNING).applyTo(lblDoc);
+        _txt = new TextWidget(comp, SWT.MULTI | SWT.WRAP | SWT.BORDER | SWT.V_SCROLL);
+        GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, 80).applyTo(_txt);
+        if (initialDoc) _txt.setText(initialDoc);
+
+        return area;
+      },
+      isResizable: function () { return true; },
+      isHelpAvailable: function () { return false; },
+      createButtonsForButtonBar: function (parent) {
+        Java.super(dlg).createButton(parent, IDC.CANCEL_ID, IDC.CANCEL_LABEL, false);
+        Java.super(dlg).createButton(parent, IDC.OK_ID, "Save", true);
+      },
+      okPressed: function () {
+        let name = _cmb ? String(_cmb.getText()).trim() : "";
+        let doc  = _txt ? String(_txt.getText()).trim() : "";
+        if (name !== "") result = { name: name, doc: doc };
+        Java.super(dlg).okPressed();
+      },
+    });
+    dlg.open();
+    return result;
   },
 
   updateFromPreset: function (presetName) {
@@ -492,6 +562,7 @@ let layoutDialog = {
         Object.keys(newCfg).forEach((k) => {
           if (k !== "doc") this.config[k] = newCfg[k];
         });
+        layoutDialog._lastPresetName = presetName;
         this.syncConfigToUI();
       }
     } catch (e) {
@@ -710,8 +781,16 @@ let layoutDialog = {
       );
       let _sh = layoutDialog.dialog.getShell();
       let _ca = _sh.getMonitor().getClientArea();
-      _sh.pack();
-      _sh.setSize(_sh.getSize().x, Math.min(1080, _ca.height - 40));
+      let _wb = defaultParams && defaultParams._windowBounds;
+      if (_wb && _wb.width && _wb.height) {
+        _sh.setSize(_wb.width, _wb.height);
+        if (_wb.x !== undefined && _wb.y !== undefined) _sh.setLocation(_wb.x, _wb.y);
+      } else {
+        _sh.pack();
+        let _shW = _sh.getSize().x;
+        let _shH = 1300;
+        _sh.setSize(_shW, Math.min(_shH, _ca.height - 40));
+      }
       // Re-apply toggle colors after the first paint (GTK needs this)
       _sh.getDisplay().asyncExec(function() {
         if (layoutDialog._updateActionColors) layoutDialog._updateActionColors();
@@ -728,14 +807,22 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(container);
       GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(container);
 
-      // ── Row 1: Action — flat toggle bar, no group border ────────────────────
+      let _lblW = 100; // shared label width — keeps Action / View name / Preset fields aligned
+
+      // ── Row 1: Action — segmented control style ──────────────────────────────
       let compAction = new CompositeWidget(container, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(compAction);
-      GridLayoutFactory.swtDefaults().numColumns(5).margins(10, 4).spacing(4, 0).applyTo(compAction);
-      layoutDialog.widgets.grpActionControls = compAction;
+      GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 4).spacing(6, 0).applyTo(compAction);
 
       let lblGenerate = new LabelWidget(compAction, SWT.NONE);
       lblGenerate.setText("Action:");
+      GridDataFactory.swtDefaults().hint(_lblW, SWT.DEFAULT).align(SWT.LEFT, SWT.CENTER).applyTo(lblGenerate);
+
+      // Button group with zero gaps — creates the segmented-control appearance
+      let btnGroup = new CompositeWidget(compAction, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(btnGroup);
+      GridLayoutFactory.swtDefaults().numColumns(4).margins(0, 0).spacing(0, 0).applyTo(btnGroup);
+      layoutDialog.widgets.grpActionControls = btnGroup;
 
       (function() {
         let actions = [
@@ -745,36 +832,38 @@ let layoutDialog = {
           { label: "Re-layout",     val: View.LAYOUT,             tip: "Re-lays out all elements on the selected view. No elements or relations are added or removed." },
         ];
         actions.forEach(function(a) {
-          let btn = new ButtonWidget(compAction, SWT.TOGGLE);
+          let btn = new ButtonWidget(btnGroup, SWT.TOGGLE);
           btn.setText("  " + a.label + "  ");
           btn.setData("val", a.val);
           btn.setToolTipText(a.tip);
+          GridDataFactory.fillDefaults().grab(true, false).applyTo(btn);
           btn.addListener(SWT.Selection, function() {
             if (btn.getSelection()) {
-              let ch = compAction.getChildren();
+              let ch = btnGroup.getChildren();
               for (let i = 0; i < ch.length; i++) {
                 if (ch[i] !== btn && typeof ch[i].setSelection === "function") ch[i].setSelection(false);
               }
               layoutDialog._updateActionColors();
               layoutDialog.updateActionControls(a.val);
             } else {
-              btn.setSelection(true); // always keep one active
+              btn.setSelection(true);
               layoutDialog._updateActionColors();
             }
           });
         });
 
         layoutDialog._updateActionColors = function() {
-          let display = compAction.getDisplay();
-          let white   = display.getSystemColor(SWT.COLOR_WHITE);
+          let display = btnGroup.getDisplay();
+          let selBg   = display.getSystemColor(SWT.COLOR_LIST_SELECTION);
+          let selFg   = display.getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT);
           let defBg   = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
           let grey    = display.getSystemColor(SWT.COLOR_DARK_GRAY);
-          let ch = compAction.getChildren();
+          let ch = btnGroup.getChildren();
           for (let i = 0; i < ch.length; i++) {
             if (typeof ch[i].getSelection === "function") {
               let sel = ch[i].getSelection();
-              ch[i].setBackground(sel ? white : defBg);
-              ch[i].setForeground(sel ? null  : grey);
+              ch[i].setBackground(sel ? selBg : defBg);
+              ch[i].setForeground(sel ? selFg : grey);
             }
           }
         };
@@ -783,10 +872,11 @@ let layoutDialog = {
       // ── Row 2: View name + Relation levels ───────────────────────────────────
       let compViewFields = new CompositeWidget(container, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(compViewFields);
-      GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 0).spacing(20, 0).applyTo(compViewFields);
+      GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 0).spacing(6, 0).applyTo(compViewFields);
 
       let lblViewNameLbl = new LabelWidget(compViewFields, SWT.NONE);
       lblViewNameLbl.setText("View name:");
+      GridDataFactory.swtDefaults().hint(_lblW, SWT.DEFAULT).align(SWT.LEFT, SWT.CENTER).applyTo(lblViewNameLbl);
       layoutDialog.widgets.txtViewName_lbl = lblViewNameLbl;
       let txtViewNameWidget = new TextWidget(compViewFields, SWT.BORDER);
       txtViewNameWidget.setToolTipText("Name for the view to create. Leave blank to use the first selected element's name. Only applies to 'New view'.");
@@ -795,6 +885,7 @@ let layoutDialog = {
 
       let lblDepthLbl = new LabelWidget(compViewFields, SWT.NONE);
       lblDepthLbl.setText("Relation levels:");
+      GridDataFactory.swtDefaults().indent(14, 0).applyTo(lblDepthLbl);
       layoutDialog.widgets.spinDepth_lbl = lblDepthLbl;
       let spinDepthWidget = new SpinnerWidget(compViewFields, SWT.BORDER);
       spinDepthWidget.setValues(1, 0, 10, 0, 1, 1);
@@ -809,16 +900,26 @@ let layoutDialog = {
 
       let lblPreset = new LabelWidget(compPreset, SWT.NONE);
       lblPreset.setText("Preset:");
+      GridDataFactory.swtDefaults().hint(_lblW, SWT.DEFAULT).align(SWT.LEFT, SWT.CENTER).applyTo(lblPreset);
 
       let cmbPreset = new ComboWidget(compPreset, SWT.DROP_DOWN | SWT.READ_ONLY);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(cmbPreset);
       layoutDialog.widgets.cmbPreset = cmbPreset;
 
       function refreshPresetCombo() {
-        let prevSel = cmbPreset.getSelectionIndex() >= 0 ? cmbPreset.getItem(cmbPreset.getSelectionIndex()) : null;
+        let prevSel = cmbPreset.getSelectionIndex() >= 0
+          ? cmbPreset.getItem(cmbPreset.getSelectionIndex())
+          : (layoutDialog._lastPresetName || (defaultParams && defaultParams._lastPresetName) || null);
         cmbPreset.removeAll();
         getPresetFiles().forEach(function(f) { cmbPreset.add(f); });
-        if (prevSel) { let i = cmbPreset.indexOf(prevSel); if (i >= 0) cmbPreset.select(i); }
+        if (prevSel) {
+          let i = cmbPreset.indexOf(prevSel);
+          if (i >= 0) {
+            cmbPreset.select(i);
+            let obj = readPresetObj(prevSel);
+            cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
+          }
+        }
       }
       refreshPresetCombo();
       layoutDialog._refreshPresetCombo = refreshPresetCombo;
@@ -826,7 +927,9 @@ let layoutDialog = {
       cmbPreset.addListener(SWT.Selection, function() {
         let idx = cmbPreset.getSelectionIndex();
         if (idx >= 0) {
-          let obj = readPresetObj(cmbPreset.getItem(idx));
+          let fname = cmbPreset.getItem(idx);
+          layoutDialog._lastPresetName = fname;
+          let obj = readPresetObj(fname);
           cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
         }
       });
@@ -845,12 +948,23 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().applyTo(btnPresetSave);
       btnPresetSave.setToolTipText("Save the current settings as a named preset for later use.");
       btnPresetSave.addListener(SWT.Selection, function() {
-        let fname = window.prompt("Save current preset as:", "");
-        if (fname && fname.trim() !== "") {
+        let idx = cmbPreset.getSelectionIndex();
+        let initialName = idx >= 0 ? cmbPreset.getItem(idx) : "";
+        let initialDoc  = "";
+        if (initialName) {
+          let obj = readPresetObj(initialName);
+          if (obj && obj.doc) initialDoc = obj.doc;
+        }
+        let res = layoutDialog.openSavePresetDialog(layoutDialog.dialog.getShell(), initialName, initialDoc);
+        if (res) {
           layoutDialog.saveInput();
           let saveObj = JSON.parse(JSON.stringify(layoutDialog.config));
-          writePreset(fname.trim(), saveObj);
+          if (res.doc) saveObj.doc = res.doc; else delete saveObj.doc;
+          writePreset(res.name, saveObj);
           refreshPresetCombo();
+          let fname = res.name.endsWith(".js") ? res.name : res.name + ".js";
+          let si = cmbPreset.indexOf(fname);
+          if (si >= 0) { cmbPreset.select(si); layoutDialog._lastPresetName = fname; }
         }
       });
 
@@ -859,7 +973,7 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().applyTo(btnPresetManage);
       btnPresetManage.setToolTipText("Edit preset descriptions or delete presets you no longer need.");
       btnPresetManage.addListener(SWT.Selection, function() {
-        layoutDialog.openPresetManager(shell);
+        layoutDialog.openPresetManager(layoutDialog.dialog.getShell());
         refreshPresetCombo();
       });
 
@@ -934,7 +1048,7 @@ let layoutDialog = {
       grpRelFilter.setText("Relation filter"); setBoldFont(grpRelFilter);
       GridLayoutFactory.swtDefaults().numColumns(2).margins(10, 10).applyTo(grpRelFilter);
       let lblRelDesc = new LabelWidget(grpRelFilter, SWT.NONE);
-      lblRelDesc.setText("Follow only relations of these types. Leave the list empty to follow all types. Use ← and → to restrict direction.");
+      lblRelDesc.setText("Include and follow only relations of these types. Leave the list empty to follow all types. Use ← and → to restrict direction.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblRelDesc);
       // Relation filter: fixed 3-column grid
       // Each row: [checkbox] [short name] [← toggle] [→ toggle]
@@ -1085,8 +1199,9 @@ let layoutDialog = {
         }
       }
 
-      // Spacer between algo selection and parameters
-      new LabelWidget(grpELK, SWT.NONE);
+      // Half-line spacer between algo selection and parameters
+      let sepAlgoParams = new LabelWidget(grpELK, SWT.NONE);
+      GridDataFactory.swtDefaults().hint(SWT.DEFAULT, 4).applyTo(sepAlgoParams);
 
       // Parameters: flat rows below algo selection — no box, just whitespace above
       let cDir = new CompositeWidget(grpELK, SWT.NONE);
@@ -1247,12 +1362,15 @@ let layoutDialog = {
 
 
       layoutDialog.syncConfigToUI();
+
+      let lastTab = (defaultParams && defaultParams._lastTabIndex !== undefined) ? defaultParams._lastTabIndex : 0;
+      tabFolder.setSelection(lastTab);
+
       return area;
     },
 
-    isHelpAvailable: function () {
-      return false;
-    },
+    isHelpAvailable: function () { return false; },
+    isResizable:     function () { return true; },
 
     createButtonsForButtonBar: function (parent) {
       let IDialogConstants = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
@@ -1261,6 +1379,14 @@ let layoutDialog = {
     },
 
     okPressed: function () {
+      let _sh2 = layoutDialog.dialog.getShell();
+      let _loc = _sh2.getLocation(), _sz = _sh2.getSize();
+      layoutDialog._windowBounds = { x: _loc.x, y: _loc.y, width: _sz.x, height: _sz.y };
+      layoutDialog._lastTabIndex = layoutDialog.widgets.tabFolder ? layoutDialog.widgets.tabFolder.getSelectionIndex() : 0;
+      if (!layoutDialog._lastPresetName && layoutDialog.widgets.cmbPreset) {
+        let ci = layoutDialog.widgets.cmbPreset.getSelectionIndex();
+        if (ci >= 0) layoutDialog._lastPresetName = layoutDialog.widgets.cmbPreset.getItem(ci);
+      }
       layoutDialog.saveInput();
       Java.super(layoutDialog.dialog).okPressed();
     },
@@ -1274,7 +1400,11 @@ if (!OK) {
   exit();
 }
 
-writeJSON(LAST_RUN_FILE, layoutDialog.config);
+let _saveObj = Object.assign({}, layoutDialog.config);
+_saveObj._lastTabIndex   = layoutDialog._lastTabIndex   !== undefined ? layoutDialog._lastTabIndex   : 0;
+_saveObj._lastPresetName = layoutDialog._lastPresetName !== undefined ? layoutDialog._lastPresetName : null;
+_saveObj._windowBounds   = layoutDialog._windowBounds   || null;
+writeJSON(LAST_RUN_FILE, _saveObj);
 
 View.generate_view(layoutDialog.config, initialSelection);
 Common.finishConsoleLog();

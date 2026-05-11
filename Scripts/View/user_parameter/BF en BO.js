@@ -3,8 +3,8 @@
  */
 
 module.exports = {
-  "action": "Layout",
-  "graphDepth": 2,
+  "action": "GenerateMultiple",
+  "graphDepth": 4,
   "includeElementType": [
     "business-object",
     "business-function"
@@ -31,7 +31,7 @@ module.exports = {
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Applicatieontwikkeling en -onderhoud",
+  "viewName": "BF en BO views start",
   "elkAlgorithm": "layered",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
@@ -51,7 +51,5 @@ module.exports = {
     "business-object"
   ],
   "elkSameTypeResize": true,
-  "_lastTabIndex": 1,
-  "_lastPresetName": "Bedrijfsfuncties en bedrijfsobjecten.js",
-  "doc": "Selecteer de view Bedrijfsfunctiemodel en genereer per laag een view. \nViews tonen de door de bedrijfsfuncties beheerde bedrijfsobjecten"
+  "_lastTabIndex": 1
 };
