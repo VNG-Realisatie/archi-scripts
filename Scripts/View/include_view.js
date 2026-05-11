@@ -245,7 +245,8 @@ function generate_view(param, drawCollection) {
  * @returns Archi view
  */
 function _layoutAndRender(param, filteredElements) {
-  if (param.elkAlgorithm === "dagre") return _layoutAndRenderDagre(param, filteredElements);
+  if (param.elkAlgorithm === "dagre")    return _layoutAndRenderDagre(param, filteredElements);
+  if (param.elkAlgorithm === "graphviz") return _layoutAndRenderGraphviz(param, filteredElements);
 
   let elkNodeMap   = {};
   let elkEdgeList  = [];
@@ -430,6 +431,9 @@ function _setDefaultParameters(param) {
   if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
   if (param.elkSameTypeResize          === undefined) param.elkSameTypeResize          = false;
   if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
+  if (param.graphvizBin    === undefined) param.graphvizBin    = "dot";
+  if (param.graphvizEngine === undefined) param.graphvizEngine = "dot";
+  if (param.graphvizSplines=== undefined) param.graphvizSplines= "ORTHOGONAL";
   if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
   if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
   console.log("- nodeWidth = "  + param.nodeWidth);
@@ -1282,6 +1286,303 @@ function _drawDagreEdge(param, graph, edge, visualElementIndex, view) {
 }
 
 // ── end Dagre ────────────────────────────────────────────────────────────────
+
+// ── Graphviz DOT engine ──────────────────────────────────────────────────────
+
+function _layoutAndRenderGraphviz(param, filteredElements) {
+  let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
+  _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
+
+  let dotSource = _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap);
+  console.log("\nRunning Graphviz (" + (param.graphvizEngine || "dot") + ")...");
+
+  let jsonOut = _runDot(dotSource, param.graphvizEngine || "dot", param.graphvizBin || "dot");
+  return _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
+}
+
+// Build a DOT source string from the graph structures produced by _fillGraph.
+// Container nodes (those with children) are wrapped in subgraph cluster_<id> so
+// Graphviz routes cross-container edges around cluster bounding boxes (compound=true).
+// Edges are declared between the actual child nodes — no lhead/ltail — so the
+// returned spline control points represent the complete child-to-child path.
+function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
+  const PX_TO_IN  = 1 / 96;
+  const rankdir   = ({RIGHT:"LR", LEFT:"RL", DOWN:"TB", UP:"BT"})[param.elkDirection] || "LR";
+  const ranksep   = ((param.elkLayerSpacing    || 180) * PX_TO_IN).toFixed(4);
+  const nodesep   = ((param.elkSpacingNodeNode || 40)  * PX_TO_IN).toFixed(4);
+  const nodeW     = ((param.nodeWidth          || 200) * PX_TO_IN).toFixed(4);
+  const nodeH     = ((param.nodeHeight         || 60)  * PX_TO_IN).toFixed(4);
+  const padding   = param.elkPadding !== undefined ? param.elkPadding : 20;
+  const splines   = _elkRoutingToDot(param.graphvizSplines || param.elkEdgeRouting || "ORTHOGONAL");
+
+  let lines = [
+    'digraph G {',
+    '  graph [rankdir=' + rankdir + ' ranksep=' + ranksep + ' nodesep=' + nodesep +
+           ' splines=' + splines + ' compound=true margin=0]',
+    '  node [shape=rectangle width=' + nodeW + ' height=' + nodeH + ' fixedsize=true label=""]',
+  ];
+
+  // Identify children so we can find roots
+  let childSet = new Set(Object.keys(elkParentMap));
+
+  // Write nodes recursively; containers become subgraph cluster_<id> containing
+  // both the container node itself (for edge routing) and all child nodes.
+  function writeNode(id, indent) {
+    let children = Object.keys(elkParentMap).filter(function(k) { return elkParentMap[k] === id; });
+    if (children.length > 0) {
+      lines.push(indent + 'subgraph "cluster_' + id + '" {');
+      lines.push(indent + '  graph [margin=' + padding + ']');
+      lines.push(indent + '  "' + id + '"');   // container node inside its own cluster
+      children.forEach(function(cid) { writeNode(cid, indent + '  '); });
+      lines.push(indent + '}');
+    } else {
+      lines.push(indent + '"' + id + '"');
+    }
+  }
+
+  Object.keys(elkNodeMap)
+    .filter(function(id) { return !childSet.has(id); })
+    .forEach(function(id) { writeNode(id, '  '); });
+
+  // Write edges; swap src/tgt for layoutReversed (same logic as ELK path)
+  let reversedSet = new Set(param.layoutReversed || []);
+  elkEdgeList.forEach(function(edge) {
+    let src = edge.sources[0], tgt = edge.targets[0];
+    if (reversedSet.has(edge._relType || "")) { let t = src; src = tgt; tgt = t; }
+    lines.push('  "' + src + '" -> "' + tgt + '" [eid="' + edge.id + '"]');
+  });
+
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function _elkRoutingToDot(routing) {
+  return { ORTHOGONAL:'ortho', POLYLINE:'polyline', STRAIGHT:'line',
+           CURVED:'curved', SPLINE:'spline',
+           ortho:'ortho', polyline:'polyline', line:'line',
+           curved:'curved', spline:'spline' }[routing] || 'ortho';
+}
+
+// Call the dot binary with the given source, returning parsed JSON.
+// Throws a human-readable string if the binary is missing or exits non-zero.
+function _runDot(dotSource, engine, binPath) {
+  let ProcessBuilder = Java.type("java.lang.ProcessBuilder");
+  let Arrays         = Java.type("java.util.Arrays");
+  let bin = binPath && binPath.trim() !== "" ? binPath.trim() : "dot";
+  let proc;
+  try {
+    let pb = new ProcessBuilder(Arrays.asList(bin, "-Tjson", "-K" + engine));
+    pb.redirectErrorStream(false);
+    proc = pb.start();
+  } catch(e) {
+    throw "Graphviz not found at '" + bin + "'.\n" +
+          "Install Graphviz (graphviz.org) and ensure 'dot' is on the system PATH,\n" +
+          "or set the binary path in Layout → Graphviz binary.";
+  }
+
+  // Write DOT source to stdin, then close so dot sees EOF
+  let wr = new java.io.OutputStreamWriter(proc.getOutputStream(), "UTF-8");
+  wr.write(dotSource); wr.close();
+
+  // Read stdout
+  let br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream(), "UTF-8"));
+  let line, stdout = "";
+  while ((line = br.readLine()) !== null) stdout += line + "\n";
+  br.close();
+
+  // Read stderr
+  let er = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getErrorStream(), "UTF-8"));
+  let eline, stderr = "";
+  while ((eline = er.readLine()) !== null) stderr += eline + "\n";
+  er.close();
+
+  let code = proc.waitFor();
+  if (code !== 0) throw "Graphviz exited with code " + code + ".\n" + stderr.trim();
+
+  try { return JSON.parse(stdout); }
+  catch(e) { throw "Failed to parse Graphviz JSON output: " + e; }
+}
+
+// Walk DOT JSON objects recursively, collecting node positions and cluster bounding
+// boxes. All coordinates are converted to Archi pixel space (top-left origin).
+function _collectDotObjects(jsonOut) {
+  const PT2PX = 96 / 72;
+  let rootBb  = _parseDotBb(String(jsonOut.bb || "0,0,0,0"));
+  let totalH  = rootBb.ury;   // in DOT points; needed for Y-axis flip
+  let nodes = {}, clusters = {};
+
+  // Walk the entire JSON tree. Detect clusters by bb+cluster_ name (not _subgraph_cnt,
+  // which is absent in some Graphviz versions). Recurse into any objects sub-array.
+  function walk(obj) {
+    if (!obj || typeof obj !== "object") return;
+    let oname = String(obj.name || "");
+
+    if (obj.bb && oname.indexOf("cluster_") === 0) {
+      let nodeId = oname.substring("cluster_".length);
+      let bb = _parseDotBb(String(obj.bb));
+      clusters[nodeId] = {
+        x: Math.round(bb.llx * PT2PX),
+        y: Math.round((totalH - bb.ury) * PT2PX),
+        w: Math.round((bb.urx - bb.llx) * PT2PX),
+        h: Math.round((bb.ury - bb.lly) * PT2PX),
+      };
+    }
+
+    if (obj.pos && oname) {
+      let pos = _parseDotXY(String(obj.pos));
+      let nw = obj.width  ? Math.round(parseFloat(String(obj.width))  * 96) : 200;
+      let nh = obj.height ? Math.round(parseFloat(String(obj.height)) * 96) : 60;
+      nodes[oname] = {
+        x: Math.round(pos.x * PT2PX - nw / 2),
+        y: Math.round((totalH - pos.y) * PT2PX - nh / 2),
+        w: nw, h: nh,
+      };
+    }
+
+    if (obj.objects) {
+      for (let i = 0; i < obj.objects.length; i++) walk(obj.objects[i]);
+    }
+  }
+
+  walk(jsonOut);
+  return { nodes: nodes, clusters: clusters, totalH: totalH };
+}
+
+function _parseDotBb(s) {
+  let p = s.split(",").map(parseFloat);
+  return { llx: p[0], lly: p[1], urx: p[2], ury: p[3] };
+}
+
+function _parseDotXY(s) {
+  let p = s.split(",");
+  return { x: parseFloat(p[0]), y: parseFloat(p[1]) };
+}
+
+// Parse a DOT edge pos string into a list of {x,y} absolute pixel bendpoints.
+// DOT cubic-Bezier format: "e,ex,ey  sx,sy cp1x,cp1y cp2x,cp2y ep1x,ep1y  ..."
+// Segment endpoints (every 3rd point starting at index 3) are the corners of the
+// routed path. We skip the first (source boundary) and last (target boundary) points.
+function _flattenDotSpline(posStr, totalH) {
+  const PT2PX = 96 / 72;
+  let s = posStr.trim();
+  if (s.indexOf("e,") === 0) s = s.substring(s.indexOf(" ") + 1); // strip arrow-end prefix
+
+  let pts = [];
+  s.trim().split(/\s+/).forEach(function(tok) {
+    let p = tok.split(",");
+    if (p.length >= 2) {
+      let x = parseFloat(p[0]), y = parseFloat(p[1]);
+      if (!isNaN(x) && !isNaN(y)) pts.push({ x: x * PT2PX, y: (totalH - y) * PT2PX });
+    }
+  });
+
+  // pts[0]=start boundary, pts[last]=end boundary.
+  // Segment endpoints at indices 3, 6, 9, … (excludes start and end).
+  let bps = [];
+  for (let i = 3; i < pts.length - 1; i += 3) bps.push(pts[i]);
+  return bps;
+}
+
+// Draw the Graphviz-positioned view.
+// Container nodes use their cluster bounding box; leaf nodes use their pos.
+// Children are added relative to their parent container so Archi nests them correctly.
+function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap) {
+  console.log("\nDrawing ArchiMate view (Graphviz)...");
+  let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
+  if (param.viewFolder !== "") folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
+  let view = _getView(folder, param.viewName);
+
+  let coords = _collectDotObjects(jsonOut);
+  let visualElementIndex = {};
+  let reversedSet  = new Set(param.layoutReversed || []);
+  let containerIds = new Set();
+  Object.keys(elkParentMap).forEach(function(cid) { containerIds.add(elkParentMap[cid]); });
+
+  // Identify root nodes (not a child of any other node)
+  let childSet = new Set(Object.keys(elkParentMap));
+
+  // Draw nodes recursively so children are added to their parent visual.
+  // parentVisual = null for root elements; parentAbsPos for relative-coord conversion.
+  function drawNodes(ids, parentVisual, parentAbsPos) {
+    ids.forEach(function(nodeId) {
+      let node    = elkNodeMap[nodeId];
+      let archiId = node._archiId || nodeId;
+      let archiEl = $("#" + archiId).first();
+      if (!archiEl) return;
+
+      let absPos = containerIds.has(nodeId) && coords.clusters[nodeId]
+                 ? coords.clusters[nodeId]
+                 : coords.nodes[nodeId];
+      if (!absPos) { console.log("  No position for " + nodeId); return; }
+
+      let rx = absPos.x - (parentAbsPos ? parentAbsPos.x : 0);
+      let ry = absPos.y - (parentAbsPos ? parentAbsPos.y : 0);
+
+      let visual = parentVisual
+        ? parentVisual.add(archiEl, rx, ry, absPos.w, absPos.h)
+        : view.add(archiEl, rx, ry, absPos.w, absPos.h);
+      visualElementIndex[nodeId] = visual;
+
+      let children = Object.keys(elkParentMap).filter(function(k) { return elkParentMap[k] === nodeId; });
+      if (children.length) drawNodes(children, visual, absPos);
+    });
+  }
+
+  console.log("Drawing graph nodes as elements...");
+  let rootIds = Object.keys(elkNodeMap).filter(function(id) { return !childSet.has(id); });
+  drawNodes(rootIds, null, null);
+
+  // Draw edges with bendpoints derived from DOT spline control points.
+  console.log("Drawing graph edges as relations...");
+  let edgeById = {};
+  elkEdgeList.forEach(function(e) { edgeById[e.id] = e; });
+  let rootBb = _parseDotBb(String(jsonOut.bb || "0,0,0,0"));
+  let totalH = rootBb.ury;
+  let skipBendpoints = (param.graphvizSplines === "STRAIGHT" || param.graphvizSplines === "line");
+
+  (jsonOut.edges || []).forEach(function(dotEdge) {
+    let elkEdge = edgeById[String(dotEdge.eid || "")];
+    if (!elkEdge) return;
+    let archiRel = $("#" + elkEdge._archiRelId).first();
+    if (!archiRel) return;
+
+    // Use ArchiMate relation endpoints (not reversed DOT endpoints)
+    let srcVisual = visualElementIndex[archiRel.source.id];
+    let tgtVisual = visualElementIndex[archiRel.target.id];
+    if (!srcVisual || !tgtVisual) return;
+
+    let connection = view.add(archiRel, srcVisual, tgtVisual);
+    if (!connection || skipBendpoints) return;
+
+    let posStr = String(dotEdge.pos || "");
+    if (!posStr) return;
+    let bps = _flattenDotSpline(posStr, totalH);
+    if (!bps.length) return;
+
+    let srcCenter = _getCenterBounds(connection.source);
+    let tgtCenter = _getCenterBounds(connection.target);
+    let isRev     = reversedSet.has(connection.type);
+    let calcBps   = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
+    for (let i = 0; i < calcBps.length; i++) {
+      let bp = isRev ? calcBps[calcBps.length - 1 - i] : calcBps[i];
+      connection.addRelativeBendpoint(bp, i);
+    }
+  });
+
+  // Nesting relations drawn as plain connections (same as ELK/Dagre paths)
+  if (elkParentRels.length) console.log("Adding nesting relations to the view...");
+  elkParentRels.forEach(function(rel) {
+    let sv = visualElementIndex[rel.source.id];
+    let tv = visualElementIndex[rel.target.id];
+    if (sv && tv) view.add(rel, sv, tv);
+  });
+
+  console.log("\nGenerated view '" + param.viewName + "' in folder Views > " + folder.name);
+  _openView(view);
+  return view;
+}
+
+// ── end Graphviz ─────────────────────────────────────────────────────────────
 
 function _validArchiConcept(paramList, validNames, label, emptyLabel) {
   let validFlag = true;

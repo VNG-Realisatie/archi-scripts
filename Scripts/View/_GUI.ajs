@@ -135,6 +135,9 @@ if (!defaultParams) {
       elkSameTypeResize: false,
       dagreRanker:        "network-simplex",
       useRelationWeights: false,
+      graphvizEngine:  "dot",
+      graphvizSplines: "ORTHOGONAL",
+      graphvizBin:     "dot",
       nodeWidth:  200,
       nodeHeight: 60,
       debug: false,
@@ -297,6 +300,9 @@ let layoutDialog = {
       elkNestedSpacingNodeNode:   "Child spacing",
       elkSameTypeResize:          "Align same-type elements",
       useRelationWeights:     "Relation weights",
+      graphvizEngine:         "Graphviz engine",
+      graphvizSplines:        "Graphviz edge routing",
+      graphvizBin:            "Graphviz binary",
       nodeWidth:              "Element width",
       nodeHeight:             "Element height",
       debug:                  "Console log",
@@ -624,12 +630,22 @@ let layoutDialog = {
     });
 
     if (this.widgets.grpAlgorithm) {
-      setRadio(this.widgets.grpAlgorithm, this.config.elkAlgorithm || View.DEFAULT_ELK_ALGORITHM);
-      this.updateAlgoControls(this.config.elkAlgorithm || View.DEFAULT_ELK_ALGORITHM);
+      let _algoForRadio = (this.config.elkAlgorithm === "graphviz")
+        ? (this.config.graphvizEngine || "dot")
+        : (this.config.elkAlgorithm   || View.DEFAULT_ELK_ALGORITHM);
+      setRadio(this.widgets.grpAlgorithm, _algoForRadio);
+      this.updateAlgoControls(_algoForRadio);
     }
-    if (this.widgets.grpDir)         setRadio(this.widgets.grpDir,         this.config.elkDirection    || View.DEFAULT_ELK_DIRECTION);
-    if (this.widgets.grpEdgeRouting) setRadio(this.widgets.grpEdgeRouting, this.config.elkEdgeRouting  || View.DEFAULT_ELK_EDGE_ROUTING);
-    if (this.widgets.grpRanker)      setRadio(this.widgets.grpRanker,      this.config.dagreRanker     || "network-simplex");
+    if (this.widgets.grpDir) setRadio(this.widgets.grpDir, this.config.elkDirection || View.DEFAULT_ELK_DIRECTION);
+    if (this.widgets.grpEdgeRouting) {
+      let _isGv = (this.config.elkAlgorithm === "graphviz");
+      let _routingVal = _isGv
+        ? (this.config.graphvizSplines || "ORTHOGONAL")
+        : (this.config.elkEdgeRouting  || View.DEFAULT_ELK_EDGE_ROUTING);
+      setRadio(this.widgets.grpEdgeRouting, _routingVal);
+    }
+    if (this.widgets.grpRanker)      setRadio(this.widgets.grpRanker, this.config.dagreRanker || "network-simplex");
+    if (this.widgets.txtGraphvizBin) this.widgets.txtGraphvizBin.setText(this.config.graphvizBin || "");
 
     if (this.config.nodeWidth)          this.widgets.spinWidth.setSelection(this.config.nodeWidth);
     if (this.config.nodeHeight)         this.widgets.spinHeight.setSelection(this.config.nodeHeight);
@@ -706,10 +722,26 @@ let layoutDialog = {
         return r.type; // neither or both = both directions
       });
 
-    this.config.elkAlgorithm       = getRadioVal(this.widgets.grpAlgorithm);
-    this.config.elkDirection        = getRadioVal(this.widgets.grpDir);
-    this.config.elkEdgeRouting      = getRadioVal(this.widgets.grpEdgeRouting);
-    this.config.dagreRanker         = this.widgets.grpRanker ? (getRadioVal(this.widgets.grpRanker) || "network-simplex") : "network-simplex";
+    var GV_ENGINES = ["dot", "neato", "fdp", "sfdp", "twopi", "circo"];
+    var _algoVal = getRadioVal(this.widgets.grpAlgorithm);
+    if (GV_ENGINES.indexOf(_algoVal) >= 0) {
+      this.config.elkAlgorithm   = "graphviz";
+      this.config.graphvizEngine = _algoVal;
+    } else {
+      this.config.elkAlgorithm = _algoVal;
+    }
+    this.config.elkDirection  = getRadioVal(this.widgets.grpDir);
+    this.config.dagreRanker   = this.widgets.grpRanker ? (getRadioVal(this.widgets.grpRanker) || "network-simplex") : "network-simplex";
+
+    var _rv = getRadioVal(this.widgets.grpEdgeRouting);
+    if (this.config.elkAlgorithm === "graphviz") {
+      this.config.graphvizSplines = _rv || "ORTHOGONAL";
+      if (_rv !== "CURVED" && _rv !== "SPLINE") this.config.elkEdgeRouting = _rv;
+    } else {
+      this.config.elkEdgeRouting = _rv;
+    }
+    this.config.graphvizBin = this.widgets.txtGraphvizBin
+      ? String(this.widgets.txtGraphvizBin.getText()).trim() : "dot";
     this.config.useRelationWeights  = this.widgets.chkUseWeights ? this.widgets.chkUseWeights.getSelection() : false;
 
     this.config.nodeWidth           = this.widgets.spinWidth.getSelection();
@@ -753,7 +785,15 @@ let layoutDialog = {
       radial:      { dir: false, routing: false, layerSep: true,  ranker: false, weights: true  },
       dagre:       { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false },
       rectpacking: { dir: false, routing: false, layerSep: false, ranker: false, weights: false },
+      graphviz:    { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
+      dot:         { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
+      neato:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
+      fdp:         { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
+      sfdp:        { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
+      twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
+      circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
     };
+    var GV_ENGINES = ["graphviz", "dot", "neato", "fdp", "sfdp", "twopi", "circo"];
     var c = CAPS[algo] || CAPS['layered'];
     function setRowEnabled(comp, enabled) {
       var ch = comp.getChildren();
@@ -765,6 +805,19 @@ let layoutDialog = {
     if (this.widgets.chkUseWeights)    this.widgets.chkUseWeights.setEnabled(c.weights);
     if (this.widgets.spinLayerSep)     this.widgets.spinLayerSep.setEnabled(c.layerSep);
     if (this.widgets.spinLayerSep_lbl) this.widgets.spinLayerSep_lbl.setEnabled(c.layerSep);
+
+    // Graphviz-specific controls
+    var isGv = GV_ENGINES.indexOf(algo) >= 0;
+    if (this.widgets.grpGraphvizBin) setRowEnabled(this.widgets.grpGraphvizBin, isGv);
+
+    // Curved/Spline routing options — only meaningful for Graphviz
+    if (this.widgets.grpEdgeRouting) {
+      var ch = this.widgets.grpEdgeRouting.getChildren();
+      for (var i = 0; i < ch.length; i++) {
+        var v = ch[i].getData ? String(ch[i].getData("val") || "") : "";
+        if (v === "CURVED" || v === "SPLINE") ch[i].setEnabled(isGv);
+      }
+    }
   },
 
   open: function () {
@@ -1158,7 +1211,7 @@ let layoutDialog = {
       // grpAlgorithm is the flat composite; setRadio iterates its direct children
       let compAlgo = new CompositeWidget(grpELK, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(compAlgo);
-      GridLayoutFactory.swtDefaults().numColumns(4).margins(0, 0).spacing(8, 2).applyTo(compAlgo);
+      GridLayoutFactory.swtDefaults().numColumns(7).margins(0, 0).spacing(8, 2).applyTo(compAlgo);
       layoutDialog.widgets.grpAlgorithm = compAlgo;
 
       let lblHier = new LabelWidget(compAlgo, SWT.NONE);
@@ -1170,6 +1223,7 @@ let layoutDialog = {
         { label: "Dagre",   val: "dagre",   tooltip: "An alternative hierarchical layout, faster on large diagrams. Try it when Layered gives unsatisfactory results. Supports layer ranking." },
         { label: "Tree",    val: "mrtree",  tooltip: "Best for pure tree structures and organisation charts." },
       ]);
+      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // fillers
 
       let lblOrg = new LabelWidget(compAlgo, SWT.NONE);
       lblOrg.setText("Organic:");
@@ -1180,6 +1234,7 @@ let layoutDialog = {
         { label: "Stress",  val: "stress", tooltip: "Similar to Force but produces more even spacing between elements." },
         { label: "Radial",  val: "radial", tooltip: "Lays elements out in rings from the starting element. Ring gap is controlled by level spacing." },
       ]);
+      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // fillers
 
       let lblPack = new LabelWidget(compAlgo, SWT.NONE);
       lblPack.setText("Packing:");
@@ -1189,7 +1244,21 @@ let layoutDialog = {
         { label: "Grid", val: "box",         tooltip: "Arranges elements with few or no relations in a compact grid." },
         { label: "Pack", val: "rectpacking", tooltip: "Packs elements into the smallest rectangle with no gaps. Best when all relations are nesting and no relation lines are visible." },
       ]);
-      new LabelWidget(compAlgo, SWT.NONE); // filler to complete the row
+      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE);
+      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // fillers
+
+      let lblGvAlgo = new LabelWidget(compAlgo, SWT.NONE);
+      lblGvAlgo.setText("Graphviz:");
+      lblGvAlgo.setToolTipText("Graphviz DOT layout engine. Requires Graphviz installed (graphviz.org). Cross-container edge routing works best with Dot.");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblGvAlgo);
+      createRadios(compAlgo, [
+        { label: "Dot",   val: "dot",   tooltip: "Hierarchical (Sugiyama-style). Best cross-container edge routing. Recommended for most ArchiMate views." },
+        { label: "Neato", val: "neato", tooltip: "Spring/force model for undirected graphs. Good for peer-to-peer overviews." },
+        { label: "FDP",   val: "fdp",   tooltip: "Force-directed. Good for large loosely-connected graphs." },
+        { label: "SFDP",  val: "sfdp",  tooltip: "Scalable force-directed for very large graphs." },
+        { label: "Twopi", val: "twopi", tooltip: "Radial layout — one element at the centre, others in rings." },
+        { label: "Circo", val: "circo", tooltip: "Circular layout — elements arranged in a ring." },
+      ]);
 
       let algoChildren = compAlgo.getChildren();
       for (let i = 0; i < algoChildren.length; i++) {
@@ -1221,7 +1290,7 @@ let layoutDialog = {
 
       let cRouting = new CompositeWidget(grpELK, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(cRouting);
-      GridLayoutFactory.swtDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(cRouting);
+      GridLayoutFactory.swtDefaults().numColumns(6).margins(0, 0).spacing(8, 0).applyTo(cRouting);
       let lblRouting = new LabelWidget(cRouting, SWT.NONE);
       lblRouting.setText("Relation lines:");
       GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblRouting);
@@ -1230,8 +1299,9 @@ let layoutDialog = {
         { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
         { label: "Polyline",   val: "POLYLINE",   tooltip: "Draws relation lines with diagonal bends. Works with all layout styles." },
         { label: "Straight",   val: "STRAIGHT",   tooltip: "Draws relation lines as straight lines." },
+        { label: "Curved",     val: "CURVED",     tooltip: "Smooth curves (Graphviz only). Not available for ELK or Dagre." },
+        { label: "Spline",     val: "SPLINE",     tooltip: "Graphviz B-splines — the classic curved Graphviz look (Graphviz only)." },
       ]);
-      new LabelWidget(cRouting, SWT.NONE); // filler
 
       let cRanker = new CompositeWidget(grpELK, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(cRanker);
@@ -1252,6 +1322,19 @@ let layoutDialog = {
         function (w) {
           w.setText("Group closely related elements together   ");
         }, SWT.CHECK);
+
+      let cGvBin = new CompositeWidget(grpELK, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cGvBin);
+      GridLayoutFactory.swtDefaults().numColumns(2).margins(0, 0).spacing(8, 0).applyTo(cGvBin);
+      layoutDialog.widgets.grpGraphvizBin = cGvBin;
+      let lblGvBin = new LabelWidget(cGvBin, SWT.NONE);
+      lblGvBin.setText("Binary path:");
+      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblGvBin);
+      let txtGvBin = new TextWidget(cGvBin, SWT.BORDER);
+      txtGvBin.setMessage("dot");
+      txtGvBin.setToolTipText("Path to the Graphviz dot binary. Leave blank if 'dot' is on the system PATH.\nWindows example: C:\\Program Files\\Graphviz\\bin\\dot.exe");
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(txtGvBin);
+      layoutDialog.widgets.txtGraphvizBin = txtGvBin;
 
       // Group: Spacing & size [E]
       let grpSpacing = new GroupWidget(layoutContainer, SWT.NONE);
