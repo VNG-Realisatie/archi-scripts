@@ -1299,8 +1299,8 @@ let layoutDialog = {
         { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
         { label: "Polyline",   val: "POLYLINE",   tooltip: "Draws relation lines with diagonal bends. Works with all layout styles." },
         { label: "Straight",   val: "STRAIGHT",   tooltip: "Draws relation lines as straight lines." },
-        { label: "Curved",     val: "CURVED",     tooltip: "Smooth curves (Graphviz only). Not available for ELK or Dagre." },
-        { label: "Spline",     val: "SPLINE",     tooltip: "Graphviz B-splines — the classic curved Graphviz look (Graphviz only)." },
+        { label: "Curved",     val: "CURVED",     tooltip: "Smooth curves (Graphviz only). Note: may fall back to straight lines with the Dot engine — use Spline instead for reliable curves." },
+        { label: "Spline",     val: "SPLINE",     tooltip: "Graphviz B-splines — the classic curved Graphviz look. Most reliable curved option with the Dot engine (Graphviz only)." },
       ]);
 
       let cRanker = new CompositeWidget(grpELK, SWT.NONE);

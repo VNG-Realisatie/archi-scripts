@@ -1,0 +1,80 @@
+// ============================================================
+// BusinessObjects zonder geldige Rol op AccessRelationship
+// -> plaats in nieuwe view
+// ============================================================
+
+(function() {
+
+    var VIEW_NAME = "Unmanaged BusinessObjects";
+    var PROP = "Rol";
+
+    function log(msg) {
+        console.log(msg);
+    }
+
+    function error(msg) {
+        console.log("ERROR: " + msg);
+    }
+
+    // --------------------------------------------------------
+    // SELECTIE
+    // --------------------------------------------------------
+    var unmanaged = $("business-object").filter(function(obj) {
+
+        var rels = $(obj).inRels().filter("access-relationship");
+
+        // geen relaties
+        if (rels.size() === 0) return true;
+
+        // check Rol
+        var hasRole = false;
+
+        rels.each(function(r) {
+            var role = r.prop(PROP);
+            if (role && role.trim() !== "") {
+                hasRole = true;
+            }
+        });
+
+        return !hasRole;
+    });
+
+    log("Aantal unmanaged BO: " + unmanaged.size());
+
+    // --------------------------------------------------------
+    // VIEW MAKEN
+    // --------------------------------------------------------
+    var view = model.createArchimateView(VIEW_NAME);
+
+    if (!view) {
+        error("View maken mislukt");
+        return;
+    }
+
+    // --------------------------------------------------------
+    // PLAATSING
+    // --------------------------------------------------------
+    var x = 50;
+    var y = 50;
+    var step = 140;
+
+    unmanaged.each(function(obj) {
+
+        log("Toevoegen: " + obj.name);
+
+        var vo = view.add(obj, x, y, 120, 55);
+
+        // optioneel: highlight
+        vo.fillColor = "#ffcccc";
+
+        x += step;
+
+        if (x > 1000) {
+            x = 50;
+            y += step;
+        }
+    });
+
+    log("View aangemaakt: " + VIEW_NAME);
+
+})();

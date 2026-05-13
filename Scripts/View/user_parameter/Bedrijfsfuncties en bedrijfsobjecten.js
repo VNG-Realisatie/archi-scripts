@@ -4,7 +4,7 @@
 
 module.exports = {
   "action": "Layout",
-  "graphDepth": 2,
+  "graphDepth": 5,
   "includeElementType": [
     "business-object",
     "business-function"
@@ -25,14 +25,14 @@ module.exports = {
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
-  "nodeWidth": 250,
+  "nodeWidth": 240,
   "nodeHeight": 30,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Applicatieontwikkeling en -onderhoud",
-  "elkAlgorithm": "layered",
+  "viewName": "KadastraleOnroerendeZaak",
+  "elkAlgorithm": "rectpacking",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "ORTHOGONAL",
@@ -53,5 +53,14 @@ module.exports = {
   "elkSameTypeResize": true,
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsfuncties en bedrijfsobjecten.js",
+  "graphvizEngine": "dot",
+  "graphvizBin": "",
+  "_windowBounds": {
+    "x": 1743,
+    "y": 282,
+    "width": 1007,
+    "height": 1300
+  },
+  "graphvizSplines": "POLYLINE",
   "doc": "Selecteer de view Bedrijfsfunctiemodel en genereer per laag een view. \nViews tonen de door de bedrijfsfuncties beheerde bedrijfsobjecten"
 };

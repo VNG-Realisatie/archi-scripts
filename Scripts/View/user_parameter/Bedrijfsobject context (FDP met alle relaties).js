@@ -3,63 +3,67 @@
  */
 
 module.exports = {
-  "action": "Layout",
+  "action": "Generate",
   "graphDepth": 2,
   "includeElementType": [
     "business-object",
+    "business-function",
     "grouping"
   ],
   "includeRelationType": [
-    "aggregation-relationship:out",
-    "association-relationship",
+    "access-relationship",
+    "aggregation-relationship:in",
     "specialization-relationship"
   ],
   "layoutReversed": [
     "realization-relationship",
-    "serving-relationship"
+    "serving-relationship",
+    "specialization-relationship"
   ],
   "layoutNested": [
-    "aggregation-relationship"
+    "access-relationship",
+    "aggregation-relationship",
+    "specialization-relationship"
   ],
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
-  "nodeWidth": 250,
-  "nodeHeight": 80,
+  "nodeWidth": 240,
+  "nodeHeight": 60,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Aanpak",
-  "elkAlgorithm": "dagre",
+  "viewName": "GGM specialisaties",
+  "elkAlgorithm": "graphviz",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "ORTHOGONAL",
-  "elkSpacingNodeNode": 50,
-  "elkLayerSpacing": 200,
+  "elkSpacingNodeNode": 80,
+  "elkLayerSpacing": 150,
   "elkPadding": 20,
-  "nestingMultipleOccurrences": false,
+  "nestingMultipleOccurrences": true,
   "elkNodePlacementAlignment": "BALANCED",
   "dagreRanker": "network-simplex",
   "useRelationWeights": false,
   "elkNestedAlgorithm": "rectpacking",
-  "elkNestedSpacingNodeNode": 30,
+  "elkNestedSpacingNodeNode": 10,
   "elkNestedExpandToFill": true,
-  "elkSortLeavesOnly": false,
+  "elkSortLeavesOnly": true,
   "elkExpandExcludeTypes": [
     "business-object"
   ],
   "elkSameTypeResize": true,
   "_lastTabIndex": 1,
-  "_lastPresetName": "Bedrijfsobjecten per beleidsdomein.js",
-  "graphvizEngine": "dot",
+  "_lastPresetName": "Bedrijfsobject context (FDP met alle relaties).js",
+  "graphvizEngine": "fdp",
   "graphvizBin": "",
   "_windowBounds": {
-    "x": 2033,
-    "y": 553,
+    "x": 2252,
+    "y": 770,
     "width": 1007,
     "height": 1300
   },
   "graphvizSplines": "ORTHOGONAL",
-  "doc": "Selecteer 1 of meer beleidsdomeinen. Per beleidsdomein een view van de bedrijfsobjecten en relaties"
+  "doc": "Selecteer bedrijfsobject en genereer context view"
 };

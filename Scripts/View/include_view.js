@@ -1315,10 +1315,15 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
   const padding   = param.elkPadding !== undefined ? param.elkPadding : 20;
   const splines   = _elkRoutingToDot(param.graphvizSplines || param.elkEdgeRouting || "ORTHOGONAL");
 
+  // esep: extra separation between edges and node bounding boxes during routing.
+  // Increases the gap between parallel edges so Archi's midpoint labels diverge.
+  // 8pt default; bump to 12pt for ortho routing where label stacking is worst.
+  const esep = (splines === 'ortho') ? '+24' : '+8';
+
   let lines = [
     'digraph G {',
     '  graph [rankdir=' + rankdir + ' ranksep=' + ranksep + ' nodesep=' + nodesep +
-           ' splines=' + splines + ' compound=true margin=0]',
+           ' splines=' + splines + ' compound=true margin=0 esep="' + esep + '"]',
     '  node [shape=rectangle width=' + nodeW + ' height=' + nodeH + ' fixedsize=true label=""]',
   ];
 
@@ -1458,14 +1463,24 @@ function _parseDotXY(s) {
   return { x: parseFloat(p[0]), y: parseFloat(p[1]) };
 }
 
-// Parse a DOT edge pos string into a list of {x,y} absolute pixel bendpoints.
-// DOT cubic-Bezier format: "e,ex,ey  sx,sy cp1x,cp1y cp2x,cp2y ep1x,ep1y  ..."
-// Segment endpoints (every 3rd point starting at index 3) are the corners of the
-// routed path. We skip the first (source boundary) and last (target boundary) points.
-function _flattenDotSpline(posStr, totalH) {
+// Parse a DOT edge pos string into bendpoints.
+//
+// DOT cubic-Bézier format: "e,ex,ey  sx,sy  cp1 cp2 ep1  cp3 cp4 ep2  ..."
+//   pts[0]         = source boundary (skip)
+//   pts[1..3]      = first segment (2 ctrl pts + endpoint)
+//   pts[3..6]      = second segment …
+//   pts[last]      = target boundary (skip)
+//
+// For ortho/polyline: segment endpoints are the actual corners → use them as-is.
+// For spline/curved: the cubic Bézier control pts define the curve. Since Archi only
+//   supports straight-line segments between bendpoints, we sample each segment at
+//   t = 0.25, 0.5, 0.75 to approximate the curve with a dense polyline.
+//   A single direct segment (4 pts total) previously produced zero bendpoints and
+//   looked identical to "straight" — the sampling fixes that.
+function _flattenDotSpline(posStr, totalH, splineType) {
   const PT2PX = 96 / 72;
   let s = posStr.trim();
-  if (s.indexOf("e,") === 0) s = s.substring(s.indexOf(" ") + 1); // strip arrow-end prefix
+  if (s.indexOf("e,") === 0) s = s.substring(s.indexOf(" ") + 1);
 
   let pts = [];
   s.trim().split(/\s+/).forEach(function(tok) {
@@ -1475,11 +1490,36 @@ function _flattenDotSpline(posStr, totalH) {
       if (!isNaN(x) && !isNaN(y)) pts.push({ x: x * PT2PX, y: (totalH - y) * PT2PX });
     }
   });
+  if (pts.length < 4) return [];
 
-  // pts[0]=start boundary, pts[last]=end boundary.
-  // Segment endpoints at indices 3, 6, 9, … (excludes start and end).
+  let useBezier = (splineType === "spline" || splineType === "SPLINE" ||
+                   splineType === "curved" || splineType === "CURVED");
   let bps = [];
-  for (let i = 3; i < pts.length - 1; i += 3) bps.push(pts[i]);
+
+  if (useBezier) {
+    // Evaluate each cubic Bézier segment at t = 0.25, 0.5, 0.75 plus the knot.
+    // The dense sampling gives Archi enough bendpoints to approximate the curve.
+    function bezier(P0, P1, P2, P3, t) {
+      let m = 1 - t;
+      return {
+        x: Math.round(m*m*m*P0.x + 3*m*m*t*P1.x + 3*m*t*t*P2.x + t*t*t*P3.x),
+        y: Math.round(m*m*m*P0.y + 3*m*m*t*P1.y + 3*m*t*t*P2.y + t*t*t*P3.y),
+      };
+    }
+    let numSegs = Math.floor((pts.length - 1) / 3);
+    for (let seg = 0; seg < numSegs; seg++) {
+      let P0 = pts[seg * 3], P1 = pts[seg * 3 + 1],
+          P2 = pts[seg * 3 + 2], P3 = pts[seg * 3 + 3];
+      bps.push(bezier(P0, P1, P2, P3, 0.25));
+      bps.push(bezier(P0, P1, P2, P3, 0.5));
+      bps.push(bezier(P0, P1, P2, P3, 0.75));
+      // Add the knot between segments (not on the last segment — that's the target boundary).
+      if (seg < numSegs - 1) bps.push({ x: Math.round(P3.x), y: Math.round(P3.y) });
+    }
+  } else {
+    // Ortho / polyline: segment endpoints ARE the corners; skip start and end boundaries.
+    for (let i = 3; i < pts.length - 1; i += 3) bps.push(pts[i]);
+  }
   return bps;
 }
 
@@ -1588,7 +1628,7 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
 
     let posStr = String(dotEdge.pos || "");
     if (!posStr) return;
-    let bps = _flattenDotSpline(posStr, totalH);
+    let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.elkEdgeRouting);
     if (!bps.length) return;
 
     let srcCenter = _getCenterBounds(connection.source);
