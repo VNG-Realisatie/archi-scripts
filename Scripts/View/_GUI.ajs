@@ -138,6 +138,9 @@ if (!defaultParams) {
       graphvizEngine:  "dot",
       graphvizSplines: "ORTHOGONAL",
       graphvizBin:     "dot",
+      viewMaxWidth:    0,
+      viewMaxHeight:   0,
+      viewAspectRatio: 0,
       nodeWidth:  200,
       nodeHeight: 60,
       debug: false,
@@ -303,6 +306,9 @@ let layoutDialog = {
       graphvizEngine:         "Graphviz engine",
       graphvizSplines:        "Graphviz edge routing",
       graphvizBin:            "Graphviz binary",
+      viewMaxWidth:           "View max width",
+      viewMaxHeight:          "View max height",
+      viewAspectRatio:        "View aspect ratio",
       nodeWidth:              "Element width",
       nodeHeight:             "Element height",
       debug:                  "Console log",
@@ -651,6 +657,17 @@ let layoutDialog = {
     if (this.config.nodeHeight)         this.widgets.spinHeight.setSelection(this.config.nodeHeight);
     if (this.config.elkSpacingNodeNode) this.widgets.spinNodeSep.setSelection(this.config.elkSpacingNodeNode);
     if (this.config.elkLayerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.elkLayerSpacing);
+    if (this.widgets.spinViewMaxWidth)    this.widgets.spinViewMaxWidth.setSelection(this.config.viewMaxWidth    || 0);
+    if (this.widgets.spinViewMaxHeight)   this.widgets.spinViewMaxHeight.setSelection(this.config.viewMaxHeight   || 0);
+    if (this.widgets.cmbViewAspectRatio && layoutDialog._arOptions) {
+      let _ar = this.config.viewAspectRatio || 0, _opts = layoutDialog._arOptions;
+      let _best = 0, _bestD = 999;
+      for (let _i = 0; _i < _opts.length; _i++) {
+        let _d = Math.abs(_opts[_i].val - _ar);
+        if (_d < _bestD) { _bestD = _d; _best = _i; }
+      }
+      this.widgets.cmbViewAspectRatio.select(_best);
+    }
     if (this.config.elkPadding !== undefined) this.widgets.spinPadding.setSelection(this.config.elkPadding);
 
     (this.widgets.lstReversed_checks || []).forEach(r => r.chk.setSelection((this.config.layoutReversed || []).indexOf(r.type) >= 0));
@@ -749,6 +766,14 @@ let layoutDialog = {
     this.config.elkSpacingNodeNode  = this.widgets.spinNodeSep.getSelection();
     this.config.elkLayerSpacing     = this.widgets.spinLayerSep.getSelection();
     this.config.elkPadding          = this.widgets.spinPadding.getSelection();
+    this.config.viewMaxWidth        = this.widgets.spinViewMaxWidth    ? this.widgets.spinViewMaxWidth.getSelection()    : 0;
+    this.config.viewMaxHeight       = this.widgets.spinViewMaxHeight   ? this.widgets.spinViewMaxHeight.getSelection()   : 0;
+    this.config.viewAspectRatio = (function() {
+      let _cmb = layoutDialog.widgets.cmbViewAspectRatio, _opts = layoutDialog._arOptions;
+      if (!_cmb || !_opts) return 0;
+      let _i = _cmb.getSelectionIndex();
+      return (_i >= 0 && _i < _opts.length) ? _opts[_i].val : 0;
+    })();
 
     this.config.layoutReversed = (this.widgets.lstReversed_checks || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
@@ -777,21 +802,22 @@ let layoutDialog = {
   updateAlgoControls: function (algo) {
     if (!this.widgets.grpDir) return;
     var CAPS = {
-      layered:     { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
-      mrtree:      { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
-      force:       { dir: false, routing: false, layerSep: false, ranker: false, weights: true  },
-      box:         { dir: false, routing: false, layerSep: false, ranker: false, weights: false },
-      stress:      { dir: false, routing: false, layerSep: false, ranker: false, weights: true  },
-      radial:      { dir: false, routing: false, layerSep: true,  ranker: false, weights: true  },
-      dagre:       { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false },
-      rectpacking: { dir: false, routing: false, layerSep: false, ranker: false, weights: false },
-      graphviz:    { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
-      dot:         { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false },
-      neato:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
-      fdp:         { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
-      sfdp:        { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
-      twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
-      circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false },
+      //                          dir     routing layerSep ranker  weights maxW    maxH    aspectR
+      layered:     { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: false, maxH: false, ar: false },
+      mrtree:      { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: false, maxH: false, ar: false },
+      force:       { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  maxW: false, maxH: false, ar: true  },
+      box:         { dir: false, routing: false, layerSep: false, ranker: false, weights: false, maxW: false, maxH: false, ar: false },
+      stress:      { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  maxW: false, maxH: false, ar: true  },
+      radial:      { dir: false, routing: false, layerSep: true,  ranker: false, weights: true,  maxW: false, maxH: false, ar: true  },
+      dagre:       { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false, maxW: false, maxH: false, ar: false },
+      rectpacking: { dir: false, routing: false, layerSep: false, ranker: false, weights: false, maxW: true,  maxH: false, ar: true  },
+      graphviz:    { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
+      dot:         { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
+      neato:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
+      fdp:         { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
+      sfdp:        { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
+      twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
+      circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true  },
     };
     var GV_ENGINES = ["graphviz", "dot", "neato", "fdp", "sfdp", "twopi", "circo"];
     var c = CAPS[algo] || CAPS['layered'];
@@ -809,6 +835,15 @@ let layoutDialog = {
     // Graphviz-specific controls
     var isGv = GV_ENGINES.indexOf(algo) >= 0;
     if (this.widgets.grpGraphvizBin) setRowEnabled(this.widgets.grpGraphvizBin, isGv);
+    // View size: each control enabled only for algorithms that natively support it
+    function enW(key, on) {
+      if (layoutDialog.widgets[key])           layoutDialog.widgets[key].setEnabled(on);
+      if (layoutDialog.widgets[key + '_lbl'])  layoutDialog.widgets[key + '_lbl'].setEnabled(on);
+    }
+    enW('spinViewMaxWidth',     !!c.maxW);
+    enW('spinViewMaxHeight',    !!c.maxH);
+    enW('cmbViewAspectRatio',   !!c.ar);
+    if (this.widgets.spinViewSizeLbl)           this.widgets.spinViewSizeLbl.setEnabled(!!(c.maxW || c.maxH || c.ar));
 
     // Curved/Spline routing options — only meaningful for Graphviz
     if (this.widgets.grpEdgeRouting) {
@@ -1336,16 +1371,100 @@ let layoutDialog = {
       GridDataFactory.fillDefaults().grab(true, false).applyTo(txtGvBin);
       layoutDialog.widgets.txtGraphvizBin = txtGvBin;
 
-      // Group: Spacing & size [E]
+      // Group: Size and spacing
+      // Layout: 6 columns — [category] [label] [spinner] [label] [spinner] [flex/aspect]
       let grpSpacing = new GroupWidget(layoutContainer, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(grpSpacing);
-      grpSpacing.setText("Spacing & size"); setBoldFont(grpSpacing);
-      GridLayoutFactory.swtDefaults().numColumns(4).margins(10, 10).spacing(6, 4).applyTo(grpSpacing);
+      grpSpacing.setText("Size and spacing"); setBoldFont(grpSpacing);
+      GridLayoutFactory.swtDefaults().numColumns(6).margins(10, 10).spacing(6, 4).applyTo(grpSpacing);
 
-      layoutDialog.createWidget("spinWidth",    SpinnerWidget, grpSpacing, "Element width:",    "Default width for elements on the view, in pixels.",  function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
-      layoutDialog.createWidget("spinHeight",   SpinnerWidget, grpSpacing, "Element height:",   "Default height for elements on the view, in pixels.", function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
-      layoutDialog.createWidget("spinNodeSep",  SpinnerWidget, grpSpacing, "Element spacing:",  "Gap between elements at the same level, in pixels.",    function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
-      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:",    "Gap between levels in the diagram, in pixels.", function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(w); });
+      // Row 1 — Element size
+      let _lblCatElem = new LabelWidget(grpSpacing, SWT.NONE);
+      _lblCatElem.setText("Element");
+      layoutDialog.createWidget("spinWidth",  SpinnerWidget, grpSpacing, "Width:",  "Default width for elements on the view, in pixels.",  function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinWidth_lbl);
+      layoutDialog.createWidget("spinHeight", SpinnerWidget, grpSpacing, "Height:", "Default height for elements on the view, in pixels.", function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinHeight_lbl);
+      new LabelWidget(grpSpacing, SWT.NONE); // col 6 filler
+
+      // Row 2 — Spacing
+      new LabelWidget(grpSpacing, SWT.NONE); // col 1 empty
+      layoutDialog.createWidget("spinNodeSep",  SpinnerWidget, grpSpacing, "Spacing:",       "Gap between elements at the same level, in pixels.",    function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinNodeSep_lbl);
+      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:", "Gap between levels in the diagram, in pixels.", function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinLayerSep_lbl);
+      new LabelWidget(grpSpacing, SWT.NONE); // col 6 filler
+
+      // Row 3 — View size constraints (per-algorithm; greyed when not applicable)
+      let _lblVS = new LabelWidget(grpSpacing, SWT.NONE);
+      _lblVS.setText("View");
+      layoutDialog.widgets.spinViewSizeLbl = _lblVS;
+
+      let _lbl1 = new LabelWidget(grpSpacing, SWT.NONE);
+      _lbl1.setText("Max width:");
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(_lbl1);
+      layoutDialog.widgets.spinViewMaxWidth_lbl = _lbl1;
+      let spinViewMaxW = new SpinnerWidget(grpSpacing, SWT.BORDER);
+      spinViewMaxW.setValues(0, 0, 9999, 0, 100, 1000);
+      spinViewMaxW.setToolTipText("Maximum view width in pixels. Graphviz: scales layout to fit. Pack: target row width. 0 = no limit.");
+      GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(spinViewMaxW);
+      layoutDialog.widgets.spinViewMaxWidth = spinViewMaxW;
+
+      let _lbl2 = new LabelWidget(grpSpacing, SWT.NONE);
+      _lbl2.setText("Max height:");
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(_lbl2);
+      layoutDialog.widgets.spinViewMaxHeight_lbl = _lbl2;
+      let spinViewMaxH = new SpinnerWidget(grpSpacing, SWT.BORDER);
+      spinViewMaxH.setValues(0, 0, 9999, 0, 100, 1000);
+      spinViewMaxH.setToolTipText("Maximum view height in pixels (Graphviz only). 0 = no limit.");
+      GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(spinViewMaxH);
+      layoutDialog.widgets.spinViewMaxHeight = spinViewMaxH;
+
+      // Col 6: aspect ratio label + combo — left margin adds whitespace
+      let compAR = new CompositeWidget(grpSpacing, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(compAR);
+      GridLayoutFactory.swtDefaults().numColumns(2).margins(8, 0).spacing(4, 0).applyTo(compAR);
+
+      let _lbl3 = new LabelWidget(compAR, SWT.NONE);
+      _lbl3.setText("Aspect ratio:");
+      layoutDialog.widgets.cmbViewAspectRatio_lbl = _lbl3;
+
+      let cmbViewAR = new ComboWidget(compAR, SWT.DROP_DOWN | SWT.READ_ONLY);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cmbViewAR);
+      cmbViewAR.setToolTipText("Desired width÷height ratio. Graphviz and Pack (ELK) use this to shape the layout. Leave blank for no constraint.");
+
+      let _AR_OPTIONS = [
+        { label: "",                val: 0.00 },
+        { label: "3:1  landscape",  val: 3.00 },
+        { label: "2:1  wide",       val: 2.00 },
+        { label: "16:9  widescreen",val: 1.78 },
+        { label: "4:3  classic",    val: 1.33 },
+        { label: "5:4",             val: 1.25 },
+        { label: "1:1  square",     val: 1.00 },
+        { label: "4:5",             val: 0.80 },
+        { label: "3:4  portrait",   val: 0.75 },
+        { label: "9:16  portrait",  val: 0.56 },
+        { label: "1:2  tall",       val: 0.50 },
+        { label: "1:3  very tall",  val: 0.33 },
+      ];
+      _AR_OPTIONS.forEach(function(o) { cmbViewAR.add(o.label); });
+      cmbViewAR.select(0);
+      layoutDialog.widgets.cmbViewAspectRatio = cmbViewAR;
+      layoutDialog._arOptions = _AR_OPTIONS;
+
+      (function() {
+        // Mutual exclusion: selecting a non-blank AR clears the other spinners.
+        cmbViewAR.addListener(SWT.Selection, function() {
+          let idx = cmbViewAR.getSelectionIndex();
+          if (idx > 0) { spinViewMaxW.setSelection(0); spinViewMaxH.setSelection(0); }
+        });
+        spinViewMaxW.addListener(SWT.Selection, function() {
+          if (spinViewMaxW.getSelection() > 0) { spinViewMaxH.setSelection(0); cmbViewAR.select(0); }
+        });
+        spinViewMaxH.addListener(SWT.Selection, function() {
+          if (spinViewMaxH.getSelection() > 0) { spinViewMaxW.setSelection(0); cmbViewAR.select(0); }
+        });
+      })();
 
       // Group: Reverse [C — before Nesting; affects direction of hierarchical algorithms]
       let grpReverse = new GroupWidget(layoutContainer, SWT.NONE);

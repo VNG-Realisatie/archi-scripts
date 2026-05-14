@@ -434,6 +434,12 @@ function _setDefaultParameters(param) {
   if (param.graphvizBin    === undefined) param.graphvizBin    = "dot";
   if (param.graphvizEngine === undefined) param.graphvizEngine = "dot";
   if (param.graphvizSplines=== undefined) param.graphvizSplines= "ORTHOGONAL";
+  if (param.viewMaxWidth    === undefined) param.viewMaxWidth    = 0;
+  if (param.viewMaxHeight   === undefined) param.viewMaxHeight   = 0;
+  if (param.viewAspectRatio === undefined) param.viewAspectRatio = 0;
+  console.log("- viewMaxWidth = "    + param.viewMaxWidth    + (param.viewMaxWidth    > 0 ? " px" : " (no limit)"));
+  console.log("- viewMaxHeight = "   + param.viewMaxHeight   + (param.viewMaxHeight   > 0 ? " px" : " (no limit)"));
+  console.log("- viewAspectRatio = " + param.viewAspectRatio + (param.viewAspectRatio > 0 ? "" : " (no limit)"));
   if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
   if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
   console.log("- nodeWidth = "  + param.nodeWidth);
@@ -501,7 +507,18 @@ function _buildElkLayoutOptions(param) {
   if (param.elkAlgorithm === "rectpacking") {
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
+    if (param.viewMaxWidth > 0) {
+      opts["elk.rectpacking.widthApproximation.targetWidth"] = String(param.viewMaxWidth);
+      console.log("- elk.rectpacking.widthApproximation.targetWidth = " + param.viewMaxWidth);
+    }
+    if (param.viewAspectRatio > 0) {
+      opts["elk.aspectRatio"] = String(param.viewAspectRatio);
+      console.log("- elk.aspectRatio = " + param.viewAspectRatio);
+    }
   }
+  const ELK_ASPECT_RATIO_ALGOS = ["force", "stress", "radial"];
+  if (param.viewAspectRatio > 0 && ELK_ASPECT_RATIO_ALGOS.indexOf(param.elkAlgorithm) >= 0)
+    opts["elk.aspectRatio"] = String(param.viewAspectRatio);
   return opts;
 }
 
@@ -608,6 +625,8 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
           node.layoutOptions["elk.rectpacking.orderBySize"]                                = param.elkSortLeavesOnly;
           node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
           node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
+          if (param.viewMaxWidth    > 0) node.layoutOptions["elk.rectpacking.widthApproximation.targetWidth"] = String(param.viewMaxWidth);
+          if (param.viewAspectRatio > 0) node.layoutOptions["elk.aspectRatio"]                                 = String(param.viewAspectRatio);
         }
       }
     });
@@ -1316,14 +1335,26 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
   const splines   = _elkRoutingToDot(param.graphvizSplines || param.elkEdgeRouting || "ORTHOGONAL");
 
   // esep: extra separation between edges and node bounding boxes during routing.
-  // Increases the gap between parallel edges so Archi's midpoint labels diverge.
-  // 8pt default; bump to 12pt for ortho routing where label stacking is worst.
   const esep = (splines === 'ortho') ? '+24' : '+8';
+
+  // View size constraints — translated to native Graphviz size/ratio attributes.
+  // size is in inches (px / 96); only one constraint is active at a time.
+  let sizeAttr = '', ratioAttr = '';
+  if (param.viewMaxWidth > 0 && param.viewMaxHeight > 0) {
+    sizeAttr = ' size="' + (param.viewMaxWidth / 96).toFixed(3) + ',' + (param.viewMaxHeight / 96).toFixed(3) + '"';
+  } else if (param.viewMaxWidth > 0) {
+    sizeAttr = ' size="' + (param.viewMaxWidth / 96).toFixed(3) + ',999"';
+  } else if (param.viewMaxHeight > 0) {
+    sizeAttr = ' size="999,' + (param.viewMaxHeight / 96).toFixed(3) + '"';
+  } else if (param.viewAspectRatio > 0) {
+    // Graphviz ratio = height/width; our param stores width/height
+    ratioAttr = ' ratio="' + (1 / param.viewAspectRatio).toFixed(4) + '"';
+  }
 
   let lines = [
     'digraph G {',
     '  graph [rankdir=' + rankdir + ' ranksep=' + ranksep + ' nodesep=' + nodesep +
-           ' splines=' + splines + ' compound=true margin=0 esep="' + esep + '"]',
+           ' splines=' + splines + ' compound=true margin=0 esep="' + esep + '"' + sizeAttr + ratioAttr + ']',
     '  node [shape=rectangle width=' + nodeW + ' height=' + nodeH + ' fixedsize=true label=""]',
   ];
 
