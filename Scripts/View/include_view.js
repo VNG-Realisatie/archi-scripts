@@ -285,6 +285,14 @@ function _layoutAndRender(param, filteredElements) {
     }
     collectMinContainerSize(g1);
 
+    // Cap globalMinW so equalized leaves fit inside depth-0 containers at targetWidth.
+    // Depth-0 containers get targetWidth = viewMaxWidth − 2*padding; a leaf wider than
+    // that would force the container outer width above viewMaxWidth.
+    if (param.viewMaxWidth > 0 && isFinite(globalMinW)) {
+      const _maxLeafW = param.viewMaxWidth - 2 * (param.elkPadding !== undefined ? param.elkPadding : DEFAULT_ELK_PADDING);
+      if (_maxLeafW > 0 && globalMinW > _maxLeafW) globalMinW = _maxLeafW;
+    }
+
     // Pass 1b: equalize siblings
     // - leaf next to container  → global min size (width + height)
     // - container narrower than globalMinW → extra horizontal padding to reach globalMinW
@@ -335,6 +343,7 @@ function _layoutAndRender(param, filteredElements) {
 
   const { elkGraph, liftedEdgesMap } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
   const layoutedGraph = elk.layout(elkGraph);
+  console.log("- ELK result: width=" + Math.round(layoutedGraph.width || 0) + " height=" + Math.round(layoutedGraph.height || 0));
 
   return _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap);
 }
@@ -511,14 +520,13 @@ function _buildElkLayoutOptions(param) {
       opts["elk.rectpacking.widthApproximation.targetWidth"] = String(param.viewMaxWidth);
       console.log("- elk.rectpacking.widthApproximation.targetWidth = " + param.viewMaxWidth);
     }
-    if (param.viewAspectRatio > 0) {
-      opts["elk.aspectRatio"] = String(param.viewAspectRatio);
-      console.log("- elk.aspectRatio = " + param.viewAspectRatio);
-    }
   }
-  const ELK_ASPECT_RATIO_ALGOS = ["force", "stress", "radial"];
-  if (param.viewAspectRatio > 0 && ELK_ASPECT_RATIO_ALGOS.indexOf(param.elkAlgorithm) >= 0)
+  // Apply aspect ratio for any algorithm. CAPS ar:true/false + saveInput zeroing ensure
+  // param.viewAspectRatio is 0 for algorithms that don't support it — no list needed here.
+  if (param.viewAspectRatio > 0) {
     opts["elk.aspectRatio"] = String(param.viewAspectRatio);
+    console.log("- elk.aspectRatio = " + param.viewAspectRatio);
+  }
   return opts;
 }
 
@@ -623,7 +631,27 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     });
   }
 
-  // Override algorithm for all compound nodes when elkNestedAlgorithm is set.
+  // Apply depth-adjusted targetWidth to ALL compound nodes when viewMaxWidth is set.
+  // IMPORTANT: must also set elk.algorithm = "rectpacking" explicitly — without it, compound
+  // nodes fall back to the default (layered) algorithm which silently ignores
+  // elk.rectpacking.* properties, producing unconstrained container widths.
+  if (param.viewMaxWidth > 0 && param.elkAlgorithm === "rectpacking") {
+    Object.keys(elkNodeMap).forEach(function(nodeId) {
+      const node = elkNodeMap[nodeId];
+      if (node.children && node.children.length > 0) {
+        node.layoutOptions = node.layoutOptions || {};
+        node.layoutOptions["elk.algorithm"] = "rectpacking";
+        node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]            = 5;
+        node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
+        let _d = 0, _p = elkParentMap[nodeId];
+        while (_p !== undefined) { _d++; _p = elkParentMap[_p]; }
+        const tw = param.viewMaxWidth - (_d + 1) * 2 * (param.elkPadding || DEFAULT_ELK_PADDING);
+        if (tw > 0) node.layoutOptions["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
+      }
+    });
+  }
+
+  // Override algorithm for all compound nodes when elkNestedAlgorithm is set (Pack tightly).
   // Runs after the propagation loop so it wins over any inherited root algorithm.
   if (param.elkNestedAlgorithm) {
     Object.keys(elkNodeMap).forEach(function(nodeId) {
@@ -635,8 +663,8 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
           node.layoutOptions["elk.rectpacking.orderBySize"]                                = param.elkSortLeavesOnly;
           node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
           node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
-          if (param.viewMaxWidth    > 0) node.layoutOptions["elk.rectpacking.widthApproximation.targetWidth"] = String(param.viewMaxWidth);
-          if (param.viewAspectRatio > 0) node.layoutOptions["elk.aspectRatio"]                                 = String(param.viewAspectRatio);
+          // targetWidth already applied by the general loop above.
+          // Aspect ratio is a root-level constraint; nested containers do not inherit it.
         }
       }
     });
@@ -1390,6 +1418,16 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
     .filter(function(id) { return !childSet.has(id); })
     .forEach(function(id) { writeNode(id, '  '); });
 
+  // When there are no real edges (all relations are nesting), DOT places nodes
+  // at (0,0) — no ranking structure. Add invisible edges between root containers
+  // so DOT produces a proper spaced layout.
+  if (elkEdgeList.length === 0 && Object.keys(elkParentMap).length > 0) {
+    let rootIds = Object.keys(elkNodeMap).filter(function(id) { return !childSet.has(id); });
+    for (let i = 0; i < rootIds.length - 1; i++) {
+      lines.push('  "' + rootIds[i] + '" -> "' + rootIds[i + 1] + '" [style=invis weight=1]');
+    }
+  }
+
   // Write edges; swap src/tgt for layoutReversed (same logic as ELK path)
   let reversedSet = new Set(param.layoutReversed || []);
   elkEdgeList.forEach(function(edge) {
@@ -1454,7 +1492,8 @@ function _runDot(dotSource, engine, binPath) {
 function _collectDotObjects(jsonOut) {
   const PT2PX = 96 / 72;
   let rootBb  = _parseDotBb(String(jsonOut.bb || "0,0,0,0"));
-  let totalH  = rootBb.ury;   // in DOT points; needed for Y-axis flip
+  let totalH  = rootBb.ury;           // in DOT points; needed for Y-axis flip
+  let totalW  = rootBb.urx * PT2PX;  // view width in pixels (after any Graphviz size scaling)
   let nodes = {}, clusters = {};
 
   // Walk the entire JSON tree. Detect clusters by bb+cluster_ name (not _subgraph_cnt,
@@ -1491,7 +1530,7 @@ function _collectDotObjects(jsonOut) {
   }
 
   walk(jsonOut);
-  return { nodes: nodes, clusters: clusters, totalH: totalH };
+  return { nodes: nodes, clusters: clusters, totalH: totalH, totalW: totalW };
 }
 
 function _parseDotBb(s) {
@@ -1574,6 +1613,25 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
   let view = _getView(folder, param.viewName);
 
   let coords = _collectDotObjects(jsonOut);
+
+  // Post-processing scale: ensures final view fits within viewMaxWidth.
+  // Acts as a reliable fallback when Graphviz 'size' doesn't fully constrain
+  // compound/cluster graphs (which can exceed the stated size boundary).
+  // If Graphviz 'size' already worked, coords.totalW ≤ viewMaxWidth so gvScale = 1.
+  let gvScale = 1;
+  if (param.viewMaxWidth > 0 && coords.totalW > param.viewMaxWidth + 1) {
+    gvScale = param.viewMaxWidth / coords.totalW;
+    console.log("- Graphviz view scaled to fit viewMaxWidth=" + param.viewMaxWidth + " (scale=" + gvScale.toFixed(3) + ")");
+    [coords.nodes, coords.clusters].forEach(function(dict) {
+      Object.keys(dict).forEach(function(id) {
+        let o = dict[id];
+        o.x = Math.round(o.x * gvScale);
+        o.y = Math.round(o.y * gvScale);
+        o.w = Math.round(o.w * gvScale);
+        o.h = Math.round(o.h * gvScale);
+      });
+    });
+  }
 
   // Fallback: for containers whose cluster bb was not in the DOT JSON
   // (force-directed engines like sfdp/neato/fdp never emit cluster bbs),
@@ -1670,6 +1728,7 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
     let posStr = String(dotEdge.pos || "");
     if (!posStr) return;
     let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.elkEdgeRouting);
+    if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
     if (!bps.length) return;
 
     let srcCenter = _getCenterBounds(connection.source);

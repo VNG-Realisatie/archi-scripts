@@ -755,6 +755,7 @@ let layoutDialog = {
     } else {
       this.config.elkAlgorithm = _algoVal;
     }
+
     this.config.elkDirection = (function() {
       var opts = layoutDialog._dirOpts, cmb = layoutDialog.widgets.cmbDir;
       if (!opts || !cmb) return View.DEFAULT_ELK_DIRECTION;
@@ -804,6 +805,13 @@ let layoutDialog = {
     this.config.viewFolder     = undefined;
 
     this.config.debug = this.widgets.chkDebug.getSelection();
+
+    // Zero out view-size params not supported by the current algorithm.
+    // Must run AFTER all widget reads so disabled-but-stale widget values don't persist.
+    var _caps = layoutDialog._currentCaps || {};
+    if (!_caps.maxW) this.config.viewMaxWidth   = 0;
+    if (!_caps.maxH) this.config.viewMaxHeight  = 0;
+    if (!_caps.ar)   this.config.viewAspectRatio = 0;
   },
 
   updateActionControls: function (action) {
@@ -832,11 +840,12 @@ let layoutDialog = {
       neato:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
       fdp:         { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
       sfdp:        { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: false },
-      twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-      circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
+      twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: false  },
+      circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: false  },
     };
     var GV_ENGINES = ["graphviz", "dot", "neato", "fdp", "sfdp", "twopi", "circo"];
     var c = CAPS[algo] || CAPS['layered'];
+    layoutDialog._currentCaps = c;
     function setRowEnabled(comp, enabled) {
       var ch = comp.getChildren();
       for (var i = 0; i < ch.length; i++) ch[i].setEnabled(enabled);
