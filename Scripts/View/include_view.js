@@ -261,7 +261,7 @@ function _layoutAndRender(param, filteredElements) {
   // Two-pass layout when elkSameTypeResize is set:
   // Pass 1 discovers actual container sizes; leaf siblings are equalized (width AND height)
   // to the largest sibling before pass 2 so mixed rows look visually uniform.
-  if (param.elkSameTypeResize && param.elkNestedAlgorithm) {
+  if (param.elkSameTypeResize) {
     // Snapshot original sizes so compound nodes can be reset cleanly before pass 2
     const origSizes = {};
     Object.keys(elkNodeMap).forEach(function(id) {
@@ -428,7 +428,7 @@ function _setDefaultParameters(param) {
   console.log("- elkPadding = "           + param.elkPadding);
   if (param.elkNestedAlgorithm        === undefined) param.elkNestedAlgorithm        = "";
   console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
-  if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
+  if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = DEFAULT_ELK_SPACING;
   if (param.elkSameTypeResize          === undefined) param.elkSameTypeResize          = false;
   if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
   if (param.graphvizBin    === undefined) param.graphvizBin    = "dot";
@@ -612,6 +612,17 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     }
   });
 
+  // Apply inner gap to all compound nodes (all ELK algorithms).
+  if (param.elkNestedSpacingNodeNode !== undefined) {
+    Object.keys(elkNodeMap).forEach(function(nodeId) {
+      const node = elkNodeMap[nodeId];
+      if (node.children && node.children.length > 0) {
+        node.layoutOptions = node.layoutOptions || {};
+        node.layoutOptions["elk.spacing.nodeNode"] = param.elkNestedSpacingNodeNode;
+      }
+    });
+  }
+
   // Override algorithm for all compound nodes when elkNestedAlgorithm is set.
   // Runs after the propagation loop so it wins over any inherited root algorithm.
   if (param.elkNestedAlgorithm) {
@@ -621,7 +632,6 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
         node.layoutOptions = node.layoutOptions || {};
         node.layoutOptions["elk.algorithm"] = param.elkNestedAlgorithm;
         if (param.elkNestedAlgorithm === "rectpacking") {
-          node.layoutOptions["elk.spacing.nodeNode"]                                       = param.elkNestedSpacingNodeNode;
           node.layoutOptions["elk.rectpacking.orderBySize"]                                = param.elkSortLeavesOnly;
           node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
           node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
