@@ -1,27 +1,22 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "action": "Layout",
   "graphDepth": 5,
   "includeElementType": [
     "business-object",
-    "business-function"
+    "business-function",
+    "grouping"
   ],
   "includeRelationType": [
-    "access-relationship:out",
-    "aggregation-relationship:out"
+    "access-relationship",
+    "aggregation-relationship:in",
+    "specialization-relationship"
   ],
   "layoutReversed": [
     "realization-relationship",
     "serving-relationship",
     "specialization-relationship"
   ],
-  "layoutNested": [
-    "access-relationship",
-    "aggregation-relationship"
-  ],
+  "layoutNested": [],
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
@@ -32,7 +27,7 @@ module.exports = {
   "debug": false,
   "excludeFromView": false,
   "viewName": "KadastraleOnroerendeZaak",
-  "elkAlgorithm": "rectpacking",
+  "elkAlgorithm": "layered",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "ORTHOGONAL",
@@ -62,5 +57,5 @@ module.exports = {
     "height": 1300
   },
   "graphvizSplines": "POLYLINE",
-  "doc": "Selecteer de view Bedrijfsfunctiemodel en genereer per laag een view. \nViews tonen de door de bedrijfsfuncties beheerde bedrijfsobjecten"
-};
+  "doc": "Selecteer bedrijfsobject en genereer context view"
+}

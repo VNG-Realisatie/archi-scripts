@@ -6,11 +6,7 @@ const Common = require(REPO_ROOT + "_lib/Common");
 
 Common.initConsoleLog(__FILE__, true);
 
-const View = require(REPO_ROOT + "View/include_view");
-const File = Java.type("java.io.File");
-const FileWriter = Java.type("java.io.FileWriter");
-const FileReader = Java.type("java.io.FileReader");
-const BufferedReader = Java.type("java.io.BufferedReader");
+const View = require(REPO_ROOT + "View/include_view_presets");
 
 // Capture selection before opening the SWT dialog causes focus loss
 const initialSelection = $(selection);
@@ -40,113 +36,11 @@ const IMessageProvider = Java.type("org.eclipse.jface.dialogs.IMessageProvider")
 const SWTFont = Java.type("org.eclipse.swt.graphics.Font");
 const SWTFontData = Java.type("org.eclipse.swt.graphics.FontData");
 
-// Helper to list parameter files
-function getPresetFiles() {
-  var dir = new File(__DIR__ + "user_parameter");
-  var files = dir.listFiles();
-  var names = [];
-  if (files) {
-    for (var i = 0; i < files.length; i++) {
-      if (files[i].isFile() && files[i].getName().endsWith(".js")) {
-        names.push(files[i].getName());
-      }
-    }
-  }
-  names.sort();
-  return names;
-}
-
-// Interacting with File system natively to avoid Node.js limitations
-function writeJSON(path, obj) {
-  try {
-    var writer = new FileWriter(path);
-    writer.write(JSON.stringify(obj, null, 2));
-    writer.close();
-  } catch (e) {
-    console.error("Failed to write state:", e);
-  }
-}
-
-function readJSON(path) {
-  try {
-    var reader = new BufferedReader(new FileReader(path));
-    var line = "";
-    var content = "";
-    while ((line = reader.readLine()) != null) content += line;
-    reader.close();
-    return JSON.parse(content);
-  } catch (e) {
-    return null;
-  }
-}
-
-function writePreset(filename, obj) {
-  if (!filename.endsWith(".js")) filename += ".js";
-  var path = __DIR__ + "user_parameter/" + filename;
-  var writer = new FileWriter(path);
-  writer.write("/**\n * Saved from _GUI.ajs\n */\n\nmodule.exports = " + JSON.stringify(obj, null, 2) + ";\n");
-  writer.close();
-}
-
-function readPresetObj(filename) {
-  var path = __DIR__ + "user_parameter/" + filename;
-  try {
-    var reader = new BufferedReader(new FileReader(path));
-    var line, content = "";
-    while ((line = reader.readLine()) != null) content += line + "\n";
-    reader.close();
-    var idx = content.indexOf("module.exports = ");
-    if (idx >= 0) {
-      var jsonStr = content.substring(idx + "module.exports = ".length).replace(/;\s*[\n\r]*$/, "").trim();
-      try { return JSON.parse(jsonStr); } catch(ignored) {}
-    }
-  } catch(e) {}
-  try { return require(path); } catch(e) { return null; }
-}
-
-// Determine defaults
+// Determine defaults: last run → user default preset → engine defaults
 const LAST_RUN_FILE = __DIR__ + ".last_gui_run_params.json";
-let defaultParams = readJSON(LAST_RUN_FILE);
-
-if (!defaultParams) {
-  try {
-    defaultParams = require(__DIR__ + "user_parameter/default_parameter.js");
-  } catch (e) {
-    defaultParams = {
-      action: View.GENERATE_SINGLE,
-      graphDepth: 1,
-      includeElementType: [],
-      includeRelationType: [],
-      excludeFromView: false,
-      layoutReversed: [],
-      layoutNested: [],
-      nestingMultipleOccurrences: false,
-      viewName: "",
-      viewNameSuffix: "",
-      viewFolder: "",
-      elkAlgorithm:            View.DEFAULTS.elkAlgorithm,
-      elkDirection:            View.DEFAULTS.elkDirection,
-      elkSpacingNodeNode:      View.DEFAULTS.elkSpacing,
-      elkLayerSpacing:         View.DEFAULTS.elkLayerSep,
-      elkEdgeRouting:          View.DEFAULTS.elkEdgeRouting,
-      elkPadding:              View.DEFAULTS.elkPadding,
-      elkNestedAlgorithm:      "",
-      elkNestedSpacingNodeNode: View.DEFAULTS.elkSpacing,
-      elkSameTypeResize:       false,
-      dagreRanker:             View.DEFAULTS.dagreRanker,
-      useRelationWeights:      false,
-      graphvizEngine:          View.DEFAULTS.graphvizEngine,
-      graphvizSplines:         View.DEFAULTS.graphvizSplines,
-      graphvizBin:             View.DEFAULTS.graphvizBin,
-      viewMaxWidth:    0,
-      viewMaxHeight:   0,
-      viewAspectRatio: 0,
-      nodeWidth:  200,
-      nodeHeight: 60,
-      debug: false,
-    };
-  }
-}
+let defaultParams = View.readJSON(LAST_RUN_FILE)
+  || View.readJSON(__DIR__ + View.USER_PARAM_FOLDER + "/default_parameter.json")
+  || Object.assign({}, View.DEFAULT_PRESET);
 
 const ConfigDialog = Java.extend(TitleAreaDialog);
 
@@ -430,10 +324,10 @@ let layoutDialog = {
 
         function refreshTbl() {
           tbl.removeAll();
-          getPresetFiles().forEach(function (f) {
+          View.getPresetFiles(__DIR__).forEach(function (f) {
             let row = new TableItemWidget(tbl, SWT.NONE);
             row.setText(0, f);
-            let obj = readPresetObj(f);
+            let obj = View.readPreset(__DIR__,f);
             row.setText(1, obj && obj.doc ? obj.doc : "");
           });
         }
@@ -460,8 +354,8 @@ let layoutDialog = {
             let newDoc = txtEd.getText().trim();
             item.setText(1, newDoc);
             txtEd.dispose();
-            let obj = readPresetObj(String(item.getText(0)));
-            if (obj) { if (newDoc) obj.doc = newDoc; else delete obj.doc; writePreset(String(item.getText(0)), obj); }
+            let obj = View.readPreset(__DIR__,String(item.getText(0)));
+            if (obj) { if (newDoc) obj.doc = newDoc; else delete obj.doc; View.writePreset(__DIR__, String(item.getText(0)), obj); }
           }
           txtEd.addListener(SWT.FocusOut, function () { commit(); });
           txtEd.addListener(SWT.Traverse, function (ev) {
@@ -487,9 +381,9 @@ let layoutDialog = {
           let sel = tbl.getSelection();
           if (!sel.length) return;
           let fname = String(sel[0].getText(0));
-          if (fname === "default_parameter.js") { window.alert("'default_parameter.js' is the built-in default and cannot be deleted."); return; }
+          if (fname === "default_parameter.json") { window.alert("'default_parameter.json' is the built-in default and cannot be deleted."); return; }
           if (window.confirm("Delete preset '" + fname + "'? This cannot be undone.")) {
-            let jf = new java.io.File(__DIR__ + "user_parameter/" + fname);
+            let jf = new (Java.type("java.io.File"))(__DIR__ + View.USER_PARAM_FOLDER + "/" + fname);
             if (jf.exists()) { jf.delete(); tbl.remove(tbl.getSelectionIndex()); }
           }
         });
@@ -530,7 +424,7 @@ let layoutDialog = {
         new LabelWidget(comp, SWT.NONE).setText("Name:");
         _cmb = new ComboWidget(comp, SWT.DROP_DOWN);
         GridDataFactory.fillDefaults().grab(true, false).applyTo(_cmb);
-        getPresetFiles().forEach(function (f) {
+        View.getPresetFiles(__DIR__).forEach(function (f) {
           _cmb.add(f.endsWith(".js") ? f.slice(0, -3) : f);
         });
         if (initialName) {
@@ -568,7 +462,7 @@ let layoutDialog = {
 
   updateFromPreset: function (presetName) {
     try {
-      let newCfg = require(__DIR__ + "user_parameter/" + presetName);
+      let newCfg = View.readPreset(__DIR__,presetName);
 
       if (this.promptPresetReview(presetName, newCfg)) {
         Object.keys(newCfg).forEach((k) => {
@@ -1031,12 +925,12 @@ let layoutDialog = {
           ? cmbPreset.getItem(cmbPreset.getSelectionIndex())
           : (layoutDialog._lastPresetName || (defaultParams && defaultParams._lastPresetName) || null);
         cmbPreset.removeAll();
-        getPresetFiles().forEach(function(f) { cmbPreset.add(f); });
+        View.getPresetFiles(__DIR__).forEach(function(f) { cmbPreset.add(f); });
         if (prevSel) {
           let i = cmbPreset.indexOf(prevSel);
           if (i >= 0) {
             cmbPreset.select(i);
-            let obj = readPresetObj(prevSel);
+            let obj = View.readPreset(__DIR__,prevSel);
             cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
           }
         }
@@ -1049,7 +943,7 @@ let layoutDialog = {
         if (idx >= 0) {
           let fname = cmbPreset.getItem(idx);
           layoutDialog._lastPresetName = fname;
-          let obj = readPresetObj(fname);
+          let obj = View.readPreset(__DIR__,fname);
           cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
         }
       });
@@ -1072,7 +966,7 @@ let layoutDialog = {
         let initialName = idx >= 0 ? cmbPreset.getItem(idx) : "";
         let initialDoc  = "";
         if (initialName) {
-          let obj = readPresetObj(initialName);
+          let obj = View.readPreset(__DIR__,initialName);
           if (obj && obj.doc) initialDoc = obj.doc;
         }
         let res = layoutDialog.openSavePresetDialog(layoutDialog.dialog.getShell(), initialName, initialDoc);
@@ -1080,7 +974,7 @@ let layoutDialog = {
           layoutDialog.saveInput();
           let saveObj = JSON.parse(JSON.stringify(layoutDialog.config));
           if (res.doc) saveObj.doc = res.doc; else delete saveObj.doc;
-          writePreset(res.name, saveObj);
+          View.writePreset(__DIR__, res.name, saveObj);
           refreshPresetCombo();
           let fname = res.name.endsWith(".js") ? res.name : res.name + ".js";
           let si = cmbPreset.indexOf(fname);
@@ -1676,7 +1570,7 @@ let _saveObj = Object.assign({}, layoutDialog.config);
 _saveObj._lastTabIndex   = layoutDialog._lastTabIndex   !== undefined ? layoutDialog._lastTabIndex   : 0;
 _saveObj._lastPresetName = layoutDialog._lastPresetName !== undefined ? layoutDialog._lastPresetName : null;
 _saveObj._windowBounds   = layoutDialog._windowBounds   || null;
-writeJSON(LAST_RUN_FILE, _saveObj);
+View.writeJSON(LAST_RUN_FILE, _saveObj);
 
 View.generate_view(layoutDialog.config, initialSelection);
 Common.finishConsoleLog();

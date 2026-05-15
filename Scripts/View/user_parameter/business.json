@@ -1,0 +1,31 @@
+{
+  "includeElementType": [
+    "business-actor",
+    "business-collaboration",
+    "business-event",
+    "business-function",
+    "business-interaction",
+    "business-interface",
+    "business-object",
+    "business-process",
+    "business-role",
+    "business-service",
+    "contract",
+    "product",
+    "representation"
+  ],
+  "includeRelationType": [
+    "aggregation-relationship",
+    "assignment-relationship",
+    "composition-relationship",
+    "serving-relationship",
+    "specialization-relationship",
+    "realization-relationship"
+  ],
+  "layoutReversed": [
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship"
+  ],
+  "layoutNested": []
+}

@@ -1,0 +1,15 @@
+{
+  "includeElementType": [
+    "grouping"
+  ],
+  "includeRelationType": [
+    "aggregation-relationship"
+  ],
+  "layoutReversed": [],
+  "layoutNested": [],
+  "excludeFromView": false,
+  "nodeWidth": 270,
+  "nodeHeight": 25,
+  "elkSpacingNodeNode": 15,
+  "elkLayerSpacing": 180
+}

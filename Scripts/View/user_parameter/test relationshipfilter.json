@@ -1,42 +1,40 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "action": "Generate",
-  "graphDepth": 6,
+  "graphDepth": 5,
   "includeElementType": [
+    "business-object",
     "grouping",
-    "business-object"
+    "business-function"
   ],
   "includeRelationType": [
+    "access-relationship:in",
     "aggregation-relationship:in",
-    "specialization-relationship"
+    "association-relationship:out"
   ],
   "layoutReversed": [
     "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
+    "serving-relationship"
   ],
   "layoutNested": [
+    "access-relationship",
     "aggregation-relationship"
   ],
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
-  "nodeWidth": 200,
+  "nodeWidth": 300,
   "nodeHeight": 60,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Geo-Object",
-  "elkAlgorithm": "dot",
+  "viewName": "Werkgelegenheid",
+  "elkAlgorithm": "box",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
-  "elkEdgeRouting": "STRAIGHT",
-  "elkSpacingNodeNode": 60,
-  "elkLayerSpacing": 200,
+  "elkEdgeRouting": "ORTHOGONAL",
+  "elkSpacingNodeNode": 10,
+  "elkLayerSpacing": 150,
   "elkPadding": 20,
   "nestingMultipleOccurrences": true,
   "elkNodePlacementAlignment": "BALANCED",
@@ -48,16 +46,5 @@ module.exports = {
   "elkSortLeavesOnly": true,
   "elkExpandExcludeTypes": [
     "business-object"
-  ],
-  "elkSameTypeResize": true,
-  "_lastTabIndex": 1,
-  "_lastPresetName": "GGM specialisaties.js",
-  "graphvizBin": "",
-  "_windowBounds": {
-    "x": 2112,
-    "y": 488,
-    "width": 1007,
-    "height": 1300
-  },
-  "graphvizSplines": "STRAIGHT"
-};
+  ]
+}

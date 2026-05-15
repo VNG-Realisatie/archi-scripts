@@ -1,8 +1,4 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "action": "Layout",
   "layoutReversed": [
     "realization-relationship",
@@ -18,4 +14,4 @@ module.exports = {
   "nodeHeight": 60,
   "elkSpacingNodeNode": 40,
   "elkLayerSpacing": 20
-};
+}

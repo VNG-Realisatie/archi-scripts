@@ -1,8 +1,4 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "action": "Generate",
   "graphDepth": 5,
   "includeElementType": [
@@ -48,4 +44,4 @@ module.exports = {
   "elkExpandExcludeTypes": [
     "business-object"
   ]
-};
+}

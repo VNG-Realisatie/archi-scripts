@@ -1,8 +1,4 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "includeElementType": [
     "grouping",
     "artifact",
@@ -26,4 +22,4 @@ module.exports = {
   ],
   "layoutNested": [],
   "doc": "Filter technology layer"
-};
+}

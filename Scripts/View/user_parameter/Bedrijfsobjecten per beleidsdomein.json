@@ -1,22 +1,18 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
-  "action": "Generate",
-  "graphDepth": 6,
+{
+  "action": "Layout",
+  "graphDepth": 2,
   "includeElementType": [
-    "grouping",
-    "data-object"
+    "business-object",
+    "grouping"
   ],
   "includeRelationType": [
-    "aggregation-relationship:in",
+    "aggregation-relationship:out",
+    "association-relationship",
     "specialization-relationship"
   ],
   "layoutReversed": [
     "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
+    "serving-relationship"
   ],
   "layoutNested": [
     "aggregation-relationship"
@@ -24,40 +20,42 @@ module.exports = {
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
-  "nodeWidth": 200,
-  "nodeHeight": 60,
+  "nodeWidth": 250,
+  "nodeHeight": 80,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Geo-Object",
-  "elkAlgorithm": "dot",
+  "viewName": "Aanpak",
+  "elkAlgorithm": "dagre",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
-  "elkEdgeRouting": "STRAIGHT",
-  "elkSpacingNodeNode": 60,
+  "elkEdgeRouting": "ORTHOGONAL",
+  "elkSpacingNodeNode": 50,
   "elkLayerSpacing": 200,
   "elkPadding": 20,
-  "nestingMultipleOccurrences": true,
+  "nestingMultipleOccurrences": false,
   "elkNodePlacementAlignment": "BALANCED",
   "dagreRanker": "network-simplex",
   "useRelationWeights": false,
   "elkNestedAlgorithm": "rectpacking",
-  "elkNestedSpacingNodeNode": 10,
+  "elkNestedSpacingNodeNode": 30,
   "elkNestedExpandToFill": true,
-  "elkSortLeavesOnly": true,
+  "elkSortLeavesOnly": false,
   "elkExpandExcludeTypes": [
     "business-object"
   ],
   "elkSameTypeResize": true,
   "_lastTabIndex": 1,
-  "_lastPresetName": "GGM specialisaties.js",
+  "_lastPresetName": "Bedrijfsobjecten per beleidsdomein.js",
+  "graphvizEngine": "dot",
   "graphvizBin": "",
   "_windowBounds": {
-    "x": 2112,
-    "y": 488,
+    "x": 2033,
+    "y": 553,
     "width": 1007,
     "height": 1300
   },
-  "graphvizSplines": "STRAIGHT"
-};
+  "graphvizSplines": "ORTHOGONAL",
+  "doc": "Selecteer 1 of meer beleidsdomeinen. Per beleidsdomein een view van de bedrijfsobjecten en relaties"
+}

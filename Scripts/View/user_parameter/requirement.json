@@ -1,8 +1,4 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "action": "Layout",
   "includeElementType": [],
   "includeRelationType": [],
@@ -23,4 +19,4 @@ module.exports = {
   "elkSpacingNodeNode": 20,
   "elkLayerSpacing": 180,
   "debug": false
-};
+}

@@ -1,0 +1,31 @@
+{
+  "includeElementType": [
+    "application-collaboration",
+    "application-component",
+    "application-event",
+    "application-function",
+    "application-interaction",
+    "application-interface",
+    "application-process",
+    "application-service",
+    "grouping"
+  ],
+  "includeRelationType": [
+    "access-relationship",
+    "aggregation-relationship",
+    "assignment-relationship",
+    "association-relationship",
+    "composition-relationship",
+    "influence-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship",
+    "triggering-relationship"
+  ],
+  "layoutReversed": [
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship"
+  ],
+  "layoutNested": []
+}

@@ -1,0 +1,23 @@
+{
+  "action": "generate_single",
+  "graphDepth": 1,
+  "includeElementType": [],
+  "includeRelationType": [],
+  "layoutReversed": [
+    "association-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship"
+  ],
+  "layoutNested": [],
+  "elkAlgorithm": "layered",
+  "elkDirection": "RIGHT",
+  "elkSpacingNodeNode": 40,
+  "elkLayerSpacing": 180,
+  "elkNodePlacementAlignment": "NONE",
+  "elkEdgeRouting": "ORTHOGONAL",
+  "elkPadding": 20,
+  "nodeWidth": 200,
+  "nodeHeight": 60,
+  "debug": false
+}

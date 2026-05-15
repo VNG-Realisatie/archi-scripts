@@ -1,23 +1,18 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
-  "action": "Generate",
-  "graphDepth": 5,
+{
+  "action": "Layout",
+  "graphDepth": 2,
   "includeElementType": [
     "business-object",
-    "grouping",
     "business-function"
   ],
   "includeRelationType": [
-    "access-relationship:in",
-    "aggregation-relationship:in",
-    "association-relationship:out"
+    "aggregation-relationship:out",
+    "access-relationship:out"
   ],
   "layoutReversed": [
+    "serving-relationship",
     "realization-relationship",
-    "serving-relationship"
+    "specialization-relationship"
   ],
   "layoutNested": [
     "access-relationship",
@@ -26,14 +21,14 @@ module.exports = {
   "layoutCircular": true,
   "graphDirection": "LR",
   "ranker": "network-simplex",
-  "nodeWidth": 300,
-  "nodeHeight": 60,
+  "nodeWidth": 250,
+  "nodeHeight": 30,
   "hSep": 20,
   "vSep": 180,
   "debug": false,
   "excludeFromView": false,
-  "viewName": "Werkgelegenheid",
-  "elkAlgorithm": "box",
+  "viewName": "BA01 Bedrijfsfunctiemodel en bedrijfsobjecten",
+  "elkAlgorithm": "layered",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "ORTHOGONAL",
@@ -43,12 +38,5 @@ module.exports = {
   "nestingMultipleOccurrences": true,
   "elkNodePlacementAlignment": "BALANCED",
   "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedAlgorithm": "rectpacking",
-  "elkNestedSpacingNodeNode": 10,
-  "elkNestedExpandToFill": true,
-  "elkSortLeavesOnly": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ]
-};
+  "doc": "test documentatie gewijzigd zonder enter"
+}

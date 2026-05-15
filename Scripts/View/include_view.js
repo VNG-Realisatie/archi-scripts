@@ -71,22 +71,46 @@ const GV_ALGORITHMS = new Set([ALGO.GV_DOT, ALGO.GV_NEATO, ALGO.GV_FDP,
 
 // All parameter defaults — engine owns these; GUI reads View.DEFAULTS
 const DEFAULTS = {
-  nodeWidth:        140,
-  nodeHeight:       60,
-  graphDepth:       1,
-  action:           GENERATE_SINGLE,
-  elkAlgorithm:     ALGO.ELK_LAYERED,
-  elkDirection:     "RIGHT",
-  elkSpacing:       40,
-  elkLayerSep:      180,
-  elkPadding:       20,
-  elkEdgeRouting:   "ORTHOGONAL",
-  elkNodePlacement: "NONE",
-  dagreRanker:      "network-simplex",
-  graphvizEngine:   ALGO.GV_DOT,
-  graphvizBin:      "dot",
-  graphvizSplines:  "ORTHOGONAL",
+  nodeWidth:                 140,
+  nodeHeight:                60,
+  graphDepth:                1,
+  action:                    GENERATE_SINGLE,
+  elkAlgorithm:              ALGO.ELK_LAYERED,
+  elkDirection:              "RIGHT",
+  elkSpacingNodeNode:        40,
+  elkLayerSpacing:           180,
+  elkPadding:                20,
+  elkEdgeRouting:            "ORTHOGONAL",
+  elkNodePlacementAlignment: "NONE",
+  dagreRanker:               "network-simplex",
+  graphvizEngine:            ALGO.GV_DOT,
+  graphvizBin:               "dot",
+  graphvizSplines:           "ORTHOGONAL",
 };
+
+// Complete default param object — single source of truth for all field defaults.
+// GUI uses Object.assign({}, View.DEFAULT_PRESET) as its hardcoded fallback.
+// _setDefaultParameters fills undefined fields from this object.
+const DEFAULT_PRESET = Object.assign({
+  includeElementType:         [],
+  includeRelationType:        [],
+  excludeFromView:            false,
+  layoutReversed:             [],
+  layoutNested:               [],
+  nestingMultipleOccurrences: false,
+  viewName:                   "",
+  viewNameSuffix:             "",
+  viewFolder:                 "",
+  elkNestedAlgorithm:         "",
+  elkNestedSpacingNodeNode:   DEFAULTS.elkSpacingNodeNode,
+  elkSameTypeResize:          false,
+  elkSortLeavesOnly:          false,
+  useRelationWeights:         false,
+  viewMaxWidth:               0,
+  viewMaxHeight:              0,
+  viewAspectRatio:            0,
+  debug:                      false,
+}, DEFAULTS);
 
 // Algorithm capabilities — each engine defines only what it supports (true);
 // caps() fills the rest with false. One block per engine for readability.
@@ -321,10 +345,10 @@ function _layoutAndRender(param, filteredElements) {
 function _setDefaultParameters(param) {
   let validFlag = true;
 
-  // Migration shim: convert old dagre param names to ELK equivalents (with warning)
+  // Migration shims: convert old param names (with warning)
   const dagreToElkDir = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
   if (param.graphDirection !== undefined && param.elkDirection === undefined) {
-    param.elkDirection = dagreToElkDir[param.graphDirection] || DEFAULTS.elkDirection;
+    param.elkDirection = dagreToElkDir[param.graphDirection] || DEFAULT_PRESET.elkDirection;
     console.log(`> Migrated graphDirection="${param.graphDirection}" → elkDirection="${param.elkDirection}"`);
   }
   if (param.hSep !== undefined && param.elkSpacingNodeNode === undefined) {
@@ -335,17 +359,34 @@ function _setDefaultParameters(param) {
     param.elkLayerSpacing = param.vSep;
     console.log(`> Migrated vSep=${param.vSep} → elkLayerSpacing=${param.elkLayerSpacing}`);
   }
+  // Migrate legacy elkAlgorithm="graphviz" + graphvizEngine → direct engine name
+  if (param.elkAlgorithm === "graphviz" && param.graphvizEngine) {
+    console.log(`> Migrated elkAlgorithm="graphviz" + graphvizEngine="${param.graphvizEngine}" → elkAlgorithm="${param.graphvizEngine}"`);
+    param.elkAlgorithm = param.graphvizEngine;
+  }
+
+  // Fill undefined fields from DEFAULT_PRESET (single source of truth for all defaults)
+  Object.keys(DEFAULT_PRESET).forEach(function(k) {
+    if (param[k] === undefined) param[k] = DEFAULT_PRESET[k];
+  });
+
+  // viewName: override empty string with current selection name
+  if (param.viewName === "") param.viewName = $(selection).first().name;
+
+  if (!CAPABILITIES[param.elkAlgorithm]) throw new Error("Unknown algorithm: " + param.elkAlgorithm);
+
+  // Zero view-size params not supported by this algorithm (safety net for direct API callers;
+  // the GUI already zeroes these in saveInput via _currentCaps).
+  const _caps = CAPABILITIES[param.elkAlgorithm] || {};
+  if (!_caps.maxW) param.viewMaxWidth  = 0;
+  if (!_caps.maxH) param.viewMaxHeight = 0;
+  if (!_caps.ar)   param.viewAspectRatio = 0;
 
   console.log("Generate view parameters");
-  if (param.action == undefined) param.action = DEFAULTS.action;
   console.log("- action = " + param.action);
-
-  if (param.graphDepth === undefined) param.graphDepth = DEFAULTS.graphDepth;
   console.log("- graphDepth = " + param.graphDepth);
 
-  if (param.includeElementType === undefined) param.includeElementType = [];
   if (!_validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter")) validFlag = false;
-  if (param.includeRelationType === undefined) param.includeRelationType = [];
   (function() {
     const validDirs = ["", "in", "out", "both"];
     console.log("- includeRelationType:");
@@ -367,70 +408,31 @@ function _setDefaultParameters(param) {
       });
     }
   })();
-  if (param.excludeFromView === undefined) param.excludeFromView = false;
   console.log(`- excludeFromView = ${param.excludeFromView} (exclude objects with property ${PROP_EXCLUDE}=true)`);
-  if (param.viewName === undefined || param.viewName === "") param.viewName = $(selection).first().name;
   console.log(`- viewName = ${param.viewName}`);
-  if (param.viewNameSuffix === undefined || param.viewNameSuffix === "") param.viewNameSuffix = "";
   console.log(`- viewNameSuffix = ${param.viewNameSuffix}`);
-  if (param.viewFolder === undefined || param.viewFolder === "") param.viewFolder = "";
   console.log(`- viewFolder = ${param.viewFolder}`);
   param.viewName = param.viewName + param.viewNameSuffix;
 
   console.log("How to draw relationships");
-  if (param.layoutReversed === undefined) param.layoutReversed = [];
   if (!_validArchiConcept(param.layoutReversed, RELATION_NAMES, "layoutReversed:", "none")) validFlag = false;
-  if (param.layoutNested === undefined) param.layoutNested = [];
   if (!_validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
-  if (param.nestingMultipleOccurrences === undefined) param.nestingMultipleOccurrences = false;
   console.log(`- nestingMultipleOccurrences = ${param.nestingMultipleOccurrences}`);
 
   console.log("\nELK layout parameters");
-  // Migrate legacy elkAlgorithm="graphviz" + graphvizEngine → direct engine name
-  if (param.elkAlgorithm === "graphviz" && param.graphvizEngine) {
-    console.log(`> Migrated elkAlgorithm="graphviz" + graphvizEngine="${param.graphvizEngine}" → elkAlgorithm="${param.graphvizEngine}"`);
-    param.elkAlgorithm = param.graphvizEngine;
-  }
-  if (param.elkAlgorithm    === undefined) param.elkAlgorithm    = DEFAULTS.elkAlgorithm;
-  if (!CAPABILITIES[param.elkAlgorithm]) throw new Error("Unknown algorithm: " + param.elkAlgorithm);
-  console.log("- elkAlgorithm = "    + param.elkAlgorithm);
-  if (param.elkDirection    === undefined) param.elkDirection    = DEFAULTS.elkDirection;
-  console.log("- elkDirection = "    + param.elkDirection);
-  if (param.elkSpacingNodeNode === undefined) param.elkSpacingNodeNode = DEFAULTS.elkSpacing;
-  console.log("- elkSpacingNodeNode = " + param.elkSpacingNodeNode);
-  if (param.elkLayerSpacing === undefined) param.elkLayerSpacing = DEFAULTS.elkLayerSep;
-  console.log("- elkLayerSpacing = " + param.elkLayerSpacing);
-  if (param.elkNodePlacementAlignment === undefined) param.elkNodePlacementAlignment = DEFAULTS.elkNodePlacement;
+  console.log("- elkAlgorithm = "             + param.elkAlgorithm);
+  console.log("- elkDirection = "             + param.elkDirection);
+  console.log("- elkSpacingNodeNode = "        + param.elkSpacingNodeNode);
+  console.log("- elkLayerSpacing = "           + param.elkLayerSpacing);
   console.log("- elkNodePlacementAlignment = " + param.elkNodePlacementAlignment);
-  if (param.elkEdgeRouting  === undefined) param.elkEdgeRouting  = DEFAULTS.elkEdgeRouting;
-  console.log("- elkEdgeRouting = "  + param.elkEdgeRouting);
-  if (param.elkPadding           === undefined) param.elkPadding           = DEFAULTS.elkPadding;
-  console.log("- elkPadding = "           + param.elkPadding);
-  if (param.elkNestedAlgorithm        === undefined) param.elkNestedAlgorithm        = "";
+  console.log("- elkEdgeRouting = "            + param.elkEdgeRouting);
+  console.log("- elkPadding = "                + param.elkPadding);
   console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
-  if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = DEFAULTS.elkSpacing;
-  if (param.elkSameTypeResize          === undefined) param.elkSameTypeResize          = false;
-  if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
-  if (param.dagreRanker    === undefined) param.dagreRanker    = DEFAULTS.dagreRanker;
-  if (param.graphvizBin    === undefined) param.graphvizBin    = DEFAULTS.graphvizBin;
-  if (param.graphvizEngine === undefined) param.graphvizEngine = DEFAULTS.graphvizEngine;
-  if (param.graphvizSplines=== undefined) param.graphvizSplines= DEFAULTS.graphvizSplines;
-  if (param.viewMaxWidth    === undefined) param.viewMaxWidth    = 0;
-  if (param.viewMaxHeight   === undefined) param.viewMaxHeight   = 0;
-  if (param.viewAspectRatio === undefined) param.viewAspectRatio = 0;
-  // Zero view-size params not supported by this algorithm (safety net for direct API callers;
-  // the GUI already zeroes these in saveInput via _currentCaps).
-  const _caps = CAPABILITIES[param.elkAlgorithm] || {};
-  if (!_caps.maxW) param.viewMaxWidth  = 0;
-  if (!_caps.maxH) param.viewMaxHeight = 0;
-  if (!_caps.ar)   param.viewAspectRatio = 0;
+  if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
   console.log("- viewMaxWidth = "    + param.viewMaxWidth    + (param.viewMaxWidth    > 0 ? " px" : " (no limit)"));
   console.log("- viewMaxHeight = "   + param.viewMaxHeight   + (param.viewMaxHeight   > 0 ? " px" : " (no limit)"));
   console.log("- viewAspectRatio = " + param.viewAspectRatio + (param.viewAspectRatio > 0 ? "" : " (no limit)"));
-  if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
-  if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULTS.nodeWidth;
   console.log("- nodeWidth = "  + param.nodeWidth);
-  if (param.nodeHeight == undefined) param.nodeHeight = DEFAULTS.nodeHeight;
   console.log("- nodeHeight = " + param.nodeHeight);
 
   if (param.useRelationWeights === undefined) param.useRelationWeights = false;
@@ -528,7 +530,7 @@ function _buildCompoundNodeOpts(param, depth, extraHPadding) {
   const opts = {
     "elk.padding":          `[top=${top},left=${ph},bottom=${p},right=${ph}]`,
     "elk.spacing.nodeNode": String(param.elkNestedSpacingNodeNode !== undefined
-                              ? param.elkNestedSpacingNodeNode : DEFAULTS.elkSpacing),
+                              ? param.elkNestedSpacingNodeNode : DEFAULTS.elkSpacingNodeNode),
     "elk.algorithm":        algo,
   };
 
@@ -1836,6 +1838,7 @@ if (typeof module !== "undefined" && module.exports) {
     LAYOUT,
     ALGO,
     DEFAULTS,
+    DEFAULT_PRESET,
     CAPABILITIES,
     GV_ALGORITHMS,
     PT2PX,
