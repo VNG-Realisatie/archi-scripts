@@ -9,7 +9,7 @@ const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf(
 const Common = require(REPO_ROOT + "_lib/Common.js");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders.js");
-const View = require(REPO_ROOT + "View/include_view.js");
+const View = require(REPO_ROOT + "View/include_view_presets.js");
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 
 Common.initConsoleLog(__FILE__, true);

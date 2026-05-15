@@ -42,80 +42,24 @@ const GENERATE_MULTIPLE = "GenerateMultiple";
 const EXPAND_HERE       = "Expand";
 const LAYOUT            = "Layout";
 
-const PROP_EXCLUDE          = "excludeFromView";
+// default settings for generated views
+const PROP_EXCLUDE         = "excludeFromView";
 const GENERATED_VIEW_FOLDER = "/_Generated";
-const JUNCTION_DIAMETER     = 14;
-const NESTED_LABEL_TOP_EXTRA = 30; // extra top padding so Archi's container label doesn't overlap children
-const PT2PX = 96 / 72;            // Graphviz: points → pixels (96 DPI screen, 72 pt/inch)
+const DEFAULT_GRAPHDEPTH   = 1;
+const DEFAULT_ACTION       = GENERATE_SINGLE;
+const DEFAULT_NODE_WIDTH   = 140;
+const DEFAULT_NODE_HEIGHT  = 60;
+const JUNCTION_DIAMETER    = 14;
 
-// Algorithm identifiers — use ALGO.* everywhere, never raw strings
-const ALGO = {
-  ELK_LAYERED:     "layered",
-  ELK_MRTREE:      "mrtree",
-  ELK_FORCE:       "force",
-  ELK_BOX:         "box",
-  ELK_STRESS:      "stress",
-  ELK_RADIAL:      "radial",
-  ELK_RECTPACKING: "rectpacking",
-  DAGRE:           "dagre",
-  GV_DOT:          "dot",
-  GV_NEATO:        "neato",
-  GV_FDP:          "fdp",
-  GV_SFDP:         "sfdp",
-  GV_TWOPI:        "twopi",
-  GV_CIRCO:        "circo",
-};
-
-const GV_ALGORITHMS = new Set([ALGO.GV_DOT, ALGO.GV_NEATO, ALGO.GV_FDP,
-                                ALGO.GV_SFDP, ALGO.GV_TWOPI, ALGO.GV_CIRCO]);
-
-// All parameter defaults — engine owns these; GUI reads View.DEFAULTS
-const DEFAULTS = {
-  nodeWidth:        140,
-  nodeHeight:       60,
-  graphDepth:       1,
-  action:           GENERATE_SINGLE,
-  elkAlgorithm:     ALGO.ELK_LAYERED,
-  elkDirection:     "RIGHT",
-  elkSpacing:       40,
-  elkLayerSep:      180,
-  elkPadding:       20,
-  elkEdgeRouting:   "ORTHOGONAL",
-  elkNodePlacement: "NONE",
-  dagreRanker:      "network-simplex",
-  graphvizEngine:   ALGO.GV_DOT,
-  graphvizBin:      "dot",
-  graphvizSplines:  "ORTHOGONAL",
-};
-
-// Algorithm capabilities — each engine defines only what it supports (true);
-// caps() fills the rest with false. One block per engine for readability.
-const CAP_FIELDS = ["dir","routing","layerSep","ranker","weights","maxW","maxH","ar","packRow","nesting"];
-const _capFalse  = Object.fromEntries(CAP_FIELDS.map(k => [k, false]));
-function caps(supported) { return Object.assign({}, _capFalse, supported); }
-
-const ELK_CAPABILITIES = {
-  [ALGO.ELK_LAYERED]:     caps({ dir: true, routing: true, layerSep: true, nesting: true }),
-  [ALGO.ELK_MRTREE]:      caps({ dir: true, routing: true, nesting: true }),
-  [ALGO.ELK_FORCE]:       caps({ weights: true, ar: true }),
-  [ALGO.ELK_BOX]:         caps({ nesting: true }),
-  [ALGO.ELK_STRESS]:      caps({ weights: true, ar: true, nesting: true }),
-  [ALGO.ELK_RADIAL]:      caps({ layerSep: true, weights: true, ar: true, nesting: true }),
-  [ALGO.ELK_RECTPACKING]: caps({ maxW: true, ar: true, packRow: true, nesting: true }),
-};
-const GV_CAPABILITIES = {
-  [ALGO.GV_DOT]:   caps({ dir: true, routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true }),
-  [ALGO.GV_NEATO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true }),
-  [ALGO.GV_FDP]:   caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true }),
-  [ALGO.GV_SFDP]:  caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
-  [ALGO.GV_TWOPI]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
-  [ALGO.GV_CIRCO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
-};
-const DAGRE_CAPABILITIES = {
-  [ALGO.DAGRE]: caps({ dir: true, layerSep: true, ranker: true, nesting: true }),
-};
-// Single exported table — GUI and engine both use this
-const CAPABILITIES = Object.assign({}, ELK_CAPABILITIES, GV_CAPABILITIES, DAGRE_CAPABILITIES);
+// ELK layout defaults
+const DEFAULT_ELK_ALGORITHM    = "layered";
+const DEFAULT_ELK_DIRECTION    = "RIGHT";
+const DEFAULT_ELK_SPACING      = 40;
+const DEFAULT_ELK_LAYER_SEP    = 180;
+const DEFAULT_ELK_NODE_PLACEMENT = "NONE";
+const DEFAULT_ELK_EDGE_ROUTING = "ORTHOGONAL";
+const DEFAULT_ELK_PADDING      = 20;
+const NESTED_LABEL_TOP_EXTRA   = 30; // extra top padding so Archi's container label doesn't overlap children
 
 // Relation type weights for weight-driven layout (elk.priority).
 // Higher weight = stronger attraction between connected elements.
@@ -132,6 +76,9 @@ const RELATION_WEIGHTS = {
   "association-relationship":    1.0, // general connection
   "influence-relationship":      0.5, // soft, indirect effect — weakest
 };
+
+const DEFAULT_PARAM_FILE = "default_parameter.js";
+const USER_PARAM_FOLDER  = "user_parameter";
 
 /**
  * ELK.js is loaded via native jArchi CommonJS require (no jvm-npm).
@@ -150,6 +97,96 @@ try {
   dagre = require(REPO_ROOT + "node_modules/dagre-cluster-fix/index.js");
   console.log("dagre-cluster-fix layout engine loaded.\n");
 } catch(e) { /* optional — ELK-only mode if absent */ }
+
+/**
+ * Get parameter from filename to generate a view
+ *
+ * Order of setting param
+ * - include-view.js defaults
+ * - superseded by DEFAULT_PARAM_FILE
+ * - superseded by 'wrapper'.ajs file
+ */
+function get_default_parameter(file) {
+  Common.debugStackPush(false);
+
+  let param = {};
+  try {
+    let path = file.substring(0, file.lastIndexOf("/") + 1);
+    let default_param_file = path + `${USER_PARAM_FOLDER}/${DEFAULT_PARAM_FILE}`;
+    Common.debug(`default_param_file: ${default_param_file}`);
+    param = require(default_param_file);
+    console.log(`Default parameter read from file "${default_param_file}"`);
+    Common.debug(`Default: \n${JSON.stringify(param, null, 2)}\n`);
+  } catch (error) {
+    console.log(`NOT read default parameters ${DEFAULT_PARAM_FILE}\n`);
+    Common.debug(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
+  }
+  Common.debugStackPop();
+  return param;
+}
+
+/**
+ * parse script filename into param values
+ * - filename format <filename of PARAM_FILE>_<action>_<direction>.ajs
+ *
+ * @param {string} file - script filename (use __FILE__)
+ * @param {object} param - put values into param object
+ * @returns param object
+ */
+function get_user_parameter(file, param) {
+  let filename = file.replace(/^.*[\\\/]/, "");
+  let name = filename.substring(0, filename.lastIndexOf("."));
+  let [user_param_name, action, direction] = name.split("_");
+
+  return read_user_parameter(file, user_param_name, action, direction, param);
+}
+
+/**
+ * Read PARAM_FILE and overwrite param with given user_param.values
+ *
+ * @param {string} file - to deduct path
+ * @param {string} user_param_name - filename of PARAM_FILE
+ * @param {string} action
+ * @param {string} direction - dagre-style direction (LR/TB/RL/BT); migrated to elkDirection by _setDefaultParameters
+ * @param {object} param - put values into param object
+ * @returns
+ */
+function read_user_parameter(file, user_param_name, action, direction, param = {}) {
+  Common.debugStackPush(false);
+  Common.debug(`file:\n- ${file}`);
+
+  let path = file.substring(0, Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\")) + 1);
+
+  if (user_param_name) {
+    let userParamFile = `${path}${USER_PARAM_FOLDER}/${user_param_name}.js`;
+
+    console.log(`User parameters read from file: \n- ${userParamFile}`);
+    console.log(`User parameter "${user_param_name}", action "${action}" with direction "${direction}"`);
+    console.log();
+    try {
+      const USER_PARAM = require(userParamFile);
+
+      Object.keys(USER_PARAM).forEach((prop) => {
+        param[prop] = USER_PARAM[prop];
+        Common.debug(`Read_user_parameter: Set ${prop} = ${USER_PARAM[prop]}`);
+      });
+
+      Common.debug(`With user parameter file: \n${JSON.stringify(param, null, 2)}\n`);
+    } catch (error) {
+      console.log(`NOT read user parameters from file`);
+      Common.debug(`> ${typeof error.stack == "undefined" ? error : error.stack}\n`);
+    }
+  } else {
+    console.log(`${action} with direction ${direction}\n`);
+  }
+
+  // Store direction from filename; _setDefaultParameters will migrate to elkDirection
+  param.graphDirection = direction;
+  param.action = action;
+
+  Common.debugStackPop();
+  return param;
+}
 
 /**
  * generate and layout an ArchiMate view
@@ -208,10 +245,8 @@ function generate_view(param, drawCollection) {
  * @returns Archi view
  */
 function _layoutAndRender(param, filteredElements) {
-  Common.debug(`_layoutAndRender: algorithm=${param.elkAlgorithm} elements=${filteredElements.length}`);
-  if (param.elkAlgorithm === ALGO.DAGRE) return _layoutAndRenderDagre(param, filteredElements);
-  if (GV_ALGORITHMS.has(param.elkAlgorithm))
-    return _layoutAndRenderGraphviz(param, filteredElements);
+  if (param.elkAlgorithm === "dagre")    return _layoutAndRenderDagre(param, filteredElements);
+  if (param.elkAlgorithm === "graphviz") return _layoutAndRenderGraphviz(param, filteredElements);
 
   let elkNodeMap   = {};
   let elkEdgeList  = [];
@@ -226,7 +261,7 @@ function _layoutAndRender(param, filteredElements) {
   // Two-pass layout when elkSameTypeResize is set:
   // Pass 1 discovers actual container sizes; leaf siblings are equalized (width AND height)
   // to the largest sibling before pass 2 so mixed rows look visually uniform.
-  if (param.elkSameTypeResize) {
+  if (param.elkSameTypeResize && param.elkNestedAlgorithm) {
     // Snapshot original sizes so compound nodes can be reset cleanly before pass 2
     const origSizes = {};
     Object.keys(elkNodeMap).forEach(function(id) {
@@ -249,14 +284,6 @@ function _layoutAndRender(param, filteredElements) {
       node.children.forEach(collectMinContainerSize);
     }
     collectMinContainerSize(g1);
-
-    // Cap globalMinW so equalized leaves fit inside depth-0 containers at targetWidth.
-    // Depth-0 containers get targetWidth = viewMaxWidth − 2*padding; a leaf wider than
-    // that would force the container outer width above viewMaxWidth.
-    if (param.viewMaxWidth > 0 && isFinite(globalMinW)) {
-      const _maxLeafW = param.viewMaxWidth - 2 * (param.elkPadding !== undefined ? param.elkPadding : DEFAULTS.elkPadding);
-      if (_maxLeafW > 0 && globalMinW > _maxLeafW) globalMinW = _maxLeafW;
-    }
 
     // Pass 1b: equalize siblings
     // - leaf next to container  → global min size (width + height)
@@ -308,7 +335,6 @@ function _layoutAndRender(param, filteredElements) {
 
   const { elkGraph, liftedEdgesMap } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
   const layoutedGraph = elk.layout(elkGraph);
-  console.log("- ELK result: width=" + Math.round(layoutedGraph.width || 0) + " height=" + Math.round(layoutedGraph.height || 0));
 
   return _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap);
 }
@@ -324,7 +350,7 @@ function _setDefaultParameters(param) {
   // Migration shim: convert old dagre param names to ELK equivalents (with warning)
   const dagreToElkDir = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
   if (param.graphDirection !== undefined && param.elkDirection === undefined) {
-    param.elkDirection = dagreToElkDir[param.graphDirection] || DEFAULTS.elkDirection;
+    param.elkDirection = dagreToElkDir[param.graphDirection] || DEFAULT_ELK_DIRECTION;
     console.log(`> Migrated graphDirection="${param.graphDirection}" → elkDirection="${param.elkDirection}"`);
   }
   if (param.hSep !== undefined && param.elkSpacingNodeNode === undefined) {
@@ -337,10 +363,10 @@ function _setDefaultParameters(param) {
   }
 
   console.log("Generate view parameters");
-  if (param.action == undefined) param.action = DEFAULTS.action;
+  if (param.action == undefined) param.action = DEFAULT_ACTION;
   console.log("- action = " + param.action);
 
-  if (param.graphDepth === undefined) param.graphDepth = DEFAULTS.graphDepth;
+  if (param.graphDepth === undefined) param.graphDepth = DEFAULT_GRAPHDEPTH;
   console.log("- graphDepth = " + param.graphDepth);
 
   if (param.includeElementType === undefined) param.includeElementType = [];
@@ -386,51 +412,38 @@ function _setDefaultParameters(param) {
   console.log(`- nestingMultipleOccurrences = ${param.nestingMultipleOccurrences}`);
 
   console.log("\nELK layout parameters");
-  // Migrate legacy elkAlgorithm="graphviz" + graphvizEngine → direct engine name
-  if (param.elkAlgorithm === "graphviz" && param.graphvizEngine) {
-    console.log(`> Migrated elkAlgorithm="graphviz" + graphvizEngine="${param.graphvizEngine}" → elkAlgorithm="${param.graphvizEngine}"`);
-    param.elkAlgorithm = param.graphvizEngine;
-  }
-  if (param.elkAlgorithm    === undefined) param.elkAlgorithm    = DEFAULTS.elkAlgorithm;
-  if (!CAPABILITIES[param.elkAlgorithm]) throw new Error("Unknown algorithm: " + param.elkAlgorithm);
+  if (param.elkAlgorithm    === undefined) param.elkAlgorithm    = DEFAULT_ELK_ALGORITHM;
   console.log("- elkAlgorithm = "    + param.elkAlgorithm);
-  if (param.elkDirection    === undefined) param.elkDirection    = DEFAULTS.elkDirection;
+  if (param.elkDirection    === undefined) param.elkDirection    = DEFAULT_ELK_DIRECTION;
   console.log("- elkDirection = "    + param.elkDirection);
-  if (param.elkSpacingNodeNode === undefined) param.elkSpacingNodeNode = DEFAULTS.elkSpacing;
+  if (param.elkSpacingNodeNode === undefined) param.elkSpacingNodeNode = DEFAULT_ELK_SPACING;
   console.log("- elkSpacingNodeNode = " + param.elkSpacingNodeNode);
-  if (param.elkLayerSpacing === undefined) param.elkLayerSpacing = DEFAULTS.elkLayerSep;
+  if (param.elkLayerSpacing === undefined) param.elkLayerSpacing = DEFAULT_ELK_LAYER_SEP;
   console.log("- elkLayerSpacing = " + param.elkLayerSpacing);
-  if (param.elkNodePlacementAlignment === undefined) param.elkNodePlacementAlignment = DEFAULTS.elkNodePlacement;
+  if (param.elkNodePlacementAlignment === undefined) param.elkNodePlacementAlignment = DEFAULT_ELK_NODE_PLACEMENT;
   console.log("- elkNodePlacementAlignment = " + param.elkNodePlacementAlignment);
-  if (param.elkEdgeRouting  === undefined) param.elkEdgeRouting  = DEFAULTS.elkEdgeRouting;
+  if (param.elkEdgeRouting  === undefined) param.elkEdgeRouting  = DEFAULT_ELK_EDGE_ROUTING;
   console.log("- elkEdgeRouting = "  + param.elkEdgeRouting);
-  if (param.elkPadding           === undefined) param.elkPadding           = DEFAULTS.elkPadding;
+  if (param.elkPadding           === undefined) param.elkPadding           = DEFAULT_ELK_PADDING;
   console.log("- elkPadding = "           + param.elkPadding);
   if (param.elkNestedAlgorithm        === undefined) param.elkNestedAlgorithm        = "";
   console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
-  if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = DEFAULTS.elkSpacing;
+  if (param.elkNestedSpacingNodeNode  === undefined) param.elkNestedSpacingNodeNode  = 10;
   if (param.elkSameTypeResize          === undefined) param.elkSameTypeResize          = false;
   if (param.elkSortLeavesOnly         === undefined) param.elkSortLeavesOnly         = false;
-  if (param.dagreRanker    === undefined) param.dagreRanker    = DEFAULTS.dagreRanker;
-  if (param.graphvizBin    === undefined) param.graphvizBin    = DEFAULTS.graphvizBin;
-  if (param.graphvizEngine === undefined) param.graphvizEngine = DEFAULTS.graphvizEngine;
-  if (param.graphvizSplines=== undefined) param.graphvizSplines= DEFAULTS.graphvizSplines;
+  if (param.graphvizBin    === undefined) param.graphvizBin    = "dot";
+  if (param.graphvizEngine === undefined) param.graphvizEngine = "dot";
+  if (param.graphvizSplines=== undefined) param.graphvizSplines= "ORTHOGONAL";
   if (param.viewMaxWidth    === undefined) param.viewMaxWidth    = 0;
   if (param.viewMaxHeight   === undefined) param.viewMaxHeight   = 0;
   if (param.viewAspectRatio === undefined) param.viewAspectRatio = 0;
-  // Zero view-size params not supported by this algorithm (safety net for direct API callers;
-  // the GUI already zeroes these in saveInput via _currentCaps).
-  const _caps = CAPABILITIES[param.elkAlgorithm] || {};
-  if (!_caps.maxW) param.viewMaxWidth  = 0;
-  if (!_caps.maxH) param.viewMaxHeight = 0;
-  if (!_caps.ar)   param.viewAspectRatio = 0;
   console.log("- viewMaxWidth = "    + param.viewMaxWidth    + (param.viewMaxWidth    > 0 ? " px" : " (no limit)"));
   console.log("- viewMaxHeight = "   + param.viewMaxHeight   + (param.viewMaxHeight   > 0 ? " px" : " (no limit)"));
   console.log("- viewAspectRatio = " + param.viewAspectRatio + (param.viewAspectRatio > 0 ? "" : " (no limit)"));
   if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
-  if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULTS.nodeWidth;
+  if (param.nodeWidth  == undefined) param.nodeWidth  = DEFAULT_NODE_WIDTH;
   console.log("- nodeWidth = "  + param.nodeWidth);
-  if (param.nodeHeight == undefined) param.nodeHeight = DEFAULTS.nodeHeight;
+  if (param.nodeHeight == undefined) param.nodeHeight = DEFAULT_NODE_HEIGHT;
   console.log("- nodeHeight = " + param.nodeHeight);
 
   if (param.useRelationWeights === undefined) param.useRelationWeights = false;
@@ -491,77 +504,42 @@ function _buildElkLayoutOptions(param) {
   if (param.elkNodePlacementAlignment && param.elkNodePlacementAlignment !== "NONE") {
     opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.elkNodePlacementAlignment;
   }
-  if (param.elkAlgorithm === ALGO.ELK_RECTPACKING) {
+  if (param.elkAlgorithm === "rectpacking") {
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
     if (param.viewMaxWidth > 0) {
       opts["elk.rectpacking.widthApproximation.targetWidth"] = String(param.viewMaxWidth);
       console.log("- elk.rectpacking.widthApproximation.targetWidth = " + param.viewMaxWidth);
     }
+    if (param.viewAspectRatio > 0) {
+      opts["elk.aspectRatio"] = String(param.viewAspectRatio);
+      console.log("- elk.aspectRatio = " + param.viewAspectRatio);
+    }
   }
-  // Apply aspect ratio for any algorithm. CAPS ar:true/false + saveInput zeroing ensure
-  // param.viewAspectRatio is 0 for algorithms that don't support it — no list needed here.
-  if (param.viewAspectRatio > 0) {
+  const ELK_ASPECT_RATIO_ALGOS = ["force", "stress", "radial"];
+  if (param.viewAspectRatio > 0 && ELK_ASPECT_RATIO_ALGOS.indexOf(param.elkAlgorithm) >= 0)
     opts["elk.aspectRatio"] = String(param.viewAspectRatio);
-    console.log("- elk.aspectRatio = " + param.viewAspectRatio);
-  }
-  Common.debug(`_buildElkLayoutOptions: ${JSON.stringify(opts)}`);
   return opts;
 }
 
 /**
  * Assemble the ELK graph object from pre-built maps
  */
-/**
- * All layout options for a single compound node — one call, complete result.
- * @param {object} param        layout parameters
- * @param {number} depth        nesting depth (0 = direct child of root)
- * @param {number} extraHPadding extra horizontal padding from equalizeSiblings
- */
-function _buildCompoundNodeOpts(param, depth, extraHPadding) {
-  const p   = param.elkPadding || DEFAULTS.elkPadding;
-  const ph  = p + (extraHPadding || 0);
-  const top = p + NESTED_LABEL_TOP_EXTRA;
-  // Effective algorithm: Pack tightly override if set, else inherit root algorithm.
-  const algo = param.elkNestedAlgorithm || param.elkAlgorithm;
-
-  const opts = {
-    "elk.padding":          `[top=${top},left=${ph},bottom=${p},right=${ph}]`,
-    "elk.spacing.nodeNode": String(param.elkNestedSpacingNodeNode !== undefined
-                              ? param.elkNestedSpacingNodeNode : DEFAULTS.elkSpacing),
-    "elk.algorithm":        algo,
-  };
-
-  if (algo === ALGO.ELK_RECTPACKING) {
-    opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
-    opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
-    // Always set orderBySize — omitting it may cause ELK to use a fallback packing mode
-    // that ignores targetWidth. Pack tightly controls extra options on top of this.
-    opts["elk.rectpacking.orderBySize"] = !!param.elkSortLeavesOnly;
-    if (param.viewMaxWidth > 0) {
-      const tw = param.viewMaxWidth - (depth + 1) * 2 * p;
-      if (tw > 0) opts["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
-    }
-  } else {
-    // For hierarchical algorithms: propagate key root options so sub-layouts match root.
-    opts["elk.direction"]   = param.elkDirection;
-    opts["elk.edgeRouting"] = (param.elkEdgeRouting === "STRAIGHT" || param.elkEdgeRouting === "SPLINES")
-                               ? "POLYLINE" : param.elkEdgeRouting;
-    if (param.elkLayerSpacing !== undefined)
-      opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.elkLayerSpacing);
-  }
-
-  Common.debug(`_buildCompoundNodeOpts depth=${depth} algo=${algo} tw=${opts["elk.rectpacking.widthApproximation.targetWidth"] || "-"} ph=${ph}`);
-  return opts;
-}
-
 function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap) {
-  // Step 1: attach children
+  // Attach children to their parents and set padding
   Object.keys(elkParentMap).forEach(function(childId) {
-    const parentNode = elkNodeMap[elkParentMap[childId]];
+    const parentId  = elkParentMap[childId];
+    const parentNode = elkNodeMap[parentId];
     const childNode  = elkNodeMap[childId];
-    if (parentNode && childNode && !parentNode.children.some(function(c) { return c.id === childId; })) {
-      parentNode.children.push(childNode);
+    if (parentNode && childNode) {
+      parentNode.layoutOptions = parentNode.layoutOptions || {};
+      const p  = param.elkPadding;
+      const ph = p + (parentNode._extraHPadding || 0);
+      const top = p + NESTED_LABEL_TOP_EXTRA;
+      parentNode.layoutOptions["elk.padding"] = `[top=${top},left=${ph},bottom=${p},right=${ph}]`;
+      if (!parentNode.children.some(function(c) { return c.id === childId; })) {
+        parentNode.children.push(childNode);
+      }
     }
   });
 
@@ -622,16 +600,37 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     rootEdges.push(edge);
   });
 
-  // Step 4: compound node layout options — single pass using _buildCompoundNodeOpts.
-  // Replaces the old propagation + inner-gap + targetWidth + nested-algo loops.
-  Common.debug(`_buildElkGraph: ${Object.keys(elkParentMap).length} nestings, ${elkEdgeList.length} edges`);
+  // Propagate root layout options to every compound node that has internal edges,
+  // so its sub-layout uses the same algorithm/direction/routing as the root.
+  // Preserve the elk.padding that was set during child-parent attachment above.
   Object.keys(elkNodeMap).forEach(function(nodeId) {
     const node = elkNodeMap[nodeId];
-    if (!node.children || node.children.length === 0) return;
-    let depth = 0, p = elkParentMap[nodeId];
-    while (p !== undefined) { depth++; p = elkParentMap[p]; }
-    node.layoutOptions = _buildCompoundNodeOpts(param, depth, node._extraHPadding || 0);
+    if (node.edges && node.edges.length > 0) {
+      const padding = node.layoutOptions && node.layoutOptions["elk.padding"];
+      node.layoutOptions = Object.assign({}, layoutOptions);
+      if (padding) node.layoutOptions["elk.padding"] = padding;
+    }
   });
+
+  // Override algorithm for all compound nodes when elkNestedAlgorithm is set.
+  // Runs after the propagation loop so it wins over any inherited root algorithm.
+  if (param.elkNestedAlgorithm) {
+    Object.keys(elkNodeMap).forEach(function(nodeId) {
+      const node = elkNodeMap[nodeId];
+      if (node.children && node.children.length > 0) {
+        node.layoutOptions = node.layoutOptions || {};
+        node.layoutOptions["elk.algorithm"] = param.elkNestedAlgorithm;
+        if (param.elkNestedAlgorithm === "rectpacking") {
+          node.layoutOptions["elk.spacing.nodeNode"]                                       = param.elkNestedSpacingNodeNode;
+          node.layoutOptions["elk.rectpacking.orderBySize"]                                = param.elkSortLeavesOnly;
+          node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
+          node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
+          if (param.viewMaxWidth    > 0) node.layoutOptions["elk.rectpacking.widthApproximation.targetWidth"] = String(param.viewMaxWidth);
+          if (param.viewAspectRatio > 0) node.layoutOptions["elk.aspectRatio"]                                 = String(param.viewAspectRatio);
+        }
+      }
+    });
+  }
 
   // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
   // Lift such endpoints to their root-level ancestor so ELK can use the edges for
@@ -691,7 +690,6 @@ function _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels,
   console.log(`- ${Object.keys(elkNodeMap).length} nodes and`);
   console.log(`- ${elkEdgeList.length} edges`);
   if (elkParentRels.length > 0) console.log(`- ${elkParentRels.length} parent-child nestings`);
-  Common.debug(`_fillGraph: occurrences=${Object.keys(occurrenceMap).length} parentRels=${elkParentRels.length}`);
 }
 
 /**
@@ -1162,7 +1160,6 @@ function _openView(view) {
 // ── Dagre (dagre-cluster-fix) engine ────────────────────────────────────────
 
 function _layoutAndRenderDagre(param, filteredElements) {
-  Common.debug(`_layoutAndRenderDagre: elements=${filteredElements.length}`);
   if (!dagre) throw "dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.";
 
   let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
@@ -1312,15 +1309,13 @@ function _drawDagreEdge(param, graph, edge, visualElementIndex, view) {
 // ── Graphviz DOT engine ──────────────────────────────────────────────────────
 
 function _layoutAndRenderGraphviz(param, filteredElements) {
-  Common.debug(`_layoutAndRenderGraphviz: engine=${param.graphvizEngine || param.elkAlgorithm} elements=${filteredElements.length}`);
   let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
   _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
 
   let dotSource = _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap);
-  Common.debug("_buildDotGraph result:\n" + dotSource);
   console.log("\nRunning Graphviz (" + (param.graphvizEngine || "dot") + ")...");
 
-  let jsonOut = _runDot(dotSource, param.elkAlgorithm, param.graphvizBin || DEFAULTS.graphvizBin);
+  let jsonOut = _runDot(dotSource, param.graphvizEngine || "dot", param.graphvizBin || "dot");
   return _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
 }
 
@@ -1385,16 +1380,6 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
     .filter(function(id) { return !childSet.has(id); })
     .forEach(function(id) { writeNode(id, '  '); });
 
-  // When there are no real edges (all relations are nesting), DOT places nodes
-  // at (0,0) — no ranking structure. Add invisible edges between root containers
-  // so DOT produces a proper spaced layout.
-  if (elkEdgeList.length === 0 && Object.keys(elkParentMap).length > 0) {
-    let rootIds = Object.keys(elkNodeMap).filter(function(id) { return !childSet.has(id); });
-    for (let i = 0; i < rootIds.length - 1; i++) {
-      lines.push('  "' + rootIds[i] + '" -> "' + rootIds[i + 1] + '" [style=invis weight=1]');
-    }
-  }
-
   // Write edges; swap src/tgt for layoutReversed (same logic as ELK path)
   let reversedSet = new Set(param.layoutReversed || []);
   elkEdgeList.forEach(function(edge) {
@@ -1419,7 +1404,7 @@ function _elkRoutingToDot(routing) {
 function _runDot(dotSource, engine, binPath) {
   let ProcessBuilder = Java.type("java.lang.ProcessBuilder");
   let Arrays         = Java.type("java.util.Arrays");
-  let bin = binPath && binPath.trim() !== "" ? binPath.trim() : DEFAULTS.graphvizBin;
+  let bin = binPath && binPath.trim() !== "" ? binPath.trim() : "dot";
   let proc;
   try {
     let pb = new ProcessBuilder(Arrays.asList(bin, "-Tjson", "-K" + engine));
@@ -1457,9 +1442,9 @@ function _runDot(dotSource, engine, binPath) {
 // Walk DOT JSON objects recursively, collecting node positions and cluster bounding
 // boxes. All coordinates are converted to Archi pixel space (top-left origin).
 function _collectDotObjects(jsonOut) {
+  const PT2PX = 96 / 72;
   let rootBb  = _parseDotBb(String(jsonOut.bb || "0,0,0,0"));
-  let totalH  = rootBb.ury;           // in DOT points; needed for Y-axis flip
-  let totalW  = rootBb.urx * PT2PX;  // view width in pixels (after any Graphviz size scaling)
+  let totalH  = rootBb.ury;   // in DOT points; needed for Y-axis flip
   let nodes = {}, clusters = {};
 
   // Walk the entire JSON tree. Detect clusters by bb+cluster_ name (not _subgraph_cnt,
@@ -1496,7 +1481,7 @@ function _collectDotObjects(jsonOut) {
   }
 
   walk(jsonOut);
-  return { nodes: nodes, clusters: clusters, totalH: totalH, totalW: totalW };
+  return { nodes: nodes, clusters: clusters, totalH: totalH };
 }
 
 function _parseDotBb(s) {
@@ -1524,6 +1509,7 @@ function _parseDotXY(s) {
 //   A single direct segment (4 pts total) previously produced zero bendpoints and
 //   looked identical to "straight" — the sampling fixes that.
 function _flattenDotSpline(posStr, totalH, splineType) {
+  const PT2PX = 96 / 72;
   let s = posStr.trim();
   if (s.indexOf("e,") === 0) s = s.substring(s.indexOf(" ") + 1);
 
@@ -1578,25 +1564,6 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
   let view = _getView(folder, param.viewName);
 
   let coords = _collectDotObjects(jsonOut);
-
-  // Post-processing scale: ensures final view fits within viewMaxWidth.
-  // Acts as a reliable fallback when Graphviz 'size' doesn't fully constrain
-  // compound/cluster graphs (which can exceed the stated size boundary).
-  // If Graphviz 'size' already worked, coords.totalW ≤ viewMaxWidth so gvScale = 1.
-  let gvScale = 1;
-  if (param.viewMaxWidth > 0 && coords.totalW > param.viewMaxWidth + 1) {
-    gvScale = param.viewMaxWidth / coords.totalW;
-    console.log("- Graphviz view scaled to fit viewMaxWidth=" + param.viewMaxWidth + " (scale=" + gvScale.toFixed(3) + ")");
-    [coords.nodes, coords.clusters].forEach(function(dict) {
-      Object.keys(dict).forEach(function(id) {
-        let o = dict[id];
-        o.x = Math.round(o.x * gvScale);
-        o.y = Math.round(o.y * gvScale);
-        o.w = Math.round(o.w * gvScale);
-        o.h = Math.round(o.h * gvScale);
-      });
-    });
-  }
 
   // Fallback: for containers whose cluster bb was not in the DOT JSON
   // (force-directed engines like sfdp/neato/fdp never emit cluster bbs),
@@ -1693,7 +1660,6 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
     let posStr = String(dotEdge.pos || "");
     if (!posStr) return;
     let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.elkEdgeRouting);
-    if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
     if (!bps.length) return;
 
     let srcCenter = _getCenterBounds(connection.source);
@@ -1830,15 +1796,24 @@ const RELATION_NAMES = [
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     generate_view,
+    get_default_parameter,
+    get_user_parameter,
+    read_user_parameter,
     GENERATE_SINGLE,
     GENERATE_MULTIPLE,
     EXPAND_HERE,
     LAYOUT,
-    ALGO,
-    DEFAULTS,
-    CAPABILITIES,
-    GV_ALGORITHMS,
-    PT2PX,
+    DEFAULT_GRAPHDEPTH,
+    DEFAULT_ACTION,
+    DEFAULT_NODE_WIDTH,
+    DEFAULT_NODE_HEIGHT,
+    DEFAULT_ELK_ALGORITHM,
+    DEFAULT_ELK_DIRECTION,
+    DEFAULT_ELK_SPACING,
+    DEFAULT_ELK_LAYER_SEP,
+    DEFAULT_ELK_NODE_PLACEMENT,
+    DEFAULT_ELK_EDGE_ROUTING,
+    DEFAULT_ELK_PADDING,
     GENERATED_VIEW_FOLDER,
     PROP_EXCLUDE,
     ELEMENT_NAMES,

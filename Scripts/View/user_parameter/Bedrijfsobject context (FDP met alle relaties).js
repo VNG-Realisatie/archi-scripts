@@ -35,7 +35,7 @@ module.exports = {
   "debug": false,
   "excludeFromView": false,
   "viewName": "GGM specialisaties",
-  "elkAlgorithm": "graphviz",
+  "elkAlgorithm": "fdp",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "ORTHOGONAL",
@@ -56,7 +56,6 @@ module.exports = {
   "elkSameTypeResize": true,
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsobject context (FDP met alle relaties).js",
-  "graphvizEngine": "fdp",
   "graphvizBin": "",
   "_windowBounds": {
     "x": 2252,

@@ -31,7 +31,7 @@ module.exports = {
   "debug": false,
   "excludeFromView": false,
   "viewName": "Geo-Object",
-  "elkAlgorithm": "graphviz",
+  "elkAlgorithm": "dot",
   "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
   "elkEdgeRouting": "STRAIGHT",
@@ -52,7 +52,6 @@ module.exports = {
   "elkSameTypeResize": true,
   "_lastTabIndex": 1,
   "_lastPresetName": "GGM specialisaties.js",
-  "graphvizEngine": "dot",
   "graphvizBin": "",
   "_windowBounds": {
     "x": 2112,
