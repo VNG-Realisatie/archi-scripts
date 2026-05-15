@@ -30,13 +30,13 @@ module.exports = {
   // graphDepth: 1,
   graphDepth: 0, // layout selected elements and relations of these elements
 
-  // elkDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
-  elkDirection: "RIGHT",
+  // layoutDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
+  layoutDirection: "RIGHT",
 
   nodeWidth: 200,
   nodeHeight: 60,
-  elkSpacingNodeNode: 20,
-  elkLayerSpacing:    200,
+  nodeSpacing: 20,
+  layerSpacing:    200,
 
   debug: false,
 };

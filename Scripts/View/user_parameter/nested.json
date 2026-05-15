@@ -12,6 +12,6 @@
   ],
   "nodeWidth": 200,
   "nodeHeight": 60,
-  "elkSpacingNodeNode": 40,
-  "elkLayerSpacing": 20
+  "nodeSpacing": 40,
+  "layerSpacing": 20
 }

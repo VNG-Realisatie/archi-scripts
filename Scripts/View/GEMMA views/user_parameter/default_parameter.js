@@ -41,13 +41,13 @@ module.exports = {
     // "triggering-relationship",
   ],
 
-  // elkDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
-  elkDirection: "RIGHT",
+  // layoutDirection: "RIGHT" | "DOWN" | "UP" | "LEFT"
+  layoutDirection: "RIGHT",
 
   nodeWidth: 200,
   nodeHeight: 60,
-  elkSpacingNodeNode: 20,
-  elkLayerSpacing:    180,
+  nodeSpacing: 20,
+  layerSpacing:    180,
 
   // viewName: "gen-custom",
   debug: false,

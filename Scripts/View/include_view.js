@@ -75,13 +75,13 @@ const DEFAULTS = {
   nodeHeight:                60,
   graphDepth:                1,
   action:                    GENERATE_SINGLE,
-  elkAlgorithm:              ALGO.ELK_LAYERED,
-  elkDirection:              "RIGHT",
-  elkSpacingNodeNode:        40,
-  elkLayerSpacing:           180,
-  elkPadding:                20,
-  elkEdgeRouting:            "ORTHOGONAL",
-  elkNodePlacementAlignment: "NONE",
+  algorithm:              ALGO.ELK_LAYERED,
+  layoutDirection:              "RIGHT",
+  nodeSpacing:        40,
+  layerSpacing:           180,
+  padding:                20,
+  edgeRouting:            "ORTHOGONAL",
+  nodePlacement: "NONE",
   dagreRanker:               "network-simplex",
   graphvizEngine:            ALGO.GV_DOT,
   graphvizBin:               "dot",
@@ -101,10 +101,10 @@ const DEFAULT_PRESET = Object.assign({
   viewName:                   "",
   viewNameSuffix:             "",
   viewFolder:                 "",
-  elkNestedAlgorithm:         "",
-  elkNestedSpacingNodeNode:   DEFAULTS.elkSpacingNodeNode,
-  elkSameTypeResize:          false,
-  elkSortLeavesOnly:          false,
+  nestedAlgorithm:         "",
+  nestedNodeSpacing:   DEFAULTS.nodeSpacing,
+  sameTypeResize:          false,
+  sortLeavesOnly:          false,
   useRelationWeights:         false,
   viewMaxWidth:               0,
   viewMaxHeight:              0,
@@ -195,7 +195,7 @@ function generate_view(param, drawCollection) {
         case GENERATE_SINGLE:
         case EXPAND_HERE:
         case LAYOUT:
-          generatedViews.add(_layoutAndRender(param, filteredElements));
+          generatedViews.add(_layoutAndRender(param,filteredElements));
           break;
 
         case GENERATE_MULTIPLE:
@@ -209,7 +209,7 @@ function generate_view(param, drawCollection) {
             param.viewName = e.name + param.viewNameSuffix;
             console.log(`\nGenerating view "${param.viewName}"`);
             console.log(`------------------${"-".repeat(param.viewName.length)}`);
-            generatedViews.add(_layoutAndRender(param, $(e)));
+            generatedViews.add(_layoutAndRender(param,$(e)));
           });
           break;
 
@@ -227,37 +227,43 @@ function generate_view(param, drawCollection) {
 }
 
 /**
- * Build ELK data structures, run layout, draw view.
- *
+ * Dispatch to the correct layout engine based on param.algorithm.
  * @returns Archi view
  */
 function _layoutAndRender(param, filteredElements) {
-  Common.debug(`_layoutAndRender: algorithm=${param.elkAlgorithm} elements=${filteredElements.length}`);
-  if (param.elkAlgorithm === ALGO.DAGRE) return _layoutAndRenderDagre(param, filteredElements);
-  if (GV_ALGORITHMS.has(param.elkAlgorithm))
-    return _layoutAndRenderGraphviz(param, filteredElements);
+  if (param.algorithm === ALGO.DAGRE) return _layoutAndRenderDagre(param, filteredElements);
+  if (GV_ALGORITHMS.has(param.algorithm)) return _layoutAndRenderGraphviz(param, filteredElements);
+  return _layoutAndRenderELK(param, filteredElements);
+}
 
-  let elkNodeMap   = {};
-  let elkEdgeList  = [];
-  let elkParentMap = {};
-  let elkParentRels = [];
+/**
+ * Build ELK data structures, run layout, draw view.
+ * @returns Archi view
+ */
+function _layoutAndRenderELK(param, filteredElements) {
+  Common.debug(`_layoutAndRenderELK: algorithm=${param.algorithm} elements=${filteredElements.length}`);
+
+  let nodeMap   = {};
+  let edgeList  = [];
+  let parentMap = {};
+  let parentRels = [];
   let occurrenceMap = {};
 
-  _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
+  _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
 
-  const layoutOptions = _buildElkLayoutOptions(param);
+  const layoutOptions = _buildLayoutOptionsELK(param);
 
-  // Two-pass layout when elkSameTypeResize is set:
+  // Two-pass layout when sameTypeResize is set:
   // Pass 1 discovers actual container sizes; leaf siblings are equalized (width AND height)
   // to the largest sibling before pass 2 so mixed rows look visually uniform.
-  if (param.elkSameTypeResize) {
+  if (param.sameTypeResize) {
     // Snapshot original sizes so compound nodes can be reset cleanly before pass 2
     const origSizes = {};
-    Object.keys(elkNodeMap).forEach(function(id) {
-      origSizes[id] = { width: elkNodeMap[id].width, height: elkNodeMap[id].height };
+    Object.keys(nodeMap).forEach(function(id) {
+      origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
     });
 
-    const { elkGraph: g1 } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
+    const { elkGraph: g1 } = _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap);
     console.log("\nCalculating the graph layout (pass 1 — equalise siblings)...");
     elk.layout(g1);
 
@@ -278,7 +284,7 @@ function _layoutAndRender(param, filteredElements) {
     // Depth-0 containers get targetWidth = viewMaxWidth − 2*padding; a leaf wider than
     // that would force the container outer width above viewMaxWidth.
     if (param.viewMaxWidth > 0 && isFinite(globalMinW)) {
-      const _maxLeafW = param.viewMaxWidth - 2 * (param.elkPadding !== undefined ? param.elkPadding : DEFAULTS.elkPadding);
+      const _maxLeafW = param.viewMaxWidth - 2 * (param.padding !== undefined ? param.padding : DEFAULTS.padding);
       if (_maxLeafW > 0 && globalMinW > _maxLeafW) globalMinW = _maxLeafW;
     }
 
@@ -307,34 +313,34 @@ function _layoutAndRender(param, filteredElements) {
 
     // Reset ALL nodes to original sizes (so compound nodes are recomputed freely in pass 2),
     // then apply equalized leaf sizes and extra padding hints for narrow containers.
-    Object.keys(elkNodeMap).forEach(function(id) {
-      elkNodeMap[id].children = [];
-      elkNodeMap[id].edges    = [];
-      delete elkNodeMap[id].layoutOptions;
-      delete elkNodeMap[id].x;
-      delete elkNodeMap[id].y;
-      delete elkNodeMap[id]._extraHPadding;
-      elkNodeMap[id].width  = origSizes[id].width;
-      elkNodeMap[id].height = origSizes[id].height;
+    Object.keys(nodeMap).forEach(function(id) {
+      nodeMap[id].children = [];
+      nodeMap[id].edges    = [];
+      delete nodeMap[id].layoutOptions;
+      delete nodeMap[id].x;
+      delete nodeMap[id].y;
+      delete nodeMap[id]._extraHPadding;
+      nodeMap[id].width  = origSizes[id].width;
+      nodeMap[id].height = origSizes[id].height;
     });
     Object.keys(equalizedSizes).forEach(function(id) {
-      if (elkNodeMap[id]) {
-        elkNodeMap[id].width  = equalizedSizes[id].width;
+      if (nodeMap[id]) {
+        nodeMap[id].width  = equalizedSizes[id].width;
       }
     });
     Object.keys(extraHPaddings).forEach(function(id) {
-      if (elkNodeMap[id]) elkNodeMap[id]._extraHPadding = extraHPaddings[id];
+      if (nodeMap[id]) nodeMap[id]._extraHPadding = extraHPaddings[id];
     });
     console.log("Calculating the graph layout (pass 2 — equalised sizes)...");
   } else {
     console.log("\nCalculating the graph layout...");
   }
 
-  const { elkGraph, liftedEdgesMap } = _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap);
+  const { elkGraph, liftedEdgesMap } = _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap);
   const layoutedGraph = elk.layout(elkGraph);
   console.log("- ELK result: width=" + Math.round(layoutedGraph.width || 0) + " height=" + Math.round(layoutedGraph.height || 0));
 
-  return _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap);
+  return _drawViewELK(param, layoutedGraph, parentRels, liftedEdgesMap, parentMap, occurrenceMap);
 }
 
 /**
@@ -347,22 +353,22 @@ function _setDefaultParameters(param) {
 
   // Migration shims: convert old param names (with warning)
   const dagreToElkDir = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
-  if (param.graphDirection !== undefined && param.elkDirection === undefined) {
-    param.elkDirection = dagreToElkDir[param.graphDirection] || DEFAULT_PRESET.elkDirection;
-    console.log(`> Migrated graphDirection="${param.graphDirection}" → elkDirection="${param.elkDirection}"`);
+  if (param.graphDirection !== undefined && param.layoutDirection === undefined) {
+    param.layoutDirection = dagreToElkDir[param.graphDirection] || DEFAULT_PRESET.layoutDirection;
+    console.log(`> Migrated graphDirection="${param.graphDirection}" → layoutDirection="${param.layoutDirection}"`);
   }
-  if (param.hSep !== undefined && param.elkSpacingNodeNode === undefined) {
-    param.elkSpacingNodeNode = param.hSep;
-    console.log(`> Migrated hSep=${param.hSep} → elkSpacingNodeNode=${param.elkSpacingNodeNode}`);
+  if (param.hSep !== undefined && param.nodeSpacing === undefined) {
+    param.nodeSpacing = param.hSep;
+    console.log(`> Migrated hSep=${param.hSep} → nodeSpacing=${param.nodeSpacing}`);
   }
-  if (param.vSep !== undefined && param.elkLayerSpacing === undefined) {
-    param.elkLayerSpacing = param.vSep;
-    console.log(`> Migrated vSep=${param.vSep} → elkLayerSpacing=${param.elkLayerSpacing}`);
+  if (param.vSep !== undefined && param.layerSpacing === undefined) {
+    param.layerSpacing = param.vSep;
+    console.log(`> Migrated vSep=${param.vSep} → layerSpacing=${param.layerSpacing}`);
   }
-  // Migrate legacy elkAlgorithm="graphviz" + graphvizEngine → direct engine name
-  if (param.elkAlgorithm === "graphviz" && param.graphvizEngine) {
-    console.log(`> Migrated elkAlgorithm="graphviz" + graphvizEngine="${param.graphvizEngine}" → elkAlgorithm="${param.graphvizEngine}"`);
-    param.elkAlgorithm = param.graphvizEngine;
+  // Migrate legacy algorithm="graphviz" + graphvizEngine → direct engine name
+  if (param.algorithm === "graphviz" && param.graphvizEngine) {
+    console.log(`> Migrated algorithm="graphviz" + graphvizEngine="${param.graphvizEngine}" → algorithm="${param.graphvizEngine}"`);
+    param.algorithm = param.graphvizEngine;
   }
 
   // Fill undefined fields from DEFAULT_PRESET (single source of truth for all defaults)
@@ -373,11 +379,11 @@ function _setDefaultParameters(param) {
   // viewName: override empty string with current selection name
   if (param.viewName === "") param.viewName = $(selection).first().name;
 
-  if (!CAPABILITIES[param.elkAlgorithm]) throw new Error("Unknown algorithm: " + param.elkAlgorithm);
+  if (!CAPABILITIES[param.algorithm]) throw new Error("Unknown algorithm: " + param.algorithm);
 
   // Zero view-size params not supported by this algorithm (safety net for direct API callers;
   // the GUI already zeroes these in saveInput via _currentCaps).
-  const _caps = CAPABILITIES[param.elkAlgorithm] || {};
+  const _caps = CAPABILITIES[param.algorithm] || {};
   if (!_caps.maxW) param.viewMaxWidth  = 0;
   if (!_caps.maxH) param.viewMaxHeight = 0;
   if (!_caps.ar)   param.viewAspectRatio = 0;
@@ -419,16 +425,16 @@ function _setDefaultParameters(param) {
   if (!_validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
   console.log(`- nestingMultipleOccurrences = ${param.nestingMultipleOccurrences}`);
 
-  console.log("\nELK layout parameters");
-  console.log("- elkAlgorithm = "             + param.elkAlgorithm);
-  console.log("- elkDirection = "             + param.elkDirection);
-  console.log("- elkSpacingNodeNode = "        + param.elkSpacingNodeNode);
-  console.log("- elkLayerSpacing = "           + param.elkLayerSpacing);
-  console.log("- elkNodePlacementAlignment = " + param.elkNodePlacementAlignment);
-  console.log("- elkEdgeRouting = "            + param.elkEdgeRouting);
-  console.log("- elkPadding = "                + param.elkPadding);
-  console.log("- elkNestedAlgorithm = "        + (param.elkNestedAlgorithm || "(same as root)"));
-  if (param.elkNestedAlgorithm) console.log("- elkNestedSpacingNodeNode = " + param.elkNestedSpacingNodeNode + ", sameTypeResize = " + param.elkSameTypeResize);
+  console.log("\nLayout parameters");
+  console.log("- algorithm = "             + param.algorithm);
+  console.log("- layoutDirection = "             + param.layoutDirection);
+  console.log("- nodeSpacing = "        + param.nodeSpacing);
+  console.log("- layerSpacing = "           + param.layerSpacing);
+  console.log("- nodePlacement = " + param.nodePlacement);
+  console.log("- edgeRouting = "            + param.edgeRouting);
+  console.log("- padding = "                + param.padding);
+  console.log("- nestedAlgorithm = "        + (param.nestedAlgorithm || "(same as root)"));
+  if (param.nestedAlgorithm) console.log("- nestedNodeSpacing = " + param.nestedNodeSpacing + ", sameTypeResize = " + param.sameTypeResize);
   console.log("- viewMaxWidth = "    + param.viewMaxWidth    + (param.viewMaxWidth    > 0 ? " px" : " (no limit)"));
   console.log("- viewMaxHeight = "   + param.viewMaxHeight   + (param.viewMaxHeight   > 0 ? " px" : " (no limit)"));
   console.log("- viewAspectRatio = " + param.viewAspectRatio + (param.viewAspectRatio > 0 ? "" : " (no limit)"));
@@ -479,21 +485,21 @@ function _includedElements(param, drawCollection = $(selection)) {
 /**
  * Build ELK layout options object from param
  */
-function _buildElkLayoutOptions(param) {
+function _buildLayoutOptionsELK(param) {
   const opts = {
-    "elk.algorithm":    param.elkAlgorithm,
-    "elk.direction":    param.elkDirection,
-    "elk.spacing.nodeNode":                      String(param.elkSpacingNodeNode),
-    "elk.layered.spacing.nodeNodeBetweenLayers": String(param.elkLayerSpacing),
+    "elk.algorithm":    param.algorithm,
+    "elk.direction":    param.layoutDirection,
+    "elk.spacing.nodeNode":                      String(param.nodeSpacing),
+    "elk.layered.spacing.nodeNodeBetweenLayers": String(param.layerSpacing),
     // STRAIGHT: pseudo-value — tell ELK POLYLINE but suppress bendpoints in draw step.
     // SPLINES: unsupported in Archi (bezier control points ≠ polyline waypoints).
-    "elk.edgeRouting": (param.elkEdgeRouting === "STRAIGHT" || param.elkEdgeRouting === "SPLINES")
-      ? "POLYLINE" : param.elkEdgeRouting,
+    "elk.edgeRouting": (param.edgeRouting === "STRAIGHT" || param.edgeRouting === "SPLINES")
+      ? "POLYLINE" : param.edgeRouting,
   };
-  if (param.elkNodePlacementAlignment && param.elkNodePlacementAlignment !== "NONE") {
-    opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.elkNodePlacementAlignment;
+  if (param.nodePlacement && param.nodePlacement !== "NONE") {
+    opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.nodePlacement;
   }
-  if (param.elkAlgorithm === ALGO.ELK_RECTPACKING) {
+  if (param.algorithm === ALGO.ELK_RECTPACKING) {
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
     if (param.viewMaxWidth > 0) {
@@ -507,7 +513,7 @@ function _buildElkLayoutOptions(param) {
     opts["elk.aspectRatio"] = String(param.viewAspectRatio);
     console.log("- elk.aspectRatio = " + param.viewAspectRatio);
   }
-  Common.debug(`_buildElkLayoutOptions: ${JSON.stringify(opts)}`);
+  Common.debug(`_buildLayoutOptionsELK: ${JSON.stringify(opts)}`);
   return opts;
 }
 
@@ -520,17 +526,17 @@ function _buildElkLayoutOptions(param) {
  * @param {number} depth        nesting depth (0 = direct child of root)
  * @param {number} extraHPadding extra horizontal padding from equalizeSiblings
  */
-function _buildCompoundNodeOpts(param, depth, extraHPadding) {
-  const p   = param.elkPadding || DEFAULTS.elkPadding;
+function _buildCompoundOptsELK(param, depth, extraHPadding) {
+  const p   = param.padding || DEFAULTS.padding;
   const ph  = p + (extraHPadding || 0);
   const top = p + NESTED_LABEL_TOP_EXTRA;
   // Effective algorithm: Pack tightly override if set, else inherit root algorithm.
-  const algo = param.elkNestedAlgorithm || param.elkAlgorithm;
+  const algo = param.nestedAlgorithm || param.algorithm;
 
   const opts = {
     "elk.padding":          `[top=${top},left=${ph},bottom=${p},right=${ph}]`,
-    "elk.spacing.nodeNode": String(param.elkNestedSpacingNodeNode !== undefined
-                              ? param.elkNestedSpacingNodeNode : DEFAULTS.elkSpacingNodeNode),
+    "elk.spacing.nodeNode": String(param.nestedNodeSpacing !== undefined
+                              ? param.nestedNodeSpacing : DEFAULTS.nodeSpacing),
     "elk.algorithm":        algo,
   };
 
@@ -539,41 +545,41 @@ function _buildCompoundNodeOpts(param, depth, extraHPadding) {
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
     // Always set orderBySize — omitting it may cause ELK to use a fallback packing mode
     // that ignores targetWidth. Pack tightly controls extra options on top of this.
-    opts["elk.rectpacking.orderBySize"] = !!param.elkSortLeavesOnly;
+    opts["elk.rectpacking.orderBySize"] = !!param.sortLeavesOnly;
     if (param.viewMaxWidth > 0) {
       const tw = param.viewMaxWidth - (depth + 1) * 2 * p;
       if (tw > 0) opts["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
     }
   } else {
     // For hierarchical algorithms: propagate key root options so sub-layouts match root.
-    opts["elk.direction"]   = param.elkDirection;
-    opts["elk.edgeRouting"] = (param.elkEdgeRouting === "STRAIGHT" || param.elkEdgeRouting === "SPLINES")
-                               ? "POLYLINE" : param.elkEdgeRouting;
-    if (param.elkLayerSpacing !== undefined)
-      opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.elkLayerSpacing);
+    opts["elk.direction"]   = param.layoutDirection;
+    opts["elk.edgeRouting"] = (param.edgeRouting === "STRAIGHT" || param.edgeRouting === "SPLINES")
+                               ? "POLYLINE" : param.edgeRouting;
+    if (param.layerSpacing !== undefined)
+      opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.layerSpacing);
   }
 
-  Common.debug(`_buildCompoundNodeOpts depth=${depth} algo=${algo} tw=${opts["elk.rectpacking.widthApproximation.targetWidth"] || "-"} ph=${ph}`);
+  Common.debug(`_buildCompoundOptsELK depth=${depth} algo=${algo} tw=${opts["elk.rectpacking.widthApproximation.targetWidth"] || "-"} ph=${ph}`);
   return opts;
 }
 
-function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap) {
+function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
   // Step 1: attach children
-  Object.keys(elkParentMap).forEach(function(childId) {
-    const parentNode = elkNodeMap[elkParentMap[childId]];
-    const childNode  = elkNodeMap[childId];
+  Object.keys(parentMap).forEach(function(childId) {
+    const parentNode = nodeMap[parentMap[childId]];
+    const childNode  = nodeMap[childId];
     if (parentNode && childNode && !parentNode.children.some(function(c) { return c.id === childId; })) {
       parentNode.children.push(childNode);
     }
   });
 
   // Sort children: containers first (sorted by type+name), then leaf nodes (sorted by type+name).
-  // With elkSortLeavesOnly: containers keep model order, only leaf nodes are sorted.
+  // With sortLeavesOnly: containers keep model order, only leaf nodes are sorted.
   function byTypeName(a, b) {
     return (a._type || '').localeCompare(b._type || '') || (a._name || '').localeCompare(b._name || '');
   }
   function sortChildren(nodes) {
-    if (param.elkSortLeavesOnly) {
+    if (param.sortLeavesOnly) {
       // Containers stay in model insertion order — ELK is free to optimise placement.
       // Only leaf nodes are sorted alphabetically, reinserted at their original leaf slots.
       const leafIdxs = [], sortedLeaves = [];
@@ -592,8 +598,8 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     leaves.sort(byTypeName);
     return ctrs.concat(leaves);
   }
-  Object.keys(elkNodeMap).forEach(function(nodeId) {
-    const node = elkNodeMap[nodeId];
+  Object.keys(nodeMap).forEach(function(nodeId) {
+    const node = nodeMap[nodeId];
     if (node.children && node.children.length > 1) {
       node.children = sortChildren(node.children);
     }
@@ -601,20 +607,20 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
 
   // Root children = nodes not assigned to a parent
   const rootChildren = sortChildren(
-    Object.keys(elkNodeMap)
-      .filter(function(id) { return elkParentMap[id] === undefined; })
-      .map(function(id) { return elkNodeMap[id]; })
+    Object.keys(nodeMap)
+      .filter(function(id) { return parentMap[id] === undefined; })
+      .map(function(id) { return nodeMap[id]; })
   );
 
   // Classify edges: internal (both endpoints under the same compound parent) go into
   // the compound node's own edges array so ELK routes them within the container.
   // Cross-level and root-level edges stay in root.
   const rootEdges = [];
-  elkEdgeList.forEach(function(edge) {
-    const srcParent = elkParentMap[edge.sources[0]];
-    const tgtParent = elkParentMap[edge.targets[0]];
+  edgeList.forEach(function(edge) {
+    const srcParent = parentMap[edge.sources[0]];
+    const tgtParent = parentMap[edge.targets[0]];
     if (srcParent !== undefined && tgtParent !== undefined && srcParent === tgtParent) {
-      const parentNode = elkNodeMap[srcParent];
+      const parentNode = nodeMap[srcParent];
       if (parentNode) {
         parentNode.edges = parentNode.edges || [];
         parentNode.edges.push(edge);
@@ -624,15 +630,15 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     rootEdges.push(edge);
   });
 
-  // Step 4: compound node layout options — single pass using _buildCompoundNodeOpts.
+  // Step 4: compound node layout options — single pass using _buildCompoundOptsELK.
   // Replaces the old propagation + inner-gap + targetWidth + nested-algo loops.
-  Common.debug(`_buildElkGraph: ${Object.keys(elkParentMap).length} nestings, ${elkEdgeList.length} edges`);
-  Object.keys(elkNodeMap).forEach(function(nodeId) {
-    const node = elkNodeMap[nodeId];
+  Common.debug(`_buildGraphELK: ${Object.keys(parentMap).length} nestings, ${edgeList.length} edges`);
+  Object.keys(nodeMap).forEach(function(nodeId) {
+    const node = nodeMap[nodeId];
     if (!node.children || node.children.length === 0) return;
-    let depth = 0, p = elkParentMap[nodeId];
-    while (p !== undefined) { depth++; p = elkParentMap[p]; }
-    node.layoutOptions = _buildCompoundNodeOpts(param, depth, node._extraHPadding || 0);
+    let depth = 0, p = parentMap[nodeId];
+    while (p !== undefined) { depth++; p = parentMap[p]; }
+    node.layoutOptions = _buildCompoundOptsELK(param, depth, node._extraHPadding || 0);
   });
 
   // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
@@ -643,11 +649,11 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     const srcId = edge.sources[0];
     const tgtId = edge.targets[0];
     let liftedSrc = srcId;
-    let p = elkParentMap[liftedSrc];
-    while (p !== undefined) { liftedSrc = p; p = elkParentMap[liftedSrc]; }
+    let p = parentMap[liftedSrc];
+    while (p !== undefined) { liftedSrc = p; p = parentMap[liftedSrc]; }
     let liftedTgt = tgtId;
-    p = elkParentMap[liftedTgt];
-    while (p !== undefined) { liftedTgt = p; p = elkParentMap[liftedTgt]; }
+    p = parentMap[liftedTgt];
+    while (p !== undefined) { liftedTgt = p; p = parentMap[liftedTgt]; }
     if (liftedSrc === liftedTgt) return null; // both sides same compound after lifting — skip
     if (liftedSrc !== srcId || liftedTgt !== tgtId) {
       liftedEdgesMap[edge.id] = { origSrcId: srcId, origTgtId: tgtId };
@@ -663,7 +669,7 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
 /**
  * Add the filtered selection to the ELK data structures
  */
-function _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements) {
+function _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements) {
   const START_LEVEL = 0;
 
   switch (param.action) {
@@ -671,45 +677,45 @@ function _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels,
     case GENERATE_MULTIPLE:
       console.log(`\nAdding elements and relations to the graph with a depth of ${param.graphDepth}...`);
       filteredElements.forEach(function(archiEle) {
-        _addElement(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, archiEle, filteredElements);
+        _addElement(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, archiEle, filteredElements);
       });
       break;
     case EXPAND_HERE:
       console.log("Expand selected objects on the view");
-      _addViewObjects(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
+      _addViewObjects(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap);
       filteredElements.forEach(function(archiEle) {
-        _addElement(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, archiEle, filteredElements);
+        _addElement(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, archiEle, filteredElements);
       });
       break;
     case LAYOUT:
       console.log("Layout objects on the view");
-      _addViewObjects(START_LEVEL, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
+      _addViewObjects(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap);
       break;
     default:
       break;
   }
 
   console.log("\nAdded to the graph:");
-  console.log(`- ${Object.keys(elkNodeMap).length} nodes and`);
-  console.log(`- ${elkEdgeList.length} edges`);
-  if (elkParentRels.length > 0) console.log(`- ${elkParentRels.length} parent-child nestings`);
-  Common.debug(`_fillGraph: occurrences=${Object.keys(occurrenceMap).length} parentRels=${elkParentRels.length}`);
+  console.log(`- ${Object.keys(nodeMap).length} nodes and`);
+  console.log(`- ${edgeList.length} edges`);
+  if (parentRels.length > 0) console.log(`- ${parentRels.length} parent-child nestings`);
+  Common.debug(`_fillGraph: occurrences=${Object.keys(occurrenceMap).length} parentRels=${parentRels.length}`);
 }
 
 /**
  * Add all elements and relations of the selected view to the ELK data structures
  */
-function _addViewObjects(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap) {
+function _addViewObjects(level, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap) {
   let view = _getSelectedView();
 
   $(view)
     .find("element")
-    .each(function(e) { _createNode(level, param, elkNodeMap, occurrenceMap, e); });
+    .each(function(e) { _createNode(level, param, nodeMap, occurrenceMap, e); });
   $(view)
     .find("relation")
     .filter(function(rel) { return $(rel).ends().is("element"); })
     .each(function(r) {
-      _addRelation(0, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, r.concept);
+      _addRelation(0, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, r.concept);
     });
 }
 
@@ -731,7 +737,7 @@ function _getSelectedView() {
 /**
  * Main recursive function: add the given element and its related elements to the graph
  */
-function _addElement(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, archiEle, filteredElements) {
+function _addElement(level, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, archiEle, filteredElements) {
   const STOPPED     = false;
   const NOT_STOPPED = true;
   Common.debug(`${"  ".repeat(level)}> Start ${archiEle}`);
@@ -741,7 +747,7 @@ function _addElement(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkPar
     return STOPPED;
   }
 
-  _createNode(level, param, elkNodeMap, occurrenceMap, archiEle);
+  _createNode(level, param, nodeMap, occurrenceMap, archiEle);
   Common.debug(`archiEle: ${archiEle}`);
 
   $(archiEle)
@@ -757,9 +763,9 @@ function _addElement(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkPar
         Common.debug(`${"  ".repeat(level)}> Skip; not in selection ${related_element}`);
       } else {
         if (_filterObjectType(related_element, param.includeElementType)) {
-          if (_addElement(level + 1, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, related_element, filteredElements) == NOT_STOPPED) {
+          if (_addElement(level + 1, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, related_element, filteredElements) == NOT_STOPPED) {
             Common.debug(`>>>> rel: ${rel}`);
-            _addRelation(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, rel);
+            _addRelation(level, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, rel);
           }
         }
       }
@@ -770,13 +776,13 @@ function _addElement(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkPar
 /**
  * Add the given element as a node to the ELK node map
  */
-function _createNode(level, param, elkNodeMap, occurrenceMap, archiEle) {
+function _createNode(level, param, nodeMap, occurrenceMap, archiEle) {
   const e = Common.concept(archiEle);
-  if (!elkNodeMap[e.id]) {
+  if (!nodeMap[e.id]) {
     const isJunction = e.type === "junction";
     const w = isJunction ? JUNCTION_DIAMETER : param.nodeWidth;
     const h = isJunction ? JUNCTION_DIAMETER : param.nodeHeight;
-    elkNodeMap[e.id] = { id: e.id, _archiId: e.id, _name: e.name || "", _type: e.type || "", width: w, height: h, children: [], edges: [] };
+    nodeMap[e.id] = { id: e.id, _archiId: e.id, _name: e.name || "", _type: e.type || "", width: w, height: h, children: [], edges: [] };
     occurrenceMap[e.id] = [e.id];
     Common.debug(`${"  ".repeat(level)}> Add node ${archiEle}`);
   } else {
@@ -788,11 +794,11 @@ function _createNode(level, param, elkNodeMap, occurrenceMap, archiEle) {
  * Route a relation to edge or parent creation
  * ELK handles cyclic relations natively — no separate circular list needed.
  */
-function _addRelation(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, rel) {
+function _addRelation(level, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, rel) {
   if (param.layoutNested.includes(rel.type)) {
-    _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, elkParentRels, rel);
+    _createParent(level, param, nodeMap, parentMap, occurrenceMap, parentRels, rel);
   } else {
-    _createEdge(level, param, occurrenceMap, elkEdgeList, rel);
+    _createEdge(level, param, occurrenceMap, edgeList, rel);
   }
 }
 
@@ -801,7 +807,7 @@ function _addRelation(level, param, elkNodeMap, elkEdgeList, elkParentMap, elkPa
  *
  * In nestingMultipleOccurrences mode, edges are created for each occurrence combination.
  */
-function _createEdge(level, param, occurrenceMap, elkEdgeList, rel) {
+function _createEdge(level, param, occurrenceMap, edgeList, rel) {
   Common.debugStackPush(false);
   const reversed = param.layoutReversed.includes(rel.type);
 
@@ -814,9 +820,9 @@ function _createEdge(level, param, occurrenceMap, elkEdgeList, rel) {
         ? rel.id
         : `${rel.id}_${si}_${ti}`;
 
-      if (!elkEdgeList.some(function(e) { return e.id === edgeId; })) {
+      if (!edgeList.some(function(e) { return e.id === edgeId; })) {
         const weight = param.useRelationWeights ? (RELATION_WEIGHTS[rel.type] || 1.0) : undefined;
-        elkEdgeList.push({
+        edgeList.push({
           id: edgeId,
           _archiRelId: rel.id,
           sources: [reversed ? tgtId : srcId],
@@ -833,15 +839,15 @@ function _createEdge(level, param, occurrenceMap, elkEdgeList, rel) {
 }
 
 /**
- * Record the given relation as a parent-child nesting in elkParentMap.
+ * Record the given relation as a parent-child nesting in parentMap.
  *
  * nestingMultipleOccurrences=false (default): child goes into the first parent only.
  * nestingMultipleOccurrences=true:  a separate visual occurrence is created for each parent.
  */
-function _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, elkParentRels, rel) {
+function _createParent(level, param, nodeMap, parentMap, occurrenceMap, parentRels, rel) {
   Common.debugStackPush(false);
 
-  if (elkParentRels.some(function(r) { return r.id === rel.id; })) {
+  if (parentRels.some(function(r) { return r.id === rel.id; })) {
     Common.debug(`${"  ".repeat(level)}> Skip, already in parent-list ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, Common.FORMAT_NOT_REVERSED)}`);
     Common.debugStackPop();
     return;
@@ -853,34 +859,34 @@ function _createParent(level, param, elkNodeMap, elkParentMap, occurrenceMap, el
 
   if (!param.nestingMultipleOccurrences) {
     // Default: assign to first parent only
-    if (elkParentMap[childArchiId] !== undefined) {
-      console.log(`> Multi-parent: ${childArchiId} already in ${elkParentMap[childArchiId]}, skipping ${parentArchiId}. Set nestingMultipleOccurrences=true to render in both.`);
+    if (parentMap[childArchiId] !== undefined) {
+      console.log(`> Multi-parent: ${childArchiId} already in ${parentMap[childArchiId]}, skipping ${parentArchiId}. Set nestingMultipleOccurrences=true to render in both.`);
     } else {
-      elkParentMap[childArchiId] = parentArchiId;
+      parentMap[childArchiId] = parentArchiId;
       Common.debug(`${"  ".repeat(level)}> Add Parent${reversed ? "<-" : "->"}Child: ${Common.formatRelation(rel, Common.FORMAT_NO_TYPES, reversed ? Common.FORMAT_REVERSED : Common.FORMAT_NOT_REVERSED)}`);
     }
   } else {
     // Multiple occurrences: assign base occurrence if unassigned; else create new occurrence
     const occs = occurrenceMap[childArchiId] || [];
-    const unassigned = occs.find(function(occId) { return elkParentMap[occId] === undefined; });
+    const unassigned = occs.find(function(occId) { return parentMap[occId] === undefined; });
     if (unassigned) {
-      elkParentMap[unassigned] = parentArchiId;
+      parentMap[unassigned] = parentArchiId;
       Common.debug(`${"  ".repeat(level)}> Assign occurrence ${unassigned} to parent ${parentArchiId}`);
     } else {
-      const alreadyInParent = occs.find(function(occId) { return elkParentMap[occId] === parentArchiId; });
+      const alreadyInParent = occs.find(function(occId) { return parentMap[occId] === parentArchiId; });
       if (!alreadyInParent) {
         const n = occs.length;
         const occId = `${childArchiId}_occ_${n}`;
-        const baseNode = elkNodeMap[childArchiId];
-        elkNodeMap[occId] = { id: occId, _archiId: childArchiId, _name: baseNode._name || "", _type: baseNode._type || "", width: baseNode.width, height: baseNode.height, children: [], edges: [] };
+        const baseNode = nodeMap[childArchiId];
+        nodeMap[occId] = { id: occId, _archiId: childArchiId, _name: baseNode._name || "", _type: baseNode._type || "", width: baseNode.width, height: baseNode.height, children: [], edges: [] };
         occurrenceMap[childArchiId].push(occId);
-        elkParentMap[occId] = parentArchiId;
+        parentMap[occId] = parentArchiId;
         Common.debug(`${"  ".repeat(level)}> Create occurrence ${occId} in parent ${parentArchiId}`);
       }
     }
   }
 
-  elkParentRels.push(rel);
+  parentRels.push(rel);
   Common.debugStackPop();
 }
 
@@ -906,41 +912,41 @@ function _filterRelationType(rel, includeRelationType, fromElement) {
 }
 
 /**
- * Draw the ELK-layouted graph as an Archi view
+ * Create an Archi view, draw nodes/edges via engine callbacks, add nesting relations, open view.
+ * Shared entry point for all three layout engines — identical Archi API calls regardless of engine.
+ *
+ * @param {object}   param         - layout parameters (viewFolder, viewName)
+ * @param {function} drawNodesFn   - (view, visualElementIndex) → void; engine-specific node draw
+ * @param {function} drawEdgesFn   - (view, visualElementIndex) → void; engine-specific edge draw
+ * @param {Array}    parentRels    - nesting relations to add to the view
+ * @param {object}   parentMap     - child-id → parent-id
+ * @param {object}   occurrenceMap - archi-id → [occurrence ids]
+ * @returns {object} Archi view
  */
-function _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParentMap, occurrenceMap) {
-  console.log(`\nDrawing ArchiMate view...  `);
-
+function _drawView(param, drawNodesFn, drawEdgesFn, parentRels, parentMap, occurrenceMap) {
   let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
-  if (param.viewFolder != "") {
-    folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
-  }
-
-  let view = _getView(folder, param.viewName);
-
-  let visualElementIndex = {};
+  if (param.viewFolder !== "") folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
+  const view = _getView(folder, param.viewName);
+  const visualElementIndex = {};
 
   console.log("Drawing graph nodes as elements ...");
-  (layoutedGraph.children || []).forEach(function(node) {
-    _drawNodeRecursive(param, node, null, visualElementIndex, view);
-  });
-
+  drawNodesFn(view, visualElementIndex);
   console.log("Drawing graph edges as relations ...");
-  _drawEdgesRecursive(layoutedGraph, param, visualElementIndex, view, liftedEdgesMap);
+  drawEdgesFn(view, visualElementIndex);
 
-  if (elkParentRels.length > 0) console.log("Adding child-parent relations to the view ...");
-  elkParentRels.forEach(function(parentRel) {
+  if (parentRels.length > 0) console.log("Adding child-parent relations to the view ...");
+  parentRels.forEach(function(parentRel) {
     const srcId = parentRel.source.id;
     const tgtId = parentRel.target.id;
     let srcVisual, tgtVisual;
     const tgtOccs = (occurrenceMap && occurrenceMap[tgtId]) || [tgtId];
-    const tgtOcc  = tgtOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === srcId; });
+    const tgtOcc  = tgtOccs.find(function(occId) { return parentMap && parentMap[occId] === srcId; });
     if (tgtOcc) {
       srcVisual = visualElementIndex[srcId];
       tgtVisual = visualElementIndex[tgtOcc];
     } else {
       const srcOccs = (occurrenceMap && occurrenceMap[srcId]) || [srcId];
-      const srcOcc  = srcOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === tgtId; });
+      const srcOcc  = srcOccs.find(function(occId) { return parentMap && parentMap[occId] === tgtId; });
       srcVisual = visualElementIndex[srcOcc || srcId];
       tgtVisual = visualElementIndex[tgtId];
     }
@@ -953,10 +959,28 @@ function _drawView(param, layoutedGraph, elkParentRels, liftedEdgesMap, elkParen
 }
 
 /**
+ * Draw the ELK-layouted graph as an Archi view.
+ */
+function _drawViewELK(param, layoutedGraph, parentRels, liftedEdgesMap, parentMap, occurrenceMap) {
+  console.log("\nDrawing ArchiMate view (ELK)...");
+  return _drawView(param,
+    function(view, vIdx) {
+      (layoutedGraph.children || []).forEach(function(node) {
+        _drawNodeRecursiveELK(param, node, null, vIdx, view);
+      });
+    },
+    function(view, vIdx) {
+      _drawEdgesRecursiveELK(layoutedGraph, param, vIdx, view, liftedEdgesMap);
+    },
+    parentRels, parentMap, occurrenceMap
+  );
+}
+
+/**
  * Recursively draw an ELK node and its children.
  * ELK coords: x,y = top-left corner; child coords are relative to parent.
  */
-function _drawNodeRecursive(param, elkNode, parentVisual, visualElementIndex, view) {
+function _drawNodeRecursiveELK(param, elkNode, parentVisual, visualElementIndex, view) {
   const archiId      = elkNode._archiId || elkNode.id;
   const archiElement = $("#" + archiId).first();
   const x = parseInt(elkNode.x || 0);
@@ -976,7 +1000,7 @@ function _drawNodeRecursive(param, elkNode, parentVisual, visualElementIndex, vi
 
     // ELK child x,y are already relative to parent — recurse
     (elkNode.children || []).forEach(function(child) {
-      _drawNodeRecursive(param, child, visual, visualElementIndex, view);
+      _drawNodeRecursiveELK(param, child, visual, visualElementIndex, view);
     });
   } catch (e) {
     console.error("-->" + e + "\n" + e.stack);
@@ -986,18 +1010,18 @@ function _drawNodeRecursive(param, elkNode, parentVisual, visualElementIndex, vi
 /**
  * Recursively draw all ELK edges in the graph tree
  */
-function _drawEdgesRecursive(elkNode, param, visualElementIndex, view, liftedEdgesMap) {
+function _drawEdgesRecursiveELK(elkNode, param, visualElementIndex, view, liftedEdgesMap) {
   // Edges in a compound node (id !== "root") have container-relative ELK coords.
   const containerNodeId = (elkNode.id === "root") ? null : elkNode.id;
   (elkNode.edges || []).forEach(function(edge) {
-    _drawEdge(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap);
+    _drawEdgeELK(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap);
   });
   (elkNode.children || []).forEach(function(child) {
-    _drawEdgesRecursive(child, param, visualElementIndex, view, liftedEdgesMap);
+    _drawEdgesRecursiveELK(child, param, visualElementIndex, view, liftedEdgesMap);
   });
 }
 
-function _drawEdge(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap) {
+function _drawEdgeELK(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap) {
   Common.debugStackPush(false);
   const archiRelId = edge._archiRelId || edge.id;
   const archiRel   = $("#" + archiRelId).first();
@@ -1037,7 +1061,7 @@ function _drawEdge(param, edge, visualElementIndex, view, containerNodeId, lifte
   // not between the actual child elements — those bendpoints produce wrong visuals.
   // Skip them: a straight child-to-child line is cleaner than an exit/re-entry path.
   if (!liftedIds) {
-    _drawBendpoints(param, edge, connection, containerOffset);
+    _drawBendpointsELK(param, edge, connection, containerOffset);
   }
   Common.debugStackPop();
 }
@@ -1081,16 +1105,16 @@ function _layoutNestedConnection(parentRel, visualElementIndex, view) {
  * ELK sections[0].bendPoints are the intermediate waypoints (absolute coords).
  * Archi bendpoints are relative to the center of source and target.
  */
-function _drawBendpoints(param, edge, connection, containerOffset) {
+function _drawBendpointsELK(param, edge, connection, containerOffset) {
   Common.debugStackPush(false);
 
-  if (param.elkEdgeRouting === "STRAIGHT") { Common.debugStackPop(); return; }
+  if (param.edgeRouting === "STRAIGHT") { Common.debugStackPop(); return; }
 
   let points = (edge.sections && edge.sections[0] && edge.sections[0].bendPoints) || [];
   Common.debug(`ELK bendPoints: ${JSON.stringify(points)}`);
 
   // Internal edges are routed by ELK in container-relative coordinates.
-  // containerOffset (set by _drawEdge) converts them to absolute.
+  // containerOffset (set by _drawEdgeELK) converts them to absolute.
   const offsetX = containerOffset ? containerOffset.x : 0;
   const offsetY = containerOffset ? containerOffset.y : 0;
 
@@ -1167,43 +1191,43 @@ function _layoutAndRenderDagre(param, filteredElements) {
   Common.debug(`_layoutAndRenderDagre: elements=${filteredElements.length}`);
   if (!dagre) throw "dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.";
 
-  let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
-  _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
+  let nodeMap = {}, edgeList = [], parentMap = {}, parentRels = [], occurrenceMap = {};
+  _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
 
-  const graph = _buildDagreGraph(param, elkNodeMap, elkEdgeList, elkParentMap);
+  const graph = _buildGraphDagre(param, nodeMap, edgeList, parentMap);
   console.log("\nCalculating the Dagre graph layout...");
   dagre.layout(graph);
 
-  return _drawDagreView(param, graph, elkParentRels, elkParentMap, occurrenceMap);
+  return _drawViewDagre(param, graph, parentRels, parentMap, occurrenceMap);
 }
 
-function _buildDagreGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
+function _buildGraphDagre(param, nodeMap, edgeList, parentMap) {
   const elkToDir = { RIGHT: "LR", LEFT: "RL", DOWN: "TB", UP: "BT" };
   const graph = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
     .setGraph({
-      rankdir: elkToDir[param.elkDirection] || "LR",
-      nodesep: param.elkSpacingNodeNode,
-      ranksep: param.elkLayerSpacing,
+      rankdir: elkToDir[param.layoutDirection] || "LR",
+      nodesep: param.nodeSpacing,
+      ranksep: param.layerSpacing,
       ranker:  param.dagreRanker || param.ranker || "network-simplex",
       marginx: 10, marginy: 10,
     })
     .setDefaultNodeLabel(function() { return {}; })
     .setDefaultEdgeLabel(function() { return { minlen: 1, weight: 1 }; });
 
-  Object.keys(elkNodeMap).forEach(function(nodeId) {
-    const node = elkNodeMap[nodeId];
+  Object.keys(nodeMap).forEach(function(nodeId) {
+    const node = nodeMap[nodeId];
     graph.setNode(nodeId, { label: nodeId, width: node.width, height: node.height, _archiId: node._archiId || nodeId });
   });
-  Object.keys(elkParentMap).forEach(function(childId) {
-    const parentId = elkParentMap[childId];
+  Object.keys(parentMap).forEach(function(childId) {
+    const parentId = parentMap[childId];
     if (graph.hasNode(childId) && graph.hasNode(parentId)) graph.setParent(childId, parentId);
   });
-  elkEdgeList.forEach(function(edge) {
+  edgeList.forEach(function(edge) {
     const src = edge.sources[0], tgt = edge.targets[0];
     if (src === tgt) return; // skip self-loops — Dagre errors on those
     // Skip edges involving duplicate occurrence nodes — they appear as boxes but get no relations
-    const srcIsDup = elkNodeMap[src] && elkNodeMap[src]._archiId !== src;
-    const tgtIsDup = elkNodeMap[tgt] && elkNodeMap[tgt]._archiId !== tgt;
+    const srcIsDup = nodeMap[src] && nodeMap[src]._archiId !== src;
+    const tgtIsDup = nodeMap[tgt] && nodeMap[tgt]._archiId !== tgt;
     if (srcIsDup || tgtIsDup) return;
     const archiRelId = edge._archiRelId || edge.id;
     if (!graph.hasEdge(src, tgt, edge.id)) {
@@ -1213,48 +1237,25 @@ function _buildDagreGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
   return graph;
 }
 
-function _drawDagreView(param, graph, elkParentRels, elkParentMap, occurrenceMap) {
+function _drawViewDagre(param, graph, parentRels, parentMap, occurrenceMap) {
   console.log("\nDrawing ArchiMate view (Dagre)...");
-  let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
-  if (param.viewFolder !== "") folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
-
-  let view = _getView(folder, param.viewName);
-
-  let visualElementIndex = {}, nodeIndex = {};
-  console.log("Drawing graph nodes as elements ...");
-  graph.nodes().forEach(function(nodeId) {
-    _drawDagreNode(graph, nodeId, nodeIndex, visualElementIndex, view);
-  });
-  console.log("Drawing graph edges as relations ...");
-  graph.edges().forEach(function(edge) {
-    _drawDagreEdge(param, graph, edge, visualElementIndex, view);
-  });
-  if (elkParentRels.length > 0) console.log("Adding child-parent relations to the view ...");
-  elkParentRels.forEach(function(parentRel) {
-    const srcId = parentRel.source.id;
-    const tgtId = parentRel.target.id;
-    let srcVisual, tgtVisual;
-    // Find the occurrence of tgt that is a direct child of src
-    const tgtOccs = (occurrenceMap && occurrenceMap[tgtId]) || [tgtId];
-    const tgtOcc  = tgtOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === srcId; });
-    if (tgtOcc) {
-      srcVisual = visualElementIndex[srcId];
-      tgtVisual = visualElementIndex[tgtOcc];
-    } else {
-      // Reversed nesting: src is child of tgt
-      const srcOccs = (occurrenceMap && occurrenceMap[srcId]) || [srcId];
-      const srcOcc  = srcOccs.find(function(occId) { return elkParentMap && elkParentMap[occId] === tgtId; });
-      srcVisual = visualElementIndex[srcOcc || srcId];
-      tgtVisual = visualElementIndex[tgtId];
-    }
-    if (srcVisual && tgtVisual) view.add(parentRel, srcVisual, tgtVisual);
-  });
-  console.log(`\nGenerated view '${param.viewName}' in folder Views > ${folder.name}`);
-  _openView(view);
-  return view;
+  const nodeIndex = {};
+  return _drawView(param,
+    function(view, vIdx) {
+      graph.nodes().forEach(function(nodeId) {
+        _drawNodeDagre(graph, nodeId, nodeIndex, vIdx, view);
+      });
+    },
+    function(view, vIdx) {
+      graph.edges().forEach(function(edge) {
+        _drawEdgeDagre(param, graph, edge, vIdx, view);
+      });
+    },
+    parentRels, parentMap, occurrenceMap
+  );
 }
 
-function _drawDagreNode(graph, nodeId, nodeIndex, visualElementIndex, view) {
+function _drawNodeDagre(graph, nodeId, nodeIndex, visualElementIndex, view) {
   Common.debugStackPush(false);
   if (nodeIndex[nodeId] !== undefined) { Common.debugStackPop(); return; }
   nodeIndex[nodeId] = true;
@@ -1269,7 +1270,7 @@ function _drawDagreNode(graph, nodeId, nodeIndex, visualElementIndex, view) {
       const y = parseInt(node.y - node.height / 2);
       visualElementIndex[nodeId] = view.add(archiEl, x, y, node.width + 1, node.height + 1);
     } else {
-      _drawDagreNode(graph, parentId, nodeIndex, visualElementIndex, view);
+      _drawNodeDagre(graph, parentId, nodeIndex, visualElementIndex, view);
       const parentNode = graph.node(parentId);
       const relX = parseInt((node.x - node.width / 2) - (parentNode.x - parentNode.width / 2));
       const relY = parseInt((node.y - node.height / 2) - (parentNode.y - parentNode.height / 2));
@@ -1279,7 +1280,7 @@ function _drawDagreNode(graph, nodeId, nodeIndex, visualElementIndex, view) {
   Common.debugStackPop();
 }
 
-function _drawDagreEdge(param, graph, edge, visualElementIndex, view) {
+function _drawEdgeDagre(param, graph, edge, visualElementIndex, view) {
   Common.debugStackPush(false);
   const edgeData  = graph.edge(edge);
   const archiRel  = $("#" + edgeData.id).first();
@@ -1314,16 +1315,16 @@ function _drawDagreEdge(param, graph, edge, visualElementIndex, view) {
 // ── Graphviz DOT engine ──────────────────────────────────────────────────────
 
 function _layoutAndRenderGraphviz(param, filteredElements) {
-  Common.debug(`_layoutAndRenderGraphviz: engine=${param.graphvizEngine || param.elkAlgorithm} elements=${filteredElements.length}`);
-  let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
-  _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
+  Common.debug(`_layoutAndRenderGraphviz: engine=${param.graphvizEngine || param.algorithm} elements=${filteredElements.length}`);
+  let nodeMap = {}, edgeList = [], parentMap = {}, parentRels = [], occurrenceMap = {};
+  _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
 
-  let dotSource = _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap);
-  Common.debug("_buildDotGraph result:\n" + dotSource);
+  let dotSource = _buildGraphGraphviz(param, nodeMap, edgeList, parentMap);
+  Common.debug("_buildGraphGraphviz result:\n" + dotSource);
   console.log("\nRunning Graphviz (" + (param.graphvizEngine || "dot") + ")...");
 
-  let jsonOut = _runDot(dotSource, param.elkAlgorithm, param.graphvizBin || DEFAULTS.graphvizBin);
-  return _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap);
+  let jsonOut = _runDot(dotSource, param.algorithm, param.graphvizBin || DEFAULTS.graphvizBin);
+  return _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentRels, occurrenceMap);
 }
 
 // Build a DOT source string from the graph structures produced by _fillGraph.
@@ -1331,15 +1332,15 @@ function _layoutAndRenderGraphviz(param, filteredElements) {
 // Graphviz routes cross-container edges around cluster bounding boxes (compound=true).
 // Edges are declared between the actual child nodes — no lhead/ltail — so the
 // returned spline control points represent the complete child-to-child path.
-function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
+function _buildGraphGraphviz(param, nodeMap, edgeList, parentMap) {
   const PX_TO_IN  = 1 / 96;
-  const rankdir   = ({RIGHT:"LR", LEFT:"RL", DOWN:"TB", UP:"BT"})[param.elkDirection] || "LR";
-  const ranksep   = ((param.elkLayerSpacing    || 180) * PX_TO_IN).toFixed(4);
-  const nodesep   = ((param.elkSpacingNodeNode || 40)  * PX_TO_IN).toFixed(4);
+  const rankdir   = ({RIGHT:"LR", LEFT:"RL", DOWN:"TB", UP:"BT"})[param.layoutDirection] || "LR";
+  const ranksep   = ((param.layerSpacing    || 180) * PX_TO_IN).toFixed(4);
+  const nodesep   = ((param.nodeSpacing || 40)  * PX_TO_IN).toFixed(4);
   const nodeW     = ((param.nodeWidth          || 200) * PX_TO_IN).toFixed(4);
   const nodeH     = ((param.nodeHeight         || 60)  * PX_TO_IN).toFixed(4);
-  const padding   = param.elkPadding !== undefined ? param.elkPadding : 20;
-  const splines   = _elkRoutingToDot(param.graphvizSplines || param.elkEdgeRouting || "ORTHOGONAL");
+  const padding   = param.padding !== undefined ? param.padding : 20;
+  const splines   = _elkRoutingToDot(param.graphvizSplines || param.edgeRouting || "ORTHOGONAL");
 
   // esep: extra separation between edges and node bounding boxes during routing.
   const esep = (splines === 'ortho') ? '+24' : '+8';
@@ -1366,12 +1367,12 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
   ];
 
   // Identify children so we can find roots
-  let childSet = new Set(Object.keys(elkParentMap));
+  let childSet = new Set(Object.keys(parentMap));
 
   // Write nodes recursively; containers become subgraph cluster_<id> containing
   // both the container node itself (for edge routing) and all child nodes.
   function writeNode(id, indent) {
-    let children = Object.keys(elkParentMap).filter(function(k) { return elkParentMap[k] === id; });
+    let children = Object.keys(parentMap).filter(function(k) { return parentMap[k] === id; });
     if (children.length > 0) {
       lines.push(indent + 'subgraph "cluster_' + id + '" {');
       lines.push(indent + '  graph [margin=' + padding + ']');
@@ -1383,15 +1384,15 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
     }
   }
 
-  Object.keys(elkNodeMap)
+  Object.keys(nodeMap)
     .filter(function(id) { return !childSet.has(id); })
     .forEach(function(id) { writeNode(id, '  '); });
 
   // When there are no real edges (all relations are nesting), DOT places nodes
   // at (0,0) — no ranking structure. Add invisible edges between root containers
   // so DOT produces a proper spaced layout.
-  if (elkEdgeList.length === 0 && Object.keys(elkParentMap).length > 0) {
-    let rootIds = Object.keys(elkNodeMap).filter(function(id) { return !childSet.has(id); });
+  if (edgeList.length === 0 && Object.keys(parentMap).length > 0) {
+    let rootIds = Object.keys(nodeMap).filter(function(id) { return !childSet.has(id); });
     for (let i = 0; i < rootIds.length - 1; i++) {
       lines.push('  "' + rootIds[i] + '" -> "' + rootIds[i + 1] + '" [style=invis weight=1]');
     }
@@ -1399,7 +1400,7 @@ function _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap) {
 
   // Write edges; swap src/tgt for layoutReversed (same logic as ELK path)
   let reversedSet = new Set(param.layoutReversed || []);
-  elkEdgeList.forEach(function(edge) {
+  edgeList.forEach(function(edge) {
     let src = edge.sources[0], tgt = edge.targets[0];
     if (reversedSet.has(edge._relType || "")) { let t = src; src = tgt; tgt = t; }
     lines.push('  "' + src + '" -> "' + tgt + '" [eid="' + edge.id + '"]');
@@ -1573,11 +1574,10 @@ function _flattenDotSpline(posStr, totalH, splineType) {
 // Draw the Graphviz-positioned view.
 // Container nodes use their cluster bounding box; leaf nodes use their pos.
 // Children are added relative to their parent container so Archi nests them correctly.
-function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap) {
+function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentRels, occurrenceMap) {
   console.log("\nDrawing ArchiMate view (Graphviz)...");
-  let folder = ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
-  if (param.viewFolder !== "") folder = ArchiFolders.getFolderPath("/Views" + param.viewFolder);
-  let view = _getView(folder, param.viewName);
+
+  // ── Graphviz-specific preprocessing ────────────────────────────────────────
 
   let coords = _collectDotObjects(jsonOut);
 
@@ -1591,11 +1591,8 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
     console.log("- Graphviz view scaled to fit viewMaxWidth=" + param.viewMaxWidth + " (scale=" + gvScale.toFixed(3) + ")");
     [coords.nodes, coords.clusters].forEach(function(dict) {
       Object.keys(dict).forEach(function(id) {
-        let o = dict[id];
-        o.x = Math.round(o.x * gvScale);
-        o.y = Math.round(o.y * gvScale);
-        o.w = Math.round(o.w * gvScale);
-        o.h = Math.round(o.h * gvScale);
+        let o = dict[id]; o.x = Math.round(o.x * gvScale); o.y = Math.round(o.y * gvScale);
+        o.w = Math.round(o.w * gvScale); o.h = Math.round(o.h * gvScale);
       });
     });
   }
@@ -1603,122 +1600,86 @@ function _drawGraphvizView(param, jsonOut, elkNodeMap, elkEdgeList, elkParentMap
   // Fallback: for containers whose cluster bb was not in the DOT JSON
   // (force-directed engines like sfdp/neato/fdp never emit cluster bbs),
   // derive the bounding box from the child node positions + padding.
-  let _pad = param.elkPadding !== undefined ? param.elkPadding : 20;
+  let _pad = param.padding !== undefined ? param.padding : 20;
   let _bbAcc = {};
-  Object.keys(elkParentMap).forEach(function(childId) {
-    let cid = elkParentMap[childId];
-    if (coords.clusters[cid]) return;        // already have it from JSON
+  Object.keys(parentMap).forEach(function(childId) {
+    let cid = parentMap[childId];
+    if (coords.clusters[cid]) return;
     let cp = coords.nodes[childId];
-    let pp = coords.nodes[cid];              // container node itself
+    let pp = coords.nodes[cid];
     [cp, pp].forEach(function(p) {
       if (!p) return;
       if (!_bbAcc[cid]) _bbAcc[cid] = { minX: p.x, minY: p.y, maxX: p.x + p.w, maxY: p.y + p.h };
       else {
-        _bbAcc[cid].minX = Math.min(_bbAcc[cid].minX, p.x);
-        _bbAcc[cid].minY = Math.min(_bbAcc[cid].minY, p.y);
-        _bbAcc[cid].maxX = Math.max(_bbAcc[cid].maxX, p.x + p.w);
-        _bbAcc[cid].maxY = Math.max(_bbAcc[cid].maxY, p.y + p.h);
+        _bbAcc[cid].minX = Math.min(_bbAcc[cid].minX, p.x); _bbAcc[cid].minY = Math.min(_bbAcc[cid].minY, p.y);
+        _bbAcc[cid].maxX = Math.max(_bbAcc[cid].maxX, p.x + p.w); _bbAcc[cid].maxY = Math.max(_bbAcc[cid].maxY, p.y + p.h);
       }
     });
   });
   Object.keys(_bbAcc).forEach(function(cid) {
     let b = _bbAcc[cid];
-    coords.clusters[cid] = {
-      x: b.minX - _pad, y: b.minY - _pad,
-      w: (b.maxX - b.minX) + 2 * _pad,
-      h: (b.maxY - b.minY) + 2 * _pad,
-    };
+    coords.clusters[cid] = { x: b.minX - _pad, y: b.minY - _pad, w: (b.maxX - b.minX) + 2 * _pad, h: (b.maxY - b.minY) + 2 * _pad };
     console.log("  cluster bb computed from children for " + cid + " → " + JSON.stringify(coords.clusters[cid]));
   });
 
-  let visualElementIndex = {};
   let reversedSet  = new Set(param.layoutReversed || []);
   let containerIds = new Set();
-  Object.keys(elkParentMap).forEach(function(cid) { containerIds.add(elkParentMap[cid]); });
+  Object.keys(parentMap).forEach(function(cid) { containerIds.add(parentMap[cid]); });
+  let childSet = new Set(Object.keys(parentMap));
+  let rootIds  = Object.keys(nodeMap).filter(function(id) { return !childSet.has(id); });
 
-  // Identify root nodes (not a child of any other node)
-  let childSet = new Set(Object.keys(elkParentMap));
+  let edgeById = {};
+  edgeList.forEach(function(e) { edgeById[e.id] = e; });
+  let totalH = _parseDotBb(String(jsonOut.bb || "0,0,0,0")).ury;
+  let skipBendpoints = (param.graphvizSplines === "STRAIGHT" || param.graphvizSplines === "line");
 
-  // Draw nodes recursively so children are added to their parent visual.
-  // parentVisual = null for root elements; parentAbsPos for relative-coord conversion.
-  function drawNodes(ids, parentVisual, parentAbsPos) {
+  // ── Delegate to _drawView for Archi API calls ───────────────────────────────
+
+  function _drawNodesGV(ids, parentVisual, parentAbsPos, view, vIdx) {
     ids.forEach(function(nodeId) {
-      let node    = elkNodeMap[nodeId];
-      let archiId = node._archiId || nodeId;
-      let archiEl = $("#" + archiId).first();
+      let node    = nodeMap[nodeId];
+      let archiEl = $("#" + (node._archiId || nodeId)).first();
       if (!archiEl) return;
-
-      let absPos = containerIds.has(nodeId) && coords.clusters[nodeId]
-                 ? coords.clusters[nodeId]
-                 : coords.nodes[nodeId];
+      let absPos = containerIds.has(nodeId) && coords.clusters[nodeId] ? coords.clusters[nodeId] : coords.nodes[nodeId];
       if (!absPos) { console.log("  No position for " + nodeId); return; }
-
       let rx = absPos.x - (parentAbsPos ? parentAbsPos.x : 0);
       let ry = absPos.y - (parentAbsPos ? parentAbsPos.y : 0);
-
-      let visual = parentVisual
-        ? parentVisual.add(archiEl, rx, ry, absPos.w, absPos.h)
-        : view.add(archiEl, rx, ry, absPos.w, absPos.h);
-      visualElementIndex[nodeId] = visual;
-
-      let children = Object.keys(elkParentMap).filter(function(k) { return elkParentMap[k] === nodeId; });
-      if (children.length) drawNodes(children, visual, absPos);
+      let visual = parentVisual ? parentVisual.add(archiEl, rx, ry, absPos.w, absPos.h) : view.add(archiEl, rx, ry, absPos.w, absPos.h);
+      vIdx[nodeId] = visual;
+      let children = Object.keys(parentMap).filter(function(k) { return parentMap[k] === nodeId; });
+      if (children.length) _drawNodesGV(children, visual, absPos, view, vIdx);
     });
   }
 
-  console.log("Drawing graph nodes as elements...");
-  let rootIds = Object.keys(elkNodeMap).filter(function(id) { return !childSet.has(id); });
-  drawNodes(rootIds, null, null);
-
-  // Draw edges with bendpoints derived from DOT spline control points.
-  console.log("Drawing graph edges as relations...");
-  let edgeById = {};
-  elkEdgeList.forEach(function(e) { edgeById[e.id] = e; });
-  let rootBb = _parseDotBb(String(jsonOut.bb || "0,0,0,0"));
-  let totalH = rootBb.ury;
-  let skipBendpoints = (param.graphvizSplines === "STRAIGHT" || param.graphvizSplines === "line");
-
-  (jsonOut.edges || []).forEach(function(dotEdge) {
-    let elkEdge = edgeById[String(dotEdge.eid || "")];
-    if (!elkEdge) return;
-    let archiRel = $("#" + elkEdge._archiRelId).first();
-    if (!archiRel) return;
-
-    // Use ArchiMate relation endpoints (not reversed DOT endpoints)
-    let srcVisual = visualElementIndex[archiRel.source.id];
-    let tgtVisual = visualElementIndex[archiRel.target.id];
-    if (!srcVisual || !tgtVisual) return;
-
-    let connection = view.add(archiRel, srcVisual, tgtVisual);
-    if (!connection || skipBendpoints) return;
-
-    let posStr = String(dotEdge.pos || "");
-    if (!posStr) return;
-    let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.elkEdgeRouting);
-    if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
-    if (!bps.length) return;
-
-    let srcCenter = _getCenterBounds(connection.source);
-    let tgtCenter = _getCenterBounds(connection.target);
-    let isRev     = reversedSet.has(connection.type);
-    let calcBps   = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
-    for (let i = 0; i < calcBps.length; i++) {
-      let bp = isRev ? calcBps[calcBps.length - 1 - i] : calcBps[i];
-      connection.addRelativeBendpoint(bp, i);
-    }
-  });
-
-  // Nesting relations drawn as plain connections (same as ELK/Dagre paths)
-  if (elkParentRels.length) console.log("Adding nesting relations to the view...");
-  elkParentRels.forEach(function(rel) {
-    let sv = visualElementIndex[rel.source.id];
-    let tv = visualElementIndex[rel.target.id];
-    if (sv && tv) view.add(rel, sv, tv);
-  });
-
-  console.log("\nGenerated view '" + param.viewName + "' in folder Views > " + folder.name);
-  _openView(view);
-  return view;
+  return _drawView(param,
+    function(view, vIdx) { _drawNodesGV(rootIds, null, null, view, vIdx); },
+    function(view, vIdx) {
+      (jsonOut.edges || []).forEach(function(dotEdge) {
+        let gvEdge  = edgeById[String(dotEdge.eid || "")];
+        if (!gvEdge) return;
+        let archiRel = $("#" + gvEdge._archiRelId).first();
+        if (!archiRel) return;
+        let srcVisual = vIdx[archiRel.source.id];
+        let tgtVisual = vIdx[archiRel.target.id];
+        if (!srcVisual || !tgtVisual) return;
+        let connection = view.add(archiRel, srcVisual, tgtVisual);
+        if (!connection || skipBendpoints) return;
+        let posStr = String(dotEdge.pos || "");
+        if (!posStr) return;
+        let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.edgeRouting);
+        if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
+        if (!bps.length) return;
+        let srcCenter = _getCenterBounds(connection.source);
+        let tgtCenter = _getCenterBounds(connection.target);
+        let isRev     = reversedSet.has(connection.type);
+        let calcBps   = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
+        for (let i = 0; i < calcBps.length; i++) {
+          connection.addRelativeBendpoint(isRev ? calcBps[calcBps.length - 1 - i] : calcBps[i], i);
+        }
+      });
+    },
+    parentRels, parentMap, occurrenceMap
+  );
 }
 
 // ── end Graphviz ─────────────────────────────────────────────────────────────

@@ -27,25 +27,14 @@
   "debug": false,
   "excludeFromView": false,
   "viewName": "Aanpak",
-  "elkAlgorithm": "dagre",
-  "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
-  "elkEdgeRouting": "ORTHOGONAL",
-  "elkSpacingNodeNode": 50,
-  "elkLayerSpacing": 200,
-  "elkPadding": 20,
   "nestingMultipleOccurrences": false,
-  "elkNodePlacementAlignment": "BALANCED",
   "dagreRanker": "network-simplex",
   "useRelationWeights": false,
-  "elkNestedAlgorithm": "rectpacking",
-  "elkNestedSpacingNodeNode": 30,
   "elkNestedExpandToFill": true,
-  "elkSortLeavesOnly": false,
   "elkExpandExcludeTypes": [
     "business-object"
   ],
-  "elkSameTypeResize": true,
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsobjecten per beleidsdomein.js",
   "graphvizEngine": "dot",
@@ -57,5 +46,16 @@
     "height": 1300
   },
   "graphvizSplines": "ORTHOGONAL",
-  "doc": "Selecteer 1 of meer beleidsdomeinen. Per beleidsdomein een view van de bedrijfsobjecten en relaties"
+  "doc": "Selecteer 1 of meer beleidsdomeinen. Per beleidsdomein een view van de bedrijfsobjecten en relaties",
+  "nestedNodeSpacing": 30,
+  "nodePlacement": "BALANCED",
+  "nestedAlgorithm": "rectpacking",
+  "nodeSpacing": 50,
+  "sameTypeResize": true,
+  "sortLeavesOnly": false,
+  "layerSpacing": 200,
+  "edgeRouting": "ORTHOGONAL",
+  "algorithm": "dagre",
+  "layoutDirection": "RIGHT",
+  "padding": 20
 }

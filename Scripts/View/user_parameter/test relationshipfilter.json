@@ -29,22 +29,22 @@
   "debug": false,
   "excludeFromView": false,
   "viewName": "Werkgelegenheid",
-  "elkAlgorithm": "box",
-  "elkDirection": "RIGHT",
   "elkAlignment": "TOP_LEFT",
-  "elkEdgeRouting": "ORTHOGONAL",
-  "elkSpacingNodeNode": 10,
-  "elkLayerSpacing": 150,
-  "elkPadding": 20,
   "nestingMultipleOccurrences": true,
-  "elkNodePlacementAlignment": "BALANCED",
   "dagreRanker": "network-simplex",
   "useRelationWeights": false,
-  "elkNestedAlgorithm": "rectpacking",
-  "elkNestedSpacingNodeNode": 10,
   "elkNestedExpandToFill": true,
-  "elkSortLeavesOnly": true,
   "elkExpandExcludeTypes": [
     "business-object"
-  ]
+  ],
+  "nestedNodeSpacing": 10,
+  "nodePlacement": "BALANCED",
+  "nestedAlgorithm": "rectpacking",
+  "nodeSpacing": 10,
+  "sortLeavesOnly": true,
+  "layerSpacing": 150,
+  "edgeRouting": "ORTHOGONAL",
+  "algorithm": "box",
+  "layoutDirection": "RIGHT",
+  "padding": 20
 }

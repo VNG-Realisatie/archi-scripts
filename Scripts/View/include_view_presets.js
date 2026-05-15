@@ -150,7 +150,7 @@ function get_user_parameter(file, param) {
  * @param {string} file            - script path (used to resolve folder)
  * @param {string} user_param_name - preset filename (without .json)
  * @param {string} action          - e.g. "Generate", "Layout"
- * @param {string} direction       - dagre-style direction (LR/TB/RL/BT); migrated to elkDirection
+ * @param {string} direction       - dagre-style direction (LR/TB/RL/BT); migrated to layoutDirection
  * @param {object} param           - param object to merge into
  * @returns {object} merged param
  */
@@ -185,7 +185,7 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
     console.log(`${action} with direction ${direction}\n`);
   }
 
-  // Store direction from filename; _setDefaultParameters will migrate to elkDirection
+  // Store direction from filename; _setDefaultParameters will migrate to layoutDirection
   param.graphDirection = direction;
   param.action = action;
 

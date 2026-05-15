@@ -10,14 +10,14 @@
     "specialization-relationship"
   ],
   "layoutNested": [],
-  "elkAlgorithm": "layered",
-  "elkDirection": "RIGHT",
-  "elkSpacingNodeNode": 40,
-  "elkLayerSpacing": 180,
-  "elkNodePlacementAlignment": "NONE",
-  "elkEdgeRouting": "ORTHOGONAL",
-  "elkPadding": 20,
   "nodeWidth": 200,
   "nodeHeight": 60,
-  "debug": false
+  "debug": false,
+  "nodePlacement": "NONE",
+  "nodeSpacing": 40,
+  "layerSpacing": 180,
+  "edgeRouting": "ORTHOGONAL",
+  "algorithm": "layered",
+  "layoutDirection": "RIGHT",
+  "padding": 20
 }

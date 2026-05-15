@@ -13,10 +13,10 @@
     "realization-relationship"
   ],
   "graphDepth": 0,
-  "elkDirection": "RIGHT",
   "nodeWidth": 200,
   "nodeHeight": 60,
-  "elkSpacingNodeNode": 20,
-  "elkLayerSpacing": 180,
-  "debug": false
+  "debug": false,
+  "nodeSpacing": 20,
+  "layerSpacing": 180,
+  "layoutDirection": "RIGHT"
 }

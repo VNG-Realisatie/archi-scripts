@@ -186,16 +186,16 @@ let layoutDialog = {
       viewName:               "View Name",
       viewNameSuffix:         "View Suffix",
       viewFolder:             "View Folder",
-      elkAlgorithm:           "Algorithm",
+      algorithm:           "Algorithm",
       dagreRanker:            "Layer ranking",
-      elkDirection:           "Flow direction",
-      elkEdgeRouting:         "Relation line style",
-      elkSpacingNodeNode:     "Element spacing",
-      elkLayerSpacing:        "Level spacing",
-      elkPadding:             "Padding",
-      elkNestedAlgorithm:         "Tight packing",
-      elkNestedSpacingNodeNode:   "Inner spacing",
-      elkSameTypeResize:          "Align same-type elements",
+      layoutDirection:           "Flow direction",
+      edgeRouting:         "Relation line style",
+      nodeSpacing:     "Element spacing",
+      layerSpacing:        "Level spacing",
+      padding:             "Padding",
+      nestedAlgorithm:         "Tight packing",
+      nestedNodeSpacing:   "Inner spacing",
+      sameTypeResize:          "Align same-type elements",
       useRelationWeights:     "Relation weights",
       graphvizEngine:         "Graphviz engine",
       graphvizSplines:        "Graphviz edge routing",
@@ -530,21 +530,21 @@ let layoutDialog = {
     });
 
     if (this.widgets.grpAlgorithm) {
-      let _algoForRadio = this.config.elkAlgorithm || View.DEFAULTS.elkAlgorithm;
+      let _algoForRadio = this.config.algorithm || View.DEFAULTS.algorithm;
       setRadio(this.widgets.grpAlgorithm, _algoForRadio);
       this.updateAlgoControls(_algoForRadio);
     }
     // Direction combo
     if (this.widgets.cmbDir && layoutDialog._dirOpts) {
-      let _dv = this.config.elkDirection || View.DEFAULTS.elkDirection;
+      let _dv = this.config.layoutDirection || View.DEFAULTS.layoutDirection;
       let _di = layoutDialog._dirOpts.findIndex(function(o) { return o.val === _dv; });
       this.widgets.cmbDir.select(_di >= 0 ? _di : 1);
     }
     if (this.widgets.grpEdgeRouting) {
-      let _isGv = View.GV_ALGORITHMS.has(this.config.elkAlgorithm);
+      let _isGv = View.GV_ALGORITHMS.has(this.config.algorithm);
       let _routingVal = _isGv
         ? (this.config.graphvizSplines || "ORTHOGONAL")
-        : (this.config.elkEdgeRouting  || View.DEFAULTS.elkEdgeRouting);
+        : (this.config.edgeRouting  || View.DEFAULTS.edgeRouting);
       setRadio(this.widgets.grpEdgeRouting, _routingVal);
     }
     // Ranking combo
@@ -556,8 +556,8 @@ let layoutDialog = {
 
     if (this.config.nodeWidth)          this.widgets.spinWidth.setSelection(this.config.nodeWidth);
     if (this.config.nodeHeight)         this.widgets.spinHeight.setSelection(this.config.nodeHeight);
-    if (this.config.elkSpacingNodeNode) this.widgets.spinNodeSep.setSelection(this.config.elkSpacingNodeNode);
-    if (this.config.elkLayerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.elkLayerSpacing);
+    if (this.config.nodeSpacing) this.widgets.spinNodeSep.setSelection(this.config.nodeSpacing);
+    if (this.config.layerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.layerSpacing);
     if (this.widgets.spinViewMaxWidth)    this.widgets.spinViewMaxWidth.setSelection(this.config.viewMaxWidth    || 0);
     if (this.widgets.spinViewMaxHeight)   this.widgets.spinViewMaxHeight.setSelection(this.config.viewMaxHeight   || 0);
     if (this.widgets.cmbViewAspectRatio && layoutDialog._arOptions) {
@@ -569,7 +569,7 @@ let layoutDialog = {
       }
       this.widgets.cmbViewAspectRatio.select(_best);
     }
-    if (this.config.elkPadding !== undefined) this.widgets.spinPadding.setSelection(this.config.elkPadding);
+    if (this.config.padding !== undefined) this.widgets.spinPadding.setSelection(this.config.padding);
 
     (this.widgets.lstReversed_checks || []).forEach(r => r.chk.setSelection((this.config.layoutReversed || []).indexOf(r.type) >= 0));
     (this.widgets.lstNested_checks   || []).forEach(r => r.chk.setSelection((this.config.layoutNested   || []).indexOf(r.type) >= 0));
@@ -578,12 +578,12 @@ let layoutDialog = {
     if (this.widgets.chkUseWeights)        this.widgets.chkUseWeights.setSelection(!!this.config.useRelationWeights);
     if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
     if (this.widgets.chkNestedPack)
-      this.widgets.chkNestedPack.setSelection(this.config.elkNestedAlgorithm === "rectpacking");
+      this.widgets.chkNestedPack.setSelection(this.config.nestedAlgorithm === "rectpacking");
     if (this.widgets.spinNestedSpacing)
-      this.widgets.spinNestedSpacing.setSelection(this.config.elkNestedSpacingNodeNode !== undefined ? this.config.elkNestedSpacingNodeNode : View.DEFAULTS.elkSpacing);
+      this.widgets.spinNestedSpacing.setSelection(this.config.nestedNodeSpacing !== undefined ? this.config.nestedNodeSpacing : View.DEFAULTS.nodeSpacing);
     if (this.widgets.chkSameTypeResize)
-      this.widgets.chkSameTypeResize.setSelection(!!this.config.elkSameTypeResize);
-    if (this.widgets.chkSortContainers) this.widgets.chkSortContainers.setSelection(!this.config.elkSortLeavesOnly);
+      this.widgets.chkSameTypeResize.setSelection(!!this.config.sameTypeResize);
+    if (this.widgets.chkSortContainers) this.widgets.chkSortContainers.setSelection(!this.config.sortLeavesOnly);
     if (this.widgets.chkExcludeFromView)   this.widgets.chkExcludeFromView.setSelection(!!this.config.excludeFromView);
 
     if (initialSelection && initialSelection.length > 0) {
@@ -640,13 +640,13 @@ let layoutDialog = {
       });
 
     var _algoVal = getRadioVal(this.widgets.grpAlgorithm);
-    this.config.elkAlgorithm = _algoVal;  // store engine name directly (dot, fdp, layered, etc.)
+    this.config.algorithm = _algoVal;  // store engine name directly (dot, fdp, layered, etc.)
 
-    this.config.elkDirection = (function() {
+    this.config.layoutDirection = (function() {
       var opts = layoutDialog._dirOpts, cmb = layoutDialog.widgets.cmbDir;
-      if (!opts || !cmb) return View.DEFAULTS.elkDirection;
+      if (!opts || !cmb) return View.DEFAULTS.layoutDirection;
       var i = cmb.getSelectionIndex();
-      return (i >= 0 && i < opts.length) ? opts[i].val : View.DEFAULTS.elkDirection;
+      return (i >= 0 && i < opts.length) ? opts[i].val : View.DEFAULTS.layoutDirection;
     })();
     this.config.dagreRanker = (function() {
       var opts = layoutDialog._rankerOpts, cmb = layoutDialog.widgets.cmbRanker;
@@ -656,19 +656,19 @@ let layoutDialog = {
     })();
 
     var _rv = getRadioVal(this.widgets.grpEdgeRouting);
-    if (View.GV_ALGORITHMS.has(this.config.elkAlgorithm)) {
+    if (View.GV_ALGORITHMS.has(this.config.algorithm)) {
       this.config.graphvizSplines = _rv || View.DEFAULTS.graphvizSplines;
-      if (_rv !== "CURVED" && _rv !== "SPLINE") this.config.elkEdgeRouting = _rv;
+      if (_rv !== "CURVED" && _rv !== "SPLINE") this.config.edgeRouting = _rv;
     } else {
-      this.config.elkEdgeRouting = _rv;
+      this.config.edgeRouting = _rv;
     }
     this.config.useRelationWeights  = this.widgets.chkUseWeights ? this.widgets.chkUseWeights.getSelection() : false;
 
     this.config.nodeWidth           = this.widgets.spinWidth.getSelection();
     this.config.nodeHeight          = this.widgets.spinHeight.getSelection();
-    this.config.elkSpacingNodeNode  = this.widgets.spinNodeSep.getSelection();
-    this.config.elkLayerSpacing     = this.widgets.spinLayerSep.getSelection();
-    this.config.elkPadding          = this.widgets.spinPadding.getSelection();
+    this.config.nodeSpacing  = this.widgets.spinNodeSep.getSelection();
+    this.config.layerSpacing     = this.widgets.spinLayerSep.getSelection();
+    this.config.padding          = this.widgets.spinPadding.getSelection();
     this.config.viewMaxWidth        = this.widgets.spinViewMaxWidth    ? this.widgets.spinViewMaxWidth.getSelection()    : 0;
     this.config.viewMaxHeight       = this.widgets.spinViewMaxHeight   ? this.widgets.spinViewMaxHeight.getSelection()   : 0;
     this.config.viewAspectRatio = (function() {
@@ -681,10 +681,10 @@ let layoutDialog = {
     this.config.layoutReversed = (this.widgets.lstReversed_checks || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
-    this.config.elkNestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? "rectpacking" : "";
-    this.config.elkNestedSpacingNodeNode = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULTS.elkSpacing;
-    this.config.elkSameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
-    this.config.elkSortLeavesOnly        = !(this.widgets.chkSortContainers && this.widgets.chkSortContainers.getSelection());
+    this.config.nestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? "rectpacking" : "";
+    this.config.nestedNodeSpacing = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULTS.nodeSpacing;
+    this.config.sameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
+    this.config.sortLeavesOnly        = !(this.widgets.chkSortContainers && this.widgets.chkSortContainers.getSelection());
 
     this.config.viewName       = String(this.widgets.txtViewName.getText()).trim();
     this.config.viewNameSuffix = undefined;

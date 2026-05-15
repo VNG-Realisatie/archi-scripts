@@ -55,6 +55,6 @@ module.exports = {
 
     nodeWidth: 270,
       nodeHeight: 25,
-      elkSpacingNodeNode: 15,
-      elkLayerSpacing:    120,
+      nodeSpacing: 15,
+      layerSpacing:    120,
 };

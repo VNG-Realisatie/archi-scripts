@@ -10,6 +10,6 @@
   "excludeFromView": false,
   "nodeWidth": 270,
   "nodeHeight": 25,
-  "elkSpacingNodeNode": 15,
-  "elkLayerSpacing": 180
+  "nodeSpacing": 15,
+  "layerSpacing": 180
 }
