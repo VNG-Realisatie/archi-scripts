@@ -103,6 +103,7 @@ const DEFAULT_PRESET = Object.assign({
   viewFolder:                 "",
   nestedAlgorithm:         "",
   nestedNodeSpacing:   DEFAULTS.nodeSpacing,
+  nestedAspectRatio:       0,
   sameTypeResize:          false,
   sortLeavesOnly:          false,
   useRelationWeights:         false,
@@ -122,7 +123,7 @@ const ELK_CAPABILITIES = {
   [ALGO.ELK_LAYERED]:     caps({ dir: true, routing: true, layerSep: true, nesting: true }),
   [ALGO.ELK_MRTREE]:      caps({ dir: true, routing: true, nesting: true }),
   [ALGO.ELK_FORCE]:       caps({ weights: true, ar: true }),
-  [ALGO.ELK_BOX]:         caps({ nesting: true }),
+  [ALGO.ELK_BOX]:         caps({ maxW: true, ar: true, nesting: true }),
   [ALGO.ELK_STRESS]:      caps({ weights: true, ar: true, nesting: true }),
   [ALGO.ELK_RADIAL]:      caps({ layerSep: true, weights: true, ar: true, nesting: true }),
   [ALGO.ELK_RECTPACKING]: caps({ maxW: true, ar: true, packRow: true, nesting: true }),
@@ -250,6 +251,9 @@ function _layoutAndRenderELK(param, filteredElements) {
   let occurrenceMap = {};
 
   _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
+
+  // Runtime-only: total node count used by _buildCompoundOptsELK to scale aspectRatio.
+  param._totalNodes = Object.keys(nodeMap).length;
 
   const layoutOptions = _buildLayoutOptionsELK(param);
 
@@ -526,32 +530,62 @@ function _buildLayoutOptionsELK(param) {
  * @param {number} depth        nesting depth (0 = direct child of root)
  * @param {number} extraHPadding extra horizontal padding from equalizeSiblings
  */
-function _buildCompoundOptsELK(param, depth, extraHPadding) {
-  const p   = param.padding || DEFAULTS.padding;
-  const ph  = p + (extraHPadding || 0);
-  const top = p + NESTED_LABEL_TOP_EXTRA;
-  // Effective algorithm: Pack tightly override if set, else inherit root algorithm.
-  const algo = param.nestedAlgorithm || param.algorithm;
+function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
+  const p       = param.padding || DEFAULTS.padding;
+  const ph      = p + (extraHPadding || 0);
+  const top     = p + NESTED_LABEL_TOP_EXTRA;
+  const spacing = param.nestedNodeSpacing !== undefined
+    ? param.nestedNodeSpacing : DEFAULTS.nestedNodeSpacing;
+  const nw = param.nodeWidth  || DEFAULTS.nodeWidth;
+  const nh = param.nodeHeight || DEFAULTS.nodeHeight;
+
+  // Default: box — structured packing with predictable aspectRatio-based width control.
+  // User can override via nestedAlgorithm (rectpacking = "tight packing" checkbox).
+  const algo = param.nestedAlgorithm || ALGO.ELK_BOX;
 
   const opts = {
     "elk.padding":          `[top=${top},left=${ph},bottom=${p},right=${ph}]`,
-    "elk.spacing.nodeNode": String(param.nestedNodeSpacing !== undefined
-                              ? param.nestedNodeSpacing : DEFAULTS.nodeSpacing),
+    "elk.spacing.nodeNode": String(spacing),
     "elk.algorithm":        algo,
   };
 
-  if (algo === ALGO.ELK_RECTPACKING) {
+  if (algo === ALGO.ELK_BOX) {
+    // SIMPLE packingMode: ELK places nodes left-to-right until the bounding box width
+    // (derived from aspectRatio × totalLeafArea) is full, then wraps to next row.
+    // This is more predictable than GROUP_DEC for uniform-size ArchiMate nodes.
+    opts["elk.box.packingMode"] = "SIMPLE";
+
+    const n    = childCount || 1;
+    const colW = nw + spacing;
+
+    // k_sqrt: natural columns for a roughly square-ish container (1.2 = slight horizontal bias).
+    // k_max:  max columns fitting in half viewMaxWidth minus container padding.
+    // k:      smaller → small containers stay natural; large ones are capped.
+    const kSqrt = Math.max(1, Math.floor(1.2 * Math.sqrt(n)));
+    const capW  = param.viewMaxWidth > 0 ? param.viewMaxWidth * 0.5 - 2 * ph : 0;
+    const kMax  = capW > 0 ? Math.max(1, Math.floor(capW / colW)) : kSqrt;
+    const k     = Math.min(kSqrt, kMax);
+
+    // ELK box SIMPLE: bounding box width = sqrt(ar × leafArea), leafArea = n × nw × nh.
+    // Solve for ar that gives bounding box width = k × colW:
+    //   ar = (k × colW)² / (n × nw × nh)
+    const leafArea = Math.max(1, n * nw * nh);
+    const arAuto   = (k * colW) * (k * colW) / leafArea;
+    const ar = (param.nestedAspectRatio > 0) ? param.nestedAspectRatio : arAuto;
+    opts["elk.aspectRatio"] = Math.max(0.1, ar).toFixed(3);
+    console.log(`  compound n=${n} k=${k} ar=${opts["elk.aspectRatio"]} (${param.nestedAspectRatio > 0 ? "manual" : "auto"})`);
+
+  } else if (algo === ALGO.ELK_RECTPACKING) {
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
-    // Always set orderBySize — omitting it may cause ELK to use a fallback packing mode
-    // that ignores targetWidth. Pack tightly controls extra options on top of this.
     opts["elk.rectpacking.orderBySize"] = !!param.sortLeavesOnly;
     if (param.viewMaxWidth > 0) {
       const tw = param.viewMaxWidth - (depth + 1) * 2 * p;
       if (tw > 0) opts["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
     }
+
   } else {
-    // For hierarchical algorithms: propagate key root options so sub-layouts match root.
+    // layered / other: propagate root options into sub-layout.
     opts["elk.direction"]   = param.layoutDirection;
     opts["elk.edgeRouting"] = (param.edgeRouting === "STRAIGHT" || param.edgeRouting === "SPLINES")
                                ? "POLYLINE" : param.edgeRouting;
@@ -559,7 +593,7 @@ function _buildCompoundOptsELK(param, depth, extraHPadding) {
       opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.layerSpacing);
   }
 
-  Common.debug(`_buildCompoundOptsELK depth=${depth} algo=${algo} tw=${opts["elk.rectpacking.widthApproximation.targetWidth"] || "-"} ph=${ph}`);
+  Common.debug(`_buildCompoundOptsELK depth=${depth} n=${childCount} algo=${algo} ar=${opts["elk.aspectRatio"] || "-"} ph=${ph}`);
   return opts;
 }
 
@@ -638,7 +672,7 @@ function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
     if (!node.children || node.children.length === 0) return;
     let depth = 0, p = parentMap[nodeId];
     while (p !== undefined) { depth++; p = parentMap[p]; }
-    node.layoutOptions = _buildCompoundOptsELK(param, depth, node._extraHPadding || 0);
+    node.layoutOptions = _buildCompoundOptsELK(param, depth, node._extraHPadding || 0, node.children.length);
   });
 
   // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
@@ -1545,8 +1579,7 @@ function _flattenDotSpline(posStr, totalH, splineType) {
   let bps = [];
 
   if (useBezier) {
-    // Evaluate each cubic Bézier segment at t = 0.25, 0.5, 0.75 plus the knot.
-    // The dense sampling gives Archi enough bendpoints to approximate the curve.
+    // Sample each cubic Bézier segment at t=0.25, 0.5, 0.75 to approximate the curve.
     function bezier(P0, P1, P2, P3, t) {
       let m = 1 - t;
       return {
@@ -1556,12 +1589,10 @@ function _flattenDotSpline(posStr, totalH, splineType) {
     }
     let numSegs = Math.floor((pts.length - 1) / 3);
     for (let seg = 0; seg < numSegs; seg++) {
-      let P0 = pts[seg * 3], P1 = pts[seg * 3 + 1],
-          P2 = pts[seg * 3 + 2], P3 = pts[seg * 3 + 3];
+      let P0 = pts[seg*3], P1 = pts[seg*3+1], P2 = pts[seg*3+2], P3 = pts[seg*3+3];
       bps.push(bezier(P0, P1, P2, P3, 0.25));
       bps.push(bezier(P0, P1, P2, P3, 0.5));
       bps.push(bezier(P0, P1, P2, P3, 0.75));
-      // Add the knot between segments (not on the last segment — that's the target boundary).
       if (seg < numSegs - 1) bps.push({ x: Math.round(P3.x), y: Math.round(P3.y) });
     }
   } else {
@@ -1669,8 +1700,15 @@ function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentR
         let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.edgeRouting);
         if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
         if (!bps.length) return;
-        let srcCenter = _getCenterBounds(connection.source);
-        let tgtCenter = _getCenterBounds(connection.target);
+        // Compute centers from coords (Graphviz-computed positions) rather than from
+        // element.bounds, which can return cached pre-layout values in jArchi when the
+        // same view is being updated. coords is in the same pixel space as the bps.
+        let _sc = coords.nodes[String(archiRel.source.id)] || coords.clusters[String(archiRel.source.id)];
+        let _tc = coords.nodes[String(archiRel.target.id)] || coords.clusters[String(archiRel.target.id)];
+        let srcCenter = _sc ? { x: Math.round(_sc.x + _sc.w / 2), y: Math.round(_sc.y + _sc.h / 2) }
+                             : _getCenterBounds(srcVisual);
+        let tgtCenter = _tc ? { x: Math.round(_tc.x + _tc.w / 2), y: Math.round(_tc.y + _tc.h / 2) }
+                             : _getCenterBounds(tgtVisual);
         let isRev     = reversedSet.has(connection.type);
         let calcBps   = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
         for (let i = 0; i < calcBps.length; i++) {

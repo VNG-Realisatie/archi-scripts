@@ -581,6 +581,8 @@ let layoutDialog = {
       this.widgets.chkNestedPack.setSelection(this.config.nestedAlgorithm === "rectpacking");
     if (this.widgets.spinNestedSpacing)
       this.widgets.spinNestedSpacing.setSelection(this.config.nestedNodeSpacing !== undefined ? this.config.nestedNodeSpacing : View.DEFAULTS.nodeSpacing);
+    if (this.widgets.spinNestedAR)
+      this.widgets.spinNestedAR.setSelection(Math.round((this.config.nestedAspectRatio || 0) * 10));
     if (this.widgets.chkSameTypeResize)
       this.widgets.chkSameTypeResize.setSelection(!!this.config.sameTypeResize);
     if (this.widgets.chkSortContainers) this.widgets.chkSortContainers.setSelection(!this.config.sortLeavesOnly);
@@ -682,7 +684,8 @@ let layoutDialog = {
     this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
     this.config.nestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? "rectpacking" : "";
-    this.config.nestedNodeSpacing = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULTS.nodeSpacing;
+    this.config.nestedNodeSpacing  = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULTS.nodeSpacing;
+    this.config.nestedAspectRatio  = this.widgets.spinNestedAR ? this.widgets.spinNestedAR.getSelection() / 10.0 : 0;
     this.config.sameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
     this.config.sortLeavesOnly        = !(this.widgets.chkSortContainers && this.widgets.chkSortContainers.getSelection());
 
@@ -1281,13 +1284,13 @@ let layoutDialog = {
       new LabelWidget(compAlgo, SWT.NONE); // col 6
       // col 7: Pack tightly checkbox square, grab + right-aligned
       let chkNestedPack = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
-      chkNestedPack.setToolTipText("Packs elements inside each container into the smallest rectangle, eliminating gaps. Best when all relations are nesting and no relation lines are visible.");
+      chkNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
       GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkNestedPack);
       layoutDialog.widgets.chkNestedPack = chkNestedPack;
       // col 8: text label (click toggles checkbox)
       let lblNestedPack = new LabelWidget(compAlgo, SWT.NONE);
       lblNestedPack.setText("Pack tightly");
-      lblNestedPack.setToolTipText("Packs elements inside each container into the smallest rectangle, eliminating gaps. Best when all relations are nesting and no relation lines are visible.");
+      lblNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
       lblNestedPack.addListener(SWT.MouseUp, function() { chkNestedPack.setSelection(!chkNestedPack.getSelection()); });
       layoutDialog.widgets.chkNestedPack_lbl = lblNestedPack;
 
@@ -1444,6 +1447,7 @@ let layoutDialog = {
 
       (function() {
         var _NESTING_BELOW_SEP = ["spinPadding", "spinPadding_lbl", "spinNestedSpacing", "_lblNestedSpacing",
+                                   "spinNestedAR", "_lblNestedAR",
                                    "chkSameTypeResize", "chkMultiOcc", "chkSortContainers"];
         function updateNestingControls() {
           if (!layoutDialog._nestingSupported) return;
@@ -1496,6 +1500,19 @@ let layoutDialog = {
       spinNestedSpacing.setToolTipText("Space between elements inside containers (px). Applies to all ELK-based layouts.");
       GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinNestedSpacing);
       layoutDialog.widgets.spinNestedSpacing = spinNestedSpacing;
+
+      // Aspect ratio override (box algorithm, 0 = auto-computed from child count)
+      let _lblNestedAR = new LabelWidget(grpNested, SWT.NONE);
+      _lblNestedAR.setText("Width ratio (w/h):");
+      _lblNestedAR.setToolTipText("Target width-to-height ratio inside containers (box algorithm). 0 = auto-computed from element count and viewMaxWidth. Higher = wider containers.");
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(_lblNestedAR);
+      layoutDialog.widgets._lblNestedAR = _lblNestedAR;
+      let spinNestedAR = new SpinnerWidget(grpNested, SWT.BORDER);
+      // Stored as ×10 integer: 0=auto, 5=0.5, 13=1.3, 25=2.5, 50=5.0
+      spinNestedAR.setValues(0, 0, 50, 1, 1, 10);
+      spinNestedAR.setToolTipText("Target width-to-height ratio inside containers (box algorithm). 0 = auto-computed from element count and viewMaxWidth. Higher = wider containers.");
+      GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinNestedAR);
+      layoutDialog.widgets.spinNestedAR = spinNestedAR;
 
       // Row B — Align same-type
       let chkSameTypeResize = new ButtonWidget(grpNested, SWT.CHECK);
