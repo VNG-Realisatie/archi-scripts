@@ -812,6 +812,11 @@ let layoutDialog = {
     if (!_caps.maxW) this.config.viewMaxWidth   = 0;
     if (!_caps.maxH) this.config.viewMaxHeight  = 0;
     if (!_caps.ar)   this.config.viewAspectRatio = 0;
+
+    if (this.config.debug) {
+      var _dbg = Object.keys(this.config).map(function(k) { return k + "=" + JSON.stringify(layoutDialog.config[k]); }).join(", ");
+      console.log("saveInput: " + _dbg);
+    }
   },
 
   updateActionControls: function (action) {
@@ -843,7 +848,7 @@ let layoutDialog = {
       twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: false  },
       circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: false  },
     };
-    var GV_ENGINES = ["graphviz", "dot", "neato", "fdp", "sfdp", "twopi", "circo"];
+    // var GV_ENGINES = ["graphviz", "dot", "neato", "fdp", "sfdp", "twopi", "circo"];
     var c = CAPS[algo] || CAPS['layered'];
     layoutDialog._currentCaps = c;
     function setRowEnabled(comp, enabled) {

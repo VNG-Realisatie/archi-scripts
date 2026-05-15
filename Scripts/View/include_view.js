@@ -61,6 +61,28 @@ const DEFAULT_ELK_EDGE_ROUTING = "ORTHOGONAL";
 const DEFAULT_ELK_PADDING      = 20;
 const NESTED_LABEL_TOP_EXTRA   = 30; // extra top padding so Archi's container label doesn't overlap children
 
+// Which parameters each algorithm supports.
+// Exported so the GUI and direct API callers share the same source of truth.
+// maxW/maxH/ar: view size constraints; nesting: compound nodes are meaningful.
+const ALGORITHM_CAPS = {
+  layered:     { maxW: false, maxH: false, ar: false, nesting: true  },
+  mrtree:      { maxW: false, maxH: false, ar: false, nesting: true  },
+  force:       { maxW: false, maxH: false, ar: true,  nesting: false },
+  box:         { maxW: false, maxH: false, ar: false, nesting: true  },
+  stress:      { maxW: false, maxH: false, ar: true,  nesting: true  },
+  radial:      { maxW: false, maxH: false, ar: true,  nesting: true  },
+  dagre:       { maxW: false, maxH: false, ar: false, nesting: true  },
+  rectpacking: { maxW: true,  maxH: false, ar: true,  nesting: true  },
+  graphviz:    { maxW: true,  maxH: true,  ar: true,  nesting: true  }, // legacy: elkAlgorithm="graphviz" + graphvizEngine
+  dot:         { maxW: true,  maxH: true,  ar: true,  nesting: true  },
+  neato:       { maxW: true,  maxH: true,  ar: true,  nesting: true  },
+  fdp:         { maxW: true,  maxH: true,  ar: true,  nesting: true  },
+  sfdp:        { maxW: true,  maxH: true,  ar: true,  nesting: false },
+  twopi:       { maxW: true,  maxH: true,  ar: true,  nesting: false },
+  circo:       { maxW: true,  maxH: true,  ar: true,  nesting: false },
+};
+const GV_ALGORITHMS = new Set(["dot", "neato", "fdp", "sfdp", "twopi", "circo"]);
+
 // Relation type weights for weight-driven layout (elk.priority).
 // Higher weight = stronger attraction between connected elements.
 const RELATION_WEIGHTS = {
@@ -245,8 +267,10 @@ function generate_view(param, drawCollection) {
  * @returns Archi view
  */
 function _layoutAndRender(param, filteredElements) {
-  if (param.elkAlgorithm === "dagre")    return _layoutAndRenderDagre(param, filteredElements);
-  if (param.elkAlgorithm === "graphviz") return _layoutAndRenderGraphviz(param, filteredElements);
+  Common.debug(`_layoutAndRender: algorithm=${param.elkAlgorithm} elements=${filteredElements.length}`);
+  if (param.elkAlgorithm === "dagre") return _layoutAndRenderDagre(param, filteredElements);
+  if (GV_ALGORITHMS.has(param.elkAlgorithm) || param.elkAlgorithm === "graphviz")
+    return _layoutAndRenderGraphviz(param, filteredElements);
 
   let elkNodeMap   = {};
   let elkEdgeList  = [];
@@ -422,6 +446,7 @@ function _setDefaultParameters(param) {
 
   console.log("\nELK layout parameters");
   if (param.elkAlgorithm    === undefined) param.elkAlgorithm    = DEFAULT_ELK_ALGORITHM;
+  if (!ALGORITHM_CAPS[param.elkAlgorithm]) throw new Error("Unknown algorithm: " + param.elkAlgorithm);
   console.log("- elkAlgorithm = "    + param.elkAlgorithm);
   if (param.elkDirection    === undefined) param.elkDirection    = DEFAULT_ELK_DIRECTION;
   console.log("- elkDirection = "    + param.elkDirection);
@@ -446,6 +471,12 @@ function _setDefaultParameters(param) {
   if (param.viewMaxWidth    === undefined) param.viewMaxWidth    = 0;
   if (param.viewMaxHeight   === undefined) param.viewMaxHeight   = 0;
   if (param.viewAspectRatio === undefined) param.viewAspectRatio = 0;
+  // Zero view-size params not supported by this algorithm (safety net for direct API callers;
+  // the GUI already zeroes these in saveInput via _currentCaps).
+  const _caps = ALGORITHM_CAPS[param.elkAlgorithm] || {};
+  if (!_caps.maxW) param.viewMaxWidth  = 0;
+  if (!_caps.maxH) param.viewMaxHeight = 0;
+  if (!_caps.ar)   param.viewAspectRatio = 0;
   console.log("- viewMaxWidth = "    + param.viewMaxWidth    + (param.viewMaxWidth    > 0 ? " px" : " (no limit)"));
   console.log("- viewMaxHeight = "   + param.viewMaxHeight   + (param.viewMaxHeight   > 0 ? " px" : " (no limit)"));
   console.log("- viewAspectRatio = " + param.viewAspectRatio + (param.viewAspectRatio > 0 ? "" : " (no limit)"));
@@ -527,27 +558,63 @@ function _buildElkLayoutOptions(param) {
     opts["elk.aspectRatio"] = String(param.viewAspectRatio);
     console.log("- elk.aspectRatio = " + param.viewAspectRatio);
   }
+  Common.debug(`_buildElkLayoutOptions: ${JSON.stringify(opts)}`);
   return opts;
 }
 
 /**
  * Assemble the ELK graph object from pre-built maps
  */
+/**
+ * All layout options for a single compound node — one call, complete result.
+ * @param {object} param        layout parameters
+ * @param {number} depth        nesting depth (0 = direct child of root)
+ * @param {number} extraHPadding extra horizontal padding from equalizeSiblings
+ */
+function _buildCompoundNodeOpts(param, depth, extraHPadding) {
+  const p   = param.elkPadding || DEFAULT_ELK_PADDING;
+  const ph  = p + (extraHPadding || 0);
+  const top = p + NESTED_LABEL_TOP_EXTRA;
+  // Effective algorithm: Pack tightly override if set, else inherit root algorithm.
+  const algo = param.elkNestedAlgorithm || param.elkAlgorithm;
+
+  const opts = {
+    "elk.padding":          `[top=${top},left=${ph},bottom=${p},right=${ph}]`,
+    "elk.spacing.nodeNode": String(param.elkNestedSpacingNodeNode !== undefined
+                              ? param.elkNestedSpacingNodeNode : DEFAULT_ELK_SPACING),
+    "elk.algorithm":        algo,
+  };
+
+  if (algo === "rectpacking") {
+    opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
+    opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
+    // Always set orderBySize — omitting it may cause ELK to use a fallback packing mode
+    // that ignores targetWidth. Pack tightly controls extra options on top of this.
+    opts["elk.rectpacking.orderBySize"] = !!param.elkSortLeavesOnly;
+    if (param.viewMaxWidth > 0) {
+      const tw = param.viewMaxWidth - (depth + 1) * 2 * p;
+      if (tw > 0) opts["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
+    }
+  } else {
+    // For hierarchical algorithms: propagate key root options so sub-layouts match root.
+    opts["elk.direction"]   = param.elkDirection;
+    opts["elk.edgeRouting"] = (param.elkEdgeRouting === "STRAIGHT" || param.elkEdgeRouting === "SPLINES")
+                               ? "POLYLINE" : param.elkEdgeRouting;
+    if (param.elkLayerSpacing !== undefined)
+      opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.elkLayerSpacing);
+  }
+
+  Common.debug(`_buildCompoundNodeOpts depth=${depth} algo=${algo} tw=${opts["elk.rectpacking.widthApproximation.targetWidth"] || "-"} ph=${ph}`);
+  return opts;
+}
+
 function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParentMap) {
-  // Attach children to their parents and set padding
+  // Step 1: attach children
   Object.keys(elkParentMap).forEach(function(childId) {
-    const parentId  = elkParentMap[childId];
-    const parentNode = elkNodeMap[parentId];
+    const parentNode = elkNodeMap[elkParentMap[childId]];
     const childNode  = elkNodeMap[childId];
-    if (parentNode && childNode) {
-      parentNode.layoutOptions = parentNode.layoutOptions || {};
-      const p  = param.elkPadding;
-      const ph = p + (parentNode._extraHPadding || 0);
-      const top = p + NESTED_LABEL_TOP_EXTRA;
-      parentNode.layoutOptions["elk.padding"] = `[top=${top},left=${ph},bottom=${p},right=${ph}]`;
-      if (!parentNode.children.some(function(c) { return c.id === childId; })) {
-        parentNode.children.push(childNode);
-      }
+    if (parentNode && childNode && !parentNode.children.some(function(c) { return c.id === childId; })) {
+      parentNode.children.push(childNode);
     }
   });
 
@@ -608,67 +675,16 @@ function _buildElkGraph(param, layoutOptions, elkNodeMap, elkEdgeList, elkParent
     rootEdges.push(edge);
   });
 
-  // Propagate root layout options to every compound node that has internal edges,
-  // so its sub-layout uses the same algorithm/direction/routing as the root.
-  // Preserve the elk.padding that was set during child-parent attachment above.
+  // Step 4: compound node layout options — single pass using _buildCompoundNodeOpts.
+  // Replaces the old propagation + inner-gap + targetWidth + nested-algo loops.
+  Common.debug(`_buildElkGraph: ${Object.keys(elkParentMap).length} nestings, ${elkEdgeList.length} edges`);
   Object.keys(elkNodeMap).forEach(function(nodeId) {
     const node = elkNodeMap[nodeId];
-    if (node.edges && node.edges.length > 0) {
-      const padding = node.layoutOptions && node.layoutOptions["elk.padding"];
-      node.layoutOptions = Object.assign({}, layoutOptions);
-      if (padding) node.layoutOptions["elk.padding"] = padding;
-    }
+    if (!node.children || node.children.length === 0) return;
+    let depth = 0, p = elkParentMap[nodeId];
+    while (p !== undefined) { depth++; p = elkParentMap[p]; }
+    node.layoutOptions = _buildCompoundNodeOpts(param, depth, node._extraHPadding || 0);
   });
-
-  // Apply inner gap to all compound nodes (all ELK algorithms).
-  if (param.elkNestedSpacingNodeNode !== undefined) {
-    Object.keys(elkNodeMap).forEach(function(nodeId) {
-      const node = elkNodeMap[nodeId];
-      if (node.children && node.children.length > 0) {
-        node.layoutOptions = node.layoutOptions || {};
-        node.layoutOptions["elk.spacing.nodeNode"] = param.elkNestedSpacingNodeNode;
-      }
-    });
-  }
-
-  // Apply depth-adjusted targetWidth to ALL compound nodes when viewMaxWidth is set.
-  // IMPORTANT: must also set elk.algorithm = "rectpacking" explicitly — without it, compound
-  // nodes fall back to the default (layered) algorithm which silently ignores
-  // elk.rectpacking.* properties, producing unconstrained container widths.
-  if (param.viewMaxWidth > 0 && param.elkAlgorithm === "rectpacking") {
-    Object.keys(elkNodeMap).forEach(function(nodeId) {
-      const node = elkNodeMap[nodeId];
-      if (node.children && node.children.length > 0) {
-        node.layoutOptions = node.layoutOptions || {};
-        node.layoutOptions["elk.algorithm"] = "rectpacking";
-        node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]            = 5;
-        node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
-        let _d = 0, _p = elkParentMap[nodeId];
-        while (_p !== undefined) { _d++; _p = elkParentMap[_p]; }
-        const tw = param.viewMaxWidth - (_d + 1) * 2 * (param.elkPadding || DEFAULT_ELK_PADDING);
-        if (tw > 0) node.layoutOptions["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
-      }
-    });
-  }
-
-  // Override algorithm for all compound nodes when elkNestedAlgorithm is set (Pack tightly).
-  // Runs after the propagation loop so it wins over any inherited root algorithm.
-  if (param.elkNestedAlgorithm) {
-    Object.keys(elkNodeMap).forEach(function(nodeId) {
-      const node = elkNodeMap[nodeId];
-      if (node.children && node.children.length > 0) {
-        node.layoutOptions = node.layoutOptions || {};
-        node.layoutOptions["elk.algorithm"] = param.elkNestedAlgorithm;
-        if (param.elkNestedAlgorithm === "rectpacking") {
-          node.layoutOptions["elk.rectpacking.orderBySize"]                                = param.elkSortLeavesOnly;
-          node.layoutOptions["elk.rectpacking.packing.compaction.iterations"]              = 5;
-          node.layoutOptions["elk.rectpacking.packing.compaction.rowHeightReevaluation"]   = true;
-          // targetWidth already applied by the general loop above.
-          // Aspect ratio is a root-level constraint; nested containers do not inherit it.
-        }
-      }
-    });
-  }
 
   // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
   // Lift such endpoints to their root-level ancestor so ELK can use the edges for
@@ -728,6 +744,7 @@ function _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels,
   console.log(`- ${Object.keys(elkNodeMap).length} nodes and`);
   console.log(`- ${elkEdgeList.length} edges`);
   if (elkParentRels.length > 0) console.log(`- ${elkParentRels.length} parent-child nestings`);
+  Common.debug(`_fillGraph: occurrences=${Object.keys(occurrenceMap).length} parentRels=${elkParentRels.length}`);
 }
 
 /**
@@ -1198,6 +1215,7 @@ function _openView(view) {
 // ── Dagre (dagre-cluster-fix) engine ────────────────────────────────────────
 
 function _layoutAndRenderDagre(param, filteredElements) {
+  Common.debug(`_layoutAndRenderDagre: elements=${filteredElements.length}`);
   if (!dagre) throw "dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.";
 
   let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
@@ -1347,10 +1365,12 @@ function _drawDagreEdge(param, graph, edge, visualElementIndex, view) {
 // ── Graphviz DOT engine ──────────────────────────────────────────────────────
 
 function _layoutAndRenderGraphviz(param, filteredElements) {
+  Common.debug(`_layoutAndRenderGraphviz: engine=${param.graphvizEngine || param.elkAlgorithm} elements=${filteredElements.length}`);
   let elkNodeMap = {}, elkEdgeList = [], elkParentMap = {}, elkParentRels = [], occurrenceMap = {};
   _fillGraph(param, elkNodeMap, elkEdgeList, elkParentMap, elkParentRels, occurrenceMap, filteredElements);
 
   let dotSource = _buildDotGraph(param, elkNodeMap, elkEdgeList, elkParentMap);
+  Common.debug("_buildDotGraph result:\n" + dotSource);
   console.log("\nRunning Graphviz (" + (param.graphvizEngine || "dot") + ")...");
 
   let jsonOut = _runDot(dotSource, param.graphvizEngine || "dot", param.graphvizBin || "dot");
@@ -1887,5 +1907,7 @@ if (typeof module !== "undefined" && module.exports) {
     PROP_EXCLUDE,
     ELEMENT_NAMES,
     RELATION_NAMES,
+    ALGORITHM_CAPS,
+    GV_ALGORITHMS,
   };
 }
