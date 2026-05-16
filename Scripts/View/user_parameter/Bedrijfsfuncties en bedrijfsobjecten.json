@@ -19,12 +19,9 @@
     "aggregation-relationship"
   ],
   "layoutCircular": true,
-  "graphDirection": "LR",
   "ranker": "network-simplex",
   "nodeWidth": 240,
   "nodeHeight": 30,
-  "hSep": 20,
-  "vSep": 180,
   "debug": false,
   "excludeFromView": false,
   "viewName": "KadastraleOnroerendeZaak",
@@ -38,7 +35,6 @@
   ],
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsfuncties en bedrijfsobjecten.js",
-  "graphvizEngine": "dot",
   "graphvizBin": "",
   "_windowBounds": {
     "x": 1743,

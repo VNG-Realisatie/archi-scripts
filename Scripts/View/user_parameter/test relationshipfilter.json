@@ -20,12 +20,9 @@
     "aggregation-relationship"
   ],
   "layoutCircular": true,
-  "graphDirection": "LR",
   "ranker": "network-simplex",
   "nodeWidth": 300,
   "nodeHeight": 60,
-  "hSep": 20,
-  "vSep": 180,
   "debug": false,
   "excludeFromView": false,
   "viewName": "Werkgelegenheid",

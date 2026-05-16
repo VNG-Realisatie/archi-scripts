@@ -1,7 +1,76 @@
-# CLAUDE.md — Scripts/View technical rules
+# Scripts/View — subsystem rules
 
-See also: `PROMPT.md` (data structures, ELK/Dagre path, parameter reference)
-See also: `../../CLAUDE.md` (vocabulary and pipeline model)
+See: `architecture.md` — folder organization and module boundaries
+See: `coding-standards.md` — naming and module conventions
+See: `CLAUDE.md` — project vocabulary
+See: `PROMPT.md` — data structures, ELK/Dagre path, parameter reference
+
+## Pipeline model
+
+```
+Relations → Nesting → Containers → Layout → Diagram
+```
+
+1. Relations are assigned a **role**: nesting / grouping / visual-only
+2. Nesting rules produce **structure** (parent-child groupings)
+3. Containers **represent** structure visually — no semantic meaning beyond that
+4. Layout **positions** containers first, then elements inside them, then unnested elements in root space
+5. Filtering affects **visibility only** — it does not alter nesting structure
+
+## Hard rules
+
+- Users never define containers directly — containers are always derived from nesting.
+- A relation assigned to nesting takes priority over grouping, which takes priority over visual-only.
+- Same inputs must always produce the same nesting, containers, and layout result (determinism).
+- An element may appear in multiple containers via **visual instances** (shared nesting). Each instance belongs to exactly one container.
+
+## UI section → pipeline stage mapping
+
+| UI section | Pipeline stage |
+|---|---|
+| Element filter | visibility (elements) |
+| Relationship filter | visibility + nesting rule selection |
+| Nesting group | nesting rules (which relation types create containers) |
+| Layout style | positioning algorithm |
+| Spacing & size | layout parameters |
+
+## One-line system definition
+
+> Relations define nesting, nesting generates containers, containers are positioned by layout, and elements are rendered inside them.
+
+## GUI display vocabulary
+
+Internal names must not appear in labels or button text. Tooltips may use them parenthetically.
+
+| Internal | Display |
+|---|---|
+| Edge, edge routing | Relation line, relation line style |
+| Graph | Diagram or View |
+| Algorithm, engine | Layout style |
+| Rank / layer | Level |
+| Direction / orientation | Flow direction |
+| Node placement | Element alignment |
+| Layer spacing | Level spacing |
+| Node spacing | Element spacing |
+| Depth, hops | Relation levels |
+| Ranker | Layer ranking |
+| rectpacking (in labels) | Tight packing / Pack |
+| Parameter file, config file | Preset |
+| Per element | One view each |
+| Layout only | Re-layout |
+
+Algorithm display names:
+
+| Internal | Display |
+|---|---|
+| layered | Hierarchical |
+| mrtree | Tree |
+| force | Organic |
+| box | Grid |
+| stress | Balanced organic |
+| radial | Radial |
+| dagre | Hierarchical (nested) |
+| rectpacking | Pack |
 
 ## SWT / jArchi platform rules
 
@@ -10,6 +79,12 @@ See also: `../../CLAUDE.md` (vocabulary and pipeline model)
 - **`setBackground(null)`** resets to system default, but on GTK this is indistinguishable from the "active" appearance of toggle buttons. Always set an explicit `SWT.COLOR_WIDGET_BACKGROUND` for inactive state.
 - **Bold fonts**: `group.setFont(boldFont)` on a `GroupWidget` on GTK sets the title font. Create bold fonts via `new SWTFont(display, name, height, SWT.BOLD)`. Never dispose these during dialog lifetime.
 - **Tab styling**: Standard `TabFolder` on GTK/Linux does not support per-tab foreground/background. Use `tabFolder.setFont(boldFont)` for prominence. Further per-tab styling requires `CTabFolder` from `org.eclipse.swt.custom`.
+- Use `GridDataFactory.swtDefaults()` on spinners, not `fillDefaults()` — `fillDefaults()` sets `SWT.FILL` and stretches the widget.
+- Set the same `hint(width, SWT.DEFAULT)` on all spinners of the same category (50px fits 3-digit numbers).
+- For multi-row radio blocks: fix the label column width (e.g. 115px) and pass a `colWidth` to `createRadios` (e.g. 90px) so options align across rows.
+- Use `SWT.SEPARATOR | SWT.HORIZONTAL` spanning full width to divide logically distinct sub-sections.
+- Layout order within a group: main control (list builder) at top → toggles/checkboxes below separator → spinners last. Global controls (e.g. container padding) at the very bottom.
+- Widen Add/Remove buttons equally (95px) so both "Add >" and "< Remove" labels fit comfortably.
 
 ## layoutDialog architecture
 

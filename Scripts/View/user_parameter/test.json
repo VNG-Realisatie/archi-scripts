@@ -19,12 +19,9 @@
     "aggregation-relationship"
   ],
   "layoutCircular": true,
-  "graphDirection": "LR",
   "ranker": "network-simplex",
   "nodeWidth": 250,
   "nodeHeight": 30,
-  "hSep": 20,
-  "vSep": 180,
   "debug": false,
   "excludeFromView": false,
   "viewName": "BA01 Bedrijfsfunctiemodel en bedrijfsobjecten",

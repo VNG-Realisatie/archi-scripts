@@ -355,26 +355,6 @@ function _layoutAndRenderELK(param, filteredElements) {
 function _setDefaultParameters(param) {
   let validFlag = true;
 
-  // Migration shims: convert old param names (with warning)
-  const dagreToElkDir = { LR: "RIGHT", RL: "LEFT", TB: "DOWN", BT: "UP" };
-  if (param.graphDirection !== undefined && param.layoutDirection === undefined) {
-    param.layoutDirection = dagreToElkDir[param.graphDirection] || DEFAULT_PRESET.layoutDirection;
-    console.log(`> Migrated graphDirection="${param.graphDirection}" → layoutDirection="${param.layoutDirection}"`);
-  }
-  if (param.hSep !== undefined && param.nodeSpacing === undefined) {
-    param.nodeSpacing = param.hSep;
-    console.log(`> Migrated hSep=${param.hSep} → nodeSpacing=${param.nodeSpacing}`);
-  }
-  if (param.vSep !== undefined && param.layerSpacing === undefined) {
-    param.layerSpacing = param.vSep;
-    console.log(`> Migrated vSep=${param.vSep} → layerSpacing=${param.layerSpacing}`);
-  }
-  // Migrate legacy algorithm="graphviz" + graphvizEngine → direct engine name
-  if (param.algorithm === "graphviz" && param.graphvizEngine) {
-    console.log(`> Migrated algorithm="graphviz" + graphvizEngine="${param.graphvizEngine}" → algorithm="${param.graphvizEngine}"`);
-    param.algorithm = param.graphvizEngine;
-  }
-
   // Fill undefined fields from DEFAULT_PRESET (single source of truth for all defaults)
   Object.keys(DEFAULT_PRESET).forEach(function(k) {
     if (param[k] === undefined) param[k] = DEFAULT_PRESET[k];
@@ -536,12 +516,8 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
   const top     = p + NESTED_LABEL_TOP_EXTRA;
   const spacing = param.nestedNodeSpacing !== undefined
     ? param.nestedNodeSpacing : DEFAULTS.nestedNodeSpacing;
-  const nw = param.nodeWidth  || DEFAULTS.nodeWidth;
-  const nh = param.nodeHeight || DEFAULTS.nodeHeight;
 
-  // Default: box — structured packing with predictable aspectRatio-based width control.
-  // User can override via nestedAlgorithm (rectpacking = "tight packing" checkbox).
-  const algo = param.nestedAlgorithm || ALGO.ELK_BOX;
+  const algo = param.nestedAlgorithm || param.algorithm;
 
   const opts = {
     "elk.padding":          `[top=${top},left=${ph},bottom=${p},right=${ph}]`,
@@ -550,42 +526,18 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
   };
 
   if (algo === ALGO.ELK_BOX) {
-    // SIMPLE packingMode: ELK places nodes left-to-right until the bounding box width
-    // (derived from aspectRatio × totalLeafArea) is full, then wraps to next row.
-    // This is more predictable than GROUP_DEC for uniform-size ArchiMate nodes.
-    opts["elk.box.packingMode"] = "SIMPLE";
-
-    const n    = childCount || 1;
-    const colW = nw + spacing;
-
-    // k_sqrt: natural columns for a roughly square-ish container (1.2 = slight horizontal bias).
-    // k_max:  max columns fitting in half viewMaxWidth minus container padding.
-    // k:      smaller → small containers stay natural; large ones are capped.
-    const kSqrt = Math.max(1, Math.floor(1.2 * Math.sqrt(n)));
-    const capW  = param.viewMaxWidth > 0 ? param.viewMaxWidth * 0.5 - 2 * ph : 0;
-    const kMax  = capW > 0 ? Math.max(1, Math.floor(capW / colW)) : kSqrt;
-    const k     = Math.min(kSqrt, kMax);
-
-    // ELK box SIMPLE: bounding box width = sqrt(ar × leafArea), leafArea = n × nw × nh.
-    // Solve for ar that gives bounding box width = k × colW:
-    //   ar = (k × colW)² / (n × nw × nh)
-    const leafArea = Math.max(1, n * nw * nh);
-    const arAuto   = (k * colW) * (k * colW) / leafArea;
-    const ar = (param.nestedAspectRatio > 0) ? param.nestedAspectRatio : arAuto;
-    opts["elk.aspectRatio"] = Math.max(0.1, ar).toFixed(3);
-    console.log(`  compound n=${n} k=${k} ar=${opts["elk.aspectRatio"]} (${param.nestedAspectRatio > 0 ? "manual" : "auto"})`);
+    opts["elk.box.packingMode"]      = "SIMPLE";
+    opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
 
   } else if (algo === ALGO.ELK_RECTPACKING) {
+    opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
     opts["elk.rectpacking.orderBySize"] = !!param.sortLeavesOnly;
-    if (param.viewMaxWidth > 0) {
-      const tw = param.viewMaxWidth - (depth + 1) * 2 * p;
-      if (tw > 0) opts["elk.rectpacking.widthApproximation.targetWidth"] = String(tw);
-    }
 
   } else {
     // layered / other: propagate root options into sub-layout.
+    opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
     opts["elk.direction"]   = param.layoutDirection;
     opts["elk.edgeRouting"] = (param.edgeRouting === "STRAIGHT" || param.edgeRouting === "SPLINES")
                                ? "POLYLINE" : param.edgeRouting;
@@ -593,7 +545,7 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
       opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.layerSpacing);
   }
 
-  Common.debug(`_buildCompoundOptsELK depth=${depth} n=${childCount} algo=${algo} ar=${opts["elk.aspectRatio"] || "-"} ph=${ph}`);
+  Common.debug(`_buildCompoundOptsELK depth=${depth} n=${childCount} algo=${algo} ph=${ph}`);
   return opts;
 }
 
@@ -664,15 +616,37 @@ function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
     rootEdges.push(edge);
   });
 
-  // Step 4: compound node layout options — single pass using _buildCompoundOptsELK.
-  // Replaces the old propagation + inner-gap + targetWidth + nested-algo loops.
+  // Step 4: compound node layout options + explicit FIXED_SIZE dimensions.
+  // node.width/height are set explicitly so ELK cannot ignore them (FIXED_SIZE constraint).
+  // k = min(kSqrt, kMax) columns: kSqrt ≈ square root, kMax = half viewMaxWidth / colW.
   Common.debug(`_buildGraphELK: ${Object.keys(parentMap).length} nestings, ${edgeList.length} edges`);
   Object.keys(nodeMap).forEach(function(nodeId) {
     const node = nodeMap[nodeId];
     if (!node.children || node.children.length === 0) return;
-    let depth = 0, p = parentMap[nodeId];
-    while (p !== undefined) { depth++; p = parentMap[p]; }
-    node.layoutOptions = _buildCompoundOptsELK(param, depth, node._extraHPadding || 0, node.children.length);
+    let depth = 0, pp = parentMap[nodeId];
+    while (pp !== undefined) { depth++; pp = parentMap[pp]; }
+
+    const p2   = param.padding || DEFAULTS.padding;
+    const ph2  = p2 + (node._extraHPadding || 0);
+    const top2 = p2 + NESTED_LABEL_TOP_EXTRA;
+    const sp   = param.nestedNodeSpacing !== undefined ? param.nestedNodeSpacing : DEFAULTS.nestedNodeSpacing;
+    const nw2  = param.nodeWidth  || DEFAULTS.nodeWidth;
+    const nh2  = param.nodeHeight || DEFAULTS.nodeHeight;
+    const colW = nw2 + sp;
+    const n    = node.children.length;
+
+    const kSqrt = Math.max(1, Math.floor(1.2 * Math.sqrt(n)));
+    const capW  = param.viewMaxWidth > 0 ? param.viewMaxWidth - 2 * ph2 : 0;
+    const kMax  = capW > 0 ? Math.max(1, Math.floor(capW / colW)) : kSqrt;
+    const k     = Math.min(kSqrt, kMax);
+    const rows  = Math.ceil(n / k);
+
+    node.width  = k * nw2 + (k - 1) * sp + 2 * ph2;
+    node.height = rows * nh2 + (rows - 1) * sp + top2 + p2;
+
+    console.log(`  compound n=${n} k=${k} rows=${rows} w=${Math.round(node.width)} h=${Math.round(node.height)}`);
+
+    node.layoutOptions = _buildCompoundOptsELK(param, depth, node._extraHPadding || 0, n);
   });
 
   // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).

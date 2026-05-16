@@ -18,12 +18,9 @@
     "aggregation-relationship"
   ],
   "layoutCircular": true,
-  "graphDirection": "LR",
   "ranker": "network-simplex",
   "nodeWidth": 250,
   "nodeHeight": 80,
-  "hSep": 20,
-  "vSep": 180,
   "debug": false,
   "excludeFromView": false,
   "viewName": "Aanpak",
@@ -37,7 +34,6 @@
   ],
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsobjecten per beleidsdomein.js",
-  "graphvizEngine": "dot",
   "graphvizBin": "",
   "_windowBounds": {
     "x": 2033,

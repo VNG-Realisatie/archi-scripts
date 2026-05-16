@@ -43,6 +43,6 @@ module.exports = {
 
   nodeWidth: 200,
   nodeHeight: 80,
-  hSep: 20,
-  vSep: 160,
+  nodeSpacing: 20,
+  layerSpacing: 160,
 };
