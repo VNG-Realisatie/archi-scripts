@@ -36,6 +36,23 @@ const IMessageProvider = Java.type("org.eclipse.jface.dialogs.IMessageProvider")
 const SWTFont = Java.type("org.eclipse.swt.graphics.Font");
 const SWTFontData = Java.type("org.eclipse.swt.graphics.FontData");
 
+// Pixel constant for Add/Remove list builder buttons — used in createListBuilder
+// before createDialogArea is called, so defined at module scope.
+const BTN_W_ADDREM = 95;
+
+// Encode/decode the :in / :out direction suffix on relation type strings.
+// Used by both saveInput and syncConfigToUI so the encoding lives in one place.
+function _encodeRelType(type, inOn, outOn) {
+  if (inOn && !outOn) return type + ":in";
+  if (!inOn && outOn) return type + ":out";
+  return type; // neither or both = both directions
+}
+function _decodeRelType(entry) {
+  if (entry.endsWith(":in"))  return { type: entry.slice(0, -3), inOn: true,  outOn: false };
+  if (entry.endsWith(":out")) return { type: entry.slice(0, -4), inOn: false, outOn: true  };
+  return { type: entry, inOn: true, outOn: true };
+}
+
 // Determine defaults: last run → user default preset → engine defaults
 const LAST_RUN_FILE = __DIR__ + ".last_gui_run_params.json";
 let defaultParams = View.readJSON(LAST_RUN_FILE)
@@ -113,11 +130,11 @@ let layoutDialog = {
 
     let btnAdd = new ButtonWidget(btnComp, SWT.PUSH);
     btnAdd.setText("Add >");
-    GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnAdd);
+    GridDataFactory.fillDefaults().hint(BTN_W_ADDREM, SWT.DEFAULT).applyTo(btnAdd);
 
     let btnRemove = new ButtonWidget(btnComp, SWT.PUSH);
     btnRemove.setText("< Remove");
-    GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnRemove);
+    GridDataFactory.fillDefaults().hint(BTN_W_ADDREM, SWT.DEFAULT).applyTo(btnRemove);
 
     // Right: Selected
     let rightComp = new CompositeWidget(mainComp, SWT.NONE);
@@ -515,16 +532,11 @@ let layoutDialog = {
     setBuilder(this.widgets.lstElemTypes, this.config.includeElementType);
     // Sync relation filter fixed grid [Option C]
     (this.widgets._relTypeRows || []).forEach(row => {
-      let dir = null;
-      (this.config.includeRelationType || []).forEach(entry => {
-        let ci = entry.indexOf(":");
-        if ((ci >= 0 ? entry.substring(0, ci) : entry) === row.type)
-          dir = ci >= 0 ? entry.substring(ci + 1) : "both";
-      });
-      let on = dir !== null;
+      let match = (this.config.includeRelationType || []).map(_decodeRelType).find(d => d.type === row.type);
+      let on = !!match;
       row.chk.setSelection(on);
-      row.rdoIn.setSelection(on && dir !== "out");   // both or in-only
-      row.rdoOut.setSelection(on && dir !== "in");   // both or out-only
+      row.rdoIn.setSelection(on && match.inOn);
+      row.rdoOut.setSelection(on && match.outOn);
       row.rdoIn.setEnabled(on); row.rdoOut.setEnabled(on);
       if (row.updateDirColors) row.updateDirColors();
     });
@@ -554,10 +566,10 @@ let layoutDialog = {
       this.widgets.cmbRanker.select(_ri >= 0 ? _ri : 0);
     }
 
-    if (this.config.nodeWidth)          this.widgets.spinWidth.setSelection(this.config.nodeWidth);
-    if (this.config.nodeHeight)         this.widgets.spinHeight.setSelection(this.config.nodeHeight);
-    if (this.config.nodeSpacing) this.widgets.spinNodeSep.setSelection(this.config.nodeSpacing);
-    if (this.config.layerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.layerSpacing);
+    if (this.config.nodeWidth   && this.widgets.spinWidth)    this.widgets.spinWidth.setSelection(this.config.nodeWidth);
+    if (this.config.nodeHeight  && this.widgets.spinHeight)   this.widgets.spinHeight.setSelection(this.config.nodeHeight);
+    if (this.config.nodeSpacing && this.widgets.spinNodeSep)  this.widgets.spinNodeSep.setSelection(this.config.nodeSpacing);
+    if (this.config.layerSpacing && this.widgets.spinLayerSep) this.widgets.spinLayerSep.setSelection(this.config.layerSpacing);
     if (this.widgets.spinViewMaxWidth)    this.widgets.spinViewMaxWidth.setSelection(this.config.viewMaxWidth    || 0);
     if (this.widgets.spinViewMaxHeight)   this.widgets.spinViewMaxHeight.setSelection(this.config.viewMaxHeight   || 0);
     if (this.widgets.cmbViewAspectRatio && layoutDialog._arOptions) {
@@ -634,12 +646,7 @@ let layoutDialog = {
     this.config.includeElementType  = toJsArray(this.widgets.lstElemTypes);
     this.config.includeRelationType = (this.widgets._relTypeRows || [])
       .filter(r => r.chk.getSelection())
-      .map(r => {
-        let inOn = r.rdoIn.getSelection(), outOn = r.rdoOut.getSelection();
-        if (inOn && !outOn) return r.type + ":in";
-        if (outOn && !inOn) return r.type + ":out";
-        return r.type; // neither or both = both directions
-      });
+      .map(r => _encodeRelType(r.type, r.rdoIn.getSelection(), r.rdoOut.getSelection()));
 
     var _algoVal = getRadioVal(this.widgets.grpAlgorithm);
     this.config.algorithm = _algoVal;  // store engine name directly (dot, fdp, layered, etc.)
@@ -737,7 +744,6 @@ let layoutDialog = {
     if (this.widgets.spinLayerSep)     this.widgets.spinLayerSep.setEnabled(c.layerSep);
     if (this.widgets.spinLayerSep_lbl) this.widgets.spinLayerSep_lbl.setEnabled(c.layerSep);
 
-    var isGv = View.GV_ALGORITHMS.has(algo);
     // View size: each control enabled only for algorithms that natively support it
     function enW(key, on) {
       if (layoutDialog.widgets[key])           layoutDialog.widgets[key].setEnabled(on);
@@ -754,12 +760,12 @@ let layoutDialog = {
     // Draw related closer label (col 8) — enable/disable with the checkbox
     if (this.widgets.chkUseWeights_lbl) this.widgets.chkUseWeights_lbl.setEnabled(c.weights);
 
-    // Curved/Spline routing options — only meaningful for Graphviz
+    // Curved/Spline routing options — only meaningful for engines with curvedSplines capability
     if (this.widgets.grpEdgeRouting) {
       var ch = this.widgets.grpEdgeRouting.getChildren();
       for (var i = 0; i < ch.length; i++) {
         var v = ch[i].getData ? String(ch[i].getData("val") || "") : "";
-        if (v === "CURVED" || v === "SPLINE") ch[i].setEnabled(isGv);
+        if (v === "CURVED" || v === "SPLINE") ch[i].setEnabled(!!c.curvedSplines);
       }
     }
   },
@@ -800,6 +806,13 @@ let layoutDialog = {
 
     createDialogArea: function (parent) {
       let area = Java.super(layoutDialog.dialog).createDialogArea(parent);
+
+      // Pixel constants — change once here, applies everywhere in this dialog.
+      const LBL_W_ALGO = 115; // label column in the algorithm grid (Flow/Hierarchy/… rows)
+      const LBL_W_STD  = 90;  // category label in Size and spacing group
+      const TOGGLE_W   = 28;  // direction arrow toggle button width
+      const TOGGLE_H   = 20;  // direction arrow toggle button height
+      const SPIN_W     = 55;  // standard spinner hint width
 
       let container = new CompositeWidget(area, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(container);
@@ -1002,16 +1015,14 @@ let layoutDialog = {
       setBoldFont(tabFolder);
       layoutDialog.widgets.tabFolder = tabFolder;
 
-      function createRadios(parentGrp, options, colWidth, indent) {
+      function createRadios(parentGrp, options, colWidth) {
         options.forEach((opt) => {
           let r = new ButtonWidget(parentGrp, SWT.RADIO);
           r.setText(opt.label + "   ");
           r.setData("val", opt.val);
           if (opt.tooltip) r.setToolTipText(opt.tooltip);
           let gd = GridDataFactory.fillDefaults();
-          if (colWidth) gd = gd.hint(colWidth, SWT.DEFAULT);
-          if (indent)   gd = gd.indent(indent, 0);
-          if (colWidth || indent) gd.applyTo(r);
+          if (colWidth) gd = gd.hint(colWidth, SWT.DEFAULT).applyTo(r);
         });
       }
 
@@ -1093,13 +1104,13 @@ let layoutDialog = {
           tglIn.setText("←");
           tglIn.setToolTipText("Follow this relation type only when it arrives at the selected element (incoming). Leave both arrows active to follow both directions.");
           tglIn.setEnabled(false);
-          GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglIn);
+          GridDataFactory.swtDefaults().hint(TOGGLE_W, TOGGLE_H).applyTo(tglIn);
 
           let tglOut = new ButtonWidget(rowComp, SWT.TOGGLE | SWT.FLAT);
           tglOut.setText("→");
           tglOut.setToolTipText("Follow this relation type only when it leaves the selected element (outgoing). Leave both arrows active to follow both directions.");
           tglOut.setEnabled(false);
-          GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglOut);
+          GridDataFactory.swtDefaults().hint(TOGGLE_W, TOGGLE_H).applyTo(tglOut);
 
           function updateDirColors() {
             let inSel  = tglIn.getSelection();
@@ -1187,7 +1198,7 @@ let layoutDialog = {
       let lblFlow = new LabelWidget(compAlgo, SWT.NONE);
       lblFlow.setText("Flow:");
       lblFlow.setToolTipText("Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblFlow);
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblFlow);
       createRadios(compAlgo, [
         { label: "Layered", val: "layered", tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)" },
         { label: "Dagre",   val: "dagre",   tooltip: "Fast process and application flows with limited nesting support (Dagre)" },
@@ -1212,7 +1223,7 @@ let layoutDialog = {
       let lblHierarchy = new LabelWidget(compAlgo, SWT.NONE);
       lblHierarchy.setText("Hierarchy:");
       lblHierarchy.setToolTipText("Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblHierarchy);
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblHierarchy);
       createRadios(compAlgo, [
         { label: "Tree", val: "mrtree", tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)" },
       ]);
@@ -1238,7 +1249,7 @@ let layoutDialog = {
       let lblNetwork = new LabelWidget(compAlgo, SWT.NONE);
       lblNetwork.setText("Network:");
       lblNetwork.setToolTipText("Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblNetwork);
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblNetwork);
       createRadios(compAlgo, [
         { label: "Force",  val: "force",  tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)" },
         { label: "Stress", val: "stress", tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)" },
@@ -1262,7 +1273,7 @@ let layoutDialog = {
       let lblCircular = new LabelWidget(compAlgo, SWT.NONE);
       lblCircular.setText("Circular:");
       lblCircular.setToolTipText("Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblCircular);
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblCircular);
       createRadios(compAlgo, [
         { label: "Radial", val: "radial", tooltip: "Domain overviews and hub-and-spoke structures with strong nesting support (ELK)" },
         { label: "Twopi",  val: "twopi",  tooltip: "Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz)" },
@@ -1275,7 +1286,7 @@ let layoutDialog = {
       let lblCompact = new LabelWidget(compAlgo, SWT.NONE);
       lblCompact.setText("Compact:");
       lblCompact.setToolTipText("Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblCompact);
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblCompact);
       createRadios(compAlgo, [
         { label: "Grid", val: "box",         tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)" },
         { label: "Pack", val: "rectpacking", tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)" },
@@ -1321,7 +1332,7 @@ let layoutDialog = {
       GridLayoutFactory.swtDefaults().numColumns(6).margins(0, 0).spacing(8, 0).applyTo(cRouting);
       let lblRouting = new LabelWidget(cRouting, SWT.NONE);
       lblRouting.setText("Relation lines:");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblRouting);
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblRouting);
       layoutDialog.widgets.grpEdgeRouting = cRouting;
       createRadios(cRouting, [
         { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
@@ -1341,17 +1352,17 @@ let layoutDialog = {
       // Row 1 — Width · Height · Spacing (all on one row)
       let _lblCatElem = new LabelWidget(grpSpacing, SWT.NONE);
       _lblCatElem.setText("Element");
-      GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(_lblCatElem);
-      layoutDialog.createWidget("spinWidth",   SpinnerWidget, grpSpacing, "Width:",   "Width of elements in the view (px). Applies to all layout types.",           function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      GridDataFactory.swtDefaults().hint(LBL_W_STD, SWT.DEFAULT).applyTo(_lblCatElem);
+      layoutDialog.createWidget("spinWidth",   SpinnerWidget, grpSpacing, "Width:",   "Width of elements in the view (px). Applies to all layout types.",           function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinWidth_lbl);
-      layoutDialog.createWidget("spinHeight",  SpinnerWidget, grpSpacing, "Height:",  "Height of elements in the view (px). Applies to all layout types.",          function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinHeight",  SpinnerWidget, grpSpacing, "Height:",  "Height of elements in the view (px). Applies to all layout types.",          function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinHeight_lbl);
-      layoutDialog.createWidget("spinNodeSep", SpinnerWidget, grpSpacing, "Spacing:", "Minimum distance between elements (px). Applies to all layout types, including non-hierarchical layouts.",           function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinNodeSep", SpinnerWidget, grpSpacing, "Spacing:", "Minimum distance between elements (px). Applies to all layout types, including non-hierarchical layouts.",           function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinNodeSep_lbl);
 
       // Row 2 — Level spacing (left-aligned, rest empty)
       new LabelWidget(grpSpacing, SWT.NONE); // col 1 empty
-      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:", "Distance between hierarchy levels where applicable (px). Used in hierarchical and layered layouts, otherwise approximated.",         function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:", "Distance between hierarchy levels where applicable (px). Used in hierarchical and layered layouts, otherwise approximated.",         function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinLayerSep_lbl);
       new LabelWidget(grpSpacing, SWT.NONE); new LabelWidget(grpSpacing, SWT.NONE); // cols 4-5
       new LabelWidget(grpSpacing, SWT.NONE); new LabelWidget(grpSpacing, SWT.NONE); // cols 6-7
@@ -1359,7 +1370,7 @@ let layoutDialog = {
       // Row 3 — View size constraints
       let _lblVS = new LabelWidget(grpSpacing, SWT.NONE);
       _lblVS.setText("View size");
-      GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(_lblVS);
+      GridDataFactory.swtDefaults().hint(LBL_W_STD, SWT.DEFAULT).applyTo(_lblVS);
       layoutDialog.widgets.spinViewSizeLbl = _lblVS;
 
       let _lbl1 = new LabelWidget(grpSpacing, SWT.NONE);
@@ -1369,7 +1380,7 @@ let layoutDialog = {
       let spinViewMaxW = new SpinnerWidget(grpSpacing, SWT.BORDER);
       spinViewMaxW.setValues(0, 0, 9999, 0, 100, 1000);
       spinViewMaxW.setToolTipText("Maximum width of the view (px). Graphviz scales layout when supported. 0 = unlimited.");
-      GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(spinViewMaxW);
+      GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(spinViewMaxW);
       layoutDialog.widgets.spinViewMaxWidth = spinViewMaxW;
 
       let _lbl2 = new LabelWidget(grpSpacing, SWT.NONE);
@@ -1379,7 +1390,7 @@ let layoutDialog = {
       let spinViewMaxH = new SpinnerWidget(grpSpacing, SWT.BORDER);
       spinViewMaxH.setValues(0, 0, 9999, 0, 100, 1000);
       spinViewMaxH.setToolTipText("Maximum height of the view (px). Graphviz only. 0 = unlimited.");
-      GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(spinViewMaxH);
+      GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(spinViewMaxH);
       layoutDialog.widgets.spinViewMaxHeight = spinViewMaxH;
 
       // Col 6-7: Aspect label + combo (no sub-composite — same pattern as all other fields)
@@ -1481,7 +1492,7 @@ let layoutDialog = {
       // Row A — Container: [Padding: spinner] [Inner spacing: spinner]
       let _lblCatContainer = new LabelWidget(grpNested, SWT.NONE);
       _lblCatContainer.setText("Container:");
-      GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(_lblCatContainer);
+      GridDataFactory.swtDefaults().hint(LBL_W_STD, SWT.DEFAULT).applyTo(_lblCatContainer);
       layoutDialog.createWidget("spinPadding", SpinnerWidget, grpNested,
         "Padding:", "Space between container border and contained elements (px).",
         function (w) {

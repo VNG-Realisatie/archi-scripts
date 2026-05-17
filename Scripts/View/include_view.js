@@ -69,6 +69,14 @@ const ALGO = {
 const GV_ALGORITHMS = new Set([ALGO.GV_DOT, ALGO.GV_NEATO, ALGO.GV_FDP,
                                 ALGO.GV_SFDP, ALGO.GV_TWOPI, ALGO.GV_CIRCO]);
 
+// Direction map shared by Dagre and Graphviz engines (ELK uses its own string keys)
+const RANKDIR = { RIGHT: "LR", LEFT: "RL", DOWN: "TB", UP: "BT" };
+
+// Extra separation (px) between edge paths and node bounding boxes in Graphviz.
+// Orthogonal routing needs more room because right-angle bends hug node corners.
+const GV_EDGE_CLEARANCE_ORTHO  = '+24';
+const GV_EDGE_CLEARANCE_CURVED = '+8';
+
 // All parameter defaults — engine owns these; GUI reads View.DEFAULTS
 const DEFAULTS = {
   nodeWidth:                 140,
@@ -115,7 +123,7 @@ const DEFAULT_PRESET = Object.assign({
 
 // Algorithm capabilities — each engine defines only what it supports (true);
 // caps() fills the rest with false. One block per engine for readability.
-const CAP_FIELDS = ["dir","routing","layerSep","ranker","weights","maxW","maxH","ar","packRow","nesting"];
+const CAP_FIELDS = ["dir","routing","layerSep","ranker","weights","maxW","maxH","ar","packRow","nesting","curvedSplines"];
 const _capFalse  = Object.fromEntries(CAP_FIELDS.map(k => [k, false]));
 function caps(supported) { return Object.assign({}, _capFalse, supported); }
 
@@ -129,9 +137,9 @@ const ELK_CAPABILITIES = {
   [ALGO.ELK_RECTPACKING]: caps({ maxW: true, ar: true, packRow: true, nesting: true }),
 };
 const GV_CAPABILITIES = {
-  [ALGO.GV_DOT]:   caps({ dir: true, routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true }),
-  [ALGO.GV_NEATO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true }),
-  [ALGO.GV_FDP]:   caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true }),
+  [ALGO.GV_DOT]:   caps({ dir: true, routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true }),
+  [ALGO.GV_NEATO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true }),
+  [ALGO.GV_FDP]:   caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true }),
   [ALGO.GV_SFDP]:  caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
   [ALGO.GV_TWOPI]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
   [ALGO.GV_CIRCO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
@@ -167,7 +175,7 @@ try {
   console.log("ELK.js layout engine loaded.\n");
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
-  throw "\nELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.";
+  throw new Error("\nELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.");
 }
 
 let dagre = null;
@@ -244,13 +252,7 @@ function _layoutAndRender(param, filteredElements) {
 function _layoutAndRenderELK(param, filteredElements) {
   Common.debug(`_layoutAndRenderELK: algorithm=${param.algorithm} elements=${filteredElements.length}`);
 
-  let nodeMap   = {};
-  let edgeList  = [];
-  let parentMap = {};
-  let parentRels = [];
-  let occurrenceMap = {};
-
-  _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
+  let { nodeMap, edgeList, parentMap, parentRels, occurrenceMap } = _buildGraphData(param, filteredElements);
 
   // Runtime-only: total node count used by _buildCompoundOptsELK to scale aspectRatio.
   param._totalNodes = Object.keys(nodeMap).length;
@@ -288,7 +290,7 @@ function _layoutAndRenderELK(param, filteredElements) {
     // Depth-0 containers get targetWidth = viewMaxWidth − 2*padding; a leaf wider than
     // that would force the container outer width above viewMaxWidth.
     if (param.viewMaxWidth > 0 && isFinite(globalMinW)) {
-      const _maxLeafW = param.viewMaxWidth - 2 * (param.padding !== undefined ? param.padding : DEFAULTS.padding);
+      const _maxLeafW = param.viewMaxWidth - 2 * _getPadding(param);
       if (_maxLeafW > 0 && globalMinW > _maxLeafW) globalMinW = _maxLeafW;
     }
 
@@ -461,7 +463,7 @@ function _includedElements(param, drawCollection = $(selection)) {
 
   let filteredSelection = selectedElements.filter((obj) => _filterObjectType(obj, param.includeElementType));
   console.log(`- ${filteredSelection.length} element${filteredSelection.length == 1 ? "" : "s"} after filtering`);
-  if (filteredSelection.length === 0) throw "No Archimate element match your criterias.";
+  if (filteredSelection.length === 0) throw new Error("No Archimate element match your criterias.");
 
   return filteredSelection;
 }
@@ -511,7 +513,7 @@ function _buildLayoutOptionsELK(param) {
  * @param {number} extraHPadding extra horizontal padding from equalizeSiblings
  */
 function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
-  const p       = param.padding || DEFAULTS.padding;
+  const p       = _getPadding(param);
   const ph      = p + (extraHPadding || 0);
   const top     = p + NESTED_LABEL_TOP_EXTRA;
   const spacing = param.nestedNodeSpacing !== undefined
@@ -675,7 +677,7 @@ function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
 }
 
 /**
- * Add the filtered selection to the ELK data structures
+ * Add the filtered selection to Archi collections for layout and rendering, according to the action type and graph depth.
  */
 function _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements) {
   const START_LEVEL = 0;
@@ -710,6 +712,12 @@ function _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceM
   Common.debug(`_fillGraph: occurrences=${Object.keys(occurrenceMap).length} parentRels=${parentRels.length}`);
 }
 
+function _buildGraphData(param, filteredElements) {
+  let g = { nodeMap: {}, edgeList: [], parentMap: {}, parentRels: [], occurrenceMap: {} };
+  _fillGraph(param, g.nodeMap, g.edgeList, g.parentMap, g.parentRels, g.occurrenceMap, filteredElements);
+  return g;
+}
+
 /**
  * Add all elements and relations of the selected view to the ELK data structures
  */
@@ -738,7 +746,7 @@ function _getSelectedView() {
   } else {
     if (obj.view) selectedView = obj.view;
   }
-  if (!selectedView) throw "No view or view elements selected. Select one or more elements on a view";
+  if (!selectedView) throw new Error("No view or view elements selected. Select one or more elements on a view");
   return selectedView;
 }
 
@@ -1133,14 +1141,24 @@ function _drawBendpointsELK(param, edge, connection, containerOffset) {
     return _calcBendpoint({ x: p.x + offsetX, y: p.y + offsetY }, srcCenter, tgtCenter);
   });
 
-  for (let i = 0; i < bendpoints.length; i++) {
-    if (param.layoutReversed.includes(connection.type)) {
-      connection.addRelativeBendpoint(bendpoints[bendpoints.length - i - 1], i);
-    } else {
-      connection.addRelativeBendpoint(bendpoints[i], i);
-    }
-  }
+  _addBendpoints(connection, bendpoints, param.layoutReversed.includes(connection.type));
   Common.debugStackPop();
+}
+
+function _getPadding(param) {
+  return param.padding !== undefined ? param.padding : DEFAULTS.padding;
+}
+
+function _getEffectiveSplines(param) {
+  return param.graphvizSplines || param.edgeRouting || "ORTHOGONAL";
+}
+
+function _addBendpoints(connection, bendpoints, isReversed) {
+  for (let i = 0; i < bendpoints.length; i++) {
+    connection.addRelativeBendpoint(
+      isReversed ? bendpoints[bendpoints.length - 1 - i] : bendpoints[i], i
+    );
+  }
 }
 
 function _calcBendpoint(point, srcCenter, tgtCenter) {
@@ -1197,10 +1215,9 @@ function _openView(view) {
 
 function _layoutAndRenderDagre(param, filteredElements) {
   Common.debug(`_layoutAndRenderDagre: elements=${filteredElements.length}`);
-  if (!dagre) throw "dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.";
+  if (!dagre) throw new Error("dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.");
 
-  let nodeMap = {}, edgeList = [], parentMap = {}, parentRels = [], occurrenceMap = {};
-  _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
+  let { nodeMap, edgeList, parentMap, parentRels, occurrenceMap } = _buildGraphData(param, filteredElements);
 
   const graph = _buildGraphDagre(param, nodeMap, edgeList, parentMap);
   console.log("\nCalculating the Dagre graph layout...");
@@ -1210,10 +1227,9 @@ function _layoutAndRenderDagre(param, filteredElements) {
 }
 
 function _buildGraphDagre(param, nodeMap, edgeList, parentMap) {
-  const elkToDir = { RIGHT: "LR", LEFT: "RL", DOWN: "TB", UP: "BT" };
   const graph = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
     .setGraph({
-      rankdir: elkToDir[param.layoutDirection] || "LR",
+      rankdir: RANKDIR[param.layoutDirection] || "LR",
       nodesep: param.nodeSpacing,
       ranksep: param.layerSpacing,
       ranker:  param.dagreRanker || param.ranker || "network-simplex",
@@ -1309,12 +1325,7 @@ function _drawEdgeDagre(param, graph, edge, visualElementIndex, view) {
   for (let i = 1; i < points.length - 1; i++) {
     bendpoints.push(_calcBendpoint(points[i], srcCenter, tgtCenter));
   }
-  for (let i = 0; i < bendpoints.length; i++) {
-    const bp = param.layoutReversed.includes(connection.type)
-      ? bendpoints[bendpoints.length - 1 - i]
-      : bendpoints[i];
-    connection.addRelativeBendpoint(bp, i);
-  }
+  _addBendpoints(connection, bendpoints, param.layoutReversed.includes(connection.type));
   Common.debugStackPop();
 }
 
@@ -1324,8 +1335,7 @@ function _drawEdgeDagre(param, graph, edge, visualElementIndex, view) {
 
 function _layoutAndRenderGraphviz(param, filteredElements) {
   Common.debug(`_layoutAndRenderGraphviz: engine=${param.graphvizEngine || param.algorithm} elements=${filteredElements.length}`);
-  let nodeMap = {}, edgeList = [], parentMap = {}, parentRels = [], occurrenceMap = {};
-  _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, filteredElements);
+  let { nodeMap, edgeList, parentMap, parentRels, occurrenceMap } = _buildGraphData(param, filteredElements);
 
   let dotSource = _buildGraphGraphviz(param, nodeMap, edgeList, parentMap);
   Common.debug("_buildGraphGraphviz result:\n" + dotSource);
@@ -1342,16 +1352,16 @@ function _layoutAndRenderGraphviz(param, filteredElements) {
 // returned spline control points represent the complete child-to-child path.
 function _buildGraphGraphviz(param, nodeMap, edgeList, parentMap) {
   const PX_TO_IN  = 1 / 96;
-  const rankdir   = ({RIGHT:"LR", LEFT:"RL", DOWN:"TB", UP:"BT"})[param.layoutDirection] || "LR";
+  const rankdir   = RANKDIR[param.layoutDirection] || "LR";
   const ranksep   = ((param.layerSpacing    || 180) * PX_TO_IN).toFixed(4);
   const nodesep   = ((param.nodeSpacing || 40)  * PX_TO_IN).toFixed(4);
-  const nodeW     = ((param.nodeWidth          || 200) * PX_TO_IN).toFixed(4);
-  const nodeH     = ((param.nodeHeight         || 60)  * PX_TO_IN).toFixed(4);
-  const padding   = param.padding !== undefined ? param.padding : 20;
-  const splines   = _elkRoutingToDot(param.graphvizSplines || param.edgeRouting || "ORTHOGONAL");
+  const nodeW     = ((param.nodeWidth   || DEFAULTS.nodeWidth)  * PX_TO_IN).toFixed(4);
+  const nodeH     = ((param.nodeHeight  || DEFAULTS.nodeHeight) * PX_TO_IN).toFixed(4);
+  const padding   = _getPadding(param);
+  const splines   = _elkRoutingToDot(_getEffectiveSplines(param));
 
-  // esep: extra separation between edges and node bounding boxes during routing.
-  const esep = (splines === 'ortho') ? '+24' : '+8';
+  // esep: extra separation between edge paths and node bounding boxes during routing.
+  const esep = (splines === 'ortho') ? GV_EDGE_CLEARANCE_ORTHO : GV_EDGE_CLEARANCE_CURVED;
 
   // View size constraints — translated to native Graphviz size/ratio attributes.
   // size is in inches (px / 96); only one constraint is active at a time.
@@ -1437,9 +1447,9 @@ function _runDot(dotSource, engine, binPath) {
     pb.redirectErrorStream(false);
     proc = pb.start();
   } catch(e) {
-    throw "Graphviz not found at '" + bin + "'.\n" +
+    throw new Error("Graphviz not found at '" + bin + "'.\n" +
           "Install Graphviz (graphviz.org) and ensure 'dot' is on the system PATH,\n" +
-          "or set the binary path in Layout → Graphviz binary.";
+          "or set the binary path in Layout → Graphviz binary.");
   }
 
   // Write DOT source to stdin, then close so dot sees EOF
@@ -1459,10 +1469,10 @@ function _runDot(dotSource, engine, binPath) {
   er.close();
 
   let code = proc.waitFor();
-  if (code !== 0) throw "Graphviz exited with code " + code + ".\n" + stderr.trim();
+  if (code !== 0) throw new Error("Graphviz exited with code " + code + ".\n" + stderr.trim());
 
   try { return JSON.parse(stdout); }
-  catch(e) { throw "Failed to parse Graphviz JSON output: " + e; }
+  catch(e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
 }
 
 // Walk DOT JSON objects recursively, collecting node positions and cluster bounding
@@ -1492,8 +1502,8 @@ function _collectDotObjects(jsonOut) {
 
     if (obj.pos && oname) {
       let pos = _parseDotXY(String(obj.pos));
-      let nw = obj.width  ? Math.round(parseFloat(String(obj.width))  * 96) : 200;
-      let nh = obj.height ? Math.round(parseFloat(String(obj.height)) * 96) : 60;
+      let nw = obj.width  ? Math.round(parseFloat(String(obj.width))  * 96) : DEFAULTS.nodeWidth;
+      let nh = obj.height ? Math.round(parseFloat(String(obj.height)) * 96) : DEFAULTS.nodeHeight;
       nodes[oname] = {
         x: Math.round(pos.x * PT2PX - nw / 2),
         y: Math.round((totalH - pos.y) * PT2PX - nh / 2),
@@ -1579,6 +1589,31 @@ function _flattenDotSpline(posStr, totalH, splineType) {
 // Draw the Graphviz-positioned view.
 // Container nodes use their cluster bounding box; leaf nodes use their pos.
 // Children are added relative to their parent container so Archi nests them correctly.
+// Compute cluster bounding boxes from child node positions when the Graphviz engine
+// does not emit them (force-directed engines: neato, fdp, sfdp).
+function _deriveClusterBoundingBoxes(parentMap, existingClusters, nodes, padding) {
+  let acc = {};
+  Object.keys(parentMap).forEach(function(childId) {
+    let cid = parentMap[childId];
+    if (existingClusters[cid]) return;
+    [nodes[childId], nodes[cid]].forEach(function(p) {
+      if (!p) return;
+      if (!acc[cid]) acc[cid] = { minX: p.x, minY: p.y, maxX: p.x + p.w, maxY: p.y + p.h };
+      else {
+        acc[cid].minX = Math.min(acc[cid].minX, p.x); acc[cid].minY = Math.min(acc[cid].minY, p.y);
+        acc[cid].maxX = Math.max(acc[cid].maxX, p.x + p.w); acc[cid].maxY = Math.max(acc[cid].maxY, p.y + p.h);
+      }
+    });
+  });
+  let result = {};
+  Object.keys(acc).forEach(function(cid) {
+    let b = acc[cid];
+    result[cid] = { x: b.minX - padding, y: b.minY - padding, w: (b.maxX - b.minX) + 2 * padding, h: (b.maxY - b.minY) + 2 * padding };
+    console.log("  cluster bb computed from children for " + cid + " → " + JSON.stringify(result[cid]));
+  });
+  return result;
+}
+
 function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentRels, occurrenceMap) {
   console.log("\nDrawing ArchiMate view (Graphviz)...");
 
@@ -1602,30 +1637,8 @@ function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentR
     });
   }
 
-  // Fallback: for containers whose cluster bb was not in the DOT JSON
-  // (force-directed engines like sfdp/neato/fdp never emit cluster bbs),
-  // derive the bounding box from the child node positions + padding.
-  let _pad = param.padding !== undefined ? param.padding : 20;
-  let _bbAcc = {};
-  Object.keys(parentMap).forEach(function(childId) {
-    let cid = parentMap[childId];
-    if (coords.clusters[cid]) return;
-    let cp = coords.nodes[childId];
-    let pp = coords.nodes[cid];
-    [cp, pp].forEach(function(p) {
-      if (!p) return;
-      if (!_bbAcc[cid]) _bbAcc[cid] = { minX: p.x, minY: p.y, maxX: p.x + p.w, maxY: p.y + p.h };
-      else {
-        _bbAcc[cid].minX = Math.min(_bbAcc[cid].minX, p.x); _bbAcc[cid].minY = Math.min(_bbAcc[cid].minY, p.y);
-        _bbAcc[cid].maxX = Math.max(_bbAcc[cid].maxX, p.x + p.w); _bbAcc[cid].maxY = Math.max(_bbAcc[cid].maxY, p.y + p.h);
-      }
-    });
-  });
-  Object.keys(_bbAcc).forEach(function(cid) {
-    let b = _bbAcc[cid];
-    coords.clusters[cid] = { x: b.minX - _pad, y: b.minY - _pad, w: (b.maxX - b.minX) + 2 * _pad, h: (b.maxY - b.minY) + 2 * _pad };
-    console.log("  cluster bb computed from children for " + cid + " → " + JSON.stringify(coords.clusters[cid]));
-  });
+  // Fallback: force-directed engines (neato/fdp/sfdp) never emit cluster bbs — derive from children.
+  Object.assign(coords.clusters, _deriveClusterBoundingBoxes(parentMap, coords.clusters, coords.nodes, _getPadding(param)));
 
   let reversedSet  = new Set(param.layoutReversed || []);
   let containerIds = new Set();
@@ -1636,7 +1649,8 @@ function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentR
   let edgeById = {};
   edgeList.forEach(function(e) { edgeById[e.id] = e; });
   let totalH = _parseDotBb(String(jsonOut.bb || "0,0,0,0")).ury;
-  let skipBendpoints = (param.graphvizSplines === "STRAIGHT" || param.graphvizSplines === "line");
+  let _effSplines    = _getEffectiveSplines(param);
+  let skipBendpoints = (_effSplines === "STRAIGHT" || _effSplines === "line");
 
   // ── Delegate to _drawView for Archi API calls ───────────────────────────────
 
@@ -1671,7 +1685,7 @@ function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentR
         if (!connection || skipBendpoints) return;
         let posStr = String(dotEdge.pos || "");
         if (!posStr) return;
-        let bps = _flattenDotSpline(posStr, totalH, param.graphvizSplines || param.edgeRouting);
+        let bps = _flattenDotSpline(posStr, totalH, _effSplines);
         if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
         if (!bps.length) return;
         // Compute centers from coords (Graphviz-computed positions) rather than from
@@ -1683,11 +1697,8 @@ function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentR
                              : _getCenterBounds(srcVisual);
         let tgtCenter = _tc ? { x: Math.round(_tc.x + _tc.w / 2), y: Math.round(_tc.y + _tc.h / 2) }
                              : _getCenterBounds(tgtVisual);
-        let isRev     = reversedSet.has(connection.type);
-        let calcBps   = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
-        for (let i = 0; i < calcBps.length; i++) {
-          connection.addRelativeBendpoint(isRev ? calcBps[calcBps.length - 1 - i] : calcBps[i], i);
-        }
+        let calcBps = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
+        _addBendpoints(connection, calcBps, reversedSet.has(connection.type));
       });
     },
     parentRels, parentMap, occurrenceMap
