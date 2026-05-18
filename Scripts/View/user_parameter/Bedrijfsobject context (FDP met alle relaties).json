@@ -38,14 +38,12 @@
   ],
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsobject context (FDP met alle relaties).js",
-  "graphvizBin": "",
   "_windowBounds": {
     "x": 2252,
     "y": 770,
     "width": 1007,
     "height": 1300
   },
-  "graphvizSplines": "ORTHOGONAL",
   "doc": "Selecteer bedrijfsobject en genereer context view",
   "nestedNodeSpacing": 10,
   "nodePlacement": "BALANCED",

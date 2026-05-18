@@ -57,7 +57,7 @@ function _decodeRelType(entry) {
 const LAST_RUN_FILE = __DIR__ + ".last_gui_run_params.json";
 let defaultParams = View.readJSON(LAST_RUN_FILE)
   || View.readJSON(__DIR__ + View.USER_PARAM_FOLDER + "/default_parameter.json")
-  || Object.assign({}, View.DEFAULTS);
+  || Object.assign({}, View.DEFAULT_PRESET);
 
 const ConfigDialog = Java.extend(TitleAreaDialog);
 
@@ -214,9 +214,6 @@ let layoutDialog = {
       nestedNodeSpacing:   "Inner spacing",
       sameTypeResize:          "Align same-type elements",
       useRelationWeights:     "Relation weights",
-      graphvizEngine:         "Graphviz engine",
-      graphvizSplines:        "Graphviz edge routing",
-      graphvizBin:            "Graphviz binary",
       viewMaxWidth:           "View max width",
       viewMaxHeight:          "View max height",
       viewAspectRatio:        "View aspect ratio",
@@ -542,25 +539,22 @@ let layoutDialog = {
     });
 
     if (this.widgets.grpAlgorithm) {
-      let _algoForRadio = this.config.algorithm || View.DEFAULTS.algorithm;
+      let _algoForRadio = this.config.algorithm || View.DEFAULT_PRESET.algorithm;
       setRadio(this.widgets.grpAlgorithm, _algoForRadio);
       this.updateAlgoControls(_algoForRadio);
     }
     // Direction combo
     if (this.widgets.cmbDir && layoutDialog._dirOpts) {
-      let _dv = this.config.layoutDirection || View.DEFAULTS.layoutDirection;
+      let _dv = this.config.layoutDirection || View.DEFAULT_PRESET.layoutDirection;
       let _di = layoutDialog._dirOpts.findIndex(function(o) { return o.val === _dv; });
       this.widgets.cmbDir.select(_di >= 0 ? _di : 1);
     }
     if (this.widgets.grpEdgeRouting) {
-      let _isGv = View.GV_ALGORITHMS.has(this.config.algorithm);
-      let _routingVal = _isGv
-        ? (this.config.graphvizSplines || "ORTHOGONAL")
-        : (this.config.edgeRouting  || View.DEFAULTS.edgeRouting);
+      let _routingVal = this.config.edgeRouting || View.DEFAULT_PRESET.edgeRouting;
       setRadio(this.widgets.grpEdgeRouting, _routingVal);
     }
     if (this.widgets.cmbLabelPos && layoutDialog._labelPosOpts) {
-      var _lv = this.config.labelPosition || View.DEFAULTS.labelPosition;
+      var _lv = this.config.labelPosition || View.DEFAULT_PRESET.labelPosition;
       var _li = layoutDialog._labelPosOpts.findIndex(function(o) { return o.val === _lv; });
       this.widgets.cmbLabelPos.select(_li >= 0 ? _li : 2); // fallback: Middle
     }
@@ -597,7 +591,7 @@ let layoutDialog = {
     if (this.widgets.chkNestedPack)
       this.widgets.chkNestedPack.setSelection(this.config.nestedAlgorithm === View.ALGO.ELK_RECTPACKING.id);
     if (this.widgets.spinNestedSpacing)
-      this.widgets.spinNestedSpacing.setSelection(this.config.nestedNodeSpacing !== undefined ? this.config.nestedNodeSpacing : View.DEFAULTS.nodeSpacing);
+      this.widgets.spinNestedSpacing.setSelection(this.config.nestedNodeSpacing !== undefined ? this.config.nestedNodeSpacing : View.DEFAULT_PRESET.nodeSpacing);
     if (this.widgets.spinNestedAR)
       this.widgets.spinNestedAR.setSelection(Math.round((this.config.nestedAspectRatio || 0) * 10));
     if (this.widgets.chkSameTypeResize)
@@ -658,9 +652,9 @@ let layoutDialog = {
 
     this.config.layoutDirection = (function() {
       var opts = layoutDialog._dirOpts, cmb = layoutDialog.widgets.cmbDir;
-      if (!opts || !cmb) return View.DEFAULTS.layoutDirection;
+      if (!opts || !cmb) return View.DEFAULT_PRESET.layoutDirection;
       var i = cmb.getSelectionIndex();
-      return (i >= 0 && i < opts.length) ? opts[i].val : View.DEFAULTS.layoutDirection;
+      return (i >= 0 && i < opts.length) ? opts[i].val : View.DEFAULT_PRESET.layoutDirection;
     })();
     this.config.dagreRanker = (function() {
       var opts = layoutDialog._rankerOpts, cmb = layoutDialog.widgets.cmbRanker;
@@ -669,18 +663,12 @@ let layoutDialog = {
       return (i >= 0 && i < opts.length) ? opts[i].val : "network-simplex";
     })();
 
-    var _rv = getRadioVal(this.widgets.grpEdgeRouting);
-    if (View.GV_ALGORITHMS.has(this.config.algorithm)) {
-      this.config.graphvizSplines = _rv || View.DEFAULTS.graphvizSplines;
-      if (_rv !== View.ROUTING.CURVED.id && _rv !== View.ROUTING.SPLINE.id) this.config.edgeRouting = _rv;
-    } else {
-      this.config.edgeRouting = _rv;
-    }
+    this.config.edgeRouting = getRadioVal(this.widgets.grpEdgeRouting);
     if (this.widgets.cmbLabelPos && layoutDialog._labelPosOpts) {
       var _li = this.widgets.cmbLabelPos.getSelectionIndex();
       this.config.labelPosition = (_li >= 0 && layoutDialog._labelPosOpts[_li])
         ? layoutDialog._labelPosOpts[_li].val
-        : View.DEFAULTS.labelPosition;
+        : View.DEFAULT_PRESET.labelPosition;
     }
     this.config.useRelationWeights  = this.widgets.chkUseWeights ? this.widgets.chkUseWeights.getSelection() : false;
 
@@ -702,7 +690,7 @@ let layoutDialog = {
     this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
     this.config.nestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? View.ALGO.ELK_RECTPACKING.id : "";
-    this.config.nestedNodeSpacing  = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULTS.nodeSpacing;
+    this.config.nestedNodeSpacing  = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULT_PRESET.nodeSpacing;
     this.config.nestedAspectRatio  = this.widgets.spinNestedAR ? this.widgets.spinNestedAR.getSelection() / 10.0 : 0;
     this.config.sameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
     this.config.sortLeavesOnly        = !(this.widgets.chkSortContainers && this.widgets.chkSortContainers.getSelection());

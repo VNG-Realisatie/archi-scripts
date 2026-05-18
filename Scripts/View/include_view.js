@@ -39,7 +39,7 @@ const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
 const Defs    = require(REPO_ROOT + "View/include_view_defs");
 const Presets = require(REPO_ROOT + "View/include_view_presets");
-const { ALGO, ACTION, ROUTING, GV_ALGORITHMS, DEFAULTS, RELATION_TYPES, ELEMENT_TYPES } = Defs;
+const { ALGO, ACTION, ROUTING, GV_ALGORITHMS, DEFAULT_PRESET, GV_BIN_DEFAULT, RELATION_TYPES, ELEMENT_TYPES } = Defs;
 
 const PROP_EXCLUDE          = "excludeFromView";
 const GENERATED_VIEW_FOLDER = "/_Generated";
@@ -284,9 +284,9 @@ function _layoutAndRenderELK(param, filteredElements) {
 function _setDefaultParameters(param) {
   let validFlag = true;
 
-  // Fill undefined fields from DEFAULTS (single source of truth for all defaults)
-  Object.keys(DEFAULTS).forEach(function(k) {
-    if (param[k] === undefined) param[k] = DEFAULTS[k];
+  // Fill undefined fields from DEFAULT_PRESET (single source of truth for all preset defaults)
+  Object.keys(DEFAULT_PRESET).forEach(function(k) {
+    if (param[k] === undefined) param[k] = DEFAULT_PRESET[k];
   });
 
   // viewName: override empty string with current selection name
@@ -406,7 +406,8 @@ function _buildLayoutOptionsELK(param) {
     "elk.layered.spacing.nodeNodeBetweenLayers": String(param.layerSpacing),
     // STRAIGHT: pseudo-value — tell ELK POLYLINE but suppress bendpoints in draw step.
     // SPLINES: unsupported in Archi (bezier control points ≠ polyline waypoints).
-    "elk.edgeRouting": (param.edgeRouting === ROUTING.STRAIGHT.id || param.edgeRouting === "SPLINES")
+    "elk.edgeRouting": (param.edgeRouting === ROUTING.STRAIGHT.id || param.edgeRouting === "SPLINES" ||
+                        param.edgeRouting === ROUTING.CURVED.id  || param.edgeRouting === ROUTING.SPLINE.id)
       ? ROUTING.POLYLINE.id : param.edgeRouting,
   };
   if (param.nodePlacement && param.nodePlacement !== "NONE") {
@@ -444,7 +445,7 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
   const ph      = p + (extraHPadding || 0);
   const top     = p + NESTED_LABEL_TOP_EXTRA;
   const spacing = param.nestedNodeSpacing !== undefined
-    ? param.nestedNodeSpacing : DEFAULTS.nestedNodeSpacing;
+    ? param.nestedNodeSpacing : DEFAULT_PRESET.nestedNodeSpacing;
 
   const algo = param.nestedAlgorithm || param.algorithm;
 
@@ -468,7 +469,8 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
     // layered / other: propagate root options into sub-layout.
     opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
     opts["elk.direction"]   = param.layoutDirection;
-    opts["elk.edgeRouting"] = (param.edgeRouting === ROUTING.STRAIGHT.id || param.edgeRouting === "SPLINES")
+    opts["elk.edgeRouting"] = (param.edgeRouting === ROUTING.STRAIGHT.id || param.edgeRouting === "SPLINES" ||
+                               param.edgeRouting === ROUTING.CURVED.id  || param.edgeRouting === ROUTING.SPLINE.id)
                                ? ROUTING.POLYLINE.id : param.edgeRouting;
     if (param.layerSpacing !== undefined)
       opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.layerSpacing);
@@ -554,12 +556,12 @@ function _dimensionCompoundNodes(nodeMap, parentMap, param) {
     let depth = 0, pp = parentMap[nodeId];
     while (pp !== undefined) { depth++; pp = parentMap[pp]; }
 
-    const p2   = param.padding || DEFAULTS.padding;
+    const p2   = param.padding || DEFAULT_PRESET.padding;
     const ph2  = p2 + (node._extraHPadding || 0);
     const top2 = p2 + NESTED_LABEL_TOP_EXTRA;
-    const sp   = param.nestedNodeSpacing !== undefined ? param.nestedNodeSpacing : DEFAULTS.nestedNodeSpacing;
-    const nw2  = param.nodeWidth  || DEFAULTS.nodeWidth;
-    const nh2  = param.nodeHeight || DEFAULTS.nodeHeight;
+    const sp   = param.nestedNodeSpacing !== undefined ? param.nestedNodeSpacing : DEFAULT_PRESET.nestedNodeSpacing;
+    const nw2  = param.nodeWidth  || DEFAULT_PRESET.nodeWidth;
+    const nh2  = param.nodeHeight || DEFAULT_PRESET.nodeHeight;
     const n    = node.children.length;
 
     const kSqrt = Math.max(1, Math.floor(1.2 * Math.sqrt(n)));
@@ -1157,11 +1159,11 @@ function _drawBendpointsELK(param, edge, connection, containerOffset) {
 }
 
 function _getPadding(param) {
-  return param.padding !== undefined ? param.padding : DEFAULTS.padding;
+  return param.padding !== undefined ? param.padding : DEFAULT_PRESET.padding;
 }
 
 function _getEffectiveSplines(param) {
-  return param.graphvizSplines || param.edgeRouting || ROUTING.ORTHOGONAL.id;
+  return param.edgeRouting || ROUTING.ORTHOGONAL.id;
 }
 
 function _addBendpoints(connection, bendpoints, isReversed) {
@@ -1427,14 +1429,14 @@ function _drawEdgeDagre(param, graph, edge, visualElementIndex, view, dagreBound
 // ── Graphviz DOT engine ──────────────────────────────────────────────────────
 
 function _layoutAndRenderGraphviz(param, filteredElements) {
-  Common.debug(`_layoutAndRenderGraphviz: engine=${param.graphvizEngine || param.algorithm} elements=${filteredElements.length}`);
+  Common.debug(`_layoutAndRenderGraphviz: engine=${param.algorithm} elements=${filteredElements.length}`);
   let { nodeMap, edgeList, parentMap, parentRels, occurrenceMap } = _buildGraphData(param, filteredElements);
 
   let dotSource = _buildGraphGraphviz(param, nodeMap, edgeList, parentMap);
   Common.debug("_buildGraphGraphviz result:\n" + dotSource);
-  console.log("\nRunning Graphviz (" + (param.graphvizEngine || "dot") + ")...");
+  console.log("\nRunning Graphviz (" + GV_BIN_DEFAULT + ")...");
 
-  let jsonOut = _runDot(dotSource, param.algorithm, param.graphvizBin || DEFAULTS.graphvizBin);
+  let jsonOut = _runDot(dotSource, param.algorithm, GV_BIN_DEFAULT);
   return _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentRels, occurrenceMap);
 }
 
@@ -1448,8 +1450,8 @@ function _buildGraphGraphviz(param, nodeMap, edgeList, parentMap) {
   const rankdir   = RANKDIR[param.layoutDirection] || "LR";
   const ranksep   = ((param.layerSpacing    || 180) * PX_TO_IN).toFixed(4);
   const nodesep   = ((param.nodeSpacing || 40)  * PX_TO_IN).toFixed(4);
-  const nodeW     = ((param.nodeWidth   || DEFAULTS.nodeWidth)  * PX_TO_IN).toFixed(4);
-  const nodeH     = ((param.nodeHeight  || DEFAULTS.nodeHeight) * PX_TO_IN).toFixed(4);
+  const nodeW     = ((param.nodeWidth   || DEFAULT_PRESET.nodeWidth)  * PX_TO_IN).toFixed(4);
+  const nodeH     = ((param.nodeHeight  || DEFAULT_PRESET.nodeHeight) * PX_TO_IN).toFixed(4);
   const padding   = _getPadding(param);
   const splines   = _elkRoutingToDot(_getEffectiveSplines(param));
 
@@ -1538,7 +1540,8 @@ function _elkRoutingToDot(routing) {
 function _runDot(dotSource, engine, binPath) {
   let ProcessBuilder = Java.type("java.lang.ProcessBuilder");
   let Arrays         = Java.type("java.util.Arrays");
-  let bin = binPath && binPath.trim() !== "" ? binPath.trim() : DEFAULTS.graphvizBin;
+
+  let bin = binPath && binPath.trim() !== "" ? binPath.trim() : GV_BIN_DEFAULT;
   let proc;
   try {
     let pb = new ProcessBuilder(Arrays.asList(bin, "-Tjson", "-K" + engine));
@@ -1600,8 +1603,8 @@ function _collectDotObjects(jsonOut) {
 
     if (obj.pos && oname) {
       let pos = _parseDotXY(String(obj.pos));
-      let nw = obj.width  ? Math.round(parseFloat(String(obj.width))  * 96) : DEFAULTS.nodeWidth;
-      let nh = obj.height ? Math.round(parseFloat(String(obj.height)) * 96) : DEFAULTS.nodeHeight;
+      let nw = obj.width  ? Math.round(parseFloat(String(obj.width))  * 96) : DEFAULT_PRESET.nodeWidth;
+      let nh = obj.height ? Math.round(parseFloat(String(obj.height)) * 96) : DEFAULT_PRESET.nodeHeight;
       nodes[oname] = {
         x: Math.round(pos.x * PT2PX - nw / 2),
         y: Math.round((totalH - pos.y) * PT2PX - nh / 2),

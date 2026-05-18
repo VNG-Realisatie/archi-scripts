@@ -34,14 +34,12 @@
   ],
   "_lastTabIndex": 1,
   "_lastPresetName": "Bedrijfsobjecten per beleidsdomein.js",
-  "graphvizBin": "",
   "_windowBounds": {
     "x": 2033,
     "y": 553,
     "width": 1007,
     "height": 1300
   },
-  "graphvizSplines": "ORTHOGONAL",
   "doc": "Selecteer 1 of meer beleidsdomeinen. Per beleidsdomein een view van de bedrijfsobjecten en relaties",
   "nestedNodeSpacing": 30,
   "nodePlacement": "BALANCED",

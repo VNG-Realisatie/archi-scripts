@@ -5,7 +5,7 @@
  * use with View.generate_view(). Consumed by include_view.js.
  *
  * Preset file resolution order (lowest to highest precedence):
- *   1. include_view_defs.js DEFAULTS (engine built-ins)
+ *   1. include_view_defs.js DEFAULT_PRESET (engine built-ins)
  *   2. user_parameter/default_parameter.json  ← get_default_parameter()
  *   3. user_parameter/<name>.json             ← get_user_parameter() / read_user_parameter()
  *   4. inline overrides in the calling .ajs script

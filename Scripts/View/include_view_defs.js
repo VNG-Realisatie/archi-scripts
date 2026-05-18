@@ -10,7 +10,7 @@
  *   RELATION_TYPES          — Object.freeze map: key → { id, label, weight }
  *   DIRECTIONS, RANKERS,
  *   LABEL_POSITIONS, AR_OPTIONS — ordered arrays of { val, label, [tooltip], [default] }
- *   DEFAULTS                — single combined defaults object, values derived from markers above
+ *   DEFAULT_PRESET          — default values for all preset parameters, derived from markers above
  */
 console.log("include_view_defs.js");
 
@@ -233,27 +233,27 @@ const ELEMENT_TYPES = [
 ];
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
-// Single combined defaults object — replaces both DEFAULTS and DEFAULT_PRESET.
-// String fields derived from the default markers in the concept definitions above.
+// Default Graphviz binary name — not a preset parameter, defined as a constant.
+const GV_BIN_DEFAULT = "dot";
 
-const DEFAULTS = Object.freeze({
+// Default values for all preset parameters.
+// String fields derived from the default markers in the concept definitions above.
+// graphvizSplines, graphvizEngine, graphvizBin are not preset parameters — excluded.
+
+const DEFAULT_PRESET = Object.freeze({
   action:          Object.values(ACTION).find(v => v.default).id,
   algorithm:       Object.values(ALGO).find(v => v.default).id,
   layoutDirection: DIRECTIONS.find(v => v.default).val,
   edgeRouting:     Object.values(ROUTING).find(v => v.default).id,
-  graphvizSplines: Object.values(ROUTING).find(v => v.default).id,
-  graphvizEngine:  ALGO.GV_DOT.id,
   labelPosition:   LABEL_POSITIONS.find(v => v.default).val,
   dagreRanker:     RANKERS.find(v => v.default).val,
   nodePlacement:   "NONE",
-  graphvizBin:     "dot",
   nodeWidth:       140,
   nodeHeight:      60,
   graphDepth:      1,
   nodeSpacing:     40,
   layerSpacing:    180,
   padding:         20,
-  // preset fields (previously DEFAULT_PRESET)
   includeElementType:         [],
   includeRelationType:        [],
   excludeFromView:            false,
@@ -283,6 +283,6 @@ if (typeof module !== "undefined" && module.exports) {
     DIRECTIONS, DIRECTIONS_TOOLTIP, RANKERS, RANKERS_TOOLTIP,
     LABEL_POSITIONS, LABEL_POSITIONS_TOOLTIP, AR_OPTIONS,
     RELATION_TYPES, ELEMENT_TYPES,
-    DEFAULTS,
+    GV_BIN_DEFAULT, DEFAULT_PRESET,
   };
 }
