@@ -6,7 +6,7 @@ const Common = require(REPO_ROOT + "_lib/Common");
 
 Common.initConsoleLog(__FILE__, true);
 
-const View = require(REPO_ROOT + "View/include_view_presets");
+const View = require(REPO_ROOT + "View/include_view");
 
 // Capture selection before opening the SWT dialog causes focus loss
 const initialSelection = $(selection);
@@ -57,7 +57,7 @@ function _decodeRelType(entry) {
 const LAST_RUN_FILE = __DIR__ + ".last_gui_run_params.json";
 let defaultParams = View.readJSON(LAST_RUN_FILE)
   || View.readJSON(__DIR__ + View.USER_PARAM_FOLDER + "/default_parameter.json")
-  || Object.assign({}, View.DEFAULT_PRESET);
+  || Object.assign({}, View.DEFAULTS);
 
 const ConfigDialog = Java.extend(TitleAreaDialog);
 
@@ -559,6 +559,11 @@ let layoutDialog = {
         : (this.config.edgeRouting  || View.DEFAULTS.edgeRouting);
       setRadio(this.widgets.grpEdgeRouting, _routingVal);
     }
+    if (this.widgets.cmbLabelPos && layoutDialog._labelPosOpts) {
+      var _lv = this.config.labelPosition || View.DEFAULTS.labelPosition;
+      var _li = layoutDialog._labelPosOpts.findIndex(function(o) { return o.val === _lv; });
+      this.widgets.cmbLabelPos.select(_li >= 0 ? _li : 2); // fallback: Middle
+    }
     // Ranking combo
     if (this.widgets.cmbRanker && layoutDialog._rankerOpts) {
       let _rv = this.config.dagreRanker || "network-simplex";
@@ -590,7 +595,7 @@ let layoutDialog = {
     if (this.widgets.chkUseWeights)        this.widgets.chkUseWeights.setSelection(!!this.config.useRelationWeights);
     if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
     if (this.widgets.chkNestedPack)
-      this.widgets.chkNestedPack.setSelection(this.config.nestedAlgorithm === "rectpacking");
+      this.widgets.chkNestedPack.setSelection(this.config.nestedAlgorithm === View.ALGO.ELK_RECTPACKING.id);
     if (this.widgets.spinNestedSpacing)
       this.widgets.spinNestedSpacing.setSelection(this.config.nestedNodeSpacing !== undefined ? this.config.nestedNodeSpacing : View.DEFAULTS.nodeSpacing);
     if (this.widgets.spinNestedAR)
@@ -667,9 +672,15 @@ let layoutDialog = {
     var _rv = getRadioVal(this.widgets.grpEdgeRouting);
     if (View.GV_ALGORITHMS.has(this.config.algorithm)) {
       this.config.graphvizSplines = _rv || View.DEFAULTS.graphvizSplines;
-      if (_rv !== "CURVED" && _rv !== "SPLINE") this.config.edgeRouting = _rv;
+      if (_rv !== View.ROUTING.CURVED.id && _rv !== View.ROUTING.SPLINE.id) this.config.edgeRouting = _rv;
     } else {
       this.config.edgeRouting = _rv;
+    }
+    if (this.widgets.cmbLabelPos && layoutDialog._labelPosOpts) {
+      var _li = this.widgets.cmbLabelPos.getSelectionIndex();
+      this.config.labelPosition = (_li >= 0 && layoutDialog._labelPosOpts[_li])
+        ? layoutDialog._labelPosOpts[_li].val
+        : View.DEFAULTS.labelPosition;
     }
     this.config.useRelationWeights  = this.widgets.chkUseWeights ? this.widgets.chkUseWeights.getSelection() : false;
 
@@ -690,7 +701,7 @@ let layoutDialog = {
     this.config.layoutReversed = (this.widgets.lstReversed_checks || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
-    this.config.nestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? "rectpacking" : "";
+    this.config.nestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? View.ALGO.ELK_RECTPACKING.id : "";
     this.config.nestedNodeSpacing  = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULTS.nodeSpacing;
     this.config.nestedAspectRatio  = this.widgets.spinNestedAR ? this.widgets.spinNestedAR.getSelection() / 10.0 : 0;
     this.config.sameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
@@ -716,8 +727,8 @@ let layoutDialog = {
   },
 
   updateActionControls: function (action) {
-    const depthApplies = (action !== View.LAYOUT);
-    const nameApplies  = (action === View.GENERATE_SINGLE);
+    const depthApplies = (action !== View.ACTION.LAYOUT.id);
+    const nameApplies  = (action === View.ACTION.GENERATE_SINGLE.id);
     if (this.widgets.spinDepth)       this.widgets.spinDepth.setEnabled(depthApplies);
     if (this.widgets.spinDepth_lbl)   this.widgets.spinDepth_lbl.setEnabled(depthApplies);
     if (this.widgets.txtViewName)     this.widgets.txtViewName.setEnabled(nameApplies);
@@ -726,7 +737,7 @@ let layoutDialog = {
 
   updateAlgoControls: function (algo) {
     if (!this.widgets.grpAlgorithm) return;
-    var c = View.CAPABILITIES[algo] || View.CAPABILITIES[View.ALGO.ELK_LAYERED];
+    var c = View.CAPABILITIES[algo] || View.CAPABILITIES[View.ALGO.ELK_LAYERED.id];
     layoutDialog._currentCaps = c;
     function setRowEnabled(comp, enabled) {
       var ch = comp.getChildren();
@@ -736,6 +747,8 @@ let layoutDialog = {
     if (this.widgets.cmbDir)     this.widgets.cmbDir.setEnabled(c.dir);
     if (this.widgets.cmbDir_lbl) this.widgets.cmbDir_lbl.setEnabled(c.dir);
     setRowEnabled(this.widgets.grpEdgeRouting, c.routing);
+    if (this.widgets.cmbLabelPos)     this.widgets.cmbLabelPos.setEnabled(!!c.labelPos);
+    if (this.widgets.cmbLabelPos_lbl) this.widgets.cmbLabelPos_lbl.setEnabled(!!c.labelPos);
     // Ranking: cmbRanker is a standalone ComboWidget in the Flow row
     if (this.widgets.cmbRanker)     this.widgets.cmbRanker.setEnabled(c.ranker);
     if (this.widgets.cmbRanker_lbl) this.widgets.cmbRanker_lbl.setEnabled(c.ranker);
@@ -765,7 +778,7 @@ let layoutDialog = {
       var ch = this.widgets.grpEdgeRouting.getChildren();
       for (var i = 0; i < ch.length; i++) {
         var v = ch[i].getData ? String(ch[i].getData("val") || "") : "";
-        if (v === "CURVED" || v === "SPLINE") ch[i].setEnabled(!!c.curvedSplines);
+        if (v === View.ROUTING.CURVED.id || v === View.ROUTING.SPLINE.id) ch[i].setEnabled(!!c.curvedSplines);
       }
     }
   },
@@ -846,12 +859,9 @@ let layoutDialog = {
       layoutDialog.widgets.grpActionControls = btnGroup;
 
       (function() {
-        let actions = [
-          { label: "New view",      val: View.GENERATE_SINGLE,   tip: "Creates or updates a single view from the selected elements and their relations. Use 'View name' to set the view title." },
-          { label: "One view each", val: View.GENERATE_MULTIPLE, tip: "Creates one view per selected element. Each view is named after its element." },
-          { label: "Expand view",   val: View.EXPAND_HERE,        tip: "Adds elements related to the current selection to the open view. Existing elements are kept in place." },
-          { label: "Re-layout",     val: View.LAYOUT,             tip: "Re-lays out all elements on the selected view. No elements or relations are added or removed." },
-        ];
+        let actions = Object.values(View.ACTION).map(function(a) {
+          return { label: a.label, val: a.id, tip: a.tooltip };
+        });
         layoutDialog._updateGenerateLabel = function(actionVal) {
           let IDC = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
           let okBtn = layoutDialog.dialog.getButton(IDC.OK_ID);
@@ -1039,12 +1049,12 @@ let layoutDialog = {
         GridDataFactory.fillDefaults().grab(true, false).span(spanCols || 2, 1).applyTo(comp);
         GridLayoutFactory.swtDefaults().numColumns(cols).margins(0, 2).spacing(6, 2).applyTo(comp);
         let checks = [];
-        View.RELATION_NAMES.forEach(function(type) {
+        Object.values(View.RELATION_TYPES).forEach(function(rel) {
           let chk = new ButtonWidget(comp, SWT.CHECK);
-          chk.setText(shortRelName(type) + "  ");
-          chk.setToolTipText(type);
-          chk.setSelection((initialSelected || []).indexOf(type) >= 0);
-          checks.push({ type: type, chk: chk });
+          chk.setText(rel.label + "  ");
+          chk.setToolTipText(rel.id);
+          chk.setSelection((initialSelected || []).indexOf(rel.id) >= 0);
+          checks.push({ type: rel.id, chk: chk });
         });
         layoutDialog.widgets[name + "_checks"] = checks;
       }
@@ -1068,7 +1078,7 @@ let layoutDialog = {
       lblElemDesc.setText("Include only elements of these types. Leave the list empty to include all types.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblElemDesc);
       layoutDialog.createListBuilder("lstElemTypes", grpElemFilter, null, null,
-        View.ELEMENT_NAMES, layoutDialog.config.includeElementType);
+        View.ELEMENT_TYPES, layoutDialog.config.includeElementType);
 
       // Group: Relation filter
       let grpRelFilter = new GroupWidget(genContainer, SWT.NONE);
@@ -1087,7 +1097,8 @@ let layoutDialog = {
         GridLayoutFactory.swtDefaults().numColumns(3).margins(0, 2).spacing(16, 2).applyTo(outerComp);
 
         let rows = [];
-        View.RELATION_NAMES.forEach(function(type) {
+        Object.values(View.RELATION_TYPES).forEach(function(rel) {
+          let type = rel.id;
           let rowComp = new CompositeWidget(outerComp, SWT.NONE);
           GridDataFactory.fillDefaults().grab(true, false).applyTo(rowComp);
           GridLayoutFactory.swtDefaults().numColumns(4).margins(2, 1).spacing(1, 0).applyTo(rowComp);
@@ -1096,7 +1107,7 @@ let layoutDialog = {
           chk.setToolTipText(type);
 
           let lbl = new LabelWidget(rowComp, SWT.NONE);
-          lbl.setText(" " + shortRelName(type));
+          lbl.setText(" " + rel.label);
           lbl.setToolTipText(type);
           GridDataFactory.fillDefaults().grab(true, false).applyTo(lbl);
 
@@ -1172,14 +1183,14 @@ let layoutDialog = {
       tabLayout.setControl(scrolled2);
 
       // Group: Algorithm — algorithm list left, description + options right
-      let grpELK = new GroupWidget(layoutContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpELK);
-      grpELK.setText("Algorithm"); setBoldFont(grpELK);
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(4, 4).applyTo(grpELK);
+      let grpAlgorithm = new GroupWidget(layoutContainer, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpAlgorithm);
+      grpAlgorithm.setText("Algorithm"); setBoldFont(grpAlgorithm);
+      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(4, 4).applyTo(grpAlgorithm);
 
       // Algorithm selection — 8 columns: [group label 115px] [algo…] [→grab] [right-param]
       // Col 7 is always an elastic grab-filler that pins col 8 to the right sideline.
-      let compAlgo = new CompositeWidget(grpELK, SWT.NONE);
+      let compAlgo = new CompositeWidget(grpAlgorithm, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(compAlgo);
       GridLayoutFactory.swtDefaults().numColumns(8).margins(0, 0).spacing(8, 5).applyTo(compAlgo);
       layoutDialog.widgets.grpAlgorithm = compAlgo;
@@ -1194,124 +1205,97 @@ let layoutDialog = {
         return lbl;
       }
 
-      // ── Row 1: Flow ──────────────────────────────────────────────────────────
-      let lblFlow = new LabelWidget(compAlgo, SWT.NONE);
-      lblFlow.setText("Flow:");
-      lblFlow.setToolTipText("Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models.");
-      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblFlow);
-      createRadios(compAlgo, [
-        { label: "Layered", val: "layered", tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)" },
-        { label: "Dagre",   val: "dagre",   tooltip: "Fast process and application flows with limited nesting support (Dagre)" },
-        { label: "Dot",     val: "dot",     tooltip: "Structured process models and dependency flows with strong nesting support (Graphviz)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 5-6 fillers
-      _grabLabel("Ranking:", "cmbRanker_lbl"); // col 7: right-aligned label
-      let _RANKER_OPTS = [
-        { label: "Balanced",    val: "network-simplex" },
-        { label: "Uniform",     val: "tight-tree"      },
-        { label: "Top-aligned", val: "longest-path"    },
-      ];
-      let cmbRanker = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
-      GridDataFactory.swtDefaults().applyTo(cmbRanker); // col 8
-      _RANKER_OPTS.forEach(function(o) { cmbRanker.add(o.label); });
-      cmbRanker.select(0);
-      cmbRanker.setToolTipText("Row arrangement strategy for the Dagre algorithm. Only active when Dagre is selected.");
-      layoutDialog.widgets.cmbRanker = cmbRanker;
-      layoutDialog._rankerOpts = _RANKER_OPTS;
-
-      // ── Row 2: Hierarchy ─────────────────────────────────────────────────────
-      let lblHierarchy = new LabelWidget(compAlgo, SWT.NONE);
-      lblHierarchy.setText("Hierarchy:");
-      lblHierarchy.setToolTipText("Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition.");
-      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblHierarchy);
-      createRadios(compAlgo, [
-        { label: "Tree", val: "mrtree", tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 3-4
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 5-6
-      _grabLabel("Direction:", "cmbDir_lbl"); // col 7: right-aligned label, stored
-      let _DIR_OPTS = [
-        { label: "Right", val: "RIGHT" },
-        { label: "Down",  val: "DOWN"  },
-        { label: "Up",    val: "UP"    },
-        { label: "Left",  val: "LEFT"  },
-      ];
-      let cmbDir = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
-      GridDataFactory.swtDefaults().applyTo(cmbDir); // col 8
-      _DIR_OPTS.forEach(function(o) { cmbDir.add(o.label); });
-      cmbDir.select(1); // Down default
-      cmbDir.setToolTipText("Flow direction for layered and tree algorithms.");
-      layoutDialog.widgets.cmbDir = cmbDir;
-      layoutDialog.widgets.grpDir = null; // no longer a composite; see updateAlgoControls
-      layoutDialog._dirOpts = _DIR_OPTS;
-
-      // ── Row 3: Network ───────────────────────────────────────────────────────
-      let lblNetwork = new LabelWidget(compAlgo, SWT.NONE);
-      lblNetwork.setText("Network:");
-      lblNetwork.setToolTipText("Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks.");
-      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblNetwork);
-      createRadios(compAlgo, [
-        { label: "Force",  val: "force",  tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)" },
-        { label: "Stress", val: "stress", tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)" },
-        { label: "Neato",  val: "neato",  tooltip: "Integration networks and application landscapes with partial nesting support (Graphviz)" },
-        { label: "FDP",    val: "fdp",    tooltip: "Clustered integration networks with partial nesting support (Graphviz)" },
-        { label: "SFDP",   val: "sfdp",   tooltip: "Large-scale integration networks and dependency maps without nesting support (Graphviz)" },
-      ]);
-      // col 7: checkbox square only, grab + right-aligned (mirrors Ranking/Direction label position)
-      let chkWeights = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
-      chkWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
-      GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkWeights);
-      layoutDialog.widgets.chkUseWeights = chkWeights;
-      // col 8: text label (click toggles checkbox)
-      let lblWeights = new LabelWidget(compAlgo, SWT.NONE);
-      lblWeights.setText("Draw related closer");
-      lblWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
-      lblWeights.addListener(SWT.MouseUp, function() { chkWeights.setSelection(!chkWeights.getSelection()); });
-      layoutDialog.widgets.chkUseWeights_lbl = lblWeights;
-
-      // ── Row 4: Circular ──────────────────────────────────────────────────────
-      let lblCircular = new LabelWidget(compAlgo, SWT.NONE);
-      lblCircular.setText("Circular:");
-      lblCircular.setToolTipText("Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures.");
-      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblCircular);
-      createRadios(compAlgo, [
-        { label: "Radial", val: "radial", tooltip: "Domain overviews and hub-and-spoke structures with strong nesting support (ELK)" },
-        { label: "Twopi",  val: "twopi",  tooltip: "Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz)" },
-        { label: "Circo",  val: "circo",  tooltip: "Cyclic dependency and domain overviews with limited nesting support (Graphviz)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 5-6
-      _grabLabel("", null); new LabelWidget(compAlgo, SWT.NONE); // col 7 grab, col 8 filler
-
-      // ── Row 5: Compact ───────────────────────────────────────────────────────
-      let lblCompact = new LabelWidget(compAlgo, SWT.NONE);
-      lblCompact.setText("Compact:");
-      lblCompact.setToolTipText("Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries.");
-      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblCompact);
-      createRadios(compAlgo, [
-        { label: "Grid", val: "box",         tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)" },
-        { label: "Pack", val: "rectpacking", tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 4-5
-      new LabelWidget(compAlgo, SWT.NONE); // col 6
-      // col 7: Pack tightly checkbox square, grab + right-aligned
-      let chkNestedPack = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
-      chkNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
-      GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkNestedPack);
-      layoutDialog.widgets.chkNestedPack = chkNestedPack;
-      // col 8: text label (click toggles checkbox)
-      let lblNestedPack = new LabelWidget(compAlgo, SWT.NONE);
-      lblNestedPack.setText("Pack tightly");
-      lblNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
-      lblNestedPack.addListener(SWT.MouseUp, function() { chkNestedPack.setSelection(!chkNestedPack.getSelection()); });
-      layoutDialog.widgets.chkNestedPack_lbl = lblNestedPack;
-
+      // ── Algorithm rows: derived from View.ALGO (grouped by .group, in insertion order) ──
+      // Layout: 8 columns. Col 1 = group label. Cols 2–6 = radio buttons + fillers (5 slots).
+      // Cols 7–8 = per-group controls (Ranking, Direction, Weights, Pack tightly).
       (function() {
-        layoutDialog._packRowWidgets = [chkNestedPack, lblNestedPack];
-        layoutDialog._setPackRowEnabled = function(on) {
-          (layoutDialog._packRowWidgets || []).forEach(function(w) { w.setEnabled(on); });
-          // NOTE: do NOT reset chkNestedPack.setSelection — preserve state on deactivation
-        };
+        const _ag = {}, _go = [];
+        Object.values(View.ALGO).forEach(function(a) {
+          if (!_ag[a.group]) { _ag[a.group] = []; _go.push(a.group); }
+          _ag[a.group].push(a);
+        });
+
+        _go.forEach(function(grp) {
+          let lbl = new LabelWidget(compAlgo, SWT.NONE);
+          lbl.setText(grp + ":");
+          lbl.setToolTipText(View.ALGO_GROUP_TOOLTIPS[grp] || "");
+          GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lbl);
+
+          let _algos = _ag[grp];
+          createRadios(compAlgo, _algos.map(function(a) { return { label: a.label, val: a.id, tooltip: a.tooltip }; }));
+          for (let i = _algos.length; i < 5; i++) new LabelWidget(compAlgo, SWT.NONE);
+
+          if (grp === "Flow") {
+            _grabLabel("Ranking:", "cmbRanker_lbl");
+            let cmbRanker = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
+            GridDataFactory.swtDefaults().applyTo(cmbRanker);
+            View.RANKERS.forEach(function(o) { cmbRanker.add(o.label); });
+            cmbRanker.select(View.RANKERS.findIndex(function(o) { return o.default; }));
+            cmbRanker.setToolTipText(View.RANKERS_TOOLTIP);
+            layoutDialog.widgets.cmbRanker = cmbRanker;
+            layoutDialog._rankerOpts = View.RANKERS;
+
+          } else if (grp === "Hierarchy") {
+            _grabLabel("Direction:", "cmbDir_lbl");
+            let cmbDir = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
+            GridDataFactory.swtDefaults().applyTo(cmbDir);
+            View.DIRECTIONS.forEach(function(o) { cmbDir.add(o.label); });
+            cmbDir.select(View.DIRECTIONS.findIndex(function(o) { return o.default; }));
+            cmbDir.setToolTipText(View.DIRECTIONS_TOOLTIP);
+            layoutDialog.widgets.cmbDir = cmbDir;
+            layoutDialog.widgets.grpDir = null; // no longer a composite; see updateAlgoControls
+            layoutDialog._dirOpts = View.DIRECTIONS;
+
+          } else if (grp === "Network") {
+            let chkWeights = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
+            chkWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
+            GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkWeights);
+            layoutDialog.widgets.chkUseWeights = chkWeights;
+            let lblWeights = new LabelWidget(compAlgo, SWT.NONE);
+            lblWeights.setText("Draw related closer");
+            lblWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
+            lblWeights.addListener(SWT.MouseUp, function() { chkWeights.setSelection(!chkWeights.getSelection()); });
+            layoutDialog.widgets.chkUseWeights_lbl = lblWeights;
+
+          } else if (grp === "Circular") {
+            _grabLabel("", null); new LabelWidget(compAlgo, SWT.NONE);
+
+          } else if (grp === "Compact") {
+            let chkNestedPack = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
+            chkNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
+            GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkNestedPack);
+            layoutDialog.widgets.chkNestedPack = chkNestedPack;
+            let lblNestedPack = new LabelWidget(compAlgo, SWT.NONE);
+            lblNestedPack.setText("Pack tightly");
+            lblNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
+            lblNestedPack.addListener(SWT.MouseUp, function() { chkNestedPack.setSelection(!chkNestedPack.getSelection()); });
+            layoutDialog.widgets.chkNestedPack_lbl = lblNestedPack;
+            layoutDialog._packRowWidgets = [chkNestedPack, lblNestedPack];
+            layoutDialog._setPackRowEnabled = function(on) {
+              (layoutDialog._packRowWidgets || []).forEach(function(w) { w.setEnabled(on); });
+              // NOTE: do NOT reset chkNestedPack.setSelection — preserve state on deactivation
+            };
+          }
+        });
       })();
+
+      // ── Row 6: Relation lines (cols 1-6) + Labels position (cols 7-8) ─────────
+      let cRouting = new CompositeWidget(compAlgo, SWT.NONE);
+      GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(cRouting);
+      GridLayoutFactory.swtDefaults().numColumns(6).margins(0, 0).spacing(8, 0).applyTo(cRouting);
+      let lblRouting = new LabelWidget(cRouting, SWT.NONE);
+      lblRouting.setText("Relation lines:");
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblRouting);
+      layoutDialog.widgets.grpEdgeRouting = cRouting;
+      createRadios(cRouting, Object.values(View.ROUTING).map(function(r) { return { label: r.label, val: r.id, tooltip: r.tooltip }; }));
+      _grabLabel("Labels:", "cmbLabelPos_lbl"); // col 7 of compAlgo
+      layoutDialog._labelPosOpts = View.LABEL_POSITIONS;
+      let cmbLabelPos = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
+      GridDataFactory.swtDefaults().applyTo(cmbLabelPos); // col 8 of compAlgo
+      View.LABEL_POSITIONS.forEach(function(o) { cmbLabelPos.add(o.label); });
+      cmbLabelPos.select(View.LABEL_POSITIONS.findIndex(function(o) { return o.default; }));
+      cmbLabelPos.setToolTipText(View.LABEL_POSITIONS_TOOLTIP);
+      layoutDialog.widgets.cmbLabelPos = cmbLabelPos;
 
       // Wire all radio buttons in compAlgo to updateAlgoControls
       let algoChildren = compAlgo.getChildren();
@@ -1322,25 +1306,6 @@ let layoutDialog = {
           });
         }
       }
-
-      // Half-line spacer between algo section and relation lines
-      let sepAlgoParams = new LabelWidget(grpELK, SWT.NONE);
-      GridDataFactory.swtDefaults().hint(SWT.DEFAULT, 4).applyTo(sepAlgoParams);
-
-      let cRouting = new CompositeWidget(grpELK, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(cRouting);
-      GridLayoutFactory.swtDefaults().numColumns(6).margins(0, 0).spacing(8, 0).applyTo(cRouting);
-      let lblRouting = new LabelWidget(cRouting, SWT.NONE);
-      lblRouting.setText("Relation lines:");
-      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblRouting);
-      layoutDialog.widgets.grpEdgeRouting = cRouting;
-      createRadios(cRouting, [
-        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
-        { label: "Polyline",   val: "POLYLINE",   tooltip: "Draws relation lines with diagonal bends. Works with all algorithms." },
-        { label: "Straight",   val: "STRAIGHT",   tooltip: "Draws relation lines as straight lines." },
-        { label: "Curved",     val: "CURVED",     tooltip: "Smooth curves (Graphviz only). Note: may fall back to straight lines with the Dot engine — use Spline instead for reliable curves." },
-        { label: "Spline",     val: "SPLINE",     tooltip: "Graphviz B-splines — the classic curved Graphviz look. Most reliable curved option with the Dot engine (Graphviz only)." },
-      ]);
 
       // Group: Size and spacing — 7 columns
       // [cat 90px] [label] [spin] [label] [spin] [label] [spin/combo]
@@ -1401,24 +1366,10 @@ let layoutDialog = {
       let cmbViewAR = new ComboWidget(grpSpacing, SWT.DROP_DOWN | SWT.READ_ONLY);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(cmbViewAR);
       cmbViewAR.setToolTipText("Desired width÷height ratio. Graphviz and Pack (ELK) use this to shape the layout. Leave blank for no constraint.");
-      let _AR_OPTIONS = [
-        { label: "",                val: 0.00 },
-        { label: "3:1  landscape",  val: 3.00 },
-        { label: "2:1  wide",       val: 2.00 },
-        { label: "16:9  widescreen",val: 1.78 },
-        { label: "4:3  classic",    val: 1.33 },
-        { label: "5:4",             val: 1.25 },
-        { label: "1:1  square",     val: 1.00 },
-        { label: "4:5",             val: 0.80 },
-        { label: "3:4  portrait",   val: 0.75 },
-        { label: "9:16  portrait",  val: 0.56 },
-        { label: "1:2  tall",       val: 0.50 },
-        { label: "1:3  very tall",  val: 0.33 },
-      ];
-      _AR_OPTIONS.forEach(function(o) { cmbViewAR.add(o.label); });
+      View.AR_OPTIONS.forEach(function(o) { cmbViewAR.add(o.label); });
       cmbViewAR.select(0);
       layoutDialog.widgets.cmbViewAspectRatio = cmbViewAR;
-      layoutDialog._arOptions = _AR_OPTIONS;
+      layoutDialog._arOptions = View.AR_OPTIONS;
 
       (function() {
         cmbViewAR.addListener(SWT.Selection, function() {

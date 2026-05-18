@@ -8,14 +8,14 @@
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common = require(REPO_ROOT + "_lib/Common");
-const View = require(REPO_ROOT + "View/include_view_presets");
+const View = require(REPO_ROOT + "View/include_view");
 
 Common.initConsoleLog(__FILE__, true);
 
 let param = {};
 param = View.get_default_parameter(__FILE__);
 
-param.action = View.LAYOUT;
+param.action = View.ACTION.LAYOUT.id;
 param.layoutDirection = "RIGHT";
 param.layoutReversed = [
   // "access-relationship",

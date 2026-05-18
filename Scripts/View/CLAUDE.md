@@ -5,6 +5,8 @@ See: `coding-standards.md` — naming and module conventions
 See: `CLAUDE.md` — project vocabulary
 See: `PROMPT.md` — data structures, ELK/Dagre path, parameter reference
 
+Preset files: `user_parameter/*.json` — plain JSON, no module.exports
+
 ## Pipeline model
 
 ```

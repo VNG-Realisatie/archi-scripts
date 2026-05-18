@@ -37,37 +37,15 @@ const Common = require(REPO_ROOT + "_lib/Common");
 const Selection = require(REPO_ROOT + "_lib/selection");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
-const GENERATE_SINGLE   = "Generate";
-const GENERATE_MULTIPLE = "GenerateMultiple";
-const EXPAND_HERE       = "Expand";
-const LAYOUT            = "Layout";
+const Defs    = require(REPO_ROOT + "View/include_view_defs");
+const Presets = require(REPO_ROOT + "View/include_view_presets");
+const { ALGO, ACTION, ROUTING, GV_ALGORITHMS, DEFAULTS, RELATION_TYPES, ELEMENT_TYPES } = Defs;
 
 const PROP_EXCLUDE          = "excludeFromView";
 const GENERATED_VIEW_FOLDER = "/_Generated";
 const JUNCTION_DIAMETER     = 14;
 const NESTED_LABEL_TOP_EXTRA = 30; // extra top padding so Archi's container label doesn't overlap children
 const PT2PX = 96 / 72;            // Graphviz: points → pixels (96 DPI screen, 72 pt/inch)
-
-// Algorithm identifiers — use ALGO.* everywhere, never raw strings
-const ALGO = {
-  ELK_LAYERED:     "layered",
-  ELK_MRTREE:      "mrtree",
-  ELK_FORCE:       "force",
-  ELK_BOX:         "box",
-  ELK_STRESS:      "stress",
-  ELK_RADIAL:      "radial",
-  ELK_RECTPACKING: "rectpacking",
-  DAGRE:           "dagre",
-  GV_DOT:          "dot",
-  GV_NEATO:        "neato",
-  GV_FDP:          "fdp",
-  GV_SFDP:         "sfdp",
-  GV_TWOPI:        "twopi",
-  GV_CIRCO:        "circo",
-};
-
-const GV_ALGORITHMS = new Set([ALGO.GV_DOT, ALGO.GV_NEATO, ALGO.GV_FDP,
-                                ALGO.GV_SFDP, ALGO.GV_TWOPI, ALGO.GV_CIRCO]);
 
 // Direction map shared by Dagre and Graphviz engines (ELK uses its own string keys)
 const RANKDIR = { RIGHT: "LR", LEFT: "RL", DOWN: "TB", UP: "BT" };
@@ -77,94 +55,38 @@ const RANKDIR = { RIGHT: "LR", LEFT: "RL", DOWN: "TB", UP: "BT" };
 const GV_EDGE_CLEARANCE_ORTHO  = '+24';
 const GV_EDGE_CLEARANCE_CURVED = '+8';
 
-// All parameter defaults — engine owns these; GUI reads View.DEFAULTS
-const DEFAULTS = {
-  nodeWidth:                 140,
-  nodeHeight:                60,
-  graphDepth:                1,
-  action:                    GENERATE_SINGLE,
-  algorithm:              ALGO.ELK_LAYERED,
-  layoutDirection:              "RIGHT",
-  nodeSpacing:        40,
-  layerSpacing:           180,
-  padding:                20,
-  edgeRouting:            "ORTHOGONAL",
-  nodePlacement: "NONE",
-  dagreRanker:               "network-simplex",
-  graphvizEngine:            ALGO.GV_DOT,
-  graphvizBin:               "dot",
-  graphvizSplines:           "ORTHOGONAL",
-};
-
-// Complete default param object — single source of truth for all field defaults.
-// GUI uses Object.assign({}, View.DEFAULT_PRESET) as its hardcoded fallback.
-// _setDefaultParameters fills undefined fields from this object.
-const DEFAULT_PRESET = Object.assign({
-  includeElementType:         [],
-  includeRelationType:        [],
-  excludeFromView:            false,
-  layoutReversed:             [],
-  layoutNested:               [],
-  nestingMultipleOccurrences: false,
-  viewName:                   "",
-  viewNameSuffix:             "",
-  viewFolder:                 "",
-  nestedAlgorithm:         "",
-  nestedNodeSpacing:   DEFAULTS.nodeSpacing,
-  nestedAspectRatio:       0,
-  sameTypeResize:          false,
-  sortLeavesOnly:          false,
-  useRelationWeights:         false,
-  viewMaxWidth:               0,
-  viewMaxHeight:              0,
-  viewAspectRatio:            0,
-  debug:                      false,
-}, DEFAULTS);
-
 // Algorithm capabilities — each engine defines only what it supports (true);
 // caps() fills the rest with false. One block per engine for readability.
-const CAP_FIELDS = ["dir","routing","layerSep","ranker","weights","maxW","maxH","ar","packRow","nesting","curvedSplines"];
+const CAP_FIELDS = ["dir","routing","layerSep","ranker","weights","maxW","maxH","ar","packRow","nesting","curvedSplines","labelPos"];
 const _capFalse  = Object.fromEntries(CAP_FIELDS.map(k => [k, false]));
 function caps(supported) { return Object.assign({}, _capFalse, supported); }
 
 const ELK_CAPABILITIES = {
-  [ALGO.ELK_LAYERED]:     caps({ dir: true, routing: true, layerSep: true, nesting: true }),
-  [ALGO.ELK_MRTREE]:      caps({ dir: true, routing: true, nesting: true }),
-  [ALGO.ELK_FORCE]:       caps({ weights: true, ar: true }),
-  [ALGO.ELK_BOX]:         caps({ maxW: true, ar: true, nesting: true }),
-  [ALGO.ELK_STRESS]:      caps({ weights: true, ar: true, nesting: true }),
-  [ALGO.ELK_RADIAL]:      caps({ layerSep: true, weights: true, ar: true, nesting: true }),
-  [ALGO.ELK_RECTPACKING]: caps({ maxW: true, ar: true, packRow: true, nesting: true }),
+  [ALGO.ELK_LAYERED.id]:     caps({ dir: true, routing: true, layerSep: true, nesting: true, labelPos: true }),
+  [ALGO.ELK_MRTREE.id]:      caps({ dir: true, routing: true, nesting: true,                labelPos: true }),
+  [ALGO.ELK_FORCE.id]:       caps({ weights: true, ar: true }),
+  [ALGO.ELK_BOX.id]:         caps({ maxW: true, ar: true, nesting: true }),
+  [ALGO.ELK_STRESS.id]:      caps({ weights: true, ar: true, nesting: true }),
+  [ALGO.ELK_RADIAL.id]:      caps({ layerSep: true, weights: true, ar: true, nesting: true }),
+  [ALGO.ELK_RECTPACKING.id]: caps({ maxW: true, ar: true, packRow: true, nesting: true }),
 };
 const GV_CAPABILITIES = {
-  [ALGO.GV_DOT]:   caps({ dir: true, routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true }),
-  [ALGO.GV_NEATO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true }),
-  [ALGO.GV_FDP]:   caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true }),
-  [ALGO.GV_SFDP]:  caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
-  [ALGO.GV_TWOPI]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
-  [ALGO.GV_CIRCO]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true }),
+  [ALGO.GV_DOT.id]:   caps({ dir: true, routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true, labelPos: true }),
+  [ALGO.GV_NEATO.id]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true, labelPos: true }),
+  [ALGO.GV_FDP.id]:   caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true, nesting: true, curvedSplines: true, labelPos: true }),
+  [ALGO.GV_SFDP.id]:  caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true,               labelPos: true }),
+  [ALGO.GV_TWOPI.id]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true,               labelPos: true }),
+  [ALGO.GV_CIRCO.id]: caps({ routing: true, layerSep: true, maxW: true, maxH: true, ar: true,               labelPos: true }),
 };
 const DAGRE_CAPABILITIES = {
-  [ALGO.DAGRE]: caps({ dir: true, layerSep: true, ranker: true, nesting: true }),
+  [ALGO.DAGRE.id]: caps({ dir: true, layerSep: true, ranker: true, nesting: true, labelPos: true }),
 };
 // Single exported table — GUI and engine both use this
 const CAPABILITIES = Object.assign({}, ELK_CAPABILITIES, GV_CAPABILITIES, DAGRE_CAPABILITIES);
 
-// Relation type weights for weight-driven layout (elk.priority).
-// Higher weight = stronger attraction between connected elements.
-const RELATION_WEIGHTS = {
-  "composition-relationship":    3.0, // structural containment — tightest coupling
-  "aggregation-relationship":    2.5, // structural grouping
-  "realization-relationship":    2.0, // interface-to-implementation dependency
-  "specialization-relationship": 2.0, // inheritance — strong conceptual coupling
-  "assignment-relationship":     1.5, // role-to-behaviour assignment
-  "serving-relationship":        1.5, // functional dependency
-  "triggering-relationship":     1.5, // ordered behavioural sequence
-  "flow-relationship":           1.2, // information or material flow
-  "access-relationship":         1.0, // functional use
-  "association-relationship":    1.0, // general connection
-  "influence-relationship":      0.5, // soft, indirect effect — weakest
-};
+// Derived from RELATION_TYPES — used for validation and weight lookup
+const _relTypeIds   = Object.values(RELATION_TYPES).map(v => v.id);
+const _relWeightMap = Object.fromEntries(Object.values(RELATION_TYPES).map(v => [v.id, v.weight]));
 
 /**
  * ELK.js is loaded via native jArchi CommonJS require (no jvm-npm).
@@ -172,7 +94,7 @@ const RELATION_WEIGHTS = {
  */
 try {
   var elk = require(REPO_ROOT + "node_modules/elkjs/index.js");
-  console.log("ELK.js layout engine loaded.\n");
+  console.log("\nELK.js layout engine loaded.");
 } catch (error) {
   console.log(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
   throw new Error("\nELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.");
@@ -201,13 +123,13 @@ function generate_view(param, drawCollection) {
       let filteredElements = _includedElements(param, drawCollection);
 
       switch (param.action) {
-        case GENERATE_SINGLE:
-        case EXPAND_HERE:
-        case LAYOUT:
+        case ACTION.GENERATE_SINGLE.id:
+        case ACTION.EXPAND_HERE.id:
+        case ACTION.LAYOUT.id:
           generatedViews.add(_layoutAndRender(param,filteredElements));
           break;
 
-        case GENERATE_MULTIPLE:
+        case ACTION.GENERATE_MULTIPLE.id:
           console.log(`Generating views for elements:`);
           filteredElements.forEach(function (e) {
             console.log(`- ${e}`);
@@ -240,7 +162,7 @@ function generate_view(param, drawCollection) {
  * @returns Archi view
  */
 function _layoutAndRender(param, filteredElements) {
-  if (param.algorithm === ALGO.DAGRE) return _layoutAndRenderDagre(param, filteredElements);
+  if (param.algorithm === ALGO.DAGRE.id) return _layoutAndRenderDagre(param, filteredElements);
   if (GV_ALGORITHMS.has(param.algorithm)) return _layoutAndRenderGraphviz(param, filteredElements);
   return _layoutAndRenderELK(param, filteredElements);
 }
@@ -249,6 +171,85 @@ function _layoutAndRender(param, filteredElements) {
  * Build ELK data structures, run layout, draw view.
  * @returns Archi view
  */
+// Find the smallest compound-node width in the pass-1 layout result.
+// Caps at viewMaxWidth − 2*padding so equalized leaves still fit inside depth-0 containers.
+function _collectMinContainerW(elkLayoutPass1, param) {
+  let globalMinW = Infinity;
+  function walk(node) {
+    if (!node.children || node.children.length === 0) return;
+    if (node.id !== "root" && node.width < globalMinW) globalMinW = node.width;
+    node.children.forEach(walk);
+  }
+  walk(elkLayoutPass1);
+  if (param.viewMaxWidth > 0 && isFinite(globalMinW)) {
+    const maxLeafW = param.viewMaxWidth - 2 * _getPadding(param);
+    if (maxLeafW > 0 && globalMinW > maxLeafW) globalMinW = maxLeafW;
+  }
+  return globalMinW;
+}
+
+// For each compound node that mixes leaves and sub-containers:
+// - leaf children of matching type → target width = globalMinW
+// - sub-containers narrower than globalMinW → extra horizontal padding to reach globalMinW
+function _equalizeSiblings(elkLayoutPass1, globalMinW) {
+  const equalizedSizes = {};  // leaf id      → { width }
+  const extraHPaddings = {};  // container id → extra px per side (left + right)
+  function walk(node) {
+    if (!node.children || node.children.length === 0) return;
+    node.children.forEach(walk);
+    const hasContainerSibling = node.children.some(function(c) { return c.children && c.children.length > 0; });
+    if (!hasContainerSibling) return;
+    const containerType = node._type; // only resize leaves whose type matches their parent container
+    node.children.forEach(function(c) {
+      if (!c.children || c.children.length === 0) {
+        if (containerType && c._type === containerType) equalizedSizes[c.id] = { width: globalMinW };
+      } else if (c.width < globalMinW) {
+        extraHPaddings[c.id] = (globalMinW - c.width) / 2;
+      }
+    });
+  }
+  walk(elkLayoutPass1);
+  return { equalizedSizes, extraHPaddings };
+}
+
+// Reset all nodes to their original sizes and clear ELK-computed state,
+// then apply the equalized leaf sizes and extra-padding hints for pass 2.
+function _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, extraHPaddings) {
+  Object.keys(nodeMap).forEach(function(id) {
+    nodeMap[id].children = [];
+    nodeMap[id].edges    = [];
+    delete nodeMap[id].layoutOptions;
+    delete nodeMap[id].x;
+    delete nodeMap[id].y;
+    delete nodeMap[id]._extraHPadding;
+    nodeMap[id].width  = origSizes[id].width;
+    nodeMap[id].height = origSizes[id].height;
+  });
+  Object.keys(equalizedSizes).forEach(function(id) {
+    if (nodeMap[id]) nodeMap[id].width = equalizedSizes[id].width;
+  });
+  Object.keys(extraHPaddings).forEach(function(id) {
+    if (nodeMap[id]) nodeMap[id]._extraHPadding = extraHPaddings[id];
+  });
+}
+
+// Run pass 1 to discover actual container sizes, equalize siblings, then reset nodes for pass 2.
+function _runELKTwoPassLayout(param, layoutOptions, nodeMap, edgeList, parentMap) {
+  const origSizes = {};
+  Object.keys(nodeMap).forEach(function(id) {
+    origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
+  });
+
+  const { elkGraph: elkLayoutPass1 } = _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap);
+  console.log("\nCalculating the graph layout (pass 1 — equalise siblings)...");
+  elk.layout(elkLayoutPass1);
+
+  const globalMinW = _collectMinContainerW(elkLayoutPass1, param);
+  const { equalizedSizes, extraHPaddings } = _equalizeSiblings(elkLayoutPass1, globalMinW);
+  _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, extraHPaddings);
+  console.log("Calculating the graph layout (pass 2 — equalised sizes)...");
+}
+
 function _layoutAndRenderELK(param, filteredElements) {
   Common.debug(`_layoutAndRenderELK: algorithm=${param.algorithm} elements=${filteredElements.length}`);
 
@@ -260,84 +261,10 @@ function _layoutAndRenderELK(param, filteredElements) {
   const layoutOptions = _buildLayoutOptionsELK(param);
 
   // Two-pass layout when sameTypeResize is set:
-  // Pass 1 discovers actual container sizes; leaf siblings are equalized (width AND height)
-  // to the largest sibling before pass 2 so mixed rows look visually uniform.
+  // Pass 1 discovers actual container sizes; leaf siblings are equalized
+  // to the smallest container before pass 2 so mixed rows look visually uniform.
   if (param.sameTypeResize) {
-    // Snapshot original sizes so compound nodes can be reset cleanly before pass 2
-    const origSizes = {};
-    Object.keys(nodeMap).forEach(function(id) {
-      origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
-    });
-
-    const { elkGraph: g1 } = _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap);
-    console.log("\nCalculating the graph layout (pass 1 — equalise siblings)...");
-    elk.layout(g1);
-
-    // For each compound node in the result, collect the max sibling width and height,
-    // then record equalized sizes for leaf children only.
-    // Pass 1a: find global minimum container dimensions across the entire diagram
-    let globalMinW = Infinity;
-    function collectMinContainerSize(node) {
-      if (!node.children || node.children.length === 0) return;
-      if (node.id !== "root") {
-        if (node.width < globalMinW) globalMinW = node.width;
-      }
-      node.children.forEach(collectMinContainerSize);
-    }
-    collectMinContainerSize(g1);
-
-    // Cap globalMinW so equalized leaves fit inside depth-0 containers at targetWidth.
-    // Depth-0 containers get targetWidth = viewMaxWidth − 2*padding; a leaf wider than
-    // that would force the container outer width above viewMaxWidth.
-    if (param.viewMaxWidth > 0 && isFinite(globalMinW)) {
-      const _maxLeafW = param.viewMaxWidth - 2 * _getPadding(param);
-      if (_maxLeafW > 0 && globalMinW > _maxLeafW) globalMinW = _maxLeafW;
-    }
-
-    // Pass 1b: equalize siblings
-    // - leaf next to container  → global min size (width + height)
-    // - container narrower than globalMinW → extra horizontal padding to reach globalMinW
-    const equalizedSizes  = {};  // leaf id       → { width, height }
-    const extraHPaddings  = {};  // container id  → extra px per side (left + right)
-    function equalizeSiblings(node) {
-      if (!node.children || node.children.length === 0) return;
-      node.children.forEach(equalizeSiblings);
-      let hasContainerSibling = node.children.some(function(c) { return c.children && c.children.length > 0; });
-      if (!hasContainerSibling) return;
-      var containerType = node._type; // only resize leaf children whose type matches the container
-      node.children.forEach(function(c) {
-        if (!c.children || c.children.length === 0) {
-          if (containerType && c._type === containerType) {
-            equalizedSizes[c.id] = { width: globalMinW };
-          }
-        } else if (c.width < globalMinW) {
-          extraHPaddings[c.id] = (globalMinW - c.width) / 2;
-        }
-      });
-    }
-    equalizeSiblings(g1);
-
-    // Reset ALL nodes to original sizes (so compound nodes are recomputed freely in pass 2),
-    // then apply equalized leaf sizes and extra padding hints for narrow containers.
-    Object.keys(nodeMap).forEach(function(id) {
-      nodeMap[id].children = [];
-      nodeMap[id].edges    = [];
-      delete nodeMap[id].layoutOptions;
-      delete nodeMap[id].x;
-      delete nodeMap[id].y;
-      delete nodeMap[id]._extraHPadding;
-      nodeMap[id].width  = origSizes[id].width;
-      nodeMap[id].height = origSizes[id].height;
-    });
-    Object.keys(equalizedSizes).forEach(function(id) {
-      if (nodeMap[id]) {
-        nodeMap[id].width  = equalizedSizes[id].width;
-      }
-    });
-    Object.keys(extraHPaddings).forEach(function(id) {
-      if (nodeMap[id]) nodeMap[id]._extraHPadding = extraHPaddings[id];
-    });
-    console.log("Calculating the graph layout (pass 2 — equalised sizes)...");
+    _runELKTwoPassLayout(param, layoutOptions, nodeMap, edgeList, parentMap);
   } else {
     console.log("\nCalculating the graph layout...");
   }
@@ -357,9 +284,9 @@ function _layoutAndRenderELK(param, filteredElements) {
 function _setDefaultParameters(param) {
   let validFlag = true;
 
-  // Fill undefined fields from DEFAULT_PRESET (single source of truth for all defaults)
-  Object.keys(DEFAULT_PRESET).forEach(function(k) {
-    if (param[k] === undefined) param[k] = DEFAULT_PRESET[k];
+  // Fill undefined fields from DEFAULTS (single source of truth for all defaults)
+  Object.keys(DEFAULTS).forEach(function(k) {
+    if (param[k] === undefined) param[k] = DEFAULTS[k];
   });
 
   // viewName: override empty string with current selection name
@@ -378,7 +305,7 @@ function _setDefaultParameters(param) {
   console.log("- action = " + param.action);
   console.log("- graphDepth = " + param.graphDepth);
 
-  if (!_validArchiConcept(param.includeElementType, ELEMENT_NAMES, "includeElementType:", "no filter")) validFlag = false;
+  if (!_validArchiConcept(param.includeElementType, ELEMENT_TYPES, "includeElementType:", "no filter")) validFlag = false;
   (function() {
     const validDirs = ["", "in", "out", "both"];
     console.log("- includeRelationType:");
@@ -389,11 +316,11 @@ function _setDefaultParameters(param) {
         let ci   = entry.indexOf(":");
         let type = ci >= 0 ? entry.substring(0, ci) : entry;
         let dir  = ci >= 0 ? entry.substring(ci + 1) : "";
-        if (RELATION_NAMES.includes(type) && validDirs.includes(dir)) {
+        if (_relTypeIds.includes(type) && validDirs.includes(dir)) {
           console.log("  - " + entry);
         } else {
           console.error("  - " + entry
-            + (!RELATION_NAMES.includes(type) ? " (unknown type)" : "")
+            + (!_relTypeIds.includes(type) ? " (unknown type)" : "")
             + (!validDirs.includes(dir)        ? " (unknown direction)" : ""));
           validFlag = false;
         }
@@ -407,8 +334,8 @@ function _setDefaultParameters(param) {
   param.viewName = param.viewName + param.viewNameSuffix;
 
   console.log("How to draw relationships");
-  if (!_validArchiConcept(param.layoutReversed, RELATION_NAMES, "layoutReversed:", "none")) validFlag = false;
-  if (!_validArchiConcept(param.layoutNested, RELATION_NAMES, "layoutNested:", "none")) validFlag = false;
+  if (!_validArchiConcept(param.layoutReversed, _relTypeIds, "layoutReversed:", "none")) validFlag = false;
+  if (!_validArchiConcept(param.layoutNested, _relTypeIds, "layoutNested:", "none")) validFlag = false;
   console.log(`- nestingMultipleOccurrences = ${param.nestingMultipleOccurrences}`);
 
   console.log("\nLayout parameters");
@@ -434,14 +361,14 @@ function _setDefaultParameters(param) {
   console.log("- debug = " + param.debug);
   console.log();
   switch (param.action) {
-    case GENERATE_SINGLE:
+    case ACTION.GENERATE_SINGLE.id:
       console.log(`Create or update view:\n- /Views${param.viewFolder}/${param.viewName}`);
       break;
-    case GENERATE_MULTIPLE:
+    case ACTION.GENERATE_MULTIPLE.id:
       console.log(`Create or update view(s):\n- /Views${param.viewFolder}/<elementName>${param.viewNameSuffix}`);
       break;
-    case EXPAND_HERE:
-    case LAYOUT:
+    case ACTION.EXPAND_HERE.id:
+    case ACTION.LAYOUT.id:
       console.log("Update selected view");
       break;
     default:
@@ -479,13 +406,13 @@ function _buildLayoutOptionsELK(param) {
     "elk.layered.spacing.nodeNodeBetweenLayers": String(param.layerSpacing),
     // STRAIGHT: pseudo-value — tell ELK POLYLINE but suppress bendpoints in draw step.
     // SPLINES: unsupported in Archi (bezier control points ≠ polyline waypoints).
-    "elk.edgeRouting": (param.edgeRouting === "STRAIGHT" || param.edgeRouting === "SPLINES")
-      ? "POLYLINE" : param.edgeRouting,
+    "elk.edgeRouting": (param.edgeRouting === ROUTING.STRAIGHT.id || param.edgeRouting === "SPLINES")
+      ? ROUTING.POLYLINE.id : param.edgeRouting,
   };
   if (param.nodePlacement && param.nodePlacement !== "NONE") {
     opts["elk.layered.nodePlacement.bk.fixedAlignment"] = param.nodePlacement;
   }
-  if (param.algorithm === ALGO.ELK_RECTPACKING) {
+  if (param.algorithm === ALGO.ELK_RECTPACKING.id) {
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
     if (param.viewMaxWidth > 0) {
@@ -527,11 +454,11 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
     "elk.algorithm":        algo,
   };
 
-  if (algo === ALGO.ELK_BOX) {
+  if (algo === ALGO.ELK_BOX.id) {
     opts["elk.box.packingMode"]      = "SIMPLE";
     opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
 
-  } else if (algo === ALGO.ELK_RECTPACKING) {
+  } else if (algo === ALGO.ELK_RECTPACKING.id) {
     opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
     opts["elk.rectpacking.packing.compaction.iterations"]            = 5;
     opts["elk.rectpacking.packing.compaction.rowHeightReevaluation"] = true;
@@ -541,8 +468,8 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
     // layered / other: propagate root options into sub-layout.
     opts["elk.nodeSize.constraints"] = "FIXED_SIZE";
     opts["elk.direction"]   = param.layoutDirection;
-    opts["elk.edgeRouting"] = (param.edgeRouting === "STRAIGHT" || param.edgeRouting === "SPLINES")
-                               ? "POLYLINE" : param.edgeRouting;
+    opts["elk.edgeRouting"] = (param.edgeRouting === ROUTING.STRAIGHT.id || param.edgeRouting === "SPLINES")
+                               ? ROUTING.POLYLINE.id : param.edgeRouting;
     if (param.layerSpacing !== undefined)
       opts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(param.layerSpacing);
   }
@@ -551,8 +478,33 @@ function _buildCompoundOptsELK(param, depth, extraHPadding, childCount) {
   return opts;
 }
 
-function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
-  // Step 1: attach children
+function _byTypeName(a, b) {
+  return (a._type || '').localeCompare(b._type || '') || (a._name || '').localeCompare(b._name || '');
+}
+
+// Sort children: containers first (sorted by type+name), then leaves (sorted by type+name).
+// sortLeavesOnly: containers keep model insertion order, only leaves are sorted.
+function _sortChildren(nodes, param) {
+  if (param.sortLeavesOnly) {
+    // Containers stay in model insertion order — ELK is free to optimise placement.
+    // Only leaf nodes are sorted alphabetically, reinserted at their original leaf slots.
+    const leafIdxs = [], sortedLeaves = [];
+    nodes.forEach(function(n, i) {
+      if (!n.children || n.children.length === 0) { leafIdxs.push(i); sortedLeaves.push(n); }
+    });
+    sortedLeaves.sort(_byTypeName);
+    const result = nodes.slice();
+    leafIdxs.forEach(function(pos, i) { result[pos] = sortedLeaves[i]; });
+    return result;
+  }
+  const ctrs   = nodes.filter(function(n) { return n.children && n.children.length > 0; });
+  const leaves = nodes.filter(function(n) { return !n.children || n.children.length === 0; });
+  ctrs.sort(_byTypeName);
+  leaves.sort(_byTypeName);
+  return ctrs.concat(leaves);
+}
+
+function _attachChildrenToParents(nodeMap, parentMap) {
   Object.keys(parentMap).forEach(function(childId) {
     const parentNode = nodeMap[parentMap[childId]];
     const childNode  = nodeMap[childId];
@@ -560,68 +512,42 @@ function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
       parentNode.children.push(childNode);
     }
   });
+}
 
-  // Sort children: containers first (sorted by type+name), then leaf nodes (sorted by type+name).
-  // With sortLeavesOnly: containers keep model order, only leaf nodes are sorted.
-  function byTypeName(a, b) {
-    return (a._type || '').localeCompare(b._type || '') || (a._name || '').localeCompare(b._name || '');
-  }
-  function sortChildren(nodes) {
-    if (param.sortLeavesOnly) {
-      // Containers stay in model insertion order — ELK is free to optimise placement.
-      // Only leaf nodes are sorted alphabetically, reinserted at their original leaf slots.
-      const leafIdxs = [], sortedLeaves = [];
-      nodes.forEach(function(n, i) {
-        if (!n.children || n.children.length === 0) { leafIdxs.push(i); sortedLeaves.push(n); }
-      });
-      sortedLeaves.sort(byTypeName);
-      const result = nodes.slice();
-      leafIdxs.forEach(function(pos, i) { result[pos] = sortedLeaves[i]; });
-      return result;
-    }
-    // Default: containers first (sorted by type+name), then leaves (sorted by type+name)
-    const ctrs   = nodes.filter(function(n) { return n.children && n.children.length > 0; });
-    const leaves = nodes.filter(function(n) { return !n.children || n.children.length === 0; });
-    ctrs.sort(byTypeName);
-    leaves.sort(byTypeName);
-    return ctrs.concat(leaves);
-  }
+function _sortAllNodeChildren(nodeMap, param) {
   Object.keys(nodeMap).forEach(function(nodeId) {
     const node = nodeMap[nodeId];
-    if (node.children && node.children.length > 1) {
-      node.children = sortChildren(node.children);
-    }
+    if (node.children && node.children.length > 1) node.children = _sortChildren(node.children, param);
   });
+}
 
-  // Root children = nodes not assigned to a parent
-  const rootChildren = sortChildren(
-    Object.keys(nodeMap)
-      .filter(function(id) { return parentMap[id] === undefined; })
-      .map(function(id) { return nodeMap[id]; })
+function _collectRootChildren(nodeMap, parentMap, param) {
+  return _sortChildren(
+    Object.keys(nodeMap).filter(function(id) { return parentMap[id] === undefined; }).map(function(id) { return nodeMap[id]; }),
+    param
   );
+}
 
-  // Classify edges: internal (both endpoints under the same compound parent) go into
-  // the compound node's own edges array so ELK routes them within the container.
-  // Cross-level and root-level edges stay in root.
+// Classify edges: internal (both endpoints in the same compound) go into that compound's
+// edges array so ELK routes them within the container. All others become rootEdges.
+function _classifyEdgesToContainers(edgeList, parentMap, nodeMap) {
   const rootEdges = [];
   edgeList.forEach(function(edge) {
     const srcParent = parentMap[edge.sources[0]];
     const tgtParent = parentMap[edge.targets[0]];
     if (srcParent !== undefined && tgtParent !== undefined && srcParent === tgtParent) {
       const parentNode = nodeMap[srcParent];
-      if (parentNode) {
-        parentNode.edges = parentNode.edges || [];
-        parentNode.edges.push(edge);
-        return;
-      }
+      if (parentNode) { parentNode.edges = parentNode.edges || []; parentNode.edges.push(edge); return; }
     }
     rootEdges.push(edge);
   });
+  return rootEdges;
+}
 
-  // Step 4: compound node layout options + explicit FIXED_SIZE dimensions.
-  // node.width/height are set explicitly so ELK cannot ignore them (FIXED_SIZE constraint).
-  // k = min(kSqrt, kMax) columns: kSqrt ≈ square root, kMax = half viewMaxWidth / colW.
-  Common.debug(`_buildGraphELK: ${Object.keys(parentMap).length} nestings, ${edgeList.length} edges`);
+// Set FIXED_SIZE dimensions and compound layout options for each container node.
+// k = min(kSqrt, kMax) columns: kSqrt ≈ square root of child count, kMax limited by viewMaxWidth.
+function _dimensionCompoundNodes(nodeMap, parentMap, param) {
+  Common.debug(`_dimensionCompoundNodes: ${Object.keys(parentMap).length} nestings`);
   Object.keys(nodeMap).forEach(function(nodeId) {
     const node = nodeMap[nodeId];
     if (!node.children || node.children.length === 0) return;
@@ -634,44 +560,53 @@ function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
     const sp   = param.nestedNodeSpacing !== undefined ? param.nestedNodeSpacing : DEFAULTS.nestedNodeSpacing;
     const nw2  = param.nodeWidth  || DEFAULTS.nodeWidth;
     const nh2  = param.nodeHeight || DEFAULTS.nodeHeight;
-    const colW = nw2 + sp;
     const n    = node.children.length;
 
     const kSqrt = Math.max(1, Math.floor(1.2 * Math.sqrt(n)));
     const capW  = param.viewMaxWidth > 0 ? param.viewMaxWidth - 2 * ph2 : 0;
-    const kMax  = capW > 0 ? Math.max(1, Math.floor(capW / colW)) : kSqrt;
+    const kMax  = capW > 0 ? Math.max(1, Math.floor(capW / (nw2 + sp))) : kSqrt;
     const k     = Math.min(kSqrt, kMax);
     const rows  = Math.ceil(n / k);
 
     node.width  = k * nw2 + (k - 1) * sp + 2 * ph2;
     node.height = rows * nh2 + (rows - 1) * sp + top2 + p2;
-
     console.log(`  compound n=${n} k=${k} rows=${rows} w=${Math.round(node.width)} h=${Math.round(node.height)}`);
 
     node.layoutOptions = _buildCompoundOptsELK(param, depth, node._extraHPadding || 0, n);
   });
+}
 
-  // ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
-  // Lift such endpoints to their root-level ancestor so ELK can use the edges for
-  // root-level layering. The original IDs are preserved in liftedEdgesMap for drawing.
+// ELK SEPARATE_CHILDREN ignores cross-hierarchy edges (source/target inside a compound).
+// Lift such endpoints to their root-level ancestor so ELK uses them for root-level layering.
+// The original IDs are preserved in liftedEdgesMap for drawing.
+function _liftCrossHierarchyEdges(rootEdges, parentMap) {
   const liftedEdgesMap = {};
   const liftedRootEdges = rootEdges.map(function(edge) {
     const srcId = edge.sources[0];
     const tgtId = edge.targets[0];
-    let liftedSrc = srcId;
-    let p = parentMap[liftedSrc];
+    let liftedSrc = srcId, p = parentMap[liftedSrc];
     while (p !== undefined) { liftedSrc = p; p = parentMap[liftedSrc]; }
     let liftedTgt = tgtId;
     p = parentMap[liftedTgt];
     while (p !== undefined) { liftedTgt = p; p = parentMap[liftedTgt]; }
-    if (liftedSrc === liftedTgt) return null; // both sides same compound after lifting — skip
+    if (liftedSrc === liftedTgt) return null; // both sides in the same compound after lifting — skip
     if (liftedSrc !== srcId || liftedTgt !== tgtId) {
       liftedEdgesMap[edge.id] = { origSrcId: srcId, origTgtId: tgtId };
       return Object.assign({}, edge, { sources: [liftedSrc], targets: [liftedTgt] });
     }
     return edge;
   }).filter(Boolean);
+  return { liftedRootEdges, liftedEdgesMap };
+}
 
+function _buildGraphELK(param, layoutOptions, nodeMap, edgeList, parentMap) {
+  Common.debug(`_buildGraphELK: ${Object.keys(parentMap).length} nestings, ${edgeList.length} edges`);
+  _attachChildrenToParents(nodeMap, parentMap);
+  _sortAllNodeChildren(nodeMap, param);
+  const rootChildren                    = _collectRootChildren(nodeMap, parentMap, param);
+  const rootEdges                       = _classifyEdgesToContainers(edgeList, parentMap, nodeMap);
+  _dimensionCompoundNodes(nodeMap, parentMap, param);
+  const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap);
   const elkGraph = { id: "root", layoutOptions: layoutOptions, children: rootChildren, edges: liftedRootEdges };
   return { elkGraph: elkGraph, liftedEdgesMap: liftedEdgesMap };
 }
@@ -683,21 +618,21 @@ function _fillGraph(param, nodeMap, edgeList, parentMap, parentRels, occurrenceM
   const START_LEVEL = 0;
 
   switch (param.action) {
-    case GENERATE_SINGLE:
-    case GENERATE_MULTIPLE:
+    case ACTION.GENERATE_SINGLE.id:
+    case ACTION.GENERATE_MULTIPLE.id:
       console.log(`\nAdding elements and relations to the graph with a depth of ${param.graphDepth}...`);
       filteredElements.forEach(function(archiEle) {
         _addElement(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, archiEle, filteredElements);
       });
       break;
-    case EXPAND_HERE:
+    case ACTION.EXPAND_HERE.id:
       console.log("Expand selected objects on the view");
       _addViewObjects(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap);
       filteredElements.forEach(function(archiEle) {
         _addElement(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap, archiEle, filteredElements);
       });
       break;
-    case LAYOUT:
+    case ACTION.LAYOUT.id:
       console.log("Layout objects on the view");
       _addViewObjects(START_LEVEL, param, nodeMap, edgeList, parentMap, parentRels, occurrenceMap);
       break;
@@ -837,10 +772,11 @@ function _createEdge(level, param, occurrenceMap, edgeList, rel) {
         : `${rel.id}_${si}_${ti}`;
 
       if (!edgeList.some(function(e) { return e.id === edgeId; })) {
-        const weight = param.useRelationWeights ? (RELATION_WEIGHTS[rel.type] || 1.0) : undefined;
+        const weight = param.useRelationWeights ? (_relWeightMap[rel.type] || 1.0) : undefined;
         edgeList.push({
           id: edgeId,
           _archiRelId: rel.id,
+          _relName:    (rel.name && rel.name.trim()) || "",
           sources: [reversed ? tgtId : srcId],
           targets: [reversed ? srcId : tgtId],
           ...(weight !== undefined ? { properties: { "elk.priority": weight } } : {}),
@@ -986,7 +922,13 @@ function _drawViewELK(param, layoutedGraph, parentRels, liftedEdgesMap, parentMa
       });
     },
     function(view, vIdx) {
-      _drawEdgesRecursiveELK(layoutedGraph, param, vIdx, view, liftedEdgesMap);
+      let _elkBounds = [], _elkLabelRects = [];
+      if (param.labelPosition === "middle" || param.labelPosition === "auto") {
+        _elkBounds = Object.values(vIdx).map(function(v) {
+          return { x: v.bounds.x, y: v.bounds.y, w: v.bounds.width, h: v.bounds.height };
+        });
+      }
+      _drawEdgesRecursiveELK(layoutedGraph, param, vIdx, view, liftedEdgesMap, _elkBounds, _elkLabelRects);
     },
     parentRels, parentMap, occurrenceMap
   );
@@ -1026,59 +968,128 @@ function _drawNodeRecursiveELK(param, elkNode, parentVisual, visualElementIndex,
 /**
  * Recursively draw all ELK edges in the graph tree
  */
-function _drawEdgesRecursiveELK(elkNode, param, visualElementIndex, view, liftedEdgesMap) {
+function _drawEdgesRecursiveELK(elkNode, param, visualElementIndex, view, liftedEdgesMap, elkBounds, elkLabelRects) {
   // Edges in a compound node (id !== "root") have container-relative ELK coords.
   const containerNodeId = (elkNode.id === "root") ? null : elkNode.id;
   (elkNode.edges || []).forEach(function(edge) {
-    _drawEdgeELK(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap);
+    _drawEdgeELK(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap, elkBounds, elkLabelRects);
   });
   (elkNode.children || []).forEach(function(child) {
-    _drawEdgesRecursiveELK(child, param, visualElementIndex, view, liftedEdgesMap);
+    _drawEdgesRecursiveELK(child, param, visualElementIndex, view, liftedEdgesMap, elkBounds, elkLabelRects);
   });
 }
 
-function _drawEdgeELK(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap) {
-  Common.debugStackPush(false);
+// Resolve the Archi visual elements for both endpoints of an ELK edge.
+// Returns { archiRel, liftedIds, srcVisual, tgtVisual } or null if either visual is missing.
+function _resolveEdgeVisuals(edge, liftedEdgesMap, param, visualElementIndex) {
   const archiRelId = edge._archiRelId || edge.id;
   const archiRel   = $("#" + archiRelId).first();
   // Cross-hierarchy edges have their endpoints lifted to compound IDs for root layout;
   // use the original child IDs for drawing the actual Archi connection.
-  const liftedIds = liftedEdgesMap && liftedEdgesMap[edge.id];
-  const srcId = (liftedIds && liftedIds.origSrcId) || edge.sources[0];
-  const tgtId = (liftedIds && liftedIds.origTgtId) || edge.targets[0];
+  const liftedIds  = liftedEdgesMap && liftedEdgesMap[edge.id];
+  const srcId      = (liftedIds && liftedIds.origSrcId) || edge.sources[0];
+  const tgtId      = (liftedIds && liftedIds.origTgtId) || edge.targets[0];
   // For reversed relations, sources/targets in the ELK edge are swapped for layout;
   // swap back so view.add() receives the correct ArchiMate connection direction.
   const isReversed = param.layoutReversed.includes(archiRel.type);
   const srcVisual  = visualElementIndex[isReversed ? tgtId : srcId];
   const tgtVisual  = visualElementIndex[isReversed ? srcId : tgtId];
+  if (!srcVisual || !tgtVisual) return null;
+  return { archiRel, liftedIds, srcVisual, tgtVisual };
+}
 
-  if (!srcVisual || !tgtVisual) {
-    Common.debug(`>> skip edge ${archiRelId}: missing visual for src=${srcId} or tgt=${tgtId}`);
+// Compute the absolute top-left offset of a container node so bendpoints can be
+// converted from container-relative to absolute coordinates.
+function _computeContainerOffset(containerNodeId, visualElementIndex) {
+  if (!containerNodeId) return null;
+  const cv = visualElementIndex[containerNodeId];
+  if (!cv) return null;
+  let ox = cv.bounds.x, oy = cv.bounds.y;
+  let p = $(cv).parent().filter("element").first();
+  while (p) { ox += p.bounds.x; oy += p.bounds.y; p = $(p).parent().filter("element").first(); }
+  return { x: ox, y: oy };
+}
+
+// Find the midpoint of the ELK-computed edge path in absolute coordinates.
+// Used as the baseline position for label overlap detection.
+function _edgeMiddlePoint(edge, containerOffset) {
+  const section = edge.sections && edge.sections[0];
+  if (!section) return null;
+  const offsetX = containerOffset ? containerOffset.x : 0;
+  const offsetY = containerOffset ? containerOffset.y : 0;
+  const bps = section.bendPoints || [];
+  return bps.length > 0
+    ? { x: bps[Math.floor(bps.length / 2)].x + offsetX, y: bps[Math.floor(bps.length / 2)].y + offsetY }
+    : { x: (section.startPoint.x + section.endPoint.x) / 2 + offsetX,
+        y: (section.startPoint.y + section.endPoint.y) / 2 + offsetY };
+}
+
+// Decide whether the label will land in the middle, and if so find a non-overlapping
+// position and pre-adjust the middle bendpoint so _drawBendpointsELK places the label there.
+// Returns { willBeMiddle, lpFixed }.
+function _adjustLabelBendpoint(edge, param, elkAlgoPt, srcCenter, tgtCenter, containerOffset, elkBounds, elkLabelRects, relName, liftedIds) {
+  const lpFixed      = { source: 0, middle: 1, target: 2 }[param.labelPosition];
+  const willBeMiddle = (lpFixed === 1) ||
+    (param.labelPosition === "auto" && elkAlgoPt && _labelPositionFromPoint(elkAlgoPt, srcCenter, tgtCenter) === 1);
+
+  if (willBeMiddle && elkAlgoPt && elkBounds && !liftedIds) {
+    const edgeDir = { dx: tgtCenter.x - srcCenter.x, dy: tgtCenter.y - srcCenter.y };
+    const adj     = _findClearLabelPos(elkAlgoPt, edgeDir, elkBounds, elkLabelRects, relName);
+    // Pre-adjust the middle bendpoint in section.bendPoints so _drawBendpointsELK uses it.
+    const section = edge.sections && edge.sections[0];
+    if (section) {
+      const offsetX = containerOffset ? containerOffset.x : 0;
+      const offsetY = containerOffset ? containerOffset.y : 0;
+      const bps     = section.bendPoints || [];
+      const adjRel  = { x: adj.x - offsetX, y: adj.y - offsetY };
+      if (bps.length === 0) { section.bendPoints = [adjRel]; }
+      else { bps[Math.floor(bps.length / 2)] = adjRel; }
+    }
+    elkLabelRects.push(_labelRect(adj, relName));
+  }
+  return { willBeMiddle, lpFixed };
+}
+
+function _setConnectionTextPosition(connection, param, willBeMiddle, lpFixed, elkAlgoPt, srcCenter, tgtCenter) {
+  if (willBeMiddle) {
+    connection.textPosition = 1;
+  } else if (lpFixed !== undefined) {
+    connection.textPosition = lpFixed;
+  } else if (param.labelPosition === "auto" && elkAlgoPt) {
+    connection.textPosition = _labelPositionFromPoint(elkAlgoPt, srcCenter, tgtCenter);
+  }
+}
+
+function _drawEdgeELK(param, edge, visualElementIndex, view, containerNodeId, liftedEdgesMap, elkBounds, elkLabelRects) {
+  Common.debugStackPush(false);
+
+  const visuals = _resolveEdgeVisuals(edge, liftedEdgesMap, param, visualElementIndex);
+  if (!visuals) {
+    Common.debug(`>> skip edge ${edge._archiRelId || edge.id}: missing visual`);
     Common.debugStackPop();
     return;
   }
+  const { archiRel, liftedIds, srcVisual, tgtVisual } = visuals;
 
-  // For internal edges, compute the container's absolute top-left so bendpoints
-  // can be converted from container-relative to absolute coords.
-  let containerOffset = null;
-  if (containerNodeId) {
-    const cv = visualElementIndex[containerNodeId];
-    if (cv) {
-      let ox = cv.bounds.x, oy = cv.bounds.y;
-      let p = $(cv).parent().filter("element").first();
-      while (p) { ox += p.bounds.x; oy += p.bounds.y; p = $(p).parent().filter("element").first(); }
-      containerOffset = { x: ox, y: oy };
-    }
-  }
+  const containerOffset = _computeContainerOffset(containerNodeId, visualElementIndex);
 
   Common.debug(`>> draw edge ${archiRel}`);
-  let connection = view.add(archiRel, srcVisual, tgtVisual);
+  const connection = view.add(archiRel, srcVisual, tgtVisual);
+
+  const elkAlgoPt = _edgeMiddlePoint(edge, containerOffset);
+  const srcCenter = _getCenterBounds(connection.source);
+  const tgtCenter = _getCenterBounds(connection.target);
+  const { willBeMiddle, lpFixed } = _adjustLabelBendpoint(
+    edge, param, elkAlgoPt, srcCenter, tgtCenter, containerOffset, elkBounds, elkLabelRects, archiRel.name, liftedIds
+  );
+
   // Lifted cross-compound edges were routed by ELK between compound boundaries,
   // not between the actual child elements — those bendpoints produce wrong visuals.
   // Skip them: a straight child-to-child line is cleaner than an exit/re-entry path.
-  if (!liftedIds) {
-    _drawBendpointsELK(param, edge, connection, containerOffset);
-  }
+  if (!liftedIds) _drawBendpointsELK(param, edge, connection, containerOffset);
+
+  _setConnectionTextPosition(connection, param, willBeMiddle, lpFixed, elkAlgoPt, srcCenter, tgtCenter);
+
   Common.debugStackPop();
 }
 
@@ -1124,7 +1135,7 @@ function _layoutNestedConnection(parentRel, visualElementIndex, view) {
 function _drawBendpointsELK(param, edge, connection, containerOffset) {
   Common.debugStackPush(false);
 
-  if (param.edgeRouting === "STRAIGHT") { Common.debugStackPop(); return; }
+  if (param.edgeRouting === ROUTING.STRAIGHT.id) { Common.debugStackPop(); return; }
 
   let points = (edge.sections && edge.sections[0] && edge.sections[0].bendPoints) || [];
   Common.debug(`ELK bendPoints: ${JSON.stringify(points)}`);
@@ -1150,7 +1161,7 @@ function _getPadding(param) {
 }
 
 function _getEffectiveSplines(param) {
-  return param.graphvizSplines || param.edgeRouting || "ORTHOGONAL";
+  return param.graphvizSplines || param.edgeRouting || ROUTING.ORTHOGONAL.id;
 }
 
 function _addBendpoints(connection, bendpoints, isReversed) {
@@ -1159,6 +1170,45 @@ function _addBendpoints(connection, bendpoints, isReversed) {
       isReversed ? bendpoints[bendpoints.length - 1 - i] : bendpoints[i], i
     );
   }
+}
+
+// Project a point onto the source→target vector and return the Archi textPosition
+// (0=source third, 1=middle third, 2=target third) that best represents it.
+function _labelPositionFromPoint(pt, srcCenter, tgtCenter) {
+  let dx = tgtCenter.x - srcCenter.x, dy = tgtCenter.y - srcCenter.y;
+  let len2 = dx * dx + dy * dy;
+  if (len2 === 0) return 1;
+  let t = ((pt.x - srcCenter.x) * dx + (pt.y - srcCenter.y) * dy) / len2;
+  if (t < 0.33) return 0;
+  if (t > 0.67) return 2;
+  return 1;
+}
+
+function _labelRect(pt, relName) {
+  let w = Math.max(30, (relName ? relName.length : 0) * 7 + 10);
+  return { x: pt.x - w / 2, y: pt.y - 7, w: w, h: 14 };
+}
+
+function _rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// Start at algoPt (algo's natural label position). Try perpendicular offsets
+// until the estimated label rectangle does not intersect any element or placed label.
+function _findClearLabelPos(algoPt, edgeDir, allBounds, labelRects, relName) {
+  let len = Math.sqrt(edgeDir.dx * edgeDir.dx + edgeDir.dy * edgeDir.dy);
+  if (len === 0) return algoPt;
+  let px = -edgeDir.dy / len, py = edgeDir.dx / len;
+  let offsets = [0, 20, -20, 40, -40, 60, -60];
+  for (let i = 0; i < offsets.length; i++) {
+    let pt = { x: algoPt.x + px * offsets[i], y: algoPt.y + py * offsets[i] };
+    let lr = _labelRect(pt, relName), ok = true;
+    for (let j = 0; ok && j < allBounds.length;  j++) ok = !_rectsOverlap(lr, allBounds[j]);
+    for (let j = 0; ok && j < labelRects.length; j++) ok = !_rectsOverlap(lr, labelRects[j]);
+    if (ok) return pt;
+  }
+  return algoPt;
 }
 
 function _calcBendpoint(point, srcCenter, tgtCenter) {
@@ -1264,6 +1314,13 @@ function _buildGraphDagre(param, nodeMap, edgeList, parentMap) {
 function _drawViewDagre(param, graph, parentRels, parentMap, occurrenceMap) {
   console.log("\nDrawing ArchiMate view (Dagre)...");
   const nodeIndex = {};
+  let _dagreBounds = [], _dagreLabelRects = [];
+  if (param.labelPosition === "middle" || param.labelPosition === "auto") {
+    _dagreBounds = graph.nodes().map(function(id) {
+      let n = graph.node(id);
+      return { x: n.x - n.width / 2, y: n.y - n.height / 2, w: n.width, h: n.height };
+    });
+  }
   return _drawView(param,
     function(view, vIdx) {
       graph.nodes().forEach(function(nodeId) {
@@ -1272,7 +1329,7 @@ function _drawViewDagre(param, graph, parentRels, parentMap, occurrenceMap) {
     },
     function(view, vIdx) {
       graph.edges().forEach(function(edge) {
-        _drawEdgeDagre(param, graph, edge, vIdx, view);
+        _drawEdgeDagre(param, graph, edge, vIdx, view, _dagreBounds, _dagreLabelRects);
       });
     },
     parentRels, parentMap, occurrenceMap
@@ -1304,7 +1361,7 @@ function _drawNodeDagre(graph, nodeId, nodeIndex, visualElementIndex, view) {
   Common.debugStackPop();
 }
 
-function _drawEdgeDagre(param, graph, edge, visualElementIndex, view) {
+function _drawEdgeDagre(param, graph, edge, visualElementIndex, view, dagreBounds, dagreLabelRects) {
   Common.debugStackPush(false);
   const edgeData  = graph.edge(edge);
   const archiRel  = $("#" + edgeData.id).first();
@@ -1316,9 +1373,37 @@ function _drawEdgeDagre(param, graph, edge, visualElementIndex, view) {
   if (!srcVisual || !tgtVisual) { Common.debugStackPop(); return; }
 
   const connection = view.add(archiRel, srcVisual, tgtVisual);
-  const points     = edgeData.points || [];
+  let   points     = edgeData.points || [];
   const srcCenter  = _getCenterBounds(connection.source);
   const tgtCenter  = _getCenterBounds(connection.target);
+
+  // Current middle of the actual edge path — used as baseline for overlap detection.
+  const inner = points.slice(1, points.length - 1);
+  let _dagAlgoPt = inner.length > 0
+    ? inner[Math.floor(inner.length / 2)]
+    : { x: (srcCenter.x + tgtCenter.x) / 2, y: (srcCenter.y + tgtCenter.y) / 2 };
+
+  const _lpFixed = { source: 0, middle: 1, target: 2 }[param.labelPosition];
+  const _willBeMiddle = (_lpFixed === 1) ||
+    (param.labelPosition === "auto" && points.length > 0 &&
+     _labelPositionFromPoint(_dagAlgoPt, srcCenter, tgtCenter) === 1);
+
+  if (_willBeMiddle && dagreBounds) {
+    let edgeDir = { dx: tgtCenter.x - srcCenter.x, dy: tgtCenter.y - srcCenter.y };
+    let adj = _findClearLabelPos(_dagAlgoPt, edgeDir, dagreBounds, dagreLabelRects, archiRel.name);
+    // Substitute adjusted point as the middle of inner points.
+    if (inner.length === 0) {
+      // Straight edge: inject one bendpoint so Archi renders label at adj.
+      points = points.length >= 2
+        ? [points[0], adj, points[points.length - 1]]
+        : [adj];
+    } else {
+      inner[Math.floor(inner.length / 2)] = adj;
+      points = [points[0]].concat(inner).concat([points[points.length - 1]]);
+    }
+    dagreLabelRects.push(_labelRect(adj, archiRel.name));
+  }
+
   // Skip first and last Dagre points (on node boundary); build bendpoint array,
   // then reverse it for reversed relations before adding sequentially.
   const bendpoints = [];
@@ -1326,6 +1411,14 @@ function _drawEdgeDagre(param, graph, edge, visualElementIndex, view) {
     bendpoints.push(_calcBendpoint(points[i], srcCenter, tgtCenter));
   }
   _addBendpoints(connection, bendpoints, param.layoutReversed.includes(connection.type));
+
+  if (_willBeMiddle) {
+    connection.textPosition = 1;
+  } else if (_lpFixed !== undefined) {
+    connection.textPosition = _lpFixed;
+  } else if (param.labelPosition === "auto" && points.length > 0) {
+    connection.textPosition = _labelPositionFromPoint(_dagAlgoPt, srcCenter, tgtCenter);
+  }
   Common.debugStackPop();
 }
 
@@ -1421,7 +1514,12 @@ function _buildGraphGraphviz(param, nodeMap, edgeList, parentMap) {
   edgeList.forEach(function(edge) {
     let src = edge.sources[0], tgt = edge.targets[0];
     if (reversedSet.has(edge._relType || "")) { let t = src; src = tgt; tgt = t; }
-    lines.push('  "' + src + '" -> "' + tgt + '" [eid="' + edge.id + '"]');
+    let _gvXlabel = edge._relName
+      ? edge._relName.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+      : '';
+    let _gvEdgeAttrs = 'eid="' + edge.id + '"';
+    if (_gvXlabel) _gvEdgeAttrs += ' xlabel="' + _gvXlabel + '"';
+    lines.push('  "' + src + '" -> "' + tgt + '" [' + _gvEdgeAttrs + ']');
   });
 
   lines.push('}');
@@ -1614,93 +1712,135 @@ function _deriveClusterBoundingBoxes(parentMap, existingClusters, nodes, padding
   return result;
 }
 
+// Scale all node/cluster positions to fit within viewMaxWidth and return the scale factor.
+// Acts as a fallback when Graphviz 'size' doesn't fully constrain compound/cluster graphs.
+// Returns 1 when no scaling is needed (coords.totalW ≤ viewMaxWidth).
+function _scaleGraphvizCoords(coords, param) {
+  if (!(param.viewMaxWidth > 0 && coords.totalW > param.viewMaxWidth + 1)) return 1;
+  const gvScale = param.viewMaxWidth / coords.totalW;
+  console.log("- Graphviz view scaled to fit viewMaxWidth=" + param.viewMaxWidth + " (scale=" + gvScale.toFixed(3) + ")");
+  [coords.nodes, coords.clusters].forEach(function(dict) {
+    Object.keys(dict).forEach(function(id) {
+      const o = dict[id]; o.x = Math.round(o.x * gvScale); o.y = Math.round(o.y * gvScale);
+      o.w = Math.round(o.w * gvScale); o.h = Math.round(o.h * gvScale);
+    });
+  });
+  return gvScale;
+}
+
+// Draw ArchiMate element visuals recursively, containers before their children.
+function _drawGraphvizNodes(ids, parentVisual, parentAbsPos, view, vIdx, nodeMap, coords, containerIds, parentMap) {
+  ids.forEach(function(nodeId) {
+    const node    = nodeMap[nodeId];
+    const archiEl = $("#" + (node._archiId || nodeId)).first();
+    if (!archiEl) return;
+    const absPos = containerIds.has(nodeId) && coords.clusters[nodeId] ? coords.clusters[nodeId] : coords.nodes[nodeId];
+    if (!absPos) { console.log("  No position for " + nodeId); return; }
+    const rx     = absPos.x - (parentAbsPos ? parentAbsPos.x : 0);
+    const ry     = absPos.y - (parentAbsPos ? parentAbsPos.y : 0);
+    const visual = parentVisual ? parentVisual.add(archiEl, rx, ry, absPos.w, absPos.h)
+                                : view.add(archiEl, rx, ry, absPos.w, absPos.h);
+    vIdx[nodeId] = visual;
+    const children = Object.keys(parentMap).filter(function(k) { return parentMap[k] === nodeId; });
+    if (children.length) _drawGraphvizNodes(children, visual, absPos, view, vIdx, nodeMap, coords, containerIds, parentMap);
+  });
+}
+
 function _drawViewGraphviz(param, jsonOut, nodeMap, edgeList, parentMap, parentRels, occurrenceMap) {
   console.log("\nDrawing ArchiMate view (Graphviz)...");
 
-  // ── Graphviz-specific preprocessing ────────────────────────────────────────
-
-  let coords = _collectDotObjects(jsonOut);
-
-  // Post-processing scale: ensures final view fits within viewMaxWidth.
-  // Acts as a reliable fallback when Graphviz 'size' doesn't fully constrain
-  // compound/cluster graphs (which can exceed the stated size boundary).
-  // If Graphviz 'size' already worked, coords.totalW ≤ viewMaxWidth so gvScale = 1.
-  let gvScale = 1;
-  if (param.viewMaxWidth > 0 && coords.totalW > param.viewMaxWidth + 1) {
-    gvScale = param.viewMaxWidth / coords.totalW;
-    console.log("- Graphviz view scaled to fit viewMaxWidth=" + param.viewMaxWidth + " (scale=" + gvScale.toFixed(3) + ")");
-    [coords.nodes, coords.clusters].forEach(function(dict) {
-      Object.keys(dict).forEach(function(id) {
-        let o = dict[id]; o.x = Math.round(o.x * gvScale); o.y = Math.round(o.y * gvScale);
-        o.w = Math.round(o.w * gvScale); o.h = Math.round(o.h * gvScale);
-      });
-    });
-  }
+  const coords   = _collectDotObjects(jsonOut);
+  const gvScale  = _scaleGraphvizCoords(coords, param);
 
   // Fallback: force-directed engines (neato/fdp/sfdp) never emit cluster bbs — derive from children.
   Object.assign(coords.clusters, _deriveClusterBoundingBoxes(parentMap, coords.clusters, coords.nodes, _getPadding(param)));
 
-  let reversedSet  = new Set(param.layoutReversed || []);
-  let containerIds = new Set();
-  Object.keys(parentMap).forEach(function(cid) { containerIds.add(parentMap[cid]); });
-  let childSet = new Set(Object.keys(parentMap));
-  let rootIds  = Object.keys(nodeMap).filter(function(id) { return !childSet.has(id); });
+  const reversedSet  = new Set(param.layoutReversed || []);
+  const containerIds = new Set(Object.values(parentMap));
+  const rootIds      = Object.keys(nodeMap).filter(function(id) { return !parentMap.hasOwnProperty(id); });
 
-  let edgeById = {};
+  const edgeById     = {};
   edgeList.forEach(function(e) { edgeById[e.id] = e; });
-  let totalH = _parseDotBb(String(jsonOut.bb || "0,0,0,0")).ury;
-  let _effSplines    = _getEffectiveSplines(param);
-  let skipBendpoints = (_effSplines === "STRAIGHT" || _effSplines === "line");
+  const totalH       = _parseDotBb(String(jsonOut.bb || "0,0,0,0")).ury;
+  const effSplines   = _getEffectiveSplines(param);
+  const skipBendpoints = (effSplines === ROUTING.STRAIGHT.id || effSplines === "line");
 
-  // ── Delegate to _drawView for Archi API calls ───────────────────────────────
-
-  function _drawNodesGV(ids, parentVisual, parentAbsPos, view, vIdx) {
-    ids.forEach(function(nodeId) {
-      let node    = nodeMap[nodeId];
-      let archiEl = $("#" + (node._archiId || nodeId)).first();
-      if (!archiEl) return;
-      let absPos = containerIds.has(nodeId) && coords.clusters[nodeId] ? coords.clusters[nodeId] : coords.nodes[nodeId];
-      if (!absPos) { console.log("  No position for " + nodeId); return; }
-      let rx = absPos.x - (parentAbsPos ? parentAbsPos.x : 0);
-      let ry = absPos.y - (parentAbsPos ? parentAbsPos.y : 0);
-      let visual = parentVisual ? parentVisual.add(archiEl, rx, ry, absPos.w, absPos.h) : view.add(archiEl, rx, ry, absPos.w, absPos.h);
-      vIdx[nodeId] = visual;
-      let children = Object.keys(parentMap).filter(function(k) { return parentMap[k] === nodeId; });
-      if (children.length) _drawNodesGV(children, visual, absPos, view, vIdx);
+  // Element bounds + label tracking for middle-bendpoint placement.
+  const gvBounds = [], gvLabelRects = [];
+  if (param.labelPosition === "middle" || param.labelPosition === "auto") {
+    [coords.nodes, coords.clusters].forEach(function(dict) {
+      Object.values(dict).forEach(function(b) { gvBounds.push(b); });
     });
   }
 
+  function _drawGraphvizEdge(dotEdge, view, vIdx) {
+    const gvEdge   = edgeById[String(dotEdge.eid || "")];
+    if (!gvEdge) return;
+    const archiRel = $("#" + gvEdge._archiRelId).first();
+    if (!archiRel) return;
+    const srcVisual = vIdx[archiRel.source.id];
+    const tgtVisual = vIdx[archiRel.target.id];
+    if (!srcVisual || !tgtVisual) return;
+    const connection = view.add(archiRel, srcVisual, tgtVisual);
+    if (!connection) return;
+
+    // Use Graphviz-computed positions for centers — element.bounds can be stale in
+    // jArchi when the same view is being re-laid-out. coords is in the same pixel space.
+    const sc = coords.nodes[String(archiRel.source.id)] || coords.clusters[String(archiRel.source.id)];
+    const tc = coords.nodes[String(archiRel.target.id)] || coords.clusters[String(archiRel.target.id)];
+    const srcCenter = sc ? { x: Math.round(sc.x + sc.w / 2), y: Math.round(sc.y + sc.h / 2) } : _getCenterBounds(srcVisual);
+    const tgtCenter = tc ? { x: Math.round(tc.x + tc.w / 2), y: Math.round(tc.y + tc.h / 2) } : _getCenterBounds(tgtVisual);
+
+    // xlp: Graphviz's algo-computed external label position (from xlabel=).
+    // Unlike lp (label=), xlabel= doesn't create a dummy node so layout is unaffected.
+    // xlp is only present when the relation has a name; fallback uses path midpoint.
+    let xlpPx = null;
+    if (dotEdge.xlp) {
+      const xlp = _parseDotXY(String(dotEdge.xlp));
+      xlpPx = { x: Math.round(xlp.x * PT2PX), y: Math.round((totalH - xlp.y) * PT2PX) };
+      if (gvScale !== 1) { xlpPx.x = Math.round(xlpPx.x * gvScale); xlpPx.y = Math.round(xlpPx.y * gvScale); }
+    }
+
+    const lpFixed = { source: 0, middle: 1, target: 2 }[param.labelPosition];
+
+    if (skipBendpoints) { if (lpFixed !== undefined) connection.textPosition = lpFixed; return; }
+    const posStr = String(dotEdge.pos || "");
+    if (!posStr)  { if (lpFixed !== undefined) connection.textPosition = lpFixed; return; }
+    let bps = _flattenDotSpline(posStr, totalH, effSplines);
+    if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
+    if (!bps.length)   { if (lpFixed !== undefined) connection.textPosition = lpFixed; return; }
+
+    // Reference point for textPosition decision: xlp (algo) or path midpoint (fallback).
+    const refPt        = xlpPx || bps[Math.floor(bps.length / 2)];
+    const willBeMiddle = (lpFixed === 1) ||
+      (param.labelPosition === "auto" && refPt && _labelPositionFromPoint(refPt, srcCenter, tgtCenter) === 1);
+
+    if (lpFixed !== undefined && !willBeMiddle) connection.textPosition = lpFixed;
+
+    if (willBeMiddle) {
+      // Find on-path bps point nearest to xlp (algo's preferred position).
+      // Falls back to geometric midpoint when xlp is unavailable (unnamed relation).
+      let midIdx = Math.floor(bps.length / 2);
+      if (xlpPx && bps.length > 0) {
+        let minD = Infinity;
+        bps.forEach(function(p, i) {
+          const d = (p.x - xlpPx.x) * (p.x - xlpPx.x) + (p.y - xlpPx.y) * (p.y - xlpPx.y);
+          if (d < minD) { minD = d; midIdx = i; }
+        });
+      }
+      const adj = _findClearLabelPos(bps[midIdx], { dx: tgtCenter.x - srcCenter.x, dy: tgtCenter.y - srcCenter.y }, gvBounds, gvLabelRects, gvEdge._relName);
+      bps[midIdx] = adj;
+      gvLabelRects.push(_labelRect(adj, gvEdge._relName));
+      connection.textPosition = 1;
+    }
+
+    const calcBps = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
+    _addBendpoints(connection, calcBps, reversedSet.has(connection.type));
+  }
+
   return _drawView(param,
-    function(view, vIdx) { _drawNodesGV(rootIds, null, null, view, vIdx); },
-    function(view, vIdx) {
-      (jsonOut.edges || []).forEach(function(dotEdge) {
-        let gvEdge  = edgeById[String(dotEdge.eid || "")];
-        if (!gvEdge) return;
-        let archiRel = $("#" + gvEdge._archiRelId).first();
-        if (!archiRel) return;
-        let srcVisual = vIdx[archiRel.source.id];
-        let tgtVisual = vIdx[archiRel.target.id];
-        if (!srcVisual || !tgtVisual) return;
-        let connection = view.add(archiRel, srcVisual, tgtVisual);
-        if (!connection || skipBendpoints) return;
-        let posStr = String(dotEdge.pos || "");
-        if (!posStr) return;
-        let bps = _flattenDotSpline(posStr, totalH, _effSplines);
-        if (gvScale !== 1) bps = bps.map(function(p) { return { x: Math.round(p.x * gvScale), y: Math.round(p.y * gvScale) }; });
-        if (!bps.length) return;
-        // Compute centers from coords (Graphviz-computed positions) rather than from
-        // element.bounds, which can return cached pre-layout values in jArchi when the
-        // same view is being updated. coords is in the same pixel space as the bps.
-        let _sc = coords.nodes[String(archiRel.source.id)] || coords.clusters[String(archiRel.source.id)];
-        let _tc = coords.nodes[String(archiRel.target.id)] || coords.clusters[String(archiRel.target.id)];
-        let srcCenter = _sc ? { x: Math.round(_sc.x + _sc.w / 2), y: Math.round(_sc.y + _sc.h / 2) }
-                             : _getCenterBounds(srcVisual);
-        let tgtCenter = _tc ? { x: Math.round(_tc.x + _tc.w / 2), y: Math.round(_tc.y + _tc.h / 2) }
-                             : _getCenterBounds(tgtVisual);
-        let calcBps = bps.map(function(p) { return _calcBendpoint(p, srcCenter, tgtCenter); });
-        _addBendpoints(connection, calcBps, reversedSet.has(connection.type));
-      });
-    },
+    function(view, vIdx) { _drawGraphvizNodes(rootIds, null, null, view, vIdx, nodeMap, coords, containerIds, parentMap); },
+    function(view, vIdx) { (jsonOut.edges || []).forEach(function(dotEdge) { _drawGraphvizEdge(dotEdge, view, vIdx); }); },
     parentRels, parentMap, occurrenceMap
   );
 }
@@ -1726,109 +1866,6 @@ function _validArchiConcept(paramList, validNames, label, emptyLabel) {
   return validFlag;
 }
 
-const ELEMENT_NAMES = [
-  "application-collaboration",
-  "application-component",
-  "application-event",
-  "application-function",
-  "application-interaction",
-  "application-interface",
-  "application-process",
-  "application-service",
-  "artifact",
-  "assessment",
-  "business-actor",
-  "business-collaboration",
-  "business-event",
-  "business-function",
-  "business-interaction",
-  "business-interface",
-  "business-object",
-  "business-process",
-  "business-role",
-  "business-service",
-  "canvas-model-block",
-  "canvas-model-image",
-  "canvas-model-sticky",
-  "capability",
-  "communication-network",
-  "constraint",
-  "contract",
-  "course-of-action",
-  "data-object",
-  "deliverable",
-  "device",
-  "diagram-model-connection",
-  "diagram-model-group",
-  "diagram-model-image",
-  "diagram-model-note",
-  "diagram-model-reference",
-  "distribution-network",
-  "driver",
-  "equipment",
-  "facility",
-  "gap",
-  "goal",
-  "grouping",
-  "implementation-even",
-  "junction",
-  "location",
-  "material",
-  "meaning",
-  "node",
-  "outcome",
-  "path",
-  "plateau",
-  "principle",
-  "product",
-  "representation",
-  "requirement",
-  "resource",
-  "sketch-model-actor",
-  "sketch-model-sticky",
-  "stakeholder",
-  "system-software",
-  "technology-collaboration",
-  "technology-event",
-  "technology-function",
-  "technology-interaction",
-  "technology-interface",
-  "technology-process",
-  "technology-service",
-  "value",
-  "work-package",
-];
-
-const RELATION_NAMES = [
-  "access-relationship",
-  "aggregation-relationship",
-  "assignment-relationship",
-  "association-relationship",
-  "composition-relationship",
-  "flow-relationship",
-  "influence-relationship",
-  "realization-relationship",
-  "serving-relationship",
-  "specialization-relationship",
-  "triggering-relationship",
-];
-
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    generate_view,
-    GENERATE_SINGLE,
-    GENERATE_MULTIPLE,
-    EXPAND_HERE,
-    LAYOUT,
-    ALGO,
-    DEFAULTS,
-    DEFAULT_PRESET,
-    CAPABILITIES,
-    GV_ALGORITHMS,
-    PT2PX,
-    GENERATED_VIEW_FOLDER,
-    PROP_EXCLUDE,
-    ELEMENT_NAMES,
-    RELATION_NAMES,
-  };
+  module.exports = Object.assign({ generate_view, CAPABILITIES }, Defs, Presets);
 }

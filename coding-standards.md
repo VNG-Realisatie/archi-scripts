@@ -12,9 +12,14 @@
 - Engine-specific functions: suffix with engine name (`_buildGraphELK`, `_drawViewDagre`)
 - Constants: UPPER_SNAKE_CASE
 - Private functions: underscore prefix (`_helper()`), not exported
+- Name changes are carried through integrally across all files; no compat shims or aliases. Logic changes are conservative: rename only, do not refactor behaviour in the same step.
 
 ## Function rules
-- Single responsibility
+- Single responsibility: one verb per function — if the name needs "and", split it
+- Target ≤ 30 lines; a function that exceeds this probably tells two stories
+- Named inner closures belong at module scope, not defined inside a calling function
+- Return one value; if a block produces two results, return a small `{ key: value }` object
+- Guards after a function call stay in the caller, not inside the extracted function
 - Private functions: prefix `_`, not in module.exports
 - Public functions: standard naming, explicitly listed in module.exports
 

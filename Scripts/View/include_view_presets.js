@@ -1,19 +1,17 @@
 /**
- * Preset/parameter-file loading utilities for include_view.js.
+ * Preset/parameter-file loading utilities for the View subsystem.
  *
- * Provides three functions that read parameter files from disk and merge them
- * into a param object for use with View.generate_view().
- * Re-exports everything from include_view.js so callers need only one require().
+ * Reads parameter files from disk and merges them into a param object for
+ * use with View.generate_view(). Consumed by include_view.js.
  *
  * Preset file resolution order (lowest to highest precedence):
- *   1. include_view.js DEFAULTS (engine built-ins)
+ *   1. include_view_defs.js DEFAULTS (engine built-ins)
  *   2. user_parameter/default_parameter.json  ← get_default_parameter()
  *   3. user_parameter/<name>.json             ← get_user_parameter() / read_user_parameter()
  *   4. inline overrides in the calling .ajs script
  */
 console.log("include_view_presets.js");
 
-const View    = require(REPO_ROOT + "View/include_view.js");
 const Common  = require(REPO_ROOT + "_lib/Common.js");
 
 const DEFAULT_PARAM_FILE = "default_parameter.json";
@@ -191,18 +189,16 @@ function read_user_parameter(file, user_param_name, action, direction, param = {
   return param;
 }
 
-// Re-export everything from the engine + the preset functions
-// so callers need only one require().
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = Object.assign({
+  module.exports = {
     get_default_parameter,
     get_user_parameter,
     read_user_parameter,
     getPresetFiles,
-    readJSON,
-    writeJSON,
     readPreset,
     writePreset,
+    readJSON,
+    writeJSON,
     USER_PARAM_FOLDER,
-  }, View);
+  };
 }
