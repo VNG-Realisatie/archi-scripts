@@ -87,16 +87,19 @@ function open(uiSelection) {
 
   const w = {};  // widget map
 
-  // GraalVM Java.extend pattern: define overrides first, pass as first arg to constructor.
-  // dlgImpl.dialog is set below; all method bodies access it via closure at call-time.
-  const dlgImpl = {
-    config,
-    widgets: w,
+  // GraalVM two-argument Java.extend pattern:
+  //   Java.extend(Class, {methods}) bakes overrides in at class-definition time.
+  //   Instantiate with just the Java constructor arg (shell) — no overrides object needed.
+  //   Methods close over `dlg`, `config`, `w` from the outer scope.
+  //   `dlg` is set after the class is defined; safe because methods are only called after dlg.open().
+  let dlg;
+  const ctx = { config, widgets: w };  // context passed to tab/preset builders
 
+  const ConfigDialog = Java.extend(TitleAreaDialog, {
     createDialogArea: function(parent) {
-      const area = Java.super(dlgImpl.dialog).createDialogArea(parent);
-      dlgImpl.dialog.setTitle("Generate View");
-      dlgImpl.dialog.setMessage("Configure layout and run.");
+      const area = Java.super(dlg).createDialogArea(parent);
+      dlg.setTitle("Generate View");
+      dlg.setMessage("Configure layout and run.");
 
       GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).applyTo(area);
 
@@ -104,12 +107,12 @@ function open(uiSelection) {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       w.tabFolder = tabFolder;
 
-      _buildSelectionTab(tabFolder, dlgImpl);
-      _buildLayoutTab(tabFolder, dlgImpl);
-      _buildViewTab(tabFolder, dlgImpl);
+      _buildSelectionTab(tabFolder, ctx);
+      _buildLayoutTab(tabFolder, ctx);
+      _buildViewTab(tabFolder, ctx);
 
-      _buildPresetRow(area, dlgImpl);
-      _syncToUI(dlgImpl);
+      _buildPresetRow(area, ctx);
+      _syncToUI(ctx);
 
       const lastTab = config._lastTabIndex || 0;
       tabFolder.setSelection(Math.min(lastTab, 2));
@@ -121,25 +124,24 @@ function open(uiSelection) {
     isHelpAvailable: function() { return false; },
 
     createButtonsForButtonBar: function(parent) {
-      Java.super(dlgImpl.dialog).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
-      const ok = Java.super(dlgImpl.dialog).createButton(parent, IDialogConstants.OK_ID, _actionLabel(config.action), true);
+      Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
+      const ok = Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, _actionLabel(config.action), true);
       GridDataFactory.swtDefaults().hint(150, SWT.DEFAULT).applyTo(ok);
       w.okBtn = ok;
     },
 
     okPressed: function() {
-      _saveUI(dlgImpl);
+      _saveUI(ctx);
       const session = Object.assign({}, config);
       session._lastTabIndex = w.tabFolder ? w.tabFolder.getSelectionIndex() : 0;
       PresetIO.writeSession(session);
-      Java.super(dlgImpl.dialog).okPressed();
+      Java.super(dlg).okPressed();
     },
-  };
+  });
 
-  const ConfigDialog = Java.extend(TitleAreaDialog);
-  dlgImpl.dialog = new ConfigDialog(dlgImpl, shell);
+  dlg = new ConfigDialog(shell);
 
-  const result = dlgImpl.dialog.open();
+  const result = dlg.open();
   if (result !== 0) {  // CANCEL = 1
     console.log("Cancelled.");
     return;
