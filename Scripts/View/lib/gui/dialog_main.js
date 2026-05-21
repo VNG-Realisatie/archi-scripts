@@ -307,10 +307,12 @@ function _lbl(parent, text) {
 }
 
 // Count elements and relations in a collection.
+// Folders and views are containers — they are not counted, only their contents are.
 function _countSelection(coll) {
   let elems = 0, rels = 0, views = 0, diagrams = 0;
   coll.each(o => {
     const t = o.type || "";
+    if (t === "folder")                          return;  // folder is a container, not an element
     if (t.endsWith("-relationship"))             rels++;
     else if (t === "archimate-diagram-model")    views++;
     else if (t.startsWith("diagram-model-"))     diagrams++;
@@ -334,14 +336,16 @@ function open(uiSelection) {
 
   // Compute selection counts before the dialog opens.
   // Raw count: what the user had selected in the UI.
-  const rawCount = { elems: 0, rels: 0, views: 0, folders: 0 };
+  const rawCount = { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
   try {
     uiSelection.each(o => {
       const t = o.type || "";
-      if (t === "archimate-diagram-model")     rawCount.views++;
-      else if (t.endsWith("-relationship"))    rawCount.rels++;
-      else if (t === "folder")                 rawCount.folders++;
-      else                                     rawCount.elems++;
+      if (t === "archimate-diagram-model" && !o.view) rawCount.views++;    // model-tree view
+      else if (t === "archimate-diagram-model" && o.view) rawCount.diagrams++;  // canvas view reference
+      else if (t.endsWith("-relationship"))             rawCount.rels++;
+      else if (t === "folder")                          rawCount.folders++;
+      else if (t.startsWith("diagram-model-"))          rawCount.diagrams++;
+      else                                              rawCount.elems++;
     });
   } catch (e) {}
 
@@ -352,10 +356,16 @@ function open(uiSelection) {
   try {
     uiSelection.each(o => {
       const t = o.type || "";
-      if (t === "archimate-diagram-model") {
-        // Count elements and relations on the view
+      if (t === "archimate-diagram-model" && !o.view) {
+        // Model-tree view: count its model elements, relations, and diagram objects
         try { $(o).find("element").each(() => expandedCount.elems++); } catch (e) {}
         try { $(o).find("relation").each(() => expandedCount.rels++); } catch (e) {}
+        // Diagram objects on the view (group, note, image, connection, reference)
+        try {
+          Defs.DIAGRAM_TYPES.forEach(dt => {
+            try { $(o).find(dt).each(() => expandedCount.diagrams++); } catch (e2) {}
+          });
+        } catch (e) {}
       } else if (t.endsWith("-relationship")) {
         expandedCount.rels++;
       } else if (t.startsWith("diagram-model-")) {
@@ -380,14 +390,28 @@ function open(uiSelection) {
   const rawModelObjects = [];
   try {
     const seen = new Set();
-    const add  = o => { if (o && o.id && !seen.has(o.id)) { seen.add(o.id); rawModelObjects.push(o); } };
+    const add = o => {
+      if (!o || !o.id || seen.has(o.id)) return;
+      if ((o.type || "") === "folder") return;  // folder = container, skip
+      seen.add(o.id);
+      rawModelObjects.push(o);
+    };
     uiSelection.each(o => {
       const t = o.type || "";
-      if (t === "archimate-diagram-model") {
+      if (t === "archimate-diagram-model" && !o.view) {
+        // Model-tree view: expand to model elements, relations, AND diagram objects
         try { $(o).find("element").each(ve => { if (ve.concept) add(ve.concept); }); } catch (e) {}
         try { $(o).find("relation").each(vr => { if (vr.concept) add(vr.concept); }); } catch (e) {}
+        Defs.DIAGRAM_TYPES.forEach(dt => {
+          try { $(o).find(dt).each(dvo => { if (dvo && dvo.id) add(dvo); }); } catch (e) {}
+        });
+      } else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") {
+        // Canvas diagram object: add the visual object directly (not .concept).
+        // view-reference.concept is the referenced view (a container) — skip that.
+        add(o);
       } else if (o.view) {
-        add(o.concept || o);          // canvas visual object
+        // Canvas ArchiMate visual object → use model concept
+        add(o.concept || o);
       } else if (t === "folder") {
         try { Selection.getSelection($(o), "*").each(add); } catch (e) {}
       } else {
@@ -396,6 +420,21 @@ function open(uiSelection) {
     });
   } catch (e) {}
   ctx.rawModelObjects = rawModelObjects;
+
+  // Log to Archi console BEFORE dialog opens (dialog blocks; console.log inside SWT handlers is unreliable).
+  {
+    let _lEl = 0, _lRel = 0, _lDiag = 0;
+    for (const o of rawModelObjects) {
+      const t = o.type || "";
+      if (t.endsWith("-relationship") || t === "diagram-model-connection") _lRel++;
+      else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") _lDiag++;
+      else _lEl++;
+    }
+    console.log(`\nGUI — before dialog:`);
+    console.log(`  Selected:  ${rawCount.elems} elements · ${rawCount.rels} relations · ${rawCount.views} views · ${rawCount.diagrams} diagram objects · ${rawCount.folders} folders`);
+    console.log(`  Containing: ${expandedCount.elems} elements · ${expandedCount.rels} relations · ${expandedCount.diagrams} diagram objects`);
+    console.log(`  Raw model objects for Filtered count: ${_lEl} elements · ${_lRel} relations · ${_lDiag} diagram objects`);
+  }
 
   // Has visual context: enables Expand view / Layout only buttons.
   // True when visual objects are on a canvas OR when a view is selected from the model tree.
@@ -512,7 +551,11 @@ function _updateFilteredCount(ctx) {
 
     // Map relation labels → IDs for matching
     const relIds   = new Set(_relLabelsToIds(Array.from(relLabels)));
+    // DIAG_LABEL_TO_ID maps label → type ID (e.g. "reference" → "diagram-model-reference").
+    // Also add "archimate-diagram-model" when "reference" is selected — jArchi returns this
+    // type for view-reference visual objects.
     const diagIds  = new Set(Array.from(diagLabels).map(l => DIAG_LABEL_TO_ID[l] || l));
+    if (diagIds.has("diagram-model-reference")) diagIds.add("archimate-diagram-model");
 
     let elems = 0, rels = 0, diagrams = 0;
     for (const o of objects) {
@@ -543,23 +586,34 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
   const exp = expandedCount || { elems: 0, rels: 0, diagrams: 0 };
 
   // ── Current selection info ───────────────────────────────────────────────────
+  // Row 1: Selected (left) | Containing (right) on the same line.
+  // Row 2: Filtered (full width, live-updated).
   const grpInfo = new GroupWidget(page, SWT.NONE);
   grpInfo.setText("Current selection");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpInfo);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 6).spacing(4, 3).applyTo(grpInfo);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(8, 6).spacing(12, 3).applyTo(grpInfo);
 
-  _lbl(grpInfo,
-    `Selected:   ${raw.elems} elements · ${raw.rels} relations · ${raw.views} views` +
-    (raw.folders ? ` · ${raw.folders} folders` : ""));
-  _lbl(grpInfo,
-    `Containing: ${exp.elems} elements` +
-    (exp.rels     ? ` · ${exp.rels} relations`          : " · 0 relations") +
-    (exp.diagrams ? ` · ${exp.diagrams} diagram objects` : ""));
+  // Selected: only show non-zero terms so the line stays compact.
+  const selParts = [];
+  if (raw.elems)    selParts.push(`${raw.elems} elements`);
+  if (raw.rels)     selParts.push(`${raw.rels} relations`);
+  if (raw.views)    selParts.push(`${raw.views} views`);
+  if (raw.folders)  selParts.push(`${raw.folders} folders`);
+  if (raw.diagrams) selParts.push(`${raw.diagrams} diagram objects`);
+  _lbl(grpInfo, "Selected:   " + (selParts.length ? selParts.join(" · ") : "nothing"));
 
-  // Filtered: updates live when filter settings change
+  // Containing: counts model objects inside selected folders/views.
+  // Folders and views are containers — they are not counted themselves, only their contents.
+  const contParts = [];
+  if (exp.elems)    contParts.push(`${exp.elems} elements`);
+  if (exp.rels)     contParts.push(`${exp.rels} relations`);
+  if (exp.diagrams) contParts.push(`${exp.diagrams} diagram objects`);
+  _lbl(grpInfo, "Containing: " + (contParts.length ? contParts.join(" · ") : "—"));
+
+  // Filtered: spans both columns; live-updated when filter controls change.
   const lblFiltered = new LabelWidget(grpInfo, SWT.NONE);
-  lblFiltered.setText("Filtered:  (change a filter to update)");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(lblFiltered);
+  lblFiltered.setText("Filtered:   —");
+  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(lblFiltered);
   w.lblFiltered = lblFiltered;
 
   // ── Filter ──────────────────────────────────────────────────────────────────

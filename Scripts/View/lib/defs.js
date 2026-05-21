@@ -405,6 +405,7 @@ const DIAGRAM_TYPES = Object.freeze([
   "diagram-model-note",
   "diagram-model-image",
   "diagram-model-reference",
+  "archimate-diagram-model",   // jArchi returns this type for view-reference visual objects
 ]);
 
 // ── Constants ─────────────────────────────────────────────────────────────────

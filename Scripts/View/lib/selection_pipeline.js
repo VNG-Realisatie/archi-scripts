@@ -58,12 +58,31 @@ function buildObjectSet(uiSelection, preset, actionId) {
     collection = _extractConceptsFromCanvas(uiSelection);
   } else {
     collection = Selection.getSelection(uiSelection, "*");
-    // Expand ArchimateView nodes to their model elements.
     collection = _expandViews(collection);
   }
 
+  // Log: current selection before filter
+  let _cntEl = 0, _cntRel = 0, _cntDiag = 0;
+  collection.each(o => {
+    const t = o.type || "";
+    if (t.endsWith("-relationship") || t === "diagram-model-connection") _cntRel++;
+    else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") _cntDiag++;
+    else _cntEl++;
+  });
+  console.log(`Current selection: ${_cntEl} elements · ${_cntRel} relations · ${_cntDiag} diagram objects`);
+
   // Step 2: apply filter
   collection = _applyFilter(collection, preset.filter);
+
+  // Log: after filter
+  let _fEl = 0, _fRel = 0, _fDiag = 0;
+  collection.each(o => {
+    const t = o.type || "";
+    if (t.endsWith("-relationship") || t === "diagram-model-connection") _fRel++;
+    else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") _fDiag++;
+    else _fEl++;
+  });
+  console.log(`Filtered selection: ${_fEl} elements · ${_fRel} relations · ${_fDiag} diagram objects`);
 
   // Step 3: apply related-elements expansion layers (additive)
   if (preset.relatedElements && Array.isArray(preset.relatedElements.layers)) {
@@ -97,21 +116,19 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const result = { elements, relations, visualObjects: [] };
 
   if (actionId === ACTION.EXPAND_VIEW.id) {
-    // Include existing visual objects so Expand keeps them in place.
-    // Handle both: view node selected from model tree (use find()), canvas selection.
+    const seen = new Set();
+    const addVO = vo => { if (vo && vo.id && !seen.has(vo.id) && vo.view) { seen.add(vo.id); result.visualObjects.push(vo); } };
+    const collectChildren = obj => {
+      try { $(obj).children().each(child => { addVO(child); collectChildren(child); }); } catch(e) {}
+    };
     let viewFound = false;
     try {
       uiSelection.each(o => {
-        if (o.type === "archimate-diagram-model") {
-          viewFound = true;
-          $(o).find().each(vo => { if (vo && vo.view) result.visualObjects.push(vo); });
-        }
+        if (o.type === "archimate-diagram-model" && !o.view) { viewFound = true; collectChildren(o); }
       });
     } catch (e) {}
     if (!viewFound) {
-      try {
-        Selection.getVisualSelection(uiSelection, "*").each(o => result.visualObjects.push(o));
-      } catch (e) {}
+      try { Selection.getVisualSelection(uiSelection, "*").each(addVO); } catch (e) {}
     }
   }
 
@@ -144,6 +161,8 @@ function _extractConceptsFromCanvas(uiSelection) {
   const seen = new Set();
   uiSelection.each(o => {
     try {
+      // For diagram-model-reference (view reference) and other diagram objects,
+      // .concept may be null — use the visual object itself.
       const concept = (o.concept) ? o.concept : o;
       if (!concept || !concept.id || seen.has(concept.id)) return;
       seen.add(concept.id);
@@ -208,27 +227,38 @@ function _expandViews(collection) {
 
 function _layoutOnlySet(uiSelection) {
   const visualObjects = [];
+  const seen = new Set();
+  const addVO = vo => { if (vo && vo.id && !seen.has(vo.id) && vo.view) { seen.add(vo.id); visualObjects.push(vo); } };
 
-  // Case 1: a view node selected from the model tree (archimate-diagram-model).
-  // view.view is undefined — getVisualSelection() skips it.
-  // Use $(view).find() which correctly enumerates all visual objects on the view.
+  // Recursive children traversal — same approach as selection.js _addVisualObject.
+  // Works for both ArchiMate elements AND diagram objects (group, note, image, reference)
+  // without relying on type-specific find() selectors which may not support diagram types.
+  const collectChildren = (obj) => {
+    try {
+      $(obj).children().each(child => {
+        addVO(child);
+        collectChildren(child);
+      });
+    } catch (e) {}
+  };
+
+  // Case 1: a view node selected from the model tree.
   let viewFound = false;
   try {
     uiSelection.each(o => {
-      if (o.type === "archimate-diagram-model") {
+      if (o.type === "archimate-diagram-model" && !o.view) {
         viewFound = true;
-        $(o).find().each(vo => { if (vo && vo.view) visualObjects.push(vo); });
+        collectChildren(o);
       }
     });
   } catch (e) {}
 
   // Case 2: visual objects selected on a view canvas.
   if (!viewFound) {
-    try {
-      Selection.getVisualSelection(uiSelection, "*").each(o => visualObjects.push(o));
-    } catch (e) {}
+    try { Selection.getVisualSelection(uiSelection, "*").each(addVO); } catch (e) {}
   }
 
+  console.log(`Layout only: ${visualObjects.length} visual objects collected`);
   return { elements: [], relations: [], visualObjects };
 }
 

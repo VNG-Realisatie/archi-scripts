@@ -141,14 +141,29 @@ function _generateOneEach(preset, uiSelection) {
 function _layoutOnlyView(preset, visualObjects) {
   if (visualObjects.length === 0) throw "Layout only: no visual objects in selection";
 
-  // Rebuild elements and relations from visual objects
-  const elements  = [];
-  const relations = [];
+  // Rebuild elements and relations from visual objects.
+  // Diagram objects (no model concept) are included as proxy nodes so the layout
+  // engine positions them alongside elements instead of leaving them behind.
+  const elements   = [];
+  const relations  = [];
+  const voById     = {};  // id → visual object for applying results back
+
   for (const vo of visualObjects) {
+    voById[vo.id] = vo;
     const concept = vo.concept;
-    if (!concept) continue;
-    if (concept.type && concept.type.endsWith("-relationship")) relations.push(concept);
-    else elements.push(concept);
+    const t       = vo.type || "";
+    if (concept && concept.type && concept.type.endsWith("-relationship")) {
+      relations.push(concept);
+    } else if (concept) {
+      elements.push(concept);
+      voById[concept.id] = vo;  // also index by concept ID for result lookup
+    } else {
+      // Diagram object (group, note, image, view-reference): no model concept.
+      // Represent as an element-like proxy using the visual object's own id.
+      elements.push({ id: vo.id, type: t, name: vo.name || t,
+                      _width:  (vo.bounds && vo.bounds.width)  || preset.params.elementWidth  || 140,
+                      _height: (vo.bounds && vo.bounds.height) || preset.params.elementHeight || 60 });
+    }
   }
 
   const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
@@ -159,9 +174,9 @@ function _layoutOnlyView(preset, visualObjects) {
   const alg    = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
 
-  // Update existing view in-place
+  // Update existing view in-place: reposition both ArchiMate elements and diagram objects
   const view = visualObjects[0].view;
-  _applyResultToView(result, view);
+  _applyResultToView(result, view, voById);
   console.log(`Layout only applied to "${view.name}"`);
   model.openInUI(view);
   return view;
@@ -223,8 +238,9 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, visualObje
       id:          el.id,
       label:       el.name || "",
       elementType: el.type || "",
-      width:       el.type === "junction" ? JUNCTION_DIAMETER : params.elementWidth,
-      height:      el.type === "junction" ? JUNCTION_DIAMETER : params.elementHeight,
+      // Diagram object proxies carry _width/_height from their current visual bounds.
+      width:       el._width  || (el.type === "junction" ? JUNCTION_DIAMETER : params.elementWidth),
+      height:      el._height || (el.type === "junction" ? JUNCTION_DIAMETER : params.elementHeight),
       parent:      parentMap[el.id] || null,
     };
     nodes.push(baseNode);
@@ -291,6 +307,13 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName)
 
   const visualIndex = {};  // nodeId → VisualObject
 
+  // Diagram-only types: DiagramModelObjectProxy subclasses that need view.add(el, x, y)
+  // instead of view.add(el, x, y, w, h). Cannot be added cross-view by concept reference.
+  const DIAGRAM_ONLY = new Set([
+    "diagram-model-group", "diagram-model-note", "diagram-model-image",
+    "diagram-model-reference", "archimate-diagram-model",
+  ]);
+
   // Draw nodes
   console.log(`Drawing ${result.nodes.length} elements...`);
   for (const rn of result.nodes) {
@@ -298,6 +321,15 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName)
     const archiId = rn.id.includes("_occ_") ? rn.id.substring(0, rn.id.lastIndexOf("_occ_")) : rn.id;
     const el = $(`#${archiId}`).first();
     if (!el || !el.id) continue;
+
+    const elType = el.type || "";
+
+    // Diagram-only objects (group, note, image, view reference) cannot be added to a new view
+    // via the ArchiMate element overload. Skip gracefully — they are view-specific.
+    if (DIAGRAM_ONLY.has(elType)) {
+      console.log(`  Skipping ${elType} "${el.name || archiId}" (diagram object — view-specific, not added)`);
+      continue;
+    }
 
     // Find parent visual if this node has a parent
     const parentNodeId = _findParentNodeId(rn.id, result);
@@ -370,17 +402,29 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName)
     }
   }
 
+  // Log: count objects actually on the new view
+  try {
+    let _vEl = 0, _vRel = 0, _vDiag = 0;
+    $(view).find("element").each(() => _vEl++);
+    $(view).find("relation").each(() => _vRel++);
+    Defs.DIAGRAM_TYPES.forEach(dt => { try { $(view).find(dt).each(() => _vDiag++); } catch(e) {} });
+    console.log(`Objects on view: ${_vEl} elements · ${_vRel} relations · ${_vDiag} diagram objects`);
+  } catch(e) {}
+
   console.log(`\nView "${viewName}" written to "${folder.name}"`);
   try { model.openInUI(view); } catch (e) {}
   return view;
 }
 
-function _applyResultToView(result, view) {
+function _applyResultToView(result, view, extraVoById) {
+  // Index visual elements by concept ID (ArchiMate elements)
   const visualIndex = {};
   $(view).find("element").each(el => { visualIndex[el.concept && el.concept.id] = el; });
+  // Also use the explicit voById map from _layoutOnlyView (for diagram objects indexed by their own id)
+  const voById = extraVoById || {};
 
   for (const rn of result.nodes) {
-    const vo = visualIndex[rn.id];
+    const vo = visualIndex[rn.id] || voById[rn.id];  // ArchiMate element or diagram object
     if (!vo) continue;
     vo.bounds = { x: rn.x, y: rn.y, width: rn.width + 1, height: rn.height + 1 };
   }
