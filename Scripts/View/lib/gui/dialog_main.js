@@ -303,59 +303,56 @@ function open(uiSelection) {
 
     createButtonsForButtonBar: function(parent) {
       Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
-
-      // Layout only — greyed when no visual selection
+      // Buttons added right-to-left in JFace button bar.
+      // NO addListener — buttonPressed() override handles all clicks.
       const btnLayout = Java.super(dlg).createButton(parent, 101, "Layout only", false);
       btnLayout.setEnabled(hasVisual);
-      btnLayout.addListener(SWT.Selection, () => { config.action = ACTION.LAYOUT_ONLY.id;  _runAndClose(ctx, dlg); });
       w.btnLayoutOnly = btnLayout;
 
-      // Expand view — greyed when no visual selection
       const btnExpand = Java.super(dlg).createButton(parent, 102, "Expand view", false);
       btnExpand.setEnabled(hasVisual);
-      btnExpand.addListener(SWT.Selection, () => { config.action = ACTION.EXPAND_VIEW.id; _runAndClose(ctx, dlg); });
       w.btnExpandView = btnExpand;
 
-      // One view each
-      const btnEach = Java.super(dlg).createButton(parent, 103, "One view each", false);
-      btnEach.addListener(SWT.Selection, () => { config.action = ACTION.ONE_EACH.id; _runAndClose(ctx, dlg); });
-      w.btnOneEach = btnEach;
-
-      // New view (default)
-      const btnNew = Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, "New view", true);
-      btnNew.addListener(SWT.Selection, () => { config.action = ACTION.NEW_VIEW.id; _runAndClose(ctx, dlg); });
-      w.btnNewView = btnNew;
+      Java.super(dlg).createButton(parent, 103, "One view each", false);
+      Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, "New view", true);
     },
 
-    okPressed: function() {
-      // Called by JFace when Enter is pressed; treat as New view.
-      config.action = ACTION.NEW_VIEW.id;
+    // JFace routes all button clicks here. Save UI, store action, close dialog.
+    // generate_view runs after dlg.open() returns — avoids operating on disposed shell.
+    buttonPressed: function(buttonId) {
+      if (buttonId === IDialogConstants.CANCEL_ID) {
+        Java.super(dlg).cancelPressed();
+        return;
+      }
       _saveUI(ctx);
       _persistSession(ctx);
-      Java.super(dlg).okPressed();
+      if      (buttonId === IDialogConstants.OK_ID) config.action = ACTION.NEW_VIEW.id;
+      else if (buttonId === 101)                     config.action = ACTION.LAYOUT_ONLY.id;
+      else if (buttonId === 102)                     config.action = ACTION.EXPAND_VIEW.id;
+      else if (buttonId === 103)                     config.action = ACTION.ONE_EACH.id;
+      Java.super(dlg).okPressed();  // sets returnCode = OK and closes dialog
     },
   });
 
   dlg = new ConfigDialog(shell);
-  const result = dlg.open();
+  const result = dlg.open();  // blocks until dialog closes
 
+  // Dialog is fully closed here — safe to run generate_view
   if (result === IDialogConstants.CANCEL_ID || result < 0) return;
 
-  // _runAndClose already ran generate_view before closing; nothing more needed here.
-}
-
-function _runAndClose(ctx, dlg) {
-  _saveUI(ctx);
-  _persistSession(ctx);
-  GenView.generate_view(ctx.config, ctx.uiSelection);
-  dlg.close();
+  try {
+    GenView.generate_view(ctx.config, ctx.uiSelection);
+  } catch (e) {
+    console.error("generate_view error: " + (e.message || e));
+  }
 }
 
 function _persistSession(ctx) {
   const session = JSON.parse(JSON.stringify(ctx.config));
-  session._lastTabIndex = ctx.widgets.tabFolder ? ctx.widgets.tabFolder.getSelectionIndex() : 0;
+  if (ctx.widgets.tabFolder) session._lastTabIndex = ctx.widgets.tabFolder.getSelectionIndex();
   PresetIO.writeSession(session);
 }
+
 
 // ── Selection tab ─────────────────────────────────────────────────────────────
 

@@ -48,7 +48,6 @@ function _getAdapter(engine) {
 function generate_view(rawPreset, uiSelection) {
   const preset = validatePreset(rawPreset);
 
-  Common.initConsoleLog && Common.initConsoleLog(undefined, preset.params.debug || false);
   const timer = Common.startCounter ? Common.startCounter() : null;
 
   console.log(`\n=== generate_view ===`);
