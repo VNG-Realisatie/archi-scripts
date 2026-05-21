@@ -1,0 +1,152 @@
+/**
+ * One-time migration: convert preset JSON files from old format to new format.
+ *
+ * Run once after deploying the new architecture.
+ * Safe to run multiple times — already-migrated files are skipped.
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common   = require(REPO_ROOT + "_lib/Common");
+const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+Common.initConsoleLog(__FILE__, true);
+
+// ── Field mappings ─────────────────────────────────────────────────────────────
+
+const ALGORITHM_MAP = {
+  layered:     "Layered", mrtree: "Tree",    force:  "Force",
+  stress:      "Stress",  radial: "Radial",  box:    "Grid",
+  rectpacking: "Pack",    dagre:  "Dagre",   dot:    "Dot",
+  neato:       "Neato",   fdp:    "FDP",     sfdp:   "SFDP",
+  twopi:       "Twopi",   circo:  "Circo",
+};
+
+const ACTION_MAP = {
+  Generate:         "new_view",
+  GenerateMultiple: "one_each",
+  Expand:           "expand_view",
+  Layout:           "layout_only",
+  generate_single:  "new_view",   // seen in default_parameter.json
+};
+
+const DIRECTION_MAP = {
+  RIGHT: "Left → Right", LEFT: "Right → Left",
+  DOWN:  "Top → Bottom", UP:   "Bottom → Top",
+  LR:    "Left → Right", RL:   "Right → Left",
+  TB:    "Top → Bottom", BT:   "Bottom → Top",
+};
+
+const ROUTING_MAP = {
+  ORTHOGONAL: "Orthogonal", POLYLINE: "Polyline",
+  STRAIGHT:   "Straight",   SPLINE:   "Spline (approximated)",
+  CURVED:     "Spline (approximated)",
+};
+
+const RANKING_MAP = {
+  "network-simplex": "Balanced", "longest-path": "Uniform", "tight-tree": "Top-aligned",
+};
+
+const LABEL_POS_MAP = {
+  auto: "Middle", source: "Source", middle: "Middle", target: "Target",
+  Source: "Source", Middle: "Middle", Target: "Target",
+};
+
+// ── Migration function ─────────────────────────────────────────────────────────
+
+function migratePreset(old) {
+  // Already new format if it has 'params' object with new-style keys
+  if (old.params && old.params.direction && old.params.direction.includes("→")) {
+    console.log("  Already migrated — skipping");
+    return null;
+  }
+
+  const n = {
+    name:      old.name || "",
+    algorithm: ALGORITHM_MAP[old.algorithm] || "Layered",
+    action:    ACTION_MAP[old.action] || "new_view",
+    params:    {},
+    filter:    { elementTypes: [], relationTypes: [], diagramTypes: [] },
+    relatedElements: { layers: [] },
+    view:      { name: old.viewName || "", suffix: old.viewNameSuffix || "", folder: old.viewFolder || "" },
+  };
+
+  const p = n.params;
+  p.direction            = DIRECTION_MAP[old.layoutDirection] || "Left → Right";
+  p.routing              = ROUTING_MAP[old.edgeRouting]       || "Orthogonal";
+  p.labelPosition        = LABEL_POS_MAP[old.labelPosition]   || "Middle";
+  p.ranking              = RANKING_MAP[old.dagreRanker]       || "Balanced";
+  p.nestingRelationTypes = old.layoutNested   || [];
+  p.reverseRelationTypes = old.layoutReversed || [];
+  p.innerSpacing         = old.nestedNodeSpacing !== undefined ? old.nestedNodeSpacing : 20;
+  p.padding              = old.padding !== undefined           ? old.padding            : 20;
+  p.sortContainers       = !(old.sortLeavesOnly);  // inverted
+  p.alignSameType        = old.sameTypeResize       || false;
+  p.showInEveryContainer = old.nestingMultipleOccurrences || false;
+  p.layerSpacing         = old.layerSpacing  !== undefined ? old.layerSpacing  : 180;
+  p.elementSpacing       = old.nodeSpacing   !== undefined ? old.nodeSpacing   : 40;
+  p.elementWidth         = old.nodeWidth     !== undefined ? old.nodeWidth     : 140;
+  p.elementHeight        = old.nodeHeight    !== undefined ? old.nodeHeight    : 60;
+  p.maxWidth             = old.viewMaxWidth  !== undefined ? old.viewMaxWidth  : 0;
+  p.maxHeight            = old.viewMaxHeight !== undefined ? old.viewMaxHeight : 0;
+  p.aspectRatio          = old.viewAspectRatio !== undefined ? old.viewAspectRatio : 0;
+
+  // Filter
+  if (old.includeElementType && old.includeElementType.length > 0)
+    n.filter.elementTypes = old.includeElementType;
+  if (old.includeRelationType && old.includeRelationType.length > 0)
+    n.filter.relationTypes = old.includeRelationType;
+
+  // Related elements (graphDepth > 0 → one layer)
+  if (old.graphDepth && old.graphDepth > 0) {
+    n.relatedElements.layers.push({
+      depth: old.graphDepth,
+      elementTypes:   old.includeElementType  || [],
+      relationTypes:  old.includeRelationType || [],
+      diagramTypes:   [],
+    });
+  }
+
+  return n;
+}
+
+// ── Run migration on all preset files ─────────────────────────────────────────
+
+const names = PresetIO.listPresets();
+console.log(`\nMigrating ${names.length} preset files...\n`);
+
+let migrated = 0, skipped = 0;
+
+for (const name of names) {
+  console.log(`Processing: ${name}`);
+  try {
+    const raw = PresetIO.readJSON(
+      `${__DIR__}user_parameter/${name}.json`
+    );
+    if (!raw) { console.log("  File not found — skipping"); skipped++; continue; }
+
+    const newPreset = migratePreset(raw);
+    if (!newPreset) { skipped++; continue; }
+
+    PresetIO.writePreset(name, newPreset);
+    console.log(`  Migrated ✓`);
+    migrated++;
+  } catch (e) {
+    console.error(`  Error: ${e}`);
+    skipped++;
+  }
+}
+
+// Also migrate default_parameter.json
+try {
+  const defPath = `${__DIR__}user_parameter/default_parameter.json`;
+  const raw = PresetIO.readJSON(defPath);
+  if (raw) {
+    const newPreset = migratePreset(raw);
+    if (newPreset) {
+      PresetIO.writeJSON(defPath, newPreset);
+      console.log(`\nMigrated default_parameter.json ✓`);
+      migrated++;
+    }
+  }
+} catch (e) { console.error(`default_parameter.json error: ${e}`); }
+
+console.log(`\nDone. Migrated: ${migrated}  Skipped: ${skipped}`);
+Common.finishConsoleLog();

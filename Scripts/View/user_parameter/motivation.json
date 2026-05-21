@@ -1,18 +1,49 @@
 {
-  "includeElementType": [
-    "constraint",
-    "grouping"
-  ],
-  "includeRelationType": [
-    "aggregation-relationship",
-    "specialization-relationship"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship"
-  ],
-  "layoutNested": [
-    "aggregation-relationship",
-    "specialization-relationship"
-  ]
+  "name": "motivation",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship"
+    ],
+    "nestingRelationTypes": [
+      "aggregation-relationship",
+      "specialization-relationship"
+    ],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "constraint",
+      "grouping"
+    ],
+    "relationTypes": [
+      "aggregation-relationship",
+      "specialization-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  }
 }

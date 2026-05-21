@@ -1,44 +1,61 @@
 {
-  "action": "Generate",
-  "graphDepth": 5,
-  "includeElementType": [
-    "business-object",
-    "grouping"
-  ],
-  "includeRelationType": [
-    "aggregation-relationship:out"
-  ],
-  "layoutReversed": [
-    "serving-relationship",
-    "realization-relationship"
-  ],
-  "layoutNested": [
-    "access-relationship",
-    "aggregation-relationship"
-  ],
-  "layoutCircular": true,
-  "ranker": "network-simplex",
-  "nodeWidth": 300,
-  "nodeHeight": 60,
-  "debug": false,
-  "excludeFromView": false,
-  "viewName": "Beleidsdomeinen ingedeeld in Iv3",
-  "elkAlignment": "TOP_LEFT",
-  "nestingMultipleOccurrences": true,
-  "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedExpandToFill": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ],
-  "nestedNodeSpacing": 10,
-  "nodePlacement": "BALANCED",
-  "nestedAlgorithm": "rectpacking",
-  "nodeSpacing": 10,
-  "sortLeavesOnly": true,
-  "layerSpacing": 150,
-  "edgeRouting": "ORTHOGONAL",
-  "algorithm": "box",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "name": "Beleidsdomeinen ingedeeld in Iv3",
+  "algorithm": "Grid",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "serving-relationship",
+      "realization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "access-relationship",
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignSameType": false,
+    "showInEveryContainer": true,
+    "layerSpacing": 150,
+    "elementSpacing": 10,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "grouping"
+    ],
+    "relationTypes": [
+      "aggregation-relationship:out"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 5,
+        "elementTypes": [
+          "business-object",
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "new_view"
 }

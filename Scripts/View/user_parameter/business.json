@@ -1,31 +1,62 @@
 {
-  "includeElementType": [
-    "business-actor",
-    "business-collaboration",
-    "business-event",
-    "business-function",
-    "business-interaction",
-    "business-interface",
-    "business-object",
-    "business-process",
-    "business-role",
-    "business-service",
-    "contract",
-    "product",
-    "representation"
-  ],
-  "includeRelationType": [
-    "aggregation-relationship",
-    "assignment-relationship",
-    "composition-relationship",
-    "serving-relationship",
-    "specialization-relationship",
-    "realization-relationship"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": []
+  "name": "business",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "business-actor",
+      "business-collaboration",
+      "business-event",
+      "business-function",
+      "business-interaction",
+      "business-interface",
+      "business-object",
+      "business-process",
+      "business-role",
+      "business-service",
+      "contract",
+      "product",
+      "representation"
+    ],
+    "relationTypes": [
+      "aggregation-relationship",
+      "assignment-relationship",
+      "composition-relationship",
+      "serving-relationship",
+      "specialization-relationship",
+      "realization-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  }
 }

@@ -1,47 +1,67 @@
 {
-  "action": "Generate",
-  "graphDepth": 5,
-  "includeElementType": [
-    "business-object",
-    "grouping",
-    "business-function"
-  ],
-  "includeRelationType": [
-    "access-relationship:in",
-    "aggregation-relationship:in",
-    "association-relationship:out"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship"
-  ],
-  "layoutNested": [
-    "access-relationship",
-    "aggregation-relationship"
-  ],
-  "layoutCircular": true,
-  "ranker": "network-simplex",
-  "nodeWidth": 300,
-  "nodeHeight": 60,
-  "debug": false,
-  "excludeFromView": false,
-  "viewName": "Werkgelegenheid",
-  "elkAlignment": "TOP_LEFT",
-  "nestingMultipleOccurrences": true,
-  "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedExpandToFill": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ],
-  "nestedNodeSpacing": 10,
-  "nodePlacement": "BALANCED",
-  "nestedAlgorithm": "rectpacking",
-  "nodeSpacing": 10,
-  "sortLeavesOnly": true,
-  "layerSpacing": 150,
-  "edgeRouting": "ORTHOGONAL",
-  "algorithm": "box",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "name": "test relationshipfilter",
+  "algorithm": "Grid",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship"
+    ],
+    "nestingRelationTypes": [
+      "access-relationship",
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignSameType": false,
+    "showInEveryContainer": true,
+    "layerSpacing": 150,
+    "elementSpacing": 10,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "grouping",
+      "business-function"
+    ],
+    "relationTypes": [
+      "access-relationship:in",
+      "aggregation-relationship:in",
+      "association-relationship:out"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 5,
+        "elementTypes": [
+          "business-object",
+          "grouping",
+          "business-function"
+        ],
+        "relationTypes": [
+          "access-relationship:in",
+          "aggregation-relationship:in",
+          "association-relationship:out"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Werkgelegenheid",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "new_view"
 }

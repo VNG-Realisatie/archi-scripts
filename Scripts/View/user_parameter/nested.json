@@ -1,17 +1,46 @@
 {
-  "action": "Layout",
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": [
-    "aggregation-relationship",
-    "influence-relationship",
-    "specialization-relationship"
-  ],
-  "nodeWidth": 200,
-  "nodeHeight": 60,
-  "nodeSpacing": 40,
-  "layerSpacing": 20
+  "name": "nested",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "aggregation-relationship",
+      "influence-relationship",
+      "specialization-relationship"
+    ],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 20,
+    "elementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "layout_only"
 }

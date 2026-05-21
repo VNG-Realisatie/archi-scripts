@@ -1,59 +1,69 @@
 {
-  "action": "Generate",
-  "graphDepth": 2,
-  "includeElementType": [
-    "business-object",
-    "business-function",
-    "grouping"
-  ],
-  "includeRelationType": [
-    "access-relationship",
-    "aggregation-relationship:in",
-    "specialization-relationship"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": [
-    "access-relationship",
-    "aggregation-relationship",
-    "specialization-relationship"
-  ],
-  "layoutCircular": true,
-  "ranker": "network-simplex",
-  "nodeWidth": 240,
-  "nodeHeight": 60,
-  "debug": false,
-  "excludeFromView": false,
-  "viewName": "GGM specialisaties",
-  "elkAlignment": "TOP_LEFT",
-  "nestingMultipleOccurrences": true,
-  "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedExpandToFill": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ],
-  "_lastTabIndex": 1,
-  "_lastPresetName": "Bedrijfsobject context (FDP met alle relaties).js",
-  "_windowBounds": {
-    "x": 2252,
-    "y": 770,
-    "width": 1007,
-    "height": 1300
+  "name": "Bedrijfsobject context (FDP met alle relaties)",
+  "algorithm": "FDP",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "access-relationship",
+      "aggregation-relationship",
+      "specialization-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignSameType": true,
+    "showInEveryContainer": true,
+    "layerSpacing": 150,
+    "elementSpacing": 80,
+    "elementWidth": 240,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
   },
-  "doc": "Selecteer bedrijfsobject en genereer context view",
-  "nestedNodeSpacing": 10,
-  "nodePlacement": "BALANCED",
-  "nestedAlgorithm": "rectpacking",
-  "nodeSpacing": 80,
-  "sameTypeResize": true,
-  "sortLeavesOnly": true,
-  "layerSpacing": 150,
-  "edgeRouting": "ORTHOGONAL",
-  "algorithm": "fdp",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "business-function",
+      "grouping"
+    ],
+    "relationTypes": [
+      "access-relationship",
+      "aggregation-relationship:in",
+      "specialization-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 2,
+        "elementTypes": [
+          "business-object",
+          "business-function",
+          "grouping"
+        ],
+        "relationTypes": [
+          "access-relationship",
+          "aggregation-relationship:in",
+          "specialization-relationship"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "GGM specialisaties",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "new_view"
 }

@@ -1,56 +1,64 @@
 {
-  "action": "Layout",
-  "graphDepth": 5,
-  "includeElementType": [
-    "business-object",
-    "business-function"
-  ],
-  "includeRelationType": [
-    "access-relationship:out",
-    "aggregation-relationship:out"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": [
-    "access-relationship",
-    "aggregation-relationship"
-  ],
-  "layoutCircular": true,
-  "ranker": "network-simplex",
-  "nodeWidth": 240,
-  "nodeHeight": 30,
-  "debug": false,
-  "excludeFromView": false,
-  "viewName": "KadastraleOnroerendeZaak",
-  "elkAlignment": "TOP_LEFT",
-  "nestingMultipleOccurrences": true,
-  "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedExpandToFill": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ],
-  "_lastTabIndex": 1,
-  "_lastPresetName": "Bedrijfsfuncties en bedrijfsobjecten.js",
-  "_windowBounds": {
-    "x": 1743,
-    "y": 282,
-    "width": 1007,
-    "height": 1300
+  "name": "Bedrijfsfuncties en bedrijfsobjecten",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "access-relationship",
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignSameType": true,
+    "showInEveryContainer": true,
+    "layerSpacing": 150,
+    "elementSpacing": 10,
+    "elementWidth": 240,
+    "elementHeight": 30,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
   },
-  "doc": "Selecteer de view Bedrijfsfunctiemodel en genereer per laag een view. \nViews tonen de door de bedrijfsfuncties beheerde bedrijfsobjecten",
-  "nestedNodeSpacing": 10,
-  "nodePlacement": "BALANCED",
-  "nestedAlgorithm": "rectpacking",
-  "nodeSpacing": 10,
-  "sameTypeResize": true,
-  "sortLeavesOnly": true,
-  "layerSpacing": 150,
-  "edgeRouting": "ORTHOGONAL",
-  "algorithm": "rectpacking",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "business-function"
+    ],
+    "relationTypes": [
+      "access-relationship:out",
+      "aggregation-relationship:out"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 5,
+        "elementTypes": [
+          "business-object",
+          "business-function"
+        ],
+        "relationTypes": [
+          "access-relationship:out",
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "KadastraleOnroerendeZaak",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "layout_only"
 }

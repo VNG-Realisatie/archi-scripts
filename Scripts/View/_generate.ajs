@@ -1,36 +1,19 @@
 /**
- * Script that generates a view of the selected objects and related objects
- * 
- * Usage:
- * - select one or more elements or a view/folder containing elements
- * - run this script
- * 
- * Action of the script
- * - generates a view with the selected elements and related elements
- * - the generated view has the name of selected object and is located in the folder _generated
- * 
- * Change the generated view
- * - change in this script the var param to define the view to be rendered
- * - see the readme.md for an explanation of the param parameter
- */
-/**
- * Expand in a view the selected element(s) with their related elements (add elements and relations 1 
- * 
- * Usage:
- * - in a view select one or more elements
- * - run this script
- * 
- * In the view the selected elements are 'expanded' with their missing relations
- * 
+ * Entry point: generate a new view from the current selection.
+ * Reads from session (last used configuration) and runs New view action.
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common");
-const View = require(REPO_ROOT + "View/include_view");
+
+const Common   = require(REPO_ROOT + "_lib/Common");
+const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+const GenView  = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 
 Common.initConsoleLog(__FILE__, true);
 
-let param = View.get_default_parameter(__FILE__);
-param.action = View.ACTION.GENERATE_SINGLE.id
+const preset    = PresetIO.readSession();
+preset.action   = ACTION.NEW_VIEW.id;
 
-View.generate_view(param);
+GenView.generate_view(preset, $(selection));
+
 Common.finishConsoleLog();

@@ -1,15 +1,41 @@
 {
-  "includeElementType": [
-    "grouping"
-  ],
-  "includeRelationType": [
-    "aggregation-relationship"
-  ],
-  "layoutReversed": [],
-  "layoutNested": [],
-  "excludeFromView": false,
-  "nodeWidth": 270,
-  "nodeHeight": 25,
-  "nodeSpacing": 15,
-  "layerSpacing": 180
+  "name": "grouping",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [],
+    "nestingRelationTypes": [],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 180,
+    "elementSpacing": 15,
+    "elementWidth": 270,
+    "elementHeight": 25,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "grouping"
+    ],
+    "relationTypes": [
+      "aggregation-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  }
 }
