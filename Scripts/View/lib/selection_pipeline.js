@@ -53,38 +53,52 @@ function buildObjectSet(uiSelection, preset, actionId) {
   //       so getSelection() collects nothing. Must extract .concept directly.
   //
   let collection;
+  let diagramObjects = [];
   const isCanvasSelection = _isCanvasSelection(uiSelection);
   if (isCanvasSelection) {
-    collection = _extractConceptsFromCanvas(uiSelection);
+    // Canvas selection: diagram objects come through _extractConceptsFromCanvas
+    // already (they have no .concept so the visual object itself is kept).
+    // Separate them into their own track here.
+    const raw = _extractConceptsFromCanvas(uiSelection);
+    const diag = [];
+    const diagSeen = new Set();
+    raw.each(o => {
+      if (o && o.type && o.type in Defs.DIAGRAM_TYPES) {
+        if (!diagSeen.has(o.id)) { diagSeen.add(o.id); diag.push(o); }
+      }
+    });
+    collection = raw.filter(o => !(o.type in Defs.DIAGRAM_TYPES));
+    diagramObjects = diag;
   } else {
-    collection = Selection.getSelection(uiSelection, "*");
-    collection = _expandViews(collection);
+    const raw = Selection.getSelection(uiSelection, "*");
+    const expanded = _expandViews(raw);
+    collection = expanded.modelCollection;
+    diagramObjects = expanded.diagramObjects;
   }
 
   // Log: current selection before filter
-  let _cntEl = 0, _cntRel = 0, _cntDiag = 0;
+  let _cntEl = 0, _cntRel = 0;
   collection.each(o => {
     const t = o.type || "";
-    if (t.endsWith("-relationship") || t === "diagram-model-connection") _cntRel++;
-    else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") _cntDiag++;
+    if (t.endsWith("-relationship")) _cntRel++;
     else _cntEl++;
   });
-  console.log(`Current selection: ${_cntEl} elements · ${_cntRel} relations · ${_cntDiag} diagram objects`);
+  console.log(`Current selection: ${_cntEl} elements · ${_cntRel} relations · ${diagramObjects.length} diagram objects`);
 
-  // Step 2: apply filter
+  // Step 2: apply filter — model collection and diagram objects separately
   collection = _applyFilter(collection, preset.filter);
+  diagramObjects = _applyDiagramFilter(diagramObjects, preset.filter);
 
   // Log: after filter
-  let _fEl = 0, _fRel = 0, _fDiag = 0;
+  let _fEl = 0, _fRel = 0;
   collection.each(o => {
     const t = o.type || "";
-    if (t.endsWith("-relationship") || t === "diagram-model-connection") _fRel++;
-    else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") _fDiag++;
+    if (t.endsWith("-relationship")) _fRel++;
     else _fEl++;
   });
-  console.log(`Filtered selection: ${_fEl} elements · ${_fRel} relations · ${_fDiag} diagram objects`);
+  console.log(`Filtered selection: ${_fEl} elements · ${_fRel} relations · ${diagramObjects.length} diagram objects`);
 
-  // Step 3: apply related-elements expansion layers (additive)
+  // Step 3: apply related-elements expansion layers (additive, model elements only)
   if (preset.relatedElements && Array.isArray(preset.relatedElements.layers)) {
     let base = _collectionToArray(collection);
     for (const layer of preset.relatedElements.layers) {
@@ -97,14 +111,15 @@ function buildObjectSet(uiSelection, preset, actionId) {
     }
   }
 
-  // Step 4: separate elements (the pipeline only collected model elements;
-  // relations between them must be found explicitly in step 5).
+  // Step 4: separate elements from the model collection (relations stay separate).
+  // Folders and view nodes (archimate-diagram-model) are containers — they cannot be
+  // placed on a view and must never reach the layout engine or _writeView.
   const elements = [];
   collection.each(o => {
     const type = o.type || "";
-    if (!type.endsWith("-relationship") && type !== "diagram-model-connection") {
-      elements.push(o);
-    }
+    if (type.endsWith("-relationship")) return;
+    if (type === "folder" || type === "archimate-diagram-model") return;
+    elements.push(o);
   });
 
   // Step 5: find all relations whose source AND target are both in the element set.
@@ -113,7 +128,13 @@ function buildObjectSet(uiSelection, preset, actionId) {
 
   console.log(`Relations found between elements: ${relations.length}`);
 
-  const result = { elements, relations, visualObjects: [] };
+  // Separate diagram-model-connection (edges, no layout position) from other diagram objects.
+  // Connections are drawn in a second pass after all nodes are placed.
+  const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
+  const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
+  console.log(`Diagram objects: ${diagramNodes.length} nodes · ${diagramConnections.length} connections`);
+
+  const result = { elements, relations, diagramObjects: diagramNodes, diagramConnections, visualObjects: [] };
 
   if (actionId === ACTION.EXPAND_VIEW.id) {
     const seen = new Set();
@@ -187,30 +208,52 @@ function _logFilter(filter) {
 }
 
 /**
- * Replace any ArchimateView objects in the collection with the model elements
- * and relations visible on those views.
- * getSelection() returns the view node itself when a view is selected —
- * model concepts live in visual objects on the view, not in model-tree children.
+ * Replace any ArchimateView objects in the collection with the model elements,
+ * relations and diagram objects visible on those views.
+ *
+ * Returns { modelCollection, diagramObjects } where:
+ *   modelCollection — ArchiElement/ArchiRelation concepts (jArchi Collection)
+ *   diagramObjects  — VisualObject[] for diagram-model-* types (no model concept)
+ *
+ * When no views are present the diagramObjects array is empty and the original
+ * collection is returned as modelCollection unchanged.
  */
 function _expandViews(collection) {
   const views = [];
   collection.each(o => { if (o.type === "archimate-diagram-model") views.push(o); });
-  if (views.length === 0) return collection;
+  if (views.length === 0) return { modelCollection: collection, diagramObjects: [] };
 
-  // Build a new collection without the view objects
+  // Start with non-view objects already in the collection
   let expanded = collection.filter(o => o.type !== "archimate-diagram-model");
+  const diagramObjects = [];
+  const diagSeen = new Set();
+
+  const addDiagramVO = vo => {
+    if (vo && vo.id && !diagSeen.has(vo.id)) {
+      diagSeen.add(vo.id);
+      diagramObjects.push(vo);
+    }
+  };
 
   views.forEach(view => {
-    // Visual elements → concepts
+    // Visual elements → model concepts
     try {
       $(view).find("element").each(ve => {
+        // view-reference VOs (type "archimate-diagram-model") appear in find("element") results
+        // because jArchi treats them as element-like. Capture them as diagram objects here;
+        // find("archimate-diagram-model") / find("diagram-model-reference") may not return them.
+        if (ve.type && ve.type in Defs.DIAGRAM_TYPES) {
+          addDiagramVO(ve);
+          return;
+        }
         const concept = ve.concept || ve;
-        if (concept && concept.id && expanded.filter(a => a.id === concept.id).size() === 0) {
+        if (concept && concept.id && concept.type !== "archimate-diagram-model" &&
+            expanded.filter(a => a.id === concept.id).size() === 0) {
           expanded.add(concept);
         }
       });
     } catch (e) {}
-    // Visual connections → concept relations
+    // Visual connections → model relations
     try {
       $(view).find("relation").each(vr => {
         const concept = vr.concept || vr;
@@ -219,10 +262,16 @@ function _expandViews(collection) {
         }
       });
     } catch (e) {}
+    // Diagram objects via find() per type — more reliable than children() which misses view-references
+    Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
+      try {
+        $(view).find(dt).each(dvo => { if (dvo && dvo.id) addDiagramVO(dvo); });
+      } catch (e) {}
+    });
   });
 
-  console.log(`Expanded ${views.length} view(s) → ${expanded.size()} model objects`);
-  return expanded;
+  console.log(`Expanded ${views.length} view(s) → ${expanded.size()} model objects · ${diagramObjects.length} diagram objects`);
+  return { modelCollection: expanded, diagramObjects };
 }
 
 function _layoutOnlySet(uiSelection) {
@@ -230,25 +279,18 @@ function _layoutOnlySet(uiSelection) {
   const seen = new Set();
   const addVO = vo => { if (vo && vo.id && !seen.has(vo.id) && vo.view) { seen.add(vo.id); visualObjects.push(vo); } };
 
-  // Recursive children traversal — same approach as selection.js _addVisualObject.
-  // Works for both ArchiMate elements AND diagram objects (group, note, image, reference)
-  // without relying on type-specific find() selectors which may not support diagram types.
-  const collectChildren = (obj) => {
-    try {
-      $(obj).children().each(child => {
-        addVO(child);
-        collectChildren(child);
-      });
-    } catch (e) {}
-  };
-
   // Case 1: a view node selected from the model tree.
+  // Use find() per type instead of children() traversal — children() misses view-references in jArchi 1.12.
   let viewFound = false;
   try {
     uiSelection.each(o => {
       if (o.type === "archimate-diagram-model" && !o.view) {
         viewFound = true;
-        collectChildren(o);
+        try { $(o).find("element").each(ve => addVO(ve)); } catch(e) {}
+        try { $(o).find("relation").each(vr => addVO(vr)); } catch(e) {}
+        Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
+          try { $(o).find(dt).each(dvo => addVO(dvo)); } catch(e) {}
+        });
       }
     });
   } catch (e) {}
@@ -259,35 +301,36 @@ function _layoutOnlySet(uiSelection) {
   }
 
   console.log(`Layout only: ${visualObjects.length} visual objects collected`);
-  return { elements: [], relations: [], visualObjects };
+  return { elements: [], relations: [], diagramObjects: [], diagramConnections: [], visualObjects };
 }
 
 /**
- * Apply filter to a collection.
+ * Apply element/relation filter to a model-only collection.
+ * Diagram objects must be filtered separately via _applyDiagramFilter.
  * Empty arrays mean "all allowed".
  */
 function _applyFilter(collection, filter) {
   if (!filter) return collection;
-  const { elementTypes = [], relationTypes = [], diagramTypes = [] } = filter;
+  const { elementTypes = [], relationTypes = [] } = filter;
 
   return collection.filter(o => {
     const type = o.type || "";
-
-    // diagram objects
-    if (Defs.DIAGRAM_TYPES.includes(type)) {
-      if (diagramTypes.length > 0 && !diagramTypes.includes(type)) return false;
-      return true;
-    }
-
-    // relations
     if (type.endsWith("-relationship")) {
       return _matchesRelationType(type, relationTypes, o);
     }
-
-    // elements
     if (elementTypes.length > 0 && !elementTypes.includes(type)) return false;
     return true;
   });
+}
+
+/**
+ * Apply diagram type filter to an array of VisualObjects.
+ * Empty diagramTypes array means "all allowed".
+ */
+function _applyDiagramFilter(diagramObjects, filter) {
+  if (!filter || !filter.diagramTypes || filter.diagramTypes.length === 0) return diagramObjects;
+  const { diagramTypes } = filter;
+  return diagramObjects.filter(o => diagramTypes.includes(o.type || ""));
 }
 
 /**
@@ -398,5 +441,5 @@ function _isExcluded(rel) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildObjectSet };
+  module.exports = { buildObjectSet, expandLayer: _expandLayer };
 }

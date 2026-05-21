@@ -399,14 +399,23 @@ const ELEMENT_TYPES = Object.freeze([
   "technology-service", "value", "work-package",
 ]);
 
-const DIAGRAM_TYPES = Object.freeze([
-  "diagram-model-group",
-  "diagram-model-connection",
-  "diagram-model-note",
-  "diagram-model-image",
-  "diagram-model-reference",
-  "archimate-diagram-model",   // jArchi returns this type for view-reference visual objects
-]);
+// Keys are the jArchi .type strings for visual diagram objects placed on a view canvas.
+// "archimate-diagram-model" is the ArchimateView model-tree node type — NOT listed here.
+// createFn:   jArchi method to call when recreating on a new view
+//   "createObject"       → view.createObject(createType, x, y, w, h)
+//   "createViewReference"→ view.createViewReference(vo.refView, x, y, w, h)
+//   "createConnection"   → view.createConnection(srcVO, tgtVO)  [not yet implemented in _recreateDiagramObject]
+//   null                 → no documented creation API; skip on new view
+// copyProps: VisualObject properties to copy from source to new object
+const DIAGRAM_TYPES = Object.freeze({
+  "diagram-model-note":       { createFn: "createObject",        createType: "diagram-model-note",  copyProps: ["text", "fillColor", "lineColor", "fontColor", "fontSize", "fontName", "fontStyle", "opacity", "borderType"] },
+  "diagram-model-group":      { createFn: "createObject",        createType: "diagram-model-group", copyProps: ["name", "fillColor", "lineColor", "fontColor", "fontSize", "fontName", "fontStyle", "opacity", "borderType"] },
+  "diagram-model-legend":     { createFn: "createObject",        createType: "diagram-model-legend",copyProps: ["fillColor", "lineColor", "opacity"] },
+  "diagram-model-image":      { createFn: null,                  createType: null,                  copyProps: [] },
+  "diagram-model-connection": { createFn: "createConnection",    createType: null,                  copyProps: ["lineColor", "lineWidth", "textAlignment"] },
+  "diagram-model-reference":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },
+  "archimate-diagram-model":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },  // jArchi .type still returns this for view-reference VOs in some API paths
+});
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

@@ -23,6 +23,7 @@ const Selection = require(REPO_ROOT + "_lib/selection");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 const PresetIO  = require(REPO_ROOT + "View/lib/preset_io");
 const GenView   = require(REPO_ROOT + "View/lib/generate_view");
+const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 
 const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, LABEL_POSITIONS, AR_OPTIONS,
@@ -61,7 +62,7 @@ const RANKING_LABELS     = RANKING.map(r => r.val);
 const AR_LABELS          = AR_OPTIONS.map(a => a.label);
 const REL_TYPE_LABELS    = Object.values(RELATION_TYPES).map(r => r.label);
 const REL_TYPE_IDS       = Object.values(RELATION_TYPES).map(r => r.id);
-const DIAG_TYPE_LABELS   = ["group", "note", "connection", "image", "reference"];
+const DIAG_TYPE_LABELS   = ["connection", "group", "image", "legend", "note", "reference"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ const DIAG_ID_TO_LABEL = {
   "diagram-model-connection": "connection",
   "diagram-model-image":      "image",
   "diagram-model-reference":  "reference",
+  "diagram-model-legend":     "legend",
 };
 const DIAG_LABEL_TO_ID = Object.fromEntries(Object.entries(DIAG_ID_TO_LABEL).map(([k, v]) => [v, k]));
 
@@ -332,22 +334,24 @@ function open(uiSelection) {
   if (!config.action) config.action = ACTION.NEW_VIEW.id;
 
   const w = {};       // widget map
-  const ctx = { config, widgets: w, uiSelection };
+  const ctx = { config, widgets: w, uiSelection, firstName: "" };  // firstName set below
 
   // Compute selection counts before the dialog opens.
   // Raw count: what the user had selected in the UI.
   const rawCount = { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
+  let firstName = "";
   try {
     uiSelection.each(o => {
       const t = o.type || "";
-      if (t === "archimate-diagram-model" && !o.view) rawCount.views++;    // model-tree view
-      else if (t === "archimate-diagram-model" && o.view) rawCount.diagrams++;  // canvas view reference
-      else if (t.endsWith("-relationship"))             rawCount.rels++;
-      else if (t === "folder")                          rawCount.folders++;
-      else if (t.startsWith("diagram-model-"))          rawCount.diagrams++;
-      else                                              rawCount.elems++;
+      if (!firstName && o.name) firstName = o.name;
+      if      (t === "archimate-diagram-model")  rawCount.views++;
+      else if (t.endsWith("-relationship"))      rawCount.rels++;
+      else if (t === "folder")                   rawCount.folders++;
+      else if (t.startsWith("diagram-model-"))   rawCount.diagrams++;
+      else                                       rawCount.elems++;
     });
   } catch (e) {}
+  ctx.firstName = firstName;  // propagate for _syncToUI pre-fill
 
   // Expanded count: what is contained in the selection (folders expand, views expand to their elements).
   // When a view (archimate-diagram-model) is selected, $(view).find() enumerates visual objects.
@@ -358,11 +362,14 @@ function open(uiSelection) {
       const t = o.type || "";
       if (t === "archimate-diagram-model" && !o.view) {
         // Model-tree view: count its model elements, relations, and diagram objects
-        try { $(o).find("element").each(() => expandedCount.elems++); } catch (e) {}
+        // Skip ArchimateView concepts — view-reference VOs appear in find("element") with
+        // .concept pointing to the referenced view; count them as diagram objects instead.
+        try { $(o).find("element").each(ve => {
+          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") expandedCount.elems++;
+        }); } catch (e) {}
         try { $(o).find("relation").each(() => expandedCount.rels++); } catch (e) {}
-        // Diagram objects on the view (group, note, image, connection, reference)
         try {
-          Defs.DIAGRAM_TYPES.forEach(dt => {
+          Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
             try { $(o).find(dt).each(() => expandedCount.diagrams++); } catch (e2) {}
           });
         } catch (e) {}
@@ -400,14 +407,17 @@ function open(uiSelection) {
       const t = o.type || "";
       if (t === "archimate-diagram-model" && !o.view) {
         // Model-tree view: expand to model elements, relations, AND diagram objects
-        try { $(o).find("element").each(ve => { if (ve.concept) add(ve.concept); }); } catch (e) {}
+        // Skip ArchimateView concepts — view-reference VOs may appear in find("element")
+        // with their .concept pointing to the referenced view (type "archimate-diagram-model")
+        try { $(o).find("element").each(ve => {
+          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") add(ve.concept);
+        }); } catch (e) {}
         try { $(o).find("relation").each(vr => { if (vr.concept) add(vr.concept); }); } catch (e) {}
-        Defs.DIAGRAM_TYPES.forEach(dt => {
+        Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
           try { $(o).find(dt).each(dvo => { if (dvo && dvo.id) add(dvo); }); } catch (e) {}
         });
-      } else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") {
+      } else if (t.startsWith("diagram-model-")) {
         // Canvas diagram object: add the visual object directly (not .concept).
-        // view-reference.concept is the referenced view (a container) — skip that.
         add(o);
       } else if (o.view) {
         // Canvas ArchiMate visual object → use model concept
@@ -426,9 +436,9 @@ function open(uiSelection) {
     let _lEl = 0, _lRel = 0, _lDiag = 0;
     for (const o of rawModelObjects) {
       const t = o.type || "";
-      if (t.endsWith("-relationship") || t === "diagram-model-connection") _lRel++;
-      else if (t.startsWith("diagram-model-") || t === "archimate-diagram-model") _lDiag++;
-      else _lEl++;
+      if (t.endsWith("-relationship"))   _lRel++;
+      else if (t in Defs.DIAGRAM_TYPES)  _lDiag++;
+      else                               _lEl++;
     }
     console.log(`\nGUI — before dialog:`);
     console.log(`  Selected:  ${rawCount.elems} elements · ${rawCount.rels} relations · ${rawCount.views} views · ${rawCount.diagrams} diagram objects · ${rawCount.folders} folders`);
@@ -461,10 +471,10 @@ function open(uiSelection) {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       w.tabFolder = tabFolder;
 
-      _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount);
+      _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount, firstName);
       _buildLayoutTab(tabFolder, ctx);
-      _buildViewTab(tabFolder, ctx);
 
+      _buildViewRow(area, ctx);
       _buildPresetRow(area, ctx, dlg);
       _syncToUI(ctx);
       _updateFilteredCount(ctx);  // populate Filtered line on dialog open
@@ -533,88 +543,179 @@ function _persistSession(ctx) {
 
 /**
  * Recount elements/relations/diagram objects after applying current filter settings.
- * Called whenever a filter control changes. Updates ctx.widgets.lblFiltered.
+ * Called whenever a filter or related elements control changes.
+ * Updates the Related and Filtered rows in the selection info table.
  */
 function _updateFilteredCount(ctx) {
   const w = ctx.widgets;
-  if (!w.lblFiltered) return;
+  if (!w.lblFlt_elems) return;
+
+  const _setRelated  = (e, r, d) => { try { w.lblRel_elems.setText(e); w.lblRel_rels.setText(r); w.lblRel_diags.setText(d); } catch(x) {} };
+  const _setFiltered = (e, r, d) => { try { w.lblFlt_elems.setText(e); w.lblFlt_rels.setText(r); w.lblFlt_diags.setText(d); } catch(x) {} };
+
   const objects = ctx.rawModelObjects;
   if (!objects || !objects.length) {
-    w.lblFiltered.setText("Filtered:  (no selection)");
+    _setRelated("—", "—", "—");
+    _setFiltered("—", "—", "—");
     return;
   }
   try {
     // Read current filter from widget controllers
-    const elemFilter = new Set(_ctrlGetSelected(w.lstFilterElements));      // type IDs / labels (same for ELEMENT_TYPES)
-    const relLabels  = new Set(_ctrlGetSelected(w.lstFilterRelations));     // relation type labels
-    const diagLabels = new Set(_ctrlGetSelected(w.lstFilterDiagram));       // diagram type labels
+    const elemFilter = new Set(_ctrlGetSelected(w.lstFilterElements));
+    const relLabels  = new Set(_ctrlGetSelected(w.lstFilterRelations));
+    const diagLabels = new Set(_ctrlGetSelected(w.lstFilterDiagram));
 
-    // Map relation labels → IDs for matching
-    const relIds   = new Set(_relLabelsToIds(Array.from(relLabels)));
-    // DIAG_LABEL_TO_ID maps label → type ID (e.g. "reference" → "diagram-model-reference").
-    // Also add "archimate-diagram-model" when "reference" is selected — jArchi returns this
-    // type for view-reference visual objects.
-    const diagIds  = new Set(Array.from(diagLabels).map(l => DIAG_LABEL_TO_ID[l] || l));
+    const relIds  = new Set(_relLabelsToIds(Array.from(relLabels)));
+    const diagIds = new Set(Array.from(diagLabels).map(l => DIAG_LABEL_TO_ID[l] || l));
+    // jArchi still returns .type === "archimate-diagram-model" for view-reference VOs;
+    // add the alias so "reference" filter correctly counts them.
     if (diagIds.has("diagram-model-reference")) diagIds.add("archimate-diagram-model");
 
+    // Step 1: count filtered base (current selection only, no related expansion)
     let elems = 0, rels = 0, diagrams = 0;
+    const filteredElements = [];  // for expansion base
     for (const o of objects) {
       const t = o.type || "";
       if (t.endsWith("-relationship")) {
         if (!relLabels.size || relIds.has(t)) rels++;
-      } else if (DIAGRAM_TYPES.includes(t)) {
+      } else if (t in DIAGRAM_TYPES) {
         if (!diagLabels.size || diagIds.has(t)) diagrams++;
       } else {
-        if (!elemFilter.size || elemFilter.has(t)) elems++;
+        if (!elemFilter.size || elemFilter.has(t)) { elems++; filteredElements.push(o); }
       }
     }
 
-    let txt = `Filtered:   ${elems} elements · ${rels} relations`;
-    if (diagrams) txt += ` · ${diagrams} diagram objects`;
-    w.lblFiltered.setText(txt);
+    // Step 2: compute related elements additions for live preview
+    const depth     = w.spinRelDepth ? w.spinRelDepth.getSelection() : 0;
+    const relRelLabels = new Set(_ctrlGetSelected(w.lstRelatedRelations));
+    const relRelIds    = new Set(_relLabelsToIds(Array.from(relRelLabels)));
+
+    let relAddedElems = 0, relAddedRels = 0;
+    if (depth > 0 && filteredElements.length > 0) {
+      try {
+        const layer = {
+          depth,
+          elementTypes:  [],
+          relationTypes: Array.from(relRelIds),
+          diagramTypes:  [],
+        };
+        const added = Pipeline.expandLayer(filteredElements, layer);
+        relAddedElems = added.length;
+        // Count relations between (filteredElements + added) — lightweight approximation
+        const allIds = new Set([...filteredElements.map(e => e.id), ...added.map(e => e.id)]);
+        const seenRel = new Set();
+        for (const el of [...filteredElements, ...added]) {
+          try {
+            $(el).rels().each(rel => {
+              if (seenRel.has(rel.id)) return;
+              const srcId = rel.source && rel.source.id;
+              const tgtId = rel.target && rel.target.id;
+              if (srcId && tgtId && allIds.has(srcId) && allIds.has(tgtId)) {
+                seenRel.add(rel.id);
+                relAddedRels++;
+              }
+            });
+          } catch(e) {}
+        }
+        // Subtract base relations already counted
+        let baseRels = 0;
+        const baseIds = new Set(filteredElements.map(e => e.id));
+        const baseSeen = new Set();
+        for (const el of filteredElements) {
+          try {
+            $(el).rels().each(rel => {
+              if (baseSeen.has(rel.id)) return;
+              const srcId = rel.source && rel.source.id;
+              const tgtId = rel.target && rel.target.id;
+              if (srcId && tgtId && baseIds.has(srcId) && baseIds.has(tgtId)) {
+                baseSeen.add(rel.id);
+                baseRels++;
+              }
+            });
+          } catch(e) {}
+        }
+        relAddedRels = Math.max(0, relAddedRels - baseRels);
+      } catch(e) {}
+    }
+
+    // Update Related row
+    if (depth === 0) {
+      _setRelated("—", "—", "—");
+    } else {
+      _setRelated(String(relAddedElems), String(relAddedRels), "0");
+    }
+
+    // Update Filtered row (base + related additions)
+    _setFiltered(String(elems + relAddedElems), String(rels + relAddedRels), String(diagrams));
   } catch (e) {
-    w.lblFiltered.setText("Filtered:  —");
+    _setRelated("—", "—", "—");
+    _setFiltered("—", "—", "—");
   }
 }
 
 // ── Selection tab ─────────────────────────────────────────────────────────────
 
-function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
+function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount, firstName) {
   const { page, finish } = _scrolledTab(tabFolder, "Selection");
   const w = ctx.widgets;
   const raw = rawCount      || { elems: 0, rels: 0, views: 0, folders: 0 };
   const exp = expandedCount || { elems: 0, rels: 0, diagrams: 0 };
 
-  // ── Current selection info ───────────────────────────────────────────────────
-  // Row 1: Selected (left) | Containing (right) on the same line.
-  // Row 2: Filtered (full width, live-updated).
+  // ── Current selection info table ─────────────────────────────────────────────
+  // Columns: label | Elements | Relations | Diagrams | (filler)
+  // Rows:    header | Selected | Containing | Related | Filtered
+  // Count cells are right-aligned.
+  // Below table: first selected object name.
   const grpInfo = new GroupWidget(page, SWT.NONE);
   grpInfo.setText("Current selection");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpInfo);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(8, 6).spacing(12, 3).applyTo(grpInfo);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(8, 6).spacing(8, 3).applyTo(grpInfo);
 
-  // Selected: only show non-zero terms so the line stays compact.
-  const selParts = [];
-  if (raw.elems)    selParts.push(`${raw.elems} elements`);
-  if (raw.rels)     selParts.push(`${raw.rels} relations`);
-  if (raw.views)    selParts.push(`${raw.views} views`);
-  if (raw.folders)  selParts.push(`${raw.folders} folders`);
-  if (raw.diagrams) selParts.push(`${raw.diagrams} diagram objects`);
-  _lbl(grpInfo, "Selected:   " + (selParts.length ? selParts.join(" · ") : "nothing"));
+  const _cnt = (parent, txt) => {
+    const l = new LabelWidget(parent, SWT.RIGHT);
+    l.setText(txt);
+    GridDataFactory.swtDefaults().hint(42, SWT.DEFAULT).applyTo(l);
+    return l;
+  };
 
-  // Containing: counts model objects inside selected folders/views.
-  // Folders and views are containers — they are not counted themselves, only their contents.
-  const contParts = [];
-  if (exp.elems)    contParts.push(`${exp.elems} elements`);
-  if (exp.rels)     contParts.push(`${exp.rels} relations`);
-  if (exp.diagrams) contParts.push(`${exp.diagrams} diagram objects`);
-  _lbl(grpInfo, "Containing: " + (contParts.length ? contParts.join(" · ") : "—"));
+  // Header row
+  _lbl(grpInfo, "");
+  _lbl(grpInfo, "Elements"); _lbl(grpInfo, "Relations"); _lbl(grpInfo, "Diagrams");
+  _lbl(grpInfo, "");  // filler
 
-  // Filtered: spans both columns; live-updated when filter controls change.
-  const lblFiltered = new LabelWidget(grpInfo, SWT.NONE);
-  lblFiltered.setText("Filtered:   —");
-  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(lblFiltered);
-  w.lblFiltered = lblFiltered;
+  // Selected row (static, from raw selection)
+  const selLabel = (raw.views || raw.folders)
+    ? "Selected" + (raw.views   ? ` (${raw.views} view${raw.views   > 1 ? "s" : ""})` : "")
+                 + (raw.folders ? ` (${raw.folders} folder${raw.folders > 1 ? "s" : ""})` : "")
+    : "Selected";
+  _lbl(grpInfo, selLabel);
+  _cnt(grpInfo, String(raw.elems)); _cnt(grpInfo, String(raw.rels)); _cnt(grpInfo, String(raw.diagrams));
+  _lbl(grpInfo, "");
+
+  // Containing row (static)
+  _lbl(grpInfo, "Containing");
+  _cnt(grpInfo, String(exp.elems)); _cnt(grpInfo, String(exp.rels)); _cnt(grpInfo, String(exp.diagrams));
+  _lbl(grpInfo, "");
+
+  // Related row (live-updated)
+  _lbl(grpInfo, "Related");
+  w.lblRel_elems = _cnt(grpInfo, "—"); w.lblRel_rels = _cnt(grpInfo, "—"); w.lblRel_diags = _cnt(grpInfo, "—");
+  _lbl(grpInfo, "");
+
+  // Filtered row (live-updated)
+  _lbl(grpInfo, "Filtered");
+  w.lblFlt_elems = _cnt(grpInfo, "—"); w.lblFlt_rels = _cnt(grpInfo, "—"); w.lblFlt_diags = _cnt(grpInfo, "—");
+  _lbl(grpInfo, "");
+
+  // First selected object name — below the table
+  if (firstName) {
+    const lblFirstName = new LabelWidget(grpInfo, SWT.NONE);
+    lblFirstName.setText("First selected object:   " + firstName);
+    GridDataFactory.fillDefaults().grab(true, false).span(5, 1).applyTo(lblFirstName);
+  }
+
+  // Keep legacy refs null (code now uses per-cell widgets)
+  w.lblRelated = null; w.lblFiltered = null;
 
   // ── Filter ──────────────────────────────────────────────────────────────────
   const grpFilter = new GroupWidget(page, SWT.NONE);
@@ -643,9 +744,9 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRel);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpRel);
 
-  // Relation types to follow — first, full width
+  // Relation types to follow — first, full width; changes trigger live Related count update
   _lbl(grpRel, "Relation types to follow:");
-  w.lstRelatedRelations = _checkboxGrid(grpRel, REL_TYPE_LABELS, 4);
+  w.lstRelatedRelations = _checkboxGrid(grpRel, REL_TYPE_LABELS, 4, onFilterChange);
 
   // Depth — label and spinner on same row, left-aligned (label uses swtDefaults = minimum width)
   const rowDepth = new CompositeWidget(grpRel, SWT.NONE);
@@ -658,6 +759,7 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
   spinDepth.setValues(0, 0, 5, 0, 1, 1);
   spinDepth.setToolTipText("Number of relation hops to add beyond the current selection. 0 = disabled.");
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepth);
+  spinDepth.addListener(SWT.Selection, () => _updateFilteredCount(ctx));
   w.spinRelDepth = spinDepth;
 
   finish();
@@ -800,37 +902,33 @@ function _buildLayoutTab(tabFolder, ctx) {
 
 // ── View tab ──────────────────────────────────────────────────────────────────
 
-function _buildViewTab(tabFolder, ctx) {
-  const { page, finish } = _scrolledTab(tabFolder, "View");
+function _buildViewRow(area, ctx) {
   const w = ctx.widgets;
 
-  const grpView = new GroupWidget(page, SWT.NONE);
+  const grpView = new GroupWidget(area, SWT.NONE);
   grpView.setText("View name and location");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpView);
-  // Row 1: Name label | name field | Suffix label | suffix field  (4 columns)
-  // Row 2: Folder label | folder field (spans 3)
   GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(4, 4).applyTo(grpView);
 
-  // Row 1: name + suffix on same line
+  // Row 1: Name | name field | Suffix | suffix field
   new LabelWidget(grpView, SWT.NONE).setText("Name:");
   const txtName = new TextWidget(grpView, SWT.BORDER);
-  txtName.setToolTipText("View name. Pre-filled from the first selected element.");
+  txtName.setToolTipText("View name. Pre-filled from the first selected object.");
   GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtName);
   w.txtViewName = txtName;
 
   new LabelWidget(grpView, SWT.NONE).setText("Suffix:");
   const txtSuffix = new TextWidget(grpView, SWT.BORDER);
-  txtSuffix.setToolTipText("Appended to view name. Auto-filled with current algorithm.");
+  txtSuffix.setToolTipText("Appended to view name. Auto-updated when algorithm changes.");
   GridDataFactory.fillDefaults().grab(false, false).hint(120, SWT.DEFAULT).applyTo(txtSuffix);
   w.txtViewSuffix = txtSuffix;
 
-  // Row 2: folder
+  // Row 2: Folder | folder field (span 3)
   new LabelWidget(grpView, SWT.NONE).setText("Folder:");
   const txtFolder = new TextWidget(grpView, SWT.BORDER);
   txtFolder.setToolTipText("Archi folder path (e.g. /Application/Generated). Empty = /_Generated.");
   GridDataFactory.fillDefaults().grab(true, false).span(3, 1).hint(280, SWT.DEFAULT).applyTo(txtFolder);
   w.txtViewFolder = txtFolder;
-  finish();
 }
 
 // ── Preset row ────────────────────────────────────────────────────────────────
@@ -938,24 +1036,12 @@ function _syncToUI(ctx) {
   _spinSet(w.spinRelDepth, layers.length > 0 ? (layers[0].depth || 0) : 0);
   if (w.lstRelatedRelations) _listSelectLabels(w.lstRelatedRelations, layers.length > 0 ? _relIdsToLabels(layers[0].relationTypes || []) : []);
 
-  // View
-  // Pre-fill view name from first selected element (name only); suffix from algorithm.
-  // Only when session has no name/suffix set.
-  let viewName   = (c.view && c.view.name)   || "";
+  // View name: always pre-fill from the first selected object (captured in open()).
+  // Suffix: auto-derived from algorithm; updated by _updateViewNameAlgorithm on algo change.
+  const viewName = (ctx && ctx.firstName) || (c.view && c.view.name) || "";
   let viewSuffix = (c.view && c.view.suffix) || "";
-  if ((!viewName || !viewSuffix) && ctx && ctx.uiSelection) {
-    try {
-      let firstName = null;
-      ctx.uiSelection.each(o => {
-        if (firstName) return;
-        const name = (o.concept && o.concept.name) || o.name || "";
-        if (name) firstName = name;
-      });
-      const alg    = ALGORITHMS[c.algorithm];
-      const algId  = alg ? alg.engineAlgorithmId : c.algorithm;
-      if (!viewName   && firstName) viewName   = firstName;
-      if (!viewSuffix)              viewSuffix = " — " + algId;
-    } catch (e) {}
+  if (!viewSuffix) {
+    viewSuffix = " — " + (c.algorithm || "Layered");
   }
   if (w.txtViewName)   w.txtViewName.setText(viewName);
   if (w.txtViewSuffix) w.txtViewSuffix.setText(viewSuffix);
@@ -1034,20 +1120,19 @@ function _fillAlgorithmCombo(ctx) {
   w.cmbAlgorithm.select(0);
 }
 
-// When algorithm changes, update the suffix field if it contains " — <algo>"
-// (auto-generated suffix). User-edited suffixes without " — " are left untouched.
+// When algorithm changes, update the suffix field.
+// Only auto-updates if the current suffix starts with " — " (auto-generated).
+// A user-edited suffix that doesn't start with " — " is left untouched.
 function _updateViewNameAlgorithm(ctx) {
   const w = ctx.widgets;
   if (!w.txtViewSuffix || !w.cmbAlgorithm) return;
   const current = w.txtViewSuffix.getText();
-  if (!current.includes(" — ")) return;  // user has custom suffix, don't overwrite
+  if (current && !current.startsWith(" — ")) return;  // custom suffix, don't overwrite
 
-  const sty    = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
-  const algs   = STYLES[sty] ? STYLES[sty].algorithms : [];
-  const algName= algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
-  const alg    = ALGORITHMS[algName];
-  const algId  = alg ? alg.engineAlgorithmId : algName;
-  w.txtViewSuffix.setText(" — " + algId);
+  const sty     = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
+  const algs    = STYLES[sty] ? STYLES[sty].algorithms : [];
+  const algName = algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
+  w.txtViewSuffix.setText(" — " + algName);
 }
 
 function _updateAlgorithmControls(ctx) {
