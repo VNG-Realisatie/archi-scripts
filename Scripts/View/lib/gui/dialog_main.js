@@ -62,16 +62,23 @@ const DIAG_TYPE_LABELS   = ["group", "note", "connection", "image", "reference"]
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // Select items in a ListWidget whose labels appear in a set.
+// Java.to forces int[] so GraalVM resolves the correct setSelection overload.
 function _listSelectLabels(list, labels) {
-  const items = Array.from({ length: list.getItemCount() }, (_, i) => list.getItem(i));
+  if (!labels || labels.length === 0) {
+    list.setSelection(Java.to([], "int[]"));
+    return;
+  }
+  const items = Array.from({ length: list.getItemCount() }, (_, i) => String(list.getItem(i)));
   const idxs  = [];
-  labels.forEach(lbl => { const i = items.indexOf(lbl); if (i >= 0) idxs.push(i); });
-  list.setSelection(idxs.length ? idxs : []);
+  labels.forEach(lbl => { const i = items.indexOf(String(lbl)); if (i >= 0) idxs.push(i); });
+  list.setSelection(Java.to(idxs, "int[]"));
 }
 
-// Return selected item labels from a ListWidget.
+// Return selected item labels from a ListWidget as a plain JS array.
 function _listGetSelected(list) {
-  return Array.from(list.getSelection ? list.getSelection() : []);
+  if (!list) return [];
+  const sel = list.getSelection();
+  return sel ? Array.from(sel).map(s => String(s)) : [];
 }
 
 // Map relation type IDs → labels (for multi-select lists).
