@@ -39,14 +39,28 @@ function buildObjectSet(uiSelection, preset, actionId) {
     return _layoutOnlySet(uiSelection);
   }
 
-  // Step 1: get model objects from selection
-  // Visual objects are resolved to their model concepts
-  let collection = Selection.getSelection(uiSelection, "*");
+  // Log active filters so the user can see what is applied
+  _logFilter(preset.filter);
 
-  // When a view is selected, getSelection() returns only the view node itself —
-  // its model contents are not in the model-tree children. Expand selected views
-  // to include all model elements and relations visible on those views.
-  collection = _expandViews(collection);
+  // Step 1: get model objects from selection.
+  //
+  // jArchi $(selection) returns different object types depending on what is
+  // selected in the Archi UI:
+  //   Model tree: ArchiElement / ArchiRelation / Folder / ArchimateView
+  //     → Selection.getSelection() traverses these correctly.
+  //   View canvas: VisualObject instances (type=application-component etc.)
+  //     → $(visualObj).is("*") returns false in jArchi's selector system,
+  //       so getSelection() collects nothing. Must extract .concept directly.
+  //
+  let collection;
+  const isCanvasSelection = _isCanvasSelection(uiSelection);
+  if (isCanvasSelection) {
+    collection = _extractConceptsFromCanvas(uiSelection);
+  } else {
+    collection = Selection.getSelection(uiSelection, "*");
+    // Expand ArchimateView nodes to their model elements.
+    collection = _expandViews(collection);
+  }
 
   // Step 2: apply filter
   collection = _applyFilter(collection, preset.filter);
@@ -92,6 +106,53 @@ function buildObjectSet(uiSelection, preset, actionId) {
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Return true when uiSelection contains VisualObjects from a view canvas.
+ * VisualObjects have a .view property; model elements do not.
+ */
+function _isCanvasSelection(uiSelection) {
+  let found = false;
+  try {
+    uiSelection.each(o => {
+      if (o && o.view) found = true;
+    });
+  } catch (e) {}
+  return found;
+}
+
+/**
+ * Extract model concepts from a canvas selection.
+ * Each VisualObject has a .concept pointing to the underlying ArchiElement or ArchiRelation.
+ * Builds and returns an $() collection of unique model objects.
+ */
+function _extractConceptsFromCanvas(uiSelection) {
+  const coll = $();
+  const seen = new Set();
+  uiSelection.each(o => {
+    try {
+      const concept = (o.concept) ? o.concept : o;
+      if (!concept || !concept.id || seen.has(concept.id)) return;
+      seen.add(concept.id);
+      coll.add(concept);
+    } catch (e) {}
+  });
+  console.log(`Canvas selection: extracted ${coll.size()} model objects from visual objects`);
+  return coll;
+}
+
+/**
+ * Log the active filter settings to the console.
+ */
+function _logFilter(filter) {
+  if (!filter) { console.log("Filter: none"); return; }
+  const elems = (filter.elementTypes  || []);
+  const rels  = (filter.relationTypes || []);
+  const diag  = (filter.diagramTypes  || []);
+  console.log(`Filter element types:  ${elems.length  === 0 ? "all" : elems.join(", ")}`);
+  console.log(`Filter relation types: ${rels.length   === 0 ? "all" : rels.join(", ")}`);
+  console.log(`Filter diagram types:  ${diag.length   === 0 ? "all" : diag.join(", ")}`);
+}
 
 /**
  * Replace any ArchimateView objects in the collection with the model elements
