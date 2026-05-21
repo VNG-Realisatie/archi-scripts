@@ -141,7 +141,7 @@ function _scrolledTab(tabFolder, tabLabel) {
 // Click an item in the available list to add it as a chip.
 // Click a chip (shows "Label ×") to remove it.
 // Returns controller with getSelected/setSelected/enable.
-function _typeSelector(parent, allItems, availHeight) {
+function _typeSelector(parent, allItems, availHeight, onChange) {
   const h = availHeight || 180;
 
   // SashForm maintains a fixed 50/50 split regardless of chip content changes.
@@ -166,7 +166,7 @@ function _typeSelector(parent, allItems, availHeight) {
   const rightCol = new CompositeWidget(ctr, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(rightCol);
 
-  _lbl(rightCol, "Selected  (click chip × to remove — empty = all):");
+  _lbl(rightCol, "Selected (empty=all):");
 
   // Chip panel: RowLayout with wrap. No border, fixed height — chips wrap inside the space.
   const chipPanel = new CompositeWidget(rightCol, SWT.NONE);
@@ -197,6 +197,7 @@ function _typeSelector(parent, allItems, availHeight) {
       selectedSet.delete(item);
       btn.dispose();
       reflow();
+      if (onChange) onChange();
     });
   };
 
@@ -215,6 +216,7 @@ function _typeSelector(parent, allItems, availHeight) {
       selectedSet.add(item);
       addChip(item);
       reflow();
+      if (onChange) onChange();
     }
   });
 
@@ -251,7 +253,7 @@ function _typeSelector(parent, allItems, availHeight) {
 // ── Checkbox grid: sorted alpha, column-major distribution across numCols columns ─────────────
 // For 11 relation types with numCols=4: distribution is 3,3,3,2 per column.
 // Single-click to toggle. Returns controller with getSelected/setSelected/enable.
-function _checkboxGrid(parent, labels, numCols) {
+function _checkboxGrid(parent, labels, numCols, onChange) {
   const sorted = [...labels].sort();
   const ncols  = numCols || 4;
   const nrows  = Math.ceil(sorted.length / ncols);
@@ -275,6 +277,7 @@ function _checkboxGrid(parent, labels, numCols) {
     const chk = new ButtonWidget(colComps[Math.floor(i / nrows)], SWT.CHECK);
     chk.setText(lbl);
     GridDataFactory.fillDefaults().applyTo(chk);
+    if (onChange) chk.addListener(SWT.Selection, onChange);
     return { lbl, chk };
   });
 
@@ -372,6 +375,28 @@ function open(uiSelection) {
     });
   } catch (e) {}
 
+  // Collect flat array of model objects for live filter statistics.
+  // Used by _updateFilteredCount to recount after filter changes.
+  const rawModelObjects = [];
+  try {
+    const seen = new Set();
+    const add  = o => { if (o && o.id && !seen.has(o.id)) { seen.add(o.id); rawModelObjects.push(o); } };
+    uiSelection.each(o => {
+      const t = o.type || "";
+      if (t === "archimate-diagram-model") {
+        try { $(o).find("element").each(ve => { if (ve.concept) add(ve.concept); }); } catch (e) {}
+        try { $(o).find("relation").each(vr => { if (vr.concept) add(vr.concept); }); } catch (e) {}
+      } else if (o.view) {
+        add(o.concept || o);          // canvas visual object
+      } else if (t === "folder") {
+        try { Selection.getSelection($(o), "*").each(add); } catch (e) {}
+      } else {
+        add(o);
+      }
+    });
+  } catch (e) {}
+  ctx.rawModelObjects = rawModelObjects;
+
   // Has visual context: enables Expand view / Layout only buttons.
   // True when visual objects are on a canvas OR when a view is selected from the model tree.
   let hasVisual = false;
@@ -403,6 +428,7 @@ function open(uiSelection) {
 
       _buildPresetRow(area, ctx, dlg);
       _syncToUI(ctx);
+      _updateFilteredCount(ctx);  // populate Filtered line on dialog open
 
       tabFolder.setSelection(config._lastTabIndex || 0);
       return area;
@@ -464,6 +490,50 @@ function _persistSession(ctx) {
 }
 
 
+// ── Live filter count ─────────────────────────────────────────────────────────
+
+/**
+ * Recount elements/relations/diagram objects after applying current filter settings.
+ * Called whenever a filter control changes. Updates ctx.widgets.lblFiltered.
+ */
+function _updateFilteredCount(ctx) {
+  const w = ctx.widgets;
+  if (!w.lblFiltered) return;
+  const objects = ctx.rawModelObjects;
+  if (!objects || !objects.length) {
+    w.lblFiltered.setText("Filtered:  (no selection)");
+    return;
+  }
+  try {
+    // Read current filter from widget controllers
+    const elemFilter = new Set(_ctrlGetSelected(w.lstFilterElements));      // type IDs / labels (same for ELEMENT_TYPES)
+    const relLabels  = new Set(_ctrlGetSelected(w.lstFilterRelations));     // relation type labels
+    const diagLabels = new Set(_ctrlGetSelected(w.lstFilterDiagram));       // diagram type labels
+
+    // Map relation labels → IDs for matching
+    const relIds   = new Set(_relLabelsToIds(Array.from(relLabels)));
+    const diagIds  = new Set(Array.from(diagLabels).map(l => DIAG_LABEL_TO_ID[l] || l));
+
+    let elems = 0, rels = 0, diagrams = 0;
+    for (const o of objects) {
+      const t = o.type || "";
+      if (t.endsWith("-relationship")) {
+        if (!relLabels.size || relIds.has(t)) rels++;
+      } else if (DIAGRAM_TYPES.includes(t)) {
+        if (!diagLabels.size || diagIds.has(t)) diagrams++;
+      } else {
+        if (!elemFilter.size || elemFilter.has(t)) elems++;
+      }
+    }
+
+    let txt = `Filtered:   ${elems} elements · ${rels} relations`;
+    if (diagrams) txt += ` · ${diagrams} diagram objects`;
+    w.lblFiltered.setText(txt);
+  } catch (e) {
+    w.lblFiltered.setText("Filtered:  —");
+  }
+}
+
 // ── Selection tab ─────────────────────────────────────────────────────────────
 
 function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
@@ -486,25 +556,32 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
     (exp.rels     ? ` · ${exp.rels} relations`          : " · 0 relations") +
     (exp.diagrams ? ` · ${exp.diagrams} diagram objects` : ""));
 
+  // Filtered: updates live when filter settings change
+  const lblFiltered = new LabelWidget(grpInfo, SWT.NONE);
+  lblFiltered.setText("Filtered:  (change a filter to update)");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(lblFiltered);
+  w.lblFiltered = lblFiltered;
+
   // ── Filter ──────────────────────────────────────────────────────────────────
   const grpFilter = new GroupWidget(page, SWT.NONE);
   grpFilter.setText("Filter  (empty = all included)");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpFilter);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 6).applyTo(grpFilter);
 
+  // onChange fires whenever a filter control changes → recount
+  const onFilterChange = () => _updateFilteredCount(ctx);
+
   // Element types: search+available (left) | selected (right, bottom-aligned)
-  // Height doubled so long lists are easier to browse.
   _lbl(grpFilter, "Element types:");
-  w.lstFilterElements = _typeSelector(grpFilter, ELEMENT_TYPES, 180);
+  w.lstFilterElements = _typeSelector(grpFilter, ELEMENT_TYPES, 180, onFilterChange);
 
   // Relation types: 4-column checkbox grid
   _lbl(grpFilter, "Relation types:");
-  w.lstFilterRelations = _checkboxGrid(grpFilter, REL_TYPE_LABELS, 4);
+  w.lstFilterRelations = _checkboxGrid(grpFilter, REL_TYPE_LABELS, 4, onFilterChange);
 
   // Diagram types: 4 columns to align with relation types above.
-  // 5 items spread over 3 columns (col-major: 2,2,1), 4th column stays empty.
   _lbl(grpFilter, "Diagram types:");
-  w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 4);
+  w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
   const grpRel = new GroupWidget(page, SWT.NONE);
@@ -723,6 +800,7 @@ function _buildPresetRow(parent, ctx, dlg) {
       const loaded = PresetIO.readPreset(cmbPreset.getItem(idx));
       Object.assign(ctx.config, loaded);
       _syncToUI(ctx);
+      _updateFilteredCount(ctx);
     } catch (e) { console.error("Load preset: " + e); }
   });
 
