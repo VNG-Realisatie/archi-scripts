@@ -62,36 +62,27 @@ const DIAG_TYPE_LABELS   = ["group", "note", "connection", "image", "reference"]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Select items in a ListWidget whose labels appear in `labels`.
-// Java.to forces int[] so GraalVM resolves the correct setSelection overload.
-// Also updates _selectedSet on searchable lists so the count label stays correct.
-function _listSelectLabels(list, labels) {
-  // Sync selectedSet on searchable lists
-  if (list._selectedSet) {
-    list._selectedSet.clear();
-    (labels || []).forEach(l => list._selectedSet.add(String(l)));
-    if (list._refreshList) { list._refreshList(); return; }
-  }
-
-  if (!labels || labels.length === 0) {
-    list.setSelection(Java.to([], "int[]"));
-    return;
-  }
-  const items = Array.from({ length: list.getItemCount() }, (_, i) => String(list.getItem(i)));
-  const idxs  = [];
-  labels.forEach(lbl => { const i = items.indexOf(String(lbl)); if (i >= 0) idxs.push(i); });
-  list.setSelection(Java.to(idxs, "int[]"));
-  if (list._countLabel) list._countLabel.setText(idxs.length + " selected");
+// Unified get/set for all type-selection controls (checkboxes, type-selector, plain lists).
+// Each control exposes getSelected() / setSelected(labels) — duck-typed at call time.
+function _ctrlSetSelected(ctrl, labels) {
+  if (!ctrl) return;
+  if (ctrl.setSelected) { ctrl.setSelected(labels || []); return; }
+  // fallback: plain ListWidget
+  if (!labels || !labels.length) { ctrl.setSelection(Java.to([], "int[]")); return; }
+  const items = Array.from({ length: ctrl.getItemCount() }, (_, i) => String(ctrl.getItem(i)));
+  const idxs  = labels.map(l => items.indexOf(String(l))).filter(i => i >= 0);
+  ctrl.setSelection(Java.to(idxs, "int[]"));
 }
-
-// Return selected item labels from a ListWidget as a plain JS array.
-// Searchable lists expose _selectedSet which survives filter changes.
-function _listGetSelected(list) {
-  if (!list) return [];
-  if (list._selectedSet) return Array.from(list._selectedSet);
-  const sel = list.getSelection();
+function _ctrlGetSelected(ctrl) {
+  if (!ctrl) return [];
+  if (ctrl.getSelected) return ctrl.getSelected();
+  const sel = ctrl.getSelection();
   return sel ? Array.from(sel).map(s => String(s)) : [];
 }
+
+// Keep old names as aliases — used in several places.
+const _listSelectLabels = _ctrlSetSelected;
+const _listGetSelected  = _ctrlGetSelected;
 
 // Map relation type IDs → labels (for multi-select lists).
 function _relIdsToLabels(ids) {
@@ -143,95 +134,132 @@ function _scrolledTab(tabFolder, tabLabel) {
   };
 }
 
-// Build a searchable multi-select ListWidget with a count label.
-// Returns { list, updateSearch } — call updateSearch() if the available items change.
-function _searchableList(parent, allItems, heightHint, key, w) {
-  // Search box
-  const searchBox = new TextWidget(parent, SWT.BORDER | SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL);
-  searchBox.setMessage("Filter…");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(searchBox);
+// ── Type selector: available (left) and selected (right) side by side ──────────────────────────
+// Used for element types. Search filters the available list.
+// Click available → adds; click selected → removes. Returns controller with getSelected/setSelected.
+function _typeSelector(parent, allItems, availHeight) {
+  // Two-column composite: [search + available list] | [selected list]
+  const ctr = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 2).applyTo(ctr);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctr);
 
-  // List
-  const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
-  allItems.forEach(i => list.add(i));
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, heightHint || 90).applyTo(list);
+  // Left column: search + available
+  const leftCol = _col(ctr);
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(leftCol);
 
-  // Count label below list
-  const lblCount = new LabelWidget(parent, SWT.NONE);
-  lblCount.setText("0 selected");
-  GridDataFactory.fillDefaults().applyTo(lblCount);
+  const srch = new TextWidget(leftCol, SWT.BORDER | SWT.SEARCH | SWT.ICON_CANCEL);
+  srch.setMessage("Search…");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(srch);
 
-  if (w && key) w[key] = list;
+  const availList = new ListWidget(leftCol, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
+  allItems.forEach(i => availList.add(i));
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, availHeight || 90).applyTo(availList);
 
-  // Track selected labels across filter changes
+  // Right column: selected list
+  const rightCol = _col(ctr);
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(rightCol);
+
+  _lbl(rightCol, "Selected (click to remove — empty = all):");
+  const selList = new ListWidget(rightCol, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, availHeight || 90).applyTo(selList);
+
   const selectedSet = new Set();
+  let currentFilter = "";
 
-  const refreshList = () => {
-    const query = searchBox.getText().toLowerCase();
-    const prev  = list.getSelection();
-    // Update selectedSet from current visual selection before rebuilding
-    Array.from(prev).forEach(s => selectedSet.add(String(s)));
-
-    list.removeAll();
-    allItems.filter(i => !query || i.toLowerCase().includes(query)).forEach(i => list.add(i));
-
-    // Re-select items that are in selectedSet
-    const filtered = Array.from({ length: list.getItemCount() }, (_, i) => String(list.getItem(i)));
-    const idxs = [];
-    filtered.forEach((item, i) => { if (selectedSet.has(item)) idxs.push(i); });
-    if (idxs.length) list.setSelection(Java.to(idxs, "int[]"));
-
-    lblCount.setText(selectedSet.size + " selected");
+  const refreshAvail = () => {
+    const q = currentFilter.toLowerCase();
+    availList.removeAll();
+    allItems.filter(i => !q || i.toLowerCase().includes(q)).forEach(i => availList.add(i));
   };
 
-  // Update count when selection changes
-  list.addListener(SWT.Selection, () => {
-    // Sync selectedSet with current visible selection
-    const visible = Array.from({ length: list.getItemCount() }, (_, i) => String(list.getItem(i)));
-    const selIdxs = list.getSelectionIndices();
-    // Remove items that are visible but deselected
-    visible.forEach((item, i) => {
-      if (selIdxs.includes ? selIdxs.includes(i) : Array.from(selIdxs).includes(i)) selectedSet.add(item);
-      else selectedSet.delete(item);
-    });
-    lblCount.setText(selectedSet.size + " selected");
+  const refreshSel = () => {
+    selList.removeAll();
+    Array.from(selectedSet).sort().forEach(i => selList.add(i));
+  };
+
+  // Click available → add to selected
+  availList.addListener(SWT.Selection, () => {
+    const idx = availList.getSelectionIndex();
+    if (idx < 0) return;
+    const item = String(availList.getItem(idx));
+    if (!selectedSet.has(item)) { selectedSet.add(item); refreshSel(); }
   });
 
-  searchBox.addListener(SWT.Modify, refreshList);
-  searchBox.addListener(SWT.DefaultSelection, refreshList);  // clear icon pressed
-
-  // Expose a way to set selection from outside (e.g. syncToUI)
-  list._selectedSet = selectedSet;
-  list._refreshList = refreshList;
-
-  return list;
-}
-
-// Multi-select list with a "N selected" count label below it.
-function _multiListWithCount(parent, items, heightHint) {
-  const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
-  items.forEach(i => list.add(i));
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, heightHint || 80).applyTo(list);
-
-  const lbl = new LabelWidget(parent, SWT.NONE);
-  lbl.setText("0 selected");
-  GridDataFactory.fillDefaults().applyTo(lbl);
-
-  list.addListener(SWT.Selection, () => {
-    lbl.setText(list.getSelectionCount() + " selected");
+  // Click selected → remove
+  selList.addListener(SWT.Selection, () => {
+    const idx = selList.getSelectionIndex();
+    if (idx < 0) return;
+    selectedSet.delete(String(selList.getItem(idx)));
+    refreshSel();
   });
 
-  // Expose count label for external updates (e.g. syncToUI)
-  list._countLabel = lbl;
-  return list;
+  srch.addListener(SWT.Modify, () => { currentFilter = srch.getText(); refreshAvail(); });
+  srch.addListener(SWT.DefaultSelection, () => { srch.setText(""); currentFilter = ""; refreshAvail(); });
+
+  return {
+    getSelected: () => Array.from(selectedSet),
+    setSelected: (items) => {
+      selectedSet.clear();
+      (items || []).forEach(i => selectedSet.add(String(i)));
+      refreshSel();
+    },
+    enable: (en) => { srch.setEnabled(en); availList.setEnabled(en); selList.setEnabled(en); },
+  };
 }
 
-// Build a scrollable multi-select ListWidget (without search or count).
-function _multiList(parent, items, heightHint) {
-  const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
-  items.forEach(i => list.add(i));
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, heightHint || 80).applyTo(list);
-  return list;
+// ── Checkbox grid: sorted alpha, column-major distribution across numCols columns ─────────────
+// For 11 relation types with numCols=4: distribution is 3,3,3,2 per column.
+// Single-click to toggle. Returns controller with getSelected/setSelected/enable.
+function _checkboxGrid(parent, labels, numCols) {
+  const sorted = [...labels].sort();
+  const ncols  = numCols || 4;
+  const nrows  = Math.ceil(sorted.length / ncols);
+
+  // Outer composite: ncols sub-composites side by side
+  const outer = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(ncols).margins(0, 0).spacing(6, 0).applyTo(outer);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
+
+  // One vertical sub-composite per column.
+  // fillDefaults + grab(true,false) + align BEGINNING: equal share of width, top-aligned.
+  const colComps = Array.from({ length: ncols }, () => {
+    const c = new CompositeWidget(outer, SWT.NONE);
+    GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 1).applyTo(c);
+    GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(c);
+    return c;
+  });
+
+  // Add checkboxes in column-major order: item i → column Math.floor(i / nrows)
+  const boxes = sorted.map((lbl, i) => {
+    const chk = new ButtonWidget(colComps[Math.floor(i / nrows)], SWT.CHECK);
+    chk.setText(lbl);
+    GridDataFactory.fillDefaults().applyTo(chk);
+    return { lbl, chk };
+  });
+
+  return {
+    getSelected: () => boxes.filter(b => b.chk.getSelection()).map(b => b.lbl),
+    setSelected: (items) => {
+      const s = new Set((items || []).map(String));
+      boxes.forEach(b => b.chk.setSelection(s.has(b.lbl)));
+    },
+    enable: (en) => boxes.forEach(b => b.chk.setEnabled(en)),
+  };
+}
+
+// ── Column wrapper: keeps label + control in one grid cell ──────────────────────────────────
+function _col(parent) {
+  const c = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(c);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(c);
+  return c;
+}
+
+function _lbl(parent, text) {
+  const l = new LabelWidget(parent, SWT.NONE);
+  l.setText(text || "");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(l);
+  return l;
 }
 
 // Count elements and relations in a collection.
@@ -409,64 +437,54 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpInfo);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 6).spacing(4, 3).applyTo(grpInfo);
 
-  const selLine = new LabelWidget(grpInfo, SWT.NONE);
-  selLine.setText(
+  _lbl(grpInfo,
     `Selected:   ${raw.elems} elements · ${raw.rels} relations · ${raw.views} views` +
-    (raw.folders ? ` · ${raw.folders} folders` : "")
-  );
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(selLine);
-
-  const contLine = new LabelWidget(grpInfo, SWT.NONE);
-  contLine.setText(
+    (raw.folders ? ` · ${raw.folders} folders` : ""));
+  _lbl(grpInfo,
     `Containing: ${exp.elems} elements` +
-    (exp.rels     ? ` · ${exp.rels} relations`         : "") +
-    (exp.diagrams ? ` · ${exp.diagrams} diagram objects`: "")
-  );
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(contLine);
+    (exp.rels     ? ` · ${exp.rels} relations`          : " · 0 relations") +
+    (exp.diagrams ? ` · ${exp.diagrams} diagram objects` : ""));
 
   // ── Filter ──────────────────────────────────────────────────────────────────
   const grpFilter = new GroupWidget(page, SWT.NONE);
-  grpFilter.setText("Filter  (Ctrl+click = multi-select · empty = all)");
+  grpFilter.setText("Filter  (empty = all included)");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpFilter);
-  GridLayoutFactory.fillDefaults().numColumns(3).margins(6, 4).spacing(8, 4).applyTo(grpFilter);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 6).applyTo(grpFilter);
 
-  // Element types — searchable (long list)
-  const colEl = new CompositeWidget(grpFilter, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 2).applyTo(colEl);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(colEl);
-  new LabelWidget(colEl, SWT.NONE).setText("Element types:");
-  w.lstFilterElements = _searchableList(colEl, ELEMENT_TYPES, 100, null, null);
+  // Element types: search (left) + selected list (right)
+  _lbl(grpFilter, "Element types:");
+  w.lstFilterElements = _typeSelector(grpFilter, ELEMENT_TYPES, 90);
 
-  // Relation types
-  const colRel = new CompositeWidget(grpFilter, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 2).applyTo(colRel);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(colRel);
-  new LabelWidget(colRel, SWT.NONE).setText("Relation types:");
-  w.lstFilterRelations = _multiListWithCount(colRel, REL_TYPE_LABELS, 100);
+  // Relation types: 4-column checkbox grid
+  _lbl(grpFilter, "Relation types:");
+  w.lstFilterRelations = _checkboxGrid(grpFilter, REL_TYPE_LABELS, 4);
 
-  // Diagram types
-  const colDiag = new CompositeWidget(grpFilter, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 2).applyTo(colDiag);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(colDiag);
-  new LabelWidget(colDiag, SWT.NONE).setText("Diagram types:");
-  w.lstFilterDiagram = _multiListWithCount(colDiag, DIAG_TYPE_LABELS, 100);
+  // Diagram types: below relation types
+  _lbl(grpFilter, "Diagram types:");
+  w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 2);
 
   // ── Related elements ─────────────────────────────────────────────────────────
   const grpRel = new GroupWidget(page, SWT.NONE);
   grpRel.setText("Related elements");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRel);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(8, 4).applyTo(grpRel);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpRel);
 
-  new LabelWidget(grpRel, SWT.NONE).setText("Depth (0 = off):");
-  new LabelWidget(grpRel, SWT.NONE).setText("Relation types to follow:");
+  // Relation types to follow — first, full width
+  _lbl(grpRel, "Relation types to follow:");
+  w.lstRelatedRelations = _checkboxGrid(grpRel, REL_TYPE_LABELS, 4);
 
-  const spinDepth = new SpinnerWidget(grpRel, SWT.BORDER);
+  // Depth — label and spinner on same row, left-aligned (label uses swtDefaults = minimum width)
+  const rowDepth = new CompositeWidget(grpRel, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 2).spacing(4, 0).applyTo(rowDepth);
+  GridDataFactory.fillDefaults().applyTo(rowDepth);
+  const lblDepth = new LabelWidget(rowDepth, SWT.NONE);
+  lblDepth.setText("Depth (0 = off):");
+  GridDataFactory.swtDefaults().applyTo(lblDepth);  // minimum width — spinner appears next to it
+  const spinDepth = new SpinnerWidget(rowDepth, SWT.BORDER);
   spinDepth.setValues(0, 0, 5, 0, 1, 1);
-  spinDepth.setToolTipText("Number of relation hops to add. 0 = disabled.");
+  spinDepth.setToolTipText("Number of relation hops to add beyond the current selection. 0 = disabled.");
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepth);
   w.spinRelDepth = spinDepth;
-
-  w.lstRelatedRelations = _multiListWithCount(grpRel, REL_TYPE_LABELS, 80);
 
   finish();
 }
@@ -503,8 +521,15 @@ function _buildLayoutTab(tabFolder, ctx) {
   GridDataFactory.fillDefaults().span(4, 1).grab(true, false).hint(380, SWT.DEFAULT).applyTo(lblTip);
   w.lblAlgTooltip = lblTip;
 
-  cmbStyle.addListener(SWT.Selection, () => { _fillAlgorithmCombo(ctx); _updateAlgorithmControls(ctx); });
-  cmbAlg.addListener(SWT.Selection,   () => _updateAlgorithmControls(ctx));
+  cmbStyle.addListener(SWT.Selection, () => {
+    _fillAlgorithmCombo(ctx);
+    _updateAlgorithmControls(ctx);
+    _updateViewNameAlgorithm(ctx);
+  });
+  cmbAlg.addListener(SWT.Selection, () => {
+    _updateAlgorithmControls(ctx);
+    _updateViewNameAlgorithm(ctx);
+  });
 
   // ── Direction / Routing / Label ──────────────────────────────────────────────
   const grpDir = new GroupWidget(page, SWT.NONE);
@@ -542,16 +567,18 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   // ── Nesting structure ─────────────────────────────────────────────────────────
   const grpNest = new GroupWidget(page, SWT.NONE);
-  grpNest.setText("Nesting structure  (Ctrl+click to multi-select)");
+  grpNest.setText("Nesting structure  —  relations drawn as containment boxes, not lines");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpNest);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(8, 4).applyTo(grpNest);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpNest);
   w.grpNestingStructure = grpNest;
+  w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4);
 
-  new LabelWidget(grpNest, SWT.NONE).setText("Relation types that define containment:");
-  new LabelWidget(grpNest, SWT.NONE).setText("Reverse layout direction for:");
-
-  w.lstNestingTypes = _multiListWithCount(grpNest, REL_TYPE_LABELS, 80);
-  w.lstReverseTypes = _multiListWithCount(grpNest, REL_TYPE_LABELS, 80);
+  // ── Reverse layout direction ──────────────────────────────────────────────────
+  const grpRev = new GroupWidget(page, SWT.NONE);
+  grpRev.setText("Reverse layout direction for relation types");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRev);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpRev);
+  w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4);
 
   // ── Container appearance ───────────────────────────────────────────────────────
   const grpCtr = new GroupWidget(page, SWT.NONE);
@@ -606,24 +633,28 @@ function _buildViewTab(tabFolder, ctx) {
   const grpView = new GroupWidget(page, SWT.NONE);
   grpView.setText("View name and location");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpView);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 4).applyTo(grpView);
+  // Row 1: Name label | name field | Suffix label | suffix field  (4 columns)
+  // Row 2: Folder label | folder field (spans 3)
+  GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(4, 4).applyTo(grpView);
 
+  // Row 1: name + suffix on same line
   new LabelWidget(grpView, SWT.NONE).setText("Name:");
   const txtName = new TextWidget(grpView, SWT.BORDER);
   txtName.setToolTipText("View name. Pre-filled from the first selected element.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(280, SWT.DEFAULT).applyTo(txtName);
+  GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtName);
   w.txtViewName = txtName;
 
   new LabelWidget(grpView, SWT.NONE).setText("Suffix:");
   const txtSuffix = new TextWidget(grpView, SWT.BORDER);
-  txtSuffix.setToolTipText("Appended to the view name.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(120, SWT.DEFAULT).applyTo(txtSuffix);
+  txtSuffix.setToolTipText("Appended to view name. Auto-filled with current algorithm.");
+  GridDataFactory.fillDefaults().grab(false, false).hint(120, SWT.DEFAULT).applyTo(txtSuffix);
   w.txtViewSuffix = txtSuffix;
 
+  // Row 2: folder
   new LabelWidget(grpView, SWT.NONE).setText("Folder:");
   const txtFolder = new TextWidget(grpView, SWT.BORDER);
   txtFolder.setToolTipText("Archi folder path (e.g. /Application/Generated). Empty = /_Generated.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(280, SWT.DEFAULT).applyTo(txtFolder);
+  GridDataFactory.fillDefaults().grab(true, false).span(3, 1).hint(280, SWT.DEFAULT).applyTo(txtFolder);
   w.txtViewFolder = txtFolder;
   finish();
 }
@@ -733,9 +764,27 @@ function _syncToUI(ctx) {
   if (w.lstRelatedRelations) _listSelectLabels(w.lstRelatedRelations, layers.length > 0 ? _relIdsToLabels(layers[0].relationTypes || []) : []);
 
   // View
-  if (w.txtViewName)   w.txtViewName.setText((c.view && c.view.name)   || "");
-  if (w.txtViewSuffix) w.txtViewSuffix.setText((c.view && c.view.suffix)|| "");
-  if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder)|| "");
+  // Pre-fill view name from first selected element (name only); suffix from algorithm.
+  // Only when session has no name/suffix set.
+  let viewName   = (c.view && c.view.name)   || "";
+  let viewSuffix = (c.view && c.view.suffix) || "";
+  if ((!viewName || !viewSuffix) && ctx && ctx.uiSelection) {
+    try {
+      let firstName = null;
+      ctx.uiSelection.each(o => {
+        if (firstName) return;
+        const name = (o.concept && o.concept.name) || o.name || "";
+        if (name) firstName = name;
+      });
+      const alg    = ALGORITHMS[c.algorithm];
+      const algId  = alg ? alg.engineAlgorithmId : c.algorithm;
+      if (!viewName   && firstName) viewName   = firstName;
+      if (!viewSuffix)              viewSuffix = " — " + algId;
+    } catch (e) {}
+  }
+  if (w.txtViewName)   w.txtViewName.setText(viewName);
+  if (w.txtViewSuffix) w.txtViewSuffix.setText(viewSuffix);
+  if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
 
   _updateAlgorithmControls(ctx);
 }
@@ -810,6 +859,22 @@ function _fillAlgorithmCombo(ctx) {
   w.cmbAlgorithm.select(0);
 }
 
+// When algorithm changes, update the suffix field if it contains " — <algo>"
+// (auto-generated suffix). User-edited suffixes without " — " are left untouched.
+function _updateViewNameAlgorithm(ctx) {
+  const w = ctx.widgets;
+  if (!w.txtViewSuffix || !w.cmbAlgorithm) return;
+  const current = w.txtViewSuffix.getText();
+  if (!current.includes(" — ")) return;  // user has custom suffix, don't overwrite
+
+  const sty    = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
+  const algs   = STYLES[sty] ? STYLES[sty].algorithms : [];
+  const algName= algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
+  const alg    = ALGORITHMS[algName];
+  const algId  = alg ? alg.engineAlgorithmId : algName;
+  w.txtViewSuffix.setText(" — " + algId);
+}
+
 function _updateAlgorithmControls(ctx) {
   const w = ctx.widgets;
   if (!w.cmbAlgorithm) return;
@@ -879,7 +944,9 @@ function _chkSet(btn, value) {
 }
 
 function _enable(widget, enabled) {
-  if (widget) widget.setEnabled(enabled);
+  if (!widget) return;
+  if (widget.enable) { widget.enable(enabled); return; }  // controller (checkboxGrid, typeSelector)
+  try { widget.setEnabled(enabled); } catch (e) {}
 }
 
 function _pushBtn(parent, label, tip, handler) {
