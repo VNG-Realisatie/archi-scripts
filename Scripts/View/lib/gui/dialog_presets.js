@@ -29,19 +29,18 @@ const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants"
 function open() {
   let selectedPreset = null;
 
-  const PresetsDialog = Java.extend(TitleAreaDialog);
-  const dlg = Object.assign(new PresetsDialog(shell), {
+  const dlgImpl = {
     createDialogArea: function(parent) {
-      const area = Java.super(dlg).createDialogArea(parent);
-      dlg.setTitle("Manage Presets");
-      dlg.setMessage("Load, rename, or delete saved presets.");
+      const area = Java.super(dlgImpl.dialog).createDialogArea(parent);
+      dlgImpl.dialog.setTitle("Manage Presets");
+      dlgImpl.dialog.setMessage("Load, rename, or delete saved presets.");
 
       GridLayoutFactory.fillDefaults().numColumns(2).margins(8, 8).spacing(6, 6).applyTo(area);
 
       // Preset list
       const list = new ListWidget(area, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
       GridDataFactory.fillDefaults().grab(true, true).hint(280, 200).applyTo(list);
-      dlg._list = list;
+      dlgImpl._list = list;
       _refreshList(list);
 
       // Buttons column
@@ -54,7 +53,7 @@ function open() {
       GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(btnLoad);
       btnLoad.addListener(SWT.Selection, e => {
         const sel = list.getSelectionIndex();
-        if (sel >= 0) { selectedPreset = list.getItem(sel); Java.super(dlg).okPressed(); }
+        if (sel >= 0) { selectedPreset = list.getItem(sel); Java.super(dlgImpl.dialog).okPressed(); }
       });
 
       const btnRename = new ButtonWidget(btnCol, SWT.PUSH);
@@ -97,11 +96,13 @@ function open() {
     isHelpAvailable: function() { return false; },
 
     createButtonsForButtonBar: function(parent) {
-      Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Close", true);
+      Java.super(dlgImpl.dialog).createButton(parent, IDialogConstants.CANCEL_ID, "Close", true);
     },
-  });
+  };
 
-  dlg.open();
+  const PresetsDialog = Java.extend(TitleAreaDialog);
+  dlgImpl.dialog = new PresetsDialog(dlgImpl, shell);
+  dlgImpl.dialog.open();
   return selectedPreset;
 }
 

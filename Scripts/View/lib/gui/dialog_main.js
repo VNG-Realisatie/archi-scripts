@@ -83,40 +83,34 @@ function _decodeRelType(entry) {
 function open(uiSelection) {
   // Load session as starting config
   const config = PresetIO.readSession();
-  // Ensure action is set
   if (!config.action) config.action = ACTION.NEW_VIEW.id;
 
   const w = {};  // widget map
 
-  const ConfigDialog = Java.extend(TitleAreaDialog);
-
-  const dlg = Object.assign(new ConfigDialog(shell), {
+  // GraalVM Java.extend pattern: define overrides first, pass as first arg to constructor.
+  // dlgImpl.dialog is set below; all method bodies access it via closure at call-time.
+  const dlgImpl = {
     config,
     widgets: w,
 
     createDialogArea: function(parent) {
-      const area = Java.super(dlg).createDialogArea(parent);
-      dlg.setTitle("Generate View");
-      dlg.setMessage("Configure layout and run.");
+      const area = Java.super(dlgImpl.dialog).createDialogArea(parent);
+      dlgImpl.dialog.setTitle("Generate View");
+      dlgImpl.dialog.setMessage("Configure layout and run.");
 
       GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).applyTo(area);
 
-      // Tab folder: Selection / Layout / View
       const tabFolder = new TabFolderWidget(area, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       w.tabFolder = tabFolder;
 
-      _buildSelectionTab(tabFolder, dlg);
-      _buildLayoutTab(tabFolder, dlg);
-      _buildViewTab(tabFolder, dlg);
+      _buildSelectionTab(tabFolder, dlgImpl);
+      _buildLayoutTab(tabFolder, dlgImpl);
+      _buildViewTab(tabFolder, dlgImpl);
 
-      // Preset row
-      _buildPresetRow(area, dlg);
+      _buildPresetRow(area, dlgImpl);
+      _syncToUI(dlgImpl);
 
-      // Sync config → widgets
-      _syncToUI(dlg);
-
-      // Restore last tab
       const lastTab = config._lastTabIndex || 0;
       tabFolder.setSelection(Math.min(lastTab, 2));
 
@@ -127,29 +121,30 @@ function open(uiSelection) {
     isHelpAvailable: function() { return false; },
 
     createButtonsForButtonBar: function(parent) {
-      Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
-      const ok = Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, _actionLabel(config.action), true);
+      Java.super(dlgImpl.dialog).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
+      const ok = Java.super(dlgImpl.dialog).createButton(parent, IDialogConstants.OK_ID, _actionLabel(config.action), true);
       GridDataFactory.swtDefaults().hint(150, SWT.DEFAULT).applyTo(ok);
       w.okBtn = ok;
     },
 
     okPressed: function() {
-      _saveUI(dlg);
-      // Save session
+      _saveUI(dlgImpl);
       const session = Object.assign({}, config);
       session._lastTabIndex = w.tabFolder ? w.tabFolder.getSelectionIndex() : 0;
       PresetIO.writeSession(session);
-      Java.super(dlg).okPressed();
+      Java.super(dlgImpl.dialog).okPressed();
     },
-  });
+  };
 
-  const result = dlg.open();
-  if (result !== 0) {  // CANCEL
+  const ConfigDialog = Java.extend(TitleAreaDialog);
+  dlgImpl.dialog = new ConfigDialog(dlgImpl, shell);
+
+  const result = dlgImpl.dialog.open();
+  if (result !== 0) {  // CANCEL = 1
     console.log("Cancelled.");
     return;
   }
 
-  // Run generate_view
   GenView.generate_view(config, uiSelection);
   Common.finishConsoleLog && Common.finishConsoleLog();
 }
