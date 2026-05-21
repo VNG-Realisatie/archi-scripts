@@ -260,13 +260,31 @@ function open(uiSelection) {
   const w = {};       // widget map
   const ctx = { config, widgets: w, uiSelection };
 
-  // Compute selection info once; used to populate the info label.
-  let selectionInfo = "Nothing selected";
+  // Compute selection counts before the dialog opens.
+  // Raw count: what the user had selected in the UI.
+  const rawCount = { elems: 0, rels: 0, views: 0, folders: 0 };
+  try {
+    uiSelection.each(o => {
+      const t = o.type || "";
+      if (t === "archimate-diagram-model")     rawCount.views++;
+      else if (t.endsWith("-relationship"))    rawCount.rels++;
+      else if (t === "folder")                 rawCount.folders++;
+      else                                     rawCount.elems++;
+    });
+  } catch (e) {}
+
+  // Expanded count: what getSelection traverses into (folders, views → model objects).
+  const expandedCount = { elems: 0, rels: 0, views: 0, diagrams: 0 };
   try {
     const coll = Selection.getSelection(uiSelection, "*");
-    const c    = _countSelection(coll);
-    selectionInfo = `Containing: ${c.elems} elements · ${c.rels} relations · ${c.views} views · ${c.diagrams} diagram objects`;
+    Object.assign(expandedCount, _countSelection(coll));
   } catch (e) {}
+
+  const selectionInfo =
+    `Selected: ${rawCount.elems} elements · ${rawCount.rels} relations · ${rawCount.views} views` +
+    (rawCount.folders ? ` · ${rawCount.folders} folders` : "") +
+    `\nContaining: ${expandedCount.elems} elements · ${expandedCount.rels} relations` +
+    (expandedCount.diagrams ? ` · ${expandedCount.diagrams} diagram objects` : "");
 
   // Has visual objects? Controls Expand view / Layout only availability.
   let hasVisual = false;
@@ -279,7 +297,7 @@ function open(uiSelection) {
     createDialogArea: function(parent) {
       const area = Java.super(dlg).createDialogArea(parent);
       dlg.setTitle("Generate View");
-      dlg.setMessage(selectionInfo);
+      dlg.setMessage("Select an action to generate or layout a view.");
 
       GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).spacing(4, 4).applyTo(area);
 
@@ -287,7 +305,7 @@ function open(uiSelection) {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       w.tabFolder = tabFolder;
 
-      _buildSelectionTab(tabFolder, ctx);
+      _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount);
       _buildLayoutTab(tabFolder, ctx);
       _buildViewTab(tabFolder, ctx);
 
@@ -356,9 +374,32 @@ function _persistSession(ctx) {
 
 // ── Selection tab ─────────────────────────────────────────────────────────────
 
-function _buildSelectionTab(tabFolder, ctx) {
+function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
   const { page, finish } = _scrolledTab(tabFolder, "Selection");
   const w = ctx.widgets;
+  const raw = rawCount      || { elems: 0, rels: 0, views: 0, folders: 0 };
+  const exp = expandedCount || { elems: 0, rels: 0, diagrams: 0 };
+
+  // ── Current selection info ───────────────────────────────────────────────────
+  const grpInfo = new GroupWidget(page, SWT.NONE);
+  grpInfo.setText("Current selection");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpInfo);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 6).spacing(4, 3).applyTo(grpInfo);
+
+  const selLine = new LabelWidget(grpInfo, SWT.NONE);
+  selLine.setText(
+    `Selected:   ${raw.elems} elements · ${raw.rels} relations · ${raw.views} views` +
+    (raw.folders ? ` · ${raw.folders} folders` : "")
+  );
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(selLine);
+
+  const contLine = new LabelWidget(grpInfo, SWT.NONE);
+  contLine.setText(
+    `Containing: ${exp.elems} elements` +
+    (exp.rels     ? ` · ${exp.rels} relations`         : "") +
+    (exp.diagrams ? ` · ${exp.diagrams} diagram objects`: "")
+  );
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(contLine);
 
   // ── Filter ──────────────────────────────────────────────────────────────────
   const grpFilter = new GroupWidget(page, SWT.NONE);

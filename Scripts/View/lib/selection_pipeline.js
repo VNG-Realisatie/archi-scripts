@@ -64,17 +64,21 @@ function buildObjectSet(uiSelection, preset, actionId) {
     }
   }
 
-  // Step 4: separate into elements and relations
-  const elements  = [];
-  const relations = [];
+  // Step 4: separate elements (the pipeline only collected model elements;
+  // relations between them must be found explicitly in step 5).
+  const elements = [];
   collection.each(o => {
     const type = o.type || "";
-    if (type.endsWith("-relationship") || type === "diagram-model-connection") {
-      relations.push(o);
-    } else {
+    if (!type.endsWith("-relationship") && type !== "diagram-model-connection") {
       elements.push(o);
     }
   });
+
+  // Step 5: find all relations whose source AND target are both in the element set.
+  // Apply the relation type filter (empty = all relation types allowed).
+  const relations = _findRelationsBetween(elements, preset.filter ? preset.filter.relationTypes : []);
+
+  console.log(`Relations found between elements: ${relations.length}`);
 
   const result = { elements, relations, visualObjects: [] };
 
@@ -226,6 +230,43 @@ function _collectionToArray(collection) {
   const arr = [];
   collection.each(o => arr.push(o));
   return arr;
+}
+
+/**
+ * Find all ArchiRelations where both source and target are in `elements`.
+ * Traverses each element's relations via jArchi's .rels() API.
+ * Applies relation type filter (empty = all types allowed).
+ */
+function _findRelationsBetween(elements, relTypeFilter) {
+  if (elements.length === 0) return [];
+
+  const elementIds = new Set(elements.map(e => e.id));
+  const seen       = new Set();
+  const relations  = [];
+
+  for (const element of elements) {
+    try {
+      $(element).rels().each(rel => {
+        if (seen.has(rel.id)) return;
+        if (_isExcluded(rel)) return;
+
+        const srcId = rel.source && rel.source.id;
+        const tgtId = rel.target && rel.target.id;
+        if (!srcId || !tgtId) return;
+        if (!elementIds.has(srcId) || !elementIds.has(tgtId)) return;
+
+        // Relation type filter (empty = all)
+        if (relTypeFilter && relTypeFilter.length > 0) {
+          if (!_matchesRelationType(rel.type, relTypeFilter, rel)) return;
+        }
+
+        seen.add(rel.id);
+        relations.push(rel);
+      });
+    } catch (e) {}
+  }
+
+  return relations;
 }
 
 function _isExcluded(rel) {
