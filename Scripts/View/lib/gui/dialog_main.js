@@ -39,12 +39,13 @@ const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
 const GroupWidget       = Java.type("org.eclipse.swt.widgets.Group");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
-const ListWidget        = Java.type("org.eclipse.swt.widgets.List");
-const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
-const TabFolderWidget   = Java.type("org.eclipse.swt.widgets.TabFolder");
-const TabItemWidget     = Java.type("org.eclipse.swt.widgets.TabItem");
-const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
-const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
+const ListWidget              = Java.type("org.eclipse.swt.widgets.List");
+const TextWidget              = Java.type("org.eclipse.swt.widgets.Text");
+const TabFolderWidget         = Java.type("org.eclipse.swt.widgets.TabFolder");
+const TabItemWidget           = Java.type("org.eclipse.swt.widgets.TabItem");
+const ScrolledCompositeWidget = Java.type("org.eclipse.swt.custom.ScrolledComposite");
+const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
+const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
@@ -61,9 +62,17 @@ const DIAG_TYPE_LABELS   = ["group", "note", "connection", "image", "reference"]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Select items in a ListWidget whose labels appear in a set.
+// Select items in a ListWidget whose labels appear in `labels`.
 // Java.to forces int[] so GraalVM resolves the correct setSelection overload.
+// Also updates _selectedSet on searchable lists so the count label stays correct.
 function _listSelectLabels(list, labels) {
+  // Sync selectedSet on searchable lists
+  if (list._selectedSet) {
+    list._selectedSet.clear();
+    (labels || []).forEach(l => list._selectedSet.add(String(l)));
+    if (list._refreshList) { list._refreshList(); return; }
+  }
+
   if (!labels || labels.length === 0) {
     list.setSelection(Java.to([], "int[]"));
     return;
@@ -72,11 +81,14 @@ function _listSelectLabels(list, labels) {
   const idxs  = [];
   labels.forEach(lbl => { const i = items.indexOf(String(lbl)); if (i >= 0) idxs.push(i); });
   list.setSelection(Java.to(idxs, "int[]"));
+  if (list._countLabel) list._countLabel.setText(idxs.length + " selected");
 }
 
 // Return selected item labels from a ListWidget as a plain JS array.
+// Searchable lists expose _selectedSet which survives filter changes.
 function _listGetSelected(list) {
   if (!list) return [];
+  if (list._selectedSet) return Array.from(list._selectedSet);
   const sel = list.getSelection();
   return sel ? Array.from(sel).map(s => String(s)) : [];
 }
@@ -108,7 +120,113 @@ const DIAG_ID_TO_LABEL = {
 };
 const DIAG_LABEL_TO_ID = Object.fromEntries(Object.entries(DIAG_ID_TO_LABEL).map(([k, v]) => [v, k]));
 
-// Build a scrollable multi-select ListWidget.
+// Wrap a tab's content composite in a ScrolledComposite so it survives dialog resize.
+// Returns the inner content composite to add widgets to.
+function _scrolledTab(tabFolder, tabLabel) {
+  const tab      = new TabItemWidget(tabFolder, SWT.NONE);
+  tab.setText(tabLabel);
+  const scrolled = new ScrolledCompositeWidget(tabFolder, SWT.H_SCROLL | SWT.V_SCROLL);
+  scrolled.setExpandHorizontal(true);
+  scrolled.setExpandVertical(true);
+  tab.setControl(scrolled);
+
+  const page = new CompositeWidget(scrolled, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
+
+  // Recompute scroll min-size after layout — called once at end of tab builder.
+  return {
+    page,
+    finish: () => {
+      scrolled.setContent(page);
+      scrolled.setMinSize(page.computeSize(SWT.DEFAULT, SWT.DEFAULT));
+    },
+  };
+}
+
+// Build a searchable multi-select ListWidget with a count label.
+// Returns { list, updateSearch } — call updateSearch() if the available items change.
+function _searchableList(parent, allItems, heightHint, key, w) {
+  // Search box
+  const searchBox = new TextWidget(parent, SWT.BORDER | SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL);
+  searchBox.setMessage("Filter…");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(searchBox);
+
+  // List
+  const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
+  allItems.forEach(i => list.add(i));
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, heightHint || 90).applyTo(list);
+
+  // Count label below list
+  const lblCount = new LabelWidget(parent, SWT.NONE);
+  lblCount.setText("0 selected");
+  GridDataFactory.fillDefaults().applyTo(lblCount);
+
+  if (w && key) w[key] = list;
+
+  // Track selected labels across filter changes
+  const selectedSet = new Set();
+
+  const refreshList = () => {
+    const query = searchBox.getText().toLowerCase();
+    const prev  = list.getSelection();
+    // Update selectedSet from current visual selection before rebuilding
+    Array.from(prev).forEach(s => selectedSet.add(String(s)));
+
+    list.removeAll();
+    allItems.filter(i => !query || i.toLowerCase().includes(query)).forEach(i => list.add(i));
+
+    // Re-select items that are in selectedSet
+    const filtered = Array.from({ length: list.getItemCount() }, (_, i) => String(list.getItem(i)));
+    const idxs = [];
+    filtered.forEach((item, i) => { if (selectedSet.has(item)) idxs.push(i); });
+    if (idxs.length) list.setSelection(Java.to(idxs, "int[]"));
+
+    lblCount.setText(selectedSet.size + " selected");
+  };
+
+  // Update count when selection changes
+  list.addListener(SWT.Selection, () => {
+    // Sync selectedSet with current visible selection
+    const visible = Array.from({ length: list.getItemCount() }, (_, i) => String(list.getItem(i)));
+    const selIdxs = list.getSelectionIndices();
+    // Remove items that are visible but deselected
+    visible.forEach((item, i) => {
+      if (selIdxs.includes ? selIdxs.includes(i) : Array.from(selIdxs).includes(i)) selectedSet.add(item);
+      else selectedSet.delete(item);
+    });
+    lblCount.setText(selectedSet.size + " selected");
+  });
+
+  searchBox.addListener(SWT.Modify, refreshList);
+  searchBox.addListener(SWT.DefaultSelection, refreshList);  // clear icon pressed
+
+  // Expose a way to set selection from outside (e.g. syncToUI)
+  list._selectedSet = selectedSet;
+  list._refreshList = refreshList;
+
+  return list;
+}
+
+// Multi-select list with a "N selected" count label below it.
+function _multiListWithCount(parent, items, heightHint) {
+  const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
+  items.forEach(i => list.add(i));
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, heightHint || 80).applyTo(list);
+
+  const lbl = new LabelWidget(parent, SWT.NONE);
+  lbl.setText("0 selected");
+  GridDataFactory.fillDefaults().applyTo(lbl);
+
+  list.addListener(SWT.Selection, () => {
+    lbl.setText(list.getSelectionCount() + " selected");
+  });
+
+  // Expose count label for external updates (e.g. syncToUI)
+  list._countLabel = lbl;
+  return list;
+}
+
+// Build a scrollable multi-select ListWidget (without search or count).
 function _multiList(parent, items, heightHint) {
   const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
   items.forEach(i => list.add(i));
@@ -242,26 +360,35 @@ function _persistSession(ctx) {
 // ── Selection tab ─────────────────────────────────────────────────────────────
 
 function _buildSelectionTab(tabFolder, ctx) {
-  const tab  = new TabItemWidget(tabFolder, SWT.NONE);
-  tab.setText("Selection");
-  const page = new CompositeWidget(tabFolder, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
-  tab.setControl(page);
+  const { page, finish } = _scrolledTab(tabFolder, "Selection");
   const w = ctx.widgets;
 
   // ── Filter ──────────────────────────────────────────────────────────────────
   const grpFilter = new GroupWidget(page, SWT.NONE);
-  grpFilter.setText("Filter  (Ctrl+click to multi-select · no selection = all)");
+  grpFilter.setText("Filter  (Ctrl+click = multi-select · empty = all)");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpFilter);
   GridLayoutFactory.fillDefaults().numColumns(3).margins(6, 4).spacing(8, 4).applyTo(grpFilter);
 
-  new LabelWidget(grpFilter, SWT.NONE).setText("Element types:");
-  new LabelWidget(grpFilter, SWT.NONE).setText("Relation types:");
-  new LabelWidget(grpFilter, SWT.NONE).setText("Diagram types:");
+  // Element types — searchable (long list)
+  const colEl = new CompositeWidget(grpFilter, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 2).applyTo(colEl);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(colEl);
+  new LabelWidget(colEl, SWT.NONE).setText("Element types:");
+  w.lstFilterElements = _searchableList(colEl, ELEMENT_TYPES, 100, null, null);
 
-  w.lstFilterElements  = _multiList(grpFilter, ELEMENT_TYPES, 90);
-  w.lstFilterRelations = _multiList(grpFilter, REL_TYPE_LABELS, 90);
-  w.lstFilterDiagram   = _multiList(grpFilter, DIAG_TYPE_LABELS, 90);
+  // Relation types
+  const colRel = new CompositeWidget(grpFilter, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 2).applyTo(colRel);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(colRel);
+  new LabelWidget(colRel, SWT.NONE).setText("Relation types:");
+  w.lstFilterRelations = _multiListWithCount(colRel, REL_TYPE_LABELS, 100);
+
+  // Diagram types
+  const colDiag = new CompositeWidget(grpFilter, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 2).applyTo(colDiag);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(colDiag);
+  new LabelWidget(colDiag, SWT.NONE).setText("Diagram types:");
+  w.lstFilterDiagram = _multiListWithCount(colDiag, DIAG_TYPE_LABELS, 100);
 
   // ── Related elements ─────────────────────────────────────────────────────────
   const grpRel = new GroupWidget(page, SWT.NONE);
@@ -278,17 +405,15 @@ function _buildSelectionTab(tabFolder, ctx) {
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepth);
   w.spinRelDepth = spinDepth;
 
-  w.lstRelatedRelations = _multiList(grpRel, REL_TYPE_LABELS, 80);
+  w.lstRelatedRelations = _multiListWithCount(grpRel, REL_TYPE_LABELS, 80);
+
+  finish();
 }
 
 // ── Layout tab ────────────────────────────────────────────────────────────────
 
 function _buildLayoutTab(tabFolder, ctx) {
-  const tab  = new TabItemWidget(tabFolder, SWT.NONE);
-  tab.setText("Layout");
-  const page = new CompositeWidget(tabFolder, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
-  tab.setControl(page);
+  const { page, finish } = _scrolledTab(tabFolder, "Layout");
   const w = ctx.widgets;
 
   // ── Algorithm ────────────────────────────────────────────────────────────────
@@ -364,8 +489,8 @@ function _buildLayoutTab(tabFolder, ctx) {
   new LabelWidget(grpNest, SWT.NONE).setText("Relation types that define containment:");
   new LabelWidget(grpNest, SWT.NONE).setText("Reverse layout direction for:");
 
-  w.lstNestingTypes  = _multiList(grpNest, REL_TYPE_LABELS, 80);
-  w.lstReverseTypes  = _multiList(grpNest, REL_TYPE_LABELS, 80);
+  w.lstNestingTypes = _multiListWithCount(grpNest, REL_TYPE_LABELS, 80);
+  w.lstReverseTypes = _multiListWithCount(grpNest, REL_TYPE_LABELS, 80);
 
   // ── Container appearance ───────────────────────────────────────────────────────
   const grpCtr = new GroupWidget(page, SWT.NONE);
@@ -407,16 +532,14 @@ function _buildLayoutTab(tabFolder, ctx) {
   cmbAR.select(0);
   GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbAR);
   w.cmbAspectRatio = cmbAR;
+
+  finish();
 }
 
 // ── View tab ──────────────────────────────────────────────────────────────────
 
 function _buildViewTab(tabFolder, ctx) {
-  const tab  = new TabItemWidget(tabFolder, SWT.NONE);
-  tab.setText("View");
-  const page = new CompositeWidget(tabFolder, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
-  tab.setControl(page);
+  const { page, finish } = _scrolledTab(tabFolder, "View");
   const w = ctx.widgets;
 
   const grpView = new GroupWidget(page, SWT.NONE);
@@ -441,6 +564,7 @@ function _buildViewTab(tabFolder, ctx) {
   txtFolder.setToolTipText("Archi folder path (e.g. /Application/Generated). Empty = /_Generated.");
   GridDataFactory.fillDefaults().grab(true, false).hint(280, SWT.DEFAULT).applyTo(txtFolder);
   w.txtViewFolder = txtFolder;
+  finish();
 }
 
 // ── Preset row ────────────────────────────────────────────────────────────────

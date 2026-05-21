@@ -43,6 +43,11 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // Visual objects are resolved to their model concepts
   let collection = Selection.getSelection(uiSelection, "*");
 
+  // When a view is selected, getSelection() returns only the view node itself —
+  // its model contents are not in the model-tree children. Expand selected views
+  // to include all model elements and relations visible on those views.
+  collection = _expandViews(collection);
+
   // Step 2: apply filter
   collection = _applyFilter(collection, preset.filter);
 
@@ -83,6 +88,45 @@ function buildObjectSet(uiSelection, preset, actionId) {
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Replace any ArchimateView objects in the collection with the model elements
+ * and relations visible on those views.
+ * getSelection() returns the view node itself when a view is selected —
+ * model concepts live in visual objects on the view, not in model-tree children.
+ */
+function _expandViews(collection) {
+  const views = [];
+  collection.each(o => { if (o.type === "archimate-diagram-model") views.push(o); });
+  if (views.length === 0) return collection;
+
+  // Build a new collection without the view objects
+  let expanded = collection.filter(o => o.type !== "archimate-diagram-model");
+
+  views.forEach(view => {
+    // Visual elements → concepts
+    try {
+      $(view).find("element").each(ve => {
+        const concept = ve.concept || ve;
+        if (concept && concept.id && expanded.filter(a => a.id === concept.id).size() === 0) {
+          expanded.add(concept);
+        }
+      });
+    } catch (e) {}
+    // Visual connections → concept relations
+    try {
+      $(view).find("relation").each(vr => {
+        const concept = vr.concept || vr;
+        if (concept && concept.id && expanded.filter(a => a.id === concept.id).size() === 0) {
+          expanded.add(concept);
+        }
+      });
+    } catch (e) {}
+  });
+
+  console.log(`Expanded ${views.length} view(s) → ${expanded.size()} model objects`);
+  return expanded;
+}
 
 function _layoutOnlySet(uiSelection) {
   const visualObjects = [];
