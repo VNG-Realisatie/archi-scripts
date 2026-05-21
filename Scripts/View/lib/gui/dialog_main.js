@@ -273,22 +273,45 @@ function open(uiSelection) {
     });
   } catch (e) {}
 
-  // Expanded count: what getSelection traverses into (folders, views → model objects).
-  const expandedCount = { elems: 0, rels: 0, views: 0, diagrams: 0 };
+  // Expanded count: what is contained in the selection (folders expand, views expand to their elements).
+  // When a view (archimate-diagram-model) is selected, $(view).find() enumerates visual objects.
+  // $(view).children() returns nothing useful from the model tree — find() is the correct API.
+  const expandedCount = { elems: 0, rels: 0, diagrams: 0 };
   try {
-    const coll = Selection.getSelection(uiSelection, "*");
-    Object.assign(expandedCount, _countSelection(coll));
+    uiSelection.each(o => {
+      const t = o.type || "";
+      if (t === "archimate-diagram-model") {
+        // Count elements and relations on the view
+        try { $(o).find("element").each(() => expandedCount.elems++); } catch (e) {}
+        try { $(o).find("relation").each(() => expandedCount.rels++); } catch (e) {}
+      } else if (t.endsWith("-relationship")) {
+        expandedCount.rels++;
+      } else if (t.startsWith("diagram-model-")) {
+        expandedCount.diagrams++;
+      } else if (t !== "archimate-diagram-model" && t !== "folder") {
+        expandedCount.elems++;
+      } else if (t === "folder") {
+        // Recurse: count folder contents via getSelection
+        try {
+          const coll = Selection.getSelection($(o), "*");
+          const c    = _countSelection(coll);
+          expandedCount.elems    += c.elems;
+          expandedCount.rels     += c.rels;
+          expandedCount.diagrams += c.diagrams;
+        } catch (e) {}
+      }
+    });
   } catch (e) {}
 
-  const selectionInfo =
-    `Selected: ${rawCount.elems} elements · ${rawCount.rels} relations · ${rawCount.views} views` +
-    (rawCount.folders ? ` · ${rawCount.folders} folders` : "") +
-    `\nContaining: ${expandedCount.elems} elements · ${expandedCount.rels} relations` +
-    (expandedCount.diagrams ? ` · ${expandedCount.diagrams} diagram objects` : "");
-
-  // Has visual objects? Controls Expand view / Layout only availability.
+  // Has visual context: enables Expand view / Layout only buttons.
+  // True when visual objects are on a canvas OR when a view is selected from the model tree.
   let hasVisual = false;
-  try { uiSelection.each(o => { if (o.view) hasVisual = true; }); } catch (e) {}
+  try {
+    uiSelection.each(o => {
+      if (o.view)                              hasVisual = true;  // canvas visual object
+      if (o.type === "archimate-diagram-model") hasVisual = true;  // view from model tree
+    });
+  } catch (e) {}
 
   // GraalVM two-argument Java.extend: bake methods in at class definition time.
   let dlg;

@@ -97,9 +97,22 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const result = { elements, relations, visualObjects: [] };
 
   if (actionId === ACTION.EXPAND_VIEW.id) {
-    // also include existing visual objects from the view
-    const visualColl = Selection.getVisualSelection(uiSelection, "*");
-    visualColl.each(o => result.visualObjects.push(o));
+    // Include existing visual objects so Expand keeps them in place.
+    // Handle both: view node selected from model tree (use find()), canvas selection.
+    let viewFound = false;
+    try {
+      uiSelection.each(o => {
+        if (o.type === "archimate-diagram-model") {
+          viewFound = true;
+          $(o).find().each(vo => { if (vo && vo.view) result.visualObjects.push(vo); });
+        }
+      });
+    } catch (e) {}
+    if (!viewFound) {
+      try {
+        Selection.getVisualSelection(uiSelection, "*").each(o => result.visualObjects.push(o));
+      } catch (e) {}
+    }
   }
 
   return result;
@@ -195,7 +208,27 @@ function _expandViews(collection) {
 
 function _layoutOnlySet(uiSelection) {
   const visualObjects = [];
-  Selection.getVisualSelection(uiSelection, "*").each(o => visualObjects.push(o));
+
+  // Case 1: a view node selected from the model tree (archimate-diagram-model).
+  // view.view is undefined — getVisualSelection() skips it.
+  // Use $(view).find() which correctly enumerates all visual objects on the view.
+  let viewFound = false;
+  try {
+    uiSelection.each(o => {
+      if (o.type === "archimate-diagram-model") {
+        viewFound = true;
+        $(o).find().each(vo => { if (vo && vo.view) visualObjects.push(vo); });
+      }
+    });
+  } catch (e) {}
+
+  // Case 2: visual objects selected on a view canvas.
+  if (!viewFound) {
+    try {
+      Selection.getVisualSelection(uiSelection, "*").each(o => visualObjects.push(o));
+    } catch (e) {}
+  }
+
   return { elements: [], relations: [], visualObjects };
 }
 
