@@ -5,11 +5,11 @@
  * Exports open(uiSelection) → calls generate_view on OK.
  *
  * Dialog layout:
- *   Selection  — current selection info · filter · related elements
+ *   Selection  — current selection info · filter (multi-select lists) · related elements
  *   Layout     — style · algorithm · direction · routing · nesting · sizing
  *   View       — name · folder
  *   Preset     — load · save · manage
- *   Actions    — New view · One view each · Expand view · Layout only
+ *   Actions    — 4 buttons in button bar (New view, One view each, Expand view, Layout only)
  */
 console.log("dialog_main.js");
 
@@ -18,11 +18,11 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-const Common      = require(REPO_ROOT + "_lib/Common");
-const Selection   = require(REPO_ROOT + "_lib/selection");
-const Defs        = require(REPO_ROOT + "View/lib/defs");
-const PresetIO    = require(REPO_ROOT + "View/lib/preset_io");
-const GenView     = require(REPO_ROOT + "View/lib/generate_view");
+const Common    = require(REPO_ROOT + "_lib/Common");
+const Selection = require(REPO_ROOT + "_lib/selection");
+const Defs      = require(REPO_ROOT + "View/lib/defs");
+const PresetIO  = require(REPO_ROOT + "View/lib/preset_io");
+const GenView   = require(REPO_ROOT + "View/lib/generate_view");
 
 const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, LABEL_POSITIONS, AR_OPTIONS,
@@ -32,76 +32,131 @@ const {
 
 // ── SWT imports ───────────────────────────────────────────────────────────────
 
-const SWT                 = Java.type("org.eclipse.swt.SWT");
-const LabelWidget         = Java.type("org.eclipse.swt.widgets.Label");
-const CompositeWidget     = Java.type("org.eclipse.swt.widgets.Composite");
-const SpinnerWidget       = Java.type("org.eclipse.swt.widgets.Spinner");
-const GroupWidget         = Java.type("org.eclipse.swt.widgets.Group");
-const ButtonWidget        = Java.type("org.eclipse.swt.widgets.Button");
-const ComboWidget         = Java.type("org.eclipse.swt.widgets.Combo");
-const TextWidget          = Java.type("org.eclipse.swt.widgets.Text");
-const TabFolderWidget     = Java.type("org.eclipse.swt.widgets.TabFolder");
-const TabItemWidget       = Java.type("org.eclipse.swt.widgets.TabItem");
-const GridDataFactory     = Java.type("org.eclipse.jface.layout.GridDataFactory");
-const GridLayoutFactory   = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
-const TitleAreaDialog     = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
-const IDialogConstants    = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
-const SWTFont             = Java.type("org.eclipse.swt.graphics.Font");
+const SWT               = Java.type("org.eclipse.swt.SWT");
+const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
+const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
+const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
+const GroupWidget       = Java.type("org.eclipse.swt.widgets.Group");
+const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
+const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
+const ListWidget        = Java.type("org.eclipse.swt.widgets.List");
+const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
+const TabFolderWidget   = Java.type("org.eclipse.swt.widgets.TabFolder");
+const TabItemWidget     = Java.type("org.eclipse.swt.widgets.TabItem");
+const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
+const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
+const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
+const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
-const BTN_W = 95;  // Add/Remove button width
+// ── Derived lists ─────────────────────────────────────────────────────────────
 
-// ── Direction and routing display lists ──────────────────────────────────────
+const DIRECTION_LABELS   = DIRECTIONS.map(d => d.val);
+const ROUTING_ALL        = Object.values(ROUTING).map(r => r.label);
+const LABEL_POS_ALL      = LABEL_POSITIONS.map(lp => lp.val);
+const RANKING_LABELS     = RANKING.map(r => r.val);
+const AR_LABELS          = AR_OPTIONS.map(a => a.label);
+const REL_TYPE_LABELS    = Object.values(RELATION_TYPES).map(r => r.label);
+const REL_TYPE_IDS       = Object.values(RELATION_TYPES).map(r => r.id);
+const DIAG_TYPE_LABELS   = ["group", "note", "connection", "image", "reference"];
 
-const DIRECTION_LABELS = DIRECTIONS.map(d => d.val);
-const ROUTING_ALL      = Object.values(ROUTING).map(r => r.label);
-const LABEL_POS_ALL    = LABEL_POSITIONS.map(lp => lp.val);
-const RANKING_LABELS   = RANKING.map(r => r.val);
-const AR_LABELS        = AR_OPTIONS.map(a => a.label);
-const RELATION_TYPE_LABELS = Object.values(RELATION_TYPES).map(r => r.label);
-const RELATION_TYPE_IDS    = Object.values(RELATION_TYPES).map(r => r.id);
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-// ── Relation type encoding (same format as preset schema) ─────────────────────
-
-function _encodeRelType(typeId, inOn, outOn) {
-  if (inOn && !outOn) return typeId + ":in";
-  if (!inOn && outOn) return typeId + ":out";
-  return typeId;
+// Select items in a ListWidget whose labels appear in a set.
+function _listSelectLabels(list, labels) {
+  const items = Array.from({ length: list.getItemCount() }, (_, i) => list.getItem(i));
+  const idxs  = [];
+  labels.forEach(lbl => { const i = items.indexOf(lbl); if (i >= 0) idxs.push(i); });
+  list.setSelection(idxs.length ? idxs : []);
 }
 
-function _decodeRelType(entry) {
-  if (entry.endsWith(":in"))  return { typeId: entry.slice(0, -3), inOn: true,  outOn: false };
-  if (entry.endsWith(":out")) return { typeId: entry.slice(0, -4), inOn: false, outOn: true  };
-  return { typeId: entry, inOn: true, outOn: true };
+// Return selected item labels from a ListWidget.
+function _listGetSelected(list) {
+  return Array.from(list.getSelection ? list.getSelection() : []);
 }
 
-// ── Main dialog export ────────────────────────────────────────────────────────
+// Map relation type IDs → labels (for multi-select lists).
+function _relIdsToLabels(ids) {
+  return ids.map(id => {
+    const base = id.replace(/:in$|:out$/, "");
+    const rt = Object.values(RELATION_TYPES).find(r => r.id === base);
+    return rt ? rt.label : base;
+  });
+}
+
+// Map relation type labels → IDs.
+function _relLabelsToIds(labels) {
+  return labels.map(lbl => {
+    const rt = Object.values(RELATION_TYPES).find(r => r.label === lbl);
+    return rt ? rt.id : lbl;
+  });
+}
+
+// Map diagram type IDs → display labels.
+const DIAG_ID_TO_LABEL = {
+  "diagram-model-group":      "group",
+  "diagram-model-note":       "note",
+  "diagram-model-connection": "connection",
+  "diagram-model-image":      "image",
+  "diagram-model-reference":  "reference",
+};
+const DIAG_LABEL_TO_ID = Object.fromEntries(Object.entries(DIAG_ID_TO_LABEL).map(([k, v]) => [v, k]));
+
+// Build a scrollable multi-select ListWidget.
+function _multiList(parent, items, heightHint) {
+  const list = new ListWidget(parent, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL);
+  items.forEach(i => list.add(i));
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, heightHint || 80).applyTo(list);
+  return list;
+}
+
+// Count elements and relations in a collection.
+function _countSelection(coll) {
+  let elems = 0, rels = 0, views = 0, diagrams = 0;
+  coll.each(o => {
+    const t = o.type || "";
+    if (t.endsWith("-relationship"))             rels++;
+    else if (t === "archimate-diagram-model")    views++;
+    else if (t.startsWith("diagram-model-"))     diagrams++;
+    else                                          elems++;
+  });
+  return { elems, rels, views, diagrams };
+}
+
+// ── open() ────────────────────────────────────────────────────────────────────
 
 /**
  * Open the GUI dialog.
  * @param {ArchiCollection} uiSelection  $(selection) captured before dialog opens
  */
 function open(uiSelection) {
-  // Load session as starting config
   const config = PresetIO.readSession();
   if (!config.action) config.action = ACTION.NEW_VIEW.id;
 
-  const w = {};  // widget map
+  const w = {};       // widget map
+  const ctx = { config, widgets: w, uiSelection };
 
-  // GraalVM two-argument Java.extend pattern:
-  //   Java.extend(Class, {methods}) bakes overrides in at class-definition time.
-  //   Instantiate with just the Java constructor arg (shell) — no overrides object needed.
-  //   Methods close over `dlg`, `config`, `w` from the outer scope.
-  //   `dlg` is set after the class is defined; safe because methods are only called after dlg.open().
+  // Compute selection info once; used to populate the info label.
+  let selectionInfo = "Nothing selected";
+  try {
+    const coll = Selection.getSelection(uiSelection, "*");
+    const c    = _countSelection(coll);
+    selectionInfo = `Containing: ${c.elems} elements · ${c.rels} relations · ${c.views} views · ${c.diagrams} diagram objects`;
+  } catch (e) {}
+
+  // Has visual objects? Controls Expand view / Layout only availability.
+  let hasVisual = false;
+  try { uiSelection.each(o => { if (o.view) hasVisual = true; }); } catch (e) {}
+
+  // GraalVM two-argument Java.extend: bake methods in at class definition time.
   let dlg;
-  const ctx = { config, widgets: w };  // context passed to tab/preset builders
 
   const ConfigDialog = Java.extend(TitleAreaDialog, {
     createDialogArea: function(parent) {
       const area = Java.super(dlg).createDialogArea(parent);
       dlg.setTitle("Generate View");
-      dlg.setMessage("Configure layout and run.");
+      dlg.setMessage(selectionInfo);
 
-      GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).applyTo(area);
+      GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).spacing(4, 4).applyTo(area);
 
       const tabFolder = new TabFolderWidget(area, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
@@ -111,12 +166,10 @@ function open(uiSelection) {
       _buildLayoutTab(tabFolder, ctx);
       _buildViewTab(tabFolder, ctx);
 
-      _buildPresetRow(area, ctx);
+      _buildPresetRow(area, ctx, dlg);
       _syncToUI(ctx);
 
-      const lastTab = config._lastTabIndex || 0;
-      tabFolder.setSelection(Math.min(lastTab, 2));
-
+      tabFolder.setSelection(config._lastTabIndex || 0);
       return area;
     },
 
@@ -125,114 +178,113 @@ function open(uiSelection) {
 
     createButtonsForButtonBar: function(parent) {
       Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
-      const ok = Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, _actionLabel(config.action), true);
-      GridDataFactory.swtDefaults().hint(150, SWT.DEFAULT).applyTo(ok);
-      w.okBtn = ok;
+
+      // Layout only — greyed when no visual selection
+      const btnLayout = Java.super(dlg).createButton(parent, 101, "Layout only", false);
+      btnLayout.setEnabled(hasVisual);
+      btnLayout.addListener(SWT.Selection, () => { config.action = ACTION.LAYOUT_ONLY.id;  _runAndClose(ctx, dlg); });
+      w.btnLayoutOnly = btnLayout;
+
+      // Expand view — greyed when no visual selection
+      const btnExpand = Java.super(dlg).createButton(parent, 102, "Expand view", false);
+      btnExpand.setEnabled(hasVisual);
+      btnExpand.addListener(SWT.Selection, () => { config.action = ACTION.EXPAND_VIEW.id; _runAndClose(ctx, dlg); });
+      w.btnExpandView = btnExpand;
+
+      // One view each
+      const btnEach = Java.super(dlg).createButton(parent, 103, "One view each", false);
+      btnEach.addListener(SWT.Selection, () => { config.action = ACTION.ONE_EACH.id; _runAndClose(ctx, dlg); });
+      w.btnOneEach = btnEach;
+
+      // New view (default)
+      const btnNew = Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, "New view", true);
+      btnNew.addListener(SWT.Selection, () => { config.action = ACTION.NEW_VIEW.id; _runAndClose(ctx, dlg); });
+      w.btnNewView = btnNew;
     },
 
     okPressed: function() {
+      // Called by JFace when Enter is pressed; treat as New view.
+      config.action = ACTION.NEW_VIEW.id;
       _saveUI(ctx);
-      const session = Object.assign({}, config);
-      session._lastTabIndex = w.tabFolder ? w.tabFolder.getSelectionIndex() : 0;
-      PresetIO.writeSession(session);
+      _persistSession(ctx);
       Java.super(dlg).okPressed();
     },
   });
 
   dlg = new ConfigDialog(shell);
-
   const result = dlg.open();
-  if (result !== 0) {  // CANCEL = 1
-    console.log("Cancelled.");
-    return;
-  }
 
-  GenView.generate_view(config, uiSelection);
-  Common.finishConsoleLog && Common.finishConsoleLog();
+  if (result === IDialogConstants.CANCEL_ID || result < 0) return;
+
+  // _runAndClose already ran generate_view before closing; nothing more needed here.
 }
 
-// ── Tab builders ──────────────────────────────────────────────────────────────
+function _runAndClose(ctx, dlg) {
+  _saveUI(ctx);
+  _persistSession(ctx);
+  GenView.generate_view(ctx.config, ctx.uiSelection);
+  dlg.close();
+}
 
-function _buildSelectionTab(tabFolder, dlg) {
-  const tab = new TabItemWidget(tabFolder, SWT.NONE);
+function _persistSession(ctx) {
+  const session = JSON.parse(JSON.stringify(ctx.config));
+  session._lastTabIndex = ctx.widgets.tabFolder ? ctx.widgets.tabFolder.getSelectionIndex() : 0;
+  PresetIO.writeSession(session);
+}
+
+// ── Selection tab ─────────────────────────────────────────────────────────────
+
+function _buildSelectionTab(tabFolder, ctx) {
+  const tab  = new TabItemWidget(tabFolder, SWT.NONE);
   tab.setText("Selection");
   const page = new CompositeWidget(tabFolder, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
   tab.setControl(page);
-  const w = dlg.widgets;
+  const w = ctx.widgets;
 
-  // Current selection info
-  const grpInfo = new GroupWidget(page, SWT.NONE);
-  grpInfo.setText("Current selection");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpInfo);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).applyTo(grpInfo);
-  const lblInfo = new LabelWidget(grpInfo, SWT.NONE);
-  lblInfo.setText("—");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(lblInfo);
-  w.lblSelectionInfo = lblInfo;
-
-  // Filter
+  // ── Filter ──────────────────────────────────────────────────────────────────
   const grpFilter = new GroupWidget(page, SWT.NONE);
-  grpFilter.setText("Filter");
+  grpFilter.setText("Filter  (Ctrl+click to multi-select · no selection = all)");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpFilter);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(6, 4).spacing(4, 4).applyTo(grpFilter);
+  GridLayoutFactory.fillDefaults().numColumns(3).margins(6, 4).spacing(8, 4).applyTo(grpFilter);
 
-  new LabelWidget(grpFilter, SWT.NONE).setText("Elements:");
-  const cmbFilterEl = new ComboWidget(grpFilter, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbFilterEl.add("All");
-  ELEMENT_TYPES.forEach(t => cmbFilterEl.add(t));
-  cmbFilterEl.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbFilterEl);
-  w.cmbFilterElement = cmbFilterEl;
+  new LabelWidget(grpFilter, SWT.NONE).setText("Element types:");
+  new LabelWidget(grpFilter, SWT.NONE).setText("Relation types:");
+  new LabelWidget(grpFilter, SWT.NONE).setText("Diagram types:");
 
-  new LabelWidget(grpFilter, SWT.NONE).setText("Relations:");
-  const cmbFilterRel = new ComboWidget(grpFilter, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbFilterRel.add("All");
-  Object.values(RELATION_TYPES).forEach(r => cmbFilterRel.add(r.label));
-  cmbFilterRel.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbFilterRel);
-  w.cmbFilterRelation = cmbFilterRel;
+  w.lstFilterElements  = _multiList(grpFilter, ELEMENT_TYPES, 90);
+  w.lstFilterRelations = _multiList(grpFilter, REL_TYPE_LABELS, 90);
+  w.lstFilterDiagram   = _multiList(grpFilter, DIAG_TYPE_LABELS, 90);
 
-  new LabelWidget(grpFilter, SWT.NONE).setText("Diagram:");
-  const cmbFilterDiag = new ComboWidget(grpFilter, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbFilterDiag.add("All");
-  cmbFilterDiag.add("None");
-  DIAGRAM_TYPES.forEach(t => cmbFilterDiag.add(t));
-  cmbFilterDiag.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbFilterDiag);
-  w.cmbFilterDiagram = cmbFilterDiag;
+  // ── Related elements ─────────────────────────────────────────────────────────
+  const grpRel = new GroupWidget(page, SWT.NONE);
+  grpRel.setText("Related elements");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRel);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(8, 4).applyTo(grpRel);
 
-  // Related elements
-  const grpRelated = new GroupWidget(page, SWT.NONE);
-  grpRelated.setText("Related elements");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRelated);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(4, 4).applyTo(grpRelated);
+  new LabelWidget(grpRel, SWT.NONE).setText("Depth (0 = off):");
+  new LabelWidget(grpRel, SWT.NONE).setText("Relation types to follow:");
 
-  new LabelWidget(grpRelated, SWT.NONE).setText("Depth:");
-  const spinDepth = new SpinnerWidget(grpRelated, SWT.BORDER);
-  spinDepth.setValues(1, 0, 5, 0, 1, 1);
-  spinDepth.setToolTipText("Number of relation hops to follow (0 = selection only)");
+  const spinDepth = new SpinnerWidget(grpRel, SWT.BORDER);
+  spinDepth.setValues(0, 0, 5, 0, 1, 1);
+  spinDepth.setToolTipText("Number of relation hops to add. 0 = disabled.");
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepth);
   w.spinRelDepth = spinDepth;
 
-  new LabelWidget(grpRelated, SWT.NONE).setText("Relations:");
-  const cmbRelType = new ComboWidget(grpRelated, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbRelType.add("All");
-  Object.values(RELATION_TYPES).forEach(r => cmbRelType.add(r.label));
-  cmbRelType.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbRelType);
-  w.cmbRelatedRelType = cmbRelType;
+  w.lstRelatedRelations = _multiList(grpRel, REL_TYPE_LABELS, 80);
 }
 
-function _buildLayoutTab(tabFolder, dlg) {
-  const tab = new TabItemWidget(tabFolder, SWT.NONE);
+// ── Layout tab ────────────────────────────────────────────────────────────────
+
+function _buildLayoutTab(tabFolder, ctx) {
+  const tab  = new TabItemWidget(tabFolder, SWT.NONE);
   tab.setText("Layout");
   const page = new CompositeWidget(tabFolder, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
   tab.setControl(page);
-  const w = dlg.widgets;
+  const w = ctx.widgets;
 
-  // Style + Algorithm row
+  // ── Algorithm ────────────────────────────────────────────────────────────────
   const grpAlg = new GroupWidget(page, SWT.NONE);
   grpAlg.setText("Algorithm");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpAlg);
@@ -242,34 +294,26 @@ function _buildLayoutTab(tabFolder, dlg) {
   const cmbStyle = new ComboWidget(grpAlg, SWT.READ_ONLY | SWT.DROP_DOWN);
   Object.keys(STYLES).forEach(s => cmbStyle.add(s));
   cmbStyle.select(0);
-  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbStyle);
+  GridDataFactory.swtDefaults().hint(120, SWT.DEFAULT).applyTo(cmbStyle);
   w.cmbStyle = cmbStyle;
 
   new LabelWidget(grpAlg, SWT.NONE).setText("Algorithm:");
   const cmbAlg = new ComboWidget(grpAlg, SWT.READ_ONLY | SWT.DROP_DOWN);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbAlg);
+  GridDataFactory.swtDefaults().hint(150, SWT.DEFAULT).applyTo(cmbAlg);
   w.cmbAlgorithm = cmbAlg;
 
-  // Engine label
   const lblEngine = new LabelWidget(grpAlg, SWT.NONE);
-  lblEngine.setText("");
   GridDataFactory.fillDefaults().span(4, 1).applyTo(lblEngine);
   w.lblEngine = lblEngine;
 
-  // Algorithm tooltip
-  const lblAlgTip = new LabelWidget(grpAlg, SWT.WRAP);
-  lblAlgTip.setText("");
-  GridDataFactory.fillDefaults().span(4, 1).grab(true, false).hint(400, SWT.DEFAULT).applyTo(lblAlgTip);
-  w.lblAlgTooltip = lblAlgTip;
+  const lblTip = new LabelWidget(grpAlg, SWT.WRAP);
+  GridDataFactory.fillDefaults().span(4, 1).grab(true, false).hint(380, SWT.DEFAULT).applyTo(lblTip);
+  w.lblAlgTooltip = lblTip;
 
-  // Update algorithm combo when style changes
-  cmbStyle.addListener(SWT.Selection, e => {
-    _fillAlgorithmCombo(dlg);
-    _updateAlgorithmControls(dlg);
-  });
-  cmbAlg.addListener(SWT.Selection, e => _updateAlgorithmControls(dlg));
+  cmbStyle.addListener(SWT.Selection, () => { _fillAlgorithmCombo(ctx); _updateAlgorithmControls(ctx); });
+  cmbAlg.addListener(SWT.Selection,   () => _updateAlgorithmControls(ctx));
 
-  // Direction + Routing
+  // ── Direction / Routing / Label ──────────────────────────────────────────────
   const grpDir = new GroupWidget(page, SWT.NONE);
   grpDir.setText("Direction and routing");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpDir);
@@ -279,126 +323,94 @@ function _buildLayoutTab(tabFolder, dlg) {
   const cmbDir = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
   DIRECTION_LABELS.forEach(d => cmbDir.add(d));
   cmbDir.select(0);
-  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbDir);
+  GridDataFactory.swtDefaults().hint(120, SWT.DEFAULT).applyTo(cmbDir);
   w.cmbDirection = cmbDir;
 
   new LabelWidget(grpDir, SWT.NONE).setText("Relation lines:");
   const cmbRouting = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
   ROUTING_ALL.forEach(r => cmbRouting.add(r));
   cmbRouting.select(0);
-  GridDataFactory.swtDefaults().hint(170, SWT.DEFAULT).applyTo(cmbRouting);
+  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbRouting);
   w.cmbRouting = cmbRouting;
 
   new LabelWidget(grpDir, SWT.NONE).setText("Label:");
   const cmbLabelPos = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
   LABEL_POS_ALL.forEach(lp => cmbLabelPos.add(lp));
   cmbLabelPos.select(1);
-  GridDataFactory.swtDefaults().hint(100, SWT.DEFAULT).applyTo(cmbLabelPos);
+  GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(cmbLabelPos);
   w.cmbLabelPosition = cmbLabelPos;
 
-  // Ranking (Dagre only)
   new LabelWidget(grpDir, SWT.NONE).setText("Layer ranking:");
   const cmbRanking = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
   RANKING_LABELS.forEach(r => cmbRanking.add(r));
   cmbRanking.select(0);
-  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbRanking);
+  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbRanking);
   w.cmbRanking = cmbRanking;
 
-  // Nesting structure
-  const grpNestStruct = new GroupWidget(page, SWT.NONE);
-  grpNestStruct.setText("Nesting structure — relation types that define containment");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpNestStruct);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(4, 4).applyTo(grpNestStruct);
-  w.grpNestingStructure = grpNestStruct;
+  // ── Nesting structure ─────────────────────────────────────────────────────────
+  const grpNest = new GroupWidget(page, SWT.NONE);
+  grpNest.setText("Nesting structure  (Ctrl+click to multi-select)");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpNest);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(8, 4).applyTo(grpNest);
+  w.grpNestingStructure = grpNest;
 
-  new LabelWidget(grpNestStruct, SWT.NONE).setText("Types:");
-  const lstNested = new ComboWidget(grpNestStruct, SWT.READ_ONLY | SWT.DROP_DOWN);
-  lstNested.add("None");
-  Object.values(RELATION_TYPES).forEach(r => lstNested.add(r.label));
-  lstNested.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(lstNested);
-  w.cmbNestingType = lstNested;
+  new LabelWidget(grpNest, SWT.NONE).setText("Relation types that define containment:");
+  new LabelWidget(grpNest, SWT.NONE).setText("Reverse layout direction for:");
 
-  new LabelWidget(grpNestStruct, SWT.NONE).setText("Reverse:");
-  const lstReversed = new ComboWidget(grpNestStruct, SWT.READ_ONLY | SWT.DROP_DOWN);
-  lstReversed.add("None");
-  Object.values(RELATION_TYPES).forEach(r => lstReversed.add(r.label));
-  lstReversed.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(lstReversed);
-  w.cmbReverseType = lstReversed;
+  w.lstNestingTypes  = _multiList(grpNest, REL_TYPE_LABELS, 80);
+  w.lstReverseTypes  = _multiList(grpNest, REL_TYPE_LABELS, 80);
 
-  // Container appearance
-  const grpContainer = new GroupWidget(page, SWT.NONE);
-  grpContainer.setText("Container appearance");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpContainer);
-  GridLayoutFactory.fillDefaults().numColumns(8).margins(6, 4).spacing(4, 4).applyTo(grpContainer);
-  w.grpContainer = grpContainer;
+  // ── Container appearance ───────────────────────────────────────────────────────
+  const grpCtr = new GroupWidget(page, SWT.NONE);
+  grpCtr.setText("Container appearance");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpCtr);
+  GridLayoutFactory.fillDefaults().numColumns(8).margins(6, 4).spacing(4, 4).applyTo(grpCtr);
+  w.grpContainer = grpCtr;
 
-  new LabelWidget(grpContainer, SWT.NONE).setText("Inner spacing:");
-  const spinInner = new SpinnerWidget(grpContainer, SWT.BORDER);
-  spinInner.setValues(20, 0, 200, 0, 5, 20);
-  GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinInner);
-  w.spinInnerSpacing = spinInner;
+  _addSpinnerRow(grpCtr, "Inner spacing:", "spinInnerSpacing",  20, 0, 200, 5, w);
+  _addSpinnerRow(grpCtr, "Padding:",        "spinPadding",        20, 0, 200, 5, w);
 
-  new LabelWidget(grpContainer, SWT.NONE).setText("Padding:");
-  const spinPad = new SpinnerWidget(grpContainer, SWT.BORDER);
-  spinPad.setValues(20, 0, 200, 0, 5, 20);
-  GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinPad);
-  w.spinPadding = spinPad;
+  const chkSort  = _addCheck(grpCtr, "Sort containers",             "Sort containers alphabetically within each level.", 4, w, "chkSortContainers");
+  const chkAlign = _addCheck(grpCtr, "Align same type",             "Resize leaf elements to match the tallest in their row (same-type containers).", 4, w, "chkAlignSameType");
+  const chkEvery = _addCheck(grpCtr, "Show in every container",     "An element in multiple containers appears in each of them.", 4, w, "chkShowInEvery");
 
-  const chkSort = new ButtonWidget(grpContainer, SWT.CHECK);
-  chkSort.setText("Sort containers");
-  chkSort.setToolTipText("Sort containers alphabetically within each level.");
-  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkSort);
-  w.chkSortContainers = chkSort;
-
-  const chkAlign = new ButtonWidget(grpContainer, SWT.CHECK);
-  chkAlign.setText("Align same type");
-  chkAlign.setToolTipText("Resize leaf elements to match the tallest item in their row, within same-type containers.");
-  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkAlign);
-  w.chkAlignSameType = chkAlign;
-
-  const chkEvery = new ButtonWidget(grpContainer, SWT.CHECK);
-  chkEvery.setText("Show in every container");
-  chkEvery.setToolTipText("An element in multiple containers appears in each of them.");
-  GridDataFactory.fillDefaults().span(4, 1).applyTo(chkEvery);
-  w.chkShowInEvery = chkEvery;
-
-  // Size and spacing
+  // ── Size and spacing ───────────────────────────────────────────────────────────
   const grpSize = new GroupWidget(page, SWT.NONE);
   grpSize.setText("Size and spacing");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpSize);
   GridLayoutFactory.fillDefaults().numColumns(8).margins(6, 4).spacing(4, 4).applyTo(grpSize);
 
-  _addSpinner(grpSize, "Element width:",  "spinElementWidth",   140, 10, 1000, 10, w);
-  _addSpinner(grpSize, "Height:",         "spinElementHeight",   60, 10,  500, 10, w);
-  _addSpinner(grpSize, "Element spacing:","spinElementSpacing",  40,  0,  500,  5, w);
-  _addSpinner(grpSize, "Level spacing:",  "spinLayerSpacing",   180,  0, 2000, 20, w);
+  _addSpinnerRow(grpSize, "Width:",           "spinElementWidth",   140, 10, 1000, 10, w);
+  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",   60, 10,  500, 10, w);
+  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",  40,  0,  500,  5, w);
+  _addSpinnerRow(grpSize, "Level spacing:",   "spinLayerSpacing",   180,  0, 2000, 20, w);
 
-  // View size
-  const grpViewSize = new GroupWidget(page, SWT.NONE);
-  grpViewSize.setText("View size");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpViewSize);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(6, 4).spacing(4, 4).applyTo(grpViewSize);
+  // ── View size ──────────────────────────────────────────────────────────────────
+  const grpVS = new GroupWidget(page, SWT.NONE);
+  grpVS.setText("View size");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpVS);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(6, 4).spacing(4, 4).applyTo(grpVS);
 
-  _addSpinner(grpViewSize, "Max width:",  "spinMaxWidth",  0, 0, 99999, 100, w);
-  _addSpinner(grpViewSize, "Max height:", "spinMaxHeight", 0, 0, 99999, 100, w);
+  _addSpinnerRow(grpVS, "Max width:",  "spinMaxWidth",  0, 0, 99999, 100, w);
+  _addSpinnerRow(grpVS, "Max height:", "spinMaxHeight", 0, 0, 99999, 100, w);
 
-  new LabelWidget(grpViewSize, SWT.NONE).setText("Aspect ratio:");
-  const cmbAR = new ComboWidget(grpViewSize, SWT.READ_ONLY | SWT.DROP_DOWN);
-  AR_OPTIONS.forEach(a => cmbAR.add(a.label));
+  new LabelWidget(grpVS, SWT.NONE).setText("Aspect ratio:");
+  const cmbAR = new ComboWidget(grpVS, SWT.READ_ONLY | SWT.DROP_DOWN);
+  AR_LABELS.forEach(a => cmbAR.add(a));
   cmbAR.select(0);
-  GridDataFactory.swtDefaults().hint(120, SWT.DEFAULT).applyTo(cmbAR);
+  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbAR);
   w.cmbAspectRatio = cmbAR;
 }
 
-function _buildViewTab(tabFolder, dlg) {
-  const tab = new TabItemWidget(tabFolder, SWT.NONE);
+// ── View tab ──────────────────────────────────────────────────────────────────
+
+function _buildViewTab(tabFolder, ctx) {
+  const tab  = new TabItemWidget(tabFolder, SWT.NONE);
   tab.setText("View");
   const page = new CompositeWidget(tabFolder, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
   tab.setControl(page);
-  const w = dlg.widgets;
+  const w = ctx.widgets;
 
   const grpView = new GroupWidget(page, SWT.NONE);
   grpView.setText("View name and location");
@@ -407,49 +419,30 @@ function _buildViewTab(tabFolder, dlg) {
 
   new LabelWidget(grpView, SWT.NONE).setText("Name:");
   const txtName = new TextWidget(grpView, SWT.BORDER);
-  txtName.setToolTipText("View name. Pre-filled from the first selected element. Leave blank for auto-naming.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(txtName);
+  txtName.setToolTipText("View name. Pre-filled from the first selected element.");
+  GridDataFactory.fillDefaults().grab(true, false).hint(280, SWT.DEFAULT).applyTo(txtName);
   w.txtViewName = txtName;
 
   new LabelWidget(grpView, SWT.NONE).setText("Suffix:");
   const txtSuffix = new TextWidget(grpView, SWT.BORDER);
-  txtSuffix.setToolTipText("Appended to view name.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(txtSuffix);
+  txtSuffix.setToolTipText("Appended to the view name.");
+  GridDataFactory.fillDefaults().grab(true, false).hint(120, SWT.DEFAULT).applyTo(txtSuffix);
   w.txtViewSuffix = txtSuffix;
 
   new LabelWidget(grpView, SWT.NONE).setText("Folder:");
   const txtFolder = new TextWidget(grpView, SWT.BORDER);
   txtFolder.setToolTipText("Archi folder path (e.g. /Application/Generated). Empty = /_Generated.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(txtFolder);
+  GridDataFactory.fillDefaults().grab(true, false).hint(280, SWT.DEFAULT).applyTo(txtFolder);
   w.txtViewFolder = txtFolder;
-
-  // Action selection
-  const grpAction = new GroupWidget(page, SWT.NONE);
-  grpAction.setText("Action");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpAction);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(6, 4).applyTo(grpAction);
-
-  Object.values(ACTION).forEach(act => {
-    const btn = new ButtonWidget(grpAction, SWT.RADIO);
-    btn.setText(act.label);
-    btn.setToolTipText(act.tooltip);
-    btn.setData("actionId", act.id);
-    btn.addListener(SWT.Selection, e => {
-      if (btn.getSelection()) {
-        dlg.config.action = act.id;
-        if (dlg.widgets.okBtn) dlg.widgets.okBtn.setText(_actionLabel(act.id));
-      }
-    });
-    dlg.widgets["radAction_" + act.id] = btn;
-  });
 }
 
-function _buildPresetRow(parent, dlg) {
-  const w = dlg.widgets;
+// ── Preset row ────────────────────────────────────────────────────────────────
 
+function _buildPresetRow(parent, ctx, dlg) {
+  const w   = ctx.widgets;
   const row = new CompositeWidget(parent, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(4, 2).spacing(4, 0).applyTo(row);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(4, 2).spacing(4, 0).applyTo(row);
 
   new LabelWidget(row, SWT.NONE).setText("Preset:");
   const cmbPreset = new ComboWidget(row, SWT.READ_ONLY | SWT.DROP_DOWN);
@@ -457,191 +450,136 @@ function _buildPresetRow(parent, dlg) {
   _refreshPresetCombo(cmbPreset);
   w.cmbPreset = cmbPreset;
 
-  cmbPreset.addListener(SWT.Selection, e => {
+  cmbPreset.addListener(SWT.Selection, () => {
     const idx = cmbPreset.getSelectionIndex();
-    if (idx >= 0) {
-      const name = cmbPreset.getItem(idx);
-      try {
-        const loaded = PresetIO.readPreset(name);
-        Object.assign(dlg.config, loaded);
-        _syncToUI(dlg);
-      } catch (err) {
-        console.error("Failed to load preset: " + err);
-      }
-    }
+    if (idx < 0) return;
+    try {
+      const loaded = PresetIO.readPreset(cmbPreset.getItem(idx));
+      Object.assign(ctx.config, loaded);
+      _syncToUI(ctx);
+    } catch (e) { console.error("Load preset: " + e); }
   });
 
-  const btnLoad = new ButtonWidget(row, SWT.PUSH);
-  btnLoad.setText("Load…");
-  btnLoad.setToolTipText("Browse for a preset JSON file");
-  btnLoad.addListener(SWT.Selection, e => {
+  const btnLoad = _pushBtn(row, "Load…", "Browse for a preset JSON file", () => {
     const path = window.promptOpenFile({ title: "Load preset", filterExtensions: ["*.json"] });
     if (path) {
       try {
         const raw = PresetIO.readJSON(path);
-        if (raw) {
-          const loaded = validatePreset(raw);
-          Object.assign(dlg.config, loaded);
-          _syncToUI(dlg);
-        }
-      } catch (err) { console.error("Load preset error: " + err); }
+        if (raw) { Object.assign(ctx.config, validatePreset(raw)); _syncToUI(ctx); }
+      } catch (e) { console.error("Load: " + e); }
     }
   });
 
-  const btnSave = new ButtonWidget(row, SWT.PUSH);
-  btnSave.setText("Save");
-  btnSave.setToolTipText("Save current settings as a preset");
-  btnSave.addListener(SWT.Selection, e => {
-    const name = window.prompt("Save preset as:", dlg.config.name || "");
-    if (name) {
-      _saveUI(dlg);
-      dlg.config.name = name;
-      PresetIO.writePreset(name, dlg.config);
-      _refreshPresetCombo(cmbPreset);
-    }
+  const btnSave = _pushBtn(row, "Save", "Save current settings as a preset", () => {
+    const name = window.prompt("Preset name:", ctx.config.name || "");
+    if (!name) return;
+    _saveUI(ctx);
+    ctx.config.name = name;
+    PresetIO.writePreset(name, ctx.config);
+    _refreshPresetCombo(cmbPreset);
   });
 
-  const btnManage = new ButtonWidget(row, SWT.PUSH);
-  btnManage.setText("Manage…");
-  btnManage.setToolTipText("Rename or delete presets");
-  btnManage.addListener(SWT.Selection, e => {
-    // Simple manage: show list and allow delete
-    const names = PresetIO.listPresets();
-    if (names.length === 0) { window.alert("No presets saved."); return; }
-    const del = window.prompt("Delete preset (enter name):\n" + names.join(", "), "");
-    if (del && names.includes(del)) {
-      PresetIO.deletePreset(del);
-      _refreshPresetCombo(cmbPreset);
-    }
+  const btnManage = _pushBtn(row, "Manage…", "Rename or delete saved presets", () => {
+    const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
+    PresetsDialog.open();
+    _refreshPresetCombo(cmbPreset);
   });
 }
 
 // ── Sync config ↔ UI ──────────────────────────────────────────────────────────
 
-function _syncToUI(dlg) {
-  const c = dlg.config;
-  const w = dlg.widgets;
+function _syncToUI(ctx) {
+  const c = ctx.config;
+  const w = ctx.widgets;
   const p = c.params || {};
 
-  // Style and algorithm
-  const algName = c.algorithm || "Layered";
-  const alg     = ALGORITHMS[algName];
+  // Style + algorithm
+  const algName   = c.algorithm || "Layered";
+  const alg       = ALGORITHMS[algName];
   const styleName = (alg && alg.style) || "Flow";
   const styleIdx  = Object.keys(STYLES).indexOf(styleName);
   if (w.cmbStyle && styleIdx >= 0) w.cmbStyle.select(styleIdx);
-  _fillAlgorithmCombo(dlg);
-  const algIdx = alg ? STYLES[styleName].algorithms.indexOf(algName) : 0;
+  _fillAlgorithmCombo(ctx);
+  const algIdx = STYLES[styleName] ? STYLES[styleName].algorithms.indexOf(algName) : 0;
   if (w.cmbAlgorithm && algIdx >= 0) w.cmbAlgorithm.select(algIdx);
 
-  // Direction
-  const dirIdx = DIRECTION_LABELS.indexOf(p.direction || "Left → Right");
-  if (w.cmbDirection) w.cmbDirection.select(Math.max(0, dirIdx));
+  // Direction / routing / label / ranking
+  _comboSelect(w.cmbDirection,    DIRECTION_LABELS, p.direction    || "Left → Right");
+  _comboSelect(w.cmbRouting,      ROUTING_ALL,      p.routing      || "Orthogonal");
+  _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition|| "Middle");
+  _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking      || "Balanced");
 
-  // Routing
-  const routingLabel = p.routing || "Orthogonal";
-  const routingIdx   = ROUTING_ALL.indexOf(routingLabel);
-  if (w.cmbRouting) w.cmbRouting.select(Math.max(0, routingIdx));
+  // Nesting / reverse multi-select lists
+  if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
+  if (w.lstReverseTypes) _listSelectLabels(w.lstReverseTypes, _relIdsToLabels(p.reverseRelationTypes || []));
 
-  // Label position
-  const lpIdx = LABEL_POS_ALL.indexOf(p.labelPosition || "Middle");
-  if (w.cmbLabelPosition) w.cmbLabelPosition.select(Math.max(0, lpIdx));
+  // Container appearance
+  _spinSet(w.spinInnerSpacing, p.innerSpacing  !== undefined ? p.innerSpacing  : 20);
+  _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : 20);
+  _chkSet(w.chkSortContainers, !!(p.sortContainers));
+  _chkSet(w.chkAlignSameType,  !!(p.alignSameType));
+  _chkSet(w.chkShowInEvery,    !!(p.showInEveryContainer));
 
-  // Ranking
-  const rankIdx = RANKING_LABELS.indexOf(p.ranking || "Balanced");
-  if (w.cmbRanking) w.cmbRanking.select(Math.max(0, rankIdx));
-
-  // Nesting
-  const nestTypes = p.nestingRelationTypes || [];
-  const nestLabel = nestTypes.length > 0
-    ? Object.values(RELATION_TYPES).find(r => r.id === nestTypes[0])?.label || "None"
-    : "None";
-  if (w.cmbNestingType) {
-    const ni = w.cmbNestingType.indexOf(nestLabel);
-    w.cmbNestingType.select(ni >= 0 ? ni : 0);
-  }
-
-  const revTypes = p.reverseRelationTypes || [];
-  const revLabel = revTypes.length > 0
-    ? Object.values(RELATION_TYPES).find(r => r.id === revTypes[0])?.label || "None"
-    : "None";
-  if (w.cmbReverseType) {
-    const ri = w.cmbReverseType.indexOf(revLabel);
-    w.cmbReverseType.select(ri >= 0 ? ri : 0);
-  }
-
-  // Container
-  if (w.spinInnerSpacing) w.spinInnerSpacing.setSelection(p.innerSpacing || 20);
-  if (w.spinPadding)      w.spinPadding.setSelection(p.padding || 20);
-  if (w.chkSortContainers) w.chkSortContainers.setSelection(!!(p.sortContainers));
-  if (w.chkAlignSameType)  w.chkAlignSameType.setSelection(!!(p.alignSameType));
-  if (w.chkShowInEvery)    w.chkShowInEvery.setSelection(!!(p.showInEveryContainer));
-
-  // Size
-  if (w.spinElementWidth)   w.spinElementWidth.setSelection(p.elementWidth   || 140);
-  if (w.spinElementHeight)  w.spinElementHeight.setSelection(p.elementHeight  || 60);
-  if (w.spinElementSpacing) w.spinElementSpacing.setSelection(p.elementSpacing || 40);
-  if (w.spinLayerSpacing)   w.spinLayerSpacing.setSelection(p.layerSpacing    || 180);
-  if (w.spinMaxWidth)       w.spinMaxWidth.setSelection(p.maxWidth  || 0);
-  if (w.spinMaxHeight)      w.spinMaxHeight.setSelection(p.maxHeight || 0);
+  // Sizes
+  _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : 140);
+  _spinSet(w.spinElementHeight,  p.elementHeight  !== undefined ? p.elementHeight  : 60);
+  _spinSet(w.spinElementSpacing, p.elementSpacing !== undefined ? p.elementSpacing : 40);
+  _spinSet(w.spinLayerSpacing,   p.layerSpacing   !== undefined ? p.layerSpacing   : 180);
+  _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : 0);
+  _spinSet(w.spinMaxHeight,      p.maxHeight      !== undefined ? p.maxHeight      : 0);
   const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio || 0));
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
+  // Filter multi-select lists
+  if (w.lstFilterElements)  _listSelectLabels(w.lstFilterElements,  c.filter ? c.filter.elementTypes  : []);
+  if (w.lstFilterRelations) _listSelectLabels(w.lstFilterRelations, c.filter ? _relIdsToLabels(c.filter.relationTypes || []) : []);
+  if (w.lstFilterDiagram)   _listSelectLabels(w.lstFilterDiagram,   c.filter ? (c.filter.diagramTypes || []).map(id => DIAG_ID_TO_LABEL[id] || id) : []);
+
+  // Related elements
+  const layers = (c.relatedElements && c.relatedElements.layers) || [];
+  _spinSet(w.spinRelDepth, layers.length > 0 ? (layers[0].depth || 0) : 0);
+  if (w.lstRelatedRelations) _listSelectLabels(w.lstRelatedRelations, layers.length > 0 ? _relIdsToLabels(layers[0].relationTypes || []) : []);
+
   // View
   if (w.txtViewName)   w.txtViewName.setText((c.view && c.view.name)   || "");
-  if (w.txtViewSuffix) w.txtViewSuffix.setText((c.view && c.view.suffix) || "");
-  if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || "");
+  if (w.txtViewSuffix) w.txtViewSuffix.setText((c.view && c.view.suffix)|| "");
+  if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder)|| "");
 
-  // Action radio
-  const actionId = c.action || ACTION.NEW_VIEW.id;
-  Object.values(ACTION).forEach(act => {
-    const btn = w["radAction_" + act.id];
-    if (btn) btn.setSelection(act.id === actionId);
-  });
-
-  // Related elements depth
-  const layers = (c.relatedElements && c.relatedElements.layers) || [];
-  if (w.spinRelDepth) w.spinRelDepth.setSelection(layers.length > 0 ? (layers[0].depth || 1) : 0);
-
-  _updateAlgorithmControls(dlg);
+  _updateAlgorithmControls(ctx);
 }
 
-function _saveUI(dlg) {
-  const c = dlg.config;
-  const w = dlg.widgets;
+function _saveUI(ctx) {
+  const c = ctx.config;
+  const w = ctx.widgets;
   if (!c.params) c.params = {};
   if (!c.view)   c.view   = {};
+  if (!c.filter) c.filter = { elementTypes: [], relationTypes: [], diagramTypes: [] };
 
   // Algorithm
-  if (w.cmbAlgorithm) {
-    const styleName = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
-    const algNames  = STYLES[styleName] ? STYLES[styleName].algorithms : [];
-    const algIdx    = w.cmbAlgorithm.getSelectionIndex();
-    c.algorithm     = (algIdx >= 0 && algNames[algIdx]) ? algNames[algIdx] : "Layered";
+  if (w.cmbAlgorithm && w.cmbStyle) {
+    const sty  = Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] || "Flow";
+    const algs = STYLES[sty] ? STYLES[sty].algorithms : [];
+    c.algorithm = algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
   }
 
-  // Direction, routing
-  if (w.cmbDirection)   c.params.direction    = DIRECTION_LABELS[w.cmbDirection.getSelectionIndex()];
-  if (w.cmbRouting)     c.params.routing      = ROUTING_ALL[w.cmbRouting.getSelectionIndex()];
-  if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()];
-  if (w.cmbRanking)     c.params.ranking      = RANKING_LABELS[w.cmbRanking.getSelectionIndex()];
+  // Direction / routing / label / ranking
+  if (w.cmbDirection)     c.params.direction     = DIRECTION_LABELS[w.cmbDirection.getSelectionIndex()]    || "Left → Right";
+  if (w.cmbRouting)       c.params.routing       = ROUTING_ALL[w.cmbRouting.getSelectionIndex()]           || "Orthogonal";
+  if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
+  if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
 
-  // Nesting
-  const nestSel  = w.cmbNestingType ? w.cmbNestingType.getSelectionIndex() : 0;
-  const nestType = nestSel > 0 ? RELATION_TYPE_IDS[nestSel - 1] : null;
-  c.params.nestingRelationTypes = nestType ? [nestType] : [];
-
-  const revSel  = w.cmbReverseType ? w.cmbReverseType.getSelectionIndex() : 0;
-  const revType = revSel > 0 ? RELATION_TYPE_IDS[revSel - 1] : null;
-  c.params.reverseRelationTypes = revType ? [revType] : [];
+  // Nesting / reverse
+  if (w.lstNestingTypes)  c.params.nestingRelationTypes = _relLabelsToIds(_listGetSelected(w.lstNestingTypes));
+  if (w.lstReverseTypes)  c.params.reverseRelationTypes = _relLabelsToIds(_listGetSelected(w.lstReverseTypes));
 
   // Container
-  if (w.spinInnerSpacing) c.params.innerSpacing        = w.spinInnerSpacing.getSelection();
-  if (w.spinPadding)      c.params.padding             = w.spinPadding.getSelection();
-  if (w.chkSortContainers) c.params.sortContainers     = w.chkSortContainers.getSelection();
-  if (w.chkAlignSameType)  c.params.alignSameType      = w.chkAlignSameType.getSelection();
+  if (w.spinInnerSpacing) c.params.innerSpacing       = w.spinInnerSpacing.getSelection();
+  if (w.spinPadding)      c.params.padding            = w.spinPadding.getSelection();
+  if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
+  if (w.chkAlignSameType)  c.params.alignSameType     = w.chkAlignSameType.getSelection();
   if (w.chkShowInEvery)    c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
 
-  // Size
+  // Sizes
   if (w.spinElementWidth)   c.params.elementWidth   = w.spinElementWidth.getSelection();
   if (w.spinElementHeight)  c.params.elementHeight  = w.spinElementHeight.getSelection();
   if (w.spinElementSpacing) c.params.elementSpacing = w.spinElementSpacing.getSelection();
@@ -651,105 +589,135 @@ function _saveUI(dlg) {
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
   c.params.aspectRatio = AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0;
 
+  // Filter
+  if (w.lstFilterElements)  c.filter.elementTypes  = _listGetSelected(w.lstFilterElements);
+  if (w.lstFilterRelations) c.filter.relationTypes = _relLabelsToIds(_listGetSelected(w.lstFilterRelations));
+  if (w.lstFilterDiagram)   c.filter.diagramTypes  = _listGetSelected(w.lstFilterDiagram).map(l => DIAG_LABEL_TO_ID[l] || l);
+
+  // Related elements
+  const depth = w.spinRelDepth ? w.spinRelDepth.getSelection() : 0;
+  c.relatedElements = depth > 0 ? {
+    layers: [{ depth, elementTypes: [], relationTypes: _relLabelsToIds(_listGetSelected(w.lstRelatedRelations || [])), diagramTypes: [] }]
+  } : { layers: [] };
+
   // View
   if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
   if (w.txtViewSuffix) c.view.suffix = w.txtViewSuffix.getText().trim();
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
-
-  // Related elements
-  const depth = w.spinRelDepth ? w.spinRelDepth.getSelection() : 0;
-  c.relatedElements = depth > 0
-    ? { layers: [{ depth, elementTypes: [], relationTypes: [], diagramTypes: [] }] }
-    : { layers: [] };
 }
 
 // ── Algorithm controls ────────────────────────────────────────────────────────
 
-function _fillAlgorithmCombo(dlg) {
-  const w = dlg.widgets;
+function _fillAlgorithmCombo(ctx) {
+  const w = ctx.widgets;
   if (!w.cmbAlgorithm || !w.cmbStyle) return;
-  const styleName = Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] || "Flow";
-  const algs = STYLES[styleName] ? STYLES[styleName].algorithms : [];
+  const sty  = Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] || "Flow";
+  const algs = STYLES[sty] ? STYLES[sty].algorithms : [];
   w.cmbAlgorithm.removeAll();
   algs.forEach(a => w.cmbAlgorithm.add(a));
   w.cmbAlgorithm.select(0);
 }
 
-function _updateAlgorithmControls(dlg) {
-  const w = dlg.widgets;
+function _updateAlgorithmControls(ctx) {
+  const w = ctx.widgets;
   if (!w.cmbAlgorithm) return;
-
-  const styleName = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
-  const algNames  = STYLES[styleName] ? STYLES[styleName].algorithms : [];
-  const algIdx    = w.cmbAlgorithm.getSelectionIndex();
-  const algName   = (algIdx >= 0 && algNames[algIdx]) ? algNames[algIdx] : "Layered";
-  const alg       = ALGORITHMS[algName] || ALGORITHMS.Layered;
+  const sty    = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
+  const algs   = STYLES[sty] ? STYLES[sty].algorithms : [];
+  const algIdx = w.cmbAlgorithm.getSelectionIndex();
+  const algName= (algIdx >= 0 && algs[algIdx]) ? algs[algIdx] : "Layered";
+  const alg    = ALGORITHMS[algName] || ALGORITHMS.Layered;
 
   if (w.lblEngine)     w.lblEngine.setText("Engine: " + alg.engine);
   if (w.lblAlgTooltip) w.lblAlgTooltip.setText(alg.tooltip || "");
 
   const active = new Set(alg.activeParams || []);
-  _setEnabled(w.cmbDirection,     active.has("direction"));
-  _setEnabled(w.cmbRouting,       active.has("routing"));
-  _setEnabled(w.cmbLabelPosition, active.has("labelPosition"));
-  _setEnabled(w.cmbRanking,       active.has("ranking"));
-  _setEnabled(w.cmbNestingType,   active.has("nestingRelationTypes"));
-  _setEnabled(w.cmbReverseType,   active.has("reverseRelationTypes"));
-  _setEnabled(w.spinInnerSpacing, active.has("innerSpacing"));
-  _setEnabled(w.spinPadding,      active.has("padding"));
-  _setEnabled(w.chkSortContainers,active.has("sortContainers"));
-  _setEnabled(w.chkAlignSameType, active.has("alignSameType"));
-  _setEnabled(w.chkShowInEvery,   active.has("showInEveryContainer"));
-  _setEnabled(w.spinLayerSpacing, active.has("layerSpacing"));
-  _setEnabled(w.spinMaxWidth,     active.has("maxWidth"));
-  _setEnabled(w.spinMaxHeight,    active.has("maxHeight"));
-  _setEnabled(w.cmbAspectRatio,   active.has("aspectRatio"));
+  _enable(w.cmbDirection,       active.has("direction"));
+  _enable(w.cmbRouting,         active.has("routing"));
+  _enable(w.cmbLabelPosition,   active.has("labelPosition"));
+  _enable(w.cmbRanking,         active.has("ranking"));
+  _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
+  _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));
+  _enable(w.spinInnerSpacing,   active.has("innerSpacing"));
+  _enable(w.spinPadding,        active.has("padding"));
+  _enable(w.chkSortContainers,  active.has("sortContainers"));
+  _enable(w.chkAlignSameType,   active.has("alignSameType"));
+  _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
+  _enable(w.spinLayerSpacing,   active.has("layerSpacing"));
+  _enable(w.spinMaxWidth,       active.has("maxWidth"));
+  _enable(w.spinMaxHeight,      active.has("maxHeight"));
+  _enable(w.cmbAspectRatio,     active.has("aspectRatio"));
 
-  // Filter routing options to supported only
+  // Filter routing options to what this algorithm supports
   if (w.cmbRouting && alg.supportedOptions && alg.supportedOptions.routing) {
     const supported = alg.supportedOptions.routing;
-    const cur = w.cmbRouting.getSelectionIndex();
-    const curLabel = cur >= 0 ? w.cmbRouting.getItem(cur) : "";
+    const cur       = w.cmbRouting.getSelectionIndex();
+    const curLabel  = cur >= 0 ? w.cmbRouting.getItem(cur) : "";
     w.cmbRouting.removeAll();
     supported.forEach(r => w.cmbRouting.add(r));
-    const newIdx = supported.indexOf(curLabel);
-    w.cmbRouting.select(newIdx >= 0 ? newIdx : 0);
+    const ni = supported.indexOf(curLabel);
+    w.cmbRouting.select(ni >= 0 ? ni : 0);
   }
 
   // Label position: add Natural only for Graphviz
-  if (w.cmbLabelPosition) {
-    const supported = (alg.supportedOptions && alg.supportedOptions.labelPosition) || ["Source", "Middle", "Target"];
-    const cur = w.cmbLabelPosition.getSelectionIndex();
-    const curLabel = cur >= 0 ? w.cmbLabelPosition.getItem(cur) : "Middle";
+  if (w.cmbLabelPosition && alg.supportedOptions && alg.supportedOptions.labelPosition) {
+    const supported = alg.supportedOptions.labelPosition;
+    const cur       = w.cmbLabelPosition.getSelectionIndex();
+    const curLabel  = cur >= 0 ? w.cmbLabelPosition.getItem(cur) : "Middle";
     w.cmbLabelPosition.removeAll();
     supported.forEach(lp => w.cmbLabelPosition.add(lp));
-    const newIdx = supported.indexOf(curLabel);
-    w.cmbLabelPosition.select(newIdx >= 0 ? newIdx : 0);
+    const ni = supported.indexOf(curLabel);
+    w.cmbLabelPosition.select(ni >= 0 ? ni : 0);
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Small helpers ─────────────────────────────────────────────────────────────
 
-function _setEnabled(widget, enabled) {
+function _comboSelect(combo, items, value) {
+  if (!combo) return;
+  const idx = items.indexOf(value);
+  combo.select(idx >= 0 ? idx : 0);
+}
+
+function _spinSet(spinner, value) {
+  if (spinner) spinner.setSelection(value);
+}
+
+function _chkSet(btn, value) {
+  if (btn) btn.setSelection(value);
+}
+
+function _enable(widget, enabled) {
   if (widget) widget.setEnabled(enabled);
 }
 
-function _addSpinner(container, label, name, defVal, min, max, step, w) {
-  new LabelWidget(container, SWT.NONE).setText(label);
-  const sp = new SpinnerWidget(container, SWT.BORDER);
+function _pushBtn(parent, label, tip, handler) {
+  const btn = new ButtonWidget(parent, SWT.PUSH);
+  btn.setText(label);
+  if (tip) btn.setToolTipText(tip);
+  btn.addListener(SWT.Selection, handler);
+  return btn;
+}
+
+function _addCheck(parent, label, tip, span, w, key) {
+  const btn = new ButtonWidget(parent, SWT.CHECK);
+  btn.setText(label);
+  if (tip) btn.setToolTipText(tip);
+  GridDataFactory.fillDefaults().span(span, 1).applyTo(btn);
+  w[key] = btn;
+  return btn;
+}
+
+function _addSpinnerRow(parent, label, key, defVal, min, max, step, w) {
+  new LabelWidget(parent, SWT.NONE).setText(label);
+  const sp = new SpinnerWidget(parent, SWT.BORDER);
   sp.setValues(defVal, min, max, 0, step, step * 5);
-  GridDataFactory.swtDefaults().hint(60, SWT.DEFAULT).applyTo(sp);
-  w[name] = sp;
+  GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(sp);
+  w[key] = sp;
 }
 
 function _refreshPresetCombo(combo) {
   combo.removeAll();
   PresetIO.listPresets().forEach(n => combo.add(n));
-}
-
-function _actionLabel(actionId) {
-  const act = Object.values(ACTION).find(a => a.id === actionId);
-  return act ? act.label + "  →" : "Run  →";
 }
 
 if (typeof module !== "undefined" && module.exports) {
