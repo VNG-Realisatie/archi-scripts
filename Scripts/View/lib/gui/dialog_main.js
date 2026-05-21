@@ -44,6 +44,9 @@ const TextWidget              = Java.type("org.eclipse.swt.widgets.Text");
 const TabFolderWidget         = Java.type("org.eclipse.swt.widgets.TabFolder");
 const TabItemWidget           = Java.type("org.eclipse.swt.widgets.TabItem");
 const ScrolledCompositeWidget = Java.type("org.eclipse.swt.custom.ScrolledComposite");
+const SashFormWidget          = Java.type("org.eclipse.swt.custom.SashForm");
+const RowLayout               = Java.type("org.eclipse.swt.layout.RowLayout");
+const RowData                 = Java.type("org.eclipse.swt.layout.RowData");
 const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
@@ -134,18 +137,22 @@ function _scrolledTab(tabFolder, tabLabel) {
   };
 }
 
-// ── Type selector: available (left) and selected (right) side by side ──────────────────────────
-// Used for element types. Search filters the available list.
-// Click available → adds; click selected → removes. Returns controller with getSelected/setSelected.
+// ── Type selector: search+list on left, chip panel on right ────────────────────────────────────
+// Click an item in the available list to add it as a chip.
+// Click a chip (shows "Label ×") to remove it.
+// Returns controller with getSelected/setSelected/enable.
 function _typeSelector(parent, allItems, availHeight) {
-  // Two-column composite: [search + available list] | [selected list]
-  const ctr = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 2).applyTo(ctr);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctr);
+  const h = availHeight || 180;
 
-  // Left column: search + available
-  const leftCol = _col(ctr);
-  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(leftCol);
+  // SashForm maintains a fixed 50/50 split regardless of chip content changes.
+  // GridLayout would reallocate width as chips grow; SashForm weights prevent that.
+  const ctr = new SashFormWidget(parent, SWT.HORIZONTAL);
+  ctr.setSashWidth(6);
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, h + 26).applyTo(ctr);
+
+  // ── Left column: search + available list ──────────────────────────────────────
+  const leftCol = new CompositeWidget(ctr, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(leftCol);
 
   const srch = new TextWidget(leftCol, SWT.BORDER | SWT.SEARCH | SWT.ICON_CANCEL);
   srch.setMessage("Search…");
@@ -153,18 +160,45 @@ function _typeSelector(parent, allItems, availHeight) {
 
   const availList = new ListWidget(leftCol, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
   allItems.forEach(i => availList.add(i));
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, availHeight || 90).applyTo(availList);
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, h).applyTo(availList);
 
-  // Right column: selected list
-  const rightCol = _col(ctr);
-  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(rightCol);
+  // ── Right column: label + chip panel (wrapped RowLayout) ─────────────────────
+  const rightCol = new CompositeWidget(ctr, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(rightCol);
 
-  _lbl(rightCol, "Selected (click to remove — empty = all):");
-  const selList = new ListWidget(rightCol, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, availHeight || 90).applyTo(selList);
+  _lbl(rightCol, "Selected  (click chip × to remove — empty = all):");
+
+  // Chip panel: RowLayout with wrap. No border, fixed height — chips wrap inside the space.
+  const chipPanel = new CompositeWidget(rightCol, SWT.NONE);
+  const chipRL = new RowLayout(SWT.HORIZONTAL);
+  chipRL.wrap         = true;
+  chipRL.pack         = true;
+  chipRL.spacing      = 3;
+  chipRL.marginWidth  = 0;
+  chipRL.marginHeight = 2;
+  chipPanel.setLayout(chipRL);
+  // grab(true, false) + hint height: panel fills horizontally but never grows vertically
+  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, h).applyTo(chipPanel);
 
   const selectedSet = new Set();
   let currentFilter = "";
+
+  // Re-layout after chip add/remove: reflow the shell so ScrolledComposite updates.
+  const reflow = () => {
+    try { chipPanel.layout(true, true); } catch (e) {}
+    try { ctr.getShell().layout(true, true); } catch (e) {}
+  };
+
+  const addChip = (item) => {
+    const btn = new ButtonWidget(chipPanel, SWT.PUSH);
+    btn.setText(item + "  ×");
+    btn.setToolTipText("Click to remove");
+    btn.addListener(SWT.Selection, () => {
+      selectedSet.delete(item);
+      btn.dispose();
+      reflow();
+    });
+  };
 
   const refreshAvail = () => {
     const q = currentFilter.toLowerCase();
@@ -172,38 +206,45 @@ function _typeSelector(parent, allItems, availHeight) {
     allItems.filter(i => !q || i.toLowerCase().includes(q)).forEach(i => availList.add(i));
   };
 
-  const refreshSel = () => {
-    selList.removeAll();
-    Array.from(selectedSet).sort().forEach(i => selList.add(i));
-  };
-
-  // Click available → add to selected
+  // Click available → add chip
   availList.addListener(SWT.Selection, () => {
     const idx = availList.getSelectionIndex();
     if (idx < 0) return;
     const item = String(availList.getItem(idx));
-    if (!selectedSet.has(item)) { selectedSet.add(item); refreshSel(); }
-  });
-
-  // Click selected → remove
-  selList.addListener(SWT.Selection, () => {
-    const idx = selList.getSelectionIndex();
-    if (idx < 0) return;
-    selectedSet.delete(String(selList.getItem(idx)));
-    refreshSel();
+    if (!selectedSet.has(item)) {
+      selectedSet.add(item);
+      addChip(item);
+      reflow();
+    }
   });
 
   srch.addListener(SWT.Modify, () => { currentFilter = srch.getText(); refreshAvail(); });
   srch.addListener(SWT.DefaultSelection, () => { srch.setText(""); currentFilter = ""; refreshAvail(); });
 
+  // 50/50 split — set after both children are created
+  ctr.setWeights(Java.to([1, 1], "int[]"));
+
   return {
     getSelected: () => Array.from(selectedSet),
     setSelected: (items) => {
+      // Dispose all existing chips, rebuild from items
+      const existing = chipPanel.getChildren();
+      for (let i = 0; i < existing.length; i++) existing[i].dispose();
       selectedSet.clear();
-      (items || []).forEach(i => selectedSet.add(String(i)));
-      refreshSel();
+      (items || []).forEach(item => {
+        const s = String(item);
+        selectedSet.add(s);
+        addChip(s);
+      });
+      reflow();
     },
-    enable: (en) => { srch.setEnabled(en); availList.setEnabled(en); selList.setEnabled(en); },
+    enable: (en) => {
+      srch.setEnabled(en);
+      availList.setEnabled(en);
+      chipPanel.setEnabled(en);
+      const ch = chipPanel.getChildren();
+      for (let i = 0; i < ch.length; i++) ch[i].setEnabled(en);
+    },
   };
 }
 
@@ -451,17 +492,19 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount) {
   GridDataFactory.fillDefaults().grab(true, false).applyTo(grpFilter);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 6).applyTo(grpFilter);
 
-  // Element types: search (left) + selected list (right)
+  // Element types: search+available (left) | selected (right, bottom-aligned)
+  // Height doubled so long lists are easier to browse.
   _lbl(grpFilter, "Element types:");
-  w.lstFilterElements = _typeSelector(grpFilter, ELEMENT_TYPES, 90);
+  w.lstFilterElements = _typeSelector(grpFilter, ELEMENT_TYPES, 180);
 
   // Relation types: 4-column checkbox grid
   _lbl(grpFilter, "Relation types:");
   w.lstFilterRelations = _checkboxGrid(grpFilter, REL_TYPE_LABELS, 4);
 
-  // Diagram types: below relation types
+  // Diagram types: 4 columns to align with relation types above.
+  // 5 items spread over 3 columns (col-major: 2,2,1), 4th column stays empty.
   _lbl(grpFilter, "Diagram types:");
-  w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 2);
+  w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 4);
 
   // ── Related elements ─────────────────────────────────────────────────────────
   const grpRel = new GroupWidget(page, SWT.NONE);
