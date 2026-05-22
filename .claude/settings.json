@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(python3 -c ' *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

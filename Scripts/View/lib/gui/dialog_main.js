@@ -338,17 +338,17 @@ function open(uiSelection) {
 
   // Compute selection counts before the dialog opens.
   // Raw count: what the user had selected in the UI.
-  const rawCount = { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
+  const selectedCount = { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
   let firstName = "";
   try {
     uiSelection.each(o => {
       const t = o.type || "";
       if (!firstName && o.name) firstName = o.name;
-      if      (t === "archimate-diagram-model")  rawCount.views++;
-      else if (t.endsWith("-relationship"))      rawCount.rels++;
-      else if (t === "folder")                   rawCount.folders++;
-      else if (t.startsWith("diagram-model-"))   rawCount.diagrams++;
-      else                                       rawCount.elems++;
+      if      (t === "archimate-diagram-model")  selectedCount.views++;
+      else if (t.endsWith("-relationship"))      selectedCount.rels++;
+      else if (t === "folder")                   selectedCount.folders++;
+      else if (t.startsWith("diagram-model-"))   selectedCount.diagrams++;
+      else                                       selectedCount.elems++;
     });
   } catch (e) {}
   ctx.firstName = firstName;  // propagate for _syncToUI pre-fill
@@ -356,7 +356,7 @@ function open(uiSelection) {
   // Expanded count: what is contained in the selection (folders expand, views expand to their elements).
   // When a view (archimate-diagram-model) is selected, $(view).find() enumerates visual objects.
   // $(view).children() returns nothing useful from the model tree — find() is the correct API.
-  const expandedCount = { elems: 0, rels: 0, diagrams: 0 };
+  const containingCount = { elems: 0, rels: 0, diagrams: 0 };
   try {
     uiSelection.each(o => {
       const t = o.type || "";
@@ -365,28 +365,28 @@ function open(uiSelection) {
         // Skip ArchimateView concepts — view-reference VOs appear in find("element") with
         // .concept pointing to the referenced view; count them as diagram objects instead.
         try { $(o).find("element").each(ve => {
-          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") expandedCount.elems++;
+          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") containingCount.elems++;
         }); } catch (e) {}
-        try { $(o).find("relation").each(() => expandedCount.rels++); } catch (e) {}
+        try { $(o).find("relation").each(() => containingCount.rels++); } catch (e) {}
         try {
           Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
-            try { $(o).find(dt).each(() => expandedCount.diagrams++); } catch (e2) {}
+            try { $(o).find(dt).each(() => containingCount.diagrams++); } catch (e2) {}
           });
         } catch (e) {}
       } else if (t.endsWith("-relationship")) {
-        expandedCount.rels++;
+        containingCount.rels++;
       } else if (t.startsWith("diagram-model-")) {
-        expandedCount.diagrams++;
+        containingCount.diagrams++;
       } else if (t !== "archimate-diagram-model" && t !== "folder") {
-        expandedCount.elems++;
+        containingCount.elems++;
       } else if (t === "folder") {
         // Recurse: count folder contents via getSelection
         try {
           const coll = Selection.getSelection($(o), "*");
           const c    = _countSelection(coll);
-          expandedCount.elems    += c.elems;
-          expandedCount.rels     += c.rels;
-          expandedCount.diagrams += c.diagrams;
+          containingCount.elems    += c.elems;
+          containingCount.rels     += c.rels;
+          containingCount.diagrams += c.diagrams;
         } catch (e) {}
       }
     });
@@ -441,8 +441,8 @@ function open(uiSelection) {
       else                               _lEl++;
     }
     console.log(`\nGUI — before dialog:`);
-    console.log(`  Selected:  ${rawCount.elems} elements · ${rawCount.rels} relations · ${rawCount.views} views · ${rawCount.diagrams} diagram objects · ${rawCount.folders} folders`);
-    console.log(`  Containing: ${expandedCount.elems} elements · ${expandedCount.rels} relations · ${expandedCount.diagrams} diagram objects`);
+    console.log(`  Selected:  ${selectedCount.elems} elements · ${selectedCount.rels} relations · ${selectedCount.views} views · ${selectedCount.diagrams} diagram objects · ${selectedCount.folders} folders`);
+    console.log(`  Containing: ${containingCount.elems} elements · ${containingCount.rels} relations · ${containingCount.diagrams} diagram objects`);
     console.log(`  Raw model objects for Filtered count: ${_lEl} elements · ${_lRel} relations · ${_lDiag} diagram objects`);
   }
 
@@ -467,15 +467,17 @@ function open(uiSelection) {
 
       GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).spacing(4, 4).applyTo(area);
 
+      _buildPresetRow(area, ctx, dlg);
+
       const tabFolder = new TabFolderWidget(area, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       w.tabFolder = tabFolder;
 
-      _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount, firstName);
+      _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firstName);
       _buildLayoutTab(tabFolder, ctx);
 
       _buildViewRow(area, ctx);
-      _buildPresetRow(area, ctx, dlg);
+      _buildActionRow(area, ctx, dlg, hasVisual);
       _syncToUI(ctx);
       _updateFilteredCount(ctx);  // populate Filtered line on dialog open
 
@@ -487,23 +489,13 @@ function open(uiSelection) {
     isHelpAvailable: function() { return false; },
 
     createButtonsForButtonBar: function(parent) {
-      Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
-      // Buttons added right-to-left in JFace button bar.
-      // NO addListener — buttonPressed() override handles all clicks.
-      const btnLayout = Java.super(dlg).createButton(parent, 101, "Layout only", false);
-      btnLayout.setEnabled(hasVisual);
-      w.btnLayoutOnly = btnLayout;
-
-      const btnExpand = Java.super(dlg).createButton(parent, 102, "Expand view", false);
-      btnExpand.setEnabled(hasVisual);
-      w.btnExpandView = btnExpand;
-
-      Java.super(dlg).createButton(parent, 103, "One view each", false);
-      Java.super(dlg).createButton(parent, IDialogConstants.OK_ID, "New view", true);
+      // All buttons are in _buildActionRow (custom composite in dialog area).
+      // JFace button bar is intentionally left empty.
     },
 
     // JFace routes all button clicks here. Save UI, store action, close dialog.
     // generate_view runs after dlg.open() returns — avoids operating on disposed shell.
+    // action is a runtime parameter, NOT stored in config/preset (validatePreset strips unknown keys).
     buttonPressed: function(buttonId) {
       if (buttonId === IDialogConstants.CANCEL_ID) {
         Java.super(dlg).cancelPressed();
@@ -511,10 +503,12 @@ function open(uiSelection) {
       }
       _saveUI(ctx);
       _persistSession(ctx);
-      if      (buttonId === IDialogConstants.OK_ID) config.action = ACTION.NEW_VIEW.id;
-      else if (buttonId === 101)                     config.action = ACTION.LAYOUT_ONLY.id;
-      else if (buttonId === 102)                     config.action = ACTION.EXPAND_VIEW.id;
-      else if (buttonId === 103)                     config.action = ACTION.ONE_EACH.id;
+      const ACTION_MAP = {};
+      ACTION_MAP[IDialogConstants.OK_ID] = ACTION.NEW_VIEW.id;
+      ACTION_MAP[101] = ACTION.LAYOUT_ONLY.id;
+      ACTION_MAP[102] = ACTION.EXPAND_VIEW.id;
+      ACTION_MAP[103] = ACTION.ONE_EACH.id;
+      ctx._actionId = ACTION_MAP[buttonId] || ACTION.NEW_VIEW.id;
       Java.super(dlg).okPressed();  // sets returnCode = OK and closes dialog
     },
   });
@@ -526,7 +520,7 @@ function open(uiSelection) {
   if (result === IDialogConstants.CANCEL_ID || result < 0) return;
 
   try {
-    GenView.generate_view(ctx.config, ctx.uiSelection);
+    GenView.generate_view(ctx.config, ctx.uiSelection, ctx._actionId);
   } catch (e) {
     console.error("generate_view error: " + (e.message || e));
   }
@@ -655,11 +649,11 @@ function _updateFilteredCount(ctx) {
 
 // ── Selection tab ─────────────────────────────────────────────────────────────
 
-function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount, firstName) {
+function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firstName) {
   const { page, finish } = _scrolledTab(tabFolder, "Selection");
   const w = ctx.widgets;
-  const raw = rawCount      || { elems: 0, rels: 0, views: 0, folders: 0 };
-  const exp = expandedCount || { elems: 0, rels: 0, diagrams: 0 };
+  const selected   = selectedCount   || { elems: 0, rels: 0, views: 0, folders: 0 };
+  const containing = containingCount || { elems: 0, rels: 0, diagrams: 0 };
 
   // ── Current selection info table ─────────────────────────────────────────────
   // Columns: label | Elements | Relations | Diagrams | (filler)
@@ -683,18 +677,18 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount, firstName) 
   _lbl(grpInfo, "Elements"); _lbl(grpInfo, "Relations"); _lbl(grpInfo, "Diagrams");
   _lbl(grpInfo, "");  // filler
 
-  // Selected row (static, from raw selection)
-  const selLabel = (raw.views || raw.folders)
-    ? "Selected" + (raw.views   ? ` (${raw.views} view${raw.views   > 1 ? "s" : ""})` : "")
-                 + (raw.folders ? ` (${raw.folders} folder${raw.folders > 1 ? "s" : ""})` : "")
+  // Selected row (static, from direct selection)
+  const selLabel = (selected.views || selected.folders)
+    ? "Selected" + (selected.views   ? ` (${selected.views} view${selected.views   > 1 ? "s" : ""})` : "")
+                 + (selected.folders ? ` (${selected.folders} folder${selected.folders > 1 ? "s" : ""})` : "")
     : "Selected";
   _lbl(grpInfo, selLabel);
-  _cnt(grpInfo, String(raw.elems)); _cnt(grpInfo, String(raw.rels)); _cnt(grpInfo, String(raw.diagrams));
+  _cnt(grpInfo, String(selected.elems)); _cnt(grpInfo, String(selected.rels)); _cnt(grpInfo, String(selected.diagrams));
   _lbl(grpInfo, "");
 
-  // Containing row (static)
+  // Containing row (static, expanded from folders/views)
   _lbl(grpInfo, "Containing");
-  _cnt(grpInfo, String(exp.elems)); _cnt(grpInfo, String(exp.rels)); _cnt(grpInfo, String(exp.diagrams));
+  _cnt(grpInfo, String(containing.elems)); _cnt(grpInfo, String(containing.rels)); _cnt(grpInfo, String(containing.diagrams));
   _lbl(grpInfo, "");
 
   // Related row (live-updated)
@@ -706,13 +700,6 @@ function _buildSelectionTab(tabFolder, ctx, rawCount, expandedCount, firstName) 
   _lbl(grpInfo, "Filtered");
   w.lblFlt_elems = _cnt(grpInfo, "—"); w.lblFlt_rels = _cnt(grpInfo, "—"); w.lblFlt_diags = _cnt(grpInfo, "—");
   _lbl(grpInfo, "");
-
-  // First selected object name — below the table
-  if (firstName) {
-    const lblFirstName = new LabelWidget(grpInfo, SWT.NONE);
-    lblFirstName.setText("First selected object:   " + firstName);
-    GridDataFactory.fillDefaults().grab(true, false).span(5, 1).applyTo(lblFirstName);
-  }
 
   // Keep legacy refs null (code now uses per-cell widgets)
   w.lblRelated = null; w.lblFiltered = null;
@@ -902,6 +889,73 @@ function _buildLayoutTab(tabFolder, ctx) {
 
 // ── View tab ──────────────────────────────────────────────────────────────────
 
+// ── Action row (below preset) ─────────────────────────────────────────────────
+
+function _updateActionPreview(ctx) {
+  const w = ctx.widgets;
+  if (!w.lblActionPreview) return;
+  const name   = w.txtViewName   ? w.txtViewName.getText().trim()   : "";
+  const suffix = w.txtViewSuffix ? w.txtViewSuffix.getText().trim() : "";
+  const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
+  const preview = name ? name + (suffix ? sep + suffix : "") : "—";
+  try { w.lblActionPreview.setText("New view name:   " + preview); } catch(e) {}
+}
+
+function _runAction(buttonId, dlg, ctx) {
+  const ACTION_MAP = {};
+  ACTION_MAP[IDialogConstants.OK_ID] = ACTION.NEW_VIEW.id;
+  ACTION_MAP[101] = ACTION.LAYOUT_ONLY.id;
+  ACTION_MAP[102] = ACTION.EXPAND_VIEW.id;
+  ACTION_MAP[103] = ACTION.ONE_EACH.id;
+  _saveUI(ctx);
+  _persistSession(ctx);
+  ctx._actionId = ACTION_MAP[buttonId] || ACTION.NEW_VIEW.id;
+  Java.super(dlg).okPressed();
+}
+
+function _actionBtn(parent, label, buttonId, dlg, ctx) {
+  const btn = new ButtonWidget(parent, SWT.PUSH);
+  btn.setText(label);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(btn);  // fill group width
+  btn.addListener(SWT.Selection, () => _runAction(buttonId, dlg, ctx));
+  return btn;
+}
+
+function _buildActionRow(area, ctx, dlg, hasVisual) {
+  const w = ctx.widgets;
+
+  // One row: [Cancel] [Create new view group (equal share)] [Modify selected view group (equal share)]
+  const btnRow = new CompositeWidget(area, SWT.NONE);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(btnRow);
+  GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(btnRow);
+
+  // Left: Cancel
+  const btnCancel = new ButtonWidget(btnRow, SWT.PUSH);
+  btnCancel.setText("Cancel");
+  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).align(SWT.BEGINNING, SWT.CENTER).applyTo(btnCancel);
+  btnCancel.addListener(SWT.Selection, () => Java.super(dlg).cancelPressed());
+
+  // Middle group: Create new view — grabs equal share of available width
+  const grpCreate = new GroupWidget(btnRow, SWT.NONE);
+  grpCreate.setText("Create new view");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpCreate);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 0).applyTo(grpCreate);
+  w.btnNewView = _actionBtn(grpCreate, "New view",      IDialogConstants.OK_ID, dlg, ctx);
+  w.btnOneEach = _actionBtn(grpCreate, "One view each", 103,                    dlg, ctx);
+
+  // Right group: Modify selected view — grabs equal share of available width
+  const grpModify = new GroupWidget(btnRow, SWT.NONE);
+  grpModify.setText("Modify selected view");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpModify);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 0).applyTo(grpModify);
+  w.btnExpandView = _actionBtn(grpModify, "Expand view", 102, dlg, ctx);
+  w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", 101, dlg, ctx);
+  w.btnExpandView.setEnabled(hasVisual);
+  w.btnLayoutOnly.setEnabled(hasVisual);
+}
+
+// ── View name and location ────────────────────────────────────────────────────
+
 function _buildViewRow(area, ctx) {
   const w = ctx.widgets;
 
@@ -915,12 +969,14 @@ function _buildViewRow(area, ctx) {
   const txtName = new TextWidget(grpView, SWT.BORDER);
   txtName.setToolTipText("View name. Pre-filled from the first selected object.");
   GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtName);
+  
   w.txtViewName = txtName;
 
   new LabelWidget(grpView, SWT.NONE).setText("Suffix:");
   const txtSuffix = new TextWidget(grpView, SWT.BORDER);
   txtSuffix.setToolTipText("Appended to view name. Auto-updated when algorithm changes.");
   GridDataFactory.fillDefaults().grab(false, false).hint(120, SWT.DEFAULT).applyTo(txtSuffix);
+  
   w.txtViewSuffix = txtSuffix;
 
   // Row 2: Folder | folder field (span 3)
@@ -1037,12 +1093,9 @@ function _syncToUI(ctx) {
   if (w.lstRelatedRelations) _listSelectLabels(w.lstRelatedRelations, layers.length > 0 ? _relIdsToLabels(layers[0].relationTypes || []) : []);
 
   // View name: always pre-fill from the first selected object (captured in open()).
-  // Suffix: auto-derived from algorithm; updated by _updateViewNameAlgorithm on algo change.
-  const viewName = (ctx && ctx.firstName) || (c.view && c.view.name) || "";
-  let viewSuffix = (c.view && c.view.suffix) || "";
-  if (!viewSuffix) {
-    viewSuffix = " — " + (c.algorithm || "Layered");
-  }
+  // Suffix: algorithm display name only (separator VIEW_NAME_SEPARATOR is added when building the view name).
+  const viewName  = (ctx && ctx.firstName) || (c.view && c.view.name) || "";
+  const viewSuffix = (c.view && c.view.suffix) || c.algorithm || "Layered";
   if (w.txtViewName)   w.txtViewName.setText(viewName);
   if (w.txtViewSuffix) w.txtViewSuffix.setText(viewSuffix);
   if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
@@ -1120,19 +1173,16 @@ function _fillAlgorithmCombo(ctx) {
   w.cmbAlgorithm.select(0);
 }
 
-// When algorithm changes, update the suffix field.
-// Only auto-updates if the current suffix starts with " — " (auto-generated).
-// A user-edited suffix that doesn't start with " — " is left untouched.
+// When algorithm changes, always update the suffix field with the new algorithm name.
+// The suffix field shows only the algorithm name (no separator — separator is in VIEW_NAME_SEPARATOR).
 function _updateViewNameAlgorithm(ctx) {
   const w = ctx.widgets;
   if (!w.txtViewSuffix || !w.cmbAlgorithm) return;
-  const current = w.txtViewSuffix.getText();
-  if (current && !current.startsWith(" — ")) return;  // custom suffix, don't overwrite
 
   const sty     = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
   const algs    = STYLES[sty] ? STYLES[sty].algorithms : [];
   const algName = algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
-  w.txtViewSuffix.setText(" — " + algName);
+  w.txtViewSuffix.setText(algName);
 }
 
 function _updateAlgorithmControls(ctx) {

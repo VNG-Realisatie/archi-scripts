@@ -134,22 +134,40 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
   console.log(`Diagram objects: ${diagramNodes.length} nodes · ${diagramConnections.length} connections`);
 
-  const result = { elements, relations, diagramObjects: diagramNodes, diagramConnections, visualObjects: [] };
+  const result = {
+    elements, relations,
+    diagramObjects: diagramNodes, diagramConnections,
+    visualElements: [],   // VisualElements on the existing view (EXPAND_VIEW)
+    visualRelations: [],  // VisualRelations on the existing view (EXPAND_VIEW)
+  };
 
   if (actionId === ACTION.EXPAND_VIEW.id) {
-    const seen = new Set();
-    const addVO = vo => { if (vo && vo.id && !seen.has(vo.id) && vo.view) { seen.add(vo.id); result.visualObjects.push(vo); } };
-    const collectChildren = obj => {
-      try { $(obj).children().each(child => { addVO(child); collectChildren(child); }); } catch(e) {}
+    const seenEl  = new Set();
+    const seenRel = new Set();
+    const addVE = ve => {
+      if (ve && ve.id && !seenEl.has(ve.id) && ve.view) { seenEl.add(ve.id); result.visualElements.push(ve); }
     };
+    const addVR = vr => {
+      if (vr && vr.id && !seenRel.has(vr.id) && vr.view) { seenRel.add(vr.id); result.visualRelations.push(vr); }
+    };
+
     let viewFound = false;
     try {
       uiSelection.each(o => {
-        if (o.type === "archimate-diagram-model" && !o.view) { viewFound = true; collectChildren(o); }
+        if (o.type === "archimate-diagram-model" && !o.view) {
+          viewFound = true;
+          try { $(o).find("element").each(ve => addVE(ve)); } catch(e) {}
+          try { $(o).find("relation").each(vr => addVR(vr)); } catch(e) {}
+        }
       });
     } catch (e) {}
     if (!viewFound) {
-      try { Selection.getVisualSelection(uiSelection, "*").each(addVO); } catch (e) {}
+      try {
+        Selection.getVisualSelection(uiSelection, "*").each(vo => {
+          if (vo && vo.concept && vo.concept.type && vo.concept.type.endsWith("-relationship")) addVR(vo);
+          else addVE(vo);
+        });
+      } catch (e) {}
     }
   }
 
@@ -275,33 +293,45 @@ function _expandViews(collection) {
 }
 
 function _layoutOnlySet(uiSelection) {
-  const visualObjects = [];
-  const seen = new Set();
-  const addVO = vo => { if (vo && vo.id && !seen.has(vo.id) && vo.view) { seen.add(vo.id); visualObjects.push(vo); } };
+  const visualElements = [];
+  const visualRelations = [];
+  const diagramObjects = [];
+  const seenEl = new Set(), seenRel = new Set(), seenDiag = new Set();
 
-  // Case 1: a view node selected from the model tree.
-  // Use find() per type instead of children() traversal — children() misses view-references in jArchi 1.12.
+  const addVE   = ve  => { if (ve  && ve.id  && !seenEl.has(ve.id)   && ve.view)  { seenEl.add(ve.id);   visualElements.push(ve); } };
+  const addVR   = vr  => { if (vr  && vr.id  && !seenRel.has(vr.id)  && vr.view)  { seenRel.add(vr.id);  visualRelations.push(vr); } };
+  const addDiag = dvo => { if (dvo && dvo.id && !seenDiag.has(dvo.id) && dvo.view) { seenDiag.add(dvo.id); diagramObjects.push(dvo); } };
+
+  // Case 1: view node selected from the model tree.
+  // Use find() per type — children() misses view-references in jArchi 1.12.
   let viewFound = false;
   try {
     uiSelection.each(o => {
       if (o.type === "archimate-diagram-model" && !o.view) {
         viewFound = true;
-        try { $(o).find("element").each(ve => addVO(ve)); } catch(e) {}
-        try { $(o).find("relation").each(vr => addVO(vr)); } catch(e) {}
+        try { $(o).find("element").each(addVE); } catch(e) {}
+        try { $(o).find("relation").each(addVR); } catch(e) {}
         Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
-          try { $(o).find(dt).each(dvo => addVO(dvo)); } catch(e) {}
+          try { $(o).find(dt).each(addDiag); } catch(e) {}
         });
       }
     });
   } catch (e) {}
 
-  // Case 2: visual objects selected on a view canvas.
+  // Case 2: visual objects selected on a canvas.
   if (!viewFound) {
-    try { Selection.getVisualSelection(uiSelection, "*").each(addVO); } catch (e) {}
+    try {
+      Selection.getVisualSelection(uiSelection, "*").each(vo => {
+        if (!vo || !vo.id || !vo.view) return;
+        if (vo.type in Defs.DIAGRAM_TYPES) addDiag(vo);
+        else if (vo.concept && vo.concept.type && vo.concept.type.endsWith("-relationship")) addVR(vo);
+        else addVE(vo);
+      });
+    } catch (e) {}
   }
 
-  console.log(`Layout only: ${visualObjects.length} visual objects collected`);
-  return { elements: [], relations: [], diagramObjects: [], diagramConnections: [], visualObjects };
+  console.log(`Layout only: ${visualElements.length} VisualElements · ${visualRelations.length} VisualRelations · ${diagramObjects.length} DiagramObjects`);
+  return { elements: [], relations: [], diagramObjects, diagramConnections: [], visualElements, visualRelations };
 }
 
 /**

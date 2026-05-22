@@ -45,23 +45,25 @@ function _getAdapter(engine) {
  * @param {ArchiCollection} uiSelection  $(selection) from Archi UI
  * @returns {ArchimateView[]}            created or modified views
  */
-function generate_view(rawPreset, uiSelection) {
+// actionId is a runtime parameter — not part of the preset schema.
+// Callers must pass it explicitly; it is never read from the preset.
+function generate_view(rawPreset, uiSelection, actionId) {
   const preset = validatePreset(rawPreset);
+  const action = actionId || ACTION.NEW_VIEW.id;
 
   const timer = Common.startCounter ? Common.startCounter() : null;
 
   console.log(`\n=== generate_view ===`);
-  console.log(`Algorithm: ${preset.algorithm}  Action: ${preset.action || ACTION.NEW_VIEW.id}`);
+  console.log(`Algorithm: ${preset.algorithm}  Action: ${action}`);
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
 
-  const actionId = preset.action || ACTION.NEW_VIEW.id;
-  const views    = [];
+  const views = [];
 
   try {
-    if (actionId === ACTION.ONE_EACH.id) {
+    if (action === ACTION.ONE_EACH.id) {
       views.push(..._generateOneEach(preset, uiSelection));
     } else {
-      const view = _generateSingle(preset, uiSelection, actionId, null);
+      const view = _generateSingle(preset, uiSelection, action, null);
       if (view) views.push(view);
     }
   } catch (error) {
@@ -75,7 +77,7 @@ function generate_view(rawPreset, uiSelection) {
 // ── Single view ───────────────────────────────────────────────────────────────
 
 function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
-  const { elements, relations, diagramObjects, diagramConnections, visualObjects } =
+  const { elements, relations, diagramObjects, diagramConnections, visualElements, visualRelations } =
     Pipeline.buildObjectSet(uiSelection, preset, actionId);
 
   console.log(`\nObject set: ${elements.length} elements, ${relations.length} relations, ${diagramObjects.length} diagram objects, ${diagramConnections.length} diagram connections`);
@@ -91,21 +93,23 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   if (actionId === ACTION.LAYOUT_ONLY.id) {
-    return _layoutOnlyView(preset, visualObjects);
+    return _layoutOnlyView(preset, visualElements, visualRelations, diagramObjects);
   }
 
-  // Build existingVoMap for EXPAND_VIEW: maps conceptId/voId → existing VisualObject.
-  // Used in _writeView to reposition existing VOs instead of re-adding them.
+  // Build existingVoMap for EXPAND_VIEW: maps conceptId/voId → existing VisualElement or DiagramObject.
+  // Used in _writeView to reposition existing objects instead of re-adding them.
   const existingVoMap = {};
   if (actionId === ACTION.EXPAND_VIEW.id) {
-    (visualObjects || []).forEach(vo => {
-      existingVoMap[vo.id] = vo;
-      if (vo.concept && vo.concept.id) existingVoMap[vo.concept.id] = vo;
+    (visualElements || []).forEach(ve => {
+      existingVoMap[ve.id] = ve;
+      if (ve.concept && ve.concept.id) existingVoMap[ve.concept.id] = ve;
     });
+    // Also include existing DiagramObjects on the view
+    (diagramObjects || []).forEach(dvo => { existingVoMap[dvo.id] = dvo; });
   }
 
   // Build LayoutGraph
-  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, visualObjects, diagramObjects);
+  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, visualElements, diagramObjects);
   if (graph.nodes.length === 0) {
     console.log("No elements to place — view not generated.");
     return null;
@@ -142,7 +146,9 @@ function _generateOneEach(preset, uiSelection) {
   const views = [];
   for (const element of elements) {
     console.log(`\nGenerating view for: ${element.name}`);
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + (preset.view.suffix || ""));
+    const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
+    const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
+    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + suffix);
     if (view) views.push(view);
   }
   return views;
@@ -150,50 +156,54 @@ function _generateOneEach(preset, uiSelection) {
 
 // ── Layout only ───────────────────────────────────────────────────────────────
 
-function _layoutOnlyView(preset, visualObjects) {
-  if (visualObjects.length === 0) throw "Layout only: no visual objects in selection";
+function _layoutOnlyView(preset, visualElements, visualRelations, diagramObjects) {
+  const totalObjects = (visualElements || []).length + (visualRelations || []).length + (diagramObjects || []).length;
+  if (totalObjects === 0) throw "Layout only: no visual objects in selection";
 
-  // Rebuild elements and relations from visual objects.
-  // Diagram objects (no model concept) are included as proxy nodes so the layout
-  // engine positions them alongside elements instead of leaving them behind.
-  const elements   = [];
-  const relations  = [];
-  const voById     = {};  // id → visual object for applying results back
+  const elements  = [];
+  const relations = [];
+  const voById    = {};  // conceptId/voId → VisualElement/DiagramObject for result lookup
 
-  for (const vo of visualObjects) {
-    voById[vo.id] = vo;
-    const t = vo.type || "";
-    // Check DIAGRAM_TYPES first — view-references may have a non-null .concept (the ArchimateView),
-    // but must still be treated as diagram proxies, not as model elements.
-    if (t in Defs.DIAGRAM_TYPES) {
-      elements.push({ id: vo.id, type: t, name: vo.name || t,
-                      _width:  (vo.bounds && vo.bounds.width)  || preset.params.elementWidth  || 140,
-                      _height: (vo.bounds && vo.bounds.height) || preset.params.elementHeight || 60 });
-    } else {
-      const concept = vo.concept;
-      if (concept && concept.type && concept.type.endsWith("-relationship")) {
-        relations.push(concept);
-      } else if (concept) {
-        // Layout algorithm controls size; visual properties are saved/restored by _applyResultToView.
-        elements.push(concept);
-        voById[concept.id] = vo;
-      }
+  // Process VisualElements first (ArchiMate elements on canvas)
+  for (const ve of (visualElements || [])) {
+    const concept = ve.concept;
+    if (!concept) continue;
+    // Layout algorithm controls size; _applyResultToView handles position + _VISUAL_PROPS preservation.
+    elements.push(concept);
+    voById[concept.id] = ve;
+  }
+
+  // Process VisualRelations (ArchiMate relations on canvas)
+  for (const vr of (visualRelations || [])) {
+    const concept = vr.concept;
+    if (concept && concept.type && concept.type.endsWith("-relationship")) {
+      relations.push(concept);
     }
+  }
+
+  // Process DiagramObjects (canvas-only: notes, groups, view-references, …)
+  for (const dvo of (diagramObjects || [])) {
+    voById[dvo.id] = dvo;
+    elements.push({ id: dvo.id, type: dvo.type || "", name: dvo.name || "",
+                    _width:  (dvo.bounds && dvo.bounds.width)  || preset.params.elementWidth  || 140,
+                    _height: (dvo.bounds && dvo.bounds.height) || preset.params.elementHeight || 60 });
   }
 
   const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
   const nestingRels  = relations.filter(r => nestingTypes.has(r.type));
   const routedRels   = relations.filter(r => !nestingTypes.has(r.type));
 
-  const graph  = _buildLayoutGraph(preset, elements, routedRels, nestingRels, visualObjects);
+  const graph  = _buildLayoutGraph(preset, elements, routedRels, nestingRels, visualElements, diagramObjects);
   const alg    = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
 
-  // Update existing view in-place: reposition both ArchiMate elements and diagram objects
-  const view = visualObjects[0].view;
+  // Update existing view in-place
+  const allVOs = [...(visualElements || []), ...(diagramObjects || [])];
+  const view   = allVOs.find(o => o.view) && allVOs.find(o => o.view).view;
+  if (!view) { console.error("Layout only: could not determine target view"); return null; }
   _applyResultToView(result, view, voById);
   console.log(`Layout only applied to "${view.name}"`);
-  model.openInUI(view);
+  try { $(view).openInUI(); } catch(e) {}
   return view;
 }
 
@@ -525,11 +535,9 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName,
   } catch(e) {}
 
   console.log(`\nView "${viewName}" written to "${folder.name}"`);
-  try { model.openInUI(view); } catch (e) {}
+  try { $(view).openInUI(); } catch (e) {}
   return view;
 }
-
-const _VISUAL_PROPS = ["fillColor", "lineColor", "fontColor", "fontSize", "fontName", "fontStyle", "opacity"];
 
 function _applyResultToView(result, view, extraVoById) {
   // Index visual elements by concept ID (ArchiMate elements)
@@ -541,12 +549,9 @@ function _applyResultToView(result, view, extraVoById) {
   for (const rn of result.nodes) {
     const vo = visualIndex[rn.id] || voById[rn.id];  // ArchiMate element or diagram object
     if (!vo) continue;
-    // Save visual properties — jArchi resets them when bounds are changed
-    const saved = {};
-    _VISUAL_PROPS.forEach(p => { try { const v = vo[p]; if (v != null) saved[p] = v; } catch(e) {} });
+    // Test confirmed: jArchi does NOT reset visual properties when bounds are set.
+    // No save/restore needed.
     vo.bounds = { x: rn.x, y: rn.y, width: rn.width, height: rn.height };
-    // Restore visual properties
-    _VISUAL_PROPS.forEach(p => { try { if (saved[p] != null) vo[p] = saved[p]; } catch(e) {} });
   }
 
   for (const re of result.edges) {
@@ -581,11 +586,12 @@ function _findParentNodeId(nodeId, result) {
 }
 
 function _resolveViewName(preset, elements) {
-  if (preset.view.name) return preset.view.name + (preset.view.suffix || "");
+  const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
+  const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
+  if (preset.view.name) return preset.view.name + suffix;
   const first = elements[0];
-  const alg   = ALGORITHMS[preset.algorithm];
   const base  = first ? first.name : "Generated";
-  return base + (preset.view.suffix || "") + " — " + (alg ? alg.engineAlgorithmId : preset.algorithm);
+  return base + suffix;
 }
 
 function _resolveFolder(viewFolder) {

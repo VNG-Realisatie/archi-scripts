@@ -12,8 +12,8 @@ const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 Common.initConsoleLog(__FILE__, true);
 
 const preset    = PresetIO.readSession();
-preset.action   = ACTION.LAYOUT_ONLY.id;
 
-GenView.generate_view(preset, $(selection));
+
+GenView.generate_view(preset, $(selection), ACTION.LAYOUT_ONLY.id);
 
 Common.finishConsoleLog();

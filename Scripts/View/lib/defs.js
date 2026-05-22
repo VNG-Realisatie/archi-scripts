@@ -414,7 +414,11 @@ const DIAGRAM_TYPES = Object.freeze({
   "diagram-model-image":      { createFn: null,                  createType: null,                  copyProps: [] },
   "diagram-model-connection": { createFn: "createConnection",    createType: null,                  copyProps: ["lineColor", "lineWidth", "textAlignment"] },
   "diagram-model-reference":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },
-  "archimate-diagram-model":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },  // jArchi .type still returns this for view-reference VOs in some API paths
+  // jArchi 1.12 partial fix: find("diagram-model-reference") locates view-reference DiagramObjects,
+  // but the returned object's .type property still reports "archimate-diagram-model" (the ArchimateView
+  // model node type). Keeping this alias ensures `type in DIAGRAM_TYPES` correctly classifies
+  // these DiagramObjects everywhere without scattering explicit === "archimate-diagram-model" guards.
+  "archimate-diagram-model":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },
 });
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -425,6 +429,8 @@ const SESSION_FILENAME     = "_session.json";
 const PT2PX                = 96 / 72;   // Graphviz: points → pixels
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
+// Separator inserted between view name and suffix when building the final view name
+const VIEW_NAME_SEPARATOR = " — ";
 
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
@@ -670,7 +676,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,
     GV_BIN_DEFAULT, GENERATED_VIEW_FOLDER, SESSION_FILENAME,
-    PT2PX, SPLINE_SAMPLE_POINTS,
+    PT2PX, SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
     DEFAULT_PRESET,
     ENGINE_MAPPING, mapParams,
     validatePreset,
