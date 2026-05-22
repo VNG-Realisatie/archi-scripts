@@ -102,7 +102,9 @@ function layout(graph) {
     console.log("Calculating layout...");
   }
 
-  const { elkGraph, liftedEdgesMap } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
+  // ELK Radial requires a spanning tree (no cycles). Convert here so c2c terminates.
+  const processedEdgeList = graph.algorithm === "Radial" ? _spanningTree(nodeMap, edgeList) : edgeList;
+  const { elkGraph, liftedEdgesMap } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
   const layouted = elk.layout(elkGraph);
   console.log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}`);
 
@@ -137,6 +139,50 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     elkGraph: { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges },
     liftedEdgesMap,
   };
+}
+
+function _spanningTree(nodeMap, edgeList) {
+  // BFS spanning tree — removes cycles so ELK Radial's c2c traversal terminates.
+  // Disconnected components are connected to the first root via virtual edges.
+  const nodeIds = Object.keys(nodeMap);
+  if (!nodeIds.length) return edgeList;
+
+  const adj = {};
+  for (const edge of edgeList) {
+    const s = edge.sources[0], t = edge.targets[0];
+    if (!s || !t) continue;
+    (adj[s] = adj[s] || []).push({ id: t, edge });
+    (adj[t] = adj[t] || []).push({ id: s, edge });
+  }
+
+  const visited = new Set();
+  const treeEdges = [];
+  const componentRoots = [];
+
+  for (const startId of nodeIds) {
+    if (visited.has(startId)) continue;
+    componentRoots.push(startId);
+    visited.add(startId);
+    const queue = [startId];
+    while (queue.length) {
+      const cur = queue.shift();
+      for (const { id: nbId, edge } of (adj[cur] || [])) {
+        if (!visited.has(nbId)) {
+          visited.add(nbId);
+          treeEdges.push(edge);
+          queue.push(nbId);
+        }
+      }
+    }
+  }
+
+  for (let i = 1; i < componentRoots.length; i++) {
+    treeEdges.push({
+      id: `__span_${i}`, sources: [componentRoots[0]], targets: [componentRoots[i]],
+      _archiRelId: null, _relName: "", _reversed: false,
+    });
+  }
+  return treeEdges;
 }
 
 function _attachChildren(nodeMap, parentMap) {

@@ -465,7 +465,7 @@ function open(uiSelection) {
       dlg.setTitle("Generate View");
       dlg.setMessage("Select an action to generate or layout a view.");
 
-      GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).spacing(4, 4).applyTo(area);
+      GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 0).spacing(4, 4).applyTo(area);
 
       _buildPresetRow(area, ctx, dlg);
 
@@ -488,9 +488,16 @@ function open(uiSelection) {
     isResizable:     function() { return true; },
     isHelpAvailable: function() { return false; },
 
+    createButtonBar: function(parent) {
+      // All buttons are in _buildActionRow (custom composite in the dialog area).
+      // Return an empty zero-height composite so the JFace button bar adds no space.
+      const bar = new CompositeWidget(parent, SWT.NONE);
+      GridDataFactory.swtDefaults().hint(0, 0).applyTo(bar);
+      return bar;
+    },
+
     createButtonsForButtonBar: function(parent) {
-      // All buttons are in _buildActionRow (custom composite in dialog area).
-      // JFace button bar is intentionally left empty.
+      // Intentionally empty — buttons are in _buildActionRow.
     },
 
     // JFace routes all button clicks here. Save UI, store action, close dialog.
@@ -916,7 +923,8 @@ function _runAction(buttonId, dlg, ctx) {
 function _actionBtn(parent, label, buttonId, dlg, ctx) {
   const btn = new ButtonWidget(parent, SWT.PUSH);
   btn.setText(label);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(btn);  // fill group width
+  // fill group width; align to bottom of group
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.END).applyTo(btn);
   btn.addListener(SWT.Selection, () => _runAction(buttonId, dlg, ctx));
   return btn;
 }
@@ -924,29 +932,38 @@ function _actionBtn(parent, label, buttonId, dlg, ctx) {
 function _buildActionRow(area, ctx, dlg, hasVisual) {
   const w = ctx.widgets;
 
-  // One row: [Cancel] [Create new view group (equal share)] [Modify selected view group (equal share)]
+  // Separator above buttons
+  const sep = new LabelWidget(area, SWT.SEPARATOR | SWT.HORIZONTAL);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(sep);
+
+  // One row: [Cancel] [Create new view group] [Modify selected view group]
+  // Groups grab equal space; buttons bottom-aligned inside groups
   const btnRow = new CompositeWidget(area, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(btnRow);
   GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(btnRow);
 
-  // Left: Cancel
-  const btnCancel = new ButtonWidget(btnRow, SWT.PUSH);
+  // Left: Cancel — unlabelled group box
+  const grpCancel = new GroupWidget(btnRow, SWT.NONE);
+  grpCancel.setText("");
+  GridDataFactory.fillDefaults().grab(false, true).applyTo(grpCancel);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 0).applyTo(grpCancel);
+  const btnCancel = new ButtonWidget(grpCancel, SWT.PUSH);
   btnCancel.setText("Cancel");
-  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).align(SWT.BEGINNING, SWT.CENTER).applyTo(btnCancel);
+  GridDataFactory.fillDefaults().grab(true, true).align(SWT.FILL, SWT.END).applyTo(btnCancel);
   btnCancel.addListener(SWT.Selection, () => Java.super(dlg).cancelPressed());
 
-  // Middle group: Create new view — grabs equal share of available width
+  // Middle group: Create new view
   const grpCreate = new GroupWidget(btnRow, SWT.NONE);
   grpCreate.setText("Create new view");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpCreate);
+  GridDataFactory.fillDefaults().grab(true, true).applyTo(grpCreate);
   GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 0).applyTo(grpCreate);
   w.btnNewView = _actionBtn(grpCreate, "New view",      IDialogConstants.OK_ID, dlg, ctx);
   w.btnOneEach = _actionBtn(grpCreate, "One view each", 103,                    dlg, ctx);
 
-  // Right group: Modify selected view — grabs equal share of available width
+  // Right group: Modify selected view
   const grpModify = new GroupWidget(btnRow, SWT.NONE);
   grpModify.setText("Modify selected view");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpModify);
+  GridDataFactory.fillDefaults().grab(true, true).applyTo(grpModify);
   GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 0).applyTo(grpModify);
   w.btnExpandView = _actionBtn(grpModify, "Expand view", 102, dlg, ctx);
   w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", 101, dlg, ctx);
@@ -982,7 +999,7 @@ function _buildViewRow(area, ctx) {
   // Row 2: Folder | folder field (span 3)
   new LabelWidget(grpView, SWT.NONE).setText("Folder:");
   const txtFolder = new TextWidget(grpView, SWT.BORDER);
-  txtFolder.setToolTipText("Archi folder path (e.g. /Application/Generated). Empty = /_Generated.");
+  txtFolder.setToolTipText("Archi folder path (e.g. /View/Project/Generated)");
   GridDataFactory.fillDefaults().grab(true, false).span(3, 1).hint(280, SWT.DEFAULT).applyTo(txtFolder);
   w.txtViewFolder = txtFolder;
 }
@@ -997,7 +1014,7 @@ function _buildPresetRow(parent, ctx, dlg) {
 
   new LabelWidget(row, SWT.NONE).setText("Preset:");
   const cmbPreset = new ComboWidget(row, SWT.READ_ONLY | SWT.DROP_DOWN);
-  GridDataFactory.swtDefaults().hint(200, SWT.DEFAULT).applyTo(cmbPreset);
+  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(cmbPreset);
   _refreshPresetCombo(cmbPreset);
   w.cmbPreset = cmbPreset;
 

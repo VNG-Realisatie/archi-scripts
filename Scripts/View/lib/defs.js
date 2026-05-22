@@ -96,14 +96,14 @@ const ALGORITHMS = Object.freeze({
     engine:               "ELK",
     engineAlgorithmId:    "radial",
     style:                "Circular",
-    supportsNesting:      "partial",
+    supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
-    tooltip: "Domain overviews and hub-and-spoke structures with strong nesting support (ELK)",
+    tooltip: "Domain overviews and hub-and-spoke structures (ELK)",
   },
 
   Grid: {
@@ -424,7 +424,7 @@ const DIAGRAM_TYPES = Object.freeze({
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GV_BIN_DEFAULT       = "dot";
-const GENERATED_VIEW_FOLDER = "/_Generated";
+const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
 const PT2PX                = 96 / 72;   // Graphviz: points → pixels
 // Spline sampling: number of points per cubic Bézier segment
