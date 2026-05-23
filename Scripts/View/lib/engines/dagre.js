@@ -89,7 +89,8 @@ function layout(graph) {
     // Dagre uses center-based coordinates; convert to top-left
     const x = Math.round(n.x - n.width  / 2);
     const y = Math.round(n.y - n.height / 2);
-    resultNodes.push({ id: nodeId, x, y, width: n.width, height: n.height });
+    const parentId = g.parent(nodeId) || null;
+    resultNodes.push({ id: nodeId, x, y, width: n.width, height: n.height, parentId });
   }
 
   const labelPosition = graph.options.labelPosition || "Middle";

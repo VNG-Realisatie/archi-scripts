@@ -5,10 +5,13 @@
  * algorithm→supportedOptions, engine parameter mapping, relation/element types,
  * preset schema defaults, action and routing constants.
  *
- * No imports — pure data. Consumed by generate_view.js, preset_io.js,
- * selection_pipeline.js, engine adapters, and GUI dialog.
+ * Single shared import: the diagram-object type list from _lib/selection.js
+ * (SSOT for what counts as a canvas diagram object).
  */
 console.log("defs.js");
+
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -399,27 +402,17 @@ const ELEMENT_TYPES = Object.freeze([
   "technology-service", "value", "work-package",
 ]);
 
-// Keys are the jArchi .type strings for visual diagram objects placed on a view canvas.
-// "archimate-diagram-model" is the ArchimateView model-tree node type — NOT listed here.
-// createFn:   jArchi method to call when recreating on a new view
-//   "createObject"       → view.createObject(createType, x, y, w, h)
-//   "createViewReference"→ view.createViewReference(vo.refView, x, y, w, h)
-//   "createConnection"   → view.createConnection(srcVO, tgtVO)  [not yet implemented in _recreateDiagramObject]
-//   null                 → no documented creation API; skip on new view
-// copyProps: VisualObject properties to copy from source to new object
-const DIAGRAM_TYPES = Object.freeze({
-  "diagram-model-note":       { createFn: "createObject",        createType: "diagram-model-note",  copyProps: ["text", "fillColor", "lineColor", "fontColor", "fontSize", "fontName", "fontStyle", "opacity", "borderType"] },
-  "diagram-model-group":      { createFn: "createObject",        createType: "diagram-model-group", copyProps: ["name", "fillColor", "lineColor", "fontColor", "fontSize", "fontName", "fontStyle", "opacity", "borderType"] },
-  "diagram-model-legend":     { createFn: "createObject",        createType: "diagram-model-legend",copyProps: ["fillColor", "lineColor", "opacity"] },
-  "diagram-model-image":      { createFn: null,                  createType: null,                  copyProps: [] },
-  "diagram-model-connection": { createFn: "createConnection",    createType: null,                  copyProps: ["lineColor", "lineWidth", "textAlignment"] },
-  "diagram-model-reference":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },
-  // jArchi 1.12 partial fix: find("diagram-model-reference") locates view-reference DiagramObjects,
-  // but the returned object's .type property still reports "archimate-diagram-model" (the ArchimateView
-  // model node type). Keeping this alias ensures `type in DIAGRAM_TYPES` correctly classifies
-  // these DiagramObjects everywhere without scattering explicit === "archimate-diagram-model" guards.
-  "archimate-diagram-model":  { createFn: "createViewReference", createType: null,                  copyProps: ["fillColor", "lineColor", "fontColor", "opacity"] },
-});
+// Set-like frozen object: keys are the jArchi .type strings for visual diagram objects
+// placed on a view canvas. Source list lives in _lib/selection.js (SSOT).
+// Use `type in DIAGRAM_TYPES` to test membership and `Object.keys(DIAGRAM_TYPES)` to iterate.
+//
+// "archimate-diagram-model" is included as an alias because jArchi 1.12's
+// find("diagram-model-reference") locates view-reference DiagramObjects but the returned
+// object's .type still reports "archimate-diagram-model" (the ArchimateView node type).
+// Keeping it in the set ensures view-reference VOs classify as DiagramObjects everywhere.
+const DIAGRAM_TYPES = Object.freeze(
+  Object.fromEntries(DIAGRAM_OBJECT_TYPES.map(t => [t, true]))
+);
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

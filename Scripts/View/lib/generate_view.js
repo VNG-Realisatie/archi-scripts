@@ -124,7 +124,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Write view
   const viewName = viewNameOverride || _resolveViewName(preset, elements);
   return _writeView(preset, result, elements, routedRels, nestingRels, viewName,
-                    diagramObjects, diagramConnections, existingVoMap);
+                    diagramObjects, existingVoMap);
 }
 
 // ── One view per element ──────────────────────────────────────────────────────
@@ -341,69 +341,12 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, visualObje
 
 // ── View writer ───────────────────────────────────────────────────────────────
 
-/**
- * Recreate a source diagram VisualObject in the target view at the layout position.
- * Returns the new VisualObject, or null on failure.
- */
-function _recreateDiagramObject(view, sourceVo, rn) {
-  const def = Defs.DIAGRAM_TYPES[sourceVo.type];
-  if (!def || !def.createFn) {
-    console.log(`  Skipping ${sourceVo.type} "${sourceVo.name || ""}" (no creation API)`);
-    return null;
-  }
-  try {
-    let newVo;
-    if (def.createFn === "createViewReference") {
-      const refView = sourceVo.refView;
-      if (!refView) {
-        console.log(`  Skipping view-reference: no refView`);
-        return null;
-      }
-      newVo = view.createViewReference(refView, rn.x, rn.y, rn.width, rn.height);
-    } else if (def.createFn === "createConnection") {
-      // Requires source and target VisualObjects — not available at this call site; skip.
-      console.log(`  Skipping diagram-model-connection (source/target resolution not yet implemented)`);
-      return null;
-    } else {
-      // createObject: note, group, legend
-      newVo = view.createObject(def.createType, rn.x, rn.y, rn.width, rn.height);
-      if (newVo) {
-        for (const prop of def.copyProps) {
-          try {
-            const val = sourceVo[prop];
-            if (val !== undefined && val !== null) newVo[prop] = val;
-          } catch (e) {}
-        }
-      }
-    }
-    console.log(`  Added ${sourceVo.type} "${sourceVo.name || sourceVo.type}" at (${rn.x}, ${rn.y})`);
-    return newVo;
-  } catch (e) {
-    console.log(`  Failed to recreate ${sourceVo.type}: ${e}`);
-    return null;
-  }
-}
-
-/**
- * Find the new VisualObject in visualIndex that corresponds to an endpoint of a
- * diagram-model-connection. The endpoint is a VisualObject from the source view.
- */
-function _findVOForEndpoint(endpointVO, visualIndex) {
-  if (!endpointVO) return null;
-  // ArchiMate element VOs are keyed by concept.id; diagram object VOs by their own id.
-  return (endpointVO.concept ? visualIndex[endpointVO.concept.id] : null)
-      || visualIndex[endpointVO.id];
-}
-
 function _writeView(preset, result, elements, routedRels, nestingRels, viewName,
-                    diagramObjects, diagramConnections, existingVoMap) {
+                    diagramObjects, existingVoMap) {
   const folder = _resolveFolder(preset.view.folder);
   const view   = _getOrCreateView(folder, viewName);
 
   const visualIndex  = {};  // nodeId → VisualObject
-  const diagramVoById = {};
-  (diagramObjects || []).forEach(vo => { diagramVoById[vo.id] = vo; });
-
   // Draw nodes
   console.log(`Drawing ${result.nodes.length} nodes...`);
   for (const rn of result.nodes) {
@@ -413,7 +356,12 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName,
     // If so, reposition it rather than adding a fresh copy (which would lose visual properties).
     const existingVO = existingVoMap && existingVoMap[archiId];
     if (existingVO) {
-      existingVO.bounds = { x: rn.x, y: rn.y, width: rn.width, height: rn.height };
+      // Convert absolute layout coords to parent-relative for nested VOs.
+      const parentNodeId = _findParentNodeId(rn.id, result);
+      const parentRn = parentNodeId ? result.nodes.find(n => n.id === parentNodeId) : null;
+      const relX = parentRn ? rn.x - parentRn.x : rn.x;
+      const relY = parentRn ? rn.y - parentRn.y : rn.y;
+      existingVO.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
       visualIndex[rn.id] = existingVO;
       continue;
     }
@@ -424,31 +372,23 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName,
     const parentNodeId = _findParentNodeId(rn.id, result);
     const parentVisual = parentNodeId ? visualIndex[parentNodeId] : null;
 
-    // el found by $('#archiId') may be a diagram VO (group, note, view-reference) — those have IDs
-    // but require view.createObject() / createViewReference(), not view.add(el, x, y, w, h).
+    // el found by $('#archiId') may be a diagram VO — those exist only on a canvas
+    // and cannot be created from a model selection, so we skip them on new views.
     const elIsDiagram = el && el.id && el.type && (el.type in Defs.DIAGRAM_TYPES);
+    if (!el || !el.id || elIsDiagram) continue;
 
-    if (el && el.id && !elIsDiagram) {
-      // New ArchiMate model element: add to view
-      try {
-        if (parentVisual) {
-          const parentRn  = result.nodes.find(n => n.id === parentNodeId);
-          const relX = rn.x - (parentRn ? parentRn.x : 0);
-          const relY = rn.y - (parentRn ? parentRn.y : 0);
-          visualIndex[rn.id] = parentVisual.add(el, relX, relY, rn.width, rn.height);
-        } else {
-          visualIndex[rn.id] = view.add(el, rn.x, rn.y, rn.width, rn.height);
-        }
-      } catch (e) {
-        console.error(`Failed to add element ${archiId}: ${e}`);
+    // New ArchiMate model element: add to view
+    try {
+      if (parentVisual) {
+        const parentRn  = result.nodes.find(n => n.id === parentNodeId);
+        const relX = rn.x - (parentRn ? parentRn.x : 0);
+        const relY = rn.y - (parentRn ? parentRn.y : 0);
+        visualIndex[rn.id] = parentVisual.add(el, relX, relY, rn.width, rn.height);
+      } else {
+        visualIndex[rn.id] = view.add(el, rn.x, rn.y, rn.width, rn.height);
       }
-    } else {
-      // New diagram object: recreate in the target view.
-      // sourceVo comes from diagramVoById; if el was found by $() it's the same VO.
-      const sourceVo = diagramVoById[archiId] || (elIsDiagram ? el : null);
-      if (!sourceVo) continue;
-      const newVo = _recreateDiagramObject(view, sourceVo, rn);
-      if (newVo) visualIndex[rn.id] = newVo;
+    } catch (e) {
+      console.error(`Failed to add element ${archiId}: ${e}`);
     }
   }
 
@@ -505,26 +445,6 @@ function _writeView(preset, result, elements, routedRels, nestingRels, viewName,
     }
   }
 
-  // Draw diagram-model-connections (non-ArchiMate connections between diagram objects).
-  // Must run after all nodes are placed so visualIndex is fully populated.
-  for (const conn of (diagramConnections || [])) {
-    const srcVO = _findVOForEndpoint(conn.source, visualIndex);
-    const tgtVO = _findVOForEndpoint(conn.target, visualIndex);
-    if (!srcVO || !tgtVO) {
-      console.log(`  Skipping diagram-model-connection: source or target not on view`);
-      continue;
-    }
-    try {
-      const newConn = view.createConnection(srcVO, tgtVO);
-      if (newConn) {
-        const def = Defs.DIAGRAM_TYPES["diagram-model-connection"];
-        for (const p of (def ? def.copyProps : [])) {
-          try { if (conn[p] != null) newConn[p] = conn[p]; } catch(e) {}
-        }
-      }
-    } catch(e) { console.log(`  Failed to create diagram-model-connection: ${e}`); }
-  }
-
   // Log: count objects actually on the new view
   try {
     let _vEl = 0, _vRel = 0, _vDiag = 0;
@@ -546,12 +466,21 @@ function _applyResultToView(result, view, extraVoById) {
   // Also use the explicit voById map from _layoutOnlyView (for diagram objects indexed by their own id)
   const voById = extraVoById || {};
 
+  // Index result nodes by id for parent lookup (nested VOs need parent-relative coords)
+  const nodeById = {};
+  for (const rn of result.nodes) nodeById[rn.id] = rn;
+
   for (const rn of result.nodes) {
     const vo = visualIndex[rn.id] || voById[rn.id];  // ArchiMate element or diagram object
     if (!vo) continue;
-    // Test confirmed: jArchi does NOT reset visual properties when bounds are set.
-    // No save/restore needed.
-    vo.bounds = { x: rn.x, y: rn.y, width: rn.width, height: rn.height };
+    // For nested VOs, jArchi's vo.bounds is relative to the parent VO — convert from absolute.
+    let x = rn.x, y = rn.y;
+    if (rn.parentId && nodeById[rn.parentId]) {
+      const parent = nodeById[rn.parentId];
+      x = rn.x - parent.x;
+      y = rn.y - parent.y;
+    }
+    vo.bounds = { x, y, width: rn.width, height: rn.height };
   }
 
   for (const re of result.edges) {
@@ -579,10 +508,8 @@ function _applyResultToView(result, view, extraVoById) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function _findParentNodeId(nodeId, result) {
-  // Check the graph's parent map embedded in result (passed through via _buildLayoutGraph)
-  // We rely on the fact that the parent relationship is encoded in the node.parent field
   const node = result.nodes.find(n => n.id === nodeId);
-  return (node && node.parent) ? node.parent : null;
+  return (node && node.parentId) ? node.parentId : null;
 }
 
 function _resolveViewName(preset, elements) {

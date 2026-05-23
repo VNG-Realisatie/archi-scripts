@@ -301,6 +301,9 @@ function _col(parent) {
   return c;
 }
 
+// Dash-for-empty: show "—" when count is zero (used for Views/Folders cells in non-Selected rows).
+function _dashIfZero(n) { return n > 0 ? String(n) : "—"; }
+
 function _lbl(parent, text) {
   const l = new LabelWidget(parent, SWT.NONE);
   l.setText(text || "");
@@ -308,19 +311,18 @@ function _lbl(parent, text) {
   return l;
 }
 
-// Count elements and relations in a collection.
-// Folders and views are containers — they are not counted, only their contents are.
+// Count selection by type. Returns { elems, rels, views, diagrams, folders }.
 function _countSelection(coll) {
-  let elems = 0, rels = 0, views = 0, diagrams = 0;
+  let elems = 0, rels = 0, views = 0, diagrams = 0, folders = 0;
   coll.each(o => {
     const t = o.type || "";
-    if (t === "folder")                          return;  // folder is a container, not an element
-    if (t.endsWith("-relationship"))             rels++;
+    if      (t === "folder")                     folders++;
+    else if (t.endsWith("-relationship"))        rels++;
     else if (t === "archimate-diagram-model")    views++;
     else if (t.startsWith("diagram-model-"))     diagrams++;
     else                                          elems++;
   });
-  return { elems, rels, views, diagrams };
+  return { elems, rels, views, diagrams, folders };
 }
 
 // ── open() ────────────────────────────────────────────────────────────────────
@@ -356,7 +358,7 @@ function open(uiSelection) {
   // Expanded count: what is contained in the selection (folders expand, views expand to their elements).
   // When a view (archimate-diagram-model) is selected, $(view).find() enumerates visual objects.
   // $(view).children() returns nothing useful from the model tree — find() is the correct API.
-  const containingCount = { elems: 0, rels: 0, diagrams: 0 };
+  const containingCount = { elems: 0, rels: 0, diagrams: 0, views: 0, folders: 0 };
   try {
     uiSelection.each(o => {
       const t = o.type || "";
@@ -373,24 +375,29 @@ function open(uiSelection) {
             try { $(o).find(dt).each(() => containingCount.diagrams++); } catch (e2) {}
           });
         } catch (e) {}
-      } else if (t.endsWith("-relationship")) {
-        containingCount.rels++;
-      } else if (t.startsWith("diagram-model-")) {
-        containingCount.diagrams++;
-      } else if (t !== "archimate-diagram-model" && t !== "folder") {
-        containingCount.elems++;
-      } else if (t === "folder") {
-        // Recurse: count folder contents via getSelection
+      } else if (o.view || t === "folder") {
+        // Canvas VO (may be a container nesting child VOs) or a model-tree folder.
+        // Selection.getSelection now handles both: walks $(obj).children() recursively,
+        // extracting concepts from canvas VOs and diagram objects.
         try {
           const coll = Selection.getSelection($(o), "*");
           const c    = _countSelection(coll);
           containingCount.elems    += c.elems;
           containingCount.rels     += c.rels;
           containingCount.diagrams += c.diagrams;
+          containingCount.views    += c.views;
+          containingCount.folders  += c.folders;
         } catch (e) {}
+      } else if (t.endsWith("-relationship")) {
+        containingCount.rels++;
+      } else if (t.startsWith("diagram-model-")) {
+        containingCount.diagrams++;
+      } else if (t !== "archimate-diagram-model") {
+        containingCount.elems++;
       }
     });
   } catch (e) {}
+  ctx.containingCount = containingCount;
 
   // Collect flat array of model objects for live filter statistics.
   // Used by _updateFilteredCount to recount after filter changes.
@@ -416,13 +423,10 @@ function open(uiSelection) {
         Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
           try { $(o).find(dt).each(dvo => { if (dvo && dvo.id) add(dvo); }); } catch (e) {}
         });
-      } else if (t.startsWith("diagram-model-")) {
-        // Canvas diagram object: add the visual object directly (not .concept).
-        add(o);
-      } else if (o.view) {
-        // Canvas ArchiMate visual object → use model concept
-        add(o.concept || o);
-      } else if (t === "folder") {
+      } else if (o.view || t === "folder") {
+        // Canvas VO (may be a container) or model-tree folder.
+        // Selection.getSelection recurses via $(obj).children() and extracts
+        // concepts from canvas VOs and diagram objects in one pass.
         try { Selection.getSelection($(o), "*").each(add); } catch (e) {}
       } else {
         add(o);
@@ -505,6 +509,7 @@ function open(uiSelection) {
     // action is a runtime parameter, NOT stored in config/preset (validatePreset strips unknown keys).
     buttonPressed: function(buttonId) {
       if (buttonId === IDialogConstants.CANCEL_ID) {
+        _persistSession(ctx);  // remember _lastTabIndex even on cancel
         Java.super(dlg).cancelPressed();
         return;
       }
@@ -551,12 +556,10 @@ function _updateFilteredCount(ctx) {
   const w = ctx.widgets;
   if (!w.lblFlt_elems) return;
 
-  const _setRelated  = (e, r, d) => { try { w.lblRel_elems.setText(e); w.lblRel_rels.setText(r); w.lblRel_diags.setText(d); } catch(x) {} };
   const _setFiltered = (e, r, d) => { try { w.lblFlt_elems.setText(e); w.lblFlt_rels.setText(r); w.lblFlt_diags.setText(d); } catch(x) {} };
 
   const objects = ctx.rawModelObjects;
   if (!objects || !objects.length) {
-    _setRelated("—", "—", "—");
     _setFiltered("—", "—", "—");
     return;
   }
@@ -639,17 +642,9 @@ function _updateFilteredCount(ctx) {
       } catch(e) {}
     }
 
-    // Update Related row
-    if (depth === 0) {
-      _setRelated("—", "—", "—");
-    } else {
-      _setRelated(String(relAddedElems), String(relAddedRels), "0");
-    }
-
     // Update Filtered row (base + related additions)
     _setFiltered(String(elems + relAddedElems), String(rels + relAddedRels), String(diagrams));
   } catch (e) {
-    _setRelated("—", "—", "—");
     _setFiltered("—", "—", "—");
   }
 }
@@ -659,18 +654,14 @@ function _updateFilteredCount(ctx) {
 function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firstName) {
   const { page, finish } = _scrolledTab(tabFolder, "Selection");
   const w = ctx.widgets;
-  const selected   = selectedCount   || { elems: 0, rels: 0, views: 0, folders: 0 };
-  const containing = containingCount || { elems: 0, rels: 0, diagrams: 0 };
+  const selected   = selectedCount   || { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
+  const containing = containingCount || { elems: 0, rels: 0, diagrams: 0, views: 0, folders: 0 };
 
   // ── Current selection info table ─────────────────────────────────────────────
-  // Columns: label | Elements | Relations | Diagrams | (filler)
-  // Rows:    header | Selected | Containing | Related | Filtered
-  // Count cells are right-aligned.
-  // Below table: first selected object name.
-  const grpInfo = new GroupWidget(page, SWT.NONE);
-  grpInfo.setText("Current selection");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpInfo);
-  GridLayoutFactory.fillDefaults().numColumns(5).margins(8, 6).spacing(8, 3).applyTo(grpInfo);
+  // Columns: label | Elements | Relations | Diagrams | Views | Folders | (filler)
+  // Rows:    header | Selected | Containing | Filtered  (Related rows added by Phase 2)
+  // Views/Folders show "—" except in the Selected row where they convey what was selected.
+  const grpInfo = _group(page, "Current selection", 7, { marginH: 8, marginV: 6, spaceH: 8, spaceV: 3 });
 
   const _cnt = (parent, txt) => {
     const l = new LabelWidget(parent, SWT.RIGHT);
@@ -682,40 +673,33 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firs
   // Header row
   _lbl(grpInfo, "");
   _lbl(grpInfo, "Elements"); _lbl(grpInfo, "Relations"); _lbl(grpInfo, "Diagrams");
+  _lbl(grpInfo, "Views");    _lbl(grpInfo, "Folders");
   _lbl(grpInfo, "");  // filler
 
   // Selected row (static, from direct selection)
-  const selLabel = (selected.views || selected.folders)
-    ? "Selected" + (selected.views   ? ` (${selected.views} view${selected.views   > 1 ? "s" : ""})` : "")
-                 + (selected.folders ? ` (${selected.folders} folder${selected.folders > 1 ? "s" : ""})` : "")
-    : "Selected";
-  _lbl(grpInfo, selLabel);
+  _lbl(grpInfo, "Selected");
   _cnt(grpInfo, String(selected.elems)); _cnt(grpInfo, String(selected.rels)); _cnt(grpInfo, String(selected.diagrams));
+  _cnt(grpInfo, _dashIfZero(selected.views)); _cnt(grpInfo, _dashIfZero(selected.folders));
   _lbl(grpInfo, "");
 
   // Containing row (static, expanded from folders/views)
   _lbl(grpInfo, "Containing");
   _cnt(grpInfo, String(containing.elems)); _cnt(grpInfo, String(containing.rels)); _cnt(grpInfo, String(containing.diagrams));
+  _cnt(grpInfo, _dashIfZero(containing.views)); _cnt(grpInfo, _dashIfZero(containing.folders));
   _lbl(grpInfo, "");
 
-  // Related row (live-updated)
-  _lbl(grpInfo, "Related");
-  w.lblRel_elems = _cnt(grpInfo, "—"); w.lblRel_rels = _cnt(grpInfo, "—"); w.lblRel_diags = _cnt(grpInfo, "—");
-  _lbl(grpInfo, "");
-
-  // Filtered row (live-updated)
+  // Filtered row (live-updated). Views/Folders always "—" — filter doesn't apply to containers.
   _lbl(grpInfo, "Filtered");
   w.lblFlt_elems = _cnt(grpInfo, "—"); w.lblFlt_rels = _cnt(grpInfo, "—"); w.lblFlt_diags = _cnt(grpInfo, "—");
+  _cnt(grpInfo, "—"); _cnt(grpInfo, "—");
   _lbl(grpInfo, "");
 
-  // Keep legacy refs null (code now uses per-cell widgets)
+  // Legacy refs — no longer used after Phase 1 row reorganization.
   w.lblRelated = null; w.lblFiltered = null;
+  w.lblRel_elems = null; w.lblRel_rels = null; w.lblRel_diags = null;
 
   // ── Filter ──────────────────────────────────────────────────────────────────
-  const grpFilter = new GroupWidget(page, SWT.NONE);
-  grpFilter.setText("Filter  (empty = all included)");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpFilter);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 6).applyTo(grpFilter);
+  const grpFilter = _group(page, "Filter  (empty = all included)", 1, { spaceV: 6 });
 
   // onChange fires whenever a filter control changes → recount
   const onFilterChange = () => _updateFilteredCount(ctx);
@@ -733,10 +717,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firs
   w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
-  const grpRel = new GroupWidget(page, SWT.NONE);
-  grpRel.setText("Related elements");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRel);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpRel);
+  const grpRel = _group(page, "Related elements", 1);
 
   // Relation types to follow — first, full width; changes trigger live Related count update
   _lbl(grpRel, "Relation types to follow:");
@@ -766,18 +747,11 @@ function _buildLayoutTab(tabFolder, ctx) {
   const w = ctx.widgets;
 
   // ── Algorithm ────────────────────────────────────────────────────────────────
-  const grpAlg = new GroupWidget(page, SWT.NONE);
-  grpAlg.setText("Algorithm");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpAlg);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(6, 4).applyTo(grpAlg);
+  const grpAlg = _group(page, "Algorithm", 4, { spaceH: 6 });
 
-  new LabelWidget(grpAlg, SWT.NONE).setText("Style:");
-  const cmbStyle = new ComboWidget(grpAlg, SWT.READ_ONLY | SWT.DROP_DOWN);
-  Object.keys(STYLES).forEach(s => cmbStyle.add(s));
-  cmbStyle.select(0);
-  GridDataFactory.swtDefaults().hint(120, SWT.DEFAULT).applyTo(cmbStyle);
-  w.cmbStyle = cmbStyle;
+  const cmbStyle = _addCombo(grpAlg, "Style:", Object.keys(STYLES), 0, 120, "cmbStyle", w);
 
+  // Algorithm combo is filled dynamically by _fillAlgorithmCombo based on selected style.
   new LabelWidget(grpAlg, SWT.NONE).setText("Algorithm:");
   const cmbAlg = new ComboWidget(grpAlg, SWT.READ_ONLY | SWT.DROP_DOWN);
   GridDataFactory.swtDefaults().hint(150, SWT.DEFAULT).applyTo(cmbAlg);
@@ -802,59 +776,24 @@ function _buildLayoutTab(tabFolder, ctx) {
   });
 
   // ── Direction / Routing / Label ──────────────────────────────────────────────
-  const grpDir = new GroupWidget(page, SWT.NONE);
-  grpDir.setText("Direction and routing");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpDir);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(6, 4).spacing(6, 4).applyTo(grpDir);
+  const grpDir = _group(page, "Direction and routing", 6, { spaceH: 6 });
 
-  new LabelWidget(grpDir, SWT.NONE).setText("Flow direction:");
-  const cmbDir = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
-  DIRECTION_LABELS.forEach(d => cmbDir.add(d));
-  cmbDir.select(0);
-  GridDataFactory.swtDefaults().hint(120, SWT.DEFAULT).applyTo(cmbDir);
-  w.cmbDirection = cmbDir;
-
-  new LabelWidget(grpDir, SWT.NONE).setText("Relation lines:");
-  const cmbRouting = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
-  ROUTING_ALL.forEach(r => cmbRouting.add(r));
-  cmbRouting.select(0);
-  GridDataFactory.swtDefaults().hint(160, SWT.DEFAULT).applyTo(cmbRouting);
-  w.cmbRouting = cmbRouting;
-
-  new LabelWidget(grpDir, SWT.NONE).setText("Label:");
-  const cmbLabelPos = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
-  LABEL_POS_ALL.forEach(lp => cmbLabelPos.add(lp));
-  cmbLabelPos.select(1);
-  GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(cmbLabelPos);
-  w.cmbLabelPosition = cmbLabelPos;
-
-  new LabelWidget(grpDir, SWT.NONE).setText("Layer ranking:");
-  const cmbRanking = new ComboWidget(grpDir, SWT.READ_ONLY | SWT.DROP_DOWN);
-  RANKING_LABELS.forEach(r => cmbRanking.add(r));
-  cmbRanking.select(0);
-  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbRanking);
-  w.cmbRanking = cmbRanking;
+  _addCombo(grpDir, "Flow direction:",  DIRECTION_LABELS, 0, 120, "cmbDirection",     w);
+  _addCombo(grpDir, "Relation lines:",  ROUTING_ALL,      0, 160, "cmbRouting",       w);
+  _addCombo(grpDir, "Label:",           LABEL_POS_ALL,    1,  90, "cmbLabelPosition", w);
+  _addCombo(grpDir, "Layer ranking:",   RANKING_LABELS,   0, 110, "cmbRanking",       w);
 
   // ── Nesting structure ─────────────────────────────────────────────────────────
-  const grpNest = new GroupWidget(page, SWT.NONE);
-  grpNest.setText("Nesting structure  —  relations drawn as containment boxes, not lines");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpNest);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpNest);
+  const grpNest = _group(page, "Nesting structure  —  relations drawn as containment boxes, not lines", 1);
   w.grpNestingStructure = grpNest;
   w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4);
 
   // ── Reverse layout direction ──────────────────────────────────────────────────
-  const grpRev = new GroupWidget(page, SWT.NONE);
-  grpRev.setText("Reverse layout direction for relation types");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpRev);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(grpRev);
+  const grpRev = _group(page, "Reverse layout direction for relation types", 1);
   w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4);
 
   // ── Container appearance ───────────────────────────────────────────────────────
-  const grpCtr = new GroupWidget(page, SWT.NONE);
-  grpCtr.setText("Container appearance");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpCtr);
-  GridLayoutFactory.fillDefaults().numColumns(8).margins(6, 4).spacing(4, 4).applyTo(grpCtr);
+  const grpCtr = _group(page, "Container appearance", 8);
   w.grpContainer = grpCtr;
 
   _addSpinnerRow(grpCtr, "Inner spacing:", "spinInnerSpacing",  20, 0, 200, 5, w);
@@ -865,10 +804,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   const chkEvery = _addCheck(grpCtr, "Show in every container",     "An element in multiple containers appears in each of them.", 4, w, "chkShowInEvery");
 
   // ── Size and spacing ───────────────────────────────────────────────────────────
-  const grpSize = new GroupWidget(page, SWT.NONE);
-  grpSize.setText("Size and spacing");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpSize);
-  GridLayoutFactory.fillDefaults().numColumns(8).margins(6, 4).spacing(4, 4).applyTo(grpSize);
+  const grpSize = _group(page, "Size and spacing", 8);
 
   _addSpinnerRow(grpSize, "Width:",           "spinElementWidth",   140, 10, 1000, 10, w);
   _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",   60, 10,  500, 10, w);
@@ -876,20 +812,12 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpSize, "Level spacing:",   "spinLayerSpacing",   180,  0, 2000, 20, w);
 
   // ── View size ──────────────────────────────────────────────────────────────────
-  const grpVS = new GroupWidget(page, SWT.NONE);
-  grpVS.setText("View size");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpVS);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(6, 4).spacing(4, 4).applyTo(grpVS);
+  const grpVS = _group(page, "View size", 6);
 
   _addSpinnerRow(grpVS, "Max width:",  "spinMaxWidth",  0, 0, 99999, 100, w);
   _addSpinnerRow(grpVS, "Max height:", "spinMaxHeight", 0, 0, 99999, 100, w);
 
-  new LabelWidget(grpVS, SWT.NONE).setText("Aspect ratio:");
-  const cmbAR = new ComboWidget(grpVS, SWT.READ_ONLY | SWT.DROP_DOWN);
-  AR_LABELS.forEach(a => cmbAR.add(a));
-  cmbAR.select(0);
-  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbAR);
-  w.cmbAspectRatio = cmbAR;
+  _addCombo(grpVS, "Aspect ratio:", AR_LABELS, 0, 110, "cmbAspectRatio", w);
 
   finish();
 }
@@ -920,53 +848,68 @@ function _runAction(buttonId, dlg, ctx) {
   Java.super(dlg).okPressed();
 }
 
-function _actionBtn(parent, label, buttonId, dlg, ctx) {
+// Action-row button: fills cell width, bottom-aligned within group.
+function _actionBtn(parent, label, onClick) {
   const btn = new ButtonWidget(parent, SWT.PUSH);
   btn.setText(label);
-  // fill group width; align to bottom of group
   GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.END).applyTo(btn);
-  btn.addListener(SWT.Selection, () => _runAction(buttonId, dlg, ctx));
+  btn.addListener(SWT.Selection, onClick);
   return btn;
+}
+
+// Group container with the project's standard GridData + GridLayout.
+// Pass " " (single space) as label for an unlabelled-but-title-bar-reserved group.
+function _group(parent, label, numColumns, opts) {
+  opts = opts || {};
+  const grp = new GroupWidget(parent, SWT.NONE);
+  grp.setText(label);
+  GridDataFactory.fillDefaults()
+    .grab(opts.grabH !== false, opts.grabV || false)
+    .applyTo(grp);
+  GridLayoutFactory.fillDefaults()
+    .numColumns(numColumns)
+    .margins(opts.marginH || 6, opts.marginV || 4)
+    .spacing(opts.spaceH || 4, opts.spaceV || 4)
+    .applyTo(grp);
+  return grp;
+}
+
+// Label + read-only combo + items + selection + width hint + widget registration.
+function _addCombo(parent, label, items, selectedIdx, widthHint, key, w) {
+  if (label) new LabelWidget(parent, SWT.NONE).setText(label);
+  const cmb = new ComboWidget(parent, SWT.READ_ONLY | SWT.DROP_DOWN);
+  items.forEach(it => cmb.add(it));
+  cmb.select(selectedIdx);
+  GridDataFactory.swtDefaults().hint(widthHint, SWT.DEFAULT).applyTo(cmb);
+  w[key] = cmb;
+  return cmb;
 }
 
 function _buildActionRow(area, ctx, dlg, hasVisual) {
   const w = ctx.widgets;
 
-  // Separator above buttons
   const sep = new LabelWidget(area, SWT.SEPARATOR | SWT.HORIZONTAL);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(sep);
 
-  // One row: [Cancel] [Create new view group] [Modify selected view group]
-  // Groups grab equal space; buttons bottom-aligned inside groups
   const btnRow = new CompositeWidget(area, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(btnRow);
   GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(btnRow);
 
-  // Left: Cancel — unlabelled group box
-  const grpCancel = new GroupWidget(btnRow, SWT.NONE);
-  grpCancel.setText("");
-  GridDataFactory.fillDefaults().grab(false, true).applyTo(grpCancel);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 0).applyTo(grpCancel);
-  const btnCancel = new ButtonWidget(grpCancel, SWT.PUSH);
-  btnCancel.setText("Cancel");
-  GridDataFactory.fillDefaults().grab(true, true).align(SWT.FILL, SWT.END).applyTo(btnCancel);
-  btnCancel.addListener(SWT.Selection, () => Java.super(dlg).cancelPressed());
+  // " " (not "") so GTK reserves the title-bar slot — matches labelled siblings' height.
+  const grpCancel = _group(btnRow, " ",                    1, { grabV: true, spaceV: 0 });
+  const grpCreate = _group(btnRow, "Create new view",      2, { grabV: true, spaceV: 0 });
+  const grpModify = _group(btnRow, "Modify selected view", 2, { grabV: true, spaceV: 0 });
 
-  // Middle group: Create new view
-  const grpCreate = new GroupWidget(btnRow, SWT.NONE);
-  grpCreate.setText("Create new view");
-  GridDataFactory.fillDefaults().grab(true, true).applyTo(grpCreate);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 0).applyTo(grpCreate);
-  w.btnNewView = _actionBtn(grpCreate, "New view",      IDialogConstants.OK_ID, dlg, ctx);
-  w.btnOneEach = _actionBtn(grpCreate, "One view each", 103,                    dlg, ctx);
+  _actionBtn(grpCancel, "Cancel", () => {
+    _persistSession(ctx);  // remember _lastTabIndex even on cancel
+    Java.super(dlg).cancelPressed();
+  });
 
-  // Right group: Modify selected view
-  const grpModify = new GroupWidget(btnRow, SWT.NONE);
-  grpModify.setText("Modify selected view");
-  GridDataFactory.fillDefaults().grab(true, true).applyTo(grpModify);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 4).spacing(4, 0).applyTo(grpModify);
-  w.btnExpandView = _actionBtn(grpModify, "Expand view", 102, dlg, ctx);
-  w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", 101, dlg, ctx);
+  w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(IDialogConstants.OK_ID, dlg, ctx));
+  w.btnOneEach = _actionBtn(grpCreate, "One view each", () => _runAction(103, dlg, ctx));
+
+  w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(102, dlg, ctx));
+  w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(101, dlg, ctx));
   w.btnExpandView.setEnabled(hasVisual);
   w.btnLayoutOnly.setEnabled(hasVisual);
 }
@@ -976,10 +919,7 @@ function _buildActionRow(area, ctx, dlg, hasVisual) {
 function _buildViewRow(area, ctx) {
   const w = ctx.widgets;
 
-  const grpView = new GroupWidget(area, SWT.NONE);
-  grpView.setText("View name and location");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(grpView);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(6, 4).spacing(4, 4).applyTo(grpView);
+  const grpView = _group(area, "View name and location", 4);
 
   // Row 1: Name | name field | Suffix | suffix field
   new LabelWidget(grpView, SWT.NONE).setText("Name:");
@@ -1023,7 +963,7 @@ function _buildPresetRow(parent, ctx, dlg) {
     if (idx < 0) return;
     try {
       const loaded = PresetIO.readPreset(cmbPreset.getItem(idx));
-      Object.assign(ctx.config, loaded);
+      _mergePreset(ctx, loaded);
       _syncToUI(ctx);
       _updateFilteredCount(ctx);
     } catch (e) { console.error("Load preset: " + e); }
@@ -1034,7 +974,7 @@ function _buildPresetRow(parent, ctx, dlg) {
     if (path) {
       try {
         const raw = PresetIO.readJSON(path);
-        if (raw) { Object.assign(ctx.config, validatePreset(raw)); _syncToUI(ctx); }
+        if (raw) { _mergePreset(ctx, validatePreset(raw)); _syncToUI(ctx); }
       } catch (e) { console.error("Load: " + e); }
     }
   });
@@ -1299,6 +1239,23 @@ function _addSpinnerRow(parent, label, key, defVal, min, max, step, w) {
   sp.setValues(defVal, min, max, 0, step, step * 5);
   GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(sp);
   w[key] = sp;
+}
+
+// Merge a loaded preset onto ctx.config, but preserve current session values
+// for params that are INACTIVE in the new algorithm. Greyed-in-UI params keep
+// their values across preset switches; the engine ignores them via activeParams.
+function _mergePreset(ctx, validated) {
+  const oldParams = ctx.config.params ? Object.assign({}, ctx.config.params) : {};
+  const newAlg    = validated.algorithm;
+  const activeSet = new Set((ALGORITHMS[newAlg] && ALGORITHMS[newAlg].activeParams) || []);
+
+  Object.assign(ctx.config, validated);
+
+  if (ctx.config.params) {
+    Object.keys(oldParams).forEach(key => {
+      if (!activeSet.has(key)) ctx.config.params[key] = oldParams[key];
+    });
+  }
 }
 
 function _refreshPresetCombo(combo) {

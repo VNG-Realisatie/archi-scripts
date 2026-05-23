@@ -127,7 +127,10 @@ function readSession() {
   const raw  = readJSON(path);
   if (!raw) return JSON.parse(JSON.stringify(Defs.DEFAULT_PRESET));
   try {
-    return validatePreset(raw);
+    const validated = validatePreset(raw);
+    // Preserve UI state fields (underscore-prefixed) that are not part of the preset schema.
+    Object.keys(raw).forEach(k => { if (k.startsWith("_")) validated[k] = raw[k]; });
+    return validated;
   } catch (e) {
     console.log(`Session file invalid (${e}), using defaults.`);
     return JSON.parse(JSON.stringify(Defs.DEFAULT_PRESET));

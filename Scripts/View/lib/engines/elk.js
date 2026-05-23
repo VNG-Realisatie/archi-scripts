@@ -91,11 +91,11 @@ function layout(graph) {
     for (const id of Object.keys(nodeMap)) {
       origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
     }
-    const pass1Graph = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
+    const { elkGraph: pass1ElkGraph } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
     console.log("Calculating layout (pass 1 — align same type)...");
-    elk.layout(pass1Graph);
-    const globalMinW = _collectMinContainerW(pass1Graph, graph.options.maxWidth || 0, graph.options.padding || 0);
-    const { equalizedSizes, extraHPaddings } = _equalizeSiblings(pass1Graph, globalMinW);
+    const pass1Layouted = elk.layout(pass1ElkGraph);
+    const globalMinW = _collectMinContainerW(pass1Layouted, graph.options.maxWidth || 0, graph.options.padding || 0);
+    const { equalizedSizes, extraHPaddings } = _equalizeSiblings(pass1Layouted, globalMinW);
     _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, extraHPaddings);
     console.log("Calculating layout (pass 2 — equalized sizes)...");
   } else {
@@ -300,12 +300,19 @@ function _liftCrossHierarchyEdges(rootEdges, parentMap) {
 
 // ── Result extraction ─────────────────────────────────────────────────────────
 
-function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes) {
+function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId) {
   for (const child of (elkNode.children || [])) {
     const absX = offsetX + (child.x || 0);
     const absY = offsetY + (child.y || 0);
-    resultNodes.push({ id: child.id, x: absX, y: absY, width: child.width || 0, height: child.height || 0 });
-    _collectNodePositions(child, absX, absY, resultNodes);
+    resultNodes.push({
+      id:       child.id,
+      x:        absX,
+      y:        absY,
+      width:    child.width  || 0,
+      height:   child.height || 0,
+      parentId: parentId || null,
+    });
+    _collectNodePositions(child, absX, absY, resultNodes, child.id);
   }
 }
 

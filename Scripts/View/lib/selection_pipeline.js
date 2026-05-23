@@ -44,37 +44,13 @@ function buildObjectSet(uiSelection, preset, actionId) {
 
   // Step 1: get model objects from selection.
   //
-  // jArchi $(selection) returns different object types depending on what is
-  // selected in the Archi UI:
-  //   Model tree: ArchiElement / ArchiRelation / Folder / ArchimateView
-  //     → Selection.getSelection() traverses these correctly.
-  //   View canvas: VisualObject instances (type=application-component etc.)
-  //     → $(visualObj).is("*") returns false in jArchi's selector system,
-  //       so getSelection() collects nothing. Must extract .concept directly.
-  //
-  let collection;
-  let diagramObjects = [];
-  const isCanvasSelection = _isCanvasSelection(uiSelection);
-  if (isCanvasSelection) {
-    // Canvas selection: diagram objects come through _extractConceptsFromCanvas
-    // already (they have no .concept so the visual object itself is kept).
-    // Separate them into their own track here.
-    const raw = _extractConceptsFromCanvas(uiSelection);
-    const diag = [];
-    const diagSeen = new Set();
-    raw.each(o => {
-      if (o && o.type && o.type in Defs.DIAGRAM_TYPES) {
-        if (!diagSeen.has(o.id)) { diagSeen.add(o.id); diag.push(o); }
-      }
-    });
-    collection = raw.filter(o => !(o.type in Defs.DIAGRAM_TYPES));
-    diagramObjects = diag;
-  } else {
-    const raw = Selection.getSelection(uiSelection, "*");
-    const expanded = _expandViews(raw);
-    collection = expanded.modelCollection;
-    diagramObjects = expanded.diagramObjects;
-  }
+  // Selection.getSelection now handles canvas VOs correctly (extracts .concept,
+  // recurses into nested VOs via $(obj).children()). So the model-tree and
+  // canvas paths converge — one call expands every container type.
+  const raw = Selection.getSelection(uiSelection, "*");
+  const expanded = _expandViews(raw);
+  let collection      = expanded.modelCollection;
+  let diagramObjects  = expanded.diagramObjects;
 
   // Log: current selection before filter
   let _cntEl = 0, _cntRel = 0;
@@ -175,42 +151,6 @@ function buildObjectSet(uiSelection, preset, actionId) {
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
-
-/**
- * Return true when uiSelection contains VisualObjects from a view canvas.
- * VisualObjects have a .view property; model elements do not.
- */
-function _isCanvasSelection(uiSelection) {
-  let found = false;
-  try {
-    uiSelection.each(o => {
-      if (o && o.view) found = true;
-    });
-  } catch (e) {}
-  return found;
-}
-
-/**
- * Extract model concepts from a canvas selection.
- * Each VisualObject has a .concept pointing to the underlying ArchiElement or ArchiRelation.
- * Builds and returns an $() collection of unique model objects.
- */
-function _extractConceptsFromCanvas(uiSelection) {
-  const coll = $();
-  const seen = new Set();
-  uiSelection.each(o => {
-    try {
-      // For diagram-model-reference (view reference) and other diagram objects,
-      // .concept may be null — use the visual object itself.
-      const concept = (o.concept) ? o.concept : o;
-      if (!concept || !concept.id || seen.has(concept.id)) return;
-      seen.add(concept.id);
-      coll.add(concept);
-    } catch (e) {}
-  });
-  console.log(`Canvas selection: extracted ${coll.size()} model objects from visual objects`);
-  return coll;
-}
 
 /**
  * Log the active filter settings to the console.

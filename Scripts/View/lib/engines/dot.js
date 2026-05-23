@@ -200,7 +200,7 @@ function _extractResult(graph, jsonOut) {
     const isContainer = graph.nodes.some(m => m.parent === node.id);
     const pos = (isContainer && clusters[node.id]) ? clusters[node.id] : nodes[node.id];
     if (!pos) continue;
-    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h });
+    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h, parentId: node.parent || null });
   }
 
   const splines      = _guiRoutingToGv(graph.options.routing || "Polyline");
