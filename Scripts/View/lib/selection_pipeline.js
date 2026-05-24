@@ -304,16 +304,40 @@ function _applyDiagramFilter(diagramObjects, filter) {
 }
 
 /**
- * Check if a relation matches the relation type filter.
- * Filter entries may have ":in" or ":out" suffix for direction.
+ * Check if a relation matches the relation type filter (type-only, direction ignored).
+ * Used where both endpoints are already known to be in the element set so direction
+ * is moot (e.g. _findRelationsBetween).
  */
 function _matchesRelationType(type, relationTypes, rel) {
   if (relationTypes.length === 0) return true;
   for (const entry of relationTypes) {
-    const [entryType, dir] = entry.split(":");
+    const i = entry.indexOf(":");
+    const entryType = i < 0 ? entry : entry.substring(0, i);
+    if (entryType === type) return true;
+  }
+  return false;
+}
+
+/**
+ * Direction-aware match used by _expandLayer.
+ * `isOutgoing` is true when the *traversing* element is the relation's source
+ * (element → other); false when it's the target (other → element).
+ *
+ * Encoded entry → match rule:
+ *   "type"      → both directions
+ *   "type:in"   → only when traversing toward incoming (isOutgoing === false)
+ *   "type:out"  → only when traversing toward outgoing (isOutgoing === true)
+ */
+function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
+  if (relationTypes.length === 0) return true;
+  for (const entry of relationTypes) {
+    const i = entry.indexOf(":");
+    const entryType = i < 0 ? entry : entry.substring(0, i);
     if (entryType !== type) continue;
-    // direction matches regardless (both directions)
-    if (!dir || dir === "in" || dir === "out") return true;
+    const dir = i < 0 ? "both" : entry.substring(i + 1);
+    if (dir === "both") return true;
+    if (dir === "out"  && isOutgoing)  return true;
+    if (dir === "in"   && !isOutgoing) return true;
   }
   return false;
 }
@@ -338,10 +362,11 @@ function _expandLayer(base, layer) {
         $(element).rels().each(rel => {
           if (_isExcluded(rel)) return;
           const type = rel.type || "";
-          if (!_matchesRelationType(type, relationTypes, rel)) return;
+          const isOutgoing = !!(rel.source && rel.source.id === element.id);
+          if (!_matchesRelationTypeDir(type, relationTypes, isOutgoing)) return;
 
           // visit the other end of the relation
-          const other = (rel.source && rel.source.id === element.id) ? rel.target : rel.source;
+          const other = isOutgoing ? rel.target : rel.source;
           if (!other) return;
           if (baseIds.has(other.id) || addedIds.has(other.id)) return;
 
@@ -361,6 +386,40 @@ function _expandLayer(base, layer) {
   }
 
   return added;
+}
+
+/**
+ * Live-count wrapper around _expandLayer. Returns the added elements plus the count
+ * of new relations contributed by the expansion: relations between (base ∪ added)
+ * that touch at least one added element. Applies the layer's relationTypes filter
+ * (type-only — direction was already honoured during expansion).
+ */
+function _expandLayerCounts(base, layer) {
+  const elements = _expandLayer(base, layer);
+  if (elements.length === 0) return { elements, elemCount: 0, relCount: 0 };
+
+  const addedIds = new Set(elements.map(e => e.id));
+  const allIds   = new Set(base.map(e => e.id));
+  elements.forEach(e => allIds.add(e.id));
+
+  const seen = new Set();
+  let relCount = 0;
+  for (const el of elements) {
+    try {
+      $(el).rels().each(rel => {
+        if (seen.has(rel.id)) return;
+        if (_isExcluded(rel)) return;
+        const srcId = rel.source && rel.source.id;
+        const tgtId = rel.target && rel.target.id;
+        if (!srcId || !tgtId) return;
+        if (!allIds.has(srcId) || !allIds.has(tgtId)) return;
+        if (!_matchesRelationType(rel.type, layer.relationTypes || [], rel)) return;
+        seen.add(rel.id);
+        relCount++;
+      });
+    } catch (e) {}
+  }
+  return { elements, elemCount: elements.length, relCount };
 }
 
 function _collectionToArray(collection) {
@@ -411,5 +470,9 @@ function _isExcluded(rel) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildObjectSet, expandLayer: _expandLayer };
+  module.exports = {
+    buildObjectSet,
+    expandLayer:       _expandLayer,
+    expandLayerCounts: _expandLayerCounts,
+  };
 }

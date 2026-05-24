@@ -572,6 +572,27 @@ function _gvSplines(v) {
   }
 }
 
+// ── Relation-direction encoding ───────────────────────────────────────────────
+// Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
+//   "type"      → both directions
+//   "type:in"   → incoming only (other → element)
+//   "type:out"  → outgoing only (element → other)
+// The UI disallows "neither direction" — at least one of inSel/outSel is always true.
+function encodeRelType(typeId, inSel, outSel) {
+  if (inSel && outSel) return typeId;
+  if (inSel)           return typeId + ":in";
+  if (outSel)          return typeId + ":out";
+  return typeId;  // defensive — UI should never produce this
+}
+
+function decodeRelType(encoded) {
+  const i = encoded.indexOf(":");
+  if (i < 0) return { type: encoded, inSel: true, outSel: true };
+  const type = encoded.substring(0, i);
+  const dir  = encoded.substring(i + 1);
+  return { type, inSel: dir === "in", outSel: dir === "out" };
+}
+
 /**
  * Map a preset's params to engine-specific options for a given algorithm.
  * Only active params with a mapping function are applied.
@@ -673,5 +694,6 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_PRESET,
     ENGINE_MAPPING, mapParams,
     validatePreset,
+    encodeRelType, decodeRelType,
   };
 }

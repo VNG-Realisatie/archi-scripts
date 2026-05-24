@@ -29,6 +29,7 @@ const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPES, ELEMENT_TYPES, DIAGRAM_TYPES,
   DEFAULT_PRESET, validatePreset,
+  encodeRelType, decodeRelType,
 } = Defs;
 
 // ── SWT imports ───────────────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ function open(uiSelection) {
   if (!config.action) config.action = ACTION.NEW_VIEW.id;
 
   const w = {};       // widget map
-  const ctx = { config, widgets: w, uiSelection, firstName: "" };  // firstName set below
+  const ctx = { config, widgets: w, uiSelection, firstName: "", relBlocks: [] };  // firstName set below
 
   // Compute selection counts before the dialog opens.
   // Raw count: what the user had selected in the UI.
@@ -548,23 +549,29 @@ function _persistSession(ctx) {
 // ── Live filter count ─────────────────────────────────────────────────────────
 
 /**
- * Recount elements/relations/diagram objects after applying current filter settings.
- * Called whenever a filter or related elements control changes.
- * Updates the Related and Filtered rows in the selection info table.
+ * Recount elements/relations/diagram objects after applying current filter settings,
+ * then walk the dynamic Related-elements blocks updating each one's table row.
+ *
+ * Filtered row meaning: counts AFTER the global Filter group, BEFORE any blocks.
+ * Each block's row shows the additions contributed by THAT block alone.
+ * Block N's pruned output is block N+1's base (cumulative cascade).
  */
 function _updateFilteredCount(ctx) {
   const w = ctx.widgets;
   if (!w.lblFlt_elems) return;
 
   const _setFiltered = (e, r, d) => { try { w.lblFlt_elems.setText(e); w.lblFlt_rels.setText(r); w.lblFlt_diags.setText(d); } catch(x) {} };
+  const _setRel = (b, e, r) => { try { b.tableRow.lblElems.setText("+" + e); b.tableRow.lblRels.setText("+" + r); } catch(x) {} };
 
   const objects = ctx.rawModelObjects;
   if (!objects || !objects.length) {
     _setFiltered("—", "—", "—");
+    (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
     return;
   }
+
   try {
-    // Read current filter from widget controllers
+    // Read current global filter from widget controllers
     const elemFilter = new Set(_ctrlGetSelected(w.lstFilterElements));
     const relLabels  = new Set(_ctrlGetSelected(w.lstFilterRelations));
     const diagLabels = new Set(_ctrlGetSelected(w.lstFilterDiagram));
@@ -575,9 +582,9 @@ function _updateFilteredCount(ctx) {
     // add the alias so "reference" filter correctly counts them.
     if (diagIds.has("diagram-model-reference")) diagIds.add("archimate-diagram-model");
 
-    // Step 1: count filtered base (current selection only, no related expansion)
+    // Filtered base
     let elems = 0, rels = 0, diagrams = 0;
-    const filteredElements = [];  // for expansion base
+    const filteredElements = [];
     for (const o of objects) {
       const t = o.type || "";
       if (t.endsWith("-relationship")) {
@@ -588,64 +595,24 @@ function _updateFilteredCount(ctx) {
         if (!elemFilter.size || elemFilter.has(t)) { elems++; filteredElements.push(o); }
       }
     }
+    _setFiltered(String(elems), String(rels), String(diagrams));
 
-    // Step 2: compute related elements additions for live preview
-    const depth     = w.spinRelDepth ? w.spinRelDepth.getSelection() : 0;
-    const relRelLabels = new Set(_ctrlGetSelected(w.lstRelatedRelations));
-    const relRelIds    = new Set(_relLabelsToIds(Array.from(relRelLabels)));
-
-    let relAddedElems = 0, relAddedRels = 0;
-    if (depth > 0 && filteredElements.length > 0) {
-      try {
-        const layer = {
-          depth,
-          elementTypes:  [],
-          relationTypes: Array.from(relRelIds),
-          diagramTypes:  [],
-        };
-        const added = Pipeline.expandLayer(filteredElements, layer);
-        relAddedElems = added.length;
-        // Count relations between (filteredElements + added) — lightweight approximation
-        const allIds = new Set([...filteredElements.map(e => e.id), ...added.map(e => e.id)]);
-        const seenRel = new Set();
-        for (const el of [...filteredElements, ...added]) {
-          try {
-            $(el).rels().each(rel => {
-              if (seenRel.has(rel.id)) return;
-              const srcId = rel.source && rel.source.id;
-              const tgtId = rel.target && rel.target.id;
-              if (srcId && tgtId && allIds.has(srcId) && allIds.has(tgtId)) {
-                seenRel.add(rel.id);
-                relAddedRels++;
-              }
-            });
-          } catch(e) {}
-        }
-        // Subtract base relations already counted
-        let baseRels = 0;
-        const baseIds = new Set(filteredElements.map(e => e.id));
-        const baseSeen = new Set();
-        for (const el of filteredElements) {
-          try {
-            $(el).rels().each(rel => {
-              if (baseSeen.has(rel.id)) return;
-              const srcId = rel.source && rel.source.id;
-              const tgtId = rel.target && rel.target.id;
-              if (srcId && tgtId && baseIds.has(srcId) && baseIds.has(tgtId)) {
-                baseSeen.add(rel.id);
-                baseRels++;
-              }
-            });
-          } catch(e) {}
-        }
-        relAddedRels = Math.max(0, relAddedRels - baseRels);
-      } catch(e) {}
+    // Walk blocks: each block's pruned output becomes the next block's base.
+    let base = filteredElements;
+    for (const b of (ctx.relBlocks || [])) {
+      const layer = {
+        depth:         b.depthSpinner.getSelection(),
+        elementTypes:  b.typeSelector.getSelected(),
+        relationTypes: b.relCheckGrid.getEncoded(),
+        diagramTypes:  [],
+      };
+      const result = Pipeline.expandLayerCounts(base, layer);
+      _setRel(b, result.elemCount, result.relCount);
+      base = base.concat(result.elements);
     }
-
-    // Update Filtered row (base + related additions)
-    _setFiltered(String(elems + relAddedElems), String(rels + relAddedRels), String(diagrams));
   } catch (e) {
     _setFiltered("—", "—", "—");
+    (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
   }
 }
 
@@ -659,10 +626,20 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firs
 
   // ── Current selection info table ─────────────────────────────────────────────
   // Columns: label | Elements | Relations | Diagrams | Views | Folders | (filler)
-  // Rows:    header | Selected | Containing | Filtered  (Related rows added by Phase 2)
+  // Rows:    header | Selected | Containing | Filtered | Related elements N (dynamic)
   // Views/Folders show "—" except in the Selected row where they convey what was selected.
-  const grpInfo = _group(page, "Current selection", 7, { marginH: 8, marginV: 6, spaceH: 8, spaceV: 3 });
+  //
+  // grpInfo is 1-column; each table row is its own 7-column Composite child so rows
+  // can be appended / removed cleanly for the dynamic Related-elements blocks.
+  const grpInfo = _group(page, "Current selection", 1, { marginH: 8, marginV: 6, spaceH: 0, spaceV: 3 });
+  ctx.grpInfo = grpInfo;
 
+  const _newSelRow = () => {
+    const c = new CompositeWidget(grpInfo, SWT.NONE);
+    GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 0).spacing(8, 0).applyTo(c);
+    GridDataFactory.fillDefaults().grab(true, false).applyTo(c);
+    return c;
+  };
   const _cnt = (parent, txt) => {
     const l = new LabelWidget(parent, SWT.RIGHT);
     l.setText(txt);
@@ -671,28 +648,33 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firs
   };
 
   // Header row
-  _lbl(grpInfo, "");
-  _lbl(grpInfo, "Elements"); _lbl(grpInfo, "Relations"); _lbl(grpInfo, "Diagrams");
-  _lbl(grpInfo, "Views");    _lbl(grpInfo, "Folders");
-  _lbl(grpInfo, "");  // filler
+  const rowHeader = _newSelRow();
+  _lbl(rowHeader, "");
+  _lbl(rowHeader, "Elements"); _lbl(rowHeader, "Relations"); _lbl(rowHeader, "Diagrams");
+  _lbl(rowHeader, "Views");    _lbl(rowHeader, "Folders");
+  _lbl(rowHeader, "");
 
   // Selected row (static, from direct selection)
-  _lbl(grpInfo, "Selected");
-  _cnt(grpInfo, String(selected.elems)); _cnt(grpInfo, String(selected.rels)); _cnt(grpInfo, String(selected.diagrams));
-  _cnt(grpInfo, _dashIfZero(selected.views)); _cnt(grpInfo, _dashIfZero(selected.folders));
-  _lbl(grpInfo, "");
+  const rowSelected = _newSelRow();
+  _lbl(rowSelected, "Selected");
+  _cnt(rowSelected, String(selected.elems)); _cnt(rowSelected, String(selected.rels)); _cnt(rowSelected, String(selected.diagrams));
+  _cnt(rowSelected, _dashIfZero(selected.views)); _cnt(rowSelected, _dashIfZero(selected.folders));
+  _lbl(rowSelected, "");
 
   // Containing row (static, expanded from folders/views)
-  _lbl(grpInfo, "Containing");
-  _cnt(grpInfo, String(containing.elems)); _cnt(grpInfo, String(containing.rels)); _cnt(grpInfo, String(containing.diagrams));
-  _cnt(grpInfo, _dashIfZero(containing.views)); _cnt(grpInfo, _dashIfZero(containing.folders));
-  _lbl(grpInfo, "");
+  const rowContaining = _newSelRow();
+  _lbl(rowContaining, "Containing");
+  _cnt(rowContaining, String(containing.elems)); _cnt(rowContaining, String(containing.rels)); _cnt(rowContaining, String(containing.diagrams));
+  _cnt(rowContaining, _dashIfZero(containing.views)); _cnt(rowContaining, _dashIfZero(containing.folders));
+  _lbl(rowContaining, "");
 
   // Filtered row (live-updated). Views/Folders always "—" — filter doesn't apply to containers.
-  _lbl(grpInfo, "Filtered");
-  w.lblFlt_elems = _cnt(grpInfo, "—"); w.lblFlt_rels = _cnt(grpInfo, "—"); w.lblFlt_diags = _cnt(grpInfo, "—");
-  _cnt(grpInfo, "—"); _cnt(grpInfo, "—");
-  _lbl(grpInfo, "");
+  const rowFiltered = _newSelRow();
+  _lbl(rowFiltered, "Filtered");
+  w.lblFlt_elems = _cnt(rowFiltered, "—"); w.lblFlt_rels = _cnt(rowFiltered, "—"); w.lblFlt_diags = _cnt(rowFiltered, "—");
+  _cnt(rowFiltered, "—"); _cnt(rowFiltered, "—");
+  _lbl(rowFiltered, "");
+  ctx.rowFiltered = rowFiltered;  // Related-elements rows are inserted after this
 
   // Legacy refs — no longer used after Phase 1 row reorganization.
   w.lblRelated = null; w.lblFiltered = null;
@@ -717,27 +699,315 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firs
   w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
+  // Dynamic multi-block UI. Each block is an independent expansion layer.
+  // See Phase 2 in the plan: each block has its own relation types (with per-relation
+  // ← / → direction toggles), element-type filter, and depth.
   const grpRel = _group(page, "Related elements", 1);
 
-  // Relation types to follow — first, full width; changes trigger live Related count update
-  _lbl(grpRel, "Relation types to follow:");
-  w.lstRelatedRelations = _checkboxGrid(grpRel, REL_TYPE_LABELS, 4, onFilterChange);
+  const lblExplain = new LabelWidget(grpRel, SWT.WRAP);
+  lblExplain.setText("Add related elements to build up the selection from connected model objects beyond the current filter. Each block's additions become the base for the next block.");
+  GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(lblExplain);
 
-  // Depth — label and spinner on same row, left-aligned (label uses swtDefaults = minimum width)
-  const rowDepth = new CompositeWidget(grpRel, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 2).spacing(4, 0).applyTo(rowDepth);
-  GridDataFactory.fillDefaults().applyTo(rowDepth);
-  const lblDepth = new LabelWidget(rowDepth, SWT.NONE);
-  lblDepth.setText("Depth (0 = off):");
-  GridDataFactory.swtDefaults().applyTo(lblDepth);  // minimum width — spinner appears next to it
-  const spinDepth = new SpinnerWidget(rowDepth, SWT.BORDER);
-  spinDepth.setValues(0, 0, 5, 0, 1, 1);
-  spinDepth.setToolTipText("Number of relation hops to add beyond the current selection. 0 = disabled.");
-  GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinDepth);
-  spinDepth.addListener(SWT.Selection, () => _updateFilteredCount(ctx));
-  w.spinRelDepth = spinDepth;
+  const btnAddBlock = new ButtonWidget(grpRel, SWT.PUSH);
+  btnAddBlock.setText("+ Add related elements");
+  btnAddBlock.setToolTipText("Append a new expansion block.");
+  GridDataFactory.swtDefaults().applyTo(btnAddBlock);
+  btnAddBlock.addListener(SWT.Selection, () => _addRelatedBlock(ctx));
+
+  const blocksContainer = new CompositeWidget(grpRel, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 8).applyTo(blocksContainer);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(blocksContainer);
+  w.blocksContainer = blocksContainer;
+
+  // Legacy refs (single-block UI) removed; null out for safety.
+  w.lstRelatedRelations = null; w.spinRelDepth = null;
 
   finish();
+}
+
+// ── Related elements: block lifecycle ─────────────────────────────────────────
+
+// Build the relation-type grid with per-relation direction toggles.
+// Each cell: [☐ label] [←] [→]. Toggles enforce "at least one direction lit".
+// Returns controller with getEncoded(), setEncoded(arr), enable(bool).
+function _relCheckGrid(parent, numCols, onChange) {
+  const rows = Object.values(RELATION_TYPES)
+    .map(r => ({ id: r.id, label: r.label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const ncols = numCols || 4;
+  const nrows = Math.ceil(rows.length / ncols);
+
+  const outer = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(ncols).margins(0, 0).spacing(6, 0).applyTo(outer);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
+
+  const colComps = Array.from({ length: ncols }, () => {
+    const c = new CompositeWidget(outer, SWT.NONE);
+    GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 1).applyTo(c);
+    GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(c);
+    return c;
+  });
+
+  const relRows = rows.map((r, i) => {
+    const cell = new CompositeWidget(colComps[Math.floor(i / nrows)], SWT.NONE);
+    GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 0).spacing(2, 0).applyTo(cell);
+    GridDataFactory.fillDefaults().grab(true, false).applyTo(cell);
+
+    const chk = new ButtonWidget(cell, SWT.CHECK);
+    chk.setText(r.label);
+    GridDataFactory.fillDefaults().grab(true, false).applyTo(chk);
+
+    const btnIn  = new ButtonWidget(cell, SWT.TOGGLE);
+    btnIn.setText("←");
+    btnIn.setToolTipText("Follow incoming relations (other → this element)");
+    GridDataFactory.swtDefaults().hint(28, 20).applyTo(btnIn);
+
+    const btnOut = new ButtonWidget(cell, SWT.TOGGLE);
+    btnOut.setText("→");
+    btnOut.setToolTipText("Follow outgoing relations (this element → other)");
+    GridDataFactory.swtDefaults().hint(28, 20).applyTo(btnOut);
+
+    const updateDirEnabled = () => {
+      const on = chk.getSelection();
+      btnIn.setEnabled(on);
+      btnOut.setEnabled(on);
+    };
+
+    // Relation checkbox: first click auto-lights both directions; uncheck clears.
+    chk.addListener(SWT.Selection, () => {
+      const on = chk.getSelection();
+      btnIn.setSelection(on);
+      btnOut.setSelection(on);
+      updateDirEnabled();
+      if (onChange) onChange();
+    });
+
+    // Direction toggles: disallow "neither lit". A click that would unlight both is reverted.
+    btnIn.addListener(SWT.Selection, () => {
+      if (!btnIn.getSelection() && !btnOut.getSelection()) { btnIn.setSelection(true); return; }
+      if (onChange) onChange();
+    });
+    btnOut.addListener(SWT.Selection, () => {
+      if (!btnIn.getSelection() && !btnOut.getSelection()) { btnOut.setSelection(true); return; }
+      if (onChange) onChange();
+    });
+
+    updateDirEnabled();
+    return { id: r.id, label: r.label, chk, btnIn, btnOut, updateDirEnabled };
+  });
+
+  return {
+    getEncoded: () => relRows
+      .filter(r => r.chk.getSelection())
+      .map(r => encodeRelType(r.id, r.btnIn.getSelection(), r.btnOut.getSelection())),
+    setEncoded: (encoded) => {
+      const byId = new Map();
+      (encoded || []).forEach(e => {
+        const dec = decodeRelType(e);
+        byId.set(dec.type, dec);
+      });
+      relRows.forEach(r => {
+        const dec = byId.get(r.id);
+        if (dec) {
+          r.chk.setSelection(true);
+          r.btnIn.setSelection(dec.inSel);
+          r.btnOut.setSelection(dec.outSel);
+        } else {
+          r.chk.setSelection(false);
+          r.btnIn.setSelection(false);
+          r.btnOut.setSelection(false);
+        }
+        r.updateDirEnabled();
+      });
+    },
+    enable: (en) => {
+      relRows.forEach(r => {
+        r.chk.setEnabled(en);
+        const dirOn = en && r.chk.getSelection();
+        r.btnIn.setEnabled(dirOn);
+        r.btnOut.setEnabled(dirOn);
+      });
+    },
+  };
+}
+
+// Build a 7-column selection-table row composite for a Related-elements block.
+// Diagrams/Views/Folders are always "—" (blocks never add those).
+function _newRelTableRow(grpInfo, labelText) {
+  const container = new CompositeWidget(grpInfo, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 0).spacing(8, 0).applyTo(container);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(container);
+
+  const lblName = new LabelWidget(container, SWT.NONE);
+  lblName.setText(labelText);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(lblName);
+
+  const _cnt = (txt) => {
+    const l = new LabelWidget(container, SWT.RIGHT);
+    l.setText(txt);
+    GridDataFactory.swtDefaults().hint(42, SWT.DEFAULT).applyTo(l);
+    return l;
+  };
+
+  const lblElems = _cnt("+0");
+  const lblRels  = _cnt("+0");
+  _cnt("—"); _cnt("—"); _cnt("—");
+  new LabelWidget(container, SWT.NONE);  // filler
+
+  return { container, lblName, lblElems, lblRels };
+}
+
+// Append a new block to the Related elements group + a matching selection-table row.
+// layerData (optional): { depth, elementTypes, relationTypes } from a preset to restore.
+function _addRelatedBlock(ctx, layerData) {
+  const w = ctx.widgets;
+  const blocksContainer = w.blocksContainer;
+  const idx = ctx.relBlocks.length;
+  const onChange = () => _updateFilteredCount(ctx);
+
+  // Outer block: GroupWidget so it has a visual border. Title rendered via header
+  // composite (a Group's title bar can't host buttons in SWT).
+  const block = new GroupWidget(blocksContainer, SWT.NONE);
+  block.setText("");
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(block);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(block);
+
+  // Header: title + reorder buttons + collapse + remove
+  const header = new CompositeWidget(block, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(4, 0).applyTo(header);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(header);
+
+  const titleLabel = new LabelWidget(header, SWT.NONE);
+  titleLabel.setText("Related elements " + (idx + 1));
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(titleLabel);
+
+  const _hdrBtn = (txt, tip) => {
+    const b = new ButtonWidget(header, SWT.PUSH);
+    b.setText(txt);
+    b.setToolTipText(tip);
+    GridDataFactory.swtDefaults().hint(28, 22).applyTo(b);
+    return b;
+  };
+  const btnUp       = _hdrBtn("▲", "Move this block up");
+  const btnDown     = _hdrBtn("▼", "Move this block down");
+  const btnCollapse = _hdrBtn("▾", "Collapse / expand this block");
+  const btnRemove   = _hdrBtn("✕",  "Remove this block");
+
+  // Body (collapsible). Use GridData.exclude on collapse so layout reclaims the space.
+  const body = new CompositeWidget(block, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 4).applyTo(body);
+  const bodyGd = GridDataFactory.fillDefaults().grab(true, false).create();
+  body.setLayoutData(bodyGd);
+
+  _lbl(body, "Relation types to follow:");
+  const relCheckGrid = _relCheckGrid(body, 4, onChange);
+
+  _lbl(body, "Filter element types (empty = all):");
+  const typeSelector = _typeSelector(body, ELEMENT_TYPES, 90, onChange);
+
+  const depthRow = new CompositeWidget(body, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 2).spacing(4, 0).applyTo(depthRow);
+  const lblDepth = new LabelWidget(depthRow, SWT.NONE);
+  lblDepth.setText("Depth (relation hops):");
+  GridDataFactory.swtDefaults().applyTo(lblDepth);
+  const depthSpinner = new SpinnerWidget(depthRow, SWT.BORDER);
+  depthSpinner.setValues(1, 1, 5, 0, 1, 1);
+  depthSpinner.setToolTipText("Number of relation hops to follow from the current base.");
+  GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(depthSpinner);
+  // Recompute on arrow click (Selection) and on focus-out (after keyboard edit) —
+  // not on Modify, which fires per keystroke.
+  depthSpinner.addListener(SWT.Selection, onChange);
+  depthSpinner.addListener(SWT.FocusOut, onChange);
+
+  // Selection-table row
+  const tableRow = _newRelTableRow(ctx.grpInfo, "Related elements " + (idx + 1));
+
+  const blockObj = {
+    container: block, body, titleLabel,
+    btnUp, btnDown, btnCollapse, btnRemove,
+    collapsed: false,
+    relCheckGrid, typeSelector, depthSpinner,
+    tableRow,
+  };
+  ctx.relBlocks.push(blockObj);
+
+  // Button handlers (capture blockObj after creation)
+  btnUp.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, -1));
+  btnDown.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, +1));
+  btnCollapse.addListener(SWT.Selection, () => _toggleCollapseBlock(blockObj));
+  btnRemove.addListener(SWT.Selection, () => _removeRelatedBlock(ctx, blockObj));
+
+  // Restore from preset if provided
+  if (layerData) {
+    relCheckGrid.setEncoded(layerData.relationTypes || []);
+    typeSelector.setSelected(layerData.elementTypes || []);
+    depthSpinner.setSelection(Number(layerData.depth) || 1);
+  }
+
+  _renumberAndReorderRelBlocks(ctx);
+  _updateFilteredCount(ctx);
+}
+
+function _removeRelatedBlock(ctx, blockObj) {
+  const i = ctx.relBlocks.indexOf(blockObj);
+  if (i < 0) return;
+  try { blockObj.container.dispose(); } catch (e) {}
+  try { blockObj.tableRow.container.dispose(); } catch (e) {}
+  ctx.relBlocks.splice(i, 1);
+  _renumberAndReorderRelBlocks(ctx);
+  _updateFilteredCount(ctx);
+}
+
+function _moveRelatedBlock(ctx, blockObj, direction) {
+  const i = ctx.relBlocks.indexOf(blockObj);
+  if (i < 0) return;
+  const j = i + direction;
+  if (j < 0 || j >= ctx.relBlocks.length) return;
+  const tmp = ctx.relBlocks[i];
+  ctx.relBlocks[i] = ctx.relBlocks[j];
+  ctx.relBlocks[j] = tmp;
+  _renumberAndReorderRelBlocks(ctx);
+  _updateFilteredCount(ctx);
+}
+
+function _toggleCollapseBlock(blockObj) {
+  blockObj.collapsed = !blockObj.collapsed;
+  blockObj.body.setVisible(!blockObj.collapsed);
+  const gd = blockObj.body.getLayoutData();
+  if (gd) gd.exclude = blockObj.collapsed;
+  blockObj.btnCollapse.setText(blockObj.collapsed ? "▸" : "▾");
+  try { blockObj.container.layout(true, true); } catch (e) {}
+  try { blockObj.container.getParent().layout(true, true); } catch (e) {}
+  try { blockObj.container.getShell().layout(true, true); } catch (e) {}
+}
+
+// Reorder both the block widgets and their table-row composites to match the
+// current ctx.relBlocks order, then update titles + enabled state of move buttons.
+function _renumberAndReorderRelBlocks(ctx) {
+  let prevRow = ctx.rowFiltered;
+  ctx.relBlocks.forEach((b, i) => {
+    const label = "Related elements " + (i + 1);
+    try { b.titleLabel.setText(label); } catch (e) {}
+    try { b.tableRow.lblName.setText(label); } catch (e) {}
+    try { b.tableRow.container.moveBelow(prevRow); } catch (e) {}
+    prevRow = b.tableRow.container;
+    b.btnUp.setEnabled(i > 0);
+    b.btnDown.setEnabled(i < ctx.relBlocks.length - 1);
+  });
+
+  // Reorder block widgets so display order matches the array.
+  let prevBlk = null;
+  for (const b of ctx.relBlocks) {
+    if (prevBlk) { try { b.container.moveBelow(prevBlk); } catch (e) {} }
+    prevBlk = b.container;
+  }
+
+  try { ctx.grpInfo.layout(true, true); } catch (e) {}
+  if (ctx.widgets.blocksContainer) {
+    try { ctx.widgets.blocksContainer.layout(true, true); } catch (e) {}
+    try { ctx.widgets.blocksContainer.getShell().layout(true, true); } catch (e) {}
+  }
 }
 
 // ── Layout tab ────────────────────────────────────────────────────────────────
@@ -1044,10 +1314,18 @@ function _syncToUI(ctx) {
   if (w.lstFilterRelations) _listSelectLabels(w.lstFilterRelations, c.filter ? _relIdsToLabels(c.filter.relationTypes || []) : []);
   if (w.lstFilterDiagram)   _listSelectLabels(w.lstFilterDiagram,   c.filter ? (c.filter.diagramTypes || []).map(id => DIAG_ID_TO_LABEL[id] || id) : []);
 
-  // Related elements
-  const layers = (c.relatedElements && c.relatedElements.layers) || [];
-  _spinSet(w.spinRelDepth, layers.length > 0 ? (layers[0].depth || 0) : 0);
-  if (w.lstRelatedRelations) _listSelectLabels(w.lstRelatedRelations, layers.length > 0 ? _relIdsToLabels(layers[0].relationTypes || []) : []);
+  // Related elements — rebuild blocks from preset layers.
+  // Dispose existing blocks first so reapplying a preset (or session load) is clean.
+  if (ctx.relBlocks && ctx.widgets.blocksContainer) {
+    while (ctx.relBlocks.length > 0) {
+      const b = ctx.relBlocks[0];
+      try { b.container.dispose(); } catch (e) {}
+      try { b.tableRow.container.dispose(); } catch (e) {}
+      ctx.relBlocks.shift();
+    }
+    const layers = (c.relatedElements && c.relatedElements.layers) || [];
+    layers.forEach(layer => _addRelatedBlock(ctx, layer));
+  }
 
   // View name: always pre-fill from the first selected object (captured in open()).
   // Suffix: algorithm display name only (separator VIEW_NAME_SEPARATOR is added when building the view name).
@@ -1106,11 +1384,15 @@ function _saveUI(ctx) {
   if (w.lstFilterRelations) c.filter.relationTypes = _relLabelsToIds(_listGetSelected(w.lstFilterRelations));
   if (w.lstFilterDiagram)   c.filter.diagramTypes  = _listGetSelected(w.lstFilterDiagram).map(l => DIAG_LABEL_TO_ID[l] || l);
 
-  // Related elements
-  const depth = w.spinRelDepth ? w.spinRelDepth.getSelection() : 0;
-  c.relatedElements = depth > 0 ? {
-    layers: [{ depth, elementTypes: [], relationTypes: _relLabelsToIds(_listGetSelected(w.lstRelatedRelations || [])), diagramTypes: [] }]
-  } : { layers: [] };
+  // Related elements — round-trip the dynamic block array.
+  c.relatedElements = {
+    layers: (ctx.relBlocks || []).map(b => ({
+      depth:         b.depthSpinner.getSelection(),
+      elementTypes:  b.typeSelector.getSelected(),
+      relationTypes: b.relCheckGrid.getEncoded(),
+      diagramTypes:  [],
+    })),
+  };
 
   // View
   if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
