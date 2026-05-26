@@ -1,0 +1,102 @@
+/**
+ * Test: how does Archi render self-loops on a VisualRelation?
+ *
+ * Creates a temp view "_test_self_loops" with two application-components A and B.
+ * Adds four model relations on A:
+ *   relAA1 — name "loop-default"   — VisualRelation has NO bendpoints set
+ *   relAA2 — name "loop-synth-NE"  — VisualRelation has bendpoints synthesised in the NE direction
+ *   relAA3 — name "loop-synth-SE"  — VisualRelation has bendpoints synthesised in the SE direction
+ *   relAB  — name "plain"          — A → B, sanity reference
+ *
+ * Run from Archi's Script Manager. After it runs, open the "_test_self_loops"
+ * view and visually compare the three loop styles to decide the fallback policy
+ * for engines that cannot route self-loops (see plan: Self-loops + capability masking).
+ *
+ * Re-running this script wipes the previous test artefacts and recreates them.
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common = require(REPO_ROOT + "_lib/Common");
+Common.initConsoleLog(__FILE__, true);
+
+(function() {
+  "use strict";
+
+  const VIEW_NAME = "_test_self_loops";
+  const A_NAME    = "_test_loop_A";
+  const B_NAME    = "_test_loop_B";
+
+  // ── 1. Tear down any previous run ──────────────────────────────────────────
+  $(`archimate-diagram-model.${VIEW_NAME}`).each(v => { try { v.delete(); } catch (e) {} });
+  $(`element.${A_NAME}`).each(e => { try { e.delete(); } catch (e2) {} });
+  $(`element.${B_NAME}`).each(e => { try { e.delete(); } catch (e2) {} });
+
+  // ── 2. Create model elements ───────────────────────────────────────────────
+  const A = model.createElement("application-component", A_NAME);
+  const B = model.createElement("application-component", B_NAME);
+
+  // ── 3. Create model relations ──────────────────────────────────────────────
+  // For self-relations, association-relationship is a forgiving choice that is
+  // valid on every element type.
+  const relAA1 = model.createRelationship("association-relationship", "loop-default",  A, A);
+  const relAA2 = model.createRelationship("association-relationship", "loop-synth-NE", A, A);
+  const relAA3 = model.createRelationship("association-relationship", "loop-synth-SE", A, A);
+  const relAB  = model.createRelationship("association-relationship", "plain",         A, B);
+
+  // ── 4. Create view + visual elements ───────────────────────────────────────
+  const view = model.createArchimateView(VIEW_NAME);
+  const W = 140, H = 60;
+  const aX = 80,  aY = 120;
+  const bX = 400, bY = 120;
+
+  const vA = view.add(A, aX, aY, W, H);
+  const vB = view.add(B, bX, bY, W, H);
+
+  // ── 5. Visual relations ────────────────────────────────────────────────────
+  const vAB  = view.add(relAB,  vA, vB);
+
+  // 5a. Default-rendered loop: no bendpoints; rely on whatever Archi draws by default.
+  const vAA1 = view.add(relAA1, vA, vA);
+
+  // 5b. Synthesised NE loop: three bendpoints forming a small loop above-right of A.
+  //
+  // Bendpoint coordinates in Archi are RELATIVE to both endpoint centres
+  // (startX/startY relative to source centre, endX/endY relative to target centre).
+  // For a self-loop both centres coincide → startX === endX, startY === endY.
+  const vAA2 = view.add(relAA2, vA, vA);
+  const NE_OFFSETS = [
+    { dx:  W / 2 + 10, dy: -H / 2 - 0  },  // exit right edge, going up
+    { dx:  W / 2 + 30, dy: -H / 2 - 30 },  // top-right corner of loop
+    { dx:  0,          dy: -H / 2 - 30 },  // re-enter from top
+  ];
+  NE_OFFSETS.forEach((p, i) => {
+    try {
+      vAA2.addRelativeBendpoint({ startX: p.dx, startY: p.dy, endX: p.dx, endY: p.dy }, i);
+    } catch (e) { console.error(`NE bendpoint ${i} failed: ${e}`); }
+  });
+
+  // 5c. Synthesised SE loop: three bendpoints forming a small loop below-right of A.
+  const vAA3 = view.add(relAA3, vA, vA);
+  const SE_OFFSETS = [
+    { dx:  W / 2 + 10, dy:  H / 2 + 0  },
+    { dx:  W / 2 + 30, dy:  H / 2 + 30 },
+    { dx:  0,          dy:  H / 2 + 30 },
+  ];
+  SE_OFFSETS.forEach((p, i) => {
+    try {
+      vAA3.addRelativeBendpoint({ startX: p.dx, startY: p.dy, endX: p.dx, endY: p.dy }, i);
+    } catch (e) { console.error(`SE bendpoint ${i} failed: ${e}`); }
+  });
+
+  // ── 6. Report ──────────────────────────────────────────────────────────────
+  console.log(`View "${VIEW_NAME}" created with:`);
+  console.log(`  - 2 elements (${A_NAME}, ${B_NAME})`);
+  console.log(`  - 4 relations: loop-default, loop-synth-NE, loop-synth-SE, plain`);
+  console.log(`Open the view and compare:`);
+  console.log(`  • loop-default → no bendpoints set; Archi default rendering`);
+  console.log(`  • loop-synth-NE → 3 bendpoints, north-east corner`);
+  console.log(`  • loop-synth-SE → 3 bendpoints, south-east corner`);
+
+  try { view.openInUI(); } catch (e) {}
+})();
+
+Common.finishConsoleLog();

@@ -25,7 +25,7 @@ const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
 
 const {
   ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER,
-  validatePreset,
+  validatePreset, effectiveParams,
 } = Defs;
 
 const JUNCTION_DIAMETER = 14;
@@ -53,6 +53,17 @@ function _getAdapter(engine) {
 function generate_view(rawPreset, uiSelection, actionId) {
   const preset = validatePreset(rawPreset);
   const action = actionId || ACTION.NEW_VIEW.id;
+
+  // §A.10: capability masking. Replace preset.params with the effective subset
+  // for runtime consumption. Inactive keys are silently dropped here; the raw
+  // preset on disk is preserved by validatePreset for UI restoration on
+  // algorithm switch.
+  const _rawParams = preset.params;
+  preset.params = effectiveParams(preset);
+  const _dropped = Object.keys(_rawParams).filter(k => !(k in preset.params)
+    && _rawParams[k] !== undefined && _rawParams[k] !== null
+    && !(Array.isArray(_rawParams[k]) && _rawParams[k].length === 0));
+  if (_dropped.length) console.log(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
 
   const timer = Common.startCounter ? Common.startCounter() : null;
 
@@ -241,6 +252,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     if (edgeIds.has(rel.id)) continue;
     edgeIds.add(rel.id);
 
+    const isReversed = reverseTypes.has(rel.type);
     const srcOccs = occurrenceMap[srcId] || [srcId];
     const tgtOccs = occurrenceMap[tgtId] || [tgtId];
     srcOccs.forEach((srcOccId, si) => {
@@ -248,13 +260,15 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
         const edgeId = (srcOccs.length === 1 && tgtOccs.length === 1)
           ? rel.id
           : `${rel.id}_${si}_${ti}`;
+        // For reversed-typed relations, swap source/target so the layout
+        // engine traverses the edge in the reversed direction. The model
+        // relation is untouched; Archi draws using its intrinsic direction.
         edges.push({
-          id:       edgeId,
-          source:   srcOccId,
-          target:   tgtOccId,
-          label:    rel.name || "",
-          weight:   RELATION_WEIGHT_MAP[rel.type] || 1.0,
-          reversed: reverseTypes.has(rel.type),
+          id:     edgeId,
+          source: isReversed ? tgtOccId : srcOccId,
+          target: isReversed ? srcOccId : tgtOccId,
+          label:  rel.name || "",
+          weight: RELATION_WEIGHT_MAP[rel.type] || 1.0,
         });
       });
     });
@@ -354,8 +368,11 @@ function _writeView(preset, result, objectSet, view, nestingRels) {
 
     let connection = existingRelByConcept.get(archiRel.id);
     if (!connection) {
-      const srcVisual = visualIndex[re.sourceId] || visualIndex[archiRel.source && archiRel.source.id];
-      const tgtVisual = visualIndex[re.targetId] || visualIndex[archiRel.target && archiRel.target.id];
+      // Always look up visuals via the model relation's own source/target —
+      // re.sourceId/targetId may be in layout direction (swapped) for
+      // reversed-typed relations.
+      const srcVisual = visualIndex[archiRel.source && archiRel.source.id];
+      const tgtVisual = visualIndex[archiRel.target && archiRel.target.id];
       if (!srcVisual || !tgtVisual) continue;
       try { connection = view.add(archiRel, srcVisual, tgtVisual); }
       catch (e) { console.error(`Failed to add relation ${re.id}: ${e}`); continue; }
@@ -390,6 +407,10 @@ function _writeView(preset, result, objectSet, view, nestingRels) {
  * Apply layout-determined edge style: label position + bendpoints. Rewrites
  * existing bendpoints (deleteAll + set new) so the connection routing matches
  * the new layout. Style properties (colour, line width) are untouched.
+ *
+ * Self-loops (source === target) are always synthesised — engine routing for
+ * self-loops is unreliable across engines, and Archi's default rendering
+ * places the line inside the element. Synthesis is the single source of truth.
  */
 function _applyEdgeStyle(connection, re, preset) {
   const lpMap = { Source: 0, Middle: 1, Target: 2, Natural: 1 };
@@ -399,6 +420,14 @@ function _applyEdgeStyle(connection, re, preset) {
   }
 
   try { connection.deleteAllBendpoints(); } catch (e) {}
+
+  // Self-loop: always synthesise (NE-corner loop). Skip engine bendpoints.
+  if (connection.source && connection.target
+      && connection.source.id === connection.target.id) {
+    _synthesiseSelfLoopBendpoints(connection);
+    return;
+  }
+
   if (re.isStraight || !re.bendpoints || re.bendpoints.length === 0) return;
 
   const srcCenter = _getAbsCenter(connection.source);
@@ -413,6 +442,32 @@ function _applyEdgeStyle(connection, re, preset) {
   }));
   const ordered = isReversed ? archiBps.reverse() : archiBps;
   ordered.forEach((bp, i) => { try { connection.addRelativeBendpoint(bp, i); } catch (e) {} });
+}
+
+/**
+ * Synthesise a small NE-corner loop on a self-relation. Three bendpoints
+ * placed relative to the element's centre (since source === target, the
+ * startX/Y and endX/Y components of each Archi relative-bendpoint coincide).
+ *
+ * Verified visually by [Scripts/View/_test_self_loops.ajs](_test_self_loops.ajs).
+ */
+function _synthesiseSelfLoopBendpoints(connection) {
+  const ve = connection.source;
+  const w = (ve && ve.bounds && ve.bounds.width)  || 140;
+  const h = (ve && ve.bounds && ve.bounds.height) || 60;
+  const offsets = [
+    { dx: Math.round( w / 2 + 10), dy: Math.round(-h / 2)      },  // exit right edge, going up
+    { dx: Math.round( w / 2 + 30), dy: Math.round(-h / 2 - 30) },  // NE corner of loop
+    { dx: 0,                       dy: Math.round(-h / 2 - 30) },  // re-enter from top
+  ];
+  offsets.forEach((p, i) => {
+    try {
+      connection.addRelativeBendpoint(
+        { startX: p.dx, startY: p.dy, endX: p.dx, endY: p.dy },
+        i
+      );
+    } catch (e) {}
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

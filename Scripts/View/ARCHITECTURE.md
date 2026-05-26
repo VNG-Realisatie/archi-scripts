@@ -564,6 +564,7 @@ Each algorithm declares:
 
 - A **style** (Flow / Hierarchy / Network / Circular / Compact) — used for grouping in the UI only.
 - A **nesting capability** (full / partial / cluster / none) — drives whether nesting parameters are active.
+- A **self-loop capability** (boolean) — whether the engine routes self-loops (edges with source = target) into bendpoints; engines that don't pass the edge through without routing, and Archi renders a default loop.
 - An **active-parameters list** — which preset.params keys are honoured.
 - A **supported-options map** — for select-type parameters (e.g. direction, routing, label position), the allowed values.
 
@@ -584,6 +585,7 @@ System-wide. Code reviews catch violations.
 9. **EXPAND_VIEW preserves visual parenthood.** When repositioning an already-on-view VO, its bounds are written relative to its *current* parent in the view tree — not relative to the parent the layout engine inferred. Existing visual structure (canvas groupings, nested compositions) is preserved; only positions within each parent rearrange. New elements are added at the layout's absolute coordinates, possibly under a layout-derived parent if that parent is also being newly added.
 10. **Write order is parent-first.** The write path sorts layout-result nodes so every node is processed after its parent. A child is never repositioned or added before its parent. This is what makes A.10.3 (parent-relative coordinates) hold under arbitrary engine output order, and prevents drawing-order overlap (a parent added after a child at the same level would render on top of it).
 11. **Layout writing is action-agnostic.** The orchestrator decides (a) which objects feed the layout and (b) which view is the target. The writer applies one rule per result object — *exists* → reposition (bounds only; appearance + parenthood preserved); *otherwise* → create (default appearance). Same rule for relations: existing → rewrite bendpoints; new → create. There is one write function; per-action branches inside the writer are forbidden.
+12. **Algorithm-capability masking.** Preset values for parameters not in the chosen algorithm's `activeParams` list are ignored at runtime. The raw preset stays intact (see §A.9: values are kept for UI restoration on algorithm switch); the orchestrator derives an effective parameter view from `(preset, algorithm.activeParams)` at entry and passes only that view to the pipeline, engine adapter, and writer. A non-empty inactive value reaching runtime is a defect — log it.
 
 ## A.11 Design decisions
 
@@ -962,34 +964,34 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 
 ### ELK — https://eclipse.dev/elk/reference/
 
-| Algorithm | ELK id | Direction | Routing | Nesting |
-|---|---|---|---|---|
-| Layered | `layered` | ✓ | Orthogonal, Polyline, Straight | Full (compound graph) |
-| Tree | `mrtree` | ✓ | Orthogonal | Full |
-| Force | `force` | — | — | None |
-| Stress | `stress` | — | — | None |
-| Radial | `radial` | — | — | **None** (crashes on compound graphs; spanning-tree pre-processing required) |
-| Grid | `box` | — | — | Full |
-| Pack | `rectpacking` | — | — | Full |
+| Algorithm | ELK id | Direction | Routing | Nesting | Self-loops |
+|---|---|---|---|---|---|
+| Layered | `layered` | ✓ | Orthogonal, Polyline, Straight | Full (compound graph) | ✓ (`SelfLoopDistribution` / `SelfLoopOrdering`) |
+| Tree | `mrtree` | ✓ | Orthogonal | Full | — (passthrough) |
+| Force | `force` | — | — | None | — (passthrough) |
+| Stress | `stress` | — | — | None | — (passthrough) |
+| Radial | `radial` | — | — | **None** (crashes on compound graphs; spanning-tree pre-processing required) | — (passthrough) |
+| Grid | `box` | — | — | Full | — (no edge routing) |
+| Pack | `rectpacking` | — | — | Full | — (no edge routing) |
 
-Nesting: `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph + `parent` property on nodes. Radial pre-processing: `_spanningTree` BFS helper removes cycles, joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so `_applyResultToView` ignores).
+Nesting: `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph + `parent` property on nodes. Radial pre-processing: `_spanningTree` BFS helper removes cycles, joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so `_applyResultToView` ignores). Self-loops on algorithms marked "passthrough" emerge in the LayoutResult with empty bendpoints; Archi draws its default loop.
 
 ### Dagre — https://github.com/dagrejs/dagre/wiki
 
-| Algorithm | Direction | Routing | Nesting |
-|---|---|---|---|
-| Dagre | ✓ (`rankdir`) | Straight/Polyline only | Partial (`g.setParent()`) — inter-cluster edge routing limited |
+| Algorithm | Direction | Routing | Nesting | Self-loops |
+|---|---|---|---|---|
+| Dagre | ✓ (`rankdir`) | Straight/Polyline only | Partial (`g.setParent()`) — inter-cluster edge routing limited | — (Dagre core drops self-loops; passthrough to LayoutResult with empty bendpoints) |
 
 ### Graphviz (dot binary) — https://graphviz.org/docs/attrs/
 
-| Algorithm | GUI label | Direction | Routing | Nesting |
-|---|---|---|---|---|
-| dot | Dot | ✓ | Orthogonal, Polyline, Straight, Spline | Cluster subgraph |
-| twopi | Twopi | Radial | — | Limited (cluster) |
-| neato | Neato | — | Polyline/Straight | Cluster |
-| fdp | FDP | — | Polyline/Straight | Cluster |
-| sfdp | SFDP | — | Polyline/Straight | None |
-| circo | Circo | — | — | Limited |
+| Algorithm | GUI label | Direction | Routing | Nesting | Self-loops |
+|---|---|---|---|---|---|
+| dot | Dot | ✓ | Orthogonal, Polyline, Straight, Spline | Cluster subgraph | ✓ (native) |
+| twopi | Twopi | Radial | — | Limited (cluster) | ✓ (native) |
+| neato | Neato | — | Polyline/Straight | Cluster | ✓ (native) |
+| fdp | FDP | — | Polyline/Straight | Cluster | ✓ (native) |
+| sfdp | SFDP | — | Polyline/Straight | None | ✓ (native) |
+| circo | Circo | — | — | Limited | ✓ (native) |
 
 ## B.7 GUI dialog implementation
 

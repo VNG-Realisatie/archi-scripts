@@ -62,17 +62,19 @@ function layout(graph) {
     }
   }
 
-  // Add edges
+  // Add edges. Self-loops are not routed by Dagre core — collect them for
+  // pass-through to the LayoutResult; the writer synthesises bendpoints.
+  const selfLoops = [];
   for (const edge of graph.edges) {
-    const srcId = edge.reversed ? edge.target : edge.source;
-    const tgtId = edge.reversed ? edge.source : edge.target;
-    if (srcId === tgtId) continue;
-    if (!g.hasNode(srcId) || !g.hasNode(tgtId)) continue;
-    if (!g.hasEdge(srcId, tgtId, edge.id)) {
-      g.setEdge({ v: srcId, w: tgtId, name: edge.id }, {
-        id:       edge.id,
-        reversed: edge.reversed || false,
-        label:    edge.label || "",
+    if (edge.source === edge.target) {
+      selfLoops.push(edge);
+      continue;
+    }
+    if (!g.hasNode(edge.source) || !g.hasNode(edge.target)) continue;
+    if (!g.hasEdge(edge.source, edge.target, edge.id)) {
+      g.setEdge({ v: edge.source, w: edge.target, name: edge.id }, {
+        id:    edge.id,
+        label: edge.label || "",
       });
     }
   }
@@ -122,16 +124,26 @@ function layout(graph) {
       labelY = Math.round((points[0].y + points[points.length - 1].y) / 2);
     }
 
-    const originalEdge = graph.edges.find(e => e.id === (edgeData.id || edgeObj.name));
-    const isReversed   = originalEdge ? (originalEdge.reversed || false) : false;
-
     resultEdges.push({
       id:         edgeData.id || edgeObj.name,
-      sourceId:   isReversed ? edgeObj.w : edgeObj.v,
-      targetId:   isReversed ? edgeObj.v : edgeObj.w,
+      sourceId:   edgeObj.v,
+      targetId:   edgeObj.w,
       bendpoints,
       labelX,
       labelY,
+      isStraight: false,
+    });
+  }
+
+  // Self-loops: pass-through with empty bendpoints. Writer synthesises.
+  for (const edge of selfLoops) {
+    resultEdges.push({
+      id:         edge.id,
+      sourceId:   edge.source,
+      targetId:   edge.target,
+      bendpoints: [],
+      labelX:     0,
+      labelY:     0,
       isStraight: false,
     });
   }

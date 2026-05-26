@@ -114,12 +114,10 @@ function _buildDOT(graph) {
 
   // Write edges
   for (const edge of graph.edges) {
-    const srcId = edge.reversed ? edge.target : edge.source;
-    const tgtId = edge.reversed ? edge.source : edge.target;
-    const lbl   = (edge.label || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
-    let attrs   = `eid="${edge.id}"`;
+    const lbl = (edge.label || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+    let attrs = `eid="${edge.id}"`;
     if (lbl) attrs += ` xlabel="${lbl}"`;
-    lines.push(`  "${srcId}" -> "${tgtId}" [${attrs}]`);
+    lines.push(`  "${edge.source}" -> "${edge.target}" [${attrs}]`);
   }
 
   lines.push("}");
@@ -280,11 +278,10 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
       labelY = bendpoints[pos].y;
     }
 
-    const isReversed = originalEdge.reversed || false;
     resultEdges.push({
       id:         eid,
-      sourceId:   isReversed ? originalEdge.target : originalEdge.source,
-      targetId:   isReversed ? originalEdge.source : originalEdge.target,
+      sourceId:   originalEdge.source,
+      targetId:   originalEdge.target,
       bendpoints,
       labelX,
       labelY,

@@ -69,17 +69,21 @@ function layout(graph) {
   }
 
   const edgeList = [];
+  const selfLoops = [];
   for (const edge of graph.edges) {
-    const srcId = edge.reversed ? edge.target : edge.source;
-    const tgtId = edge.reversed ? edge.source : edge.target;
-    if (!nodeMap[srcId] || !nodeMap[tgtId]) continue;
+    if (!nodeMap[edge.source] || !nodeMap[edge.target]) continue;
+    if (edge.source === edge.target) {
+      // Self-loops are not reliably routed by ELK across all algorithms.
+      // Collect for pass-through; the writer synthesises bendpoints.
+      selfLoops.push(edge);
+      continue;
+    }
     const entry = {
       id:          edge.id,
       _archiRelId: edge.id,
       _relName:    edge.label || "",
-      _reversed:   edge.reversed || false,
-      sources:     [srcId],
-      targets:     [tgtId],
+      sources:     [edge.source],
+      targets:     [edge.target],
     };
     if (edge.weight) entry.properties = { "elk.priority": edge.weight };
     edgeList.push(entry);
@@ -117,6 +121,19 @@ function layout(graph) {
 
   // Collect edges
   _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle");
+
+  // Self-loops: pass-through with empty bendpoints. Writer synthesises.
+  for (const edge of selfLoops) {
+    resultEdges.push({
+      id:         edge.id,
+      sourceId:   edge.source,
+      targetId:   edge.target,
+      bendpoints: [],
+      labelX:     0,
+      labelY:     0,
+      isStraight: false,
+    });
+  }
 
   return {
     nodes:      resultNodes,
@@ -179,7 +196,7 @@ function _spanningTree(nodeMap, edgeList) {
   for (let i = 1; i < componentRoots.length; i++) {
     treeEdges.push({
       id: `__span_${i}`, sources: [componentRoots[0]], targets: [componentRoots[i]],
-      _archiRelId: null, _relName: "", _reversed: false,
+      _archiRelId: null, _relName: "",
     });
   }
   return treeEdges;
@@ -328,7 +345,6 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
 
     const lifted = liftedEdgesMap && liftedEdgesMap[edge.id];
     const originalId = edge._archiRelId || edge.id;
-    const isReversed = edge._reversed || false;
 
     const bps = [];
     for (const bp of (section.bendPoints || [])) {
@@ -340,8 +356,8 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
 
     resultEdges.push({
       id:            originalId,
-      sourceId:      lifted ? lifted.origSrcId : (isReversed ? edge.targets[0] : edge.sources[0]),
-      targetId:      lifted ? lifted.origTgtId : (isReversed ? edge.sources[0] : edge.targets[0]),
+      sourceId:      lifted ? lifted.origSrcId : edge.sources[0],
+      targetId:      lifted ? lifted.origTgtId : edge.targets[0],
       bendpoints:    bps,
       labelX,
       labelY,

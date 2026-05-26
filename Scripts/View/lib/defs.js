@@ -36,6 +36,7 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "layered",
     style:                "Flow",
     supportsNesting:      "full",
+    supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "innerSpacing", "padding",
@@ -57,6 +58,7 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "mrtree",
     style:                "Hierarchy",
     supportsNesting:      "full",
+    supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "innerSpacing", "padding",
@@ -78,7 +80,9 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "force",
     style:                "Network",
     supportsNesting:      "none",
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
+    supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
+    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
+      "reverseRelationTypes"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
@@ -89,7 +93,9 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "stress",
     style:                "Network",
     supportsNesting:      "none",
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
+    supportsSelfLoops:    false,  // stress model has no notion of self-loop distance
+    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio", 
+      "reverseRelationTypes"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)",
@@ -100,9 +106,11 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "radial",
     style:                "Circular",
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
+    supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
+      "reverseRelationTypes"
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
@@ -114,11 +122,12 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "box",
     style:                "Compact",
     supportsNesting:      "full",
+    supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
       "sortContainers", "alignSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio",
+      "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
@@ -130,11 +139,12 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "rectpacking",
     style:                "Compact",
     supportsNesting:      "full",
+    supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
       "sortContainers", "alignSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio",
+      "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
@@ -146,6 +156,7 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "dagre",
     style:                "Flow",
     supportsNesting:      "partial",
+    supportsSelfLoops:    false,  // Dagre core silently drops self-loops
     activeParams:         [
       "direction", "ranking", "labelPosition", "reverseRelationTypes",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
@@ -164,11 +175,12 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "dot",
     style:                "Flow",
     supportsNesting:      "cluster",
+    supportsSelfLoops:    true,   // Graphviz routes self-loops natively across all algorithms
     activeParams:         [
       "direction", "routing", "labelPosition",
       "nestingRelationTypes", "innerSpacing", "padding",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
@@ -184,11 +196,12 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "neato",
     style:                "Network",
     supportsNesting:      "cluster",
+    supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "routing", "labelPosition",
       "nestingRelationTypes", "innerSpacing", "padding",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       routing:       ["Polyline", "Straight", "Spline (approximated)"],
@@ -203,11 +216,12 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "fdp",
     style:                "Network",
     supportsNesting:      "cluster",
+    supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "routing", "labelPosition",
       "nestingRelationTypes", "innerSpacing", "padding",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       routing:       ["Polyline", "Straight", "Spline (approximated)"],
@@ -222,10 +236,11 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "sfdp",
     style:                "Network",
     supportsNesting:      "none",
+    supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "routing", "labelPosition",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       routing:       ["Polyline", "Straight", "Spline (approximated)"],
@@ -240,10 +255,11 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "twopi",
     style:                "Hierarchy",
     supportsNesting:      "none",
+    supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "labelPosition",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       labelPosition: ["Source", "Middle", "Target", "Natural"],
@@ -257,10 +273,11 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "circo",
     style:                "Circular",
     supportsNesting:      "none",
+    supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "labelPosition",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       labelPosition: ["Source", "Middle", "Target", "Natural"],
@@ -681,6 +698,26 @@ function validatePreset(raw) {
   return preset;
 }
 
+/**
+ * Return the subset of `preset.params` that the chosen algorithm declares as
+ * active. Inactive keys are omitted (not zeroed) so consumers that read with
+ * `|| default` degrade cleanly. The raw `preset.params` is never mutated —
+ * it stays intact for UI restoration on algorithm switch (§A.9, §A.10).
+ *
+ * @param {Object} preset  validated preset
+ * @returns {Object}       masked params subset
+ */
+function effectiveParams(preset) {
+  const alg = ALGORITHMS[preset.algorithm];
+  if (!alg) return {};
+  const active = new Set(alg.activeParams || []);
+  const out = {};
+  for (const key of Object.keys(preset.params)) {
+    if (active.has(key)) out[key] = preset.params[key];
+  }
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     STYLES, ALGORITHMS, ALGO_ENGINE, GV_ALGORITHMS,
@@ -693,7 +730,7 @@ if (typeof module !== "undefined" && module.exports) {
     PT2PX, SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
     DEFAULT_PRESET,
     ENGINE_MAPPING, mapParams,
-    validatePreset,
+    validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };
 }
