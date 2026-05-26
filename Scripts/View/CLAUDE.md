@@ -42,37 +42,7 @@ Relations → Nesting → Containers → Layout → Diagram
 
 ## GUI display vocabulary
 
-Internal names must not appear in labels or button text. Tooltips may use them parenthetically.
-
-| Internal | Display |
-|---|---|
-| Edge, edge routing | Relation line, relation line style |
-| Graph | Diagram or View |
-| Algorithm, engine | Layout style |
-| Rank / layer | Level |
-| Direction / orientation | Flow direction |
-| Node placement | Element alignment |
-| Layer spacing | Level spacing |
-| Node spacing | Element spacing |
-| Depth, hops | Relation levels |
-| Ranker | Layer ranking |
-| rectpacking (in labels) | Tight packing / Pack |
-| Parameter file, config file | Preset |
-| Per element | One view each |
-| Layout only | Re-layout |
-
-Algorithm display names:
-
-| Internal | Display |
-|---|---|
-| layered | Hierarchical |
-| mrtree | Tree |
-| force | Organic |
-| box | Grid |
-| stress | Balanced organic |
-| radial | Radial |
-| dagre | Hierarchical (nested) |
-| rectpacking | Pack |
+See `ARCHITECTURE.md` §A.2.1 — Display vocabulary.
 
 ## SWT / jArchi platform rules
 
