@@ -8,7 +8,7 @@
  *   Scripts/View/user_parameter/<name>.json   — named presets
  *   Scripts/View/user_parameter/_session.json — last-used session (excluded from git)
  */
-console.log("preset_io.js");
+console.log("Loading preset_io.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");

@@ -4,7 +4,7 @@
  * Accepts a normalized LayoutGraph, runs Dagre layout, returns a LayoutResult.
  * Docs: https://github.com/dagrejs/dagre/wiki
  */
-console.log("engines/dagre.js");
+console.log("Loading engines/dagre.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");

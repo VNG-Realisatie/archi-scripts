@@ -6,7 +6,7 @@
  *
  * Docs: https://eclipse.dev/elk/reference/
  */
-console.log("engines/elk.js");
+console.log("Loading engines/elk.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");

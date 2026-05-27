@@ -11,7 +11,7 @@
  *   Preset     — load · save · manage
  *   Actions    — 4 buttons in button bar (New view, One view each, Expand view, Layout only)
  */
-console.log("dialog_main.js");
+console.log("Loading dialog_main.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
@@ -446,9 +446,9 @@ function open(uiSelection) {
       else                               _lEl++;
     }
     console.log(`\nGUI — before dialog:`);
-    console.log(`  Selected:  ${selectedCount.elems} elements · ${selectedCount.rels} relations · ${selectedCount.views} views · ${selectedCount.diagrams} diagram objects · ${selectedCount.folders} folders`);
+    console.log(`  Selected:   ${selectedCount.elems} elements · ${selectedCount.rels} relations · ${selectedCount.views} views · ${selectedCount.diagrams} diagram objects · ${selectedCount.folders} folders`);
     console.log(`  Containing: ${containingCount.elems} elements · ${containingCount.rels} relations · ${containingCount.diagrams} diagram objects`);
-    console.log(`  Raw model objects for Filtered count: ${_lEl} elements · ${_lRel} relations · ${_lDiag} diagram objects`);
+    console.log(`  Filtered:   ${_lEl} elements · ${_lRel} relations · ${_lDiag} diagram objects`);
   }
 
   // Has visual context: enables Expand view / Layout only buttons.
@@ -458,6 +458,7 @@ function open(uiSelection) {
     uiSelection.each(o => {
       if (o.view)                              hasVisual = true;  // canvas visual object
       if (o.type === "archimate-diagram-model") hasVisual = true;  // view from model tree
+      
     });
   } catch (e) {}
 

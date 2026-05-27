@@ -15,7 +15,7 @@
  *   7. Collect existing view contents (existingView, visualElements, visualRelations)
  *      for actions that target an existing view (EXPAND_VIEW, LAYOUT_ONLY)
  */
-console.log("selection_pipeline.js");
+console.log("Loading selection_pipeline.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");

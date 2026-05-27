@@ -8,7 +8,7 @@
  * Single shared import: the diagram-object type list from _lib/selection.js
  * (SSOT for what counts as a canvas diagram object).
  */
-console.log("defs.js");
+console.log("Loading defs.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");

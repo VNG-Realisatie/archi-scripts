@@ -3,7 +3,7 @@
  * Opened from the main dialog's [Manage…] button.
  * Lists all saved presets; allows rename and delete.
  */
-console.log("dialog_presets.js");
+console.log("Loading dialog_presets.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");

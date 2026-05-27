@@ -926,7 +926,7 @@ _generateSingle(preset, uiSelection, actionId, viewNameOverride?):
        NEW_VIEW / ONE_EACH       → _getOrCreateView(folder, name)
   4. graph  = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects)
   5. result = engineAdapter.layout(graph)
-  6. _writeView(preset, result, objectSet, view, nestingRels)   ← single writer
+  6. _writeView(preset, result, objectSet, view, graph._parentRels)   ← single writer
 ```
 
 ### Key internal functions
@@ -939,7 +939,7 @@ _generateSingle(preset, uiSelection, actionId, viewNameOverride?):
 - Nesting via `parentMap` built from `nestingRelationTypes`; compound nodes carry `parent`.
 - Edges from `routedRels`.
 
-**`_writeView(preset, result, objectSet, view, nestingRels)` — the only writer**
+**`_writeView(preset, result, objectSet, view, parentRels)` — the only writer**
 
 Action-agnostic. Realises §A.11.11. Single rule per object:
 
@@ -953,9 +953,16 @@ For each rn in sorted:
   archiId = rn.id without _occ_ suffix
   existing = existingVoByConcept.get(archiId) || existingVoByVoId.get(archiId)
   IF existing:
-    reposition: existing.bounds = { x: rn.x - parentAbsOff.x, y: rn.y - parentAbsOff.y, w, h }
-                (parent-first sort guarantees parent's NEW bounds are in place)
-    visualIndex[rn.id] = existing
+    newParent = rn.parentId ? visualIndex[rn.parentId] : null
+    curParent = $(existing).parent().filter("element").first() || null
+    IF newParent.id ≠ curParent.id:                            // parent changed — re-parent
+      (newParent || view).add(existing, relX, relY)           // jArchi 1.10 move (no deletion)
+      existing.bounds = { x: relX, y: relY, w, h }
+      visualIndex[rn.id] = existing
+    ELSE:                                                      // same parent — reposition
+      existing.bounds = { x: rn.x - parentAbsOff.x, y: rn.y - parentAbsOff.y, w, h }
+                        (parent-first sort guarantees parent's NEW bounds are in place)
+      visualIndex[rn.id] = existing
   ELSE:
     el = $('#archiId').first()
     skip if not found or el.type in DIAGRAM_TYPES (phantom diagram-VO match)
@@ -968,14 +975,14 @@ For each re in result.edges:
             ?? view.add(archiRel, visualIndex[re.sourceId], visualIndex[re.targetId])
   _applyEdgeStyle(connection, re, preset)   // delete-all + set bendpoints + label position
 
-For each nestingRel:
+For each parentRel:                                            // winning nesting relations only
   skip if already on view (existingRelByConcept has it)
   view.add(rel, srcV, tgtV)
 ```
 
 **`_sortNodesParentFirst(nodes, nodeById)`** — copy of nodes sorted by depth (root first, stable within depth). Engine-agnostic.
 
-**`_getParentAbsOffset(vo)`** — walks the VO's parent chain in the view tree, sums parent bounds.x/y. Under parent-first iteration the parent's NEW bounds have already been applied, so reading them yields the parent's *new* absolute position. The writer therefore needs no separate "planned position" lookup — `_getParentAbsOffset` is sufficient.
+**`_getParentAbsOffset(vo)`** — walks the VO's parent chain in the view tree, sums parent bounds.x/y. Used in the same-parent reposition branch; under parent-first iteration the parent's NEW bounds have already been applied.
 
 **`_applyEdgeStyle(connection, re, preset)`** — sets `textPosition` (label) and rewrites bendpoints (deleteAll + add). Style properties (colour, line width) are not touched.
 
@@ -1191,7 +1198,7 @@ Implementation-only quirks of the host platform. None of these correspond to a P
 | Action is a runtime parameter | `generate_view(preset, uiSelection, actionId)` — 3rd argument, never on `preset`. `validatePreset` would strip it. Dialog stores `ctx._actionId` separately. |
 | View name suffix stored separately | `preset.view.suffix` separate from `preset.view.name`. `VIEW_NAME_SEPARATOR` is added by `_resolveViewName` when building the final name. Suffix auto-updates on algorithm change in `_updateViewNameAlgorithm`. |
 | EXPAND_VIEW target from existing visuals | Pipeline returns `existingView` populated from the selected view; `_generateSingle` uses it directly, bypassing `_getOrCreateView`. |
-| Action-agnostic writer (§A.11.11) | One `_writeView` function. Per-object rule: exists → reposition (bounds only); else → create. Same rule for relations: existing → rewrite bendpoints; new → add. Deleted helpers: `_layoutOnlyView`, `_applyResultToView`, `_findParentNodeId`, `_computeExistingParentOffset`, `_layoutOnlySet`. |
+| Action-agnostic writer (§A.11.11) | One `_writeView` function. Per-object rule: exists → reposition (appearance preserved; parenthood re-derived from §A.6 — move via jArchi 1.10 API if parent changed); else → create. Same rule for relations: existing → rewrite bendpoints; new → add. Deleted helpers: `_layoutOnlyView`, `_applyResultToView`, `_findParentNodeId`, `_computeExistingParentOffset`, `_layoutOnlySet`. |
 | Folders and view nodes stripped before layout | `selection_pipeline.js` step 4 — excludes `type === "folder"` and `type === "archimate-diagram-model"`. |
 | Related-elements panel is multi-block + cumulative | `dialog_main.js::_addRelatedBlock` / `_updateFilteredCount` — block N+1's base = block N's pruned output. |
 | Per-relation direction toggles independent | `_relCheckGrid` — `←` and `→` are independent `SWT.TOGGLE` buttons (not radio). |

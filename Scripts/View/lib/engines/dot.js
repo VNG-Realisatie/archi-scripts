@@ -8,7 +8,7 @@
  * Spline sampling: converts cubic Bézier control points to SPLINE_SAMPLE_POINTS
  * intermediate points per segment, approximating curves in Archi via bendpoints.
  */
-console.log("engines/dot.js");
+console.log("Loading engines/dot.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
