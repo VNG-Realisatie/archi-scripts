@@ -18,6 +18,7 @@ Skills are canonical, tool-independent definitions with integrated reference doc
 | Skill | Canonical location | Purpose |
 |---|---|---|
 | `jarchi-scripting` | `ai/jarchi-scripting/SKILL.md` | JArchi script development: complete API, repo patterns, GraalVM/Java interop |
+| `elkjs` | `ai/elkjs/SKILL.md` | ELK graph layout: layout algorithms, JSON graph format, layout options |
 
 ## Shared Reference Libraries
 
@@ -26,6 +27,7 @@ Comprehensive documentation referenced by skills and shared across AI tools.
 | Library | Location | Contains |
 |---|---|---|
 | `jarchi-scripting` | `ai/jarchi-scripting/` | Complete jArchi API (v0.1–1.12), repo development patterns, GraalJS compatibility, Java interop |
+| `elkjs` | `ai/elkjs/` | ELK layout algorithms, JSON graph format, layout options (layered, spacing, routing, ports) |
 
 ## Conflict resolution
 Project shared docs override global `~/ai/shared/` when they conflict.
