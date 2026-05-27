@@ -8,7 +8,8 @@ See global model: `~/ai/README.md`
 | Layer | Location | Purpose |
 |---|---|---|
 | Project shared | Project root (`*.md`) | System design and coding standards for this project |
-| Tool adapters | `.claude/`, `.cursor/`, `.github/copilot/` | Tool-specific prioritization — no content definitions |
+| Skills | `.claude/skills/`, `.cursor/skills/` | Domain-specific task helpers (e.g., `jarchi-scripting`) that reference shared docs |
+| Tool adapters | `.claude/settings.json`, `.cursor/settings.json` | Tool-specific prioritization — no content definitions |
 
 ## Project shared files
 
@@ -18,6 +19,22 @@ See global model: `~/ai/README.md`
 | `architecture.md` | Scripts/ folder organization, module boundaries |
 | `coding-standards.md` | Naming, modules, Java interop, logging |
 | `testing.md` | Test strategy for GraalVM/jArchi environment |
+
+## Skills
+
+Skills are domain-specific task helpers that reference shared documentation without duplication. Always active in their respective tool contexts.
+
+| Skill | Location | Purpose |
+|---|---|---|
+| `jarchi-scripting` | `.claude/skills/jarchi-scripting/SKILL.md` | JArchi script development: references `ai/jarchi-scripting/` docs (API, repo patterns, GraalVM/Java interop) |
+
+## Shared Reference Libraries
+
+Comprehensive documentation referenced by skills and shared across AI tools.
+
+| Library | Location | Contains |
+|---|---|---|
+| `jarchi-scripting` | `ai/jarchi-scripting/` | Complete jArchi API (v0.1–1.12), repo development patterns, GraalJS compatibility, Java interop |
 
 ## Conflict resolution
 Project shared docs override global `~/ai/shared/` when they conflict.
