@@ -1355,7 +1355,7 @@ function _saveUI(ctx) {
 
   // Direction / routing / label / ranking
   if (w.cmbDirection)     c.params.direction     = DIRECTION_LABELS[w.cmbDirection.getSelectionIndex()]    || "Left → Right";
-  if (w.cmbRouting)       c.params.routing       = ROUTING_ALL[w.cmbRouting.getSelectionIndex()]           || "Orthogonal";
+  if (w.cmbRouting)       { const _ri = w.cmbRouting.getSelectionIndex(); c.params.routing = (_ri >= 0 ? w.cmbRouting.getItem(_ri) : null) || "Orthogonal"; }
   if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
   if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
 

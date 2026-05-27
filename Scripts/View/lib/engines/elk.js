@@ -18,6 +18,7 @@ const { mapParams, ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
 
 const NESTED_LABEL_TOP_EXTRA = 30; // extra top padding to avoid container label overlap
 
+
 let _elk = null;
 function _loadELK() {
   if (_elk) return _elk;
@@ -42,6 +43,14 @@ function layout(graph) {
 
   // Map GUI params to ELK options
   const engineOpts = mapParams(graph.algorithm, graph.options);
+
+  // CONSERVATIVE mode places spline control points at a fraction of the total edge length
+  // from each endpoint, which keeps them clear of the element boundary even for
+  // single-layer edges (where SLOPPY mode has no effect because there are no dummy nodes).
+  if (engineOpts["elk.edgeRouting"] === "SPLINES") {
+    engineOpts["elk.layered.edgeRouting.splines.mode"] = "CONSERVATIVE";
+  }
+
   const layoutOptions = Object.assign(
     { "elk.algorithm": alg.engineAlgorithmId },
     engineOpts
@@ -120,7 +129,8 @@ function layout(graph) {
   _collectNodePositions(layouted, 0, 0, resultNodes);
 
   // Collect edges
-  _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle");
+  const isSplines = layoutOptions["elk.edgeRouting"] === "SPLINES";
+  _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   for (const edge of selfLoops) {
@@ -150,7 +160,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   _sortNodeChildren(nodeMap, graph.sortContainers);
   const rootChildren = _collectRootChildren(nodeMap, parentMap, graph.sortContainers);
   const rootEdges    = _classifyEdges(edgeList, parentMap, nodeMap);
-  _dimensionCompounds(nodeMap, parentMap, graph);
+  _dimensionCompounds(nodeMap, parentMap, graph, layoutOptions);
   const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap);
   return {
     elkGraph: { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges },
@@ -258,9 +268,25 @@ function _classifyEdges(edgeList, parentMap, nodeMap) {
   return root;
 }
 
-function _dimensionCompounds(nodeMap, parentMap, graph) {
+// Keys from root layoutOptions that each container sub-graph should inherit.
+const INHERIT_LAYOUT_KEYS = [
+  "elk.edgeRouting",
+  "elk.layered.unnecessaryBendpoints",
+  "elk.layered.spacing.nodeNodeBetweenLayers",
+  "elk.mrtree.spacing.nodePlacementBetweenLayers",
+  "elk.layered.edgeRouting.splines.mode",
+];
+
+function _dimensionCompounds(nodeMap, parentMap, graph, rootLayoutOptions) {
   const padding  = graph.options.padding        || 20;
-  const spacing  = graph.options.innerSpacing   || 20;
+  // Layered/Tree/Radial have layerSpacing, so within-container node spacing
+  // follows elementSpacing (consistent with the root level).
+  // Grid/Pack have no layerSpacing; innerSpacing gives independent control.
+  const alg      = ALGORITHMS[graph.algorithm];
+  const hasLayerSpacing = alg && alg.activeParams && alg.activeParams.includes("layerSpacing");
+  const spacing  = hasLayerSpacing
+    ? (graph.options.elementSpacing || 40)
+    : (graph.options.innerSpacing   || 20);
   const nodeW    = graph.options.elementWidth   || 140;
   const nodeH    = graph.options.elementHeight  || 60;
   const maxWidth = graph.options.maxWidth       || 0;
@@ -288,10 +314,17 @@ function _dimensionCompounds(nodeMap, parentMap, graph) {
       "elk.algorithm":        ALGORITHMS[graph.algorithm].engineAlgorithmId,
       "elk.nodeSize.constraints": "FIXED_SIZE",
     };
-    // Propagate direction and routing for algorithms that support it
+    // Propagate direction for algorithms that support it
     if (graph.options.direction) {
       const elkDir = Defs.ELK_DIRECTION[graph.options.direction];
       if (elkDir) node.layoutOptions["elk.direction"] = elkDir;
+    }
+    // Propagate routing and spacing options so containers honour the root settings
+    if (rootLayoutOptions) {
+      for (const key of INHERIT_LAYOUT_KEYS) {
+        if (rootLayoutOptions[key] !== undefined)
+          node.layoutOptions[key] = rootLayoutOptions[key];
+      }
     }
   }
 }
@@ -317,6 +350,93 @@ function _liftCrossHierarchyEdges(rootEdges, parentMap) {
 
 // ── Result extraction ─────────────────────────────────────────────────────────
 
+/**
+ * Sample N points on the cubic Bézier spline described by an ELK section.
+ *
+ * ELK SPLINES sections store Bézier *control points*, not curve points.
+ * Format: section.bendPoints = [c1, c2, k1, c3, c4, k2, ...] where each
+ * triple (c_a, c_b, knot) defines one cubic segment; the last pair (c_a, c_b)
+ * has no trailing knot — the section's endPoint is the final anchor.
+ *
+ * Archi has no Bézier renderer; it draws polyline segments between bend points.
+ * Giving it control points (which can be at the element boundary) produces a
+ * visible segment inside the element. Sampling the actual curve avoids this.
+ *
+ * @param {object} section  ELK edge section
+ * @param {number} offsetX  absolute x of the container node
+ * @param {number} offsetY  absolute y of the container node
+ * @param {number} nSamples total sample count spread across all segments
+ * @returns {{ x: number, y: number }[]}
+ */
+function _sampleSplineSection(section, offsetX, offsetY, nSamples) {
+  const rawBps = section.bendPoints;
+  if (!rawBps || rawBps.length < 2) {
+    // No control points → straight segment; no bend points needed.
+    return [];
+  }
+
+  const sp  = section.startPoint || { x: 0, y: 0 };
+  const ep  = section.endPoint   || { x: 0, y: 0 };
+  const abs = p => ({ x: offsetX + p.x, y: offsetY + p.y });
+
+  // ELK CONSERVATIVE mode uses a clamped-endpoint B-spline representation for
+  // multi-layer edges: it prepends one or more copies of startPoint and appends
+  // copies of endPoint into bendPoints as anchor sentinels. These are NOT
+  // Bézier control handles. Strip them before parsing, or the first/last
+  // segments become degenerate (P0=P1=P2=boundary) and sampled points land on
+  // — or just inside — the element edge.
+  const EPS = 0.5;
+  let trimStart = 0;
+  while (trimStart < rawBps.length - 1
+      && Math.abs(rawBps[trimStart].x - sp.x) < EPS
+      && Math.abs(rawBps[trimStart].y - sp.y) < EPS) {
+    trimStart++;
+  }
+  let trimEnd = rawBps.length - 1;
+  while (trimEnd > trimStart
+      && Math.abs(rawBps[trimEnd].x - ep.x) < EPS
+      && Math.abs(rawBps[trimEnd].y - ep.y) < EPS) {
+    trimEnd--;
+  }
+  const bps = rawBps.slice(trimStart, trimEnd + 1);
+  if (bps.length < 2) return [];
+
+  const n     = bps.length;
+  const start = abs(sp);
+  const end   = abs(ep);
+  const pts   = bps.map(abs);
+
+  // Build cubic Bézier segments.
+  // Each group of 3 from pts: (ctrl_a, ctrl_b, knot) defines one segment.
+  // The final group has only (ctrl_a, ctrl_b); the anchor is end.
+  const segments = [];
+  let p0 = start;
+  for (let i = 0; i < n; i += 3) {
+    const p1 = pts[i];
+    const p2 = pts[i + 1];              // always present: n >= 2 after trim
+    const p3 = (i + 2 < n) ? pts[i + 2] : end;
+    if (p1 && p2) segments.push([p0, p1, p2, p3]);
+    p0 = p3;
+  }
+  if (segments.length === 0) return [];
+
+  const result = [];
+  const sps    = Math.max(1, Math.round(nSamples / segments.length));
+
+  for (let si = 0; si < segments.length; si++) {
+    const [p0, p1, p2, p3] = segments[si];
+    for (let j = 1; j <= sps; j++) {
+      const t  = j / (sps + 1);
+      const mt = 1 - t;
+      result.push({
+        x: Math.round(mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x),
+        y: Math.round(mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y),
+      });
+    }
+  }
+  return result;
+}
+
 function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId) {
   for (const child of (elkNode.children || [])) {
     const absX = offsetX + (child.x || 0);
@@ -333,7 +453,7 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
   }
 }
 
-function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, labelPosition) {
+function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines) {
   const containerNodeId = elkNode.id === "root" ? null : elkNode.id;
   const containerNode   = containerNodeId ? resultNodes.find(n => n.id === containerNodeId) : null;
   const offsetX = containerNode ? containerNode.x : 0;
@@ -346,10 +466,15 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
     const lifted = liftedEdgesMap && liftedEdgesMap[edge.id];
     const originalId = edge._archiRelId || edge.id;
 
-    const bps = [];
-    for (const bp of (section.bendPoints || [])) {
-      bps.push({ x: Math.round(offsetX + bp.x), y: Math.round(offsetY + bp.y) });
-    }
+    // For SPLINES routing, ELK outputs Bézier control points which Archi would render as
+    // polyline waypoints (Archi has no native Bézier rendering). Control points near the
+    // element boundary produce a visible segment from the element centre. Fix: sample the
+    // actual Bézier curve and give Archi points ON the curve instead.
+    const bps = isSplines
+      ? _sampleSplineSection(section, offsetX, offsetY, SPLINE_SAMPLE_POINTS)
+      : (section.bendPoints || []).map(bp => ({
+          x: Math.round(offsetX + bp.x), y: Math.round(offsetY + bp.y),
+        }));
 
     // Label position
     const { labelX, labelY } = _computeLabelPoint(section, bps, offsetX, offsetY, labelPosition, edge._relName);
@@ -366,7 +491,7 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
   }
 
   for (const child of (elkNode.children || [])) {
-    _collectEdgeResults(child, liftedEdgesMap, resultNodes, resultEdges, labelPosition);
+    _collectEdgeResults(child, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines);
   }
 }
 

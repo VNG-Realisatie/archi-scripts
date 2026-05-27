@@ -39,14 +39,14 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "innerSpacing", "padding",
+      "nestingRelationTypes", "padding",
       "sortContainers", "alignSameType", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      routing:       ["Orthogonal", "Polyline", "Straight"],
+      routing:       ["Orthogonal", "Polyline", "Splines"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
@@ -61,14 +61,14 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "innerSpacing", "padding",
+      "nestingRelationTypes", "padding",
       "sortContainers", "alignSameType", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      routing:       ["Orthogonal", "Polyline", "Straight"],
+      routing:       ["Orthogonal", "Polyline", "Splines"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
@@ -108,7 +108,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
     activeParams:         [
-      "nestingRelationTypes", "innerSpacing", "padding", "showInEveryContainer",
+      "nestingRelationTypes", "padding", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
       "reverseRelationTypes"
     ],
@@ -321,6 +321,8 @@ const ROUTING = Object.freeze({
     tooltip: "Draws relation lines as direct straight lines." },
   SPLINE:        { id: "Spline (approximated)", label: "Spline (approximated)",
     tooltip: "Graphviz B-splines converted to bendpoints. Only available with Graphviz algorithms." },
+  SPLINES:       { id: "Splines",              label: "Splines",
+    tooltip: "Smooth Bézier curve edges. Available with Layered and Tree algorithms." },
 });
 
 // ── Directions ────────────────────────────────────────────────────────────────
@@ -492,9 +494,8 @@ const ENGINE_MAPPING = Object.freeze({
       direction:    (v)    => ({ "elk.direction": ELK_DIRECTION[v] }),
       routing:      (v)    => ({
         "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
-                          : v === "Straight"  ? "POLYLINE"
+                          : v === "Splines"   ? "SPLINES"
                           :                    "POLYLINE",
-        ...(v === "Straight" ? { "elk.layered.unnecessaryBendpoints": "true" } : {}),
       }),
       layerSpacing: (v)    => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
       elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
@@ -504,7 +505,9 @@ const ENGINE_MAPPING = Object.freeze({
     Tree: {
       direction:     (v)   => ({ "elk.direction": ELK_DIRECTION[v] }),
       routing:       (v)   => ({
-        "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL" : "POLYLINE",
+        "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
+                          : v === "Splines"   ? "SPLINES"
+                          :                    "POLYLINE",
       }),
       layerSpacing:  (v)   => ({ "elk.mrtree.spacing.nodePlacementBetweenLayers": String(v) }),
       elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
