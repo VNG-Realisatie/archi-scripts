@@ -8,8 +8,8 @@ See global model: `~/ai/README.md`
 | Layer | Location | Purpose |
 |---|---|---|
 | Project shared | Project root (`*.md`) | System design and coding standards for this project |
-| Skills | `.claude/skills/`, `.cursor/skills/` | Domain-specific task helpers (e.g., `jarchi-scripting`) that reference shared docs |
-| Tool adapters | `.claude/settings.json`, `.cursor/settings.json` | Tool-specific prioritization — no content definitions |
+| Skills | `ai/` subfolders (e.g. `ai/jarchi-scripting/`) | Canonical, tool-independent skill definitions and reference docs |
+| Tool adapters | `.claude/skills/`, `.cursor/skills/` | Discovery stubs that point to `ai/` skill definitions |
 
 ## Project shared files
 
@@ -22,11 +22,11 @@ See global model: `~/ai/README.md`
 
 ## Skills
 
-Skills are domain-specific task helpers that reference shared documentation without duplication. Always active in their respective tool contexts.
+Skills are canonical, tool-independent definitions with integrated reference documentation. Tools discover skills via adapters in `.claude/skills/` and `.cursor/skills/` that point to the canonical definition in `ai/`.
 
-| Skill | Location | Purpose |
+| Skill | Canonical location | Purpose |
 |---|---|---|
-| `jarchi-scripting` | `.claude/skills/jarchi-scripting/SKILL.md` | JArchi script development: references `ai/jarchi-scripting/` docs (API, repo patterns, GraalVM/Java interop) |
+| `jarchi-scripting` | `ai/jarchi-scripting/SKILL.md` | JArchi script development: complete API, repo patterns, GraalVM/Java interop |
 
 ## Shared Reference Libraries
 
