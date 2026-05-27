@@ -7,18 +7,9 @@ See global model: `~/ai/README.md`
 
 | Layer | Location | Purpose |
 |---|---|---|
-| Project shared | Project root (`*.md`) | System design and coding standards for this project |
-| Skills | `ai/` subfolders (e.g. `ai/jarchi-scripting/`) | Canonical, tool-independent skill definitions and reference docs |
-| Tool adapters | `.claude/skills/`, `.cursor/skills/` | Discovery stubs that point to `ai/` skill definitions |
-
-## Project shared files
-
-| File | Contains |
-|---|---|
-| `project.md` | System purpose, domain, runtime constraints |
-| `architecture.md` | Scripts/ folder organization, module boundaries |
-| `coding-standards.md` | Naming, modules, Java interop, logging |
-| `testing.md` | Test strategy for GraalVM/jArchi environment |
+| Rules | `ai/rules.md` | Tool-independent rule chain and source references |
+| Skills | `ai/` subfolders (e.g. `ai/jarchi-scripting/`) | Canonical, tool-independent skill definitions, API reference, repo patterns, coding standards, vocabulary, testing guide |
+| Tool adapters | `.claude/`, `.cursor/`, `.github/copilot/` | Thin adapters pointing to `ai/rules.md` and `ai/` skills |
 
 ## Skills
 

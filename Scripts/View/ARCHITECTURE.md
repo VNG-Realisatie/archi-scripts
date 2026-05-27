@@ -691,17 +691,14 @@ Concrete files that fill each scope from §A.13. Listed broadest → narrowest; 
 |---|---|
 | `~/.claude/rules.md` | Rule priority chain (project shared docs → `~/ai/shared/coding-standards.md` → `~/.claude/settings.md`). |
 | `~/.claude/settings.md` | Behaviour defaults: concise responses, edit existing files over creating new, do not narrate diffs. |
-| `~/ai/shared/coding-standards.md` | Cross-project coding defaults. Repo-level `coding-standards.md` overrides on conflict. |
+| `~/ai/shared/coding-standards.md` | Cross-project coding defaults. Repo-level standards override on conflict. |
 
 ### Repo-wide
 
 | File | Role |
 |---|---|
-| [`CLAUDE.md`](../../CLAUDE.md) | Project entry point. Fixed vocabulary. Pointers to other rule files. |
-| [`project.md`](../../project.md) | Runtime constraints (jArchi 1.12 / GraalVM JS / Archi 5.9), domain scope. |
-| [`architecture.md`](../../architecture.md) | Repo-wide module structure: `Scripts/<subsystem>/` organisation; entry-point vs library split. |
-| [`coding-standards.md`](../../coding-standards.md) | Naming, module/export conventions, file headers, console-log discipline. |
-| [`testing.md`](../../testing.md) | When/where/how to test. |
+| [`ai/rules.md`](../../ai/rules.md) | Tool-independent rule priority chain, layer model, source references. |
+| [`ai/jarchi-scripting/jarchi-script-development.md`](../../ai/jarchi-scripting/jarchi-script-development.md) | Repo patterns, coding standards, vocabulary, folder structure, runtime constraints, testing guide. |
 | [`readme.md`](../../readme.md) | User-facing intro. |
 
 ### Shared library (`Scripts/_lib/`)
@@ -718,7 +715,7 @@ Code, not documentation, but treated as fixed contract.
 
 | File | Role |
 |---|---|
-| [`Scripts/View/CLAUDE.md`](CLAUDE.md) | Subsystem rules: pipeline model, hard rules, SWT/jArchi platform rules, `layoutDialog` architecture, relation-direction encoding contract. (Display vocabulary lives in §A.2.1.) |
+| [`Scripts/View/CLAUDE.md`](CLAUDE.md) | Reference-only: pointers to ARCHITECTURE.md sections and `ai/jarchi-scripting/SKILL.md`. |
 | [`Scripts/View/README.md`](README.md) | User-facing: how to invoke the scripts, what each preset does. |
 | [`Scripts/View/ARCHITECTURE.md`](ARCHITECTURE.md) | **This file.** Part A is the design constraint; Part B tracks code reality. |
 

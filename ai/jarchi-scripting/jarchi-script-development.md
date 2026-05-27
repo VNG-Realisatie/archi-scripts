@@ -273,7 +273,79 @@ Changes made via jArchi scripts are added to the Undo stack if the model is open
 
 ---
 
-## Coding Standards (from `coding-standards.md`)
+## Fixed Vocabulary
+
+Stable terms used in code, UI labels, and all documentation. No synonyms.
+
+| Canonical term | Do NOT use |
+|---|---|
+| Element | node, box, item |
+| Relation | edge, link, connection |
+| Nesting | grouping, hierarchy config |
+| Container | group, box, region |
+| Layout | structure engine, positioning |
+| Elements & relations | nodes & edges |
+| Nesting rules | grouping rules, hierarchy rules |
+
+---
+
+## Repo Structure
+
+| Folder | Domain |
+|---|---|
+| Scripts/ (root) | Frequently-used utilities: merge, reverse, add properties, link to view |
+| Scripts/Appearance/ | View formatting: color by property, reset format, toggle figure display |
+| Scripts/Beheren/ | Bulk model management: delete unused elements/folders, find duplicates |
+| Scripts/Convert to/ | Change ArchiMate element type |
+| Scripts/Develop/ | Script development aids: display IDs and color codes in views |
+| Scripts/GEMMA/ | GEMMA model management |
+| Scripts/ImportExport_CSV/ | Bidirectional CSV sync |
+| Scripts/Layout/ | Visual relation layout: star-shaped bendpoints, spread overlapping relations |
+| Scripts/Report/ | Markdown report generation from views |
+| Scripts/Sync from CSV/ | Bulk object creation and update from CSV |
+| Scripts/View/ | Automated view generation with graph layout (ELK, Dagre, Graphviz) |
+| Scripts/_lib/ | Shared utilities: Common.js (logging), selection.js, vendored libraries |
+| Scripts/_test/ | Test and validation scripts |
+| Scripts/node_modules/ | Vendored dependencies (dagre, ELK, chroma-js, papaparse, showdown, underscore) |
+
+Dependency rule: any script may depend on `Scripts/_lib/`. Domain folders do not depend on each other.
+
+---
+
+## Project Context
+
+archi-scripts extends Archi (Enterprise Architecture modeling tool) with automated scripting via jArchi.
+
+**Domains:** view generation, export/import, reporting, appearance/styling, merging, model analysis.
+
+**Runtime constraints:**
+- Runtime: jArchi plugin on GraalVM (not Node.js)
+- Module system: CommonJS via require()
+- No Node.js APIs — no fs, path, or process
+- Java interop: Java.type(), Java.extend()
+- File I/O: java.io.* or java.nio.file.*
+- All scripts live under Scripts/; each subfolder is an independent domain
+
+---
+
+## Testing Strategy
+
+No automated test framework — GraalVM/jArchi does not support Node test runners. All testing is manual: run scripts inside Archi.
+
+**Test structure:**
+1. Select representative model elements in Archi
+2. Run script via Script Manager or _GUI.ajs
+3. Verify: view generation, layout, element positions, console output
+
+**Regression:** test the golden path (typical selection) + edge cases (empty selection, single element, deeply nested structures) after each change.
+
+**Debug mode:** set `debug: true` in preset or via GUI to inspect intermediate graph state. ELK graph JSON is logged before and after layout when debug is on.
+
+**Mocking:** no mocking framework. Use small isolated test diagrams in the Archi model.
+
+---
+
+## Coding Standards
 
 ### Modules & Loading
 - CommonJS: use `require()` and `module.exports`
@@ -367,5 +439,4 @@ Before submitting a script:
 - **Complete API:** `jarchi-api-reference.md` (this folder)
 - **GraalJS Compatibility:** `graaljs-compatibility.md` (this folder)
 - **Java Interop:** `java-interop.md` (this folder)
-- **Project Standards:** `coding-standards.md` (repo root)
 - **jArchi Wiki:** https://github.com/archimatetool/archi-scripting-plugin/wiki
