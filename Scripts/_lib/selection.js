@@ -68,8 +68,7 @@ function getSelection(startSelection, selector = "*") {
   }
   _logSelected(startSelection);
 
-  /** @type {any} */
-  const coll = _walkAndCollect(startSelection, (/** @type {any} */ o) => {
+  const coll = _walkAndCollect(startSelection, (o) => {
     // Canvas visual objects: $(visualObj).is(selector) returns false in jArchi.
     // Test against the .concept instead — that is the model object the caller wants.
     // Diagram-model-* VOs have no concept; the VO itself is what callers want.
@@ -101,11 +100,9 @@ function getVisualSelection(startSelection, selector = "*") {
   _logSelected(startSelection);
   console.log(`Select "${selector}"`);
 
-  /** @type {any} */
-  let coll = _walkAndCollect(startSelection, (/** @type {any} */ o) => {
+  let coll = _walkAndCollect(startSelection, (o) => {
     if (!o.view) return null;
     const matches = selector === "*"
-      // @ts-ignore — selector has a default of "*", TS narrowing can flag it as possibly null
       || (selector === "diagram" ? DIAGRAM_OBJECT_TYPES.includes(o.type) : $(o).is(selector));
     return matches ? o : null;
   });
@@ -114,7 +111,6 @@ function getVisualSelection(startSelection, selector = "*") {
   if (coll.size() === 1) {
     const obj = coll.first();
     console.log(`One concept selected, apply to all concepts of type ${obj.type}`);
-    // @ts-ignore — obj is a jArchi VisualObject with .view and .type
     coll = $(obj.view).find(obj.type);
   }
   return coll;
@@ -147,7 +143,7 @@ function _walkAndCollect(startSelection, decide) {
   return coll;
 }
 
-function _logSelected(/** @type {any} */ startSelection) {
+function _logSelected(startSelection) {
   if (startSelection.size() === 1) {
     console.log(`Selected ${startSelection.first()}`);
   } else {
