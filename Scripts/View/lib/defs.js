@@ -159,6 +159,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // Dagre core silently drops self-loops
     activeParams:         [
       "direction", "ranking", "labelPosition", "reverseRelationTypes",
+      "nestingRelationTypes", "padding",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
     ],
     supportedOptions: {
