@@ -1109,6 +1109,47 @@ Each block stored as:
 | Reverse relation types | Reverse direction before layout. Use to flip layout direction of specific relations. |
 | Label position | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
 
+### layoutDialog state contract
+
+The dialog maintains a separation between configuration (model) and UI state (view):
+
+- **`layoutDialog.config`** — the live parameter object; source of truth between runs. Persisted to presets and session state.
+- **`layoutDialog.widgets`** — flat map of named widget references (buttons, spinners, checkboxes, text fields, list builders).
+- **`syncConfigToUI()`** — pushes `config` → widgets; called after `createDialogArea` and after preset apply.
+- **`saveInput()`** — reads widgets → `config`; called before run and before preset save.
+- **`updateActionControls(action)`** — enables/disables depth spinner and view name field based on the selected action (NEW_VIEW, ONE_EACH, EXPAND_VIEW, LAYOUT_ONLY).
+- **`updateAlgoControls(algo)`** — enables/disables direction/routing/ranker/weights controls based on the selected algorithm's supported options (see §B.8).
+- **`_updateActionColors()`** — stored closure; sets white background + default foreground for the active action toggle, widget background + dark-grey foreground for inactive toggles. Must be called from all action toggle listeners AND from `syncConfigToUI`.
+
+### Relation filter widget shapes
+
+**`_relTypeRows` (per row in the relation-type checkbox grid):**
+```js
+{
+  type: string,              // relation type ID (e.g., "serving-relationship")
+  chk: ButtonWidget,         // checkbox to activate/deactivate the relation
+  rdoIn: ButtonWidget,       // ← toggle (incoming direction)
+  rdoOut: ButtonWidget,      // → toggle (outgoing direction)
+  updateDirColors: fn        // closure to update colors after state change
+}
+```
+
+- `rdoIn` and `rdoOut` are **independent** `SWT.TOGGLE` buttons (not mutually exclusive radio buttons). Both can be selected, neither selected is allowed (UI prevents the "both deselected" state).
+- `updateDirColors()` is a per-row closure; call it after any programmatic state change (e.g. from `syncConfigToUI` or listener handlers).
+
+**Checkbox grids (Reverse, Nesting):**
+```js
+// Stored at layoutDialog.widgets[name + "_checks"]
+// Example: layoutDialog.widgets.lstReversed_checks, layoutDialog.widgets.lstNested_checks
+[
+  { type: string, chk: ButtonWidget },
+  // ...
+]
+```
+
+- `createRelCheckGrid(name, container, cols, initialSelected)` builds the grid and stores the array at `widgets[name + "_checks"]`.
+- Each entry is a relation type with its checkbox widget.
+
 ## B.8 Engine parameter mappings
 
 **Realises:** §A.10 (algorithm capability matrix) — concrete realisation in each engine.
