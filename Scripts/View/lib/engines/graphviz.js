@@ -8,7 +8,7 @@
  * Spline sampling: converts cubic Bézier control points to SPLINE_SAMPLE_POINTS
  * intermediate points per segment, approximating curves in Archi via bendpoints.
  */
-console.log("Loading engines/dot.js");
+console.log("Loading engines/graphviz.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
@@ -16,7 +16,7 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { GV_BIN_DEFAULT, SPLINE_SAMPLE_POINTS, ALGORITHMS, mapParams } = Defs;
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS, mapParams } = Defs;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
 const PT2PX = 96 / 72;
@@ -29,8 +29,16 @@ const RANKDIR = {
   "Bottom → Top": "BT",
 };
 
-const GV_EDGE_CLEARANCE_ORTHO  = '+24';
-const GV_EDGE_CLEARANCE_CURVED = '+8';
+// Default Graphviz binary name (dot). Can be overridden per-layout via graph.options.graphvizBin.
+const GRAPHVIZ_BIN_DEFAULT = "dot";
+
+// Derived: set of Graphviz algorithm names (used for engine validation guard).
+const GRAPHVIZ_ALGORITHMS = new Set(
+  Object.entries(ALGORITHMS).filter(([, v]) => v.engine === "Graphviz").map(([k]) => k)
+);
+
+const GRAPHVIZ_EDGE_CLEARANCE_ORTHO  = '+24';
+const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 
 /**
  * Compute layout positions.
@@ -44,7 +52,7 @@ function layout(graph) {
   const dotSource = _buildDOT(graph);
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
 
-  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId, graph.options.graphvizBin || GV_BIN_DEFAULT);
+  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId, graph.options.graphvizBin || GRAPHVIZ_BIN_DEFAULT);
   return _extractResult(graph, jsonOut);
 }
 
@@ -57,8 +65,8 @@ function _buildDOT(graph) {
   // Map GUI params to Graphviz graph attributes
   const engineOpts = mapParams(graph.algorithm, opts, PARAM_MAPPING);
   const splines    = engineOpts.splines || "polyline";
-  const esep       = splines === "ortho" ? GV_EDGE_CLEARANCE_ORTHO : GV_EDGE_CLEARANCE_CURVED;
-  const gAttrStr   = _renderGvAttrs(engineOpts);
+  const esep       = splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED;
+  const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW  = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
@@ -129,7 +137,7 @@ function _buildDOT(graph) {
 function _runDot(dotSource, engine, binPath) {
   const ProcessBuilder = Java.type("java.lang.ProcessBuilder");
   const Arrays         = Java.type("java.util.Arrays");
-  const bin = (binPath && binPath.trim()) ? binPath.trim() : GV_BIN_DEFAULT;
+  const bin = (binPath && binPath.trim()) ? binPath.trim() : GRAPHVIZ_BIN_DEFAULT;
 
   let proc;
   try {
@@ -201,7 +209,7 @@ function _extractResult(graph, jsonOut) {
     resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h, parentId: node.parent || null });
   }
 
-  const splines      = _guiRoutingToGv(graph.options.routing || "Polyline");
+  const splines      = _guiRoutingToGraphviz(graph.options.routing || "Polyline");
   const skipBend     = splines === "line";
   const labelPos     = graph.options.labelPosition || "Natural";
 
@@ -369,7 +377,7 @@ function _flattenSpline(posStr, totalH, splineType) {
   return bps;
 }
 
-function _guiRoutingToGv(routing) {
+function _guiRoutingToGraphviz(routing) {
   switch (routing) {
     case "Orthogonal":          return "ortho";
     case "Polyline":            return "polyline";
@@ -381,13 +389,13 @@ function _guiRoutingToGv(routing) {
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 // Maps GUI param names to Graphviz graph attribute key/value pairs.
-// Defined after _guiRoutingToGv so that function can be referenced here.
+// Defined after _guiRoutingToGraphviz so that function can be referenced here.
 // Note: px → inches conversion uses / 96 (96 DPI screen).
 
 const PARAM_MAPPING = {
   Dot: {
     direction:     (v)    => ({ rankdir: RANKDIR[v] }),
-    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
     layerSpacing:  (v)    => ({ ranksep: (v / 96).toFixed(4) }),
     elementSpacing:(v)    => ({ nodesep: (v / 96).toFixed(4) }),
     padding:       (v)    => ({ pad:    (v / 96).toFixed(4) }),
@@ -396,7 +404,7 @@ const PARAM_MAPPING = {
     aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Neato: {
-    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
     elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
     padding:       (v)    => ({ pad: (v / 96).toFixed(4) }),
     maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
@@ -404,7 +412,7 @@ const PARAM_MAPPING = {
     aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   FDP: {
-    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
     elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
     padding:       (v)    => ({ pad: (v / 96).toFixed(4) }),
     maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
@@ -412,7 +420,7 @@ const PARAM_MAPPING = {
     aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   SFDP: {
-    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
     elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
     maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
     maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
@@ -435,7 +443,7 @@ const PARAM_MAPPING = {
  * Render a {key: value} object as a DOT graph attribute string.
  * Values containing commas or spaces are double-quoted; others are unquoted.
  */
-function _renderGvAttrs(attrs) {
+function _renderGraphvizAttrs(attrs) {
   return Object.entries(attrs)
     .filter(([, v]) => v !== null && v !== undefined && String(v) !== '')
     .map(([k, v]) => /[,\s]/.test(String(v)) ? `${k}="${v}"` : `${k}=${v}`)

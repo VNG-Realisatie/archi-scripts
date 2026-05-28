@@ -32,11 +32,11 @@ const JUNCTION_DIAMETER = 14;
 
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
 
-let _elkAdapter = null, _dagreAdapter = null, _dotAdapter = null;
+let _elkAdapter = null, _dagreAdapter = null, _graphvizAdapter = null;
 function _getAdapter(engine) {
-  if (engine === "ELK")      { if (!_elkAdapter)   _elkAdapter   = require(REPO_ROOT + "View/lib/engines/elk");   return _elkAdapter; }
-  if (engine === "Dagre")    { if (!_dagreAdapter) _dagreAdapter = require(REPO_ROOT + "View/lib/engines/dagre"); return _dagreAdapter; }
-  if (engine === "Graphviz") { if (!_dotAdapter)   _dotAdapter   = require(REPO_ROOT + "View/lib/engines/dot");   return _dotAdapter; }
+  if (engine === "ELK")      { if (!_elkAdapter)       _elkAdapter       = require(REPO_ROOT + "View/lib/engines/elk");       return _elkAdapter; }
+  if (engine === "Dagre")    { if (!_dagreAdapter)     _dagreAdapter     = require(REPO_ROOT + "View/lib/engines/dagre");     return _dagreAdapter; }
+  if (engine === "Graphviz") { if (!_graphvizAdapter)  _graphvizAdapter  = require(REPO_ROOT + "View/lib/engines/graphviz");  return _graphvizAdapter; }
   throw `Unknown engine: "${engine}"`;
 }
 

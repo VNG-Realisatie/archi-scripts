@@ -749,7 +749,7 @@ Library (.js — via require)
    ├─ defs.js (SSOT)            ← styles, algorithms, DIAGRAM_TYPES, preset defaults
    ├─ selection_pipeline.js     ← selection → filter → expansion → typed object set
    ├─ preset_io.js              ← read/write preset JSON; session persistence
-   └─ engines/elk.js | dagre.js | dot.js   ← engine adapters
+   └─ engines/elk.js | dagre.js | graphviz.js   ← engine adapters
 
 gui/dialog_main.js
   ├─ defs.js
@@ -779,7 +779,7 @@ Reused from _lib/
 | `Scripts/View/lib/preset_io.js` | Preset I/O + session passthrough |
 | `Scripts/View/lib/engines/elk.js` | ELK adapter (Part A.8) |
 | `Scripts/View/lib/engines/dagre.js` | Dagre adapter (Part A.8) |
-| `Scripts/View/lib/engines/dot.js` | Graphviz adapter (Part A.8) |
+| `Scripts/View/lib/engines/graphviz.js` | Graphviz adapter (Part A.8) |
 | `Scripts/View/lib/gui/dialog_main.js` | SWT dialog (Part A.9) |
 | `Scripts/View/lib/gui/dialog_presets.js` | Preset management sub-dialog |
 | `Scripts/View/user_parameter/*.json` | Saved named presets |

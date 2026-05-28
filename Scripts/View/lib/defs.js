@@ -292,11 +292,6 @@ const ALGO_ENGINE = Object.freeze(
   Object.fromEntries(Object.entries(ALGORITHMS).map(([k, v]) => [k, v.engine]))
 );
 
-// Derived: set of Graphviz algorithm names
-const GV_ALGORITHMS = new Set(
-  Object.entries(ALGORITHMS).filter(([, v]) => v.engine === "Graphviz").map(([k]) => k)
-);
-
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 const ACTION = Object.freeze({
@@ -421,7 +416,6 @@ const DIAGRAM_TYPES = Object.freeze(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GV_BIN_DEFAULT       = "dot";
 const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
@@ -473,7 +467,7 @@ const DEFAULT_PRESET = Object.freeze({
 // Engine parameter mappings have moved to the engine adapters:
 //   ELK params    → Scripts/View/lib/engines/elk.js    (PARAM_MAPPING)
 //   Dagre params  → Scripts/View/lib/engines/dagre.js  (PARAM_MAPPING)
-//   Graphviz params → Scripts/View/lib/engines/dot.js  (PARAM_MAPPING)
+//   Graphviz params → Scripts/View/lib/engines/graphviz.js  (PARAM_MAPPING)
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -610,13 +604,13 @@ function effectiveParams(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    STYLES, ALGORITHMS, ALGO_ENGINE, GV_ALGORITHMS,
+    STYLES, ALGORITHMS, ALGO_ENGINE,
     ACTION, ROUTING,
     DIRECTIONS,
     RANKING, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,
-    GV_BIN_DEFAULT, GENERATED_VIEW_FOLDER, SESSION_FILENAME,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME,
     SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
     DEFAULT_PRESET,
     mapParams,
