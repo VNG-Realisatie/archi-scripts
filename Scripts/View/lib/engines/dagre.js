@@ -12,7 +12,35 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { mapParams, RANKDIR, RANKING } = Defs;
+const { mapParams, ALGORITHMS } = Defs;
+
+// ── Engine-specific parameter mapping ────────────────────────────────────────
+
+// Dagre / Graphviz use the same rankdir values — local copy (no shared engine dep).
+const RANKDIR = {
+  "Left → Right": "LR",
+  "Right → Left": "RL",
+  "Top → Bottom": "TB",
+  "Bottom → Top": "BT",
+};
+
+// Dagre ranker identifiers mapped from GUI ranking labels.
+const RANKER = {
+  "Balanced":    "network-simplex",
+  "Uniform":     "longest-path",
+  "Top-aligned": "tight-tree",
+};
+
+const PARAM_MAPPING = {
+  Dagre: {
+    direction:     (v) => ({ rankdir: RANKDIR[v] }),
+    ranking:       (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
+    layerSpacing:  (v) => ({ ranksep: v }),
+    elementSpacing:(v) => ({ nodesep: v }),
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 let _dagre = null;
 function _loadDagre() {
@@ -34,19 +62,13 @@ function _loadDagre() {
 function layout(graph) {
   const dagre = _loadDagre();
 
-  const engineOpts = mapParams("Dagre", graph.options);
-  const rankdir = RANKDIR[graph.options.direction] || "LR";
-  const ranker  = RANKING.find(r => r.val === graph.options.ranking)?.dagreRanker ?? "network-simplex";
+  const engineOpts = mapParams("Dagre", graph.options, PARAM_MAPPING);
 
   const g = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
-    .setGraph({
-      rankdir,
-      nodesep: graph.options.elementSpacing || 40,
-      ranksep: graph.options.layerSpacing   || 180,
-      ranker,
-      marginx: 10,
-      marginy: 10,
-    })
+    .setGraph(Object.assign(
+      { rankdir: "LR", nodesep: 40, ranksep: 180, ranker: "network-simplex", marginx: 10, marginy: 10 },
+      engineOpts
+    ))
     .setDefaultNodeLabel(() => ({}))
     .setDefaultEdgeLabel(() => ({ minlen: 1, weight: 1 }));
 

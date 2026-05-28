@@ -16,7 +16,18 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { GV_BIN_DEFAULT, PT2PX, SPLINE_SAMPLE_POINTS, RANKDIR, ALGORITHMS } = Defs;
+const { GV_BIN_DEFAULT, SPLINE_SAMPLE_POINTS, ALGORITHMS, mapParams } = Defs;
+
+// Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
+const PT2PX = 96 / 72;
+
+// Dagre/Graphviz share the same rankdir values — local copy (no shared engine dep).
+const RANKDIR = {
+  "Left → Right": "LR",
+  "Right → Left": "RL",
+  "Top → Bottom": "TB",
+  "Bottom → Top": "BT",
+};
 
 const GV_EDGE_CLEARANCE_ORTHO  = '+24';
 const GV_EDGE_CLEARANCE_CURVED = '+8';
@@ -41,31 +52,20 @@ function layout(graph) {
 
 function _buildDOT(graph) {
   const PX_TO_IN = 1 / 96;
-  const alg      = ALGORITHMS[graph.algorithm];
   const opts     = graph.options;
-  const splines  = _guiRoutingToGv(opts.routing || "Polyline");
-  const esep     = splines === "ortho" ? GV_EDGE_CLEARANCE_ORTHO : GV_EDGE_CLEARANCE_CURVED;
 
-  const nodeW    = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
-  const nodeH    = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
-  const ranksep  = ((opts.layerSpacing  || 180) * PX_TO_IN).toFixed(4);
-  const nodesep  = ((opts.elementSpacing || 40) * PX_TO_IN).toFixed(4);
-  const padding  = opts.padding || 20;
+  // Map GUI params to Graphviz graph attributes
+  const engineOpts = mapParams(graph.algorithm, opts, PARAM_MAPPING);
+  const splines    = engineOpts.splines || "polyline";
+  const esep       = splines === "ortho" ? GV_EDGE_CLEARANCE_ORTHO : GV_EDGE_CLEARANCE_CURVED;
+  const gAttrStr   = _renderGvAttrs(engineOpts);
 
-  let graphAttrs = `rankdir=${RANKDIR[opts.direction] || "LR"} ranksep=${ranksep} nodesep=${nodesep} splines=${splines} compound=true margin=0 esep="${esep}"`;
+  // Node dimensions — not graph-level attributes; kept inline
+  const nodeW  = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
+  const nodeH  = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
+  const padding = opts.padding || 20;  // cluster subgraph margin (not graph-level pad)
 
-  const maxWidth  = opts.maxWidth  || 0;
-  const maxHeight = opts.maxHeight || 0;
-  const ar        = opts.aspectRatio || 0;
-  if (maxWidth > 0 && maxHeight > 0) {
-    graphAttrs += ` size="${(maxWidth / 96).toFixed(3)},${(maxHeight / 96).toFixed(3)}"`;
-  } else if (maxWidth > 0) {
-    graphAttrs += ` size="${(maxWidth / 96).toFixed(3)},999"`;
-  } else if (maxHeight > 0) {
-    graphAttrs += ` size="999,${(maxHeight / 96).toFixed(3)}"`;
-  } else if (ar > 0) {
-    graphAttrs += ` ratio="${(1 / ar).toFixed(4)}"`;
-  }
+  const graphAttrs = `${gAttrStr} compound=true margin=0 esep="${esep}"`;
 
   // Build nodeId → children map from parent references
   const childrenOf = {};
@@ -378,6 +378,71 @@ function _guiRoutingToGv(routing) {
     default:                    return "polyline";
   }
 }
+
+// ── Engine-specific parameter mapping ────────────────────────────────────────
+// Maps GUI param names to Graphviz graph attribute key/value pairs.
+// Defined after _guiRoutingToGv so that function can be referenced here.
+// Note: px → inches conversion uses / 96 (96 DPI screen).
+
+const PARAM_MAPPING = {
+  Dot: {
+    direction:     (v)    => ({ rankdir: RANKDIR[v] }),
+    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    layerSpacing:  (v)    => ({ ranksep: (v / 96).toFixed(4) }),
+    elementSpacing:(v)    => ({ nodesep: (v / 96).toFixed(4) }),
+    padding:       (v)    => ({ pad:    (v / 96).toFixed(4) }),
+    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
+    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Neato: {
+    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    padding:       (v)    => ({ pad: (v / 96).toFixed(4) }),
+    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
+    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  FDP: {
+    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    padding:       (v)    => ({ pad: (v / 96).toFixed(4) }),
+    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
+    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  SFDP: {
+    routing:       (v)    => ({ splines: _guiRoutingToGv(v) }),
+    elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
+    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Twopi: {
+    layerSpacing:  (v)    => ({ ranksep: (v / 96).toFixed(4) }),
+    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
+    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Circo: {
+    elementSpacing:(v)    => ({ mindist: (v / 96).toFixed(4) }),
+    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
+    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+  },
+};
+
+/**
+ * Render a {key: value} object as a DOT graph attribute string.
+ * Values containing commas or spaces are double-quoted; others are unquoted.
+ */
+function _renderGvAttrs(attrs) {
+  return Object.entries(attrs)
+    .filter(([, v]) => v !== null && v !== undefined && String(v) !== '')
+    .map(([k, v]) => /[,\s]/.test(String(v)) ? `${k}="${v}"` : `${k}=${v}`)
+    .join(' ');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { layout };

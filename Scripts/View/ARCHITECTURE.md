@@ -138,10 +138,11 @@ Three layers, top to bottom. Each layer talks only to the one below.
 
 Shared infrastructure (used by Layers 1–2, not a layer itself):
   SSOT module           ← styles, algorithms, GUI parameters,
-                          per-algorithm allowed values, engine
-                          parameter mappings, action and routing
-                          constants, the closed set of
-                          diagram-object types.
+                          per-algorithm allowed values, action and
+                          routing constants, the closed set of
+                          diagram-object types, preset defaults.
+                          Functional/dialog data only — no engine-
+                          specific option names or conversions.
   Selection pipeline    ← selection → filter → related-elements
                           expansion → typed object set.
   Preset persistence    ← read/write preset bundles; preserve
@@ -156,6 +157,7 @@ Shared infrastructure (used by Layers 1–2, not a layer itself):
 - **The API → adapter boundary is the engine-independent layout graph.** Adapters must not see selections, presets, or views.
 - **SSOT is read-only at runtime.** Adding an algorithm, a parameter, or a diagram-object type is a single-file change.
 - **Engine adapters are isolated.** Adding a new engine requires no changes to other layers or other adapters.
+- **Strict SSOT / adapter separation.** `defs.js` contains only functional definitions: algorithm metadata, GUI parameters, display labels, allowed values, preset defaults. All engine-specific translations (option names, unit conversions, flag values) live exclusively in the adapter files in `PARAM_MAPPING`. Adding a new algorithm requires one SSOT entry (`defs.js`) and one `PARAM_MAPPING` entry in the relevant adapter — no other file changes.
 - **The entry-points layer is replaceable.** Any caller that can produce a validated preset + a selection can drive the view-generation API directly.
 
 ## A.4 Data model
@@ -744,7 +746,7 @@ Library (.js — via require)
 │  generate_view.js   Orchestrates selection → engine → view │
 └──┬─────────────────────────────────────────────────────┘
    │
-   ├─ defs.js (SSOT)            ← styles, algorithms, DIAGRAM_TYPES, ENGINE_MAPPING
+   ├─ defs.js (SSOT)            ← styles, algorithms, DIAGRAM_TYPES, preset defaults
    ├─ selection_pipeline.js     ← selection → filter → expansion → typed object set
    ├─ preset_io.js              ← read/write preset JSON; session persistence
    └─ engines/elk.js | dagre.js | dot.js   ← engine adapters
@@ -771,7 +773,7 @@ Reused from _lib/
 | `Scripts/View/_expand.ajs` | Read session; call `generate_view` with action `expand_view` |
 | `Scripts/View/_layout_only.ajs` | Read session; call `generate_view` with action `layout_only` |
 | `Scripts/View/presets/*.ajs` | Wrapper: load named preset → `generate_view` |
-| `Scripts/View/lib/defs.js` | SSOT (Part A.10 algorithms; A.4 closed enums; ENGINE_MAPPING for A.8 adapters) |
+| `Scripts/View/lib/defs.js` | SSOT (Part A.10 algorithms; A.4 closed enums; preset defaults; `mapParams` generic utility) |
 | `Scripts/View/lib/generate_view.js` | Orchestrator (Part A.7 action semantics) |
 | `Scripts/View/lib/selection_pipeline.js` | Pipeline (Part A.5 contract) |
 | `Scripts/View/lib/preset_io.js` | Preset I/O + session passthrough |
@@ -1150,6 +1152,8 @@ The dialog maintains a separation between configuration (model) and UI state (vi
 ## B.8 Engine parameter mappings
 
 **Realises:** §A.10 (algorithm capability matrix) — concrete realisation in each engine.
+
+Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values into engine-specific option objects. `defs.js` exports a generic `mapParams(algorithmName, params, mapping)` utility that iterates `algorithm.activeParams` and applies the relevant mapper functions — the caller supplies its own `PARAM_MAPPING`. No engine-specific option names, unit conversions, or flag values appear in `defs.js`.
 
 ### Algorithm × parameter compatibility
 

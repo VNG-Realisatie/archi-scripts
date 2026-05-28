@@ -1284,30 +1284,32 @@ function _syncToUI(ctx) {
   if (w.cmbAlgorithm && algIdx >= 0) w.cmbAlgorithm.select(algIdx);
 
   // Direction / routing / label / ranking
-  _comboSelect(w.cmbDirection,    DIRECTION_LABELS, p.direction    || "Left → Right");
-  _comboSelect(w.cmbRouting,      ROUTING_ALL,      p.routing      || "Orthogonal");
-  _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition|| "Middle");
-  _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking      || "Balanced");
+  const DP     = DEFAULT_PRESET.params;
+  const algDef = ALGORITHMS[algName] || {};
+  _comboSelect(w.cmbDirection,    DIRECTION_LABELS, p.direction     || DP.direction);
+  _comboSelect(w.cmbRouting,      ROUTING_ALL,      p.routing       || DP.routing);
+  _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition || algDef.labelPositionDefault || DP.labelPosition);
+  _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking       || DP.ranking);
 
   // Nesting / reverse multi-select lists
   if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
   if (w.lstReverseTypes) _listSelectLabels(w.lstReverseTypes, _relIdsToLabels(p.reverseRelationTypes || []));
 
   // Container appearance
-  _spinSet(w.spinInnerSpacing, p.innerSpacing  !== undefined ? p.innerSpacing  : 20);
-  _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : 20);
+  _spinSet(w.spinInnerSpacing, p.innerSpacing  !== undefined ? p.innerSpacing  : DP.innerSpacing);
+  _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : DP.padding);
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
   _chkSet(w.chkAlignSameType,  !!(p.alignSameType));
   _chkSet(w.chkShowInEvery,    !!(p.showInEveryContainer));
 
   // Sizes
-  _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : 140);
-  _spinSet(w.spinElementHeight,  p.elementHeight  !== undefined ? p.elementHeight  : 60);
-  _spinSet(w.spinElementSpacing, p.elementSpacing !== undefined ? p.elementSpacing : 40);
-  _spinSet(w.spinLayerSpacing,   p.layerSpacing   !== undefined ? p.layerSpacing   : 180);
-  _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : 0);
-  _spinSet(w.spinMaxHeight,      p.maxHeight      !== undefined ? p.maxHeight      : 0);
-  const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio || 0));
+  _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : DP.elementWidth);
+  _spinSet(w.spinElementHeight,  p.elementHeight  !== undefined ? p.elementHeight  : DP.elementHeight);
+  _spinSet(w.spinElementSpacing, p.elementSpacing !== undefined ? p.elementSpacing : DP.elementSpacing);
+  _spinSet(w.spinLayerSpacing,   p.layerSpacing   !== undefined ? p.layerSpacing   : DP.layerSpacing);
+  _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
+  _spinSet(w.spinMaxHeight,      p.maxHeight      !== undefined ? p.maxHeight      : DP.maxHeight);
+  const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio !== undefined ? p.aspectRatio : DP.aspectRatio));
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
   // Filter multi-select lists

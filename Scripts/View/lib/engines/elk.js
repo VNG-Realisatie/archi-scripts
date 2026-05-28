@@ -16,6 +16,55 @@ const REPO_ROOT = (() => {
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { mapParams, ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
 
+// ── Engine-specific parameter mapping ────────────────────────────────────────
+// Maps GUI param names to ELK layout option keys/values.
+// See defs.js ALGORITHMS[x].activeParams for which params are active per algorithm.
+
+const ELK_DIRECTION = {
+  "Left → Right": "RIGHT",
+  "Right → Left": "LEFT",
+  "Top → Bottom": "DOWN",
+  "Bottom → Top": "UP",
+};
+
+const PARAM_MAPPING = {
+  Layered: {
+    direction:     (v) => ({ "elk.direction": ELK_DIRECTION[v] }),
+    routing:       (v) => ({
+      "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
+                        : v === "Splines"   ? "SPLINES"
+                        :                    "POLYLINE",
+    }),
+    layerSpacing:  (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
+    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
+    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    // nestingRelationTypes → handled as graph structure (parent-child), not an ELK option
+  },
+  Tree: {
+    direction:     (v) => ({ "elk.direction": ELK_DIRECTION[v] }),
+    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
+    aspectRatio:   (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+  },
+  Force:  { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
+  Stress: { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
+  Radial: {
+    layerSpacing:  (v) => ({ "elk.radial.radius": String(v) }),
+    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
+    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+  },
+  Grid: {
+    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
+    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+  },
+  Pack: {
+    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
+    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const NESTED_LABEL_TOP_EXTRA = 30; // extra top padding to avoid container label overlap
 
 
@@ -42,7 +91,7 @@ function layout(graph) {
   if (!alg) throw `ELK: unknown algorithm "${graph.algorithm}"`;
 
   // Map GUI params to ELK options
-  const engineOpts = mapParams(graph.algorithm, graph.options);
+  const engineOpts = mapParams(graph.algorithm, graph.options, PARAM_MAPPING);
 
   // CONSERVATIVE mode places spline control points at a fraction of the total edge length
   // from each endpoint, which keeps them clear of the element boundary even for
@@ -273,7 +322,6 @@ const INHERIT_LAYOUT_KEYS = [
   "elk.edgeRouting",
   "elk.layered.unnecessaryBendpoints",
   "elk.layered.spacing.nodeNodeBetweenLayers",
-  "elk.mrtree.spacing.nodePlacementBetweenLayers",
   "elk.layered.edgeRouting.splines.mode",
 ];
 
@@ -283,10 +331,13 @@ function _dimensionCompounds(nodeMap, parentMap, graph, rootLayoutOptions) {
   // follows elementSpacing (consistent with the root level).
   // Grid/Pack have no layerSpacing; innerSpacing gives independent control.
   const alg      = ALGORITHMS[graph.algorithm];
-  const hasLayerSpacing = alg && alg.activeParams && alg.activeParams.includes("layerSpacing");
-  const spacing  = hasLayerSpacing
-    ? (graph.options.elementSpacing || 40)
-    : (graph.options.innerSpacing   || 20);
+  // Grid/Pack expose innerSpacing for independent container-child spacing.
+  // All other algorithms (Layered, Tree, Radial) use elementSpacing so
+  // container child spacing is consistent with the root-level spacing.
+  const usesInnerSpacing = alg && alg.activeParams && alg.activeParams.includes("innerSpacing");
+  const spacing  = usesInnerSpacing
+    ? (graph.options.innerSpacing   || 20)
+    : (graph.options.elementSpacing || 40);
   const nodeW    = graph.options.elementWidth   || 140;
   const nodeH    = graph.options.elementHeight  || 60;
   const maxWidth = graph.options.maxWidth       || 0;
@@ -316,7 +367,7 @@ function _dimensionCompounds(nodeMap, parentMap, graph, rootLayoutOptions) {
     };
     // Propagate direction for algorithms that support it
     if (graph.options.direction) {
-      const elkDir = Defs.ELK_DIRECTION[graph.options.direction];
+      const elkDir = ELK_DIRECTION[graph.options.direction];
       if (elkDir) node.layoutOptions["elk.direction"] = elkDir;
     }
     // Propagate routing and spacing options so containers honour the root settings

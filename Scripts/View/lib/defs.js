@@ -60,15 +60,14 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
-      "direction", "routing", "labelPosition", "reverseRelationTypes",
+      "direction", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
       "sortContainers", "alignSameType", "showInEveryContainer",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      routing:       ["Orthogonal", "Polyline", "Splines"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
@@ -335,28 +334,14 @@ const DIRECTIONS = Object.freeze([
   { val: "Bottom → Top" },
 ]);
 
-// ELK direction values
-const ELK_DIRECTION = Object.freeze({
-  "Left → Right": "RIGHT",
-  "Right → Left": "LEFT",
-  "Top → Bottom": "DOWN",
-  "Bottom → Top": "UP",
-});
-
-// Dagre / Graphviz rankdir values
-const RANKDIR = Object.freeze({
-  "Left → Right": "LR",
-  "Right → Left": "RL",
-  "Top → Bottom": "TB",
-  "Bottom → Top": "BT",
-});
-
 // ── Ranking (Dagre only) ──────────────────────────────────────────────────────
+// Dialog display values and defaults only.
+// Engine-specific ranker identifiers live in engines/dagre.js.
 
 const RANKING = Object.freeze([
-  { val: "Balanced",    dagreRanker: "network-simplex", default: true },
-  { val: "Uniform",     dagreRanker: "longest-path" },
-  { val: "Top-aligned", dagreRanker: "tight-tree" },
+  { val: "Balanced",    default: true },
+  { val: "Uniform" },
+  { val: "Top-aligned" },
 ]);
 
 // ── Label positions ───────────────────────────────────────────────────────────
@@ -439,7 +424,6 @@ const DIAGRAM_TYPES = Object.freeze(
 const GV_BIN_DEFAULT       = "dot";
 const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
-const PT2PX                = 96 / 72;   // Graphviz: points → pixels
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
 // Separator inserted between view name and suffix when building the final view name
@@ -486,112 +470,10 @@ const DEFAULT_PRESET = Object.freeze({
 });
 
 // ── Engine parameter mapping (GUI param → engine param) ───────────────────────
-// Each entry is a function (guiValue, preset) → plain object of engine-specific params.
-// Adapters call mapParams(algorithm, preset.params) to get their engine options.
-
-const ENGINE_MAPPING = Object.freeze({
-  ELK: {
-    Layered: {
-      direction:    (v)    => ({ "elk.direction": ELK_DIRECTION[v] }),
-      routing:      (v)    => ({
-        "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
-                          : v === "Splines"   ? "SPLINES"
-                          :                    "POLYLINE",
-      }),
-      layerSpacing: (v)    => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:      (v)    => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-      // nestingRelationTypes → handled as graph structure (parent-child), not an ELK option
-    },
-    Tree: {
-      direction:     (v)   => ({ "elk.direction": ELK_DIRECTION[v] }),
-      routing:       (v)   => ({
-        "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
-                          : v === "Splines"   ? "SPLINES"
-                          :                    "POLYLINE",
-      }),
-      layerSpacing:  (v)   => ({ "elk.mrtree.spacing.nodePlacementBetweenLayers": String(v) }),
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    Force:  { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
-    Stress: { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
-    Radial: {
-      layerSpacing:  (v)   => ({ "elk.radial.radius": String(v) }),
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    Grid: {
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    Pack: {
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-  },
-
-  Dagre: {
-    Dagre: {
-      direction:     (v)   => ({ rankdir: RANKDIR[v] }),
-      ranking:       (v)   => ({ ranker: RANKING.find(r => r.val === v)?.dagreRanker ?? "network-simplex" }),
-      layerSpacing:  (v)   => ({ ranksep: v }),
-      elementSpacing:(v)   => ({ nodesep: v }),
-    },
-  },
-
-  Graphviz: {
-    Dot: {
-      direction:     (v)   => ({ rankdir: RANKDIR[v] }),
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      layerSpacing:  (v)   => ({ ranksep: v / PT2PX / (96 / 72) }),  // px → inches
-      elementSpacing:(v)   => ({ nodesep: v / PT2PX / (96 / 72) }),
-      padding:       (v)   => ({ pad: v / PT2PX / (96 / 72) }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      maxHeight:     ()    => ({}),  // handled together with maxWidth
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    Neato: {
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      elementSpacing:(v)   => ({ sep: `+${v / 96}` }),
-      padding:       (v)   => ({ pad: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    FDP: {
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      elementSpacing:(v)   => ({ sep: `+${v / 96}` }),
-      padding:       (v)   => ({ pad: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    SFDP: {
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      elementSpacing:(v)   => ({ sep: `+${v / 96}` }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    Twopi: {
-      layerSpacing:  (v)   => ({ ranksep: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    Circo: {
-      elementSpacing:(v)   => ({ mindist: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-    },
-  },
-});
-
-function _gvSplines(v) {
-  switch (v) {
-    case "Orthogonal":          return "ortho";
-    case "Polyline":            return "polyline";
-    case "Straight":            return "line";
-    case "Spline (approximated)": return "spline";
-    default:                    return "polyline";
-  }
-}
+// Engine parameter mappings have moved to the engine adapters:
+//   ELK params    → Scripts/View/lib/engines/elk.js    (PARAM_MAPPING)
+//   Dagre params  → Scripts/View/lib/engines/dagre.js  (PARAM_MAPPING)
+//   Graphviz params → Scripts/View/lib/engines/dot.js  (PARAM_MAPPING)
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -615,17 +497,21 @@ function decodeRelType(encoded) {
 }
 
 /**
- * Map a preset's params to engine-specific options for a given algorithm.
- * Only active params with a mapping function are applied.
+ * Generic utility: map a preset's params to engine-specific options.
+ * The caller supplies its own PARAM_MAPPING table; no engine knowledge here.
+ * Only active params (per the algorithm's activeParams list) with a mapping
+ * function are applied; inactive or unmapped params are silently skipped.
+ *
  * @param {string} algorithmName
- * @param {Object} params  preset.params
+ * @param {Object} params   preset.params
+ * @param {Object} mapping  PARAM_MAPPING from the calling engine adapter
  * @returns {Object} engine option object
  */
-function mapParams(algorithmName, params) {
-  const alg  = ALGORITHMS[algorithmName];
+function mapParams(algorithmName, params, mapping) {
+  const alg = ALGORITHMS[algorithmName];
   if (!alg) return {};
-  const map  = (ENGINE_MAPPING[alg.engine] || {})[algorithmName] || {};
-  const out  = {};
+  const map = (mapping || {})[algorithmName] || {};
+  const out = {};
   for (const key of alg.activeParams) {
     if (map[key] && params[key] !== undefined) {
       Object.assign(out, map[key](params[key], params));
@@ -726,14 +612,14 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     STYLES, ALGORITHMS, ALGO_ENGINE, GV_ALGORITHMS,
     ACTION, ROUTING,
-    DIRECTIONS, ELK_DIRECTION, RANKDIR,
+    DIRECTIONS,
     RANKING, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,
     GV_BIN_DEFAULT, GENERATED_VIEW_FOLDER, SESSION_FILENAME,
-    PT2PX, SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
+    SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
     DEFAULT_PRESET,
-    ENGINE_MAPPING, mapParams,
+    mapParams,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };
