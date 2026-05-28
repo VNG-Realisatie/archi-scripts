@@ -40,7 +40,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
@@ -62,7 +62,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
@@ -124,7 +124,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
@@ -141,7 +141,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
@@ -438,7 +438,7 @@ const DEFAULT_PRESET = Object.freeze({
     innerSpacing:          20,
     padding:               20,
     sortContainers:        false,
-    alignSameType:         false,
+    alignWidthSameType:    false,
     showInEveryContainer:  false,
     layerSpacing:          180,
     elementSpacing:        40,
@@ -488,30 +488,6 @@ function decodeRelType(encoded) {
   const type = encoded.substring(0, i);
   const dir  = encoded.substring(i + 1);
   return { type, inSel: dir === "in", outSel: dir === "out" };
-}
-
-/**
- * Generic utility: map a preset's params to engine-specific options.
- * The caller supplies its own PARAM_MAPPING table; no engine knowledge here.
- * Only active params (per the algorithm's activeParams list) with a mapping
- * function are applied; inactive or unmapped params are silently skipped.
- *
- * @param {string} algorithmName
- * @param {Object} params   preset.params
- * @param {Object} mapping  PARAM_MAPPING from the calling engine adapter
- * @returns {Object} engine option object
- */
-function mapParams(algorithmName, params, mapping) {
-  const alg = ALGORITHMS[algorithmName];
-  if (!alg) return {};
-  const map = (mapping || {})[algorithmName] || {};
-  const out = {};
-  for (const key of alg.activeParams) {
-    if (map[key] && params[key] !== undefined) {
-      Object.assign(out, map[key](params[key], params));
-    }
-  }
-  return out;
 }
 
 // ── Preset validation ─────────────────────────────────────────────────────────
@@ -613,7 +589,6 @@ if (typeof module !== "undefined" && module.exports) {
     GENERATED_VIEW_FOLDER, SESSION_FILENAME,
     SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
     DEFAULT_PRESET,
-    mapParams,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };

@@ -12,12 +12,12 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { mapParams, ALGORITHMS } = Defs;
+const { ALGORITHMS } = Defs;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 
 // Dagre / Graphviz use the same rankdir values — local copy (no shared engine dep).
-const RANKDIR = {
+const DAGRE_DIRECTION = {
   "Left → Right": "LR",
   "Right → Left": "RL",
   "Top → Bottom": "TB",
@@ -33,12 +33,28 @@ const RANKER = {
 
 const PARAM_MAPPING = {
   Dagre: {
-    direction:     (v) => ({ rankdir: RANKDIR[v] }),
+    direction:     (v) => ({ rankdir: DAGRE_DIRECTION[v] }),
     ranking:       (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
     layerSpacing:  (v) => ({ ranksep: v }),
     elementSpacing:(v) => ({ nodesep: v }),
+    padding:       (v) => ({ marginx: v, marginy: v }),
   },
 };
+
+/**
+ * Map GUI params to Dagre graph options.
+ * @param {string} algName  algorithm name (key in PARAM_MAPPING)
+ * @param {Object} opts     graph.options
+ * @returns {Object}        Dagre graph option object
+ */
+function _applyParams(algName, opts) {
+  const map = PARAM_MAPPING[algName] || {};
+  const result = {};
+  for (const [key, fn] of Object.entries(map)) {
+    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
+  }
+  return result;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -62,7 +78,7 @@ function _loadDagre() {
 function layout(graph) {
   const dagre = _loadDagre();
 
-  const engineOpts = mapParams("Dagre", graph.options, PARAM_MAPPING);
+  const engineOpts = _applyParams("Dagre", graph.options);
 
   const g = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
     .setGraph(Object.assign(

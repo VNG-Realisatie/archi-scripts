@@ -1071,7 +1071,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpCtr, "Padding:",        "spinPadding",        20, 0, 200, 5, w);
 
   const chkSort  = _addCheck(grpCtr, "Sort containers",             "Sort containers alphabetically within each level.", 4, w, "chkSortContainers");
-  const chkAlign = _addCheck(grpCtr, "Align same type",             "Resize leaf elements to match the tallest in their row (same-type containers).", 4, w, "chkAlignSameType");
+  const chkAlign = _addCheck(grpCtr, "Align width same type",       "Equalize widths of same-type leaf siblings within each container.", 4, w, "chkAlignWidthSameType");
   const chkEvery = _addCheck(grpCtr, "Show in every container",     "An element in multiple containers appears in each of them.", 4, w, "chkShowInEvery");
 
   // ── Size and spacing ───────────────────────────────────────────────────────────
@@ -1299,7 +1299,7 @@ function _syncToUI(ctx) {
   _spinSet(w.spinInnerSpacing, p.innerSpacing  !== undefined ? p.innerSpacing  : DP.innerSpacing);
   _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : DP.padding);
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
-  _chkSet(w.chkAlignSameType,  !!(p.alignSameType));
+  _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
   _chkSet(w.chkShowInEvery,    !!(p.showInEveryContainer));
 
   // Sizes
@@ -1369,7 +1369,7 @@ function _saveUI(ctx) {
   if (w.spinInnerSpacing) c.params.innerSpacing       = w.spinInnerSpacing.getSelection();
   if (w.spinPadding)      c.params.padding            = w.spinPadding.getSelection();
   if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
-  if (w.chkAlignSameType)  c.params.alignSameType     = w.chkAlignSameType.getSelection();
+  if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
   if (w.chkShowInEvery)    c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
 
   // Sizes
@@ -1449,7 +1449,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinInnerSpacing,   active.has("innerSpacing"));
   _enable(w.spinPadding,        active.has("padding"));
   _enable(w.chkSortContainers,  active.has("sortContainers"));
-  _enable(w.chkAlignSameType,   active.has("alignSameType"));
+  _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
   _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
   _enable(w.spinLayerSpacing,   active.has("layerSpacing"));
   _enable(w.spinMaxWidth,       active.has("maxWidth"));

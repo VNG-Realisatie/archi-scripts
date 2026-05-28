@@ -14,11 +14,17 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { mapParams, ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
+const { ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 // Maps GUI param names to ELK layout option keys/values.
-// See defs.js ALGORITHMS[x].activeParams for which params are active per algorithm.
+// Each algorithm entry has two scopes:
+//   root:      applied to rootLayoutOptions (the ELK root graph)
+//   container: applied to each container node's layoutOptions in _buildELKGraph
+//
+// Parameters handled outside PARAM_MAPPING:
+//   maxWidth / maxHeight  → set as elkGraph.width / .height (root graph bounds, not options)
+//   nestingRelationTypes, alignWidthSameType, sortContainers → graph structure / strategy
 
 const ELK_DIRECTION = {
   "Left → Right": "RIGHT",
@@ -27,45 +33,125 @@ const ELK_DIRECTION = {
   "Bottom → Top": "UP",
 };
 
+// Extra top padding inside container nodes so the container label is not covered by children.
+const CONTAINER_LABEL_CLEARANCE = 30;
+
+// Shared routing fn used in both root and container scopes for Layered.
+// CONSERVATIVE spline mode inlined here — no separate post-mapping special case needed.
+const _LAYERED_ROUTING = (v) => ({
+  "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL" : v === "Splines" ? "SPLINES" : "POLYLINE",
+  ...(v === "Splines" ? { "elk.layered.edgeRouting.splines.mode": "CONSERVATIVE" } : {}),
+});
+
 const PARAM_MAPPING = {
   Layered: {
-    direction:     (v) => ({ "elk.direction": ELK_DIRECTION[v] }),
-    routing:       (v) => ({
-      "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
-                        : v === "Splines"   ? "SPLINES"
-                        :                    "POLYLINE",
-    }),
-    layerSpacing:  (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
-    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
-    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    // nestingRelationTypes → handled as graph structure (parent-child), not an ELK option
+    root: {
+      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
+      routing:        _LAYERED_ROUTING,
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      layerSpacing:   (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    },
+    container: {
+      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
+      routing:        _LAYERED_ROUTING,
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      layerSpacing:   (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
   },
+
   Tree: {
-    direction:     (v) => ({ "elk.direction": ELK_DIRECTION[v] }),
-    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
-    aspectRatio:   (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
-    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    root: {
+      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    },
+    container: {
+      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
   },
-  Force:  { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
-  Stress: { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
+
+  Force: {
+    root: {
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+    },
+    container: {
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
+  },
+
+  Stress: {
+    root: {
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+    },
+    container: {
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
+  },
+
   Radial: {
-    layerSpacing:  (v) => ({ "elk.radial.radius": String(v) }),
-    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
-    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    root: {
+      layerSpacing:   (v) => ({ "elk.radial.radius": String(v) }),
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    },
+    container: {
+      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
   },
+
   Grid: {
-    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
-    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    root: {
+      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    },
+    container: {
+      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
   },
+
   Pack: {
-    elementSpacing:(v) => ({ "elk.spacing.nodeNode": String(v) }),
-    padding:       (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    root: {
+      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+    },
+    container: {
+      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+    },
   },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Map GUI params to ELK layout options for a given scope.
+ * @param {string} algName   algorithm name (key in PARAM_MAPPING)
+ * @param {Object} opts      graph.options
+ * @param {string} scope     "root" | "container"
+ * @returns {Object}         ELK layout options object
+ */
+function _mapParamsScoped(algName, opts, scope) {
+  const entry = PARAM_MAPPING[algName];
+  if (!entry || !entry[scope]) return {};
+  const result = {};
+  for (const [key, fn] of Object.entries(entry[scope])) {
+    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
+  }
+  return result;
+}
 
-const NESTED_LABEL_TOP_EXTRA = 30; // extra top padding to avoid container label overlap
+// ─────────────────────────────────────────────────────────────────────────────
 
 
 let _elk = null;
@@ -82,7 +168,7 @@ function _loadELK() {
 
 /**
  * Compute layout positions.
- * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, alignSameType, sortContainers }
+ * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, alignWidthSameType, sortContainers }
  * @returns {LayoutResult}     — { nodes, edges, viewWidth, viewHeight }
  */
 function layout(graph) {
@@ -90,20 +176,9 @@ function layout(graph) {
   const alg = ALGORITHMS[graph.algorithm];
   if (!alg) throw `ELK: unknown algorithm "${graph.algorithm}"`;
 
-  // Map GUI params to ELK options
-  const engineOpts = mapParams(graph.algorithm, graph.options, PARAM_MAPPING);
-
-  // CONSERVATIVE mode places spline control points at a fraction of the total edge length
-  // from each endpoint, which keeps them clear of the element boundary even for
-  // single-layer edges (where SLOPPY mode has no effect because there are no dummy nodes).
-  if (engineOpts["elk.edgeRouting"] === "SPLINES") {
-    engineOpts["elk.layered.edgeRouting.splines.mode"] = "CONSERVATIVE";
-  }
-
-  const layoutOptions = Object.assign(
-    { "elk.algorithm": alg.engineAlgorithmId },
-    engineOpts
-  );
+  // Map GUI params to ELK root options (SPLINES CONSERVATIVE mode inlined in _LAYERED_ROUTING)
+  const rootEngineOpts = _mapParamsScoped(graph.algorithm, graph.options, "root");
+  const layoutOptions  = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts);
 
   // Build ELK-internal data structures
   const nodeMap     = {};
@@ -147,19 +222,21 @@ function layout(graph) {
     edgeList.push(entry);
   }
 
-  // Two-pass layout for alignSameType
-  if (graph.alignSameType && Object.values(parentMap).length > 0) {
+  // Two-pass layout for alignWidthSameType: pass 1 → find max-width per same-type sibling group
+  // → pass 2 with equalized leaf widths so ELK sizes containers to the equalized content.
+  if (graph.alignWidthSameType && Object.values(parentMap).length > 0) {
+    const containerIds = new Set(Object.values(parentMap));
     const origSizes = {};
     for (const id of Object.keys(nodeMap)) {
-      origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
+      if (!containerIds.has(id))  // leaf nodes only — containers are auto-sized by ELK in both passes
+        origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
     }
     const { elkGraph: pass1ElkGraph } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
-    console.log("Calculating layout (pass 1 — align same type)...");
+    console.log("Calculating layout (pass 1 — align width same type)...");
     const pass1Layouted = elk.layout(pass1ElkGraph);
-    const globalMinW = _collectMinContainerW(pass1Layouted, graph.options.maxWidth || 0, graph.options.padding || 0);
-    const { equalizedSizes, extraHPaddings } = _equalizeSiblings(pass1Layouted, globalMinW);
-    _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, extraHPaddings);
-    console.log("Calculating layout (pass 2 — equalized sizes)...");
+    const equalizedSizes = _equalizeSiblings(pass1Layouted);
+    _resetNodesForPass2(nodeMap, origSizes, equalizedSizes);
+    console.log("Calculating layout (pass 2 — equalized widths)...");
   } else {
     console.log("Calculating layout...");
   }
@@ -178,7 +255,7 @@ function layout(graph) {
   _collectNodePositions(layouted, 0, 0, resultNodes);
 
   // Collect edges
-  const isSplines = layoutOptions["elk.edgeRouting"] === "SPLINES";
+  const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
   _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
@@ -209,12 +286,24 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   _sortNodeChildren(nodeMap, graph.sortContainers);
   const rootChildren = _collectRootChildren(nodeMap, parentMap, graph.sortContainers);
   const rootEdges    = _classifyEdges(edgeList, parentMap, nodeMap);
-  _dimensionCompounds(nodeMap, parentMap, graph, layoutOptions);
+
+  // Container nodes: let ELK auto-size from children + padding.
+  // All per-container ELK options come from PARAM_MAPPING.container — direction, routing,
+  // spacing, and padding (with CONTAINER_LABEL_CLEARANCE added to top).
+  const containerEngineOpts = _mapParamsScoped(graph.algorithm, graph.options, "container");
+  for (const [nodeId, node] of Object.entries(nodeMap)) {
+    if (!node.children || node.children.length === 0) continue;
+    delete node.width;   // ELK computes container size from children + padding
+    delete node.height;
+    node.layoutOptions = { "elk.algorithm": ALGORITHMS[graph.algorithm].engineAlgorithmId, ...containerEngineOpts };
+  }
+
   const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap);
-  return {
-    elkGraph: { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges },
-    liftedEdgesMap,
-  };
+  const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges };
+  // maxWidth / maxHeight as root graph bounds — ELK algorithms that support bounded layout use them.
+  if (graph.options.maxWidth  > 0) elkGraph.width  = graph.options.maxWidth;
+  if (graph.options.maxHeight > 0) elkGraph.height = graph.options.maxHeight;
+  return { elkGraph, liftedEdgesMap };
 }
 
 function _spanningTree(nodeMap, edgeList) {
@@ -317,68 +406,6 @@ function _classifyEdges(edgeList, parentMap, nodeMap) {
   return root;
 }
 
-// Keys from root layoutOptions that each container sub-graph should inherit.
-const INHERIT_LAYOUT_KEYS = [
-  "elk.edgeRouting",
-  "elk.layered.unnecessaryBendpoints",
-  "elk.layered.spacing.nodeNodeBetweenLayers",
-  "elk.layered.edgeRouting.splines.mode",
-];
-
-function _dimensionCompounds(nodeMap, parentMap, graph, rootLayoutOptions) {
-  const padding  = graph.options.padding        || 20;
-  // Layered/Tree/Radial have layerSpacing, so within-container node spacing
-  // follows elementSpacing (consistent with the root level).
-  // Grid/Pack have no layerSpacing; innerSpacing gives independent control.
-  const alg      = ALGORITHMS[graph.algorithm];
-  // Grid/Pack expose innerSpacing for independent container-child spacing.
-  // All other algorithms (Layered, Tree, Radial) use elementSpacing so
-  // container child spacing is consistent with the root-level spacing.
-  const usesInnerSpacing = alg && alg.activeParams && alg.activeParams.includes("innerSpacing");
-  const spacing  = usesInnerSpacing
-    ? (graph.options.innerSpacing   || 20)
-    : (graph.options.elementSpacing || 40);
-  const nodeW    = graph.options.elementWidth   || 140;
-  const nodeH    = graph.options.elementHeight  || 60;
-  const maxWidth = graph.options.maxWidth       || 0;
-
-  for (const [nodeId, node] of Object.entries(nodeMap)) {
-    if (!node.children || node.children.length === 0) continue;
-    let depth = 0, pp = parentMap[nodeId];
-    while (pp !== undefined) { depth++; pp = parentMap[pp]; }
-
-    const ph   = padding + (node._extraHPadding || 0);
-    const top  = padding + NESTED_LABEL_TOP_EXTRA;
-    const n    = node.children.length;
-    const kSqrt = Math.max(1, Math.floor(1.2 * Math.sqrt(n)));
-    const capW  = maxWidth > 0 ? maxWidth - 2 * ph : 0;
-    const kMax  = capW > 0 ? Math.max(1, Math.floor(capW / (nodeW + spacing))) : kSqrt;
-    const k     = Math.min(kSqrt, kMax);
-    const rows  = Math.ceil(n / k);
-
-    node.width  = k * nodeW + (k - 1) * spacing + 2 * ph;
-    node.height = rows * nodeH + (rows - 1) * spacing + top + padding;
-
-    node.layoutOptions = {
-      "elk.padding":          `[top=${top},left=${ph},bottom=${padding},right=${ph}]`,
-      "elk.spacing.nodeNode": String(spacing),
-      "elk.algorithm":        ALGORITHMS[graph.algorithm].engineAlgorithmId,
-      "elk.nodeSize.constraints": "FIXED_SIZE",
-    };
-    // Propagate direction for algorithms that support it
-    if (graph.options.direction) {
-      const elkDir = ELK_DIRECTION[graph.options.direction];
-      if (elkDir) node.layoutOptions["elk.direction"] = elkDir;
-    }
-    // Propagate routing and spacing options so containers honour the root settings
-    if (rootLayoutOptions) {
-      for (const key of INHERIT_LAYOUT_KEYS) {
-        if (rootLayoutOptions[key] !== undefined)
-          node.layoutOptions[key] = rootLayoutOptions[key];
-      }
-    }
-  }
-}
 
 function _liftCrossHierarchyEdges(rootEdges, parentMap) {
   const liftedEdgesMap = {};
@@ -565,57 +592,62 @@ function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition
 
 // ── Two-pass layout helpers ───────────────────────────────────────────────────
 
-function _collectMinContainerW(layoutPass1, maxWidth, padding) {
-  let minW = Infinity;
-  const walk = node => {
+/**
+ * Walk the pass-1 layout result and equalize leaf node widths within each container.
+ *
+ * Grouping: all children (leaves + sub-containers) are grouped by element type.
+ * For each type group, leaf node widths are equalized to the maximum width found in
+ * the group — this means a leaf next to a sub-container of the same type is widened
+ * to match the sub-container's pass-1 width.
+ *
+ * Only leaf widths are changed; sub-containers are re-sized by ELK in pass 2.
+ *
+ * A single leaf with no same-type sibling (leaf or container) is left unchanged.
+ *
+ * Returns a map of node id → { width } for nodes whose width should be increased.
+ */
+function _equalizeSiblings(layouted) {
+  const equalizedSizes = {};
+  function walk(node) {
     if (!node.children || !node.children.length) return;
-    if (node.id !== "root" && node.width < minW) minW = node.width;
     node.children.forEach(walk);
-  };
-  walk(layoutPass1);
-  if (maxWidth > 0 && isFinite(minW)) {
-    const capW = maxWidth - 2 * padding;
-    if (capW > 0 && minW > capW) minW = capW;
-  }
-  return minW;
-}
-
-function _equalizeSiblings(layout, globalMinW) {
-  const equalizedSizes = {}, extraHPaddings = {};
-  const walk = node => {
-    if (!node.children || !node.children.length) return;
-    node.children.forEach(walk);
-    const hasContainerSibling = node.children.some(c => c.children && c.children.length);
-    if (!hasContainerSibling) return;
-    const containerType = node._type;
+    // Group ALL children by element type (leaves AND sub-containers contribute to maxW)
+    const byType = {};
     for (const c of node.children) {
-      if (!c.children || !c.children.length) {
-        if (containerType && c._type === containerType) equalizedSizes[c.id] = { width: globalMinW };
-      } else if (c.width < globalMinW) {
-        extraHPaddings[c.id] = (globalMinW - c.width) / 2;
+      (byType[c._type || ""] = byType[c._type || ""] || []).push(c);
+    }
+    for (const group of Object.values(byType)) {
+      const leaves = group.filter(c => !c.children || !c.children.length);
+      if (leaves.length === 0) continue;  // type group has only sub-containers — nothing to equalize
+      const hasExtraContext = leaves.length >= 2 || group.some(c => c.children && c.children.length);
+      if (!hasExtraContext) continue;     // single leaf, no same-type container sibling — skip
+      const maxW = Math.max(...group.map(c => c.width || 0));
+      for (const c of leaves) {
+        if ((c.width || 0) < maxW) equalizedSizes[c.id] = { width: maxW };
       }
     }
-  };
-  walk(layout);
-  return { equalizedSizes, extraHPaddings };
+  }
+  walk(layouted);
+  return equalizedSizes;
 }
 
-function _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, extraHPaddings) {
+/**
+ * Reset node state between pass 1 and pass 2.
+ * Leaf nodes restore their original sizes (with equalization applied on top).
+ * Container nodes get no explicit size — ELK auto-sizes them in pass 2 as well.
+ */
+function _resetNodesForPass2(nodeMap, origSizes, equalizedSizes) {
   for (const [id, node] of Object.entries(nodeMap)) {
     node.children = [];
-    node.edges = [];
+    node.edges    = [];
     delete node.layoutOptions;
     delete node.x;
     delete node.y;
-    delete node._extraHPadding;
-    node.width  = origSizes[id].width;
-    node.height = origSizes[id].height;
+    if (origSizes[id]) { node.width = origSizes[id].width; node.height = origSizes[id].height; }
+    else               { delete node.width; delete node.height; }  // container: ELK auto-sizes
   }
   for (const [id, sz] of Object.entries(equalizedSizes)) {
     if (nodeMap[id]) nodeMap[id].width = sz.width;
-  }
-  for (const [id, ep] of Object.entries(extraHPaddings)) {
-    if (nodeMap[id]) nodeMap[id]._extraHPadding = ep;
   }
 }
 

@@ -374,7 +374,8 @@ function _findRelationsBetween(elements, relTypeFilter) {
     try {
       $(element).rels().each(rel => {
         if (seen.has(rel.id)) return;
-        if (_isExcluded(rel)) return;
+        // Met nieuwe add related blokken niet meer nodig
+        //   if (_isExcluded(rel)) return;
         const srcId = rel.source && rel.source.id;
         const tgtId = rel.target && rel.target.id;
         if (!srcId || !tgtId) return;

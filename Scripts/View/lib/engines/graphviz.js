@@ -16,13 +16,13 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { SPLINE_SAMPLE_POINTS, ALGORITHMS, mapParams } = Defs;
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS } = Defs;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
 const PT2PX = 96 / 72;
 
 // Dagre/Graphviz share the same rankdir values — local copy (no shared engine dep).
-const RANKDIR = {
+const GRAPHVIZ_DIRECTION = {
   "Left → Right": "LR",
   "Right → Left": "RL",
   "Top → Bottom": "TB",
@@ -63,7 +63,7 @@ function _buildDOT(graph) {
   const opts     = graph.options;
 
   // Map GUI params to Graphviz graph attributes
-  const engineOpts = mapParams(graph.algorithm, opts, PARAM_MAPPING);
+  const engineOpts = _applyParams(graph.algorithm, opts);
   const splines    = engineOpts.splines || "polyline";
   const esep       = splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED;
   const gAttrStr   = _renderGraphvizAttrs(engineOpts);
@@ -186,18 +186,8 @@ function _extractResult(graph, jsonOut) {
   const padding = graph.options.padding || 20;
   _deriveClusterBBs(graph.nodes, nodes, clusters, childSet, padding);
 
-  // Scale to maxWidth if needed
-  const maxWidth = graph.options.maxWidth || 0;
-  let scale = 1;
-  if (maxWidth > 0 && totalW > maxWidth + 1) {
-    scale = maxWidth / totalW;
-    for (const d of [nodes, clusters]) {
-      for (const o of Object.values(d)) {
-        o.x = Math.round(o.x * scale); o.y = Math.round(o.y * scale);
-        o.w = Math.round(o.w * scale); o.h = Math.round(o.h * scale);
-      }
-    }
-  }
+  // maxWidth/maxHeight are handled natively via Graphviz 'size' attribute in PARAM_MAPPING.
+  const scale = 1;
 
   const resultNodes = [];
   const containerIds = new Set(graph.nodes.filter(n => childSet.has(n.id) || (graph.nodes.some(m => m.parent === n.id))).map(n => n.id));
@@ -394,7 +384,7 @@ function _guiRoutingToGraphviz(routing) {
 
 const PARAM_MAPPING = {
   Dot: {
-    direction:     (v)    => ({ rankdir: RANKDIR[v] }),
+    direction:     (v)    => ({ rankdir: GRAPHVIZ_DIRECTION[v] }),
     routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
     layerSpacing:  (v)    => ({ ranksep: (v / 96).toFixed(4) }),
     elementSpacing:(v)    => ({ nodesep: (v / 96).toFixed(4) }),
@@ -438,6 +428,21 @@ const PARAM_MAPPING = {
     maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
   },
 };
+
+/**
+ * Map GUI params to Graphviz graph attributes.
+ * @param {string} algName  algorithm name (key in PARAM_MAPPING)
+ * @param {Object} opts     graph.options
+ * @returns {Object}        Graphviz attribute object
+ */
+function _applyParams(algName, opts) {
+  const map = PARAM_MAPPING[algName] || {};
+  const result = {};
+  for (const [key, fn] of Object.entries(map)) {
+    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
+  }
+  return result;
+}
 
 /**
  * Render a {key: value} object as a DOT graph attribute string.
