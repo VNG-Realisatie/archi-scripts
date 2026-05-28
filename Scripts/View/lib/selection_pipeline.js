@@ -40,8 +40,6 @@ const PROP_EXCLUDE = "excludeFromView";
  * }}
  */
 function buildObjectSet(uiSelection, preset, actionId) {
-  _logFilter(preset.filter);
-
   // ── Step 1: model objects from selection (uniform for canvas + model-tree) ──
   const raw = Selection.getSelection(uiSelection, "*");
   const expanded = _expandViews(raw);
@@ -56,9 +54,18 @@ function buildObjectSet(uiSelection, preset, actionId) {
   });
   console.log(`Current selection: ${_cntEl} elements · ${_cntRel} relations · ${diagramObjects.length} diagram objects`);
 
-  // ── Step 2: filter ──
-  collection     = _applyFilter(collection, preset.filter);
-  diagramObjects = _applyDiagramFilter(diagramObjects, preset.filter);
+  // ── Step 2: filter (skipped for the "Modify selected view" group — EXPAND_VIEW and
+  // LAYOUT_ONLY re-layout/expand all elements already on the view; applying the filter
+  // would exclude visible element types, causing containers to be sized for only the
+  // filtered subset while excluded elements remain at positions outside those bounds) ──
+  const _isModifyAction = actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
+  if (!_isModifyAction) {
+    _logFilter(preset.filter);
+    collection     = _applyFilter(collection, preset.filter);
+    diagramObjects = _applyDiagramFilter(diagramObjects, preset.filter);
+  } else {
+    console.log("Modify-selected-view action: element-type filter skipped");
+  }
 
   let _fEl = 0, _fRel = 0;
   collection.each(o => {
@@ -66,7 +73,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
     if (t.endsWith("-relationship")) _fRel++;
     else _fEl++;
   });
-  console.log(`Filtered selection: ${_fEl} elements · ${_fRel} relations · ${diagramObjects.length} diagram objects`);
+  console.log(`${_isModifyAction ? "Unfiltered" : "Filtered"} selection: ${_fEl} elements · ${_fRel} relations · ${diagramObjects.length} diagram objects`);
 
   // ── Step 3: related-elements expansion (skipped for LAYOUT_ONLY: re-layout what's there) ──
   if (actionId !== ACTION.LAYOUT_ONLY.id &&
@@ -303,7 +310,7 @@ function _expandLayer(base, layer) {
     for (const element of frontier) {
       try {
         $(element).rels().each(rel => {
-          if (_isExcluded(rel)) return;
+          // if (_isExcluded(rel)) return;
           const type = rel.type || "";
           const isOutgoing = !!(rel.source && rel.source.id === element.id);
           if (!_matchesRelationTypeDir(type, relationTypes, isOutgoing)) return;

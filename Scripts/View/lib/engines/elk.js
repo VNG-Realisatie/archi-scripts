@@ -222,7 +222,7 @@ function layout(graph) {
     edgeList.push(entry);
   }
 
-  // Two-pass layout for alignWidthSameType: pass 1 → find max-width per same-type sibling group
+  // Two-pass layout for alignWidthSameType: pass 1 → find min-width per same-type sibling group
   // → pass 2 with equalized leaf widths so ELK sizes containers to the equalized content.
   if (graph.alignWidthSameType && Object.values(parentMap).length > 0) {
     const containerIds = new Set(Object.values(parentMap));
@@ -231,11 +231,17 @@ function layout(graph) {
       if (!containerIds.has(id))  // leaf nodes only — containers are auto-sized by ELK in both passes
         origSizes[id] = { width: nodeMap[id].width, height: nodeMap[id].height };
     }
+    // Build type map from nodeMap before pass 1.
+    // The GraalVM ELK wrapper returns a NEW result object — custom properties like _type are
+    // absent in the result. We must look up types from the pre-layout nodeMap by node id.
+    const typeByNodeId = {};
+    for (const [id, n] of Object.entries(nodeMap)) typeByNodeId[id] = n._type || "";
+
     const { elkGraph: pass1ElkGraph } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
     console.log("Calculating layout (pass 1 — align width same type)...");
     const pass1Layouted = elk.layout(pass1ElkGraph);
-    const equalizedSizes = _equalizeSiblings(pass1Layouted);
-    _resetNodesForPass2(nodeMap, origSizes, equalizedSizes);
+    const equalizedSizes = _equalizeSiblings(pass1Layouted, containerIds, typeByNodeId);
+    _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, containerIds);
     console.log("Calculating layout (pass 2 — equalized widths)...");
   } else {
     console.log("Calculating layout...");
@@ -290,13 +296,24 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   // Container nodes: let ELK auto-size from children + padding.
   // All per-container ELK options come from PARAM_MAPPING.container — direction, routing,
   // spacing, and padding (with CONTAINER_LABEL_CLEARANCE added to top).
+  // elk.hierarchyHandling = SEPARATE_CHILDREN is required to trigger compound layout for all
+  // algorithms. Without it, Pack (rectpacking) and Grid (box) default to flat mode — containers
+  // are treated as opaque boxes, children are never laid out, container sizes stay at 0.
   const containerEngineOpts = _mapParamsScoped(graph.algorithm, graph.options, "container");
+  const hasContainers = Object.keys(parentMap).length > 0;
   for (const [nodeId, node] of Object.entries(nodeMap)) {
     if (!node.children || node.children.length === 0) continue;
     delete node.width;   // ELK computes container size from children + padding
     delete node.height;
-    node.layoutOptions = { "elk.algorithm": ALGORITHMS[graph.algorithm].engineAlgorithmId, ...containerEngineOpts };
+    node.layoutOptions = {
+      "elk.algorithm":         ALGORITHMS[graph.algorithm].engineAlgorithmId,
+      "elk.hierarchyHandling": "SEPARATE_CHILDREN",
+      ...containerEngineOpts,
+    };
   }
+
+  // Also set hierarchyHandling on the root when containers are present, so ELK processes them.
+  if (hasContainers) layoutOptions["elk.hierarchyHandling"] = "SEPARATE_CHILDREN";
 
   const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap);
   const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges };
@@ -595,35 +612,38 @@ function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition
 /**
  * Walk the pass-1 layout result and equalize leaf node widths within each container.
  *
- * Grouping: all children (leaves + sub-containers) are grouped by element type.
- * For each type group, leaf node widths are equalized to the maximum width found in
- * the group — this means a leaf next to a sub-container of the same type is widened
- * to match the sub-container's pass-1 width.
+ * Groups leaf siblings by element type. For each type group with 2+ leaves, finds the
+ * minimum width and trims any leaf that is wider. Sub-containers are excluded — they
+ * are auto-sized by ELK and must not dictate leaf widths.
  *
- * Only leaf widths are changed; sub-containers are re-sized by ELK in pass 2.
- *
- * A single leaf with no same-type sibling (leaf or container) is left unchanged.
- *
- * Returns a map of node id → { width } for nodes whose width should be increased.
+ * @param {object} layouted     ELK pass-1 result (root graph object)
+ * @param {Set}    containerIds Set of container node IDs (from parentMap — authoritative)
+ * @param {Object} typeByNodeId Map of node id → element type, built from nodeMap before layout.
+ *                              Required because the GraalVM ELK wrapper returns a NEW result
+ *                              object; custom properties like `_type` are absent in ELK results.
+ * @returns {Object}            Map of node id → { width } for nodes whose width should be reduced.
  */
-function _equalizeSiblings(layouted) {
+function _equalizeSiblings(layouted, containerIds, typeByNodeId) {
   const equalizedSizes = {};
   function walk(node) {
     if (!node.children || !node.children.length) return;
     node.children.forEach(walk);
-    // Group ALL children by element type (leaves AND sub-containers contribute to maxW)
+    // Group leaf children by element type.
+    // Use containerIds (from parentMap) — authoritative; does not depend on the ELK result
+    // having children populated on container nodes (which can vary by algorithm / GraalVM).
+    // Use typeByNodeId (from nodeMap) — authoritative; c._type is absent in ELK result objects.
     const byType = {};
     for (const c of node.children) {
-      (byType[c._type || ""] = byType[c._type || ""] || []).push(c);
+      if (containerIds.has(c.id)) continue;
+      const typ = (typeByNodeId && typeByNodeId[c.id]) || "";
+      (byType[typ] = byType[typ] || []).push(c);
     }
-    for (const group of Object.values(byType)) {
-      const leaves = group.filter(c => !c.children || !c.children.length);
-      if (leaves.length === 0) continue;  // type group has only sub-containers — nothing to equalize
-      const hasExtraContext = leaves.length >= 2 || group.some(c => c.children && c.children.length);
-      if (!hasExtraContext) continue;     // single leaf, no same-type container sibling — skip
-      const maxW = Math.max(...group.map(c => c.width || 0));
+    // Equalize each type group to the minimum width among the leaves
+    for (const leaves of Object.values(byType)) {
+      if (leaves.length < 2) continue;
+      const minW = Math.min(...leaves.map(c => c.width || 0));
       for (const c of leaves) {
-        if ((c.width || 0) < maxW) equalizedSizes[c.id] = { width: maxW };
+        if ((c.width || 0) > minW) equalizedSizes[c.id] = { width: minW };
       }
     }
   }
@@ -636,7 +656,7 @@ function _equalizeSiblings(layouted) {
  * Leaf nodes restore their original sizes (with equalization applied on top).
  * Container nodes get no explicit size — ELK auto-sizes them in pass 2 as well.
  */
-function _resetNodesForPass2(nodeMap, origSizes, equalizedSizes) {
+function _resetNodesForPass2(nodeMap, origSizes, equalizedSizes, containerIds) {
   for (const [id, node] of Object.entries(nodeMap)) {
     node.children = [];
     node.edges    = [];
@@ -647,7 +667,7 @@ function _resetNodesForPass2(nodeMap, origSizes, equalizedSizes) {
     else               { delete node.width; delete node.height; }  // container: ELK auto-sizes
   }
   for (const [id, sz] of Object.entries(equalizedSizes)) {
-    if (nodeMap[id]) nodeMap[id].width = sz.width;
+    if (nodeMap[id] && !containerIds.has(id)) nodeMap[id].width = sz.width;  // leaves only
   }
 }
 

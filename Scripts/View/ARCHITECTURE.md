@@ -279,7 +279,9 @@ The selection's *source* — the model tree vs a view's canvas — is orthogonal
 
 ### Steps
 
-LAYOUT_ONLY runs Step 1 only; Steps 2–6 are skipped because no model expansion applies.
+**EXPAND_VIEW and LAYOUT_ONLY skip Step 2.** The element-type filter is not applied for either action in the "Modify selected view" group. These actions re-layout or expand elements already on the view; applying the filter would exclude visible element types, causing containers to be sized for only the filtered subset while the excluded elements remain at positions outside those bounds.
+
+LAYOUT_ONLY additionally skips Step 3 (no related-elements expansion — re-layout what is already there, not add to it). EXPAND_VIEW runs Step 3 normally from the unfiltered base.
 
 ```
 Step 1  Selection → model + diagram objects (+ VisualSet)
@@ -447,8 +449,8 @@ LayoutGraph {
   maxHeight      : number               // 0 = unconstrained
   aspectRatio    : number               // 0 = unconstrained
 
-  alignSameType  : boolean
-  sortContainers : boolean
+  alignWidthSameType : boolean
+  sortContainers     : boolean
 }
 ```
 
@@ -487,11 +489,21 @@ LayoutResult {
 
 Element labels are intrinsic to nodes — the result carries no separate element-label coordinates. The writer places each node's `label` inside the node's bounds at its standard position.
 
+### Node-size invariant
+
+**Node sizes come from the input or are calculated by the engine; they are never changed after layout.** Specifically:
+
+- **Leaf node** `width` and `height` are taken from `LayoutGraph.nodes[i].width/height` (set by the user via `elementWidth`/`elementHeight` parameters). The adapter passes these to the engine unchanged. The engine must not resize them.
+- **Container node** `width` and `height` are **not** set in the input. The engine computes container dimensions from children and padding natively. The adapter must not pre-size containers.
+- The `LayoutResult` is consumed as-is. No post-layout scaling or coordinate adjustment is applied anywhere in the pipeline.
+
+`alignWidthSameType` is the one sanctioned exception: it adjusts certain leaf widths *between* pass 1 and pass 2 of a two-pass layout so the engine sizes containers from equalized content. The adjustment is pre-layout (input to pass 2), not post-layout.
+
 ### Adapter obligations
 
 - Honour every parameter listed as **active** for the chosen algorithm; ignore inactive ones.
 - Translate the parameter values from their UI/preset form to the engine's native form.
-- Apply view-size constraints (`maxWidth`, `maxHeight`, `aspectRatio`) within whatever the engine supports natively; if the engine cannot enforce a constraint, the adapter must approximate or skip with a documented loss.
+- Apply view-size constraints (`maxWidth`, `maxHeight`, `aspectRatio`) natively via engine options; do not apply post-layout scaling.
 - Return absolute coordinates (the orchestrator converts to parent-relative).
 - Never read or write a view directly. Adapters operate only on `LayoutGraph` / `LayoutResult`.
 
@@ -873,6 +885,11 @@ Step 1  Selection.getSelection(uiSelection, "*")  ← uniform model-tree + canva
 
 Step 2  _applyFilter(modelCollection, filter)        ← element/relation types
         _applyDiagramFilter(diagramObjects, filter)  ← diagram types
+        SKIPPED for EXPAND_VIEW and LAYOUT_ONLY — the "Modify selected view"
+        group must include all elements already on the view so containers are
+        sized for their full visible content. Applying the filter would exclude
+        some element types, shrinking containers while the excluded elements
+        remain on the view at positions outside those bounds.
 
 Step 3  Related-elements expansion — SKIPPED for LAYOUT_ONLY (the action's
         contract is to re-layout what's there, not add to it).

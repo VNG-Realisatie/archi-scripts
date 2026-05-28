@@ -1,11 +1,11 @@
 {
   "name": "Bedrijfsobjecten per beleidsdomein",
-  "algorithm": "Dagre",
+  "algorithm": "Pack",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
-    "ranking": "Balanced",
+    "ranking": "Uniform",
     "reverseRelationTypes": [
       "realization-relationship",
       "serving-relationship"
@@ -13,52 +13,55 @@
     "nestingRelationTypes": [
       "aggregation-relationship"
     ],
-    "innerSpacing": 30,
-    "padding": 20,
+    "innerSpacing": 5,
+    "padding": 10,
     "sortContainers": true,
-    "alignSameType": true,
+    "alignWidthSameType": true,
     "showInEveryContainer": false,
-    "layerSpacing": 200,
-    "elementSpacing": 50,
-    "elementWidth": 250,
-    "elementHeight": 80,
-    "maxWidth": 0,
+    "layerSpacing": 240,
+    "elementSpacing": 60,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 2000,
     "maxHeight": 0,
-    "aspectRatio": 0
+    "aspectRatio": 2
   },
   "filter": {
     "elementTypes": [
-      "business-object",
       "grouping"
     ],
-    "relationTypes": [
-      "aggregation-relationship:out",
-      "association-relationship",
-      "specialization-relationship"
-    ],
+    "relationTypes": [],
     "diagramTypes": []
   },
   "relatedElements": {
     "layers": [
       {
-        "depth": 2,
+        "depth": 3,
         "elementTypes": [
-          "business-object",
           "grouping"
         ],
         "relationTypes": [
-          "aggregation-relationship:out",
-          "association-relationship",
-          "specialization-relationship"
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "business-object"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
         ],
         "diagramTypes": []
       }
     ]
   },
   "view": {
-    "name": "Aanpak",
-    "suffix": "",
-    "folder": ""
+    "name": "6 Sociaal Domein — Pack",
+    "suffix": "Pack",
+    "folder": "/_Test/_Generated"
   },
-  "action": "layout_only"
+  "_lastTabIndex": 0,
+  "action": "new_view"
 }
