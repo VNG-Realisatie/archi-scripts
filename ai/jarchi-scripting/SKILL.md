@@ -22,6 +22,54 @@ All documentation is in `ai/jarchi-scripting/`:
 2. **For repo patterns & conventions**: see `jarchi-script-development.md` (REPO_ROOT, `_lib/` modules, coding standards)
 3. **For GraalVM/Java details**: see `graaljs-compatibility.md` and `java-interop.md`
 
+## Running external processes (e.g. graphviz dot binary)
+
+Use `Java.type("java.lang.ProcessBuilder")` to invoke CLI tools. No Node.js `child_process` — GraalJS has no such module.
+
+```js
+const ProcessBuilder = Java.type("java.lang.ProcessBuilder");
+const Arrays         = Java.type("java.util.Arrays");
+
+const pb = new ProcessBuilder(Arrays.asList("dot", "-Tjson", "-Kdot"));
+pb.redirectErrorStream(false);  // keep stderr separate so JSON output is clean
+const proc = pb.start();
+
+// Write DOT source to stdin
+const wr = new java.io.OutputStreamWriter(proc.getOutputStream(), "UTF-8");
+wr.write(dotSource);
+wr.close();  // closing stdin signals EOF to the process
+
+// Read stdout (JSON) — must read before waitFor() to avoid deadlock on large output
+let line, stdout = "";
+const br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream(), "UTF-8"));
+while ((line = br.readLine()) !== null) stdout += line + "\n";
+br.close();
+
+// Read stderr separately
+let eline, stderr = "";
+const er = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getErrorStream(), "UTF-8"));
+while ((eline = er.readLine()) !== null) stderr += eline + "\n";
+er.close();
+
+const exitCode = proc.waitFor();
+if (exitCode !== 0) throw new Error(`Process failed (${exitCode}): ${stderr.trim()}`);
+
+const result = JSON.parse(stdout);
+```
+
+**Critical rules:**
+- `redirectErrorStream(false)` — if true, stderr mixes into stdout, corrupting JSON.
+- Always drain **both** stdout and stderr before `waitFor()`. If the process's output buffer fills and nothing is reading it, the process blocks → deadlock.
+- Close `getOutputStream()` before reading — otherwise the process waits for more input.
+- Wrap `pb.start()` in try/catch to give a clear "binary not found" error message.
+- `Arrays.asList(...)` is required — `ProcessBuilder` expects a Java `List<String>`, not a JS array.
+
+**Not in PATH? Custom binary location:**
+```js
+const bin = options.graphvizBin || "dot";  // let users configure the path
+const pb  = new ProcessBuilder(Arrays.asList(bin, "-Tjson", "-K" + engine));
+```
+
 ## Key Constraints
 
 - Use `load()` for local files — **never `require()`** (resolves to `node_modules/`)
