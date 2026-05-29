@@ -1291,7 +1291,12 @@ function _buildPresetRow(parent, ctx, dlg) {
   });
 
   const btnLoad = _pushBtn(row, "Load…", "Browse for a preset JSON file", () => {
-    const path = window.promptOpenFile({ title: "Load preset", filterExtensions: ["*.json"] });
+    const FileDialogClass = Java.type("org.eclipse.swt.widgets.FileDialog");
+    const fd = new FileDialogClass(shell, SWT.OPEN);
+    fd.text = "Load preset";
+    fd.filterExtensions = ["*.json"];
+    fd.filterPath = PresetIO.presetDir();
+    const path = fd.open();
     if (path) {
       try {
         const raw = PresetIO.readJSON(path);
@@ -1302,12 +1307,19 @@ function _buildPresetRow(parent, ctx, dlg) {
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnLoad);
 
   const btnSave = _pushBtn(row, "Save", "Save current settings as a preset", () => {
-    const name = window.prompt("Preset name:", ctx.config.name || "");
-    if (!name) return;
     _saveUI(ctx);
-    ctx.config.name = name;
-    PresetIO.writePreset(name, ctx.config);
-    _refreshPresetCombo(cmbPreset, name);
+    const FileDialogClass = Java.type("org.eclipse.swt.widgets.FileDialog");
+    const fd = new FileDialogClass(shell, SWT.SAVE);
+    fd.text = "Save preset";
+    fd.filterExtensions = ["*.json"];
+    fd.filterPath = PresetIO.presetDir();
+    fd.fileName = (ctx.config.name || "preset") + ".json";
+    const path = fd.open();
+    if (!path) return;
+    const rawName = String(path).replace(/\\/g, "/").split("/").pop().replace(/\.json$/i, "");
+    ctx.config.name = rawName;
+    PresetIO.writeJSON(path, ctx.config);
+    _refreshPresetCombo(cmbPreset, rawName);
   });
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnSave);
 

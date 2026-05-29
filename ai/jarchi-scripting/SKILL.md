@@ -74,3 +74,22 @@ Use `SWT.SEPARATOR | SWT.HORIZONTAL` spanning full width to divide logically dis
 ### Button Sizing
 
 - Widen Add/Remove buttons equally (95px) so both "Add >" and "< Remove" labels fit comfortably without text truncation.
+
+### TitleAreaDialog — layout on `area`
+
+`TitleAreaDialog.createDialogArea()` adds a separator `Label` as the **first child** of the returned composite before returning it. Rules:
+
+- **Always apply `numColumns(1)` to `area`** — applying `numColumns(2)` or higher shifts every widget added after the separator by one cell, putting them in the wrong column.
+- **Put multi-column layouts in a wrapper composite** nested inside `area`:
+
+```javascript
+// ✓ Correct
+GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).applyTo(area);
+const wrapper = new CompositeWidget(area, SWT.NONE);
+GridDataFactory.fillDefaults().grab(true, true).applyTo(wrapper);
+GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 4).applyTo(wrapper);
+// add left/right columns to wrapper, not area
+
+// ✗ Wrong — separator takes (row 1, col 1), first widget ends up in (row 1, col 2)
+GridLayoutFactory.fillDefaults().numColumns(2).margins(8, 8).applyTo(area);
+```

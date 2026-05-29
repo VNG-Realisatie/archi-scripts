@@ -509,10 +509,16 @@ The UI is a tabbed dialog that drives the orchestrator.
 
 ### Top-to-bottom layout
 
-1. Preset row — load · save · manage.
+1. Preset row — a combo of saved presets 
 2. Tabs: **Selection** | **Layout**.
 3. View name and location (outside tabs).
 4. Action row: **Cancel** | **Create new view** group | **Modify selected view** group.
+
+### Presets
+Selecting a saved preset applies it immediately. 
+- **Load…** action (browse for a preset file, opens in the preset folder by default);
+- **Save** action (persist the current configuration as a named preset file, prefilled with the current name); 
+- **Manage…** action (rename or delete saved presets — loading is done via the combo, not from Manage).
 
 ### Selection tab
 
@@ -1151,6 +1157,28 @@ Nesting: `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph + `parent` pro
 
 **Realises:** §A.9 (GUI structure). The dialog mockups, structural decisions, and tooltip strings live in §A.9; this section covers implementation only — widget classes, SWT/GTK behaviours, JS storage shapes, and event policy.
 
+### Preset row
+
+The preset row sits above the tab strip. Four controls:
+
+- **Combo** (`SWT.DROP_DOWN | SWT.READ_ONLY`) — lists named presets from `PresetIO.listPresets()`. `SWT.Selection` calls `_mergePreset` + `_syncToUI` immediately (no confirm step).
+- **Load…** button — opens `FileDialog(SWT.OPEN)` with `filterPath = PresetIO.presetDir()` and `filterExtensions = ["*.json"]`. On confirm: reads raw JSON via `PresetIO.readJSON(path)`, validates with `validatePreset`, applies via `_mergePreset` + `_syncToUI`.
+- **Save** button — calls `_saveUI`, then opens `FileDialog(SWT.SAVE)` with `filterPath = PresetIO.presetDir()` and `fileName = (ctx.config.name || "preset") + ".json"`. On confirm: derives preset name from the chosen filename, writes via `PresetIO.writeJSON(path, ctx.config)`, refreshes combo.
+- **Manage…** button — opens `PresetsDialog`; on close, refreshes combo.
+
+Raw `org.eclipse.swt.widgets.FileDialog` is used for both Load and Save — jArchi's `window.promptOpenFile` wrapper does not expose `filterPath` (initial directory).
+
+### Manage sub-dialog
+
+`Scripts/View/lib/gui/dialog_presets.js` — a `TitleAreaDialog` with Rename and Delete only. No Load button (loading is via the combo).
+
+Layout follows the TitleAreaDialog separator rule (see SKILL.md and §B.9 below):
+- `numColumns(1)` on `area`; 2-column layout in a wrapper composite inside `area`.
+- Column 1: `Text(SWT.SEARCH | SWT.ICON_CANCEL)` (row 1) + `ListWidget` (row 2).
+- Column 2: `btnCol` composite with `span(1, 2)` — Rename… and Delete buttons.
+
+`SWT.Modify` on the text field repopulates the list (case-insensitive substring match). `SWT.DefaultSelection` (Enter) focuses the list.
+
 ### Action row
 
 - Cancel group: unlabelled (`setText(" ")` for GTK height-match). Always enabled.
@@ -1318,6 +1346,7 @@ Implementation-only quirks of the host platform. None of these correspond to a P
 - `SWT.TOGGLE` `setSelection` programmatically does NOT fire a Selection event. Safe to set siblings without re-entry guards.
 - GTK `setBackground(null)` / `setForeground(null)` — set explicit `SWT.COLOR_WIDGET_BACKGROUND` for inactive, system default for active.
 - GTK rendering: `setBackground`/`setForeground` during `createDialogArea` may not render until first paint — use `display.asyncExec` in `create()` callback.
+- **`TitleAreaDialog.createDialogArea()`** adds a separator `Label` as the first child of the returned composite before returning it. Applying `numColumns > 1` directly to `area` shifts all subsequent widgets by one cell. Always use `numColumns(1)` on `area`; put multi-column layouts in a wrapper composite nested inside `area`. See SKILL.md (§ TitleAreaDialog — layout on `area`) for the correct/wrong pattern.
 - `Java.extend(JavaClass, methods)` — 2-arg form required; methods baked into subclass at definition time.
 - `Java.to(idxs, "int[]")` for explicit type to avoid GraalVM `setSelection(int[])` ambiguity.
 - No `+1` on width/height. `view.add()` and `vo.bounds` accept exact values.

@@ -54,13 +54,13 @@ function writeJSON(path, obj) {
 
 // ── Preset path resolution ────────────────────────────────────────────────────
 
-function _presetDir() {
+function presetDir() {
   return VIEW_DIR + USER_PARAM_FOLDER + "/";
 }
 
 function _presetPath(filename) {
   if (!filename.endsWith(".json")) filename += ".json";
-  return _presetDir() + filename;
+  return presetDir() + filename;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ function _presetPath(filename) {
  */
 function listPresets() {
   const File  = Java.type("java.io.File");
-  const dir   = new File(_presetDir());
+  const dir   = new File(presetDir());
   const files = dir.listFiles();
   const names = [];
   if (files) {
@@ -123,7 +123,7 @@ function deletePreset(name) {
  * @returns {Object} validated preset
  */
 function readSession() {
-  const path = _presetDir() + SESSION_FILENAME;
+  const path = presetDir() + SESSION_FILENAME;
   const raw  = readJSON(path);
   if (!raw) return JSON.parse(JSON.stringify(Defs.DEFAULT_PRESET));
   try {
@@ -142,11 +142,12 @@ function readSession() {
  * @param {Object} preset  current configuration
  */
 function writeSession(preset) {
-  writeJSON(_presetDir() + SESSION_FILENAME, preset);
+  writeJSON(presetDir() + SESSION_FILENAME, preset);
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    presetDir,
     listPresets,
     readPreset,
     writePreset,
