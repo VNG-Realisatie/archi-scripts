@@ -434,9 +434,101 @@ Before submitting a script:
 
 ---
 
+## Graph Layout Engines (JArchi)
+
+JArchi-specific rules for using graph layout engines inside Archi scripts. For the engine APIs themselves, see `ai/dagre/dagre-reference.md` and `ai/elkjs/`.
+
+---
+
+### Dagre / dagre-cluster-fix
+
+This project uses `dagre-cluster-fix` (not standard `@dagrejs/dagre`) for compound graph support.
+
+**Loading:**
+```js
+const dagre = require(REPO_ROOT + "node_modules/dagre-cluster-fix/index.js");
+```
+
+**JArchi rules:**
+
+1. **Filter self-loops before `layout()`** — `dagre-cluster-fix` throws `"k.toLowerCase is not a function"` on self-loop edges. Standard dagre silently drops them. In both cases, remove them before calling `dagre.layout(g)` and handle separately after.
+
+   ```js
+   const selfLoops = [];
+   for (const edge of inputEdges) {
+     if (edge.source === edge.target) { selfLoops.push(edge); continue; }
+     g.setEdge({ v: edge.source, w: edge.target, name: edge.id }, { ... });
+   }
+   dagre.layout(g);
+   ```
+
+2. **Convert center-based coordinates to top-left** — After layout, node `x` and `y` are the center of the node, not the top-left corner. Convert before applying to Archi visual objects:
+
+   ```js
+   const n = g.node(nodeId);
+   const x = Math.round(n.x - n.width  / 2);
+   const y = Math.round(n.y - n.height / 2);
+   ```
+
+3. **Strip boundary points from edge `points`** — `points[0]` and the last element are the points where the edge meets node boundaries. Archi does not need them as bendpoints. Slice them off:
+
+   ```js
+   const innerPoints = edgeData.points.slice(1, -1);
+   ```
+
+4. **Set parents after all nodes are added** — Call `g.setParent(child, parent)` only after all nodes have been added with `g.setNode()`. Setting a parent before the parent node exists is silently ignored.
+
+5. **Use `multigraph: true` for parallel edges** — When multiple edges can exist between the same node pair (common in ArchiMate), construct the graph with `multigraph: true` and use named edges: `g.setEdge({ v, w, name: edgeId }, ...)`.
+
+---
+
+### ELK (elkjs)
+
+**Loading:**
+```js
+const ELK = require(REPO_ROOT + "node_modules/elkjs/index.js");
+const elk = new ELK();
+```
+
+**JArchi rules:**
+
+1. **`elk.layout()` is synchronous in GraalJS** — ELK returns a Promise, but GraalJS resolves it synchronously in jArchi's execution context. Call it as a plain synchronous function; no `.then()` or await needed:
+
+   ```js
+   const layouted = elk.layout(elkGraph);  // resolves synchronously
+   ```
+
+2. **Node coordinates are top-left-based** — Unlike dagre, ELK outputs top-left `x`/`y` directly. No conversion needed before applying to Archi visual objects.
+
+3. **Edge bend points are in `sections[0].bendPoints`** — Not a flat `points` array. Access the section structure:
+
+   ```js
+   const section = edge.sections && edge.sections[0];
+   const bends   = section && section.bendPoints || [];
+   ```
+
+4. **All layout option values must be strings** — ELK layout options are always strings, even for numeric values:
+
+   ```js
+   { "elk.spacing.nodeNode": "50" }   // correct
+   { "elk.spacing.nodeNode": 50 }     // wrong — number silently ignored
+   ```
+
+5. **Add padding to container nodes** — Without explicit `elk.padding`, children can overlap the container node's label. Pass padding as a string in the format `[top=N,left=N,bottom=N,right=N]`:
+
+   ```js
+   containerNode.layoutOptions = {
+     "elk.padding": "[top=30,left=10,bottom=10,right=10]"
+   };
+   ```
+
+---
+
 ## References
 
 - **Complete API:** `jarchi-api-reference.md` (this folder)
 - **GraalJS Compatibility:** `graaljs-compatibility.md` (this folder)
 - **Java Interop:** `java-interop.md` (this folder)
 - **jArchi Wiki:** https://github.com/archimatetool/archi-scripting-plugin/wiki
+- **Dagre reference:** `ai/dagre/dagre-reference.md`
+- **ELK reference:** `ai/elkjs/`
