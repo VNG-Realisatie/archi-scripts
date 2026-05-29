@@ -458,7 +458,7 @@ const DEFAULT_PRESET = Object.freeze({
   },
   view: {
     name:   "",
-    suffix: "",
+    suffix: "",  // DEPRECATED — no longer surfaced in dialog; honoured at generation for legacy presets only. See ARCHITECTURE.md §A.12.
     folder: "",
   },
 });

@@ -151,6 +151,7 @@ function _generateOneEach(preset, uiSelection) {
   const views = [];
   for (const element of elements) {
     console.log(`\nGenerating view for: ${element.name}`);
+    // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
     const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
     const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
     const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + suffix);
@@ -529,6 +530,7 @@ function _getParentAbsOffset(vo) {
 
 
 function _resolveViewName(preset, elements) {
+  // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
   const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
   const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
   if (preset.view.name) return preset.view.name + suffix;

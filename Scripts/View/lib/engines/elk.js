@@ -384,21 +384,13 @@ function _sortNodeChildren(nodeMap, sortContainers) {
 }
 
 function _sortChildren(children, sortContainers) {
-  if (!sortContainers) {
-    // Containers keep model order; only leaf nodes are sorted
-    const leafIdxs = [], sorted = [];
-    children.forEach((n, i) => { if (!n.children.length) { leafIdxs.push(i); sorted.push(n); } });
-    sorted.sort(_byTypeName);
-    const result = children.slice();
-    leafIdxs.forEach((pos, i) => { result[pos] = sorted[i]; });
-    return result;
-  }
-  const ctrs   = children.filter(n => n.children.length > 0).sort(_byTypeName);
-  const leaves = children.filter(n => n.children.length === 0).sort(_byTypeName);
+  if (!sortContainers) return children;  // unchecked → no pre-sort; algorithm/model order
+  const ctrs   = children.filter(n => n.children.length > 0).sort(_byTypeAndName);
+  const leaves = children.filter(n => n.children.length === 0).sort(_byTypeAndName);
   return ctrs.concat(leaves);
 }
 
-function _byTypeName(a, b) {
+function _byTypeAndName(a, b) {
   return (a._type || "").localeCompare(b._type || "") || (a._name || "").localeCompare(b._name || "");
 }
 

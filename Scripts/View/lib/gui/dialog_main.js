@@ -131,11 +131,14 @@ function _scrolledTab(tabFolder, tabLabel) {
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 6).spacing(4, 4).applyTo(page);
 
   // Recompute scroll min-size after layout — called once at end of tab builder.
+  // `scrolled` is returned so callers can re-run _resizeScrolled when the page mutates
+  // (e.g. related-elements blocks added/removed/collapsed at runtime).
   return {
     page,
+    scrolled,
     finish: () => {
       scrolled.setContent(page);
-      scrolled.setMinSize(page.computeSize(SWT.DEFAULT, SWT.DEFAULT));
+      _resizeScrolled(scrolled, page);
     },
   };
 }
@@ -169,7 +172,7 @@ function _typeSelector(parent, allItems, availHeight, onChange) {
   const rightCol = new CompositeWidget(ctr, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(rightCol);
 
-  _lbl(rightCol, "Selected (empty=all):");
+  _lbl(rightCol, "Selected (empty = include all):");
 
   // Chip panel: RowLayout with wrap. No border, fixed height — chips wrap inside the space.
   const chipPanel = new CompositeWidget(rightCol, SWT.NONE);
@@ -261,9 +264,11 @@ function _checkboxGrid(parent, labels, numCols, onChange) {
   const ncols  = numCols || 4;
   const nrows  = Math.ceil(sorted.length / ncols);
 
-  // Outer composite: ncols sub-composites side by side
+  // Outer composite: ncols sub-composites side by side.
+  // equalWidth(true) forces all ncols to the same pixel width so corresponding
+  // columns align visually between the relation-type and diagram-type filter grids.
   const outer = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(ncols).margins(0, 0).spacing(6, 0).applyTo(outer);
+  GridLayoutFactory.fillDefaults().numColumns(ncols).equalWidth(true).margins(0, 0).spacing(6, 0).applyTo(outer);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
 
   // One vertical sub-composite per column.
@@ -302,12 +307,16 @@ function _col(parent) {
   return c;
 }
 
-// Dash-for-empty: show "—" when count is zero (used for Views/Folders cells in non-Selected rows).
-function _dashIfZero(n) { return n > 0 ? String(n) : "—"; }
-
 function _lbl(parent, text) {
   const l = new LabelWidget(parent, SWT.NONE);
   l.setText(text || "");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(l);
+  return l;
+}
+
+// Single-line wide label, used for the Selected/Containing/Filtered/Related-N count lines.
+function _selLine(parent) {
+  const l = new LabelWidget(parent, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(l);
   return l;
 }
@@ -326,6 +335,69 @@ function _countSelection(coll) {
   return { elems, rels, views, diagrams, folders };
 }
 
+// Ordered (key, singular, plural) tuples driving _formatCountsLine output order.
+const _COUNT_LABELS = [
+  ["elems",    "element",  "elements"],
+  ["rels",     "relation", "relations"],
+  ["diagrams", "diagram",  "diagrams"],
+  ["views",    "view",     "views"],
+  ["folders",  "folder",   "folders"],
+];
+
+// Render a count line: "Prefix: 3 elements, 2 relations; First object: …".
+// Types with count 0 are omitted entirely. Empty selection → "Prefix: nothing".
+function _formatCountsLine(prefix, counts, firstObject) {
+  return `${prefix}: ${_formatCountsBody(counts, firstObject)}`;
+}
+
+// The body part only — used for the right column of 2-col counter rows.
+function _formatCountsBody(counts, firstObject) {
+  const parts = [];
+  for (const [key, sg, pl] of _COUNT_LABELS) {
+    const n = counts[key] | 0;
+    if (n > 0) parts.push(`${n} ${n === 1 ? sg : pl}`);
+  }
+  const body = parts.length ? parts.join(", ") : "nothing";
+  const tail = firstObject ? `  (first: ${firstObject})` : "";
+  return `${body}${tail}`;
+}
+
+// "business-actor" → "Business Actor". Matches the Title-Case form Archi shows in its Properties view.
+function _typeToDisplay(t) {
+  if (!t) return "";
+  return t.split("-").map(s => s ? s[0].toUpperCase() + s.slice(1) : s).join(" ");
+}
+
+// Recompute ScrolledComposite min-size after page content changes.
+// Width fixed to viewport so only vertical scrolling triggers.
+function _resizeScrolled(scrolled, page) {
+  if (!scrolled || !page) return;
+  try {
+    const w = scrolled.getClientArea().width;
+    const useW = w > 0 ? w : SWT.DEFAULT;
+    scrolled.setMinSize(page.computeSize(useW, SWT.DEFAULT));
+  } catch (e) {}
+}
+
+
+// Module-level bold font, lazy-created once per script load. Never disposed (jArchi rule).
+let _boldFontCache = null;
+function _getBoldFont() {
+  if (_boldFontCache) return _boldFontCache;
+  try {
+    const FontDescriptor = Java.type("org.eclipse.jface.resource.FontDescriptor");
+    const display = Java.type("org.eclipse.swt.widgets.Display").getCurrent();
+    const fd = FontDescriptor.createFrom(display.getSystemFont()).setStyle(SWT.BOLD);
+    _boldFontCache = fd.createFont(display);
+  } catch (e) {}
+  return _boldFontCache;
+}
+
+// Default dialog dimensions. Width set explicitly to avoid SWT computing a wide size from
+// content hints; height sized so one Related block fits without scroll.
+const DEFAULT_DIALOG_WIDTH  = 900;
+const DEFAULT_DIALOG_HEIGHT = 1400;  // height is set to max, then constrained by screen size in open()
+
 // ── open() ────────────────────────────────────────────────────────────────────
 
 /**
@@ -343,10 +415,11 @@ function open(uiSelection) {
   // Raw count: what the user had selected in the UI.
   const selectedCount = { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
   let firstName = "";
+  let firstType = "";
   try {
     uiSelection.each(o => {
       const t = o.type || "";
-      if (!firstName && o.name) firstName = o.name;
+      if (!firstName && o.name) { firstName = o.name; firstType = t; }
       if      (t === "archimate-diagram-model")  selectedCount.views++;
       else if (t.endsWith("-relationship"))      selectedCount.rels++;
       else if (t === "folder")                   selectedCount.folders++;
@@ -355,6 +428,7 @@ function open(uiSelection) {
     });
   } catch (e) {}
   ctx.firstName = firstName;  // propagate for _syncToUI pre-fill
+  ctx.firstObject = firstName ? `${_typeToDisplay(firstType)}: ${firstName}` : "";
 
   // Expanded count: what is contained in the selection (folders expand, views expand to their elements).
   // When a view (archimate-diagram-model) is selected, $(view).find() enumerates visual objects.
@@ -479,7 +553,7 @@ function open(uiSelection) {
       GridDataFactory.fillDefaults().grab(true, true).applyTo(tabFolder);
       w.tabFolder = tabFolder;
 
-      _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firstName);
+      _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount);
       _buildLayoutTab(tabFolder, ctx);
 
       _buildViewRow(area, ctx);
@@ -493,6 +567,12 @@ function open(uiSelection) {
 
     isResizable:     function() { return true; },
     isHelpAvailable: function() { return false; },
+
+    getInitialSize: function() {
+      const sz = Java.super(dlg).getInitialSize();
+      const Point = Java.type("org.eclipse.swt.graphics.Point");
+      return new Point(DEFAULT_DIALOG_WIDTH, DEFAULT_DIALOG_HEIGHT);
+    },
 
     createButtonBar: function(parent) {
       // All buttons are in _buildActionRow (custom composite in the dialog area).
@@ -551,22 +631,31 @@ function _persistSession(ctx) {
 
 /**
  * Recount elements/relations/diagram objects after applying current filter settings,
- * then walk the dynamic Related-elements blocks updating each one's table row.
+ * then walk the dynamic Related-elements blocks updating each one's counter line.
  *
- * Filtered row meaning: counts AFTER the global Filter group, BEFORE any blocks.
- * Each block's row shows the additions contributed by THAT block alone.
+ * Filtered line meaning: counts AFTER the global Filter group, BEFORE any blocks.
+ * Each block's counter line shows the additions contributed by THAT block alone.
  * Block N's pruned output is block N+1's base (cumulative cascade).
  */
 function _updateFilteredCount(ctx) {
   const w = ctx.widgets;
-  if (!w.lblFlt_elems) return;
+  if (!w.lblFilteredCount) return;
 
-  const _setFiltered = (e, r, d) => { try { w.lblFlt_elems.setText(e); w.lblFlt_rels.setText(r); w.lblFlt_diags.setText(d); } catch(x) {} };
-  const _setRel = (b, e, r) => { try { b.tableRow.lblElems.setText("+" + e); b.tableRow.lblRels.setText("+" + r); } catch(x) {} };
+  const _setFiltered = (counts) => {
+    try { w.lblFilteredCount.setText(_formatCountsBody(counts)); } catch (x) {}
+  };
+  const _setFilteredError = () => {
+    try { w.lblFilteredCount.setText("—"); } catch (x) {}
+  };
+  const _setRel = (b, eCount, rCount) => {
+    if (!b || !b.lblBlockCounts) return;
+    const cnt = { elems: eCount, rels: rCount, diagrams: 0, views: 0, folders: 0 };
+    try { b.lblBlockCounts.setText(_formatCountsBody(cnt)); } catch (x) {}
+  };
 
   const objects = ctx.rawModelObjects;
   if (!objects || !objects.length) {
-    _setFiltered("—", "—", "—");
+    _setFilteredError();
     (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
     return;
   }
@@ -596,7 +685,7 @@ function _updateFilteredCount(ctx) {
         if (!elemFilter.size || elemFilter.has(t)) { elems++; filteredElements.push(o); }
       }
     }
-    _setFiltered(String(elems), String(rels), String(diagrams));
+    _setFiltered({ elems, rels, diagrams, views: 0, folders: 0 });
 
     // Walk blocks: each block's pruned output becomes the next block's base.
     let base = filteredElements;
@@ -612,107 +701,88 @@ function _updateFilteredCount(ctx) {
       base = base.concat(result.elements);
     }
   } catch (e) {
-    _setFiltered("—", "—", "—");
+    _setFilteredError();
     (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
   }
 }
 
 // ── Selection tab ─────────────────────────────────────────────────────────────
 
-function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firstName) {
-  const { page, finish } = _scrolledTab(tabFolder, "Selection");
+function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
+  const { page, scrolled, finish } = _scrolledTab(tabFolder, "Selection");
   const w = ctx.widgets;
   const selected   = selectedCount   || { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
   const containing = containingCount || { elems: 0, rels: 0, diagrams: 0, views: 0, folders: 0 };
 
-  // ── Current selection info table ─────────────────────────────────────────────
-  // Columns: label | Elements | Relations | Diagrams | Views | Folders | (filler)
-  // Rows:    header | Selected | Containing | Filtered | Related elements N (dynamic)
-  // Views/Folders show "—" except in the Selected row where they convey what was selected.
-  //
-  // grpInfo is 1-column; each table row is its own 7-column Composite child so rows
-  // can be appended / removed cleanly for the dynamic Related-elements blocks.
+  // Stash for runtime resize hooks (block add/remove/collapse, shell resize).
+  ctx.selectionScrolled = scrolled;
+  ctx.selectionPage     = page;
+
+  // Recompute the ScrolledComposite's min-size whenever the shell width changes,
+  // so the page reflows to the current viewport width before scrolling kicks in.
+  try {
+    const ControlListenerJ = Java.type("org.eclipse.swt.events.ControlListener");
+    scrolled.addControlListener(ControlListenerJ.controlResizedAdapter(e => _resizeScrolled(scrolled, page)));
+  } catch (e) {}
+
+  // ── Current selection ────────────────────────────────────────────────────────
+  // Three 2-col counter rows (Selected / Containing / Filtered) + the global Filter
+  // as a labelled section directly underneath, all inside one Group.
   const grpInfo = _group(page, "Current selection", 1, { marginH: 8, marginV: 6, spaceH: 0, spaceV: 3 });
-  ctx.grpInfo = grpInfo;
 
-  const _newSelRow = () => {
-    const c = new CompositeWidget(grpInfo, SWT.NONE);
-    GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 0).spacing(8, 0).applyTo(c);
-    GridDataFactory.fillDefaults().grab(true, false).applyTo(c);
-    return c;
-  };
-  const _cnt = (parent, txt) => {
-    const l = new LabelWidget(parent, SWT.RIGHT);
-    l.setText(txt);
-    GridDataFactory.swtDefaults().hint(42, SWT.DEFAULT).applyTo(l);
-    return l;
-  };
+  // 2-col sub-composite: [fixed-width label] [count text, grabs width]
+  const ctrComp = new CompositeWidget(grpInfo, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 2).applyTo(ctrComp);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctrComp);
 
-  // Header row
-  const rowHeader = _newSelRow();
-  _lbl(rowHeader, "");
-  _lbl(rowHeader, "Elements"); _lbl(rowHeader, "Relations"); _lbl(rowHeader, "Diagrams");
-  _lbl(rowHeader, "Views");    _lbl(rowHeader, "Folders");
-  _lbl(rowHeader, "");
+  new LabelWidget(ctrComp, SWT.NONE).setText("Selected in Archi:");
+  w.lblSelectedCount = _selLine(ctrComp);
+  w.lblSelectedCount.setText(_formatCountsBody(selected, ctx.firstObject));
 
-  // Selected row (static, from direct selection)
-  const rowSelected = _newSelRow();
-  _lbl(rowSelected, "Selected");
-  _cnt(rowSelected, String(selected.elems)); _cnt(rowSelected, String(selected.rels)); _cnt(rowSelected, String(selected.diagrams));
-  _cnt(rowSelected, _dashIfZero(selected.views)); _cnt(rowSelected, _dashIfZero(selected.folders));
-  _lbl(rowSelected, "");
+  new LabelWidget(ctrComp, SWT.NONE).setText("Containing:");
+  w.lblContainingCount = _selLine(ctrComp);
+  w.lblContainingCount.setText(_formatCountsBody(containing));
 
-  // Containing row (static, expanded from folders/views)
-  const rowContaining = _newSelRow();
-  _lbl(rowContaining, "Containing");
-  _cnt(rowContaining, String(containing.elems)); _cnt(rowContaining, String(containing.rels)); _cnt(rowContaining, String(containing.diagrams));
-  _cnt(rowContaining, _dashIfZero(containing.views)); _cnt(rowContaining, _dashIfZero(containing.folders));
-  _lbl(rowContaining, "");
+  new LabelWidget(ctrComp, SWT.NONE).setText("Filtered:");
+  w.lblFilteredCount = _selLine(ctrComp);
+  w.lblFilteredCount.setText("—");
 
-  // Filtered row (live-updated). Views/Folders always "—" — filter doesn't apply to containers.
-  const rowFiltered = _newSelRow();
-  _lbl(rowFiltered, "Filtered");
-  w.lblFlt_elems = _cnt(rowFiltered, "—"); w.lblFlt_rels = _cnt(rowFiltered, "—"); w.lblFlt_diags = _cnt(rowFiltered, "—");
-  _cnt(rowFiltered, "—"); _cnt(rowFiltered, "—");
-  _lbl(rowFiltered, "");
-  ctx.rowFiltered = rowFiltered;  // Related-elements rows are inserted after this
+  // Horizontal rule separating count lines from the filter sub-section.
+  const filterSep = new LabelWidget(grpInfo, SWT.SEPARATOR | SWT.HORIZONTAL);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(filterSep);
 
-  // Legacy refs — no longer used after Phase 1 row reorganization.
-  w.lblRelated = null; w.lblFiltered = null;
-  w.lblRel_elems = null; w.lblRel_rels = null; w.lblRel_diags = null;
-
-  // ── Filter ──────────────────────────────────────────────────────────────────
-  const grpFilter = _group(page, "Filter  (empty = all included)", 1, { spaceV: 6 });
-
-  // onChange fires whenever a filter control changes → recount
   const onFilterChange = () => _updateFilteredCount(ctx);
 
-  // Element types: search+available (left) | selected (right, bottom-aligned)
-  _lbl(grpFilter, "Element types:");
-  w.lstFilterElements = _typeSelector(grpFilter, ELEMENT_TYPES, 180, onFilterChange);
+  _lbl(grpInfo, "Filter selection by element type:");
+  w.lstFilterElements = _typeSelector(grpInfo, ELEMENT_TYPES, 120, onFilterChange);
 
-  // Relation types: 4-column checkbox grid
-  _lbl(grpFilter, "Relation types:");
-  w.lstFilterRelations = _checkboxGrid(grpFilter, REL_TYPE_LABELS, 4, onFilterChange);
+  _lbl(grpInfo, "Filter selection by relation types (empty = include all):");
+  w.lstFilterRelations = _checkboxGrid(grpInfo, REL_TYPE_LABELS, 4, onFilterChange);
 
-  // Diagram types: 4 columns to align with relation types above.
-  _lbl(grpFilter, "Diagram types:");
-  w.lstFilterDiagram = _checkboxGrid(grpFilter, DIAG_TYPE_LABELS, 4, onFilterChange);
+  _lbl(grpInfo, "Filter selection by diagram types (empty = include all):");
+  w.lstFilterDiagram = _checkboxGrid(grpInfo, DIAG_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
-  // Dynamic multi-block UI. Each block is an independent expansion layer.
-  // See Phase 2 in the plan: each block has its own relation types (with per-relation
-  // ← / → direction toggles), element-type filter, and depth.
-  const grpRel = _group(page, "Related elements", 1);
+  // Dynamic multi-block UI. Each block is an independent expansion layer with its
+  // own relation types (each with two direction checkboxes), element filter, and
+  // relation-levels (depth) control.
+  const grpRel = _group(page, "Add related elements", 1);
 
-  const lblExplain = new LabelWidget(grpRel, SWT.WRAP);
-  lblExplain.setText("Add related elements to build up the selection from connected model objects beyond the current filter. Each block's additions become the base for the next block.");
+  // Header row: explanation text (grabs width) | [+ Add related…] button on the right.
+  const hdrRow = new CompositeWidget(grpRel, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 0).applyTo(hdrRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(hdrRow);
+
+  const lblExplain = new LabelWidget(hdrRow, SWT.WRAP);
+  // lblExplain.setText("Expand the selection by following relations to neighbouring elements. Each block below adds a step.");
+  // lblExplain.setText("Add related elements to the selection by following relations. Each block below adds a step.");
+  lblExplain.setText("Expand the selection with connected elements. Each block adds one step.");  
   GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(lblExplain);
 
-  const btnAddBlock = new ButtonWidget(grpRel, SWT.PUSH);
-  btnAddBlock.setText("+ Add related elements");
+  const btnAddBlock = new ButtonWidget(hdrRow, SWT.PUSH);
+  btnAddBlock.setText("+ Add step");
   btnAddBlock.setToolTipText("Append a new expansion block.");
-  GridDataFactory.swtDefaults().applyTo(btnAddBlock);
+  GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).applyTo(btnAddBlock);
   btnAddBlock.addListener(SWT.Selection, () => _addRelatedBlock(ctx));
 
   const blocksContainer = new CompositeWidget(grpRel, SWT.NONE);
@@ -720,17 +790,18 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount, firs
   GridDataFactory.fillDefaults().grab(true, false).applyTo(blocksContainer);
   w.blocksContainer = blocksContainer;
 
-  // Legacy refs (single-block UI) removed; null out for safety.
-  w.lstRelatedRelations = null; w.spinRelDepth = null;
-
   finish();
 }
 
 // ── Related elements: block lifecycle ─────────────────────────────────────────
 
-// Build the relation-type grid with per-relation direction toggles.
-// Each cell: [☐ label] [←] [→]. Toggles enforce "at least one direction lit".
+// Build the relation-type grid. Each cell shows a name checkbox plus two direction
+// checkboxes (☐ ← incoming, ☐ → outgoing). At least one direction must be ticked
+// while the relation itself is on.
 // Returns controller with getEncoded(), setEncoded(arr), enable(bool).
+// _relCheckGrid: direction-only checkboxes per relation type.
+// Each row: [label] [← in] [→ out]. No per-type selection checkbox.
+// Empty selection (no box ticked anywhere) = follow all relation types in all directions.
 function _relCheckGrid(parent, numCols, onChange) {
   const rows = Object.values(RELATION_TYPES)
     .map(r => ({ id: r.id, label: r.label }))
@@ -740,7 +811,8 @@ function _relCheckGrid(parent, numCols, onChange) {
   const nrows = Math.ceil(rows.length / ncols);
 
   const outer = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(ncols).margins(0, 0).spacing(6, 0).applyTo(outer);
+  // spacing(10, 0): at least 10px between columns, as required by UX spec.
+  GridLayoutFactory.fillDefaults().numColumns(ncols).margins(0, 0).spacing(10, 0).applyTo(outer);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
 
   const colComps = Array.from({ length: ncols }, () => {
@@ -752,56 +824,37 @@ function _relCheckGrid(parent, numCols, onChange) {
 
   const relRows = rows.map((r, i) => {
     const cell = new CompositeWidget(colComps[Math.floor(i / nrows)], SWT.NONE);
-    GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 0).spacing(2, 0).applyTo(cell);
+    GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 0).spacing(4, 0).applyTo(cell);
     GridDataFactory.fillDefaults().grab(true, false).applyTo(cell);
 
-    const chk = new ButtonWidget(cell, SWT.CHECK);
-    chk.setText(r.label);
-    GridDataFactory.fillDefaults().grab(true, false).applyTo(chk);
+    const lbl = new LabelWidget(cell, SWT.NONE);
+    lbl.setText(r.label);
+    // Fixed-width column so ← aligns vertically across all rows (longest name ≈ "Specialization").
+    GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(lbl);
 
-    const btnIn  = new ButtonWidget(cell, SWT.TOGGLE);
-    btnIn.setText("←");
-    btnIn.setToolTipText("Follow incoming relations (other → this element)");
-    GridDataFactory.swtDefaults().hint(28, 20).applyTo(btnIn);
+    const chkIn  = new ButtonWidget(cell, SWT.CHECK);
+    chkIn.setText("←");
+    chkIn.setToolTipText("Follow incoming relations (other → this element)");
+    GridDataFactory.swtDefaults().hint(40, 20).applyTo(chkIn);
 
-    const btnOut = new ButtonWidget(cell, SWT.TOGGLE);
-    btnOut.setText("→");
-    btnOut.setToolTipText("Follow outgoing relations (this element → other)");
-    GridDataFactory.swtDefaults().hint(28, 20).applyTo(btnOut);
+    const chkOut = new ButtonWidget(cell, SWT.CHECK);
+    chkOut.setText("→");
+    chkOut.setToolTipText("Follow outgoing relations (this element → other)");
+    GridDataFactory.swtDefaults().hint(40, 20).applyTo(chkOut);
 
-    const updateDirEnabled = () => {
-      const on = chk.getSelection();
-      btnIn.setEnabled(on);
-      btnOut.setEnabled(on);
-    };
+    // Direction checkboxes are always enabled; no parent relation-type checkbox.
+    // Unchecking both is allowed — empty selection across all rows means "follow all".
+    chkIn.addListener(SWT.Selection, () => { if (onChange) onChange(); });
+    chkOut.addListener(SWT.Selection, () => { if (onChange) onChange(); });
 
-    // Relation checkbox: first click auto-lights both directions; uncheck clears.
-    chk.addListener(SWT.Selection, () => {
-      const on = chk.getSelection();
-      btnIn.setSelection(on);
-      btnOut.setSelection(on);
-      updateDirEnabled();
-      if (onChange) onChange();
-    });
-
-    // Direction toggles: disallow "neither lit". A click that would unlight both is reverted.
-    btnIn.addListener(SWT.Selection, () => {
-      if (!btnIn.getSelection() && !btnOut.getSelection()) { btnIn.setSelection(true); return; }
-      if (onChange) onChange();
-    });
-    btnOut.addListener(SWT.Selection, () => {
-      if (!btnIn.getSelection() && !btnOut.getSelection()) { btnOut.setSelection(true); return; }
-      if (onChange) onChange();
-    });
-
-    updateDirEnabled();
-    return { id: r.id, label: r.label, chk, btnIn, btnOut, updateDirEnabled };
+    return { id: r.id, label: r.label, chkIn, chkOut };
   });
 
   return {
+    // Returns encoded array. Empty = all relation types/directions followed.
     getEncoded: () => relRows
-      .filter(r => r.chk.getSelection())
-      .map(r => encodeRelType(r.id, r.btnIn.getSelection(), r.btnOut.getSelection())),
+      .filter(r => r.chkIn.getSelection() || r.chkOut.getSelection())
+      .map(r => encodeRelType(r.id, r.chkIn.getSelection(), r.chkOut.getSelection())),
     setEncoded: (encoded) => {
       const byId = new Map();
       (encoded || []).forEach(e => {
@@ -811,77 +864,52 @@ function _relCheckGrid(parent, numCols, onChange) {
       relRows.forEach(r => {
         const dec = byId.get(r.id);
         if (dec) {
-          r.chk.setSelection(true);
-          r.btnIn.setSelection(dec.inSel);
-          r.btnOut.setSelection(dec.outSel);
+          r.chkIn.setSelection(dec.inSel);
+          r.chkOut.setSelection(dec.outSel);
         } else {
-          r.chk.setSelection(false);
-          r.btnIn.setSelection(false);
-          r.btnOut.setSelection(false);
+          r.chkIn.setSelection(false);
+          r.chkOut.setSelection(false);
         }
-        r.updateDirEnabled();
       });
     },
     enable: (en) => {
       relRows.forEach(r => {
-        r.chk.setEnabled(en);
-        const dirOn = en && r.chk.getSelection();
-        r.btnIn.setEnabled(dirOn);
-        r.btnOut.setEnabled(dirOn);
+        r.chkIn.setEnabled(en);
+        r.chkOut.setEnabled(en);
       });
     },
   };
 }
 
-// Build a 7-column selection-table row composite for a Related-elements block.
-// Diagrams/Views/Folders are always "—" (blocks never add those).
-function _newRelTableRow(grpInfo, labelText) {
-  const container = new CompositeWidget(grpInfo, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 0).spacing(8, 0).applyTo(container);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(container);
-
-  const lblName = new LabelWidget(container, SWT.NONE);
-  lblName.setText(labelText);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(lblName);
-
-  const _cnt = (txt) => {
-    const l = new LabelWidget(container, SWT.RIGHT);
-    l.setText(txt);
-    GridDataFactory.swtDefaults().hint(42, SWT.DEFAULT).applyTo(l);
-    return l;
-  };
-
-  const lblElems = _cnt("+0");
-  const lblRels  = _cnt("+0");
-  _cnt("—"); _cnt("—"); _cnt("—");
-  new LabelWidget(container, SWT.NONE);  // filler
-
-  return { container, lblName, lblElems, lblRels };
-}
-
-// Append a new block to the Related elements group + a matching selection-table row.
+// Append a new block to the Related elements group.
 // layerData (optional): { depth, elementTypes, relationTypes } from a preset to restore.
-function _addRelatedBlock(ctx, layerData) {
+// opts.startCollapsed (optional boolean): if true, build the block in collapsed state.
+function _addRelatedBlock(ctx, layerData, opts) {
   const w = ctx.widgets;
   const blocksContainer = w.blocksContainer;
   const idx = ctx.relBlocks.length;
   const onChange = () => _updateFilteredCount(ctx);
 
-  // Outer block: GroupWidget so it has a visual border. Title rendered via header
-  // composite (a Group's title bar can't host buttons in SWT).
+  // Outer block: GroupWidget with native title bar ("Step N").
   const block = new GroupWidget(blocksContainer, SWT.NONE);
-  block.setText("");
+  block.setText("Step " + (idx + 1));
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(block);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(block);
 
-  // Header: title + reorder buttons + collapse + remove
+  // Header row: [Added: (static)] [count (grabs)] [▲] [▼] [▾] [✕]
   const header = new CompositeWidget(block, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(4, 0).applyTo(header);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(4, 0).applyTo(header);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(header);
 
-  const titleLabel = new LabelWidget(header, SWT.NONE);
-  titleLabel.setText("Related elements " + (idx + 1));
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(titleLabel);
+  // "Added:" static prefix label.
+  const lblAddedPfx = new LabelWidget(header, SWT.NONE);
+  lblAddedPfx.setText("Adds:");
+  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(lblAddedPfx);
+
+  // Count label grabs the remaining width.
+  const lblBlockCounts = new LabelWidget(header, SWT.NONE);
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.CENTER).applyTo(lblBlockCounts);
+  lblBlockCounts.setText("nothing");
 
   const _hdrBtn = (txt, tip) => {
     const b = new ButtonWidget(header, SWT.PUSH);
@@ -890,10 +918,14 @@ function _addRelatedBlock(ctx, layerData) {
     GridDataFactory.swtDefaults().hint(28, 22).applyTo(b);
     return b;
   };
-  const btnUp       = _hdrBtn("▲", "Move this block up");
-  const btnDown     = _hdrBtn("▼", "Move this block down");
-  const btnCollapse = _hdrBtn("▾", "Collapse / expand this block");
-  const btnRemove   = _hdrBtn("✕",  "Remove this block");
+  const btnUp       = _hdrBtn("▲", "Move this step up");
+  const btnDown     = _hdrBtn("▼", "Move this step down");
+  const btnCollapse = _hdrBtn("▾", "Collapse / expand this step");
+  const btnRemove   = _hdrBtn("✕",  "Remove this step");
+
+  // Horizontal rule separating header from body.
+  const blkSep = new LabelWidget(block, SWT.SEPARATOR | SWT.HORIZONTAL);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(blkSep);
 
   // Body (collapsible). Use GridData.exclude on collapse so layout reclaims the space.
   const body = new CompositeWidget(block, SWT.NONE);
@@ -901,42 +933,41 @@ function _addRelatedBlock(ctx, layerData) {
   const bodyGd = GridDataFactory.fillDefaults().grab(true, false).create();
   body.setLayoutData(bodyGd);
 
-  _lbl(body, "Relation types to follow:");
+  _lbl(body, "Add elements by following these relation types (empty = include all):");
   const relCheckGrid = _relCheckGrid(body, 4, onChange);
+  // 5px spacer below the relation check grid before the next section.
+  const relSpacer = new LabelWidget(body, SWT.NONE);
+  GridDataFactory.fillDefaults().hint(SWT.DEFAULT, 5).applyTo(relSpacer);
 
-  _lbl(body, "Filter element types (empty = all):");
+  _lbl(body, "Filter added element types:");
   const typeSelector = _typeSelector(body, ELEMENT_TYPES, 90, onChange);
 
   const depthRow = new CompositeWidget(body, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 2).spacing(4, 0).applyTo(depthRow);
   const lblDepth = new LabelWidget(depthRow, SWT.NONE);
-  lblDepth.setText("Depth (relation hops):");
+  lblDepth.setText("Recurrence:");
   GridDataFactory.swtDefaults().applyTo(lblDepth);
   const depthSpinner = new SpinnerWidget(depthRow, SWT.BORDER);
   depthSpinner.setValues(1, 1, 5, 0, 1, 1);
-  depthSpinner.setToolTipText("Number of relation hops to follow from the current base.");
+  depthSpinner.setToolTipText("Number of relation hops (depth) to follow from the current base.");
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(depthSpinner);
   // Recompute on arrow click (Selection) and on focus-out (after keyboard edit) —
   // not on Modify, which fires per keystroke.
   depthSpinner.addListener(SWT.Selection, onChange);
   depthSpinner.addListener(SWT.FocusOut, onChange);
 
-  // Selection-table row
-  const tableRow = _newRelTableRow(ctx.grpInfo, "Related elements " + (idx + 1));
-
   const blockObj = {
-    container: block, body, titleLabel,
+    container: block, body, lblBlockCounts,
     btnUp, btnDown, btnCollapse, btnRemove,
     collapsed: false,
     relCheckGrid, typeSelector, depthSpinner,
-    tableRow,
   };
   ctx.relBlocks.push(blockObj);
 
   // Button handlers (capture blockObj after creation)
   btnUp.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, -1));
   btnDown.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, +1));
-  btnCollapse.addListener(SWT.Selection, () => _toggleCollapseBlock(blockObj));
+  btnCollapse.addListener(SWT.Selection, () => _toggleCollapseBlock(ctx, blockObj));
   btnRemove.addListener(SWT.Selection, () => _removeRelatedBlock(ctx, blockObj));
 
   // Restore from preset if provided
@@ -946,18 +977,28 @@ function _addRelatedBlock(ctx, layerData) {
     depthSpinner.setSelection(Number(layerData.depth) || 1);
   }
 
+  // Apply initial collapsed state (used when loading presets: step 1 expanded, rest collapsed).
+  if (opts && opts.startCollapsed) {
+    blockObj.collapsed = true;
+    try { body.setVisible(false); } catch (e) {}
+    const gd = body.getLayoutData();
+    if (gd) gd.exclude = true;
+    try { btnCollapse.setText("▸"); } catch (e) {}
+  }
+
   _renumberAndReorderRelBlocks(ctx);
   _updateFilteredCount(ctx);
+  _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
 function _removeRelatedBlock(ctx, blockObj) {
   const i = ctx.relBlocks.indexOf(blockObj);
   if (i < 0) return;
   try { blockObj.container.dispose(); } catch (e) {}
-  try { blockObj.tableRow.container.dispose(); } catch (e) {}
   ctx.relBlocks.splice(i, 1);
   _renumberAndReorderRelBlocks(ctx);
   _updateFilteredCount(ctx);
+  _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
 function _moveRelatedBlock(ctx, blockObj, direction) {
@@ -972,7 +1013,7 @@ function _moveRelatedBlock(ctx, blockObj, direction) {
   _updateFilteredCount(ctx);
 }
 
-function _toggleCollapseBlock(blockObj) {
+function _toggleCollapseBlock(ctx, blockObj) {
   blockObj.collapsed = !blockObj.collapsed;
   blockObj.body.setVisible(!blockObj.collapsed);
   const gd = blockObj.body.getLayoutData();
@@ -981,18 +1022,15 @@ function _toggleCollapseBlock(blockObj) {
   try { blockObj.container.layout(true, true); } catch (e) {}
   try { blockObj.container.getParent().layout(true, true); } catch (e) {}
   try { blockObj.container.getShell().layout(true, true); } catch (e) {}
+  _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
-// Reorder both the block widgets and their table-row composites to match the
-// current ctx.relBlocks order, then update titles + enabled state of move buttons.
+// Reorder block widgets to match ctx.relBlocks order, then update the native Group
+// title bar ("Step N") and enabled state of move buttons. The counter line uses the
+// invariant "Added:" prefix so reordering doesn't touch it.
 function _renumberAndReorderRelBlocks(ctx) {
-  let prevRow = ctx.rowFiltered;
   ctx.relBlocks.forEach((b, i) => {
-    const label = "Related elements " + (i + 1);
-    try { b.titleLabel.setText(label); } catch (e) {}
-    try { b.tableRow.lblName.setText(label); } catch (e) {}
-    try { b.tableRow.container.moveBelow(prevRow); } catch (e) {}
-    prevRow = b.tableRow.container;
+    try { b.container.setText("Step " + (i + 1)); } catch (e) {}
     b.btnUp.setEnabled(i > 0);
     b.btnDown.setEnabled(i < ctx.relBlocks.length - 1);
   });
@@ -1004,7 +1042,6 @@ function _renumberAndReorderRelBlocks(ctx) {
     prevBlk = b.container;
   }
 
-  try { ctx.grpInfo.layout(true, true); } catch (e) {}
   if (ctx.widgets.blocksContainer) {
     try { ctx.widgets.blocksContainer.layout(true, true); } catch (e) {}
     try { ctx.widgets.blocksContainer.getShell().layout(true, true); } catch (e) {}
@@ -1017,70 +1054,89 @@ function _buildLayoutTab(tabFolder, ctx) {
   const { page, finish } = _scrolledTab(tabFolder, "Layout");
   const w = ctx.widgets;
 
-  // ── Algorithm ────────────────────────────────────────────────────────────────
-  const grpAlg = _group(page, "Algorithm", 4, { spaceH: 6 });
-
-  const cmbStyle = _addCombo(grpAlg, "Style:", Object.keys(STYLES), 0, 120, "cmbStyle", w);
-
-  // Algorithm combo is filled dynamically by _fillAlgorithmCombo based on selected style.
-  new LabelWidget(grpAlg, SWT.NONE).setText("Algorithm:");
-  const cmbAlg = new ComboWidget(grpAlg, SWT.READ_ONLY | SWT.DROP_DOWN);
-  GridDataFactory.swtDefaults().hint(150, SWT.DEFAULT).applyTo(cmbAlg);
-  w.cmbAlgorithm = cmbAlg;
-
-  const lblEngine = new LabelWidget(grpAlg, SWT.NONE);
-  GridDataFactory.fillDefaults().span(4, 1).applyTo(lblEngine);
-  w.lblEngine = lblEngine;
-
-  const lblTip = new LabelWidget(grpAlg, SWT.WRAP);
-  GridDataFactory.fillDefaults().span(4, 1).grab(true, false).hint(380, SWT.DEFAULT).applyTo(lblTip);
-  w.lblAlgTooltip = lblTip;
-
-  cmbStyle.addListener(SWT.Selection, () => {
-    _fillAlgorithmCombo(ctx);
-    _updateAlgorithmControls(ctx);
-    _updateViewNameAlgorithm(ctx);
-  });
-  cmbAlg.addListener(SWT.Selection, () => {
-    _updateAlgorithmControls(ctx);
-    _updateViewNameAlgorithm(ctx);
-  });
-
-  // ── Direction / Routing / Label ──────────────────────────────────────────────
-  const grpDir = _group(page, "Direction and routing", 6, { spaceH: 6 });
-
-  _addCombo(grpDir, "Flow direction:",  DIRECTION_LABELS, 0, 120, "cmbDirection",     w);
-  _addCombo(grpDir, "Relation lines:",  ROUTING_ALL,      0, 160, "cmbRouting",       w);
-  _addCombo(grpDir, "Label:",           LABEL_POS_ALL,    1,  90, "cmbLabelPosition", w);
-  _addCombo(grpDir, "Layer ranking:",   RANKING_LABELS,   0, 110, "cmbRanking",       w);
-
-  // ── Nesting structure ─────────────────────────────────────────────────────────
-  const grpNest = _group(page, "Nesting structure  —  relations drawn as containment boxes, not lines", 1);
-  w.grpNestingStructure = grpNest;
-  w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4);
-
-  // ── Reverse layout direction ──────────────────────────────────────────────────
-  const grpRev = _group(page, "Reverse layout direction for relation types", 1);
-  w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4);
-
-  // ── Container appearance ───────────────────────────────────────────────────────
-  const grpCtr = _group(page, "Container appearance", 8);
-  w.grpContainer = grpCtr;
-
-  _addSpinnerRow(grpCtr, "Inner spacing:", "spinInnerSpacing",  20, 0, 200, 5, w);
-  _addSpinnerRow(grpCtr, "Padding:",        "spinPadding",        20, 0, 200, 5, w);
-
-  const chkSort  = _addCheck(grpCtr, "Sort containers",             "Sort containers alphabetically within each level.", 4, w, "chkSortContainers");
-  const chkAlign = _addCheck(grpCtr, "Align width same type",       "Equalize widths of same-type leaf siblings within each container.", 4, w, "chkAlignWidthSameType");
-  const chkEvery = _addCheck(grpCtr, "Show in every container",     "An element in multiple containers appears in each of them.", 4, w, "chkShowInEvery");
-
   // ── Size and spacing ───────────────────────────────────────────────────────────
-  const grpSize = _group(page, "Size and spacing", 8);
+  // Level spacing lives in the Algorithm block (near direction/routing).
+  const grpSize = _group(page, "Element size and spacing", 6);
 
   _addSpinnerRow(grpSize, "Width:",           "spinElementWidth",   140, 10, 1000, 10, w);
   _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",   60, 10,  500, 10, w);
   _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",  40,  0,  500,  5, w);
-  _addSpinnerRow(grpSize, "Level spacing:",   "spinLayerSpacing",   180,  0, 2000, 20, w);
+
+  // ── Algorithm (includes Direction & routing and Level spacing) ────────────────
+  // Algorithm selection uses a 5-row × 6-col table: [Style label:] [○ Algo] [○ Algo] …
+  // All radio buttons are in the same composite so SWT auto-groups them (mutually exclusive).
+  const grpAlg = _group(page, "Algorithm", 4, { spaceH: 6 });
+
+  // Algorithm radio table spans all 4 columns of grpAlg.
+  const algTableComp = new CompositeWidget(grpAlg, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(8, 3).applyTo(algTableComp);
+  GridDataFactory.fillDefaults().span(4, 1).grab(true, false).applyTo(algTableComp);
+
+  const algRadios = new Map();
+  const maxAlgCols = Math.max(...Object.values(STYLES).map(s => s.algorithms.length));
+
+  Object.entries(STYLES).forEach(([styleName, style]) => {
+    // Style label — natural width, tooltip from STYLES.
+    const styleLbl = new LabelWidget(algTableComp, SWT.NONE);
+    styleLbl.setText(styleName + ":");
+    if (style.tooltip) styleLbl.setToolTipText(style.tooltip);
+    GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).applyTo(styleLbl);
+
+    // Radio buttons for this style's algorithms, then empty labels for vacant slots.
+    // Both radio buttons AND empty placeholders grab(true) so all 5 algorithm columns
+    // flex equally with the dialog width (same behaviour as the relation checkbox columns).
+    for (let i = 0; i < maxAlgCols; i++) {
+      const algName = style.algorithms[i];
+      if (algName) {
+        const alg = ALGORITHMS[algName] || {};
+        const radio = new ButtonWidget(algTableComp, SWT.RADIO);
+        radio.setText(algName);
+        if (alg.tooltip) radio.setToolTipText(alg.tooltip);
+        GridDataFactory.fillDefaults().grab(true, false).applyTo(radio);
+        algRadios.set(algName, radio);
+        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) _updateAlgorithmControls(ctx); });
+      } else {
+        // Empty placeholder: grab so the column still flexes even with no radio button.
+        const ph = new LabelWidget(algTableComp, SWT.NONE);
+        GridDataFactory.fillDefaults().grab(true, false).applyTo(ph);
+      }
+    }
+  });
+
+  w.algRadios = algRadios;
+
+  // ── Direction and routing (sub-section inside Algorithm) ─────────────────────
+  _groupSep(grpAlg, 4, "Direction and routing");
+
+  _addCombo(grpAlg, "Flow direction:",  DIRECTION_LABELS, 0, 120, "cmbDirection",     w);
+  _addCombo(grpAlg, "Relation lines:",  ROUTING_ALL,      0, 160, "cmbRouting",       w);
+  _addCombo(grpAlg, "Label:",           LABEL_POS_ALL,    1,  90, "cmbLabelPosition", w);
+  _addCombo(grpAlg, "Layer ranking:",   RANKING_LABELS,   0, 110, "cmbRanking",       w);
+  _addSpinnerRow(grpAlg, "Level spacing:", "spinLayerSpacing", 180, 0, 2000, 20, w);
+  // Fill the remaining 2 cells of this row so the spinner pair doesn't wrap oddly.
+  new LabelWidget(grpAlg, SWT.NONE); new LabelWidget(grpAlg, SWT.NONE);
+
+  // ── Reverse layout direction ──────────────────────────────────────────────────
+  const grpRev = _group(page, "Draw these relation types reversed", 1);
+  w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4);
+
+  // ── Nesting structure (includes Container appearance) ─────────────────────────
+  const grpNest = _group(page, "Draw these relation types as containers (nesting)", 1);
+  w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4);
+
+  // Container appearance as a sub-section inside Nesting structure.
+  _groupSep(grpNest, 1, "Container appearance");
+
+  const ctrComp = new CompositeWidget(grpNest, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(8).margins(0, 0).spacing(6, 4).applyTo(ctrComp);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctrComp);
+
+  _addSpinnerRow(ctrComp, "Inner spacing:", "spinInnerSpacing", 20, 0, 200, 5, w);
+  _addSpinnerRow(ctrComp, "Padding:",       "spinPadding",      20, 0, 200, 5, w);
+
+  _addCheck(ctrComp, "Sort containers",         "Sort containers alphabetically within each level.",                         4, w, "chkSortContainers");
+  _addCheck(ctrComp, "Align width same type",   "Equalize widths of same-type leaf siblings within each container.",        4, w, "chkAlignWidthSameType");
+  _addCheck(ctrComp, "Show in every container", "An element in multiple containers appears in each of them.",               4, w, "chkShowInEvery");
 
   // ── View size ──────────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View size", 6);
@@ -1096,16 +1152,6 @@ function _buildLayoutTab(tabFolder, ctx) {
 // ── View tab ──────────────────────────────────────────────────────────────────
 
 // ── Action row (below preset) ─────────────────────────────────────────────────
-
-function _updateActionPreview(ctx) {
-  const w = ctx.widgets;
-  if (!w.lblActionPreview) return;
-  const name   = w.txtViewName   ? w.txtViewName.getText().trim()   : "";
-  const suffix = w.txtViewSuffix ? w.txtViewSuffix.getText().trim() : "";
-  const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
-  const preview = name ? name + (suffix ? sep + suffix : "") : "—";
-  try { w.lblActionPreview.setText("New view name:   " + preview); } catch(e) {}
-}
 
 function _runAction(buttonId, dlg, ctx) {
   const ACTION_MAP = {};
@@ -1130,10 +1176,12 @@ function _actionBtn(parent, label, onClick) {
 
 // Group container with the project's standard GridData + GridLayout.
 // Pass " " (single space) as label for an unlabelled-but-title-bar-reserved group.
+// By default the title bar font is made bold; pass bold: false to opt out (e.g. action row groups).
 function _group(parent, label, numColumns, opts) {
   opts = opts || {};
   const grp = new GroupWidget(parent, SWT.NONE);
   grp.setText(label);
+  if (opts.bold !== false) { const f = _getBoldFont(); if (f) try { grp.setFont(f); } catch (e) {} }
   GridDataFactory.fillDefaults()
     .grab(opts.grabH !== false, opts.grabV || false)
     .applyTo(grp);
@@ -1143,6 +1191,16 @@ function _group(parent, label, numColumns, opts) {
     .spacing(opts.spaceH || 4, opts.spaceV || 4)
     .applyTo(grp);
   return grp;
+}
+
+// Horizontal separator + sub-section label inside a multi-col group.
+// span = number of columns in the parent group's GridLayout.
+function _groupSep(parent, span, label) {
+  const sep = new LabelWidget(parent, SWT.SEPARATOR | SWT.HORIZONTAL);
+  GridDataFactory.fillDefaults().grab(true, false).span(span, 1).hint(SWT.DEFAULT, 6).applyTo(sep);
+  const lbl = new LabelWidget(parent, SWT.NONE);
+  lbl.setText(label);
+  GridDataFactory.fillDefaults().span(span, 1).applyTo(lbl);
 }
 
 // Label + read-only combo + items + selection + width hint + widget registration.
@@ -1167,9 +1225,9 @@ function _buildActionRow(area, ctx, dlg, hasVisual) {
   GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(btnRow);
 
   // " " (not "") so GTK reserves the title-bar slot — matches labelled siblings' height.
-  const grpCancel = _group(btnRow, " ",                    1, { grabV: true, spaceV: 0 });
-  const grpCreate = _group(btnRow, "Create new view",      2, { grabV: true, spaceV: 0 });
-  const grpModify = _group(btnRow, "Modify selected view", 2, { grabV: true, spaceV: 0 });
+  const grpCancel = _group(btnRow, " ",                    1, { grabV: true, spaceV: 0, bold: false });
+  const grpCreate = _group(btnRow, "Create new view",      2, { grabV: true, spaceV: 0, bold: false });
+  const grpModify = _group(btnRow, "Modify selected view", 2, { grabV: true, spaceV: 0, bold: false });
 
   _actionBtn(grpCancel, "Cancel", () => {
     _persistSession(ctx);  // remember _lastTabIndex even on cancel
@@ -1190,29 +1248,20 @@ function _buildActionRow(area, ctx, dlg, hasVisual) {
 function _buildViewRow(area, ctx) {
   const w = ctx.widgets;
 
+  // 4-column grid: [Folder lbl] [Folder field] [Name lbl] [Name field] — single row.
   const grpView = _group(area, "View name and location", 4);
 
-  // Row 1: Name | name field | Suffix | suffix field
+  new LabelWidget(grpView, SWT.NONE).setText("Folder:");
+  const txtFolder = new TextWidget(grpView, SWT.BORDER);
+  txtFolder.setToolTipText("Archi folder path under /Views (e.g. /Project/Generated).");
+  GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtFolder);
+  w.txtViewFolder = txtFolder;
+
   new LabelWidget(grpView, SWT.NONE).setText("Name:");
   const txtName = new TextWidget(grpView, SWT.BORDER);
   txtName.setToolTipText("View name. Pre-filled from the first selected object.");
   GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtName);
-  
   w.txtViewName = txtName;
-
-  new LabelWidget(grpView, SWT.NONE).setText("Suffix:");
-  const txtSuffix = new TextWidget(grpView, SWT.BORDER);
-  txtSuffix.setToolTipText("Appended to view name. Auto-updated when algorithm changes.");
-  GridDataFactory.fillDefaults().grab(false, false).hint(120, SWT.DEFAULT).applyTo(txtSuffix);
-  
-  w.txtViewSuffix = txtSuffix;
-
-  // Row 2: Folder | folder field (span 3)
-  new LabelWidget(grpView, SWT.NONE).setText("Folder:");
-  const txtFolder = new TextWidget(grpView, SWT.BORDER);
-  txtFolder.setToolTipText("Archi folder path (e.g. /View/Project/Generated)");
-  GridDataFactory.fillDefaults().grab(true, false).span(3, 1).hint(280, SWT.DEFAULT).applyTo(txtFolder);
-  w.txtViewFolder = txtFolder;
 }
 
 // ── Preset row ────────────────────────────────────────────────────────────────
@@ -1221,18 +1270,19 @@ function _buildPresetRow(parent, ctx, dlg) {
   const w   = ctx.widgets;
   const row = new CompositeWidget(parent, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
-  GridLayoutFactory.fillDefaults().numColumns(5).margins(4, 2).spacing(4, 0).applyTo(row);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(9, 2).spacing(4, 0).applyTo(row);
 
   new LabelWidget(row, SWT.NONE).setText("Preset:");
   const cmbPreset = new ComboWidget(row, SWT.READ_ONLY | SWT.DROP_DOWN);
   GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(cmbPreset);
-  _refreshPresetCombo(cmbPreset);
+  _refreshPresetCombo(cmbPreset, ctx.config.name);
   w.cmbPreset = cmbPreset;
 
   cmbPreset.addListener(SWT.Selection, () => {
     const idx = cmbPreset.getSelectionIndex();
     if (idx < 0) return;
     try {
+      ctx.config.name = cmbPreset.getItem(idx);
       const loaded = PresetIO.readPreset(cmbPreset.getItem(idx));
       _mergePreset(ctx, loaded);
       _syncToUI(ctx);
@@ -1249,6 +1299,7 @@ function _buildPresetRow(parent, ctx, dlg) {
       } catch (e) { console.error("Load: " + e); }
     }
   });
+  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnLoad);
 
   const btnSave = _pushBtn(row, "Save", "Save current settings as a preset", () => {
     const name = window.prompt("Preset name:", ctx.config.name || "");
@@ -1256,14 +1307,16 @@ function _buildPresetRow(parent, ctx, dlg) {
     _saveUI(ctx);
     ctx.config.name = name;
     PresetIO.writePreset(name, ctx.config);
-    _refreshPresetCombo(cmbPreset);
+    _refreshPresetCombo(cmbPreset, name);
   });
+  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnSave);
 
   const btnManage = _pushBtn(row, "Manage…", "Rename or delete saved presets", () => {
     const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
     PresetsDialog.open();
-    _refreshPresetCombo(cmbPreset);
+    _refreshPresetCombo(cmbPreset, ctx.config.name);
   });
+  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).applyTo(btnManage);
 }
 
 // ── Sync config ↔ UI ──────────────────────────────────────────────────────────
@@ -1273,15 +1326,13 @@ function _syncToUI(ctx) {
   const w = ctx.widgets;
   const p = c.params || {};
 
-  // Style + algorithm
-  const algName   = c.algorithm || "Layered";
-  const alg       = ALGORITHMS[algName];
-  const styleName = (alg && alg.style) || "Flow";
-  const styleIdx  = Object.keys(STYLES).indexOf(styleName);
-  if (w.cmbStyle && styleIdx >= 0) w.cmbStyle.select(styleIdx);
-  _fillAlgorithmCombo(ctx);
-  const algIdx = STYLES[styleName] ? STYLES[styleName].algorithms.indexOf(algName) : 0;
-  if (w.cmbAlgorithm && algIdx >= 0) w.cmbAlgorithm.select(algIdx);
+  // Algorithm radio selection
+  const algName = c.algorithm || "Layered";
+  if (w.algRadios) {
+    w.algRadios.forEach(r => r.setSelection(false));
+    const r = w.algRadios.get(algName);
+    if (r) r.setSelection(true);
+  }
 
   // Direction / routing / label / ranking
   const DP     = DEFAULT_PRESET.params;
@@ -1323,19 +1374,16 @@ function _syncToUI(ctx) {
     while (ctx.relBlocks.length > 0) {
       const b = ctx.relBlocks[0];
       try { b.container.dispose(); } catch (e) {}
-      try { b.tableRow.container.dispose(); } catch (e) {}
       ctx.relBlocks.shift();
     }
     const layers = (c.relatedElements && c.relatedElements.layers) || [];
-    layers.forEach(layer => _addRelatedBlock(ctx, layer));
+    layers.forEach((layer, idx) => _addRelatedBlock(ctx, layer, { startCollapsed: idx > 0 }));
+    _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   }
 
   // View name: always pre-fill from the first selected object (captured in open()).
-  // Suffix: algorithm display name only (separator VIEW_NAME_SEPARATOR is added when building the view name).
   const viewName  = (ctx && ctx.firstName) || (c.view && c.view.name) || "";
-  const viewSuffix = (c.view && c.view.suffix) || c.algorithm || "Layered";
   if (w.txtViewName)   w.txtViewName.setText(viewName);
-  if (w.txtViewSuffix) w.txtViewSuffix.setText(viewSuffix);
   if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
 
   _updateAlgorithmControls(ctx);
@@ -1348,11 +1396,10 @@ function _saveUI(ctx) {
   if (!c.view)   c.view   = {};
   if (!c.filter) c.filter = { elementTypes: [], relationTypes: [], diagramTypes: [] };
 
-  // Algorithm
-  if (w.cmbAlgorithm && w.cmbStyle) {
-    const sty  = Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] || "Flow";
-    const algs = STYLES[sty] ? STYLES[sty].algorithms : [];
-    c.algorithm = algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
+  // Algorithm — read from radio buttons
+  if (w.algRadios) {
+    c.algorithm = "Layered"; // fallback
+    for (const [name, r] of w.algRadios) { if (r.getSelection()) { c.algorithm = name; break; } }
   }
 
   // Direction / routing / label / ranking
@@ -1399,45 +1446,20 @@ function _saveUI(ctx) {
 
   // View
   if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
-  if (w.txtViewSuffix) c.view.suffix = w.txtViewSuffix.getText().trim();
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
+  // c.view.suffix is preserved from preset round-trip but no longer mutated by the dialog;
+  // generate_view still honours a non-empty suffix from legacy preset files (see ARCHITECTURE.md §A.12).
 }
 
 // ── Algorithm controls ────────────────────────────────────────────────────────
 
-function _fillAlgorithmCombo(ctx) {
-  const w = ctx.widgets;
-  if (!w.cmbAlgorithm || !w.cmbStyle) return;
-  const sty  = Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] || "Flow";
-  const algs = STYLES[sty] ? STYLES[sty].algorithms : [];
-  w.cmbAlgorithm.removeAll();
-  algs.forEach(a => w.cmbAlgorithm.add(a));
-  w.cmbAlgorithm.select(0);
-}
-
-// When algorithm changes, always update the suffix field with the new algorithm name.
-// The suffix field shows only the algorithm name (no separator — separator is in VIEW_NAME_SEPARATOR).
-function _updateViewNameAlgorithm(ctx) {
-  const w = ctx.widgets;
-  if (!w.txtViewSuffix || !w.cmbAlgorithm) return;
-
-  const sty     = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
-  const algs    = STYLES[sty] ? STYLES[sty].algorithms : [];
-  const algName = algs[w.cmbAlgorithm.getSelectionIndex()] || "Layered";
-  w.txtViewSuffix.setText(algName);
-}
 
 function _updateAlgorithmControls(ctx) {
   const w = ctx.widgets;
-  if (!w.cmbAlgorithm) return;
-  const sty    = w.cmbStyle ? Object.keys(STYLES)[w.cmbStyle.getSelectionIndex()] : "Flow";
-  const algs   = STYLES[sty] ? STYLES[sty].algorithms : [];
-  const algIdx = w.cmbAlgorithm.getSelectionIndex();
-  const algName= (algIdx >= 0 && algs[algIdx]) ? algs[algIdx] : "Layered";
-  const alg    = ALGORITHMS[algName] || ALGORITHMS.Layered;
-
-  if (w.lblEngine)     w.lblEngine.setText("Engine: " + alg.engine);
-  if (w.lblAlgTooltip) w.lblAlgTooltip.setText(alg.tooltip || "");
+  if (!w.algRadios) return;
+  let algName = "Layered";
+  for (const [name, r] of w.algRadios) { if (r.getSelection()) { algName = name; break; } }
+  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
 
   const active = new Set(alg.activeParams || []);
   _enable(w.cmbDirection,       active.has("direction"));
@@ -1543,9 +1565,13 @@ function _mergePreset(ctx, validated) {
   }
 }
 
-function _refreshPresetCombo(combo) {
+function _refreshPresetCombo(combo, currentName) {
   combo.removeAll();
   PresetIO.listPresets().forEach(n => combo.add(n));
+  if (currentName) {
+    const i = combo.indexOf(currentName);
+    if (i >= 0) combo.select(i);
+  }
 }
 
 if (typeof module !== "undefined" && module.exports) {
