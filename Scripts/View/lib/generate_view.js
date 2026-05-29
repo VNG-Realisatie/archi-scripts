@@ -175,6 +175,16 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   // parentMap from nesting relations.
   const parentMap = {};
   const parentRels = [];
+
+  function _wouldCreateCycle(map, childId, parentId) {
+    let cur = parentId;
+    while (cur) {
+      if (cur === childId) return true;
+      cur = map[cur];
+    }
+    return false;
+  }
+
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
@@ -183,20 +193,26 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 
     if (!params.showInEveryContainer) {
       if (parentMap[childId] === undefined) {
-        parentMap[childId] = parentId;
-        parentRels.push(rel);
+        if (_wouldCreateCycle(parentMap, childId, parentId)) {
+          console.log(`Nesting skipped (cycle): ${srcId} → ${tgtId} (${rel.type})`);
+        } else {
+          parentMap[childId] = parentId;
+          parentRels.push(rel);
+        }
       }
     } else {
       const occs = occurrenceMap[childId] || [childId];
       const unassigned = occs.find(id => parentMap[id] === undefined);
-      if (unassigned) {
+      if (unassigned && !_wouldCreateCycle(parentMap, unassigned, parentId)) {
         parentMap[unassigned] = parentId;
       } else {
         const alreadyHere = occs.find(id => parentMap[id] === parentId);
         if (!alreadyHere) {
           const occId = `${childId}_occ_${occs.length}`;
-          occurrenceMap[childId] = [...occs, occId];
-          parentMap[occId] = parentId;
+          if (!_wouldCreateCycle(parentMap, occId, parentId)) {
+            occurrenceMap[childId] = [...occs, occId];
+            parentMap[occId] = parentId;
+          }
         }
       }
       parentRels.push(rel);
@@ -499,8 +515,10 @@ function _synthesiseSelfLoopBendpoints(connection) {
  */
 function _sortNodesParentFirst(nodes, nodeById) {
   const depth = Object.create(null);
+  const VISITING = -1;
   function d(n) {
-    if (depth[n.id] !== undefined) return depth[n.id];
+    if (depth[n.id] !== undefined) return depth[n.id] === VISITING ? 0 : depth[n.id];
+    depth[n.id] = VISITING;
     const parent = n.parentId && nodeById[n.parentId];
     depth[n.id] = parent ? 1 + d(parent) : 0;
     return depth[n.id];

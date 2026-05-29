@@ -88,7 +88,10 @@ function _buildDOT(graph) {
     `  node [shape=rectangle width=${nodeW} height=${nodeH} fixedsize=true label=""]`,
   ];
 
-  function writeNode(id, indent) {
+  function writeNode(id, indent, visiting) {
+    if (!visiting) visiting = new Set();
+    if (visiting.has(id)) return;
+    visiting.add(id);
     const children = childrenOf[id] || [];
     const node     = graph.nodes.find(n => n.id === id);
     const label    = node ? (node.label || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') : "";
@@ -96,11 +99,12 @@ function _buildDOT(graph) {
       lines.push(`${indent}subgraph "cluster_${id}" {`);
       lines.push(`${indent}  graph [margin=${clusterMargin} label="${label}"]`);
       lines.push(`${indent}  "${id}"`);
-      children.forEach(cid => writeNode(cid, indent + "  "));
+      children.forEach(cid => writeNode(cid, indent + "  ", visiting));
       lines.push(`${indent}}`);
     } else {
       lines.push(`${indent}"${id}" [label="${label}"]`);
     }
+    visiting.delete(id);
   }
 
   // Write root nodes (not children)
