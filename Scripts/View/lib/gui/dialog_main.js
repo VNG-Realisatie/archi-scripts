@@ -1097,7 +1097,7 @@ function _buildLayoutTab(tabFolder, ctx) {
         if (alg.tooltip) radio.setToolTipText(alg.tooltip);
         GridDataFactory.fillDefaults().grab(true, false).applyTo(radio);
         algRadios.set(algName, radio);
-        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) _updateAlgorithmControls(ctx); });
+        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) { _updateAlgorithmControls(ctx); _updateConditionalControls(ctx); } });
       } else {
         // Empty placeholder: grab so the column still flexes even with no radio button.
         const ph = new LabelWidget(algTableComp, SWT.NONE);
@@ -1154,6 +1154,10 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpVS, "Max height:", "spinMaxHeight", 0, 0, 99999, 100, w);
 
   _addCombo(grpVS, "Aspect ratio:", AR_LABELS, 0, 110, "cmbAspectRatio", w);
+
+  w.spinMaxWidth.addListener(SWT.Selection,   () => _updateConditionalControls(ctx));
+  w.spinMaxHeight.addListener(SWT.Selection,  () => _updateConditionalControls(ctx));
+  w.cmbAspectRatio.addListener(SWT.Selection, () => _updateConditionalControls(ctx));
 
   finish();
 }
@@ -1410,6 +1414,7 @@ function _syncToUI(ctx) {
   if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
 
   _updateAlgorithmControls(ctx);
+  _updateConditionalControls(ctx);
 }
 
 function _saveUI(ctx) {
@@ -1525,6 +1530,46 @@ function _updateAlgorithmControls(ctx) {
     const ni = supported.indexOf(curLabel);
     w.cmbLabelPosition.select(ni >= 0 ? ni : 0);
     _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
+  }
+}
+
+function _getConflictWidget(w, param) {
+  if (param === "aspectRatio") return w.cmbAspectRatio;
+  if (param === "maxWidth")    return w.spinMaxWidth;
+  if (param === "maxHeight")   return w.spinMaxHeight;
+  return null;
+}
+
+function _conflictParamIsSet(w, param) {
+  if (param === "aspectRatio") return w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() > 0 : false;
+  if (param === "maxWidth")    return w.spinMaxWidth   ? w.spinMaxWidth.getSelection()  > 0 : false;
+  if (param === "maxHeight")   return w.spinMaxHeight  ? w.spinMaxHeight.getSelection() > 0 : false;
+  return false;
+}
+
+function _updateConditionalControls(ctx) {
+  const w = ctx.widgets;
+  if (!w.algRadios) return;
+  let algName = "Layered";
+  for (const [name, r] of w.algRadios) { if (r.getSelection()) { algName = name; break; } }
+  const alg      = ALGORITHMS[algName] || ALGORITHMS.Layered;
+  const conflicts = alg.paramConflicts;
+  if (!conflicts) return;
+
+  const active = new Set(alg.activeParams || []);
+
+  // First param (in insertion order) that is set becomes the "winner" and blocks the others.
+  const blocked = new Set();
+  for (const [param, conflicting] of Object.entries(conflicts)) {
+    if (_conflictParamIsSet(w, param)) {
+      conflicting.forEach(c => blocked.add(c));
+      break;
+    }
+  }
+
+  for (const param of Object.keys(conflicts)) {
+    const widget = _getConflictWidget(w, param);
+    if (widget && active.has(param)) _enable(widget, !blocked.has(param));
   }
 }
 

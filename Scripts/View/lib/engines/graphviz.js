@@ -15,19 +15,15 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-const Defs = require(REPO_ROOT + "View/lib/defs");
-const { SPLINE_SAMPLE_POINTS, ALGORITHMS } = Defs;
+const Defs         = require(REPO_ROOT + "View/lib/defs");
+const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
+const { applyParams } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
 const PT2PX = 96 / 72;
 
-// Dagre/Graphviz share the same rankdir values — local copy (no shared engine dep).
-const GRAPHVIZ_DIRECTION = {
-  "Left → Right": "LR",
-  "Right → Left": "RL",
-  "Top → Bottom": "TB",
-  "Bottom → Top": "BT",
-};
+// DIRECTION_MAP imported from defs.js — shared with dagre.js.
 
 // Default Graphviz binary name (dot). Can be overridden per-layout via graph.options.graphvizBin.
 const GRAPHVIZ_BIN_DEFAULT = "dot";
@@ -63,15 +59,15 @@ function _buildDOT(graph) {
   const opts     = graph.options;
 
   // Map GUI params to Graphviz graph attributes
-  const engineOpts = _applyParams(graph.algorithm, opts);
+  const engineOpts = applyParams(graph.algorithm, opts, PARAM_MAPPING);
   const splines    = engineOpts.splines || "polyline";
   const esep       = splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED;
   const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   // Node dimensions — not graph-level attributes; kept inline
-  const nodeW  = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
-  const nodeH  = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
-  const padding = opts.padding || 20;  // cluster subgraph margin (not graph-level pad)
+  const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
+  const nodeH        = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
+  const clusterMargin = Math.round((opts.innerSpacing || 20) * 0.75);  // px → pt (96dpi → 72pt/inch)
 
   const graphAttrs = `${gAttrStr} compound=true margin=0 esep="${esep}"`;
 
@@ -98,7 +94,7 @@ function _buildDOT(graph) {
     const label    = node ? (node.label || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') : "";
     if (children.length > 0) {
       lines.push(`${indent}subgraph "cluster_${id}" {`);
-      lines.push(`${indent}  graph [margin=${padding} label="${label}"]`);
+      lines.push(`${indent}  graph [margin=${clusterMargin} label="${label}"]`);
       lines.push(`${indent}  "${id}"`);
       children.forEach(cid => writeNode(cid, indent + "  "));
       lines.push(`${indent}}`);
@@ -384,65 +380,53 @@ function _guiRoutingToGraphviz(routing) {
 
 const PARAM_MAPPING = {
   Dot: {
-    direction:     (v)    => ({ rankdir: GRAPHVIZ_DIRECTION[v] }),
-    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
-    layerSpacing:  (v)    => ({ ranksep: (v / 96).toFixed(4) }),
-    elementSpacing:(v)    => ({ nodesep: (v / 96).toFixed(4) }),
-    padding:       (v)    => ({ pad:    (v / 96).toFixed(4) }),
-    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
-    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    direction:     (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    elementSpacing:(v) => ({ nodesep: (v / 96).toFixed(4) }),
+    padding:       (v) => ({ pad:    (v / 96).toFixed(4) }),
+    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
+    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Neato: {
-    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v)    => ({ pad: (v / 96).toFixed(4) }),
-    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
-    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
+    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
+    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   FDP: {
-    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v)    => ({ pad: (v / 96).toFixed(4) }),
-    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
-    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
+    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
+    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   SFDP: {
-    routing:       (v)    => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v)    => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
-    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
+    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Twopi: {
-    layerSpacing:  (v)    => ({ ranksep: (v / 96).toFixed(4) }),
-    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
-    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v)    => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
+    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Circo: {
-    elementSpacing:(v)    => ({ mindist: (v / 96).toFixed(4) }),
-    maxWidth:      (v, p) => v > 0 ? { size: `${(v/96).toFixed(3)},${p.maxHeight > 0 ? (p.maxHeight/96).toFixed(3) : 999}` } : {},
-    maxHeight:     (v, p) => p.maxWidth <= 0 && v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    elementSpacing:(v) => ({ mindist: (v / 96).toFixed(4) }),
+    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
+    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
 };
 
-/**
- * Map GUI params to Graphviz graph attributes.
- * @param {string} algName  algorithm name (key in PARAM_MAPPING)
- * @param {Object} opts     graph.options
- * @returns {Object}        Graphviz attribute object
- */
-function _applyParams(algName, opts) {
-  const map = PARAM_MAPPING[algName] || {};
-  const result = {};
-  for (const [key, fn] of Object.entries(map)) {
-    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
-  }
-  return result;
-}
+// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
 
 /**
  * Render a {key: value} object as a DOT graph attribute string.
@@ -451,7 +435,7 @@ function _applyParams(algName, opts) {
 function _renderGraphvizAttrs(attrs) {
   return Object.entries(attrs)
     .filter(([, v]) => v !== null && v !== undefined && String(v) !== '')
-    .map(([k, v]) => /[,\s]/.test(String(v)) ? `${k}="${v}"` : `${k}=${v}`)
+    .map(([k, v]) => { const s = String(v); return (/[,\s]/.test(s) || s.charAt(0) === '+') ? `${k}="${s}"` : `${k}=${s}`; })
     .join(' ');
 }
 

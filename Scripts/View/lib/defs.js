@@ -51,6 +51,7 @@ const ALGORITHMS = Object.freeze({
     },
     labelPositionDefault: "Middle",
     tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Tree: {
@@ -72,6 +73,7 @@ const ALGORITHMS = Object.freeze({
     },
     labelPositionDefault: "Middle",
     tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Force: {
@@ -80,8 +82,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
-      "reverseRelationTypes"],
+    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
@@ -93,8 +94,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // stress model has no notion of self-loop distance
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio", 
-      "reverseRelationTypes"],
+    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)",
@@ -107,9 +107,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
     activeParams:         [
-      "nestingRelationTypes", "padding", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
-      "reverseRelationTypes"
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
@@ -131,6 +129,7 @@ const ALGORITHMS = Object.freeze({
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Pack: {
@@ -148,6 +147,7 @@ const ALGORITHMS = Object.freeze({
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Dagre: {
@@ -190,7 +190,12 @@ const ALGORITHMS = Object.freeze({
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Structured process models and dependency flows with strong nesting support (Graphviz)",
+    tooltip: "Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   Neato: {
@@ -210,7 +215,12 @@ const ALGORITHMS = Object.freeze({
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Integration networks and application landscapes with partial nesting support (Graphviz)",
+    tooltip: "Spring-model layout for undirected networks with partial cluster nesting. No direction control (Graphviz neato)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   FDP: {
@@ -230,7 +240,12 @@ const ALGORITHMS = Object.freeze({
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Clustered integration networks with partial nesting support (Graphviz)",
+    tooltip: "Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   SFDP: {
@@ -242,14 +257,19 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "routing", "labelPosition",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "maxWidth", "maxHeight", "aspectRatio",
     ],
     supportedOptions: {
       routing:       ["Polyline", "Straight", "Spline (approximated)"],
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Large-scale integration networks and dependency maps without nesting support (Graphviz)",
+    tooltip: "Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   Twopi: {
@@ -260,14 +280,19 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "labelPosition",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "layerSpacing", "elementWidth", "elementHeight",
       "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz)",
+    tooltip: "Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   Circo: {
@@ -279,13 +304,18 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "labelPosition",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "maxWidth", "maxHeight", "aspectRatio",
     ],
     supportedOptions: {
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Cyclic dependency and domain overviews with limited nesting support (Graphviz)",
+    tooltip: "Circular layout placing nodes on concentric circles. Best for ring topologies and cyclic dependency patterns (Graphviz circo)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 });
 
@@ -347,6 +377,15 @@ const ACYCLICER = Object.freeze([
   { val: "Default", default: true },
   { val: "Greedy" },
 ]);
+
+// ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
+
+const DIRECTION_MAP = Object.freeze({
+  "Left → Right": "LR",
+  "Right → Left": "RL",
+  "Top → Bottom": "TB",
+  "Bottom → Top": "BT",
+});
 
 // ── Label positions ───────────────────────────────────────────────────────────
 
@@ -592,7 +631,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     STYLES, ALGORITHMS, ALGO_ENGINE,
     ACTION, ROUTING,
-    DIRECTIONS,
+    DIRECTIONS, DIRECTION_MAP,
     RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,

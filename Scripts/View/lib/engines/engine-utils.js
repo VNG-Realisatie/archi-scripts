@@ -111,6 +111,25 @@ function equalizeLeafWidths(items, parentMap) {
   return items;
 }
 
+// ── Parameter mapping ─────────────────────────────────────────────────────────
+
+/**
+ * Apply a PARAM_MAPPING for the given algorithm and options.
+ * Each engine owns its own mapping object; this function is the shared executor.
+ * @param {string} algName
+ * @param {Object} opts      graph.options
+ * @param {Object} mapping   the engine's PARAM_MAPPING
+ * @returns {Object}         merged attribute object
+ */
+function applyParams(algName, opts, mapping) {
+  const map = mapping[algName] || {};
+  const result = {};
+  for (const [key, fn] of Object.entries(map)) {
+    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
+  }
+  return result;
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, equalizeLeafWidths };
+  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, equalizeLeafWidths, applyParams };
 }

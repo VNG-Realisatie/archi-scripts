@@ -12,19 +12,11 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { ALGORITHMS } = Defs;
+const { ALGORITHMS, DIRECTION_MAP } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, equalizeLeafWidths } = EngineUtils;
+const { selfLoopResult, sortedNodes, equalizeLeafWidths, applyParams } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
-
-// Dagre / Graphviz use the same rankdir values — local copy (no shared engine dep).
-const DAGRE_DIRECTION = {
-  "Left → Right": "LR",
-  "Right → Left": "RL",
-  "Top → Bottom": "TB",
-  "Bottom → Top": "BT",
-};
 
 // Dagre ranker identifiers mapped from GUI ranking labels.
 const RANKER = {
@@ -35,7 +27,7 @@ const RANKER = {
 
 const PARAM_MAPPING = {
   Dagre: {
-    direction:      (v) => ({ rankdir: DAGRE_DIRECTION[v] }),
+    direction:      (v) => ({ rankdir: DIRECTION_MAP[v] }),
     ranking:        (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
     acyclicer:      (v) => v === "Greedy" ? { acyclicer: "greedy" } : {},
     layerSpacing:   (v) => ({ ranksep: v }),
@@ -44,20 +36,7 @@ const PARAM_MAPPING = {
   },
 };
 
-/**
- * Map GUI params to Dagre graph options.
- * @param {string} algName  algorithm name (key in PARAM_MAPPING)
- * @param {Object} opts     graph.options
- * @returns {Object}        Dagre graph option object
- */
-function _applyParams(algName, opts) {
-  const map = PARAM_MAPPING[algName] || {};
-  const result = {};
-  for (const [key, fn] of Object.entries(map)) {
-    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
-  }
-  return result;
-}
+// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -124,7 +103,7 @@ function layout(graph) {
   const nodes = graph.sortContainers ? sortedNodes(graph.nodes, parentMap) : graph.nodes;
   if (graph.alignWidthSameType) equalizeLeafWidths(nodes, parentMap);
 
-  const engineOpts = _applyParams("Dagre", graph.options);
+  const engineOpts = applyParams("Dagre", graph.options, PARAM_MAPPING);
 
   // Separate self-loops from regular edges
   const selfLoops    = [];
