@@ -155,15 +155,17 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "dagre",
     style:                "Flow",
     supportsNesting:      "partial",
-    supportsSelfLoops:    false,  // Dagre core silently drops self-loops
+    supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
-      "direction", "ranking", "labelPosition", "reverseRelationTypes",
+      "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
+      "sortContainers", "alignWidthSameType",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
       ranking:       ["Balanced", "Uniform", "Top-aligned"],
+      acyclicer:     ["Default", "Greedy"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
@@ -339,6 +341,13 @@ const RANKING = Object.freeze([
   { val: "Top-aligned" },
 ]);
 
+// ── Acyclicer options (Dagre only) ────────────────────────────────────────────
+
+const ACYCLICER = Object.freeze([
+  { val: "Default", default: true },
+  { val: "Greedy" },
+]);
+
 // ── Label positions ───────────────────────────────────────────────────────────
 
 const LABEL_POSITIONS = Object.freeze([
@@ -433,6 +442,7 @@ const DEFAULT_PRESET = Object.freeze({
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
+    acyclicer:             "Default",
     reverseRelationTypes:  [],
     nestingRelationTypes:  [],
     innerSpacing:          20,
@@ -583,7 +593,7 @@ if (typeof module !== "undefined" && module.exports) {
     STYLES, ALGORITHMS, ALGO_ENGINE,
     ACTION, ROUTING,
     DIRECTIONS,
-    RANKING, LABEL_POSITIONS, AR_OPTIONS,
+    RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME,

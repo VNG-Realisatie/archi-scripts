@@ -26,7 +26,7 @@ const GenView   = require(REPO_ROOT + "View/lib/generate_view");
 const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 
 const {
-  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, LABEL_POSITIONS, AR_OPTIONS,
+  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPES, ELEMENT_TYPES, DIAGRAM_TYPES,
   DEFAULT_PRESET, validatePreset,
   encodeRelType, decodeRelType,
@@ -58,8 +58,11 @@ const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants"
 
 const DIRECTION_LABELS   = DIRECTIONS.map(d => d.val);
 const ROUTING_ALL        = Object.values(ROUTING).map(r => r.label);
+const ROUTING_TOOLTIPS   = Object.fromEntries(Object.values(ROUTING).map(r => [r.label, r.tooltip]));
 const LABEL_POS_ALL      = LABEL_POSITIONS.map(lp => lp.val);
+const LABEL_POS_TOOLTIPS = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp.val, lp.tooltip]));
 const RANKING_LABELS     = RANKING.map(r => r.val);
+const ACYCLICER_LABELS   = ACYCLICER.map(a => a.val);
 const AR_LABELS          = AR_OPTIONS.map(a => a.label);
 const REL_TYPE_LABELS    = Object.values(RELATION_TYPES).map(r => r.label);
 const REL_TYPE_IDS       = Object.values(RELATION_TYPES).map(r => r.id);
@@ -1110,8 +1113,14 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   _addCombo(grpAlg, "Flow direction:",  DIRECTION_LABELS, 0, 120, "cmbDirection",     w);
   _addCombo(grpAlg, "Relation lines:",  ROUTING_ALL,      0, 160, "cmbRouting",       w);
+  w.cmbRouting.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS));
+  _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS);
+
   _addCombo(grpAlg, "Label:",           LABEL_POS_ALL,    1,  90, "cmbLabelPosition", w);
-  _addCombo(grpAlg, "Layer ranking:",   RANKING_LABELS,   0, 110, "cmbRanking",       w);
+  w.cmbLabelPosition.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS));
+  _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
+  _addCombo(grpAlg, "Layer ranking:",   RANKING_LABELS,   0, 110, "cmbRanking",       w, "How nodes are assigned to rank layers. Balanced minimises edge lengths; Uniform places nodes at the shallowest possible rank; Top-aligned pulls nodes to the deepest rank.");
+  _addCombo(grpAlg, "Cycle breaking:",  ACYCLICER_LABELS, 0,  90, "cmbAcyclicer",     w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
   _addSpinnerRow(grpAlg, "Level spacing:", "spinLayerSpacing", 180, 0, 2000, 20, w);
   // Fill the remaining 2 cells of this row so the spinner pair doesn't wrap oddly.
   new LabelWidget(grpAlg, SWT.NONE); new LabelWidget(grpAlg, SWT.NONE);
@@ -1204,12 +1213,13 @@ function _groupSep(parent, span, label) {
 }
 
 // Label + read-only combo + items + selection + width hint + widget registration.
-function _addCombo(parent, label, items, selectedIdx, widthHint, key, w) {
+function _addCombo(parent, label, items, selectedIdx, widthHint, key, w, tooltip) {
   if (label) new LabelWidget(parent, SWT.NONE).setText(label);
   const cmb = new ComboWidget(parent, SWT.READ_ONLY | SWT.DROP_DOWN);
   items.forEach(it => cmb.add(it));
   cmb.select(selectedIdx);
   GridDataFactory.swtDefaults().hint(widthHint, SWT.DEFAULT).applyTo(cmb);
+  if (tooltip) cmb.setToolTipText(tooltip);
   w[key] = cmb;
   return cmb;
 }
@@ -1353,6 +1363,7 @@ function _syncToUI(ctx) {
   _comboSelect(w.cmbRouting,      ROUTING_ALL,      p.routing       || DP.routing);
   _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition || algDef.labelPositionDefault || DP.labelPosition);
   _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking       || DP.ranking);
+  _comboSelect(w.cmbAcyclicer,    ACYCLICER_LABELS, p.acyclicer     || DP.acyclicer);
 
   // Nesting / reverse multi-select lists
   if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
@@ -1419,6 +1430,7 @@ function _saveUI(ctx) {
   if (w.cmbRouting)       { const _ri = w.cmbRouting.getSelectionIndex(); c.params.routing = (_ri >= 0 ? w.cmbRouting.getItem(_ri) : null) || "Orthogonal"; }
   if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
   if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
+  if (w.cmbAcyclicer)     c.params.acyclicer     = ACYCLICER_LABELS[w.cmbAcyclicer.getSelectionIndex()]   || "Default";
 
   // Nesting / reverse
   if (w.lstNestingTypes)  c.params.nestingRelationTypes = _relLabelsToIds(_listGetSelected(w.lstNestingTypes));
@@ -1478,6 +1490,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.cmbRouting,         active.has("routing"));
   _enable(w.cmbLabelPosition,   active.has("labelPosition"));
   _enable(w.cmbRanking,         active.has("ranking"));
+  _enable(w.cmbAcyclicer,       active.has("acyclicer"));
   _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
   _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));
   _enable(w.spinInnerSpacing,   active.has("innerSpacing"));
@@ -1499,6 +1512,7 @@ function _updateAlgorithmControls(ctx) {
     supported.forEach(r => w.cmbRouting.add(r));
     const ni = supported.indexOf(curLabel);
     w.cmbRouting.select(ni >= 0 ? ni : 0);
+    _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS);
   }
 
   // Label position: add Natural only for Graphviz
@@ -1510,6 +1524,7 @@ function _updateAlgorithmControls(ctx) {
     supported.forEach(lp => w.cmbLabelPosition.add(lp));
     const ni = supported.indexOf(curLabel);
     w.cmbLabelPosition.select(ni >= 0 ? ni : 0);
+    _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
   }
 }
 
@@ -1519,6 +1534,13 @@ function _comboSelect(combo, items, value) {
   if (!combo) return;
   const idx = items.indexOf(value);
   combo.select(idx >= 0 ? idx : 0);
+}
+
+function _comboTooltipSync(combo, tooltipMap) {
+  if (!combo) return;
+  const idx = combo.getSelectionIndex();
+  const tip = idx >= 0 ? tooltipMap[combo.getItem(idx)] : null;
+  if (tip) combo.setToolTipText(tip);
 }
 
 function _spinSet(spinner, value) {
