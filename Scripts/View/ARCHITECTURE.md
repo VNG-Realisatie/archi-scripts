@@ -99,7 +99,7 @@ Three layers, top to bottom. Each layer talks only to the one below.
 │  Layer 1 — Entry points                                  │
 │  Two sibling flavours, both produce                      │
 │  (selection, preset, action) and call the layer below:   │
-│    • Configuration dialog — interactive preset editing,  │
+│    • Generate View dialog — define selection + layout,  │
 │      live counts driven by the same pipeline the         │
 │      generation API uses; on confirm, invokes the API.   │
 │    • Preset-bound scripts — headless. Examples:          │
@@ -144,14 +144,47 @@ Shared infrastructure (used by Layers 1–2, not a layer itself):
 
 ### Boundaries
 
-- **The configuration dialog owns preset editing.** It is the only entry-point flavour permitted to change a preset value or write to preset storage.
+#### View-generation API (Layer 1 → Layer 2)
+
+The public entry point is `generate_view(selection, preset, action)`. Three inputs:
+- **Selection** — the objects the user picked in Archi. Can be model-tree items (folders, elements, relations) or canvas objects (VisualElements, VisualRelations, DiagramObjects) from a view, or a whole view node. Mixed selections are valid. Passed as-is; the pipeline normalises them.
+- **Preset** — a validated configuration bundle:
+  - *Algorithm* — which layout engine and algorithm to use.
+  - *Layout parameters* — spacing, direction, routing style, view-size constraints, nesting and reversal flags.
+  - *Filters* — element types, relation types (with per-direction toggles), diagram-object types to include.
+  - *Related-elements layers* — an ordered list of expansion steps, each specifying which relation types to follow, how many hops, and an element-type pruning filter.
+  - *View naming* — folder and name/suffix used when creating new views.
+- **Action** — a runtime verb, never part of the preset:
+  - `NEW_VIEW` — create a fresh view from the full selection.
+  - `ONE_EACH` — create one view per selected element.
+  - `EXPAND_VIEW` — add related elements to an existing view; existing visuals stay in place.
+  - `LAYOUT_ONLY` — re-layout the existing view contents without adding or removing elements.
+
+Output: `ArchimateView[]` — the views that were written or updated, with all elements positioned and relations routed.
+
+#### Engine adapter API (Layer 2 → Layer 3)
+
+The adapter contract is `layout(LayoutGraph) → LayoutResult`. Input:
+- **Nodes** — one per element or diagram object. Each carries an id, display label, element type, fixed width and height (leaf nodes) or no size (containers — the engine sizes them from their children), and an optional parent id expressing nesting.
+- **Edges** — one per routed relation. Each carries source and target node ids (already swapped for reversed relation types), a label, and a layout weight. Nesting relations that resolve to containment are expressed via `parent` on the child node, not as edges.
+- **Options** — algorithm-specific parameters translated by the adapter from the preset (direction, spacing, routing style, padding, etc.).
+- **View-size constraints** — at most one of maxWidth, maxHeight, or aspectRatio is non-zero at a time.
+- **Flags** — `alignWidthSameType`, `sortContainers`.
+
+Output:
+- **Nodes** — same ids, with absolute x/y/width/height and a parentId (for the orchestrator's parent-relative conversion).
+- **Edges** — same ids, with absolute bendpoints and an optional label position. Straight edges carry `isStraight: true`.
+- **viewWidth, viewHeight** — natural bounding box of the result.
+
+#### Boundary rules
+
+- **The entry-points layer is replaceable.** Any caller that can produce a validated preset + a selection can drive the view-generation API directly.
+- **The Generate View dialog owns preset editing.** It is the only entry-point flavour permitted to change a preset value or write to preset storage.
 - **Preset-bound entry points are read-only over presets.** They load a preset, pass it to the view-generation API, and exit. No UI, no logic.
 - **The view-generation API is the only writer to views.** No other layer changes view contents.
 - **The API → adapter boundary is the engine-independent layout graph.** Adapters must not see selections, presets, or views.
-- **SSOT is read-only at runtime.** Adding an algorithm, a parameter, or a diagram-object type is a single-file change.
 - **Engine adapters are isolated.** Adding a new engine requires no changes to other layers or other adapters.
 - **Strict SSOT / adapter separation.** The SSOT contains only functional definitions: algorithm metadata, GUI parameters, display labels, allowed values, and preset defaults. All engine-specific translations — option names, unit conversions, flag values — live exclusively in the engine adapters. Adding a new algorithm requires one SSOT entry and one adapter entry; no other module changes.
-- **The entry-points layer is replaceable.** Any caller that can produce a validated preset + a selection can drive the view-generation API directly.
 
 ## Data model
 
@@ -263,9 +296,9 @@ The writer ([Invariants](#invariants)) consults the VisualSet per result object:
 
 For actions in the **Create new view** group, the VisualSet is empty. For actions in the **Modify selected view** group, it is captured from the target view before the pipeline runs.
 
-## Configuration dialog
+## Generate View dialog
 
-The UI is a tabbed dialog that drives the orchestrator. Top-to-bottom structure:
+The **Generate View dialog** lets you define a selection and layout, then run view generation. You can save your configuration as a named preset and reload it later. Top-to-bottom structure:
 
 ```
 ┌─ Generate View ──────────────────────────────────────────────────────────────┐
@@ -556,7 +589,7 @@ The pipeline takes a user selection plus a validated preset plus an action and r
 
 ### Action-group dispatch
 
-Pipeline behaviour is determined by the action's group, not by the individual action. The two groups mirror the configuration dialog's action row ([Action row](#action-row)):
+Pipeline behaviour is determined by the action's group, not by the individual action. The two groups mirror the Generate View dialog's action row ([Action row](#action-row)):
 
 | Group | Actions | VisualSet at pipeline start | Selection's role |
 |---|---|---|---|
@@ -1129,7 +1162,7 @@ Ref: `lib/engines/graphviz.js`.
 
 ## GUI dialog — dialog_main.js
 
-**Realises:** [Configuration dialog](#configuration-dialog).
+**Realises:** [Generate View dialog](#generate-view-dialog).
 
 ### Preset row
 
