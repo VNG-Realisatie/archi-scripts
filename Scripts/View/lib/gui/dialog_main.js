@@ -1097,7 +1097,7 @@ function _buildLayoutTab(tabFolder, ctx) {
         if (alg.tooltip) radio.setToolTipText(alg.tooltip);
         GridDataFactory.fillDefaults().grab(true, false).applyTo(radio);
         algRadios.set(algName, radio);
-        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) { _updateAlgorithmControls(ctx); _updateConditionalControls(ctx); } });
+        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) { _updateAlgorithmControls(ctx); } });
       } else {
         // Empty placeholder: grab so the column still flexes even with no radio button.
         const ph = new LabelWidget(algTableComp, SWT.NONE);
@@ -1126,11 +1126,11 @@ function _buildLayoutTab(tabFolder, ctx) {
   new LabelWidget(grpAlg, SWT.NONE); new LabelWidget(grpAlg, SWT.NONE);
 
   // ── Reverse layout direction ──────────────────────────────────────────────────
-  const grpRev = _group(page, "Draw these relation types reversed", 1);
+  const grpRev = _group(page, "Reversed - draw these relation types in other direction", 1);
   w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4);
 
   // ── Nesting structure (includes Container appearance) ─────────────────────────
-  const grpNest = _group(page, "Draw these relation types as containers (nesting)", 1);
+  const grpNest = _group(page, "Nesting - draw these relation types as containers", 1);
   w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4);
 
   // Container appearance as a sub-section inside Nesting structure.
@@ -1150,14 +1150,26 @@ function _buildLayoutTab(tabFolder, ctx) {
   // ── View size ──────────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View size", 6);
 
+  // Radio row: one radio per option, mutually exclusive by SWT.
+  const radioComp = new CompositeWidget(grpVS, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(12, 0).applyTo(radioComp);
+  GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(radioComp);
+
+  const _vsRadio = (label) => {
+    const r = new ButtonWidget(radioComp, SWT.RADIO);
+    r.setText(label);
+    r.addListener(SWT.Selection, () => { if (r.getSelection()) _applyViewSizeMode(ctx); });
+    return r;
+  };
+  w.radioViewSizeNone        = _vsRadio("None");
+  w.radioViewSizeMaxWidth    = _vsRadio("Max width");
+  w.radioViewSizeMaxHeight   = _vsRadio("Max height");
+  w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio");
+  w.radioViewSizeNone.setSelection(true);
+
   _addSpinnerRow(grpVS, "Max width:",  "spinMaxWidth",  0, 0, 99999, 100, w);
   _addSpinnerRow(grpVS, "Max height:", "spinMaxHeight", 0, 0, 99999, 100, w);
-
   _addCombo(grpVS, "Aspect ratio:", AR_LABELS, 0, 110, "cmbAspectRatio", w);
-
-  w.spinMaxWidth.addListener(SWT.Selection,   () => _updateConditionalControls(ctx));
-  w.spinMaxHeight.addListener(SWT.Selection,  () => _updateConditionalControls(ctx));
-  w.cmbAspectRatio.addListener(SWT.Selection, () => _updateConditionalControls(ctx));
 
   finish();
 }
@@ -1390,6 +1402,19 @@ function _syncToUI(ctx) {
   const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio !== undefined ? p.aspectRatio : DP.aspectRatio));
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
+  // View size radio — restore from config; infer from non-zero values for old presets without viewSizeMode.
+  {
+    const _vsAlg  = ALGORITHMS[c.algorithm] || {};
+    const _vsMode = p.viewSizeMode || _inferViewSizeMode(p, _vsAlg.paramConflicts);
+    const _vsMap  = {
+      none:        w.radioViewSizeNone,
+      maxWidth:    w.radioViewSizeMaxWidth,
+      maxHeight:   w.radioViewSizeMaxHeight,
+      aspectRatio: w.radioViewSizeAspectRatio,
+    };
+    Object.entries(_vsMap).forEach(([k, r]) => { if (r) r.setSelection(k === _vsMode); });
+  }
+
   // Filter multi-select lists
   if (w.lstFilterElements)  _listSelectLabels(w.lstFilterElements,  c.filter ? c.filter.elementTypes  : []);
   if (w.lstFilterRelations) _listSelectLabels(w.lstFilterRelations, c.filter ? _relIdsToLabels(c.filter.relationTypes || []) : []);
@@ -1414,7 +1439,6 @@ function _syncToUI(ctx) {
   if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
 
   _updateAlgorithmControls(ctx);
-  _updateConditionalControls(ctx);
 }
 
 function _saveUI(ctx) {
@@ -1456,7 +1480,8 @@ function _saveUI(ctx) {
   if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
   if (w.spinMaxHeight)      c.params.maxHeight      = w.spinMaxHeight.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
-  c.params.aspectRatio = AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0;
+  c.params.aspectRatio  = AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0;
+  c.params.viewSizeMode = _getViewSizeMode(w);
 
   // Filter
   if (w.lstFilterElements)  c.filter.elementTypes  = _listGetSelected(w.lstFilterElements);
@@ -1504,9 +1529,24 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
   _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
   _enable(w.spinLayerSpacing,   active.has("layerSpacing"));
-  _enable(w.spinMaxWidth,       active.has("maxWidth"));
-  _enable(w.spinMaxHeight,      active.has("maxHeight"));
-  _enable(w.cmbAspectRatio,     active.has("aspectRatio"));
+
+  // View size radios: enable/disable each option based on algorithm support.
+  // The spinners/combo are controlled by _applyViewSizeMode, not directly here.
+  _enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
+  _enable(w.radioViewSizeMaxHeight,   active.has("maxHeight"));
+  _enable(w.radioViewSizeAspectRatio, active.has("aspectRatio"));
+  // If the currently selected mode is no longer supported, fall back to None.
+  const _vsMode = _getViewSizeMode(w);
+  const _vsModeStillActive = _vsMode === "none"
+    || (_vsMode === "maxWidth"    && active.has("maxWidth"))
+    || (_vsMode === "maxHeight"   && active.has("maxHeight"))
+    || (_vsMode === "aspectRatio" && active.has("aspectRatio"));
+  if (!_vsModeStillActive && w.radioViewSizeNone) {
+    w.radioViewSizeNone.setSelection(true);
+    [w.radioViewSizeMaxWidth, w.radioViewSizeMaxHeight, w.radioViewSizeAspectRatio]
+      .forEach(r => { if (r) r.setSelection(false); });
+  }
+  _applyViewSizeMode(ctx);
 
   // Filter routing options to what this algorithm supports
   if (w.cmbRouting && alg.supportedOptions && alg.supportedOptions.routing) {
@@ -1533,44 +1573,27 @@ function _updateAlgorithmControls(ctx) {
   }
 }
 
-function _getConflictWidget(w, param) {
-  if (param === "aspectRatio") return w.cmbAspectRatio;
-  if (param === "maxWidth")    return w.spinMaxWidth;
-  if (param === "maxHeight")   return w.spinMaxHeight;
-  return null;
+function _getViewSizeMode(w) {
+  if (w.radioViewSizeMaxWidth    && w.radioViewSizeMaxWidth.getSelection())    return "maxWidth";
+  if (w.radioViewSizeMaxHeight   && w.radioViewSizeMaxHeight.getSelection())   return "maxHeight";
+  if (w.radioViewSizeAspectRatio && w.radioViewSizeAspectRatio.getSelection()) return "aspectRatio";
+  return "none";
 }
 
-function _conflictParamIsSet(w, param) {
-  if (param === "aspectRatio") return w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() > 0 : false;
-  if (param === "maxWidth")    return w.spinMaxWidth   ? w.spinMaxWidth.getSelection()  > 0 : false;
-  if (param === "maxHeight")   return w.spinMaxHeight  ? w.spinMaxHeight.getSelection() > 0 : false;
-  return false;
-}
-
-function _updateConditionalControls(ctx) {
-  const w = ctx.widgets;
-  if (!w.algRadios) return;
-  let algName = "Layered";
-  for (const [name, r] of w.algRadios) { if (r.getSelection()) { algName = name; break; } }
-  const alg      = ALGORITHMS[algName] || ALGORITHMS.Layered;
-  const conflicts = alg.paramConflicts;
-  if (!conflicts) return;
-
-  const active = new Set(alg.activeParams || []);
-
-  // First param (in insertion order) that is set becomes the "winner" and blocks the others.
-  const blocked = new Set();
-  for (const [param, conflicting] of Object.entries(conflicts)) {
-    if (_conflictParamIsSet(w, param)) {
-      conflicting.forEach(c => blocked.add(c));
-      break;
-    }
-  }
-
+function _inferViewSizeMode(params, conflicts) {
+  if (!conflicts || !params) return "none";
   for (const param of Object.keys(conflicts)) {
-    const widget = _getConflictWidget(w, param);
-    if (widget && active.has(param)) _enable(widget, !blocked.has(param));
+    if ((params[param] || 0) > 0) return param;
   }
+  return "none";
+}
+
+function _applyViewSizeMode(ctx) {
+  const w    = ctx.widgets;
+  const mode = _getViewSizeMode(w);
+  _enable(w.spinMaxWidth,   mode === "maxWidth");
+  _enable(w.spinMaxHeight,  mode === "maxHeight");
+  _enable(w.cmbAspectRatio, mode === "aspectRatio");
 }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────

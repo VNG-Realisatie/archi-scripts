@@ -70,6 +70,14 @@ function generate_view(rawPreset, uiSelection, actionId) {
   console.log(`\n=== generate_view ===`);
   console.log(`Algorithm: ${preset.algorithm}  Action: ${action}`);
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
+  {
+    const vsMode = _rawParams.viewSizeMode || "none";
+    const vsVal  = vsMode === "maxWidth"    ? `maxWidth=${_rawParams.maxWidth}`
+                 : vsMode === "maxHeight"   ? `maxHeight=${_rawParams.maxHeight}`
+                 : vsMode === "aspectRatio" ? `aspectRatio=${_rawParams.aspectRatio}`
+                 : "none";
+    console.log(`View size requested: ${vsVal}`);
+  }
 
   const views = [];
   try {
@@ -128,6 +136,16 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   const alg = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
   console.log(`Layout result: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+  if (result.nodes.length > 0) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of result.nodes) {
+      if (n.x           < x0) x0 = n.x;
+      if (n.y           < y0) y0 = n.y;
+      if (n.x + n.width > x1) x1 = n.x + n.width;
+      if (n.y + n.height> y1) y1 = n.y + n.height;
+    }
+    console.log(`View size generated: ${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`);
+  }
 
   // Write — single function, action-agnostic.
   return _writeView(preset, result, objectSet, view, graph._parentRels);

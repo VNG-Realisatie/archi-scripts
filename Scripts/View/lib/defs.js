@@ -496,6 +496,7 @@ const DEFAULT_PRESET = Object.freeze({
     maxWidth:              0,
     maxHeight:             0,
     aspectRatio:           0,
+    viewSizeMode:          "none",  // "none" | "maxWidth" | "maxHeight" | "aspectRatio"
   },
   filter: {
     elementTypes:  [],
@@ -619,10 +620,14 @@ function validatePreset(raw) {
 function effectiveParams(preset) {
   const alg = ALGORITHMS[preset.algorithm];
   if (!alg) return {};
-  const active = new Set(alg.activeParams || []);
+  const active       = new Set(alg.activeParams || []);
+  const viewSizeMode = (preset.params && preset.params.viewSizeMode) || "none";
+  const conflictKeys = new Set(Object.keys(alg.paramConflicts || {}));
   const out = {};
-  for (const key of Object.keys(preset.params)) {
-    if (active.has(key)) out[key] = preset.params[key];
+  for (const key of Object.keys(preset.params || {})) {
+    if (key === "viewSizeMode") continue;
+    if (!active.has(key))       continue;
+    out[key] = (conflictKeys.has(key) && key !== viewSizeMode) ? 0 : preset.params[key];
   }
   return out;
 }
