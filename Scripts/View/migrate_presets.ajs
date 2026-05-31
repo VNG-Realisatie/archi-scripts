@@ -64,8 +64,8 @@ function migratePreset(old) {
     action:    ACTION_MAP[old.action] || "new_view",
     params:    {},
     filter:    { elementTypes: [], relationTypes: [], diagramTypes: [] },
-    relatedElements: { layers: [] },
-    view:      { name: old.viewName || "", suffix: old.viewNameSuffix || "", folder: old.viewFolder || "" },
+    relatedElements: { steps: [] },
+    view:      { name: old.viewName || "", folder: old.viewFolder || "" },
   };
 
   const p = n.params;
@@ -94,9 +94,9 @@ function migratePreset(old) {
   if (old.includeRelationType && old.includeRelationType.length > 0)
     n.filter.relationTypes = old.includeRelationType;
 
-  // Related elements (graphDepth > 0 → one layer)
+  // Related elements (graphDepth > 0 → one step)
   if (old.graphDepth && old.graphDepth > 0) {
-    n.relatedElements.layers.push({
+    n.relatedElements.steps.push({
       depth: old.graphDepth,
       elementTypes:   old.includeElementType  || [],
       relationTypes:  old.includeRelationType || [],

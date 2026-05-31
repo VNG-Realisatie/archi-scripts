@@ -1,5 +1,5 @@
 {
-  "name": "Bedrijfsobjecten per beleidsdomein",
+  "name": "Bedrijfsobjecten beheerd door bedrijfsfuncties",
   "algorithm": "Pack",
   "params": {
     "direction": "Top → Bottom",
@@ -12,13 +12,14 @@
       "serving-relationship"
     ],
     "nestingRelationTypes": [
+      "access-relationship",
       "aggregation-relationship"
     ],
     "innerSpacing": 5,
     "padding": 10,
-    "sortContainers": false,
+    "sortContainers": true,
     "alignWidthSameType": true,
-    "showInEveryContainer": false,
+    "showInEveryContainer": true,
     "layerSpacing": 180,
     "elementSpacing": 100,
     "elementWidth": 180,
@@ -30,7 +31,7 @@
   },
   "filter": {
     "elementTypes": [
-      "grouping"
+      "business-function"
     ],
     "relationTypes": [],
     "diagramTypes": []
@@ -38,22 +39,31 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 4,
+        "depth": 3,
         "elementTypes": [
-          "grouping",
-          "business-object"
+          "business-function"
         ],
         "relationTypes": [
           "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "business-object"
+        ],
+        "relationTypes": [
+          "access-relationship:out"
         ],
         "diagramTypes": []
       }
     ]
   },
   "view": {
-    "name": "6 Sociaal Domein",
+    "name": "Uitvoering Sociaal Domein",
     "folder": "/_Test/_Generated"
   },
-  "_lastTabIndex": 0,
+  "_lastTabIndex": 1,
   "action": "new_view"
 }

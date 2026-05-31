@@ -76,7 +76,7 @@ function migratePreset(old, filename) {
       diagramTypes:  [],
     },
     relatedElements: {
-      layers: old.graphDepth && old.graphDepth > 0 ? [{
+      steps: old.graphDepth && old.graphDepth > 0 ? [{
         depth:         old.graphDepth,
         elementTypes:  old.includeElementType  || [],
         relationTypes: old.includeRelationType || [],
@@ -85,7 +85,6 @@ function migratePreset(old, filename) {
     },
     view: {
       name:   old.viewName       || "",
-      suffix: old.viewNameSuffix || "",
       folder: old.viewFolder     || "",
     },
   };

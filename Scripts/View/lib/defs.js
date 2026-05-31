@@ -468,9 +468,6 @@ const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
-// Separator inserted between view name and suffix when building the final view name
-const VIEW_NAME_SEPARATOR = " — ";
-
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
@@ -504,11 +501,10 @@ const DEFAULT_PRESET = Object.freeze({
     diagramTypes:  [],
   },
   relatedElements: {
-    layers: [],  // each: { depth: 1, elementTypes: [], relationTypes: [], diagramTypes: [] }
+    steps: [],  // each: { depth: 1, elementTypes: [], relationTypes: [], diagramTypes: [] }
   },
   view: {
     name:   "",
-    suffix: "",  // DEPRECATED — no longer surfaced in dialog; honoured at generation for legacy presets only. See ARCHITECTURE.md §A.12.
     folder: "",
   },
 });
@@ -588,20 +584,19 @@ function validatePreset(raw) {
     if (Array.isArray(raw.filter.diagramTypes))  preset.filter.diagramTypes  = raw.filter.diagramTypes;
   }
 
-  // relatedElements
-  if (raw.relatedElements && Array.isArray(raw.relatedElements.layers)) {
-    preset.relatedElements.layers = raw.relatedElements.layers.map(layer => ({
-      depth:         Number(layer.depth)         || 1,
-      elementTypes:  Array.isArray(layer.elementTypes)  ? layer.elementTypes  : [],
-      relationTypes: Array.isArray(layer.relationTypes) ? layer.relationTypes : [],
-      diagramTypes:  Array.isArray(layer.diagramTypes)  ? layer.diagramTypes  : [],
+  // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
+  if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
+    preset.relatedElements.steps = raw.relatedElements.steps.map(step => ({
+      depth:         Number(step.depth)         || 1,
+      elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
+      relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
+      diagramTypes:  Array.isArray(step.diagramTypes)  ? step.diagramTypes  : [],
     }));
   }
 
   // view
   if (raw.view && typeof raw.view === "object") {
     if (raw.view.name   !== undefined) preset.view.name   = String(raw.view.name);
-    if (raw.view.suffix !== undefined) preset.view.suffix = String(raw.view.suffix);
     if (raw.view.folder !== undefined) preset.view.folder = String(raw.view.folder);
   }
 
@@ -641,7 +636,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME,
-    SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
+    SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,

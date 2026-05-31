@@ -522,10 +522,16 @@ function open(uiSelection) {
       else if (t in Defs.DIAGRAM_TYPES)  _lDiag++;
       else                               _lEl++;
     }
-    console.log(`\nGUI — before dialog:`);
-    console.log(`  Selected:   ${selectedCount.elems} elements · ${selectedCount.rels} relations · ${selectedCount.views} views · ${selectedCount.diagrams} diagram objects · ${selectedCount.folders} folders`);
-    console.log(`  Containing: ${containingCount.elems} elements · ${containingCount.rels} relations · ${containingCount.diagrams} diagram objects`);
-    console.log(`  Filtered:   ${_lEl} elements · ${_lRel} relations · ${_lDiag} diagram objects`);
+    console.log("");
+    Pipeline.logCountBlock("GUI — before dialog:", [
+      // "Selected" reflects the raw UI pick — show views and folders too so users
+      // who clicked a view see "1 view" instead of all-zeros.
+      { label: "Selected:  ",
+        elems: selectedCount.elems, rels: selectedCount.rels,
+        views: selectedCount.views, diag: selectedCount.diagrams, folders: selectedCount.folders },
+      { label: "Containing:", elems: containingCount.elems, rels: containingCount.rels, diag: containingCount.diagrams },
+      { label: "Filtered:  ", elems: _lEl, rels: _lRel, diag: _lDiag },
+    ]);
   }
 
   // Has visual context: enables Expand view / Layout only buttons.
@@ -640,6 +646,43 @@ function _persistSession(ctx) {
  * Each block's counter line shows the additions contributed by THAT block alone.
  * Block N's pruned output is block N+1's base (cumulative cascade).
  */
+
+/**
+ * Format the on-screen "Output:" strip for the Generated view group. Multi-line,
+ * grouped by element/relation/diagram, hide-zero subfields, skip empty sub-lines.
+ * Uses the canonical vocabulary (ai/rules.md #11): containers · nested elements ·
+ * standalones · extra occurrences for the element role split; nestings · connections
+ * for the relation form split; diagram objects for canvas-only objects. "Relation"
+ * never appears on view-side rows (model-side term only).
+ */
+function _formatOutputLine(view) {
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+  const lines = ["Output:"];
+
+  // elements sub-line
+  const elSub = [];
+  if (view.containers > 0) {
+    elSub.push(plural(view.containers, "container", "containers"));
+    if (view.nestedElements   > 0) elSub.push(plural(view.nestedElements,   "nested element",    "nested elements"));
+    if (view.standalones      > 0) elSub.push(plural(view.standalones,      "standalone",        "standalones"));
+    if (view.extraOccurrences > 0) elSub.push(plural(view.extraOccurrences, "extra occurrence",  "extra occurrences"));
+  } else if (view.elements > 0) {
+    elSub.push(plural(view.elements, "element", "elements"));
+  }
+  if (elSub.length) lines.push(`  elements:    ${elSub.join(" · ")}`);
+
+  // relations sub-line (never the word "relations" — model-layer term only)
+  const relSub = [];
+  if (view.nestings    > 0) relSub.push(plural(view.nestings,    "nesting",    "nestings"));
+  if (view.connections > 0) relSub.push(plural(view.connections, "connection", "connections"));
+  if (relSub.length) lines.push(`  relations:   ${relSub.join(" · ")}`);
+
+  // diagram sub-line
+  if (view.diagramObjects > 0) lines.push(`  diagram:     ${plural(view.diagramObjects, "diagram object", "diagram objects")}`);
+
+  return lines.length === 1 ? "Output: —" : lines.join("\n");
+}
+
 function _updateFilteredCount(ctx) {
   const w = ctx.widgets;
   if (!w.lblFilteredCount) return;
@@ -675,34 +718,114 @@ function _updateFilteredCount(ctx) {
     // add the alias so "reference" filter correctly counts them.
     if (diagIds.has("diagram-model-reference")) diagIds.add("archimate-diagram-model");
 
-    // Filtered base
-    let elems = 0, rels = 0, diagrams = 0;
+    // Filtered base — only the elements survive the element-type filter and feed step 3.
+    // Per-type relations/diagrams in the raw selection are counted but reported separately
+    // (they are NOT what determines the "Filtered base: N relations" row — that's
+    // rels-between-filtered-elements, computed below).
+    let elems = 0, diagrams = 0;
     const filteredElements = [];
     for (const o of objects) {
       const t = o.type || "";
       if (t.endsWith("-relationship")) {
-        if (!relLabels.size || relIds.has(t)) rels++;
+        // explicit relations in the selection are not propagated to the view as bare
+        // edges — step 5 derives all view relations from the elements. So we don't
+        // include them in the filtered counter row anymore.
       } else if (t in DIAGRAM_TYPES) {
         if (!diagLabels.size || diagIds.has(t)) diagrams++;
       } else {
         if (!elemFilter.size || elemFilter.has(t)) { elems++; filteredElements.push(o); }
       }
     }
-    _setFiltered({ elems, rels, diagrams, views: 0, folders: 0 });
 
-    // Walk blocks: each block's pruned output becomes the next block's base.
-    let base = filteredElements;
-    for (const b of (ctx.relBlocks || [])) {
-      const layer = {
-        depth:         b.depthSpinner.getSelection(),
-        elementTypes:  b.typeSelector.getSelected(),
-        relationTypes: b.relCheckGrid.getEncoded(),
-        diagramTypes:  [],
-      };
-      const result = Pipeline.expandLayerCounts(base, layer);
-      _setRel(b, result.elemCount, result.relCount);
-      base = base.concat(result.elements);
+    // Build the effective rel-type filter once (global ∪ all steps' relationTypes).
+    const globalRelIds = _relLabelsToIds(Array.from(relLabels));
+    const steps = (ctx.relBlocks || []).map(b => ({
+      depth:         b.depthSpinner.getSelection(),
+      elementTypes:  b.typeSelector.getSelected(),
+      relationTypes: b.relCheckGrid.getEncoded(),
+      diagramTypes:  [],
+    }));
+    const effectiveRelFilter = Pipeline.effectiveRelTypeFilter(globalRelIds, steps);
+
+    // Rels-between filtered elements under the effective filter (NOT a raw-selection
+    // relation count). Honours the user's rule: "you can't have a relation without
+    // the elements" — only rels with both endpoints in the surviving element set count.
+    const filteredBaseRels = Pipeline.countRelationsBetween(filteredElements, effectiveRelFilter);
+    _setFiltered({ elems, rels: filteredBaseRels, diagrams, views: 0, folders: 0 });
+
+    // Walk steps under chain semantics: step 1's input is the filtered base; step N
+    // (N≥2)'s input is step N-1's added elements only. An empty step terminates the
+    // chain. Cumulative is tracked separately for the relation delta math so
+    // Filtered + Σ adds = Total exactly.
+    let cumulative   = filteredElements.slice();
+    let stepInput    = filteredElements.slice();
+    let prevRelCount = filteredBaseRels;
+    const stepCounts = [];
+    let stepIdx = 0;
+    for (let i = 0; i < (ctx.relBlocks || []).length; i++) {
+      stepIdx++;
+      const b = ctx.relBlocks[i];
+      const step = steps[i];
+      const added = Pipeline.expandStep(stepInput, step);
+      cumulative = cumulative.concat(added);
+      const cumRels = Pipeline.countRelationsBetween(cumulative, effectiveRelFilter);
+      const deltaRels = Math.max(0, cumRels - prevRelCount);
+      _setRel(b, added.length, deltaRels);
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: deltaRels });
+      prevRelCount = cumRels;
+      stepInput = added;                                                     // chain advance
     }
+
+    // Predict view-level counts (duplicates, containers) using the current params.
+    // The on-screen Output row + console block must reflect what the writer will produce.
+    const livePresetParams = {
+      nestingRelationTypes: w.lstNestingTypes ? _relLabelsToIds(_listGetSelected(w.lstNestingTypes)) : [],
+      reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
+      showInEveryContainer: !!(w.chkShowInEvery && w.chkShowInEvery.getSelection()),
+    };
+    // predictViewCounts needs the actual rels (not just count) to split into nesting/routed.
+    const finalRels = Pipeline.findRelationsBetween(cumulative, effectiveRelFilter);
+    const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams);
+
+    // Update the on-screen Output line in the "Generated view" group (always visible,
+    // multi-line, hide-zero per the canonical-vocabulary plan).
+    if (w.lblViewTotals) {
+      try {
+        w.lblViewTotals.setText(_formatOutputLine(view));
+        const parent = w.lblViewTotals.getParent && w.lblViewTotals.getParent();
+        if (parent && parent.layout) parent.layout();
+      } catch (e) {}
+    }
+
+    // Console grouped block — same grouped Total to view shape as the pipeline so
+    // dialog prediction and pipeline result can be compared row-by-row.
+    const rows = [{
+      label: "Filtered base:",
+      elements: elems, relations: filteredBaseRels, diagramObjects: diagrams,
+    }];
+    for (const lc of stepCounts) {
+      rows.push({ label: `Step ${lc.idx} adds: `, elements: lc.elems, relations: lc.rels });
+    }
+    if (stepCounts.length > 0) rows.push({ rule: true });
+    rows.push({
+      label: "Total to view:",
+      group: [
+        { sublabel: "elements:  ", fields: [
+            ["containers",       view.containers],
+            ["nestedElements",   view.nestedElements],
+            ["standalones",      view.standalones],
+            ["extraOccurrences", view.extraOccurrences],
+          ] },
+        { sublabel: "relations: ", fields: [
+            ["nestings",         view.nestings],
+            ["connections",      view.connections],
+          ] },
+        { sublabel: "diagram:   ", fields: [
+            ["diagramObjects",   view.diagramObjects],
+          ] },
+      ],
+    });
+    Pipeline.logCountBlock("GUI — live counters:", rows);
   } catch (e) {
     _setFilteredError();
     (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
@@ -741,14 +864,21 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   new LabelWidget(ctrComp, SWT.NONE).setText("Selected in Archi:");
   w.lblSelectedCount = _selLine(ctrComp);
   w.lblSelectedCount.setText(_formatCountsBody(selected, ctx.firstObject));
+  w.lblSelectedCount.setToolTipText(
+    "Raw count of what you picked in Archi (model tree or canvas), before expansion or filtering.");
 
   new LabelWidget(ctrComp, SWT.NONE).setText("Containing:");
   w.lblContainingCount = _selLine(ctrComp);
   w.lblContainingCount.setText(_formatCountsBody(containing));
+  w.lblContainingCount.setToolTipText(
+    "After recursively expanding folders to their elements and views to their visual contents.");
 
   new LabelWidget(ctrComp, SWT.NONE).setText("Filtered:");
   w.lblFilteredCount = _selLine(ctrComp);
   w.lblFilteredCount.setText("—");
+  w.lblFilteredCount.setToolTipText(
+    "After the global filter (element / relation / diagram types) is applied. " +
+    "This is the base for any related-elements steps below.");
 
   // Horizontal rule separating count lines from the filter sub-section.
   const filterSep = new LabelWidget(grpInfo, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -766,7 +896,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   w.lstFilterDiagram = _checkboxGrid(grpInfo, DIAG_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
-  // Dynamic multi-block UI. Each block is an independent expansion layer with its
+  // Dynamic multi-block UI. Each block is an independent expansion step with its
   // own relation types (each with two direction checkboxes), element filter, and
   // relation-levels (depth) control.
   const grpRel = _group(page, "Add related elements", 1);
@@ -885,9 +1015,9 @@ function _relCheckGrid(parent, numCols, onChange) {
 }
 
 // Append a new block to the Related elements group.
-// layerData (optional): { depth, elementTypes, relationTypes } from a preset to restore.
+// stepData (optional): { depth, elementTypes, relationTypes } from a preset to restore.
 // opts.startCollapsed (optional boolean): if true, build the block in collapsed state.
-function _addRelatedBlock(ctx, layerData, opts) {
+function _addRelatedBlock(ctx, stepData, opts) {
   const w = ctx.widgets;
   const blocksContainer = w.blocksContainer;
   const idx = ctx.relBlocks.length;
@@ -913,6 +1043,10 @@ function _addRelatedBlock(ctx, layerData, opts) {
   const lblBlockCounts = new LabelWidget(header, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.CENTER).applyTo(lblBlockCounts);
   lblBlockCounts.setText("nothing");
+  lblBlockCounts.setToolTipText(
+    "What THIS step adds on top of the base (delta, not cumulative). " +
+    "Filtered + every step's added = total on the view.");
+  lblAddedPfx.setToolTipText(lblBlockCounts.getToolTipText());
 
   const _hdrBtn = (txt, tip) => {
     const b = new ButtonWidget(header, SWT.PUSH);
@@ -974,10 +1108,10 @@ function _addRelatedBlock(ctx, layerData, opts) {
   btnRemove.addListener(SWT.Selection, () => _removeRelatedBlock(ctx, blockObj));
 
   // Restore from preset if provided
-  if (layerData) {
-    relCheckGrid.setEncoded(layerData.relationTypes || []);
-    typeSelector.setSelected(layerData.elementTypes || []);
-    depthSpinner.setSelection(Number(layerData.depth) || 1);
+  if (stepData) {
+    relCheckGrid.setEncoded(stepData.relationTypes || []);
+    typeSelector.setSelected(stepData.elementTypes || []);
+    depthSpinner.setSelection(Number(stepData.depth) || 1);
   }
 
   // Apply initial collapsed state (used when loading presets: step 1 expanded, rest collapsed).
@@ -1125,13 +1259,18 @@ function _buildLayoutTab(tabFolder, ctx) {
   // Fill the remaining 2 cells of this row so the spinner pair doesn't wrap oddly.
   new LabelWidget(grpAlg, SWT.NONE); new LabelWidget(grpAlg, SWT.NONE);
 
+  // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
+  // role split (nestings vs connections, containers vs nested elements, occurrence
+  // duplication) — refresh the live Output counters so the dialog reflects the change.
+  const onParamsChange = () => _updateFilteredCount(ctx);
+
   // ── Reverse layout direction ──────────────────────────────────────────────────
   const grpRev = _group(page, "Reversed - draw these relation types in other direction", 1);
-  w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4);
+  w.lstReverseTypes = _checkboxGrid(grpRev, REL_TYPE_LABELS, 4, onParamsChange);
 
   // ── Nesting structure (includes Container appearance) ─────────────────────────
   const grpNest = _group(page, "Nesting - draw these relation types as containers", 1);
-  w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4);
+  w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4, onParamsChange);
 
   // Container appearance as a sub-section inside Nesting structure.
   _groupSep(grpNest, 1, "Container appearance");
@@ -1146,6 +1285,9 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCheck(ctrComp, "Sort containers",         "Sort containers alphabetically within each level.",                         4, w, "chkSortContainers");
   _addCheck(ctrComp, "Align width same type",   "Equalize widths of same-type leaf siblings within each container.",        4, w, "chkAlignWidthSameType");
   _addCheck(ctrComp, "Show in every container", "An element in multiple containers appears in each of them.",               4, w, "chkShowInEvery");
+  // Refresh the live Output counters when 'Show in every container' toggles —
+  // it changes the extra-occurrences prediction.
+  if (w.chkShowInEvery) w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
 
   // ── View size ──────────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View size", 6);
@@ -1274,8 +1416,9 @@ function _buildActionRow(area, ctx, dlg, hasVisual) {
 function _buildViewRow(area, ctx) {
   const w = ctx.widgets;
 
-  // 4-column grid: [Folder lbl] [Folder field] [Name lbl] [Name field] — single row.
-  const grpView = _group(area, "View name and location", 4);
+  // 4-column grid: [Folder lbl] [Folder field] [Name lbl] [Name field] on row 1;
+  // a single-cell totals strip spanning all columns on row 2.
+  const grpView = _group(area, "Generated view", 4);
 
   new LabelWidget(grpView, SWT.NONE).setText("Folder:");
   const txtFolder = new TextWidget(grpView, SWT.BORDER);
@@ -1288,6 +1431,21 @@ function _buildViewRow(area, ctx) {
   txtName.setToolTipText("View name. Pre-filled from the first selected object.");
   GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtName);
   w.txtViewName = txtName;
+
+  // Row 2: always-visible totals strip. Multi-line; sub-lines for elements / relations /
+  // diagram objects. Hide-zero subfields, skip empty sub-lines (see _formatOutputLine).
+  const lblTotals = new LabelWidget(grpView, SWT.NONE);
+  lblTotals.setText("Output: —");
+  lblTotals.setToolTipText(
+    "What will be on the generated view, in the canonical vocabulary " +
+    "(see ARCHITECTURE.md § Vocabulary): " +
+    "containers, nested elements, standalones; extra occurrences when 'Show in every container' " +
+    "is on; nestings (drawn as box-in-box) and connections (drawn as lines); " +
+    "diagram objects (canvas-only).");
+  // Vertical grab so multi-line text doesn't clip; span 4 columns of the parent grid.
+  GridDataFactory.fillDefaults().span(4, 1).grab(true, false)
+    .hint(SWT.DEFAULT, SWT.DEFAULT).applyTo(lblTotals);
+  w.lblViewTotals = lblTotals;
 }
 
 // ── Preset row ────────────────────────────────────────────────────────────────
@@ -1420,7 +1578,7 @@ function _syncToUI(ctx) {
   if (w.lstFilterRelations) _listSelectLabels(w.lstFilterRelations, c.filter ? _relIdsToLabels(c.filter.relationTypes || []) : []);
   if (w.lstFilterDiagram)   _listSelectLabels(w.lstFilterDiagram,   c.filter ? (c.filter.diagramTypes || []).map(id => DIAG_ID_TO_LABEL[id] || id) : []);
 
-  // Related elements — rebuild blocks from preset layers.
+  // Related elements — rebuild step blocks from preset.
   // Dispose existing blocks first so reapplying a preset (or session load) is clean.
   if (ctx.relBlocks && ctx.widgets.blocksContainer) {
     while (ctx.relBlocks.length > 0) {
@@ -1428,8 +1586,8 @@ function _syncToUI(ctx) {
       try { b.container.dispose(); } catch (e) {}
       ctx.relBlocks.shift();
     }
-    const layers = (c.relatedElements && c.relatedElements.layers) || [];
-    layers.forEach((layer, idx) => _addRelatedBlock(ctx, layer, { startCollapsed: idx > 0 }));
+    const steps = (c.relatedElements && c.relatedElements.steps) || [];
+    steps.forEach((step, idx) => _addRelatedBlock(ctx, step, { startCollapsed: idx > 0 }));
     _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   }
 
@@ -1488,9 +1646,9 @@ function _saveUI(ctx) {
   if (w.lstFilterRelations) c.filter.relationTypes = _relLabelsToIds(_listGetSelected(w.lstFilterRelations));
   if (w.lstFilterDiagram)   c.filter.diagramTypes  = _listGetSelected(w.lstFilterDiagram).map(l => DIAG_LABEL_TO_ID[l] || l);
 
-  // Related elements — round-trip the dynamic block array.
+  // Related elements — round-trip the dynamic step-block array.
   c.relatedElements = {
-    layers: (ctx.relBlocks || []).map(b => ({
+    steps: (ctx.relBlocks || []).map(b => ({
       depth:         b.depthSpinner.getSelection(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
@@ -1501,8 +1659,6 @@ function _saveUI(ctx) {
   // View
   if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
-  // c.view.suffix is preserved from preset round-trip but no longer mutated by the dialog;
-  // generate_view still honours a non-empty suffix from legacy preset files (see ARCHITECTURE.md §A.12).
 }
 
 // ── Algorithm controls ────────────────────────────────────────────────────────

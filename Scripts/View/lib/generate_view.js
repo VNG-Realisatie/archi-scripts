@@ -91,7 +91,33 @@ function generate_view(rawPreset, uiSelection, actionId) {
     console.error(`generate_view error: ${typeof error.stack === "undefined" ? error : error.stack}`);
   }
   if (timer) Common.endCounter(timer, "generate_view");
+
+  // Open the generated view(s) in Archi's UI.
+  //   NEW_VIEW / EXPAND_VIEW / LAYOUT_ONLY → exactly one view in `views`; open it.
+  //   ONE_EACH                              → potentially many views; open only the first
+  //                                           so the user isn't flooded with N tabs.
+  if (views.length > 0) _openView(views[0]);
   return views;
+}
+
+/**
+ * Open a view in Archi's editor tab. The jArchi proxy's openInUI() does not work
+ * reliably for views that were just created in the same script run, so we reach
+ * past the proxy via reflection and call EditorManager.openDiagramEditor on the
+ * underlying EMF model object directly.
+ */
+function _openView(view) {
+  try {
+    const ProxyClass = Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class;
+    const method     = ProxyClass.getDeclaredMethod("getEObject");
+    method.setAccessible(true);
+    const eObject = method.invoke(view);
+    // 2-arg form with bringToTop=true matches DiagramModelProxy.openInUI()'s final call,
+    // so the newly generated view becomes the focused editor tab.
+    Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(eObject, true);
+  } catch (e) {
+    console.error(`Failed to open "${view && view.name}" in the UI — open it manually. (${e})`);
+  }
 }
 
 // ── Single view ───────────────────────────────────────────────────────────────
@@ -99,7 +125,6 @@ function generate_view(rawPreset, uiSelection, actionId) {
 function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   const objectSet = Pipeline.buildObjectSet(uiSelection, preset, actionId);
   const { elements, relations, diagramObjects, diagramConnections, existingView } = objectSet;
-  console.log(`Object set: ${elements.length} elements, ${relations.length} relations, ${diagramObjects.length} diagram objects, ${diagramConnections.length} diagram connections`);
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
   const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
@@ -130,6 +155,19 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   if (graph.nodes.length === 0) {
     console.log("No elements to place — view not generated.");
     return null;
+  }
+
+  // Relation role split. Nesting candidates can be dropped by Archi's one-parent-per-child
+  // rule (when !showInEveryContainer) — that's why the on-view relation count can be lower
+  // than the pipeline's "Total to view" relations.
+  const ns = graph._nestingStats;
+  console.log(`Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
+  if (ns.candidates > 0) {
+    const extras = [];
+    if (ns.skippedMultiParent > 0) extras.push(`${ns.skippedMultiParent} multi-parent`);
+    if (ns.skippedCycle       > 0) extras.push(`${ns.skippedCycle} cycle`);
+    const skip = extras.length > 0 ? ` (skipped: ${extras.join(", ")})` : "";
+    console.log(`  Nestings applied: ${ns.applied}/${ns.candidates}${skip}`);
   }
 
   // Run engine.
@@ -169,10 +207,7 @@ function _generateOneEach(preset, uiSelection) {
   const views = [];
   for (const element of elements) {
     console.log(`\nGenerating view for: ${element.name}`);
-    // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
-    const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
-    const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + suffix);
+    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name);
     if (view) views.push(view);
   }
   return views;
@@ -184,57 +219,20 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
-  const reverseTypes = new Set(preset.params.reverseRelationTypes || []);
+  const reverseTypes = new Set(params.reverseRelationTypes || []);
 
-  // occurrenceMap: archiId → [nodeIds]   (supports showInEveryContainer)
-  const occurrenceMap = {};
-  for (const el of elements) occurrenceMap[el.id] = [el.id];
+  // Nesting structure shared with the pipeline's predictViewCounts so dialog/console
+  // counts agree with the writer's actual output. Single source of truth.
+  const nesting = Pipeline.resolveNesting(elements, nestingRels, params);
+  const parentMap = nesting.parentMap;
+  const occurrenceMap = nesting.occurrenceMap;
+  const parentRels = nesting.parentRels;
+  const nestingSkippedCycle = nesting.skippedCycle;
+  const nestingSkippedMultiParent = nesting.skippedMultiParent;
 
-  // parentMap from nesting relations.
-  const parentMap = {};
-  const parentRels = [];
-
-  function _wouldCreateCycle(map, childId, parentId) {
-    let cur = parentId;
-    while (cur) {
-      if (cur === childId) return true;
-      cur = map[cur];
-    }
-    return false;
-  }
-
-  for (const rel of nestingRels) {
-    const srcId = rel.source && rel.source.id;
-    const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId) continue;
-    const [parentId, childId] = reverseTypes.has(rel.type) ? [tgtId, srcId] : [srcId, tgtId];
-
-    if (!params.showInEveryContainer) {
-      if (parentMap[childId] === undefined) {
-        if (_wouldCreateCycle(parentMap, childId, parentId)) {
-          console.log(`Nesting skipped (cycle): ${srcId} → ${tgtId} (${rel.type})`);
-        } else {
-          parentMap[childId] = parentId;
-          parentRels.push(rel);
-        }
-      }
-    } else {
-      const occs = occurrenceMap[childId] || [childId];
-      const unassigned = occs.find(id => parentMap[id] === undefined);
-      if (unassigned && !_wouldCreateCycle(parentMap, unassigned, parentId)) {
-        parentMap[unassigned] = parentId;
-      } else {
-        const alreadyHere = occs.find(id => parentMap[id] === parentId);
-        if (!alreadyHere) {
-          const occId = `${childId}_occ_${occs.length}`;
-          if (!_wouldCreateCycle(parentMap, occId, parentId)) {
-            occurrenceMap[childId] = [...occs, occId];
-            parentMap[occId] = parentId;
-          }
-        }
-      }
-      parentRels.push(rel);
-    }
+  // Per-cycle log: surface skipped-cycle rels so users can investigate problematic relations.
+  if (nestingSkippedCycle > 0) {
+    console.log(`Nesting skipped: ${nestingSkippedCycle} relation(s) would create a cycle`);
   }
 
   // Nodes from elements.
@@ -318,6 +316,12 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     _parentMap:     parentMap,
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,
+    _nestingStats:  {
+      candidates:        nestingRels.length,
+      applied:           parentRels.length,
+      skippedCycle:      nestingSkippedCycle,
+      skippedMultiParent: nestingSkippedMultiParent,
+    },
   };
 }
 
@@ -416,7 +420,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   }
 
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
-  console.log(`Writing ${result.edges.length} relations...`);
+  console.log(`Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
   for (const re of result.edges) {
     const archiRel = $(`#${re.id}`).first();
     if (!archiRel || !archiRel.id) continue;
@@ -445,16 +449,18 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     }
   }
 
-  // Log: count objects on the view.
+  // Log: count objects on the view. The total visual relation count via find("relation")
+  // = connections + nestings. A mismatch vs the pipeline's "Total to view" usually
+  // means nesting candidates were dropped by Archi's one-parent-per-child rule (see
+  // "Nestings applied" line above).
   try {
     let _vEl = 0, _vRel = 0, _vDiag = 0;
     $(view).find("element").each(() => _vEl++);
     $(view).find("relation").each(() => _vRel++);
     Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { try { $(view).find(dt).each(() => _vDiag++); } catch(e) {} });
-    console.log(`Objects on view: ${_vEl} elements · ${_vRel} relations · ${_vDiag} diagram objects`);
+    console.log(`Objects on view: ${_vEl} elements · ${result.edges.length} connections · ${_vRel - result.edges.length} nestings · ${_vDiag} diagram objects`);
   } catch (e) {}
   console.log(`\nView "${view.name}" written`);
-  try { $(view).openInUI(); } catch (e) {}
   return view;
 }
 
@@ -566,13 +572,9 @@ function _getParentAbsOffset(vo) {
 
 
 function _resolveViewName(preset, elements) {
-  // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
-  const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
-  const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
-  if (preset.view.name) return preset.view.name + suffix;
+  if (preset.view.name) return preset.view.name;
   const first = elements[0];
-  const base  = first ? first.name : "Generated";
-  return base + suffix;
+  return first ? first.name : "Generated";
 }
 
 function _resolveFolder(viewFolder) {

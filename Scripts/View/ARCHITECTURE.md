@@ -48,24 +48,74 @@ Out of scope: model authoring beyond what layout implies; editing element proper
 
 ## Vocabulary & display labels
 
+The canonical vocabulary realises hard rule #11 in [ai/rules.md](../../ai/rules.md): one name per concept across users, docs, logs, variable names, function names, and data structures. Exceptions only for technical data-structure roles (e.g. `parentMap`, `childIds`), documented once below and reverted to the canonical term at every user-facing surface.
+
 ### Terms
 
 Stable terms. Used in code, UI labels, and documentation. No synonyms.
 
+**Model layer:**
+
 | Term | Definition |
 |---|---|
-| **Element** | A model concept (a typed thing in the modelling language). |
-| **Relation** | A directed, typed connection between two elements at the model level. |
-| **View** | A diagram: a positioned arrangement of elements, relations, and diagram objects. A model element may appear on many views. |
+| **element** | A model concept (a typed thing in the modelling language). |
+| **relation** | A directed, typed connection between two elements at the model level. |
+| **view** | A diagram: a positioned arrangement of elements, relations, and diagram objects. A model element may appear on many views. |
+
+**Visual layer:**
+
+| Term | Definition |
+|---|---|
 | **VisualElement** | The placement of one element on one view's canvas. Has bounds, may have appearance overrides; points back to its model element. |
 | **VisualRelation** | The drawing of one relation on one view's canvas. Has endpoints (VisualElements) and bendpoints. |
-| **DiagramObject** | A canvas-only object that has no model concept: note, group, image, legend, view-reference, or a connection drawn between diagram objects. Belongs to exactly one view. |
-| **Nesting** | The act of drawing a relation as a parent-child containment (one box inside another) rather than as a line. Driven by per-relation-type rules in the preset. |
-| **Container** | A VisualElement that visually nests other VisualElements as a consequence of [nesting rules](#nesting). Containers are never authored directly. |
+| **occurrence** | A visual appearance of an element in a view. A unique element normally has one occurrence; with `showInEveryContainer: true` it can have several. |
+
+**VisualElement roles** (a VisualElement is in exactly one role):
+
+| Role | Definition |
+|---|---|
+| **container** | Drawn as a box around one or more other VisualElements. |
+| **nested element** | Drawn inside a container; not itself a container. |
+| **standalone** | Drawn at view root; no children, not inside anything. |
+| **extra occurrence** | Second or Nth visual appearance of the same element under another container (when `showInEveryContainer: true`). Role-agnostic — applies whether the duplicated visual is a nested element or a sub-container. |
+
+**VisualRelation roles** (a VisualRelation is in exactly one role):
+
+| Role | Definition |
+|---|---|
+| **nesting** | Drawn as box-in-box (the nested element sits inside the container's box; no line). Driven by `params.nestingRelationTypes`. |
+| **connection** | Drawn as a line between two boxes. Every VisualRelation is either a nesting or a connection — there is no third visual form. |
+
+**Counter rule.** *Relations* is a model-layer word. On view-side count rows (Total to view, Output) the labels are **nestings** and **connections**, never "relations". The pipeline's Filtered-base and Step-N-adds rows are model-side and use "relations". The Total-to-view row is view-side and uses the nesting/connection split.
+
+**Canvas-only:**
+
+| Term | Definition |
+|---|---|
+| **diagram object** | A canvas-only object that has no model concept: note, group, image, legend, view-reference, or a connection drawn between diagram objects. Belongs to exactly one view. |
+
+**Subsystem-wide:**
+
+| Term | Definition |
+|---|---|
 | **Layout** | The algorithmic positioning of all visible objects on a view. |
 | **Preset** | A named, persistable bundle of layout configuration (algorithm choice + parameters + filters + related-elements rules + target naming). |
 | **Action** | What the system does on invocation: create a new view, create one view per element, expand an existing view, or re-lay-out an existing view. A runtime parameter — never stored in a preset. |
 | **Session** | The last-used configuration, restored automatically next time the UI opens. |
+
+### Exceptions (data-structure roles)
+
+These names describe algorithmic data structures, not counted concepts. They appear only in code and in code-level documentation, never in user-facing strings.
+
+| Internal | Conceptual role | Canonical term |
+|---|---|---|
+| `parentMap` | child id → parent id mapping | — (data structure) |
+| `childIds` | the set of element ids that have a parent | nested elements (counted) |
+| `containerIds` | the set of element ids that are parents | containers (counted) |
+| `occurrenceMap` | element id → list of occurrence ids | occurrences |
+| `routedRels` | array of relations whose type is NOT in `nestingRelationTypes` | connections |
+| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` | nestings |
+| `parentRels` | nesting relations that survived multi-parent resolution | applied nestings |
 
 ### Display vocabulary
 
@@ -153,7 +203,7 @@ The public entry point is `generate_view(selection, preset, action)`. Three inpu
   - *Layout parameters* — spacing, direction, routing style, view-size constraints, nesting and reversal flags.
   - *Filters* — element types, relation types (with per-direction toggles), diagram-object types to include.
   - *Related-elements layers* — an ordered list of expansion steps, each specifying which relation types to follow, how many hops, and an element-type pruning filter.
-  - *View naming* — folder and name/suffix used when creating new views.
+  - *View naming* — folder and name used when creating new views.
 - **Action** — a runtime verb, never part of the preset:
   - `NEW_VIEW` — create a fresh view from the full selection.
   - `ONE_EACH` — create one view per selected element.
@@ -166,7 +216,7 @@ Output: `ArchimateView[]` — the views that were written or updated, with all e
 
 The adapter contract is `layout(LayoutGraph) → LayoutResult`. Input:
 - **Nodes** — one per element or diagram object. Each carries an id, display label, element type, fixed width and height (leaf nodes) or no size (containers — the engine sizes them from their children), and an optional parent id expressing nesting.
-- **Edges** — one per routed relation. Each carries source and target node ids (already swapped for reversed relation types), a label, and a layout weight. Nesting relations that resolve to containment are expressed via `parent` on the child node, not as edges.
+- **Edges** — one per connection (relation drawn as a line). Each carries source and target node ids (already swapped for reversed relation types), a label, and a layout weight. Nestings (relations resolved to containment) are expressed via `parent` on the child node, not as edges.
 - **Options** — algorithm-specific parameters translated by the adapter from the preset (direction, spacing, routing style, padding, etc.).
 - **View-size constraints** — at most one of maxWidth, maxHeight, or aspectRatio is non-zero at a time.
 - **Flags** — `alignWidthSameType`, `sortContainers`.
@@ -244,20 +294,21 @@ Preset {
   }
 
   relatedElements {
-    layers : Layer[]                    // ordered, cumulative — one entry
-                                        // per Relation Level block in the GUI
+    steps : Step[]                      // ordered, chain — one entry per Step
+                                        // block in the GUI. Step N (N≥2) traverses
+                                        // from step N-1's additions only.
   }
 
   view {
-    name, suffix, folder : strings      // naming for the New View action
+    name, folder : strings              // naming for the New View action
   }
 
   viewSizeMode  : enum                  // "none" | "maxWidth" | "maxHeight" | "aspectRatio"
 }
 
-Layer {
-  depth          : int   ≥ 1            // Relation levels (hops)
-  elementTypes   : ElTypeId[]           // prune this block's additions
+Step {
+  depth          : int   ≥ 1            // Recurrence (hops within this step)
+  elementTypes   : ElTypeId[]           // prune this step's additions
   relationTypes  : EncodedRelTypeId[]   // direction-aware (see below)
   diagramTypes   : DgTypeId[]           // unused (diagram objects don't traverse)
 }
@@ -332,8 +383,11 @@ The **Generate View dialog** lets you define a selection and layout, then run vi
 │  │ │ └─────────────────────────────────────────────────────────────┘   │ │  │
 │  │ └────────────────────────────────────────────────────────────────────┘ │  │
 │  └──────────────────────────────────────────────────────────────────────────┘  │
-│  ┌─ View name and location ───────────────────────────────────────────────┐   │
+│  ┌─ Generated view ───────────────────────────────────────────────────────┐   │
 │  │  Folder: [/View/_Generated________________]  Name: [Customer view____] │   │
+│  │  Output:                                                               │   │
+│  │    elements:    18 containers · 92 nested elements                     │   │
+│  │    relations:   11 nestings · 98 connections                           │   │
 │  └────────────────────────────────────────────────────────────────────────┘   │
 │  [Cancel]   ┌─ Create new view ─────────────────┐   ┌─ Modify selected view ─┐│
 │             │  [New view]    [One view each]     │   │  [Expand view ●]        ││
@@ -368,7 +422,30 @@ The **Current selection** group shows three summary lines and a per-block counte
 
 Only types with count > 0 are rendered on each line. Empty selection renders `Selected: nothing` (no First-object suffix).
 
-Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)), so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, and block ordering operation.
+Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, and block ordering operation.
+
+Each refresh emits a grouped block to the Archi console (mirroring the pipeline's own block on action click) so the user can compare prediction to result:
+
+```
+GUI — before dialog:
+  Selected:    0 elements · 0 relations · 1 view · 0 diagram objects · 0 folders
+  Containing: 110 elements · 113 relations · 0 diagram objects
+  Filtered:   110 elements · 113 relations · 0 diagram objects
+GUI — live counters:
+  Filtered base:    8 elements ·  11 relations · 0 diagram objects
+  Step 1 adds:    102 elements ·  98 relations
+  ──────────────────────────────────────────────
+  Total to view:
+    elements:    18 containers ·  92 nested elements ·   0 standalones ·   0 extra occurrences
+    relations:   11 nestings   ·  98 connections
+    diagram:      0 diagram objects
+```
+
+The `Total to view` row is grouped into three sub-lines: **elements** (containers / nested elements / standalones / extra occurrences), **relations** (nestings / connections), and **diagram** (diagram objects). All sub-lines always print; every subfield prints regardless of value. Column alignment is preserved across runs.
+
+The additive rule is exact: `Filtered.elements + Σ Step N.adds.elements = Total.elements` AND `Filtered.relations + Σ Step N.adds.relations = Total.relations`. Per-step `adds.relations` is a true delta against the previous cumulative state (rels-between-cumulative under the effective filter, minus the prior count), not a count of raw-selection relations.
+
+The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, depth change, block reorder) push the same values to that label and to the console.
 
 #### Global filter
 
@@ -387,7 +464,7 @@ The Related-elements group opens with a one-line explanation and a `[+ Add relat
 - **Element-type filter** (block-scoped — prunes only what this block adds).
 - **Relation levels** (≥ 1; the number of hops the block follows).
 
-Block N's pruned output is block N+1's base — cumulative ([Steps](#steps) section Step 3).
+Each step's additions feed the next step's input — chain ([Steps](#steps) section Step 3). An empty step terminates the chain.
 
 ### Layout tab
 
@@ -499,15 +576,23 @@ Four radio modes: **None / Max width / Max height / Aspect ratio**. Selecting a 
 
 `viewSizeMode` is stored in the preset ([Preset schema](#preset-schema)) so the active radio is restored on load. Old presets without this field default to the first non-zero view-size value found.
 
-### View name and location
+### Generated view
 
-Outside the tabs. Fields: **Folder** and **Name**.
+Outside the tabs. The group title is "Generated view" (was "View name and location"). Fields on the first row: **Folder** and **Name**. The second row carries an always-visible multi-line `Output:` strip with the predicted on-view totals, hide-zero:
+
+```
+Output:
+  elements:    18 containers · 92 nested elements
+  relations:   11 nestings · 98 connections
+```
+
+The structure matches the console's `Total to view:` row (same sub-lines: elements / relations / diagram). On-screen hides subfields whose value is 0 and skips a sub-line when all its subfields are 0; the console keeps everything visible for stable log columns. The strip refreshes on every dialog change (filter toggle, block edit, depth change, block reorder) so the user sees the predicted view contents in real time — without opening a console.
 
 | Action | Naming rule |
 |---|---|
-| **NEW_VIEW** | Named from `preset.view.name`, with `preset.view.suffix` appended (separated by a space) if non-empty. Created in `preset.view.folder`. |
-| **ONE_EACH** | Named after each element — the element's name, with `preset.view.suffix` appended if non-empty. Created in `preset.view.folder`. |
-| **EXPAND_VIEW / LAYOUT_ONLY** | Fields are ignored; the target is the selected view. |
+| **NEW_VIEW** | Named from `preset.view.name`. Created in `preset.view.folder`. |
+| **ONE_EACH** | Named after each element — the element's name verbatim. Created in `preset.view.folder`. |
+| **EXPAND_VIEW / LAYOUT_ONLY** | Folder/Name are ignored; the target is the selected view. The `Output:` strip still updates and reflects the predicted post-action contents. |
 
 ### Presets manage sub-dialog
 
@@ -603,6 +688,43 @@ The selection's *source* — the model tree vs a view's canvas — is orthogonal
   - With Create-new-view: clone-style — the selected canvas objects (and their related elements) become a fresh view; the source view is untouched.
   - With Modify-selected-view: in-place — the targeted view *is* the view the selection came from.
 
+### Shared helpers — dialog and pipeline use the same code paths
+
+Two entry points, one set of helpers. The dialog's live counter and the full pipeline both go through `_expandStep` / `_matchesRelationType` (and the per-step wrapper `_expandStepCounts`), so a correct dialog count is a true prediction of what the pipeline will write:
+
+```
+              ┌──────────────────────────────────────────────────┐
+              │   selection_pipeline.js (shared helpers)         │
+              │                                                  │
+              │   _expandStep ──┬──► _matchesRelationTypeDir     │
+              │                 │                                │
+              │   _findRelationsBetween ──► _matchesRelationType │
+              │                                                  │
+              │   _expandStepCounts ──► _expandStep              │
+              │                      └► _matchesRelationType     │
+              └──────────────────────────────────────────────────┘
+                       ▲                              ▲
+                       │                              │
+    ┌──────────────────┴───────┐    ┌─────────────────┴──────────┐
+    │  Live counter (dialog)   │    │  Full pipeline             │
+    │  on every UI change      │    │  on action button click    │
+    │                          │    │                            │
+    │  Pipeline                │    │  Pipeline                  │
+    │   .expandStep(           │    │   .buildObjectSet(         │
+    │     stepInput, step)     │    │     uiSelection,           │
+    │  per block (chain)       │    │     preset, actionId)      │
+    │  → added elements        │    │  → object set with         │
+    │                          │    │    elements + relations    │
+    │                          │    │    + visuals + view        │
+    └──────────────────────────┘    └────────────────────────────┘
+                │                                  │
+                ▼                                  ▼
+        Updates the on-screen          Sent to engine → writer →
+        "Filtered" / "Adds:" lines     view is created/modified
+```
+
+Both entry points compute the same EFFECTIVE relation-type filter (see Step 5 below) and log a grouped count block of the same shape to the Archi console, so prediction and result can be eyeballed side-by-side.
+
 ### Steps
 
 **EXPAND_VIEW and LAYOUT_ONLY skip Step 2.** The element-type filter is not applied for either action in the "Modify selected view" group. These actions re-layout or expand elements already on the view; applying the filter would exclude visible element types, causing containers to be sized for only the filtered subset while the excluded elements remain at positions outside those bounds.
@@ -626,11 +748,13 @@ Step 2  Apply the global Filter
   diagram-type filter. Filter is visibility only; it does not
   alter nesting structure.
 
-Step 3  Related-elements expansion
-  For each ordered layer in preset.relatedElements.layers:
-    additions = traverse(base, layer)
-    base      = base ∪ (additions pruned by layer.elementTypes)
-  Block N's pruned output is block N+1's base. Cumulative.
+Step 3  Related-elements expansion (chain)
+  For each ordered step in preset.relatedElements.steps:
+    additions       = traverse(input, step)         (depth hops, pruned by elementTypes)
+    final-selection = final-selection ∪ additions
+    input           = additions                     (chain: next step starts here)
+  Step 1's input is the filtered base.
+  An empty step terminates the chain — every later step adds zero.
 
 Step 4  Separate the element set
   Drop relations, folders, view nodes. What remains is the set
@@ -643,7 +767,11 @@ Step 5  Find relations between elements
   relationTypes of every active related-elements block. A block
   that declares "follow type X" implicitly says "type-X relations
   belong in the result", so the global filter must not strip them.
-  Empty union ⇒ all types allowed. (See [Preset schema](#preset-schema) for encoding.)
+  The union runs even when the global filter is empty — an empty
+  global filter does NOT mean "ignore layer rel-types"; layer
+  rel-types still constrain the result. Empty union (no global
+  AND no layer rel-types) ⇒ all types allowed.
+  (See [Preset schema](#preset-schema) for encoding.)
 
 Step 6  Partition diagram objects
   diagram-model-connection objects are edges, not nodes — they
@@ -659,6 +787,12 @@ Step 6  Partition diagram objects
 - **No view mutation.** The pipeline reads only; it never edits a view. *(Rule 4 in [ai/rules.md](../../ai/rules.md))*
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
+- **Dialog and pipeline share the effective rel-type filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will write for that block — both compute the union of `filter.relationTypes` and every layer's `relationTypes` and apply it identically.
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is computed as a delta: `rels-between(cumulative-after-step-N, effective-filter) − rels-between(cumulative-before-step-N, effective-filter)`. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
+- **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
+- **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
+- **Step 3 is a chain, not cumulative.** Step N (N ≥ 2) traverses from step N-1's additions only — not the cumulative selection. Step 1's input is the filtered base. An empty step terminates the chain (every later step adds zero). Mental model: each step refines the previous step's discoveries; step N+1 cannot bypass step N's intent.
 
 ## Nesting
 
@@ -681,7 +815,11 @@ Many nesting relations may name the same element as their child. The preset's `s
 
 | `showInEveryContainer` | Behaviour |
 |---|---|
-| `false` (default) | **First-wins.** The first nesting relation encountered (in pipeline order) assigns the child to its parent; later nesting relations that would assign the same child to a different parent are ignored for parenthood. The relation still exists in the model but does not draw a containment line nor a routed edge. |
+| `false` (default) | **First-wins.** The first nesting relation encountered (in pipeline order) assigns the child to its parent; later nesting relations that would assign the same child to a different parent are ignored for parenthood. The relation still exists in the model but does not draw a containment line nor a connection. The writer logs the candidate/applied/skipped split (`Nestings applied: M/N (skipped: X multi-parent, Y cycle)`), which is why the on-view nesting count can be lower than the pipeline's "Total to view → relations → nestings". |
+
+**Visual rendering rule.** Extra occurrences (`showInEveryContainer: true`) only **render as visible duplicate boxes** when the chosen algorithm draws parent-child containment — i.e. nested-style layouts (Layered, Tree, Pack, Dot, and any other algorithm marked as supporting nesting in the [Algorithm capability matrix](#algorithm-capability-matrix)). For non-nested layouts (Force, SFDP, Twopi, etc.) the writer still receives `showInEveryContainer: true` and produces occurrence ids, but the layout engine collapses them: the element is drawn once. The dialog and pipeline counters compute the `extraOccurrences` count honestly from the nesting structure; for non-nested layouts the count will be non-zero but the user should expect the visible view to show one box per concept.
+
+**Counting rule.** `elements` always counts unique model concepts (matches the source selection after expansion + filter + step adds), and is partitioned into `containers + nestedElements + standalones` by construction. `extraOccurrences` is a **separate field** (counts extra visual appearances, role-agnostic), never folded into the element categories. The on-screen "Generated view" group's `Output:` strip and the console block's `Total to view:` row show all fields side by side.
 | `true` | **Visual instances.** The element appears once under each parent. Each visual instance is a distinct node in the layout but maps back to the same model element. Layout decisions per instance are independent. |
 
 Determinism: pipeline order is fixed (model iteration order is stable), so first-wins yields the same result on repeated runs.
@@ -722,7 +860,7 @@ VisualSet starts **empty**. Every result object is created with default appearan
 
 | Action | Object set | Target view |
 |---|---|---|
-| **NEW_VIEW** | Model selection expanded through filter + related-elements blocks. | A new view (created, or overwritten by name) in `preset.view.folder`. Named per [View name and location](#view-name-and-location). |
+| **NEW_VIEW** | Model selection expanded through filter + related-elements blocks. | A new view (created, or overwritten by name) in `preset.view.folder`. Named per [Generated view](#generated-view). |
 | **ONE_EACH** | Same as NEW_VIEW, run once per selected element. | One new view per selected element, named per [View name and location](#view-name-and-location). |
 
 ### Modify selected view group
@@ -867,10 +1005,10 @@ Rationale-only. Each decision references the invariant or user story that motiva
 | The set of diagram-object types is closed. | Each type needs explicit handling for filtering, traversal, and rendering. Allowing arbitrary types would defeat the closed-set assumption in the filter UI and in iteration. |
 | Non-positional objects — Relations, VisualRelations, and diagram-model-connections — are partitioned from positional objects throughout the pipeline. | An edge has endpoints, not coordinates. Treating any of these as nodes would corrupt the layout graph; the same partition rule applies uniformly to all three kinds. |
 | Action is a runtime parameter, not preset content. | A preset is a *configuration*; an action is a *verb*. Sharing presets across selections requires action-agnosticism. |
-| View name is a single user-controlled field. | A separate algorithm-derived suffix was found to silently rewrite the user's typed name on algorithm switch, which surprised users. Legacy preset files with a non-empty `view.suffix` are honoured at generation for back-compat but no longer surfaced in the dialog; the first save through the new dialog normalises the field to empty. |
+| View name is a single user-controlled field. No suffix mechanism. | An earlier separate algorithm-derived suffix was found to silently rewrite the user's typed name on algorithm switch, which surprised users. The suffix field is gone entirely — `preset.view` has only `name` and `folder`. Old preset JSON files with a `"suffix"` key load cleanly (`validatePreset` strips unknown keys) and lose the field on next save. |
 | EXPAND_VIEW's target is derived from the existing visuals, not from the preset name. | The preset name is for *creating* a view. Expanding the selected view is a verb against that specific view, not a name-resolution. (See invariant 4.) |
 | Folders and view nodes are stripped from the element set before layout. | They are containers in the model browser, not placeable on a canvas. |
-| The related-elements panel is multi-block with cumulative semantics. | Real exploration patterns are layered: "from processes, get applications, then services". A single block can't express this. Cumulative ordering lets each block's filter scope its own additions. |
+| The related-elements panel is multi-step with chain semantics. | Real exploration patterns are stepped: "from processes → get applications → then services". A single step can't express this. Each step's additions feed the next step's input; an empty step terminates the chain so step N+1 cannot bypass step N's intent. |
 | Per-relation direction toggles are independent (not mutually exclusive). | "Both", "incoming only", "outgoing only" are all common needs. Forcing a choice would lose the most-common case (both). |
 | Empty direction selection means follow all. | When neither direction checkbox is active for a relation type, the type is absent from the encoded list. [Steps](#steps) step 5 interprets the empty union as "all types allowed". The both-unchecked state is the idiomatic "don't filter this type" state, not an error. |
 | Spinner recomputes fire on value-commit, not on keystroke. | Live counts can be expensive (relation traversal). Per-keystroke recompute is wasteful and produces flicker. |
@@ -1006,7 +1144,7 @@ Ref: `Scripts/_lib/selection.js`, `lib/defs.js`.
 
 ### Preset validation
 
-`validatePreset(raw)` deep-clones `DEFAULT_PRESET`, merges in raw values, validates option values against `algorithm.supportedOptions`, drops unknown top-level keys, normalises `relatedElements.layers`, and returns the result. Realises [Invariants](#invariants) (validation is total). Old presets without a `viewSizeMode` field are handled by `_inferViewSizeMode`: the first non-zero view-size parameter determines the mode (matching the old "first set wins" behaviour). Ref: `lib/defs.js::validatePreset`.
+`validatePreset(raw)` deep-clones `DEFAULT_PRESET`, merges in raw values, validates option values against `algorithm.supportedOptions`, drops unknown top-level keys, normalises `relatedElements.steps`, and returns the result. Realises [Invariants](#invariants) (validation is total). Old presets without a `viewSizeMode` field are handled by `_inferViewSizeMode`: the first non-zero view-size parameter determines the mode (matching the old "first set wins" behaviour). Ref: `lib/defs.js::validatePreset`.
 
 ## Selection pipeline — implementation
 
@@ -1028,8 +1166,8 @@ buildObjectSet(uiSelection, preset, actionId) → {
 }
 
 // Also exported for the dialog's live counts:
-expandLayer(base, layer)              // added elements
-expandLayerCounts(base, layer)        // { elements, elemCount, relCount }
+expandStep(stepInput, step)           // added elements (chain advance)
+expandStepCounts(base, step)          // { elements, elemCount, relCount }
 ```
 
 ### Step-by-step
@@ -1045,9 +1183,10 @@ Step 2  _applyFilter(modelCollection, filter) — element/relation types.
         _applyDiagramFilter(diagramObjects, filter) — diagram types.
         SKIPPED for EXPAND_VIEW and LAYOUT_ONLY (see [Action-group dispatch](#action-group-dispatch)).
 
-Step 3  Related-elements expansion — SKIPPED for LAYOUT_ONLY.
-        For each layer in preset.relatedElements.layers:
-          _expandLayer(base, layer) → added ArchiElements
+Step 3  Related-elements expansion (chain) — SKIPPED for LAYOUT_ONLY.
+        For each step in preset.relatedElements.steps:
+          added   = _expandStep(stepInput, step)   (chain: stepInput = prior added)
+          stepInput = added                         (step 1's input = filtered base)
         (See [Action-group dispatch](#action-group-dispatch) for groups that skip this step.)
 
 Step 4  Drop relations, folders, view nodes from the collection.
@@ -1061,7 +1200,7 @@ Step 6  Partition diagramConnections (type === "diagram-model-connection")
 
 ### Direction-aware traversal
 
-`_expandLayer` iterates the relations of each element in the current base. For each relation, it determines the traversal direction (outgoing = element is source; incoming = element is target) and checks it against the layer's `relationTypes` direction suffixes (`:in`, `:out`, or both) per [Preset schema](#preset-schema). Non-matching relations are skipped; matching relations yield the neighbouring element, which is added to the expansion set. Ref: `selection_pipeline.js::_expandLayer`, `::_matchesRelationTypeDir`.
+`_expandStep` iterates the relations of each element in the current step input. For each relation, it determines the traversal direction (outgoing = element is source; incoming = element is target) and checks it against the step's `relationTypes` direction suffixes (`:in`, `:out`, or both) per [Preset schema](#preset-schema). Non-matching relations are skipped; matching relations yield the neighbouring element, which is added to the expansion set. Ref: `selection_pipeline.js::_expandStep`, `::_matchesRelationTypeDir`.
 
 ## Orchestrator — generate_view.js
 
@@ -1100,7 +1239,7 @@ Before writing, it builds three lookup maps from the [VisualSet](#visualset): ex
 
 Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable depth-first sort ensuring every parent is processed before its children). For each node: the writer looks up the model element by ID, then checks for an existing VO. **If found (reposition):** the VO's bounds are updated in parent-relative coordinates ([Invariants](#invariants) parent-relative coordinates); if the new parentMap names a different parent, the VO is re-parented using the jArchi 1.10 move API. **If not found (create):** the element is retrieved from the model and added to the view under the correct parent.
 
-Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. Nesting relations that won the multi-parent resolution are drawn on the view after all routed relations.
+Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. Nestings that won the multi-parent resolution are drawn on the view after all connections.
 
 Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_applyEdgeStyle`, `::_getParentAbsOffset`.
 
@@ -1197,7 +1336,7 @@ Layout follows the TitleAreaDialog separator rule (see SKILL.md): `numColumns(1)
 
 Each block is stored as an object containing its SWT widget references: group container (title bar), body composite (hidden on collapse), count label, reorder/collapse/remove buttons, a `collapsed` boolean, and widget wrappers for the relation-check grid, element-type selector, and depth spinner.
 
-Key functions: `_addRelatedBlock(ctx, layerData, opts?)` appends a block; `opts.startCollapsed` collapses it on creation. `_removeRelatedBlock` disposes the block and renumbers survivors. `_moveRelatedBlock(ctx, blockObj, ±1)` swaps position in the array and reorders SWT widgets via `moveBelow`. `_toggleCollapseBlock` toggles `body.layoutData.exclude` + visibility.
+Key functions: `_addRelatedBlock(ctx, stepData, opts?)` appends a step block; `opts.startCollapsed` collapses it on creation. `_removeRelatedBlock` disposes the block and renumbers survivors. `_moveRelatedBlock(ctx, blockObj, ±1)` swaps position in the array and reorders SWT widgets via `moveBelow`. `_toggleCollapseBlock` toggles `body.layoutData.exclude` + visibility.
 
 Ref: `dialog_main.js::_addRelatedBlock`, `::_removeRelatedBlock`, `::_moveRelatedBlock`.
 
@@ -1299,18 +1438,18 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 | Diagram-object types form a closed set | `Scripts/_lib/selection.js::DIAGRAM_OBJECT_TYPES` (SSOT) → `defs.js::DIAGRAM_TYPES` set-like frozen object |
 | Connections partitioned from positional diagram objects | `selection_pipeline.js` step 6 — filters `type === "diagram-model-connection"` into a separate array |
 | Action is a runtime parameter | `generate_view(preset, uiSelection, actionId)` — 3rd argument, never on `preset`. `validatePreset` would strip it. Dialog stores `ctx._actionId` separately. |
-| View name suffix stored separately | `preset.view.suffix` separate from `preset.view.name`. `VIEW_NAME_SEPARATOR` added by `_resolveViewName` when building the final name. |
+| Generated view opens in Archi UI | `generate_view` calls `_openView(views[0])` after the action completes. The helper reaches past the jArchi proxy via reflection (`ArchimateDiagramModelProxy.getEObject()`) and hands the EMF model to `EditorManager.openDiagramEditor` — the proxy's own `openInUI()` is unreliable for views created in the same script run. NEW_VIEW / EXPAND_VIEW / LAYOUT_ONLY produce one view (opened). ONE_EACH produces N views; only the first opens, so users aren't flooded with tabs. |
 | EXPAND_VIEW target from existing visuals | Pipeline returns `existingView` populated from the selected view; `_generateSingle` uses it directly, bypassing `_getOrCreateView`. |
 | Action-agnostic writer | One `_writeView` function. Per-object rule: exists → reposition (appearance preserved; parenthood re-derived from [Writer parenthood](#writer-parenthood) — move via jArchi 1.10 API if parent changed); else → create. Same rule for relations: existing → rewrite bendpoints; new → add. |
 | Folders and view nodes stripped before layout | `selection_pipeline.js` step 4 — excludes `type === "folder"` and `type === "archimate-diagram-model"`. |
-| Related-elements panel is multi-block + cumulative | `dialog_main.js::_addRelatedBlock` / `_updateFilteredCount` — block N+1's base = block N's pruned output. |
+| Related-elements panel is multi-step + chain | `dialog_main.js::_addRelatedBlock` / `_updateFilteredCount` — step N+1's input = step N's additions only. An empty step zeros every later step. |
 | Per-relation direction toggles independent | `_relCheckGrid` — `chkIn` (←) and `chkOut` (→) are independent direction checkboxes per relation type. No master activation checkbox. |
 | Empty direction selection = follow all | `getEncoded()` includes only types where `chkIn.getSelection() \|\| chkOut.getSelection()`. Absent from the list → unconstrained at runtime ([Steps](#steps) step 5: empty union → all types allowed). |
 | Algorithm selection via radio table | `_buildLayoutTab` — `algTableComp` 6-col composite; `ctx.widgets.algRadios: Map<algName, ButtonWidget>`. `_syncToUI`: deselect all then `algRadios.get(name)?.setSelection(true)`. `_saveUI`: iterate algRadios to find selected; fallback `"Layered"`. |
-| Step auto-collapse on preset load | `_addRelatedBlock(ctx, layerData, opts)` — when `opts.startCollapsed`: body hidden, `gd.exclude = true`, `btnCollapse.setText("▸")`, `blockObj.collapsed = true`. `_syncToUI` passes `{ startCollapsed: idx > 0 }` for preset layers. |
+| Step auto-collapse on preset load | `_addRelatedBlock(ctx, stepData, opts)` — when `opts.startCollapsed`: body hidden, `gd.exclude = true`, `btnCollapse.setText("▸")`, `blockObj.collapsed = true`. `_syncToUI` passes `{ startCollapsed: idx > 0 }` for preset steps. |
 | Spinner recomputes on commit, not keystroke | Depth spinner binds `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
 | Coordinate conversion engine-agnostic via `parentId` | Engine adapters set `parentId` on result nodes; `_writeView` applies parent-relative conversion using `_getParentAbsOffset` (parent-first iteration ensures parent's NEW bounds are in place). |
 | UI-only state partitioned | `_*`-prefixed keys (`_lastTabIndex`, …) preserved by `preset_io.readSession` after `validatePreset` strips unknowns. |
 | ELK Radial spanning-tree pre-processing | `engines/elk.js::_spanningTree` — BFS over the graph; cycle edges dropped; virtual edges `id: "__span_N"` join disconnected components; `_writeView` skips virtuals (`_archiRelId: null`). |
 | Cancel group `setText(" ")` | `_buildActionRow` — single space so GTK reserves title-bar height matching labelled siblings. |
-| Per-block element-type filter is block-scoped | `_expandLayer` applies `layer.elementTypes` after relation traversal; block's row count and feed-forward base both reflect the pruned set. |
+| Per-step element-type filter is step-scoped | `_expandStep` applies `step.elementTypes` after relation traversal; step's row count and chain-forward input both reflect the pruned set. |

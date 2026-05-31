@@ -26,8 +26,6 @@ const Selection = require(REPO_ROOT + "_lib/selection");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 const { ACTION } = Defs;
 
-const PROP_EXCLUDE = "excludeFromView";
-
 /**
  * @returns {{
  *   elements:           ArchiElement[],
@@ -46,14 +44,6 @@ function buildObjectSet(uiSelection, preset, actionId) {
   let collection     = expanded.modelCollection;
   let diagramObjects = expanded.diagramObjects;
 
-  let _cntEl = 0, _cntRel = 0;
-  collection.each(o => {
-    const t = o.type || "";
-    if (t.endsWith("-relationship")) _cntRel++;
-    else _cntEl++;
-  });
-  console.log(`Current selection: ${_cntEl} elements · ${_cntRel} relations · ${diagramObjects.length} diagram objects`);
-
   // ── Step 2: filter (skipped for the "Modify selected view" group — EXPAND_VIEW and
   // LAYOUT_ONLY re-layout/expand all elements already on the view; applying the filter
   // would exclude visible element types, causing containers to be sized for only the
@@ -67,24 +57,58 @@ function buildObjectSet(uiSelection, preset, actionId) {
     console.log("Modify-selected-view action: element-type filter skipped");
   }
 
+  // Filtered base counts (for the grouped log block at end of build).
   let _fEl = 0, _fRel = 0;
   collection.each(o => {
     const t = o.type || "";
     if (t.endsWith("-relationship")) _fRel++;
     else _fEl++;
   });
-  console.log(`${_isModifyAction ? "Unfiltered" : "Filtered"} selection: ${_fEl} elements · ${_fRel} relations · ${diagramObjects.length} diagram objects`);
+  const filteredCounts = { elems: _fEl, rels: _fRel, diag: diagramObjects.length };
 
-  // ── Step 3: related-elements expansion (skipped for LAYOUT_ONLY: re-layout what's there) ──
+  // Effective rel-type filter (same union used by step 5) — needed up front so the
+  // per-step relation deltas in step 3's logging match the final step-5 outcome.
+  const globalRelTypes = (preset.filter && preset.filter.relationTypes) || [];
+  const relTypeFilter  = _effectiveRelTypeFilter(globalRelTypes,
+                          preset.relatedElements && preset.relatedElements.steps);
+
+  // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
+  // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
+  // elements only — NOT the cumulative selection. An empty step terminates the chain.
+  // The cumulative selection is tracked separately for the relation-delta math
+  // (Filtered + Σ adds = Total, exactly).
+  const stepCounts = [];
+  // _filteredElements: elements that survived step 2, used as step 1's input.
+  const _filteredElements = [];
+  collection.each(o => {
+    const type = o.type || "";
+    if (type.endsWith("-relationship")) return;
+    if (type === "folder" || type === "archimate-diagram-model") return;
+    _filteredElements.push(o);
+  });
+  const filteredBaseRels = _countRelationsBetween(_filteredElements, relTypeFilter);
+  let cumulativeRels = filteredBaseRels;
+
   if (actionId !== ACTION.LAYOUT_ONLY.id &&
-      preset.relatedElements && Array.isArray(preset.relatedElements.layers)) {
-    let base = _collectionToArray(collection);
-    for (const layer of preset.relatedElements.layers) {
-      const added = _expandLayer(base, layer);
+      preset.relatedElements && Array.isArray(preset.relatedElements.steps)) {
+    let stepInput       = _filteredElements.slice();   // step 1 input = filtered base
+    let cumulativeElems = _filteredElements.slice();   // used only for relation delta
+    let stepIdx = 0;
+    for (const step of preset.relatedElements.steps) {
+      stepIdx++;
+      const added = _expandStep(stepInput, step);
+      // Add to the final selection (collection).
       added.forEach(o => {
         if (collection.filter(a => a.id === o.id).size() === 0) collection.add(o);
       });
-      base = _collectionToArray(collection);
+      // Cumulative grows; relation delta uses it.
+      cumulativeElems = cumulativeElems.concat(added);
+      const newCumRels = _countRelationsBetween(cumulativeElems, relTypeFilter);
+      const deltaRels  = Math.max(0, newCumRels - cumulativeRels);
+      cumulativeRels   = newCumRels;
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: deltaRels });
+      // Chain advance: next step's input is THIS step's additions only.
+      stepInput = added;
     }
   }
 
@@ -97,28 +121,52 @@ function buildObjectSet(uiSelection, preset, actionId) {
     elements.push(o);
   });
 
-  // ── Step 5: relations between elements (union filter: global ∪ block relationTypes) ──
-  const globalRelTypes = (preset.filter && preset.filter.relationTypes) || [];
-  let relTypeFilter = globalRelTypes;
-  if (globalRelTypes.length > 0 && preset.relatedElements && Array.isArray(preset.relatedElements.layers)) {
-    const blockRelTypes = [];
-    preset.relatedElements.layers.forEach(l => {
-      (l.relationTypes || []).forEach(t => blockRelTypes.push(t));
-    });
-    if (blockRelTypes.length > 0) {
-      relTypeFilter = Array.from(new Set(globalRelTypes.concat(blockRelTypes)));
-    }
-  }
+  // ── Step 5: relations between elements (effective filter computed above). ──
   const relations = _findRelationsBetween(elements, relTypeFilter);
-  console.log(`Relations found between elements: ${relations.length}`);
 
   // ── Step 6: partition diagram-model-connection (edges) from positional diagram objects ──
   const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
-  console.log(`Diagram objects: ${diagramNodes.length} nodes · ${diagramConnections.length} connections`);
 
   // ── Step 1 (continued): existing view contents — target identification + per-VO existence (EXPAND_VIEW + LAYOUT_ONLY) ──
   const existing = _collectExistingVisuals(uiSelection, actionId);
+
+  // Predict on-view counts using the same algorithm the writer uses.
+  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params || {});
+
+  // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
+  // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
+  const rows = [{
+    label: _isModifyAction ? "Unfiltered base:" : "Filtered base:",
+    elements: filteredCounts.elems, relations: filteredBaseRels, diagramObjects: filteredCounts.diag,
+  }];
+  for (const lc of stepCounts) {
+    rows.push({ label: `Step ${lc.idx} added:`, elements: lc.elems, relations: lc.rels });
+  }
+  if (stepCounts.length > 0) rows.push({ rule: true });
+  rows.push({
+    label: "Total to view:",
+    group: [
+      { sublabel: "elements:  ", fields: [
+          ["containers",       view.containers],
+          ["nestedElements",   view.nestedElements],
+          ["standalones",      view.standalones],
+          ["extraOccurrences", view.extraOccurrences],
+        ] },
+      { sublabel: "relations: ", fields: [
+          ["nestings",         view.nestings],
+          ["connections",      view.connections],
+        ] },
+      { sublabel: "diagram:   ", fields: [
+          ["diagramObjects",   view.diagramObjects],
+        ] },
+    ],
+  });
+  _logCountBlock("Pipeline — build object set:", rows);
+
+  if (diagramConnections.length > 0) {
+    console.log(`  Diagram-object edges (not laid out): ${diagramConnections.length}`);
+  }
 
   return {
     elements,
@@ -132,6 +180,75 @@ function buildObjectSet(uiSelection, preset, actionId) {
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Emit an indented block of count rows, label-aligned and counts column-aligned.
+ * Used by both the pipeline (per-step) and the dialog (live counters) so the
+ * two outputs have the same shape — easy to eyeball that prediction = result.
+ *
+ * Row shapes (canonical vocabulary; field key = user-facing plural):
+ *   { label, elements, relations, containers, nestedElements, standalones,
+ *            extraOccurrences, nestings, connections, views, diagramObjects, folders }
+ *                                  → a single-line count row
+ *   { label, group: [{ sublabel, fields: [[key, value], …] }] }
+ *                                  → a grouped row: label on its own line,
+ *                                    then one indented sub-line per group entry
+ *   { rule: true }                 → a horizontal separator above the total
+ *
+ * Single-line rows: each field renders only when != null.
+ * Grouped rows: every field in `fields` renders (console = full, zeros included).
+ * Plural rules: 1 → singular, else plural.
+ */
+function _logCountBlock(title, rows) {
+  const RULE = "──────────────────────────────────────────────";
+  // [key (== plural), singular, plural]. The key is the user-facing plural word —
+  // no abbreviations, per the canonical-vocabulary rule (ai/rules.md #11).
+  const FIELDS = [
+    ["elements",         "element",          "elements"],
+    ["relations",        "relation",         "relations"],
+    ["containers",       "container",        "containers"],
+    ["nestedElements",   "nested element",   "nested elements"],
+    ["standalones",      "standalone",       "standalones"],
+    ["extraOccurrences", "extra occurrence", "extra occurrences"],
+    ["nestings",         "nesting",          "nestings"],
+    ["connections",      "connection",       "connections"],
+    ["views",            "view",             "views"],
+    ["diagramObjects",   "diagram object",   "diagram objects"],
+    ["folders",          "folder",           "folders"],
+  ];
+  const FIELD_MAP = Object.create(null);
+  for (const f of FIELDS) FIELD_MAP[f[0]] = f;
+
+  function fmtField(key, v) {
+    const f = FIELD_MAP[key];
+    if (!f) return `${v} ${key}`;          // unknown key falls through
+    return `${String(v).padStart(3)} ${v === 1 ? f[1] : f[2]}`;
+  }
+
+  const labelW = rows.filter(r => !r.rule && !r.group).reduce((m, r) => Math.max(m, (r.label || "").length), 0);
+  console.log(title);
+  for (const r of rows) {
+    if (r.rule) { console.log("  " + RULE); continue; }
+    if (r.group) {
+      console.log(`  ${r.label || ""}`);
+      const subW = r.group.reduce((m, g) => Math.max(m, (g.sublabel || "").length), 0);
+      for (const g of r.group) {
+        const sub = (g.sublabel || "").padEnd(subW);
+        const parts = (g.fields || []).map(([key, v]) => fmtField(key, v));
+        console.log(`    ${sub}  ${parts.join(" · ")}`);
+      }
+      continue;
+    }
+    const lbl   = (r.label || "").padEnd(labelW);
+    const parts = [];
+    for (const [key] of FIELDS) {
+      const v = r[key];
+      if (v == null) continue;
+      parts.push(fmtField(key, v));
+    }
+    console.log(`  ${lbl}  ${parts.join(" · ")}`);
+  }
+}
 
 function _logFilter(filter) {
   if (!filter) { console.log("Filter: none"); return; }
@@ -277,7 +394,7 @@ function _matchesRelationType(type, relationTypes, rel) {
 }
 
 /**
- * Direction-aware match used by _expandLayer.
+ * Direction-aware match used by _expandStep.
  * isOutgoing === true when the traversing element is the relation's source.
  *   "type"      → both directions
  *   "type:in"   → only when traversing toward incoming  (isOutgoing === false)
@@ -298,8 +415,8 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
 }
 
 /** Expand by following relations up to depth hops. Returns newly-found elements. */
-function _expandLayer(base, layer) {
-  const { depth = 1, elementTypes = [], relationTypes = [] } = layer;
+function _expandStep(base, step) {
+  const { depth = 1, elementTypes = [], relationTypes = [] } = step;
   const baseIds  = new Set(base.map(o => o.id));
   const added    = [];
   const addedIds = new Set();
@@ -310,7 +427,6 @@ function _expandLayer(base, layer) {
     for (const element of frontier) {
       try {
         $(element).rels().each(rel => {
-          // if (_isExcluded(rel)) return;
           const type = rel.type || "";
           const isOutgoing = !!(rel.source && rel.source.id === element.id);
           if (!_matchesRelationTypeDir(type, relationTypes, isOutgoing)) return;
@@ -335,8 +451,8 @@ function _expandLayer(base, layer) {
 }
 
 /** Live-count wrapper for the dialog. Returns { elements, elemCount, relCount }. */
-function _expandLayerCounts(base, layer) {
-  const elements = _expandLayer(base, layer);
+function _expandStepCounts(base, step) {
+  const elements = _expandStep(base, step);
   if (elements.length === 0) return { elements, elemCount: 0, relCount: 0 };
 
   const allIds = new Set(base.map(e => e.id));
@@ -348,12 +464,11 @@ function _expandLayerCounts(base, layer) {
     try {
       $(el).rels().each(rel => {
         if (seen.has(rel.id)) return;
-        if (_isExcluded(rel)) return;
         const srcId = rel.source && rel.source.id;
         const tgtId = rel.target && rel.target.id;
         if (!srcId || !tgtId) return;
         if (!allIds.has(srcId) || !allIds.has(tgtId)) return;
-        if (!_matchesRelationType(rel.type, layer.relationTypes || [], rel)) return;
+        if (!_matchesRelationType(rel.type, step.relationTypes || [], rel)) return;
         seen.add(rel.id);
         relCount++;
       });
@@ -369,6 +484,187 @@ function _collectionToArray(collection) {
 }
 
 /**
+ * Compute the effective relation-type filter: union of global filter relationTypes
+ * and every step's relationTypes. Empty union ⇒ "all types allowed".
+ * Mirrors the step-5 logic so the dialog and the pipeline can share it.
+ */
+function _effectiveRelTypeFilter(globalRelTypes, steps) {
+  const g = globalRelTypes || [];
+  const stepRelTypes = [];
+  if (Array.isArray(steps)) {
+    steps.forEach(s => (s.relationTypes || []).forEach(t => stepRelTypes.push(t)));
+  }
+  if (g.length === 0 && stepRelTypes.length === 0) return [];
+  return Array.from(new Set(g.concat(stepRelTypes)));
+}
+
+/** Count rels between elements under the given filter. Cheaper than _findRelationsBetween
+ *  for the dialog hot path: no relation-array allocation, just an integer. */
+function _countRelationsBetween(elements, relTypeFilter) {
+  if (!elements || elements.length === 0) return 0;
+  const elementIds = new Set(elements.map(e => e.id));
+  const seen = new Set();
+  let count = 0;
+  for (const element of elements) {
+    try {
+      $(element).rels().each(rel => {
+        if (seen.has(rel.id)) return;
+        const srcId = rel.source && rel.source.id;
+        const tgtId = rel.target && rel.target.id;
+        if (!srcId || !tgtId) return;
+        if (!elementIds.has(srcId) || !elementIds.has(tgtId)) return;
+        if (relTypeFilter && relTypeFilter.length > 0 &&
+            !_matchesRelationType(rel.type, relTypeFilter, rel)) return;
+        seen.add(rel.id);
+        count++;
+      });
+    } catch (e) {}
+  }
+  return count;
+}
+
+/**
+ * Resolve nesting structure (parentMap, occurrenceMap, parentRels) given a flat
+ * list of nesting relations and the relevant preset.params flags. Single source of
+ * truth — used by the writer's _buildLayoutGraph AND by predictViewCounts (so dialog/
+ * pipeline counters agree with what the writer will actually produce).
+ *
+ * Behaviour matches _buildLayoutGraph's prior inline logic:
+ *   showInEveryContainer=false: first-wins; later candidates for the same child are
+ *     either silently skipped (multi-parent) or skipped with a cycle log.
+ *   showInEveryContainer=true:  each (child, parent) pair creates a new occurrence
+ *     id when needed; cycles still skip.
+ *
+ * @returns {{ parentMap, occurrenceMap, parentRels,
+ *             skippedCycle, skippedMultiParent }}
+ */
+function _resolveNesting(elements, nestingRels, params) {
+  const reverseTypes = new Set((params && params.reverseRelationTypes) || []);
+  const showInEvery  = !!(params && params.showInEveryContainer);
+  const parentMap = {};
+  const occurrenceMap = {};
+  for (const el of (elements || [])) occurrenceMap[el.id] = [el.id];
+  const parentRels = [];
+  let skippedCycle = 0;
+  let skippedMultiParent = 0;
+
+  function wouldCycle(map, childId, parentId) {
+    let cur = parentId;
+    while (cur) {
+      if (cur === childId) return true;
+      cur = map[cur];
+    }
+    return false;
+  }
+
+  for (const rel of (nestingRels || [])) {
+    const srcId = rel.source && rel.source.id;
+    const tgtId = rel.target && rel.target.id;
+    if (!srcId || !tgtId) continue;
+    const [parentId, childId] = reverseTypes.has(rel.type) ? [tgtId, srcId] : [srcId, tgtId];
+
+    if (!showInEvery) {
+      if (parentMap[childId] === undefined) {
+        if (wouldCycle(parentMap, childId, parentId)) {
+          skippedCycle++;
+        } else {
+          parentMap[childId] = parentId;
+          parentRels.push(rel);
+        }
+      } else {
+        skippedMultiParent++;
+      }
+    } else {
+      const occs = occurrenceMap[childId] || [childId];
+      const unassigned = occs.find(id => parentMap[id] === undefined);
+      if (unassigned && !wouldCycle(parentMap, unassigned, parentId)) {
+        parentMap[unassigned] = parentId;
+      } else {
+        const alreadyHere = occs.find(id => parentMap[id] === parentId);
+        if (!alreadyHere) {
+          const occId = `${childId}_occ_${occs.length}`;
+          if (!wouldCycle(parentMap, occId, parentId)) {
+            occurrenceMap[childId] = [...occs, occId];
+            parentMap[occId] = parentId;
+          }
+        }
+      }
+      parentRels.push(rel);
+    }
+  }
+
+  return { parentMap, occurrenceMap, parentRels, skippedCycle, skippedMultiParent };
+}
+
+/**
+ * Predict the counts that will appear on the generated view, given the pipeline's
+ * elements + relations + the current preset.params. Used by both the pipeline log
+ * and the dialog's live counter so what the user sees matches what gets written.
+ *
+ * Returned shape follows the canonical vocabulary (ai/rules.md #11):
+ *   elements         — unique model concepts (= containers + nestedElements + standalones)
+ *   containers       — elements with ≥1 child
+ *   nestedElements   — elements inside a container; not themselves a container
+ *   standalones      — elements at view root with no children
+ *   extraOccurrences — extra visual appearances (showInEveryContainer)
+ *   relations        — total inter-element relations (= nestings + connections)
+ *   nestings         — relations drawn as box-in-box
+ *   connections      — relations drawn as a line
+ *   diagramObjects   — canvas-only positional objects
+ */
+function _predictViewCounts(elements, relations, diagramNodeCount, params) {
+  const nestingTypes  = new Set((params && params.nestingRelationTypes) || []);
+  const nestingRels   = [];
+  const connectionRels = [];
+  for (const rel of (relations || [])) {
+    if (nestingTypes.has(rel.type)) nestingRels.push(rel);
+    else                            connectionRels.push(rel);
+  }
+  const { parentMap, occurrenceMap } = _resolveNesting(elements, nestingRels, params);
+
+  // Sum of (occurrences - 1) over every element — extra appearances.
+  let extraOccurrences = 0;
+  for (const elId of Object.keys(occurrenceMap)) {
+    extraOccurrences += Math.max(0, occurrenceMap[elId].length - 1);
+  }
+
+  // Categorise elements by role in the nesting tree. parentMap keys may include
+  // synthetic occurrence ids (`${id}_occ_N`); normalise to the underlying element id
+  // so the role categorisation is on unique concepts, not visual appearances.
+  const containerIds = new Set();
+  for (const childId of Object.keys(parentMap)) containerIds.add(parentMap[childId]);
+  // `parentMap` keys: ids that have a parent. Normalise occurrence ids back to base.
+  const stripOcc = id => {
+    const i = id.indexOf("_occ_");
+    return i < 0 ? id : id.substring(0, i);
+  };
+  const childIds = new Set();
+  for (const k of Object.keys(parentMap)) childIds.add(stripOcc(k));
+
+  let nestedElements = 0, standalones = 0;
+  for (const el of (elements || [])) {
+    if (containerIds.has(el.id)) continue;          // counted as container
+    if (childIds.has(el.id))     nestedElements++;
+    else                         standalones++;
+  }
+
+  const elementCount    = (elements || []).length;
+  const relationCount   = (relations || []).length;
+
+  return {
+    elements:         elementCount,
+    containers:       containerIds.size,
+    nestedElements,
+    standalones,
+    extraOccurrences,
+    relations:        relationCount,
+    nestings:         nestingRels.length,
+    connections:      connectionRels.length,
+    diagramObjects:   diagramNodeCount || 0,
+  };
+}
+
+/**
  * Find all relations whose source AND target are both in `elements`.
  * Applies type filter (empty = all types allowed).
  */
@@ -381,8 +677,6 @@ function _findRelationsBetween(elements, relTypeFilter) {
     try {
       $(element).rels().each(rel => {
         if (seen.has(rel.id)) return;
-        // Met nieuwe add related blokken niet meer nodig
-        //   if (_isExcluded(rel)) return;
         const srcId = rel.source && rel.source.id;
         const tgtId = rel.target && rel.target.id;
         if (!srcId || !tgtId) return;
@@ -397,14 +691,16 @@ function _findRelationsBetween(elements, relTypeFilter) {
   return relations;
 }
 
-function _isExcluded(rel) {
-  try { return rel.prop(PROP_EXCLUDE) === "true"; } catch (e) { return false; }
-}
-
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     buildObjectSet,
-    expandLayer:       _expandLayer,
-    expandLayerCounts: _expandLayerCounts,
+    expandStep:              _expandStep,
+    expandStepCounts:        _expandStepCounts,
+    logCountBlock:           _logCountBlock,
+    effectiveRelTypeFilter:  _effectiveRelTypeFilter,
+    countRelationsBetween:   _countRelationsBetween,
+    findRelationsBetween:    _findRelationsBetween,
+    resolveNesting:          _resolveNesting,
+    predictViewCounts:       _predictViewCounts,
   };
 }
