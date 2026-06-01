@@ -14,7 +14,7 @@ const REPO_ROOT = (() => {
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, DIRECTION_MAP } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, equalizeLeafWidths, applyParams } = EngineUtils;
+const { selfLoopResult, sortedNodes, applyParams } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 
@@ -99,9 +99,9 @@ function layout(graph) {
 
   const parentMap = graph._parentMap || {};
 
-  // Pre-layout: sort nodes and equalize widths if requested
+  // Pre-layout: sort nodes if requested. alignWidthSameType is ELK-only (see capability
+  // matrix); Dagre's partial nesting does not support the two-pass container measurement.
   const nodes = graph.sortContainers ? sortedNodes(graph.nodes, parentMap) : graph.nodes;
-  if (graph.alignWidthSameType) equalizeLeafWidths(nodes, parentMap);
 
   const engineOpts = applyParams("Dagre", graph.options, PARAM_MAPPING);
 

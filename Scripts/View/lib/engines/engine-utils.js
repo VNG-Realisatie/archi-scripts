@@ -69,44 +69,52 @@ function sortedNodes(nodes, parentMap) {
   return result;
 }
 
-// ── Leaf width equalization ───────────────────────────────────────────────────
+// ── Leaf-to-sibling-container width alignment ──────────────────────────────────
 
 /**
- * Equalize leaf node widths within same-type sibling groups (in place).
+ * Align bare leaf widths to neighbouring container boxes of the same element type
+ * (in place).
  *
- * Groups leaf nodes (nodes that are not containers) sharing the same parent and
- * element type. For each group with 2+ members, reduces all widths to the group
- * minimum. Container nodes are left untouched.
+ * For each leaf node L, look at L's sibling sub-containers (other direct children
+ * of L's parent that themselves have children). Among those whose element type
+ * equals L's type, take the narrowest rendered width and set L.width to it.
+ * Leaves with no same-type sibling container are left untouched. Sub-containers
+ * are never resized — only leaves change. A leaf typically grows, since a
+ * container box (children + padding) is wider than a bare element.
+ *
+ * Container widths are computed by the engine, so they are only known after a
+ * first layout pass; the caller supplies them via `containerWidthById`.
  *
  * Works with both LayoutGraph nodes (elementType / parent) and ELK nodeMap
  * items (_type) when called with a matching parentMap.
  *
- * @param {Object[]} items      nodes to process — each needs { id, width } plus
- *                              elementType or _type for grouping
- * @param {Object}   parentMap  { childId: parentId } — used to identify leaves and group siblings
- * @returns {Object[]}          same array (mutated)
+ * @param {Object[]} items              nodes to process — each needs { id, width } plus
+ *                                      elementType or _type for grouping
+ * @param {Object}   parentMap          { childId: parentId } — identifies leaves and groups siblings
+ * @param {Object}   containerWidthById { containerId: renderedWidth } from pass 1
+ * @returns {Object[]}                  same array (mutated)
  */
-function equalizeLeafWidths(items, parentMap) {
-  const childSet = new Set(Object.values(parentMap));
+function alignLeavesToSiblingContainers(items, parentMap, containerWidthById) {
+  const containerIds = new Set(Object.values(parentMap));
 
-  // Group leaf siblings by parentKey + elementType.
-  // Use parentMap[item.id] for the parent key — works for both LayoutGraph nodes
-  // (parentMap keyed by childId) and ELK nodeMap items (same parentMap).
-  const groups = {};
+  // Index sibling sub-containers by parentKey + type → list of rendered widths.
+  const siblingContainerWidths = {};
   for (const item of items) {
-    if (childSet.has(item.id)) continue;  // skip containers
+    if (!containerIds.has(item.id)) continue;        // containers only
+    const w = containerWidthById[item.id];
+    if (!(w > 0)) continue;                          // no rendered width → skip
     const pKey = parentMap[item.id] || "__root__";
     const type = item.elementType || item._type || "";
     const key  = pKey + "::" + type;
-    (groups[key] = groups[key] || []).push(item);
+    (siblingContainerWidths[key] = siblingContainerWidths[key] || []).push(w);
   }
 
-  for (const group of Object.values(groups)) {
-    if (group.length < 2) continue;
-    const minW = Math.min(...group.map(n => n.width || 0));
-    for (const item of group) {
-      if ((item.width || 0) > minW) item.width = minW;
-    }
+  for (const item of items) {
+    if (containerIds.has(item.id)) continue;         // skip containers — leaves only
+    const pKey = parentMap[item.id] || "__root__";
+    const type = item.elementType || item._type || "";
+    const widths = siblingContainerWidths[pKey + "::" + type];
+    if (widths && widths.length) item.width = Math.min(...widths);
   }
   return items;
 }
@@ -131,5 +139,5 @@ function applyParams(algName, opts, mapping) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, equalizeLeafWidths, applyParams };
+  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignLeavesToSiblingContainers, applyParams };
 }

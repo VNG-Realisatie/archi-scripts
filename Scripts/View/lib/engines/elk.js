@@ -16,7 +16,7 @@ const REPO_ROOT = (() => {
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, byTypeAndName, equalizeLeafWidths } = EngineUtils;
+const { selfLoopResult, byTypeAndName, alignLeavesToSiblingContainers } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 // Maps GUI param names to ELK layout option keys/values.
@@ -28,7 +28,8 @@ const { selfLoopResult, byTypeAndName, equalizeLeafWidths } = EngineUtils;
 //   maxWidth / maxHeight  → set as elkGraph.width / .height (root graph bounds, not options)
 //   nestingRelationTypes  → graph structure (parentMap)
 //   sortContainers        → node sort order via engine-utils.sortedNodes (ELK: _sortNodeChildren)
-//   alignWidthSameType    → two-pass layout + leaf width equalization via engine-utils.equalizeLeafWidths
+//   alignWidthSameType    → two-pass layout; pass 1 renders containers, leaves then grow to the
+//                           narrowest same-type sibling container via engine-utils.alignLeavesToSiblingContainers
 
 const ELK_DIRECTION = {
   "Left → Right": "RIGHT",
@@ -249,8 +250,9 @@ function layout(graph) {
     edgeList.push(entry);
   }
 
-  // Two-pass layout for alignWidthSameType: pass 1 → find min-width per same-type sibling group
-  // → pass 2 with equalized leaf widths so ELK sizes containers to the equalized content.
+  // Two-pass layout for alignWidthSameType: pass 1 renders containers (engine-sized) →
+  // read their widths → resize each bare leaf to the narrowest same-type sibling container →
+  // pass 2 places leaves aligned to their neighbouring container boxes.
   if (graph.alignWidthSameType && Object.values(parentMap).length > 0) {
     const containerIds = new Set(Object.values(parentMap));
     const origSizes = {};
@@ -263,12 +265,12 @@ function layout(graph) {
     console.log("Calculating layout (pass 1 — align width same type)...");
     const pass1Layouted = elk.layout(pass1ElkGraph);
 
-    // Reset nodeMap to original sizes, then update leaf widths from pass-1 rendered result
-    // so equalization uses actual rendered widths (not input widths).
+    // Reset nodeMap to original sizes, then grow leaves to the narrowest same-type
+    // sibling container's rendered width from pass 1.
+    const containerWidths = _collectContainerWidths(pass1Layouted, containerIds);
     _resetNodesForPass2(nodeMap, origSizes, containerIds);
-    _applyPass1Widths(nodeMap, pass1Layouted, containerIds);
-    equalizeLeafWidths(Object.values(nodeMap), parentMap);
-    console.log("Calculating layout (pass 2 — equalized widths)...");
+    alignLeavesToSiblingContainers(Object.values(nodeMap), parentMap, containerWidths);
+    console.log("Calculating layout (pass 2 — leaves aligned to sibling containers)...");
   } else {
     console.log("Calculating layout...");
   }
@@ -625,23 +627,25 @@ function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition
 
 
 /**
- * Copy leaf widths from pass-1 ELK output into nodeMap before equalization.
- * Containers are skipped — ELK auto-sizes them in pass 2.
+ * Collect rendered container widths from pass-1 ELK output.
+ * Only container nodes are kept; leaves are ignored. Used to grow sibling leaves
+ * to a matching container width in pass 2 (via alignLeavesToSiblingContainers).
+ * @returns {Object}  { containerId: renderedWidth }
  */
-function _applyPass1Widths(nodeMap, layouted, containerIds) {
+function _collectContainerWidths(layouted, containerIds) {
+  const widths = {};
   function walk(node) {
-    if (nodeMap[node.id] && !containerIds.has(node.id)) {
-      nodeMap[node.id].width = node.width || nodeMap[node.id].width;
-    }
+    if (containerIds.has(node.id) && node.width > 0) widths[node.id] = node.width;
     (node.children || []).forEach(walk);
   }
   walk(layouted);
+  return widths;
 }
 
 /**
  * Reset node state between pass 1 and pass 2.
  * Leaf nodes restore their original sizes; containers get no explicit size so ELK auto-sizes them.
- * Caller applies leaf width equalization after this call (via equalizeLeafWidths from engine-utils).
+ * Caller then grows leaves to sibling-container widths (via alignLeavesToSiblingContainers).
  */
 function _resetNodesForPass2(nodeMap, origSizes, containerIds) {
   for (const [id, node] of Object.entries(nodeMap)) {

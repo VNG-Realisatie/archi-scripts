@@ -163,7 +163,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType",
+      "sortContainers",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
     ],
     supportedOptions: {

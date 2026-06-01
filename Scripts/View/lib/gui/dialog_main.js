@@ -1334,7 +1334,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   GridDataFactory.fillDefaults().span(4, 1).grab(true, false).applyTo(chkComp);
 
   _addCheck(chkComp, "Sort containers",         "Sort containers alphabetically within each level.",                         1, w, "chkSortContainers");
-  _addCheck(chkComp, "Align width same type",   "Equalize widths of same-type leaf siblings within each container.",        1, w, "chkAlignWidthSameType");
+  _addCheck(chkComp, "Align width same type",   "Resize a leaf to match the narrowest same-type sibling container, so bare elements align with neighbouring container boxes of their type.",        1, w, "chkAlignWidthSameType");
   _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",               1, w, "chkShowInEvery");
   _addCheck(chkComp, "Show connection for multiple occurrences",
     "When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only.",

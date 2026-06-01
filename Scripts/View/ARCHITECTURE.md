@@ -632,7 +632,7 @@ The group label is **"Draw these relation types as containers"** — a checkbox 
 | Inner spacing | Minimum distance between elements inside a container (px). |
 | Padding | Space between container border and contents (px). |
 | Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
-| Align width same type | Resize leaf elements to match the tallest in their row, within same-type containers only. |
+| Align width same type | Resize a leaf to match the narrowest same-type sibling container, so bare elements align with neighbouring container boxes of their type. ELK algorithms only. |
 | Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
 | Show connection for multiple occurrences | When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only. Active only when *Show in every container* is on. |
 
@@ -1040,7 +1040,7 @@ Not every algorithm supports every view-size parameter. Unsupported parameters a
 
 **Position spread is allowed.** Moving node centers outward from a common origin — keeping sizes fixed — is permitted as a post-layout step to fill a view-size target.
 
-**`alignWidthSameType` exception.** This adjustment widens certain leaf nodes to match same-type siblings. It runs between pass 1 and pass 2 of a two-pass layout — a pre-layout adjustment to pass 2's input, not a post-layout operation.
+**`alignWidthSameType` exception.** This adjustment widens certain leaf nodes to match the narrowest same-type sibling *container* (using container widths rendered in pass 1). It runs between pass 1 and pass 2 of a two-pass layout — a pre-layout adjustment to pass 2's input, not a post-layout operation.
 
 ### Adapter obligations
 
@@ -1487,7 +1487,7 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 | Padding | `elk.padding` | `"[top=N,left=N,bottom=N,right=N]"` |
 | Nesting | (pre-processing) | parent-child + `elk.hierarchyHandling: "INCLUDE_CHILDREN"` |
 | Sort containers | (pre-processing) | checked → containers first then leaves, sorted by type then name; unchecked → model order |
-| Align same type | (two-pass) | Resize leaves to match tallest same-type sibling between pass 1 and pass 2 |
+| Align same type | (two-pass) | Pass 1 renders containers; each leaf grows to the narrowest same-type sibling container's rendered width; pass 2 re-lays-out. ELK-only. |
 
 ### Dagre
 
