@@ -327,6 +327,45 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 
 // ── View writer ───────────────────────────────────────────────────────────────
 
+// Strip the synthetic occurrence suffix added by Pipeline.resolveNesting
+// ("conceptId_occ_N") to recover the underlying model concept id.
+function _stripOccSuffix(id) {
+  const i = id.lastIndexOf("_occ_");
+  return i >= 0 ? id.substring(0, i) : id;
+}
+
+// Concept id of a VisualElement's current parent VO, or null at view root.
+function _currentParentConceptId(ve) {
+  const p = $(ve).parent().filter("element").first();
+  if (!p) return null;
+  return (p.concept && p.concept.id) || p.id || null;
+}
+
+// Pick the existing VO that this result node should reposition, or null if
+// it must be created fresh. Under multi-occurrence (K VOs for one concept),
+// pair by (concept, new-parent concept); tie-break by VisualSet capture order.
+// Bound VOs are recorded in consumedVoIds so each VO is written at most once.
+// DiagramObjects (no concept) fall through to lookup by VO id.
+function _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds) {
+  const candidates = existingVosByConcept.get(archiId);
+  if (!candidates || candidates.length === 0) {
+    return existingVoByVoId.get(archiId) || null;
+  }
+  const available = candidates.filter(ve => !consumedVoIds.has(ve.id));
+  if (available.length === 0) return null;
+
+  const newParentRn = rn.parentId ? nodeById[rn.parentId] : null;
+  const newParentArchiId = newParentRn ? _stripOccSuffix(newParentRn.id) : null;
+
+  let pick = null;
+  for (const ve of available) {
+    if (_currentParentConceptId(ve) === newParentArchiId) { pick = ve; break; }
+  }
+  if (!pick) pick = available[0];
+  consumedVoIds.add(pick.id);
+  return pick;
+}
+
 /**
  * Apply a layout result to a target view. Action-agnostic.
  *
@@ -345,13 +384,20 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   result.nodes.forEach(n => { nodeById[n.id] = n; });
   const sortedNodes = _sortNodesParentFirst(result.nodes, nodeById);
 
-  // Existence maps from the pipeline output.
-  const existingVoByConcept = new Map();   // conceptId → VisualElement
-  const existingVoByVoId    = new Map();   // VO id     → DiagramObject (or VisualElement)
+  // Existence maps from the pipeline output. A single model concept can have
+  // multiple existing VOs on the view (extra occurrences from a prior
+  // showInEveryContainer run, or user-authored duplicates) — store all of them
+  // in capture order so the pairing step can bind one VO per result node.
+  const existingVosByConcept = new Map();  // conceptId → VisualElement[]
+  const existingVoByVoId     = new Map();  // VO id     → DiagramObject (or VisualElement)
   const existingRelByConcept = new Map();  // conceptId → VisualRelation
 
   (objectSet.visualElements || []).forEach(ve => {
-    if (ve.concept && ve.concept.id) existingVoByConcept.set(ve.concept.id, ve);
+    if (ve.concept && ve.concept.id) {
+      const list = existingVosByConcept.get(ve.concept.id);
+      if (list) list.push(ve);
+      else existingVosByConcept.set(ve.concept.id, [ve]);
+    }
     existingVoByVoId.set(ve.id, ve);
   });
   (objectSet.diagramObjects || []).forEach(dvo => { existingVoByVoId.set(dvo.id, dvo); });
@@ -360,12 +406,13 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   });
 
   const visualIndex = {};  // result-node id → VisualObject (existing or freshly added)
+  const consumedVoIds = new Set();  // VO ids already bound to a result node
 
   // ── Nodes: reposition existing, add new ──
   console.log(`Writing ${sortedNodes.length} nodes...`);
   for (const rn of sortedNodes) {
-    const archiId = rn.id.includes("_occ_") ? rn.id.substring(0, rn.id.lastIndexOf("_occ_")) : rn.id;
-    const existing = existingVoByConcept.get(archiId) || existingVoByVoId.get(archiId);
+    const archiId = _stripOccSuffix(rn.id);
+    const existing = _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds);
 
     if (existing) {
       // Derive desired parent from this run's nesting decisions (§A.6.6, §A.11.9).
@@ -417,6 +464,18 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     } catch (e) {
       console.error(`Failed to add element ${archiId}: ${e}`);
     }
+  }
+
+  // Concept over-supply: more existing VOs than result nodes for a concept
+  // (e.g. user toggled showInEveryContainer off, or EXPAND_VIEW added a
+  // narrower nesting). Surplus VOs are left in place — deletion is forbidden
+  // outside the explicit name-overwrite path (Invariant 4).
+  let unpaired = 0;
+  existingVosByConcept.forEach(list => {
+    for (const ve of list) if (!consumedVoIds.has(ve.id)) unpaired++;
+  });
+  if (unpaired > 0) {
+    console.log(`Unpaired VOs: ${unpaired} (concept over-supply — kept in place)`);
   }
 
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──

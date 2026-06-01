@@ -904,6 +904,16 @@ The writer derives every visual's parent from the current run's nesting decision
 
 There is no per-action branch; the same rule applies to NEW_VIEW, ONE_EACH, EXPAND_VIEW, and LAYOUT_ONLY. See [Invariants](#invariants) (writer invariant).
 
+**Multi-occurrence VO pairing.** When one model concept has multiple existing VOs on the target view (extra occurrences from a prior `showInEveryContainer: true` run, or user-authored duplicates) the writer pairs each result node to a single existing VO before applying re-parenting. Pairing rule, executed per result node in the parent-first loop:
+
+1. Strip any `_occ_N` suffix from the result-node id to recover the concept id.
+2. Among existing VOs for that concept that have not yet been consumed, prefer the one whose **current parent VO's concept** matches the **new parent result node's concept** (after the same suffix strip; `null` = view root on both sides).
+3. If no candidate matches by parent concept, take the first unconsumed VO in VisualSet capture order.
+4. Mark the chosen VO consumed (one VO per result node).
+5. The standard re-parent step runs unchanged on the picked VO — Invariant 9 is not bypassed; pairing is a lookup refinement.
+
+Surplus existing VOs (concept over-supply — e.g. `showInEveryContainer` toggled off, or EXPAND_VIEW reducing occurrence count) are **left in place untouched**. The writer never deletes visuals outside the explicit name-overwrite path (Invariant 4). A single log line `Unpaired VOs: N (concept over-supply — kept in place)` flags the count.
+
 ## Action semantics
 
 Writing a layout result is **action-agnostic**. The single writing rule ([Invariants](#invariants)):
@@ -1295,13 +1305,15 @@ generate_view(preset, uiSelection, actionId) → ArchimateView[]
 
 `_writeView` is the only function that changes views ([Invariants](#invariants)). It works as follows:
 
-Before writing, it builds three lookup maps from the [VisualSet](#visualset): existing visual elements keyed by model concept ID, existing visual elements keyed by VO ID, and existing visual relations keyed by concept ID.
+Before writing, it builds three lookup maps from the [VisualSet](#visualset): existing visual elements grouped by model concept ID as **lists** (`existingVosByConcept: Map<conceptId, VisualElement[]>` — one concept can have multiple VOs from extra occurrences), existing visual elements keyed by VO ID, and existing visual relations keyed by concept ID. A `consumedVoIds` Set tracks which existing VOs have been bound to a result node, ensuring each VO is written at most once.
 
-Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable depth-first sort ensuring every parent is processed before its children). For each node: the writer looks up the model element by ID, then checks for an existing VO. **If found (reposition):** the VO's bounds are updated in parent-relative coordinates ([Invariants](#invariants) parent-relative coordinates); if the new parentMap names a different parent, the VO is re-parented using the jArchi 1.10 move API. **If not found (create):** the element is retrieved from the model and added to the view under the correct parent.
+Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable depth-first sort ensuring every parent is processed before its children). For each node: `_pickExistingVo` selects an existing VO by `(concept id, new-parent concept id)` from the concept list (see [Writer parenthood](#writer-parenthood) for the pairing rule), or returns null if no candidate remains. **If found (reposition):** the VO is marked consumed; its bounds are updated in parent-relative coordinates ([Invariants](#invariants) parent-relative coordinates); if the new parentMap names a different parent, the VO is re-parented using the jArchi 1.10 move API. **If not found (create):** the element is retrieved from the model and added to the view under the correct parent.
+
+After the node loop, the writer scans `existingVosByConcept` for VOs not in `consumedVoIds` and logs `Unpaired VOs: N (concept over-supply — kept in place)` if any are unbound. Surplus VOs are not mutated (Invariant 4 — no silent data loss).
 
 Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. Nestings that won the multi-parent resolution are drawn on the view after all connections.
 
-Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_applyEdgeStyle`, `::_getParentAbsOffset`.
+Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExistingVo`, `::_currentParentConceptId`, `::_stripOccSuffix`, `::_applyEdgeStyle`, `::_getParentAbsOffset`.
 
 ### Appearance preservation per object type
 
