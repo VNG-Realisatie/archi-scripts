@@ -11,10 +11,10 @@ Update both parts as part of any commit that affects behaviour, public APIs, act
 
 This document uses two HTML-comment markers (invisible in rendered Markdown, visible in source):
 
-| Marker | Meaning | Lifecycle |
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Marker&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Meaning | Lifecycle |
 |---|---|---|
-| `<!-- @mark: ... -->` | Transient review comment for the next editor/AI to act on. | Acted on, then removed. |
-| `<!-- @keep: ... -->` | Permanent guidance — the section has been reviewed and signed off; do not rewrite. | Stays in the document. |
+| `<!-- @mark: .. -->` | Transient review comment for the next editor/AI to act on. | Acted on, then removed. |
+| `<!-- @keep: .. -->` | Permanent guidance — the section has been reviewed and signed off; do not rewrite. | Stays in the document. |
 
 ---
 
@@ -54,54 +54,26 @@ The canonical vocabulary realises hard rule #11 in [ai/rules.md](../../ai/rules.
 
 Stable terms. Used in code, UI labels, and documentation. No synonyms.
 
-**Model layer:**
-
-| Term | Definition |
-|---|---|
-| **element** | A model concept (a typed thing in the modelling language). |
-| **relation** | A directed, typed connection between two elements at the model level. |
-| **view** | A diagram: a positioned arrangement of elements, relations, and diagram objects. A model element may appear on many views. |
-
-**Visual layer:**
-
-| Term | Definition |
-|---|---|
-| **VisualElement** | The placement of one element on one view's canvas. Has bounds, may have appearance overrides; points back to its model element. |
-| **VisualRelation** | The drawing of one relation on one view's canvas. Has endpoints (VisualElements) and bendpoints. |
-| **occurrence** | A visual appearance of an element in a view. A unique element normally has one occurrence; with `showInEveryContainer: true` it can have several. |
-
-**VisualElement roles** (a VisualElement is in exactly one role):
-
-| Role | Definition |
-|---|---|
-| **container** | Drawn as a box around one or more other VisualElements. |
-| **nested element** | Drawn inside a container; not itself a container. |
-| **standalone** | Drawn at view root; no children, not inside anything. |
-| **extra occurrence** | Second or Nth visual appearance of the same element under another container (when `showInEveryContainer: true`). Role-agnostic — applies whether the duplicated visual is a nested element or a sub-container. |
-
-**VisualRelation roles** (a VisualRelation is in exactly one role):
-
-| Role | Definition |
-|---|---|
-| **nesting** | Drawn as box-in-box (the nested element sits inside the container's box; no line). Driven by `params.nestingRelationTypes`. |
-| **connection** | Drawn as a line between two boxes. Every VisualRelation is either a nesting or a connection — there is no third visual form. |
-
-**Counter rule.** *Relations* is a model-layer word. On view-side count rows (Total to view, Output) the labels are **nestings** and **connections**, never "relations". The pipeline's Filtered-base and Step-N-adds rows are model-side and use "relations". The Total-to-view row is view-side and uses the nesting/connection split.
-
-**Canvas-only:**
-
-| Term | Definition |
-|---|---|
-| **diagram object** | A canvas-only object that has no model concept: note, group, image, legend, view-reference, or a connection drawn between diagram objects. Belongs to exactly one view. |
-
-**Subsystem-wide:**
-
-| Term | Definition |
-|---|---|
-| **Layout** | The algorithmic positioning of all visible objects on a view. |
-| **Preset** | A named, persistable bundle of layout configuration (algorithm choice + parameters + filters + related-elements rules + target naming). |
-| **Action** | What the system does on invocation: create a new view, create one view per element, expand an existing view, or re-lay-out an existing view. A runtime parameter — never stored in a preset. |
-| **Session** | The last-used configuration, restored automatically next time the UI opens. |
+| Area                | Term                 | Definition                                                                                                                                                                                                     |
+| ------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Model               | **element**          | A model concept (a typed thing in the modelling language).                                                                                                                                                     |
+|                     | **relation**         | A directed, typed connection between two elements at the model level.                                                                                                                                          |
+|                     | **view**             | A diagram: a positioned arrangement of elements, relations, and diagram objects. A model element may appear on many views.                                                                                     |
+| Visual              | **VisualElement**    | The placement of one element on one view's canvas. Has bounds, may have appearance overrides, and points back to its model element.                                                                            |
+|                     | **VisualRelation**   | The drawing of one relation on one view's canvas. Has endpoints (VisualElements) and bendpoints.                                                                                                               |
+|                     | **occurrence**       | A visual appearance of an element in a view. A unique element normally has one occurrence; with `showInEveryContainer: true` it can have several.                                                              |
+| VisualElement role  | **container**        | Drawn as a box around one or more other VisualElements.                                                                                                                                                        |
+|                     | **nested element**   | Drawn inside a container; not itself a container.                                                                                                                                                              |
+|                     | **standalone**       | Drawn at view root; no children, not inside anything.                                                                                                                                                          |
+|                     | **extra occurrence** | Second or Nth visual appearance of the same element under another container (when `showInEveryContainer: true`). Applies whether the duplicated visual is a nested element or a sub-container.                 |
+| VisualRelation role | **nesting**          | Drawn as box-in-box (the nested element sits inside the container's box; no line). Driven by `params.nestingRelationTypes`.                                                                                    |
+|                     | **connection**       | Drawn as a line between two boxes. Every VisualRelation is either a nesting or a connection.                                                                                                                   |
+| Canvas-only         | **diagram object**   | A canvas-only object with no model concept: note, group, image, legend, view-reference, or a connection drawn between diagram objects. Belongs to exactly one view.                                            |
+| Subsystem           | **Layout**           | Algorithmic positioning of all visible objects on a view.                                                                                                                                                      |
+|                     | **Preset**           | A named, persistable bundle of layout configuration (algorithm, parameters, filters, related-elements rules, and target naming).                                                                               |
+|                     | **Action**           | What the system does on invocation: create a new view, create one view per element, expand an existing view, or re-layout an existing view. Runtime parameter; never stored in a preset.                       |
+|                     | **Session**          | The last-used configuration, restored automatically when the UI opens.                                                                                                                                         |
+| Terminology         | **Counter rule**     | *Relations* is a model-layer term. View-side counters use **nestings** and **connections**. Pipeline counters (Filtered-base, Step-N-adds) use **relations**. Total-to-view uses the nesting/connection split. |
 
 ### Exceptions (data-structure roles)
 
@@ -121,22 +93,24 @@ These names describe algorithmic data structures, not counted concepts. They app
 
 Internal names must not appear in GUI labels or button text. Tooltips may use them parenthetically. When the [Preset schema](#preset-schema) is described in prose, the GUI labels below are used so a reader familiar with the dialog can map fields to controls.
 
-| Internal | GUI label |
+| GUI label | Internal |
 |---|---|
-| Edge, edge routing | Relation line, relation line style |
-| Graph | Diagram or View |
-| Algorithm, engine | Layout style |
-| Rank / layer | Level |
-| Direction / orientation | Flow direction |
-| Node placement | Element alignment |
-| Layer spacing | Level spacing |
-| Node spacing | Element spacing |
-| Depth, hops | Relation levels |
-| Ranker | Layer ranking |
-| rectpacking (in labels) | Tight packing / Pack |
-| Parameter file, config file | Preset |
-| Per element | One view each |
-| Layout only | Re-layout |
+| Relation line | Edge |
+| Relation line style | Edge routing |
+| Diagram | Graph |
+| View | Graph |
+| Layout style | Algorithm, engine |
+| Level | Rank, layer |
+| Flow direction | Direction, orientation |
+| Element alignment | Node placement |
+| Level spacing | Layer spacing |
+| Element spacing | Node spacing |
+| Relation levels | Depth, hops |
+| Layer ranking | Ranker |
+| Tight packing, Pack | rectpacking |
+| Preset | Parameter file, config file |
+| One view each | Per element |
+| Re-layout | Layout only |
 
 ## System architecture
 
@@ -192,12 +166,88 @@ Shared infrastructure (used by Layers 1–2, not a layer itself):
                           UI-only state across sessions.
 ```
 
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│ Layer 1 — Entry points                                                               │
+│                                                                                      │
+│ Two sibling entry paths. Both produce (selection, preset, action) and invoke         │
+│ the View-generation API.                                                             │
+│                                                                                      │
+│ 1. Generate View dialog                                                              │
+│    - Define selection, layout, filters, and expansion rules                          │
+│    - Live counters use same selection pipeline as generation                         │
+│    - On confirmation, invokes API                                                    │
+│                                                                                      │
+│ 2. Preset-bound scripts (headless)                                                   │
+│    - Read preset and invoke API                                                      │
+│    - Generate view from selection using preset                                       │
+│    - Re-layout or Expand selected view                                               │
+│                                                                                      │
+│ Only dialog can create, edit, or save presets.                                       │
+└──────────────────────────────┬───────────────────────────────────────────────────────┘
+                               │
+                               │ Input: (selection, preset, action)
+                               │
+┌──────────────────────────────▼───────────────────────────────────────────────────────┐
+│ Layer 2 — View-generation API                                                        │
+│                                                                                      │
+│ System orchestrator and sole writer to views.                                        │
+│                                                                                      │
+│ 1. Validate preset                                                                   │
+│ 2. Selection pipeline                                                                │
+│ 3. Build layout graph                                                                │
+│ 4. Call engine adapter                                                               │
+│ 5. Write result to view                                                              │
+│                                                                                      │
+│ Uses engine-independent layout graph (see Engine adapter contract)                   │
+└──────────────────────────────┬───────────────────────────────────────────────────────┘
+                               │
+                               │ Engine-independent layout graph
+┌──────────────────────────────▼───────────────────────────────────────────────────────┐
+│ Layer 3 — Engine adapter API                                                         │
+│                                                                                      │
+│ One adapter per engine.                                                              │
+│                                                                                      │
+│ 1. Consume layout graph                                                              │
+│ 2. Compute positions                                                                 │
+│ 3. Return positioned output                                                          │
+│                                                                                      │
+│ No knowledge of presets, selection, dialogs, or views.                               │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+
+Shared infrastructure (used by Layers 1–2)
+
+SSOT module
+1. Styles
+2. Algorithms
+3. GUI parameters
+4. Allowed values
+5. Action/routing constants
+6. Diagram-object types
+7. Preset defaults
+
+Selection pipeline
+1. Selection
+2. Filtering
+3. Expansion
+4. Typed object set
+
+Preset persistence
+1. Read preset bundles
+2. Write preset bundles
+3. Restore session state
+```
+
+
 ### Boundaries
 
 #### View-generation API (Layer 1 → Layer 2)
 
-The public entry point is `generate_view(selection, preset, action)`. Three inputs:
-- **Selection** — the objects the user picked in Archi. Can be model-tree items (folders, elements, relations) or canvas objects (VisualElements, VisualRelations, DiagramObjects) from a view, or a whole view node. Mixed selections are valid. Passed as-is; the pipeline normalises them.
+The public entry point is `generate_view(selection, preset, action)`. 
+Three inputs:
+- **Selection** — the objects the user picked in Archi. 
+  - Can be model-tree items (folders, elements, relations) or canvas objects (VisualElements, VisualRelations, DiagramObjects) from a view, or a whole view node.
+  - Mixed selections are valid. Passed as-is; the pipeline normalises them.
 - **Preset** — a validated configuration bundle:
   - *Algorithm* — which layout engine and algorithm to use.
   - *Layout parameters* — spacing, direction, routing style, view-size constraints, nesting and reversal flags.
@@ -210,7 +260,7 @@ The public entry point is `generate_view(selection, preset, action)`. Three inpu
   - `EXPAND_VIEW` — add related elements to an existing view; existing visuals stay in place.
   - `LAYOUT_ONLY` — re-layout the existing view contents without adding or removing elements.
 
-Output: `ArchimateView[]` — the views that were written or updated, with all elements positioned and relations routed.
+Output: `ArchimateView` — the views that were written or updated, with all elements positioned and relations routed.
 
 #### Engine adapter API (Layer 2 → Layer 3)
 
@@ -324,14 +374,14 @@ Used by the `EncodedRelTypeId[]` fields above (`filter.relationTypes`, `Layer.re
 | `"type:in"` | incoming only (traversed element is the relation's target) |
 | `"type:out"` | outgoing only (traversed element is the relation's source) |
 
-Per relation type, two independent direction checkboxes are shown: **☐ ←** (incoming) and **☐ →** (outgoing). There is no separate "activate this relation" master toggle.
+Per relation type, two independent direction checkboxes are shown: **○ ←** (incoming) and **○ →** (outgoing). There is no separate "activate this relation" master toggle.
 
 | UI state | Encoded form | Meaning |
 |---|---|---|
 | ☑ ← only | `"type:in"` | incoming only |
 | ☑ → only | `"type:out"` | outgoing only |
 | ☑ ← and ☑ → | `"type"` | both directions |
-| ☐ ← and ☐ → | *(absent from list)* | follow all — unconstrained |
+| ○ ← and ○ → | *(absent from list)* | follow all — unconstrained |
 
 Empty selection (neither direction checked) is meaningful: the relation type is absent from the encoded list. [Step 5](#steps) treats "empty union → all types allowed", so the absent type is followed in all directions. No UI enforcement prevents the both-unchecked state; it is the idiomatic "don't filter" state.
 
@@ -351,50 +401,27 @@ For actions in the **Create new view** group, the VisualSet is empty. For action
 
 The **Generate View dialog** lets you define a selection and layout, then run view generation. You can save your configuration as a named preset and reload it later. Top-to-bottom structure:
 
-```
 ┌─ Generate View ──────────────────────────────────────────────────────────────┐
-│  Preset: [Application Flow LR  ▼]  [Load…]  [Save]  [Manage…]               │
+│  Preset: [Application Flow LR  ▼]  [Load…]  [Save]  [Manage…]                │
+│                                                                              │
 │  ┌─[Selection]──[Layout]──────────────────────────────────────────────────┐  │
-│  │ ┌─ Current selection ────────────────────────────────────────────────┐ │  │
-│  │ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │ │  │
-│  │ │               First object: Business Actor: Customer                 │ │  │
-│  │ │  Containing:  12 elements, 8 relations                              │ │  │
-│  │ │  Filtered:    9 elements, 6 relations                               │ │  │
-│  │ │  ──────────────────────────────────────────────────────────────    │ │  │
-│  │ │  Filter element types  (empty = all included):                      │ │  │
-│  │ │  [search field]  ┊  [chip panel: × BusinessActor  × Application]    │ │  │
-│  │ │  Filter relation types:                                             │ │  │
-│  │ │  access ☐← ☐→  aggregation ☐← ☐→  assignment ☐← ☐→  …             │ │  │
-│  │ │  Filter diagram types:                                              │ │  │
-│  │ │  ☐ group  ☐ note  ☐ image  ☐ legend                                │ │  │
-│  │ └────────────────────────────────────────────────────────────────────┘ │  │
-│  │ ┌─ Related elements ─────────────────────────────────────────────────┐ │  │
-│  │ │ Expand by following relations to neighbouring elements.             │ │  │
-│  │ │ Each block below adds a step.            [+ Add related elements]   │ │  │
-│  │ │ ┌─ Step 1 ────────────────────────────────────────────────────┐   │ │  │
-│  │ │ │  Added:  4 elements, 3 relations        [▲] [▼] [▾] [✕]     │   │ │  │
-│  │ │ │  ─────────────────────────────────────────────────────────  │   │ │  │
-│  │ │ │  access ☐← ☐→  aggregation ☐← ☐→  assignment ☐← ☐→  …     │   │ │  │
-│  │ │ │  Filter element types:  [chip selector]                     │   │ │  │
-│  │ │ │  Relation levels:  [1  ▲▼]                                  │   │ │  │
-│  │ │ └─────────────────────────────────────────────────────────────┘   │ │  │
-│  │ │ ┌─ Step 2 ────────────────────────────────────────────────────┐   │ │  │
-│  │ │ │  Added:  nothing                        [▲] [▼] [▸] [✕]     │   │ │  │
-│  │ │ └─────────────────────────────────────────────────────────────┘   │ │  │
-│  │ └────────────────────────────────────────────────────────────────────┘ │  │
-│  └──────────────────────────────────────────────────────────────────────────┘  │
-│  ┌─ Generated view ───────────────────────────────────────────────────────┐   │
-│  │  Folder: [/View/_Generated________________]  Name: [Customer view____] │   │
-│  │  Output:                                                               │   │
-│  │    elements:    18 containers · 92 nested elements                     │   │
-│  │    relations:   11 nestings · 98 connections                           │   │
-│  └────────────────────────────────────────────────────────────────────────┘   │
-│  [Cancel]   ┌─ Create new view ─────────────────┐   ┌─ Modify selected view ─┐│
-│             │  [New view]    [One view each]     │   │  [Expand view ●]        ││
-│             └───────────────────────────────────┘   │  [Layout only  ●]       ││
-│                                                      └────────────────────────┘│
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+│  │                                                                        │  │
+│  │   (Selection tab content below)                                        │  │
+│  │                                                                        │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌─ Generated view ───────────────────────────────────────────────────────┐  │
+│  │  Folder: [/View/_Generated________________]  Name: [Customer view____] │  │
+│  │  Output:                                                               │  │
+│  │    elements:    18 containers · 92 nested elements                     │  │
+│  │    relations:   11 nestings · 98 connections                           │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  [Cancel]  ┌─ Create new view ─────────────────┐  ┌ Modify selected view ─┐  │
+│            │  [New view]    [One view each]    │  │  [Expand ●]           │  │
+│            └───────────────────────────────────┘  │  [Layout only ●]      │  │
+│                                                   └───────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
 
 ### Preset row
 
@@ -410,6 +437,39 @@ The preset row sits above the tab strip. Controls:
 ### Selection tab
 
 The Selection tab decides *which* objects feed the layout: the counts group at the top, then the global filter, then any related-elements blocks.
+
+```
+  ┌─[Selection]──[Layout]────────────────────────────────────────────────────┐
+  │  ┌─ Current selection ─────────────────────────────────────────────────┐ │
+  │  │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │ │
+  │  │               First object: Business Actor: Customer                │ │
+  │  │  Containing:  12 elements, 8 relations                              │ │
+  │  │  Filtered:    9 elements, 6 relations                               │ │
+  │  │  ────────────────────────────────────────────────────────────────   │ │
+  │  │  Filter element types  (empty = all included):                      │ │
+  │  │  [search field]  ┊  [chip panel: × BusinessActor  × Application]    │ │
+  │  │  Filter relation types:                                             │ │
+  │  │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …               │ │
+  │  │  Filter diagram types:                                              │ │
+  │  │  ○ group  ○ note  ○ image  ○ legend                                 │ │
+  │  └─────────────────────────────────────────────────────────────────────┘ │
+  │  ┌─ Related elements ─────────────────────────────────────────────────┐  │
+  │  │ Expand by following relations to neighbouring elements.            │  │
+  │  │ Each block below adds a step.            [+ Add related elements]  │  │
+  │  │ ┌─ Step 1 ──────────────────────────────────────────────────────┐  │  │
+  │  │ │  Added:  4 elements, 3 relations        [▲] [▼] [▾] [✕]       │  │  │
+  │  │ │  ──────────────────────────────────────────────────────────── │  │  │
+  │  │ │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …         │  │  │
+  │  │ │  Filter element types:  [chip selector]                       │  │  │
+  │  │ │  Relation levels:  [1  ▲▼]                                    │  │  │
+  │  │ └───────────────────────────────────────────────────────────────┘  │  │
+  │  │ ┌─ Step 2 ──────────────────────────────────────────────────────┐  │  │
+  │  │ │  Added:  nothing                        [▲] [▼] [▸] [✕]       │  │  │
+  │  │ └───────────────────────────────────────────────────────────────┘  │  │
+  │  └────────────────────────────────────────────────────────────────────┘  │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+```
 
 #### Current selection & live counts
 
@@ -452,7 +512,7 @@ The on-screen "Generated view" group (folder/name fields, below the tabs) carrie
 Three independent filter controls below the counts. Filtering is visibility-only; it does not alter nesting structure ([Invariants](#invariants) — filter is non-destructive).
 
 - **Filter element types** — a search field with a chip panel. Empty = all element types included.
-- **Filter relation types** — per relation type, two independent direction checkboxes (☐← incoming, ☐→ outgoing). Empty (both unchecked) = follow all directions for that type. See [Preset schema](#preset-schema) for encoding.
+- **Filter relation types** — per relation type, two independent direction checkboxes (○← incoming, ○→ outgoing). Empty (both unchecked) = follow all directions for that type. See [Preset schema](#preset-schema) for encoding.
 - **Filter diagram types** — checkboxes for each diagram-object type in the closed set. Unchecked = included.
 
 #### Related-elements blocks
@@ -471,9 +531,9 @@ Each step's additions feed the next step's input — chain ([Steps](#steps) sect
 The Layout tab decides *how* objects are positioned.
 
 ```
-┌─[Selection]──[Layout]────────────────────────────────────────────────────┐
+┌─[Selection]──[Layout]─────────────────────────────────────────────────────┐
 │ ┌─ Size and spacing ────────────────────────────────────────────────────┐ │
-│ │  Width: [140 ▲▼]   Height: [60 ▲▼]   Element spacing: [40 ▲▼]        │ │
+│ │  Width: [140 ▲▼]   Height: [60 ▲▼]   Element spacing: [40 ▲▼]         │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
 │ │      Flow:  ○ Layered   ○ Dagre    ○ Dot                              │ │
@@ -487,19 +547,19 @@ The Layout tab decides *how* objects are positioned.
 │ │  Level spacing:   [180 ▲▼]                                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Reverse layout direction for relation types ─────────────────────────┐ │
-│ │  ☐ access  ☐ aggregation  ☐ assignment  ☐ association  …              │ │
+│ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting structure … ─────────────────────────────────────────────────┐ │
-│ │  ☐ access  ☐ aggregation  ☐ assignment  ☐ association  …              │ │
+│ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ │  ── Container appearance ───────────────────────────────────────────  │ │
-│ │  Inner spacing: [10 ▲▼]   Padding: [10 ▲▼]   ☑ Sort   ☐ Align same   │ │
-│ │  ☐ Show in every container                                            │ │
+│ │  Inner spacing: [10 ▲▼]   Padding: [10 ▲▼]   ☑ Sort   ○ Align same   │ │
+│ │  ○ Show in every container                                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ View size ───────────────────────────────────────────────────────────┐ │
-│ │  ● None   ○ Max width: [0 ▲▼]   ○ Max height: [0 ▲▼]                 │ │
+│ │  ● None   ○ Max width: [0 ▲▼]   ○ Max height: [0 ▲▼]                  │ │
 │ │  ○ Aspect ratio: [0 ▲▼]                                               │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Algorithm selection

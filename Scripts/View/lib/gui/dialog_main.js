@@ -175,7 +175,7 @@ function _typeSelector(parent, allItems, availHeight, onChange) {
   const rightCol = new CompositeWidget(ctr, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(rightCol);
 
-  _lbl(rightCol, "Selected (empty = include all):");
+  _lbl(rightCol, "Selected (none = keep all):");
 
   // Chip panel: RowLayout with wrap. No border, fixed height — chips wrap inside the space.
   const chipPanel = new CompositeWidget(rightCol, SWT.NONE);
@@ -657,7 +657,7 @@ function _persistSession(ctx) {
  */
 function _formatOutputLine(view) {
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
-  const lines = ["Output:"];
+  const lines = ["On the generated view:"];
 
   // elements sub-line
   const elSub = [];
@@ -889,17 +889,17 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   _lbl(grpInfo, "Filter selection by element type:");
   w.lstFilterElements = _typeSelector(grpInfo, ELEMENT_TYPES, 120, onFilterChange);
 
-  _lbl(grpInfo, "Filter selection by relation types (empty = include all):");
+  _lbl(grpInfo, "Filter selection by relation types (none = keep all):");
   w.lstFilterRelations = _checkboxGrid(grpInfo, REL_TYPE_LABELS, 4, onFilterChange);
 
-  _lbl(grpInfo, "Filter selection by diagram types (empty = include all):");
+  _lbl(grpInfo, "Filter selection by diagram types (none = keep all):");
   w.lstFilterDiagram = _checkboxGrid(grpInfo, DIAG_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
   // Dynamic multi-block UI. Each block is an independent expansion step with its
   // own relation types (each with two direction checkboxes), element filter, and
   // relation-levels (depth) control.
-  const grpRel = _group(page, "Add related elements", 1);
+  const grpRel = _group(page, "Expand selection", 1);
 
   // Header row: explanation text (grabs width) | [+ Add related…] button on the right.
   const hdrRow = new CompositeWidget(grpRel, SWT.NONE);
@@ -909,12 +909,12 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   const lblExplain = new LabelWidget(hdrRow, SWT.WRAP);
   // lblExplain.setText("Expand the selection by following relations to neighbouring elements. Each block below adds a step.");
   // lblExplain.setText("Add related elements to the selection by following relations. Each block below adds a step.");
-  lblExplain.setText("Expand the selection with connected elements. Each block adds one step.");  
+  lblExplain.setText("Expand the selection with connected elements. Each step defines which relation to follow.");  
   GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(lblExplain);
 
   const btnAddBlock = new ButtonWidget(hdrRow, SWT.PUSH);
   btnAddBlock.setText("+ Add step");
-  btnAddBlock.setToolTipText("Append a new expansion block.");
+  btnAddBlock.setToolTipText("Each step builds on the previous selection.");
   GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).applyTo(btnAddBlock);
   btnAddBlock.addListener(SWT.Selection, () => _addRelatedBlock(ctx));
 
@@ -955,25 +955,44 @@ function _relCheckGrid(parent, numCols, onChange) {
     return c;
   });
 
+
+  
   const relRows = rows.map((r, i) => {
     const cell = new CompositeWidget(colComps[Math.floor(i / nrows)], SWT.NONE);
-    GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 0).spacing(4, 0).applyTo(cell);
+    GridLayoutFactory.fillDefaults().numColumns(4)
+      .margins(0, 0).spacing(0, 0).applyTo(cell);
     GridDataFactory.fillDefaults().grab(true, false).applyTo(cell);
 
     const lbl = new LabelWidget(cell, SWT.NONE);
     lbl.setText(r.label);
     // Fixed-width column so ← aligns vertically across all rows (longest name ≈ "Specialization").
-    GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(lbl);
+    GridDataFactory.swtDefaults().hint(105, SWT.DEFAULT).applyTo(lbl);
 
-    const chkIn  = new ButtonWidget(cell, SWT.CHECK);
+    // Left checkbox (with text "←")
+    const chkIn = new ButtonWidget(cell, SWT.CHECK);
     chkIn.setText("←");
     chkIn.setToolTipText("Follow incoming relations (other → this element)");
-    GridDataFactory.swtDefaults().hint(40, 20).applyTo(chkIn);
+    GridDataFactory.swtDefaults()
+        .align(SWT.BEGINNING, SWT.CENTER)   // explicit vertical center
+        .hint(40, SWT.DEFAULT)              // let height be natural
+        .applyTo(chkIn);
 
+    // Arrow label (→)
+    const lblOut = new LabelWidget(cell, SWT.NONE);
+    lblOut.setText("→");
+    GridDataFactory.swtDefaults()
+        .align(SWT.BEGINNING, SWT.CENTER)
+        .hint(20, SWT.DEFAULT)
+        .applyTo(lblOut);
+
+    // Right checkbox – use a non‑breaking space as text to fix baseline alignment
     const chkOut = new ButtonWidget(cell, SWT.CHECK);
-    chkOut.setText("→");
+    chkOut.setText("\u00A0");   // invisible but reserves text vertical space
     chkOut.setToolTipText("Follow outgoing relations (this element → other)");
-    GridDataFactory.swtDefaults().hint(40, 20).applyTo(chkOut);
+    GridDataFactory.swtDefaults()
+        .align(SWT.BEGINNING, SWT.CENTER)
+        .hint(40, SWT.DEFAULT)   // same width as left checkbox for symmetry
+        .applyTo(chkOut);
 
     // Direction checkboxes are always enabled; no parent relation-type checkbox.
     // Unchecking both is allowed — empty selection across all rows means "follow all".
@@ -1026,6 +1045,7 @@ function _addRelatedBlock(ctx, stepData, opts) {
   // Outer block: GroupWidget with native title bar ("Step N").
   const block = new GroupWidget(blocksContainer, SWT.NONE);
   block.setText("Step " + (idx + 1));
+  const f = _getBoldFont(); if (f) try { block.setFont(f); } catch (e) {}
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(block);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(block);
 
@@ -1070,7 +1090,7 @@ function _addRelatedBlock(ctx, stepData, opts) {
   const bodyGd = GridDataFactory.fillDefaults().grab(true, false).create();
   body.setLayoutData(bodyGd);
 
-  _lbl(body, "Add elements by following these relation types (empty = include all):");
+  _lbl(body, "Follow these relation types and add elements (none = follow all):");
   const relCheckGrid = _relCheckGrid(body, 4, onChange);
   // 5px spacer below the relation check grid before the next section.
   const relSpacer = new LabelWidget(body, SWT.NONE);
@@ -1082,11 +1102,12 @@ function _addRelatedBlock(ctx, stepData, opts) {
   const depthRow = new CompositeWidget(body, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 2).spacing(4, 0).applyTo(depthRow);
   const lblDepth = new LabelWidget(depthRow, SWT.NONE);
-  lblDepth.setText("Recurrence:");
+  lblDepth.setText("Depth:");
   GridDataFactory.swtDefaults().applyTo(lblDepth);
   const depthSpinner = new SpinnerWidget(depthRow, SWT.BORDER);
   depthSpinner.setValues(1, 1, 5, 0, 1, 1);
-  depthSpinner.setToolTipText("Number of relation hops (depth) to follow from the current base.");
+  // depthSpinner.setToolTipText("Number of relation hops (depth) to follow from the current base.");
+  depthSpinner.setToolTipText("The depth controls how many times the expansion is repeated.");
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(depthSpinner);
   // Recompute on arrow click (Selection) and on focus-out (after keyboard edit) —
   // not on Modify, which fires per keystroke.
@@ -1435,11 +1456,10 @@ function _buildViewRow(area, ctx) {
   // Row 2: always-visible totals strip. Multi-line; sub-lines for elements / relations /
   // diagram objects. Hide-zero subfields, skip empty sub-lines (see _formatOutputLine).
   const lblTotals = new LabelWidget(grpView, SWT.NONE);
-  lblTotals.setText("Output: —");
+  lblTotals.setText("On the generated view: —");
   lblTotals.setToolTipText(
-    "What will be on the generated view, in the canonical vocabulary " +
-    "(see ARCHITECTURE.md § Vocabulary): " +
-    "containers, nested elements, standalones; extra occurrences when 'Show in every container' " +
+    "What will be on the generated view. "  +
+    "Number of containers, nested elements, standalones; extra occurrences when 'Show in every container' " +
     "is on; nestings (drawn as box-in-box) and connections (drawn as lines); " +
     "diagram objects (canvas-only).");
   // Vertical grab so multi-line text doesn't clip; span 4 columns of the parent grid.
