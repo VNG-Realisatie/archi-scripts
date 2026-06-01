@@ -680,7 +680,7 @@ function _formatOutputLine(view) {
   // diagram sub-line
   if (view.diagramObjects > 0) lines.push(`  diagram:     ${plural(view.diagramObjects, "diagram object", "diagram objects")}`);
 
-  return lines.length === 1 ? "Output: —" : lines.join("\n");
+  return lines.length === 1 ? "On the generated view: —" : lines.join("\n");
 }
 
 function _updateFilteredCount(ctx) {

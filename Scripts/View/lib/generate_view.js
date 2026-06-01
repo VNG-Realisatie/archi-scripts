@@ -192,20 +192,22 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
 // ── One view per element ──────────────────────────────────────────────────────
 
 function _generateOneEach(preset, uiSelection) {
-  const { elements } = Pipeline.buildObjectSet(uiSelection, preset, ACTION.NEW_VIEW.id);
-  if (elements.length === 0) { console.log("No elements selected."); return []; }
-  if (elements.length > 20) {
-    const cont = window.confirm(`This will generate ${elements.length} views. Continue?`);
+  // Seeds = raw model elements from the Archi selection, before preset filter and expansion.
+  // Each seed gets its own full pipeline run (filter + expansion + layout + write).
+  const seeds = Pipeline.getSeedElements(uiSelection);
+  if (seeds.length === 0) { console.log("No elements selected."); return []; }
+  if (seeds.length > 20) {
+    const cont = window.confirm(`This will generate ${seeds.length} views. Continue?`);
     if (!cont) return [];
   }
 
-  const types = new Set(elements.map(e => e.type));
+  const types = new Set(seeds.map(e => e.type));
   if (types.size > 1) {
     console.log(`Warning: ${types.size} element types selected for One view each. Consider filtering to one type.`);
   }
 
   const views = [];
-  for (const element of elements) {
+  for (const element of seeds) {
     console.log(`\nGenerating view for: ${element.name}`);
     const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name);
     if (view) views.push(view);

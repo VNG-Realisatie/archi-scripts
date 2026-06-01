@@ -925,7 +925,7 @@ VisualSet starts **empty**. Every result object is created with default appearan
 | Action | Object set | Target view |
 |---|---|---|
 | **NEW_VIEW** | Model selection expanded through filter + related-elements blocks. | A new view (created, or overwritten by name) in `preset.view.folder`. Named per [Generated view](#generated-view). |
-| **ONE_EACH** | Same as NEW_VIEW, run once per selected element. | One new view per selected element, named per [View name and location](#view-name-and-location). |
+| **ONE_EACH** | **Seed elements** = raw model elements from the Archi selection, before the preset's element-type filter and before related-elements expansion (views in the selection are expanded to their elements). For each seed, the full NEW_VIEW pipeline runs independently: filter → related-elements expansion → layout → write, with that seed as the sole input. | One new view per seed element, named per [View name and location](#view-name-and-location). |
 
 ### Modify selected view group
 

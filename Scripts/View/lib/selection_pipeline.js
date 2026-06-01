@@ -722,9 +722,32 @@ function _findRelationsBetween(elements, relTypeFilter) {
   return relations;
 }
 
+/**
+ * Raw model elements from the Archi UI selection, before any preset filter or
+ * related-elements expansion. Views in the selection are expanded to their
+ * elements (same as buildObjectSet step 1). Relations, folders, and view nodes
+ * are excluded. Used by ONE_EACH to determine the seed set.
+ *
+ * @param {ArchiCollection} uiSelection  $(selection) from Archi UI
+ * @returns {Object[]}  array of jArchi model element objects
+ */
+function getSeedElements(uiSelection) {
+  const raw = Selection.getSelection(uiSelection, "*");
+  const { modelCollection } = _expandViews(raw);
+  const seeds = [];
+  modelCollection.each(o => {
+    const type = o.type || "";
+    if (type.endsWith("-relationship")) return;
+    if (type === "folder" || type === "archimate-diagram-model") return;
+    seeds.push(o);
+  });
+  return seeds;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     buildObjectSet,
+    getSeedElements,
     expandStep:              _expandStep,
     expandStepCounts:        _expandStepCounts,
     logCountBlock:           _logCountBlock,
