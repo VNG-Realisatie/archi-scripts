@@ -535,8 +535,18 @@ function _countRelationsBetween(elements, relTypeFilter) {
  *   showInEveryContainer=true:  each (child, parent) pair creates a new occurrence
  *     id when needed; cycles still skip.
  *
- * @returns {{ parentMap, occurrenceMap, parentRels,
+ * @returns {{ parentMap, occurrenceMap,
+ *             parentRels: Array<{rel, srcOccId, tgtOccId, isExtra}>,
  *             skippedCycle, skippedMultiParent }}
+ *
+ * Each parentRels entry binds a nesting relation to the specific occurrence
+ * each visual endpoint should use. `srcOccId` is the occurrence id to render
+ * at rel.source's end (so `view.add(rel, srcV, tgtV)` direction matches the
+ * model); `tgtOccId` likewise for rel.target. For reversed relation types,
+ * the child sits on the rel.source side; otherwise on the rel.target side.
+ * `isExtra` flags occurrences that go beyond the primary (`_occ_N` form) —
+ * used by the writer and counter to support the
+ * `showExtraOccurrenceConnections` toggle.
  */
 function _resolveNesting(elements, nestingRels, params) {
   const reverseTypes = new Set((params && params.reverseRelationTypes) || []);
@@ -561,7 +571,17 @@ function _resolveNesting(elements, nestingRels, params) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
     if (!srcId || !tgtId) continue;
-    const [parentId, childId] = reverseTypes.has(rel.type) ? [tgtId, srcId] : [srcId, tgtId];
+    const isReversed = reverseTypes.has(rel.type);
+    const [parentId, childId] = isReversed ? [tgtId, srcId] : [srcId, tgtId];
+
+    // Build a binding aligned to (rel.source, rel.target) for the writer.
+    // The child's occurrence sits on the source side iff the rel is reversed.
+    const pushBinding = (boundChildOcc) => {
+      const isExtra = boundChildOcc !== childId;
+      const srcOccId = isReversed ? boundChildOcc : parentId;
+      const tgtOccId = isReversed ? parentId      : boundChildOcc;
+      parentRels.push({ rel, srcOccId, tgtOccId, isExtra });
+    };
 
     if (!showInEvery) {
       if (parentMap[childId] === undefined) {
@@ -569,7 +589,7 @@ function _resolveNesting(elements, nestingRels, params) {
           skippedCycle++;
         } else {
           parentMap[childId] = parentId;
-          parentRels.push(rel);
+          pushBinding(childId);
         }
       } else {
         skippedMultiParent++;
@@ -577,19 +597,24 @@ function _resolveNesting(elements, nestingRels, params) {
     } else {
       const occs = occurrenceMap[childId] || [childId];
       const unassigned = occs.find(id => parentMap[id] === undefined);
+      let boundChildOcc = null;
       if (unassigned && !wouldCycle(parentMap, unassigned, parentId)) {
         parentMap[unassigned] = parentId;
+        boundChildOcc = unassigned;
       } else {
         const alreadyHere = occs.find(id => parentMap[id] === parentId);
-        if (!alreadyHere) {
+        if (alreadyHere) {
+          boundChildOcc = alreadyHere;
+        } else {
           const occId = `${childId}_occ_${occs.length}`;
           if (!wouldCycle(parentMap, occId, parentId)) {
             occurrenceMap[childId] = [...occs, occId];
             parentMap[occId] = parentId;
+            boundChildOcc = occId;
           }
         }
       }
-      parentRels.push(rel);
+      if (boundChildOcc) pushBinding(boundChildOcc);
     }
   }
 
@@ -620,7 +645,13 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     if (nestingTypes.has(rel.type)) nestingRels.push(rel);
     else                            connectionRels.push(rel);
   }
-  const { parentMap, occurrenceMap } = _resolveNesting(elements, nestingRels, params);
+  const { parentMap, occurrenceMap, parentRels } = _resolveNesting(elements, nestingRels, params);
+  // When showExtraOccurrenceConnections is on, each non-primary occurrence nesting
+  // gets an ADDITIONAL VisualRelation drawn as a connection line on top of the
+  // containment. Containment count is unchanged; connection count grows by the
+  // number of extra bindings.
+  const showExtra     = !!(params && params.showExtraOccurrenceConnections);
+  const extraBindings = showExtra ? parentRels.filter(b => b.isExtra).length : 0;
 
   // Sum of (occurrences - 1) over every element — extra appearances.
   let extraOccurrences = 0;
@@ -659,7 +690,7 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     extraOccurrences,
     relations:        relationCount,
     nestings:         nestingRels.length,
-    connections:      connectionRels.length,
+    connections:      connectionRels.length + extraBindings,
     diagramObjects:   diagramNodeCount || 0,
   };
 }

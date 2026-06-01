@@ -499,12 +499,35 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   }
 
   // ── Nesting connections (parent-child boxes): existing → skip, new → add ──
-  for (const rel of (parentRels || [])) {
-    if (existingRelByConcept.has(rel.id)) continue;
-    const srcV = visualIndex[rel.source && rel.source.id];
-    const tgtV = visualIndex[rel.target && rel.target.id];
-    if (srcV && tgtV) {
-      try { view.add(rel, srcV, tgtV); } catch (e) {}
+  // Each binding's containment visual is always anchored at the occurrence
+  // ids the resolver assigned (box-in-box, no line). When
+  // showExtraOccurrenceConnections is on, each non-primary (isExtra) binding
+  // gets an ADDITIONAL VisualRelation between the primary visuals on top of
+  // the containment — Archi draws this as a connection line from the
+  // multi-parent element's primary occurrence to its other parent.
+  const showExtraOcc = !!(preset.params && preset.params.showExtraOccurrenceConnections);
+  for (const binding of (parentRels || [])) {
+    const { rel, srcOccId, tgtOccId, isExtra } = binding;
+
+    // Containment: skip if already on view (LAYOUT_ONLY preserves existing).
+    if (!existingRelByConcept.has(rel.id)) {
+      const srcV = visualIndex[srcOccId];
+      const tgtV = visualIndex[tgtOccId];
+      if (srcV && tgtV) {
+        try { view.add(rel, srcV, tgtV); } catch (e) {}
+      }
+    }
+
+    // Extra analytical line: additional VisualRelation between the primary
+    // visuals so the duplicate relation shows up as a line. Issued
+    // unconditionally when the toggle is on — Archi's dedup decides whether a
+    // second VR coexists with the containment on repeat LAYOUT_ONLY runs.
+    if (showExtraOcc && isExtra) {
+      const primarySrcV = visualIndex[rel.source && rel.source.id];
+      const primaryTgtV = visualIndex[rel.target && rel.target.id];
+      if (primarySrcV && primaryTgtV) {
+        try { view.add(rel, primarySrcV, primaryTgtV); } catch (e) {}
+      }
     }
   }
 

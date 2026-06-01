@@ -781,7 +781,8 @@ function _updateFilteredCount(ctx) {
     const livePresetParams = {
       nestingRelationTypes: w.lstNestingTypes ? _relLabelsToIds(_listGetSelected(w.lstNestingTypes)) : [],
       reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
-      showInEveryContainer: !!(w.chkShowInEvery && w.chkShowInEvery.getSelection()),
+      showInEveryContainer:           !!(w.chkShowInEvery     && w.chkShowInEvery.getSelection()),
+      showExtraOccurrenceConnections: !!(w.chkShowExtraOccConn && w.chkShowExtraOccConn.getSelection()),
     };
     // predictViewCounts needs the actual rels (not just count) to split into nesting/routed.
     const finalRels = Pipeline.findRelationsBetween(cumulative, effectiveRelFilter);
@@ -1306,9 +1307,19 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCheck(ctrComp, "Sort containers",         "Sort containers alphabetically within each level.",                         4, w, "chkSortContainers");
   _addCheck(ctrComp, "Align width same type",   "Equalize widths of same-type leaf siblings within each container.",        4, w, "chkAlignWidthSameType");
   _addCheck(ctrComp, "Show in every container", "An element in multiple containers appears in each of them.",               4, w, "chkShowInEvery");
+  _addCheck(ctrComp, "Show connection for multiple occurrences",
+    "When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only.",
+    4, w, "chkShowExtraOccConn");
   // Refresh the live Output counters when 'Show in every container' toggles —
-  // it changes the extra-occurrences prediction.
-  if (w.chkShowInEvery) w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
+  // it changes the extra-occurrences prediction; also re-evaluate the param
+  // mask so the dependent 'Show connection for multiple occurrences' checkbox
+  // enables/disables to match.
+  if (w.chkShowInEvery) {
+    w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
+    w.chkShowInEvery.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  }
+  // The connection toggle also shifts counters (nestings ↔ connections).
+  if (w.chkShowExtraOccConn) w.chkShowExtraOccConn.addListener(SWT.Selection, onParamsChange);
 
   // ── View size ──────────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View size", 6);
@@ -1568,7 +1579,8 @@ function _syncToUI(ctx) {
   _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : DP.padding);
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
   _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
-  _chkSet(w.chkShowInEvery,    !!(p.showInEveryContainer));
+  _chkSet(w.chkShowInEvery,       !!(p.showInEveryContainer));
+  _chkSet(w.chkShowExtraOccConn,  !!(p.showExtraOccurrenceConnections));
 
   // Sizes
   _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : DP.elementWidth);
@@ -1648,7 +1660,8 @@ function _saveUI(ctx) {
   if (w.spinPadding)      c.params.padding            = w.spinPadding.getSelection();
   if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
   if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
-  if (w.chkShowInEvery)    c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
+  if (w.chkShowInEvery)        c.params.showInEveryContainer           = w.chkShowInEvery.getSelection();
+  if (w.chkShowExtraOccConn)   c.params.showExtraOccurrenceConnections = w.chkShowExtraOccConn.getSelection();
 
   // Sizes
   if (w.spinElementWidth)   c.params.elementWidth   = w.spinElementWidth.getSelection();
@@ -1704,6 +1717,12 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkSortContainers,  active.has("sortContainers"));
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
   _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
+  // 'Show connection for multiple occurrences' is only meaningful when the
+  // algorithm supports it AND 'Show in every container' is on (otherwise there
+  // are no extra occurrences for the toggle to act on).
+  _enable(w.chkShowExtraOccConn,
+          active.has("showExtraOccurrenceConnections")
+          && !!(w.chkShowInEvery && w.chkShowInEvery.getSelection()));
   _enable(w.spinLayerSpacing,   active.has("layerSpacing"));
 
   // View size radios: enable/disable each option based on algorithm support.

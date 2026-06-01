@@ -75,19 +75,7 @@ Stable terms. Used in code, UI labels, and documentation. No synonyms.
 |                     | **Session**          | The last-used configuration, restored automatically when the UI opens.                                                                                                                                         |
 | Terminology         | **Counter rule**     | *Relations* is a model-layer term. View-side counters use **nestings** and **connections**. Pipeline counters (Filtered-base, Step-N-adds) use **relations**. Total-to-view uses the nesting/connection split. |
 
-### Exceptions (data-structure roles)
-
-These names describe algorithmic data structures, not counted concepts. They appear only in code and in code-level documentation, never in user-facing strings.
-
-| Internal | Conceptual role | Canonical term |
-|---|---|---|
-| `parentMap` | child id → parent id mapping | — (data structure) |
-| `childIds` | the set of element ids that have a parent | nested elements (counted) |
-| `containerIds` | the set of element ids that are parents | containers (counted) |
-| `occurrenceMap` | element id → list of occurrence ids | occurrences |
-| `routedRels` | array of relations whose type is NOT in `nestingRelationTypes` | connections |
-| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` | nestings |
-| `parentRels` | nesting relations that survived multi-parent resolution | applied nestings |
+Internal-only data-structure names (`parentMap`, `childIds`, `containerIds`, `occurrenceMap`, `routedRels`, `nestingRels`, `parentRels`) describe algorithmic structures, not counted concepts. They are an implementation concern — see [Internal data structures](#internal-data-structures) in Part B.
 
 ### Display vocabulary
 
@@ -111,6 +99,7 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 | Preset | Parameter file, config file |
 | One view each | Per element |
 | Re-layout | Layout only |
+| Show connection for multiple occurrences | showExtraOccurrenceConnections |
 
 ## System architecture
 
@@ -331,9 +320,10 @@ Preset {
     maxWidth, maxHeight, aspectRatio        // View size constraints
                 : numbers                   // (0 = unconstrained)
 
-    sortContainers,        // Sort containers alphabetically
-    alignSameType,         // Align elements within same-type containers
-    showInEveryContainer   // Show in every container
+    sortContainers,                 // Sort containers alphabetically
+    alignSameType,                  // Align elements within same-type containers
+    showInEveryContainer,           // Show in every container
+    showExtraOccurrenceConnections  // Show connection for multiple occurrences
                 : booleans
   }
 
@@ -624,6 +614,7 @@ Container appearance parameters (active when at least one nesting type is select
 | Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
 | Align same type | Resize leaf elements to match the tallest in their row, within same-type containers only. |
 | Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
+| Show connection for multiple occurrences | When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only. Active only when *Show in every container* is on. |
 
 #### View size
 
@@ -725,6 +716,7 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 | **Sort containers** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | **Align same type** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | **Show in every container** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
+| **Show connection for multi-occurrence** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
 | **Reverse relation types** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
 | **Label position** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
 
@@ -878,6 +870,8 @@ Many nesting relations may name the same element as their child. The preset's `s
 | `false` (default) | **First-wins.** The first nesting relation encountered (in pipeline order) assigns the child to its parent; later nesting relations that would assign the same child to a different parent are ignored for parenthood. The relation still exists in the model but does not draw a containment line nor a connection. The writer logs the candidate/applied/skipped split (`Nestings applied: M/N (skipped: X multi-parent, Y cycle)`), which is why the on-view nesting count can be lower than the pipeline's "Total to view → relations → nestings". |
 
 **Visual rendering rule.** Extra occurrences (`showInEveryContainer: true`) only **render as visible duplicate boxes** when the chosen algorithm draws parent-child containment — i.e. nested-style layouts (Layered, Tree, Pack, Dot, and any other algorithm marked as supporting nesting in the [Algorithm capability matrix](#algorithm-capability-matrix)). For non-nested layouts (Force, SFDP, Twopi, etc.) the writer still receives `showInEveryContainer: true` and produces occurrence ids, but the layout engine collapses them: the element is drawn once. The dialog and pipeline counters compute the `extraOccurrences` count honestly from the nesting structure; for non-nested layouts the count will be non-zero but the user should expect the visible view to show one box per concept.
+
+**Nesting-relation rendering.** The writer anchors each nesting VisualRelation to the specific occurrence the resolver assigned it to, so it renders as containment (box-in-box, no line). The preset's `showExtraOccurrenceConnections` toggle (default `false`) adds an **extra** VisualRelation on top — without removing the containment — for each *extra* (non-primary) occurrence binding. The extra visual is `view.add(rel, primarySrcVisual, primaryTgtVisual)`: a second visualization of the same model relation between the multi-parent element's primary occurrence and the second parent's box, drawn as a line. The toggle only takes effect when `showInEveryContainer` is on (otherwise no extras exist). When the toggle is on, the **nestings** counter is unchanged (every containment binding still draws as box-in-box) and the **connections** counter grows by the number of extra bindings (the added lines). One added line per extra binding; no reverse mirror. Whether the second VisualRelation persists is subject to Archi's per-view VR dedup behaviour — if Archi collapses duplicates, the user sees containment only despite the counter increase; otherwise both visuals coexist.
 
 **Counting rule.** `elements` always counts unique model concepts (matches the source selection after expansion + filter + step adds), and is partitioned into `containers + nestedElements + standalones` by construction. `extraOccurrences` is a **separate field** (counts extra visual appearances, role-agnostic), never folded into the element categories. The on-screen "Generated view" group's `Output:` strip and the console block's `Total to view:` row show all fields side by side.
 | `true` | **Visual instances.** The element appears once under each parent. Each visual instance is a distinct node in the layout but maps back to the same model element. Layout decisions per instance are independent. |
@@ -1272,6 +1266,22 @@ Step 6  Partition diagramConnections (type === "diagram-model-connection")
 
 `_expandStep` iterates the relations of each element in the current step input. For each relation, it determines the traversal direction (outgoing = element is source; incoming = element is target) and checks it against the step's `relationTypes` direction suffixes (`:in`, `:out`, or both) per [Preset schema](#preset-schema). Non-matching relations are skipped; matching relations yield the neighbouring element, which is added to the expansion set. Ref: `selection_pipeline.js::_expandStep`, `::_matchesRelationTypeDir`.
 
+### Internal data structures
+
+**Realises:** [Vocabulary & display labels](#vocabulary--display-labels) (the Part A note on internal-only names).
+
+Algorithmic structures used by the pipeline (and consumed by `_buildLayoutGraph` / `_writeView` in the orchestrator). They appear only in code and code-level documentation, never in user-facing strings.
+
+| Internal | Conceptual role | Canonical term |
+|---|---|---|
+| `parentMap` | child id → parent id mapping | — (data structure) |
+| `childIds` | the set of element ids that have a parent | nested elements (counted) |
+| `containerIds` | the set of element ids that are parents | containers (counted) |
+| `occurrenceMap` | element id → list of occurrence ids | occurrences |
+| `routedRels` | array of relations whose type is NOT in `nestingRelationTypes` | connections |
+| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` | nestings |
+| `parentRels` | nesting bindings (`{rel, srcOccId, tgtOccId, isExtra}`) that survived multi-parent resolution | applied nestings |
+
 ## Orchestrator — generate_view.js
 
 **Realises:** [Action semantics](#action-semantics), [Invariants](#invariants) (action-agnostic writer).
@@ -1312,6 +1322,8 @@ Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable 
 After the node loop, the writer scans `existingVosByConcept` for VOs not in `consumedVoIds` and logs `Unpaired VOs: N (concept over-supply — kept in place)` if any are unbound. Surplus VOs are not mutated (Invariant 4 — no silent data loss).
 
 Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. Nestings that won the multi-parent resolution are drawn on the view after all connections.
+
+Each nesting binding from `_resolveNesting` carries `srcOccId` and `tgtOccId` aligned to the model relation's `(source, target)` so that `view.add(rel, srcV, tgtV)` preserves model direction. The writer always issues a containment add for every binding (skipped on LAYOUT_ONLY when the rel already has a VR), keying both endpoints on the occurrence visuals — Archi renders containment (no line). When `preset.params.showExtraOccurrenceConnections` is true and a binding's `isExtra` flag is set (non-primary occurrence), the writer additionally issues a second `view.add(rel, …)` keyed on the primary visuals (`visualIndex[rel.source.id]` / `visualIndex[rel.target.id]`) — Archi draws this as a connection line from the multi-parent element's primary occurrence to its other parent. The extra add is issued unconditionally per run; Archi's VR-per-view dedup behaviour determines whether the second VisualRelation persists alongside the containment.
 
 Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExistingVo`, `::_currentParentConceptId`, `::_stripOccSuffix`, `::_applyEdgeStyle`, `::_getParentAbsOffset`.
 
