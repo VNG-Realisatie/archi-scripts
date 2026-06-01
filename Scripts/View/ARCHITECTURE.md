@@ -526,32 +526,37 @@ The Layout tab decides *how* objects are positioned.
 
 ```
 ┌─[Selection]──[Layout]─────────────────────────────────────────────────────┐
-│ ┌─ Size and spacing ────────────────────────────────────────────────────┐ │
-│ │  Width: [140 ▲▼]   Height: [60 ▲▼]   Element spacing: [40 ▲▼]         │ │
-│ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
 │ │      Flow:  ○ Layered   ○ Dagre    ○ Dot                              │ │
 │ │ Hierarchy:  ○ Tree                                                    │ │
 │ │   Network:  ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
 │ │   Compact:  ○ Grid      ○ Pack                                        │ │
 │ │  Circular:  ○ Radial    ○ Twopi    ○ Circo                            │ │
-│ │  ── Direction and routing ──────────────────────────────────────────  │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Element size and spacing ────────────────────────────────────────────┐ │
+│ │  Width: [140 ▲▼]  Height: [60 ▲▼]  Element spacing: [40 ▲▼]           │ │
+│ │  Layer spacing: [180 ▲▼]                                              │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Direction ───────────────────────────────────────────────────────────┐ │
 │ │  Flow direction:  [Left → Right  ▼]                                   │ │
-│ │  Relation lines:  [Orthogonal    ▼]    Label:  [Middle  ▼]            │ │
-│ │  Level spacing:   [180 ▲▼]                                            │ │
-│ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Reverse layout direction for relation types ─────────────────────────┐ │
+│ │  ── Reversed - draw these relation types in other direction ────────  │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Nesting structure … ─────────────────────────────────────────────────┐ │
-│ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
-│ │  ── Container appearance ───────────────────────────────────────────  │ │
-│ │  Inner spacing: [10 ▲▼]   Padding: [10 ▲▼]   ☑ Sort   ○ Align same   │ │
-│ │  ○ Show in every container                                            │ │
+│ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
+│ │  Routing: [Orthogonal ▼]  Label: [Middle ▼]  Cycle breaking: [Greedy ▼] │
+│ │  Layer ranking: [Balanced ▼]                                          │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ View size ───────────────────────────────────────────────────────────┐ │
-│ │  ● None   ○ Max width: [0 ▲▼]   ○ Max height: [0 ▲▼]                  │ │
-│ │  ○ Aspect ratio: [0 ▲▼]                                               │ │
+│ ┌─ Nesting     ─────────────────────────────────────────────────────────┐ │
+│ │  Draw these relation types as containers                              │ │
+│ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
+│ │  ── Inside container ───────────────────────────────────────────────  │ │
+│ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
+│ │  ☑ Sort containers ○ Align width same type  ○ Show in every container │ │
+│ │  ○ Show connection for multiple occurrences                           │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ View dimensions ─────────────────────────────────────────────────────┐ │
+│ │  Hint for view sizing:  ● None   ○ Width   ○ Height   ○ Aspect ratio  │ │
+│ │  Max width: [0 ▲▼]   Max height: [0 ▲▼]   Aspect ratio: [16:9 ▼]     │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
@@ -587,42 +592,53 @@ Algorithm radio button tooltips:
 | Twopi | Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz) |
 | Circo | Cyclic dependency and domain overviews with limited nesting support (Graphviz) |
 
-#### Direction and routing
+#### Element size and spacing
+
+| Parameter | Tooltip |
+|---|---|
+| Element width / height | Width / height of all elements in the view (px). |
+| Element spacing | Minimum distance between elements (px). All layout types. |
+| Layer spacing | Distance between hierarchy levels (px). Used in layered, tree, and flow layouts. |
+
+#### Direction
 
 Parameters in this group are active only for algorithms that support them (see [Algorithm capability matrix](#algorithm-capability-matrix)); unsupported parameters are greyed.
 
 | Parameter | Tooltip |
 |---|---|
 | Flow direction | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
-| Relation line style | How relation lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
+
+**Reversed** — a checkbox per relation type. Checked types have their source/target swapped in the layout graph so the engine traverses them in the reversed direction — meaningful for ranking algorithms where direction drives hierarchy. See [Engine adapter contract](#engine-adapter-contract).
+
+#### Connections
+
+Parameters in this group are active only for algorithms that support them; unsupported parameters are greyed.
+
+| Parameter | Tooltip |
+|---|---|
+| Routing | How connection lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
+| Label | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
+| Cycle breaking | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
 | Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
-| Level spacing | Distance between hierarchy levels (px). Used in layered, tree, and flow layouts. |
-| Element spacing | Minimum distance between elements (px). All layout types. |
-| Element width / height | Width / height of all elements in the view (px). |
-| Label position | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
 
-#### Reverse layout direction
+#### Nesting
 
-A checkbox per relation type. Checked types have their source/target swapped in the layout graph so the engine traverses them in the reversed direction — meaningful for ranking algorithms where direction drives hierarchy. See [Engine adapter contract](#engine-adapter-contract).
+The group label is **"Draw these relation types as containers"** — a checkbox per relation type selects which types are drawn as containment (parent-child boxes) instead of lines. See [Nesting](#nesting) for nesting semantics.
 
-#### Nesting structure
-
-A checkbox per relation type selects which relation types are drawn as containment (parent-child boxes) instead of lines. See [Nesting](#nesting) for nesting semantics.
-
-Container appearance parameters (active when at least one nesting type is selected):
+**Inside container** parameters (active when at least one nesting type is selected):
 
 | Parameter | Tooltip |
 |---|---|
 | Inner spacing | Minimum distance between elements inside a container (px). |
 | Padding | Space between container border and contents (px). |
 | Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
-| Align same type | Resize leaf elements to match the tallest in their row, within same-type containers only. |
+| Align width same type | Resize leaf elements to match the tallest in their row, within same-type containers only. |
 | Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
 | Show connection for multiple occurrences | When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only. Active only when *Show in every container* is on. |
 
-#### View size
+#### View dimensions
 
-Four radio modes: **None / Max width / Max height / Aspect ratio**. Selecting a mode enables the corresponding control; the others retain their values but are greyed and ignored at runtime. Not every algorithm supports every view-size parameter; unsupported parameters are greyed regardless of mode selection (see [Algorithm capability matrix](#algorithm-capability-matrix)).
+Four radio modes: **None / Width / Height / Aspect ratio**, prefixed by the label **"Hint for view sizing:"**. Selecting a mode enables the corresponding control; the others retain their values but are greyed and ignored at runtime. Not every algorithm supports every view-size parameter; unsupported parameters are greyed regardless of mode selection (see [Algorithm capability matrix](#algorithm-capability-matrix)).
 
 | Parameter | Tooltip |
 |---|---|
@@ -978,7 +994,7 @@ LayoutGraph {
 
 #### Reversed edges
 
-For each relation type listed under the preset's **Reverse layout direction** field ([Preset schema](#preset-schema)), the pipeline swaps `source` and `target` in the LayoutGraph so the engine traverses the edge in the reversed direction — meaningful for ranking algorithms (Layered, Tree, Dot) where direction drives hierarchy.
+For each relation type listed under the preset's **Reversed** field ([Preset schema](#preset-schema)), the pipeline swaps `source` and `target` in the LayoutGraph so the engine traverses the edge in the reversed direction — meaningful for ranking algorithms (Layered, Tree, Dot) where direction drives hierarchy.
 
 No additional flag is carried. An ArchiMate relation has its own intrinsic direction in the model; Archi renders any VisualRelation using that direction. The writer creates the VisualRelation against the original model relation — Archi handles the arrowhead and label orientation from there. The writer reconciles bendpoint order against the model relation's source/target rather than the LayoutResult edge's, when the two disagree.
 
