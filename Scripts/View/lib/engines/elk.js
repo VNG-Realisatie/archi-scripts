@@ -126,13 +126,36 @@ const PARAM_MAPPING = {
     },
   },
 
+  // rectpacking tight-packing options:
+  //   packing.strategy                       COMPACTION (default) — row compaction; alternatives: SIMPLE
+  //   packing.compaction.iterations          passes of row compaction; more = tighter (default 1)
+  //   packing.compaction.rowHeightReevaluation re-evaluates row height after each move (default false)
+  //   orderBySize                            sort nodes largest-first before placement (default false)
+  //   whiteSpaceElimination.strategy         post-pass to fill gaps; NONE = off (default)
+  //   widthApproximation.optimizationGoal    MAX_SCALE_DRIVEN (default) — maximises use of target width
+  // rectpacking tight-packing options:
+  //   packing.strategy                       COMPACTION (default) — row compaction; alternatives: SIMPLE
+  //   packing.compaction.iterations          passes of row compaction; more = tighter (default 1)
+  //   packing.compaction.rowHeightReevaluation re-evaluates row height after each move (default false)
+  //   orderBySize                            sort nodes largest-first before placement (default false)
+  //     → set conditionally in _buildELKGraph: only when sortContainers is off (they conflict)
+  //   whiteSpaceElimination.strategy         post-pass to fill gaps; NONE = off (default)
+  //   widthApproximation.optimizationGoal    MAX_SCALE_DRIVEN (default) — maximises use of target width
   Pack: {
     root: {
-      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      innerSpacing:   (v) => ({
+        "elk.spacing.nodeNode": String(v),
+        "elk.rectpacking.packing.compaction.iterations": "3",
+        "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+      }),
       padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
     },
     container: {
-      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
+      innerSpacing:   (v) => ({
+        "elk.spacing.nodeNode": String(v),
+        "elk.rectpacking.packing.compaction.iterations": "3",
+        "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+      }),
       padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
     },
   },
@@ -307,6 +330,15 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
 
   // Also set hierarchyHandling on the root when containers are present, so ELK processes them.
   if (hasContainers) layoutOptions["elk.hierarchyHandling"] = "SEPARATE_CHILDREN";
+
+  // orderBySize: only for Pack, and only when sortContainers is off — they conflict because
+  // sortContainers pre-sorts by type+name and orderBySize overrides that with size-first order.
+  if (graph.algorithm === "Pack" && !graph.sortContainers) {
+    layoutOptions["elk.rectpacking.orderBySize"] = "true";
+    for (const node of Object.values(nodeMap)) {
+      if (node.layoutOptions) node.layoutOptions["elk.rectpacking.orderBySize"] = "true";
+    }
+  }
 
   const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap);
   const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges };
