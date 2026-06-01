@@ -1,0 +1,42 @@
+{
+  "name": "Default",
+  "algorithm": "Dot",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [],
+    "nestingRelationTypes": [],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "showInEveryContainer": false,
+    "showExtraOccurrenceConnections": false,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 1000,
+    "aspectRatio": 0,
+    "viewSizeMode": "none"
+  },
+  "filter": {
+    "elementTypes": [],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "Uitvoering Sociaal Domein",
+    "folder": "/View/_Generated"
+  },
+  "_lastTabIndex": 1,
+  "description": "dit is een test  sadf asdf\n# dlfksdl;faksdf\n",
+  "action": "new_view"
+}

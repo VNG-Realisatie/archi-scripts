@@ -391,8 +391,9 @@ For actions in the **Create new view** group, the VisualSet is empty. For action
 
 The **Generate View dialog** lets you define a selection and layout, then run view generation. You can save your configuration as a named preset and reload it later. Top-to-bottom structure:
 
+```
 ┌─ Generate View ──────────────────────────────────────────────────────────────┐
-│  Preset: [Application Flow LR  ▼]  [Load…]  [Save]  [Manage…]                │
+│  [Delete]  Preset: [Application Flow LR *  ▼]  [Save]  [Save As…]             │
 │                                                                              │
 │  ┌─[Selection]──[Layout]──────────────────────────────────────────────────┐  │
 │  │                                                                        │  │
@@ -412,17 +413,20 @@ The **Generate View dialog** lets you define a selection and layout, then run vi
 │            └───────────────────────────────────┘  │  [Layout only ●]      │  │
 │                                                   └───────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Preset row
 
-The preset row sits above the tab strip. Controls:
+The preset row sits above the tab strip. Controls, left to right:
 
-- **Preset combo** — lists all saved presets. Selecting one applies it immediately (no confirm step needed).
-- **Load…** — opens a file picker starting in the preset folder; validates the selected file as a preset; applies it immediately.
-- **Save** — persists the current configuration as a named preset file, using the current preset name as the default filename.
-- **Manage…** — opens the [Presets manage sub-dialog](#presets-manage-sub-dialog).
+- **[Delete]** — deletes the selected preset file after a confirm dialog. Disabled when the **Default** preset is active (Default cannot be deleted). Switches the combo to Default and reloads it after deletion.
+- **Preset combo** — lists all saved presets. Selecting a preset applies it immediately; unsaved changes to the previous preset are silently discarded. When settings differ from the loaded preset, an asterisk label (`*`) appears next to the combo. The combo tooltip shows the preset's description.
+- **[Save]** — silently overwrites the currently selected preset file with the current settings. Clears the modified indicator.
+- **[Save As…]** — opens a dialog with Name, Folder, and Description fields. Creates a new preset file and selects it in the combo. Covers both "create new" and "rename" use cases (rename = Save As new name; old file stays and can be deleted with [Delete]).
 
-**Session continuity.** On dialog open, the last-used configuration is restored automatically. Session state is user-local — it is never shared as a preset. It covers the complete dialog state including UI-only fields (active tab, collapsed blocks) that are not part of the [Preset schema](#preset-schema). Session and preset are stored separately; loading a named preset does not overwrite the session's UI-only fields.
+**Default preset.** A preset named `Default` always exists; it is created on first run if absent. [Delete] is permanently disabled for Default.
+
+**Session continuity.** On dialog open, the last-used preset is restored automatically. Session state is user-local — it is never shared as a preset. It covers the complete dialog state including UI-only fields (active tab, collapsed blocks) that are not part of the [Preset schema](#preset-schema). Session and preset are stored separately; loading a named preset does not overwrite the session's UI-only fields.
 
 ### Selection tab
 
@@ -645,15 +649,6 @@ The structure matches the console's `Total to view:` row (same sub-lines: elemen
 | **ONE_EACH** | Named after each element — the element's name verbatim. Created in `preset.view.folder`. |
 | **EXPAND_VIEW / LAYOUT_ONLY** | Folder/Name are ignored; the target is the selected view. The `Output:` strip still updates and reflects the predicted post-action contents. |
 
-### Presets manage sub-dialog
-
-Opened by the **Manage…** button in the preset row. Contains a searchable list of saved presets (case-insensitive substring filter) and two actions:
-
-- **Rename** — rename the selected preset file on disk.
-- **Delete** — delete the selected preset file on disk.
-
-Loading a preset is not available from this dialog — use the preset combo or **Load…** button. On close, the preset combo is refreshed.
-
 ### Action row
 
 Four controls in two groups, plus Cancel:
@@ -674,6 +669,10 @@ Tech-agnostic rules for all interactive controls. Platform-specific implementati
 
 | Rule | Rationale |
 |---|---|
+| **Preset auto-apply on selection.** Selecting a preset in the combo immediately loads its values (no separate Apply button). Unsaved changes to the previously active preset are silently discarded. | Matches the universal pattern for preset pickers (DAWs, IDEs, Lightroom). An explicit Apply button adds a click without adding safety, since overwriting a preset is a separate [Save] action. |
+| **Modified indicator.** When `ctx.config` differs from the last-loaded preset file, the combo label shows an asterisk suffix (`Name *`). The indicator clears on [Save] or on selecting a different preset. | Users need to know when [Save] would do something. Without the indicator, they either never save (assuming auto-save) or always save defensively. |
+| **Default preset is always present and cannot be deleted.** The application creates it on first run if absent. The [Delete] button is permanently disabled when Default is selected. | Guarantees the combo is never empty and gives users a safe fallback. |
+| **Switching presets discards unsaved changes silently.** No confirm dialog on preset switch. | For a settings dialog that has [Save] and [Save As…] as explicit save actions, interrupting every preset switch with a confirm dialog would be more annoying than helpful. The modified indicator makes the loss visible before it happens. |
 | **Direction checkboxes: empty = follow all.** Both-unchecked is valid. No UI enforcement prevents it. The system interprets absence from the encoded list as unconstrained ([Preset schema](#preset-schema), [Steps](#steps) step 5). | Eliminates the need for a two-level "relation on/off vs direction" interaction. Reduces friction for the common case: no filter = all relations followed. |
 | **Algorithm selection uses a radio table.** All algorithms for all styles are always visible simultaneously in a style-grouped table. | Users scan the full option space without opening a combo. Makes style/algorithm relationships visible at a glance. |
 | **Live counts update on value-commit, not per-keystroke.** Spinner controls fire on arrow-click or focus-loss; not on each keystroke. | Relation traversal for live counts is expensive. Per-keystroke recompute produces flicker and wasted CPU. |
@@ -1389,17 +1388,15 @@ Ref: `lib/engines/graphviz.js`.
 
 ### Preset row
 
-The preset combo is `SWT.DROP_DOWN | SWT.READ_ONLY`. `SWT.Selection` on the combo calls `_mergePreset` + `_syncToUI` immediately.
+**[Delete]** — `SWT.PUSH` button, leftmost. `setEnabled(false)` when `ctx.config.name === "Default"`. On click: `window.confirm` → `PresetIO.deletePreset` → load Default → `_mergePreset` + `_syncToUI` + `_clearModified` + `_updateFilteredCount`. State is updated on combo `SWT.Selection` to enable/disable for the newly loaded preset.
 
-**Load…** opens `FileDialog(SWT.OPEN)` with `filterPath = PresetIO.presetDir()` and `filterExtensions = ["*.json"]`. On confirm: reads raw JSON via `PresetIO.readJSON(path)`, validates with `validatePreset`, applies via `_mergePreset` + `_syncToUI`. Raw `org.eclipse.swt.widgets.FileDialog` is used — jArchi's `window.promptOpenFile` wrapper does not expose `filterPath`.
+**Preset combo** — `SWT.DROP_DOWN | SWT.READ_ONLY`. `SWT.Selection` calls `_mergePreset` + `_syncToUI` + `_clearModified` + tooltip update, wrapped in `ctx._ready = false / true` to suppress the modified indicator during load.
 
-**Save** calls `_saveUI`, then opens `FileDialog(SWT.SAVE)` with `filterPath = PresetIO.presetDir()` and `fileName = (ctx.config.name || "preset") + ".json"`. On confirm: derives preset name from the chosen filename, writes via `PresetIO.writeJSON(path, ctx.config)`, refreshes combo.
+**Modified indicator** — a `Label` widget with text `"*"`, initially hidden. `_markModified(ctx)` sets visible (guarded by `ctx._ready`); `_clearModified(ctx)` hides it. Both functions are called from `_updateFilteredCount` and `_updateAlgorithmControls` (covers all parameter changes).
 
-### Presets manage sub-dialog
+**[Save]** — calls `_saveUI`, then `PresetIO.writePreset(name, ctx.config)`, refreshes combo, calls `_clearModified`. Silent overwrite, no dialog.
 
-`Scripts/View/lib/gui/dialog_presets.js` — a `TitleAreaDialog` with Rename and Delete only. No Load button.
-
-Layout follows the TitleAreaDialog separator rule (see SKILL.md): `numColumns(1)` on `area`; 2-column layout in a wrapper composite inside `area`. Column 1: `Text(SWT.SEARCH | SWT.ICON_CANCEL)` + `ListWidget`. Column 2: `btnCol` composite with Rename… and Delete buttons. `SWT.Modify` on the text field repopulates the list (case-insensitive substring match). `SWT.DefaultSelection` (Enter) focuses the list.
+**[Save As…]** — calls `_saveUI`, then opens `dialog_presets.openSaveAs`. On confirm: updates `ctx.config.name` and `ctx.config.description`, writes via `PresetIO.writePreset`, refreshes combo, clears modified indicator.
 
 ### Action row
 

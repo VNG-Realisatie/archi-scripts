@@ -8,7 +8,7 @@
  *   Selection  — current selection info · filter (multi-select lists) · related elements
  *   Layout     — style · algorithm · direction · routing · nesting · sizing
  *   View       — name · folder
- *   Preset     — load · save · manage
+ *   Preset     — combo (auto-apply) · ⚙ gear menu · Save · Save As…
  *   Actions    — 4 buttons in button bar (New view, One view each, Expand view, Layout only)
  */
 console.log("Loading dialog_main.js");
@@ -408,6 +408,7 @@ const DEFAULT_DIALOG_HEIGHT = 1400;  // height is set to max, then constrained b
  * @param {ArchiCollection} uiSelection  $(selection) captured before dialog opens
  */
 function open(uiSelection) {
+  PresetIO.ensureDefault();
   const config = PresetIO.readSession();
   if (!config.action) config.action = ACTION.NEW_VIEW.id;
 
@@ -569,6 +570,7 @@ function open(uiSelection) {
       _buildActionRow(area, ctx, dlg, hasVisual);
       _syncToUI(ctx);
       _updateFilteredCount(ctx);  // populate Filtered line on dialog open
+      ctx._ready = true;          // enable modified indicator from here on
 
       tabFolder.setSelection(config._lastTabIndex || 0);
       return area;
@@ -684,6 +686,7 @@ function _formatOutputLine(view) {
 }
 
 function _updateFilteredCount(ctx) {
+  _markModified(ctx);
   const w = ctx.widgets;
   if (!w.lblFilteredCount) return;
 
@@ -1479,71 +1482,123 @@ function _buildViewRow(area, ctx) {
   w.lblViewTotals = lblTotals;
 }
 
+// ── Modified indicator ────────────────────────────────────────────────────────
+
+function _markModified(ctx) {
+  if (!ctx._ready || ctx.modified) return;
+  ctx.modified = true;
+  try { ctx.widgets.lblModified.setVisible(true); } catch (x) {}
+}
+
+function _clearModified(ctx) {
+  ctx.modified = false;
+  try { ctx.widgets.lblModified.setVisible(false); } catch (x) {}
+}
+
 // ── Preset row ────────────────────────────────────────────────────────────────
 
 function _buildPresetRow(parent, ctx, dlg) {
   const w   = ctx.widgets;
   const row = new CompositeWidget(parent, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
-  GridLayoutFactory.fillDefaults().numColumns(5).margins(9, 2).spacing(4, 0).applyTo(row);
+  // columns: delete | label | combo | modified-star | save | save-as
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(9, 2).spacing(4, 0).applyTo(row);
+
+  // Delete — left, disabled for Default, with confirm
+  const btnDelete = _pushBtn(row, "Delete", "Delete the selected preset", () => {
+    const name      = ctx.config.name || PresetIO.DEFAULT_PRESET_NAME;
+    const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
+    if (isDefault) return;
+    if (!window.confirm("Delete preset \"" + name + "\"?")) return;
+    try {
+      PresetIO.deletePreset(name);
+      const fallback = PresetIO.readPreset(PresetIO.DEFAULT_PRESET_NAME);
+      _mergePreset(ctx, fallback);
+      ctx.config.name = PresetIO.DEFAULT_PRESET_NAME;
+      _refreshPresetCombo(cmbPreset, PresetIO.DEFAULT_PRESET_NAME);
+      btnDelete.setEnabled(false);
+      _syncToUI(ctx);
+      _clearModified(ctx);
+      _updateFilteredCount(ctx);
+    } catch (e) { console.error("Delete failed: " + e); }
+  });
+  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnDelete);
+  w.btnDelete = btnDelete;
 
   new LabelWidget(row, SWT.NONE).setText("Preset:");
+
   const cmbPreset = new ComboWidget(row, SWT.READ_ONLY | SWT.DROP_DOWN);
   GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(cmbPreset);
   _refreshPresetCombo(cmbPreset, ctx.config.name);
   w.cmbPreset = cmbPreset;
 
+  // Modified indicator — hidden until user changes a setting
+  const lblModified = new LabelWidget(row, SWT.NONE);
+  lblModified.setText("*");
+  lblModified.setToolTipText("Unsaved changes — click Save to overwrite, Save As… to create a new preset");
+  lblModified.setVisible(false);
+  w.lblModified = lblModified;
+
+  // Save — silent overwrite
+  const btnSave = _pushBtn(row, "Save", "Overwrite the current preset with these settings", () => {
+    _saveUI(ctx);
+    const name = ctx.config.name || PresetIO.DEFAULT_PRESET_NAME;
+    PresetIO.writePreset(name, ctx.config);
+    _refreshPresetCombo(cmbPreset, name);
+    _clearModified(ctx);
+  });
+  GridDataFactory.swtDefaults().hint(60, SWT.DEFAULT).applyTo(btnSave);
+
+  // Save As… — new name + folder + description
+  const btnSaveAs = _pushBtn(row, "Save As…", "Save these settings as a new preset", () => {
+    const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
+    _saveUI(ctx);
+    PresetsDialog.openSaveAs({
+      title:              "Save As…",
+      message:            "Save current settings as a new preset.",
+      defaultName:        ctx.config.name || "",
+      defaultDescription: ctx.config.description || "",
+      onConfirm(newName, description) {
+        ctx.config.name        = newName;
+        ctx.config.description = description;
+        try { cmbPreset.setToolTipText(description); } catch (x) {}
+        PresetIO.writePreset(newName, ctx.config);
+        _refreshPresetCombo(cmbPreset, newName);
+        _clearModified(ctx);
+      },
+    });
+  });
+  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).applyTo(btnSaveAs);
+
+  // Auto-apply on dropdown selection; suppress modified during load
   cmbPreset.addListener(SWT.Selection, () => {
     const idx = cmbPreset.getSelectionIndex();
     if (idx < 0) return;
+    const name = cmbPreset.getItem(idx);
     try {
-      ctx.config.name = cmbPreset.getItem(idx);
-      const loaded = PresetIO.readPreset(cmbPreset.getItem(idx));
+      ctx._ready = false;
+      const loaded = PresetIO.readPreset(name);
       _mergePreset(ctx, loaded);
+      ctx.config.name = name;
       _syncToUI(ctx);
+      _clearModified(ctx);
       _updateFilteredCount(ctx);
-    } catch (e) { console.error("Load preset: " + e); }
-  });
-
-  const btnLoad = _pushBtn(row, "Load…", "Browse for a preset JSON file", () => {
-    const FileDialogClass = Java.type("org.eclipse.swt.widgets.FileDialog");
-    const fd = new FileDialogClass(shell, SWT.OPEN);
-    fd.text = "Load preset";
-    fd.filterExtensions = ["*.json"];
-    fd.filterPath = PresetIO.presetDir();
-    const path = fd.open();
-    if (path) {
-      try {
-        const raw = PresetIO.readJSON(path);
-        if (raw) { _mergePreset(ctx, validatePreset(raw)); _syncToUI(ctx); }
-      } catch (e) { console.error("Load: " + e); }
+      try { cmbPreset.setToolTipText(loaded.description || ""); } catch (x) {}
+      // Delete disabled for Default
+      const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
+      try { w.btnDelete.setEnabled(!isDefault); } catch (x) {}
+    } catch (e) {
+      console.error("Load preset: " + e);
+    } finally {
+      ctx._ready = true;
     }
   });
-  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnLoad);
 
-  const btnSave = _pushBtn(row, "Save", "Save current settings as a preset", () => {
-    _saveUI(ctx);
-    const FileDialogClass = Java.type("org.eclipse.swt.widgets.FileDialog");
-    const fd = new FileDialogClass(shell, SWT.SAVE);
-    fd.text = "Save preset";
-    fd.filterExtensions = ["*.json"];
-    fd.filterPath = PresetIO.presetDir();
-    fd.fileName = (ctx.config.name || "preset") + ".json";
-    const path = fd.open();
-    if (!path) return;
-    const rawName = String(path).replace(/\\/g, "/").split("/").pop().replace(/\.json$/i, "");
-    ctx.config.name = rawName;
-    PresetIO.writeJSON(path, ctx.config);
-    _refreshPresetCombo(cmbPreset, rawName);
-  });
-  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnSave);
-
-  const btnManage = _pushBtn(row, "Manage…", "Rename or delete saved presets", () => {
-    const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
-    PresetsDialog.open();
-    _refreshPresetCombo(cmbPreset, ctx.config.name);
-  });
-  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).applyTo(btnManage);
+  // Set initial delete-button state
+  try {
+    const isDefault = (ctx.config.name || PresetIO.DEFAULT_PRESET_NAME) === PresetIO.DEFAULT_PRESET_NAME;
+    btnDelete.setEnabled(!isDefault);
+  } catch (x) {}
 }
 
 // ── Sync config ↔ UI ──────────────────────────────────────────────────────────
@@ -1698,6 +1753,7 @@ function _saveUI(ctx) {
 
 
 function _updateAlgorithmControls(ctx) {
+  _markModified(ctx);
   const w = ctx.widgets;
   if (!w.algRadios) return;
   let algName = "Layered";

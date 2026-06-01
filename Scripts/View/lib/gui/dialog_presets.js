@@ -1,7 +1,7 @@
 /**
- * Preset management dialog.
- * Opened from the main dialog's [Manage…] button.
- * Lists all saved presets with a filter; allows rename and delete.
+ * Preset dialogs.
+ *
+ * openSaveAs(opts) — Save As… dialog (name + folder + description)
  */
 console.log("Loading dialog_presets.js");
 
@@ -14,116 +14,159 @@ const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
-const ListWidget        = Java.type("org.eclipse.swt.widgets.List");
+const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
 const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
-const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
+const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
 const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
-function open() {
+// ── Save As / Rename dialog ───────────────────────────────────────────────────
+
+/**
+ * Open the Save As… / Rename… dialog.
+ *
+ * @param {Object} opts
+ *   title              {string}   dialog title
+ *   message            {string}   subtitle line
+ *   defaultName        {string}   pre-filled preset name (may include "folder/" prefix)
+ *   defaultFolder      {string}   pre-selected folder, or "" for root
+ *   defaultDescription {string}   pre-filled description
+ *   showDescription    {boolean}  show description field (default true)
+ *   onConfirm          {function(fullName, description)} called on OK
+ */
+function openSaveAs({
+  title, message, defaultName, defaultFolder, defaultDescription,
+  showDescription = true, onConfirm,
+}) {
   let dlg;
 
+  // Split folder prefix from name
+  const slashIdx      = (defaultName || "").lastIndexOf("/");
+  const bareName      = slashIdx >= 0 ? defaultName.slice(slashIdx + 1) : (defaultName || "");
+  const initialFolder = defaultFolder !== undefined ? defaultFolder
+                      : (slashIdx >= 0 ? defaultName.slice(0, slashIdx) : "");
+
+  const ROOT_LABEL       = "(root)";
+  const NEW_FOLDER_LABEL = "New folder…";
+
+  // folders is built fresh each time the dialog is created; new folders added via prompt are
+  // appended immediately so the combo shows them before the user clicks OK.
+  let folders = PresetIO.listFolders();
+
+  const dlgState = {
+    txtName:   null,
+    cmbFolder: null,
+    txtDesc:   null,
+  };
+
+  function _rebuildFolderCombo(cmbFolder, selectFolder) {
+    cmbFolder.removeAll();
+    cmbFolder.add(ROOT_LABEL);
+    folders.forEach(f => cmbFolder.add(f));
+    cmbFolder.add(NEW_FOLDER_LABEL);
+    const idx = selectFolder ? folders.indexOf(selectFolder) + 1 : 0;
+    cmbFolder.select(idx >= 0 ? idx : 0);
+  }
+
   const dlgImpl = {
-    createDialogArea: function(parent) {
+    createDialogArea(parent) {
       const area = Java.super(dlg).createDialogArea(parent);
-      dlg.setTitle("Manage Presets");
-      dlg.setMessage("Rename or delete saved presets.");
+      dlg.setTitle(title || "Save As…");
+      dlg.setMessage(message || "");
 
-      // 1-column on area (TitleAreaDialog adds a separator as first child — applying numColumns > 1
-      // directly to area shifts all our widgets by one cell, putting buttons on the wrong side).
-      GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).spacing(4, 4).applyTo(area);
+      GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 8).spacing(4, 6).applyTo(area);
 
-      // Wrapper holds our 2-column layout: [filter / list] | [buttons]
       const wrapper = new CompositeWidget(area, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, true).applyTo(wrapper);
-      GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 4).applyTo(wrapper);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(wrapper);
+      const numCols = 2;
+      GridLayoutFactory.fillDefaults().numColumns(numCols).margins(0, 0).spacing(8, 6).applyTo(wrapper);
 
-      // Row 1, col 1 — filter text
-      const txtFilter = new TextWidget(wrapper, SWT.SEARCH | SWT.ICON_CANCEL);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(txtFilter);
+      // ── Name ──
+      new LabelWidget(wrapper, SWT.NONE).setText("Name:");
+      const txtName = new TextWidget(wrapper, SWT.BORDER | SWT.SINGLE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(txtName);
+      txtName.setText(bareName);
+      txtName.selectAll();
+      dlgState.txtName = txtName;
 
-      // Col 2, rows 1+2 — buttons (spans both the filter row and the list row)
-      const btnCol = new CompositeWidget(wrapper, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(false, true).span(1, 2).applyTo(btnCol);
-      GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 6).applyTo(btnCol);
+      // ── Folder ──
+      new LabelWidget(wrapper, SWT.NONE).setText("Folder:");
+      const cmbFolder = new ComboWidget(wrapper, SWT.READ_ONLY | SWT.DROP_DOWN);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(cmbFolder);
+      _rebuildFolderCombo(cmbFolder, initialFolder);
+      dlgState.cmbFolder = cmbFolder;
 
-      // Row 2, col 1 — list
-      const list = new ListWidget(wrapper, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
-      GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 200).applyTo(list);
-
-      // ── Buttons ───────────────────────────────────────────────────────────────
-      const btnRename = new ButtonWidget(btnCol, SWT.PUSH);
-      btnRename.setText("Rename…");
-      GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(btnRename);
-      btnRename.addListener(SWT.Selection, e => {
-        const idx = list.getSelectionIndex();
-        if (idx < 0) return;
-        const oldName = list.getItem(idx);
-        const newName = window.prompt("New name for preset:", oldName);
-        if (newName && newName !== oldName) {
-          try {
-            const preset = PresetIO.readPreset(oldName);
-            preset.name = newName;
-            PresetIO.writePreset(newName, preset);
-            PresetIO.deletePreset(oldName);
-            refreshList();
-          } catch (err) { console.error("Rename failed: " + err); }
+      // Handle "New folder…" selection immediately so the user sees the result
+      cmbFolder.addListener(SWT.Selection, () => {
+        const idx   = cmbFolder.getSelectionIndex();
+        const count = cmbFolder.getItemCount();
+        if (idx !== count - 1) return;  // not "New folder…"
+        const newFolder = window.prompt("New folder name:", "");
+        if (newFolder && newFolder.trim()) {
+          const f = newFolder.trim();
+          if (folders.indexOf(f) < 0) folders.push(f);
+          _rebuildFolderCombo(cmbFolder, f);
+        } else {
+          // Revert to previous selection
+          _rebuildFolderCombo(cmbFolder, initialFolder);
         }
       });
 
-      const btnDelete = new ButtonWidget(btnCol, SWT.PUSH);
-      btnDelete.setText("Delete");
-      GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(btnDelete);
-      btnDelete.addListener(SWT.Selection, e => {
-        const idx = list.getSelectionIndex();
-        if (idx < 0) return;
-        const name = list.getItem(idx);
-        if (window.confirm(`Delete preset "${name}"?`)) {
-          PresetIO.deletePreset(name);
-          refreshList();
-        }
-      });
+      // ── Description (optional) ──
+      if (showDescription) {
+        const lblDesc = new LabelWidget(wrapper, SWT.NONE);
+        lblDesc.setText("Description:");
+        GridDataFactory.swtDefaults().align(SWT.LEAD, SWT.TOP).applyTo(lblDesc);
 
-      // ── Filter logic ──────────────────────────────────────────────────────────
-      let allNames = PresetIO.listPresets();
-
-      function applyFilter() {
-        const q = txtFilter.getText().toLowerCase();
-        list.removeAll();
-        allNames.filter(n => n.toLowerCase().includes(q)).forEach(n => list.add(n));
-        if (list.getItemCount() > 0) list.select(0);
+        const txtDesc = new TextWidget(wrapper, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
+        GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, 50).applyTo(txtDesc);
+        txtDesc.setText(defaultDescription || "");
+        dlgState.txtDesc = txtDesc;
       }
-
-      function refreshList() {
-        allNames = PresetIO.listPresets();
-        applyFilter();
-      }
-
-      txtFilter.addListener(SWT.Modify, () => applyFilter());
-      txtFilter.addListener(SWT.DefaultSelection, () => {
-        if (list.getItemCount() > 0) { list.select(0); list.setFocus(); }
-      });
-
-      applyFilter();
 
       return area;
     },
 
-    isResizable:     function() { return true; },
-    isHelpAvailable: function() { return false; },
+    buttonPressed(buttonId) {
+      if (buttonId === IDialogConstants.CANCEL_ID) {
+        Java.super(dlg).cancelPressed();
+        return;
+      }
+      // OK
+      const name = (dlgState.txtName.getText() || "").trim();
+      if (!name) return;
 
-    createButtonsForButtonBar: function(parent) {
-      Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Close", true);
+      const idx    = dlgState.cmbFolder.getSelectionIndex();
+      const count  = dlgState.cmbFolder.getItemCount();
+      let folder   = "";
+      if (idx > 0 && idx < count - 1) {
+        folder = dlgState.cmbFolder.getItem(idx);
+      }
+      // idx === 0 → root, idx === count-1 → "New folder…" but that's handled at selection time
+      // so it should never be the last item when OK is pressed; fall back to root if it is.
+
+      const fullName    = folder ? folder + "/" + name : name;
+      const description = dlgState.txtDesc ? dlgState.txtDesc.getText() : (defaultDescription || "");
+      onConfirm(fullName, description);
+      Java.super(dlg).okPressed();
+    },
+
+    isResizable()     { return false; },
+    isHelpAvailable() { return false; },
+
+    createButtonsForButtonBar(parent) {
+      Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
+      Java.super(dlg).createButton(parent, IDialogConstants.OK_ID,     "OK",     true);
     },
   };
 
-  const PresetsDialog = Java.extend(TitleAreaDialog, dlgImpl);
-  dlg = new PresetsDialog(shell);
+  const SaveAsDialog = Java.extend(TitleAreaDialog, dlgImpl);
+  dlg = new SaveAsDialog(shell);
   dlg.open();
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { open };
+  module.exports = { openSaveAs };
 }

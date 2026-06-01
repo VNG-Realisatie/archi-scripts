@@ -1,8 +1,8 @@
 {
-  "name": "Bedrijfsfunctiemodel met referentiecomponenten",
+  "name": "gemma/Bedrijfsfunctiemodel met referentiecomponenten II",
   "algorithm": "Pack",
   "params": {
-    "direction": "Right → Left",
+    "direction": "Left → Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -78,5 +78,6 @@
     "folder": "/_Test/_Generated"
   },
   "_lastTabIndex": 1,
+  "description": "dit is een test  sadf asdf\n# dlfksdl;faksdf\n",
   "action": "new_view"
 }
