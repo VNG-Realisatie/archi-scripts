@@ -16,7 +16,7 @@ const REPO_ROOT = (() => {
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, byTypeAndName, alignLeavesToSiblingContainers } = EngineUtils;
+const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 // Maps GUI param names to ELK layout option keys/values.
@@ -28,8 +28,9 @@ const { selfLoopResult, byTypeAndName, alignLeavesToSiblingContainers } = Engine
 //   maxWidth / maxHeight  → set as elkGraph.width / .height (root graph bounds, not options)
 //   nestingRelationTypes  → graph structure (parentMap)
 //   sortContainers        → node sort order via engine-utils.sortedNodes (ELK: _sortNodeChildren)
-//   alignWidthSameType    → two-pass layout; pass 1 renders containers, leaves then grow to the
-//                           narrowest same-type sibling container via engine-utils.alignLeavesToSiblingContainers
+//   alignWidthSameType    → two-pass layout; pass 1 measures natural widths, then every box is
+//                           aligned by nesting level via engine-utils.alignWidthsByLevel
+//                           (leaves get exact width, containers a MINIMUM_SIZE floor)
 
 const ELK_DIRECTION = {
   "Left → Right": "RIGHT",
@@ -250,9 +251,11 @@ function layout(graph) {
     edgeList.push(entry);
   }
 
-  // Two-pass layout for alignWidthSameType: pass 1 renders containers (engine-sized) →
-  // read their widths → resize each bare leaf to the narrowest same-type sibling container →
-  // pass 2 places leaves aligned to their neighbouring container boxes.
+  // Two-pass layout for alignWidthSameType (width alignment by nesting level):
+  // pass 1 renders every box at its natural width → compute a per-level target width
+  // (engine-utils.alignWidthsByLevel) → pass 2 with leaves set to that width and
+  // containers floored by it (MINIMUM_SIZE), so same-level boxes line up.
+  let alignTargets = null, alignContainerIds = null, alignPass1Widths = null;
   if (graph.alignWidthSameType && Object.values(parentMap).length > 0) {
     const containerIds = new Set(Object.values(parentMap));
     const origSizes = {};
@@ -262,15 +265,24 @@ function layout(graph) {
     }
 
     const { elkGraph: pass1ElkGraph } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
-    console.log("Calculating layout (pass 1 — align width same type)...");
+    console.log("Calculating layout (pass 1 — measure natural widths)...");
     const pass1Layouted = elk.layout(pass1ElkGraph);
 
-    // Reset nodeMap to original sizes, then grow leaves to the narrowest same-type
-    // sibling container's rendered width from pass 1.
-    const containerWidths = _collectContainerWidths(pass1Layouted, containerIds);
+    // Per-level target widths from pass-1 rendered sizes. Apply as an exact width on
+    // leaves, and a min-size floor on containers (never shrink below content).
+    const renderedWidths = _collectRenderedWidths(pass1Layouted);
     _resetNodesForPass2(nodeMap, origSizes, containerIds);
-    alignLeavesToSiblingContainers(Object.values(nodeMap), parentMap, containerWidths);
-    console.log("Calculating layout (pass 2 — leaves aligned to sibling containers)...");
+    // One nesting level adds left+right container padding to the width (label clearance is top-only).
+    const ring = 2 * (graph.options.padding || 0);
+    const targetWidths = alignWidthsByLevel(Object.values(nodeMap), parentMap, renderedWidths, ring, console.log);
+    for (const id of Object.keys(nodeMap)) {
+      const w = targetWidths[id];
+      if (!(w > 0)) continue;
+      if (containerIds.has(id)) nodeMap[id]._minWidth = w;  // container: min-size floor in _buildELKGraph
+      else                      nodeMap[id].width    = w;   // leaf: exact width
+    }
+    alignTargets = targetWidths; alignContainerIds = containerIds; alignPass1Widths = renderedWidths;
+    console.log("Calculating layout (pass 2 — widths aligned by level)...");
   } else {
     console.log("Calculating layout...");
   }
@@ -281,12 +293,38 @@ function layout(graph) {
   const layouted = elk.layout(elkGraph);
   console.log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}`);
 
+  // Align-by-level diagnostics: compare each box's target to its final rendered width.
+  // A container final < target means the MINIMUM_SIZE floor was not honoured by the engine.
+  if (alignTargets) {
+    const finalWidths = _collectRenderedWidths(layouted);
+    console.log("[alignByLevel] target vs final rendered width (mismatches flagged):");
+    for (const id of Object.keys(alignTargets)) {
+      const tgt = alignTargets[id]; if (!(tgt > 0)) continue;
+      const fin = finalWidths[id] || 0;
+      const isC = alignContainerIds.has(id);
+      const bad = isC ? fin + 0.5 < tgt : Math.abs(fin - tgt) > 0.5;  // leaf must equal; container must be ≥
+      const flag = bad ? "  ⚠ MISMATCH" : "";
+      if (bad || isC) {
+        const name = (nodeMap[id] && nodeMap[id]._name) || id;
+        console.log(`    ${isC ? "container" : "leaf     "} pass1=${alignPass1Widths[id] || 0} target=${tgt} final=${Math.round(fin)}${flag}  "${name}"`);
+      }
+    }
+  }
+
   // Extract LayoutResult
   const resultNodes = [];
   const resultEdges = [];
 
   // Flatten nodes with absolute positions
   _collectNodePositions(layouted, 0, 0, resultNodes);
+
+  // Center-snap columns to a global grid (position-only; grows containers, never resizes
+  // leaves). Aligns leaf columns top-to-bottom across the view. Gated on its own toggle.
+  if (graph.snapColumnsToGrid && Object.keys(parentMap).length > 0) {
+    const nameById = {};
+    for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
+    _snapColumnsToGrid(resultNodes, graph.options, nameById, console.log);
+  }
 
   // Collect edges
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
@@ -328,6 +366,12 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
       "elk.hierarchyHandling": "SEPARATE_CHILDREN",
       ...containerEngineOpts,
     };
+    // alignWidthSameType pass 2: floor the container width to its per-level target
+    // (computed in layout()). MINIMUM_SIZE keeps it from shrinking below content.
+    if (node._minWidth > 0) {
+      node.layoutOptions["elk.nodeSize.constraints"] = "[MINIMUM_SIZE]";
+      node.layoutOptions["elk.nodeSize.minimum"]     = `(${node._minWidth}, 0)`;
+    }
   }
 
   // Also set hierarchyHandling on the root when containers are present, so ELK processes them.
@@ -627,16 +671,17 @@ function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition
 
 
 /**
- * Collect rendered container widths from pass-1 ELK output.
- * Only container nodes are kept; leaves are ignored. Used to grow sibling leaves
- * to a matching container width in pass 2 (via alignLeavesToSiblingContainers).
- * @returns {Object}  { containerId: renderedWidth }
+ * Collect rendered widths of every box (containers and leaves) from pass-1 ELK output.
+ * Feeds alignWidthsByLevel, which derives per-level target widths for pass 2.
+ * @returns {Object}  { id: renderedWidth }
  */
-function _collectContainerWidths(layouted, containerIds) {
+function _collectRenderedWidths(layouted) {
   const widths = {};
   function walk(node) {
-    if (containerIds.has(node.id) && node.width > 0) widths[node.id] = node.width;
-    (node.children || []).forEach(walk);
+    for (const child of (node.children || [])) {
+      if (child.width > 0) widths[child.id] = child.width;
+      walk(child);
+    }
   }
   walk(layouted);
   return widths;
@@ -645,7 +690,7 @@ function _collectContainerWidths(layouted, containerIds) {
 /**
  * Reset node state between pass 1 and pass 2.
  * Leaf nodes restore their original sizes; containers get no explicit size so ELK auto-sizes them.
- * Caller then grows leaves to sibling-container widths (via alignLeavesToSiblingContainers).
+ * Caller then applies per-level target widths (via alignWidthsByLevel).
  */
 function _resetNodesForPass2(nodeMap, origSizes, containerIds) {
   for (const [id, node] of Object.entries(nodeMap)) {
@@ -657,6 +702,161 @@ function _resetNodesForPass2(nodeMap, origSizes, containerIds) {
     if (origSizes[id]) { node.width = origSizes[id].width; node.height = origSizes[id].height; }
     else               { delete node.width; delete node.height; }  // container: ELK auto-sizes
   }
+}
+
+// ── Center-snap column alignment to a global grid ──────────────────────────────
+
+/**
+ * Align leaf columns top-to-bottom across the view as a **global variable-width table**.
+ * Mutates absolute x of resultNodes in place and re-wraps containers around their moved
+ * children; **leaves are never resized** (position-only — see [No post-layout scaling]).
+ *
+ * Every leaf column is placed on one shared set of vertical bands so columns line up across
+ * the whole view; each column is as wide as its widest leaf. Gaps start **tight** and are
+ * then **widened only where containers actually collide**, by exactly the overlap amount —
+ * so most boundaries stay minimal and only the few that genuinely need a deep gap get one,
+ * while every column stays on the shared grid (widening a boundary just shifts everything
+ * to its right).
+ *
+ * Algorithm:
+ *   1. Detect columns: sort leaves by centre, split on a >½-leaf gap (consecutive compare).
+ *   2. Column width = widest member leaf.
+ *   3. Initial gap per boundary = max row need (`spacing + padding × symmetric ancestor
+ *      difference`) − 2×padding, floored at spacing.
+ *   4. Iterate: place leaves on the column grid + re-wrap containers; find adjacent sibling
+ *      containers that overlap; widen each offending boundary by the overlap; repeat until
+ *      no container overlaps (or a few iterations).
+ *
+ * @param {Object[]} resultNodes  flattened nodes { id, x, y, width, height, parentId }
+ * @param {Object}   options      graph.options (spacing, padding)
+ * @param {Object}   nameById     { id: displayName }
+ * @param {Function} log          logger
+ */
+function _snapColumnsToGrid(resultNodes, options, nameById, log) {
+  const byId = {};
+  const childrenByParent = {};
+  const containerIds = new Set();
+  for (const n of resultNodes) {
+    byId[n.id] = n;
+    if (n.parentId != null) {
+      (childrenByParent[n.parentId] = childrenByParent[n.parentId] || []).push(n);
+      containerIds.add(n.parentId);
+    }
+  }
+  const isContainer = id => containerIds.has(id);
+  const centerOf = n => n.x + (n.width || 0) / 2;
+  const rightOf  = n => n.x + (n.width || 0);
+  const spacing = options.innerSpacing || options.elementSpacing || 0;
+  const pad = options.padding || 0;
+
+  const leaves = resultNodes.filter(n => !isContainer(n.id));
+  if (leaves.length < 2) { log("[colSnap] skipped (no columns)"); return; }
+
+  // Container-ancestor set per leaf, and symmetric-difference count between two leaves.
+  const anc = {};
+  for (const lf of leaves) {
+    const s = new Set(); let p = lf.parentId;
+    while (p != null) { s.add(p); p = byId[p] ? byId[p].parentId : null; }
+    anc[lf.id] = s;
+  }
+  const symDiff = (a, b) => {
+    let d = 0;
+    for (const x of anc[a]) if (!anc[b].has(x)) d++;
+    for (const x of anc[b]) if (!anc[a].has(x)) d++;
+    return d;
+  };
+
+  // 1. Detect columns (consecutive-centre compare; split on >½-leaf gap).
+  const sorted = leaves.slice().sort((a, b) => centerOf(a) - centerOf(b));
+  const cols = [];
+  let prev = null;
+  for (const lf of sorted) {
+    const thr = prev ? Math.min(lf.width || 0, prev.width || 0) / 2 : 0;
+    if (prev && centerOf(lf) - centerOf(prev) <= thr + 1e-6) {
+      const c = cols[cols.length - 1]; c.members.push(lf); c.w = Math.max(c.w, lf.width || 0);
+    } else {
+      cols.push({ members: [lf], w: lf.width || 0 });
+    }
+    prev = lf;
+  }
+  if (cols.length < 2) { log("[colSnap] 1 column — nothing to align"); return; }
+  const colOf = {};
+  cols.forEach((c, i) => c.members.forEach(m => { colOf[m.id] = i; }));
+
+  // 3. Initial gap per boundary = max row need − slack (2·padding), floored at spacing.
+  //    Tight first; the loop below widens only the boundaries that actually collide.
+  const yOver = (a, b) => a.y < b.y + (b.height || 0) && b.y < a.y + (a.height || 0);
+  const slack = 2 * pad;
+  const gap = [], rawGap = [];
+  for (let k = 0; k < cols.length - 1; k++) {
+    let need = spacing;
+    for (const a of cols[k].members) for (const b of cols[k + 1].members) {
+      if (!yOver(a, b)) continue;
+      const req = spacing + pad * symDiff(a.id, b.id);
+      if (req > need) need = req;
+    }
+    rawGap.push(need);
+    gap.push(Math.max(spacing, need - slack));
+  }
+
+  const origin = Math.min(...cols[0].members.map(m => m.x));
+  const nm = id => nameById[id] || id;
+  const ROOT = "__root__";
+  const parents = [...new Set(resultNodes.map(n => (n.parentId == null ? ROOT : n.parentId)))];
+  const depthOf = id => { let d = 0, p = byId[id] ? byId[id].parentId : null; while (p != null) { d++; p = byId[p] ? byId[p].parentId : null; } return d; };
+  const containersByDepth = [...containerIds].sort((a, b) => depthOf(b) - depthOf(a));
+  // Rightmost leaf-column index within a container's subtree (the boundary to its right).
+  const rightCol = cid => { let hi = -1; (function w(id){ for (const c of (childrenByParent[id] || [])) { if (!isContainer(c.id)) hi = Math.max(hi, colOf[c.id]); else w(c.id); } })(cid); return hi; };
+
+  // Position every leaf on the column grid defined by `gap`, then re-wrap containers.
+  function applyGrid() {
+    const colCenter = [origin + cols[0].w / 2];
+    let left = origin;
+    for (let k = 1; k < cols.length; k++) { left += cols[k - 1].w + gap[k - 1]; colCenter.push(left + cols[k].w / 2); }
+    for (const lf of leaves) lf.x += colCenter[colOf[lf.id]] - centerOf(lf);   // idempotent (absolute target)
+    for (const cid of containersByDepth) {
+      const kids = childrenByParent[cid] || []; if (!kids.length) continue;
+      byId[cid].x = Math.min(...kids.map(k => k.x)) - pad;
+      byId[cid].width = (Math.max(...kids.map(k => rightOf(k))) + pad) - byId[cid].x;
+    }
+  }
+  // Find adjacent sibling containers that overlap; return { boundaryIndex: maxNeededWiden }.
+  function findOverlaps() {
+    const widen = {}; const list = [];
+    for (const pid of parents) {
+      const sibs = (pid === ROOT ? resultNodes.filter(n => n.parentId == null) : (childrenByParent[pid] || []))
+                     .filter(k => isContainer(k.id)).sort((a, b) => a.x - b.x);
+      for (let i = 1; i < sibs.length; i++) {
+        let nearRight = -Infinity, nb = null;
+        for (let j = 0; j < i; j++) if (yOver(sibs[i], sibs[j]) && rightOf(sibs[j]) > nearRight) { nearRight = rightOf(sibs[j]); nb = sibs[j]; }
+        if (!nb) continue;
+        const g = sibs[i].x - nearRight;
+        if (g < spacing - 1e-6) {
+          const b = rightCol(nb.id);                    // widen the boundary at the left container's right edge
+          if (b >= 0 && b < gap.length) widen[b] = Math.max(widen[b] || 0, spacing - g);
+          list.push(`    overlap in "${pid === ROOT ? "(root)" : nm(pid)}": "${nm(nb.id)}" ↔ "${nm(sibs[i].id)}" gap=${Math.round(g)}px → widen gap ${b}`);
+        }
+      }
+    }
+    return { widen, list };
+  }
+
+  // 4. Iterate: lay out tight, find collisions, widen exactly those boundaries, repeat.
+  let iters = 0, lastList = [];
+  for (; iters < 8; iters++) {
+    applyGrid();
+    const { widen, list } = findOverlaps();
+    lastList = list;
+    const keys = Object.keys(widen);
+    if (!keys.length) break;
+    for (const k of keys) gap[+k] += widen[k];
+  }
+
+  log(`[colSnap] applied — ${cols.length} columns, widths [${cols.map(c => c.w).join(", ")}]; ` +
+      `slack=${slack}px (2·padding); ${iters} widen-iteration(s); final gaps [${gap.map(Math.round).join(", ")}]`);
+  for (let k = 0; k < gap.length; k++) log(`    gap ${k}→${k + 1}: raw need ${Math.round(rawGap[k])} ⇒ final ${Math.round(gap[k])}`);
+  if (lastList.length) { log(`[colSnap] unresolved overlaps after ${iters} iters:`); for (const l of lastList) log(l); }
+  else log(`[colSnap] overlap scan: clean (all adjacent containers ≥ ${spacing}px)`);
 }
 
 if (typeof module !== "undefined" && module.exports) {

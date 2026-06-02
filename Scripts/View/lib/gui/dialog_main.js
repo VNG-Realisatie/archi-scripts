@@ -1334,7 +1334,8 @@ function _buildLayoutTab(tabFolder, ctx) {
   GridDataFactory.fillDefaults().span(4, 1).grab(true, false).applyTo(chkComp);
 
   _addCheck(chkComp, "Sort containers",         "Sort containers alphabetically within each level.",                         1, w, "chkSortContainers");
-  _addCheck(chkComp, "Align width same type",   "Resize a leaf to match the narrowest same-type sibling container, so bare elements align with neighbouring container boxes of their type.",        1, w, "chkAlignWidthSameType");
+  _addCheck(chkComp, "Align width by level",    "Align box widths by nesting level into clean telescoping frames: each level is one padding step wider than the level inside it. Leaves take the level width; containers never shrink below their content.",        1, w, "chkAlignWidthSameType");
+  _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.",        1, w, "chkSnapColumns");
   _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",               1, w, "chkShowInEvery");
   _addCheck(chkComp, "Show connection for multiple occurrences",
     "When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only.",
@@ -1675,6 +1676,7 @@ function _syncToUI(ctx) {
   _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : DP.padding);
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
   _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
+  _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
   _chkSet(w.chkShowInEvery,       !!(p.showInEveryContainer));
   _chkSet(w.chkShowExtraOccConn,  !!(p.showExtraOccurrenceConnections));
 
@@ -1756,6 +1758,7 @@ function _saveUI(ctx) {
   if (w.spinPadding)      c.params.padding            = w.spinPadding.getSelection();
   if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
   if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
+  if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
   if (w.chkShowInEvery)        c.params.showInEveryContainer           = w.chkShowInEvery.getSelection();
   if (w.chkShowExtraOccConn)   c.params.showExtraOccurrenceConnections = w.chkShowExtraOccConn.getSelection();
 
@@ -1813,6 +1816,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinPadding,        active.has("padding"));
   _enable(w.chkSortContainers,  active.has("sortContainers"));
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
+  _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
   // 'Show connection for multiple occurrences' is only meaningful when the
   // algorithm supports it AND 'Show in every container' is on (otherwise there

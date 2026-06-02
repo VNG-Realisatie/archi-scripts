@@ -69,54 +69,99 @@ function sortedNodes(nodes, parentMap) {
   return result;
 }
 
-// ── Leaf-to-sibling-container width alignment ──────────────────────────────────
+// ── Width alignment by nesting level ───────────────────────────────────────────
 
 /**
- * Align bare leaf widths to neighbouring container boxes of the same element type
- * (in place).
+ * Compute a per-box target width that aligns every box at the same nesting level
+ * to a common width, across the whole hierarchy.
  *
- * For each leaf node L, look at L's sibling sub-containers (other direct children
- * of L's parent that themselves have children). Among those whose element type
- * equals L's type, take the narrowest rendered width and set L.width to it.
- * Leaves with no same-type sibling container are left untouched. Sub-containers
- * are never resized — only leaves change. A leaf typically grows, since a
- * container box (children + padding) is wider than a bare element.
+ * Level = nesting depth (root-level boxes are level 0, their children level 1, …).
+ * Widths **telescope**: the deepest level is anchored at its narrowest box (the leaf
+ * base width), and each level above is exactly one padding `ring` wider than the
+ * level it contains (`W[L] = W[L+1] + ring`). This yields clean concentric frames —
+ * a box at level L is as wide as a single-column container of that depth would be.
  *
- * Container widths are computed by the engine, so they are only known after a
- * first layout pass; the caller supplies them via `containerWidthById`.
+ * The caller applies the returned widths as: an **exact** width on leaves, and a
+ * **minimum-size floor** on containers (so a container never shrinks below its
+ * content — "smallest, but never below content"; a multi-column container bulges
+ * past its level width). Widths are only known after a first layout pass, so the
+ * caller passes pass-1 rendered widths via `renderedWidthById`.
  *
- * Works with both LayoutGraph nodes (elementType / parent) and ELK nodeMap
- * items (_type) when called with a matching parentMap.
- *
- * @param {Object[]} items              nodes to process — each needs { id, width } plus
- *                                      elementType or _type for grouping
- * @param {Object}   parentMap          { childId: parentId } — identifies leaves and groups siblings
- * @param {Object}   containerWidthById { containerId: renderedWidth } from pass 1
- * @returns {Object[]}                  same array (mutated)
+ * @param {Object[]} items             nodes to process — each needs { id }
+ * @param {Object}   parentMap         { childId: parentId } — defines levels and subtrees
+ * @param {Object}   renderedWidthById { id: pass-1 renderedWidth } for all boxes
+ * @param {number}   ring              width added per nesting level (= 2 × container padding)
+ * @param {Function} [log]             optional logger (e.g. console.log) for diagnostics
+ * @returns {Object}                   { id: targetWidth } for every item
  */
-function alignLeavesToSiblingContainers(items, parentMap, containerWidthById) {
-  const containerIds = new Set(Object.values(parentMap));
+function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
+  // Children index from parentMap.
+  const childrenOf = {};
+  for (const childId of Object.keys(parentMap)) {
+    const p = parentMap[childId];
+    (childrenOf[p] = childrenOf[p] || []).push(childId);
+  }
+  const nameOf = {};
+  for (const it of items) nameOf[it.id] = it._name || it.label || it.id;
+  const isContainer = id => !!(childrenOf[id] && childrenOf[id].length);
 
-  // Index sibling sub-containers by parentKey + type → list of rendered widths.
-  const siblingContainerWidths = {};
-  for (const item of items) {
-    if (!containerIds.has(item.id)) continue;        // containers only
-    const w = containerWidthById[item.id];
-    if (!(w > 0)) continue;                          // no rendered width → skip
-    const pKey = parentMap[item.id] || "__root__";
-    const type = item.elementType || item._type || "";
-    const key  = pKey + "::" + type;
-    (siblingContainerWidths[key] = siblingContainerWidths[key] || []).push(w);
+  const levelCache = {};
+  function level(id) {
+    if (id in levelCache) return levelCache[id];
+    let l = 0, cur = id;
+    while (parentMap[cur] != null) { l++; cur = parentMap[cur]; }
+    return (levelCache[id] = l);
   }
 
-  for (const item of items) {
-    if (containerIds.has(item.id)) continue;         // skip containers — leaves only
-    const pKey = parentMap[item.id] || "__root__";
-    const type = item.elementType || item._type || "";
-    const widths = siblingContainerWidths[pKey + "::" + type];
-    if (widths && widths.length) item.width = Math.min(...widths);
+  // Sub-nesting depth: 0 for a leaf, else 1 + max child depth.
+  const subCache = {};
+  function subtreeDepth(id) {
+    if (id in subCache) return subCache[id];
+    const kids = childrenOf[id];
+    if (!kids || !kids.length) return (subCache[id] = 0);
+    let m = 0;
+    for (const k of kids) m = Math.max(m, subtreeDepth(k));
+    return (subCache[id] = 1 + m);
   }
-  return items;
+
+  const widthOf = id => { const w = renderedWidthById[id]; return w > 0 ? w : 0; };
+
+  // Group box ids by level.
+  const byLevel = {};
+  for (const it of items) (byLevel[level(it.id)] = byLevel[level(it.id)] || []).push(it.id);
+  const levels = Object.keys(byLevel).map(Number).sort((a, b) => a - b);
+
+  // Telescoping widths: anchor the deepest level at its narrowest box (the leaf base),
+  // then each level above is one ring wider than the level it contains.
+  const deepestLevel = levels[levels.length - 1];
+  let anchor = Infinity;
+  for (const id of byLevel[deepestLevel]) { const w = widthOf(id); if (w > 0 && w < anchor) anchor = w; }
+  if (!isFinite(anchor)) anchor = 0;
+
+  const W = {};
+  W[deepestLevel] = anchor;
+  for (let i = levels.length - 2; i >= 0; i--) {
+    const L = levels[i], inner = levels[i + 1];
+    W[L] = W[inner] + ring * (inner - L);   // one ring per nesting level
+  }
+
+  const targetById = {};
+  for (const it of items) targetById[it.id] = W[level(it.id)] || 0;
+
+  if (typeof log === "function") {
+    log(`[alignByLevel] ${items.length} boxes, ${levels.length} level(s); ` +
+        `ring=${ring}, anchor=${anchor} @ deepest level ${deepestLevel}`);
+    for (const L of levels) log(`  level ${L}: ${byLevel[L].length} box(es)  ⇒ W[${L}]=${W[L]}`);
+    for (const it of items) {
+      const id = it.id, L = level(it.id);
+      const kind = isContainer(id) ? "container" : "leaf     ";
+      const nat = widthOf(id), tgt = targetById[id];
+      const note = isContainer(id) ? "(floor)" : (tgt > nat ? "(grow)" : tgt < nat ? "(SHRINK?)" : "(same)");
+      log(`    ${kind} L${L} sub${subtreeDepth(id)} natural=${nat} target=${tgt} ${note}  "${nameOf[id]}"`);
+    }
+  }
+
+  return targetById;
 }
 
 // ── Parameter mapping ─────────────────────────────────────────────────────────
@@ -139,5 +184,5 @@ function applyParams(algName, opts, mapping) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignLeavesToSiblingContainers, applyParams };
+  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignWidthsByLevel, applyParams };
 }

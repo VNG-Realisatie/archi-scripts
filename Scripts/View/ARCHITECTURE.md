@@ -100,6 +100,8 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 | One view each | Per element |
 | Re-layout | Layout only |
 | Show connection for multiple occurrences | showExtraOccurrenceConnections |
+| Align width by level | alignWidthSameType |
+| Snap columns to grid | snapColumnsToGrid |
 
 ## System architecture
 
@@ -321,7 +323,8 @@ Preset {
                 : numbers                   // (0 = unconstrained)
 
     sortContainers,                 // Sort containers alphabetically
-    alignSameType,                  // Align elements within same-type containers
+    alignWidthSameType,             // Align width by level (key kept for back-compat)
+    snapColumnsToGrid,              // Snap columns to grid
     showInEveryContainer,           // Show in every container
     showExtraOccurrenceConnections  // Show connection for multiple occurrences
                 : booleans
@@ -551,8 +554,8 @@ The Layout tab decides *how* objects are positioned.
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ │  ── Inside container ───────────────────────────────────────────────  │ │
 │ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
-│ │  ☑ Sort containers ○ Align width same type  ○ Show in every container │ │
-│ │  ○ Show connection for multiple occurrences                           │ │
+│ │  ☑ Sort containers ○ Align width by level   ○ Snap columns to grid    │ │
+│ │  ○ Show in every container  ○ Show connection for multiple occurrences│ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ View dimensions ─────────────────────────────────────────────────────┐ │
 │ │  Hint for view sizing:  ● None   ○ Width   ○ Height   ○ Aspect ratio  │ │
@@ -632,7 +635,8 @@ The group label is **"Draw these relation types as containers"** — a checkbox 
 | Inner spacing | Minimum distance between elements inside a container (px). |
 | Padding | Space between container border and contents (px). |
 | Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
-| Align width same type | Resize a leaf to match the narrowest same-type sibling container, so bare elements align with neighbouring container boxes of their type. ELK algorithms only. |
+| Align width by level | Align box widths across the whole hierarchy by nesting level. Widths telescope — each level is one padding ring wider than the level inside it, anchored at the leaf width; leaves take the level width exactly, containers use it as a floor (never below their content). ELK algorithms only. See [Width alignment by level](#width-alignment-by-level). |
+| Snap columns to grid | Line leaf columns up top-to-bottom by nudging ELK's layout into alignment — each column snaps to the median of where its leaves already sit, preserving ELK's spacing and adding only the small offset for alignment. Position-only post-pass; leaves are not resized. ELK algorithms only. See [Column snapping](#column-snapping). |
 | Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
 | Show connection for multiple occurrences | When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only. Active only when *Show in every container* is on. |
 
@@ -729,7 +733,8 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 | **Inner spacing** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
 | **Padding** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
 | **Sort containers** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| **Align same type** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Align width by level** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Snap columns to grid** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | **Show in every container** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
 | **Show connection for multi-occurrence** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
 | **Reverse relation types** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
@@ -923,6 +928,57 @@ There is no per-action branch; the same rule applies to NEW_VIEW, ONE_EACH, EXPA
 
 Surplus existing VOs (concept over-supply — e.g. `showInEveryContainer` toggled off, or EXPAND_VIEW reducing occurrence count) are **left in place untouched**. The writer never deletes visuals outside the explicit name-overwrite path (Invariant 4). A single log line `Unpaired VOs: N (concept over-supply — kept in place)` flags the count.
 
+### Width alignment by level
+
+When the **Align width by level** option (preset key `alignWidthSameType`) is on, boxes that sit at the same nesting depth are given a common width, so a nested diagram reads as clean telescoping frames instead of ragged boxes. It is a sizing rule layered on top of the nesting structure; it never changes which element is parent or child.
+
+**Definitions.**
+
+- **Level** of a box — its nesting depth. Boxes at the view root are level 0; the children of a level-*N* container are level *N+1*. Applies to both leaves and containers.
+- **Sub-nesting depth** of a box — how many levels of containment sit below it. A leaf is 0; a container holding only leaves is 1; a container holding such a container is 2; and so on.
+
+**The width chosen for each level — telescoping.** Widths grow by one fixed step per nesting level, like a set of concentric frames. The deepest level is **anchored** at its narrowest box (the leaf base width); every level above it is exactly **one padding ring wider** than the level it contains:
+
+```
+W[deepest level] = narrowest box at that level (the leaf base width)
+W[L]             = W[L+1] + ring          (ring = left + right container padding)
+```
+
+This is the width a *single-column* container of that depth would have — the tightest box that still leaves a clean, uniform margin around the level inside it. It is well-defined at every level and never depends on how wide any one busy branch happens to pack.
+
+**How the target is applied.**
+
+- A **leaf** is set to exactly its level's width. Leaves carry no content of their own, so they always take the level width — growing the narrow ones until every leaf at that level matches.
+- A **container** treats the level width as a **floor**: it is at least that wide, but if its own side-by-side content needs more, it keeps the larger width. This is the *never-below-content* guarantee — the telescoping widths set the baseline frames, and any branch that genuinely needs more room bulges past its floor rather than clipping its contents.
+
+**Worked example.** A view whose deepest branch is `B ⊃ B1 ⊃ B1a ⊃ leaf`, alongside a level-0 container `A` that holds two boxes side by side, and a lone level-0 leaf `C`. With a base leaf width of 200 and a ring of 20:
+
+| Level | Level width `W[L]` | Leaves at this level | Containers at this level |
+|---|---|---|---|
+| 0 | 260 (= 240 + ring) | `C` → 260 | `A` → floored at 260, but **bulges** wider to fit its two side-by-side children |
+| 1 | 240 (= 220 + ring) | `A2` → 240 | `A1` → floored at 240 |
+| 2 | 220 (= 200 + ring) | `A1a` → 220 | `B1a` → floored at 220 |
+| 3 | 200 (anchor) | `Bx` → 200 | — |
+
+**Scope and prerequisite.** The rule needs each container's *natural* width, which only exists once the engine has sized containers from their contents. It therefore requires a first sizing pass to measure natural widths before the final placement; the adjustment happens *between* passes, never after the final layout (see [No post-layout scaling](#no-post-layout-scaling)). It is available only on engines that size containers from content — the nesting-capable ELK algorithms (Layered, Tree, Grid, Pack); see the [Algorithm capability matrix](#algorithm-capability-matrix). The engine-specific realisation is in Part B.
+
+### Column snapping
+
+The **Snap columns to grid** option (preset key `snapColumnsToGrid`) puts every leaf column on **one shared global grid** so columns line up top-to-bottom across the whole view. It is independent of [Width alignment by level](#width-alignment-by-level) — either can be used alone — and applies only to the nesting-capable ELK algorithms.
+
+**A global variable-width table.** Each column is as wide as its own widest leaf (widths diverge), packed left-to-right, every leaf moved onto its column's centre so columns share an x view-wide.
+
+**Tight first, widen only where it collides.** Gaps start at `max row need − 2×padding` (floored at one inner spacing) — tight. Then a measure-then-widen loop runs: lay leaves on the grid, re-wrap containers, find any adjacent sibling containers that actually overlap, and widen *those* boundaries by exactly the overlap; repeat until clean. So a boundary only gets a wide gap if real containers would otherwise collide there; everywhere else stays minimal.
+
+**How it runs.** A position-only post-pass over the laid-out result:
+
+1. **Detect columns** — sort leaves by centre; split on a >½-leaf gap (consecutive compare).
+2. **Column width** = its widest member leaf.
+3. **Initial gap** per boundary = `max row need − 2×padding`, floored at spacing.
+4. **Iterate:** place leaves on the column grid and re-wrap containers (deepest first); find adjacent sibling containers whose actual gap is below one inner spacing; widen each offending boundary by the shortfall; repeat until no overlap.
+
+**Guarantees and limits.** Leaves are **never resized** — only moved — so it stays within [No post-layout scaling](#no-post-layout-scaling); containers are re-wrapped (their size is derived, not authored). Columns stay globally aligned (widening a boundary shifts everything right of it, on-grid). Gaps are as tight as possible — only boundaries where containers would truly collide are widened, by exactly the amount needed.
+
 ## Action semantics
 
 Writing a layout result is **action-agnostic**. The single writing rule ([Invariants](#invariants)):
@@ -1040,7 +1096,7 @@ Not every algorithm supports every view-size parameter. Unsupported parameters a
 
 **Position spread is allowed.** Moving node centers outward from a common origin — keeping sizes fixed — is permitted as a post-layout step to fill a view-size target.
 
-**`alignWidthSameType` exception.** This adjustment widens certain leaf nodes to match the narrowest same-type sibling *container* (using container widths rendered in pass 1). It runs between pass 1 and pass 2 of a two-pass layout — a pre-layout adjustment to pass 2's input, not a post-layout operation.
+**`alignWidthSameType` exception** (UI label: *Align width by level*). This adjustment sets per-nesting-level target widths — exact widths on leaves, minimum-size floors on containers — using widths rendered in pass 1. It runs between pass 1 and pass 2 of a two-pass layout, so it is a pre-layout adjustment to pass 2's input, not a post-layout operation. (The preset key remains `alignWidthSameType` for back-compat; the behaviour is level-based, not type-based.)
 
 ### Adapter obligations
 
@@ -1487,7 +1543,8 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 | Padding | `elk.padding` | `"[top=N,left=N,bottom=N,right=N]"` |
 | Nesting | (pre-processing) | parent-child + `elk.hierarchyHandling: "INCLUDE_CHILDREN"` |
 | Sort containers | (pre-processing) | checked → containers first then leaves, sorted by type then name; unchecked → model order |
-| Align same type | (two-pass) | Pass 1 renders containers; each leaf grows to the narrowest same-type sibling container's rendered width; pass 2 re-lays-out. ELK-only. |
+| Align width by level | (two-pass) | Pass 1 measures natural widths; per nesting level, target telescopes `W[L] = W[L+1] + ring` (ring = 2 × container padding), anchored at the deepest level's narrowest box. Pass 2: leaves set to the target width, containers floored via `elk.nodeSize.constraints: [MINIMUM_SIZE]` + `elk.nodeSize.minimum`. ELK-only. |
+| Snap columns to grid | (post-pass) | After final layout, `_snapColumnsToGrid` mutates absolute x of result nodes onto one global variable-width column grid: detect columns, column width = widest member, initial gap = `max(spacing+padding×ancestor-walls over rows) − 2·padding` floored at spacing; then iterate place-leaves + re-wrap + widen-colliding-boundaries until no adjacent container overlaps. Position-only; leaves unresized. ELK-only. |
 
 ### Dagre
 

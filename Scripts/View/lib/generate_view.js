@@ -314,6 +314,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodes, edges,
     options:        params,
     alignWidthSameType: params.alignWidthSameType || false,
+    snapColumnsToGrid: params.snapColumnsToGrid || false,
     sortContainers: params.sortContainers || false,
     _parentMap:     parentMap,
     _parentRels:    parentRels,
