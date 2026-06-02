@@ -20,8 +20,9 @@ const REPO_ROOT = (() => {
 const Common       = require(REPO_ROOT + "_lib/Common");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
-const Defs     = require(REPO_ROOT + "View/lib/defs");
-const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Defs       = require(REPO_ROOT + "View/lib/defs");
+const Pipeline   = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const {
   ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER,
@@ -186,7 +187,12 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Write — single function, action-agnostic.
-  return _writeView(preset, result, objectSet, view, graph._parentRels);
+  const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels);
+
+  // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
+  if (writtenView) Appearance.applyAppearance(writtenView, preset, actionId);
+
+  return writtenView;
 }
 
 // ── One view per element ──────────────────────────────────────────────────────

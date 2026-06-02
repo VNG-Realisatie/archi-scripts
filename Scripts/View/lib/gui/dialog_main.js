@@ -7,6 +7,7 @@
  * Dialog layout:
  *   Selection  — current selection info · filter (multi-select lists) · related elements
  *   Layout     — style · algorithm · direction · routing · nesting · sizing
+ *   Appearance — nesting telescope (font/colour by level) · colour occurrences · colour by property
  *   View       — name · folder
  *   Preset     — combo (auto-apply) · ⚙ gear menu · Save · Save As…
  *   Actions    — 4 buttons in button bar (New view, One view each, Expand view, Layout only)
@@ -67,6 +68,19 @@ const AR_LABELS          = AR_OPTIONS.map(a => a.label);
 const REL_TYPE_LABELS    = Object.values(RELATION_TYPES).map(r => r.label);
 const REL_TYPE_IDS       = Object.values(RELATION_TYPES).map(r => r.id);
 const DIAG_TYPE_LABELS   = ["connection", "group", "image", "legend", "note", "reference"];
+
+// ColorBrewer scheme names from Chroma.js — used in all Appearance tab colour-range combos.
+// Must stay in sync with COLOR_RANGES in appearance.js.
+const COLOR_RANGES = Object.freeze([
+  "Pastel1", "Pastel2", "Set2", "Set3",
+  "Blues", "Greens", "Oranges", "Purples", "Reds", "Greys",
+  "RdYlBu", "RdYlGn", "Spectral", "OrRd", "PuBu",
+]);
+
+// "business-actor" → "Business Actor" (same helper as in appearance.js, local copy for display).
+const ELEMENT_TYPE_LABELS = ELEMENT_TYPES.map(t =>
+  t.split("-").map(s => s ? s[0].toUpperCase() + s.slice(1) : s).join(" ")
+);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -565,6 +579,7 @@ function open(uiSelection) {
 
       _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount);
       _buildLayoutTab(tabFolder, ctx);
+      _buildAppearanceTab(tabFolder, ctx);
 
       _buildViewRow(area, ctx);
       _buildActionRow(area, ctx, dlg, hasVisual);
@@ -1272,7 +1287,10 @@ function _buildLayoutTab(tabFolder, ctx) {
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
   // duplication) — refresh the live Output counters so the dialog reflects the change.
-  const onParamsChange = () => _updateFilteredCount(ctx);
+  const onParamsChange = () => {
+    _updateFilteredCount(ctx);
+    _updateNestingTelescopeState(ctx);  // keep telescope group enabled/disabled in sync
+  };
 
   // ── Direction ─────────────────────────────────────────────────────────────────
   const grpDir = _group(page, "Direction", 1);
@@ -1391,6 +1409,187 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(grpVS, "Aspect ratio:", AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
 
   finish();
+}
+
+// ── Appearance tab ────────────────────────────────────────────────────────────
+
+function _buildAppearanceTab(tabFolder, ctx) {
+  const { page, finish } = _scrolledTab(tabFolder, "Appearance");
+  const w = ctx.widgets;
+  const onChange = () => _markModified(ctx);
+
+  // ── Nesting telescope ─────────────────────────────────────────────────────
+
+  const grpTelescope = _group(page, "Nesting telescope", 2);
+
+  // Info label — shown/hidden via _updateNestingTelescopeState.
+  const lblTelescopeInfo = new LabelWidget(grpTelescope, SWT.WRAP);
+  lblTelescopeInfo.setText("Configure nesting types in the Layout tab to activate this feature.");
+  GridDataFactory.fillDefaults().span(2, 1).grab(true, false).applyTo(lblTelescopeInfo);
+  w.lblTelescopeInfo = lblTelescopeInfo;
+
+  // Font row
+  const chkTelescopeFont = new ButtonWidget(grpTelescope, SWT.CHECK);
+  chkTelescopeFont.setText("Apply font by level");
+  chkTelescopeFont.setToolTipText(
+    "Root containers get the largest bold font. Each level inward is 2 px smaller. " +
+    "Deepest containers and leaves use the Archi default font.");
+  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkTelescopeFont);
+  chkTelescopeFont.addListener(SWT.Selection, onChange);
+  w.chkTelescopeFont = chkTelescopeFont;
+
+  // Colour row
+  const chkTelescopeColor = new ButtonWidget(grpTelescope, SWT.CHECK);
+  chkTelescopeColor.setText("Apply fill colour by level");
+  chkTelescopeColor.setToolTipText(
+    "Root containers get the darkest fill colour. Each level inward is progressively lighter. " +
+    "Deepest containers and leaves keep their default colour.");
+  GridDataFactory.fillDefaults().applyTo(chkTelescopeColor);
+  chkTelescopeColor.addListener(SWT.Selection, onChange);
+  chkTelescopeColor.addListener(SWT.Selection, () => _updateNestingTelescopeState(ctx));
+  w.chkTelescopeColor = chkTelescopeColor;
+  new LabelWidget(grpTelescope, SWT.NONE);   // spacer to close out col 2
+
+  new LabelWidget(grpTelescope, SWT.NONE).setText("Root fill colour (hex):");
+  const txtRootColor = new TextWidget(grpTelescope, SWT.BORDER);
+  txtRootColor.setToolTipText("Fill colour of root-level containers (hex, e.g. #2B5796).");
+  GridDataFactory.fillDefaults().hint(90, SWT.DEFAULT).applyTo(txtRootColor);
+  txtRootColor.addListener(SWT.FocusOut, onChange);
+  txtRootColor.addListener(SWT.DefaultSelection, onChange);
+  w.txtRootColor = txtRootColor;
+
+  _addSpinnerRow(grpTelescope, "Lighten per level:", "spinLightenAmount",
+    20, 0, 50, 5, w, "How much lighter each inward nesting level becomes (0–50 %).");
+  w.spinLightenAmount.addListener(SWT.Selection, onChange);
+
+  // ── Colour multiple occurrences ───────────────────────────────────────────
+
+  const grpColorOcc = _group(page, "Colour multiple occurrences", 2);
+
+  const chkColorOcc = new ButtonWidget(grpColorOcc, SWT.CHECK);
+  chkColorOcc.setText("Enable");
+  chkColorOcc.setToolTipText(
+    "Elements that appear under multiple containers each get a unique shared colour across all their occurrences. " +
+    "Requires 'Show in every container' to produce multiple occurrences.");
+  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkColorOcc);
+  chkColorOcc.addListener(SWT.Selection, onChange);
+  w.chkColorOcc = chkColorOcc;
+
+  new LabelWidget(grpColorOcc, SWT.NONE).setText("Colour range:");
+  const cmbColorOccRange = new ComboWidget(grpColorOcc, SWT.READ_ONLY | SWT.DROP_DOWN);
+  COLOR_RANGES.forEach(r => cmbColorOccRange.add(r));
+  cmbColorOccRange.select(COLOR_RANGES.indexOf("Pastel1"));
+  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbColorOccRange);
+  cmbColorOccRange.setToolTipText("ColorBrewer colour scale (Chroma.js) for assigning colours to repeated elements.");
+  cmbColorOccRange.addListener(SWT.Selection, onChange);
+  w.cmbColorOccRange = cmbColorOccRange;
+
+  // ── Colour by element property ────────────────────────────────────────────
+
+  const grpColorProp = _group(page, "Colour by element property", 2);
+
+  const chkColorProp = new ButtonWidget(grpColorProp, SWT.CHECK);
+  chkColorProp.setText("Enable");
+  chkColorProp.setToolTipText(
+    "Give elements a fill colour derived from one of their property values. " +
+    "Unique property values are mapped to evenly spaced colours on the chosen scale.");
+  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkColorProp);
+  chkColorProp.addListener(SWT.Selection, onChange);
+  w.chkColorProp = chkColorProp;
+
+  new LabelWidget(grpColorProp, SWT.NONE).setText("Element type:");
+  const cmbColorPropType = new ComboWidget(grpColorProp, SWT.READ_ONLY | SWT.DROP_DOWN);
+  cmbColorPropType.add("Any");
+  ELEMENT_TYPE_LABELS.forEach(l => cmbColorPropType.add(l));
+  cmbColorPropType.select(0);
+  GridDataFactory.swtDefaults().hint(180, SWT.DEFAULT).applyTo(cmbColorPropType);
+  cmbColorPropType.setToolTipText("Limit coloring to this element type, or 'Any' for all types.");
+  cmbColorPropType.addListener(SWT.Selection, onChange);
+  w.cmbColorPropType = cmbColorPropType;
+
+  new LabelWidget(grpColorProp, SWT.NONE).setText("Property:");
+  const txtColorPropName = new TextWidget(grpColorProp, SWT.BORDER);
+  txtColorPropName.setToolTipText("Name of the property to colour by (case-sensitive).");
+  GridDataFactory.fillDefaults().hint(180, SWT.DEFAULT).applyTo(txtColorPropName);
+  txtColorPropName.addListener(SWT.FocusOut, onChange);
+  txtColorPropName.addListener(SWT.DefaultSelection, onChange);
+  w.txtColorPropName = txtColorPropName;
+
+  new LabelWidget(grpColorProp, SWT.NONE).setText("Colour range:");
+  const cmbColorPropRange = new ComboWidget(grpColorProp, SWT.READ_ONLY | SWT.DROP_DOWN);
+  COLOR_RANGES.forEach(r => cmbColorPropRange.add(r));
+  cmbColorPropRange.select(COLOR_RANGES.indexOf("Blues"));
+  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbColorPropRange);
+  cmbColorPropRange.setToolTipText("ColorBrewer colour scale (Chroma.js) mapping property values to fill colours.");
+  cmbColorPropRange.addListener(SWT.Selection, onChange);
+  w.cmbColorPropRange = cmbColorPropRange;
+
+  // ── Colour element by relation property ──────────────────────────────────
+
+  const grpColorRelProp = _group(page, "Colour element by relation property", 1);
+
+  const chkColorRelProp = new ButtonWidget(grpColorRelProp, SWT.CHECK);
+  chkColorRelProp.setText("Enable");
+  chkColorRelProp.setToolTipText(
+    "Colour an element by the property value of its connected relations. " +
+    "Select the relation type(s) and direction below; unique property values are mapped to the chosen colour scale.");
+  GridDataFactory.fillDefaults().applyTo(chkColorRelProp);
+  chkColorRelProp.addListener(SWT.Selection, onChange);
+  w.chkColorRelProp = chkColorRelProp;
+
+  _lbl(grpColorRelProp, "Relations (same ← → selection as Selection tab):");
+
+  // Exact reuse of _relCheckGrid — same look and feel as the Selection tab's relation grids.
+  const relGridRelProp = _relCheckGrid(grpColorRelProp, 4, onChange);
+  w.relGridRelProp = relGridRelProp;
+
+  const propRelPropRow = new CompositeWidget(grpColorRelProp, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(6, 4).applyTo(propRelPropRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(propRelPropRow);
+
+  new LabelWidget(propRelPropRow, SWT.NONE).setText("Property:");
+  const txtColorRelPropName = new TextWidget(propRelPropRow, SWT.BORDER);
+  txtColorRelPropName.setToolTipText("Name of the relation property to colour elements by (case-sensitive).");
+  GridDataFactory.fillDefaults().hint(180, SWT.DEFAULT).applyTo(txtColorRelPropName);
+  txtColorRelPropName.addListener(SWT.FocusOut, onChange);
+  txtColorRelPropName.addListener(SWT.DefaultSelection, onChange);
+  w.txtColorRelPropName = txtColorRelPropName;
+
+  new LabelWidget(propRelPropRow, SWT.NONE).setText("Colour range:");
+  const cmbColorRelPropRange = new ComboWidget(propRelPropRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  COLOR_RANGES.forEach(r => cmbColorRelPropRange.add(r));
+  cmbColorRelPropRange.select(COLOR_RANGES.indexOf("OrRd"));
+  GridDataFactory.swtDefaults().hint(110, SWT.DEFAULT).applyTo(cmbColorRelPropRange);
+  cmbColorRelPropRange.setToolTipText("ColorBrewer colour scale (Chroma.js) mapping property values to element fill colours.");
+  cmbColorRelPropRange.addListener(SWT.Selection, onChange);
+  w.cmbColorRelPropRange = cmbColorRelPropRange;
+
+  finish();
+}
+
+// Enable/disable the nesting telescope controls based on whether any nesting
+// relation types are configured. Called from _syncToUI and from onParamsChange
+// in _buildLayoutTab so the two tabs stay in sync.
+function _updateNestingTelescopeState(ctx) {
+  const w = ctx.widgets;
+  if (!w.chkTelescopeFont) return;   // Appearance tab not yet built — skip
+
+  const nestingTypes = w.lstNestingTypes ? _listGetSelected(w.lstNestingTypes) : [];
+  const hasNesting   = nestingTypes.length > 0;
+
+  try { w.lblTelescopeInfo.setVisible(!hasNesting); } catch (e) {}
+  try {
+    const gd = w.lblTelescopeInfo.getLayoutData();
+    gd.exclude = hasNesting;
+    w.lblTelescopeInfo.setLayoutData(gd);
+    const parent = w.lblTelescopeInfo.getParent && w.lblTelescopeInfo.getParent();
+    if (parent) parent.layout(true, true);
+  } catch (e) {}
+
+  w.chkTelescopeFont.setEnabled(hasNesting);
+  w.chkTelescopeColor.setEnabled(hasNesting);
+  w.txtRootColor.setEnabled(hasNesting && w.chkTelescopeColor.getSelection());
+  w.spinLightenAmount.setEnabled(hasNesting && w.chkTelescopeColor.getSelection());
 }
 
 // ── View tab ──────────────────────────────────────────────────────────────────
@@ -1727,6 +1926,49 @@ function _syncToUI(ctx) {
   if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
 
   _updateAlgorithmControls(ctx);
+
+  // Appearance tab
+  const app  = c.appearance || {};
+  const nt   = app.nestingTelescope      || {};
+  const co   = app.colorOccurrences      || {};
+  const cp   = app.colorByProperty       || {};
+  const crp  = app.colorByRelationProperty || {};
+  const DA   = DEFAULT_PRESET.appearance;
+
+  if (w.chkTelescopeFont)  w.chkTelescopeFont.setSelection(!!(nt.fontEnabled));
+  if (w.chkTelescopeColor) w.chkTelescopeColor.setSelection(!!(nt.colorEnabled));
+  if (w.txtRootColor)      w.txtRootColor.setText(nt.rootColor    || DA.nestingTelescope.rootColor);
+  if (w.spinLightenAmount) w.spinLightenAmount.setSelection(
+    nt.lightenAmount !== undefined ? nt.lightenAmount : DA.nestingTelescope.lightenAmount);
+
+  if (w.chkColorOcc)      w.chkColorOcc.setSelection(!!(co.enabled));
+  if (w.cmbColorOccRange) {
+    const idx = COLOR_RANGES.indexOf(co.colorRange || DA.colorOccurrences.colorRange);
+    w.cmbColorOccRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("Spectral"));
+  }
+
+  if (w.chkColorProp) w.chkColorProp.setSelection(!!(cp.enabled));
+  if (w.cmbColorPropType) {
+    const typeLabel = cp.elementType ? ELEMENT_TYPE_LABELS[ELEMENT_TYPES.indexOf(cp.elementType)] : "Any";
+    const items = Array.from({ length: w.cmbColorPropType.getItemCount() }, (_, i) => w.cmbColorPropType.getItem(i));
+    const idx = items.indexOf(typeLabel || "Any");
+    w.cmbColorPropType.select(idx >= 0 ? idx : 0);
+  }
+  if (w.txtColorPropName)  w.txtColorPropName.setText(cp.property || "");
+  if (w.cmbColorPropRange) {
+    const idx = COLOR_RANGES.indexOf(cp.colorRange || DA.colorByProperty.colorRange);
+    w.cmbColorPropRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("Blues"));
+  }
+
+  if (w.chkColorRelProp)    w.chkColorRelProp.setSelection(!!(crp.enabled));
+  if (w.relGridRelProp)     w.relGridRelProp.setEncoded(crp.relTypes || []);
+  if (w.txtColorRelPropName) w.txtColorRelPropName.setText(crp.property || "");
+  if (w.cmbColorRelPropRange) {
+    const idx = COLOR_RANGES.indexOf(crp.colorRange || DA.colorByRelationProperty.colorRange);
+    w.cmbColorRelPropRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("OrRd"));
+  }
+
+  _updateNestingTelescopeState(ctx);
 }
 
 function _saveUI(ctx) {
@@ -1791,6 +2033,39 @@ function _saveUI(ctx) {
   // View
   if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
+
+  // Appearance
+  if (!c.appearance) c.appearance = JSON.parse(JSON.stringify(DEFAULT_PRESET.appearance));
+  if (w.chkTelescopeFont || w.chkTelescopeColor) {
+    c.appearance.nestingTelescope.fontEnabled   = !!(w.chkTelescopeFont  && w.chkTelescopeFont.getSelection());
+    c.appearance.nestingTelescope.colorEnabled  = !!(w.chkTelescopeColor && w.chkTelescopeColor.getSelection());
+    c.appearance.nestingTelescope.rootColor     = w.txtRootColor     ? w.txtRootColor.getText().trim()          : "#2B5796";
+    c.appearance.nestingTelescope.lightenAmount = w.spinLightenAmount ? w.spinLightenAmount.getSelection()      : 20;
+  }
+  if (w.chkColorOcc) {
+    c.appearance.colorOccurrences.enabled    = w.chkColorOcc.getSelection();
+    c.appearance.colorOccurrences.colorRange = w.cmbColorOccRange
+      ? (w.cmbColorOccRange.getSelectionIndex() >= 0 ? w.cmbColorOccRange.getItem(w.cmbColorOccRange.getSelectionIndex()) : "Spectral")
+      : "Spectral";
+  }
+  if (w.chkColorProp) {
+    c.appearance.colorByProperty.enabled     = w.chkColorProp.getSelection();
+    const typeIdx = w.cmbColorPropType ? w.cmbColorPropType.getSelectionIndex() : 0;
+    c.appearance.colorByProperty.elementType = (typeIdx > 0 && w.cmbColorPropType)
+      ? (ELEMENT_TYPES[typeIdx - 1] || "") : "";
+    c.appearance.colorByProperty.property    = w.txtColorPropName  ? w.txtColorPropName.getText().trim()   : "";
+    c.appearance.colorByProperty.colorRange  = w.cmbColorPropRange
+      ? (w.cmbColorPropRange.getSelectionIndex() >= 0 ? w.cmbColorPropRange.getItem(w.cmbColorPropRange.getSelectionIndex()) : "Blues")
+      : "Blues";
+  }
+  if (w.chkColorRelProp) {
+    c.appearance.colorByRelationProperty.enabled    = w.chkColorRelProp.getSelection();
+    c.appearance.colorByRelationProperty.relTypes   = w.relGridRelProp ? w.relGridRelProp.getEncoded() : [];
+    c.appearance.colorByRelationProperty.property   = w.txtColorRelPropName  ? w.txtColorRelPropName.getText().trim()  : "";
+    c.appearance.colorByRelationProperty.colorRange = w.cmbColorRelPropRange
+      ? (w.cmbColorRelPropRange.getSelectionIndex() >= 0 ? w.cmbColorRelPropRange.getItem(w.cmbColorRelPropRange.getSelectionIndex()) : "OrRd")
+      : "OrRd";
+  }
 }
 
 // ── Algorithm controls ────────────────────────────────────────────────────────

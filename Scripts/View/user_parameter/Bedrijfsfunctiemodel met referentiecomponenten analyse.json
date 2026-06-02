@@ -1,5 +1,5 @@
 {
-  "name": "Bedrijfsfunctiemodel met referentiecomponenten",
+  "name": "Bedrijfsfunctiemodel met referentiecomponenten analyse",
   "algorithm": "Pack",
   "params": {
     "direction": "Left → Right",
@@ -22,11 +22,11 @@
     "alignWidthSameType": true,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
-    "showExtraOccurrenceConnections": false,
+    "showExtraOccurrenceConnections": true,
     "layerSpacing": 180,
-    "elementSpacing": 40,
-    "elementWidth": 300,
-    "elementHeight": 40,
+    "elementSpacing": 100,
+    "elementWidth": 240,
+    "elementHeight": 60,
     "maxWidth": 5000,
     "maxHeight": 1000,
     "aspectRatio": 1.33,
@@ -57,6 +57,7 @@
           "application-service"
         ],
         "relationTypes": [
+          "aggregation-relationship:out",
           "serving-relationship:in"
         ],
         "diagramTypes": []
@@ -74,34 +75,10 @@
     ]
   },
   "view": {
-    "name": "Ondersteuning",
+    "name": "Informatie- en archiefbeheer",
     "folder": "/_Test/_Generated"
   },
-  "appearance": {
-    "nestingTelescope": {
-      "fontEnabled": true,
-      "colorEnabled": true,
-      "rootColor": "#fff29b",
-      "lightenAmount": 35
-    },
-    "colorOccurrences": {
-      "enabled": false,
-      "colorRange": "Greens"
-    },
-    "colorByProperty": {
-      "enabled": false,
-      "elementType": "",
-      "property": "",
-      "colorRange": "Blues"
-    },
-    "colorByRelationProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "",
-      "colorRange": "OrRd"
-    }
-  },
   "_lastTabIndex": 1,
-  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
+  "description": "Toont ook applicatieservices en overkoepelende applicatiesservices. Deze worden in de informatiearchitectuur views getoond, gebruikt",
   "action": "new_view"
 }

@@ -347,6 +347,31 @@ Preset {
   }
 
   viewSizeMode  : enum                  // "none" | "maxWidth" | "maxHeight" | "aspectRatio"
+
+  appearance {
+    nestingTelescope {
+      fontEnabled   : boolean           // vary font size by nesting depth
+      colorEnabled  : boolean           // vary fill colour by nesting depth
+      rootColor     : string            // hex fill colour for root containers (darkest)
+      lightenAmount : number            // percent lighter per level toward leaves (0–50)
+    }
+    colorOccurrences {
+      enabled    : boolean              // give each multi-occurrence element a unique shared colour
+      colorRange : string               // ColorBrewer scheme name (Chroma.js)
+    }
+    colorByProperty {
+      enabled     : boolean             // colour elements by a model property value
+      elementType : ElTypeId | ""       // "" = all types
+      property    : string              // property name (case-sensitive)
+      colorRange  : string              // ColorBrewer scheme name
+    }
+    colorByRelationProperty {
+      enabled    : boolean              // colour elements by the property of a connected relation
+      relTypes   : EncodedRelTypeId[]   // same encoding as filter.relationTypes
+      property   : string              // property name on the relation (case-sensitive)
+      colorRange : string              // ColorBrewer scheme name
+    }
+  }
 }
 
 Step {
@@ -650,6 +675,45 @@ Four radio modes: **None / Width / Height / Aspect ratio**, prefixed by the labe
 | Aspect ratio | Width-to-height ratio of generated layout. 0 = free. |
 
 `viewSizeMode` is stored in the preset ([Preset schema](#preset-schema)) so the active radio is restored on load. Old presets without this field default to the first non-zero view-size value found.
+
+### Appearance tab
+
+The Appearance tab applies **post-write visual styling** (fill colours, fonts) to elements on the generated view. Styling runs as a separate pass after the layout writer has positioned all elements — it does not affect positions or sizes and is not subject to the [No post-layout scaling](#no-post-layout-scaling) rule.
+
+Styling always runs when any feature is enabled, regardless of action (NEW_VIEW, ONE_EACH, EXPAND_VIEW, LAYOUT_ONLY). On LAYOUT_ONLY/EXPAND_VIEW, existing appearance overrides are replaced.
+
+Precedence when multiple rules target the same element: nesting telescope → colour occurrences → colour by property → colour by relation property. Later rules win.
+
+Four groups:
+
+#### Nesting telescope
+
+Active only when at least one nesting relation type is configured in the Layout tab. An informational label replaces the controls when nesting is not configured.
+
+| Control | Stored in |
+|---|---|
+| Apply font by level | `appearance.nestingTelescope.fontEnabled` |
+| Apply fill colour by level | `appearance.nestingTelescope.colorEnabled` |
+| Root fill colour (hex) | `appearance.nestingTelescope.rootColor` |
+| Lighten per level (%) | `appearance.nestingTelescope.lightenAmount` |
+
+**Font rule.** Font sizes are auto-computed from the number of nesting levels. Leaves and deepest containers are reset to the Archi default (`vo.fontSize = 0`). Each level above the deepest container adds 2 px; root (depth 0) additionally gets bold (`vo.fontStyle = 1`).
+
+**Colour rule.** Root containers get `rootColor` (darkest). Each level inward is lightened by `lightenAmount %` (channels blended toward white). Deepest containers and leaves are not touched.
+
+#### Colour multiple occurrences
+
+Assigns a unique fill colour from a ColorBrewer scale to each element concept that appears more than once on the view (requires `showInEveryContainer`). All visual occurrences of the same concept share the colour.
+
+#### Colour by element property
+
+Colours elements of a chosen type (or all types) by the value of a named model property. Unique values are sorted and mapped to evenly-spaced colours on the chosen ColorBrewer scale.
+
+#### Colour element by relation property
+
+Uses the same ← → relation-type grid as the Selection tab's related-elements blocks. For each element on the view, reads the named property from its matching relations and colours the element by the property value. Multiple matching relations: last-match wins (logged as a warning).
+
+**Colour ranges.** All three colour-range combos use the same set of ColorBrewer scheme names available in Chroma.js: Blues, Greens, Oranges, Purples, Reds, Greys, RdYlBu, RdYlGn, Spectral, OrRd, PuBu.
 
 ### Generated view
 
@@ -1221,10 +1285,11 @@ Scripts/
     │   └── *.ajs                        # Wrapper: load preset → generate_view
     │
     ├── lib/
-    │   ├── generate_view.js             # Orchestrator: selection → engine → view
+    │   ├── generate_view.js             # Orchestrator: selection → engine → view → appearance
     │   ├── defs.js                      # SSOT: algorithms, enums, defaults
     │   ├── selection_pipeline.js        # Selection → filter → expansion
     │   ├── preset_io.js                 # Preset and session I/O
+    │   ├── appearance.js                # Post-write styling pass (colours, fonts)
     │   │
     │   ├── engines/
     │   │   ├── elk.js                   # ELK adapter
@@ -1378,6 +1443,7 @@ generate_view(preset, uiSelection, actionId) → ArchimateView[]
 4. graph  = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects)
 5. result = engineAdapter.layout(graph)
 6. _writeView(preset, result, objectSet, view, graph._parentRels)
+7. Appearance.applyAppearance(view, preset)   [no-op if all features disabled]
 ```
 
 `_buildLayoutGraph` assembles nodes from elements (using preset `elementWidth`/`elementHeight`) and from diagram objects (using current canvas bounds). `diagram-model-connection` objects are skipped (they are edges, not nodes — [Steps](#steps) step 6). Nesting is expressed via the `parent` property on nodes; the `parentMap` is built from the resolved nesting relations.
@@ -1410,6 +1476,51 @@ Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExisting
 | DiagramObject | NEW_VIEW | Not present (model selections contain no diagram objects). |
 
 > Tested: `Scripts/View/test_visual_props.ajs` confirmed jArchi does **not** reset visual properties when `vo.bounds` is set (12 OK · 0 CHANGED). This is what makes [Invariants](#invariants) (appearance preservation) hold.
+
+## Appearance module — appearance.js
+
+**Realises:** [Appearance tab](#appearance-tab).
+
+`Appearance.applyAppearance(view, preset)` — step 7 in `_generateSingle`. A no-op when `preset.appearance` has all features disabled.
+
+### Depth computation
+
+`_computeViewDepths(view)` walks `$(view).find("element")` and for each VisualElement:
+- Counts visual ancestors via `$(vo).parent().filter("element").first()` iteration → depth.
+- Classifies as container (`$(vo).children("element").length > 0`) or leaf.
+
+Returns `{ voDepths: Map<VO, depth>, voIsContainer: Map<VO, bool>, maxContainerDepth }`.
+
+### Nesting telescope
+
+`_applyNestingTelescope(view, settings, depths)` iterates all element VOs. Leaf or container at `maxContainerDepth`: font reset to Archi default (`vo.fontSize = 0`, `vo.fontStyle = 0`), no fill-colour override. Container at depth `d < maxContainerDepth`: `vo.fontSize = 12 + (maxContainerDepth − d) × 2`; bold (`vo.fontStyle = 1`) only at depth 0 (root). Fill colour: `_lightenHex(rootColor, d × lightenAmount/100)` — channels blended toward white by a linear factor.
+
+`_lightenHex(hex, factor)` — pure hex math (no Chroma), blends each RGB channel toward 255 by `factor` (0–1).
+
+### Colour occurrences
+
+`_applyColorOccurrences` groups VOs by `vo.concept.id`; applies `Chroma.scale(range).padding([0.15,0.15]).colors(N)` to concepts that appear ≥ 2 times.
+
+### Colour by element property / by relation property
+
+Both use `Chroma.scale(range).padding([0.15,0.15]).colors(N)` where N = number of unique property values (sorted for stable order). `_applyColorByRelationProperty` uses `$(el).rels()` to walk model relations; `_matchesRelDir` checks type and direction against the encoded `relTypes` list (same encoding as `filter.relationTypes`).
+
+Ref: `lib/appearance.js`.
+
+### GUI Appearance tab — dialog_main.js
+
+`_buildAppearanceTab(tabFolder, ctx)` — follows the same `_scrolledTab` / `_group` / finish pattern as the Layout tab. Four groups: **Nesting telescope**, **Colour multiple occurrences**, **Colour by element property**, **Colour element by relation property**.
+
+**Nesting telescope active state.** `_updateNestingTelescopeState(ctx)` enables/disables the telescope controls based on `ctx.widgets.lstNestingTypes` selection. Called from:
+- `_syncToUI` (after all widgets are built)
+- `onParamsChange` in `_buildLayoutTab` (when nesting type checkboxes change)
+- The `chkTelescopeColor` toggle listener (to enable/disable root-colour and lighten-percent fields)
+
+**`COLOR_RANGES`** — module-level constant in `dialog_main.js`; the same ColorBrewer scheme names used by `appearance.js`. The combo items for all three colour-range combos are populated from this list.
+
+**Colour by relation property.** The relation selector reuses `_relCheckGrid(parent, 4, onChange)` unchanged — same look, same encoded output format as the Selection tab's relation grids.
+
+`_saveUI` / `_syncToUI` extended with `appearance` block read/write. Modified indicator fires on every Appearance control change via the same `_markModified(ctx)` pattern as all other tabs.
 
 ## Engine adapter implementations
 

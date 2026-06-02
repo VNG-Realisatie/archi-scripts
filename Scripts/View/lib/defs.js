@@ -513,6 +513,30 @@ const DEFAULT_PRESET = Object.freeze({
     name:   "",
     folder: "",
   },
+  appearance: {
+    nestingTelescope: {
+      fontEnabled:   false,
+      colorEnabled:  false,
+      rootColor:     "#2B5796",
+      lightenAmount: 20,
+    },
+    colorOccurrences: {
+      enabled:    false,
+      colorRange: "Pastel1",
+    },
+    colorByProperty: {
+      enabled:     false,
+      elementType: "",
+      property:    "",
+      colorRange:  "Blues",
+    },
+    colorByRelationProperty: {
+      enabled:    false,
+      relTypes:   [],
+      property:   "",
+      colorRange: "OrRd",
+    },
+  },
 });
 
 // ── Engine parameter mapping (GUI param → engine param) ───────────────────────
@@ -604,6 +628,38 @@ function validatePreset(raw) {
   if (raw.view && typeof raw.view === "object") {
     if (raw.view.name   !== undefined) preset.view.name   = String(raw.view.name);
     if (raw.view.folder !== undefined) preset.view.folder = String(raw.view.folder);
+  }
+
+  // appearance
+  if (raw.appearance && typeof raw.appearance === "object") {
+    const ra = raw.appearance;
+    const pa = preset.appearance;
+    if (ra.nestingTelescope && typeof ra.nestingTelescope === "object") {
+      const rt = ra.nestingTelescope;
+      if (typeof rt.fontEnabled   === "boolean") pa.nestingTelescope.fontEnabled   = rt.fontEnabled;
+      if (typeof rt.colorEnabled  === "boolean") pa.nestingTelescope.colorEnabled  = rt.colorEnabled;
+      if (typeof rt.rootColor     === "string")  pa.nestingTelescope.rootColor     = rt.rootColor;
+      if (typeof rt.lightenAmount === "number")  pa.nestingTelescope.lightenAmount = rt.lightenAmount;
+    }
+    if (ra.colorOccurrences && typeof ra.colorOccurrences === "object") {
+      const rc = ra.colorOccurrences;
+      if (typeof rc.enabled    === "boolean") pa.colorOccurrences.enabled    = rc.enabled;
+      if (typeof rc.colorRange === "string")  pa.colorOccurrences.colorRange = rc.colorRange;
+    }
+    if (ra.colorByProperty && typeof ra.colorByProperty === "object") {
+      const rp = ra.colorByProperty;
+      if (typeof rp.enabled     === "boolean") pa.colorByProperty.enabled     = rp.enabled;
+      if (typeof rp.elementType === "string")  pa.colorByProperty.elementType = rp.elementType;
+      if (typeof rp.property    === "string")  pa.colorByProperty.property    = rp.property;
+      if (typeof rp.colorRange  === "string")  pa.colorByProperty.colorRange  = rp.colorRange;
+    }
+    if (ra.colorByRelationProperty && typeof ra.colorByRelationProperty === "object") {
+      const rr = ra.colorByRelationProperty;
+      if (typeof rr.enabled    === "boolean") pa.colorByRelationProperty.enabled    = rr.enabled;
+      if (Array.isArray(rr.relTypes))         pa.colorByRelationProperty.relTypes   = rr.relTypes;
+      if (typeof rr.property   === "string")  pa.colorByRelationProperty.property   = rr.property;
+      if (typeof rr.colorRange === "string")  pa.colorByRelationProperty.colorRange = rr.colorRange;
+    }
   }
 
   return preset;
