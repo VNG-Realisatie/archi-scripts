@@ -180,11 +180,13 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
 
-  // For LAYOUT_ONLY / EXPAND_VIEW: build a concept→VOs map so _buildLayoutGraph can add
-  // extra occurrence nodes for elements that appear more times on the view than
-  // _resolveNesting produces nodes (manual repeats or prior showInEveryContainer runs).
+  // For LAYOUT_ONLY: build a concept→VOs map so _buildLayoutGraph can cap extra-occurrence
+  // nodes to the number of VOs that actually exist on the view. Without the cap, BFS-
+  // propagated _occ_N nodes have no matching VO → _writeView creates new VOs, and their
+  // nesting VRs render as connection lines because the parent is not yet in position.
+  // EXPAND_VIEW intentionally allows new VOs (no cap), so the map is not passed there.
   let existingVosByConcept = null;
-  if (objectSet.visualElements && objectSet.visualElements.length > 0) {
+  if (actionId === ACTION.LAYOUT_ONLY.id && objectSet.visualElements && objectSet.visualElements.length > 0) {
     existingVosByConcept = new Map();
     for (const ve of objectSet.visualElements) {
       if (ve.concept && ve.concept.id) {
@@ -306,11 +308,17 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(el.id);
 
     const occs = occurrenceMap[el.id] || [];
+    // Cap: for LAYOUT_ONLY, only add as many extra occurrence nodes as there are VOs on the
+    // view. Excess nodes have no VO to pair with, so _writeView would create new VOs whose
+    // nesting VRs render as connection lines when the parent isn't positioned yet.
+    const voCount = existingVosByConcept ? (existingVosByConcept.get(el.id) || []).length : Infinity;
+    let addedOccs = 1;  // primary already pushed
     for (const occId of occs) {
-      if (occId !== el.id) {
-        nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
-        nodeIds.add(occId);
-      }
+      if (occId === el.id) continue;
+      if (addedOccs >= voCount) break;
+      nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
+      nodeIds.add(occId);
+      addedOccs++;
     }
   }
 
@@ -330,10 +338,11 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(vo.id);
   }
 
-  // Extra-occurrence augmentation for LAYOUT_ONLY / EXPAND_VIEW.
-  // When the view has more VOs for a concept than _resolveNesting produced (e.g. manually
-  // placed repeated elements, or extra occurrences from a prior showInEveryContainer run),
-  // add synthetic occurrence nodes so _writeView can reposition all of them.
+  // Extra-occurrence augmentation for LAYOUT_ONLY.
+  // Handles manually placed repeated elements at view root that _resolveNesting doesn't
+  // know about (no nesting relation drove the repeat). Only root-level VOs are safe to
+  // augment: container-level repeats require occurrence-level parent mapping that isn't
+  // available here, so they are left in-place (not repositioned).
   if (existingVosByConcept) {
     for (const [conceptId, vos] of existingVosByConcept) {
       const currentOccs = occurrenceMap[conceptId];
@@ -344,10 +353,10 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
         const occId = `${conceptId}_occ_${i}`;
         if (nodeIds.has(occId)) continue;
         const parentConceptId = _currentParentConceptId(vos[i]);
-        const parentNodeId    = parentConceptId && nodeIds.has(parentConceptId) ? parentConceptId : null;
+        if (parentConceptId) continue;  // skip: container-level repeats need occurrence-level pairing
         occurrenceMap[conceptId] = [...occurrenceMap[conceptId], occId];
-        parentMap[occId] = parentNodeId;
-        nodes.push({ ...baseNode, id: occId, parent: parentNodeId });
+        parentMap[occId] = null;
+        nodes.push({ ...baseNode, id: occId, parent: null });
         nodeIds.add(occId);
       }
     }
