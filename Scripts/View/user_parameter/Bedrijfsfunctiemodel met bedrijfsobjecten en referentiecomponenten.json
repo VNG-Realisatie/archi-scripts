@@ -2,8 +2,8 @@
   "name": "Bedrijfsfunctiemodel met bedrijfsobjecten en referentiecomponenten",
   "algorithm": "Pack",
   "params": {
-    "direction": "Top → Bottom",
-    "routing": "Orthogonal",
+    "direction": "Left → Right",
+    "routing": "Polyline",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
@@ -19,9 +19,11 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "sortContainers": true,
+    "sortContainers": false,
     "alignWidthSameType": true,
+    "snapColumnsToGrid": false,
     "showInEveryContainer": true,
+    "showExtraOccurrenceConnections": false,
     "layerSpacing": 180,
     "elementSpacing": 100,
     "elementWidth": 240,
@@ -29,7 +31,7 @@
     "maxWidth": 5000,
     "maxHeight": 1000,
     "aspectRatio": 1.33,
-    "viewSizeMode": "none"
+    "viewSizeMode": "aspectRatio"
   },
   "filter": {
     "elementTypes": [
@@ -76,9 +78,54 @@
     ]
   },
   "view": {
-    "name": "Uitvoering Sociaal Domein",
+    "name": "Ondersteuning",
     "folder": "/_Test/_Generated"
   },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "rootColor": "#fff29b",
+      "darkenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": true,
+      "colorRange": "Pastel1"
+    }
+  },
   "_lastTabIndex": 0,
+  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
   "action": "new_view"
 }

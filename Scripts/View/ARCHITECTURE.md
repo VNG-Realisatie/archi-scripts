@@ -349,27 +349,47 @@ Preset {
   viewSizeMode  : enum                  // "none" | "maxWidth" | "maxHeight" | "aspectRatio"
 
   appearance {
-    nestingTelescope {
-      fontEnabled   : boolean           // vary font size by nesting depth
-      colorEnabled  : boolean           // vary fill colour by nesting depth
-      rootColor     : string            // hex fill colour for root containers (darkest)
-      lightenAmount : number            // percent lighter per level toward leaves (0–50)
+    styleByProperty {
+      element {
+        enabled     : boolean           // colour elements by a model property value
+        elementType : ElTypeId | ""     // "" = all types
+        property    : string            // property name (case-sensitive)
+        colorRange  : string            // ColorBrewer scheme name
+      }
+      relation {
+        enabled    : boolean            // colour relations by a property value
+        relTypes   : EncodedRelTypeId[] // same encoding as filter.relationTypes
+        property   : string             // property name on the relation (case-sensitive)
+        colorRange : string             // ColorBrewer scheme name
+        lineWidth  : number             // 0 = no change; 1 = Normal, 2 = Medium, 3 = Heavy
+      }
     }
-    colorOccurrences {
-      enabled    : boolean              // give each multi-occurrence element a unique shared colour
-      colorRange : string               // ColorBrewer scheme name (Chroma.js)
-    }
-    colorByProperty {
-      enabled     : boolean             // colour elements by a model property value
-      elementType : ElTypeId | ""       // "" = all types
-      property    : string              // property name (case-sensitive)
-      colorRange  : string              // ColorBrewer scheme name
-    }
-    colorByRelationProperty {
-      enabled    : boolean              // colour elements by the property of a connected relation
+    styleByRelatedProperty {
+      enabled    : boolean              // colour elements by a property of connected relations
       relTypes   : EncodedRelTypeId[]   // same encoding as filter.relationTypes
       property   : string              // property name on the relation (case-sensitive)
       colorRange : string              // ColorBrewer scheme name
+    }
+    styleByConnectedElement {
+      enabled       : boolean           // colour elements by a property of connected elements
+      relTypes      : EncodedRelTypeId[]// same encoding as filter.relationTypes
+      elementType   : ElTypeId | ""     // "" = all target types
+      property      : string            // property name on the connected element (case-sensitive)
+      colorRange    : string            // ColorBrewer scheme name
+      conflictColor : string            // hex fill colour when multiple targets match
+    }
+    nestingLevel {
+      fontEnabled          : boolean    // vary font size by nesting depth
+      rootFontSize         : number     // font size for root containers (pt)
+      rootFontBold         : boolean    // bold at root level
+      fontDecreasePerLevel : number     // pt decrease per level deeper
+      colorEnabled         : boolean    // vary fill colour by nesting depth
+      rootColor            : string     // hex fill colour for root containers (darkest)
+      darkenPerLevel       : number     // percent lightened per level toward leaves (0–50)
+    }
+    highlightRepeated {
+      enabled    : boolean              // assign unique colour to each element appearing > once
+      colorRange : string               // ColorBrewer scheme name (Chroma.js)
     }
   }
 }
@@ -678,42 +698,78 @@ Four radio modes: **None / Width / Height / Aspect ratio**, prefixed by the labe
 
 ### Appearance tab
 
-The Appearance tab applies **post-write visual styling** (fill colours, fonts) to elements on the generated view. Styling runs as a separate pass after the layout writer has positioned all elements — it does not affect positions or sizes and is not subject to the [No post-layout scaling](#no-post-layout-scaling) rule.
+The Appearance tab applies **post-write visual styling** (fill colours, fonts, line widths) to elements and connections on the generated view. Styling runs as a separate pass after the layout writer has positioned all elements — it does not affect positions or sizes and is not subject to the [No post-layout scaling](#no-post-layout-scaling) rule.
+
+```
+┌─[Selection]──[Layout]──[Appearance]──────────────────────────────────────────┐
+│ ┌─ Style by property ─────────────────────────────────────────────────────┐  │
+│ │  ○ Element type: [Any ▼]                                               │  │
+│ │     Property: [Status ▼]  Color: [Set1 ▼] [====]                       │  │
+│ │  ○ Relation type: [Any ▼]                                              │  │
+│ │     Property: [Kind ▼]  Color: [Reds ▼] [====]                         │  │
+│ │     Set line width: [No change ▼]                                      │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Style by related property ─────────────────────────────────────────────┐  │
+│ │  access ○← ○→  aggregation ○← ○→  …                                    │  │
+│ │  Property: [Phase ▼]  Color: [OrRd ▼] [====]                           │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Style by connected element ────────────────────────────────────────────┐  │
+│ │  access ○← ○→  aggregation ○← ○→  …  Target type: [Any ▼]              │  │
+│ │  Property: [Domain ▼]  Color: [Purples ▼] [====]                       │  │
+│ │  Multiple targets: [#FF6B35 ▪]                                         │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
+│ │  (Active only when nesting relation types are configured in Layout tab)  │  │
+│ │  ☑ Apply font by level   Root size: [14 ▲▼] pt  ☑ Bold                  │  │
+│ │  Decrease/level: [2 ▲▼] pt                                              │  │
+│ │  ☑ Apply color by level  Root color: [#2C5F8A ▪] [=====] lighter       │  │
+│ │  Darken/level: [15 ▲▼] %                                               │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Highlight repeated elements ───────────────────────────────────────────┐  │
+│ │  ☑ Enable  Color range: [Pastel1 ▼] [====]                             │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
 Styling always runs when any feature is enabled, regardless of action (NEW_VIEW, ONE_EACH, EXPAND_VIEW, LAYOUT_ONLY). On LAYOUT_ONLY/EXPAND_VIEW, existing appearance overrides are replaced.
 
-Precedence when multiple rules target the same element: nesting telescope → colour occurrences → colour by property → colour by relation property. Later rules win.
+Precedence when multiple rules target the same element: nestingLevel → highlightRepeated → styleByProperty → styleByRelatedProperty → styleByConnectedElement. Later rules win.
 
-Four groups:
+Five groups (in tab order):
 
-#### Nesting telescope
+#### Style by property
 
-Active only when at least one nesting relation type is configured in the Layout tab. An informational label replaces the controls when nesting is not configured.
+Colors elements or relations based on a named property value. Active when a property is selected in the combo (no enable checkbox). Color range combo + gradient preview strip are disabled until a property is chosen.
 
-| Control | Stored in |
-|---|---|
-| Apply font by level | `appearance.nestingTelescope.fontEnabled` |
-| Apply fill colour by level | `appearance.nestingTelescope.colorEnabled` |
-| Root fill colour (hex) | `appearance.nestingTelescope.rootColor` |
-| Lighten per level (%) | `appearance.nestingTelescope.lightenAmount` |
+**Elements sub-section:** Unique property values are sorted and mapped to evenly-spaced colours on the chosen ColorBrewer scale.
 
-**Font rule.** Font sizes are auto-computed from the number of nesting levels. Leaves and deepest containers are reset to the Archi default (`vo.fontSize = 0`). Each level above the deepest container adds 2 px; root (depth 0) additionally gets bold (`vo.fontStyle = 1`).
+**Relations sub-section:** Colors the relation's `lineColor`. When a line width is selected (1 Normal / 2 Medium / 3 Heavy), that fixed width is applied to all matched connections; "No change" leaves `lineWidth` untouched.
 
-**Colour rule.** Root containers get `rootColor` (darkest). Each level inward is lightened by `lightenAmount %` (channels blended toward white). Deepest containers and leaves are not touched.
+#### Style by related property
 
-#### Colour multiple occurrences
+Colors elements based on properties of their connected relations. Active when a property is selected. Uses the same ← → relation-type grid as the Selection tab's related-elements blocks.
 
-Assigns a unique fill colour from a ColorBrewer scale to each element concept that appears more than once on the view (requires `showInEveryContainer`). All visual occurrences of the same concept share the colour.
+For each element on the view, reads the named property from matching relations and colours the element. Multiple matching relations: last-match wins.
 
-#### Colour by element property
+#### Style by connected element
 
-Colours elements of a chosen type (or all types) by the value of a named model property. Unique values are sorted and mapped to evenly-spaced colours on the chosen ColorBrewer scale.
+Colors elements based on properties of elements they are connected to via matching relations. Active when a property is selected.
 
-#### Colour element by relation property
+When a source element connects to exactly one matching target element, it gets the target's property value mapped to a scale color. When it connects to multiple matching targets, it gets `conflictColor`.
 
-Uses the same ← → relation-type grid as the Selection tab's related-elements blocks. For each element on the view, reads the named property from its matching relations and colours the element by the property value. Multiple matching relations: last-match wins (logged as a warning).
+#### Style by nesting level
 
-**Colour ranges.** All three colour-range combos use the same set of ColorBrewer scheme names available in Chroma.js: Blues, Greens, Oranges, Purples, Reds, Greys, RdYlBu, RdYlGn, Spectral, OrRd, PuBu.
+Active only when at least one nesting relation type is configured in the Layout tab. An informational label replaces the controls when nesting is not configured. All controls appear on two compact rows (one for font, one for color).
+
+**Font rule.** Root containers (depth 0) get `rootFontSize` pt (+ bold if `rootFontBold`). Each deeper level gets `rootFontSize - depth × fontDecreasePerLevel` pt, clamped at the Archi default (9 pt). Non-containers are untouched.
+
+**Color rule.** Root containers get `rootColor` (darkest). Each level inward is lightened by `darkenPerLevel %` (channels blended toward white). Deepest containers and leaves are not touched. Preview strip in dialog shows the gradient from element-type default (light end) to `rootColor` (dark end).
+
+#### Highlight repeated elements
+
+Assigns a unique fill colour from a ColorBrewer scale to each element concept that appears more than once on the view (requires `showInEveryContainer`). The enable checkbox and color range appear on a single row.
+
+**Colour ranges.** All color-range combos use the same set of ColorBrewer scheme names available in Chroma.js (see `COLOR_RANGES` in `appearance.js`). Each combo is accompanied by a gradient preview Canvas strip that repaints on selection change.
 
 ### Generated view
 
@@ -1178,6 +1234,38 @@ Not every algorithm supports every view-size parameter. Unsupported parameters a
 - Return absolute coordinates (the orchestrator converts to parent-relative).
 - Never read or write a view directly. Adapters operate only on `LayoutGraph` / `LayoutResult`. *(Rule 3)*
 
+## Console logging
+
+Console output mirrors the orchestration phases. Each phase is a **step** in the log.
+
+### Step structure
+
+Each step:
+- is preceded by one blank line
+- opens with a **step header** line at root indent: `Step name:`
+- has all its detail lines indented by two spaces
+
+The final completion line of the last step (`View "…" written`) is at root indent — it belongs to no step.
+
+### Steps
+
+| Step header | Phase | What it covers |
+|---|---|---|
+| `=== generate_view ===` | Validate preset + API entry | Algorithm, action, view name + folder |
+| `Pipeline — build object set:` | Selection pipeline | Filtered base, step adds, totals (containers · nested elements · standalones · extra multiple occurrences · nestings · connections · diagram objects) |
+| `View target:` | Determine target view | View created, overwritten, or identified |
+| `Layout graph:` | Build engine-independent layout graph | Relation roles (nestings · connections), nestings applied, cycle warnings |
+| `Layout:` | Engine adapter | Engine passes, alignment summary, engine result, layout result, view size |
+| `Write:` | Write positioned result to view | Nodes written (including extra multiple occurrences breakdown), connections, final object counts |
+
+### Dialog logging
+
+The dialog logs one block before it opens (`GUI — before dialog:` with Selected / Containing / Filtered counts). It does **not** log on widget changes — live counter updates are reflected in the dialog UI only.
+
+### Debug flag
+
+Verbose per-item detail from the width-alignment step is gated behind `preset.params.alignDebug: false`. When `true`, per-container/leaf lines appear inside the `Layout:` step.
+
 ## Invariants
 
 System-wide. Code reviews catch violations.
@@ -1491,17 +1579,17 @@ Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExisting
 
 Returns `{ voDepths: Map<VO, depth>, voIsContainer: Map<VO, bool>, maxContainerDepth }`.
 
-### Nesting telescope
+### Style by nesting level
 
-`_applyNestingTelescope(view, settings, depths)` iterates all element VOs. Leaf or container at `maxContainerDepth`: font reset to Archi default (`vo.fontSize = 0`, `vo.fontStyle = 0`), no fill-colour override. Container at depth `d < maxContainerDepth`: `vo.fontSize = 12 + (maxContainerDepth − d) × 2`; bold (`vo.fontStyle = 1`) only at depth 0 (root). Fill colour: `_lightenHex(rootColor, d × lightenAmount/100)` — channels blended toward white by a linear factor.
+`_applyNestingLevel(view, settings, depths, isModify)` iterates all element VOs. Non-containers are untouched by font changes. Container at depth `d`: font = `max(9, rootFontSize − d × fontDecreasePerLevel)` pt; bold (`vo.fontStyle = "bold"`) only at depth 0 when `rootFontBold`. Deepest containers (depth `maxContainerDepth`) and leaves: no fill-colour override. Container at depth `d < maxContainerDepth`: fill colour = `_lightenHex(rootColor, d × darkenPerLevel/100)` — depth 0 is darkest (factor 0), deeper levels blend toward white.
 
 `_lightenHex(hex, factor)` — pure hex math (no Chroma), blends each RGB channel toward 255 by `factor` (0–1).
 
-### Colour occurrences
+### Highlight repeated elements
 
-`_applyColorOccurrences` groups VOs by `vo.concept.id`; applies `Chroma.scale(range).padding([0.15,0.15]).colors(N)` to concepts that appear ≥ 2 times.
+`_applyHighlightRepeated` groups VOs by `vo.concept.id`; applies `Chroma.scale(range).padding([0.15,0.15]).colors(N)` to concepts that appear ≥ 2 times.
 
-### Colour by element property / by relation property
+### Style by property / style by related property
 
 Both use `Chroma.scale(range).padding([0.15,0.15]).colors(N)` where N = number of unique property values (sorted for stable order). `_applyColorByRelationProperty` uses `$(el).rels()` to walk model relations; `_matchesRelDir` checks type and direction against the encoded `relTypes` list (same encoding as `filter.relationTypes`).
 

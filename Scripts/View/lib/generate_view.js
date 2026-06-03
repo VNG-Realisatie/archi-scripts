@@ -139,6 +139,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Determine the target view.
   //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view.
   //   NEW_VIEW                  → a new view (created or overwritten by name).
+  console.log("\nView target:");
   let view;
   if (actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id) {
     view = existingView;
@@ -152,9 +153,10 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Build LayoutGraph (uniform — no action branch).
+  console.log("\nLayout graph:");
   const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects);
   if (graph.nodes.length === 0) {
-    console.log("No elements to place — view not generated.");
+    console.log("  No elements to place — view not generated.");
     return null;
   }
 
@@ -162,7 +164,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // rule (when !showInEveryContainer) — that's why the on-view relation count can be lower
   // than the pipeline's "Total to view" relations.
   const ns = graph._nestingStats;
-  console.log(`Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
+  console.log(`  Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
   if (ns.candidates > 0) {
     const extras = [];
     if (ns.skippedMultiParent > 0) extras.push(`${ns.skippedMultiParent} multi-parent`);
@@ -172,9 +174,10 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Run engine.
+  console.log("\nLayout:");
   const alg = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
-  console.log(`Layout result: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+  console.log(`  Layout result: ${result.nodes.length} nodes, ${result.edges.length} edges`);
   if (result.nodes.length > 0) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const n of result.nodes) {
@@ -183,10 +186,11 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
       if (n.x + n.width > x1) x1 = n.x + n.width;
       if (n.y + n.height> y1) y1 = n.y + n.height;
     }
-    console.log(`View size generated: ${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`);
+    console.log(`  View size generated: ${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`);
   }
 
   // Write — single function, action-agnostic.
+  console.log("\nWrite:");
   const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels);
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
@@ -240,7 +244,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 
   // Per-cycle log: surface skipped-cycle rels so users can investigate problematic relations.
   if (nestingSkippedCycle > 0) {
-    console.log(`Nesting skipped: ${nestingSkippedCycle} relation(s) would create a cycle`);
+    console.log(`  Nesting skipped: ${nestingSkippedCycle} relation(s) would create a cycle`);
   }
 
   // Nodes from elements.
@@ -418,7 +422,21 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   const consumedVoIds = new Set();  // VO ids already bound to a result node
 
   // ── Nodes: reposition existing, add new ──
-  console.log(`Writing ${sortedNodes.length} nodes...`);
+  {
+    const containerNodeIds = new Set();
+    sortedNodes.forEach(n => { if (n.parent) containerNodeIds.add(n.parent); });
+    const extraOccurrenceNodes = sortedNodes.filter(n => n.id.includes("_occ_"));
+    let nodeLogLine = `  Writing ${sortedNodes.length} nodes`;
+    if (extraOccurrenceNodes.length > 0) {
+      const xContainers = extraOccurrenceNodes.filter(n => containerNodeIds.has(n.id)).length;
+      const xElements   = extraOccurrenceNodes.length - xContainers;
+      const parts = [];
+      if (xContainers > 0) parts.push(`${xContainers} container${xContainers !== 1 ? "s" : ""}`);
+      if (xElements   > 0) parts.push(`${xElements} element${xElements !== 1 ? "s" : ""}`);
+      nodeLogLine += ` (${extraOccurrenceNodes.length} extra multiple occurrence${extraOccurrenceNodes.length !== 1 ? "s" : ""}: ${parts.join(" · ")})`;
+    }
+    console.log(nodeLogLine + "...");
+  }
   for (const rn of sortedNodes) {
     const archiId = _stripOccSuffix(rn.id);
     const existing = _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds);
@@ -484,11 +502,11 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     for (const ve of list) if (!consumedVoIds.has(ve.id)) unpaired++;
   });
   if (unpaired > 0) {
-    console.log(`Unpaired VOs: ${unpaired} (concept over-supply — kept in place)`);
+    console.log(`  Unpaired VOs: ${unpaired} (concept over-supply — kept in place)`);
   }
 
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
-  console.log(`Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
+  console.log(`  Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
   for (const re of result.edges) {
     const archiRel = $(`#${re.id}`).first();
     if (!archiRel || !archiRel.id) continue;
@@ -549,9 +567,9 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     $(view).find("element").each(() => _vEl++);
     $(view).find("relation").each(() => _vRel++);
     Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { try { $(view).find(dt).each(() => _vDiag++); } catch(e) {} });
-    console.log(`Objects on view: ${_vEl} elements · ${result.edges.length} connections · ${_vRel - result.edges.length} nestings · ${_vDiag} diagram objects`);
+    console.log(`  Objects on view: ${_vEl} elements · ${result.edges.length} connections · ${_vRel - result.edges.length} nestings · ${_vDiag} diagram objects`);
   } catch (e) {}
-  console.log(`\nView "${view.name}" written`);
+  console.log(`View "${view.name}" written`);
   return view;
 }
 
@@ -677,13 +695,13 @@ function _resolveFolder(viewFolder) {
 function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
-    console.log(`Overwriting view: "${viewName}"`);
+    console.log(`  Overwriting view: "${viewName}"`);
     $(existing).find().each(o => o.delete());
     return existing;
   }
   const v = model.createArchimateView(viewName);
   folder.add(v);
-  console.log(`Created view: "${viewName}"`);
+  console.log(`  Created view: "${viewName}"`);
   return v;
 }
 

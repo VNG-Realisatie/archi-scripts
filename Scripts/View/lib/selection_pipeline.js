@@ -618,6 +618,51 @@ function _resolveNesting(elements, nestingRels, params) {
     }
   }
 
+  // When showInEveryContainer is on, a container that itself has multiple occurrences
+  // would otherwise render as empty extra boxes — its children were only assigned to
+  // the primary occurrence. Propagate the full sub-tree into every extra occurrence
+  // via BFS so each occurrence of a container holds the same children.
+  if (showInEvery) {
+    // Build parentBaseId → [{rel, childId, isReversed}] from the original nesting rels.
+    const childRelsByParent = {};
+    for (const rel of (nestingRels || [])) {
+      const srcId = rel.source && rel.source.id;
+      const tgtId = rel.target && rel.target.id;
+      if (!srcId || !tgtId) continue;
+      const isReversed = reverseTypes.has(rel.type);
+      const [parentId, childId] = isReversed ? [tgtId, srcId] : [srcId, tgtId];
+      if (!childRelsByParent[parentId]) childRelsByParent[parentId] = [];
+      childRelsByParent[parentId].push({ rel, childId, isReversed });
+    }
+
+    // Seed queue from every extra occurrence created in the initial pass above.
+    const queue = [];
+    for (const el of (elements || [])) {
+      const occurrences = occurrenceMap[el.id] || [];
+      for (const extraOccId of occurrences.slice(1))  // index 0 is the primary
+        queue.push({ primaryBaseId: el.id, extraOccId });
+    }
+
+    // BFS: replicate each container's direct children into each extra occurrence.
+    while (queue.length > 0) {
+      const { primaryBaseId, extraOccId } = queue.shift();
+      for (const { rel, childId, isReversed } of (childRelsByParent[primaryBaseId] || [])) {
+        if (!occurrenceMap[childId]) continue;
+        const childOccurrences = occurrenceMap[childId];
+        if (childOccurrences.some(id => parentMap[id] === extraOccId)) continue;
+        const newOccId = `${childId}_occ_${childOccurrences.length}`;
+        if (!wouldCycle(parentMap, newOccId, extraOccId)) {
+          occurrenceMap[childId] = [...childOccurrences, newOccId];
+          parentMap[newOccId]    = extraOccId;
+          const srcOccId = isReversed ? newOccId   : extraOccId;
+          const tgtOccId = isReversed ? extraOccId : newOccId;
+          parentRels.push({ rel, srcOccId, tgtOccId, isExtra: true });
+          queue.push({ primaryBaseId: childId, extraOccId: newOccId });
+        }
+      }
+    }
+  }
+
   return { parentMap, occurrenceMap, parentRels, skippedCycle, skippedMultiParent };
 }
 

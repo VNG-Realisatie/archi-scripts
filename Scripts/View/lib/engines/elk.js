@@ -251,6 +251,10 @@ function layout(graph) {
     edgeList.push(entry);
   }
 
+  // All layout-step output is indented under the "Layout:" header logged by the orchestrator.
+  const log      = msg => console.log("  " + msg);
+  const debugLog = graph.options.alignDebug ? log : null;
+
   // Two-pass layout for alignWidthSameType (width alignment by nesting level):
   // pass 1 renders every box at its natural width → compute a per-level target width
   // (engine-utils.alignWidthsByLevel) → pass 2 with leaves set to that width and
@@ -265,7 +269,7 @@ function layout(graph) {
     }
 
     const { elkGraph: pass1ElkGraph } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
-    console.log("Calculating layout (pass 1 — measure natural widths)...");
+    log("Calculating layout (pass 1 — measure natural widths)...");
     const pass1Layouted = elk.layout(pass1ElkGraph);
 
     // Per-level target widths from pass-1 rendered sizes. Apply as an exact width on
@@ -274,7 +278,7 @@ function layout(graph) {
     _resetNodesForPass2(nodeMap, origSizes, containerIds);
     // One nesting level adds left+right container padding to the width (label clearance is top-only).
     const ring = 2 * (graph.options.padding || 0);
-    const targetWidths = alignWidthsByLevel(Object.values(nodeMap), parentMap, renderedWidths, ring, console.log);
+    const targetWidths = alignWidthsByLevel(Object.values(nodeMap), parentMap, renderedWidths, ring, log, debugLog);
     for (const id of Object.keys(nodeMap)) {
       const w = targetWidths[id];
       if (!(w > 0)) continue;
@@ -282,32 +286,31 @@ function layout(graph) {
       else                      nodeMap[id].width    = w;   // leaf: exact width
     }
     alignTargets = targetWidths; alignContainerIds = containerIds; alignPass1Widths = renderedWidths;
-    console.log("Calculating layout (pass 2 — widths aligned by level)...");
+    log("Calculating layout (pass 2 — widths aligned by level)...");
   } else {
-    console.log("Calculating layout...");
+    log("Calculating layout...");
   }
 
   // ELK Radial requires a spanning tree (no cycles). Convert here so c2c terminates.
   const processedEdgeList = graph.algorithm === "Radial" ? _spanningTree(nodeMap, edgeList) : edgeList;
   const { elkGraph, liftedEdgesMap } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
   const layouted = elk.layout(elkGraph);
-  console.log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}`);
+  log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}`);
 
   // Align-by-level diagnostics: compare each box's target to its final rendered width.
   // A container final < target means the MINIMUM_SIZE floor was not honoured by the engine.
   if (alignTargets) {
     const finalWidths = _collectRenderedWidths(layouted);
-    console.log("[alignByLevel] target vs final rendered width (mismatches flagged):");
+    log("[alignByLevel] target vs final rendered width (mismatches flagged):");
     for (const id of Object.keys(alignTargets)) {
       const tgt = alignTargets[id]; if (!(tgt > 0)) continue;
       const fin = finalWidths[id] || 0;
       const isC = alignContainerIds.has(id);
       const bad = isC ? fin + 0.5 < tgt : Math.abs(fin - tgt) > 0.5;  // leaf must equal; container must be ≥
+      if (!bad && !graph.options.alignDebug) continue;
       const flag = bad ? "  ⚠ MISMATCH" : "";
-      if (bad || isC) {
-        const name = (nodeMap[id] && nodeMap[id]._name) || id;
-        console.log(`    ${isC ? "container" : "leaf     "} pass1=${alignPass1Widths[id] || 0} target=${tgt} final=${Math.round(fin)}${flag}  "${name}"`);
-      }
+      const name = (nodeMap[id] && nodeMap[id]._name) || id;
+      log(`    ${isC ? "container" : "leaf     "} pass1=${alignPass1Widths[id] || 0} target=${tgt} final=${Math.round(fin)}${flag}  "${name}"`);
     }
   }
 
@@ -323,7 +326,7 @@ function layout(graph) {
   if (graph.snapColumnsToGrid && Object.keys(parentMap).length > 0) {
     const nameById = {};
     for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
-    _snapColumnsToGrid(resultNodes, graph.options, nameById, console.log);
+    _snapColumnsToGrid(resultNodes, graph.options, nameById, log);
   }
 
   // Collect edges

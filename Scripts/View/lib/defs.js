@@ -489,6 +489,7 @@ const DEFAULT_PRESET = Object.freeze({
     padding:               20,
     sortContainers:        false,
     alignWidthSameType:    false,
+    alignDebug:            false,
     snapColumnsToGrid:     false,
     showInEveryContainer:         false,
     showExtraOccurrenceConnections: false,
@@ -514,28 +515,25 @@ const DEFAULT_PRESET = Object.freeze({
     folder: "",
   },
   appearance: {
-    nestingTelescope: {
-      fontEnabled:   false,
-      colorEnabled:  false,
-      rootColor:     "#2B5796",
-      lightenAmount: 20,
+    styleByProperty: {
+      element:  { enabled: false, elementType: "", property: "", colorRange: "Blues" },
+      relation: { enabled: false, relTypes: [], property: "", colorRange: "Reds", lineWidth: 0 },
     },
-    colorOccurrences: {
-      enabled:    false,
-      colorRange: "Pastel1",
+    styleByRelatedProperty: { enabled: false, relTypes: [], property: "", colorRange: "OrRd" },
+    styleByConnectedElement: {
+      enabled: false, relTypes: [], elementType: "", property: "",
+      colorRange: "Purples", conflictColor: "#FF6B35",
     },
-    colorByProperty: {
-      enabled:     false,
-      elementType: "",
-      property:    "",
-      colorRange:  "Blues",
+    nestingLevel: {
+      fontEnabled:        false,
+      rootFontSize:       14,
+      rootFontBold:       true,
+      fontDecreasePerLevel: 2,
+      colorEnabled:       false,
+      rootColor:          "#2B5796",
+      darkenPerLevel:     15,
     },
-    colorByRelationProperty: {
-      enabled:    false,
-      relTypes:   [],
-      property:   "",
-      colorRange: "OrRd",
-    },
+    highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
 });
 
@@ -634,31 +632,59 @@ function validatePreset(raw) {
   if (raw.appearance && typeof raw.appearance === "object") {
     const ra = raw.appearance;
     const pa = preset.appearance;
-    if (ra.nestingTelescope && typeof ra.nestingTelescope === "object") {
-      const rt = ra.nestingTelescope;
-      if (typeof rt.fontEnabled   === "boolean") pa.nestingTelescope.fontEnabled   = rt.fontEnabled;
-      if (typeof rt.colorEnabled  === "boolean") pa.nestingTelescope.colorEnabled  = rt.colorEnabled;
-      if (typeof rt.rootColor     === "string")  pa.nestingTelescope.rootColor     = rt.rootColor;
-      if (typeof rt.lightenAmount === "number")  pa.nestingTelescope.lightenAmount = rt.lightenAmount;
+
+    if (ra.styleByProperty && typeof ra.styleByProperty === "object") {
+      if (ra.styleByProperty.element && typeof ra.styleByProperty.element === "object") {
+        const re = ra.styleByProperty.element;
+        if (typeof re.enabled    === "boolean") pa.styleByProperty.element.enabled    = re.enabled;
+        if (typeof re.elementType === "string") pa.styleByProperty.element.elementType = re.elementType;
+        if (typeof re.property   === "string")  pa.styleByProperty.element.property   = re.property;
+        if (typeof re.colorRange === "string")  pa.styleByProperty.element.colorRange  = re.colorRange;
+      }
+      if (ra.styleByProperty.relation && typeof ra.styleByProperty.relation === "object") {
+        const rr = ra.styleByProperty.relation;
+        if (typeof rr.enabled    === "boolean") pa.styleByProperty.relation.enabled   = rr.enabled;
+        if (Array.isArray(rr.relTypes))         pa.styleByProperty.relation.relTypes  = rr.relTypes;
+        if (typeof rr.property   === "string")  pa.styleByProperty.relation.property  = rr.property;
+        if (typeof rr.colorRange === "string")  pa.styleByProperty.relation.colorRange = rr.colorRange;
+        if (typeof rr.lineWidth  === "number")  pa.styleByProperty.relation.lineWidth  = Math.max(0, Math.min(3, Math.round(rr.lineWidth)));
+        if (typeof rr.resize     === "boolean") pa.styleByProperty.relation.lineWidth  = rr.resize ? 1 : 0; // back-compat: old boolean → 0 or 1
+      }
     }
-    if (ra.colorOccurrences && typeof ra.colorOccurrences === "object") {
-      const rc = ra.colorOccurrences;
-      if (typeof rc.enabled    === "boolean") pa.colorOccurrences.enabled    = rc.enabled;
-      if (typeof rc.colorRange === "string")  pa.colorOccurrences.colorRange = rc.colorRange;
+
+    if (ra.styleByRelatedProperty && typeof ra.styleByRelatedProperty === "object") {
+      const rp = ra.styleByRelatedProperty;
+      if (typeof rp.enabled    === "boolean") pa.styleByRelatedProperty.enabled    = rp.enabled;
+      if (Array.isArray(rp.relTypes))         pa.styleByRelatedProperty.relTypes   = rp.relTypes;
+      if (typeof rp.property   === "string")  pa.styleByRelatedProperty.property   = rp.property;
+      if (typeof rp.colorRange === "string")  pa.styleByRelatedProperty.colorRange = rp.colorRange;
     }
-    if (ra.colorByProperty && typeof ra.colorByProperty === "object") {
-      const rp = ra.colorByProperty;
-      if (typeof rp.enabled     === "boolean") pa.colorByProperty.enabled     = rp.enabled;
-      if (typeof rp.elementType === "string")  pa.colorByProperty.elementType = rp.elementType;
-      if (typeof rp.property    === "string")  pa.colorByProperty.property    = rp.property;
-      if (typeof rp.colorRange  === "string")  pa.colorByProperty.colorRange  = rp.colorRange;
+
+    if (ra.styleByConnectedElement && typeof ra.styleByConnectedElement === "object") {
+      const rc = ra.styleByConnectedElement;
+      if (typeof rc.enabled      === "boolean") pa.styleByConnectedElement.enabled      = rc.enabled;
+      if (Array.isArray(rc.relTypes))           pa.styleByConnectedElement.relTypes      = rc.relTypes;
+      if (typeof rc.elementType  === "string")  pa.styleByConnectedElement.elementType   = rc.elementType;
+      if (typeof rc.property     === "string")  pa.styleByConnectedElement.property      = rc.property;
+      if (typeof rc.colorRange   === "string")  pa.styleByConnectedElement.colorRange    = rc.colorRange;
+      if (typeof rc.conflictColor === "string") pa.styleByConnectedElement.conflictColor = rc.conflictColor;
     }
-    if (ra.colorByRelationProperty && typeof ra.colorByRelationProperty === "object") {
-      const rr = ra.colorByRelationProperty;
-      if (typeof rr.enabled    === "boolean") pa.colorByRelationProperty.enabled    = rr.enabled;
-      if (Array.isArray(rr.relTypes))         pa.colorByRelationProperty.relTypes   = rr.relTypes;
-      if (typeof rr.property   === "string")  pa.colorByRelationProperty.property   = rr.property;
-      if (typeof rr.colorRange === "string")  pa.colorByRelationProperty.colorRange = rr.colorRange;
+
+    if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
+      const rn = ra.nestingLevel;
+      if (typeof rn.fontEnabled          === "boolean") pa.nestingLevel.fontEnabled          = rn.fontEnabled;
+      if (typeof rn.rootFontSize         === "number")  pa.nestingLevel.rootFontSize         = rn.rootFontSize;
+      if (typeof rn.rootFontBold         === "boolean") pa.nestingLevel.rootFontBold         = rn.rootFontBold;
+      if (typeof rn.fontDecreasePerLevel === "number")  pa.nestingLevel.fontDecreasePerLevel = rn.fontDecreasePerLevel;
+      if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
+      if (typeof rn.rootColor            === "string")  pa.nestingLevel.rootColor            = rn.rootColor;
+      if (typeof rn.darkenPerLevel       === "number")  pa.nestingLevel.darkenPerLevel       = rn.darkenPerLevel;
+    }
+
+    if (ra.highlightRepeated && typeof ra.highlightRepeated === "object") {
+      const rh = ra.highlightRepeated;
+      if (typeof rh.enabled    === "boolean") pa.highlightRepeated.enabled    = rh.enabled;
+      if (typeof rh.colorRange === "string")  pa.highlightRepeated.colorRange = rh.colorRange;
     }
   }
 
