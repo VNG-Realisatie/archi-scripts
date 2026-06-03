@@ -180,9 +180,24 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
 
+  // For LAYOUT_ONLY / EXPAND_VIEW: build a concept→VOs map so _buildLayoutGraph can add
+  // extra occurrence nodes for elements that appear more times on the view than
+  // _resolveNesting produces nodes (manual repeats or prior showInEveryContainer runs).
+  let existingVosByConcept = null;
+  if (objectSet.visualElements && objectSet.visualElements.length > 0) {
+    existingVosByConcept = new Map();
+    for (const ve of objectSet.visualElements) {
+      if (ve.concept && ve.concept.id) {
+        const list = existingVosByConcept.get(ve.concept.id) || [];
+        list.push(ve);
+        existingVosByConcept.set(ve.concept.id, list);
+      }
+    }
+  }
+
   // Build LayoutGraph (uniform — no action branch).
   console.log("\nLayout graph:");
-  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects);
+  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept);
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
     return null;
@@ -255,7 +270,7 @@ function _generateOneEach(preset, uiSelection) {
 
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
-function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects) {
+function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept) {
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
@@ -313,6 +328,29 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
       parent:      null,
     });
     nodeIds.add(vo.id);
+  }
+
+  // Extra-occurrence augmentation for LAYOUT_ONLY / EXPAND_VIEW.
+  // When the view has more VOs for a concept than _resolveNesting produced (e.g. manually
+  // placed repeated elements, or extra occurrences from a prior showInEveryContainer run),
+  // add synthetic occurrence nodes so _writeView can reposition all of them.
+  if (existingVosByConcept) {
+    for (const [conceptId, vos] of existingVosByConcept) {
+      const currentOccs = occurrenceMap[conceptId];
+      if (!currentOccs || vos.length <= currentOccs.length) continue;
+      const baseNode = nodes.find(n => n.id === currentOccs[0]);
+      if (!baseNode) continue;
+      for (let i = currentOccs.length; i < vos.length; i++) {
+        const occId = `${conceptId}_occ_${i}`;
+        if (nodeIds.has(occId)) continue;
+        const parentConceptId = _currentParentConceptId(vos[i]);
+        const parentNodeId    = parentConceptId && nodeIds.has(parentConceptId) ? parentConceptId : null;
+        occurrenceMap[conceptId] = [...occurrenceMap[conceptId], occId];
+        parentMap[occId] = parentNodeId;
+        nodes.push({ ...baseNode, id: occId, parent: parentNodeId });
+        nodeIds.add(occId);
+      }
+    }
   }
 
   // Edges from routed relations.
@@ -441,7 +479,13 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     }
     existingVoByVoId.set(ve.id, ve);
   });
-  (objectSet.diagramObjects || []).forEach(dvo => { existingVoByVoId.set(dvo.id, dvo); });
+  // Diagram objects: only register VOs that currently live on the target view.
+  // Guards against referencing deleted VOs when the view was just overwritten (NEW_VIEW).
+  const _voIdsOnView = new Set();
+  try { $(view).find().each(o => { if (o && o.id) _voIdsOnView.add(String(o.id)); }); } catch(e) {}
+  (objectSet.diagramObjects || []).forEach(dvo => {
+    if (dvo && dvo.id && _voIdsOnView.has(String(dvo.id))) existingVoByVoId.set(dvo.id, dvo);
+  });
   (objectSet.visualRelations || []).forEach(vr => {
     if (vr.concept && vr.concept.id) existingRelByConcept.set(vr.concept.id, vr);
   });

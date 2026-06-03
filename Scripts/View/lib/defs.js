@@ -40,7 +40,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "snapColumnsToGrid",
+      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
       "showInEveryContainer", "showExtraOccurrenceConnections",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
@@ -64,7 +64,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "snapColumnsToGrid",
+      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
       "showInEveryContainer", "showExtraOccurrenceConnections",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
@@ -124,7 +124,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignWidthSameType", "snapColumnsToGrid",
+      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
       "showInEveryContainer", "showExtraOccurrenceConnections",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",
@@ -143,7 +143,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignWidthSameType", "snapColumnsToGrid",
+      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
       "showInEveryContainer", "showExtraOccurrenceConnections",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",

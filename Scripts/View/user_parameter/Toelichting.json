@@ -1,6 +1,6 @@
 {
   "name": "Toelichting",
-  "algorithm": "Dot",
+  "algorithm": "Layered",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -21,9 +21,9 @@
     "showInEveryContainer": true,
     "showExtraOccurrenceConnections": false,
     "layerSpacing": 180,
-    "elementSpacing": 40,
-    "elementWidth": 180,
-    "elementHeight": 60,
+    "elementSpacing": 20,
+    "elementWidth": 240,
+    "elementHeight": 40,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
@@ -38,7 +38,7 @@
     "steps": []
   },
   "view": {
-    "name": "Toelichting Informatiebeveiligingsfunctionaliteit",
+    "name": "ICT Toegangsbeveiliging",
     "folder": "/View/_Generated"
   },
   "appearance": {
@@ -81,11 +81,11 @@
       "darkenPerLevel": 15
     },
     "highlightRepeated": {
-      "enabled": false,
+      "enabled": true,
       "colorRange": "Pastel1"
     }
   },
-  "_lastTabIndex": 1,
+  "_lastTabIndex": 0,
   "description": "GEMMA toelichtingen van links naar rechts, compact\n",
   "action": "new_view"
 }
