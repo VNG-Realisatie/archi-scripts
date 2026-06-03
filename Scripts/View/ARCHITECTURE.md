@@ -109,54 +109,6 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 
 Three layers, top to bottom. Each layer talks only to the one below.
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  Layer 1 — Entry points                                  │
-│  Two sibling flavours, both produce                      │
-│  (selection, preset, action) and call the layer below:   │
-│    • Generate View dialog — define selection + layout,  │
-│      live counts driven by the same pipeline the         │
-│      generation API uses; on confirm, invokes the API.   │
-│    • Preset-bound scripts — headless. Examples:          │
-│      "new view from this selection using the default     │
-│      preset", "expand the selected view", "re-layout     │
-│      the current view", "generate using a named preset". │
-│      Each reads a preset and invokes the API.            │
-│  Only the dialog flavour can edit or save presets.       │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-┌────────────────────────▼─────────────────────────────────┐
-│  Layer 2 — View-generation API                           │
-│  Runs the following orchestration:                       │
-│  Validate preset → selection pipeline →                  │
-│  build an engine-independent layout graph → call an      │
-│  engine adapter → write the positioned result to a view. │
-│  The only writer to views in the system.                 │
-│  Input: (selection, preset, action).                     │
-└────────────────────────┬─────────────────────────────────┘
-                         │ engine-independent layout graph
-                         │ (named boundary; see [Engine adapter contract](#engine-adapter-contract))
-┌────────────────────────▼─────────────────────────────────┐
-│  Layer 3 — Engine adapters                               │
-│  One adapter per layout engine. Consumes the layout      │
-│  graph, computes positions for one algorithm family,     │
-│  returns positioned output. Adapters do not know about   │
-│  presets, selections, or views.                          │
-└──────────────────────────────────────────────────────────┘
-
-Shared infrastructure (used by Layers 1–2, not a layer itself):
-  SSOT module           ← styles, algorithms, GUI parameters,
-                          per-algorithm allowed values, action and
-                          routing constants, the closed set of
-                          diagram-object types, preset defaults.
-                          Functional/dialog data only — no engine-
-                          specific option names or conversions.
-  Selection pipeline    ← selection → filter → related-elements
-                          expansion → typed object set.
-  Preset persistence    ← read/write preset bundles; preserve
-                          UI-only state across sessions.
-```
-
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
 │ Layer 1 — Entry points                                                               │

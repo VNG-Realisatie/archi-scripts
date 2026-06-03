@@ -1,5 +1,5 @@
 {
-  "name": "Default",
+  "name": "Toelichting",
   "algorithm": "Dot",
   "params": {
     "direction": "Left → Right",
@@ -86,6 +86,6 @@
     }
   },
   "_lastTabIndex": 1,
-  "description": "dit is een test  sadf asdf\n# dlfksdl;faksdf\n",
+  "description": "GEMMA toelichtingen van links naar rechts, compact\n",
   "action": "new_view"
 }
