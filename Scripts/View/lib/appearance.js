@@ -90,12 +90,17 @@ function applyAppearance(view, preset, actionId) {
 
 // ── Depth computation ─────────────────────────────────────────────────────────
 
-// Returns { depthById: Map<voId, depth>, isContainerById: Map<voId, bool>, maxContainerDepth }.
-// Keyed by VO id (string) — jArchi creates new proxy objects on each find() call,
-// so reference equality cannot be used as a Map key.
+// Returns { depthById, isContainerById, inSameTypeChainById, maxContainerDepth }.
+// All maps are keyed by VO id (string) — jArchi creates new proxy objects on each
+// find() call, so reference equality cannot be used as a Map key.
+//
+// inSameTypeChainById — true when a container is in an unbroken same-element-type
+// chain from its depth-0 root ancestor (see "Type chain rule" in ARCHITECTURE.md).
 function _computeViewDepths(view) {
   const depthById       = new Map();
   const isContainerById = new Map();
+  const parentIdById    = new Map();  // voId → parent voId | null
+  const elementTypeById = new Map();  // voId → vo.concept.type | null
   let maxContainerDepth = 0;
 
   $(view).find("element").each(vo => {
@@ -105,9 +110,29 @@ function _computeViewDepths(view) {
     const isContainer = $(vo).children("element").length > 0;
     isContainerById.set(vo.id, isContainer);
     if (isContainer && depth > maxContainerDepth) maxContainerDepth = depth;
+    const parentVo = $(vo).parent().filter("element").first();
+    parentIdById.set(vo.id, parentVo ? String(parentVo.id) : null);
+    elementTypeById.set(vo.id, (vo.concept && vo.concept.type) || null);
   });
 
-  return { depthById, isContainerById, maxContainerDepth };
+  // Compute inSameTypeChainById top-down (shallowest first).
+  // A container is in the chain iff its element type equals that of its depth-0 root
+  // ancestor AND every ancestor between them is also in the chain.
+  // Stops propagating as soon as a type mismatch is encountered ("stop the tree").
+  const inSameTypeChainById = new Map();
+  const byDepth = [...depthById.entries()].sort((a, b) => a[1] - b[1]);
+  for (const [voId, depth] of byDepth) {
+    if (!isContainerById.get(voId)) { inSameTypeChainById.set(voId, false); continue; }
+    if (depth === 0)                { inSameTypeChainById.set(voId, true);  continue; }
+    const parentId      = parentIdById.get(voId);
+    if (!parentId)                  { inSameTypeChainById.set(voId, true);  continue; }
+    const parentInChain = inSameTypeChainById.get(parentId) === true;
+    const voType        = elementTypeById.get(voId);
+    const parentType    = elementTypeById.get(parentId);
+    inSameTypeChainById.set(voId, parentInChain && !!(voType && voType === parentType));
+  }
+
+  return { depthById, isContainerById, inSameTypeChainById, maxContainerDepth };
 }
 
 function _voDepth(vo) {
@@ -120,7 +145,7 @@ function _voDepth(vo) {
 // ── Style by nesting level ────────────────────────────────────────────────────
 
 function _applyNestingLevel(view, settings, depths, isModify) {
-  const { depthById, isContainerById, maxContainerDepth } = depths;
+  const { depthById, isContainerById, inSameTypeChainById, maxContainerDepth } = depths;
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
 
   const rootFontSize       = settings.rootFontSize        !== undefined ? settings.rootFontSize        : 14;
@@ -132,11 +157,13 @@ function _applyNestingLevel(view, settings, depths, isModify) {
     if (!vo.id) return;
     const depth       = depthById.get(vo.id);
     const isContainer = isContainerById.get(vo.id);
+    const inChain     = inSameTypeChainById.get(vo.id) === true;
     if (depth === undefined) return;
 
     // Font: root gets rootFontSize (+ bold if rootFontBold), each deeper level decreases
-    // by fontDecPerLevel pt, clamped at DEFAULT_FONT_SIZE. Non-containers untouched.
-    if (settings.fontEnabled && isContainer) {
+    // by fontDecPerLevel pt, clamped at DEFAULT_FONT_SIZE.
+    // Only containers in the same-type chain from their root ancestor are affected.
+    if (settings.fontEnabled && isContainer && inChain) {
       const size = Math.max(DEFAULT_FONT_SIZE, rootFontSize - depth * fontDecPerLevel);
       if (size > DEFAULT_FONT_SIZE || (depth === 0 && rootFontBold)) {
         vo.fontName  = DEFAULT_FONT_NAME;
@@ -144,7 +171,7 @@ function _applyNestingLevel(view, settings, depths, isModify) {
         vo.fontStyle = (depth === 0 && rootFontBold) ? "bold" : DEFAULT_FONT_STYLE;
         fontSet++;
       }
-    } else if (!settings.fontEnabled && isModify && isContainer) {
+    } else if (!settings.fontEnabled && isModify && isContainer && inChain) {
       const wouldHaveSize = Math.max(DEFAULT_FONT_SIZE, rootFontSize - depth * fontDecPerLevel);
       if (wouldHaveSize > DEFAULT_FONT_SIZE || (depth === 0 && rootFontBold)) {
         vo.fontName  = DEFAULT_FONT_NAME;
@@ -157,11 +184,12 @@ function _applyNestingLevel(view, settings, depths, isModify) {
     // Color: root (depth 0) gets rootColor unchanged (lightenFactor = 0 = darkest).
     // Each level deeper is progressively lighter (rootColor lightened by depth * darkenPerLevel%).
     // Deepest containers (depth === maxContainerDepth) and leaves: untouched.
-    if (settings.colorEnabled && isContainer && depth < maxContainerDepth) {
+    // Only containers in the same-type chain from their root ancestor are affected.
+    if (settings.colorEnabled && isContainer && inChain && depth < maxContainerDepth) {
       const lightenFactor = depth * (darkenPerLevel / 100);
       vo.fillColor = _lightenHex(settings.rootColor || "#2B5796", lightenFactor);
       colorSet++;
-    } else if (!settings.colorEnabled && isModify && isContainer && depth < maxContainerDepth) {
+    } else if (!settings.colorEnabled && isModify && isContainer && inChain && depth < maxContainerDepth) {
       vo.fillColor = null;
       colorReset++;
     }

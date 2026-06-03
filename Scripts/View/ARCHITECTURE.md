@@ -713,9 +713,11 @@ When a source element connects to exactly one matching target element, it gets t
 
 Active only when at least one nesting relation type is configured in the Layout tab. An informational label replaces the controls when nesting is not configured. All controls appear on two compact rows (one for font, one for color).
 
-**Font rule.** Root containers (depth 0) get `rootFontSize` pt (+ bold if `rootFontBold`). Each deeper level gets `rootFontSize - depth × fontDecreasePerLevel` pt, clamped at the Archi default (9 pt). Non-containers are untouched.
+**Font rule.** Root containers (depth 0) get `rootFontSize` pt (+ bold if `rootFontBold`). Each deeper level gets `rootFontSize - depth × fontDecreasePerLevel` pt, clamped at the Archi default (9 pt). Non-containers are untouched. Only containers in the same-type chain from their subtree root are affected (see Type chain rule below).
 
-**Color rule.** Root containers get `rootColor` (darkest). Each level inward is lightened by `darkenPerLevel %` (channels blended toward white). Deepest containers and leaves are not touched. Preview strip in dialog shows the gradient from element-type default (light end) to `rootColor` (dark end).
+**Color rule.** Root containers get `rootColor` (darkest). Each level inward is lightened by `darkenPerLevel %` (channels blended toward white). Deepest containers and leaves are not touched. Only containers in the same-type chain from their subtree root are affected (see Type chain rule below). Preview strip in dialog shows the gradient from element-type default (light end) to `rootColor` (dark end).
+
+**Type chain rule.** Each depth-0 container defines its own subtree root type (its ArchiMate element type). Font and color are applied only to containers whose type matches their subtree root's type and whose entire ancestor chain back to that root is also of the same type. A container of a different type breaks the chain: it receives no style change and neither do any of its descendants, regardless of their own type.
 
 #### Highlight repeated elements
 
@@ -1528,12 +1530,17 @@ Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExisting
 `_computeViewDepths(view)` walks `$(view).find("element")` and for each VisualElement:
 - Counts visual ancestors via `$(vo).parent().filter("element").first()` iteration → depth.
 - Classifies as container (`$(vo).children("element").length > 0`) or leaf.
+- Records `parentIdById` (immediate visual parent VO id) and `elementTypeById` (concept type string).
+- Derives `inSameTypeChainById` in a second top-down pass (sorted by depth): a depth-0 container is always `true`; a deeper container is `true` iff its parent is `true` AND its element type equals its parent's element type. This implements the [Type chain rule](#style-by-nesting-level).
 
-Returns `{ voDepths: Map<VO, depth>, voIsContainer: Map<VO, bool>, maxContainerDepth }`.
+Returns `{ depthById, isContainerById, inSameTypeChainById, maxContainerDepth }` — all maps keyed by VO id (string).
 
 ### Style by nesting level
 
-`_applyNestingLevel(view, settings, depths, isModify)` iterates all element VOs. Non-containers are untouched by font changes. Container at depth `d`: font = `max(9, rootFontSize − d × fontDecreasePerLevel)` pt; bold (`vo.fontStyle = "bold"`) only at depth 0 when `rootFontBold`. Deepest containers (depth `maxContainerDepth`) and leaves: no fill-colour override. Container at depth `d < maxContainerDepth`: fill colour = `_lightenHex(rootColor, d × darkenPerLevel/100)` — depth 0 is darkest (factor 0), deeper levels blend toward white.
+`_applyNestingLevel(view, settings, depths, isModify)` iterates all element VOs. For each VO:
+- Font: applied only when `isContainer && inSameTypeChain`. Container at depth `d` in chain: font = `max(9, rootFontSize − d × fontDecreasePerLevel)` pt; bold only at depth 0 when `rootFontBold`.
+- Color: applied only when `isContainer && inSameTypeChain && depth < maxContainerDepth`. Container at depth `d` in chain: fill colour = `_lightenHex(rootColor, d × darkenPerLevel/100)` — depth 0 is darkest, deeper levels blend toward white.
+- Containers outside the same-type chain and all non-containers: untouched.
 
 `_lightenHex(hex, factor)` — pure hex math (no Chroma), blends each RGB channel toward 255 by `factor` (0–1).
 
