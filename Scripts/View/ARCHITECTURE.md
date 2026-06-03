@@ -1076,8 +1076,8 @@ VisualSet is **captured from the target view** before model expansion runs. All 
 
 | Action | Object set | Target view |
 |---|---|---|
-| **EXPAND_VIEW** | Selection (a whole view, or a subset of its canvas objects) drives related-elements expansion. Visuals outside the selection stay in place; selected visuals and any added related elements are repositioned. | The selected view itself. `preset.view.name` is ignored. |
-| **LAYOUT_ONLY** | The selected view's current contents only — no related-elements expansion. | The selected view itself. |
+| **EXPAND_VIEW** | Selection (a whole view, or a subset of its canvas objects) drives related-elements expansion. Visuals outside the selection stay in place; selected visuals and any added related elements are repositioned. | If `preset.view.name` is set: the target is a view at `(preset.view.folder, preset.view.name)`. If the selected view is already there, it is used directly. If it is elsewhere, it is duplicated to the target location and the copy is used (the original is not touched). If no `preset.view.name`: the selected view itself. |
+| **LAYOUT_ONLY** | The selected view's current contents only — no related-elements expansion. | Same location rule as EXPAND_VIEW above. |
 
 What "preserved" / "re-derived" means concretely:
 - **Appearance properties** (colours, fonts, line styles, sizes overridden by the user) — never touched by the writer.

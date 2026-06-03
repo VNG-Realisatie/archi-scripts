@@ -137,7 +137,8 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Determine the target view.
-  //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view.
+  //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, unless the preset names a
+  //                               specific location — then copy the view there and use the copy.
   //   NEW_VIEW                  → a new view (created or overwritten by name).
   console.log("\nView target:");
   let view;
@@ -146,6 +147,33 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     if (!view) {
       console.error(`${actionId}: no existing view in selection`);
       return null;
+    }
+
+    // If the preset names an explicit target view, the location is never ignored.
+    // Check whether the existing view already lives there; if not, copy it.
+    if (preset.view.name) {
+      const targetName   = preset.view.name;
+      const targetFolder = _resolveFolder(preset.view.folder);
+      const viewAtTarget = $(targetFolder).children("view").filter(`.${targetName}`).first();
+      const sameView     = viewAtTarget && String(viewAtTarget.id) === String(view.id);
+      if (!sameView) {
+        // Remove the stale view at the target location (if any) before copying.
+        if (viewAtTarget) {
+          try { $(viewAtTarget).find().each(o => o.delete()); viewAtTarget.delete(); } catch (e) {}
+        }
+        const copy = view.duplicate(targetFolder);
+        copy.name  = targetName;
+        // Re-collect VOs from the copy: the duplicate has its own new VO ids.
+        const reCollected = _collectVisualsFrom(copy);
+        objectSet.visualElements  = reCollected.visualElements;
+        objectSet.visualRelations = reCollected.visualRelations;
+        view = copy;
+        console.log(`  Copied "${existingView.name}" → "${copy.name}"`);
+      } else {
+        console.log(`  Using: "${view.name}"`);
+      }
+    } else {
+      console.log(`  Using: "${view.name}"`);
     }
   } else {
     const viewName = viewNameOverride || _resolveViewName(preset, elements);
@@ -684,6 +712,29 @@ function _resolveViewName(preset, elements) {
   if (preset.view.name) return preset.view.name;
   const first = elements[0];
   return first ? first.name : "Generated";
+}
+
+/**
+ * Collect visual elements and visual relations directly from a view object.
+ * Used after view.duplicate() to rebuild the VO index from the copy's own VOs.
+ */
+function _collectVisualsFrom(view) {
+  const visualElements = [], visualRelations = [];
+  const seenEl = new Set(), seenRel = new Set();
+  try {
+    $(view).find("element").each(ve => {
+      if (!ve || !ve.id || seenEl.has(ve.id)) return;
+      if (ve.type && ve.type in Defs.DIAGRAM_TYPES) return;
+      seenEl.add(ve.id); visualElements.push(ve);
+    });
+  } catch (e) {}
+  try {
+    $(view).find("relation").each(vr => {
+      if (!vr || !vr.id || seenRel.has(vr.id)) return;
+      seenRel.add(vr.id); visualRelations.push(vr);
+    });
+  } catch (e) {}
+  return { visualElements, visualRelations };
 }
 
 function _resolveFolder(viewFolder) {
