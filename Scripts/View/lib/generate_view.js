@@ -530,17 +530,32 @@ function _writeView(preset, result, objectSet, view, parentRels) {
       const curParentId = currentParentVO ? String(currentParentVO.id) : null;
 
       if (newParentId !== curParentId) {
-        // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
-        const target = newParentVisual || view;
+        const newParentConceptId = newParentVisual && newParentVisual.concept ? newParentVisual.concept.id : null;
+        const curParentConceptId = currentParentVO && currentParentVO.concept ? currentParentVO.concept.id : null;
+        // When the parent CONCEPT is unchanged but a different VO of that concept was picked,
+        // do NOT move the child to the new VO: the existing nesting VR's endpoint still points
+        // to the old VO, and moving the child would make Archi render it as a connection line.
+        const sameParentConcept = newParentConceptId !== null && newParentConceptId === curParentConceptId;
         const parentRn = newParentVisual ? nodeById[rn.parentId] : null;
         const relX = parentRn ? rn.x - parentRn.x : rn.x;
         const relY = parentRn ? rn.y - parentRn.y : rn.y;
-        try {
-          target.add(existing, relX, relY);
-          existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+        if (sameParentConcept) {
+          // Stay in current parent VO — update bounds only. Must NOT call add() here:
+          // jArchi throws "Target already contains object" when the element is already
+          // in that VO. visualIndex is set unconditionally so children can find this
+          // node as their parent even if the bounds update fails.
+          try {
+            existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+          } catch (e) { console.error(`Failed to update bounds for ${archiId}: ${e}`); }
           visualIndex[rn.id] = existing;
-        } catch (e) {
-          console.error(`Failed to re-parent element ${archiId}: ${e}`);
+        } else {
+          // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
+          const target = newParentVisual || view;
+          try {
+            target.add(existing, relX, relY);
+            existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+            visualIndex[rn.id] = existing;
+          } catch (e) { console.error(`Failed to re-parent element ${archiId}: ${e}`); }
         }
         continue;
       }
@@ -607,37 +622,22 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   }
 
   // ── Nesting connections (parent-child boxes): existing → skip, new → add ──
-  // Each binding's containment visual is always anchored at the occurrence
-  // ids the resolver assigned (box-in-box, no line). When
-  // showExtraOccurrenceConnections is on, each non-primary (isExtra) binding
-  // gets an ADDITIONAL VisualRelation between the primary visuals on top of
-  // the containment — Archi draws this as a connection line from the
-  // multi-parent element's primary occurrence to its other parent.
-  const showExtraOcc = !!(preset.params && preset.params.showExtraOccurrenceConnections);
+  let _nestCreated = 0, _nestSkipped = 0;
   for (const binding of (parentRels || [])) {
-    const { rel, srcOccId, tgtOccId, isExtra } = binding;
+    const { rel, srcOccId, tgtOccId } = binding;
 
     // Containment: skip if already on view (LAYOUT_ONLY preserves existing).
     if (!existingRelByConcept.has(rel.id)) {
       const srcV = visualIndex[srcOccId];
       const tgtV = visualIndex[tgtOccId];
       if (srcV && tgtV) {
-        try { view.add(rel, srcV, tgtV); } catch (e) {}
+        try { view.add(rel, srcV, tgtV); _nestCreated++; } catch (e) {}
       }
-    }
-
-    // Extra analytical line: additional VisualRelation between the primary
-    // visuals so the duplicate relation shows up as a line. Issued
-    // unconditionally when the toggle is on — Archi's dedup decides whether a
-    // second VR coexists with the containment on repeat LAYOUT_ONLY runs.
-    if (showExtraOcc && isExtra) {
-      const primarySrcV = visualIndex[rel.source && rel.source.id];
-      const primaryTgtV = visualIndex[rel.target && rel.target.id];
-      if (primarySrcV && primaryTgtV) {
-        try { view.add(rel, primarySrcV, primaryTgtV); } catch (e) {}
-      }
+    } else {
+      _nestSkipped++;
     }
   }
+  console.log(`  Nestings: ${_nestCreated} created · ${_nestSkipped} existing`);
 
   // Log: count objects on the view. The total visual relation count via find("relation")
   // = connections + nestings. A mismatch vs the pipeline's "Total to view" usually

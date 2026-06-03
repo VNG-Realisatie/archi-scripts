@@ -536,7 +536,7 @@ function _countRelationsBetween(elements, relTypeFilter) {
  *     id when needed; cycles still skip.
  *
  * @returns {{ parentMap, occurrenceMap,
- *             parentRels: Array<{rel, srcOccId, tgtOccId, isExtra}>,
+ *             parentRels: Array<{rel, srcOccId, tgtOccId}>,
  *             skippedCycle, skippedMultiParent }}
  *
  * Each parentRels entry binds a nesting relation to the specific occurrence
@@ -544,9 +544,6 @@ function _countRelationsBetween(elements, relTypeFilter) {
  * at rel.source's end (so `view.add(rel, srcV, tgtV)` direction matches the
  * model); `tgtOccId` likewise for rel.target. For reversed relation types,
  * the child sits on the rel.source side; otherwise on the rel.target side.
- * `isExtra` flags occurrences that go beyond the primary (`_occ_N` form) —
- * used by the writer and counter to support the
- * `showExtraOccurrenceConnections` toggle.
  */
 function _resolveNesting(elements, nestingRels, params) {
   const reverseTypes = new Set((params && params.reverseRelationTypes) || []);
@@ -577,10 +574,9 @@ function _resolveNesting(elements, nestingRels, params) {
     // Build a binding aligned to (rel.source, rel.target) for the writer.
     // The child's occurrence sits on the source side iff the rel is reversed.
     const pushBinding = (boundChildOcc) => {
-      const isExtra = boundChildOcc !== childId;
       const srcOccId = isReversed ? boundChildOcc : parentId;
       const tgtOccId = isReversed ? parentId      : boundChildOcc;
-      parentRels.push({ rel, srcOccId, tgtOccId, isExtra });
+      parentRels.push({ rel, srcOccId, tgtOccId });
     };
 
     if (!showInEvery) {
@@ -656,7 +652,7 @@ function _resolveNesting(elements, nestingRels, params) {
           parentMap[newOccId]    = extraOccId;
           const srcOccId = isReversed ? newOccId   : extraOccId;
           const tgtOccId = isReversed ? extraOccId : newOccId;
-          parentRels.push({ rel, srcOccId, tgtOccId, isExtra: true });
+          parentRels.push({ rel, srcOccId, tgtOccId });
           queue.push({ primaryBaseId: childId, extraOccId: newOccId });
         }
       }
@@ -691,13 +687,6 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     else                            connectionRels.push(rel);
   }
   const { parentMap, occurrenceMap, parentRels } = _resolveNesting(elements, nestingRels, params);
-  // When showExtraOccurrenceConnections is on, each non-primary occurrence nesting
-  // gets an ADDITIONAL VisualRelation drawn as a connection line on top of the
-  // containment. Containment count is unchanged; connection count grows by the
-  // number of extra bindings.
-  const showExtra     = !!(params && params.showExtraOccurrenceConnections);
-  const extraBindings = showExtra ? parentRels.filter(b => b.isExtra).length : 0;
-
   // Sum of (occurrences - 1) over every element — extra appearances.
   let extraOccurrences = 0;
   for (const elId of Object.keys(occurrenceMap)) {
@@ -735,7 +724,7 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     extraOccurrences,
     relations:        relationCount,
     nestings:         nestingRels.length,
-    connections:      connectionRels.length + extraBindings,
+    connections:      connectionRels.length,
     diagramObjects:   diagramNodeCount || 0,
   };
 }

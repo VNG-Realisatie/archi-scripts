@@ -99,7 +99,6 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 | Preset | Parameter file, config file |
 | One view each | Per element |
 | Re-layout | Layout only |
-| Show connection for multiple occurrences | showExtraOccurrenceConnections |
 | Align width by level | alignWidthSameType |
 | Snap columns to grid | snapColumnsToGrid |
 
@@ -277,8 +276,7 @@ Preset {
     sortContainers,                 // Sort containers alphabetically
     alignWidthSameType,             // Align width by level (key kept for back-compat)
     snapColumnsToGrid,              // Snap columns to grid
-    showInEveryContainer,           // Show in every container
-    showExtraOccurrenceConnections  // Show connection for multiple occurrences
+    showInEveryContainer            // Show in every container
                 : booleans
   }
 
@@ -552,7 +550,7 @@ The Layout tab decides *how* objects are positioned.
 │ │  ── Inside container ───────────────────────────────────────────────  │ │
 │ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
 │ │  ☑ Sort containers ○ Align width by level   ○ Snap columns to grid    │ │
-│ │  ○ Show in every container  ○ Show connection for multiple occurrences│ │
+│ │  ○ Show in every container                                             │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ View dimensions ─────────────────────────────────────────────────────┐ │
 │ │  Hint for view sizing:  ● None   ○ Width   ○ Height   ○ Aspect ratio  │ │
@@ -635,7 +633,6 @@ The group label is **"Draw these relation types as containers"** — a checkbox 
 | Align width by level | Align box widths across the whole hierarchy by nesting level. Widths telescope — each level is one padding ring wider than the level inside it, anchored at the leaf width; leaves take the level width exactly, containers use it as a floor (never below their content). ELK algorithms only. See [Width alignment by level](#width-alignment-by-level). |
 | Snap columns to grid | Line leaf columns up top-to-bottom by nudging ELK's layout into alignment — each column snaps to the median of where its leaves already sit, preserving ELK's spacing and adding only the small offset for alignment. Position-only post-pass; leaves are not resized. ELK algorithms only. See [Column snapping](#column-snapping). |
 | Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
-| Show connection for multiple occurrences | When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only. Active only when *Show in every container* is on. |
 
 #### View dimensions
 
@@ -810,7 +807,6 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 | **Align width by level** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | **Snap columns to grid** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | **Show in every container** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
-| **Show connection for multi-occurrence** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
 | **Reverse relation types** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
 | **Label position** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
 
@@ -965,8 +961,6 @@ Many nesting relations may name the same element as their child. The preset's `s
 
 **Visual rendering rule.** Extra occurrences (`showInEveryContainer: true`) only **render as visible duplicate boxes** when the chosen algorithm draws parent-child containment — i.e. nested-style layouts (Layered, Tree, Pack, Dot, and any other algorithm marked as supporting nesting in the [Algorithm capability matrix](#algorithm-capability-matrix)). For non-nested layouts (Force, SFDP, Twopi, etc.) the writer still receives `showInEveryContainer: true` and produces occurrence ids, but the layout engine collapses them: the element is drawn once. The dialog and pipeline counters compute the `extraOccurrences` count honestly from the nesting structure; for non-nested layouts the count will be non-zero but the user should expect the visible view to show one box per concept.
 
-**Nesting-relation rendering.** The writer anchors each nesting VisualRelation to the specific occurrence the resolver assigned it to, so it renders as containment (box-in-box, no line). The preset's `showExtraOccurrenceConnections` toggle (default `false`) adds an **extra** VisualRelation on top — without removing the containment — for each *extra* (non-primary) occurrence binding. The extra visual is `view.add(rel, primarySrcVisual, primaryTgtVisual)`: a second visualization of the same model relation between the multi-parent element's primary occurrence and the second parent's box, drawn as a line. The toggle only takes effect when `showInEveryContainer` is on (otherwise no extras exist). When the toggle is on, the **nestings** counter is unchanged (every containment binding still draws as box-in-box) and the **connections** counter grows by the number of extra bindings (the added lines). One added line per extra binding; no reverse mirror. Whether the second VisualRelation persists is subject to Archi's per-view VR dedup behaviour — if Archi collapses duplicates, the user sees containment only despite the counter increase; otherwise both visuals coexist.
-
 **Counting rule.** `elements` always counts unique model concepts (matches the source selection after expansion + filter + step adds), and is partitioned into `containers + nestedElements + standalones` by construction. `extraOccurrences` is a **separate field** (counts extra visual appearances, role-agnostic), never folded into the element categories. The on-screen "Generated view" group's `Output:` strip and the console block's `Total to view:` row show all fields side by side.
 | `true` | **Visual instances.** The element appears once under each parent. Each visual instance is a distinct node in the layout but maps back to the same model element. Layout decisions per instance are independent. |
 
@@ -989,6 +983,7 @@ The writer derives every visual's parent from the current run's nesting decision
 - An element whose parentMap entry names another element → drawn **inside** that parent's visual.
 - An element whose parentMap entry is absent → drawn at **view root**.
 - An existing VisualElement whose current visual parent differs from the new parentMap → **re-parented** (moved under the new parent). Bounds are then expressed relative to the new parent.
+- **Exception — same parent concept, different VO:** `_pickExistingVo` may assign a different VO of the *same* parent concept to the parent result node (e.g. primary vs. `_occ_1` when both are in the VisualSet). If the writer then compared VO ids and moved the child, the existing nesting VR (whose endpoint VO was set at NEW_VIEW time) would become stale — Archi renders a stale nesting VR whose source VO is no longer the child's visual parent as a **connection line** instead of box-in-box containment. The writer therefore suppresses the move when the new parent concept equals the current parent concept; it only updates the child's bounds in place. `visualIndex[rn.id]` is set unconditionally so descendant nodes can look up their parent.
 
 There is no per-action branch; the same rule applies to NEW_VIEW, ONE_EACH, EXPAND_VIEW, and LAYOUT_ONLY. See [Invariants](#invariants) (writer invariant).
 
@@ -1458,7 +1453,7 @@ Algorithmic structures used by the pipeline (and consumed by `_buildLayoutGraph`
 | `occurrenceMap` | element id → list of occurrence ids | occurrences |
 | `routedRels` | array of relations whose type is NOT in `nestingRelationTypes` | connections |
 | `nestingRels` | array of relations whose type IS in `nestingRelationTypes` | nestings |
-| `parentRels` | nesting bindings (`{rel, srcOccId, tgtOccId, isExtra}`) that survived multi-parent resolution | applied nestings |
+| `parentRels` | nesting bindings (`{rel, srcOccId, tgtOccId}`) that survived multi-parent resolution | applied nestings |
 
 ## Orchestrator — generate_view.js
 
@@ -1496,13 +1491,13 @@ generate_view(preset, uiSelection, actionId) → ArchimateView[]
 
 Before writing, it builds three lookup maps from the [VisualSet](#visualset): existing visual elements grouped by model concept ID as **lists** (`existingVosByConcept: Map<conceptId, VisualElement[]>` — one concept can have multiple VOs from extra occurrences), existing visual elements keyed by VO ID, and existing visual relations keyed by concept ID. A `consumedVoIds` Set tracks which existing VOs have been bound to a result node, ensuring each VO is written at most once.
 
-Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable depth-first sort ensuring every parent is processed before its children). For each node: `_pickExistingVo` selects an existing VO by `(concept id, new-parent concept id)` from the concept list (see [Writer parenthood](#writer-parenthood) for the pairing rule), or returns null if no candidate remains. **If found (reposition):** the VO is marked consumed; its bounds are updated in parent-relative coordinates ([Invariants](#invariants) parent-relative coordinates); if the new parentMap names a different parent, the VO is re-parented using the jArchi 1.10 move API. **If not found (create):** the element is retrieved from the model and added to the view under the correct parent.
+Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable depth-first sort ensuring every parent is processed before its children). For each node: `_pickExistingVo` selects an existing VO by `(concept id, new-parent concept id)` from the concept list (see [Writer parenthood](#writer-parenthood) for the pairing rule), or returns null if no candidate remains. **If found (reposition):** the VO is marked consumed; its bounds are updated in parent-relative coordinates ([Invariants](#invariants) parent-relative coordinates); if the new parentMap names a different parent *concept*, the VO is re-parented using the jArchi 1.10 move API; if the VO ids differ but the parent concept is the same (different VO of the same concept — see [Writer parenthood](#writer-parenthood) same-concept exception), bounds are updated in place without moving the VO (prevents stale VR rendering as connection line). **If not found (create):** the element is retrieved from the model and added to the view under the correct parent.
 
 After the node loop, the writer scans `existingVosByConcept` for VOs not in `consumedVoIds` and logs `Unpaired VOs: N (concept over-supply — kept in place)` if any are unbound. Surplus VOs are not mutated (Invariant 4 — no silent data loss).
 
 Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. Nestings that won the multi-parent resolution are drawn on the view after all connections.
 
-Each nesting binding from `_resolveNesting` carries `srcOccId` and `tgtOccId` aligned to the model relation's `(source, target)` so that `view.add(rel, srcV, tgtV)` preserves model direction. The writer always issues a containment add for every binding (skipped on LAYOUT_ONLY when the rel already has a VR), keying both endpoints on the occurrence visuals — Archi renders containment (no line). When `preset.params.showExtraOccurrenceConnections` is true and a binding's `isExtra` flag is set (non-primary occurrence), the writer additionally issues a second `view.add(rel, …)` keyed on the primary visuals (`visualIndex[rel.source.id]` / `visualIndex[rel.target.id]`) — Archi draws this as a connection line from the multi-parent element's primary occurrence to its other parent. The extra add is issued unconditionally per run; Archi's VR-per-view dedup behaviour determines whether the second VisualRelation persists alongside the containment.
+Each nesting binding from `_resolveNesting` carries `srcOccId` and `tgtOccId` aligned to the model relation's `(source, target)` so that `view.add(rel, srcV, tgtV)` preserves model direction. The writer always issues a containment add for every binding (skipped on LAYOUT_ONLY when the rel already has a VR), keying both endpoints on the occurrence visuals — Archi renders containment (box-in-box, no line).
 
 Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExistingVo`, `::_currentParentConceptId`, `::_stripOccSuffix`, `::_applyEdgeStyle`, `::_getParentAbsOffset`.
 

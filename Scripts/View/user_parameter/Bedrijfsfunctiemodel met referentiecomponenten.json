@@ -22,7 +22,6 @@
     "alignWidthSameType": true,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
-    "showExtraOccurrenceConnections": false,
     "layerSpacing": 180,
     "elementSpacing": 40,
     "elementWidth": 300,

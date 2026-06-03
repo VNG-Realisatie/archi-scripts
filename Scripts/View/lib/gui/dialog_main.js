@@ -803,7 +803,6 @@ function _updateFilteredCount(ctx) {
       nestingRelationTypes: w.lstNestingTypes ? _relLabelsToIds(_listGetSelected(w.lstNestingTypes)) : [],
       reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
       showInEveryContainer:           !!(w.chkShowInEvery     && w.chkShowInEvery.getSelection()),
-      showExtraOccurrenceConnections: !!(w.chkShowExtraOccConn && w.chkShowExtraOccConn.getSelection()),
     };
     // predictViewCounts needs the actual rels (not just count) to split into nesting/routed.
     const finalRels = Pipeline.findRelationsBetween(cumulative, effectiveRelFilter);
@@ -1355,19 +1354,11 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCheck(chkComp, "Align widths by level",    "Use a common width per nesting level, with each parent level one padding step wider than its children.",        1, w, "chkAlignWidthSameType");
   _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.",        1, w, "chkSnapColumns");
   _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",               1, w, "chkShowInEvery");
-  _addCheck(chkComp, "Show connection for multiple occurrences",
-    "When an element has multiple nesting parents, draw a connection line from its primary occurrence to the other parent (analytical view). Off: containment only.",
-    3, w, "chkShowExtraOccConn");
-  // Refresh the live Output counters when 'Show in every container' toggles —
-  // it changes the extra-occurrences prediction; also re-evaluate the param
-  // mask so the dependent 'Show connection for multiple occurrences' checkbox
-  // enables/disables to match.
+  // Refresh the live Output counters when 'Show in every container' toggles.
   if (w.chkShowInEvery) {
     w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
     w.chkShowInEvery.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
   }
-  // The connection toggle also shifts counters (nestings ↔ connections).
-  if (w.chkShowExtraOccConn) w.chkShowExtraOccConn.addListener(SWT.Selection, onParamsChange);
 
   // ── View dimensions ────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View dimensions", 6);
@@ -2263,7 +2254,6 @@ function _syncToUI(ctx) {
   _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
   _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
   _chkSet(w.chkShowInEvery,       !!(p.showInEveryContainer));
-  _chkSet(w.chkShowExtraOccConn,  !!(p.showExtraOccurrenceConnections));
 
   // Sizes
   _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : DP.elementWidth);
@@ -2453,7 +2443,6 @@ function _saveUI(ctx) {
   if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
   if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
   if (w.chkShowInEvery)        c.params.showInEveryContainer           = w.chkShowInEvery.getSelection();
-  if (w.chkShowExtraOccConn)   c.params.showExtraOccurrenceConnections = w.chkShowExtraOccConn.getSelection();
 
   // Sizes
   if (w.spinElementWidth)   c.params.elementWidth   = w.spinElementWidth.getSelection();
@@ -2574,12 +2563,6 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
-  // 'Show connection for multiple occurrences' is only meaningful when the
-  // algorithm supports it AND 'Show in every container' is on (otherwise there
-  // are no extra occurrences for the toggle to act on).
-  _enable(w.chkShowExtraOccConn,
-          active.has("showExtraOccurrenceConnections")
-          && !!(w.chkShowInEvery && w.chkShowInEvery.getSelection()));
   _enable(w.spinLayerSpacing,   active.has("layerSpacing"));
 
   // View size radios: enable/disable each option based on algorithm support.
