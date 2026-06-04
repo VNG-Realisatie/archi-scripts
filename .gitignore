@@ -13,6 +13,7 @@ Scripts/View/user_parameter/_session.json
 Scripts/View/.last_gui_run_params.json
 
 # test files
+Scripts/_test
 Scripts/View/test
 Scripts/View/user_parameter/test
 Scripts/View/user_parameter/GEMMA views
