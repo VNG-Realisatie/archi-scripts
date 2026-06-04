@@ -1,9 +1,9 @@
 {
-  "name": "Bedrijfsfunctiemodel met bedrijfsobjecten en referentiecomponenten",
-  "algorithm": "Pack",
+  "name": "gemma/Referentiecomponent en technische architectuur",
+  "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
-    "routing": "Polyline",
+    "direction": "Top → Bottom",
+    "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
@@ -11,30 +11,26 @@
       "realization-relationship",
       "serving-relationship"
     ],
-    "nestingRelationTypes": [
-      "access-relationship",
-      "aggregation-relationship",
-      "realization-relationship",
-      "serving-relationship"
-    ],
+    "nestingRelationTypes": [],
     "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": true,
-    "snapColumnsToGrid": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": true,
     "showInEveryContainer": true,
-    "layerSpacing": 180,
-    "elementSpacing": 100,
-    "elementWidth": 240,
+    "layerSpacing": 120,
+    "elementSpacing": 50,
+    "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 5000,
     "maxHeight": 1000,
-    "aspectRatio": 1.33,
-    "viewSizeMode": "aspectRatio"
+    "aspectRatio": 0.75,
+    "viewSizeMode": "none"
   },
   "filter": {
     "elementTypes": [
-      "business-function"
+      "application-component"
     ],
     "relationTypes": [],
     "diagramTypes": []
@@ -42,33 +38,16 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 4,
-        "elementTypes": [
-          "business-function"
-        ],
+        "depth": 1,
+        "elementTypes": [],
         "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "diagramTypes": []
-      },
-      {
-        "depth": 4,
-        "elementTypes": [
-          "application-service",
-          "business-object"
-        ],
-        "relationTypes": [
-          "access-relationship:out",
-          "aggregation-relationship:in",
           "serving-relationship:in"
         ],
         "diagramTypes": []
       },
       {
-        "depth": 2,
-        "elementTypes": [
-          "application-component"
-        ],
+        "depth": 1,
+        "elementTypes": [],
         "relationTypes": [
           "realization-relationship:in"
         ],
@@ -77,16 +56,16 @@
     ]
   },
   "view": {
-    "name": "Ondersteuning",
+    "name": "Gemeentelijke servicebuscomponent",
     "folder": "/_Test/_Generated"
   },
   "appearance": {
     "styleByProperty": {
       "element": {
         "enabled": false,
-        "elementType": "",
+        "elementType": "application-component",
         "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
+        "colorRange": "Pastel1"
       },
       "relation": {
         "enabled": false,
@@ -105,7 +84,7 @@
     "styleByConnectedElement": {
       "enabled": false,
       "relTypes": [],
-      "elementType": "",
+      "elementType": "driver",
       "property": "",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
@@ -115,16 +94,16 @@
       "rootFontSize": 14,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
-      "colorEnabled": true,
+      "colorEnabled": false,
       "rootColor": "#fff29b",
       "darkenPerLevel": 15
     },
     "highlightRepeated": {
-      "enabled": true,
-      "colorRange": "Pastel1"
+      "enabled": false,
+      "colorRange": "Pastel2"
     }
   },
-  "_lastTabIndex": 0,
-  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
+  "_lastTabIndex": 1,
+  "description": "Referentiecomponenten en gebruik TA",
   "action": "new_view"
 }

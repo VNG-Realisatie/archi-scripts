@@ -1,0 +1,109 @@
+{
+  "name": "gemma/Referentiecomponenten en gebruik technische architectuur",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Top → Bottom",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship"
+    ],
+    "nestingRelationTypes": [],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignWidthSameType": true,
+    "alignDebug": false,
+    "snapColumnsToGrid": true,
+    "showInEveryContainer": true,
+    "layerSpacing": 120,
+    "elementSpacing": 50,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 5000,
+    "maxHeight": 1000,
+    "aspectRatio": 0.75,
+    "viewSizeMode": "none"
+  },
+  "filter": {
+    "elementTypes": [
+      "application-component"
+    ],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "depth": 1,
+        "elementTypes": [],
+        "relationTypes": [
+          "serving-relationship:in"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [],
+        "relationTypes": [
+          "realization-relationship:in"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Gemeentelijke servicebuscomponent",
+    "folder": "/_Test/_Generated"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "application-component",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Pastel1"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "driver",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#fff29b",
+      "darkenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel2"
+    }
+  },
+  "_lastTabIndex": 1,
+  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
+  "action": "new_view"
+}

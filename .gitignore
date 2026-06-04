@@ -7,8 +7,12 @@ package.json
 config.js
 archi-scripts.code-workspace
 .last_gui_run_params.json
-Scripts/View/user_parameter/_session.json
 settings.local.json
+
+# test files
+Scripts/View/test
+Scripts/View/user_parameter/test
+Scripts/View/user_parameter/GEMMA views
 
 # AI refactoring files
 .cursorrules
