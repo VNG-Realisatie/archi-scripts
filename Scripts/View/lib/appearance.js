@@ -71,12 +71,19 @@ function applyAppearance(view, preset, actionId) {
   if (!anyEnabled && !isModify) return;
 
   console.log(`\nAppearance (${actionId || "?"})`);
-  console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  darken=${nl.darkenPerLevel}%/level`);
-  console.log(`  highlightRepeated  enabled=${hr.enabled}  range=${hr.colorRange}`);
-  console.log(`  styleByProperty.element  prop="${sbpe.property||""}"  type="${sbpe.elementType||"any"}"  range=${sbpe.colorRange}`);
-  console.log(`  styleByProperty.relation  prop="${sbpr.property||""}"  resize=${sbpr.resize}  range=${sbpr.colorRange}`);
-  console.log(`  styleByRelatedProperty  prop="${sbrp.property||""}"  relTypes=[${(sbrp.relTypes||[]).join(",")}]  range=${sbrp.colorRange}`);
-  console.log(`  styleByConnectedElement  prop="${sbce.property||""}"  relTypes=[${(sbce.relTypes||[]).join(",")}]  range=${sbce.colorRange}`);
+  const hasNestingTypes = (preset.params && (preset.params.nestingRelationTypes || []).length > 0);
+  if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
+    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  darken=${nl.darkenPerLevel}%/level`);
+  if (hr.enabled)
+    console.log(`  highlightRepeated  range=${hr.colorRange}`);
+  if (sbpe.enabled && sbpe.property)
+    console.log(`  styleByProperty.element  prop="${sbpe.property}"  type="${sbpe.elementType||"any"}"  range=${sbpe.colorRange}`);
+  if (sbpr.enabled && sbpr.property)
+    console.log(`  styleByProperty.relation  prop="${sbpr.property}"  resize=${sbpr.resize}  range=${sbpr.colorRange}`);
+  if (sbrp.enabled && sbrp.property)
+    console.log(`  styleByRelatedProperty  prop="${sbrp.property}"  relTypes=[${(sbrp.relTypes||[]).join(",")}]  range=${sbrp.colorRange}`);
+  if (sbce.enabled && sbce.property)
+    console.log(`  styleByConnectedElement  prop="${sbce.property}"  relTypes=[${(sbce.relTypes||[]).join(",")}]  range=${sbce.colorRange}`);
 
   const depths = _computeViewDepths(view);
   console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);

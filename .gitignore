@@ -6,8 +6,11 @@ package.json
 # local config file with user-specific settings, e.g. file paths
 config.js
 archi-scripts.code-workspace
-.last_gui_run_params.json
+# .last_gui_run_params.json
 settings.local.json
+Scripts/View/_session.json
+Scripts/View/user_parameter/_session.json
+Scripts/View/.last_gui_run_params.json
 
 # test files
 Scripts/View/test

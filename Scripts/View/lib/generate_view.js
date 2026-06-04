@@ -66,10 +66,9 @@ function generate_view(rawPreset, uiSelection, actionId) {
     && !(Array.isArray(_rawParams[k]) && _rawParams[k].length === 0));
   if (_dropped.length) console.log(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
 
-  const timer = Common.startCounter ? Common.startCounter() : null;
-
   console.log(`\n=== generate_view ===`);
-  console.log(`Algorithm: ${preset.algorithm}  Action: ${action}`);
+  console.log(`Action: ${action}`);
+  console.log(`Algorithm: ${preset.algorithm}`);
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";
@@ -91,7 +90,7 @@ function generate_view(rawPreset, uiSelection, actionId) {
   } catch (error) {
     console.error(`generate_view error: ${typeof error.stack === "undefined" ? error : error.stack}`);
   }
-  if (timer) Common.endCounter(timer, "generate_view");
+  console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
 
   // Open the generated view(s) in Archi's UI.
   //   NEW_VIEW / EXPAND_VIEW / LAYOUT_ONLY → exactly one view in `views`; open it.

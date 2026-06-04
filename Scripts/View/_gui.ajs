@@ -13,3 +13,4 @@ const initialSelection = $(selection);
 
 const Dialog = require(REPO_ROOT + "View/lib/gui/dialog_main");
 Dialog.open(initialSelection);
+Common.finishConsoleLog();

@@ -377,7 +377,7 @@ function _formatCountsBody(counts, firstObject) {
     const n = counts[key] | 0;
     if (n > 0) parts.push(`${n} ${n === 1 ? sg : pl}`);
   }
-  const body = parts.length ? parts.join(", ") : "nothing";
+  const body = parts.length ? parts.join(" · ") : "nothing";
   const tail = firstObject ? `  (first: ${firstObject})` : "";
   return `${body}${tail}`;
 }
@@ -1982,6 +1982,7 @@ function _runAction(buttonId, dlg, ctx) {
   _saveUI(ctx);
   _persistSession(ctx);
   ctx._actionId = ACTION_MAP[buttonId] || ACTION.NEW_VIEW.id;
+  Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
 }
 

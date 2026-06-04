@@ -38,9 +38,11 @@ const { ACTION } = Defs;
  * }}
  */
 function buildObjectSet(uiSelection, preset, actionId) {
+  const LOG = "  ";
   // ── Step 1: model objects from selection (uniform for canvas + model-tree) ──
-  const raw = Selection.getSelection(uiSelection, "*");
-  const expanded = _expandViews(raw);
+  console.log("Current selection:");
+  const raw = Selection.getSelection(uiSelection, "*", LOG);
+  const expanded = _expandViews(raw, LOG);
   let collection     = expanded.modelCollection;
   let diagramObjects = expanded.diagramObjects;
 
@@ -54,7 +56,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
     collection     = _applyFilter(collection, preset.filter);
     diagramObjects = _applyDiagramFilter(diagramObjects, preset.filter);
   } else {
-    console.log("Modify-selected-view action: element-type filter skipped");
+    console.log(`${LOG}Modify-selected-view action: element-type filter skipped`);
   }
 
   // Filtered base counts (for the grouped log block at end of build).
@@ -129,7 +131,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
 
   // ── Step 1 (continued): existing view contents — target identification + per-VO existence (EXPAND_VIEW + LAYOUT_ONLY) ──
-  const existing = _collectExistingVisuals(uiSelection, actionId);
+  const existing = _collectExistingVisuals(uiSelection, actionId, LOG);
 
   // Predict on-view counts using the same algorithm the writer uses.
   const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params || {});
@@ -265,7 +267,7 @@ function _logFilter(filter) {
  * relations and diagram objects visible on those views. Returns
  *   { modelCollection, diagramObjects }.
  */
-function _expandViews(collection) {
+function _expandViews(collection, logPrefix = "") {
   const views = [];
   collection.each(o => { if (o.type === "archimate-diagram-model") views.push(o); });
   if (views.length === 0) return { modelCollection: collection, diagramObjects: [] };
@@ -303,7 +305,7 @@ function _expandViews(collection) {
     });
   });
 
-  console.log(`Expanded ${views.length} view(s) → ${expanded.size()} model objects · ${diagramObjects.length} diagram objects`);
+  console.log(`${logPrefix}Expanded ${views.length} view(s) → ${expanded.size()} model objects · ${diagramObjects.length} diagram objects`);
   return { modelCollection: expanded, diagramObjects };
 }
 
@@ -312,7 +314,7 @@ function _expandViews(collection) {
  * the visual elements, visual relations, and the view itself from the UI selection.
  * Other actions get all-empty.
  */
-function _collectExistingVisuals(uiSelection, actionId) {
+function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
   if (actionId !== ACTION.EXPAND_VIEW.id && actionId !== ACTION.LAYOUT_ONLY.id) {
     return { existingView: null, visualElements: [], visualRelations: [] };
   }
@@ -361,7 +363,7 @@ function _collectExistingVisuals(uiSelection, actionId) {
     } catch (e) {}
   }
 
-  console.log(`Existing on view: ${visualElements.length} VEs · ${visualRelations.length} VRs · view: "${existingView && existingView.name || "none"}"`);
+  console.log(`${logPrefix}Existing on view: ${visualElements.length} VEs · ${visualRelations.length} VRs · view: "${existingView && existingView.name || "none"}"`);
   return { existingView, visualElements, visualRelations };
 }
 
