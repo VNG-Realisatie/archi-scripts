@@ -71,7 +71,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // Relation-type filter for the final view: global filter only.
   // Step relationTypes are traversal-only (which relations to walk to find new elements);
   // they must NOT restrict which relations are rendered on the view.
-  const globalRelTypes = (preset.filter && preset.filter.relationTypes) || [];
+  const globalRelTypes = preset.filter.relationTypes;
   const relTypeFilter  = globalRelTypes;
 
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
@@ -140,7 +140,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const existing = _collectExistingVisuals(uiSelection, actionId, LOG);
 
   // Predict on-view counts using the same algorithm the writer uses.
-  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params || {});
+  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params);
 
   // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
   // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
@@ -260,9 +260,9 @@ function _logCountBlock(title, rows) {
 
 function _logFilter(filter) {
   if (!filter) { console.log("Filter: none"); return; }
-  const elems = (filter.elementTypes  || []);
-  const rels  = (filter.relationTypes || []);
-  const diag  = (filter.diagramTypes  || []);
+  const elems = filter.elementTypes;
+  const rels  = filter.relationTypes;
+  const diag  = filter.diagramTypes;
   console.log(`Filter element types:  ${elems.length === 0 ? "all" : elems.join(", ")}`);
   console.log(`Filter relation types: ${rels.length  === 0 ? "all" : rels.join(", ")}`);
   console.log(`Filter diagram types:  ${diag.length  === 0 ? "all" : diag.join(", ")}`);
@@ -476,7 +476,7 @@ function _expandStepCounts(base, step) {
         const tgtId = rel.target && rel.target.id;
         if (!srcId || !tgtId) return;
         if (!allIds.has(srcId) || !allIds.has(tgtId)) return;
-        if (!_matchesRelationType(rel.type, step.relationTypes || [], rel)) return;
+        if (!_matchesRelationType(rel.type, step.relationTypes, rel)) return;
         seen.add(rel.id);
         relCount++;
       });
@@ -497,13 +497,10 @@ function _collectionToArray(collection) {
  * Mirrors the step-5 logic so the dialog and the pipeline can share it.
  */
 function _effectiveRelTypeFilter(globalRelTypes, steps) {
-  const g = globalRelTypes || [];
   const stepRelTypes = [];
-  if (Array.isArray(steps)) {
-    steps.forEach(s => (s.relationTypes || []).forEach(t => stepRelTypes.push(t)));
-  }
-  if (g.length === 0 && stepRelTypes.length === 0) return [];
-  return Array.from(new Set(g.concat(stepRelTypes)));
+  steps.forEach(s => s.relationTypes.forEach(t => stepRelTypes.push(t)));
+  if (globalRelTypes.length === 0 && stepRelTypes.length === 0) return [];
+  return Array.from(new Set(globalRelTypes.concat(stepRelTypes)));
 }
 
 /** Count rels between elements under the given filter. Cheaper than _findRelationsBetween
@@ -554,11 +551,11 @@ function _countRelationsBetween(elements, relTypeFilter) {
  * the child sits on the rel.source side; otherwise on the rel.target side.
  */
 function _resolveNesting(elements, nestingRels, params) {
-  const reverseTypes = new Set((params && params.reverseRelationTypes) || []);
-  const showInEvery  = !!(params && params.showInEveryContainer);
+  const reverseTypes = new Set(params.reverseRelationTypes);
+  const showInEvery  = !!params.showInEveryContainer;
   const parentMap = {};
   const occurrenceMap = {};
-  for (const el of (elements || [])) occurrenceMap[el.id] = [el.id];
+  for (const el of elements) occurrenceMap[el.id] = [el.id];
   const parentRels = [];
   let skippedCycle = 0;
   let skippedMultiParent = 0;
@@ -572,7 +569,7 @@ function _resolveNesting(elements, nestingRels, params) {
     return false;
   }
 
-  for (const rel of (nestingRels || [])) {
+  for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
     if (!srcId || !tgtId) continue;
@@ -629,7 +626,7 @@ function _resolveNesting(elements, nestingRels, params) {
   if (showInEvery) {
     // Build parentBaseId → [{rel, childId, isReversed}] from the original nesting rels.
     const childRelsByParent = {};
-    for (const rel of (nestingRels || [])) {
+    for (const rel of nestingRels) {
       const srcId = rel.source && rel.source.id;
       const tgtId = rel.target && rel.target.id;
       if (!srcId || !tgtId) continue;
@@ -641,7 +638,7 @@ function _resolveNesting(elements, nestingRels, params) {
 
     // Seed queue from every extra occurrence created in the initial pass above.
     const queue = [];
-    for (const el of (elements || [])) {
+    for (const el of elements) {
       const occurrences = occurrenceMap[el.id] || [];
       for (const extraOccId of occurrences.slice(1))  // index 0 is the primary
         queue.push({ primaryBaseId: el.id, extraOccId });
@@ -687,10 +684,10 @@ function _resolveNesting(elements, nestingRels, params) {
  *   diagramObjects   — canvas-only positional objects
  */
 function _predictViewCounts(elements, relations, diagramNodeCount, params) {
-  const nestingTypes  = new Set((params && params.nestingRelationTypes) || []);
+  const nestingTypes  = new Set(params.nestingRelationTypes);
   const nestingRels   = [];
   const connectionRels = [];
-  for (const rel of (relations || [])) {
+  for (const rel of relations) {
     if (nestingTypes.has(rel.type)) nestingRels.push(rel);
     else                            connectionRels.push(rel);
   }
@@ -715,14 +712,14 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
   for (const k of Object.keys(parentMap)) childIds.add(stripOcc(k));
 
   let nestedElements = 0, standalones = 0;
-  for (const el of (elements || [])) {
+  for (const el of elements) {
     if (containerIds.has(el.id)) continue;          // counted as container
     if (childIds.has(el.id))     nestedElements++;
     else                         standalones++;
   }
 
-  const elementCount    = (elements || []).length;
-  const relationCount   = (relations || []).length;
+  const elementCount    = elements.length;
+  const relationCount   = relations.length;
 
   return {
     elements:         elementCount,

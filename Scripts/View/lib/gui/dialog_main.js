@@ -19,17 +19,19 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-const Common    = require(REPO_ROOT + "_lib/Common");
-const Selection = require(REPO_ROOT + "_lib/selection");
-const Defs      = require(REPO_ROOT + "View/lib/defs");
-const PresetIO  = require(REPO_ROOT + "View/lib/preset_io");
-const GenView   = require(REPO_ROOT + "View/lib/generate_view");
-const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
-const Chroma    = require("chroma-js");
+const Common     = require(REPO_ROOT + "_lib/Common");
+const Selection  = require(REPO_ROOT + "_lib/selection");
+const Defs       = require(REPO_ROOT + "View/lib/defs");
+const PresetIO   = require(REPO_ROOT + "View/lib/preset_io");
+const GenView    = require(REPO_ROOT + "View/lib/generate_view");
+const Pipeline   = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Appearance = require(REPO_ROOT + "View/lib/appearance");
+const Chroma     = require("chroma-js");
 
 const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
-  RELATION_TYPES, ELEMENT_TYPES, DIAGRAM_TYPES,
+  RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
+  ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS,
   DEFAULT_PRESET, validatePreset,
   encodeRelType, decodeRelType,
 } = Defs;
@@ -59,33 +61,20 @@ const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog")
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
 // ── Derived lists ─────────────────────────────────────────────────────────────
+// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_LABELS
+// are imported from Defs above. COLOR_RANGES is imported from Appearance.
 
-const DIRECTION_LABELS   = DIRECTIONS.map(d => d.val);
-const ROUTING_ALL        = Object.values(ROUTING).map(r => r.label);
-const ROUTING_TOOLTIPS   = Object.fromEntries(Object.values(ROUTING).map(r => [r.label, r.tooltip]));
-const LABEL_POS_ALL      = LABEL_POSITIONS.map(lp => lp.val);
-const LABEL_POS_TOOLTIPS = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp.val, lp.tooltip]));
-const RANKING_LABELS     = RANKING.map(r => r.val);
-const ACYCLICER_LABELS   = ACYCLICER.map(a => a.val);
-const AR_LABELS          = AR_OPTIONS.map(a => a.label);
-const REL_TYPE_LABELS    = Object.values(RELATION_TYPES).map(r => r.label);
-const REL_TYPE_IDS       = Object.values(RELATION_TYPES).map(r => r.id);
-const DIAG_TYPE_LABELS         = ["connection", "group", "image", "legend", "note", "reference"];
-const CONTAINER_ALGO_LABELS    = ["Layered", "Grid", "Pack"];
-const CONNECTIONS_MODE_LABELS  = ["Between containers", "Crossing containers"];
-
-// ColorBrewer scheme names from Chroma.js — used in all Appearance tab colour-range combos.
-// Must stay in sync with COLOR_RANGES in appearance.js.
-const COLOR_RANGES = Object.freeze([
-  "Pastel1", "Pastel2", "Set2", "Set3",
-  "Blues", "Greens", "Oranges", "Purples", "Reds", "Greys",
-  "RdYlBu", "RdYlGn", "Spectral", "OrRd", "PuBu",
-]);
-
-// "business-actor" → "Business Actor" (same helper as in appearance.js, local copy for display).
-const ELEMENT_TYPE_LABELS = ELEMENT_TYPES.map(t =>
-  t.split("-").map(s => s ? s[0].toUpperCase() + s.slice(1) : s).join(" ")
-);
+const DIRECTION_LABELS        = DIRECTIONS.map(d => d.val);
+const ROUTING_ALL             = Object.values(ROUTING).map(r => r.label);
+const ROUTING_TOOLTIPS        = Object.fromEntries(Object.values(ROUTING).map(r => [r.label, r.tooltip]));
+const LABEL_POS_ALL           = LABEL_POSITIONS.map(lp => lp.val);
+const LABEL_POS_TOOLTIPS      = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp.val, lp.tooltip]));
+const RANKING_LABELS          = RANKING.map(r => r.val);
+const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
+const AR_LABELS               = AR_OPTIONS.map(a => a.label);
+const { COLOR_RANGES }        = Appearance;
+const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
+const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -914,10 +903,10 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   w.lstFilterElements = _typeSelector(grpInfo, ELEMENT_TYPES, 120, onFilterChange);
 
   _lbl(grpInfo, "Filter selection by relation types (none = keep all):");
-  w.lstFilterRelations = _checkboxGrid(grpInfo, REL_TYPE_LABELS, 4, onFilterChange);
+  w.lstFilterRelations = _checkboxGrid(grpInfo, RELATION_TYPE_LABELS, 4, onFilterChange);
 
   _lbl(grpInfo, "Filter selection by diagram types (none = keep all):");
-  w.lstFilterDiagram = _checkboxGrid(grpInfo, DIAG_TYPE_LABELS, 4, onFilterChange);
+  w.lstFilterDiagram = _checkboxGrid(grpInfo, DIAGRAM_TYPE_LABELS, 4, onFilterChange);
 
   // ── Related elements ─────────────────────────────────────────────────────────
   // Dynamic multi-block UI. Each block is an independent expansion step with its
@@ -1305,7 +1294,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   new LabelWidget(dirComp, SWT.NONE); new LabelWidget(dirComp, SWT.NONE);
 
   _groupSep(grpDir, 1, "Reversed - draw these relation types in other direction");
-  w.lstReverseTypes = _checkboxGrid(grpDir, REL_TYPE_LABELS, 4, onParamsChange);
+  w.lstReverseTypes = _checkboxGrid(grpDir, RELATION_TYPE_LABELS, 4, onParamsChange);
 
   // ── Connections ───────────────────────────────────────────────────────────────
   const grpRout = _group(page, "Connections", 1);
@@ -1333,7 +1322,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   _nestLbl.setText("Draw these relation types as containers");
   GridDataFactory.fillDefaults().applyTo(_nestLbl);
 
-  w.lstNestingTypes = _checkboxGrid(grpNest, REL_TYPE_LABELS, 4, onParamsChange);
+  w.lstNestingTypes = _checkboxGrid(grpNest, RELATION_TYPE_LABELS, 4, onParamsChange);
 
   const ctrComp = new CompositeWidget(grpNest, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(6, 4).applyTo(ctrComp);
@@ -1417,7 +1406,7 @@ function _buildLayoutTab(tabFolder, ctx) {
 
 // Sets for fast element/relation type detection within rawModelObjects.
 const _ELEM_TYPE_SET   = new Set(ELEMENT_TYPES);
-const _REL_TYPE_ID_SET = new Set(REL_TYPE_IDS);
+const _REL_TYPE_ID_SET = new Set(RELATION_TYPE_IDS);
 
 // Creates a READ_ONLY combo + gradient Canvas strip side-by-side.
 // Registers combo on w[key] and canvas on w[key + "Canvas"]. Returns the combo.
@@ -1683,7 +1672,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   w.chkSbpRelEnabled = chkSbpRel;
 
   const sbpRelType = new ComboWidget(sbpRelHeader, SWT.READ_ONLY | SWT.DROP_DOWN);
-  sbpRelType.add("Any"); REL_TYPE_LABELS.forEach(l => sbpRelType.add(l));
+  sbpRelType.add("Any"); RELATION_TYPE_LABELS.forEach(l => sbpRelType.add(l));
   sbpRelType.select(0);
   GridDataFactory.fillDefaults().applyTo(sbpRelType);
   sbpRelType.setToolTipText("Select which relation type is styled");
@@ -1697,7 +1686,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   let sbpRelPropRefresh = null;
   const getRelTypes = () => {
     const idx = w.sbpRelType ? w.sbpRelType.getSelectionIndex() : 0;
-    return idx > 0 && REL_TYPE_IDS[idx - 1] ? [REL_TYPE_IDS[idx - 1]] : [];
+    return idx > 0 && RELATION_TYPE_IDS[idx - 1] ? [RELATION_TYPE_IDS[idx - 1]] : [];
   };
   sbpRelType.addListener(SWT.Selection, () => { if (sbpRelPropRefresh) sbpRelPropRefresh(); onChange(); });
 
@@ -2365,7 +2354,7 @@ function _syncToUI(ctx) {
   if (w.chkSbpRelEnabled) w.chkSbpRelEnabled.setSelection(!!(sbpr.enabled));
   if (w.sbpRelType) {
     const typeId = (sbpr.relTypes && sbpr.relTypes.length > 0) ? sbpr.relTypes[0].replace(/:in$|:out$/, "") : "";
-    const labelIdx = typeId ? REL_TYPE_IDS.indexOf(typeId) : -1;
+    const labelIdx = typeId ? RELATION_TYPE_IDS.indexOf(typeId) : -1;
     w.sbpRelType.select(labelIdx >= 0 ? labelIdx + 1 : 0);
   }
   _restorePropCombo(w.sbpRelProp, sbpr.property);
@@ -2515,7 +2504,7 @@ function _saveUI(ctx) {
   // Feature 1 — Style by property (relation)
   c.appearance.styleByProperty.relation.enabled   = !!(w.chkSbpRelEnabled && w.chkSbpRelEnabled.getSelection());
   const sbpRelTypeIdx = w.sbpRelType ? w.sbpRelType.getSelectionIndex() : 0;
-  c.appearance.styleByProperty.relation.relTypes  = sbpRelTypeIdx > 0 && REL_TYPE_IDS[sbpRelTypeIdx - 1] ? [REL_TYPE_IDS[sbpRelTypeIdx - 1]] : [];
+  c.appearance.styleByProperty.relation.relTypes  = sbpRelTypeIdx > 0 && RELATION_TYPE_IDS[sbpRelTypeIdx - 1] ? [RELATION_TYPE_IDS[sbpRelTypeIdx - 1]] : [];
   if (w.sbpRelProp) {
     const idx = w.sbpRelProp.getSelectionIndex();
     c.appearance.styleByProperty.relation.property = idx > 0 ? w.sbpRelProp.getItem(idx) : "";

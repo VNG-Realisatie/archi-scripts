@@ -49,17 +49,15 @@ const DEFAULT_FONT_STYLE = "normal";
 // actionId: "new_view" | "one_each" | "expand_view" | "layout_only"
 // Reset-on-disable applies only when actionId is "layout_only" or "expand_view".
 function applyAppearance(view, preset, actionId) {
-  const app = preset && preset.appearance;
-  if (!app) return;
-
+  const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
-  const nl  = app.nestingLevel            || {};
-  const hr  = app.highlightRepeated       || {};
-  const sbp = app.styleByProperty         || {};
-  const sbpe = sbp.element                || {};
-  const sbpr = sbp.relation               || {};
-  const sbrp = app.styleByRelatedProperty || {};
-  const sbce = app.styleByConnectedElement || {};
+  const nl   = app.nestingLevel;
+  const hr   = app.highlightRepeated;
+  const sbp  = app.styleByProperty;
+  const sbpe = sbp.element;
+  const sbpr = sbp.relation;
+  const sbrp = app.styleByRelatedProperty;
+  const sbce = app.styleByConnectedElement;
 
   const anyEnabled =
     nl.fontEnabled || nl.colorEnabled || hr.enabled ||
@@ -71,7 +69,7 @@ function applyAppearance(view, preset, actionId) {
   if (!anyEnabled && !isModify) return;
 
   console.log(`\nAppearance (${actionId || "?"})`);
-  const hasNestingTypes = (preset.params && (preset.params.nestingRelationTypes || []).length > 0);
+  const hasNestingTypes = preset.params.nestingRelationTypes.length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
     console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  darken=${nl.darkenPerLevel}%/level`);
   if (hr.enabled)

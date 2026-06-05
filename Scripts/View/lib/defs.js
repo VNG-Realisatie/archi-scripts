@@ -434,8 +434,9 @@ const RELATION_TYPES = Object.freeze({
 });
 
 // Derived
-const RELATION_TYPE_IDS   = Object.freeze(Object.values(RELATION_TYPES).map(v => v.id));
-const RELATION_WEIGHT_MAP = Object.freeze(Object.fromEntries(Object.values(RELATION_TYPES).map(v => [v.id, v.weight])));
+const RELATION_TYPE_IDS    = Object.freeze(Object.values(RELATION_TYPES).map(v => v.id));
+const RELATION_TYPE_LABELS = Object.freeze(Object.values(RELATION_TYPES).map(v => v.label));
+const RELATION_WEIGHT_MAP  = Object.freeze(Object.fromEntries(Object.values(RELATION_TYPES).map(v => [v.id, v.weight])));
 
 // ── Element types ─────────────────────────────────────────────────────────────
 
@@ -457,6 +458,11 @@ const ELEMENT_TYPES = Object.freeze([
   "technology-service", "value", "work-package",
 ]);
 
+// "business-actor" → "Business Actor"
+const ELEMENT_TYPE_LABELS = Object.freeze(
+  ELEMENT_TYPES.map(t => t.split("-").map(s => s ? s[0].toUpperCase() + s.slice(1) : s).join(" "))
+);
+
 // Set-like frozen object: keys are the jArchi .type strings for visual diagram objects
 // placed on a view canvas. Source list lives in _lib/selection.js (SSOT).
 // Use `type in DIAGRAM_TYPES` to test membership and `Object.keys(DIAGRAM_TYPES)` to iterate.
@@ -467,6 +473,14 @@ const ELEMENT_TYPES = Object.freeze([
 // Keeping it in the set ensures view-reference VOs classify as DiagramObjects everywhere.
 const DIAGRAM_TYPES = Object.freeze(
   Object.fromEntries(DIAGRAM_OBJECT_TYPES.map(t => [t, true]))
+);
+
+// Display labels for diagram object types. Excludes "archimate-diagram-model" (internal alias);
+// strips the "diagram-model-" prefix.
+const DIAGRAM_TYPE_LABELS = Object.freeze(
+  Object.keys(DIAGRAM_TYPES)
+    .filter(k => k !== "archimate-diagram-model")
+    .map(k => k.replace("diagram-model-", ""))
 );
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -725,8 +739,8 @@ if (typeof module !== "undefined" && module.exports) {
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
     RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
-    RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
-    ELEMENT_TYPES, DIAGRAM_TYPES,
+    RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
+    ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
