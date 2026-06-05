@@ -278,6 +278,11 @@ Preset {
     snapColumnsToGrid,              // Snap columns to grid
     showInEveryContainer            // Show in every container
                 : booleans
+
+    containerAlgorithm : string     // Algorithm for children inside containers:
+                                    // "Layered" | "Grid" | "Pack"
+    connectionsMode    : string     // How cross-container connections are routed:
+                                    // "Between containers" | "Crossing containers"
   }
 
   filter {
@@ -548,6 +553,7 @@ The Layout tab decides *how* objects are positioned.
 │ │  Draw these relation types as containers                              │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ │  ── Inside container ───────────────────────────────────────────────  │ │
+│ │  Container layout: [Layered ▼]  Connections: [Between containers ▼]  │ │
 │ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
 │ │  ☑ Sort containers ○ Align width by level   ○ Snap columns to grid    │ │
 │ │  ○ Show in every container                                             │ │
@@ -937,6 +943,35 @@ Step 6  Partition diagram objects
 - **Step 3 is a chain, not cumulative.** Step N (N ≥ 2) traverses from step N-1's additions only — not the cumulative selection. Step 1's input is the filtered base. An empty step terminates the chain (every later step adds zero). Mental model: each step refines the previous step's discoveries; step N+1 cannot bypass step N's intent.
 
 ## Nesting
+
+### Container algorithm and connections mode
+
+When nesting is active, two additional parameters control how ELK lays out container internals and routes connections between containers:
+
+| Parameter | Values | Effect |
+|---|---|---|
+| `containerAlgorithm` | `"Layered"` (default), `"Grid"`, `"Pack"` | ELK algorithm used to arrange children **inside** each container. Maps to `layered`/`box`/`rectpacking`. |
+| `connectionsMode` | `"Between containers"` (default), `"Crossing containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; cross-container connections route to/from the container as an opaque box. `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. |
+
+Valid combinations (all with root = algorithm selected by the user):
+
+| Root | Container | Connections | Cross-container edges | Container children |
+|---|---|---|---|---|
+| Layered | Layered | Between containers | Lifted to root, routed by Layered | Laid out with Layered |
+| Layered | Grid | Between containers | Lifted to root, routed by Layered | Compactly packed |
+| Layered | Grid | Crossing containers | Root sees all, routes directly | Compactly packed |
+| Layered | Pack | Between containers | Lifted to root, routed by Layered | Packed with order |
+| Layered | Pack | Crossing containers | Root sees all, routes directly | Packed with order |
+| Tree | Grid | Between containers | Lifted to root, tree-routed | Compactly packed |
+| Tree | Pack | Between containers | Lifted to root, tree-routed | Packed with order |
+| Grid | Layered | n/a (root has no edge routing) | None | Laid out with Layered |
+| Grid | Grid | n/a (root has no edge routing) | None | Compactly packed |
+| Grid | Pack | n/a (root has no edge routing) | None | Packed with order |
+| Pack | Layered | n/a (root has no edge routing) | None | Laid out with Layered |
+| Pack | Grid | n/a (root has no edge routing) | None | Compactly packed |
+| Pack | Pack | n/a (root has no edge routing) | None | Packed with order |
+
+`connectionsMode` is inactive for Pack and Grid root (their root algorithms do not route cross-container edges regardless of hierarchy mode).
 
 ### Role assignment
 

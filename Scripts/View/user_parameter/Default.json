@@ -8,17 +8,17 @@
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [
-      "realization-relationship",
+      "serving-relationship",
       "specialization-relationship"
     ],
     "nestingRelationTypes": [],
     "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
-    "alignWidthSameType": true,
+    "alignWidthSameType": false,
     "alignDebug": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
+    "showInEveryContainer": false,
     "layerSpacing": 180,
     "elementSpacing": 40,
     "elementWidth": 180,
@@ -26,7 +26,7 @@
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
-    "viewSizeMode": "aspectRatio"
+    "viewSizeMode": "none"
   },
   "filter": {
     "elementTypes": [],
@@ -37,7 +37,7 @@
     "steps": []
   },
   "view": {
-    "name": "Toelichting Informatiebeveiligingsfunctionaliteit",
+    "name": "Ondersteuning",
     "folder": "/View/_Generated"
   },
   "appearance": {

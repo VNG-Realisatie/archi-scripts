@@ -353,20 +353,23 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   const rootEdges    = _classifyEdges(edgeList, parentMap, nodeMap);
 
   // Container nodes: let ELK auto-size from children + padding.
-  // All per-container ELK options come from PARAM_MAPPING.container — direction, routing,
-  // spacing, and padding (with CONTAINER_LABEL_CLEARANCE added to top).
-  // elk.hierarchyHandling = SEPARATE_CHILDREN is required to trigger compound layout for all
-  // algorithms. Without it, Pack (rectpacking) and Grid (box) default to flat mode — containers
-  // are treated as opaque boxes, children are never laid out, container sizes stay at 0.
+  // containerAlgorithm param selects the ELK algorithm used inside each container.
+  // connectionsMode param selects SEPARATE_CHILDREN (default) or INCLUDE_CHILDREN.
   const containerEngineOpts = _mapParamsScoped(graph.algorithm, graph.options, "container");
+  const containerAlgName = graph.options.containerAlgorithm;
+  const containerAlgoId  = containerAlgName
+    ? ALGORITHMS[containerAlgName].engineAlgorithmId
+    : ALGORITHMS[graph.algorithm].engineAlgorithmId;
+  const hierarchyMode = graph.options.connectionsMode === "Crossing containers"
+    ? "INCLUDE_CHILDREN" : "SEPARATE_CHILDREN";
   const hasContainers = Object.keys(parentMap).length > 0;
   for (const [nodeId, node] of Object.entries(nodeMap)) {
     if (!node.children || node.children.length === 0) continue;
     delete node.width;   // ELK computes container size from children + padding
     delete node.height;
     node.layoutOptions = {
-      "elk.algorithm":         ALGORITHMS[graph.algorithm].engineAlgorithmId,
-      "elk.hierarchyHandling": "SEPARATE_CHILDREN",
+      "elk.algorithm":         containerAlgoId,
+      "elk.hierarchyHandling": hierarchyMode,
       ...containerEngineOpts,
     };
     // alignWidthSameType pass 2: floor the container width to its per-level target
@@ -377,15 +380,16 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     }
   }
 
-  // Also set hierarchyHandling on the root when containers are present, so ELK processes them.
-  if (hasContainers) layoutOptions["elk.hierarchyHandling"] = "SEPARATE_CHILDREN";
+  // Set hierarchyHandling on root when containers are present.
+  if (hasContainers) layoutOptions["elk.hierarchyHandling"] = hierarchyMode;
 
-  // orderBySize: only for Pack, and only when sortContainers is off — they conflict because
+  // orderBySize: only for Pack root, and only when sortContainers is off — they conflict because
   // sortContainers pre-sorts by type+name and orderBySize overrides that with size-first order.
   if (graph.algorithm === "Pack" && !graph.sortContainers) {
     layoutOptions["elk.rectpacking.orderBySize"] = "true";
     for (const node of Object.values(nodeMap)) {
-      if (node.layoutOptions) node.layoutOptions["elk.rectpacking.orderBySize"] = "true";
+      if (node.layoutOptions && containerAlgoId === "rectpacking")
+        node.layoutOptions["elk.rectpacking.orderBySize"] = "true";
     }
   }
 

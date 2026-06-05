@@ -68,11 +68,11 @@ function buildObjectSet(uiSelection, preset, actionId) {
   });
   const filteredCounts = { elems: _fEl, rels: _fRel, diag: diagramObjects.length };
 
-  // Effective rel-type filter (same union used by step 5) — needed up front so the
-  // per-step relation deltas in step 3's logging match the final step-5 outcome.
+  // Relation-type filter for the final view: global filter only.
+  // Step relationTypes are traversal-only (which relations to walk to find new elements);
+  // they must NOT restrict which relations are rendered on the view.
   const globalRelTypes = (preset.filter && preset.filter.relationTypes) || [];
-  const relTypeFilter  = _effectiveRelTypeFilter(globalRelTypes,
-                          preset.relatedElements && preset.relatedElements.steps);
+  const relTypeFilter  = globalRelTypes;
 
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
@@ -98,6 +98,12 @@ function buildObjectSet(uiSelection, preset, actionId) {
     let stepIdx = 0;
     for (const step of preset.relatedElements.steps) {
       stepIdx++;
+      // Log which relation types / directions this step traverses.
+      const stepRelStr  = (step.relationTypes && step.relationTypes.length > 0)
+        ? step.relationTypes.join(", ") : "all";
+      const stepElemStr = (step.elementTypes  && step.elementTypes.length > 0)
+        ? step.elementTypes.join(", ")  : "all";
+      console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  depth: ${step.depth || 1}  ·  element types: ${stepElemStr}`);
       const added = _expandStep(stepInput, step);
       // Add to the final selection (collection).
       added.forEach(o => {

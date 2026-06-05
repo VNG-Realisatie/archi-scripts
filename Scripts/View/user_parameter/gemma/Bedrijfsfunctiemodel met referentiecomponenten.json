@@ -1,6 +1,6 @@
 {
-  "name": "Bedrijfsfunctiemodel met referentiecomponenten",
-  "algorithm": "Grid",
+  "name": "gemma/Bedrijfsfunctiemodel met referentiecomponenten",
+  "algorithm": "Layered",
   "params": {
     "direction": "Left → Right",
     "routing": "Polyline",
@@ -20,16 +20,17 @@
     "padding": 20,
     "sortContainers": true,
     "alignWidthSameType": true,
+    "alignDebug": false,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
     "layerSpacing": 180,
     "elementSpacing": 40,
     "elementWidth": 300,
-    "elementHeight": 40,
+    "elementHeight": 60,
     "maxWidth": 5000,
     "maxHeight": 1000,
     "aspectRatio": 0.75,
-    "viewSizeMode": "aspectRatio"
+    "viewSizeMode": "none"
   },
   "filter": {
     "elementTypes": [
@@ -73,29 +74,33 @@
     ]
   },
   "view": {
-    "name": "Ondersteuning",
+    "name": "Beheren fysieke objecten",
     "folder": "/_Test/_Generated"
   },
   "appearance": {
     "styleByProperty": {
       "element": {
+        "enabled": false,
         "elementType": "",
         "property": "Vertrouwelijkheid",
         "colorRange": "Reds"
       },
       "relation": {
+        "enabled": false,
         "relTypes": [],
         "property": "",
         "colorRange": "Reds",
-        "resize": false
+        "lineWidth": 0
       }
     },
     "styleByRelatedProperty": {
+      "enabled": false,
       "relTypes": [],
       "property": "",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
+      "enabled": false,
       "relTypes": [],
       "elementType": "driver",
       "property": "",
@@ -112,11 +117,11 @@
       "darkenPerLevel": 15
     },
     "highlightRepeated": {
-      "enabled": false,
-      "colorRange": "Blues"
+      "enabled": true,
+      "colorRange": "Pastel1"
     }
   },
-  "_lastTabIndex": 2,
+  "_lastTabIndex": 1,
   "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
   "action": "new_view"
 }

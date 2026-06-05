@@ -1,6 +1,6 @@
 {
-  "name": "all",
-  "algorithm": "Layered",
+  "name": "gemma/Bedrijfsobjectmodel",
+  "algorithm": "Dagre",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -9,36 +9,71 @@
     "acyclicer": "Default",
     "reverseRelationTypes": [
       "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
+      "serving-relationship"
     ],
-    "nestingRelationTypes": [],
-    "innerSpacing": 10,
-    "padding": 20,
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 5,
+    "padding": 10,
     "sortContainers": false,
-    "alignWidthSameType": false,
+    "alignWidthSameType": true,
     "alignDebug": false,
-    "snapColumnsToGrid": false,
+    "snapColumnsToGrid": true,
     "showInEveryContainer": false,
     "layerSpacing": 180,
-    "elementSpacing": 40,
-    "elementWidth": 140,
+    "elementSpacing": 100,
+    "elementWidth": 180,
     "elementHeight": 60,
-    "maxWidth": 0,
+    "maxWidth": 5000,
     "maxHeight": 1000,
-    "aspectRatio": 0,
+    "aspectRatio": 1.33,
     "viewSizeMode": "none"
   },
   "filter": {
-    "elementTypes": [],
+    "elementTypes": [
+      "grouping"
+    ],
     "relationTypes": [],
     "diagramTypes": []
   },
   "relatedElements": {
-    "steps": []
+    "steps": [
+      {
+        "depth": 4,
+        "elementTypes": [
+          "business-object"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "business-object"
+        ],
+        "relationTypes": [
+          "association-relationship",
+          "specialization-relationship"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:in"
+        ],
+        "diagramTypes": []
+      }
+    ]
   },
   "view": {
-    "name": "Ondersteuning",
+    "name": "Archief",
     "folder": "/_Test/_Generated"
   },
   "appearance": {
@@ -74,7 +109,7 @@
     "nestingLevel": {
       "fontEnabled": false,
       "rootFontSize": 14,
-      "rootFontBold": false,
+      "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
       "rootColor": "#2B5796",
@@ -85,7 +120,7 @@
       "colorRange": "Pastel1"
     }
   },
-  "_lastTabIndex": 1,
-  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
+  "_lastTabIndex": 0,
+  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

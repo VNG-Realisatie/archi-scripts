@@ -1,5 +1,5 @@
 {
-  "name": "Bedrijfsobjecten per beleidsdomein",
+  "name": "gemma/Bedrijfsobjecten per beleidsdomein",
   "algorithm": "Pack",
   "params": {
     "direction": "Top → Bottom",
@@ -18,8 +18,10 @@
     "padding": 10,
     "sortContainers": false,
     "alignWidthSameType": true,
+    "alignDebug": false,
+    "snapColumnsToGrid": true,
     "showInEveryContainer": false,
-    "layerSpacing": 180,
+    "layerSpacing": 120,
     "elementSpacing": 100,
     "elementWidth": 180,
     "elementHeight": 60,
@@ -54,6 +56,51 @@
     "name": "6 Sociaal Domein",
     "folder": "/_Test/_Generated"
   },
-  "_lastTabIndex": 0,
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "darkenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "_lastTabIndex": 1,
+  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
   "action": "new_view"
 }

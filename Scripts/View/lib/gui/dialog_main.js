@@ -70,7 +70,9 @@ const ACYCLICER_LABELS   = ACYCLICER.map(a => a.val);
 const AR_LABELS          = AR_OPTIONS.map(a => a.label);
 const REL_TYPE_LABELS    = Object.values(RELATION_TYPES).map(r => r.label);
 const REL_TYPE_IDS       = Object.values(RELATION_TYPES).map(r => r.id);
-const DIAG_TYPE_LABELS   = ["connection", "group", "image", "legend", "note", "reference"];
+const DIAG_TYPE_LABELS         = ["connection", "group", "image", "legend", "note", "reference"];
+const CONTAINER_ALGO_LABELS    = ["Layered", "Grid", "Pack"];
+const CONNECTIONS_MODE_LABELS  = ["Between containers", "Crossing containers"];
 
 // ColorBrewer scheme names from Chroma.js — used in all Appearance tab colour-range combos.
 // Must stay in sync with COLOR_RANGES in appearance.js.
@@ -758,7 +760,9 @@ function _updateFilteredCount(ctx) {
       }
     }
 
-    // Build the effective rel-type filter once (global ∪ all steps' relationTypes).
+    // Step traversal filters are direction/type constraints for _expandStep only.
+    // The view relation filter uses the global filter exclusively — step relationTypes
+    // must NOT restrict which relations are rendered on the generated view.
     const globalRelIds = _relLabelsToIds(Array.from(relLabels));
     const steps = (ctx.relBlocks || []).map(b => ({
       depth:         b.depthSpinner.getSelection(),
@@ -766,9 +770,9 @@ function _updateFilteredCount(ctx) {
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
     }));
-    const effectiveRelFilter = Pipeline.effectiveRelTypeFilter(globalRelIds, steps);
+    const effectiveRelFilter = globalRelIds;
 
-    // Rels-between filtered elements under the effective filter (NOT a raw-selection
+    // Rels-between filtered elements under the global filter (NOT a raw-selection
     // relation count). Honours the user's rule: "you can't have a relation without
     // the elements" — only rels with both endpoints in the surviving element set count.
     const filteredBaseRels = Pipeline.countRelationsBetween(filteredElements, effectiveRelFilter);
@@ -1340,6 +1344,13 @@ function _buildLayoutTab(tabFolder, ctx) {
   const _ctrLbl = new LabelWidget(ctrComp, SWT.NONE);
   _ctrLbl.setText("Inside container");
   GridDataFactory.fillDefaults().span(4, 1).applyTo(_ctrLbl);
+
+  // Row: Container layout | Connections mode (fills all 4 cols exactly)
+  _addCombo(ctrComp, "Container layout:", CONTAINER_ALGO_LABELS,   0, 120, "cmbContainerAlgorithm", w,
+    "ELK algorithm used to arrange children inside each container.");
+  _addCombo(ctrComp, "Connections:",      CONNECTIONS_MODE_LABELS, 0, 160, "cmbConnectionsMode", w,
+    "Between containers: connections route to/from the container box as a whole. " +
+    "Crossing containers: connections route through container boundaries to specific elements.");
 
   // Row: Inner spacing | Padding (fills all 4 cols exactly)
   _addSpinnerRow(ctrComp, "Inner spacing:", "spinInnerSpacing", 20, 0, 200, 5, w, "Minimum distance between elements inside a container (px).");
@@ -2254,7 +2265,15 @@ function _syncToUI(ctx) {
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
   _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
   _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
-  _chkSet(w.chkShowInEvery,       !!(p.showInEveryContainer));
+  _chkSet(w.chkShowInEvery, !!(p.showInEveryContainer));
+  if (w.cmbContainerAlgorithm) {
+    const idx = CONTAINER_ALGO_LABELS.indexOf(p.containerAlgorithm || "Layered");
+    w.cmbContainerAlgorithm.select(idx >= 0 ? idx : 0);
+  }
+  if (w.cmbConnectionsMode) {
+    const idx = CONNECTIONS_MODE_LABELS.indexOf(p.connectionsMode || "Between containers");
+    w.cmbConnectionsMode.select(idx >= 0 ? idx : 0);
+  }
 
   // Sizes
   _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : DP.elementWidth);
@@ -2443,7 +2462,9 @@ function _saveUI(ctx) {
   if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
   if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
   if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
-  if (w.chkShowInEvery)        c.params.showInEveryContainer           = w.chkShowInEvery.getSelection();
+  if (w.chkShowInEvery)          c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
+  if (w.cmbContainerAlgorithm)   c.params.containerAlgorithm   = w.cmbContainerAlgorithm.getText();
+  if (w.cmbConnectionsMode)      c.params.connectionsMode      = w.cmbConnectionsMode.getText();
 
   // Sizes
   if (w.spinElementWidth)   c.params.elementWidth   = w.spinElementWidth.getSelection();
@@ -2563,8 +2584,10 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkSortContainers,  active.has("sortContainers"));
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
-  _enable(w.chkShowInEvery,     active.has("showInEveryContainer"));
-  _enable(w.spinLayerSpacing,   active.has("layerSpacing"));
+  _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
+  _enable(w.cmbContainerAlgorithm,   active.has("containerAlgorithm"));
+  _enable(w.cmbConnectionsMode,      active.has("connectionsMode"));
+  _enable(w.spinLayerSpacing,        active.has("layerSpacing"));
 
   // View size radios: enable/disable each option based on algorithm support.
   // The spinners/combo are controlled by _applyViewSizeMode, not directly here.

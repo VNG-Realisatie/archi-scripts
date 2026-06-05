@@ -340,6 +340,41 @@ Distributes nodes randomly. Only useful for testing or demonstrating the value o
 | Padding | `elk.padding` | `15` |
 | Randomization Seed | `elk.randomSeed` | `0` |
 
+## Compound graphs with edges
+
+When a graph has both containment (nesting) AND connections (edges), the choice of root algorithm and container algorithm matters.
+
+### Root algorithm capabilities
+
+| Root algo | Routes edges? | Supports compound? |
+|---|---|---|
+| `layered` | ✓ | ✓ full |
+| `mrtree` | ✓ (acyclic only) | ✓ full |
+| `force` / `stress` | ✓ | ✗ none |
+| `box` (Grid) | ✗ | ✓ (children only) |
+| `rectpacking` (Pack) | ✗ | ✓ (children only) |
+
+`box` and `rectpacking` are packing-only — they do not route edges. After layout, ELK returns edges **without `sections`** (no `startPoint`/`endPoint`/`bendPoints`). Any code that requires `edge.sections[0]` to write connections will find nothing.
+
+### Hierarchy handling
+
+- `SEPARATE_CHILDREN` (default): root lays out containers as opaque boxes; each container's algorithm runs independently; cross-container edges are lifted to the root before ELK is called.
+- `INCLUDE_CHILDREN`: root algorithm processes all nodes (nested and standalone) as one combined graph; best for complex cross-hierarchy routing.
+
+### Valid combinations
+
+| Root | Container | Hierarchy | Notes |
+|---|---|---|---|
+| `layered` | `layered` | `SEPARATE_CHILDREN` | Sub-graphs with intra-container edges |
+| `layered` | `box` | `SEPARATE_CHILDREN` | Cross-container edges, compact children |
+| `layered` | `box` | `INCLUDE_CHILDREN` | Complex cross-hierarchy routing |
+| `layered` | `rectpacking` | `SEPARATE_CHILDREN` | Ordered compact containers |
+| `mrtree` | `box` | `SEPARATE_CHILDREN` | Tree root + compact containers |
+| `box` | `layered` | `SEPARATE_CHILDREN` | Pack overview + directed sub-graphs |
+| `rectpacking` | `layered` | `SEPARATE_CHILDREN` | Ordered packing + directed sub-graphs |
+
+Container algorithms `box` and `rectpacking` never see cross-container edges — those are handled by the root. The "no edges" constraint on `box`/`rectpacking` is not violated when used as container algorithms.
+
 ## Default Algorithms in elkjs
 
 The `ELK` constructor includes these algorithms by default:
