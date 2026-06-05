@@ -1328,6 +1328,10 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(ctrComp, "Connections:",      CONNECTIONS_MODE_LABELS, 0, 160, "cmbConnectionsMode", w,
     "Between containers: connections route to/from the container box as a whole. " +
     "Crossing containers: connections route through container boundaries to specific elements.");
+  if (w.cmbContainerAlgorithm)
+    w.cmbContainerAlgorithm.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  if (w.cmbConnectionsMode)
+    w.cmbConnectionsMode.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
   // Row: Inner spacing | Padding (fills all 4 cols exactly)
   _addSpinnerRow(ctrComp, "Inner spacing:", "spinInnerSpacing", 20, 0, 200, 5, w, "Minimum distance between elements inside a container (px).");
@@ -2564,6 +2568,39 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
   _enable(w.cmbContainerAlgorithm,   active.has("containerAlgorithm"));
   _enable(w.cmbConnectionsMode,      active.has("connectionsMode"));
+  // "Crossing containers" (INCLUDE_CHILDREN) requires the same algorithm at all hierarchy
+  // levels. The two combos enforce this constraint on each other:
+  //   • container algo ≠ root  → disable connections mode, reset to "Between containers"
+  //   • connections mode = "Crossing containers"  → filter container algo to root only
+  if (w.cmbConnectionsMode && w.cmbContainerAlgorithm) {
+    const crossingSelected = w.cmbConnectionsMode.isEnabled()
+      && w.cmbConnectionsMode.getText() === "Crossing containers";
+
+    if (crossingSelected) {
+      // Filter container algo dropdown to root algorithm only.
+      const curCtr = w.cmbContainerAlgorithm.getText();
+      w.cmbContainerAlgorithm.removeAll();
+      w.cmbContainerAlgorithm.add(algName);
+      w.cmbContainerAlgorithm.select(0);
+    } else {
+      // Restore full container algo list (may have been narrowed by the branch above).
+      const fullList = (alg.supportedOptions && alg.supportedOptions.containerAlgorithm) || [];
+      if (fullList.length > 0) {
+        const curCtr = w.cmbContainerAlgorithm.getText();
+        w.cmbContainerAlgorithm.removeAll();
+        fullList.forEach(a => w.cmbContainerAlgorithm.add(a));
+        const ni = fullList.indexOf(curCtr);
+        w.cmbContainerAlgorithm.select(ni >= 0 ? ni : 0);
+      }
+      // If container algo ≠ root, connections mode cannot be "Crossing containers".
+      const ctrAlgo = w.cmbContainerAlgorithm.getText();
+      if (w.cmbConnectionsMode.isEnabled() && ctrAlgo && ctrAlgo !== algName) {
+        _enable(w.cmbConnectionsMode, false);
+        const idx = CONNECTIONS_MODE_LABELS.indexOf("Between containers");
+        if (idx >= 0) w.cmbConnectionsMode.select(idx);
+      }
+    }
+  }
   _enable(w.spinLayerSpacing,        active.has("layerSpacing"));
 
   // View size radios: enable/disable each option based on algorithm support.

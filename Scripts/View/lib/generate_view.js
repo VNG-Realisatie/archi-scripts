@@ -69,6 +69,18 @@ function generate_view(rawPreset, uiSelection, actionId) {
   console.log(`\n=== generate_view ===`);
   console.log(`Action: ${action}`);
   console.log(`Algorithm: ${preset.algorithm}`);
+  {
+    const p = preset.params;
+    const parts = [
+      p.direction        && `dir=${p.direction}`,
+      p.routing          && `routing=${p.routing}`,
+      p.labelPosition    && `label=${p.labelPosition}`,
+      `spacing=el:${p.elementSpacing ?? "—"} layer:${p.layerSpacing ?? "—"}`,
+      `size=${p.elementWidth ?? "—"}×${p.elementHeight ?? "—"}`,
+      (p.nestingRelationTypes && p.nestingRelationTypes.length) && `nesting=${p.nestingRelationTypes.length}types containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode || "Between containers"}`,
+    ].filter(Boolean);
+    console.log(`Params: ${parts.join("  ")}`);
+  }
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";
@@ -696,6 +708,8 @@ function _applyEdgeStyle(connection, re, preset) {
 
   try { connection.deleteAllBendpoints(); } catch (e) { console.error(`Failed to clear bendpoints on ${connection && connection.id}: ${e}`); }
 
+  const _dbg = preset.params.alignDebug;
+
   // Self-loop: use engine bendpoints when the engine routed the connection
   // (Graphviz native, Dagre partial). Synthesise a NE-corner loop only when
   // the engine provided none (ELK passes self-loops through unrouted).
@@ -708,7 +722,10 @@ function _applyEdgeStyle(connection, re, preset) {
     return;
   }
 
-  if (re.isStraight || !re.bendpoints || re.bendpoints.length === 0) return;
+  if (re.isStraight || !re.bendpoints || re.bendpoints.length === 0) {
+    if (_dbg) console.log(`    [edge-bp] ${re.id}  bps=0${re.isStraight ? " (isStraight)" : ""}  → straight line`);
+    return;
+  }
 
   const srcCenter = _getAbsCenter(connection.source);
   const tgtCenter = _getAbsCenter(connection.target);
@@ -720,6 +737,15 @@ function _applyEdgeStyle(connection, re, preset) {
     endX:   Math.round(bp.x - tgtCenter.x),
     endY:   Math.round(bp.y - tgtCenter.y),
   }));
+
+  if (_dbg) {
+    console.log(`    [edge-bp] ${re.id}  src=(${srcCenter.x},${srcCenter.y}) tgt=(${tgtCenter.x},${tgtCenter.y})  bps=${re.bendpoints.length}${isReversed ? "  reversed" : ""}`);
+    re.bendpoints.forEach((bp, i) => {
+      const r = archiBps[i];
+      console.log(`      bp[${i}] abs=(${bp.x},${bp.y})  → start=(${r.startX},${r.startY}) end=(${r.endX},${r.endY})`);
+    });
+  }
+
   const ordered = isReversed ? archiBps.reverse() : archiBps;
   ordered.forEach((bp, i) => { try { connection.addRelativeBendpoint(bp, i); } catch (e) {} });
 }

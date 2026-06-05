@@ -255,6 +255,21 @@ function layout(graph) {
   const log      = msg => console.log("  " + msg);
   const debugLog = graph.options.alignDebug ? log : null;
 
+  // ── ELK config log (permanent) ────────────────────────────────────────────────
+  {
+    const containerAlgName = graph.options.containerAlgorithm;
+    const containerAlgoId  = (containerAlgName && ALGORITHMS[containerAlgName])
+      ? ALGORITHMS[containerAlgName].engineAlgorithmId
+      : alg.engineAlgorithmId;
+    const hasNesting = Object.keys(parentMap).length > 0;
+    const hierMode   = !hasNesting ? "n/a (no nesting)"
+      : graph.options.connectionsMode === "Crossing containers" ? "INCLUDE_CHILDREN" : "SEPARATE_CHILDREN";
+    const rootRouting = rootEngineOpts["elk.edgeRouting"] || "(engine default)";
+    log(`ELK config:  root=${graph.algorithm}(${alg.engineAlgorithmId})  routing=${rootRouting}  hierarchy=${hierMode}` +
+        (hasNesting ? `  container=${containerAlgName || graph.algorithm}(${containerAlgoId})` : ""));
+    log(`ELK layoutOptions: ${JSON.stringify(layoutOptions)}`);
+  }
+
   // Two-pass layout for alignWidthSameType (width alignment by nesting level):
   // pass 1 renders every box at its natural width → compute a per-level target width
   // (engine-utils.alignWidthsByLevel) → pass 2 with leaves set to that width and
@@ -323,7 +338,8 @@ function layout(graph) {
 
   // Center-snap columns to a global grid (position-only; grows containers, never resizes
   // leaves). Aligns leaf columns top-to-bottom across the view. Gated on its own toggle.
-  if (graph.snapColumnsToGrid && Object.keys(parentMap).length > 0) {
+  const _hasContainers = Object.keys(parentMap).length > 0;
+  if (graph.snapColumnsToGrid && _hasContainers) {
     const nameById = {};
     for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
     _snapColumnsToGrid(resultNodes, graph.options, nameById, log);
@@ -331,7 +347,7 @@ function layout(graph) {
 
   // Collect edges
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
-  _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines);
+  _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, debugLog);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   resultEdges.push(...selfLoops.map(selfLoopResult));
@@ -393,7 +409,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     }
   }
 
-  const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap);
+  const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap, hierarchyMode === "INCLUDE_CHILDREN");
   const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges };
   // maxWidth / maxHeight as root graph bounds — ELK algorithms that support bounded layout use them.
   if (graph.options.maxWidth  > 0) elkGraph.width  = graph.options.maxWidth;
@@ -491,7 +507,7 @@ function _classifyEdges(edgeList, parentMap, nodeMap) {
 }
 
 
-function _liftCrossHierarchyEdges(rootEdges, parentMap) {
+function _liftCrossHierarchyEdges(rootEdges, parentMap, includeChildren) {
   const liftedEdgesMap = {};
   const liftedRootEdges = rootEdges.map(edge => {
     const srcId = edge.sources[0], tgtId = edge.targets[0];
@@ -501,6 +517,15 @@ function _liftCrossHierarchyEdges(rootEdges, parentMap) {
     p = parentMap[liftedTgt];
     while (p !== undefined) { liftedTgt = p; p = parentMap[liftedTgt]; }
     if (liftedSrc === liftedTgt) return null;
+
+    if (includeChildren) {
+      // INCLUDE_CHILDREN: ELK sees all nodes and routes edges between the actual elements,
+      // including the inside-container path. Keep original IDs — no entry in liftedEdgesMap.
+      return edge;
+    }
+
+    // SEPARATE_CHILDREN: replace nested IDs with topmost ancestor so ELK routes between
+    // opaque containers.
     if (liftedSrc !== srcId || liftedTgt !== tgtId) {
       liftedEdgesMap[edge.id] = { origSrcId: srcId, origTgtId: tgtId };
       return Object.assign({}, edge, { sources: [liftedSrc], targets: [liftedTgt] });
@@ -615,28 +640,67 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
   }
 }
 
-function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines) {
+function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines, debugLog) {
   const containerNodeId = elkNode.id === "root" ? null : elkNode.id;
   const containerNode   = containerNodeId ? resultNodes.find(n => n.id === containerNodeId) : null;
   const offsetX = containerNode ? containerNode.x : 0;
   const offsetY = containerNode ? containerNode.y : 0;
 
+  if (debugLog && containerNodeId) {
+    if (!containerNode)
+      debugLog(`⚠ [edge-collect] container "${containerNodeId}" not in resultNodes — offset forced to (0,0)!`);
+    else
+      debugLog(`  [edge-collect] container "${containerNodeId}" abs=(${offsetX},${offsetY})  edges=${(elkNode.edges || []).length}`);
+  }
+
   for (const edge of (elkNode.edges || [])) {
-    const section = edge.sections && edge.sections[0];
-    if (!section) continue;
+    const sections = edge.sections;
+    if (!sections || sections.length === 0) continue;
+    const section = sections[0];  // used for label position, debug section coords, and spline sampling
 
     const lifted = liftedEdgesMap && liftedEdgesMap[edge.id];
     const originalId = edge._archiRelId || edge.id;
 
-    // For SPLINES routing, ELK outputs Bézier control points which Archi would render as
-    // polyline waypoints (Archi has no native Bézier rendering). Control points near the
-    // element boundary produce a visible segment from the element centre. Fix: sample the
-    // actual Bézier curve and give Archi points ON the curve instead.
-    const bps = isSplines
-      ? _sampleSplineSection(section, offsetX, offsetY, SPLINE_SAMPLE_POINTS)
-      : (section.bendPoints || []).map(bp => ({
-          x: Math.round(offsetX + bp.x), y: Math.round(offsetY + bp.y),
-        }));
+    // Collect bendpoints from ALL sections. With INCLUDE_CHILDREN, ELK may produce multiple
+    // sections for cross-hierarchy edges (one per hierarchy level crossing). Concatenate them
+    // so the full path — including the inside-container segment — reaches the writer.
+    // For SPLINES, only section[0] is sampled (SPLINES is not used with INCLUDE_CHILDREN).
+    let bps;
+    if (isSplines) {
+      bps = _sampleSplineSection(section, offsetX, offsetY, SPLINE_SAMPLE_POINTS);
+    } else {
+      bps = [];
+      for (let si = 0; si < sections.length; si++) {
+        const sec = sections[si];
+        // Add the section-junction point as a bendpoint when consecutive sections don't share
+        // their endpoint/startpoint (ELK always chains them, but be explicit).
+        if (si > 0) {
+          const prev = sections[si - 1].endPoint || { x: 0, y: 0 };
+          const cur  = sec.startPoint            || { x: 0, y: 0 };
+          if (Math.abs(cur.x - prev.x) > 0.5 || Math.abs(cur.y - prev.y) > 0.5) {
+            bps.push({ x: Math.round(offsetX + prev.x), y: Math.round(offsetY + prev.y) });
+          }
+        }
+        for (const bp of (sec.bendPoints || [])) {
+          bps.push({ x: Math.round(offsetX + bp.x), y: Math.round(offsetY + bp.y) });
+        }
+      }
+    }
+
+    if (debugLog) {
+      const sp = section.startPoint || { x: 0, y: 0 };
+      const lastSec = sections[sections.length - 1];
+      const ep = (lastSec && lastSec.endPoint) || { x: 0, y: 0 };
+      const liftStr = lifted
+        ? `  LIFTED origSrc=${lifted.origSrcId.substring(0, 8)} origTgt=${lifted.origTgtId.substring(0, 8)}`
+        : "";
+      const secStr = sections.length > 1 ? ` (${sections.length} sections)` : "";
+      debugLog(`  [edge] ${originalId.substring(0, 14)}${liftStr}${secStr}` +
+               `  section=(${Math.round(offsetX + sp.x)},${Math.round(offsetY + sp.y)})→(${Math.round(offsetX + ep.x)},${Math.round(offsetY + ep.y)})` +
+               `  bps=${bps.length}${bps.length === 0 ? "  ← NO BENDPOINTS (will render straight)" : ""}`);
+      if (bps.length > 0)
+        debugLog(`         ${bps.map((b, i) => `bp[${i}]=(${b.x},${b.y})`).join("  ")}`);
+    }
 
     // Label position
     const { labelX, labelY } = _computeLabelPoint(section, bps, offsetX, offsetY, labelPosition, edge._relName);
@@ -653,7 +717,7 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
   }
 
   for (const child of (elkNode.children || [])) {
-    _collectEdgeResults(child, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines);
+    _collectEdgeResults(child, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines, debugLog);
   }
 }
 

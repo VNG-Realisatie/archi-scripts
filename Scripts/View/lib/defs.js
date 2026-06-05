@@ -40,7 +40,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
+      "sortContainers", "alignWidthSameType", "alignDebug",
       "showInEveryContainer", "containerAlgorithm", "connectionsMode",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
@@ -66,7 +66,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
+      "sortContainers", "alignWidthSameType", "alignDebug",
       "showInEveryContainer", "containerAlgorithm",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",

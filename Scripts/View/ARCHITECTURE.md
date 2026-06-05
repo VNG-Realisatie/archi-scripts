@@ -1619,6 +1619,13 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 
 Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph — they are never passed to ELK and do not appear in the result. Layered (`supportsSelfLoops: true`) passes self-loops through with empty bendpoints; the writer synthesises a NE-corner loop via `_synthesiseSelfLoopBendpoints`.
 
+**Cross-hierarchy edge handling — `_liftCrossHierarchyEdges`.** `_classifyEdges` routes same-immediate-parent edges into their container's `edges[]` array; all other edges (cross-hierarchy and root-level) go into `rootEdges[]`. `_liftCrossHierarchyEdges` then processes `rootEdges` in two modes:
+
+- **SEPARATE_CHILDREN** (`Between containers`): each nested endpoint ID is replaced with its topmost root-level ancestor ID. ELK routes between the opaque container boundaries. The original IDs are stored in `liftedEdgesMap`; `_collectEdgeResults` uses the map to restore them on the result edge so the writer can locate the correct visual relation.
+- **INCLUDE_CHILDREN** (`Crossing containers`): original nested element IDs are kept — `liftedEdgesMap` stays empty. ELK receives the actual element IDs and routes the full path, including the segment inside the container. `_collectEdgeResults` concatenates all `edge.sections` (not only `[0]`) because ELK may split a cross-hierarchy route into one section per hierarchy level.
+
+Both modes filter edges where `liftedSrc === liftedTgt` (both endpoints share the same topmost ancestor) — those edges are already owned by the shared container and must not appear as duplicates in root.
+
 Ref: `lib/engines/elk.js`.
 
 ### Dagre
