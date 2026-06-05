@@ -409,7 +409,7 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
       if (val !== null && val !== undefined && val !== "") {
         sourcePropValue.set(conceptId, String(val));
       }
-    } catch (e) {}
+    } catch (e) { console.log(`  styleByConnectedElement: error reading property for ${targetId}: ${e}`); }
   });
 
   console.log(`  styleByConnectedElement: ${sourcePropValue.size} source elements matched  prop="${settings.property}"`);

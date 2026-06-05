@@ -30,7 +30,8 @@ const Chroma    = require("chroma-js");
 const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
-  ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS,
+  ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
+  DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
   COLOR_RANGES,
   DEFAULT_PRESET, validatePreset,
   encodeRelType, decodeRelType,
@@ -103,29 +104,17 @@ const _listGetSelected  = _ctrlGetSelected;
 function _relIdsToLabels(ids) {
   return ids.map(id => {
     const base = id.replace(/:in$|:out$/, "");
-    const rt = Object.values(RELATION_TYPES).find(r => r.id === base);
-    return rt ? rt.label : base;
+    const idx  = RELATION_TYPE_IDS.indexOf(base);
+    return idx >= 0 ? RELATION_TYPE_LABELS[idx] : base;
   });
 }
 
-// Map relation type labels → IDs.
 function _relLabelsToIds(labels) {
   return labels.map(lbl => {
-    const rt = Object.values(RELATION_TYPES).find(r => r.label === lbl);
-    return rt ? rt.id : lbl;
+    const idx = RELATION_TYPE_LABELS.indexOf(lbl);
+    return idx >= 0 ? RELATION_TYPE_IDS[idx] : lbl;
   });
 }
-
-// Map diagram type IDs → display labels.
-const DIAG_ID_TO_LABEL = {
-  "diagram-model-group":      "group",
-  "diagram-model-note":       "note",
-  "diagram-model-connection": "connection",
-  "diagram-model-image":      "image",
-  "diagram-model-reference":  "reference",
-  "diagram-model-legend":     "legend",
-};
-const DIAG_LABEL_TO_ID = Object.fromEntries(Object.entries(DIAG_ID_TO_LABEL).map(([k, v]) => [v, k]));
 
 // Wrap a tab's content composite in a ScrolledComposite so it survives dialog resize.
 // Returns the inner content composite to add widgets to.
@@ -724,7 +713,7 @@ function _updateFilteredCount(ctx) {
     const diagLabels = new Set(_ctrlGetSelected(w.lstFilterDiagram));
 
     const relIds  = new Set(_relLabelsToIds(Array.from(relLabels)));
-    const diagIds = new Set(Array.from(diagLabels).map(l => DIAG_LABEL_TO_ID[l] || l));
+    const diagIds = new Set(Array.from(diagLabels).map(l => DIAGRAM_TYPE_LABEL_TO_ID[l] || l));
     // jArchi still returns .type === "archimate-diagram-model" for view-reference VOs;
     // add the alias so "reference" filter correctly counts them.
     if (diagIds.has("diagram-model-reference")) diagIds.add("archimate-diagram-model");
@@ -2289,7 +2278,7 @@ function _syncToUI(ctx) {
   // Filter multi-select lists
   if (w.lstFilterElements)  _listSelectLabels(w.lstFilterElements,  c.filter ? c.filter.elementTypes  : []);
   if (w.lstFilterRelations) _listSelectLabels(w.lstFilterRelations, c.filter ? _relIdsToLabels(c.filter.relationTypes || []) : []);
-  if (w.lstFilterDiagram)   _listSelectLabels(w.lstFilterDiagram,   c.filter ? (c.filter.diagramTypes || []).map(id => DIAG_ID_TO_LABEL[id] || id) : []);
+  if (w.lstFilterDiagram)   _listSelectLabels(w.lstFilterDiagram,   c.filter ? (c.filter.diagramTypes || []).map(id => DIAGRAM_TYPE_ID_TO_LABEL[id] || id) : []);
 
   // Related elements — rebuild step blocks from preset.
   // Dispose existing blocks first so reapplying a preset (or session load) is clean.
@@ -2468,7 +2457,7 @@ function _saveUI(ctx) {
   // Filter
   if (w.lstFilterElements)  c.filter.elementTypes  = _listGetSelected(w.lstFilterElements);
   if (w.lstFilterRelations) c.filter.relationTypes = _relLabelsToIds(_listGetSelected(w.lstFilterRelations));
-  if (w.lstFilterDiagram)   c.filter.diagramTypes  = _listGetSelected(w.lstFilterDiagram).map(l => DIAG_LABEL_TO_ID[l] || l);
+  if (w.lstFilterDiagram)   c.filter.diagramTypes  = _listGetSelected(w.lstFilterDiagram).map(l => DIAGRAM_TYPE_LABEL_TO_ID[l] || l);
 
   // Related elements — round-trip the dynamic step-block array.
   c.relatedElements = {

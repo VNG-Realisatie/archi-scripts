@@ -32,12 +32,12 @@ const {
 const JUNCTION_DIAMETER = 14;
 
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
+// require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
 
-let _elkAdapter = null, _dagreAdapter = null, _graphvizAdapter = null;
 function _getAdapter(engine) {
-  if (engine === "ELK")      { if (!_elkAdapter)       _elkAdapter       = require(REPO_ROOT + "View/lib/engines/elk");       return _elkAdapter; }
-  if (engine === "Dagre")    { if (!_dagreAdapter)     _dagreAdapter     = require(REPO_ROOT + "View/lib/engines/dagre");     return _dagreAdapter; }
-  if (engine === "Graphviz") { if (!_graphvizAdapter)  _graphvizAdapter  = require(REPO_ROOT + "View/lib/engines/graphviz");  return _graphvizAdapter; }
+  if (engine === "ELK")      return require(REPO_ROOT + "View/lib/engines/elk");
+  if (engine === "Dagre")    return require(REPO_ROOT + "View/lib/engines/dagre");
+  if (engine === "Graphviz") return require(REPO_ROOT + "View/lib/engines/graphviz");
   throw `Unknown engine: "${engine}"`;
 }
 
@@ -158,7 +158,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
       if (!sameView) {
         // Remove the stale view at the target location (if any) before copying.
         if (viewAtTarget) {
-          try { $(viewAtTarget).find().each(o => o.delete()); viewAtTarget.delete(); } catch (e) {}
+          try { $(viewAtTarget).find().each(o => o.delete()); viewAtTarget.delete(); } catch (e) { console.error(`Failed to remove stale view "${viewAtTarget.name}" before copy: ${e}`); }
         }
         const copy = view.duplicate(targetFolder);
         copy.name  = targetName;
@@ -490,7 +490,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
   // Diagram objects: only register VOs that currently live on the target view.
   // Guards against referencing deleted VOs when the view was just overwritten (NEW_VIEW).
   const _voIdsOnView = new Set();
-  try { $(view).find().each(o => { if (o && o.id) _voIdsOnView.add(String(o.id)); }); } catch(e) {}
+  try { $(view).find().each(o => { if (o && o.id) _voIdsOnView.add(String(o.id)); }); } catch(e) { console.error(`Failed to index existing VOs on view "${view.name}": ${e}`); }
   (objectSet.diagramObjects || []).forEach(dvo => {
     if (dvo && dvo.id && _voIdsOnView.has(String(dvo.id))) existingVoByVoId.set(dvo.id, dvo);
   });
@@ -630,7 +630,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
       const srcV = visualIndex[srcOccId];
       const tgtV = visualIndex[tgtOccId];
       if (srcV && tgtV) {
-        try { view.add(rel, srcV, tgtV); _nestCreated++; } catch (e) {}
+        try { view.add(rel, srcV, tgtV); _nestCreated++; } catch (e) { console.error(`Failed to add nesting rel ${rel.id}: ${e}`); }
       }
     } else {
       _nestSkipped++;
@@ -669,7 +669,7 @@ function _applyEdgeStyle(connection, re, preset) {
     try { connection.textPosition = lp; } catch (e) {}
   }
 
-  try { connection.deleteAllBendpoints(); } catch (e) {}
+  try { connection.deleteAllBendpoints(); } catch (e) { console.error(`Failed to clear bendpoints on ${connection && connection.id}: ${e}`); }
 
   // Self-loop: always synthesise (NE-corner loop). Skip engine bendpoints.
   if (connection.source && connection.target
@@ -755,7 +755,7 @@ function _getParentAbsOffset(vo) {
       y += p.bounds.y || 0;
       p = $(p).parent().filter("element").first();
     }
-  } catch (e) {}
+  } catch (e) { console.error(`Parent offset traversal failed for VO ${vo && vo.id}: ${e}`); }
   return { x, y };
 }
 
@@ -779,20 +779,23 @@ function _collectVisualsFrom(view) {
       if (ve.type && ve.type in Defs.DIAGRAM_TYPES) return;
       seenEl.add(ve.id); visualElements.push(ve);
     });
-  } catch (e) {}
+  } catch (e) { console.error(`Failed to collect visual elements from view "${view && view.name}": ${e}`); }
   try {
     $(view).find("relation").each(vr => {
       if (!vr || !vr.id || seenRel.has(vr.id)) return;
       seenRel.add(vr.id); visualRelations.push(vr);
     });
-  } catch (e) {}
+  } catch (e) { console.error(`Failed to collect visual relations from view "${view && view.name}": ${e}`); }
   return { visualElements, visualRelations };
 }
 
 function _resolveFolder(viewFolder) {
   const path = viewFolder ? "/Views" + viewFolder : "/Views" + GENERATED_VIEW_FOLDER;
   try { return ArchiFolders.getFolderPath(path); }
-  catch (e) { return ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER); }
+  catch (e) {
+    console.log(`Folder "${path}" not found — using default. (${e})`);
+    return ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
+  }
 }
 
 function _getOrCreateView(folder, viewName) {

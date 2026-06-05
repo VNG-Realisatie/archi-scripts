@@ -483,6 +483,18 @@ const DIAGRAM_TYPE_LABELS = Object.freeze(
     .map(k => k.replace("diagram-model-", ""))
 );
 
+// Bidirectional maps between jArchi type IDs and display labels (excludes internal alias).
+const DIAGRAM_TYPE_ID_TO_LABEL = Object.freeze(
+  Object.fromEntries(
+    Object.keys(DIAGRAM_TYPES)
+      .filter(k => k !== "archimate-diagram-model")
+      .map(k => [k, k.replace("diagram-model-", "")])
+  )
+);
+const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
+  Object.fromEntries(Object.entries(DIAGRAM_TYPE_ID_TO_LABEL).map(([k, v]) => [v, k]))
+);
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GENERATED_VIEW_FOLDER = "/View/_Generated";
@@ -752,7 +764,8 @@ if (typeof module !== "undefined" && module.exports) {
     DIRECTIONS, DIRECTION_MAP,
     RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
-    ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS,
+    ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
+    DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
