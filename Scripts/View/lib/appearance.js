@@ -20,21 +20,7 @@ const REPO_ROOT = (() => {
 
 const Chroma = require("chroma-js");
 const Defs   = require(REPO_ROOT + "View/lib/defs");
-const { decodeRelType } = Defs;
-
-// ColorBrewer scheme names supported by Chroma.js. Exposed so dialog_main.js
-// can build the colour-range combos from a single source.
-// Qualitative schemes come first — they are discrete, pastel-friendly, and
-// designed for readability on light backgrounds. Sequential/diverging schemes
-// follow; _colorScale trims their dark end automatically.
-const COLOR_RANGES = Object.freeze([
-  // Qualitative — distinct pastel tones, no gradient:
-  "Pastel1", "Pastel2", "Set2", "Set3",
-  // Sequential — light end kept, dark end trimmed in _colorScale:
-  "Blues", "Greens", "Oranges", "Purples", "Reds", "Greys",
-  // Diverging — light centre; both dark ends trimmed:
-  "RdYlBu", "RdYlGn", "Spectral", "OrRd", "PuBu",
-]);
+const { decodeRelType, COLOR_RANGES } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
 const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
@@ -79,9 +65,9 @@ function applyAppearance(view, preset, actionId) {
   if (sbpr.enabled && sbpr.property)
     console.log(`  styleByProperty.relation  prop="${sbpr.property}"  resize=${sbpr.resize}  range=${sbpr.colorRange}`);
   if (sbrp.enabled && sbrp.property)
-    console.log(`  styleByRelatedProperty  prop="${sbrp.property}"  relTypes=[${(sbrp.relTypes||[]).join(",")}]  range=${sbrp.colorRange}`);
+    console.log(`  styleByRelatedProperty  prop="${sbrp.property}"  relTypes=[${sbrp.relTypes.join(",")}]  range=${sbrp.colorRange}`);
   if (sbce.enabled && sbce.property)
-    console.log(`  styleByConnectedElement  prop="${sbce.property}"  relTypes=[${(sbce.relTypes||[]).join(",")}]  range=${sbce.colorRange}`);
+    console.log(`  styleByConnectedElement  prop="${sbce.property}"  relTypes=[${sbce.relTypes.join(",")}]  range=${sbce.colorRange}`);
 
   const depths = _computeViewDepths(view);
   console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);
@@ -275,7 +261,7 @@ function _applyStyleByPropertyRelation(view, settings, isModify) {
   if (!settings.enabled || !settings.property) return;
 
   // Collect matching visual connections
-  const relFilters = (settings.relTypes || []).map(enc => decodeRelType(enc));
+  const relFilters = settings.relTypes.map(enc => decodeRelType(enc));
   const vos = [];
   $(view).find("relation").each(vc => {
     if (!vc.type) return;
@@ -369,7 +355,7 @@ function _applyStyleByRelatedProperty(view, settings, isModify) {
 function _applyStyleByConnectedElement(view, settings, isModify) {
   if (!settings.enabled || !settings.property) return;
 
-  const relFilters   = (settings.relTypes   || []).map(enc => decodeRelType(enc));
+  const relFilters   = settings.relTypes.map(enc => decodeRelType(enc));
   const targetType   = settings.elementType || "";  // "" = any
   const conflictColor = settings.conflictColor || "#FF6B35";
 
@@ -497,5 +483,5 @@ function _lightenHex(hex, factor) {
 // ── Module exports ────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { applyAppearance, COLOR_RANGES };
+  module.exports = { applyAppearance };
 }

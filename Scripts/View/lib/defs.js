@@ -18,7 +18,7 @@ const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
 const STYLES = Object.freeze({
   Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models." },
   Hierarchy: { algorithms: ["Tree", "Twopi"],                                tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
-  Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],     tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
+  Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],      tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
   Circular:  { algorithms: ["Radial", "Circo"],                              tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
   Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
 });
@@ -489,6 +489,18 @@ const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
+
+// ColorBrewer scheme names supported by Chroma.js.
+// Qualitative schemes (discrete, pastel) come first; sequential/diverging follow.
+// appearance.js uses these for colour interpolation; the UI uses them for combo box population.
+const COLOR_RANGES = Object.freeze([
+  // Qualitative — distinct pastel tones, no gradient:
+  "Pastel1", "Pastel2", "Set2", "Set3",
+  // Sequential — light end kept, dark end trimmed in _colorScale:
+  "Blues", "Greens", "Oranges", "Purples", "Reds", "Greys",
+  // Diverging — light centre; both dark ends trimmed:
+  "RdYlBu", "RdYlGn", "Spectral", "OrRd", "PuBu",
+]);
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
@@ -741,7 +753,7 @@ if (typeof module !== "undefined" && module.exports) {
     RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS,
-    GENERATED_VIEW_FOLDER, SESSION_FILENAME,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
     validatePreset, effectiveParams,

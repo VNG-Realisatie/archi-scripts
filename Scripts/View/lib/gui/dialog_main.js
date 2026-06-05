@@ -19,19 +19,19 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-const Common     = require(REPO_ROOT + "_lib/Common");
-const Selection  = require(REPO_ROOT + "_lib/selection");
-const Defs       = require(REPO_ROOT + "View/lib/defs");
-const PresetIO   = require(REPO_ROOT + "View/lib/preset_io");
-const GenView    = require(REPO_ROOT + "View/lib/generate_view");
-const Pipeline   = require(REPO_ROOT + "View/lib/selection_pipeline");
-const Appearance = require(REPO_ROOT + "View/lib/appearance");
-const Chroma     = require("chroma-js");
+const Common    = require(REPO_ROOT + "_lib/Common");
+const Selection = require(REPO_ROOT + "_lib/selection");
+const Defs      = require(REPO_ROOT + "View/lib/defs");
+const PresetIO  = require(REPO_ROOT + "View/lib/preset_io");
+const GenView   = require(REPO_ROOT + "View/lib/generate_view");
+const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Chroma    = require("chroma-js");
 
 const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS, DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS,
+  COLOR_RANGES,
   DEFAULT_PRESET, validatePreset,
   encodeRelType, decodeRelType,
 } = Defs;
@@ -61,8 +61,8 @@ const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog")
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
 // ── Derived lists ─────────────────────────────────────────────────────────────
-// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_LABELS
-// are imported from Defs above. COLOR_RANGES is imported from Appearance.
+// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_LABELS,
+// COLOR_RANGES are imported from Defs above.
 
 const DIRECTION_LABELS        = DIRECTIONS.map(d => d.val);
 const ROUTING_ALL             = Object.values(ROUTING).map(r => r.label);
@@ -72,7 +72,6 @@ const LABEL_POS_TOOLTIPS      = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp
 const RANKING_LABELS          = RANKING.map(r => r.val);
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
-const { COLOR_RANGES }        = Appearance;
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
 
