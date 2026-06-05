@@ -785,7 +785,7 @@ Each algorithm declares:
 
 - A **style** (Flow / Hierarchy / Network / Compact / Circular) — used for grouping in the UI only.
 - A **nesting capability** (full / partial / cluster / none) — drives whether nesting parameters are active.
-- A **self-loop capability** (boolean) — whether the engine routes self-loops into bendpoints; engines that don't pass the edge through without routing, and Archi renders a default loop.
+- A **self-loop capability** (`true` / `false` / `"partial"`) — whether self-loop connections appear on the view and how they are routed. `false`: self-loop edges are excluded from the layout graph and are not drawn on the view; existing self-loop connections are removed when the algorithm re-lays out the view. `true`: the engine routes them natively or the writer synthesises a NE-corner loop. `"partial"`: the engine attempts routing; the writer synthesises on failure.
 - An **active-parameters list** — which preset.params keys are honoured.
 - A **supported-options map** — for select-type parameters, the allowed values.
 
@@ -1518,7 +1518,7 @@ generate_view(preset, uiSelection, actionId) → ArchimateView[]
 7. Appearance.applyAppearance(view, preset)   [no-op if all features disabled]
 ```
 
-`_buildLayoutGraph` assembles nodes from elements (using preset `elementWidth`/`elementHeight`) and from diagram objects (using current canvas bounds). `diagram-model-connection` objects are skipped (they are edges, not nodes — [Steps](#steps) step 6). Nesting is expressed via the `parent` property on nodes; the `parentMap` is built from the resolved nesting relations.
+`_buildLayoutGraph` assembles nodes from elements (using preset `elementWidth`/`elementHeight`) and from diagram objects (using current canvas bounds). `diagram-model-connection` objects are skipped (they are edges, not nodes — [Steps](#steps) step 6). Self-loop edges (source id === target id) are skipped when `ALGORITHMS[preset.algorithm].supportsSelfLoops` is falsy — they never enter the layout graph and never appear in the result. Nesting is expressed via the `parent` property on nodes; the `parentMap` is built from the resolved nesting relations.
 
 ### Writer algorithm
 
@@ -1530,7 +1530,7 @@ Nodes are processed in parent-first order (`_sortNodesParentFirst` — a stable 
 
 After the node loop, the writer scans `existingVosByConcept` for VOs not in `consumedVoIds` and logs `Unpaired VOs: N (concept over-supply — kept in place)` if any are unbound. Surplus VOs are not mutated (Invariant 4 — no silent data loss).
 
-Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. Nestings that won the multi-parent resolution are drawn on the view after all connections.
+Before the relation loop, for algorithms with `supportsSelfLoops: false`, any existing self-loop VisualRelations (concept.source.id === concept.target.id) are deleted from the view and removed from the lookup map, preventing them from being repositioned. Relations follow the same reposition-vs-create rule. Existing relations have their bendpoints rewritten by `_applyEdgeStyle` (deleteAll + add); new relations are added with default style. After the loop, any existing routed connection not reached by the loop (i.e. not in `result.edges` — e.g. edges the engine dropped) has its bendpoints explicitly cleared, so that switching algorithms never leaves stale routing on connections that the new engine did not route. Nesting relations are excluded from this cleanup. Nestings that won the multi-parent resolution are drawn on the view after all connections.
 
 Each nesting binding from `_resolveNesting` carries `srcOccId` and `tgtOccId` aligned to the model relation's `(source, target)` so that `view.add(rel, srcV, tgtV)` preserves model direction. The writer always issues a containment add for every binding (skipped on LAYOUT_ONLY when the rel already has a VR), keying both endpoints on the occurrence visuals — Archi renders containment (box-in-box, no line).
 
@@ -1614,10 +1614,10 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 | Force | `force` | — | — | None | — (passthrough) |
 | Stress | `stress` | — | — | None | — (passthrough) |
 | Radial | `radial` | — | — | **None** (crashes on compound graphs; spanning-tree pre-processing required) | — (passthrough) |
-| Grid | `box` | — | — | Full | — (no edge routing) |
-| Pack | `rectpacking` | — | — | Full | — (no edge routing) |
+| Grid | `box` | — | — | Full | — (excluded; not drawn on view) |
+| Pack | `rectpacking` | — | — | Full | — (excluded; not drawn on view) |
 
-Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops on passthrough algorithms emerge with empty bendpoints; Archi renders its default loop.
+Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph — they are never passed to ELK and do not appear in the result. Layered (`supportsSelfLoops: true`) passes self-loops through with empty bendpoints; the writer synthesises a NE-corner loop via `_synthesiseSelfLoopBendpoints`.
 
 Ref: `lib/engines/elk.js`.
 

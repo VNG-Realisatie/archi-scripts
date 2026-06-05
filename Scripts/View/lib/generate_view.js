@@ -368,6 +368,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
     if (!srcId || !tgtId || !nodeIds.has(srcId) || !nodeIds.has(tgtId)) continue;
+    if (srcId === tgtId && !ALGORITHMS[preset.algorithm].supportsSelfLoops) continue;
     if (edgeIds.has(rel.id)) continue;
     edgeIds.add(rel.id);
 
@@ -498,6 +499,17 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     if (vr.concept && vr.concept.id) existingRelByConcept.set(vr.concept.id, vr);
   });
 
+  // Remove existing self-loop connections for algorithms that don't route them.
+  if (!ALGORITHMS[preset.algorithm].supportsSelfLoops) {
+    existingRelByConcept.forEach((vr, conceptId) => {
+      const c = vr.concept;
+      if (c && c.source && c.target && c.source.id === c.target.id) {
+        try { vr.delete(); } catch (e) {}
+        existingRelByConcept.delete(conceptId);
+      }
+    });
+  }
+
   const visualIndex = {};  // result-node id → VisualObject (existing or freshly added)
   const consumedVoIds = new Set();  // VO ids already bound to a result node
 
@@ -602,6 +614,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
 
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
   console.log(`  Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
+  const _processedRelIds = new Set();
   for (const re of result.edges) {
     const archiRel = $(`#${re.id}`).first();
     if (!archiRel || !archiRel.id) continue;
@@ -618,7 +631,19 @@ function _writeView(preset, result, objectSet, view, parentRels) {
       catch (e) { console.error(`Failed to add relation ${re.id}: ${e}`); continue; }
     }
     _applyEdgeStyle(connection, re, preset);
+    _processedRelIds.add(archiRel.id);
   }
+
+  // Clear bendpoints on existing routed connections that the engine did not include
+  // in result.edges (e.g. edges dropped by ELK when both endpoints lift to the same
+  // root container). Without this, switching algorithms leaves stale routing on those
+  // connections. Nesting relations are skipped — they have no bendpoints to clear.
+  const _nestingRelIds = new Set((parentRels || []).map(b => b.rel && b.rel.id).filter(Boolean));
+  existingRelByConcept.forEach((vr, conceptId) => {
+    if (_processedRelIds.has(conceptId)) return;
+    if (_nestingRelIds.has(conceptId)) return;
+    try { vr.deleteAllBendpoints(); } catch (e) {}
+  });
 
   // ── Nesting connections (parent-child boxes): existing → skip, new → add ──
   let _nestCreated = 0, _nestSkipped = 0;
@@ -671,9 +696,14 @@ function _applyEdgeStyle(connection, re, preset) {
 
   try { connection.deleteAllBendpoints(); } catch (e) { console.error(`Failed to clear bendpoints on ${connection && connection.id}: ${e}`); }
 
-  // Self-loop: always synthesise (NE-corner loop). Skip engine bendpoints.
+  // Self-loop: use engine bendpoints when the engine routed the connection
+  // (Graphviz native, Dagre partial). Synthesise a NE-corner loop only when
+  // the engine provided none (ELK passes self-loops through unrouted).
+  // When bendpoints exist, fall through — source === target so srcCenter === tgtCenter,
+  // making startX/Y = endX/Y in the relative-bendpoint formula below.
   if (connection.source && connection.target
-      && connection.source.id === connection.target.id) {
+      && connection.source.id === connection.target.id
+      && (!re.bendpoints || re.bendpoints.length === 0)) {
     _synthesiseSelfLoopBendpoints(connection);
     return;
   }
