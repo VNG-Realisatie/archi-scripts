@@ -1626,24 +1626,28 @@ Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `pare
 
 Both modes filter edges where `liftedSrc === liftedTgt` (both endpoints share the same topmost ancestor) — those edges are already owned by the shared container and must not appear as duplicates in root.
 
-**ELK option resolution order.** Four layers, each overriding the previous (last writer wins):
+**`engineParams` — hidden parameters block.** `DEFAULT_PRESET.engineParams` in `defs.js` is the SSOT for all defaults. A preset file only needs entries it wants to change; missing keys inherit from `DEFAULT_PRESET`. Resolved by `_mergeEngineParams` in `generate_view.js` (deep-merge per engine key) before any engine sees the graph.
 
-| Priority | Source | How |
+The block has four sub-objects, one per engine plus a shared `layout` section:
+
+| Sub-object | Applied by | Native option format |
 |---|---|---|
-| 1 (lowest) | ELK algorithm built-in defaults | e.g. `elk.spacing.nodeSelfLoop = 10` |
-| 2 | `PARAM_MAPPING` — GUI `params` translated to ELK keys | `_mapParamsScoped` → `rootEngineOpts` spread first into `layoutOptions` |
-| 3 (highest) | `engineParams.ELK` — raw ELK keys, preset-file controlled | spread last into root `layoutOptions` AND into every node's `layoutOptions` (required for target:NODES options such as `selfLoopDistribution` / `selfLoopOrdering`) |
+| `ELK` | `elk.js` — spread into root `layoutOptions` AND every node's `layoutOptions` (target:NODES options require per-node placement) | Full ELK option string, e.g. `"elk.spacing.edgeEdge": 10` |
+| `Dagre` | `dagre.js` — `Object.assign` into `g.setGraph()` after `PARAM_MAPPING`, values cast to numbers | Dagre graph property, e.g. `edgesep: 10` |
+| `Graphviz` | `graphviz.js` — overrides specific DOT attributes (currently `esep`) | DOT attribute value, e.g. `esep: "+8"` |
+| `layout` | `generate_view.js` (`expandNodeSizesForEdgeDensity`) — pre-layout, engine-agnostic | Custom keys: `nodeSizeByEdgeCount` |
 
-`engineParams` itself is resolved with `_mergeEngineParams` before the graph is built:
+**ELK option resolution order within `engineParams.ELK`** (last writer wins):
 
 | Priority | Source |
 |---|---|
-| 1 (base) | `DEFAULT_PRESET.engineParams.ELK` in `defs.js` — SSOT for all defaults |
-| 2 (override) | Preset file `engineParams.ELK` — only keys that differ need to be present |
+| 1 (lowest) | ELK algorithm built-in defaults |
+| 2 | `PARAM_MAPPING` GUI params → `rootEngineOpts` |
+| 3 (highest) | `engineParams.ELK` — spread last into `layoutOptions` and each node's `layoutOptions` |
 
-A preset file that has no `engineParams` block, or an `engineParams.ELK` block that omits a key, inherits that key's value from `DEFAULT_PRESET`. The same pattern applies to container `node.layoutOptions` (`containerEngineOpts` then `ctrEngineParams`).
+**`layout.nodeSizeByEdgeCount`** (default 0 = off): when > 0, `expandNodeSizesForEdgeDensity` inflates `node.height` (LR/RL direction) or `node.width` (TB/BT) to `maxSideEdgeCount × value` so hub nodes have space for their ports. Applies to all engines before the graph is handed off.
 
-Ref: `lib/engines/elk.js`, `lib/generate_view.js` (`_mergeEngineParams`), `lib/defs.js` (`DEFAULT_PRESET.engineParams`).
+Ref: `lib/engines/elk.js`, `lib/engines/dagre.js`, `lib/engines/graphviz.js`, `lib/generate_view.js` (`_mergeEngineParams`, `expandNodeSizesForEdgeDensity`), `lib/defs.js` (`DEFAULT_PRESET.engineParams`).
 
 ### Dagre
 

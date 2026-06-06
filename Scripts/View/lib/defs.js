@@ -579,9 +579,22 @@ const DEFAULT_PRESET = Object.freeze({
   },
   engineParams: {
     ELK: {
-      "elk.spacing.nodeSelfLoop": 25,  // clearance from node boundary to self-loop wire, and between stacked self-loops
+      "elk.spacing.nodeSelfLoop": 20,  // clearance from node boundary to self-loop wire, and between stacked self-loops
       "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",  // NORTH | EQUALLY | NORTH_SOUTH
-      "elk.layered.edgeRouting.selfLoopOrdering": "STACKED",      // STACKED | SEQUENCED
+      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",      // STACKED | SEQUENCED
+      "elk.spacing.edgeEdge":  15,     // min distance between two edges within a layer (ELK default = 10)
+      "elk.spacing.edgeNode":  15,     // min distance between an edge and a node within a layer (ELK default = 10)
+      "elk.layered.spacing.edgeNodeBetweenLayers": 40,  // routing corridor between layers → distance from node face to first bend (ELK default = 10)
+      "org.eclipse.elk.portConstraints": "FREE",  // keep ports on their assigned side; FREE | FIXED_SIDE | FIXED_ORDER | FIXED_POS},
+    },
+    Dagre: {
+      edgesep: 30,   // separation between parallel edges (Dagre default ≈ 10)
+    },
+    Graphviz: {
+      esep: "+8",    // edge clearance from node boundary; overrides routing-mode default (+8 curved / +24 ortho)
+    },
+    layout: {
+      nodeSizeByEdgeCount: 25,  // px per edge on the busiest side; expands node height (LR/RL) or width (TB/BT); 0 = disabled
     },
   },
 });

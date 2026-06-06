@@ -69,7 +69,10 @@ function _buildDOT(graph) {
   // Map GUI params to Graphviz graph attributes
   const engineOpts = applyParams(graph.algorithm, opts, PARAM_MAPPING);
   const splines    = engineOpts.splines || "polyline";
-  const esep       = splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED;
+  const gvEP       = graph.engineParams && graph.engineParams.Graphviz;
+  const esep       = (gvEP && gvEP.esep != null)
+    ? String(gvEP.esep)
+    : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
   const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   // Node dimensions — not graph-level attributes; kept inline
@@ -110,7 +113,15 @@ function _buildDOT(graph) {
       children.forEach(cid => writeNode(cid, indent + "  ", visiting));
       lines.push(`${indent}}`);
     } else {
-      lines.push(`${indent}"${id}" [label="${label}"]`);
+      // Per-node size override: add width/height when they differ from the global default
+      // (e.g. when expandNodeSizesForEdgeDensity inflated a hub node).
+      let szAttrs = "";
+      if (node) {
+        const w = (node.width  * PX_TO_IN), h = (node.height * PX_TO_IN);
+        if (Math.abs(w - parseFloat(nodeW)) > 0.001 || Math.abs(h - parseFloat(nodeH)) > 0.001)
+          szAttrs = ` width=${w.toFixed(4)} height=${h.toFixed(4)} fixedsize=true`;
+      }
+      lines.push(`${indent}"${id}" [label="${label}"${szAttrs}]`);
     }
     visiting.delete(id);
   }

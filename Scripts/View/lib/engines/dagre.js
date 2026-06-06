@@ -103,7 +103,12 @@ function layout(graph) {
   // matrix); Dagre's partial nesting does not support the two-pass container measurement.
   const nodes = graph.sortContainers ? sortedNodes(graph.nodes, parentMap) : graph.nodes;
 
-  const engineOpts = applyParams("Dagre", graph.options, PARAM_MAPPING);
+  const engineOpts = Object.assign(
+    applyParams("Dagre", graph.options, PARAM_MAPPING),
+    Object.fromEntries(
+      Object.entries((graph.engineParams && graph.engineParams.Dagre) || {}).map(([k, v]) => [k, Number(v)])
+    )
+  );
 
   // Separate self-loops from regular edges
   const selfLoops    = [];

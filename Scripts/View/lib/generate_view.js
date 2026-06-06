@@ -31,6 +31,8 @@ const {
 
 const JUNCTION_DIAMETER = 14;
 
+const { expandNodeSizesForEdgeDensity } = require(REPO_ROOT + "View/lib/engines/engine-utils");
+
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
 // require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
 
@@ -418,11 +420,14 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     });
   }
 
+  const mergedEngineParams = _mergeEngineParams(Defs.DEFAULT_PRESET.engineParams, preset.engineParams);
+  expandNodeSizesForEdgeDensity(nodes, edges, params, mergedEngineParams);
+
   return {
     algorithm:      preset.algorithm,
     nodes, edges,
     options:        params,
-    engineParams:   _mergeEngineParams(Defs.DEFAULT_PRESET.engineParams, preset.engineParams),
+    engineParams:   mergedEngineParams,
     alignWidthSameType: params.alignWidthSameType || false,
     snapColumnsToGrid: params.snapColumnsToGrid || false,
     sortContainers: params.sortContainers || false,

@@ -185,6 +185,47 @@ function applyParams(algName, opts, mapping) {
   return result;
 }
 
+// ── Edge-density node sizing ──────────────────────────────────────────────────
+
+/**
+ * Pre-layout: expand node height (horizontal direction) or width (vertical direction)
+ * so that nodes with many connections have enough space for their edge ports.
+ *
+ * Controlled by engineParams.layout.nodeSizeByEdgeCount (px per edge on busiest side).
+ * 0 or absent = disabled. Only expands — never shrinks below the current size.
+ *
+ * @param {Object[]} nodes         LayoutGraph nodes (mutated in place)
+ * @param {Object[]} edges         LayoutGraph edges
+ * @param {Object}   params        preset.params (needs .direction)
+ * @param {Object}   engineParams  merged engineParams ({ layout: { nodeSizeByEdgeCount } })
+ */
+function expandNodeSizesForEdgeDensity(nodes, edges, params, engineParams) {
+  const spacing = engineParams && engineParams.layout && engineParams.layout.nodeSizeByEdgeCount;
+  if (!spacing || spacing <= 0) return;
+
+  const dir = (params && params.direction) || "Left → Right";
+  const isHorizontal = dir === "Left → Right" || dir === "Right → Left";
+
+  const inCount  = {};
+  const outCount = {};
+  for (const edge of edges) {
+    if (edge.source === edge.target) continue;  // self-loops don't occupy a side
+    inCount[edge.target]  = (inCount[edge.target]  || 0) + 1;
+    outCount[edge.source] = (outCount[edge.source] || 0) + 1;
+  }
+
+  for (const node of nodes) {
+    const maxSide = Math.max(inCount[node.id] || 0, outCount[node.id] || 0);
+    if (maxSide <= 1) continue;
+    const needed = maxSide * spacing;
+    if (isHorizontal) {
+      if (needed > node.height) node.height = needed;
+    } else {
+      if (needed > node.width) node.width = needed;
+    }
+  }
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignWidthsByLevel, applyParams };
+  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignWidthsByLevel, applyParams, expandNodeSizesForEdgeDensity };
 }

@@ -1,6 +1,6 @@
 {
   "name": "gemma/Bedrijfsobjectmodel",
-  "algorithm": "Dagre",
+  "algorithm": "Layered",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -14,20 +14,22 @@
     "nestingRelationTypes": [
       "aggregation-relationship"
     ],
-    "innerSpacing": 5,
-    "padding": 10,
+    "innerSpacing": 10,
+    "padding": 20,
     "sortContainers": false,
-    "alignWidthSameType": true,
-    "alignDebug": false,
+    "alignWidthSameType": false,
+    "alignDebug": true,
     "snapColumnsToGrid": true,
     "showInEveryContainer": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
-    "elementSpacing": 100,
+    "elementSpacing": 60,
     "elementWidth": 180,
     "elementHeight": 60,
-    "maxWidth": 5000,
+    "maxWidth": 0,
     "maxHeight": 1000,
-    "aspectRatio": 1.33,
+    "aspectRatio": 0,
     "viewSizeMode": "none"
   },
   "filter": {
@@ -73,7 +75,7 @@
     ]
   },
   "view": {
-    "name": "Archief",
+    "name": "Parkeren",
     "folder": "/_Test/_Generated"
   },
   "appearance": {
@@ -120,7 +122,27 @@
       "colorRange": "Pastel1"
     }
   },
-  "_lastTabIndex": 0,
+  "engineParams": {
+    "ELK": {
+      "elk.spacing.nodeSelfLoop": 20,
+      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
+      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
+      "elk.spacing.edgeEdge": 15,
+      "elk.spacing.edgeNode": 15,
+      "elk.layered.spacing.edgeNodeBetweenLayers": 40,
+      "org.eclipse.elk.portConstraints": "FIXED_SIDE"
+    },
+    "Dagre": {
+      "edgesep": 30
+    },
+    "Graphviz": {
+      "esep": "+8"
+    },
+    "layout": {
+      "nodeSizeByEdgeCount": 25
+    }
+  },
+  "_lastTabIndex": 1,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }
