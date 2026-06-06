@@ -206,8 +206,11 @@ function layout(graph) {
   if (!alg) throw `ELK: unknown algorithm "${graph.algorithm}"`;
 
   // Map GUI params to ELK root options (SPLINES CONSERVATIVE mode inlined in _LAYERED_ROUTING)
-  const rootEngineOpts = _mapParamsScoped(graph.algorithm, graph.options, "root");
-  const layoutOptions  = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts);
+  const rootEngineOpts  = _mapParamsScoped(graph.algorithm, graph.options, "root");
+  const elkEngineParams = Object.fromEntries(
+    Object.entries((graph.engineParams && graph.engineParams.ELK) || {}).map(([k, v]) => [k, String(v)])
+  );
+  const layoutOptions = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts, elkEngineParams);
 
   // Build ELK-internal data structures
   const nodeMap     = {};
@@ -234,9 +237,8 @@ function layout(graph) {
   const selfLoops = [];
   for (const edge of graph.edges) {
     if (!nodeMap[edge.source] || !nodeMap[edge.target]) continue;
-    if (edge.source === edge.target) {
-      // Self-loops are not reliably routed by ELK across all algorithms.
-      // Collect for pass-through; the writer synthesises bendpoints.
+    if (edge.source === edge.target && !alg.supportsSelfLoops) {
+      // Algorithm does not route self-loops — collect for synthesis by the writer.
       selfLoops.push(edge);
       continue;
     }
@@ -378,6 +380,9 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     : ALGORITHMS[graph.algorithm].engineAlgorithmId;
   const hierarchyMode = graph.options.connectionsMode === "Crossing containers"
     ? "INCLUDE_CHILDREN" : "SEPARATE_CHILDREN";
+  const ctrEngineParams = Object.fromEntries(
+    Object.entries((graph.engineParams && graph.engineParams.ELK) || {}).map(([k, v]) => [k, String(v)])
+  );
   const hasContainers = Object.keys(parentMap).length > 0;
   for (const [nodeId, node] of Object.entries(nodeMap)) {
     if (!node.children || node.children.length === 0) continue;
@@ -387,12 +392,23 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
       "elk.algorithm":         containerAlgoId,
       "elk.hierarchyHandling": hierarchyMode,
       ...containerEngineOpts,
+      ...ctrEngineParams,
     };
     // alignWidthSameType pass 2: floor the container width to its per-level target
     // (computed in layout()). MINIMUM_SIZE keeps it from shrinking below content.
     if (node._minWidth > 0) {
       node.layoutOptions["elk.nodeSize.constraints"] = "[MINIMUM_SIZE]";
       node.layoutOptions["elk.nodeSize.minimum"]     = `(${node._minWidth}, 0)`;
+    }
+  }
+
+  // Node-level engine params (e.g. selfLoopDistribution, selfLoopOrdering) are target:NODES
+  // in ELK — they must be on each individual node, not the root graph. Leaf nodes have no
+  // layoutOptions yet, so create them here. Containers already received ctrEngineParams above.
+  if (Object.keys(ctrEngineParams).length > 0) {
+    for (const node of Object.values(nodeMap)) {
+      if (node.children && node.children.length > 0) continue;
+      node.layoutOptions = Object.assign({}, node.layoutOptions, ctrEngineParams);
     }
   }
 
@@ -516,7 +532,10 @@ function _liftCrossHierarchyEdges(rootEdges, parentMap, includeChildren) {
     let liftedTgt = tgtId;
     p = parentMap[liftedTgt];
     while (p !== undefined) { liftedTgt = p; p = parentMap[liftedTgt]; }
-    if (liftedSrc === liftedTgt) return null;
+    // Drop cross-hierarchy edges whose endpoints share the same topmost ancestor —
+    // they are already owned by that container. Self-loops are exempt: srcId === tgtId
+    // means liftedSrc === liftedTgt trivially, but the edge must still reach root.
+    if (liftedSrc === liftedTgt && srcId !== tgtId) return null;
 
     if (includeChildren) {
       // INCLUDE_CHILDREN: ELK sees all nodes and routes edges between the actual elements,

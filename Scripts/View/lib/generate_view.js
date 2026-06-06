@@ -281,6 +281,18 @@ function _generateOneEach(preset, uiSelection) {
   return views;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Deep-merge engineParams objects: DEFAULT_PRESET is the base, preset overrides per engine.
+// A preset only needs to list values it wants to change; missing entries fall back to the default.
+function _mergeEngineParams(defaults, overrides) {
+  const engines = new Set([...Object.keys(defaults || {}), ...Object.keys(overrides || {})]);
+  const result = {};
+  for (const engine of engines)
+    result[engine] = Object.assign({}, (defaults || {})[engine], (overrides || {})[engine]);
+  return result;
+}
+
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
 function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept) {
@@ -410,6 +422,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     algorithm:      preset.algorithm,
     nodes, edges,
     options:        params,
+    engineParams:   _mergeEngineParams(Defs.DEFAULT_PRESET.engineParams, preset.engineParams),
     alignWidthSameType: params.alignWidthSameType || false,
     snapColumnsToGrid: params.snapColumnsToGrid || false,
     sortContainers: params.sortContainers || false,
@@ -711,8 +724,8 @@ function _applyEdgeStyle(connection, re, preset) {
   const _dbg = preset.params.alignDebug;
 
   // Self-loop: use engine bendpoints when the engine routed the connection
-  // (Graphviz native, Dagre partial). Synthesise a NE-corner loop only when
-  // the engine provided none (ELK passes self-loops through unrouted).
+  // (Graphviz native, ELK Layered, Dagre partial). Synthesise a NE-corner loop only
+  // when the engine provided none.
   // When bendpoints exist, fall through — source === target so srcCenter === tgtCenter,
   // making startX/Y = endX/Y in the relative-bendpoint formula below.
   if (connection.source && connection.target

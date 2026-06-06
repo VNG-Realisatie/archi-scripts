@@ -1617,7 +1617,7 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 | Grid | `box` | — | — | Full | — (excluded; not drawn on view) |
 | Pack | `rectpacking` | — | — | Full | — (excluded; not drawn on view) |
 
-Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph — they are never passed to ELK and do not appear in the result. Layered (`supportsSelfLoops: true`) passes self-loops through with empty bendpoints; the writer synthesises a NE-corner loop via `_synthesiseSelfLoopBendpoints`.
+Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph — they are never passed to ELK; the writer synthesises a NE-corner loop via `_synthesiseSelfLoopBendpoints`. Layered (`supportsSelfLoops: true`) includes self-loops in the ELK graph and uses the routed sections from ELK. Placement is controlled by `elk.layered.edgeRouting.selfLoopDistribution` (default `NORTH`) and `selfLoopOrdering` (default `STACKED`). The writer falls back to synthesis only when ELK returns an empty section (no bendpoints).
 
 **Cross-hierarchy edge handling — `_liftCrossHierarchyEdges`.** `_classifyEdges` routes same-immediate-parent edges into their container's `edges[]` array; all other edges (cross-hierarchy and root-level) go into `rootEdges[]`. `_liftCrossHierarchyEdges` then processes `rootEdges` in two modes:
 
@@ -1626,7 +1626,24 @@ Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `pare
 
 Both modes filter edges where `liftedSrc === liftedTgt` (both endpoints share the same topmost ancestor) — those edges are already owned by the shared container and must not appear as duplicates in root.
 
-Ref: `lib/engines/elk.js`.
+**ELK option resolution order.** Four layers, each overriding the previous (last writer wins):
+
+| Priority | Source | How |
+|---|---|---|
+| 1 (lowest) | ELK algorithm built-in defaults | e.g. `elk.spacing.nodeSelfLoop = 10` |
+| 2 | `PARAM_MAPPING` — GUI `params` translated to ELK keys | `_mapParamsScoped` → `rootEngineOpts` spread first into `layoutOptions` |
+| 3 (highest) | `engineParams.ELK` — raw ELK keys, preset-file controlled | spread last into root `layoutOptions` AND into every node's `layoutOptions` (required for target:NODES options such as `selfLoopDistribution` / `selfLoopOrdering`) |
+
+`engineParams` itself is resolved with `_mergeEngineParams` before the graph is built:
+
+| Priority | Source |
+|---|---|
+| 1 (base) | `DEFAULT_PRESET.engineParams.ELK` in `defs.js` — SSOT for all defaults |
+| 2 (override) | Preset file `engineParams.ELK` — only keys that differ need to be present |
+
+A preset file that has no `engineParams` block, or an `engineParams.ELK` block that omits a key, inherits that key's value from `DEFAULT_PRESET`. The same pattern applies to container `node.layoutOptions` (`containerEngineOpts` then `ctrEngineParams`).
+
+Ref: `lib/engines/elk.js`, `lib/generate_view.js` (`_mergeEngineParams`), `lib/defs.js` (`DEFAULT_PRESET.engineParams`).
 
 ### Dagre
 

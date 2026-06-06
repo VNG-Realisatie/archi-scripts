@@ -577,6 +577,13 @@ const DEFAULT_PRESET = Object.freeze({
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
+  engineParams: {
+    ELK: {
+      "elk.spacing.nodeSelfLoop": 25,  // clearance from node boundary to self-loop wire, and between stacked self-loops
+      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",  // NORTH | EQUALLY | NORTH_SOUTH
+      "elk.layered.edgeRouting.selfLoopOrdering": "STACKED",      // STACKED | SEQUENCED
+    },
+  },
 });
 
 // ── Engine parameter mapping (GUI param → engine param) ───────────────────────
