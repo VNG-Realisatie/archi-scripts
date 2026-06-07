@@ -226,6 +226,79 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params, engineParams) {
   }
 }
 
+// ── Label-based node sizing ───────────────────────────────────────────────────
+
+/**
+ * Pre-layout: set node width and height based on label text length.
+ * Short labels get small nodes; long labels wrap to two lines and get a taller node.
+ * Enabled by params.labelSizing (GUI checkbox, active for Pack and Grid).
+ * Tuning via engineParams.layout.labelChar*, labelLine*, labelH/VPadding, etc.
+ *
+ * @param {Object[]} nodes         LayoutGraph nodes (mutated in place)
+ * @param {Object}   params        preset.params (needs .labelSizing)
+ * @param {Object}   engineParams  merged engineParams (tuning keys in .layout)
+ */
+function sizeLabelBasedNodes(nodes, params, engineParams) {
+  if (!params || !params.labelSizing) return;
+  const lp      = engineParams.layout;           // always present — defs.js is SSOT
+  const charW    = lp.labelCharWidth;
+  const lineH    = lp.labelLineHeight;
+  const hPad     = lp.labelHPadding;
+  const vPad     = lp.labelVPadding;
+  const maxLineW = lp.labelMaxLineWidth;
+  const minW     = lp.labelMinWidth;
+  const minH     = lp.labelMinHeight;
+
+  for (const node of nodes) {
+    const label = (node.label || "").trim();
+    if (!label) continue;
+
+    const rawPx    = _textWidth(label, charW);
+    const innerMax = maxLineW - 2 * hPad;
+
+    let w, h;
+    if (rawPx <= innerMax) {
+      // fits on one line
+      w = rawPx + 2 * hPad;
+      h = lineH + vPad;
+    } else {
+      const split = _nearestSpace(label, Math.floor(label.length / 2));
+      if (split < 0) {
+        // no space → cannot wrap; single long line
+        w = rawPx + 2 * hPad;
+        h = lineH + vPad;
+      } else {
+        // two lines: split at nearest space to midpoint
+        const line1 = label.slice(0, split);
+        const line2 = label.slice(split + 1);
+        w = Math.max(_textWidth(line1, charW), _textWidth(line2, charW)) + 2 * hPad;
+        h = 2 * lineH + vPad;
+      }
+    }
+    node.width  = Math.max(minW, Math.ceil(w));
+    node.height = Math.max(minH, Math.ceil(h));
+  }
+}
+
+// Estimated pixel width of a string: uppercase letters count double charW (they are wider),
+// every other character counts single. Uppercase detection covers accented letters too.
+function _textWidth(str, charW) {
+  let units = 0;
+  for (const c of str) {
+    const isUpper = c !== c.toLowerCase() && c === c.toUpperCase();
+    units += isUpper ? 2 : 1;
+  }
+  return units * charW;
+}
+
+function _nearestSpace(str, mid) {
+  for (let d = 0; d <= mid; d++) {
+    if (str[mid - d] === " ") return mid - d;
+    if (str[mid + d] === " ") return mid + d;
+  }
+  return -1;
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignWidthsByLevel, applyParams, expandNodeSizesForEdgeDensity };
+  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignWidthsByLevel, applyParams, expandNodeSizesForEdgeDensity, sizeLabelBasedNodes };
 }

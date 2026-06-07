@@ -128,7 +128,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
       "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
-      "showInEveryContainer", "containerAlgorithm",
+      "showInEveryContainer", "labelSizing", "containerAlgorithm",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
@@ -147,13 +147,15 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
       "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
-      "showInEveryContainer", "containerAlgorithm",
+      "showInEveryContainer", "labelSizing", "containerAlgorithm",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio", "reverseRelationTypes",
+      "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
     tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
+    // maxWidth omitted from activeParams: nested rectpacking is bottom-up and ignores a
+    // target narrower than its container boxes. Aspect ratio is the only view-size lever.
     paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
@@ -543,6 +545,7 @@ const DEFAULT_PRESET = Object.freeze({
     maxHeight:             0,
     aspectRatio:           0,
     viewSizeMode:          "none",  // "none" | "maxWidth" | "maxHeight" | "aspectRatio"
+    labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
   },
   filter: {
     elementTypes:  [],
@@ -578,23 +581,33 @@ const DEFAULT_PRESET = Object.freeze({
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
   engineParams: {
-    ELK: {
-      "elk.spacing.nodeSelfLoop": 20,  // clearance from node boundary to self-loop wire, and between stacked self-loops
-      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",  // NORTH | EQUALLY | NORTH_SOUTH
-      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",      // STACKED | SEQUENCED
-      "elk.spacing.edgeEdge":  15,     // min distance between two edges within a layer (ELK default = 10)
-      "elk.spacing.edgeNode":  15,     // min distance between an edge and a node within a layer (ELK default = 10)
-      "elk.layered.spacing.edgeNodeBetweenLayers": 40,  // routing corridor between layers → distance from node face to first bend (ELK default = 10)
-      "org.eclipse.elk.portConstraints": "FREE",  // keep ports on their assigned side; FREE | FIXED_SIDE | FIXED_ORDER | FIXED_POS},
-    },
-    Dagre: {
-      edgesep: 30,   // separation between parallel edges (Dagre default ≈ 10)
-    },
-    Graphviz: {
-      esep: "+8",    // edge clearance from node boundary; overrides routing-mode default (+8 curved / +24 ortho)
-    },
     layout: {
       nodeSizeByEdgeCount: 25,  // px per edge on the busiest side; expands node height (LR/RL) or width (TB/BT); 0 = disabled
+      labelCharWidth:      9,   // estimated px per character for label-based node sizing
+      labelLineHeight:     24,  // px per text line
+      labelHPadding:       16,  // horizontal padding per side (px)
+      labelVPadding:       8,   // vertical padding total top+bottom (px)
+      labelMaxLineWidth:   160, // label px width above which text wraps to 2nd line
+      labelMinWidth:       60,  // minimum node width (px)
+      labelMinHeight:      30,  // minimum node height (px)
+    },
+    ELK: {
+      "elk.layered.cycleBreaking.strategy": "GREEDY",  // GREEDY (default) | DEPTH_FIRST |  INTERACTIVE | NONE
+      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",  // NORTH | EQUALLY | NORTH_SOUTH
+      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",      // STACKED | SEQUENCED
+      "elk.layered.feedbackEdges": "true",
+      "elk.layered.spacing.edgeNodeBetweenLayers": 40,  // routing corridor between layers → distance from node face to first bend (ELK default = 10)
+      "elk.spacing.edgeEdge":  20,     // min distance between two edges within a layer (ELK default = 10)
+      "elk.spacing.edgeNode":  15,     // min distance between an edge and a node within a layer (ELK default = 10)
+      "elk.spacing.nodeSelfLoop": 20,  // clearance from node boundary to self-loop wire, and between stacked self-loops
+    },
+    Dagre: {
+        acyclicer: "greedy",
+        edgesep: 20,   // separation between parallel edges (Dagre default ≈ 10)
+    },
+    Graphviz: {
+      esep: "+20",    // edge clearance from node boundary; overrides routing-mode default (+8 curved / +24 ortho)
+      // newrank: true,  // enables more compact layouts with many leaf nodes; may cause more edge crossings (Graphviz default = false)
     },
   },
 });

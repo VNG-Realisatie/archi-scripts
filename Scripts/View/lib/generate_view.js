@@ -31,7 +31,7 @@ const {
 
 const JUNCTION_DIAMETER = 14;
 
-const { expandNodeSizesForEdgeDensity } = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
 // require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
@@ -422,6 +422,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 
   const mergedEngineParams = _mergeEngineParams(Defs.DEFAULT_PRESET.engineParams, preset.engineParams);
   expandNodeSizesForEdgeDensity(nodes, edges, params, mergedEngineParams);
+  sizeLabelBasedNodes(nodes, params, mergedEngineParams);
 
   return {
     algorithm:      preset.algorithm,
@@ -559,6 +560,8 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     }
     console.log(nodeLogLine + "...");
   }
+  const _dbgW = preset.params.alignDebug;
+  if (_dbgW) console.log(`  [write-nodes] node | path | result-abs | parent-offset | written-rel(bounds)`);
   for (const rn of sortedNodes) {
     const archiId = _stripOccSuffix(rn.id);
     const existing = _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds);
@@ -585,6 +588,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
           // jArchi throws "Target already contains object" when the element is already
           // in that VO. visualIndex is set unconditionally so children can find this
           // node as their parent even if the bounds update fails.
+          if (_dbgW) console.log(`    ${_dbgName(rn)} | same-parent-concept | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
           try {
             existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
           } catch (e) { console.error(`Failed to update bounds for ${archiId}: ${e}`); }
@@ -592,6 +596,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
         } else {
           // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
           const target = newParentVisual || view;
+          if (_dbgW) console.log(`    ${_dbgName(rn)} | re-parent | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
           try {
             target.add(existing, relX, relY);
             existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
@@ -603,6 +608,12 @@ function _writeView(preset, result, objectSet, view, parentRels) {
 
       // Same parent — reposition within current container.
       const off = _getParentAbsOffset(existing);
+      if (_dbgW) {
+        const parentRn = rn.parentId ? nodeById[rn.parentId] : null;
+        const parentRnStr = parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—";
+        const mismatch = (parentRn && (Math.round(parentRn.x) !== Math.round(off.x) || Math.round(parentRn.y) !== Math.round(off.y))) ? "  ⚠ OFFSET≠parentRn" : "";
+        console.log(`    ${_dbgName(rn)} | same-parent | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | off=(${Math.round(off.x)},${Math.round(off.y)}) parentRn=${parentRnStr} | rel=(${Math.round(rn.x - off.x)},${Math.round(rn.y - off.y)}) ${Math.round(rn.width)}×${Math.round(rn.height)}${mismatch}`);
+      }
       existing.bounds = {
         x: rn.x - off.x,
         y: rn.y - off.y,
@@ -623,6 +634,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     const parentRn = parentVisual ? nodeById[rn.parentId] : null;
     const relX = parentRn ? rn.x - parentRn.x : rn.x;
     const relY = parentRn ? rn.y - parentRn.y : rn.y;
+    if (_dbgW) console.log(`    ${_dbgName(rn)} | create | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
     try {
       visualIndex[rn.id] = target.add(el, relX, relY, rn.width, rn.height);
     } catch (e) {
@@ -820,6 +832,12 @@ function _sortNodesParentFirst(nodes, nodeById) {
  * (0, 0) if the visual is at root. Under parent-first iteration, callers can rely
  * on parents having been repositioned before children read this.
  */
+// Compact node label for write-path debug lines: short id + parent marker.
+function _dbgName(rn) {
+  const tag = rn.parentId ? `child-of[${String(rn.parentId).substring(0, 8)}]` : "root";
+  return `[${String(rn.id).substring(0, 8)}] ${tag}`;
+}
+
 function _getParentAbsOffset(vo) {
   let x = 0, y = 0;
   try {

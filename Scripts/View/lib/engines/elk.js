@@ -41,6 +41,7 @@ const ELK_DIRECTION = {
 
 // Extra top padding inside container nodes so the container label is not covered by children.
 const CONTAINER_LABEL_CLEARANCE = 30;
+const MIN_NODE_SIZE = 8;  // fallback for degenerate ELK output (zero/undefined dimension) — see _collectNodePositions
 
 // Shared routing fn used in both root and container scopes for Layered.
 // CONSERVATIVE spline mode inlined here — no separate post-mapping special case needed.
@@ -145,17 +146,31 @@ const PARAM_MAPPING = {
   //   widthApproximation.optimizationGoal    MAX_SCALE_DRIVEN (default) — maximises use of target width
   Pack: {
     root: {
+      // Pack uses aspectRatio only. maxWidth is intentionally NOT mapped to
+      // rectpacking.widthApproximation.targetWidth: with SEPARATE_CHILDREN the container
+      // boxes are pre-sized bottom-up, so a target narrower than the widest container is
+      // ignored (result stays wider) and a too-narrow target can yield zero-width nodes.
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
       innerSpacing:   (v) => ({
         "elk.spacing.nodeNode": String(v),
-        "elk.rectpacking.packing.compaction.iterations": "3",
+        "elk.rectpacking.packing.compaction.iterations": "10",
         "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+        // NB: whiteSpaceElimination EQUAL_BETWEEN_STRUCTURES is intentionally NOT used — it
+        // distributes whitespace between nodes (widening boxes, offsetting content negative)
+        // which pushed children outside their container's left edge. Compaction handles tightening.
       }),
       padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
     },
     container: {
+      // aspectRatio is intentionally NOT propagated to containers — it is a view-level
+      // (root) concern. Propagating it stretched each container to the ratio, coupling
+      // container internals to the overall aspect-ratio setting (containers reshaped when
+      // the user changed AR or the root algo). Containers pack at ELK's natural ratio so
+      // their internal layout depends only on the "Container layout" choice.
+      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
       innerSpacing:   (v) => ({
         "elk.spacing.nodeNode": String(v),
-        "elk.rectpacking.packing.compaction.iterations": "3",
+        "elk.rectpacking.packing.compaction.iterations": "10",
         "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
       }),
       padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
@@ -347,6 +362,27 @@ function layout(graph) {
     _snapColumnsToGrid(resultNodes, graph.options, nameById, log);
   }
 
+  // Debug: dump every result node (absolute coords as ELK produced them). Containers first,
+  // then their children indented, so a misplaced/mis-sized container is easy to spot.
+  if (debugLog) {
+    const nameById = {};
+    for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
+    const childrenOf = {};
+    for (const rn of resultNodes) (childrenOf[rn.parentId || "__root__"] = childrenOf[rn.parentId || "__root__"] || []).push(rn);
+    const byId = {}; for (const rn of resultNodes) byId[rn.id] = rn;
+    debugLog(`[result-nodes] ${resultNodes.length} nodes (abs coords; children indented under parent):`);
+    const dump = (pid, indent) => {
+      for (const rn of (childrenOf[pid] || [])) {
+        const kids = childrenOf[rn.id] ? childrenOf[rn.id].length : 0;
+        const kind = kids > 0 ? `container(${kids})` : "leaf";
+        const nm = nameById[rn.id] || rn.id;
+        debugLog(`${indent}${kind} abs=(${Math.round(rn.x)},${Math.round(rn.y)}) size=${Math.round(rn.width)}×${Math.round(rn.height)}  "${nm}"  [${rn.id.substring(0,8)}]`);
+        dump(rn.id, indent + "    ");
+      }
+    };
+    dump("__root__", "  ");
+  }
+
   // Collect edges
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
   _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, debugLog);
@@ -373,8 +409,10 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   // Container nodes: let ELK auto-size from children + padding.
   // containerAlgorithm param selects the ELK algorithm used inside each container.
   // connectionsMode param selects SEPARATE_CHILDREN (default) or INCLUDE_CHILDREN.
-  const containerEngineOpts = _mapParamsScoped(graph.algorithm, graph.options, "container");
+  // Scope container params to the CONTAINER algorithm (not the root) so e.g. rectpacking
+  // compaction options follow the "Container layout" choice, not the root "Algorithm".
   const containerAlgName = graph.options.containerAlgorithm;
+  const containerEngineOpts = _mapParamsScoped(containerAlgName || graph.algorithm, graph.options, "container");
   const containerAlgoId  = containerAlgName
     ? ALGORITHMS[containerAlgName].engineAlgorithmId
     : ALGORITHMS[graph.algorithm].engineAlgorithmId;
@@ -647,12 +685,22 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
   for (const child of (elkNode.children || [])) {
     const absX = offsetX + (child.x || 0);
     const absY = offsetY + (child.y || 0);
+    // Guard against degenerate ELK output: rectpacking (esp. with aggressive compaction /
+    // whiteSpaceElimination) can occasionally emit a node with a zero/undefined dimension.
+    // A non-positive width/height crashes the writer's setBounds ("Width or height cannot be
+    // zero or less"). Clamp to a minimum and warn with the node id so the cause stays visible.
+    let w = child.width, h = child.height;
+    if (!(w > 0) || !(h > 0)) {
+      console.warn(`  ⚠ [elk] node "${child.id}" has non-positive size (w=${w}, h=${h}); clamping to ${MIN_NODE_SIZE}px`);
+      if (!(w > 0)) w = MIN_NODE_SIZE;
+      if (!(h > 0)) h = MIN_NODE_SIZE;
+    }
     resultNodes.push({
       id:       child.id,
       x:        absX,
       y:        absY,
-      width:    child.width  || 0,
-      height:   child.height || 0,
+      width:    w,
+      height:   h,
       parentId: parentId || null,
     });
     _collectNodePositions(child, absX, absY, resultNodes, child.id);

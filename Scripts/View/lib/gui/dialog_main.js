@@ -1346,6 +1346,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCheck(chkComp, "Align widths by level",    "Use a common width per nesting level, with each parent level one padding step wider than its children.",        1, w, "chkAlignWidthSameType");
   _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.",        1, w, "chkSnapColumns");
   _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",               1, w, "chkShowInEvery");
+  _addCheck(chkComp, "Size by label",           "Derive node width and height from label text; long labels wrap to 2 lines.", 1, w, "chkLabelSizing");
   // Refresh the live Output counters when 'Show in every container' toggles.
   if (w.chkShowInEvery) {
     w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
@@ -2246,7 +2247,8 @@ function _syncToUI(ctx) {
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
   _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
   _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
-  _chkSet(w.chkShowInEvery, !!(p.showInEveryContainer));
+  _chkSet(w.chkShowInEvery,  !!(p.showInEveryContainer));
+  _chkSet(w.chkLabelSizing,  !!(p.labelSizing));
   if (w.cmbContainerAlgorithm) {
     const idx = CONTAINER_ALGO_LABELS.indexOf(p.containerAlgorithm || "Layered");
     w.cmbContainerAlgorithm.select(idx >= 0 ? idx : 0);
@@ -2444,6 +2446,7 @@ function _saveUI(ctx) {
   if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
   if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
   if (w.chkShowInEvery)          c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
+  if (w.chkLabelSizing)          c.params.labelSizing          = w.chkLabelSizing.getSelection();
   if (w.cmbContainerAlgorithm)   c.params.containerAlgorithm   = w.cmbContainerAlgorithm.getText();
   if (w.cmbConnectionsMode)      c.params.connectionsMode      = w.cmbConnectionsMode.getText();
 
@@ -2566,6 +2569,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
+  _enable(w.chkLabelSizing,          active.has("labelSizing"));
   _enable(w.cmbContainerAlgorithm,   active.has("containerAlgorithm"));
   _enable(w.cmbConnectionsMode,      active.has("connectionsMode"));
   // "Crossing containers" (INCLUDE_CHILDREN) requires the same algorithm at all hierarchy
