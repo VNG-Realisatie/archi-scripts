@@ -877,7 +877,7 @@ Both entry points apply the same per-step relation-type filter (see Step 5 below
 
 **EXPAND_VIEW and LAYOUT_ONLY skip Step 2.** The element-type filter is not applied for either action in the "Modify selected view" group. These actions re-layout or expand elements already on the view; applying the filter would exclude visible element types, causing containers to be sized for only the filtered subset while the excluded elements remain at positions outside those bounds.
 
-LAYOUT_ONLY additionally skips Step 3 (no related-elements expansion — re-layout what is already there, not add to it). EXPAND_VIEW runs Step 3 normally from the unfiltered base. See [Action-group dispatch](#action-group-dispatch) for group definitions.
+LAYOUT_ONLY additionally skips Step 3 (no related-elements expansion) and, after Step 5, filters `relations` down to only those that already have a visual on the existing view — so LAYOUT_ONLY never adds missing relations. EXPAND_VIEW runs Step 3 normally from the unfiltered base and does not filter relations. See [Action-group dispatch](#action-group-dispatch) for group definitions.
 
 ```
 Step 1  Selection → model + diagram objects (+ VisualSet)

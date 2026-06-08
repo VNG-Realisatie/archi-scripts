@@ -138,7 +138,18 @@ function _openView(view) {
 
 function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   const objectSet = Pipeline.buildObjectSet(uiSelection, preset, actionId);
-  const { elements, relations, diagramObjects, diagramConnections, existingView } = objectSet;
+  const { elements, diagramObjects, diagramConnections, existingView } = objectSet;
+
+  // LAYOUT_ONLY: keep only relations that already have a visual on the view.
+  // _findRelationsBetween returns all model relations between the elements, but
+  // LAYOUT_ONLY must not add missing relations — it only re-lays out what is there.
+  let relations = objectSet.relations;
+  if (actionId === ACTION.LAYOUT_ONLY.id) {
+    const onViewRelIds = new Set(
+      (objectSet.visualRelations || []).map(vr => vr.concept && vr.concept.id).filter(Boolean)
+    );
+    relations = relations.filter(r => onViewRelIds.has(r.id));
+  }
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
   const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
