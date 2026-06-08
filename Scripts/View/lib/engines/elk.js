@@ -43,6 +43,20 @@ const ELK_DIRECTION = {
 const CONTAINER_LABEL_CLEARANCE = 30;
 const MIN_NODE_SIZE = 8;  // fallback for degenerate ELK output (zero/undefined dimension) — see _collectNodePositions
 
+const DEFAULT_ELK_PARAMS = {
+  "elk.layered.cycleBreaking.strategy":             "GREEDY",
+  "elk.layered.edgeRouting.selfLoopDistribution":   "EQUALLY",
+  "elk.layered.edgeRouting.selfLoopOrdering":       "SEQUENCED",
+  "elk.layered.feedbackEdges":                      "true",
+  "elk.layered.spacing.edgeNodeBetweenLayers":      40,
+  "elk.spacing.edgeEdge":                           20,
+  "elk.spacing.edgeNode":                           15,
+  "elk.spacing.nodeSelfLoop":                       20,
+};
+
+// Shared aspect-ratio mapping reused wherever both root and container scopes carry the same fn.
+const _AR = (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {};
+
 // Shared routing fn used in both root and container scopes for Layered.
 // CONSERVATIVE spline mode inlined here — no separate post-mapping special case needed.
 const _LAYERED_ROUTING = (v) => ({
@@ -57,7 +71,7 @@ const PARAM_MAPPING = {
       routing:        _LAYERED_ROUTING,
       elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
       layerSpacing:   (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      aspectRatio:    _AR,
       padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
     },
     container: {
@@ -73,7 +87,7 @@ const PARAM_MAPPING = {
     root: {
       direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
       elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      aspectRatio:    _AR,
       padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
     },
     container: {
@@ -86,7 +100,7 @@ const PARAM_MAPPING = {
   Force: {
     root: {
       elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      aspectRatio:    _AR,
     },
     container: {
       elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
@@ -97,7 +111,7 @@ const PARAM_MAPPING = {
   Stress: {
     root: {
       elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      aspectRatio:    _AR,
     },
     container: {
       elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
@@ -120,7 +134,7 @@ const PARAM_MAPPING = {
   Grid: {
     root: {
       innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      aspectRatio:    _AR,
       padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
     },
     container: {
@@ -150,11 +164,12 @@ const PARAM_MAPPING = {
       // rectpacking.widthApproximation.targetWidth: with SEPARATE_CHILDREN the container
       // boxes are pre-sized bottom-up, so a target narrower than the widest container is
       // ignored (result stays wider) and a too-narrow target can yield zero-width nodes.
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      aspectRatio:    _AR,
       innerSpacing:   (v) => ({
         "elk.spacing.nodeNode": String(v),
-        "elk.rectpacking.packing.compaction.iterations": "10",
-        "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+        "elk.rectpacking.packing.compaction.iterations": "5",
+        // "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+        // "elk.rectpacking.widthApproximation.optimizationGoal": "AREA_DRIVEN",
         // NB: whiteSpaceElimination EQUAL_BETWEEN_STRUCTURES is intentionally NOT used — it
         // distributes whitespace between nodes (widening boxes, offsetting content negative)
         // which pushed children outside their container's left edge. Compaction handles tightening.
@@ -162,16 +177,15 @@ const PARAM_MAPPING = {
       padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
     },
     container: {
-      // aspectRatio is intentionally NOT propagated to containers — it is a view-level
-      // (root) concern. Propagating it stretched each container to the ratio, coupling
-      // container internals to the overall aspect-ratio setting (containers reshaped when
-      // the user changed AR or the root algo). Containers pack at ELK's natural ratio so
-      // their internal layout depends only on the "Container layout" choice.
-      aspectRatio:    (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {},
+      // aspectRatio propagated to containers so their internal layout matches the root AR,
+      // producing a more consistent overall shape.
+      aspectRatio:    _AR,
       innerSpacing:   (v) => ({
         "elk.spacing.nodeNode": String(v),
-        "elk.rectpacking.packing.compaction.iterations": "10",
-        "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+        "elk.rectpacking.packing.compaction.iterations": "5",
+        "elk.rectpacking.trybox": "true",  // trybox is a lightweight pre-compaction pass that reduces the number of moves needed in compaction, improving performance with minimal impact on tightness
+        // "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
+        // "elk.rectpacking.widthApproximation.optimizationGoal": "AREA_DRIVEN",
       }),
       padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
     },
@@ -223,7 +237,7 @@ function layout(graph) {
   // Map GUI params to ELK root options (SPLINES CONSERVATIVE mode inlined in _LAYERED_ROUTING)
   const rootEngineOpts  = _mapParamsScoped(graph.algorithm, graph.options, "root");
   const elkEngineParams = Object.fromEntries(
-    Object.entries((graph.engineParams && graph.engineParams.ELK) || {}).map(([k, v]) => [k, String(v)])
+    Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
   const layoutOptions = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts, elkEngineParams);
 
@@ -419,7 +433,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   const hierarchyMode = graph.options.connectionsMode === "Crossing containers"
     ? "INCLUDE_CHILDREN" : "SEPARATE_CHILDREN";
   const ctrEngineParams = Object.fromEntries(
-    Object.entries((graph.engineParams && graph.engineParams.ELK) || {}).map(([k, v]) => [k, String(v)])
+    Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
   const hasContainers = Object.keys(parentMap).length > 0;
   for (const [nodeId, node] of Object.entries(nodeMap)) {
@@ -525,12 +539,15 @@ function _attachChildren(nodeMap, parentMap) {
   }
 }
 
+// Leaves are ALWAYS sorted by type+name; sortContainers only controls whether containers
+// are also sorted (off = containers keep their original order). Containers are grouped
+// before leaves in both cases.
 function _sortNodeChildren(nodeMap, sortContainers) {
-  if (!sortContainers) return;
   for (const node of Object.values(nodeMap)) {
     if (node.children.length > 1) {
-      const ctrs   = node.children.filter(n => n.children.length > 0).sort(byTypeAndName);
+      const ctrs   = node.children.filter(n => n.children.length > 0);
       const leaves = node.children.filter(n => n.children.length === 0).sort(byTypeAndName);
+      if (sortContainers) ctrs.sort(byTypeAndName);
       node.children = ctrs.concat(leaves);
     }
   }
@@ -540,9 +557,9 @@ function _collectRootChildren(nodeMap, parentMap, sortContainers) {
   const roots = Object.keys(nodeMap)
     .filter(id => parentMap[id] === undefined)
     .map(id => nodeMap[id]);
-  if (!sortContainers) return roots;
-  const ctrs   = roots.filter(n => n.children.length > 0).sort(byTypeAndName);
+  const ctrs   = roots.filter(n => n.children.length > 0);
   const leaves = roots.filter(n => n.children.length === 0).sort(byTypeAndName);
+  if (sortContainers) ctrs.sort(byTypeAndName);
   return ctrs.concat(leaves);
 }
 

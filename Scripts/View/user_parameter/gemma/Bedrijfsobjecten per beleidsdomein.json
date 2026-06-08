@@ -2,7 +2,7 @@
   "name": "gemma/Bedrijfsobjecten per beleidsdomein",
   "algorithm": "Pack",
   "params": {
-    "direction": "Top → Bottom",
+    "direction": "Left → Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -14,21 +14,24 @@
     "nestingRelationTypes": [
       "aggregation-relationship"
     ],
-    "innerSpacing": 5,
+    "innerSpacing": 10,
     "padding": 10,
     "sortContainers": false,
-    "alignWidthSameType": true,
-    "alignDebug": false,
-    "snapColumnsToGrid": true,
+    "alignWidthSameType": false,
+    "alignDebug": true,
+    "snapColumnsToGrid": false,
     "showInEveryContainer": false,
-    "layerSpacing": 120,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 180,
     "elementSpacing": 100,
     "elementWidth": 180,
     "elementHeight": 60,
-    "maxWidth": 5000,
+    "maxWidth": 1500,
     "maxHeight": 1000,
     "aspectRatio": 1.33,
-    "viewSizeMode": "none"
+    "viewSizeMode": "aspectRatio",
+    "labelSizing": true
   },
   "filter": {
     "elementTypes": [
@@ -53,7 +56,7 @@
     ]
   },
   "view": {
-    "name": "6 Sociaal Domein",
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
     "folder": "/_Test/_Generated"
   },
   "appearance": {
@@ -87,20 +90,49 @@
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
-      "fontEnabled": false,
+      "fontEnabled": true,
       "rootFontSize": 14,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "rootColor": "#2B5796",
-      "darkenPerLevel": 15
+      "colorEnabled": true,
+      "rootColor": "#f6ffce",
+      "darkenPerLevel": 25
     },
     "highlightRepeated": {
       "enabled": false,
       "colorRange": "Pastel1"
     }
   },
-  "_lastTabIndex": 1,
+  "engineParams": {
+    "layout": {
+      "nodeSizeByEdgeCount": 25,
+      "labelCharWidth": 9,
+      "labelLineHeight": 24,
+      "labelHPadding": 16,
+      "labelVPadding": 8,
+      "labelMaxLineWidth": 160,
+      "labelMinWidth": 60,
+      "labelMinHeight": 30
+    },
+    "ELK": {
+      "elk.layered.cycleBreaking.strategy": "GREEDY",
+      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
+      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
+      "elk.layered.feedbackEdges": "true",
+      "elk.layered.spacing.edgeNodeBetweenLayers": 40,
+      "elk.spacing.edgeEdge": 20,
+      "elk.spacing.edgeNode": 15,
+      "elk.spacing.nodeSelfLoop": 20
+    },
+    "Dagre": {
+      "acyclicer": "greedy",
+      "edgesep": 20
+    },
+    "Graphviz": {
+      "esep": "+20"
+    }
+  },
+  "_lastTabIndex": 2,
   "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
   "action": "new_view"
 }

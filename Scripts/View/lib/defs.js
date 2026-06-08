@@ -42,7 +42,7 @@ const ALGORITHMS = Object.freeze({
       "nestingRelationTypes", "padding",
       "sortContainers", "alignWidthSameType", "alignDebug",
       "showInEveryContainer", "containerAlgorithm", "connectionsMode",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "layerSpacing", "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
@@ -68,7 +68,7 @@ const ALGORITHMS = Object.freeze({
       "nestingRelationTypes", "padding",
       "sortContainers", "alignWidthSameType", "alignDebug",
       "showInEveryContainer", "containerAlgorithm",
-      "elementSpacing", "elementWidth", "elementHeight",
+      "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
@@ -169,7 +169,7 @@ const ALGORITHMS = Object.freeze({
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "padding",
       "sortContainers",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "layerSpacing", "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
@@ -190,7 +190,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "direction", "routing", "labelPosition",
       "nestingRelationTypes", "innerSpacing", "padding",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "layerSpacing", "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
       "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
@@ -539,6 +539,7 @@ const DEFAULT_PRESET = Object.freeze({
     connectionsMode:       "Between containers",   // "Between containers" | "Crossing containers"
     layerSpacing:          180,
     elementSpacing:        40,
+    nodeSizeByEdgeCount:   25,
     elementWidth:          140,
     elementHeight:         60,
     maxWidth:              0,
@@ -580,43 +581,8 @@ const DEFAULT_PRESET = Object.freeze({
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
-  engineParams: {
-    layout: {
-      nodeSizeByEdgeCount: 25,  // px per edge on the busiest side; expands node height (LR/RL) or width (TB/BT); 0 = disabled
-      labelCharWidth:      9,   // estimated px per character for label-based node sizing
-      labelLineHeight:     24,  // px per text line
-      labelHPadding:       16,  // horizontal padding per side (px)
-      labelVPadding:       8,   // vertical padding total top+bottom (px)
-      labelMaxLineWidth:   160, // label px width above which text wraps to 2nd line
-      labelMinWidth:       60,  // minimum node width (px)
-      labelMinHeight:      30,  // minimum node height (px)
-    },
-    ELK: {
-      "elk.layered.cycleBreaking.strategy": "GREEDY",  // GREEDY (default) | DEPTH_FIRST |  INTERACTIVE | NONE
-      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",  // NORTH | EQUALLY | NORTH_SOUTH
-      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",      // STACKED | SEQUENCED
-      "elk.layered.feedbackEdges": "true",
-      "elk.layered.spacing.edgeNodeBetweenLayers": 40,  // routing corridor between layers → distance from node face to first bend (ELK default = 10)
-      "elk.spacing.edgeEdge":  20,     // min distance between two edges within a layer (ELK default = 10)
-      "elk.spacing.edgeNode":  15,     // min distance between an edge and a node within a layer (ELK default = 10)
-      "elk.spacing.nodeSelfLoop": 20,  // clearance from node boundary to self-loop wire, and between stacked self-loops
-    },
-    Dagre: {
-        acyclicer: "greedy",
-        edgesep: 20,   // separation between parallel edges (Dagre default ≈ 10)
-    },
-    Graphviz: {
-      esep: "+20",    // edge clearance from node boundary; overrides routing-mode default (+8 curved / +24 ortho)
-      // newrank: true,  // enables more compact layouts with many leaf nodes; may cause more edge crossings (Graphviz default = false)
-    },
-  },
+  engineParams: {},  // overrides only — defaults live in each adapter (elk.js, dagre.js, graphviz.js) and engine-utils.js
 });
-
-// ── Engine parameter mapping (GUI param → engine param) ───────────────────────
-// Engine parameter mappings have moved to the engine adapters:
-//   ELK params    → Scripts/View/lib/engines/elk.js    (PARAM_MAPPING)
-//   Dagre params  → Scripts/View/lib/engines/dagre.js  (PARAM_MAPPING)
-//   Graphviz params → Scripts/View/lib/engines/graphviz.js  (PARAM_MAPPING)
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -762,6 +728,10 @@ function validatePreset(raw) {
       if (typeof rh.colorRange === "string")  pa.highlightRepeated.colorRange = rh.colorRange;
     }
   }
+
+  // engineParams: pass overrides through as-is; adapters/utils merge with their own defaults.
+  if (raw.engineParams && typeof raw.engineParams === "object")
+    preset.engineParams = raw.engineParams;
 
   return preset;
 }

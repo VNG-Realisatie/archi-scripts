@@ -1261,6 +1261,9 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",   60, 10,  500, 10, w, "Height of all elements (px).");
   _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",  40,  0,  500,  5, w, "Minimum distance between elements (px).");
   _addSpinnerRow(grpSize, "Layer spacing:",   "spinLayerSpacing",   180,  0, 2000, 20, w, "Distance between hierarchy levels (px). Active in layered, tree, and flow layouts.");
+  _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25, 0, 200, 5, w, "Adds extra element size based on the number of connections on the busiest side.\n" +
+    "Use this to prevent ports from overlapping on highly connected elements.\n" +
+    "0 = disabled.");
   new LabelWidget(grpSize, SWT.NONE); new LabelWidget(grpSize, SWT.NONE);
   new LabelWidget(grpSize, SWT.NONE); new LabelWidget(grpSize, SWT.NONE);
 
@@ -2261,8 +2264,9 @@ function _syncToUI(ctx) {
   // Sizes
   _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : DP.elementWidth);
   _spinSet(w.spinElementHeight,  p.elementHeight  !== undefined ? p.elementHeight  : DP.elementHeight);
-  _spinSet(w.spinElementSpacing, p.elementSpacing !== undefined ? p.elementSpacing : DP.elementSpacing);
-  _spinSet(w.spinLayerSpacing,   p.layerSpacing   !== undefined ? p.layerSpacing   : DP.layerSpacing);
+  _spinSet(w.spinElementSpacing,       p.elementSpacing       !== undefined ? p.elementSpacing       : DP.elementSpacing);
+  _spinSet(w.spinLayerSpacing,         p.layerSpacing         !== undefined ? p.layerSpacing         : DP.layerSpacing);
+  _spinSet(w.spinNodeSizeByEdgeCount,  p.nodeSizeByEdgeCount  !== undefined ? p.nodeSizeByEdgeCount  : DP.nodeSizeByEdgeCount);
   _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
   _spinSet(w.spinMaxHeight,      p.maxHeight      !== undefined ? p.maxHeight      : DP.maxHeight);
   const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio !== undefined ? p.aspectRatio : DP.aspectRatio));
@@ -2453,8 +2457,9 @@ function _saveUI(ctx) {
   // Sizes
   if (w.spinElementWidth)   c.params.elementWidth   = w.spinElementWidth.getSelection();
   if (w.spinElementHeight)  c.params.elementHeight  = w.spinElementHeight.getSelection();
-  if (w.spinElementSpacing) c.params.elementSpacing = w.spinElementSpacing.getSelection();
-  if (w.spinLayerSpacing)   c.params.layerSpacing   = w.spinLayerSpacing.getSelection();
+  if (w.spinElementSpacing)       c.params.elementSpacing       = w.spinElementSpacing.getSelection();
+  if (w.spinLayerSpacing)         c.params.layerSpacing         = w.spinLayerSpacing.getSelection();
+  if (w.spinNodeSizeByEdgeCount)  c.params.nodeSizeByEdgeCount  = w.spinNodeSizeByEdgeCount.getSelection();
   if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
   if (w.spinMaxHeight)      c.params.maxHeight      = w.spinMaxHeight.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
@@ -2605,7 +2610,8 @@ function _updateAlgorithmControls(ctx) {
       }
     }
   }
-  _enable(w.spinLayerSpacing,        active.has("layerSpacing"));
+  _enable(w.spinLayerSpacing,           active.has("layerSpacing"));
+  _enable(w.spinNodeSizeByEdgeCount,    active.has("nodeSizeByEdgeCount"));
 
   // View size radios: enable/disable each option based on algorithm support.
   // The spinners/combo are controlled by _applyViewSizeMode, not directly here.

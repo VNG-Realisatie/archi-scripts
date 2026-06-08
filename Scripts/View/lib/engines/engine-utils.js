@@ -44,13 +44,15 @@ function byTypeAndName(a, b) {
 /**
  * Return a sorted copy of LayoutGraph nodes.
  * Within each parent group: containers (nodes that have children) first, then leaves.
- * Both sub-groups sorted by elementType then label.
+ * Leaves are ALWAYS sorted by elementType then label; containers are sorted only when
+ * sortContainers is true (otherwise they keep their original order).
  *
- * @param {Object[]} nodes      LayoutGraph nodes ({ id, elementType, label, parent, ... })
- * @param {Object}   parentMap  { childId: parentId }
- * @returns {Object[]}          new sorted array
+ * @param {Object[]} nodes           LayoutGraph nodes ({ id, elementType, label, parent, ... })
+ * @param {Object}   parentMap       { childId: parentId }
+ * @param {boolean}  sortContainers  whether to also sort containers
+ * @returns {Object[]}               new sorted array
  */
-function sortedNodes(nodes, parentMap) {
+function sortedNodes(nodes, parentMap, sortContainers) {
   const childSet = new Set(Object.values(parentMap));
 
   // Group by parent key
@@ -62,8 +64,9 @@ function sortedNodes(nodes, parentMap) {
 
   const result = [];
   for (const group of Object.values(byParent)) {
-    const ctrs   = group.filter(n =>  childSet.has(n.id)).sort(byTypeAndName);
+    const ctrs   = group.filter(n =>  childSet.has(n.id));
     const leaves = group.filter(n => !childSet.has(n.id)).sort(byTypeAndName);
+    if (sortContainers) ctrs.sort(byTypeAndName);
     result.push(...ctrs, ...leaves);
   }
   return result;
@@ -185,22 +188,33 @@ function applyParams(algName, opts, mapping) {
   return result;
 }
 
+// ── Pre-layout sizing defaults ────────────────────────────────────────────────
+
+const LAYOUT_DEFAULTS = {
+  labelCharWidth:      8,
+  labelLineHeight:     24,
+  labelHPadding:       16,
+  labelVPadding:       8,
+  labelMaxLineWidth:   400,
+  labelMinWidth:       60,
+  labelMinHeight:      30,
+};
+
 // ── Edge-density node sizing ──────────────────────────────────────────────────
 
 /**
  * Pre-layout: expand node height (horizontal direction) or width (vertical direction)
  * so that nodes with many connections have enough space for their edge ports.
  *
- * Controlled by engineParams.layout.nodeSizeByEdgeCount (px per edge on busiest side).
+ * Controlled by params.nodeSizeByEdgeCount (px per edge on busiest side).
  * 0 or absent = disabled. Only expands — never shrinks below the current size.
  *
- * @param {Object[]} nodes         LayoutGraph nodes (mutated in place)
- * @param {Object[]} edges         LayoutGraph edges
- * @param {Object}   params        preset.params (needs .direction)
- * @param {Object}   engineParams  merged engineParams ({ layout: { nodeSizeByEdgeCount } })
+ * @param {Object[]} nodes   LayoutGraph nodes (mutated in place)
+ * @param {Object[]} edges   LayoutGraph edges
+ * @param {Object}   params  preset.params (needs .direction, .nodeSizeByEdgeCount)
  */
-function expandNodeSizesForEdgeDensity(nodes, edges, params, engineParams) {
-  const spacing = engineParams && engineParams.layout && engineParams.layout.nodeSizeByEdgeCount;
+function expandNodeSizesForEdgeDensity(nodes, edges, params) {
+  const spacing = params && params.nodeSizeByEdgeCount;
   if (!spacing || spacing <= 0) return;
 
   const dir = (params && params.direction) || "Left → Right";
@@ -240,7 +254,7 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params, engineParams) {
  */
 function sizeLabelBasedNodes(nodes, params, engineParams) {
   if (!params || !params.labelSizing) return;
-  const lp      = engineParams.layout;           // always present — defs.js is SSOT
+  const lp      = Object.assign({}, LAYOUT_DEFAULTS, engineParams && engineParams.layout);
   const charW    = lp.labelCharWidth;
   const lineH    = lp.labelLineHeight;
   const hPad     = lp.labelHPadding;

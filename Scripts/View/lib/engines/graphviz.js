@@ -36,6 +36,52 @@ const GRAPHVIZ_ALGORITHMS = new Set(
 const GRAPHVIZ_EDGE_CLEARANCE_ORTHO  = '+24';
 const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 
+// ── Engine-specific parameter mapping ────────────────────────────────────────
+// Maps GUI param names to Graphviz graph attribute key/value pairs.
+// Defined after _guiRoutingToGraphviz so that function can be referenced here.
+// Note: px → inches conversion uses / 96 (96 DPI screen).
+
+// maxWidth / maxHeight: NOT mapped to Graphviz 'size' here.
+// Graphviz 'size' scales node sizes (forbidden — see ARCHITECTURE.md §A.8).
+// Instead, maxWidth/maxHeight drive _applySpread() post-extraction (expand only).
+const PARAM_MAPPING = {
+  Dot: {
+    direction:     (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    elementSpacing:(v) => ({ nodesep: (v / 96).toFixed(4) }),
+    padding:       (v) => ({ pad:    (v / 96).toFixed(4) }),
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Neato: {
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  FDP: {
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  SFDP: {
+    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Twopi: {
+    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Circo: {
+    elementSpacing:(v) => ({ mindist: (v / 96).toFixed(4) }),
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+};
+
+// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
+
 /**
  * Compute layout positions.
  * @param {LayoutGraph} graph
@@ -456,52 +502,6 @@ function _guiRoutingToGraphviz(routing) {
     default:                    return "polyline";
   }
 }
-
-// ── Engine-specific parameter mapping ────────────────────────────────────────
-// Maps GUI param names to Graphviz graph attribute key/value pairs.
-// Defined after _guiRoutingToGraphviz so that function can be referenced here.
-// Note: px → inches conversion uses / 96 (96 DPI screen).
-
-// maxWidth / maxHeight: NOT mapped to Graphviz 'size' here.
-// Graphviz 'size' scales node sizes (forbidden — see ARCHITECTURE.md §A.8).
-// Instead, maxWidth/maxHeight drive _applySpread() post-extraction (expand only).
-const PARAM_MAPPING = {
-  Dot: {
-    direction:     (v) => ({ rankdir: DIRECTION_MAP[v] }),
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
-    elementSpacing:(v) => ({ nodesep: (v / 96).toFixed(4) }),
-    padding:       (v) => ({ pad:    (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  Neato: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  FDP: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  SFDP: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  Twopi: {
-    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  Circo: {
-    elementSpacing:(v) => ({ mindist: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-};
-
-// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
 
 /**
  * Render a {key: value} object as a DOT graph attribute string.

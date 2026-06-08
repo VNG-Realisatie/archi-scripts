@@ -285,16 +285,6 @@ function _generateOneEach(preset, uiSelection) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Deep-merge engineParams objects: DEFAULT_PRESET is the base, preset overrides per engine.
-// A preset only needs to list values it wants to change; missing entries fall back to the default.
-function _mergeEngineParams(defaults, overrides) {
-  const engines = new Set([...Object.keys(defaults || {}), ...Object.keys(overrides || {})]);
-  const result = {};
-  for (const engine of engines)
-    result[engine] = Object.assign({}, (defaults || {})[engine], (overrides || {})[engine]);
-  return result;
-}
-
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
 function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept) {
@@ -420,15 +410,15 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     });
   }
 
-  const mergedEngineParams = _mergeEngineParams(Defs.DEFAULT_PRESET.engineParams, preset.engineParams);
-  expandNodeSizesForEdgeDensity(nodes, edges, params, mergedEngineParams);
-  sizeLabelBasedNodes(nodes, params, mergedEngineParams);
+  const engineParams = preset.engineParams || {};
+  expandNodeSizesForEdgeDensity(nodes, edges, params);
+  sizeLabelBasedNodes(nodes, params, engineParams);
 
   return {
     algorithm:      preset.algorithm,
     nodes, edges,
     options:        params,
-    engineParams:   mergedEngineParams,
+    engineParams,
     alignWidthSameType: params.alignWidthSameType || false,
     snapColumnsToGrid: params.snapColumnsToGrid || false,
     sortContainers: params.sortContainers || false,

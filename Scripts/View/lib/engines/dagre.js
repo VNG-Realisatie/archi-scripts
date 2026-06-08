@@ -25,6 +25,11 @@ const RANKER = {
   "Top-aligned": "tight-tree",
 };
 
+const DEFAULT_DAGRE_PARAMS = {
+  acyclicer: "greedy",
+  edgesep:   20,
+};
+
 const PARAM_MAPPING = {
   Dagre: {
     direction:      (v) => ({ rankdir: DIRECTION_MAP[v] }),
@@ -99,14 +104,15 @@ function layout(graph) {
 
   const parentMap = graph._parentMap || {};
 
-  // Pre-layout: sort nodes if requested. alignWidthSameType is ELK-only (see capability
-  // matrix); Dagre's partial nesting does not support the two-pass container measurement.
-  const nodes = graph.sortContainers ? sortedNodes(graph.nodes, parentMap) : graph.nodes;
+  // Pre-layout: leaves are always sorted; sortContainers also sorts containers.
+  // alignWidthSameType is ELK-only (see capability matrix); Dagre's partial nesting does
+  // not support the two-pass container measurement.
+  const nodes = sortedNodes(graph.nodes, parentMap, graph.sortContainers);
 
   const engineOpts = Object.assign(
     applyParams("Dagre", graph.options, PARAM_MAPPING),
     Object.fromEntries(
-      Object.entries((graph.engineParams && graph.engineParams.Dagre) || {}).map(([k, v]) => [k, Number(v)])
+      Object.entries(Object.assign({}, DEFAULT_DAGRE_PARAMS, (graph.engineParams && graph.engineParams.Dagre) || {})).map(([k, v]) => [k, Number(v)])
     )
   );
 
