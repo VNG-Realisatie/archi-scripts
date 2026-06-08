@@ -1,6 +1,6 @@
 {
   "name": "gemma/Bedrijfsfunctiemodel met referentiecomponenten",
-  "algorithm": "Layered",
+  "algorithm": "Pack",
   "params": {
     "direction": "Left → Right",
     "routing": "Polyline",
@@ -18,19 +18,23 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "sortContainers": true,
+    "sortContainers": false,
     "alignWidthSameType": true,
     "alignDebug": false,
-    "snapColumnsToGrid": true,
+    "snapColumnsToGrid": false,
     "showInEveryContainer": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
+    "nodeSizeByEdgeCount": 25,
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 5000,
     "maxHeight": 1000,
     "aspectRatio": 0.75,
-    "viewSizeMode": "none"
+    "viewSizeMode": "none",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [
@@ -74,7 +78,7 @@
     ]
   },
   "view": {
-    "name": "Beheren fysieke objecten",
+    "name": "Klant- en keteninteractie",
     "folder": "/_Test/_Generated"
   },
   "appearance": {
@@ -88,7 +92,7 @@
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "",
+        "property": "GGM-guid",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -96,7 +100,7 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "",
+      "property": "GGM-guid",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
@@ -114,13 +118,14 @@
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
       "rootColor": "#fff29b",
-      "darkenPerLevel": 15
+      "darkenPerLevel": 20
     },
     "highlightRepeated": {
       "enabled": true,
       "colorRange": "Pastel1"
     }
   },
+  "engineParams": {},
   "_lastTabIndex": 1,
   "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
   "action": "new_view"

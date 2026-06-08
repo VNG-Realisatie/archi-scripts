@@ -898,14 +898,18 @@ Step 2  Apply the global Filter
 
 Step 3  Related-elements expansion (chain)
   For each ordered step in preset.relatedElements.steps:
-    cumulativeBefore = current cumulative snapshot
-    additions        = traverse(input, step)          (depth hops, pruned by elementTypes)
-    final-selection  = final-selection ∪ additions
-    stepRelations    = relations of step's type in (cumulativeBefore ∪ additions)
-                       where ≥1 endpoint is in cumulativeBefore  (new×new excluded)
-    input            = additions                       (chain: next step starts here)
+    hops   = _expandStepFrontiers(input, step)   (one array per depth hop)
+    additions = hops.flat()
+    final-selection = final-selection ∪ additions
+    For each hop frontier in hops:
+      stepRelations += relations of step's type in (cumulative ∪ hop-frontier)
+                       where ≥1 endpoint is in cumulative  (new×new per hop excluded)
+      cumulative    += hop-frontier
+    input = additions                              (chain: next step starts here)
   Step 1's input is the filtered base.
   An empty step terminates the chain — every later step adds zero.
+
+  Depth-to-relations: base→hop1 ✓  hop1→hop2 ✓  hop2→hop3 ✓  hopN↔hopN ✗
 
 Step 4  Separate the element set
   Drop relations, folders, view nodes. What remains is the set
@@ -915,11 +919,10 @@ Step 5  Find relations between elements (collected incrementally in Step 3)
   Relations are collected in two passes:
   · Base pass: relations between the filtered-base elements, filtered
     by the global relation-type filter.
-  · Per-step pass (inside Step 3's loop): for each step, relations of
-    the step's type where at least one endpoint was already in the
-    cumulative set before this step's additions — old×old, old→new,
-    new→old.  new×new is excluded: a new element only carries the
-    relations that were actually followed to reach it.  An empty step
+  · Per-step pass (inside Step 3's loop): for each depth hop within a step,
+    relations of the step's type where at least one endpoint was in cumulative
+    before that hop — old×old, old→new, new→old.  new×new is excluded per hop:
+    lateral relations within the same frontier are never added.  An empty step
     filter (= "all") applies no type restriction from the step side.
   A shared seenRelIds set prevents double-counting across passes.
   (See [Preset schema](#preset-schema) for encoding.)
@@ -938,8 +941,8 @@ Step 6  Partition diagram objects
 - **No view mutation.** The pipeline reads only; it never edits a view. *(Rule 4 in [ai/rules.md](../../ai/rules.md))*
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
-- **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `_findRelationsBetween(cumulative, step.relationTypes, seenRelIds, cumulativeBefore)` identically, where `cumulativeBefore` is the cumulative snapshot taken before this step's additions (excludes new×new).
-- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the count of new relations found in that step's pass: relations of the step's type where ≥1 endpoint was in cumulative before this step (new×new excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepFrontiers` and then `findRelationsBetween` per-hop identically, applying the new×new-excluded rule at each hop level so inter-hop relations (hop1→hop2, etc.) are included.
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all depth hops of new relations found in each hop's pass (where ≥1 endpoint was in cumulative before that hop, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
 - **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
 - **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
 - **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
@@ -1460,17 +1463,19 @@ Step 2  _applyFilter(modelCollection, filter) — element/relation types.
 
 Step 3  Related-elements expansion (chain) — SKIPPED for LAYOUT_ONLY.
         For each step in preset.relatedElements.steps:
-          added   = _expandStep(stepInput, step)   (chain: stepInput = prior added)
-          stepInput = added                         (step 1's input = filtered base)
+          hops      = _expandStepFrontiers(stepInput, step)  (per-hop frontier arrays)
+          stepInput = hops.flat()                            (step 1's input = filtered base)
         (See [Action-group dispatch](#action-group-dispatch) for groups that skip this step.)
 
 Step 4  Drop relations, folders, view nodes from the collection.
 
 Step 5  Collected incrementally inside Step 3's loop (and once for the base before the loop).
         Base:     _findRelationsBetween(filteredElements, globalRelTypes, allRelIds)
-        Per step: cumulativeBefore = cumulative snapshot before concat
-                  _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, cumulativeBefore)
-                  iterateSubset=cumulativeBefore → old×old ✓  old→new ✓  new→old ✓  new×new ✗
+        Per step: for each hop frontier in hops:
+                    hopBefore = current cumulative snapshot
+                    cumulative += hop-frontier
+                    _findRelationsBetween(cumulative, step.relationTypes, allRelIds, hopBefore)
+                    iterateSubset=hopBefore → old×old ✓  old→new ✓  new→old ✓  new×new ✗ (per hop)
         allRelIds is threaded across calls to prevent double-counting.
         Realises [Steps](#steps) step 5.
 

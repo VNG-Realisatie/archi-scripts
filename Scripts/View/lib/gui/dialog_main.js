@@ -766,13 +766,19 @@ function _updateFilteredCount(ctx) {
       stepIdx++;
       const b    = ctx.relBlocks[i];
       const step = steps[i];
-      const added          = Pipeline.expandStep(stepInput, step);
-      const cumulativeBefore = cumulative.slice();
-      cumulative           = cumulative.concat(added);
-      const stepRels = Pipeline.findRelationsBetween(cumulative, step.relationTypes, seenRelIds, cumulativeBefore);
-      stepRels.forEach(r => finalRels.push(r));
-      _setRel(b, added.length, stepRels.length);
-      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
+      const hops  = Pipeline.expandStepFrontiers(stepInput, step);
+      const added = hops.flat();
+      let stepRelCount = 0;
+      for (const hopFrontier of hops) {
+        if (hopFrontier.length === 0) continue;
+        const hopBefore = cumulative.slice();
+        cumulative = cumulative.concat(hopFrontier);
+        const hopRels = Pipeline.findRelationsBetween(cumulative, step.relationTypes, seenRelIds, hopBefore);
+        hopRels.forEach(r => finalRels.push(r));
+        stepRelCount += hopRels.length;
+      }
+      _setRel(b, added.length, stepRelCount);
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRelCount });
       stepInput = added;                                                       // chain advance
     }
 

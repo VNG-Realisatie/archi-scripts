@@ -102,18 +102,24 @@ function buildObjectSet(uiSelection, preset, actionId) {
       const stepElemStr = (step.elementTypes  && step.elementTypes.length > 0)
         ? step.elementTypes.join(", ")  : "all";
       console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  depth: ${step.depth || 1}  ·  element types: ${stepElemStr}`);
-      const added = _expandStep(stepInput, step);
+      const hops  = _expandStepFrontiers(stepInput, step);
+      const added = hops.flat();
       // Add to the final selection (collection).
       added.forEach(o => {
         if (collection.filter(a => a.id === o.id).size() === 0) collection.add(o);
       });
-      // Snapshot cumulative BEFORE adding new elements so the iterate set excludes new×new:
-      // iterateSubset = cumulativeBefore finds old×old, old→new, and new→old but never new×new.
-      const cumulativeBefore = cumulativeElems.slice();
-      cumulativeElems = cumulativeElems.concat(added);
-      const stepRels = _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, cumulativeBefore);
-      stepRels.forEach(r => allRelations.push(r));
-      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
+      // Find relations per hop: each hop's frontier is "new", everything before it is "old".
+      // new×new (lateral within the same hop) remains excluded; applied per-hop not per-step.
+      let stepRelCount = 0;
+      for (const hopFrontier of hops) {
+        if (hopFrontier.length === 0) continue;
+        const hopBefore = cumulativeElems.slice();
+        cumulativeElems = cumulativeElems.concat(hopFrontier);
+        const hopRels = _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, hopBefore);
+        hopRels.forEach(r => allRelations.push(r));
+        stepRelCount += hopRels.length;
+      }
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRelCount });
       // Chain advance: next step's input is THIS step's additions only.
       stepInput = added;
     }
@@ -421,13 +427,13 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
   return false;
 }
 
-/** Expand by following relations up to depth hops. Returns newly-found elements. */
-function _expandStep(base, step) {
+/** Expand by following relations up to depth hops. Returns per-hop frontier arrays. */
+function _expandStepFrontiers(base, step) {
   const { depth = 1, elementTypes = [], relationTypes = [] } = step;
   const baseIds  = new Set(base.map(o => o.id));
-  const added    = [];
   const addedIds = new Set();
-  let frontier = [...base];
+  const hops     = [];
+  let frontier   = [...base];
 
   for (let hop = 0; hop < depth; hop++) {
     const nextFrontier = [];
@@ -445,16 +451,21 @@ function _expandStep(base, step) {
           const otherType = other.type || "";
           if (elementTypes.length > 0 && !elementTypes.includes(otherType)) return;
 
-          added.push(other);
           addedIds.add(other.id);
           nextFrontier.push(other);
         });
       } catch (e) {}
     }
+    hops.push(nextFrontier);
     frontier = nextFrontier;
     if (frontier.length === 0) break;
   }
-  return added;
+  return hops;
+}
+
+/** Expand by following relations up to depth hops. Returns newly-found elements. */
+function _expandStep(base, step) {
+  return _expandStepFrontiers(base, step).flat();
 }
 
 function _collectionToArray(collection) {
@@ -730,6 +741,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildObjectSet,
     getSeedElements,
     expandStep:           _expandStep,
+    expandStepFrontiers:  _expandStepFrontiers,
     logCountBlock:        _logCountBlock,
     findRelationsBetween: _findRelationsBetween,
     resolveNesting:       _resolveNesting,
