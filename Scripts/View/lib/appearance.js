@@ -318,7 +318,7 @@ function _applyStyleByRelatedProperty(view, settings, isModify) {
   const elementPropValue = new Map();
 
   vosByConceptId.forEach((_, conceptId) => {
-    const el = model.getElementById(conceptId);
+    const el = $(`#${conceptId}`).first();
     if (!el) return;
     try {
       $(el).rels().each(rel => {
@@ -372,7 +372,7 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
   const sourcePropValue = new Map(); // conceptId → propValue | "__conflict__"
 
   vosByConceptId.forEach((_, conceptId) => {
-    const el = model.getElementById(conceptId);
+    const el = $(`#${conceptId}`).first();
     if (!el) return;
 
     const targets = new Set(); // unique target concept IDs whose property we'll read
@@ -385,7 +385,7 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
           ? (rel.target && rel.target.id)
           : (rel.source && rel.source.id);
         if (!otherId || otherId === conceptId) return;
-        const other = model.getElementById(otherId);
+        const other = $(`#${otherId}`).first();
         if (!other) return;
         if (targetType && other.type !== targetType) return;
         targets.add(otherId);
@@ -402,7 +402,7 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
 
     // Exactly one target
     const targetId = Array.from(targets)[0];
-    const target   = model.getElementById(targetId);
+    const target   = $(`#${targetId}`).first();
     if (!target) return;
     try {
       const val = target.prop(settings.property);

@@ -143,6 +143,9 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // LAYOUT_ONLY: keep only relations that already have a visual on the view.
   // _findRelationsBetween returns all model relations between the elements, but
   // LAYOUT_ONLY must not add missing relations — it only re-lays out what is there.
+  // Note: the dialog live counter shows all model relations in the selection
+  // (action-agnostic); this filter is the action-level step that narrows the set
+  // at generation time. The counter difference is by design, not an inaccuracy.
   let relations = objectSet.relations;
   if (actionId === ACTION.LAYOUT_ONLY.id) {
     const onViewRelIds = new Set(
@@ -204,26 +207,24 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
 
-  // For LAYOUT_ONLY: build a concept→VOs map so _buildLayoutGraph can cap extra-occurrence
-  // nodes to the number of VOs that actually exist on the view. Without the cap, BFS-
-  // propagated _occ_N nodes have no matching VO → _writeView creates new VOs, and their
-  // nesting VRs render as connection lines because the parent is not yet in position.
-  // EXPAND_VIEW intentionally allows new VOs (no cap), so the map is not passed there.
-  let existingVosByConcept = null;
-  if (actionId === ACTION.LAYOUT_ONLY.id && objectSet.visualElements && objectSet.visualElements.length > 0) {
-    existingVosByConcept = new Map();
-    for (const ve of objectSet.visualElements) {
-      if (ve.concept && ve.concept.id) {
-        const list = existingVosByConcept.get(ve.concept.id) || [];
-        list.push(ve);
-        existingVosByConcept.set(ve.concept.id, list);
-      }
+  // Build concept→VOs map once; used by both _buildLayoutGraph (LAYOUT_ONLY cap) and _writeView (VO pairing).
+  const existingVosByConcept = new Map();
+  for (const ve of (objectSet.visualElements || [])) {
+    if (ve.concept && ve.concept.id) {
+      const list = existingVosByConcept.get(ve.concept.id);
+      if (list) list.push(ve);
+      else existingVosByConcept.set(ve.concept.id, [ve]);
     }
   }
 
+  // _buildLayoutGraph caps extra-occurrence nodes for LAYOUT_ONLY only (EXPAND_VIEW allows new VOs).
+  // Without the cap, BFS-propagated _occ_N nodes have no matching VO → _writeView creates new VOs,
+  // and their nesting VRs render as connection lines because the parent is not yet in position.
+  const graphVosCap = actionId === ACTION.LAYOUT_ONLY.id ? existingVosByConcept : null;
+
   // Build LayoutGraph (uniform — no action branch).
   console.log("\nLayout graph:");
-  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept);
+  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, graphVosCap);
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
     return null;
@@ -246,7 +247,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   console.log("\nLayout:");
   const alg = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
-  console.log(`  Layout result: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+  console.log(`  Layout result: ${result.nodes.length} elements · ${result.edges.length} connections`);
   if (result.nodes.length > 0) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const n of result.nodes) {
@@ -260,7 +261,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
 
   // Write — single function, action-agnostic.
   console.log("\nWrite:");
-  const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels);
+  const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels, existingVosByConcept);
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
   if (writtenView) Appearance.applyAppearance(writtenView, preset, actionId);
@@ -411,7 +412,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
         // engine traverses the edge in the reversed direction. The model
         // relation is untouched; Archi draws using its intrinsic direction.
         edges.push({
-          id:     edgeId,
+          id:        edgeId,   // occurrence-unique id for the layout engine
+          conceptId: rel.id,   // plain model relation id — always used for $() lookup in _writeView
           source: isReversed ? tgtOccId : srcOccId,
           target: isReversed ? srcOccId : tgtOccId,
           label:  rel.name || "",
@@ -498,28 +500,17 @@ function _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVo
  * Parent-first iteration (§A.11.10) guarantees a child's parent VO is in place
  * (added or repositioned) before the child is processed.
  */
-function _writeView(preset, result, objectSet, view, parentRels) {
+function _writeView(preset, result, objectSet, view, parentRels, existingVosByConcept) {
   // Index result nodes once. Sort parent-first (engine output may be arbitrary order).
   const nodeById = Object.create(null);
   result.nodes.forEach(n => { nodeById[n.id] = n; });
   const sortedNodes = _sortNodesParentFirst(result.nodes, nodeById);
 
-  // Existence maps from the pipeline output. A single model concept can have
-  // multiple existing VOs on the view (extra occurrences from a prior
-  // showInEveryContainer run, or user-authored duplicates) — store all of them
-  // in capture order so the pairing step can bind one VO per result node.
-  const existingVosByConcept = new Map();  // conceptId → VisualElement[]
-  const existingVoByVoId     = new Map();  // VO id     → DiagramObject (or VisualElement)
+  // existingVosByConcept (conceptId → VisualElement[]) is built once in _generateSingle and passed in.
+  const existingVoByVoId     = new Map();  // VO id → DiagramObject (or VisualElement)
   const existingRelByConcept = new Map();  // conceptId → VisualRelation
 
-  (objectSet.visualElements || []).forEach(ve => {
-    if (ve.concept && ve.concept.id) {
-      const list = existingVosByConcept.get(ve.concept.id);
-      if (list) list.push(ve);
-      else existingVosByConcept.set(ve.concept.id, [ve]);
-    }
-    existingVoByVoId.set(ve.id, ve);
-  });
+  (objectSet.visualElements || []).forEach(ve => existingVoByVoId.set(ve.id, ve));
   // Diagram objects: only register VOs that currently live on the target view.
   // Guards against referencing deleted VOs when the view was just overwritten (NEW_VIEW).
   const _voIdsOnView = new Set();
@@ -895,7 +886,7 @@ function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
     console.log(`  Overwriting view: "${viewName}"`);
-    $(existing).find().each(o => o.delete());
+    try { $(existing).find().each(o => o.delete()); } catch (e) { console.error(`Failed to clear view "${viewName}" before overwrite: ${e}`); }
     return existing;
   }
   const v = model.createArchimateView(viewName);
@@ -907,12 +898,14 @@ function _getOrCreateView(folder, viewName) {
 function _getAbsCenter(visual) {
   let x = (visual.bounds.x || 0) + (visual.bounds.width  || 0) / 2;
   let y = (visual.bounds.y || 0) + (visual.bounds.height || 0) / 2;
-  let p = $(visual).parent().filter("element").first();
-  while (p) {
-    x += p.bounds.x || 0;
-    y += p.bounds.y || 0;
-    p = $(p).parent().filter("element").first();
-  }
+  try {
+    let p = $(visual).parent().filter("element").first();
+    while (p) {
+      x += p.bounds.x || 0;
+      y += p.bounds.y || 0;
+      p = $(p).parent().filter("element").first();
+    }
+  } catch (e) { console.error(`Parent offset traversal failed for VO ${visual && visual.id}: ${e}`); }
   return { x: Math.round(x), y: Math.round(y) };
 }
 
