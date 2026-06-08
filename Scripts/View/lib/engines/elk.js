@@ -239,6 +239,10 @@ function layout(graph) {
   const elkEngineParams = Object.fromEntries(
     Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
+  // FIXED_SIDE portConstraints locks cross-container ports to EAST/WEST sides, causing edges
+  // to route around container sides instead of through the top/bottom in UP/DOWN layouts.
+  const _isVertical = graph.options.direction === "Bottom → Top" || graph.options.direction === "Top → Bottom";
+  if (_isVertical) delete elkEngineParams["org.eclipse.elk.portConstraints"];
   const layoutOptions = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts, elkEngineParams);
 
   // Build ELK-internal data structures
@@ -435,6 +439,8 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   const ctrEngineParams = Object.fromEntries(
     Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
+  const _isVertical = graph.options.direction === "Bottom → Top" || graph.options.direction === "Top → Bottom";
+  if (_isVertical) delete ctrEngineParams["org.eclipse.elk.portConstraints"];
   const hasContainers = Object.keys(parentMap).length > 0;
   for (const [nodeId, node] of Object.entries(nodeMap)) {
     if (!node.children || node.children.length === 0) continue;
