@@ -737,9 +737,6 @@ function _updateFilteredCount(ctx) {
       }
     }
 
-    // Step traversal filters are direction/type constraints for _expandStep only.
-    // The view relation filter uses the global filter exclusively — step relationTypes
-    // must NOT restrict which relations are rendered on the generated view.
     const globalRelIds = _relLabelsToIds(Array.from(relLabels));
     const steps = (ctx.relBlocks || []).map(b => ({
       depth:         b.depthSpinner.getSelection(),
@@ -747,35 +744,36 @@ function _updateFilteredCount(ctx) {
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
     }));
-    const effectiveRelFilter = globalRelIds;
 
+    // Collect relations incrementally: base uses global filter; each step uses its own
+    // relation-type filter — mirrors the pipeline exactly so Adds: counters match the view.
+    // seenRelIds is threaded across calls to _findRelationsBetween to prevent double-counting.
+    const seenRelIds = new Set();
+    const finalRels  = Pipeline.findRelationsBetween(filteredElements, globalRelIds, seenRelIds);
     // Rels-between filtered elements under the global filter (NOT a raw-selection
     // relation count). Honours the user's rule: "you can't have a relation without
     // the elements" — only rels with both endpoints in the surviving element set count.
-    const filteredBaseRels = Pipeline.countRelationsBetween(filteredElements, effectiveRelFilter);
+    const filteredBaseRels = finalRels.length;
     _setFiltered({ elems, rels: filteredBaseRels, diagrams, views: 0, folders: 0 });
 
     // Walk steps under chain semantics: step 1's input is the filtered base; step N
-    // (N≥2)'s input is step N-1's added elements only. An empty step terminates the
-    // chain. Cumulative is tracked separately for the relation delta math so
-    // Filtered + Σ adds = Total exactly.
-    let cumulative   = filteredElements.slice();
-    let stepInput    = filteredElements.slice();
-    let prevRelCount = filteredBaseRels;
+    // (N≥2)'s input is step N-1's added elements only. An empty step terminates the chain.
+    let cumulative = filteredElements.slice();
+    let stepInput  = filteredElements.slice();
     const stepCounts = [];
     let stepIdx = 0;
     for (let i = 0; i < (ctx.relBlocks || []).length; i++) {
       stepIdx++;
-      const b = ctx.relBlocks[i];
+      const b    = ctx.relBlocks[i];
       const step = steps[i];
-      const added = Pipeline.expandStep(stepInput, step);
-      cumulative = cumulative.concat(added);
-      const cumRels = Pipeline.countRelationsBetween(cumulative, effectiveRelFilter);
-      const deltaRels = Math.max(0, cumRels - prevRelCount);
-      _setRel(b, added.length, deltaRels);
-      stepCounts.push({ idx: stepIdx, elems: added.length, rels: deltaRels });
-      prevRelCount = cumRels;
-      stepInput = added;                                                     // chain advance
+      const added          = Pipeline.expandStep(stepInput, step);
+      const cumulativeBefore = cumulative.slice();
+      cumulative           = cumulative.concat(added);
+      const stepRels = Pipeline.findRelationsBetween(cumulative, step.relationTypes, seenRelIds, cumulativeBefore);
+      stepRels.forEach(r => finalRels.push(r));
+      _setRel(b, added.length, stepRels.length);
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
+      stepInput = added;                                                       // chain advance
     }
 
     // Predict view-level counts (duplicates, containers) using the current params.
@@ -785,8 +783,6 @@ function _updateFilteredCount(ctx) {
       reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
       showInEveryContainer:           !!(w.chkShowInEvery     && w.chkShowInEvery.getSelection()),
     };
-    // predictViewCounts needs the actual rels (not just count) to split into nesting/routed.
-    const finalRels = Pipeline.findRelationsBetween(cumulative, effectiveRelFilter);
     const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams);
 
     // Update the on-screen Output line in the "Generated view" group (always visible,

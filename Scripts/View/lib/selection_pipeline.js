@@ -68,17 +68,11 @@ function buildObjectSet(uiSelection, preset, actionId) {
   });
   const filteredCounts = { elems: _fEl, rels: _fRel, diag: diagramObjects.length };
 
-  // Relation-type filter for the final view: global filter only.
-  // Step relationTypes are traversal-only (which relations to walk to find new elements);
-  // they must NOT restrict which relations are rendered on the view.
   const globalRelTypes = preset.filter.relationTypes;
-  const relTypeFilter  = globalRelTypes;
 
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
   // elements only — NOT the cumulative selection. An empty step terminates the chain.
-  // The cumulative selection is tracked separately for the relation-delta math
-  // (Filtered + Σ adds = Total, exactly).
   const stepCounts = [];
   // _filteredElements: elements that survived step 2, used as step 1's input.
   const _filteredElements = [];
@@ -88,13 +82,17 @@ function buildObjectSet(uiSelection, preset, actionId) {
     if (type === "folder" || type === "archimate-diagram-model") return;
     _filteredElements.push(o);
   });
-  const filteredBaseRels = _countRelationsBetween(_filteredElements, relTypeFilter);
-  let cumulativeRels = filteredBaseRels;
+
+  // Collect relations incrementally: base uses global filter; each step uses its own
+  // relation-type filter so that a step only adds relations of the types it followed.
+  const allRelIds    = new Set();
+  const allRelations = _findRelationsBetween(_filteredElements, globalRelTypes, allRelIds);
+  const filteredBaseRels = allRelations.length;
 
   if (actionId !== ACTION.LAYOUT_ONLY.id &&
       preset.relatedElements && Array.isArray(preset.relatedElements.steps)) {
     let stepInput       = _filteredElements.slice();   // step 1 input = filtered base
-    let cumulativeElems = _filteredElements.slice();   // used only for relation delta
+    let cumulativeElems = _filteredElements.slice();
     let stepIdx = 0;
     for (const step of preset.relatedElements.steps) {
       stepIdx++;
@@ -109,12 +107,13 @@ function buildObjectSet(uiSelection, preset, actionId) {
       added.forEach(o => {
         if (collection.filter(a => a.id === o.id).size() === 0) collection.add(o);
       });
-      // Cumulative grows; relation delta uses it.
+      // Snapshot cumulative BEFORE adding new elements so the iterate set excludes new×new:
+      // iterateSubset = cumulativeBefore finds old×old, old→new, and new→old but never new×new.
+      const cumulativeBefore = cumulativeElems.slice();
       cumulativeElems = cumulativeElems.concat(added);
-      const newCumRels = _countRelationsBetween(cumulativeElems, relTypeFilter);
-      const deltaRels  = Math.max(0, newCumRels - cumulativeRels);
-      cumulativeRels   = newCumRels;
-      stepCounts.push({ idx: stepIdx, elems: added.length, rels: deltaRels });
+      const stepRels = _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, cumulativeBefore);
+      stepRels.forEach(r => allRelations.push(r));
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
       // Chain advance: next step's input is THIS step's additions only.
       stepInput = added;
     }
@@ -129,8 +128,8 @@ function buildObjectSet(uiSelection, preset, actionId) {
     elements.push(o);
   });
 
-  // ── Step 5: relations between elements (effective filter computed above). ──
-  const relations = _findRelationsBetween(elements, relTypeFilter);
+  // ── Step 5: relations collected incrementally in step 3 above (base: global filter; per step: step's filter). ──
+  const relations = allRelations;
 
   // ── Step 6: partition diagram-model-connection (edges) from positional diagram objects ──
   const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
@@ -458,74 +457,10 @@ function _expandStep(base, step) {
   return added;
 }
 
-/** Live-count wrapper for the dialog. Returns { elements, elemCount, relCount }. */
-function _expandStepCounts(base, step) {
-  const elements = _expandStep(base, step);
-  if (elements.length === 0) return { elements, elemCount: 0, relCount: 0 };
-
-  const allIds = new Set(base.map(e => e.id));
-  elements.forEach(e => allIds.add(e.id));
-
-  const seen = new Set();
-  let relCount = 0;
-  for (const el of elements) {
-    try {
-      $(el).rels().each(rel => {
-        if (seen.has(rel.id)) return;
-        const srcId = rel.source && rel.source.id;
-        const tgtId = rel.target && rel.target.id;
-        if (!srcId || !tgtId) return;
-        if (!allIds.has(srcId) || !allIds.has(tgtId)) return;
-        if (!_matchesRelationType(rel.type, step.relationTypes, rel)) return;
-        seen.add(rel.id);
-        relCount++;
-      });
-    } catch (e) {}
-  }
-  return { elements, elemCount: elements.length, relCount };
-}
-
 function _collectionToArray(collection) {
   const arr = [];
   collection.each(o => arr.push(o));
   return arr;
-}
-
-/**
- * Compute the effective relation-type filter: union of global filter relationTypes
- * and every step's relationTypes. Empty union ⇒ "all types allowed".
- * Mirrors the step-5 logic so the dialog and the pipeline can share it.
- */
-function _effectiveRelTypeFilter(globalRelTypes, steps) {
-  const stepRelTypes = [];
-  steps.forEach(s => s.relationTypes.forEach(t => stepRelTypes.push(t)));
-  if (globalRelTypes.length === 0 && stepRelTypes.length === 0) return [];
-  return Array.from(new Set(globalRelTypes.concat(stepRelTypes)));
-}
-
-/** Count rels between elements under the given filter. Cheaper than _findRelationsBetween
- *  for the dialog hot path: no relation-array allocation, just an integer. */
-function _countRelationsBetween(elements, relTypeFilter) {
-  if (!elements || elements.length === 0) return 0;
-  const elementIds = new Set(elements.map(e => e.id));
-  const seen = new Set();
-  let count = 0;
-  for (const element of elements) {
-    try {
-      $(element).rels().each(rel => {
-        if (seen.has(rel.id)) return;
-        const srcId = rel.source && rel.source.id;
-        const tgtId = rel.target && rel.target.id;
-        if (!srcId || !tgtId) return;
-        if (!elementIds.has(srcId) || !elementIds.has(tgtId)) return;
-        if (relTypeFilter && relTypeFilter.length > 0 &&
-            !_matchesRelationType(rel.type, relTypeFilter, rel)) return;
-        seen.add(rel.id);
-        count++;
-      });
-    } catch (e) {}
-  }
-  return count;
 }
 
 /**
@@ -737,13 +672,20 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
 /**
  * Find all relations whose source AND target are both in `elements`.
  * Applies type filter (empty = all types allowed).
+ * @param {Set}      [seenRelIds]    Optional external dedup set — mutated in place so the caller
+ *                                   can thread it across successive calls to prevent double-counting.
+ * @param {Object[]} [iterateSubset] Optional subset of elements to iterate. Both endpoints are
+ *                                   still checked against the full `elements` set. Pass the
+ *                                   pre-step cumulative snapshot to exclude new×new relations.
+ *                                   Defaults to `elements`.
  */
-function _findRelationsBetween(elements, relTypeFilter) {
+function _findRelationsBetween(elements, relTypeFilter, seenRelIds, iterateSubset) {
   if (elements.length === 0) return [];
   const elementIds = new Set(elements.map(e => e.id));
-  const seen       = new Set();
+  const seen       = seenRelIds || new Set();
+  const toIterate  = iterateSubset || elements;
   const relations  = [];
-  for (const element of elements) {
+  for (const element of toIterate) {
     try {
       $(element).rels().each(rel => {
         if (seen.has(rel.id)) return;
@@ -787,13 +729,10 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     buildObjectSet,
     getSeedElements,
-    expandStep:              _expandStep,
-    expandStepCounts:        _expandStepCounts,
-    logCountBlock:           _logCountBlock,
-    effectiveRelTypeFilter:  _effectiveRelTypeFilter,
-    countRelationsBetween:   _countRelationsBetween,
-    findRelationsBetween:    _findRelationsBetween,
-    resolveNesting:          _resolveNesting,
-    predictViewCounts:       _predictViewCounts,
+    expandStep:           _expandStep,
+    logCountBlock:        _logCountBlock,
+    findRelationsBetween: _findRelationsBetween,
+    resolveNesting:       _resolveNesting,
+    predictViewCounts:    _predictViewCounts,
   };
 }

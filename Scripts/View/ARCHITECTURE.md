@@ -500,7 +500,7 @@ GUI — live counters:
 
 The `Total to view` row is grouped into three sub-lines: **elements** (containers / nested elements / standalones / extra occurrences), **relations** (nestings / connections), and **diagram** (diagram objects). All sub-lines always print; every subfield prints regardless of value. Column alignment is preserved across runs.
 
-The additive rule is exact: `Filtered.elements + Σ Step N.adds.elements = Total.elements` AND `Filtered.relations + Σ Step N.adds.relations = Total.relations`. Per-step `adds.relations` is a true delta against the previous cumulative state (rels-between-cumulative under the effective filter, minus the prior count), not a count of raw-selection relations.
+The additive rule is exact: `Filtered.elements + Σ Step N.adds.elements = Total.elements` AND `Filtered.relations + Σ Step N.adds.relations = Total.relations`. Per-step `adds.relations` is the count of new relations found in that step's pass: relations of the step's type where at least one endpoint was in the cumulative set *before* this step (old×old, old→new, new→old — new×new excluded), minus any already counted in a prior pass. Not a count of raw-selection relations.
 
 The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, depth change, block reorder) push the same values to that label and to the console.
 
@@ -871,7 +871,7 @@ Two entry points, one set of helpers. The dialog's live counter and the full pip
         "Filtered" / "Adds:" lines     view is created/modified
 ```
 
-Both entry points compute the same EFFECTIVE relation-type filter (see Step 5 below) and log a grouped count block of the same shape to the Archi console, so prediction and result can be eyeballed side-by-side.
+Both entry points apply the same per-step relation-type filter (see Step 5 below) and log a grouped count block of the same shape to the Archi console, so prediction and result can be eyeballed side-by-side.
 
 ### Steps
 
@@ -898,9 +898,12 @@ Step 2  Apply the global Filter
 
 Step 3  Related-elements expansion (chain)
   For each ordered step in preset.relatedElements.steps:
-    additions       = traverse(input, step)         (depth hops, pruned by elementTypes)
-    final-selection = final-selection ∪ additions
-    input           = additions                     (chain: next step starts here)
+    cumulativeBefore = current cumulative snapshot
+    additions        = traverse(input, step)          (depth hops, pruned by elementTypes)
+    final-selection  = final-selection ∪ additions
+    stepRelations    = relations of step's type in (cumulativeBefore ∪ additions)
+                       where ≥1 endpoint is in cumulativeBefore  (new×new excluded)
+    input            = additions                       (chain: next step starts here)
   Step 1's input is the filtered base.
   An empty step terminates the chain — every later step adds zero.
 
@@ -908,17 +911,17 @@ Step 4  Separate the element set
   Drop relations, folders, view nodes. What remains is the set
   of elements that will be placed by the layout engine.
 
-Step 5  Find relations between elements
-  Walk the model. Include a relation iff both endpoints are
-  in the element set AND its type is in the EFFECTIVE relation
-  filter — the union of the global relation-type filter and the
-  relationTypes of every active related-elements block. A block
-  that declares "follow type X" implicitly says "type-X relations
-  belong in the result", so the global filter must not strip them.
-  The union runs even when the global filter is empty — an empty
-  global filter does NOT mean "ignore layer rel-types"; layer
-  rel-types still constrain the result. Empty union (no global
-  AND no layer rel-types) ⇒ all types allowed.
+Step 5  Find relations between elements (collected incrementally in Step 3)
+  Relations are collected in two passes:
+  · Base pass: relations between the filtered-base elements, filtered
+    by the global relation-type filter.
+  · Per-step pass (inside Step 3's loop): for each step, relations of
+    the step's type where at least one endpoint was already in the
+    cumulative set before this step's additions — old×old, old→new,
+    new→old.  new×new is excluded: a new element only carries the
+    relations that were actually followed to reach it.  An empty step
+    filter (= "all") applies no type restriction from the step side.
+  A shared seenRelIds set prevents double-counting across passes.
   (See [Preset schema](#preset-schema) for encoding.)
 
 Step 6  Partition diagram objects
@@ -935,8 +938,8 @@ Step 6  Partition diagram objects
 - **No view mutation.** The pipeline reads only; it never edits a view. *(Rule 4 in [ai/rules.md](../../ai/rules.md))*
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
-- **Dialog and pipeline share the effective rel-type filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will write for that block — both compute the union of `filter.relationTypes` and every layer's `relationTypes` and apply it identically.
-- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is computed as a delta: `rels-between(cumulative-after-step-N, effective-filter) − rels-between(cumulative-before-step-N, effective-filter)`. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `_findRelationsBetween(cumulative, step.relationTypes, seenRelIds, cumulativeBefore)` identically, where `cumulativeBefore` is the cumulative snapshot taken before this step's additions (excludes new×new).
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the count of new relations found in that step's pass: relations of the step's type where ≥1 endpoint was in cumulative before this step (new×new excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
 - **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
 - **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
 - **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
@@ -1463,8 +1466,13 @@ Step 3  Related-elements expansion (chain) — SKIPPED for LAYOUT_ONLY.
 
 Step 4  Drop relations, folders, view nodes from the collection.
 
-Step 5  Compute relTypeFilter = union(global filter, every active block's relationTypes).
-        _findRelationsBetween(elements, relTypeFilter). Realises [Steps](#steps) step 5.
+Step 5  Collected incrementally inside Step 3's loop (and once for the base before the loop).
+        Base:     _findRelationsBetween(filteredElements, globalRelTypes, allRelIds)
+        Per step: cumulativeBefore = cumulative snapshot before concat
+                  _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, cumulativeBefore)
+                  iterateSubset=cumulativeBefore → old×old ✓  old→new ✓  new→old ✓  new×new ✗
+        allRelIds is threaded across calls to prevent double-counting.
+        Realises [Steps](#steps) step 5.
 
 Step 6  Partition diagramConnections (type === "diagram-model-connection")
         from diagramObjects (everything else).
