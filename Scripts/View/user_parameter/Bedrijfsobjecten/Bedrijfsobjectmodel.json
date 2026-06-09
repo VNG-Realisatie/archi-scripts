@@ -1,6 +1,6 @@
 {
-  "name": "gemma/bedrijfsfunctiemodel/Start",
-  "algorithm": "Dot",
+  "name": "Bedrijfsobjectmodel/Bedrijfsobjectmodel",
+  "algorithm": "Layered",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -8,28 +8,30 @@
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [
-      "serving-relationship",
-      "specialization-relationship"
+      "realization-relationship",
+      "serving-relationship"
     ],
-    "nestingRelationTypes": [],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
     "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
-    "alignWidthSameType": true,
-    "alignDebug": false,
+    "alignWidthSameType": false,
+    "alignDebug": true,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
-    "containerAlgorithm": "Pack",
+    "showInEveryContainer": false,
+    "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
-    "elementSpacing": 40,
+    "elementSpacing": 60,
     "nodeSizeByEdgeCount": 25,
     "elementWidth": 180,
     "elementHeight": 60,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
-    "viewSizeMode": "aspectRatio",
+    "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {
@@ -42,21 +44,41 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "depth": 4,
         "elementTypes": [
-          "business-function",
-          "grouping"
+          "business-object"
         ],
         "relationTypes": [
           "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "business-object"
+        ],
+        "relationTypes": [
+          "association-relationship",
+          "specialization-relationship"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:in"
         ],
         "diagramTypes": []
       }
     ]
   },
   "view": {
-    "name": "GEMMA domeinen",
-    "folder": "/_Generated/Bedrijfsfunctiemodel"
+    "name": "BAG",
+    "folder": "/_Generated/Beleidsdomeinen/Bedrijfsobjectmodellen"
   },
   "appearance": {
     "styleByProperty": {
@@ -102,8 +124,27 @@
       "colorRange": "Pastel1"
     }
   },
-  "engineParams": {},
-  "_lastTabIndex": 2,
-  "description": "GEMMA domeinen",
+  "engineParams": {
+    "ELK": {
+      "elk.spacing.nodeSelfLoop": 20,
+      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
+      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
+      "elk.spacing.edgeEdge": 15,
+      "elk.spacing.edgeNode": 15,
+      "elk.layered.spacing.edgeNodeBetweenLayers": 40,
+      "org.eclipse.elk.portConstraints": "FIXED_SIDE"
+    },
+    "Dagre": {
+      "edgesep": 30
+    },
+    "Graphviz": {
+      "esep": "+8"
+    },
+    "layout": {
+      "nodeSizeByEdgeCount": 25
+    }
+  },
+  "_lastTabIndex": 1,
+  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

@@ -1,5 +1,5 @@
 {
-  "name": "gemma/Bedrijfsfunctiemodel met referentiecomponenten",
+  "name": "Bedrijfsfunctiemodel/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Pack",
   "params": {
     "direction": "Left → Right",
@@ -24,7 +24,7 @@
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
     "nodeSizeByEdgeCount": 25,
@@ -33,7 +33,7 @@
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 1,
-    "viewSizeMode": "aspectRatio",
+    "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {
@@ -78,7 +78,7 @@
     ]
   },
   "view": {
-    "name": "Niet domeingebonden",
+    "name": "BAG",
     "folder": "/_Generated/Bedrijfsfunctiemodel"
   },
   "appearance": {

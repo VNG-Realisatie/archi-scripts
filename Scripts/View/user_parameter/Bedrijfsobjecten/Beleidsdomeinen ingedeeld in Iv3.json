@@ -1,6 +1,6 @@
 {
-  "name": "gemma/Bedrijfsobjectmodel",
-  "algorithm": "Layered",
+  "name": "Bedrijfsobjectmodel/Beleidsdomeinen ingedeeld in Iv3",
+  "algorithm": "Grid",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -12,73 +12,57 @@
       "serving-relationship"
     ],
     "nestingRelationTypes": [
+      "access-relationship",
       "aggregation-relationship"
     ],
     "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": false,
-    "alignDebug": true,
+    "alignDebug": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
+    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Between containers",
     "layerSpacing": 180,
-    "elementSpacing": 60,
+    "elementSpacing": 10,
     "nodeSizeByEdgeCount": 25,
-    "elementWidth": 180,
+    "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": true
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [
+      "business-object",
       "grouping"
     ],
-    "relationTypes": [],
+    "relationTypes": [
+      "aggregation-relationship"
+    ],
     "diagramTypes": []
   },
   "relatedElements": {
     "steps": [
       {
-        "depth": 4,
+        "depth": 5,
         "elementTypes": [
-          "business-object"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "diagramTypes": []
-      },
-      {
-        "depth": 1,
-        "elementTypes": [
-          "business-object"
-        ],
-        "relationTypes": [
-          "association-relationship",
-          "specialization-relationship"
-        ],
-        "diagramTypes": []
-      },
-      {
-        "depth": 1,
-        "elementTypes": [
+          "business-object",
           "grouping"
         ],
         "relationTypes": [
-          "aggregation-relationship:in"
+          "aggregation-relationship:out"
         ],
         "diagramTypes": []
       }
     ]
   },
   "view": {
-    "name": "Beleidsdomeinen",
-    "folder": "/_Generated/Beleidsdomeinen/Bedrijfsobjectmodellen"
+    "name": "BAG",
+    "folder": "/View/_Generated"
   },
   "appearance": {
     "styleByProperty": {
@@ -124,27 +108,8 @@
       "colorRange": "Pastel1"
     }
   },
-  "engineParams": {
-    "ELK": {
-      "elk.spacing.nodeSelfLoop": 20,
-      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
-      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
-      "elk.spacing.edgeEdge": 15,
-      "elk.spacing.edgeNode": 15,
-      "elk.layered.spacing.edgeNodeBetweenLayers": 40,
-      "org.eclipse.elk.portConstraints": "FIXED_SIDE"
-    },
-    "Dagre": {
-      "edgesep": 30
-    },
-    "Graphviz": {
-      "esep": "+8"
-    },
-    "layout": {
-      "nodeSizeByEdgeCount": 25
-    }
-  },
+  "engineParams": {},
   "_lastTabIndex": 1,
-  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
+  "description": "Preset met startconfiguratie\n",
   "action": "new_view"
 }
