@@ -6,28 +6,34 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
+    "acyclicer": "Default",
     "reverseRelationTypes": [
       "realization-relationship",
       "serving-relationship",
       "specialization-relationship"
     ],
     "nestingRelationTypes": [
-      "aggregation-relationship",
-      "influence-relationship",
-      "specialization-relationship"
+      "aggregation-relationship"
     ],
-    "innerSpacing": 20,
+    "innerSpacing": 10,
     "padding": 20,
     "sortContainers": true,
-    "alignSameType": false,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
     "showInEveryContainer": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
     "layerSpacing": 20,
     "elementSpacing": 40,
+    "nodeSizeByEdgeCount": 25,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 0,
-    "aspectRatio": 0
+    "maxHeight": 1000,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [],
@@ -39,8 +45,54 @@
   },
   "view": {
     "name": "",
-    "suffix": "",
-    "folder": ""
+    "folder": "/_Generated"
   },
-  "action": "layout_only"
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "darkenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "_lastTabIndex": 0,
+  "description": "",
+  "action": "new_view"
 }

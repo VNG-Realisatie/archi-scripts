@@ -1,6 +1,6 @@
 {
-  "name": "all",
-  "algorithm": "Layered",
+  "name": "Bedrijfsobjectmodel/Beleidsdomeinen",
+  "algorithm": "Pack",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -8,42 +8,56 @@
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [
-      "realization-relationship",
       "serving-relationship",
       "specialization-relationship"
     ],
-    "nestingRelationTypes": [],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
     "innerSpacing": 10,
-    "padding": 20,
-    "sortContainers": false,
-    "alignWidthSameType": false,
+    "padding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": true,
     "alignDebug": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
-    "containerAlgorithm": "Layered",
-    "connectionsMode": "Between containers",
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
     "nodeSizeByEdgeCount": 25,
-    "elementWidth": 140,
+    "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
     "maxHeight": 1000,
-    "aspectRatio": 0,
+    "aspectRatio": 1.33,
     "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {
-    "elementTypes": [],
+    "elementTypes": [
+      "grouping"
+    ],
     "relationTypes": [],
     "diagramTypes": []
   },
   "relatedElements": {
-    "steps": []
+    "steps": [
+      {
+        "depth": 2,
+        "elementTypes": [
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      }
+    ]
   },
   "view": {
-    "name": "",
-    "folder": "/_Generated"
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "folder": "/_Generated/Beleidsdomeinen"
   },
   "appearance": {
     "styleByProperty": {
@@ -78,7 +92,7 @@
     "nestingLevel": {
       "fontEnabled": false,
       "rootFontSize": 14,
-      "rootFontBold": false,
+      "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
       "rootColor": "#2B5796",
@@ -90,7 +104,7 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 0,
-  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
+  "_lastTabIndex": 1,
+  "description": "\n",
   "action": "new_view"
 }

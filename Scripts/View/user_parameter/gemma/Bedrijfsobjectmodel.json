@@ -19,18 +19,20 @@
     "sortContainers": false,
     "alignWidthSameType": false,
     "alignDebug": true,
-    "snapColumnsToGrid": true,
+    "snapColumnsToGrid": false,
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
     "elementSpacing": 60,
+    "nodeSizeByEdgeCount": 25,
     "elementWidth": 180,
     "elementHeight": 60,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
-    "viewSizeMode": "none"
+    "viewSizeMode": "none",
+    "labelSizing": true
   },
   "filter": {
     "elementTypes": [
@@ -75,8 +77,8 @@
     ]
   },
   "view": {
-    "name": "Parkeren",
-    "folder": "/_Test/_Generated"
+    "name": "Beleidsdomeinen",
+    "folder": "/_Generated/Beleidsdomeinen/Bedrijfsobjectmodellen"
   },
   "appearance": {
     "styleByProperty": {
@@ -89,7 +91,7 @@
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "",
+        "property": "GGM-guid",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -97,7 +99,7 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "",
+      "property": "GGM-guid",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {

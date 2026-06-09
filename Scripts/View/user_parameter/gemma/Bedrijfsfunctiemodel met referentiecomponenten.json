@@ -3,7 +3,7 @@
   "algorithm": "Pack",
   "params": {
     "direction": "Left → Right",
-    "routing": "Polyline",
+    "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
@@ -18,27 +18,27 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "sortContainers": false,
+    "sortContainers": true,
     "alignWidthSameType": true,
     "alignDebug": false,
-    "snapColumnsToGrid": false,
+    "snapColumnsToGrid": true,
     "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
-    "connectionsMode": "Between containers",
+    "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
     "nodeSizeByEdgeCount": 25,
     "elementWidth": 300,
     "elementHeight": 60,
-    "maxWidth": 5000,
+    "maxWidth": 0,
     "maxHeight": 1000,
-    "aspectRatio": 0.75,
-    "viewSizeMode": "none",
+    "aspectRatio": 1,
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false
   },
   "filter": {
     "elementTypes": [
-      "business-function"
+      "grouping"
     ],
     "relationTypes": [],
     "diagramTypes": []
@@ -78,8 +78,8 @@
     ]
   },
   "view": {
-    "name": "Klant- en keteninteractie",
-    "folder": "/_Test/_Generated"
+    "name": "Niet domeingebonden",
+    "folder": "/_Generated/Bedrijfsfunctiemodel"
   },
   "appearance": {
     "styleByProperty": {

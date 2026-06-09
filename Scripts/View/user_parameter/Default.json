@@ -1,6 +1,6 @@
 {
   "name": "Default",
-  "algorithm": "Dot",
+  "algorithm": "Layered",
   "params": {
     "direction": "Left → Right",
     "routing": "Orthogonal",
@@ -19,14 +19,18 @@
     "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
+    "nodeSizeByEdgeCount": 25,
     "elementWidth": 180,
     "elementHeight": 60,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
-    "viewSizeMode": "none"
+    "viewSizeMode": "none",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [],
@@ -37,8 +41,8 @@
     "steps": []
   },
   "view": {
-    "name": "Ondersteuning",
-    "folder": "/View/_Generated"
+    "name": "BAG",
+    "folder": "/_Generated"
   },
   "appearance": {
     "styleByProperty": {
@@ -51,7 +55,7 @@
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "",
+        "property": "GGM-guid",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -59,7 +63,7 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "",
+      "property": "GGM-guid",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
@@ -84,7 +88,8 @@
       "colorRange": "Pastel1"
     }
   },
-  "_lastTabIndex": 1,
-  "description": "dit is een test  sadf asdf\n# dlfksdl;faksdf\n",
+  "engineParams": {},
+  "_lastTabIndex": 0,
+  "description": "Preset met startconfiguratie\n",
   "action": "new_view"
 }
