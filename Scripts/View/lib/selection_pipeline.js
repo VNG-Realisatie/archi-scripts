@@ -110,25 +110,14 @@ function buildObjectSet(uiSelection, preset, actionId) {
             : stepInput.slice(0, 5).map(e => `"${e.name}" [${e.type}]`).join(", ") + ` … +${stepInput.length - 5} more`;
         console.log(`Step ${stepIdx} input (${stepInput.length}): ${_inLabel}`);
       }
-      const hops  = _expandStepFrontiers(stepInput, step, _debugSteps);
-      const added = hops.flat();
-      // Add to the final selection (collection).
+      const { added, rels: stepRels, cumulative: newCumul } =
+        _expandStepWithRelations(stepInput, step, cumulativeElems, allRelIds, _debugSteps);
+      cumulativeElems = newCumul;
       added.forEach(o => {
         if (collection.filter(a => a.id === o.id).size() === 0) collection.add(o);
       });
-      // Find relations per hop: each hop's frontier is "new", everything before it is "old".
-      // new×new (lateral within the same hop) remains excluded; applied per-hop not per-step.
-      // Run even for empty frontiers: intra-base relations (e.g. associations between the
-      // step-input elements themselves) must be collected even when no new elements are found.
-      let stepRelCount = 0;
-      for (const hopFrontier of hops) {
-        const hopBefore = cumulativeElems.slice();
-        cumulativeElems = cumulativeElems.concat(hopFrontier);
-        const hopRels = _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, hopBefore);
-        hopRels.forEach(r => allRelations.push(r));
-        stepRelCount += hopRels.length;
-      }
-      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRelCount });
+      stepRels.forEach(r => allRelations.push(r));
+      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
       // Chain advance: next step's input is THIS step's additions only.
       stepInput = added;
     }
@@ -434,6 +423,32 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
     if (dir === "in"   && !isOutgoing) return true;
   }
   return false;
+}
+
+/**
+ * Single source of truth for one pipeline step: expand from `base`, then collect
+ * relations between the resulting cumulative element set.
+ * Used by both buildObjectSet and the dialog's live counters so they can never diverge.
+ *
+ * @param {Object[]} base       - Step input elements (frontier for hop 1)
+ * @param {Object}   step       - { relationTypes, elementTypes, depth }
+ * @param {Object[]} cumulative - Elements accumulated so far (before this step)
+ * @param {Set}      seenRelIds - Dedup set threaded across all steps; mutated in place
+ * @param {boolean}  [verbose]  - Per-hop detail logging (pipeline debug only)
+ * @returns {{ added: Object[], rels: Object[], cumulative: Object[] }}
+ */
+function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = false) {
+  const hops   = _expandStepFrontiers(base, step, verbose);
+  const added  = hops.flat();
+  const newRels = [];
+  let cumul = cumulative.slice();
+  for (const hopFrontier of hops) {
+    const hopBefore = cumul.slice();
+    cumul = cumul.concat(hopFrontier);
+    const hopRels = _findRelationsBetween(cumul, step.relationTypes, seenRelIds, hopBefore);
+    hopRels.forEach(r => newRels.push(r));
+  }
+  return { added, rels: newRels, cumulative: cumul };
 }
 
 /** Expand by following relations up to depth hops. Returns per-hop frontier arrays. */
@@ -778,11 +793,12 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     buildObjectSet,
     getSeedElements,
-    expandStep:           _expandStep,
-    expandStepFrontiers:  _expandStepFrontiers,
-    logCountBlock:        _logCountBlock,
-    findRelationsBetween: _findRelationsBetween,
-    resolveNesting:       _resolveNesting,
-    predictViewCounts:    _predictViewCounts,
+    expandStep:               _expandStep,
+    expandStepFrontiers:      _expandStepFrontiers,
+    expandStepWithRelations:  _expandStepWithRelations,
+    logCountBlock:            _logCountBlock,
+    findRelationsBetween:     _findRelationsBetween,
+    resolveNesting:           _resolveNesting,
+    predictViewCounts:        _predictViewCounts,
   };
 }
