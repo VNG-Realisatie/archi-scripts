@@ -260,14 +260,15 @@ Preset {
 
   params {
     direction, routing, labelPosition,  // Flow direction, Relation line
-    ranking,                            // style, Layer ranking — discrete
-                                        // choices, gated by Layout style
+    ranking, acyclicer,                 // style, Layer ranking, Cycle breaking —
+                                        // discrete choices, gated by Layout style
 
     reverseRelationTypes : RelTypeId[]  // Relations drawn reversed
     nestingRelationTypes : RelTypeId[]  // Relations drawn as nesting
 
     innerSpacing, padding, layerSpacing,    // Level spacing,
     elementSpacing,                         // Element spacing
+    nodeSizeByEdgeCount,                    // inflate hub nodes by edge count (0 = off)
     elementWidth, elementHeight : numbers   // element size
 
     maxWidth, maxHeight, aspectRatio        // View size constraints
@@ -276,7 +277,8 @@ Preset {
     sortContainers,                 // Sort containers alphabetically
     alignWidthSameType,             // Align width by level (key kept for back-compat)
     snapColumnsToGrid,              // Snap columns to grid
-    showInEveryContainer            // Show in every container
+    showInEveryContainer,           // Show in every container
+    labelSizing                     // size nodes from label text (Pack & Grid only)
                 : booleans
 
     containerAlgorithm : string     // Algorithm for children inside containers:
@@ -347,6 +349,10 @@ Preset {
       colorRange : string               // ColorBrewer scheme name (Chroma.js)
     }
   }
+
+  engineParams {                        // per-engine native-option overrides; overrides only —
+    ELK?, Dagre?, Graphviz?, layout?    // defaults live in each adapter. Deep-merged before
+  }                                     // layout. See Part B § ELK (engineParams block).
 }
 
 Step {
@@ -450,7 +456,7 @@ The Selection tab decides *which* objects feed the layout: the counts group at t
   │  │  Filter diagram types:                                              │ │
   │  │  ○ group  ○ note  ○ image  ○ legend                                 │ │
   │  └─────────────────────────────────────────────────────────────────────┘ │
-  │  ┌─ Related elements ─────────────────────────────────────────────────┐  │
+  │  ┌─ Expand selection ─────────────────────────────────────────────────┐  │
   │  │ Expand by following relations to neighbouring elements.            │  │
   │  │ Each block below adds a step.            [+ Add related elements]  │  │
   │  │ ┌─ Step 1 ──────────────────────────────────────────────────────┐  │  │
@@ -514,7 +520,7 @@ Three independent filter controls below the counts. Filtering is visibility-only
 
 #### Related-elements blocks
 
-The Related-elements group opens with a one-line explanation and a `[+ Add related elements]` button on the same row. Below it sits a dynamic, ordered list of blocks. Each block is a `Step N` group:
+The Related-elements group (GUI title: **Expand selection**) opens with a one-line explanation and a `[+ Add related elements]` button on the same row. Below it sits a dynamic, ordered list of blocks. Each block is a `Step N` group:
 
 - **Header row**: `Added:` count label; reorder (▲ ▼); collapse/expand (▾/▸); remove (✕).
 - **Relation types**: per relation type, two independent direction checkboxes (same encoding as the global filter).
@@ -637,7 +643,7 @@ The group label is **"Draw these relation types as containers"** — a checkbox 
 | Padding | Space between container border and contents (px). |
 | Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
 | Align width by level | Align box widths across the whole hierarchy by nesting level. Widths telescope — each level is one padding ring wider than the level inside it, anchored at the leaf width; leaves take the level width exactly, containers use it as a floor (never below their content). ELK algorithms only. See [Width alignment by level](#width-alignment-by-level). |
-| Snap columns to grid | Line leaf columns up top-to-bottom by nudging ELK's layout into alignment — each column snaps to the median of where its leaves already sit, preserving ELK's spacing and adding only the small offset for alignment. Position-only post-pass; leaves are not resized. ELK algorithms only. See [Column snapping](#column-snapping). |
+| Snap columns to grid | Line leaf columns up top-to-bottom by nudging ELK's layout into alignment — each column snaps to the median of where its leaves already sit, preserving ELK's spacing and adding only the small offset for alignment. Position-only post-pass; leaves are not resized. Grid and Pack only. See [Column snapping](#column-snapping). |
 | Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
 
 #### View dimensions
@@ -793,28 +799,41 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 
 ### Algorithm × parameter compatibility
 
-✓ active · — greyed out in GUI
+✓ active · — greyed out in GUI. **This table is the rendered form of each algorithm's
+`activeParams` list in `defs.js` ([Algorithm registry](#algorithm-registry)); the list is
+authoritative and the table must be regenerated from it whenever `activeParams` changes.**
 
 | Parameter | Layered | Tree | Force | Stress | Radial | Grid | Pack | Dagre | Dot | Twopi | Neato | FDP | SFDP | Circo |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Flow direction** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
-| **Relation line style** | ✓ | ✓ | — | — | — | — | — | — | ✓ | — | ✓ | ✓ | ✓ | — |
+| **Relation line style** | ✓ | — | — | — | — | — | — | — | ✓ | — | ✓ | ✓ | ✓ | — |
 | **Layer ranking** | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| **Level spacing** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — |
-| **Element spacing** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Cycle breaking** | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| **Level spacing** | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — |
+| **Element spacing** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | **Element width/height** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Max width** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Node size by edge count** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
+| **Max width** | ✓ | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Max height** | — | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Aspect ratio** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Nesting relation types** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
-| **Inner spacing** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
-| **Padding** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
-| **Sort containers** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Nesting relation types** | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | — | — |
+| **Inner spacing** | — | — | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
+| **Padding** | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | — | — |
+| **Container algorithm** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Connections mode** | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| **Sort containers** | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — |
 | **Align width by level** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| **Snap columns to grid** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| **Show in every container** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | — | ✓ | ✓ | — | — |
-| **Reverse relation types** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
-| **Label position** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| **Snap columns to grid** | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Label sizing** | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Show in every container** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| **Reverse relation types** | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
+| **Label position** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Self-loops** (capability) | ✓ | — | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+The **Self-loops** row is a capability, not a GUI parameter: ✓ = routed (engine-native or
+writer-synthesised), ~ = partial (engine attempts, writer synthesises on failure), — = not
+drawn (self-loop edges excluded from the layout graph and removed on re-layout). Source:
+`ALGORITHMS[*].supportsSelfLoops` in `defs.js`.
 
 ## Selection pipeline
 
@@ -1074,7 +1093,7 @@ This is the width a *single-column* container of that depth would have — the t
 
 ### Column snapping
 
-The **Snap columns to grid** option (preset key `snapColumnsToGrid`) puts every leaf column on **one shared global grid** so columns line up top-to-bottom across the whole view. It is independent of [Width alignment by level](#width-alignment-by-level) — either can be used alone — and applies only to the nesting-capable ELK algorithms.
+The **Snap columns to grid** option (preset key `snapColumnsToGrid`) puts every leaf column on **one shared global grid** so columns line up top-to-bottom across the whole view. It is independent of [Width alignment by level](#width-alignment-by-level) — either can be used alone — and applies only to the Compact ELK algorithms (Grid and Pack), the only algorithms with `snapColumnsToGrid` in their `activeParams`.
 
 **A global variable-width table.** Each column is as wide as its own widest leaf (widths diverge), packed left-to-right, every leaf moved onto its column's centre so columns share an x view-wide.
 
@@ -1207,14 +1226,6 @@ Not every algorithm supports every view-size parameter. Unsupported parameters a
 **Position spread is allowed.** Moving node centers outward from a common origin — keeping sizes fixed — is permitted as a post-layout step to fill a view-size target.
 
 **`alignWidthSameType` exception** (UI label: *Align width by level*). This adjustment sets per-nesting-level target widths — exact widths on leaves, minimum-size floors on containers — using widths rendered in pass 1. It runs between pass 1 and pass 2 of a two-pass layout, so it is a pre-layout adjustment to pass 2's input, not a post-layout operation. (The preset key remains `alignWidthSameType` for back-compat; the behaviour is level-based, not type-based.)
-
-### Adapter obligations
-
-- Honour every parameter listed as **active** for the chosen algorithm ([Algorithm capability matrix](#algorithm-capability-matrix)); ignore inactive ones.
-- Translate parameter values from their UI/preset form to the engine's native form.
-- Apply view-size constraints without scaling element sizes (see above).
-- Return absolute coordinates (the orchestrator converts to parent-relative).
-- Never read or write a view directly. Adapters operate only on `LayoutGraph` / `LayoutResult`. *(Rule 3)*
 
 ### Adapter obligations
 
@@ -1599,7 +1610,7 @@ Ref: `lib/appearance.js`.
 
 ### GUI Appearance tab — dialog_main.js
 
-`_buildAppearanceTab(tabFolder, ctx)` — follows the same `_scrolledTab` / `_group` / finish pattern as the Layout tab. Four groups: **Nesting telescope**, **Colour multiple occurrences**, **Colour by element property**, **Colour element by relation property**.
+`_buildAppearanceTab(tabFolder, ctx)` — follows the same `_scrolledTab` / `_group` / finish pattern as the Layout tab. Five groups, in tab order matching [Appearance tab](#appearance-tab): **Style by property**, **Style by related property**, **Style by connected element**, **Style by nesting level**, **Highlight repeated elements**.
 
 **Nesting telescope active state.** `_updateNestingTelescopeState(ctx)` enables/disables the telescope controls based on `ctx.widgets.lstNestingTypes` selection. Called from:
 - `_syncToUI` (after all widgets are built)
@@ -1630,7 +1641,7 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 | Grid | `box` | — | — | Full | — (excluded; not drawn on view) |
 | Pack | `rectpacking` | — | — | Full | — (excluded; not drawn on view) |
 
-Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph — they are never passed to ELK; the writer synthesises a NE-corner loop via `_synthesiseSelfLoopBendpoints`. Layered (`supportsSelfLoops: true`) includes self-loops in the ELK graph and uses the routed sections from ELK. Placement is controlled by `elk.layered.edgeRouting.selfLoopDistribution` (default `NORTH`) and `selfLoopOrdering` (default `STACKED`). The writer falls back to synthesis only when ELK returns an empty section (no bendpoints).
+Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph in `_buildLayoutGraph` (`generate_view.js` — `srcId === tgtId && !supportsSelfLoops` → skipped) so they never reach ELK, and any existing self-loop VisualRelations are deleted from the target view before the relation loop — they are **not drawn**. Layered (`supportsSelfLoops: true`) includes self-loops in the ELK graph and uses the routed sections from ELK. Placement is controlled by `elk.layered.edgeRouting.selfLoopDistribution` (default `EQUALLY`) and `selfLoopOrdering` (default `SEQUENCED`). The writer falls back to `_synthesiseSelfLoopBendpoints` (NE-corner loop) only when ELK returns an empty section (no bendpoints).
 
 **Cross-hierarchy edge handling — `_liftCrossHierarchyEdges`.** `_classifyEdges` routes same-immediate-parent edges into their container's `edges[]` array; all other edges (cross-hierarchy and root-level) go into `rootEdges[]`. `_liftCrossHierarchyEdges` then processes `rootEdges` in two modes:
 
@@ -1802,7 +1813,7 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 
 | Engine | maxWidth / maxHeight | aspectRatio |
 |---|---|---|
-| **ELK** | Hard layout bounds: `elkGraph.width` and/or `elkGraph.height` are set; ELK places all nodes within that area without coordinate scaling. | Not supported. |
+| **ELK** | **maxWidth only** (maxHeight is not in any ELK algorithm's `activeParams`, so it is greyed in the GUI and never reaches runtime). maxWidth is set as `elkGraph.width`; ELK places all nodes within that bound without coordinate scaling. | **Supported.** Mapped to `elk.aspectRatio` via each ELK algorithm's `_AR` PARAM_MAPPING entry; ELK adjusts positions only, never node sizes. |
 | **Graphviz** | Position-spread minimum: after `layout()`, `_applySpread()` checks whether the natural bounding box is smaller than the requested value. If so, node *centers* are spread outward until the target is reached. If already larger, nothing done — compression is forbidden. | Passed as `ratio=<1/AR>`. Graphviz adjusts positions only, not node sizes. |
 | **Dagre** | Not supported. | Not supported. |
 
