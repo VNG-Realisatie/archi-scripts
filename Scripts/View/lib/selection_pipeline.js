@@ -69,6 +69,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const filteredCounts = { elems: _fEl, rels: _fRel, diag: diagramObjects.length };
 
   const globalRelTypes = preset.filter.relationTypes;
+  const _debugSteps   = !!preset.debug;
 
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
@@ -102,7 +103,14 @@ function buildObjectSet(uiSelection, preset, actionId) {
       const stepElemStr = (step.elementTypes  && step.elementTypes.length > 0)
         ? step.elementTypes.join(", ")  : "all";
       console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  depth: ${step.depth || 1}  ·  element types: ${stepElemStr}`);
-      const hops  = _expandStepFrontiers(stepInput, step);
+      if (_debugSteps) {
+        const _inLabel = stepInput.length === 0 ? "(empty)"
+          : stepInput.length <= 6
+            ? stepInput.map(e => `"${e.name}" [${e.type}]`).join(", ")
+            : stepInput.slice(0, 5).map(e => `"${e.name}" [${e.type}]`).join(", ") + ` … +${stepInput.length - 5} more`;
+        console.log(`Step ${stepIdx} input (${stepInput.length}): ${_inLabel}`);
+      }
+      const hops  = _expandStepFrontiers(stepInput, step, _debugSteps);
       const added = hops.flat();
       // Add to the final selection (collection).
       added.forEach(o => {
@@ -110,9 +118,10 @@ function buildObjectSet(uiSelection, preset, actionId) {
       });
       // Find relations per hop: each hop's frontier is "new", everything before it is "old".
       // new×new (lateral within the same hop) remains excluded; applied per-hop not per-step.
+      // Run even for empty frontiers: intra-base relations (e.g. associations between the
+      // step-input elements themselves) must be collected even when no new elements are found.
       let stepRelCount = 0;
       for (const hopFrontier of hops) {
-        if (hopFrontier.length === 0) continue;
         const hopBefore = cumulativeElems.slice();
         cumulativeElems = cumulativeElems.concat(hopFrontier);
         const hopRels = _findRelationsBetween(cumulativeElems, step.relationTypes, allRelIds, hopBefore);
@@ -428,7 +437,7 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
 }
 
 /** Expand by following relations up to depth hops. Returns per-hop frontier arrays. */
-function _expandStepFrontiers(base, step) {
+function _expandStepFrontiers(base, step, verbose = false) {
   const { depth = 1, elementTypes = [], relationTypes = [] } = step;
   const baseIds  = new Set(base.map(o => o.id));
   const addedIds = new Set();
@@ -439,21 +448,50 @@ function _expandStepFrontiers(base, step) {
     const nextFrontier = [];
     for (const element of frontier) {
       try {
+        const stats = { total: 0, accept: 0, wrongElemType: 0, alreadySeen: 0 };
+        const wrongRelDetails = [];
+        const wrongElemDetails = [];
         $(element).rels().each(rel => {
+          stats.total++;
           const type = rel.type || "";
           const isOutgoing = !!(rel.source && rel.source.id === element.id);
-          if (!_matchesRelationTypeDir(type, relationTypes, isOutgoing)) return;
+          if (!_matchesRelationTypeDir(type, relationTypes, isOutgoing)) {
+            if (verbose) {
+              const other = isOutgoing ? rel.target : rel.source;
+              wrongRelDetails.push(`${type}(${isOutgoing ? "out" : "in"})→"${other ? other.name : "?"}"[${other ? other.type : "?"}]`);
+            }
+            return;
+          }
 
           const other = isOutgoing ? rel.target : rel.source;
           if (!other) return;
-          if (baseIds.has(other.id) || addedIds.has(other.id)) return;
+          if (baseIds.has(other.id) || addedIds.has(other.id)) { stats.alreadySeen++; return; }
 
           const otherType = other.type || "";
-          if (elementTypes.length > 0 && !elementTypes.includes(otherType)) return;
+          if (elementTypes.length > 0 && !elementTypes.includes(otherType)) {
+            stats.wrongElemType++;
+            if (verbose) wrongElemDetails.push(`"${other.name}"[${otherType}]`);
+            return;
+          }
 
           addedIds.add(other.id);
           nextFrontier.push(other);
+          stats.accept++;
         });
+        if (verbose) {
+          const skips = [];
+          if (wrongRelDetails.length > 0) {
+            const shown = wrongRelDetails.slice(0, 4).join(", ") + (wrongRelDetails.length > 4 ? " …" : "");
+            skips.push(`${wrongRelDetails.length} wrong-rel-type: [${shown}]`);
+          }
+          if (stats.wrongElemType > 0) {
+            const shown = wrongElemDetails.slice(0, 3).join(", ") + (wrongElemDetails.length > 3 ? " …" : "");
+            skips.push(`${stats.wrongElemType} wrong-elem-type: [${shown}]`);
+          }
+          if (stats.alreadySeen > 0) skips.push(`${stats.alreadySeen} already-selected`);
+          const skipStr = skips.length ? `  (${skips.join("  |  ")})` : "";
+          console.log(`    hop${hop + 1} "${element.name}" [${element.type}]: ${stats.total} rels → ${stats.accept} accepted${skipStr}`);
+        }
       } catch (e) {}
     }
     hops.push(nextFrontier);

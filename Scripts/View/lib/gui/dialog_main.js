@@ -770,7 +770,6 @@ function _updateFilteredCount(ctx) {
       const added = hops.flat();
       let stepRelCount = 0;
       for (const hopFrontier of hops) {
-        if (hopFrontier.length === 0) continue;
         const hopBefore = cumulative.slice();
         cumulative = cumulative.concat(hopFrontier);
         const hopRels = Pipeline.findRelationsBetween(cumulative, step.relationTypes, seenRelIds, hopBefore);
