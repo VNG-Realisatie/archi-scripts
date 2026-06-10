@@ -1,19 +1,17 @@
 {
-  "name": "Default",
+  "name": "",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Left",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "serving-relationship",
-      "specialization-relationship"
-    ],
+    "reverseRelationTypes": [],
     "nestingRelationTypes": [],
-    "innerSpacing": 10,
+    "innerSpacing": 20,
     "padding": 20,
+    "diagramPadding": 10,
     "sortContainers": false,
     "alignWidthSameType": false,
     "alignDebug": false,
@@ -22,12 +20,13 @@
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
-    "elementSpacing": 40,
+    "elementSpacing": 30,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
     "nodeSizeByEdgeCount": 25,
     "elementWidth": 180,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false
@@ -41,21 +40,21 @@
     "steps": []
   },
   "view": {
-    "name": "BAG",
-    "folder": "/_Generated"
+    "name": "Beheer Openbare Ruimte",
+    "folder": "/View/_Generated"
   },
   "appearance": {
     "styleByProperty": {
       "element": {
         "enabled": false,
         "elementType": "",
-        "property": "Vertrouwelijkheid",
+        "property": "",
         "colorRange": "Blues"
       },
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "GGM-guid",
+        "property": "",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -63,7 +62,7 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "GGM-guid",
+      "property": "",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
@@ -89,7 +88,5 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 0,
-  "description": "Preset met startconfiguratie\n",
   "action": "new_view"
 }

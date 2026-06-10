@@ -1,6 +1,6 @@
 /**
  * Shared utilities for layout engine adapters.
- *
+ * 
  * These functions operate on the LayoutGraph data structure (engine-agnostic)
  * and are used by both elk.js and dagre.js.
  */
@@ -16,12 +16,12 @@ console.log("Loading engines/engine-utils.js");
  */
 function selfLoopResult(edge) {
   return {
-    id:         edge.id,
-    sourceId:   edge.source,
-    targetId:   edge.target,
+    id: edge.id,
+    sourceId: edge.source,
+    targetId: edge.target,
     bendpoints: [],
-    labelX:     0,
-    labelY:     0,
+    labelX: 0,
+    labelY: 0,
     isStraight: false,
   };
 }
@@ -36,8 +36,8 @@ function selfLoopResult(edge) {
 function byTypeAndName(a, b) {
   const ta = a.elementType || a._type || "";
   const tb = b.elementType || b._type || "";
-  const na = a.label       || a._name || "";
-  const nb = b.label       || b._name || "";
+  const na = a.label || a._name || "";
+  const nb = b.label || b._name || "";
   return ta.localeCompare(tb) || na.localeCompare(nb);
 }
 
@@ -64,8 +64,8 @@ function sortedNodes(nodes, parentMap, sortContainers) {
 
   const result = [];
   for (const group of Object.values(byParent)) {
-    const ctrs   = group.filter(n =>  childSet.has(n.id));
-    const leaves = group.filter(n => !childSet.has(n.id)).sort(byTypeAndName);
+    const ctrs = group.filter((n) => childSet.has(n.id));
+    const leaves = group.filter((n) => !childSet.has(n.id)).sort(byTypeAndName);
     if (sortContainers) ctrs.sort(byTypeAndName);
     result.push(...ctrs, ...leaves);
   }
@@ -106,13 +106,17 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log, debu
   }
   const nameOf = {};
   for (const it of items) nameOf[it.id] = it._name || it.label || it.id;
-  const isContainer = id => !!(childrenOf[id] && childrenOf[id].length);
+  const isContainer = (id) => !!(childrenOf[id] && childrenOf[id].length);
 
   const levelCache = {};
   function level(id) {
     if (id in levelCache) return levelCache[id];
-    let l = 0, cur = id;
-    while (parentMap[cur] != null) { l++; cur = parentMap[cur]; }
+    let l = 0,
+      cur = id;
+    while (parentMap[cur] != null) {
+      l++;
+      cur = parentMap[cur];
+    }
     return (levelCache[id] = l);
   }
 
@@ -127,41 +131,54 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log, debu
     return (subCache[id] = 1 + m);
   }
 
-  const widthOf = id => { const w = renderedWidthById[id]; return w > 0 ? w : 0; };
+  const widthOf = (id) => {
+    const w = renderedWidthById[id];
+    return w > 0 ? w : 0;
+  };
 
   // Group box ids by level.
   const byLevel = {};
   for (const it of items) (byLevel[level(it.id)] = byLevel[level(it.id)] || []).push(it.id);
-  const levels = Object.keys(byLevel).map(Number).sort((a, b) => a - b);
+  const levels = Object.keys(byLevel)
+    .map(Number)
+    .sort((a, b) => a - b);
 
   // Telescoping widths: anchor the deepest level at its narrowest box (the leaf base),
   // then each level above is one ring wider than the level it contains.
   const deepestLevel = levels[levels.length - 1];
   let anchor = Infinity;
-  for (const id of byLevel[deepestLevel]) { const w = widthOf(id); if (w > 0 && w < anchor) anchor = w; }
+  for (const id of byLevel[deepestLevel]) {
+    const w = widthOf(id);
+    if (w > 0 && w < anchor) anchor = w;
+  }
   if (!isFinite(anchor)) anchor = 0;
 
   const W = {};
   W[deepestLevel] = anchor;
   for (let i = levels.length - 2; i >= 0; i--) {
-    const L = levels[i], inner = levels[i + 1];
-    W[L] = W[inner] + ring * (inner - L);   // one ring per nesting level
+    const L = levels[i],
+      inner = levels[i + 1];
+    W[L] = W[inner] + ring * (inner - L); // one ring per nesting level
   }
 
   const targetById = {};
   for (const it of items) targetById[it.id] = W[level(it.id)] || 0;
 
   if (typeof log === "function") {
-    log(`[alignByLevel] ${items.length} boxes, ${levels.length} level(s); ` +
-        `ring=${ring}, anchor=${anchor} @ deepest level ${deepestLevel}`);
+    log(
+      `[alignByLevel] ${items.length} boxes, ${levels.length} level(s); ` +
+        `ring=${ring}, anchor=${anchor} @ deepest level ${deepestLevel}`,
+    );
     for (const L of levels) log(`  level ${L}: ${byLevel[L].length} box(es)  ⇒ W[${L}]=${W[L]}`);
   }
   if (typeof debugLog === "function") {
     for (const it of items) {
-      const id = it.id, L = level(it.id);
+      const id = it.id,
+        L = level(it.id);
       const kind = isContainer(id) ? "container" : "leaf     ";
-      const nat = widthOf(id), tgt = targetById[id];
-      const note = isContainer(id) ? "(floor)" : (tgt > nat ? "(grow)" : tgt < nat ? "(SHRINK?)" : "(same)");
+      const nat = widthOf(id),
+        tgt = targetById[id];
+      const note = isContainer(id) ? "(floor)" : tgt > nat ? "(grow)" : tgt < nat ? "(SHRINK?)" : "(same)";
       debugLog(`    ${kind} L${L} sub${subtreeDepth(id)} natural=${nat} target=${tgt} ${note}  "${nameOf[id]}"`);
     }
   }
@@ -188,18 +205,6 @@ function applyParams(algName, opts, mapping) {
   return result;
 }
 
-// ── Pre-layout sizing defaults ────────────────────────────────────────────────
-
-const LAYOUT_DEFAULTS = {
-  labelCharWidth:      8,
-  labelLineHeight:     24,
-  labelHPadding:       16,
-  labelVPadding:       8,
-  labelMaxLineWidth:   400,
-  labelMinWidth:       60,
-  labelMinHeight:      30,
-};
-
 // ── Edge-density node sizing ──────────────────────────────────────────────────
 
 /**
@@ -217,14 +222,14 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
   const spacing = params && params.nodeSizeByEdgeCount;
   if (!spacing || spacing <= 0) return;
 
-  const dir = (params && params.direction) || "Left → Right";
-  const isHorizontal = dir === "Left → Right" || dir === "Right → Left";
+  const dir = (params && params.direction) || "Right";
+  const isHorizontal = dir === "Left" || dir === "Right";
 
-  const inCount  = {};
+  const inCount = {};
   const outCount = {};
   for (const edge of edges) {
-    if (edge.source === edge.target) continue;  // self-loops don't occupy a side
-    inCount[edge.target]  = (inCount[edge.target]  || 0) + 1;
+    if (edge.source === edge.target) continue; // self-loops don't occupy a side
+    inCount[edge.target] = (inCount[edge.target] || 0) + 1;
     outCount[edge.source] = (outCount[edge.source] || 0) + 1;
   }
 
@@ -242,6 +247,16 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
 
 // ── Label-based node sizing ───────────────────────────────────────────────────
 
+const LAYOUT_DEFAULTS = {
+  labelCharWidth: 8,
+  labelLineHeight: 24,
+  labelHPadding: 16,
+  labelVPadding: 8,
+  labelMaxLineWidth: 400,
+  labelMinWidth: 60,
+  labelMinHeight: 30,
+};
+
 /**
  * Pre-layout: set node width and height based on label text length.
  * Short labels get small nodes; long labels wrap to two lines and get a taller node.
@@ -254,20 +269,20 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
  */
 function sizeLabelBasedNodes(nodes, params, engineParams) {
   if (!params || !params.labelSizing) return;
-  const lp      = Object.assign({}, LAYOUT_DEFAULTS, engineParams && engineParams.layout);
-  const charW    = lp.labelCharWidth;
-  const lineH    = lp.labelLineHeight;
-  const hPad     = lp.labelHPadding;
-  const vPad     = lp.labelVPadding;
+  const lp = Object.assign({}, LAYOUT_DEFAULTS, engineParams && engineParams.layout);
+  const charW = lp.labelCharWidth;
+  const lineH = lp.labelLineHeight;
+  const hPad = lp.labelHPadding;
+  const vPad = lp.labelVPadding;
   const maxLineW = lp.labelMaxLineWidth;
-  const minW     = lp.labelMinWidth;
-  const minH     = lp.labelMinHeight;
+  const minW = lp.labelMinWidth;
+  const minH = lp.labelMinHeight;
 
   for (const node of nodes) {
     const label = (node.label || "").trim();
     if (!label) continue;
 
-    const rawPx    = _textWidth(label, charW);
+    const rawPx = _textWidth(label, charW);
     const innerMax = maxLineW - 2 * hPad;
 
     let w, h;
@@ -289,7 +304,7 @@ function sizeLabelBasedNodes(nodes, params, engineParams) {
         h = 2 * lineH + vPad;
       }
     }
-    node.width  = Math.max(minW, Math.ceil(w));
+    node.width = Math.max(minW, Math.ceil(w));
     node.height = Math.max(minH, Math.ceil(h));
   }
 }
@@ -314,5 +329,13 @@ function _nearestSpace(str, mid) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { selfLoopResult, byTypeAndName, sortedNodes, alignWidthsByLevel, applyParams, expandNodeSizesForEdgeDensity, sizeLabelBasedNodes };
+  module.exports = {
+    selfLoopResult,
+    byTypeAndName,
+    sortedNodes,
+    alignWidthsByLevel,
+    applyParams,
+    expandNodeSizesForEdgeDensity,
+    sizeLabelBasedNodes,
+  };
 }

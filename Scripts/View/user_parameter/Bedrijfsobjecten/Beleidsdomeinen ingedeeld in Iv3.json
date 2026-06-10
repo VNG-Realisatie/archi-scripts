@@ -1,8 +1,8 @@
 {
-  "name": "Bedrijfsobjectmodel/Beleidsdomeinen ingedeeld in Iv3",
-  "algorithm": "Grid",
+  "name": "Bedrijfsobjecten/Beleidsdomeinen ingedeeld in Iv3",
+  "algorithm": "Pack",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Left",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -12,25 +12,26 @@
       "serving-relationship"
     ],
     "nestingRelationTypes": [
-      "access-relationship",
       "aggregation-relationship"
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "sortContainers": false,
-    "alignWidthSameType": false,
+    "diagramPadding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": true,
     "alignDebug": false,
-    "snapColumnsToGrid": false,
+    "snapColumnsToGrid": true,
     "showInEveryContainer": true,
-    "containerAlgorithm": "Layered",
-    "connectionsMode": "Between containers",
-    "layerSpacing": 180,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 120,
     "elementSpacing": 10,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
     "nodeSizeByEdgeCount": 25,
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false
@@ -50,7 +51,6 @@
       {
         "depth": 5,
         "elementTypes": [
-          "business-object",
           "grouping"
         ],
         "relationTypes": [
@@ -61,7 +61,7 @@
     ]
   },
   "view": {
-    "name": "BAG",
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
     "folder": "/View/_Generated"
   },
   "appearance": {

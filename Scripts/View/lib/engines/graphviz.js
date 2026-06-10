@@ -44,39 +44,48 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // maxWidth / maxHeight: NOT mapped to Graphviz 'size' here.
 // Graphviz 'size' scales node sizes (forbidden — see ARCHITECTURE.md §A.8).
 // Instead, maxWidth/maxHeight drive _applySpread() post-extraction (expand only).
+const _GV_PAD = (v) => ({ pad: (v / 96).toFixed(4) });
+
 const PARAM_MAPPING = {
   Dot: {
-    direction:     (v) => ({ rankdir: DIRECTION_MAP[v] }),
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
-    elementSpacing:(v) => ({ nodesep: (v / 96).toFixed(4) }),
-    padding:       (v) => ({ pad:    (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    direction:                (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    layerSpacing:             (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    elementSpacing:           (v) => ({ nodesep: (v / 96).toFixed(4) }),
+    connectionElementSpacing: (v) => ({ sep:    (v / 96).toFixed(4) }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Neato: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   FDP: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   SFDP: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Twopi: {
     layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    diagramPadding: _GV_PAD,
     aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Circo: {
-    elementSpacing:(v) => ({ mindist: (v / 96).toFixed(4) }),
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    elementSpacing: (v) => ({ mindist: (v / 96).toFixed(4) }),
+    diagramPadding: _GV_PAD,
+    aspectRatio:    (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
 };
 
@@ -116,9 +125,15 @@ function _buildDOT(graph) {
   const engineOpts = applyParams(graph.algorithm, opts, PARAM_MAPPING);
   const splines    = engineOpts.splines || "polyline";
   const gvEP       = graph.engineParams && graph.engineParams.Graphviz;
+  // esep priority: engineParams.Graphviz.esep > connectionElementSpacing mapping > routing-based default.
+  // engineOpts.esep (from connectionElementSpacing) must be extracted and deleted before _renderGraphvizAttrs
+  // to avoid duplication — esep is placed explicitly in graphAttrs below.
   const esep       = (gvEP && gvEP.esep != null)
     ? String(gvEP.esep)
+    : (engineOpts.esep != null)
+    ? String(engineOpts.esep)
     : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
+  delete engineOpts.esep;
   const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   // Node dimensions — not graph-level attributes; kept inline
@@ -253,34 +268,27 @@ function _applySpread(resultNodes, resultEdges, opts) {
   const natW = x1 - x0;
   const natH = y1 - y0;
 
-  // Only expand (never compress). 0 = no constraint.
-  const minW    = opts.maxWidth  || 0;
-  const minH    = opts.maxHeight || 0;
+  // Only expand width (never compress). 0 = no constraint.
+  const minW    = opts.maxWidth || 0;
   const spreadX = (minW > 0 && natW > 0 && natW < minW) ? minW / natW : 1;
-  const spreadY = (minH > 0 && natH > 0 && natH < minH) ? minH / natH : 1;
 
-  const needsMove = spreadX !== 1 || spreadY !== 1 || x0 !== 0 || y0 !== 0;
+  const needsMove = spreadX !== 1 || x0 !== 0 || y0 !== 0;
   if (!needsMove) return;
 
-  if (spreadX !== 1 || spreadY !== 1)
-    console.log(`Position spread: ${spreadX.toFixed(3)}×X ${spreadY.toFixed(3)}×Y  (${Math.round(natW)} × ${Math.round(natH)} → ${minW || "—"} × ${minH || "—"} px, element sizes unchanged)`);
+  if (spreadX !== 1)
+    console.log(`Position spread: ${spreadX.toFixed(3)}×X  (${Math.round(natW)} → ${minW} px width, element sizes unchanged)`);
 
   const cx = (x0 + x1) / 2;
   const cy = (y0 + y1) / 2;
 
-  // Spread node centers, keep sizes frozen
+  // Spread node centers horizontally, keep sizes frozen
   for (const n of resultNodes) {
-    n.x = cx + (n.x + n.width  / 2 - cx) * spreadX - n.width  / 2;
-    n.y = cy + (n.y + n.height / 2 - cy) * spreadY - n.height / 2;
+    n.x = cx + (n.x + n.width / 2 - cx) * spreadX - n.width / 2;
   }
   // Apply same spread to bendpoints and edge labels
   for (const e of resultEdges) {
-    e.bendpoints = e.bendpoints.map(bp => ({
-      x: cx + (bp.x - cx) * spreadX,
-      y: cy + (bp.y - cy) * spreadY,
-    }));
+    e.bendpoints = e.bendpoints.map(bp => ({ x: cx + (bp.x - cx) * spreadX, y: bp.y }));
     e.labelX = cx + ((e.labelX || 0) - cx) * spreadX;
-    e.labelY = cy + ((e.labelY || 0) - cy) * spreadY;
   }
 
   // Normalize origin: find new minimum and shift so min(x)=0, min(y)=0

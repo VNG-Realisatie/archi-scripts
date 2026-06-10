@@ -23,9 +23,39 @@ const STYLES = Object.freeze({
   Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
 });
 
+// ── Algorithm param groups ────────────────────────────────────────────────────
+// Shared groups spread into activeParams arrays; each algorithm shows only its unique additions.
+
+// Active in every algorithm — not algorithm-specific.
+const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding"]);
+
+// ELK full-nesting controls — Layered, Tree, Grid, Pack.
+const PARAMS_ELK_NESTING = Object.freeze([
+  "nestingRelationTypes", "padding",
+  "sortContainers", "alignWidthSameType", "alignDebug",
+  "showInEveryContainer", "containerAlgorithm",
+]);
+
+// View-size params — maxWidth + aspectRatio, all algorithms that support it (Pack excluded — no maxWidth).
+const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
+
+// Graphviz cluster-nesting controls — Dot, Neato, FDP.
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "innerSpacing"]);
+
+// Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
+const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
+const LP_ELK           = Object.freeze(["Source", "Middle", "Target"]);
+const LP_GV            = Object.freeze(["Source", "Middle", "Target", "Natural"]);
+const ROUTING_GV_POLY  = Object.freeze(["Polyline", "Straight", "Spline (approximated)"]);
+
+// View-size paramConflicts — aspectRatio and maxWidth are mutually exclusive.
+// Single constant covers all algorithms (maxHeight removed).
+const CONFLICTS_VIEW = Object.freeze({ aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] });
+
 // ── Algorithms ────────────────────────────────────────────────────────────────
 // supportsNesting: "full" | "partial" | "cluster" | "none"
-// activeParams: GUI param keys active for this algorithm (others greyed out)
+// activeParams: GUI param keys active for this algorithm (others greyed out).
+//   Spreads ALWAYS_ACTIVE_PARAMS and shared group constants; remaining entries are algorithm-specific.
 // supportedOptions: allowed values per select-type param (undefined = free value)
 // engineAlgorithmId: engine-internal identifier
 // labelPositionDefault: default for the labelPosition param
@@ -38,23 +68,20 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
-      "direction", "routing", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "alignDebug",
-      "showInEveryContainer", "containerAlgorithm", "connectionsMode",
-      "layerSpacing", "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
+      "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
+      "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
     ],
     supportedOptions: {
-      direction:          ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
+      direction:          DIRECTION_VALUES,
       routing:            ["Orthogonal", "Polyline", "Splines"],
-      labelPosition:      ["Source", "Middle", "Target"],
+      labelPosition:      LP_ELK,
       containerAlgorithm: ["Layered", "Grid", "Pack"],
       connectionsMode:    ["Between containers", "Crossing containers"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Tree: {
@@ -64,21 +91,18 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "alignDebug",
-      "showInEveryContainer", "containerAlgorithm",
-      "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio",
+      "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
     ],
     supportedOptions: {
-      direction:          ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      labelPosition:      ["Source", "Middle", "Target"],
+      direction:          DIRECTION_VALUES,
+      labelPosition:      LP_ELK,
       containerAlgorithm: ["Grid", "Pack"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Force: {
@@ -87,7 +111,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
@@ -99,7 +123,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // stress model has no notion of self-loop distance
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)",
@@ -111,9 +135,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Circular",
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
-    activeParams:         [
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
-    ],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "layerSpacing", "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Domain overviews and hub-and-spoke structures (ELK)",
@@ -126,16 +148,14 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
-      "showInEveryContainer", "labelSizing", "containerAlgorithm",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
+      "innerSpacing", "snapColumnsToGrid", "labelSizing",
+      "elementSpacing", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
     tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Pack: {
@@ -145,18 +165,16 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignWidthSameType", "alignDebug", "snapColumnsToGrid",
-      "showInEveryContainer", "labelSizing", "containerAlgorithm",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "aspectRatio", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING,
+      "innerSpacing", "snapColumnsToGrid", "labelSizing",
+      "elementSpacing", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
     tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
-    // maxWidth omitted from activeParams: nested rectpacking is bottom-up and ignores a
-    // target narrower than its container boxes. Aspect ratio is the only view-size lever.
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    // maxWidth intentionally absent: nested rectpacking is bottom-up and ignores a target
+    // narrower than its container boxes. Aspect ratio is the only view-size lever.
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Dagre: {
@@ -166,16 +184,16 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "partial",
     supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS,
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "padding",
-      "sortContainers",
-      "layerSpacing", "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
+      "nestingRelationTypes", "sortContainers",
+      "layerSpacing", "elementSpacing", "connectionSpacing", "nodeSizeByEdgeCount",
     ],
     supportedOptions: {
-      direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
+      direction:     DIRECTION_VALUES,
       ranking:       ["Balanced", "Uniform", "Top-aligned"],
       acyclicer:     ["Default", "Greedy"],
-      labelPosition: ["Source", "Middle", "Target"],
+      labelPosition: LP_ELK,
     },
     labelPositionDefault: "Middle",
     tooltip: "Fast process and application flows with limited nesting support (Dagre)",
@@ -188,23 +206,18 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz routes self-loops natively across all algorithms
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "layerSpacing", "elementSpacing", "nodeSizeByEdgeCount", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "layerSpacing", "elementSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount", "reverseRelationTypes",
     ],
     supportedOptions: {
-      direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
+      direction:     DIRECTION_VALUES,
       routing:       ["Orthogonal", "Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Neato: {
@@ -214,22 +227,17 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
-      routing:       ["Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Spring-model layout for undirected networks with partial cluster nesting. No direction control (Graphviz neato)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   FDP: {
@@ -239,22 +247,17 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
-      routing:       ["Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   SFDP: {
@@ -264,21 +267,17 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
       "routing", "labelPosition",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "elementSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
-      routing:       ["Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Twopi: {
@@ -288,20 +287,15 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      "labelPosition",
-      "layerSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
+      "labelPosition", "layerSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Circo: {
@@ -311,20 +305,15 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      "labelPosition",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
+      "labelPosition", "elementSpacing",
     ],
     supportedOptions: {
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Circular layout placing nodes on concentric circles. Best for ring topologies and cyclic dependency patterns (Graphviz circo)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 });
 
@@ -364,10 +353,10 @@ const ROUTING = Object.freeze({
 // ── Directions ────────────────────────────────────────────────────────────────
 
 const DIRECTIONS = Object.freeze([
-  { val: "Left → Right", default: true },
-  { val: "Right → Left" },
-  { val: "Top → Bottom" },
-  { val: "Bottom → Top" },
+  { val: "Right", default: true },
+  { val: "Left" },
+  { val: "Down" },
+  { val: "Up" },
 ]);
 
 // ── Ranking (Dagre only) ──────────────────────────────────────────────────────
@@ -390,10 +379,10 @@ const ACYCLICER = Object.freeze([
 // ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
 
 const DIRECTION_MAP = Object.freeze({
-  "Left → Right": "LR",
-  "Right → Left": "RL",
-  "Top → Bottom": "TB",
-  "Bottom → Top": "BT",
+  "Right": "LR",
+  "Left":  "RL",
+  "Down":  "TB",
+  "Up":    "BT",
 });
 
 // ── Label positions ───────────────────────────────────────────────────────────
@@ -521,7 +510,7 @@ const DEFAULT_PRESET = Object.freeze({
   name:      "",
   algorithm: "Layered",
   params: {
-    direction:             "Left → Right",
+    direction:             "Right",
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
@@ -530,6 +519,7 @@ const DEFAULT_PRESET = Object.freeze({
     nestingRelationTypes:  [],
     innerSpacing:          20,
     padding:               20,
+    diagramPadding:        10,
     sortContainers:        false,
     alignWidthSameType:    false,
     alignDebug:            false,
@@ -539,13 +529,14 @@ const DEFAULT_PRESET = Object.freeze({
     connectionsMode:       "Between containers",   // "Between containers" | "Crossing containers"
     layerSpacing:          180,
     elementSpacing:        40,
-    nodeSizeByEdgeCount:   25,
+    connectionSpacing:        20,
+    connectionElementSpacing: 40,
+    nodeSizeByEdgeCount:      25,
     elementWidth:          140,
     elementHeight:         60,
     maxWidth:              0,
-    maxHeight:             0,
     aspectRatio:           0,
-    viewSizeMode:          "none",  // "none" | "maxWidth" | "maxHeight" | "aspectRatio"
+    viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
     labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
   },
   filter: {
@@ -629,8 +620,11 @@ function validatePreset(raw) {
 
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
-    for (const [key, val] of Object.entries(raw.params)) {
+    for (const [key, rawVal] of Object.entries(raw.params)) {
       if (!(key in DEFAULT_PRESET.params)) continue;  // unknown key ignored
+      // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.
+      const _DIR_MIGRATE = { "Left → Right": "Right", "Right → Left": "Left", "Top → Bottom": "Down", "Bottom → Top": "Up" };
+      const val = (key === "direction" && _DIR_MIGRATE[rawVal]) ? _DIR_MIGRATE[rawVal] : rawVal;
       const opts = alg.supportedOptions[key];
       if (opts && !opts.includes(val)) {
         console.log(`Warning: param "${key}" value "${val}" not supported by ${preset.algorithm}. Using default.`);

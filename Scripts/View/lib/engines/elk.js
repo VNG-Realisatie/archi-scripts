@@ -25,7 +25,7 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 //   container: applied to each container node's layoutOptions in _buildELKGraph
 //
 // Parameters handled outside PARAM_MAPPING:
-//   maxWidth / maxHeight  → set as elkGraph.width / .height (root graph bounds, not options)
+//   maxWidth              → set as elkGraph.width (root graph bound, not options)
 //   nestingRelationTypes  → graph structure (parentMap)
 //   sortContainers        → node sort order via engine-utils.sortedNodes (ELK: _sortNodeChildren)
 //   alignWidthSameType    → two-pass layout; pass 1 measures natural widths, then every box is
@@ -33,10 +33,10 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 //                           (leaves get exact width, containers a MINIMUM_SIZE floor)
 
 const ELK_DIRECTION = {
-  "Left → Right": "RIGHT",
-  "Right → Left": "LEFT",
-  "Top → Bottom": "DOWN",
-  "Bottom → Top": "UP",
+  "Right": "RIGHT",
+  "Left":  "LEFT",
+  "Down":  "DOWN",
+  "Up":    "UP",
 };
 
 // Extra top padding inside container nodes so the container label is not covered by children.
@@ -44,14 +44,15 @@ const CONTAINER_LABEL_CLEARANCE = 30;
 const MIN_NODE_SIZE = 8;  // fallback for degenerate ELK output (zero/undefined dimension) — see _collectNodePositions
 
 const DEFAULT_ELK_PARAMS = {
-  "elk.layered.cycleBreaking.strategy":             "GREEDY",
-  "elk.layered.edgeRouting.selfLoopDistribution":   "EQUALLY",
-  "elk.layered.edgeRouting.selfLoopOrdering":       "SEQUENCED",
-  "elk.layered.feedbackEdges":                      "true",
-  "elk.layered.spacing.edgeNodeBetweenLayers":      40,
-  "elk.spacing.edgeEdge":                           20,
-  "elk.spacing.edgeNode":                           15,
-  "elk.spacing.nodeSelfLoop":                       20,
+  "elk.layered.cycleBreaking.strategy":           "GREEDY",
+  "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
+  "elk.layered.edgeRouting.selfLoopOrdering":     "SEQUENCED",
+  "elk.layered.feedbackEdges":                    "true",
+  "elk.spacing.nodeSelfLoop":                     40,
+  // elk.spacing.edgeEdge, elk.spacing.edgeNode, elk.layered.spacing.edgeEdgeBetweenLayers,
+  // elk.layered.spacing.edgeNodeBetweenLayers are intentionally absent: they are driven by
+  // connectionSpacing / connectionElementSpacing via PARAM_MAPPING. DEFAULT_ELK_PARAMS is
+  // merged after rootEngineOpts and would overwrite, so these must not appear here.
 };
 
 // Shared aspect-ratio mapping reused wherever both root and container scopes carry the same fn.
@@ -64,83 +65,70 @@ const _LAYERED_ROUTING = (v) => ({
   ...(v === "Splines" ? { "elk.layered.edgeRouting.splines.mode": "CONSERVATIVE" } : {}),
 });
 
+// Shared param-mapping functions — referenced in multiple algorithm root/container scopes.
+const _DIRECTION     = (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" });
+const _ELEM_SPACING  = (v) => ({ "elk.spacing.nodeNode": String(v) });
+const _LAYER_SPACING = (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) });
+const _PAD_DIAGRAM   = (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` });
+const _PAD_CONTAINER = (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` });
+
+// edgeEdge + edgeEdgeBetweenLayers: within-layer and between-layer channels both need spacing.
+const _LAYERED_CONN_SPACING      = (v) => ({
+  "elk.spacing.edgeEdge":                      String(v),
+  "elk.layered.spacing.edgeEdgeBetweenLayers": String(v),
+});
+const _LAYERED_CONN_ELEM_SPACING = (v) => ({
+  "elk.spacing.edgeNode":                      String(v),
+  "elk.layered.spacing.edgeNodeBetweenLayers": String(v),
+  "elk.spacing.nodeSelfLoop":                  String(v),
+});
+
+// Shared base objects — spread into root/container; padding and aspectRatio are added per scope.
+const _LAYERED_BASE = {
+  direction:                _DIRECTION,
+  routing:                  _LAYERED_ROUTING,
+  elementSpacing:           _ELEM_SPACING,
+  layerSpacing:             _LAYER_SPACING,
+  connectionSpacing:        _LAYERED_CONN_SPACING,
+  connectionElementSpacing: _LAYERED_CONN_ELEM_SPACING,
+};
+const _TREE_BASE = {
+  direction:                _DIRECTION,
+  elementSpacing:           _ELEM_SPACING,
+  // mrtree does not use layered between-layer spacing options; within-layer only.
+  connectionSpacing:        (v) => ({ "elk.spacing.edgeEdge": String(v) }),
+  connectionElementSpacing: (v) => ({ "elk.spacing.edgeNode": String(v) }),
+};
+
 const PARAM_MAPPING = {
   Layered: {
-    root: {
-      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
-      routing:        _LAYERED_ROUTING,
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      layerSpacing:   (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
-      aspectRatio:    _AR,
-      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    container: {
-      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
-      routing:        _LAYERED_ROUTING,
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      layerSpacing:   (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
-    },
+    root:      { ..._LAYERED_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM, padding: _PAD_CONTAINER },
+    container: { ..._LAYERED_BASE,                                                  padding: _PAD_CONTAINER },
   },
 
   Tree: {
-    root: {
-      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    _AR,
-      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    container: {
-      direction:      (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" }),
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
-    },
+    root:      { ..._TREE_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM, padding: _PAD_CONTAINER },
+    container: { ..._TREE_BASE,                                                  padding: _PAD_CONTAINER },
   },
 
   Force: {
-    root: {
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    _AR,
-    },
-    container: {
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
-    },
+    root:      { elementSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
+    container: { elementSpacing: _ELEM_SPACING,                                    padding: _PAD_CONTAINER },
   },
 
   Stress: {
-    root: {
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    _AR,
-    },
-    container: {
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
-    },
+    root:      { elementSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
+    container: { elementSpacing: _ELEM_SPACING,                                    padding: _PAD_CONTAINER },
   },
 
   Radial: {
-    root: {
-      layerSpacing:   (v) => ({ "elk.radial.radius": String(v) }),
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    container: {
-      elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
-    },
+    root:      { layerSpacing: (v) => ({ "elk.radial.radius": String(v) }), elementSpacing: _ELEM_SPACING, diagramPadding: _PAD_DIAGRAM },
+    container: {                                                              elementSpacing: _ELEM_SPACING, padding: _PAD_CONTAINER },
   },
 
   Grid: {
-    root: {
-      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      aspectRatio:    _AR,
-      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    container: {
-      innerSpacing:   (v) => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
-    },
+    root:      { innerSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM, padding: _PAD_CONTAINER },
+    container: { innerSpacing: _ELEM_SPACING,                                                  padding: _PAD_CONTAINER },
   },
 
   // rectpacking tight-packing options:
@@ -174,7 +162,8 @@ const PARAM_MAPPING = {
         // distributes whitespace between nodes (widening boxes, offsetting content negative)
         // which pushed children outside their container's left edge. Compaction handles tightening.
       }),
-      padding:        (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
+      diagramPadding: _PAD_DIAGRAM,
+      padding:        _PAD_CONTAINER,
     },
     container: {
       // aspectRatio propagated to containers so their internal layout matches the root AR,
@@ -187,7 +176,7 @@ const PARAM_MAPPING = {
         // "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
         // "elk.rectpacking.widthApproximation.optimizationGoal": "AREA_DRIVEN",
       }),
-      padding:        (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` }),
+      padding:        _PAD_CONTAINER,
     },
   },
 };
@@ -241,7 +230,7 @@ function layout(graph) {
   );
   // FIXED_SIDE portConstraints locks cross-container ports to EAST/WEST sides, causing edges
   // to route around container sides instead of through the top/bottom in UP/DOWN layouts.
-  const _isVertical = graph.options.direction === "Bottom → Top" || graph.options.direction === "Top → Bottom";
+  const _isVertical = graph.options.direction === "Up" || graph.options.direction === "Down";
   if (_isVertical) delete elkEngineParams["org.eclipse.elk.portConstraints"];
   const layoutOptions = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts, elkEngineParams);
 
@@ -302,6 +291,8 @@ function layout(graph) {
     const rootRouting = rootEngineOpts["elk.edgeRouting"] || "(engine default)";
     log(`ELK config:  root=${graph.algorithm}(${alg.engineAlgorithmId})  routing=${rootRouting}  hierarchy=${hierMode}` +
         (hasNesting ? `  container=${containerAlgName || graph.algorithm}(${containerAlgoId})` : ""));
+    log(`ELK spacing:  connSpacing(edgeEdge=${layoutOptions["elk.spacing.edgeEdge"]}, edgeEdgeBetweenLayers=${layoutOptions["elk.layered.spacing.edgeEdgeBetweenLayers"] || "(default)"})` +
+        `  connElemSpacing(edgeNode=${layoutOptions["elk.spacing.edgeNode"]}, edgeNodeBetweenLayers=${layoutOptions["elk.layered.spacing.edgeNodeBetweenLayers"] || "(default)"})`);
     log(`ELK layoutOptions: ${JSON.stringify(layoutOptions)}`);
   }
 
@@ -439,7 +430,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   const ctrEngineParams = Object.fromEntries(
     Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
-  const _isVertical = graph.options.direction === "Bottom → Top" || graph.options.direction === "Top → Bottom";
+  const _isVertical = graph.options.direction === "Up" || graph.options.direction === "Down";
   if (_isVertical) delete ctrEngineParams["org.eclipse.elk.portConstraints"];
   const hasContainers = Object.keys(parentMap).length > 0;
   for (const [nodeId, node] of Object.entries(nodeMap)) {
@@ -485,9 +476,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
 
   const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap, hierarchyMode === "INCLUDE_CHILDREN");
   const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges };
-  // maxWidth / maxHeight as root graph bounds — ELK algorithms that support bounded layout use them.
-  if (graph.options.maxWidth  > 0) elkGraph.width  = graph.options.maxWidth;
-  if (graph.options.maxHeight > 0) elkGraph.height = graph.options.maxHeight;
+  if (graph.options.maxWidth > 0) elkGraph.width = graph.options.maxWidth;
   return { elkGraph, liftedEdgesMap };
 }
 

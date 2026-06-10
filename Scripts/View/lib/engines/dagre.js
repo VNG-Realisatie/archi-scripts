@@ -27,17 +27,17 @@ const RANKER = {
 
 const DEFAULT_DAGRE_PARAMS = {
   acyclicer: "greedy",
-  edgesep:   20,
 };
 
 const PARAM_MAPPING = {
   Dagre: {
-    direction:      (v) => ({ rankdir: DIRECTION_MAP[v] }),
-    ranking:        (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
-    acyclicer:      (v) => v === "Greedy" ? { acyclicer: "greedy" } : {},
-    layerSpacing:   (v) => ({ ranksep: v }),
-    elementSpacing: (v) => ({ nodesep: v }),
-    padding:        (v) => ({ marginx: v, marginy: v }),
+    direction:         (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    ranking:           (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
+    acyclicer:         (v) => v === "Greedy" ? { acyclicer: "greedy" } : {},
+    layerSpacing:      (v) => ({ ranksep: v }),
+    elementSpacing:    (v) => ({ nodesep: v }),
+    connectionSpacing: (v) => ({ edgesep: v }),
+    diagramPadding:    (v) => ({ marginx: v, marginy: v }),
   },
 };
 

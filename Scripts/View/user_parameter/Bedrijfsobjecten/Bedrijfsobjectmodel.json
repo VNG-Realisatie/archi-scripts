@@ -1,8 +1,8 @@
 {
-  "name": "Bedrijfsobjectmodel/Bedrijfsobjectmodel",
+  "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -16,6 +16,7 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
+    "diagramPadding": 10,
     "sortContainers": false,
     "alignWidthSameType": false,
     "alignDebug": true,
@@ -24,15 +25,16 @@
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
-    "elementSpacing": 60,
+    "elementSpacing": 35,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
     "nodeSizeByEdgeCount": 25,
-    "elementWidth": 180,
+    "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": true
   },
   "filter": {
     "elementTypes": [
@@ -77,7 +79,7 @@
     ]
   },
   "view": {
-    "name": "BAG",
+    "name": "ICT",
     "folder": "/_Generated/Beleidsdomeinen/Bedrijfsobjectmodellen"
   },
   "appearance": {

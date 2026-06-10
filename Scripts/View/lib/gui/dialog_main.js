@@ -1259,8 +1259,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25, 0, 200, 5, w, "Adds extra element size based on the number of connections on the busiest side.\n" +
     "Use this to prevent ports from overlapping on highly connected elements.\n" +
     "0 = disabled.");
-  new LabelWidget(grpSize, SWT.NONE); new LabelWidget(grpSize, SWT.NONE);
-  new LabelWidget(grpSize, SWT.NONE); new LabelWidget(grpSize, SWT.NONE);
+  _addSpinnerRow(grpSize, "Diagram padding:", "spinDiagramPadding", 10, 0, 200, 5, w, "Space between the diagram boundary and the outermost elements (px). Applied by all engines.");
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -1298,6 +1297,12 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(routComp, "Cycle breaking:", ACYCLICER_LABELS, 0,  90, "cmbAcyclicer",     w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
 
   _addCombo(routComp, "Layer ranking:",  RANKING_LABELS,   0, 110, "cmbRanking",       w, "How nodes are assigned to rank layers. Balanced minimises edge lengths; Uniform places nodes at the shallowest possible rank; Top-aligned pulls nodes to the deepest rank.");
+  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
+  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
+  _addSpinnerRow(routComp, "Connection spacing:", "spinConnectionSpacing", 20, 0, 200, 5, w, "Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability.");
+  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
+  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
+  _addSpinnerRow(routComp, "Connection-element spacing:", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements.");
   new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
   new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
 
@@ -1378,16 +1383,13 @@ function _buildLayoutTab(tabFolder, ctx) {
   };
   w.radioViewSizeNone        = _vsRadio("None");
   w.radioViewSizeMaxWidth    = _vsRadio("Width");
-  w.radioViewSizeMaxHeight   = _vsRadio("Height");
   w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio");
   w.radioViewSizeNone.setSelection(true);
   w.radioViewSizeNone.setToolTipText("No constraint; layout determines the view bounds.");
   w.radioViewSizeMaxWidth.setToolTipText("Spread layout outward to reach the target width. No compression if already larger.");
-  w.radioViewSizeMaxHeight.setToolTipText("Spread layout outward to reach the target height. No compression if already larger.");
   w.radioViewSizeAspectRatio.setToolTipText("Spread layout outward to match the target aspect ratio. No compression if already larger.");
 
-  _addSpinnerRow(grpVS, "Max width:",  "spinMaxWidth",  0, 0, 99999, 100, w, "Target view width (px).");
-  _addSpinnerRow(grpVS, "Max height:", "spinMaxHeight", 0, 0, 99999, 100, w, "Target view height (px).");
+  _addSpinnerRow(grpVS, "Max width:", "spinMaxWidth", 0, 0, 99999, 100, w, "Target view width (px).");
   _addCombo(grpVS, "Aspect ratio:", AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
 
   finish();
@@ -2261,9 +2263,12 @@ function _syncToUI(ctx) {
   _spinSet(w.spinElementHeight,  p.elementHeight  !== undefined ? p.elementHeight  : DP.elementHeight);
   _spinSet(w.spinElementSpacing,       p.elementSpacing       !== undefined ? p.elementSpacing       : DP.elementSpacing);
   _spinSet(w.spinLayerSpacing,         p.layerSpacing         !== undefined ? p.layerSpacing         : DP.layerSpacing);
+  _spinSet(w.spinDiagramPadding,           p.diagramPadding           !== undefined ? p.diagramPadding           : DP.diagramPadding);
+  _spinSet(w.spinConnectionSpacing,        p.connectionSpacing        !== undefined ? p.connectionSpacing        : DP.connectionSpacing);
+  _spinSet(w.spinConnectionElementSpacing, p.connectionElementSpacing !== undefined ? p.connectionElementSpacing : DP.connectionElementSpacing);
   _spinSet(w.spinNodeSizeByEdgeCount,  p.nodeSizeByEdgeCount  !== undefined ? p.nodeSizeByEdgeCount  : DP.nodeSizeByEdgeCount);
   _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
-  _spinSet(w.spinMaxHeight,      p.maxHeight      !== undefined ? p.maxHeight      : DP.maxHeight);
+
   const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio !== undefined ? p.aspectRatio : DP.aspectRatio));
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
@@ -2274,7 +2279,6 @@ function _syncToUI(ctx) {
     const _vsMap  = {
       none:        w.radioViewSizeNone,
       maxWidth:    w.radioViewSizeMaxWidth,
-      maxHeight:   w.radioViewSizeMaxHeight,
       aspectRatio: w.radioViewSizeAspectRatio,
     };
     Object.entries(_vsMap).forEach(([k, r]) => { if (r) r.setSelection(k === _vsMode); });
@@ -2428,7 +2432,7 @@ function _saveUI(ctx) {
   }
 
   // Direction / routing / label / ranking
-  if (w.cmbDirection)     c.params.direction     = DIRECTION_LABELS[w.cmbDirection.getSelectionIndex()]    || "Left → Right";
+  if (w.cmbDirection)     c.params.direction     = DIRECTION_LABELS[w.cmbDirection.getSelectionIndex()]    || "Right";
   if (w.cmbRouting)       { const _ri = w.cmbRouting.getSelectionIndex(); c.params.routing = (_ri >= 0 ? w.cmbRouting.getItem(_ri) : null) || "Orthogonal"; }
   if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
   if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
@@ -2454,9 +2458,11 @@ function _saveUI(ctx) {
   if (w.spinElementHeight)  c.params.elementHeight  = w.spinElementHeight.getSelection();
   if (w.spinElementSpacing)       c.params.elementSpacing       = w.spinElementSpacing.getSelection();
   if (w.spinLayerSpacing)         c.params.layerSpacing         = w.spinLayerSpacing.getSelection();
+  if (w.spinDiagramPadding)           c.params.diagramPadding           = w.spinDiagramPadding.getSelection();
+  if (w.spinConnectionSpacing)        c.params.connectionSpacing        = w.spinConnectionSpacing.getSelection();
+  if (w.spinConnectionElementSpacing) c.params.connectionElementSpacing = w.spinConnectionElementSpacing.getSelection();
   if (w.spinNodeSizeByEdgeCount)  c.params.nodeSizeByEdgeCount  = w.spinNodeSizeByEdgeCount.getSelection();
   if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
-  if (w.spinMaxHeight)      c.params.maxHeight      = w.spinMaxHeight.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
   c.params.aspectRatio  = AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0;
   c.params.viewSizeMode = _getViewSizeMode(w);
@@ -2606,22 +2612,23 @@ function _updateAlgorithmControls(ctx) {
     }
   }
   _enable(w.spinLayerSpacing,           active.has("layerSpacing"));
+  _enable(w.spinDiagramPadding,           active.has("diagramPadding"));
+  _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
+  _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
   _enable(w.spinNodeSizeByEdgeCount,    active.has("nodeSizeByEdgeCount"));
 
   // View size radios: enable/disable each option based on algorithm support.
   // The spinners/combo are controlled by _applyViewSizeMode, not directly here.
   _enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
-  _enable(w.radioViewSizeMaxHeight,   active.has("maxHeight"));
   _enable(w.radioViewSizeAspectRatio, active.has("aspectRatio"));
   // If the currently selected mode is no longer supported, fall back to None.
   const _vsMode = _getViewSizeMode(w);
   const _vsModeStillActive = _vsMode === "none"
     || (_vsMode === "maxWidth"    && active.has("maxWidth"))
-    || (_vsMode === "maxHeight"   && active.has("maxHeight"))
     || (_vsMode === "aspectRatio" && active.has("aspectRatio"));
   if (!_vsModeStillActive && w.radioViewSizeNone) {
     w.radioViewSizeNone.setSelection(true);
-    [w.radioViewSizeMaxWidth, w.radioViewSizeMaxHeight, w.radioViewSizeAspectRatio]
+    [w.radioViewSizeMaxWidth, w.radioViewSizeAspectRatio]
       .forEach(r => { if (r) r.setSelection(false); });
   }
   _applyViewSizeMode(ctx);
@@ -2653,7 +2660,6 @@ function _updateAlgorithmControls(ctx) {
 
 function _getViewSizeMode(w) {
   if (w.radioViewSizeMaxWidth    && w.radioViewSizeMaxWidth.getSelection())    return "maxWidth";
-  if (w.radioViewSizeMaxHeight   && w.radioViewSizeMaxHeight.getSelection())   return "maxHeight";
   if (w.radioViewSizeAspectRatio && w.radioViewSizeAspectRatio.getSelection()) return "aspectRatio";
   return "none";
 }
@@ -2670,7 +2676,6 @@ function _applyViewSizeMode(ctx) {
   const w    = ctx.widgets;
   const mode = _getViewSizeMode(w);
   _enable(w.spinMaxWidth,   mode === "maxWidth");
-  _enable(w.spinMaxHeight,  mode === "maxHeight");
   _enable(w.cmbAspectRatio, mode === "aspectRatio");
 }
 

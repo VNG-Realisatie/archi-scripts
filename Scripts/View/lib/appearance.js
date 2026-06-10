@@ -357,7 +357,7 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
 
   const relFilters   = settings.relTypes.map(enc => decodeRelType(enc));
   const targetType   = settings.elementType || "";  // "" = any
-  const conflictColor = settings.conflictColor || "#FF6B35";
+  const conflictColor = settings.conflictColor || "#ff632a";
 
   // Build a map: viewElement conceptId → visual element VOs
   const vosByConceptId = new Map();

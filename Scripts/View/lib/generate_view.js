@@ -87,7 +87,6 @@ function generate_view(rawPreset, uiSelection, actionId) {
   {
     const vsMode = _rawParams.viewSizeMode || "none";
     const vsVal  = vsMode === "maxWidth"    ? `maxWidth=${_rawParams.maxWidth}`
-                 : vsMode === "maxHeight"   ? `maxHeight=${_rawParams.maxHeight}`
                  : vsMode === "aspectRatio" ? `aspectRatio=${_rawParams.aspectRatio}`
                  : "none";
     console.log(`View size requested: ${vsVal}`);
