@@ -492,6 +492,8 @@ const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
+// Extra top padding inside container nodes so the container label is not covered by children.
+const CONTAINER_LABEL_CLEARANCE = 30;
 
 // ColorBrewer scheme names supported by Chroma.js.
 // Qualitative schemes (discrete, pastel) come first; sequential/diverging follow.
@@ -765,6 +767,7 @@ if (typeof module !== "undefined" && module.exports) {
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
+    CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,

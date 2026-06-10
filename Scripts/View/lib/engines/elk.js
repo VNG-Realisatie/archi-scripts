@@ -14,7 +14,7 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { ALGORITHMS, SPLINE_SAMPLE_POINTS } = Defs;
+const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONTAINER_LABEL_CLEARANCE } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 
@@ -39,8 +39,6 @@ const ELK_DIRECTION = {
   "Up":    "UP",
 };
 
-// Extra top padding inside container nodes so the container label is not covered by children.
-const CONTAINER_LABEL_CLEARANCE = 30;
 const MIN_NODE_SIZE = 8;  // fallback for degenerate ELK output (zero/undefined dimension) — see _collectNodePositions
 
 const DEFAULT_ELK_PARAMS = {
@@ -102,12 +100,12 @@ const _TREE_BASE = {
 
 const PARAM_MAPPING = {
   Layered: {
-    root:      { ..._LAYERED_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM, padding: _PAD_CONTAINER },
+    root:      { ..._LAYERED_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
     container: { ..._LAYERED_BASE,                                                  padding: _PAD_CONTAINER },
   },
 
   Tree: {
-    root:      { ..._TREE_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM, padding: _PAD_CONTAINER },
+    root:      { ..._TREE_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
     container: { ..._TREE_BASE,                                                  padding: _PAD_CONTAINER },
   },
 
@@ -127,7 +125,7 @@ const PARAM_MAPPING = {
   },
 
   Grid: {
-    root:      { innerSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM, padding: _PAD_CONTAINER },
+    root:      { innerSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
     container: { innerSpacing: _ELEM_SPACING,                                                  padding: _PAD_CONTAINER },
   },
 
@@ -163,7 +161,6 @@ const PARAM_MAPPING = {
         // which pushed children outside their container's left edge. Compaction handles tightening.
       }),
       diagramPadding: _PAD_DIAGRAM,
-      padding:        _PAD_CONTAINER,
     },
     container: {
       // aspectRatio propagated to containers so their internal layout matches the root AR,
@@ -764,6 +761,19 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
           bps.push({ x: Math.round(offsetX + bp.x), y: Math.round(offsetY + bp.y) });
         }
       }
+    }
+
+    // If the layout computed a straight segment (no bendpoints), inject the edge
+    // midpoint so Archi routes along the layout's spacing rather than through the
+    // element centres.
+    if (bps.length === 0) {
+      const sp = section.startPoint || { x: 0, y: 0 };
+      const lastSec = sections[sections.length - 1];
+      const ep = (lastSec && lastSec.endPoint) || { x: 0, y: 0 };
+      bps.push({
+        x: Math.round(offsetX + (sp.x + ep.x) / 2),
+        y: Math.round(offsetY + (sp.y + ep.y) / 2),
+      });
     }
 
     if (debugLog) {

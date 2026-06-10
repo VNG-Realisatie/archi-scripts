@@ -17,7 +17,7 @@ const REPO_ROOT = (() => {
 
 const Defs         = require(REPO_ROOT + "View/lib/defs");
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP, CONTAINER_LABEL_CLEARANCE } = Defs;
 const { applyParams } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
@@ -454,9 +454,9 @@ function _deriveClusterBBs(graphNodes, nodes, clusters, childSet, padding) {
   for (const [id, bb] of Object.entries(clusters)) {
     if (bb.maxX !== undefined) {
       clusters[id] = {
-        x: bb.x - padding, y: bb.y - padding,
+        x: bb.x - padding, y: bb.y - (padding + CONTAINER_LABEL_CLEARANCE),
         w: (bb.maxX - bb.x) + 2 * padding,
-        h: (bb.maxY - bb.y) + 2 * padding,
+        h: (bb.maxY - bb.y) + 2 * padding + CONTAINER_LABEL_CLEARANCE,
       };
     }
   }
@@ -474,7 +474,11 @@ function _flattenSpline(posStr, totalH, splineType) {
       if (!isNaN(x) && !isNaN(y)) pts.push({ x: x * PT2PX, y: (totalH - y) * PT2PX });
     }
   }
-  if (pts.length < 4) return [];
+  if (pts.length < 2) return [];
+  if (pts.length < 4) {
+    const f = pts[0], l = pts[pts.length - 1];
+    return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
+  }
 
   const useBezier = splineType === "spline" || splineType === "curved";
   const bps = [];
@@ -497,6 +501,11 @@ function _flattenSpline(posStr, totalH, splineType) {
   } else {
     // Ortho / polyline: segment endpoints are corners; skip first and last boundaries
     for (let i = 3; i < pts.length - 1; i += 3) bps.push(pts[i]);
+  }
+  // Ortho/polyline straight segment: 4-point path with no interior bends.
+  if (bps.length === 0) {
+    const f = pts[0], l = pts[pts.length - 1];
+    return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
   }
   return bps;
 }
