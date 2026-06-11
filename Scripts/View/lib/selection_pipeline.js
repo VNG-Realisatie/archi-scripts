@@ -39,9 +39,21 @@ const { ACTION } = Defs;
  */
 function buildObjectSet(uiSelection, preset, actionId) {
   const LOG = "  ";
+  const _debugSteps = !!preset.debug;
+
   // ── Step 1: model objects from selection (uniform for canvas + model-tree) ──
   console.log("Current selection:");
   const raw = Selection.getSelection(uiSelection, "*", LOG);
+  if (_debugSteps) {
+    const items = [];
+    raw.each(o => items.push(o));
+    const CAP = 20;
+    items.slice(0, CAP).forEach(o => {
+      const kind = (o.type || "").endsWith("-relationship") ? "relation" : "element";
+      console.log(`${LOG}  [${kind}] "${o.name || "(unnamed)"}"  ${o.type}`);
+    });
+    if (items.length > CAP) console.log(`${LOG}  … +${items.length - CAP} more`);
+  }
   const expanded = _expandViews(raw, LOG);
   let collection     = expanded.modelCollection;
   let diagramObjects = expanded.diagramObjects;
@@ -69,7 +81,6 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const filteredCounts = { elems: _fEl, rels: _fRel, diag: diagramObjects.length };
 
   const globalRelTypes = preset.filter.relationTypes;
-  const _debugSteps   = !!preset.debug;
 
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
@@ -118,6 +129,14 @@ function buildObjectSet(uiSelection, preset, actionId) {
       });
       stepRels.forEach(r => allRelations.push(r));
       stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
+      if (_debugSteps && added.length > 0) {
+        const CAP = 15;
+        added.slice(0, CAP).forEach(o => {
+          const kind = (o.type || "").endsWith("-relationship") ? "relation" : "element";
+          console.log(`${LOG}  [${kind}] "${o.name || "(unnamed)"}"  ${o.type}`);
+        });
+        if (added.length > CAP) console.log(`${LOG}  … +${added.length - CAP} more`);
+      }
       // Chain advance: next step's input is THIS step's additions only.
       stepInput = added;
     }
@@ -438,7 +457,7 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
  * @returns {{ added: Object[], rels: Object[], cumulative: Object[] }}
  */
 function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = false) {
-  const hops   = _expandStepFrontiers(base, step, verbose);
+  const hops   = _expandStepFrontiers(base, step, verbose, cumulative);
   const added  = hops.flat();
   const newRels = [];
   let cumul = cumulative.slice();
@@ -452,18 +471,37 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
 }
 
 /** Expand by following relations up to depth hops. Returns per-hop frontier arrays. */
-function _expandStepFrontiers(base, step, verbose = false) {
+function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
   const { depth = 1, elementTypes = [], relationTypes = [] } = step;
   const baseIds  = new Set(base.map(o => o.id));
+  const cumulIds = new Set(cumulative.map(o => o.id));
   const addedIds = new Set();
   const hops     = [];
   let frontier   = [...base];
+
+  // Pre-compute direct grouping-children of already-selected groupings.
+  // When a step traverses aggregation:in to find container groupings, skip any
+  // found grouping that is itself a direct sub-grouping of an already-selected
+  // grouping — it belongs to the selected hierarchy, not to an external domain.
+  const subGroupingIds = new Set();
+  for (const el of cumulative) {
+    if (el.type !== "grouping") continue;
+    try {
+      $(el).rels().each(rel => {
+        if (rel.type === "aggregation-relationship" &&
+            rel.source && rel.source.id === el.id &&
+            rel.target && rel.target.type === "grouping") {
+          subGroupingIds.add(rel.target.id);
+        }
+      });
+    } catch(e) {}
+  }
 
   for (let hop = 0; hop < depth; hop++) {
     const nextFrontier = [];
     for (const element of frontier) {
       try {
-        const stats = { total: 0, accept: 0, wrongElemType: 0, alreadySeen: 0 };
+        const stats = { total: 0, accept: 0, wrongElemType: 0, alreadySeen: 0, subGrouping: 0 };
         const wrongRelDetails = [];
         const wrongElemDetails = [];
         $(element).rels().each(rel => {
@@ -480,7 +518,10 @@ function _expandStepFrontiers(base, step, verbose = false) {
 
           const other = isOutgoing ? rel.target : rel.source;
           if (!other) return;
-          if (baseIds.has(other.id) || addedIds.has(other.id)) { stats.alreadySeen++; return; }
+          if (baseIds.has(other.id) || cumulIds.has(other.id) || addedIds.has(other.id)) { stats.alreadySeen++; return; }
+
+          // Skip groupings that are direct children of already-selected groupings.
+          if (subGroupingIds.has(other.id)) { stats.subGrouping++; return; }
 
           const otherType = other.type || "";
           if (elementTypes.length > 0 && !elementTypes.includes(otherType)) {
@@ -504,6 +545,7 @@ function _expandStepFrontiers(base, step, verbose = false) {
             skips.push(`${stats.wrongElemType} wrong-elem-type: [${shown}]`);
           }
           if (stats.alreadySeen > 0) skips.push(`${stats.alreadySeen} already-selected`);
+          if (stats.subGrouping > 0) skips.push(`${stats.subGrouping} sub-grouping`);
           const skipStr = skips.length ? `  (${skips.join("  |  ")})` : "";
           console.log(`    hop${hop + 1} "${element.name}" [${element.type}]: ${stats.total} rels → ${stats.accept} accepted${skipStr}`);
         }
