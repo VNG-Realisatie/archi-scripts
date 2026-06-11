@@ -547,7 +547,7 @@ const DEFAULT_PRESET = Object.freeze({
     diagramTypes:  [],
   },
   relatedElements: {
-    steps: [],  // each: { depth: 1, elementTypes: [], relationTypes: [], diagramTypes: [] }
+    steps: [],  // each: { depth, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
   },
   view: {
     name:   "",
@@ -656,6 +656,9 @@ function validatePreset(raw) {
       elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
       relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
       diagramTypes:  Array.isArray(step.diagramTypes)  ? step.diagramTypes  : [],
+      propFilter:    (step.propFilter && typeof step.propFilter === "object")
+                       ? { key: String(step.propFilter.key || ""), value: String(step.propFilter.value || "") }
+                       : { key: "", value: "" },
     }));
   }
 

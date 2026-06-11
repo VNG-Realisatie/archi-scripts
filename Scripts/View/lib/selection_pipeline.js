@@ -187,7 +187,9 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
       ? step.relationTypes.join(", ") : "all";
     const stepElemStr = (step.elementTypes  && step.elementTypes.length > 0)
       ? step.elementTypes.join(", ")  : "all";
-    console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  depth: ${step.depth || 1}  ·  element types: ${stepElemStr}`);
+    const propStr = (step.propFilter && step.propFilter.key && step.propFilter.value)
+      ? `  ·  prop: ${step.propFilter.key}=${step.propFilter.value}` : "";
+    console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  depth: ${step.depth || 1}  ·  element types: ${stepElemStr}${propStr}`);
     if (debugSteps) {
       const inLabel = stepInput.length === 0 ? "(empty)"
         : stepInput.length <= 6
@@ -529,6 +531,13 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
             stats.wrongElemType++;
             if (verbose) wrongElemDetails.push(`"${other.name}"[${otherType}]`);
             return;
+          }
+
+          if (step.propFilter && step.propFilter.key && step.propFilter.value) {
+            try {
+              const pv = other.prop(step.propFilter.key);
+              if (pv === null || pv === undefined || String(pv) !== step.propFilter.value) return;
+            } catch (e) { return; }
           }
 
           addedIds.add(other.id);

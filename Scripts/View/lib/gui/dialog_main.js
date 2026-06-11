@@ -743,6 +743,10 @@ function _updateFilteredCount(ctx) {
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
+      propFilter: {
+        key:   b.propFilterKey   && b.propFilterKey.getSelectionIndex()   > 0 ? b.propFilterKey.getItem(b.propFilterKey.getSelectionIndex())     : "",
+        value: b.propFilterValue && b.propFilterValue.getSelectionIndex() > 0 ? b.propFilterValue.getItem(b.propFilterValue.getSelectionIndex()) : "",
+      },
     }));
 
     // Collect relations incrementally: base uses global filter; each step uses its own
@@ -766,6 +770,15 @@ function _updateFilteredCount(ctx) {
       stepIdx++;
       const b    = ctx.relBlocks[i];
       const step = steps[i];
+
+      // Dry-run without propFilter: compute reachable candidates for combo population.
+      // Snapshot seenRelIds so this pass doesn't affect relation deduplication.
+      const stepForCandidates = { ...step, propFilter: { key: "", value: "" } };
+      const { added: candidates } = Pipeline.expandStepWithRelations(
+        stepInput, stepForCandidates, cumulative, new Set(seenRelIds)
+      );
+      if (b.refreshPropCombo) b.refreshPropCombo(candidates);
+
       const { added, rels: stepRels, cumulative: newCumul } =
         Pipeline.expandStepWithRelations(stepInput, step, cumulative, seenRelIds);
       cumulative = newCumul;
@@ -1096,13 +1109,13 @@ function _addRelatedBlock(ctx, stepData, opts) {
   const typeSelector = _typeSelector(body, ELEMENT_TYPES, 90, onChange);
 
   const depthRow = new CompositeWidget(body, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 2).spacing(4, 0).applyTo(depthRow);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 2).spacing(4, 0).applyTo(depthRow);
   const lblDepth = new LabelWidget(depthRow, SWT.NONE);
   lblDepth.setText("Depth:");
+  lblDepth.setToolTipText("The depth controls how many times the expansion is repeated.");
   GridDataFactory.swtDefaults().applyTo(lblDepth);
   const depthSpinner = new SpinnerWidget(depthRow, SWT.BORDER);
   depthSpinner.setValues(1, 1, 5, 0, 1, 1);
-  // depthSpinner.setToolTipText("Number of relation hops (depth) to follow from the current base.");
   depthSpinner.setToolTipText("The depth controls how many times the expansion is repeated.");
   GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(depthSpinner);
   // Recompute on arrow click (Selection) and on focus-out (after keyboard edit) —
@@ -1110,11 +1123,67 @@ function _addRelatedBlock(ctx, stepData, opts) {
   depthSpinner.addListener(SWT.Selection, onChange);
   depthSpinner.addListener(SWT.FocusOut, onChange);
 
+  const lblProp = new LabelWidget(depthRow, SWT.NONE);
+  lblProp.setText("Property:");
+  lblProp.setToolTipText("Only add elements that have this property set to the chosen value.");
+  GridDataFactory.swtDefaults().applyTo(lblProp);
+  const cmbProp = new ComboWidget(depthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  cmbProp.setToolTipText("Choose a property to filter on. Leave blank to add all elements regardless of properties.");
+  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbProp);
+
+  const lblVal = new LabelWidget(depthRow, SWT.NONE);
+  lblVal.setText("Value:");
+  lblVal.setToolTipText("Only add elements whose selected property have this value.");
+  GridDataFactory.swtDefaults().applyTo(lblVal);
+  const cmbVal = new ComboWidget(depthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  cmbVal.setToolTipText("Choose the required property value. Only active when a property is also selected.");
+  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbVal);
+
+  // _candidates: elements reachable by this step (set by _updateFilteredCount dry-run).
+  let _candidates = [];
+
+  function refreshPropCombo(candidates) {
+    _candidates = candidates || [];
+    const prev = cmbProp.getSelectionIndex() > 0 ? cmbProp.getItem(cmbProp.getSelectionIndex()) : "";
+    cmbProp.removeAll();
+    cmbProp.add("");
+    const props = new Set();
+    _candidates.forEach(obj => {
+      try { const ks = obj.prop(); if (Array.isArray(ks)) ks.forEach(k => { if (k) props.add(String(k)); }); } catch (e) {}
+    });
+    Array.from(props).sort().forEach(p => cmbProp.add(p));
+    const items = Array.from({ length: cmbProp.getItemCount() }, (_, i) => cmbProp.getItem(i));
+    cmbProp.select(Math.max(0, items.indexOf(prev)));
+    refreshValCombo();
+  }
+
+  function refreshValCombo() {
+    const propIdx = cmbProp.getSelectionIndex();
+    const propKey = propIdx > 0 ? cmbProp.getItem(propIdx) : "";
+    const prev = cmbVal.getSelectionIndex() > 0 ? cmbVal.getItem(cmbVal.getSelectionIndex()) : "";
+    cmbVal.removeAll();
+    cmbVal.add("");
+    if (propKey) {
+      const vals = new Set();
+      _candidates.forEach(obj => {
+        try { const v = obj.prop(propKey); if (v !== null && v !== undefined && v !== "") vals.add(String(v)); } catch (e) {}
+      });
+      Array.from(vals).sort().forEach(v => cmbVal.add(v));
+    }
+    const items = Array.from({ length: cmbVal.getItemCount() }, (_, i) => cmbVal.getItem(i));
+    cmbVal.select(Math.max(0, items.indexOf(prev)));
+  }
+
+  cmbProp.addListener(SWT.Selection, () => { refreshValCombo(); onChange(); });
+  cmbVal.addListener(SWT.Selection, onChange);
+
   const blockObj = {
     container: block, body, lblBlockCounts,
     btnUp, btnDown, btnCollapse, btnRemove,
     collapsed: false,
     relCheckGrid, typeSelector, depthSpinner,
+    propFilterKey: cmbProp, propFilterValue: cmbVal,
+    refreshPropCombo,
   };
   ctx.relBlocks.push(blockObj);
 
@@ -1129,6 +1198,18 @@ function _addRelatedBlock(ctx, stepData, opts) {
     relCheckGrid.setEncoded(stepData.relationTypes || []);
     typeSelector.setSelected(stepData.elementTypes || []);
     depthSpinner.setSelection(Number(stepData.depth) || 1);
+    if (stepData.propFilter && stepData.propFilter.key) {
+      const pf = stepData.propFilter;
+      const pitems = Array.from({ length: cmbProp.getItemCount() }, (_, i) => cmbProp.getItem(i));
+      const ki = pitems.indexOf(pf.key);
+      if (ki >= 0) { cmbProp.select(ki); } else { cmbProp.add(pf.key); cmbProp.select(cmbProp.getItemCount() - 1); }
+      refreshValCombo();
+      if (pf.value) {
+        const vitems = Array.from({ length: cmbVal.getItemCount() }, (_, i) => cmbVal.getItem(i));
+        const vi = vitems.indexOf(pf.value);
+        if (vi >= 0) { cmbVal.select(vi); } else { cmbVal.add(pf.value); cmbVal.select(cmbVal.getItemCount() - 1); }
+      }
+    }
   }
 
   // Apply initial collapsed state (used when loading presets: step 1 expanded, rest collapsed).
@@ -2479,6 +2560,10 @@ function _saveUI(ctx) {
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
+      propFilter: {
+        key:   b.propFilterKey   && b.propFilterKey.getSelectionIndex()   > 0 ? b.propFilterKey.getItem(b.propFilterKey.getSelectionIndex())     : "",
+        value: b.propFilterValue && b.propFilterValue.getSelectionIndex() > 0 ? b.propFilterValue.getItem(b.propFilterValue.getSelectionIndex()) : "",
+      },
     })),
   };
 

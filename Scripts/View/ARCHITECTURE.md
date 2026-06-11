@@ -360,6 +360,8 @@ Step {
   elementTypes   : ElTypeId[]           // prune this step's additions
   relationTypes  : EncodedRelTypeId[]   // direction-aware (see below)
   diagramTypes   : DgTypeId[]           // unused (diagram objects don't traverse)
+  propFilter     : { key: string, value: string }
+                                        // property=value gate; empty strings = inactive
 }
 ```
 
@@ -464,7 +466,7 @@ The Selection tab decides *which* objects feed the layout: the counts group at t
   │  │ │  ──────────────────────────────────────────────────────────── │  │  │
   │  │ │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …         │  │  │
   │  │ │  Filter element types:  [chip selector]                       │  │  │
-  │  │ │  Relation levels:  [1  ▲▼]                                    │  │  │
+  │  │ │  Depth: [1  ▲▼]  Property: [          ▼]  Value: [          ▼] │  │  │
   │  │ └───────────────────────────────────────────────────────────────┘  │  │
   │  │ ┌─ Step 2 ──────────────────────────────────────────────────────┐  │  │
   │  │ │  Added:  nothing                        [▲] [▼] [▸] [✕]       │  │  │
@@ -485,7 +487,7 @@ The **Current selection** group shows three summary lines and a per-block counte
 
 Only types with count > 0 are rendered on each line. Empty selection renders `Selected: nothing` (no First-object suffix).
 
-Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, and block ordering operation.
+Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, property/value filter, and block ordering operation.
 
 Each refresh emits a grouped block to the Archi console (mirroring the pipeline's own block on action click) so the user can compare prediction to result:
 
@@ -508,7 +510,7 @@ The `Total to view` row is grouped into three sub-lines: **elements** (container
 
 The additive rule is exact: `Filtered.elements + Σ Step N.adds.elements = Total.elements` AND `Filtered.relations + Σ Step N.adds.relations = Total.relations`. Per-step `adds.relations` is the count of new relations found in that step's pass: relations of the step's type where at least one endpoint was in the cumulative set *before* this step (old×old, old→new, new→old — new×new excluded), minus any already counted in a prior pass. Not a count of raw-selection relations.
 
-The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, depth change, block reorder) push the same values to that label and to the console.
+The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, depth change, property/value filter change, block reorder) push the same values to that label and to the console.
 
 #### Global filter
 
@@ -525,7 +527,7 @@ The Related-elements group (GUI title: **Expand selection**) opens with a one-li
 - **Header row**: `Added:` count label; reorder (▲ ▼); collapse/expand (▾/▸); remove (✕).
 - **Relation types**: per relation type, two independent direction checkboxes (same encoding as the global filter).
 - **Element-type filter** (block-scoped — prunes only what this block adds).
-- **Relation levels** (≥ 1; the number of hops the block follows).
+- **Depth** (≥ 1; hops to follow) · **Property** / **Value** (optional property=value gate; blank = inactive). Only elements whose named property equals the chosen value are added. The Property combo is populated from elements reachable by this step's relation and element-type filters (dry-run without the gate); the Value combo cascades from the selected property.
 
 Each step's additions feed the next step's input — chain ([Steps](#steps) section Step 3). An empty step terminates the chain.
 
