@@ -1,5 +1,5 @@
 {
-  "name": "Bedrijfsfuncties/Bedrijfsfunctiemodel met referentiecomponenten",
+  "name": "Domeinen/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Pack",
   "params": {
     "direction": "Right",
@@ -24,7 +24,7 @@
     "alignDebug": false,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
-    "containerAlgorithm": "Pack",
+    "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
@@ -40,7 +40,7 @@
   },
   "filter": {
     "elementTypes": [
-      "business-function"
+      "grouping"
     ],
     "relationTypes": [],
     "diagramTypes": []

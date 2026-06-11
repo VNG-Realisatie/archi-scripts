@@ -174,13 +174,12 @@ function _applyNestingLevel(view, settings, depths, isModify) {
 
     // Color: root (depth 0) gets rootColor unchanged (lightenFactor = 0 = darkest).
     // Each level deeper is progressively lighter (rootColor lightened by depth * darkenPerLevel%).
-    // Deepest containers (depth === maxContainerDepth) and leaves: untouched.
     // Only containers in the same-type chain from their root ancestor are affected.
-    if (settings.colorEnabled && isContainer && inChain && depth < maxContainerDepth) {
+    if (settings.colorEnabled && isContainer && inChain) {
       const lightenFactor = depth * (darkenPerLevel / 100);
       vo.fillColor = _lightenHex(settings.rootColor || "#2B5796", lightenFactor);
       colorSet++;
-    } else if (!settings.colorEnabled && isModify && isContainer && inChain && depth < maxContainerDepth) {
+    } else if (!settings.colorEnabled && isModify && isContainer && inChain) {
       vo.fillColor = null;
       colorReset++;
     }
@@ -466,18 +465,7 @@ function _colorScale(rangeName, n) {
 
 // Blend hex colour toward white by factor (0 = unchanged, 1 = white).
 function _lightenHex(hex, factor) {
-  hex = (hex || "#000000").replace(/^#/, "");
-  if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
-  const r = parseInt(hex.substring(0, 2), 16) || 0;
-  const g = parseInt(hex.substring(2, 4), 16) || 0;
-  const b = parseInt(hex.substring(4, 6), 16) || 0;
-  factor = Math.max(0, Math.min(1, factor));
-  const nr = Math.round(r + (255 - r) * factor);
-  const ng = Math.round(g + (255 - g) * factor);
-  const nb = Math.round(b + (255 - b) * factor);
-  return "#" + nr.toString(16).padStart(2, "0")
-             + ng.toString(16).padStart(2, "0")
-             + nb.toString(16).padStart(2, "0");
+  return Chroma.mix(hex || "#000000", "#ffffff", Math.max(0, Math.min(1, factor)), "rgb").hex();
 }
 
 // ── Module exports ────────────────────────────────────────────────────────────
