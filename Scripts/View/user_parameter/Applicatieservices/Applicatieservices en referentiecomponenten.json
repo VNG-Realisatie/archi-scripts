@@ -1,36 +1,45 @@
 {
-  "name": "gemma/Referentiecomponenten en gebruik technische architectuur",
-  "algorithm": "Layered",
+  "name": "Applicatieservices/Applicatieservices en referentiecomponenten",
+  "algorithm": "Pack",
   "params": {
-    "direction": "Top → Bottom",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [
       "realization-relationship",
-      "serving-relationship"
+      "specialization-relationship"
     ],
-    "nestingRelationTypes": [],
-    "innerSpacing": 10,
+    "nestingRelationTypes": [
+      "aggregation-relationship",
+      "realization-relationship"
+    ],
+    "innerSpacing": 20,
     "padding": 20,
-    "sortContainers": false,
+    "diagramPadding": 10,
+    "sortContainers": true,
     "alignWidthSameType": true,
     "alignDebug": false,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
-    "layerSpacing": 120,
-    "elementSpacing": 50,
-    "elementWidth": 300,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
+    "nodeSizeByEdgeCount": 25,
+    "elementWidth": 270,
     "elementHeight": 60,
-    "maxWidth": 5000,
-    "maxHeight": 1000,
-    "aspectRatio": 0.75,
-    "viewSizeMode": "none"
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [
-      "application-component"
+      "grouping"
     ],
     "relationTypes": [],
     "diagramTypes": []
@@ -39,15 +48,29 @@
     "steps": [
       {
         "depth": 1,
-        "elementTypes": [],
+        "elementTypes": [
+          "grouping"
+        ],
         "relationTypes": [
-          "serving-relationship:in"
+          "aggregation-relationship:out"
         ],
         "diagramTypes": []
       },
       {
         "depth": 1,
-        "elementTypes": [],
+        "elementTypes": [
+          "application-service"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "application-component"
+        ],
         "relationTypes": [
           "realization-relationship:in"
         ],
@@ -56,21 +79,21 @@
     ]
   },
   "view": {
-    "name": "Gemeentelijke servicebuscomponent",
-    "folder": "/_Generated/Test"
+    "name": "Niet domeingebonden",
+    "folder": "/_Generated/Applicatieservices en referentiecomponenten"
   },
   "appearance": {
     "styleByProperty": {
       "element": {
         "enabled": false,
-        "elementType": "application-component",
+        "elementType": "",
         "property": "Vertrouwelijkheid",
-        "colorRange": "Pastel1"
+        "colorRange": "Blues"
       },
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "",
+        "property": "GGM-guid",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -78,32 +101,33 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "",
+      "property": "GGM-guid",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
       "enabled": false,
       "relTypes": [],
-      "elementType": "driver",
+      "elementType": "",
       "property": "",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
-      "fontEnabled": true,
+      "fontEnabled": false,
       "rootFontSize": 14,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
-      "rootColor": "#fff29b",
+      "rootColor": "#2B5796",
       "darkenPerLevel": 15
     },
     "highlightRepeated": {
-      "enabled": false,
-      "colorRange": "Pastel2"
+      "enabled": true,
+      "colorRange": "Pastel1"
     }
   },
+  "engineParams": {},
   "_lastTabIndex": 1,
-  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
+  "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel",
   "action": "new_view"
 }

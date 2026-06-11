@@ -1,15 +1,15 @@
 {
-  "name": "",
+  "name": "Default",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [],
     "nestingRelationTypes": [],
-    "innerSpacing": 20,
+    "innerSpacing": 10,
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
@@ -28,7 +28,7 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "viewSizeMode": "none",
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false
   },
   "filter": {
@@ -40,21 +40,21 @@
     "steps": []
   },
   "view": {
-    "name": "Beheer Openbare Ruimte",
-    "folder": "/View/_Generated"
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "folder": "/_Generated"
   },
   "appearance": {
     "styleByProperty": {
       "element": {
         "enabled": false,
         "elementType": "",
-        "property": "",
+        "property": "Vertrouwelijkheid",
         "colorRange": "Blues"
       },
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "",
+        "property": "GGM-guid",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -62,7 +62,7 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "",
+      "property": "GGM-guid",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
@@ -88,5 +88,7 @@
     }
   },
   "engineParams": {},
+  "_lastTabIndex": 1,
+  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

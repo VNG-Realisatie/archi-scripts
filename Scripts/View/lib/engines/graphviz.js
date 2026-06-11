@@ -134,12 +134,13 @@ function _buildDOT(graph) {
     ? String(engineOpts.esep)
     : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
   delete engineOpts.esep;
-  const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
   const nodeH        = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
   const clusterMargin = Math.round((opts.innerSpacing || 20) * 0.75);  // px → pt (96dpi → 72pt/inch)
+
+  const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   const graphAttrs = `${gAttrStr} compound=true margin=0 esep="${esep}"`;
 

@@ -39,7 +39,7 @@
   },
   "view": {
     "name": "BAG",
-    "folder": "/View/_Generated"
+    "folder": "/_Generated"
   },
   "appearance": {
     "styleByProperty": {

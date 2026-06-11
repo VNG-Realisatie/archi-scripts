@@ -62,7 +62,7 @@
   },
   "view": {
     "name": "Uitvoering Sociaal Domein",
-    "folder": "/_Test/_Generated"
+    "folder": "/_Generated/Test"
   },
   "_lastTabIndex": 1,
   "action": "new_view"

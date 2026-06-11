@@ -411,7 +411,7 @@ The **Generate View dialog** lets you define a selection and layout, then run vi
 │  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
 │  ┌─ Generated view ───────────────────────────────────────────────────────┐  │
-│  │  Folder: [/View/_Generated________________]  Name: [Customer view____] │  │
+│  │  Folder: [/_Generated ____________________]  Name: [Customer view____] │  │
 │  │  Output:                                                               │  │
 │  │    elements:    18 containers · 92 nested elements                     │  │
 │  │    relations:   11 nestings · 98 connections                           │  │

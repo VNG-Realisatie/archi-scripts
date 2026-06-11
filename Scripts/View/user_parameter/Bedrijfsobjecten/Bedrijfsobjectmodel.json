@@ -16,7 +16,7 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "diagramPadding": 10,
+    "diagramPadding": 20,
     "sortContainers": false,
     "alignWidthSameType": false,
     "alignDebug": true,
@@ -33,8 +33,8 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "viewSizeMode": "none",
-    "labelSizing": true
+    "viewSizeMode": "aspectRatio",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [
@@ -46,7 +46,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 4,
+        "depth": 1,
         "elementTypes": [
           "business-object"
         ],
@@ -79,7 +79,7 @@
     ]
   },
   "view": {
-    "name": "ICT",
+    "name": "Beleidsdomeinen",
     "folder": "/_Generated/Beleidsdomeinen/Bedrijfsobjectmodellen"
   },
   "appearance": {
@@ -146,7 +146,7 @@
       "nodeSizeByEdgeCount": 25
     }
   },
-  "_lastTabIndex": 1,
+  "_lastTabIndex": 2,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

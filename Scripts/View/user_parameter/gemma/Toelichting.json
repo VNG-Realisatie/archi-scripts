@@ -38,7 +38,7 @@
   },
   "view": {
     "name": "ICT Toegangsbeveiliging",
-    "folder": "/View/_Generated"
+    "folder": "/_Generated"
   },
   "appearance": {
     "styleByProperty": {

@@ -507,7 +507,7 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 
 ```
 ┌─ Generate View ────────────────────────────────────────────────────────────┐
-│ [Delete]  Preset: [Application Flow LR *  ▼]  [Save]  [Save As…]            │
+│ [Delete]  Preset: [Application Flow LR *  ▼]  [Save]  [Save As…]           │
 │ ┌─[Selection]──[Layout]──[Appearance]───────────────────────────────────┐  │
 │ │  Current selection                                                    │  │
 │ │    Selected: 3 elements, 2 relations, 1 view   First: Actor: Customer │  │
@@ -517,19 +517,19 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 │ │  Filter relation types  access ○← ○→  aggregation ○← ○→  …            │  │
 │ │  Filter diagram types   ○ group  ○ note  ○ image  ○ legend            │  │
 │ │  Expand selection                       [+ Add related elements]      │  │
-│ │   ┌ Step 1   Added: 4 elements, 3 relations   [▲][▼][▾][✕] ┐         │  │
+│ │   ┌ Step 1   Added: 4 elements, 3 relations   [▲][▼][▾][✕] ┐          │  │
 │ │   │  access ○← ○→  …   Element types [chips]   Levels [1 ▲▼]│         │  │
-│ │   └──────────────────────────────────────────────────────┘          │  │
+│ │   └──────────────────────────────────────────────────────┘            │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Generated view ──────────────────────────────────────────────────────┐  │
-│ │  Folder: [/View/_Generated]   Name: [Customer view]                   │  │
+│ │  Folder: [/_Generated]   Name: [Customer view]                        │  │
 │ │  Output:  elements: 18 containers · 92 nested                         │  │
 │ │           relations: 11 nestings · 98 connections                     │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
 │ [Cancel]   ┌ Create new view ────────────┐  ┌ Modify selected view ──┐     │
 │            │ [New view] [One view each]  │  │ [Expand] [Layout only] │     │
 │            └─────────────────────────────┘  └────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Layout tab groups: *Algorithm* (style-grouped radio table), *Element size and spacing*,

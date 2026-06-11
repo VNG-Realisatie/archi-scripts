@@ -1,5 +1,5 @@
 {
-  "name": "Bedrijfsfuncties/Bedrijfsfuncties en bedrijfsobjecten",
+  "name": "Bedrijfsfuncties/Bedrijfsfunctielagen",
   "algorithm": "Pack",
   "params": {
     "direction": "Right",
@@ -40,9 +40,11 @@
   },
   "filter": {
     "elementTypes": [
-      "grouping"
+      "business-object",
+      "business-function"
     ],
     "relationTypes": [
+      "access-relationship",
       "aggregation-relationship"
     ],
     "diagramTypes": []
@@ -52,62 +54,42 @@
       {
         "depth": 1,
         "elementTypes": [
-          "grouping"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "diagramTypes": []
-      },
-      {
-        "depth": 5,
-        "elementTypes": [
+          "business-object",
           "business-function"
         ],
         "relationTypes": [
+          "access-relationship:out",
           "aggregation-relationship:out"
-        ],
-        "diagramTypes": []
-      },
-      {
-        "depth": 1,
-        "elementTypes": [
-          "business-object"
-        ],
-        "relationTypes": [
-          "access-relationship:out"
         ],
         "diagramTypes": []
       }
     ]
   },
   "view": {
-    "name": "GEMMA domeinen",
-    "folder": "/_Generated/Bedrijfsfuncties en bedrijfsobjecten"
+    "name": "Bedrijfsfunctie lagen",
+    "folder": "/_Generated"
   },
   "appearance": {
     "styleByProperty": {
       "element": {
         "enabled": false,
         "elementType": "",
-        "property": "Vertrouwelijkheid",
+        "property": "",
         "colorRange": "Blues"
       },
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "GGM-guid",
+        "property": "",
         "colorRange": "Reds",
         "lineWidth": 0
       }
     },
     "styleByRelatedProperty": {
-      "enabled": true,
-      "relTypes": [
-        "access-relationship:in"
-      ],
-      "property": "Confidence",
-      "colorRange": "Oranges"
+      "enabled": false,
+      "relTypes": [],
+      "property": "",
+      "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
       "enabled": false,

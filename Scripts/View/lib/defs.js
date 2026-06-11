@@ -488,7 +488,7 @@ const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GENERATED_VIEW_FOLDER = "/View/_Generated";
+const GENERATED_VIEW_FOLDER = "/Views/_Generated";
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
