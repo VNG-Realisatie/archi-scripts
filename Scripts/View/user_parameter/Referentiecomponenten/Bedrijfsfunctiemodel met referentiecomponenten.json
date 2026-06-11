@@ -1,5 +1,5 @@
 {
-  "name": "Applicatieservices/Applicatieservices en referentiecomponenten",
+  "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Pack",
   "params": {
     "direction": "Right",
@@ -9,15 +9,16 @@
     "acyclicer": "Default",
     "reverseRelationTypes": [
       "realization-relationship",
-      "specialization-relationship"
+      "serving-relationship"
     ],
     "nestingRelationTypes": [
       "aggregation-relationship",
-      "realization-relationship"
+      "realization-relationship",
+      "serving-relationship"
     ],
-    "innerSpacing": 20,
+    "innerSpacing": 10,
     "padding": 20,
-    "diagramPadding": 10,
+    "diagramPadding": 20,
     "sortContainers": true,
     "alignWidthSameType": true,
     "alignDebug": false,
@@ -26,20 +27,20 @@
     "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
-    "elementSpacing": 30,
+    "elementSpacing": 40,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
     "nodeSizeByEdgeCount": 25,
-    "elementWidth": 270,
+    "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0,
+    "aspectRatio": 1,
     "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {
     "elementTypes": [
-      "grouping"
+      "business-function"
     ],
     "relationTypes": [],
     "diagramTypes": []
@@ -47,9 +48,9 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "depth": 4,
         "elementTypes": [
-          "grouping"
+          "business-function"
         ],
         "relationTypes": [
           "aggregation-relationship:out"
@@ -57,17 +58,17 @@
         "diagramTypes": []
       },
       {
-        "depth": 1,
+        "depth": 4,
         "elementTypes": [
           "application-service"
         ],
         "relationTypes": [
-          "aggregation-relationship:out"
+          "serving-relationship:in"
         ],
         "diagramTypes": []
       },
       {
-        "depth": 1,
+        "depth": 2,
         "elementTypes": [
           "application-component"
         ],
@@ -79,8 +80,8 @@
     ]
   },
   "view": {
-    "name": "Niet domeingebonden",
-    "folder": "/_Generated/Applicatieservices en referentiecomponenten"
+    "name": "Uitvoering openbare orde en veiligheid",
+    "folder": "/_Generated/Bedrijfsfunctiemodel"
   },
   "appearance": {
     "styleByProperty": {
@@ -88,7 +89,7 @@
         "enabled": false,
         "elementType": "",
         "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
+        "colorRange": "Reds"
       },
       "relation": {
         "enabled": false,
@@ -107,19 +108,19 @@
     "styleByConnectedElement": {
       "enabled": false,
       "relTypes": [],
-      "elementType": "",
+      "elementType": "driver",
       "property": "",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
-      "fontEnabled": false,
+      "fontEnabled": true,
       "rootFontSize": 14,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "rootColor": "#2B5796",
-      "darkenPerLevel": 15
+      "colorEnabled": true,
+      "rootColor": "#fff29b",
+      "darkenPerLevel": 20
     },
     "highlightRepeated": {
       "enabled": true,
@@ -127,7 +128,7 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 1,
-  "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel",
+  "_lastTabIndex": 0,
+  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
   "action": "new_view"
 }

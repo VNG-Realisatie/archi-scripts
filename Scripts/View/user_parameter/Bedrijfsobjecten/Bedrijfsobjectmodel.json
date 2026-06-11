@@ -20,20 +20,20 @@
     "sortContainers": false,
     "alignWidthSameType": false,
     "alignDebug": true,
-    "snapColumnsToGrid": false,
+    "snapColumnsToGrid": true,
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
-    "layerSpacing": 180,
-    "elementSpacing": 35,
+    "layerSpacing": 120,
+    "elementSpacing": 20,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
     "nodeSizeByEdgeCount": 25,
     "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0,
-    "viewSizeMode": "aspectRatio",
+    "aspectRatio": 2,
+    "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {
@@ -79,7 +79,7 @@
     ]
   },
   "view": {
-    "name": "Beleidsdomeinen",
+    "name": "Sociaal Domein Generiek",
     "folder": "/_Generated/Beleidsdomeinen/Bedrijfsobjectmodellen"
   },
   "appearance": {
@@ -146,7 +146,7 @@
       "nodeSizeByEdgeCount": 25
     }
   },
-  "_lastTabIndex": 2,
+  "_lastTabIndex": 1,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

@@ -1,35 +1,40 @@
 {
-  "name": "Bedrijfsfunctiemodel/Start",
-  "algorithm": "Dot",
+  "name": "Referentiecomponenten/Applicatieservices en referentiecomponenten",
+  "algorithm": "Pack",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [
-      "serving-relationship",
+      "realization-relationship",
       "specialization-relationship"
     ],
-    "nestingRelationTypes": [],
+    "nestingRelationTypes": [
+      "aggregation-relationship",
+      "realization-relationship"
+    ],
     "innerSpacing": 10,
     "padding": 20,
-    "sortContainers": false,
+    "diagramPadding": 20,
+    "sortContainers": true,
     "alignWidthSameType": true,
     "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Between containers",
     "layerSpacing": 180,
-    "elementSpacing": 40,
+    "elementSpacing": 20,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
     "nodeSizeByEdgeCount": 25,
-    "elementWidth": 180,
+    "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
-    "viewSizeMode": "aspectRatio",
+    "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {
@@ -44,19 +49,38 @@
       {
         "depth": 1,
         "elementTypes": [
-          "business-function",
           "grouping"
         ],
         "relationTypes": [
           "aggregation-relationship:out"
         ],
         "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "application-service"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "application-component"
+        ],
+        "relationTypes": [
+          "realization-relationship:in"
+        ],
+        "diagramTypes": []
       }
     ]
   },
   "view": {
-    "name": "GEMMA domeinen",
-    "folder": "/_Generated/Bedrijfsfunctiemodel"
+    "name": "Sociaal domein",
+    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten"
   },
   "appearance": {
     "styleByProperty": {
@@ -89,21 +113,21 @@
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
-      "fontEnabled": false,
-      "rootFontSize": 14,
+      "fontEnabled": true,
+      "rootFontSize": 12,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "rootColor": "#2B5796",
-      "darkenPerLevel": 15
+      "colorEnabled": true,
+      "rootColor": "#eff0f1",
+      "darkenPerLevel": 20
     },
     "highlightRepeated": {
-      "enabled": false,
+      "enabled": true,
       "colorRange": "Pastel1"
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 2,
-  "description": "GEMMA domeinen",
+  "_lastTabIndex": 0,
+  "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel",
   "action": "new_view"
 }
