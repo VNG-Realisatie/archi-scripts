@@ -131,7 +131,7 @@
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
       "rootColor": "#eff0f1",
-      "darkenPerLevel": 20
+      "lightenPerLevel": 20
     },
     "highlightRepeated": {
       "enabled": true,

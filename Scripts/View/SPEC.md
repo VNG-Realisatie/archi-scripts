@@ -569,7 +569,7 @@ Preset {
     styleByProperty { element{…}, relation{… lineWidth} }
     styleByRelatedProperty { enabled, relTypes, property, colorRange }
     styleByConnectedElement { enabled, relTypes, elementType, property, colorRange, conflictColor }
-    nestingLevel { font*, color*, rootColor, darkenPerLevel, … }
+    nestingLevel { font*, color*, rootColor, lightenPerLevel, … }
     highlightRepeated { enabled, colorRange }
   }
   engineParams : { ELK?{…}, Dagre?{…}, Graphviz?{…}, layout?{…} }  // ✦ typed overrides

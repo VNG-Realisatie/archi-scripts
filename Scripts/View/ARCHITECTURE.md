@@ -342,7 +342,7 @@ Preset {
       fontDecreasePerLevel : number     // pt decrease per level deeper
       colorEnabled         : boolean    // vary fill colour by nesting depth
       rootColor            : string     // hex fill colour for root containers (darkest)
-      darkenPerLevel       : number     // percent lightened per level toward leaves (0–50)
+      lightenPerLevel      : number     // percent lightened per level toward leaves (0–50)
     }
     highlightRepeated {
       enabled    : boolean              // assign unique colour to each element appearing > once
@@ -686,7 +686,7 @@ The Appearance tab applies **post-write visual styling** (fill colours, fonts, l
 │ │  ☑ Apply font by level   Root size: [14 ▲▼] pt  ☑ Bold                  │  │
 │ │  Decrease/level: [2 ▲▼] pt                                              │  │
 │ │  ☑ Apply color by level  Root color: [#2C5F8A ▪] [=====] lighter       │  │
-│ │  Darken/level: [15 ▲▼] %                                               │  │
+│ │  Lighten/level: [15 ▲▼] %                                              │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Highlight repeated elements ───────────────────────────────────────────┐  │
 │ │  ☑ Enable  Color range: [Pastel1 ▼] [====]                             │  │
@@ -726,9 +726,9 @@ Active only when at least one nesting relation type is configured in the Layout 
 
 **Font rule.** Root containers (depth 0) get `rootFontSize` pt (+ bold if `rootFontBold`). Each deeper level gets `rootFontSize - depth × fontDecreasePerLevel` pt, clamped at the Archi default (9 pt). Non-containers are untouched. Only containers in the same-type chain from their subtree root are affected (see Type chain rule below).
 
-**Color rule.** Root containers get `rootColor` (darkest). Each level inward is lightened by `darkenPerLevel %` (channels blended toward white). Deepest containers and leaves are not touched. Only containers in the same-type chain from their subtree root are affected (see Type chain rule below). Preview strip in dialog shows the gradient from element-type default (light end) to `rootColor` (dark end).
+**Color rule.** Each chain uses the depth-0 root container's current fill color as the gradient anchor (darkest). Each level inward is lightened by `lightenPerLevel %` (channels blended toward white). If the root has no fill and no `rootColor` is configured, that chain is skipped. Leaf elements of the same type as their parent container chain are also colored at their own depth. Only elements in the same-type chain from their subtree root are affected (see Type chain rule below).
 
-**Type chain rule.** Each depth-0 container defines its own subtree root type (its ArchiMate element type). Font and color are applied only to containers whose type matches their subtree root's type and whose entire ancestor chain back to that root is also of the same type. A container of a different type breaks the chain: it receives no style change and neither do any of its descendants, regardless of their own type.
+**Type chain rule.** Each depth-0 container defines its own subtree root type (its ArchiMate element type). Color is applied to containers **and leaf elements** whose type matches their subtree root's type and whose entire ancestor chain back to that root is also of the same type. Font scaling is applied to containers only. A container of a different type breaks the chain: it receives no style change and neither do any of its descendants, regardless of their own type.
 
 #### Highlight repeated elements
 
@@ -1587,7 +1587,7 @@ Ref: `generate_view.js::_writeView`, `::_sortNodesParentFirst`, `::_pickExisting
 - Counts visual ancestors via `$(vo).parent().filter("element").first()` iteration → depth.
 - Classifies as container (`$(vo).children("element").length > 0`) or leaf.
 - Records `parentIdById` (immediate visual parent VO id) and `elementTypeById` (concept type string).
-- Derives `inSameTypeChainById` in a second top-down pass (sorted by depth): a depth-0 container is always `true`; a deeper container is `true` iff its parent is `true` AND its element type equals its parent's element type. This implements the [Type chain rule](#style-by-nesting-level).
+- Derives `inSameTypeChainById` and `rootIdById` in a second top-down pass (sorted by depth): a depth-0 container is always `true` and its own root; a deeper container or leaf is `true` iff its parent is `true` AND its element type equals its parent's element type (depth-0 leaves are always `false`). `rootIdById` maps each in-chain VO to the VO id of its depth-0 chain root. This implements the [Type chain rule](#style-by-nesting-level).
 
 Returns `{ depthById, isContainerById, inSameTypeChainById, maxContainerDepth }` — all maps keyed by VO id (string).
 
@@ -1595,8 +1595,8 @@ Returns `{ depthById, isContainerById, inSameTypeChainById, maxContainerDepth }`
 
 `_applyNestingLevel(view, settings, depths, isModify)` iterates all element VOs. For each VO:
 - Font: applied only when `isContainer && inSameTypeChain`. Container at depth `d` in chain: font = `max(9, rootFontSize − d × fontDecreasePerLevel)` pt; bold only at depth 0 when `rootFontBold`.
-- Color: applied only when `isContainer && inSameTypeChain && depth < maxContainerDepth`. Container at depth `d` in chain: fill colour = `_lightenHex(rootColor, d × darkenPerLevel/100)` — depth 0 is darkest, deeper levels blend toward white.
-- Containers outside the same-type chain and all non-containers: untouched.
+- Color: applied when `inSameTypeChain` (containers and same-type leaves). Each chain's depth-0 root fill color is snapshotted before any styling and used as the gradient anchor; optional `settings.rootColor` is used when root fill is null. Chain is skipped entirely when neither is set. Element at depth `d`: fill colour = `_lightenHex(anchorColor, d × lightenPerLevel/100)` — depth 0 is darkest, deeper levels blend toward white.
+- Elements outside the same-type chain: untouched.
 
 `_lightenHex(hex, factor)` — pure hex math (no Chroma), blends each RGB channel toward 255 by `factor` (0–1).
 

@@ -1696,7 +1696,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
 
   const sbpDescLbl = new LabelWidget(grpSbp, SWT.WRAP);
   // sbpDescLbl.setText("Apply color to elements or relations based on a selected property value to reveal patterns and intensity differences.");
-  sbpDescLbl.setText("Color-code elements or relationships based on property values to highlight patterns, variations, and outliers.");
+  sbpDescLbl.setText("Color-code elements or relationships based on property values");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpDescLbl);
 
   // Elements: enable checkbox (label = "Element type:") + type combo on one row
@@ -1883,7 +1883,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   w.lblNestingInfo = lblNestingInfo;
 
   const nestDescLbl = new LabelWidget(grpNest, SWT.WRAP);
-  nestDescLbl.setText("Automatically adjust font size and color based on nesting level. Containers at the same level look the same.");
+  nestDescLbl.setText("Adjust font size and color based on nesting level. Containers at the same level look the same.");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(nestDescLbl);
   w.nestDescLbl = nestDescLbl;
 
@@ -1938,15 +1938,15 @@ function _buildAppearanceTab(tabFolder, ctx) {
 
   const chkNestColor = new ButtonWidget(nestColorRow, SWT.CHECK);
   chkNestColor.setText("Change color by nesting level");
-  chkNestColor.setToolTipText("Darken container fill color toward root based on nesting depth.");
+  chkNestColor.setToolTipText("Lighten container fill color from root based on nesting depth.");
   chkNestColor.addListener(SWT.Selection, () => { _updateNestingLevelState(ctx); onChange(); });
   w.chkNestColor = chkNestColor;
 
   const nestRootColorTxt = new TextWidget(nestColorRow, SWT.BORDER);
-  nestRootColorTxt.setToolTipText("Fill color for root containers (darkest level)");
+  nestRootColorTxt.setToolTipText("Fallback color used when the chain root container has no fill color set");
   GridDataFactory.swtDefaults().hint(72, SWT.DEFAULT).applyTo(nestRootColorTxt);
   w.txtRootColor = nestRootColorTxt;
-  const nestRootSwatch = _solidColorSwatch(nestColorRow, "#2B5796", "nestRootSwatch", w);
+  const nestRootSwatch = _solidColorSwatch(nestColorRow, "", "nestRootSwatch", w);
   const nestRootOnChange = () => {
     nestRootSwatch.setColor(nestRootColorTxt.getText().trim());
     onChange();
@@ -1954,19 +1954,19 @@ function _buildAppearanceTab(tabFolder, ctx) {
   nestRootColorTxt.addListener(SWT.FocusOut, nestRootOnChange);
   nestRootColorTxt.addListener(SWT.DefaultSelection, nestRootOnChange);
 
-  const lblNestDarken = new LabelWidget(nestColorRow, SWT.NONE);
-  lblNestDarken.setText("Darken/level:");
-  w.lblNestDarken = lblNestDarken;
-  const nestDarkenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
-  nestDarkenSp.setValues(15, 5, 40, 0, 5, 5);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestDarkenSp);
-  nestDarkenSp.setToolTipText("Percentage to darken fill color per level toward root");
-  nestDarkenSp.addListener(SWT.Selection, onChange);
-  w.spinNestDarken = nestDarkenSp;
+  const lblNestLighten = new LabelWidget(nestColorRow, SWT.NONE);
+  lblNestLighten.setText("Lighten/level:");
+  w.lblNestLighten = lblNestLighten;
+  const nestLightenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
+  nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
+  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestLightenSp);
+  nestLightenSp.setToolTipText("Percentage to lighten fill color per level toward root");
+  nestLightenSp.addListener(SWT.Selection, onChange);
+  w.spinNestLighten = nestLightenSp;
 
-  const lblNestDarkenPct = new LabelWidget(nestColorRow, SWT.NONE);
-  lblNestDarkenPct.setText("%");
-  w.lblNestDarkenPct = lblNestDarkenPct;
+  const lblNestLightenPct = new LabelWidget(nestColorRow, SWT.NONE);
+  lblNestLightenPct.setText("%");
+  w.lblNestLightenPct = lblNestLightenPct;
 
   // ── 5. Highlight repeated elements ───────────────────────────────────────
   const grpHighlight = _group(page, "Highlight repeated elements", 1);
@@ -2037,9 +2037,9 @@ function _updateNestingLevelState(ctx) {
   const hasColor = hasNesting && w.chkNestColor.getSelection();
   _enable(w.txtRootColor,         hasColor);
   _enable(w.nestRootSwatch,       hasColor);
-  _enable(w.lblNestDarken,        hasColor);
-  _enable(w.spinNestDarken,       hasColor);
-  _enable(w.lblNestDarkenPct,     hasColor);
+  _enable(w.lblNestLighten,        hasColor);
+  _enable(w.spinNestLighten,       hasColor);
+  _enable(w.lblNestLightenPct,     hasColor);
   try { if (w.nestRootSwatch) w.nestRootSwatch.redraw(); } catch (e) {}
 }
 
@@ -2481,11 +2481,11 @@ function _syncToUI(ctx) {
   if (w.spinNestFontDecrease) w.spinNestFontDecrease.setSelection(nl.fontDecreasePerLevel !== undefined ? nl.fontDecreasePerLevel : DA.nestingLevel.fontDecreasePerLevel);
   if (w.chkNestColor)       w.chkNestColor.setSelection(!!(nl.colorEnabled));
   if (w.txtRootColor) {
-    const hex = nl.rootColor || DA.nestingLevel.rootColor;
+    const hex = nl.rootColor || "";
     w.txtRootColor.setText(hex);
     try { if (w.nestRootSwatchSet) w.nestRootSwatchSet(hex); } catch (e) {}
   }
-  if (w.spinNestDarken)     w.spinNestDarken.setSelection(nl.darkenPerLevel !== undefined ? nl.darkenPerLevel : DA.nestingLevel.darkenPerLevel);
+  if (w.spinNestLighten)     w.spinNestLighten.setSelection(nl.lightenPerLevel !== undefined ? nl.lightenPerLevel : DA.nestingLevel.lightenPerLevel);
 
   // Feature 5 — Highlight repeated elements
   if (w.chkHighlightRep)       w.chkHighlightRep.setSelection(!!(hr.enabled));
@@ -2627,8 +2627,8 @@ function _saveUI(ctx) {
   c.appearance.nestingLevel.rootFontBold        = !!(w.chkNestRootBold && w.chkNestRootBold.getSelection());
   c.appearance.nestingLevel.fontDecreasePerLevel = w.spinNestFontDecrease ? w.spinNestFontDecrease.getSelection() : 2;
   c.appearance.nestingLevel.colorEnabled        = !!(w.chkNestColor && w.chkNestColor.getSelection());
-  c.appearance.nestingLevel.rootColor           = w.txtRootColor ? w.txtRootColor.getText().trim() : "#2B5796";
-  c.appearance.nestingLevel.darkenPerLevel      = w.spinNestDarken ? w.spinNestDarken.getSelection() : 15;
+  c.appearance.nestingLevel.rootColor           = w.txtRootColor ? w.txtRootColor.getText().trim() : "";
+  c.appearance.nestingLevel.lightenPerLevel      = w.spinNestLighten ? w.spinNestLighten.getSelection() : 15;
 
   // Feature 5 — Highlight repeated elements
   c.appearance.highlightRepeated.enabled    = !!(w.chkHighlightRep && w.chkHighlightRep.getSelection());

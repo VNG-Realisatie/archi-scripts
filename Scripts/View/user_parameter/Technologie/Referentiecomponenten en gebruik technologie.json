@@ -96,7 +96,7 @@
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
       "rootColor": "#fff29b",
-      "darkenPerLevel": 15
+      "lightenPerLevel": 15
     },
     "highlightRepeated": {
       "enabled": false,

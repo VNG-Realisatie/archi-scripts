@@ -19,7 +19,7 @@
     "innerSpacing": 10,
     "padding": 20,
     "diagramPadding": 20,
-    "sortContainers": true,
+    "sortContainers": false,
     "alignWidthSameType": true,
     "alignDebug": false,
     "snapColumnsToGrid": false,
@@ -35,7 +35,7 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 1,
-    "viewSizeMode": "none",
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false
   },
   "filter": {
@@ -92,7 +92,7 @@
     ]
   },
   "view": {
-    "name": "Uitvoering Sociaal Domein",
+    "name": "Uitvoering fysieke leefomgeving",
     "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten"
   },
   "appearance": {
@@ -131,8 +131,8 @@
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "rootColor": "#fff29b",
-      "darkenPerLevel": 20
+      "rootColor": "",
+      "lightenPerLevel": 30
     },
     "highlightRepeated": {
       "enabled": true,
@@ -140,7 +140,7 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 2,
+  "_lastTabIndex": 1,
   "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
   "action": "new_view"
 }

@@ -57,7 +57,7 @@ function applyAppearance(view, preset, actionId) {
   console.log(`\nAppearance (${actionId || "?"})`);
   const hasNestingTypes = preset.params.nestingRelationTypes.length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
-    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  darken=${nl.darkenPerLevel}%/level`);
+    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  lighten=${nl.lightenPerLevel}%/level`);
   if (hr.enabled)
     console.log(`  highlightRepeated  range=${hr.colorRange}`);
   if (sbpe.enabled && sbpe.property)
@@ -81,12 +81,13 @@ function applyAppearance(view, preset, actionId) {
 
 // ── Depth computation ─────────────────────────────────────────────────────────
 
-// Returns { depthById, isContainerById, inSameTypeChainById, maxContainerDepth }.
+// Returns { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth }.
 // All maps are keyed by VO id (string) — jArchi creates new proxy objects on each
 // find() call, so reference equality cannot be used as a Map key.
 //
-// inSameTypeChainById — true when a container is in an unbroken same-element-type
+// inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
 // chain from its depth-0 root ancestor (see "Type chain rule" in ARCHITECTURE.md).
+// rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
 function _computeViewDepths(view) {
   const depthById       = new Map();
   const isContainerById = new Map();
@@ -106,24 +107,39 @@ function _computeViewDepths(view) {
     elementTypeById.set(vo.id, (vo.concept && vo.concept.type) || null);
   });
 
-  // Compute inSameTypeChainById top-down (shallowest first).
-  // A container is in the chain iff its element type equals that of its depth-0 root
+  // Compute inSameTypeChainById and rootIdById top-down (shallowest first).
+  // A VO is in the chain iff its element type equals that of its depth-0 root
   // ancestor AND every ancestor between them is also in the chain.
   // Stops propagating as soon as a type mismatch is encountered ("stop the tree").
   const inSameTypeChainById = new Map();
+  const rootIdById          = new Map();  // voId → depth-0 root VO id | null
   const byDepth = [...depthById.entries()].sort((a, b) => a[1] - b[1]);
   for (const [voId, depth] of byDepth) {
-    if (!isContainerById.get(voId)) { inSameTypeChainById.set(voId, false); continue; }
-    if (depth === 0)                { inSameTypeChainById.set(voId, true);  continue; }
+    if (!isContainerById.get(voId)) {
+      // Leaf: in chain only if its parent container is in the chain and types match.
+      // Depth-0 leaves (no parent container) never start a chain.
+      const parentId = parentIdById.get(voId);
+      if (!parentId) { inSameTypeChainById.set(voId, false); rootIdById.set(voId, null); continue; }
+      const parentInChain = inSameTypeChainById.get(parentId) === true;
+      const voType        = elementTypeById.get(voId);
+      const parentType    = elementTypeById.get(parentId);
+      const inChain = parentInChain && !!(voType && voType === parentType);
+      inSameTypeChainById.set(voId, inChain);
+      rootIdById.set(voId, inChain ? rootIdById.get(parentId) : null);
+      continue;
+    }
+    if (depth === 0)   { inSameTypeChainById.set(voId, true); rootIdById.set(voId, voId); continue; }
     const parentId      = parentIdById.get(voId);
-    if (!parentId)                  { inSameTypeChainById.set(voId, true);  continue; }
+    if (!parentId)      { inSameTypeChainById.set(voId, true); rootIdById.set(voId, voId); continue; }
     const parentInChain = inSameTypeChainById.get(parentId) === true;
     const voType        = elementTypeById.get(voId);
     const parentType    = elementTypeById.get(parentId);
-    inSameTypeChainById.set(voId, parentInChain && !!(voType && voType === parentType));
+    const inChain = parentInChain && !!(voType && voType === parentType);
+    inSameTypeChainById.set(voId, inChain);
+    rootIdById.set(voId, inChain ? rootIdById.get(parentId) : null);
   }
 
-  return { depthById, isContainerById, inSameTypeChainById, maxContainerDepth };
+  return { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth };
 }
 
 function _voDepth(vo) {
@@ -136,13 +152,30 @@ function _voDepth(vo) {
 // ── Style by nesting level ────────────────────────────────────────────────────
 
 function _applyNestingLevel(view, settings, depths, isModify) {
-  const { depthById, isContainerById, inSameTypeChainById, maxContainerDepth } = depths;
+  const { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth } = depths;
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
 
   const rootFontSize       = settings.rootFontSize        !== undefined ? settings.rootFontSize        : 14;
   const rootFontBold       = settings.rootFontBold        !== undefined ? settings.rootFontBold        : true;
   const fontDecPerLevel    = settings.fontDecreasePerLevel !== undefined ? settings.fontDecreasePerLevel : 2;
-  const darkenPerLevel     = settings.darkenPerLevel       !== undefined ? settings.darkenPerLevel       : 15;
+  const lightenPerLevel     = settings.lightenPerLevel       !== undefined ? settings.lightenPerLevel       : 15;
+  const fallbackColor      = settings.rootColor || null;
+
+  // Snapshot fill colors of depth-0 chain roots before any modification so that
+  // each chain's gradient is anchored to the root container's existing fill color.
+  const chainRootFillById = new Map();  // rootVoId → fill color string | null
+  $(view).find("element").each(vo => {
+    if (!vo.id) return;
+    if (depthById.get(vo.id) === 0 && inSameTypeChainById.get(vo.id) === true)
+      chainRootFillById.set(vo.id, vo.fillColor || null);
+  });
+
+  // Returns the gradient anchor color for a VO: its chain root's current fill, or fallbackColor.
+  // Returns null when neither is available — those VOs are skipped.
+  const anchorColor = voId => {
+    const rootId = rootIdById ? rootIdById.get(voId) : null;
+    return (rootId ? chainRootFillById.get(rootId) : null) || fallbackColor;
+  };
 
   $(view).find("element").each(vo => {
     if (!vo.id) return;
@@ -172,14 +205,18 @@ function _applyNestingLevel(view, settings, depths, isModify) {
       }
     }
 
-    // Color: root (depth 0) gets rootColor unchanged (lightenFactor = 0 = darkest).
-    // Each level deeper is progressively lighter (rootColor lightened by depth * darkenPerLevel%).
-    // Only containers in the same-type chain from their root ancestor are affected.
-    if (settings.colorEnabled && isContainer && inChain) {
-      const lightenFactor = depth * (darkenPerLevel / 100);
-      vo.fillColor = _lightenHex(settings.rootColor || "#2B5796", lightenFactor);
-      colorSet++;
-    } else if (!settings.colorEnabled && isModify && isContainer && inChain) {
+    // Color: each chain uses its depth-0 root container's current fill color as the
+    // gradient anchor (darkest). Deeper elements are lightened by depth × lightenPerLevel%.
+    // Falls back to settings.rootColor when the root has no fill set.
+    // Containers and same-type leaves in the chain are affected.
+    if (settings.colorEnabled && inChain) {
+      const anchor = anchorColor(vo.id);
+      if (anchor) {
+        const lightenFactor = depth * (lightenPerLevel / 100);
+        vo.fillColor = _lightenHex(anchor, lightenFactor);
+        colorSet++;
+      }
+    } else if (!settings.colorEnabled && isModify && inChain) {
       vo.fillColor = null;
       colorReset++;
     }

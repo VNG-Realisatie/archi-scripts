@@ -569,8 +569,8 @@ const DEFAULT_PRESET = Object.freeze({
       rootFontBold:       true,
       fontDecreasePerLevel: 2,
       colorEnabled:       false,
-      rootColor:          "#2B5796",
-      darkenPerLevel:     15,
+      rootColor:          "",
+      lightenPerLevel:     15,
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
@@ -718,7 +718,8 @@ function validatePreset(raw) {
       if (typeof rn.fontDecreasePerLevel === "number")  pa.nestingLevel.fontDecreasePerLevel = rn.fontDecreasePerLevel;
       if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
       if (typeof rn.rootColor            === "string")  pa.nestingLevel.rootColor            = rn.rootColor;
-      if (typeof rn.darkenPerLevel       === "number")  pa.nestingLevel.darkenPerLevel       = rn.darkenPerLevel;
+      if (typeof rn.lightenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.lightenPerLevel;
+      else if (typeof rn.darkenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.darkenPerLevel; // migration
     }
 
     if (ra.highlightRepeated && typeof ra.highlightRepeated === "object") {
