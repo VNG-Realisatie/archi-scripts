@@ -1340,7 +1340,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25, 0, 200, 5, w, "Adds extra element size based on the number of connections on the busiest side.\n" +
     "Use this to prevent ports from overlapping on highly connected elements.\n" +
     "0 = disabled.");
-  _addSpinnerRow(grpSize, "Diagram padding:", "spinDiagramPadding", 10, 0, 200, 5, w, "Space between the diagram boundary and the outermost elements (px). Applied by all engines.");
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -1380,12 +1379,13 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(routComp, "Layer ranking:",  RANKING_LABELS,   0, 110, "cmbRanking",       w, "How nodes are assigned to rank layers. Balanced minimises edge lengths; Uniform places nodes at the shallowest possible rank; Top-aligned pulls nodes to the deepest rank.");
   new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
   new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  _addSpinnerRow(routComp, "Connection spacing:", "spinConnectionSpacing", 20, 0, 200, 5, w, "Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability.");
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  _addSpinnerRow(routComp, "Connection-element spacing:", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements.");
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
+  // Sub-composite keeps the long "Connection-element spacing:" label out of
+  // routComp's shared column pool, preventing it from widening the whole block.
+  const spacingComp = new CompositeWidget(routComp, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(8, 3).applyTo(spacingComp);
+  GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(spacingComp);
+  _addSpinnerRow(spacingComp, "Connection spacing:",         "spinConnectionSpacing",        20, 0, 200, 5, w, "Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability.");
+  _addSpinnerRow(spacingComp, "Connection-element spacing:", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements.");
 
   // ── Nesting structure ─────────────────────────────────────────────────────────
   const grpNest = _group(page, "Nesting", 1);
@@ -1421,16 +1421,19 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(ctrComp, "Inner spacing:", "spinInnerSpacing", 20, 0, 200, 5, w, "Minimum distance between elements inside a container (px).");
   _addSpinnerRow(ctrComp, "Padding:",       "spinPadding",      20, 0, 200, 5, w, "Space between container border and its contents (px).");
 
-  // Checkboxes in a 3-col sub-composite spanning all 4 cols of ctrComp.
+  // Checkboxes in an 8-col sub-composite spanning all 4 cols of ctrComp.
   const chkComp = new CompositeWidget(ctrComp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(3).equalWidth(true).margins(0, 0).spacing(6, 2).applyTo(chkComp);
+  GridLayoutFactory.fillDefaults().numColumns(8).equalWidth(true).margins(0, 0).spacing(6, 2).applyTo(chkComp);
   GridDataFactory.fillDefaults().span(4, 1).grab(true, false).applyTo(chkComp);
 
-  _addCheck(chkComp, "Sort containers",         "Sort containers alphabetically within each level.",                         1, w, "chkSortContainers");
-  _addCheck(chkComp, "Align widths by level",    "Use a common width per nesting level, with each parent level one padding step wider than its children.",        1, w, "chkAlignWidthSameType");
-  _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.",        1, w, "chkSnapColumns");
-  _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",               1, w, "chkShowInEvery");
-  _addCheck(chkComp, "Size by label",           "Derive node width and height from label text; long labels wrap to 2 lines.", 1, w, "chkLabelSizing");
+  // Row 1: Sort containers | Show in every container
+  _addCheck(chkComp, "Sort containers",         "Sort containers alphabetically within each level.",                                                                                                                                                             4, w, "chkSortContainers");
+  _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",                                                                                                                                                    4, w, "chkShowInEvery");
+  // Row 2: Size by label (full width)
+  _addCheck(chkComp, "Size by label",           "Derive node width and height from label text; long labels wrap to 2 lines.",                                                                                                                                    8, w, "chkLabelSizing");
+  // Row 3: Align widths by level | Snap columns to grid
+  _addCheck(chkComp, "Align widths by level",   "Use a common width per nesting level, with each parent level one padding step wider than its children.",                                                                                                        4, w, "chkAlignWidthSameType");
+  _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.", 4, w, "chkSnapColumns");
   // Refresh the live Output counters when 'Show in every container' toggles.
   if (w.chkShowInEvery) {
     w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
@@ -1440,38 +1443,42 @@ function _buildLayoutTab(tabFolder, ctx) {
   // ── View dimensions ────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View dimensions", 6);
 
-  // Label + radio row in a sub-composite spanning all 6 cols of grpVS.
-  // Sub-composite prevents the label's natural width from eating into the
-  // GridLayout columns the radio buttons need to avoid truncation.
+  // Inline row: ○ Aspect ratio [combo]  ○ Max width [spinner]  ● None
+  // All three radios live in the same composite → SWT mutual exclusion is automatic.
   const hintRow = new CompositeWidget(grpVS, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(8, 0).applyTo(hintRow);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(hintRow);
   GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(hintRow);
 
-  const _vsHintLbl = new LabelWidget(hintRow, SWT.NONE);
-  _vsHintLbl.setText("Give hint:");
-  GridDataFactory.swtDefaults().applyTo(_vsHintLbl);
-
-  const radioComp = new CompositeWidget(hintRow, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(12, 0).applyTo(radioComp);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(radioComp);
-
-  const _vsRadio = (label) => {
-    const r = new ButtonWidget(radioComp, SWT.RADIO);
+  const _vsRadio = (label, extraPx) => {
+    const r = new ButtonWidget(hintRow, SWT.RADIO);
     r.setText(label);
-    GridDataFactory.fillDefaults().grab(true, false).applyTo(r);
+    if (extraPx) {
+      const sz = r.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+      GridDataFactory.swtDefaults().hint(sz.x + extraPx, SWT.DEFAULT).applyTo(r);
+    } else {
+      GridDataFactory.swtDefaults().applyTo(r);
+    }
     r.addListener(SWT.Selection, () => { if (r.getSelection()) _applyViewSizeMode(ctx); });
     return r;
   };
-  w.radioViewSizeNone        = _vsRadio("None");
-  w.radioViewSizeMaxWidth    = _vsRadio("Width");
-  w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio");
+
+  w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio:", 8);
+  w.radioViewSizeAspectRatio.setToolTipText("Spread layout outward to match the target aspect ratio. No compression if already larger.");
+  _addCombo(hintRow, null, AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
+
+  w.radioViewSizeMaxWidth = _vsRadio("Max width:");
+  w.radioViewSizeMaxWidth.setToolTipText("Spread layout outward to reach the target width. No compression if already larger.");
+  const _spMaxWidth = new SpinnerWidget(hintRow, SWT.BORDER);
+  _spMaxWidth.setValues(0, 0, 99999, 0, 100, 500);
+  GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(_spMaxWidth);
+  _spMaxWidth.setToolTipText("Target view width (px).");
+  w.spinMaxWidth = _spMaxWidth;
+
+  w.radioViewSizeNone = _vsRadio("None", 16);
   w.radioViewSizeNone.setSelection(true);
   w.radioViewSizeNone.setToolTipText("No constraint; layout determines the view bounds.");
-  w.radioViewSizeMaxWidth.setToolTipText("Spread layout outward to reach the target width. No compression if already larger.");
-  w.radioViewSizeAspectRatio.setToolTipText("Spread layout outward to match the target aspect ratio. No compression if already larger.");
 
-  _addSpinnerRow(grpVS, "Max width:", "spinMaxWidth", 0, 0, 99999, 100, w, "Target view width (px).");
-  _addCombo(grpVS, "Aspect ratio:", AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
+  _addSpinnerRow(grpVS, "Diagram padding:", "spinDiagramPadding", 10, 0, 200, 5, w, "Space between the diagram boundary and the outermost elements (px). Applied by all engines.");
 
   finish();
 }

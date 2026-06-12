@@ -556,6 +556,7 @@ The Layout tab decides *how* objects are positioned.
 │ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
 │ │  Routing: [Orthogonal ▼]  Label: [Middle ▼]  Cycle breaking: [Greedy ▼] │
 │ │  Layer ranking: [Balanced ▼]                                          │ │
+│ │  Connection spacing: [20 ▲▼]   Connection-element spacing: [40 ▲▼]   │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting     ─────────────────────────────────────────────────────────┐ │
 │ │  Draw these relation types as containers                              │ │
@@ -563,12 +564,13 @@ The Layout tab decides *how* objects are positioned.
 │ │  ── Inside container ───────────────────────────────────────────────  │ │
 │ │  Container layout: [Layered ▼]  Connections: [Between containers ▼]  │ │
 │ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
-│ │  ☑ Sort containers ○ Align width by level   ○ Snap columns to grid    │ │
-│ │  ○ Show in every container                                             │ │
+│ │  ☑ Sort containers   ○ Show in every container                        │ │
+│ │  ○ Size by label                                                       │ │
+│ │  ○ Align width by level   ○ Snap columns to grid                      │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ View dimensions ─────────────────────────────────────────────────────┐ │
-│ │  Hint for view sizing:  ● None   ○ Width   ○ Height   ○ Aspect ratio  │ │
-│ │  Max width: [0 ▲▼]   Max height: [0 ▲▼]   Aspect ratio: [16:9 ▼]     │ │
+│ │  ○ Aspect ratio: [16:9 ▼]   ○ Max width: [0 ▲▼]   ● None              │ │
+│ │  Diagram padding: [10 ▲▼]                                             │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
@@ -632,6 +634,8 @@ Parameters in this group are active only for algorithms that support them; unsup
 | Label | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
 | Cycle breaking | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
 | Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
+| Connection spacing | Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability. |
+| Connection-element spacing | Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements. |
 
 #### Nesting
 
@@ -644,18 +648,20 @@ The group label is **"Draw these relation types as containers"** — a checkbox 
 | Inner spacing | Minimum distance between elements inside a container (px). |
 | Padding | Space between container border and contents (px). |
 | Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
+| Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
+| Size by label | Derive node width and height from label text; long labels wrap to 2 lines. |
 | Align width by level | Align box widths across the whole hierarchy by nesting level. Widths telescope — each level is one padding ring wider than the level inside it, anchored at the leaf width; leaves take the level width exactly, containers use it as a floor (never below their content). ELK algorithms only. See [Width alignment by level](#width-alignment-by-level). |
 | Snap columns to grid | Line leaf columns up top-to-bottom by nudging ELK's layout into alignment — each column snaps to the median of where its leaves already sit, preserving ELK's spacing and adding only the small offset for alignment. Position-only post-pass; leaves are not resized. Grid and Pack only. See [Column snapping](#column-snapping). |
-| Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
 
 #### View dimensions
 
-Four radio modes: **None / Width / Height / Aspect ratio**, prefixed by the label **"Hint for view sizing:"**. Selecting a mode enables the corresponding control; the others retain their values but are greyed and ignored at runtime. Not every algorithm supports every view-size parameter; unsupported parameters are greyed regardless of mode selection (see [Algorithm capability matrix](#algorithm-capability-matrix)).
+Three inline options: **Aspect ratio** (combo immediately to its right), **Max width** (spinner immediately to its right), **None** (no constraint). Selecting an option activates its control; the inactive controls retain their values but are greyed and ignored at runtime. Not every algorithm supports every view-size parameter; unsupported parameters are greyed regardless of selection (see [Algorithm capability matrix](#algorithm-capability-matrix)).
 
 | Parameter | Tooltip |
 |---|---|
-| Max width / Max height | View size target (px). 0 = unconstrained. When the natural layout is smaller than the target, node positions are spread outward until the bounding box reaches the target; if already larger, no action (compression is forbidden — see [Engine adapter contract](#engine-adapter-contract)). |
+| Max width | View width target (px). 0 = unconstrained. When the natural layout is smaller than the target, node positions are spread outward until the bounding box reaches the target; if already larger, no action (compression is forbidden — see [Engine adapter contract](#engine-adapter-contract)). |
 | Aspect ratio | Width-to-height ratio of generated layout. 0 = free. |
+| Diagram padding | Space between the diagram boundary and the outermost elements (px). Applied by all engines. |
 
 `viewSizeMode` is stored in the preset ([Preset schema](#preset-schema)) so the active radio is restored on load. Old presets without this field default to the first non-zero view-size value found.
 
