@@ -34,7 +34,7 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "viewSizeMode": "none",
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false
   },
   "filter": {
@@ -56,8 +56,8 @@
         ],
         "diagramTypes": [],
         "propFilter": {
-          "key": "GEMMA subtype",
-          "value": "Domein en doelgroep"
+          "key": "",
+          "value": ""
         }
       },
       {
@@ -91,7 +91,7 @@
     ]
   },
   "view": {
-    "name": "Sociaal domein",
+    "name": "Bestuur",
     "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten"
   },
   "appearance": {
@@ -139,7 +139,17 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 0,
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      }
+    ]
+  },
+  "_lastTabIndex": 3,
   "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel",
   "action": "new_view"
 }

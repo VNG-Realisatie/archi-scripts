@@ -92,7 +92,7 @@
     ]
   },
   "view": {
-    "name": "Uitvoering fysieke leefomgeving",
+    "name": "Klant- en keteninteractie",
     "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten"
   },
   "appearance": {
@@ -140,7 +140,27 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 1,
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "Applicatiearchitectuur",
+        "enabled": true
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      }
+    ]
+  },
+  "_lastTabIndex": 3,
   "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
   "action": "new_view"
 }

@@ -1,8 +1,8 @@
 {
   "name": "nested",
-  "algorithm": "Layered",
+  "algorithm": "Pack",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -17,20 +17,22 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
+    "diagramPadding": 20,
     "sortContainers": true,
-    "alignWidthSameType": false,
+    "alignWidthSameType": true,
     "alignDebug": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
-    "containerAlgorithm": "Layered",
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
     "layerSpacing": 20,
     "elementSpacing": 40,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 40,
     "nodeSizeByEdgeCount": 25,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false
@@ -44,7 +46,7 @@
     "steps": []
   },
   "view": {
-    "name": "",
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
     "folder": "/_Generated"
   },
   "appearance": {
@@ -78,13 +80,13 @@
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
-      "fontEnabled": false,
-      "rootFontSize": 14,
+      "fontEnabled": true,
+      "rootFontSize": 10,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
-      "rootColor": "#2B5796",
-      "lightenPerLevel": 15
+      "colorEnabled": true,
+      "rootColor": "",
+      "lightenPerLevel": 35
     },
     "highlightRepeated": {
       "enabled": false,
@@ -92,7 +94,17 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 0,
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      }
+    ]
+  },
+  "_lastTabIndex": 2,
   "description": "",
   "action": "new_view"
 }

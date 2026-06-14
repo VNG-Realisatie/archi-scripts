@@ -32,7 +32,7 @@ const {
   RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
   DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
-  COLOR_RANGES,
+  COLOR_RANGES, PROP_ID,
   DEFAULT_PRESET, validatePreset,
   encodeRelType, decodeRelType,
 } = Defs;
@@ -562,6 +562,7 @@ function open(uiSelection) {
       _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount);
       _buildLayoutTab(tabFolder, ctx);
       _buildAppearanceTab(tabFolder, ctx);
+      _buildViewPropertiesTab(tabFolder, ctx);
 
       _buildViewRow(area, ctx);
       _buildActionRow(area, ctx, dlg, hasVisual);
@@ -2050,6 +2051,85 @@ function _updateNestingLevelState(ctx) {
   try { if (w.nestRootSwatch) w.nestRootSwatch.redraw(); } catch (e) {}
 }
 
+// ── View properties tab ───────────────────────────────────────────────────────
+
+function _buildViewPropertiesTab(tabFolder, ctx) {
+  const { page, finish } = _scrolledTab(tabFolder, "View properties");
+  const w = ctx.widgets;
+  const onChange = () => _markModified(ctx);
+
+  const descLbl = new LabelWidget(page, SWT.WRAP);
+  descLbl.setText("Add or update properties of the generated view(s)");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(descLbl);
+
+  // ── Object ID ──────────────────────────────────────────────────────────────
+  const grpObjId = _group(page, "Object ID", 1);
+
+  const chkObjId = new ButtonWidget(grpObjId, SWT.CHECK);
+  chkObjId.setText("Add unique Object ID");
+  chkObjId.setToolTipText("Generates a UUID and writes it as the \"Object ID\" property. Skipped if the view already has one.");
+  chkObjId.addListener(SWT.Selection, onChange);
+  w.vpAddObjectId = chkObjId;
+
+  const objIdNote = new LabelWidget(grpObjId, SWT.NONE);
+  objIdNote.setText("Leaves existing Object ID unchanged");
+  GridDataFactory.fillDefaults().indent(18, 0).applyTo(objIdNote);
+
+  // ── View properties grid ───────────────────────────────────────────────────
+  const grpViewProps = _group(page, "View properties", 3);
+
+  // Collect all properties from all model views (excluding Object ID)
+  const allViewProps = new Map();  // key → Set<value>
+  try {
+    $("archimate-diagram-model").each(v => {
+      const keys = v.prop() || [];
+      if (!Array.isArray(keys)) return;
+      keys.forEach(k => {
+        if (!k || k === PROP_ID) return;
+        if (!allViewProps.has(k)) allViewProps.set(k, new Set());
+        try {
+          const val = v.prop(k);
+          if (val !== null && val !== undefined && val !== "") allViewProps.get(k).add(String(val));
+        } catch (e) {}
+      });
+    });
+  } catch (e) {}
+
+  const rows = [];
+  const sortedKeys = Array.from(allViewProps.keys()).sort();
+
+  if (sortedKeys.length === 0) {
+    const emptyLbl = new LabelWidget(grpViewProps, SWT.NONE);
+    emptyLbl.setText("No view properties found in the current model.");
+    GridDataFactory.fillDefaults().span(3, 1).applyTo(emptyLbl);
+  }
+
+  sortedKeys.forEach(key => {
+    // col 1: checkbox
+    const chk = new ButtonWidget(grpViewProps, SWT.CHECK);
+    GridDataFactory.swtDefaults().applyTo(chk);
+
+    // col 2: property name label
+    const lbl = new LabelWidget(grpViewProps, SWT.NONE);
+    lbl.setText(key);
+    GridDataFactory.fillDefaults().applyTo(lbl);
+
+    // col 3: editable combo with known values
+    const cmb = new ComboWidget(grpViewProps, SWT.DROP_DOWN);
+    GridDataFactory.fillDefaults().grab(true, false).hint(180, SWT.DEFAULT).applyTo(cmb);
+    Array.from(allViewProps.get(key)).sort().forEach(v => cmb.add(v));
+    _enable(cmb, false);  // greyed until checkbox is ticked
+
+    chk.addListener(SWT.Selection, () => { _enable(cmb, chk.getSelection()); onChange(); });
+    cmb.addListener(SWT.Modify, onChange);
+
+    rows.push({ key, chk, cmb });
+  });
+
+  w.vpRows = rows;
+  finish();
+}
+
 // ── View tab ──────────────────────────────────────────────────────────────────
 
 // ── Action row (below preset) ─────────────────────────────────────────────────
@@ -2504,6 +2584,30 @@ function _syncToUI(ctx) {
 
   _updateNestingLevelState(ctx);
   _updateAppearancePropStates(ctx);
+
+  // View properties tab
+  if (w.vpAddObjectId) {
+    w.vpAddObjectId.setSelection(!!(c.viewProperties && c.viewProperties.addObjectId));
+  }
+  if (w.vpRows) {
+    const saved = (c.viewProperties && c.viewProperties.properties) || [];
+    w.vpRows.forEach(row => {
+      const entry = saved.find(p => p.key === row.key);
+      const enabled = !!(entry && entry.enabled);
+      row.chk.setSelection(enabled);
+      _enable(row.cmb, enabled);
+      if (entry && entry.value) {
+        const items = Array.from({ length: row.cmb.getItemCount() }, (_, i) => row.cmb.getItem(i));
+        const idx = items.indexOf(entry.value);
+        if (idx >= 0) {
+          row.cmb.select(idx);
+        } else {
+          row.cmb.add(entry.value);
+          row.cmb.select(row.cmb.getItemCount() - 1);
+        }
+      }
+    });
+  }
 }
 
 function _saveUI(ctx) {
@@ -2640,6 +2744,19 @@ function _saveUI(ctx) {
   // Feature 5 — Highlight repeated elements
   c.appearance.highlightRepeated.enabled    = !!(w.chkHighlightRep && w.chkHighlightRep.getSelection());
   c.appearance.highlightRepeated.colorRange = _cmbVal(w.cmbHighlightRepRange, "Pastel1");
+
+  // View properties
+  if (!c.viewProperties) c.viewProperties = JSON.parse(JSON.stringify(DEFAULT_PRESET.viewProperties));
+  if (w.vpAddObjectId) c.viewProperties.addObjectId = w.vpAddObjectId.getSelection();
+  if (w.vpRows) {
+    c.viewProperties.properties = w.vpRows
+      .filter(row => row.chk.getSelection() || row.cmb.getText().trim() !== "")
+      .map(row => ({
+        key:     row.key,
+        value:   row.cmb.getText().trim(),
+        enabled: row.chk.getSelection(),
+      }));
+  }
 }
 
 // ── Algorithm controls ────────────────────────────────────────────────────────

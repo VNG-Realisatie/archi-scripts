@@ -18,15 +18,15 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "diagramPadding": 10,
+    "diagramPadding": 20,
     "sortContainers": false,
     "alignWidthSameType": true,
     "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
-    "containerAlgorithm": "Pack",
-    "connectionsMode": "Between containers",
-    "layerSpacing": 180,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 120,
     "elementSpacing": 10,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
@@ -57,7 +57,11 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": []
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
       },
       {
         "depth": 1,
@@ -67,12 +71,16 @@
         "relationTypes": [
           "access-relationship:out"
         ],
-        "diagramTypes": []
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
       }
     ]
   },
   "view": {
-    "name": "Ontwikkeling",
+    "name": "Klant- en keteninteractie",
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten"
   },
   "appearance": {
@@ -97,7 +105,7 @@
         "access-relationship:in"
       ],
       "property": "Confidence",
-      "colorRange": "Oranges"
+      "colorRange": "Greens"
     },
     "styleByConnectedElement": {
       "enabled": false,
@@ -113,8 +121,8 @@
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "rootColor": "#fff59d",
-      "lightenPerLevel": 15
+      "rootColor": "",
+      "lightenPerLevel": 25
     },
     "highlightRepeated": {
       "enabled": false,
@@ -122,6 +130,16 @@
     }
   },
   "engineParams": {},
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      }
+    ]
+  },
   "_lastTabIndex": 2,
   "description": "Selecteer bedrijfsfunctie bedrijfsfunctielagen en genereer startview",
   "action": "new_view"

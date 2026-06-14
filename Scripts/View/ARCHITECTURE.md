@@ -353,6 +353,17 @@ Preset {
   engineParams {                        // per-engine native-option overrides; overrides only —
     ELK?, Dagre?, Graphviz?, layout?    // defaults live in each adapter. Deep-merged before
   }                                     // layout. See Part B § ELK (engineParams block).
+
+  viewProperties {
+    addObjectId : boolean               // if true and the view has no "Object ID" property,
+                                        // generate a UUID and write it. Existing value is
+                                        // never overwritten.
+    properties : Array<{
+      key     : string                  // property name (never "Object ID")
+      value   : string                  // value to write to the view
+      enabled : boolean                 // only enabled rows are written at generation time
+    }>
+  }
 }
 
 Step {
@@ -406,9 +417,9 @@ The **Generate View dialog** lets you define a selection and layout, then run vi
 ┌─ Generate View ──────────────────────────────────────────────────────────────┐
 │  [Delete]  Preset: [Application Flow LR *  ▼]  [Save]  [Save As…]             │
 │                                                                              │
-│  ┌─[Selection]──[Layout]──────────────────────────────────────────────────┐  │
+│  ┌─[Selection]──[Layout]──[Appearance]──[View properties]─────────────────┐  │
 │  │                                                                        │  │
-│  │   (Selection tab content below)                                        │  │
+│  │   (tab content below)                                                  │  │
 │  │                                                                        │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
@@ -741,6 +752,37 @@ Active only when at least one nesting relation type is configured in the Layout 
 Assigns a unique fill colour from a ColorBrewer scale to each element concept that appears more than once on the view (requires `showInEveryContainer`). The enable checkbox and color range appear on a single row.
 
 **Colour ranges.** All color-range combos use the same set of ColorBrewer scheme names available in Chroma.js (see `COLOR_RANGES` in `appearance.js`). Each combo is accompanied by a gradient preview Canvas strip that repaints on selection change.
+
+### View properties tab
+
+Writes key/value properties to each generated view and optionally assigns a unique Object ID.
+
+```
+┌─[Selection]──[Layout]──[Appearance]──[View properties]──────────────────────┐
+│  Add or update properties of the generated view(s)                          │
+│  ┌─ Object ID ──────────────────────────────────────────────────────────┐   │
+│  │  ☐ Add unique Object ID                                              │   │
+│  │     Leaves existing Object ID unchanged                              │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│  ┌─ View properties ────────────────────────────────────────────────────┐   │
+│  │  ☐  Domain          [  ▼]                                            │   │
+│  │  ☑  Phase           [Draft               ▼]                          │   │
+│  │  ☐  Status          [  ▼]                                            │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**How it works:**
+
+- On tab build, every property found on any view in the current model is scanned (excluding `"Object ID"`). Each unique key becomes one row in the grid.
+- A row is a checkbox (enable/disable), a property-name label, and an editable combo pre-filled with all values found for that key across all model views.
+- Nothing is pre-selected by default; the user opts in per property.
+- On action: every enabled row's value is written to the generated view with `view.prop(key, value)`. Disabled rows are ignored.
+- Styled properties are written as a post-write pass, after layout and appearance passes.
+
+**Object ID rule:** When *Add unique Object ID* is checked and the target view has no `"Object ID"` property, `Common.generateUUID()` generates a UUID and writes it. If the view already has an Object ID it is left unchanged. For *One view each*, each view receives its own independent UUID.
+
+**Preset storage:** `preset.viewProperties.properties` stores all rows the user has configured (enabled or not) so combo selections survive preset round-trips. Only rows with `enabled: true` are written to the view at generation time.
 
 ### Generated view
 

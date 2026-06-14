@@ -13,6 +13,10 @@ console.log("Loading defs.js");
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PROP_ID = "Object ID";
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const STYLES = Object.freeze({
@@ -575,6 +579,10 @@ const DEFAULT_PRESET = Object.freeze({
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
   },
   engineParams: {},  // overrides only — defaults live in each adapter (elk.js, dagre.js, graphviz.js) and engine-utils.js
+  viewProperties: {
+    addObjectId: false,
+    properties:  [],  // [{ key, value, enabled }] — enabled rows are written to the view on generation
+  },
 });
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
@@ -733,6 +741,21 @@ function validatePreset(raw) {
   if (raw.engineParams && typeof raw.engineParams === "object")
     preset.engineParams = raw.engineParams;
 
+  // viewProperties
+  if (raw.viewProperties && typeof raw.viewProperties === "object") {
+    const rv = raw.viewProperties;
+    if (typeof rv.addObjectId === "boolean") preset.viewProperties.addObjectId = rv.addObjectId;
+    if (Array.isArray(rv.properties)) {
+      preset.viewProperties.properties = rv.properties
+        .filter(p => p && typeof p.key === "string" && p.key !== PROP_ID)
+        .map(p => ({
+          key:     String(p.key),
+          value:   p.value !== undefined ? String(p.value) : "",
+          enabled: typeof p.enabled === "boolean" ? p.enabled : false,
+        }));
+    }
+  }
+
   return preset;
 }
 
@@ -769,6 +792,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
+    PROP_ID,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
     CONTAINER_LABEL_CLEARANCE,

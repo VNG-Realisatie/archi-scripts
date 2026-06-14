@@ -25,7 +25,7 @@ const Pipeline   = require(REPO_ROOT + "View/lib/selection_pipeline");
 const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const {
-  ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER,
+  ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER, PROP_ID,
   validatePreset, effectiveParams,
 } = Defs;
 
@@ -130,6 +130,24 @@ function _openView(view) {
     Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(eObject, true);
   } catch (e) {
     console.error(`Failed to open "${view && view.name}" in the UI — open it manually. (${e})`);
+  }
+}
+
+// ── View properties ───────────────────────────────────────────────────────────
+
+function _applyViewProperties(view, preset) {
+  const vp = preset.viewProperties;
+  if (!vp) return;
+
+  (vp.properties || []).forEach(p => {
+    if (p.enabled && p.key && p.key !== PROP_ID) {
+      if (p.value) view.prop(p.key, p.value);
+      else         view.removeProp(p.key);
+    }
+  });
+
+  if (vp.addObjectId && !view.prop(PROP_ID)) {
+    view.prop(PROP_ID, Common.generateUUID());
   }
 }
 
@@ -263,7 +281,10 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels, existingVosByConcept);
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
-  if (writtenView) Appearance.applyAppearance(writtenView, preset, actionId);
+  if (writtenView) {
+    Appearance.applyAppearance(writtenView, preset, actionId);
+    _applyViewProperties(writtenView, preset);
+  }
 
   return writtenView;
 }
