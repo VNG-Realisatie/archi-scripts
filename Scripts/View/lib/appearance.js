@@ -261,15 +261,21 @@ function _applyStyleByProperty(view, elemSettings, relSettings, isModify) {
 }
 
 function _applyStyleByPropertyElement(view, settings, isModify) {
-  if (!settings.enabled || !settings.property) return;
-
   const vos = [];
   $(view).find("element").each(vo => {
     if (settings.elementType && vo.type !== settings.elementType) return;
     vos.push(vo);
   });
-  console.log(`  styleByProperty.element: ${vos.length} VOs match type "${settings.elementType||"any"}"`);
 
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify && vos.length > 0) {
+      vos.forEach(vo => { vo.fillColor = null; });
+      console.log(`  styleByProperty.element: ${vos.length} VOs reset`);
+    }
+    return;
+  }
+
+  console.log(`  styleByProperty.element: ${vos.length} VOs match type "${settings.elementType||"any"}"`);
 
   const valueSet = new Set();
   vos.forEach(vo => {
@@ -294,10 +300,8 @@ function _applyStyleByPropertyElement(view, settings, isModify) {
 }
 
 function _applyStyleByPropertyRelation(view, settings, isModify) {
-  if (!settings.enabled || !settings.property) return;
-
   // Collect matching visual connections
-  const relFilters = settings.relTypes.map(enc => decodeRelType(enc));
+  const relFilters = (settings.relTypes || []).map(enc => decodeRelType(enc));
   const vos = [];
   $(view).find("relation").each(vc => {
     if (!vc.type) return;
@@ -305,6 +309,15 @@ function _applyStyleByPropertyRelation(view, settings, isModify) {
     if (relFilters.length > 0 && !relFilters.some(f => f.type === vc.type)) return;
     vos.push(vc);
   });
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify && vos.length > 0) {
+      vos.forEach(vc => { vc.lineColor = null; vc.lineWidth = 1; });
+      console.log(`  styleByProperty.relation: ${vos.length} VOs reset`);
+    }
+    return;
+  }
+
   console.log(`  styleByProperty.relation: ${vos.length} connections match`);
 
   if (vos.length === 0) return;
@@ -338,7 +351,6 @@ function _applyStyleByPropertyRelation(view, settings, isModify) {
 // ── Style by related property ─────────────────────────────────────────────────
 
 function _applyStyleByRelatedProperty(view, settings, isModify) {
-  if (!settings.enabled || !settings.property) return;
   if (!settings.relTypes || settings.relTypes.length === 0) return;
 
   const vosByConceptId = new Map();
@@ -349,8 +361,23 @@ function _applyStyleByRelatedProperty(view, settings, isModify) {
     vosByConceptId.get(id).push(vo);
   });
 
-
   const relFilters = settings.relTypes.map(enc => decodeRelType(enc));
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify) {
+      let n = 0;
+      vosByConceptId.forEach((vos, conceptId) => {
+        const el = $(`#${conceptId}`).first();
+        if (!el) return;
+        let hasMatch = false;
+        try { $(el).rels().each(rel => { const isOut = rel.source && rel.source.id === conceptId; if (_matchesRelDir(rel.type, isOut, relFilters)) hasMatch = true; }); } catch (e) {}
+        if (hasMatch) { vos.forEach(vo => { vo.fillColor = null; n++; }); }
+      });
+      if (n > 0) console.log(`  styleByRelatedProperty: ${n} VOs reset`);
+    }
+    return;
+  }
+
   const elementPropValue = new Map();
 
   vosByConceptId.forEach((_, conceptId) => {
@@ -389,9 +416,7 @@ function _applyStyleByRelatedProperty(view, settings, isModify) {
 // ── Style by connected element ────────────────────────────────────────────────
 
 function _applyStyleByConnectedElement(view, settings, isModify) {
-  if (!settings.enabled || !settings.property) return;
-
-  const relFilters   = settings.relTypes.map(enc => decodeRelType(enc));
+  const relFilters   = (settings.relTypes || []).map(enc => decodeRelType(enc));
   const targetType   = settings.elementType || "";  // "" = any
   const conflictColor = settings.conflictColor || "#ff632a";
 
@@ -403,6 +428,32 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
     if (!vosByConceptId.has(id)) vosByConceptId.set(id, []);
     vosByConceptId.get(id).push(vo);
   });
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify) {
+      let n = 0;
+      vosByConceptId.forEach((vos, conceptId) => {
+        const el = $(`#${conceptId}`).first();
+        if (!el) return;
+        let hasMatch = false;
+        try {
+          $(el).rels().each(rel => {
+            const isOut = rel.source && rel.source.id === conceptId;
+            if (relFilters.length > 0 && !_matchesRelDir(rel.type, isOut, relFilters)) return;
+            const otherId = isOut ? (rel.target && rel.target.id) : (rel.source && rel.source.id);
+            if (!otherId || otherId === conceptId) return;
+            const other = $(`#${otherId}`).first();
+            if (!other) return;
+            if (targetType && other.type !== targetType) return;
+            hasMatch = true;
+          });
+        } catch (e) {}
+        if (hasMatch) { vos.forEach(vo => { vo.fillColor = null; n++; }); }
+      });
+      if (n > 0) console.log(`  styleByConnectedElement: ${n} VOs reset`);
+    }
+    return;
+  }
 
   // For each source concept, find connected target concepts via matching relations
   const sourcePropValue = new Map(); // conceptId → propValue | "__conflict__"

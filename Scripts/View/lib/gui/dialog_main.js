@@ -2051,10 +2051,10 @@ function _updateNestingLevelState(ctx) {
   try { if (w.nestRootSwatch) w.nestRootSwatch.redraw(); } catch (e) {}
 }
 
-// ── View properties tab ───────────────────────────────────────────────────────
+// ── Properties tab ───────────────────────────────────────────────────────
 
 function _buildViewPropertiesTab(tabFolder, ctx) {
-  const { page, finish } = _scrolledTab(tabFolder, "View properties");
+  const { page, finish } = _scrolledTab(tabFolder, "Properties");
   const w = ctx.widgets;
   const onChange = () => _markModified(ctx);
 

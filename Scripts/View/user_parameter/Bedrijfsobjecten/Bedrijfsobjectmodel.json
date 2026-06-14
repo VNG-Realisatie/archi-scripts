@@ -91,7 +91,7 @@
     ]
   },
   "view": {
-    "name": "Participatie",
+    "name": "Generieke Entiteiten Erfgoed",
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen"
   },
   "appearance": {
@@ -104,10 +104,12 @@
       },
       "relation": {
         "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
+        "relTypes": [
+          "specialization-relationship"
+        ],
+        "property": "",
+        "colorRange": "Greens",
+        "lineWidth": 3
       }
     },
     "styleByRelatedProperty": {
@@ -168,7 +170,7 @@
       }
     ]
   },
-  "_lastTabIndex": 2,
+  "_lastTabIndex": 3,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }
