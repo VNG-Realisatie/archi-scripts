@@ -153,7 +153,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "innerSpacing", "snapColumnsToGrid", "labelSizing",
+      "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
@@ -170,7 +170,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING,
-      "innerSpacing", "snapColumnsToGrid", "labelSizing",
+      "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
@@ -544,6 +544,7 @@ const DEFAULT_PRESET = Object.freeze({
     aspectRatio:           0,
     viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
     labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
+    labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
   },
   filter: {
     elementTypes:  [],
@@ -583,6 +584,20 @@ const DEFAULT_PRESET = Object.freeze({
     addObjectId: false,
     properties:  [],  // [{ key, value, enabled }] — enabled rows are written to the view on generation
   },
+});
+
+// ── Label-based node sizing defaults ─────────────────────────────────────────
+// Fallback tuning values for sizeLabelBasedNodes (engine-utils.js).
+// labelMaxLineWidth is also a GUI-exposed params key (DEFAULT_PRESET.params) and
+// takes priority when set; the remaining keys are engineParams.layout-only.
+const LABEL_SIZING_DEFAULTS = Object.freeze({
+  labelCharWidth:    8,
+  labelLineHeight:  24,
+  labelHPadding:    16,
+  labelVPadding:     8,
+  labelMaxLineWidth: 400,
+  labelMinWidth:    60,
+  labelMinHeight:   30,
 });
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
@@ -797,6 +812,7 @@ if (typeof module !== "undefined" && module.exports) {
     SPLINE_SAMPLE_POINTS,
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
+    LABEL_SIZING_DEFAULTS,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };

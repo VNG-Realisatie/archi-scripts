@@ -6,6 +6,13 @@
  */
 console.log("Loading engines/engine-utils.js");
 
+const REPO_ROOT = (() => {
+  const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
+  return p.substring(0, i === -1 ? p.length : i + 9);
+})();
+
+const { LABEL_SIZING_DEFAULTS } = require(REPO_ROOT + "View/lib/defs");
+
 // ── Self-loop pass-through ────────────────────────────────────────────────────
 
 /**
@@ -247,16 +254,6 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
 
 // ── Label-based node sizing ───────────────────────────────────────────────────
 
-const LAYOUT_DEFAULTS = {
-  labelCharWidth: 8,
-  labelLineHeight: 24,
-  labelHPadding: 16,
-  labelVPadding: 8,
-  labelMaxLineWidth: 400,
-  labelMinWidth: 60,
-  labelMinHeight: 30,
-};
-
 /**
  * Pre-layout: set node width and height based on label text length.
  * Short labels get small nodes; long labels wrap to two lines and get a taller node.
@@ -269,7 +266,8 @@ const LAYOUT_DEFAULTS = {
  */
 function sizeLabelBasedNodes(nodes, params, engineParams) {
   if (!params || !params.labelSizing) return;
-  const lp = Object.assign({}, LAYOUT_DEFAULTS, engineParams && engineParams.layout);
+  const lp = Object.assign({}, LABEL_SIZING_DEFAULTS, engineParams && engineParams.layout);
+  if (params.labelMaxLineWidth !== undefined) lp.labelMaxLineWidth = params.labelMaxLineWidth;
   const charW = lp.labelCharWidth;
   const lineH = lp.labelLineHeight;
   const hPad = lp.labelHPadding;

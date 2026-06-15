@@ -1722,7 +1722,7 @@ The block has four sub-objects, one per engine plus a shared `layout` section:
 | `ELK` | `elk.js` — spread into root `layoutOptions` AND every node's `layoutOptions` (target:NODES options require per-node placement) | Full ELK option string, e.g. `"elk.spacing.edgeEdge": 10` |
 | `Dagre` | `dagre.js` — `Object.assign` into `g.setGraph()` after `PARAM_MAPPING`, values cast to numbers | Dagre graph property, e.g. `edgesep: 10` |
 | `Graphviz` | `graphviz.js` — overrides specific DOT attributes (currently `esep`) | DOT attribute value, e.g. `esep: "+8"` |
-| `layout` | `generate_view.js` — pre-layout, engine-agnostic (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`) | `nodeSizeByEdgeCount`; `labelChar*` / `labelLine*` / `labelH/VPadding` / `labelMin*` / `labelMaxLineWidth` tuning keys |
+| `layout` | `generate_view.js` — pre-layout, engine-agnostic (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`) | `nodeSizeByEdgeCount`; `labelChar*` / `labelLine*` / `labelH/VPadding` / `labelMin*` tuning keys |
 
 **ELK option resolution order within `engineParams.ELK`** (last writer wins):
 
@@ -1734,11 +1734,11 @@ The block has four sub-objects, one per engine plus a shared `layout` section:
 
 **`layout.nodeSizeByEdgeCount`** (default 0 = off): when > 0, `expandNodeSizesForEdgeDensity` inflates `node.height` (LR/RL direction) or `node.width` (TB/BT) to `maxSideEdgeCount × value` so hub nodes have space for their ports. Applies to all engines before the graph is handed off.
 
-**`layout` label-sizing keys** (driven by `params.labelSizing` GUI checkbox, active for Pack and Grid only): `sizeLabelBasedNodes` estimates each node's label pixel width (`label.length × labelCharWidth`), then sets `node.width`/`height` accordingly. Labels narrower than `labelMaxLineWidth − 2×labelHPadding` fit on one line; wider labels find the space nearest the midpoint and wrap to two lines (double height). Minimum sizes are clamped by `labelMinWidth` / `labelMinHeight`. Runs after `expandNodeSizesForEdgeDensity` so edge-density expansion still wins if it produces a larger value.
+**`layout` label-sizing keys** (driven by `params.labelSizing` GUI checkbox, active for Pack and Grid only): `sizeLabelBasedNodes` estimates each node's label pixel width (`label.length × labelCharWidth`), then sets `node.width`/`height` accordingly. `labelMaxLineWidth` (default 400) is a GUI-exposed `params` key (spinner "Label width:", active for Pack and Grid). Labels narrower than `labelMaxLineWidth − 2×labelHPadding` fit on one line; wider labels find the space nearest the midpoint and wrap to two lines (double height). Minimum sizes are clamped by `labelMinWidth` / `labelMinHeight`. Runs after `expandNodeSizesForEdgeDensity` so edge-density expansion still wins if it produces a larger value.
 
 **Pack `aspectRatio` fix**: Pack's `aspectRatio` GUI param was previously visible in the UI but missing from `elk.js` PARAM_MAPPING — it was never sent to ELK. Fixed by adding the standard `aspectRatio: (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {}` mapping to Pack's root PARAM_MAPPING block.
 
-Ref: `lib/engines/elk.js`, `lib/engines/dagre.js`, `lib/engines/graphviz.js`, `lib/engines/engine-utils.js` (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`), `lib/generate_view.js` (`_mergeEngineParams`), `lib/defs.js` (`DEFAULT_PRESET.engineParams`), `lib/gui/dialog_main.js` (`chkLabelSizing`).
+Ref: `lib/engines/elk.js`, `lib/engines/dagre.js`, `lib/engines/graphviz.js`, `lib/engines/engine-utils.js` (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`), `lib/generate_view.js` (`_mergeEngineParams`), `lib/defs.js` (`DEFAULT_PRESET.params.labelMaxLineWidth`), `lib/gui/dialog_main.js` (`chkLabelSizing`, `spinLabelMaxLineWidth`).
 
 ### Dagre
 

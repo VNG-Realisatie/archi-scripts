@@ -1341,6 +1341,10 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25, 0, 200, 5, w, "Adds extra element size based on the number of connections on the busiest side.\n" +
     "Use this to prevent ports from overlapping on highly connected elements.\n" +
     "0 = disabled.");
+  // Row 3: Size by label width checkbox (4 cols) + Max width spinner (2 cols)
+  _addCheck(grpSize, "Size by label width", "Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only).", 4, w, "chkLabelSizing");
+  _addSpinnerRow(grpSize, "Max width:", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label pixel width before wrapping to two lines (px).");
+  if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -1430,9 +1434,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   // Row 1: Sort containers | Show in every container
   _addCheck(chkComp, "Sort containers",         "Sort containers alphabetically within each level.",                                                                                                                                                             4, w, "chkSortContainers");
   _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",                                                                                                                                                    4, w, "chkShowInEvery");
-  // Row 2: Size by label (full width)
-  _addCheck(chkComp, "Size by label",           "Derive node width and height from label text; long labels wrap to 2 lines.",                                                                                                                                    8, w, "chkLabelSizing");
-  // Row 3: Align widths by level | Snap columns to grid
+  // Row 2: Align widths by level | Snap columns to grid
   _addCheck(chkComp, "Align widths by level",   "Use a common width per nesting level, with each parent level one padding step wider than its children.",                                                                                                        4, w, "chkAlignWidthSameType");
   _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.", 4, w, "chkSnapColumns");
   // Refresh the live Output counters when 'Show in every container' toggles.
@@ -2435,6 +2437,7 @@ function _syncToUI(ctx) {
   _spinSet(w.spinConnectionSpacing,        p.connectionSpacing        !== undefined ? p.connectionSpacing        : DP.connectionSpacing);
   _spinSet(w.spinConnectionElementSpacing, p.connectionElementSpacing !== undefined ? p.connectionElementSpacing : DP.connectionElementSpacing);
   _spinSet(w.spinNodeSizeByEdgeCount,  p.nodeSizeByEdgeCount  !== undefined ? p.nodeSizeByEdgeCount  : DP.nodeSizeByEdgeCount);
+  _spinSet(w.spinLabelMaxLineWidth,    p.labelMaxLineWidth    !== undefined ? p.labelMaxLineWidth    : DP.labelMaxLineWidth);
   _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
 
   const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio !== undefined ? p.aspectRatio : DP.aspectRatio));
@@ -2654,6 +2657,7 @@ function _saveUI(ctx) {
   if (w.spinConnectionSpacing)        c.params.connectionSpacing        = w.spinConnectionSpacing.getSelection();
   if (w.spinConnectionElementSpacing) c.params.connectionElementSpacing = w.spinConnectionElementSpacing.getSelection();
   if (w.spinNodeSizeByEdgeCount)  c.params.nodeSizeByEdgeCount  = w.spinNodeSizeByEdgeCount.getSelection();
+  if (w.spinLabelMaxLineWidth)    c.params.labelMaxLineWidth    = w.spinLabelMaxLineWidth.getSelection();
   if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
   c.params.aspectRatio  = AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0;
@@ -2783,6 +2787,9 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
   _enable(w.chkLabelSizing,          active.has("labelSizing"));
+  const _labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
+  _enable(w.spinElementWidth,  !_labelSizingOn);
+  _enable(w.spinElementHeight, !_labelSizingOn);
   _enable(w.cmbContainerAlgorithm,   active.has("containerAlgorithm"));
   _enable(w.cmbConnectionsMode,      active.has("connectionsMode"));
   // "Crossing containers" (INCLUDE_CHILDREN) requires the same algorithm at all hierarchy
@@ -2823,6 +2830,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
   _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
   _enable(w.spinNodeSizeByEdgeCount,    active.has("nodeSizeByEdgeCount"));
+  _enable(w.spinLabelMaxLineWidth,      _labelSizingOn);
 
   // View size radios: enable/disable each option based on algorithm support.
   // The spinners/combo are controlled by _applyViewSizeMode, not directly here.

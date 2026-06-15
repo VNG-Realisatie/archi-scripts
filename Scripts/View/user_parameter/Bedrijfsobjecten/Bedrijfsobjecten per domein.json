@@ -34,7 +34,8 @@
     "maxWidth": 0,
     "aspectRatio": 1.33,
     "viewSizeMode": "none",
-    "labelSizing": true
+    "labelSizing": true,
+    "labelMaxLineWidth": 160
   },
   "filter": {
     "elementTypes": [
@@ -117,7 +118,6 @@
       "labelLineHeight": 24,
       "labelHPadding": 16,
       "labelVPadding": 8,
-      "labelMaxLineWidth": 160,
       "labelMinWidth": 60,
       "labelMinHeight": 30
     },
