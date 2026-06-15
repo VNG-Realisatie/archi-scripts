@@ -75,6 +75,7 @@ const ALGORITHMS = Object.freeze({
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
       "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
+      "edgeLabelSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
@@ -545,6 +546,7 @@ const DEFAULT_PRESET = Object.freeze({
     viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
     labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
     labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
+    edgeLabelSpacing:      false,  // treat edge labels as layout constraints in ELK Layered (prevents overlap)
   },
   filter: {
     elementTypes:  [],

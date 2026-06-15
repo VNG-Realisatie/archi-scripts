@@ -80,11 +80,18 @@ const _LAYERED_CONN_ELEM_SPACING = (v) => ({
   "elk.layered.spacing.edgeNodeBetweenLayers": String(v),
   "elk.spacing.nodeSelfLoop":                  String(v),
 });
+const _EDGE_LABEL_SPACING = (v) => v ? {
+  "elk.edgeLabels.inline":                               "false",
+  "elk.layered.edgeLabels.centerLabelPlacementStrategy": "MEDIAN_LAYER",
+} : {
+  "elk.edgeLabels.inline": "true",
+};
 
 // Shared base objects — spread into root/container; padding and aspectRatio are added per scope.
 const _LAYERED_BASE = {
   direction:                _DIRECTION,
   routing:                  _LAYERED_ROUTING,
+  edgeLabelSpacing:         _EDGE_LABEL_SPACING,
   elementSpacing:           _ELEM_SPACING,
   layerSpacing:             _LAYER_SPACING,
   connectionSpacing:        _LAYERED_CONN_SPACING,
@@ -269,6 +276,10 @@ function layout(graph) {
       targets:     [edge.target],
     };
     if (edge.weight) entry.properties = { "elk.priority": edge.weight };
+    if (graph.options.edgeLabelSpacing && edge.label) {
+      const { labelCharWidth: charW, labelLineHeight: lineH, labelHPadding: hPad } = Defs.LABEL_SIZING_DEFAULTS;
+      entry.labels = [{ id: edge.id + "_lbl", text: edge.label, width: EngineUtils._textWidth(edge.label, charW) + hPad, height: lineH }];
+    }
     edgeList.push(entry);
   }
 

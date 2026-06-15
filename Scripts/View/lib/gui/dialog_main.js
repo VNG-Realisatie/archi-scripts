@@ -1345,6 +1345,10 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCheck(grpSize, "Size by label width", "Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only).", 4, w, "chkLabelSizing");
   _addSpinnerRow(grpSize, "Max width:", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label pixel width before wrapping to two lines (px).");
   if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  _addCheck(grpSize, "Optimize spacing for long relation labels",
+    "When on: labels participate as layout constraints. ELK expands routing paths to prevent overlap.\n" +
+    "When off: labels are drawn as overlays; faster but may overlap in dense graphs. Layered only.",
+    4, w, "chkEdgeLabelSpacing");
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -2419,6 +2423,7 @@ function _syncToUI(ctx) {
   _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
   _chkSet(w.chkShowInEvery,  !!(p.showInEveryContainer));
   _chkSet(w.chkLabelSizing,  !!(p.labelSizing));
+  if (w.chkEdgeLabelSpacing) w.chkEdgeLabelSpacing.setSelection(!!p.edgeLabelSpacing);
   if (w.cmbContainerAlgorithm) {
     const idx = CONTAINER_ALGO_LABELS.indexOf(p.containerAlgorithm || "Layered");
     w.cmbContainerAlgorithm.select(idx >= 0 ? idx : 0);
@@ -2645,6 +2650,7 @@ function _saveUI(ctx) {
   if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
   if (w.chkShowInEvery)          c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
   if (w.chkLabelSizing)          c.params.labelSizing          = w.chkLabelSizing.getSelection();
+  if (w.chkEdgeLabelSpacing)     c.params.edgeLabelSpacing     = w.chkEdgeLabelSpacing.getSelection();
   if (w.cmbContainerAlgorithm)   c.params.containerAlgorithm   = w.cmbContainerAlgorithm.getText();
   if (w.cmbConnectionsMode)      c.params.connectionsMode      = w.cmbConnectionsMode.getText();
 
@@ -2787,6 +2793,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
   _enable(w.chkLabelSizing,          active.has("labelSizing"));
+  _enable(w.chkEdgeLabelSpacing,     active.has("edgeLabelSpacing"));
   const _labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
   _enable(w.spinElementWidth,  !_labelSizingOn);
   _enable(w.spinElementHeight, !_labelSizingOn);

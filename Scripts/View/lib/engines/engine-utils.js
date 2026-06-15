@@ -335,5 +335,6 @@ if (typeof module !== "undefined" && module.exports) {
     applyParams,
     expandNodeSizesForEdgeDensity,
     sizeLabelBasedNodes,
+    _textWidth,
   };
 }
