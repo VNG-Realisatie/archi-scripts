@@ -1,8 +1,8 @@
 {
-  "name": "Bedrijfsobjecten/Bedrijfsobjecten per beleidsdomein",
+  "name": "Bedrijfsobjecten/Bedrijfsobjecten per domein",
   "algorithm": "Pack",
   "params": {
-    "direction": "Left",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -23,8 +23,8 @@
     "snapColumnsToGrid": false,
     "showInEveryContainer": false,
     "containerAlgorithm": "Pack",
-    "connectionsMode": "Crossing containers",
-    "layerSpacing": 120,
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
     "elementSpacing": 100,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
@@ -54,13 +54,17 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": []
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
       }
     ]
   },
   "view": {
-    "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "/_Generated/Test"
+    "name": "Fysieke leefomgeving",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjecten per domein"
   },
   "appearance": {
     "styleByProperty": {
@@ -73,7 +77,7 @@
       "relation": {
         "enabled": false,
         "relTypes": [],
-        "property": "",
+        "property": "GGM-guid",
         "colorRange": "Reds",
         "lineWidth": 0
       }
@@ -81,20 +85,20 @@
     "styleByRelatedProperty": {
       "enabled": false,
       "relTypes": [],
-      "property": "",
+      "property": "GGM-guid",
       "colorRange": "OrRd"
     },
     "styleByConnectedElement": {
       "enabled": false,
       "relTypes": [],
       "elementType": "",
-      "property": "",
+      "property": "GEMMA type",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
       "fontEnabled": true,
-      "rootFontSize": 14,
+      "rootFontSize": 12,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
@@ -102,7 +106,7 @@
       "lightenPerLevel": 25
     },
     "highlightRepeated": {
-      "enabled": false,
+      "enabled": true,
       "colorRange": "Pastel1"
     }
   },
@@ -134,6 +138,16 @@
     "Graphviz": {
       "esep": "+20"
     }
+  },
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      }
+    ]
   },
   "_lastTabIndex": 2,
   "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",

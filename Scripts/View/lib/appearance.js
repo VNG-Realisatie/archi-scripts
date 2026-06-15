@@ -72,11 +72,16 @@ function applyAppearance(view, preset, actionId) {
   const depths = _computeViewDepths(view);
   console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);
 
-  _applyNestingLevel(view, nl, depths, isModify);
-  _applyHighlightRepeated(view, hr, isModify);
-  _applyStyleByProperty(view, sbpe, sbpr, isModify);
-  _applyStyleByRelatedProperty(view, sbrp, isModify);
-  _applyStyleByConnectedElement(view, sbce, isModify);
+  // VOs colored by an active feature are protected from being cleared by later disabled-feature
+  // resets (which would otherwise overwrite earlier colors). Built incrementally: each active
+  // feature adds its styled VO ids so subsequent resets can skip them.
+  const styledVoIds = new Set();
+
+  _applyNestingLevel(view, nl, depths, isModify, styledVoIds);
+  _applyHighlightRepeated(view, hr, isModify, styledVoIds);
+  _applyStyleByProperty(view, sbpe, sbpr, isModify, styledVoIds);
+  _applyStyleByRelatedProperty(view, sbrp, isModify, styledVoIds);
+  _applyStyleByConnectedElement(view, sbce, isModify, styledVoIds);
 }
 
 // ── Depth computation ─────────────────────────────────────────────────────────
@@ -151,7 +156,7 @@ function _voDepth(vo) {
 
 // ── Style by nesting level ────────────────────────────────────────────────────
 
-function _applyNestingLevel(view, settings, depths, isModify) {
+function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
   const { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth } = depths;
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
 
@@ -214,6 +219,7 @@ function _applyNestingLevel(view, settings, depths, isModify) {
       if (anchor) {
         const lightenFactor = depth * (lightenPerLevel / 100);
         vo.fillColor = _lightenHex(anchor, lightenFactor);
+        styledVoIds.add(vo.id);
         colorSet++;
       }
     } else if (!settings.colorEnabled && isModify && inChain) {
@@ -228,7 +234,7 @@ function _applyNestingLevel(view, settings, depths, isModify) {
 
 // ── Highlight repeated elements ───────────────────────────────────────────────
 
-function _applyHighlightRepeated(view, settings, isModify) {
+function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
   const byConceptId = new Map();
   $(view).find("element").each(vo => {
     if (!vo.concept) return;
@@ -244,7 +250,7 @@ function _applyHighlightRepeated(view, settings, isModify) {
     if (multiIds.length === 0) { console.log(`  highlightRepeated: 0 multi-occurrence elements`); return; }
     const colors = _colorScale(settings.colorRange, multiIds.length);
     let n = 0;
-    multiIds.forEach((id, i) => { byConceptId.get(id).forEach(vo => { vo.fillColor = colors[i]; n++; }); });
+    multiIds.forEach((id, i) => { byConceptId.get(id).forEach(vo => { vo.fillColor = colors[i]; styledVoIds.add(vo.id); n++; }); });
     console.log(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
   } else if (isModify && settings.colorRange && multiIds.length > 0) {
     let n = 0;
@@ -255,12 +261,12 @@ function _applyHighlightRepeated(view, settings, isModify) {
 
 // ── Style by property ─────────────────────────────────────────────────────────
 
-function _applyStyleByProperty(view, elemSettings, relSettings, isModify) {
-  _applyStyleByPropertyElement(view, elemSettings, isModify);
+function _applyStyleByProperty(view, elemSettings, relSettings, isModify, styledVoIds) {
+  _applyStyleByPropertyElement(view, elemSettings, isModify, styledVoIds);
   _applyStyleByPropertyRelation(view, relSettings, isModify);
 }
 
-function _applyStyleByPropertyElement(view, settings, isModify) {
+function _applyStyleByPropertyElement(view, settings, isModify, styledVoIds) {
   const vos = [];
   $(view).find("element").each(vo => {
     if (settings.elementType && vo.type !== settings.elementType) return;
@@ -268,9 +274,10 @@ function _applyStyleByPropertyElement(view, settings, isModify) {
   });
 
   if (!settings.enabled || !settings.property) {
-    if (!settings.enabled && isModify && vos.length > 0) {
-      vos.forEach(vo => { vo.fillColor = null; });
-      console.log(`  styleByProperty.element: ${vos.length} VOs reset`);
+    if (!settings.enabled && isModify) {
+      let n = 0;
+      vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } });
+      if (n > 0) console.log(`  styleByProperty.element: ${n} VOs reset`);
     }
     return;
   }
@@ -294,7 +301,7 @@ function _applyStyleByPropertyElement(view, settings, isModify) {
   let n = 0;
   vos.forEach(vo => {
     const val = vo.prop(settings.property);
-    if (val !== null && val !== undefined && val !== "") { vo.fillColor = colorMap[String(val)]; n++; }
+    if (val !== null && val !== undefined && val !== "") { vo.fillColor = colorMap[String(val)]; styledVoIds.add(vo.id); n++; }
   });
   console.log(`  styleByProperty.element: ${n} VOs colored  range=${settings.colorRange}`);
 }
@@ -350,7 +357,7 @@ function _applyStyleByPropertyRelation(view, settings, isModify) {
 
 // ── Style by related property ─────────────────────────────────────────────────
 
-function _applyStyleByRelatedProperty(view, settings, isModify) {
+function _applyStyleByRelatedProperty(view, settings, isModify, styledVoIds) {
   if (!settings.relTypes || settings.relTypes.length === 0) return;
 
   const vosByConceptId = new Map();
@@ -371,7 +378,7 @@ function _applyStyleByRelatedProperty(view, settings, isModify) {
         if (!el) return;
         let hasMatch = false;
         try { $(el).rels().each(rel => { const isOut = rel.source && rel.source.id === conceptId; if (_matchesRelDir(rel.type, isOut, relFilters)) hasMatch = true; }); } catch (e) {}
-        if (hasMatch) { vos.forEach(vo => { vo.fillColor = null; n++; }); }
+        if (hasMatch) { vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } }); }
       });
       if (n > 0) console.log(`  styleByRelatedProperty: ${n} VOs reset`);
     }
@@ -408,14 +415,14 @@ function _applyStyleByRelatedProperty(view, settings, isModify) {
   let n = 0;
   elementPropValue.forEach((val, conceptId) => {
     const vos = vosByConceptId.get(conceptId);
-    if (vos) { vos.forEach(vo => { vo.fillColor = colorMap[val]; n++; }); }
+    if (vos) { vos.forEach(vo => { vo.fillColor = colorMap[val]; styledVoIds.add(vo.id); n++; }); }
   });
   console.log(`  styleByRelatedProperty: ${n} VOs colored  ${uniqueValues.length} unique values  range=${settings.colorRange}`);
 }
 
 // ── Style by connected element ────────────────────────────────────────────────
 
-function _applyStyleByConnectedElement(view, settings, isModify) {
+function _applyStyleByConnectedElement(view, settings, isModify, styledVoIds) {
   const relFilters   = (settings.relTypes || []).map(enc => decodeRelType(enc));
   const targetType   = settings.elementType || "";  // "" = any
   const conflictColor = settings.conflictColor || "#ff632a";
@@ -448,7 +455,7 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
             hasMatch = true;
           });
         } catch (e) {}
-        if (hasMatch) { vos.forEach(vo => { vo.fillColor = null; n++; }); }
+        if (hasMatch) { vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } }); }
       });
       if (n > 0) console.log(`  styleByConnectedElement: ${n} VOs reset`);
     }
@@ -516,9 +523,9 @@ function _applyStyleByConnectedElement(view, settings, isModify) {
     const vos = vosByConceptId.get(conceptId);
     if (!vos) return;
     if (val === "__conflict__") {
-      vos.forEach(vo => { vo.fillColor = conflictColor; conflicts++; });
+      vos.forEach(vo => { vo.fillColor = conflictColor; styledVoIds.add(vo.id); conflicts++; });
     } else {
-      vos.forEach(vo => { vo.fillColor = colorMap[val]; n++; });
+      vos.forEach(vo => { vo.fillColor = colorMap[val]; styledVoIds.add(vo.id); n++; });
     }
   });
   console.log(`  styleByConnectedElement: ${n} VOs colored  ${conflicts} conflicts  range=${settings.colorRange}`);

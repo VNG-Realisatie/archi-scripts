@@ -86,8 +86,9 @@ function _buildDagreGraph(dagre, engineOpts, nodes, edges) {
     if (!g.hasNode(edge.source) || !g.hasNode(edge.target)) continue;
     if (!g.hasEdge(edge.source, edge.target, edge.id)) {
       g.setEdge({ v: edge.source, w: edge.target, name: edge.id }, {
-        id:    edge.id,
-        label: edge.label || "",
+        id:        edge.id,
+        conceptId: edge.conceptId,
+        label:     edge.label || "",
       });
     }
   }
@@ -211,6 +212,7 @@ function layout(graph) {
 
     resultEdges.push({
       id:         edgeData.id || edgeObj.name,
+      conceptId:  edgeData.conceptId,
       sourceId:   edgeObj.v,
       targetId:   edgeObj.w,
       bendpoints,

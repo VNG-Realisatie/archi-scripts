@@ -413,6 +413,7 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
 
     resultEdges.push({
       id:         eid,
+      conceptId:  originalEdge.conceptId,
       sourceId:   originalEdge.source,
       targetId:   originalEdge.target,
       bendpoints,

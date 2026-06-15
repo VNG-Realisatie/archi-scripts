@@ -970,15 +970,19 @@ Step 3  Related-elements expansion (chain)
     hops   = _expandStepFrontiers(input, step)   (one array per depth hop)
     additions = hops.flat()
     final-selection = final-selection ∪ additions
+    prevHopFrontier = step input (for hop 1); previous hop's elements (for hop 2+)
     For each hop frontier in hops:
-      stepRelations += relations of step's type in (cumulative ∪ hop-frontier)
-                       where ≥1 endpoint is in cumulative  (new×new per hop excluded)
+      stepRelations += relations of step's type between hop-frontier and
+                       prevHopFrontier, direction-aware (`:in`/`:out` honoured)
       cumulative    += hop-frontier
+      prevHopFrontier = hop-frontier
     input = additions                              (chain: next step starts here)
   Step 1's input is the filtered base.
   An empty step terminates the chain — every later step adds zero.
 
-  Depth-to-relations: base→hop1 ✓  hop1→hop2 ✓  hop2→hop3 ✓  hopN↔hopN ✗
+  Relation collection per hop (direction-aware):
+    hop 1: stepInput ↔ hop1  ✓  |  hop 2: hop1 ↔ hop2 ✓  |  hopN×hopN ✗
+    Earlier-step elements outside the triggering collection are not iterated.
 
 Step 4  Separate the element set
   Drop relations, folders, view nodes. What remains is the set
@@ -988,11 +992,15 @@ Step 5  Find relations between elements (collected incrementally in Step 3)
   Relations are collected in two passes:
   · Base pass: relations between the filtered-base elements, filtered
     by the global relation-type filter.
-  · Per-step pass (inside Step 3's loop): for each depth hop within a step,
-    relations of the step's type where at least one endpoint was in cumulative
-    before that hop — old×old, old→new, new→old.  new×new is excluded per hop:
-    lateral relations within the same frontier are never added.  An empty step
-    filter (= "all") applies no type restriction from the step side.
+  · Per-step pass (inside Step 3's loop): for each hop, collect relations of
+    the step's type between two collections — the current hop's discovered
+    elements and the collection that triggered their discovery (the step input
+    for hop 1; the previous hop's elements for hop 2+). The `:in`/`:out`
+    direction suffix is applied during collection (direction-aware), so only
+    relations reachable in the intended traversal direction are included.
+    Relations between the new hop's elements and earlier-step elements outside
+    the triggering collection are not collected. An empty step filter (= "all")
+    applies no type or direction restriction from the step side.
   A shared seenRelIds set prevents double-counting across passes.
   (See [Preset schema](#preset-schema) for encoding.)
 
@@ -1010,8 +1018,8 @@ Step 6  Partition diagram objects
 - **No view mutation.** The pipeline reads only; it never edits a view. *(Rule 4 in [ai/rules.md](../../ai/rules.md))*
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
-- **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepFrontiers` and then `findRelationsBetween` per-hop identically, applying the new×new-excluded rule at each hop level so inter-hop relations (hop1→hop2, etc.) are included.
-- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all depth hops of new relations found in each hop's pass (where ≥1 endpoint was in cumulative before that hop, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepFrontiers` and then `findRelationsBetween` per-hop identically, direction-aware, using the previous hop's frontier as the iteration collection so inter-hop relations (hop1→hop2, etc.) are included and intra-step cross-relations to earlier-step elements are excluded.
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all depth hops of new relations found in each hop's pass (direction-aware, between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
 - **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
 - **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
 - **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
@@ -1532,11 +1540,14 @@ Step 4  Drop relations, folders, view nodes from the collection.
 
 Step 5  Collected incrementally inside Step 3's loop (and once for the base before the loop).
         Base:     _findRelationsBetween(filteredElements, globalRelTypes, allRelIds)
-        Per step: for each hop frontier in hops:
-                    hopBefore = current cumulative snapshot
+        Per step: prevHopFrontier = stepInput
+                  for each hop frontier in hops:
                     cumulative += hop-frontier
-                    _findRelationsBetween(cumulative, step.relationTypes, allRelIds, hopBefore)
-                    iterateSubset=hopBefore → old×old ✓  old→new ✓  new→old ✓  new×new ✗ (per hop)
+                    _findRelationsBetween(cumulative, step.relationTypes, allRelIds,
+                                         prevHopFrontier, directionAware=true)
+                    iterateSubset=prevHopFrontier, direction-aware:
+                      prevFrontier×hopFrontier ✓  |  earlier×hopFrontier ✗  |  hopN×hopN ✗
+                    prevHopFrontier = hop-frontier
         allRelIds is threaded across calls to prevent double-counting.
         Realises [Steps](#steps) step 5.
 
@@ -1547,6 +1558,8 @@ Step 6  Partition diagramConnections (type === "diagram-model-connection")
 ### Direction-aware traversal
 
 `_expandStep` iterates the relations of each element in the current step input. For each relation, it determines the traversal direction (outgoing = element is source; incoming = element is target) and checks it against the step's `relationTypes` direction suffixes (`:in`, `:out`, or both) per [Preset schema](#preset-schema). Non-matching relations are skipped; matching relations yield the neighbouring element, which is added to the expansion set. Ref: `selection_pipeline.js::_expandStep`, `::_matchesRelationTypeDir`.
+
+**Relation collection is also direction-aware.** After `_expandStepFrontiers` discovers a hop's elements, `_findRelationsBetween` is called to collect the step's relations. It iterates the *previous hop's frontier* (step input for hop 1) — the collection that triggered the new elements' discovery — and applies `_matchesRelationTypeDir` so the `:in`/`:out` suffix is enforced. This means only relations that the traversal itself would have followed are collected. A relation from a Step N container back to a Step (N-2) element — outside the triggering collection and in the wrong direction — is not incidentally collected and cannot produce a spurious extra occurrence when `showInEveryContainer: true`. Steps without a direction suffix (e.g. `association-relationship`) are unaffected: `_matchesRelationTypeDir` with no suffix matches both directions.
 
 ### Internal data structures
 

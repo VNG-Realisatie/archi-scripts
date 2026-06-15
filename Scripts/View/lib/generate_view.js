@@ -527,8 +527,9 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
   const sortedNodes = _sortNodesParentFirst(result.nodes, nodeById);
 
   // existingVosByConcept (conceptId → VisualElement[]) is built once in _generateSingle and passed in.
-  const existingVoByVoId     = new Map();  // VO id → DiagramObject (or VisualElement)
-  const existingRelByConcept = new Map();  // conceptId → VisualRelation
+  const existingVoByVoId      = new Map();  // VO id → DiagramObject (or VisualElement)
+  const existingRelsByConcept = new Map();  // conceptId → VisualRelation[]
+  const _consumedVrIds        = new Set();  // VR ids already matched to a result edge
 
   (objectSet.visualElements || []).forEach(ve => existingVoByVoId.set(ve.id, ve));
   // Diagram objects: only register VOs that currently live on the target view.
@@ -539,17 +540,25 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
     if (dvo && dvo.id && _voIdsOnView.has(String(dvo.id))) existingVoByVoId.set(dvo.id, dvo);
   });
   (objectSet.visualRelations || []).forEach(vr => {
-    if (vr.concept && vr.concept.id) existingRelByConcept.set(vr.concept.id, vr);
+    if (!vr.concept || !vr.concept.id) return;
+    const list = existingRelsByConcept.get(vr.concept.id) || [];
+    list.push(vr);
+    existingRelsByConcept.set(vr.concept.id, list);
   });
 
   // Remove existing self-loop connections for algorithms that don't route them.
   if (!ALGORITHMS[preset.algorithm].supportsSelfLoops) {
-    existingRelByConcept.forEach((vr, conceptId) => {
-      const c = vr.concept;
-      if (c && c.source && c.target && c.source.id === c.target.id) {
-        try { vr.delete(); } catch (e) {}
-        existingRelByConcept.delete(conceptId);
-      }
+    existingRelsByConcept.forEach((vrList, conceptId) => {
+      vrList.forEach(vr => {
+        const c = vr.concept;
+        if (c && c.source && c.target && c.source.id === c.target.id) {
+          try { vr.delete(); } catch (e) {}
+        }
+      });
+      existingRelsByConcept.set(conceptId, vrList.filter(vr => {
+        const c = vr.concept;
+        return !(c && c.source && c.target && c.source.id === c.target.id);
+      }));
     });
   }
 
@@ -669,20 +678,38 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
   console.log(`  Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
   const _processedRelIds = new Set();
+  const _reverseTypes    = new Set(preset.params.reverseRelationTypes || []);
   for (const re of result.edges) {
-    const archiRel = $(`#${re.id}`).first();
+    // re.id may be occurrence-unique ("relId_0_1"); re.conceptId is always the model id.
+    const conceptId = re.conceptId || re.id;
+    const archiRel  = $(`#${conceptId}`).first();
     if (!archiRel || !archiRel.id) continue;
 
-    let connection = existingRelByConcept.get(archiRel.id);
-    if (!connection) {
-      // Always look up visuals via the model relation's own source/target —
-      // re.sourceId/targetId may be in layout direction (swapped) for
-      // reversed-typed relations.
-      const srcVisual = visualIndex[archiRel.source && archiRel.source.id];
-      const tgtVisual = visualIndex[archiRel.target && archiRel.target.id];
-      if (!srcVisual || !tgtVisual) continue;
+    // re.sourceId/targetId are in layout direction; reversed-typed relations swap them.
+    // Un-reverse to obtain the model's source→target order for view.add().
+    const isRev         = _reverseTypes.has(archiRel.type);
+    const modelSrcOccId = isRev ? re.targetId : re.sourceId;
+    const modelTgtOccId = isRev ? re.sourceId : re.targetId;
+    const srcVisual = visualIndex[modelSrcOccId]
+                   || visualIndex[archiRel.source && archiRel.source.id];
+    const tgtVisual = visualIndex[modelTgtOccId]
+                   || visualIndex[archiRel.target && archiRel.target.id];
+    if (!srcVisual || !tgtVisual) continue;
+
+    // Pick an existing visual relation that connects these two specific VOs (handles both
+    // single- and multi-occurrence cases). Consumed VRs are not reused for a second edge.
+    const _vrCandidates = (existingRelsByConcept.get(archiRel.id) || [])
+      .filter(vr => !_consumedVrIds.has(vr.id));
+    let connection = _vrCandidates.find(vr =>
+      vr.source && vr.target &&
+      String(vr.source.id) === String(srcVisual.id) &&
+      String(vr.target.id) === String(tgtVisual.id)
+    ) || _vrCandidates[0] || null;
+    if (connection) {
+      _consumedVrIds.add(connection.id);
+    } else {
       try { connection = view.add(archiRel, srcVisual, tgtVisual); }
-      catch (e) { console.error(`Failed to add relation ${re.id}: ${e}`); continue; }
+      catch (e) { console.error(`Failed to add relation ${conceptId}: ${e}`); continue; }
     }
     _applyEdgeStyle(connection, re, preset);
     _processedRelIds.add(archiRel.id);
@@ -693,10 +720,12 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
   // root container). Without this, switching algorithms leaves stale routing on those
   // connections. Nesting relations are skipped — they have no bendpoints to clear.
   const _nestingRelIds = new Set((parentRels || []).map(b => b.rel && b.rel.id).filter(Boolean));
-  existingRelByConcept.forEach((vr, conceptId) => {
+  existingRelsByConcept.forEach((vrList, conceptId) => {
     if (_processedRelIds.has(conceptId)) return;
     if (_nestingRelIds.has(conceptId)) return;
-    try { vr.deleteAllBendpoints(); } catch (e) {}
+    for (const vr of vrList) {
+      try { vr.deleteAllBendpoints(); } catch (e) {}
+    }
   });
 
   // ── Nesting connections (parent-child boxes): existing → skip, new → add ──
@@ -705,7 +734,7 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
     const { rel, srcOccId, tgtOccId } = binding;
 
     // Containment: skip if already on view (LAYOUT_ONLY preserves existing).
-    if (!existingRelByConcept.has(rel.id)) {
+    if (!existingRelsByConcept.has(rel.id)) {
       const srcV = visualIndex[srcOccId];
       const tgtV = visualIndex[tgtOccId];
       if (srcV && tgtV) {

@@ -263,7 +263,7 @@ function layout(graph) {
     }
     const entry = {
       id:          edge.id,
-      _archiRelId: edge.id,
+      _archiRelId: edge.conceptId || edge.id,
       _relName:    edge.label || "",
       sources:     [edge.source],
       targets:     [edge.target],

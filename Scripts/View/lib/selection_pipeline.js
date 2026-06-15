@@ -466,12 +466,18 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
   const hops   = _expandStepFrontiers(base, step, verbose, cumulative);
   const added  = hops.flat();
   const newRels = [];
-  let cumul = cumulative.slice();
+  let cumul           = cumulative.slice();
+  let prevHopFrontier = base;  // hop 1: step input triggered the frontier
   for (const hopFrontier of hops) {
-    const hopBefore = cumul.slice();
     cumul = cumul.concat(hopFrontier);
-    const hopRels = _findRelationsBetween(cumul, step.relationTypes, seenRelIds, hopBefore);
+    // Collect relations between this hop's discoveries and the collection that triggered
+    // them (prevHopFrontier). Direction-aware so the step's :in/:out suffix is honoured —
+    // matching _expandStepFrontiers' own traversal direction. This prevents incidental
+    // relations from earlier-step elements (outside the triggering collection) being
+    // collected as nesting candidates.
+    const hopRels = _findRelationsBetween(cumul, step.relationTypes, seenRelIds, prevHopFrontier, true);
     hopRels.forEach(r => newRels.push(r));
+    prevHopFrontier = hopFrontier;  // next hop: current frontier becomes the trigger
   }
   return { added, rels: newRels, cumulative: cumul };
 }
@@ -812,7 +818,7 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
  *                                   pre-step cumulative snapshot to exclude new×new relations.
  *                                   Defaults to `elements`.
  */
-function _findRelationsBetween(elements, relTypeFilter, seenRelIds, iterateSubset) {
+function _findRelationsBetween(elements, relTypeFilter, seenRelIds, iterateSubset, directionAware) {
   if (elements.length === 0) return [];
   const elementIds = new Set(elements.map(e => e.id));
   const seen       = seenRelIds || new Set();
@@ -824,11 +830,12 @@ function _findRelationsBetween(elements, relTypeFilter, seenRelIds, iterateSubse
         if (seen.has(rel.id)) return false;
         const srcId = rel.source && rel.source.id;
         const tgtId = rel.target && rel.target.id;
-        return srcId && tgtId
-          && elementIds.has(srcId) && elementIds.has(tgtId)
-          && (relTypeFilter && relTypeFilter.length > 0
-              ? _matchesRelationType(rel.type, relTypeFilter, rel)
-              : true);
+        if (!srcId || !tgtId || !elementIds.has(srcId) || !elementIds.has(tgtId)) return false;
+        if (!relTypeFilter || relTypeFilter.length === 0) return true;
+        const isOutgoing = srcId === element.id;
+        return directionAware
+          ? _matchesRelationTypeDir(rel.type, relTypeFilter, isOutgoing)
+          : _matchesRelationType(rel.type, relTypeFilter, rel);
       }).each(rel => {
         seen.add(rel.id);
         relations.push(rel);
