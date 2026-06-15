@@ -139,15 +139,22 @@ function _applyViewProperties(view, preset) {
   const vp = preset.viewProperties;
   if (!vp) return;
 
+  console.log("\nProperties:");
   (vp.properties || []).forEach(p => {
-    if (p.enabled && p.key && p.key !== PROP_ID) {
-      if (p.value) view.prop(p.key, p.value);
-      else         view.removeProp(p.key);
+    if (!p.key || p.key === PROP_ID) return;
+    if (p.enabled && p.value) {
+      view.prop(p.key, p.value);
+      console.log(`  prop set:     ${p.key} = "${p.value}"`);
+    } else {
+      view.removeProp(p.key);
+      console.log(`  prop removed: ${p.key}`);
     }
   });
 
   if (vp.addObjectId && !view.prop(PROP_ID)) {
-    view.prop(PROP_ID, Common.generateUUID());
+    const id = Common.generateUUID();
+    view.prop(PROP_ID, id);
+    console.log(`  prop set:     ${PROP_ID} = "${id}" (new)`);
   }
 }
 

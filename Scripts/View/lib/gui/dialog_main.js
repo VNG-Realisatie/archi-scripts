@@ -2749,13 +2749,11 @@ function _saveUI(ctx) {
   if (!c.viewProperties) c.viewProperties = JSON.parse(JSON.stringify(DEFAULT_PRESET.viewProperties));
   if (w.vpAddObjectId) c.viewProperties.addObjectId = w.vpAddObjectId.getSelection();
   if (w.vpRows) {
-    c.viewProperties.properties = w.vpRows
-      .filter(row => row.chk.getSelection() || row.cmb.getText().trim() !== "")
-      .map(row => ({
-        key:     row.key,
-        value:   row.cmb.getText().trim(),
-        enabled: row.chk.getSelection(),
-      }));
+    c.viewProperties.properties = w.vpRows.map(row => ({
+      key:     row.key,
+      value:   row.cmb.getText().trim(),
+      enabled: row.chk.getSelection(),
+    }));
   }
 }
 

@@ -16,7 +16,7 @@
     ],
     "innerSpacing": 10,
     "padding": 10,
-    "diagramPadding": 10,
+    "diagramPadding": 20,
     "sortContainers": false,
     "alignWidthSameType": false,
     "alignDebug": true,
@@ -63,7 +63,7 @@
     ]
   },
   "view": {
-    "name": "Fysieke leefomgeving",
+    "name": "Sociaal domein",
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjecten per domein"
   },
   "appearance": {
@@ -140,16 +140,16 @@
     }
   },
   "viewProperties": {
-    "addObjectId": false,
+    "addObjectId": true,
     "properties": [
       {
         "key": "Publiceren",
         "value": "GEMMA Online en redactie",
-        "enabled": false
+        "enabled": true
       }
     ]
   },
-  "_lastTabIndex": 2,
+  "_lastTabIndex": 1,
   "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
   "action": "new_view"
 }
