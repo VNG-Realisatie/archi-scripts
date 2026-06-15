@@ -777,6 +777,103 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
  * self-loops is unreliable across engines, and Archi's default rendering
  * places the line inside the element. Synthesis is the single source of truth.
  */
+// Insert collinear bendpoints so that ELK's computed label position (lx, ly) ends up as
+// the middle bendpoint by index — which is where Archi renders the label for textPosition=1.
+//
+// Strategy: project (lx,ly) onto the nearest path segment, insert it there, then add
+// evenly-spaced collinear points on that same segment (before or after the label point)
+// until floor(totalBps / 2) == labelPointIndex.  All added points lie on existing path
+// segments and do not change the visual routing.
+// srcPort / tgtPort are the physical exit/entry points of the connection on the element
+// boundary (ELK section start/end).  Using these instead of element centres ensures
+// extra collinear points cannot fall inside source or target elements.
+function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort, log) {
+  if (!lx && !ly) return bps;
+
+  // Build path using ports as endpoints (they are on element boundaries, not inside).
+  const pathSrc = srcPort || src;
+  const pathTgt = tgtPort || tgt;
+  const path = [pathSrc, ...bps, pathTgt];
+  const n    = path.length;
+  if (n < 2) return bps;
+
+  // Find the segment nearest to (lx, ly)
+  let seg = 0, minD = Infinity;
+  for (let i = 0; i < n - 1; i++) {
+    const dx = path[i+1].x - path[i].x, dy = path[i+1].y - path[i].y;
+    const len2 = dx*dx + dy*dy;
+    if (len2 < 0.001) continue;
+    const t  = Math.max(0, Math.min(1, ((lx - path[i].x)*dx + (ly - path[i].y)*dy) / len2));
+    const d  = Math.hypot(lx - (path[i].x + t*dx), ly - (path[i].y + t*dy));
+    if (d < minD) { minD = d; seg = i; }
+  }
+
+  const A = path[seg], B = path[seg + 1];
+  // Snap (lx, ly) onto the segment so all interpolated points stay on the segment line.
+  const segDx = B.x - A.x, segDy = B.y - A.y;
+  const segLen2 = segDx*segDx + segDy*segDy;
+  const tSnap = segLen2 > 0.001
+    ? Math.max(0, Math.min(1, ((lx - A.x)*segDx + (ly - A.y)*segDy) / segLen2))
+    : 0;
+  const P = { x: Math.round(A.x + tSnap * segDx), y: Math.round(A.y + tSnap * segDy) };
+  const N = bps.length;
+
+  // Guard: if P snaps to an existing path vertex (tSnap ≈ 0 or 1), inserting P would
+  // create a duplicate zero-length segment.  Instead, check whether the existing vertex
+  // is already the middle bendpoint; if so, return unchanged.
+  const EPS = 0.01;
+  if (tSnap >= 1 - EPS) {
+    // P ≈ B = path[seg+1].  In bps terms that is bps[seg] (if seg < N).
+    if (seg < N && Math.floor(N / 2) === seg) {
+      if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  already mid bp[${seg}]  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+      return bps;
+    }
+    // Not already middle but we can't insert without duplicating — skip.
+    if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  at segment end, skip  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+    return bps;
+  }
+  if (tSnap <= EPS) {
+    // P ≈ A = path[seg].  In bps terms that is bps[seg-1] (if seg > 0).
+    if (seg > 0 && Math.floor(N / 2) === seg - 1) {
+      if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  already mid bp[${seg-1}]  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+      return bps;
+    }
+    if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  at segment start, skip  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+    return bps;
+  }
+
+  // Determine how many collinear points to add before P (b) or after P (a)
+  // so that P lands at floor(finalLength / 2).
+  // Adding b before: finalLength = N+1+b, P index = seg+b → want seg+b = floor((N+1+b)/2)
+  let b = 0, found = false;
+  for (b = 0; b <= 6; b++) {
+    const mid = Math.floor((N + 1 + b) / 2);
+    if (seg + b === mid)   { found = true; break; }
+    if (seg + b > mid)     { b = 0; break; }  // overshot → use 'a' instead
+  }
+  let a = 0;
+  if (!found) {
+    for (a = 0; a <= 6; a++) {
+      if (seg === Math.floor((N + 1 + a) / 2)) break;
+    }
+  }
+
+  // Build evenly-spaced extra points on the segment (between A and P, or P and B).
+  // A is pathSrc or a bendpoint — guaranteed to be outside elements.
+  const befPts = Array.from({ length: b }, (_, i) => ({
+    x: Math.round(A.x + (P.x - A.x) * (i + 1) / (b + 1)),
+    y: Math.round(A.y + (P.y - A.y) * (i + 1) / (b + 1)),
+  }));
+  const aftPts = Array.from({ length: a }, (_, i) => ({
+    x: Math.round(P.x + (B.x - P.x) * (i + 1) / (a + 1)),
+    y: Math.round(P.y + (B.y - P.y) * (i + 1) / (a + 1)),
+  }));
+
+  const result = [...bps.slice(0, seg), ...befPts, P, ...aftPts, ...bps.slice(seg)];
+  if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  snap=(${P.x},${P.y})  dist=${Math.round(minD)}px  added before=${b} after=${a}  bps ${N}→${result.length}  mid@${Math.floor(result.length/2)}`);
+  return result;
+}
+
 function _applyEdgeStyle(connection, re, preset) {
   const lpMap = { Source: 0, Middle: 1, Target: 2, Natural: 1 };
   const lp = lpMap[preset.params.labelPosition];
@@ -809,7 +906,8 @@ function _applyEdgeStyle(connection, re, preset) {
   const tgtCenter = _getAbsCenter(connection.target);
   const relType = connection.concept && connection.concept.type;
   const isReversed = (preset.params.reverseRelationTypes || []).includes(relType);
-  const archiBps = re.bendpoints.map(bp => ({
+  const balancedBps = _insertLabelMidpointBp(re.bendpoints, srcCenter, tgtCenter, re.labelX, re.labelY, re.srcPort, re.tgtPort, _dbg ? console.log : null);
+  const archiBps = balancedBps.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),
     startY: Math.round(bp.y - srcCenter.y),
     endX:   Math.round(bp.x - tgtCenter.x),
@@ -817,8 +915,8 @@ function _applyEdgeStyle(connection, re, preset) {
   }));
 
   if (_dbg) {
-    console.log(`    [edge-bp] ${re.id}  src=(${srcCenter.x},${srcCenter.y}) tgt=(${tgtCenter.x},${tgtCenter.y})  bps=${re.bendpoints.length}${isReversed ? "  reversed" : ""}`);
-    re.bendpoints.forEach((bp, i) => {
+    console.log(`    [edge-bp] ${re.id}  src=(${srcCenter.x},${srcCenter.y}) tgt=(${tgtCenter.x},${tgtCenter.y})  bps=${re.bendpoints.length}→${balancedBps.length}${isReversed ? "  reversed" : ""}${re.labelX ? `  lbl=(${re.labelX},${re.labelY})` : ""}`);
+    balancedBps.forEach((bp, i) => {
       const r = archiBps[i];
       console.log(`      bp[${i}] abs=(${bp.x},${bp.y})  → start=(${r.startX},${r.startY}) end=(${r.endX},${r.endY})`);
     });

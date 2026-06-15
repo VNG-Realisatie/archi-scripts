@@ -229,6 +229,9 @@ function layout(graph) {
 
   // Map GUI params to ELK root options (SPLINES CONSERVATIVE mode inlined in _LAYERED_ROUTING)
   const rootEngineOpts  = _mapParamsScoped(graph.algorithm, graph.options, "root");
+  // edgeLabelSpacing forces layer spacing to 20 so ELK has room to route around labels.
+  if (graph.options.edgeLabelSpacing)
+    rootEngineOpts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(Defs.EDGE_LABEL_LAYER_SPACING);
   const elkEngineParams = Object.fromEntries(
     Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
@@ -430,6 +433,8 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   // compaction options follow the "Container layout" choice, not the root "Algorithm".
   const containerAlgName = graph.options.containerAlgorithm;
   const containerEngineOpts = _mapParamsScoped(containerAlgName || graph.algorithm, graph.options, "container");
+  if (graph.options.edgeLabelSpacing && "elk.layered.spacing.nodeNodeBetweenLayers" in containerEngineOpts)
+    containerEngineOpts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(Defs.EDGE_LABEL_LAYER_SPACING);
   const containerAlgoId  = containerAlgName
     ? ALGORITHMS[containerAlgName].engineAlgorithmId
     : ALGORITHMS[graph.algorithm].engineAlgorithmId;
@@ -787,10 +792,16 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
       });
     }
 
+    // Section start/end (absolute) — the physical exit/entry ports of the connection.
+    // Passed to the writer so extra label-alignment bendpoints stay outside elements.
+    const _sp     = section.startPoint || { x: 0, y: 0 };
+    const _lastSec = sections[sections.length - 1];
+    const _ep     = (_lastSec && _lastSec.endPoint) || { x: 0, y: 0 };
+    const srcPort = { x: Math.round(offsetX + _sp.x), y: Math.round(offsetY + _sp.y) };
+    const tgtPort = { x: Math.round(offsetX + _ep.x), y: Math.round(offsetY + _ep.y) };
+
     if (debugLog) {
-      const sp = section.startPoint || { x: 0, y: 0 };
-      const lastSec = sections[sections.length - 1];
-      const ep = (lastSec && lastSec.endPoint) || { x: 0, y: 0 };
+      const sp = _sp, ep = _ep;
       const liftStr = lifted
         ? `  LIFTED origSrc=${lifted.origSrcId.substring(0, 8)} origTgt=${lifted.origTgtId.substring(0, 8)}`
         : "";
@@ -802,14 +813,22 @@ function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, 
         debugLog(`         ${bps.map((b, i) => `bp[${i}]=(${b.x},${b.y})`).join("  ")}`);
     }
 
-    // Label position
-    const { labelX, labelY } = _computeLabelPoint(section, bps, offsetX, offsetY, labelPosition, edge._relName);
+    // Label position — use ELK's computed result when available (edgeLabelSpacing mode),
+    // otherwise derive from geometry.
+    let { labelX, labelY } = _computeLabelPoint(section, bps, offsetX, offsetY, labelPosition, edge._relName);
+    if (edge.labels && edge.labels[0] && edge.labels[0].x !== undefined) {
+      const lbl = edge.labels[0];
+      labelX = Math.round(offsetX + lbl.x + (lbl.width  || 0) / 2);
+      labelY = Math.round(offsetY + lbl.y + (lbl.height || 0) / 2);
+    }
 
     resultEdges.push({
       id:            originalId,
       sourceId:      lifted ? lifted.origSrcId : edge.sources[0],
       targetId:      lifted ? lifted.origTgtId : edge.targets[0],
       bendpoints:    bps,
+      srcPort,
+      tgtPort,
       labelX,
       labelY,
       isStraight:    edge._isStraight || false,

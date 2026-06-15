@@ -24,7 +24,7 @@
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
-    "layerSpacing": 120,
+    "layerSpacing": 0,
     "elementSpacing": 20,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
@@ -34,7 +34,9 @@
     "maxWidth": 0,
     "aspectRatio": 2,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": true,
+    "labelMaxLineWidth": 300,
+    "edgeLabelSpacing": true
   },
   "filter": {
     "elementTypes": [
@@ -91,7 +93,7 @@
     ]
   },
   "view": {
-    "name": "Generieke Entiteiten Erfgoed",
+    "name": "Inkomsten",
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen"
   },
   "appearance": {
@@ -103,11 +105,11 @@
         "colorRange": "Blues"
       },
       "relation": {
-        "enabled": false,
+        "enabled": true,
         "relTypes": [
           "specialization-relationship"
         ],
-        "property": "",
+        "property": "Toelichting",
         "colorRange": "Greens",
         "lineWidth": 3
       }
@@ -122,7 +124,7 @@
       "enabled": false,
       "relTypes": [],
       "elementType": "",
-      "property": "",
+      "property": "GEMMA type",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
     },
@@ -170,7 +172,7 @@
       }
     ]
   },
-  "_lastTabIndex": 3,
+  "_lastTabIndex": 1,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

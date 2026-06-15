@@ -556,8 +556,9 @@ The Layout tab decides *how* objects are positioned.
 │ │  Circular:  ○ Radial    ○ Twopi    ○ Circo                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Element size and spacing ────────────────────────────────────────────┐ │
-│ │  Width: [140 ▲▼]  Height: [60 ▲▼]  Element spacing: [40 ▲▼]           │ │
-│ │  Layer spacing: [180 ▲▼]                                              │ │
+│ │  Width: [140 ▲▼]  ☑ Width by label length    Max width: [400 ▲▼]     │ │
+│ │  Height: [60 ▲▼]  Element spacing: [40 ▲▼]   Port spacing: [25 ▲▼]   │ │
+│ │  Layer spacing: [180 ▲▼]  ☑ Layer spacing by label width              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Direction ───────────────────────────────────────────────────────────┐ │
 │ │  Flow direction:  [Left → Right  ▼]                                   │ │
@@ -619,11 +620,16 @@ Algorithm radio button tooltips:
 
 #### Element size and spacing
 
-| Parameter | Tooltip |
+| Parameter | Description |
 |---|---|
-| Element width / height | Width / height of all elements in the view (px). |
-| Element spacing | Minimum distance between elements (px). All layout types. |
-| Layer spacing | Distance between hierarchy levels (px). Used in layered, tree, and flow layouts. |
+| Element width | Width of all elements (px). Disabled when "Width by label length" is on. |
+| Width by label length | Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only). |
+| Max width | Maximum label pixel width before wrapping to two lines (px). Active when "Width by label length" is on. |
+| Element height | Height of all elements (px). Disabled when "Width by label length" is on. |
+| Element spacing | Minimum distance between elements (px). |
+| Port spacing | Adds extra element size based on connections on the busiest side. 0 = disabled. |
+| Layer spacing | Distance between hierarchy levels (px). Disabled when "Layer spacing by label width" is on. |
+| Layer spacing by label width | Labels participate as ELK layout constraints; routing expands to prevent overlap. Forces layer spacing to 20 px. Layered only. |
 
 #### Direction
 
@@ -1263,6 +1269,12 @@ LayoutResult {
 ```
 
 Element labels are intrinsic to nodes — the result carries no separate element-label coordinates. The writer places each node's `label` inside the node's bounds at its standard position.
+
+#### Edge label placement (`edgeLabelSpacing` mode)
+
+When `edgeLabelSpacing` is on (ELK Layered only), each edge in the input graph carries a `labels` entry with the label's pixel dimensions. ELK routes the edge to reserve clearance around the label and returns the computed label center in `result_edge.labels[0].{x, y}` (container-relative coordinates). The adapter reads this and stores the absolute center as `labelX / labelY` in the LayoutResult edge, overriding the default geometry-based computation.
+
+Archi places a connection label at the **arc-length midpoint** of the bendpoint path (`textPosition = CENTER`). For L-shaped orthogonal edges where the vertical segment is taller than the horizontal, this midpoint falls in the vertical piece — away from where ELK reserved label space (typically a horizontal, flow-direction segment). The writer compensates by computing the arc distance `D` from source to the ELK label position, then injecting a perpendicular tab of arc-length `|L − 2D|` on a segment away from the label. This shifts the arc-midpoint to the ELK label position without moving the label itself. See `_applyEdgeStyle` in `generate_view.js`.
 
 ### View-size constraints
 

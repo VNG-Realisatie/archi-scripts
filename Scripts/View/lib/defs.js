@@ -602,6 +602,11 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMinHeight:   30,
 });
 
+// Forced layer spacing (px) used by ELK Layered when edgeLabelSpacing is on.
+// Overrides the user's Layer spacing spinner so ELK has enough room between
+// layers to route connections around their labels without manual tuning.
+const EDGE_LABEL_LAYER_SPACING = 20;
+
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
 //   "type"      → both directions
@@ -815,6 +820,7 @@ if (typeof module !== "undefined" && module.exports) {
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS,
+    EDGE_LABEL_LAYER_SPACING,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };

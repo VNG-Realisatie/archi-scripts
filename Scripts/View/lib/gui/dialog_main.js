@@ -1334,21 +1334,28 @@ function _buildLayoutTab(tabFolder, ctx) {
   // ── Element size and spacing ───────────────────────────────────────────────────
   const grpSize = _group(page, "Element size and spacing", 6);
 
-  _addSpinnerRow(grpSize, "Width:",           "spinElementWidth",   140, 10, 1000, 10, w, "Width of all elements (px).");
-  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",   60, 10,  500, 10, w, "Height of all elements (px).");
-  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",  40,  0,  500,  5, w, "Minimum distance between elements (px).");
-  _addSpinnerRow(grpSize, "Layer spacing:",   "spinLayerSpacing",   180,  0, 2000, 20, w, "Distance between hierarchy levels (px). Active in layered, tree, and flow layouts.");
-  _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25, 0, 200, 5, w, "Adds extra element size based on the number of connections on the busiest side.\n" +
-    "Use this to prevent ports from overlapping on highly connected elements.\n" +
-    "0 = disabled.");
-  // Row 3: Size by label width checkbox (4 cols) + Max width spinner (2 cols)
-  _addCheck(grpSize, "Size by label width", "Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only).", 4, w, "chkLabelSizing");
+  // Row 1: Width [2] | Width by label length [2] | Max width [2]
+  _addSpinnerRow(grpSize, "Width:",     "spinElementWidth",     140, 10, 1000, 10, w, "Width of all elements (px).");
+  _addCheck(grpSize, "Width by label length",
+    "Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only).",
+    2, w, "chkLabelSizing");
   _addSpinnerRow(grpSize, "Max width:", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label pixel width before wrapping to two lines (px).");
   if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
-  _addCheck(grpSize, "Optimize spacing for long relation labels",
+
+  // Row 2: Height [2] | Element spacing [2] | Port spacing [2]
+  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",       60, 10,  500, 10, w, "Height of all elements (px).");
+  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",      40,  0,  500,  5, w, "Minimum distance between elements (px).");
+  _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25,  0,  200,  5, w,
+    "Adds extra element size based on the number of connections on the busiest side.\n" +
+    "Use this to prevent ports from overlapping on highly connected elements.\n0 = disabled.");
+
+  // Row 3: Layer spacing [2] | Layer spacing by label width [4]
+  _addSpinnerRow(grpSize, "Layer spacing:", "spinLayerSpacing", 180, 0, 2000, 20, w, "Distance between hierarchy levels (px). Active in layered, tree, and flow layouts.");
+  _addCheck(grpSize, "Layer spacing by label width",
     "When on: labels participate as layout constraints. ELK expands routing paths to prevent overlap.\n" +
     "When off: labels are drawn as overlays; faster but may overlap in dense graphs. Layered only.",
     4, w, "chkEdgeLabelSpacing");
+  if (w.chkEdgeLabelSpacing) w.chkEdgeLabelSpacing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -2832,7 +2839,8 @@ function _updateAlgorithmControls(ctx) {
       }
     }
   }
-  _enable(w.spinLayerSpacing,           active.has("layerSpacing"));
+  const _edgeLblSpacingOn = active.has("edgeLabelSpacing") && w.chkEdgeLabelSpacing && w.chkEdgeLabelSpacing.getSelection();
+  _enable(w.spinLayerSpacing, active.has("layerSpacing") && !_edgeLblSpacingOn);
   _enable(w.spinDiagramPadding,           active.has("diagramPadding"));
   _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
   _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
