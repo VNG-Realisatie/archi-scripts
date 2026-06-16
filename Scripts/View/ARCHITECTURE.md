@@ -1064,12 +1064,14 @@ Valid combinations (all with root = algorithm selected by the user):
 
 ### Role assignment
 
-Every relation in the pipeline's output is assigned exactly one role:
+Every relation in the pipeline's output is assigned an initial role:
 
 - **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes`.
 - **Routed** — otherwise.
 
-The set in the preset is the only authority. Role assignment is total (no relation is left unassigned) and deterministic (same inputs → same roles).
+The set in the preset is the only authority. Initial role assignment is total (no relation is left unassigned) and deterministic (same inputs → same roles).
+
+**Reclassification.** A nesting relation that fails [Multi-parent resolution](#multi-parent-resolution) (multi-parent conflict, `showInEveryContainer=false`) is reclassified to **Routed** at layout time so the model relation remains visible as a connection line. Circular nestings (would form a containment cycle) are dropped entirely and not drawn.
 
 ### Parent / child direction
 
@@ -1081,7 +1083,7 @@ Many nesting relations may name the same element as their child. The preset's `s
 
 | `showInEveryContainer` | Behaviour |
 |---|---|
-| `false` (default) | **First-wins.** The first nesting relation encountered (in pipeline order) assigns the child to its parent; later nesting relations that would assign the same child to a different parent are ignored for parenthood. The relation still exists in the model but does not draw a containment line nor a connection. The writer logs the candidate/applied/skipped split (`Nestings applied: M/N (skipped: X multi-parent, Y cycle)`), which is why the on-view nesting count can be lower than the pipeline's "Total to view → relations → nestings". |
+| `false` (default) | **First-wins.** The first nesting relation encountered (in pipeline order) assigns the child to its parent; later nesting relations that would assign the same child to a different parent are not applied as containment — they are reclassified as connections so the model relation remains visible in the view. The writer logs the candidate/applied split (`Nestings applied: M/N (N drawn as connection, Y circular)`). Circular nestings (would form a containment cycle) are dropped entirely and logged per-relation. |
 
 **Visual rendering rule.** Extra occurrences (`showInEveryContainer: true`) only **render as visible duplicate boxes** when the chosen algorithm draws parent-child containment — i.e. nested-style layouts (Layered, Tree, Pack, Dot, and any other algorithm marked as supporting nesting in the [Algorithm capability matrix](#algorithm-capability-matrix)). For non-nested layouts (Force, SFDP, Twopi, etc.) the writer still receives `showInEveryContainer: true` and produces occurrence ids, but the layout engine collapses them: the element is drawn once. The dialog and pipeline counters compute the `extraOccurrences` count honestly from the nesting structure; for non-nested layouts the count will be non-zero but the user should expect the visible view to show one box per concept.
 

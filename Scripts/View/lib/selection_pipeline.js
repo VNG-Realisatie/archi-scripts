@@ -636,8 +636,8 @@ function _resolveNesting(elements, nestingRels, params) {
   const occurrenceMap = {};
   for (const el of elements) occurrenceMap[el.id] = [el.id];
   const parentRels = [];
-  let skippedCycle = 0;
-  let skippedMultiParent = 0;
+  const skippedCircularNestingRels = [];
+  const notNestedNestingRels = [];
 
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
@@ -657,13 +657,13 @@ function _resolveNesting(elements, nestingRels, params) {
     if (!showInEvery) {
       if (parentMap[childId] === undefined) {
         if (_wouldCycle(parentMap, childId, parentId)) {
-          skippedCycle++;
+          skippedCircularNestingRels.push(rel);
         } else {
           parentMap[childId] = parentId;
           pushBinding(childId);
         }
       } else {
-        skippedMultiParent++;
+        notNestedNestingRels.push(rel);
       }
     } else {
       const occs = occurrenceMap[childId] || [childId];
@@ -695,7 +695,7 @@ function _resolveNesting(elements, nestingRels, params) {
     _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentMap, occurrenceMap, parentRels);
   }
 
-  return { parentMap, occurrenceMap, parentRels, skippedCycle, skippedMultiParent };
+  return { parentMap, occurrenceMap, parentRels, skippedCircularNestingRels, notNestedNestingRels };
 }
 
 /**
@@ -768,7 +768,8 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     if (nestingTypes.has(rel.type)) nestingRels.push(rel);
     else                            connectionRels.push(rel);
   }
-  const { parentMap, occurrenceMap, parentRels } = _resolveNesting(elements, nestingRels, params);
+  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels } = _resolveNesting(elements, nestingRels, params);
+  // skippedCircularNestingRels not needed here: circular rels don't affect view counts
   // Sum of (occurrences - 1) over every element — extra appearances.
   let extraOccurrences = 0;
   for (const elId of Object.keys(occurrenceMap)) {
@@ -802,8 +803,8 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     standalones,
     extraOccurrences,
     relations:        relations.length,
-    nestings:         nestingRels.length,
-    connections:      connectionRels.length,
+    nestings:         parentRels.length,
+    connections:      connectionRels.length + notNestedNestingRels.length,
     diagramObjects:   diagramNodeCount || 0,
   };
 }

@@ -214,6 +214,9 @@ function applyParams(algName, opts, mapping) {
 
 // ── Edge-density node sizing ──────────────────────────────────────────────────
 
+// Minimum connections on a node's busiest side before port-spacing enlargement kicks in.
+const MIN_CONNECTIONS_FOR_ENLARGEMENT = 2;
+
 /**
  * Pre-layout: expand node height (horizontal direction) or width (vertical direction)
  * so that nodes with many connections have enough space for their edge ports.
@@ -242,8 +245,8 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
 
   for (const node of nodes) {
     const maxSide = Math.max(inCount[node.id] || 0, outCount[node.id] || 0);
-    if (maxSide <= 1) continue;
-    const needed = maxSide * spacing;
+    if (maxSide < MIN_CONNECTIONS_FOR_ENLARGEMENT) continue;
+    const needed = (maxSide + 1) * spacing;
     if (isHorizontal) {
       if (needed > node.height) node.height = needed;
     } else {

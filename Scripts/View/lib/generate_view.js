@@ -254,17 +254,17 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     return null;
   }
 
-  // Relation role split. Nesting candidates can be dropped by Archi's one-parent-per-child
-  // rule (when !showInEveryContainer) — that's why the on-view relation count can be lower
-  // than the pipeline's "Total to view" relations.
+  // Relation role split. Nesting relations that could not be applied as containment
+  // (multi-parent conflict) are reclassified as connections in _buildLayoutGraph, so
+  // routedRels.length here reflects the final drawn-connection count.
   const ns = graph._nestingStats;
   console.log(`  Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
   if (ns.candidates > 0) {
-    const extras = [];
-    if (ns.skippedMultiParent > 0) extras.push(`${ns.skippedMultiParent} multi-parent`);
-    if (ns.skippedCycle       > 0) extras.push(`${ns.skippedCycle} cycle`);
-    const skip = extras.length > 0 ? ` (skipped: ${extras.join(", ")})` : "";
-    console.log(`  Nestings applied: ${ns.applied}/${ns.candidates}${skip}`);
+    const notes = [];
+    if (ns.notNestedNestings > 0) notes.push(`${ns.notNestedNestings} drawn as connection`);
+    if (ns.circularNestings  > 0) notes.push(`${ns.circularNestings} circular`);
+    const suffix = notes.length > 0 ? ` (${notes.join(", ")})` : "";
+    console.log(`  Nestings applied: ${ns.applied}/${ns.candidates}${suffix}`);
   }
 
   // Run engine.
@@ -335,16 +335,22 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   // Nesting structure shared with the pipeline's predictViewCounts so dialog/console
   // counts agree with the writer's actual output. Single source of truth.
   const nesting = Pipeline.resolveNesting(elements, nestingRels, params);
-  const parentMap = nesting.parentMap;
+  const parentMap    = nesting.parentMap;
   const occurrenceMap = nesting.occurrenceMap;
-  const parentRels = nesting.parentRels;
-  const nestingSkippedCycle = nesting.skippedCycle;
-  const nestingSkippedMultiParent = nesting.skippedMultiParent;
+  const parentRels   = nesting.parentRels;
+  const skippedCircularNestingRels = nesting.skippedCircularNestingRels || [];
+  const notNestedNestingRels       = nesting.notNestedNestingRels       || [];
 
-  // Per-cycle log: surface skipped-cycle rels so users can investigate problematic relations.
-  if (nestingSkippedCycle > 0) {
-    console.log(`  Nesting skipped: ${nestingSkippedCycle} relation(s) would create a cycle`);
+  // Log each circular nesting so users can investigate the problematic relations.
+  for (const r of skippedCircularNestingRels) {
+    const src = (r.source && r.source.name) || (r.source && r.source.id) || "?";
+    const tgt = (r.target && r.target.name) || (r.target && r.target.id) || "?";
+    console.log(`  Circular nesting skipped: "${src}" → "${tgt}" (${r.type})`);
   }
+
+  // Nesting relations not applied as containment (multi-parent) are drawn as
+  // connections so the model relation stays visible in the view.
+  for (const r of notNestedNestingRels) routedRels.push(r);
 
   // Nodes from elements.
   const nodes = [];
@@ -465,11 +471,11 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     _parentMap:     parentMap,
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,
-    _nestingStats:  {
+    _nestingStats: {
       candidates:        nestingRels.length,
       applied:           parentRels.length,
-      skippedCycle:      nestingSkippedCycle,
-      skippedMultiParent: nestingSkippedMultiParent,
+      circularNestings:  skippedCircularNestingRels.length,
+      notNestedNestings: notNestedNestingRels.length,
     },
   };
 }
