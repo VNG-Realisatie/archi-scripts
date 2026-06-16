@@ -45,6 +45,11 @@ const DEFAULT_ELK_PARAMS = {
   "elk.layered.cycleBreaking.strategy":           "GREEDY",
   "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
   "elk.layered.edgeRouting.selfLoopOrdering":     "SEQUENCED",
+  // "elk.layered.nodePlacement.strategy":           "NETWORK_SIMPLEX",
+  "elk.layered.nodePlacement.strategy":           "BRANDES_KOEPF",  // alternative: BRANDES_KOEPF (default) — optimised for minimal edge length; NETWORK_SIMPLEX is faster but can produce longer edges
+  "elk.layered.crossingMinimization.strategy":    "LAYER_SWEEPING",  // alternative: LAYER_SWEEPING (default) — iterative layer-by-layer sweeps; INTERACTIVE is a single pass of the same algorithm, faster but less effective
+  // "elk.layered.crossingMinimization.strategy":    "INTERACTIVE",
+  "elk.layered.considerModelOrder.strategy":      "NONE",
   "elk.layered.feedbackEdges":                    "true",
   "elk.spacing.nodeSelfLoop":                     40,
   // elk.spacing.edgeEdge, elk.spacing.edgeNode, elk.layered.spacing.edgeEdgeBetweenLayers,
@@ -82,7 +87,8 @@ const _LAYERED_CONN_ELEM_SPACING = (v) => ({
 });
 const _EDGE_LABEL_SPACING = (v) => v ? {
   "elk.edgeLabels.inline":                               "false",
-  "elk.layered.edgeLabels.centerLabelPlacementStrategy": "MEDIAN_LAYER",
+  // "elk.layered.edgeLabels.centerLabelPlacementStrategy": "MEDIAN_LAYER",
+  "elk.layered.edgeLabels.centerLabelPlacementStrategy": "CENTER",
 } : {
   "elk.edgeLabels.inline": "true",
 };

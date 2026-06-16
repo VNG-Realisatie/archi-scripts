@@ -2,7 +2,7 @@
   "name": "Bedrijfsobjecten/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Pack",
   "params": {
-    "direction": "Left",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -16,25 +16,27 @@
     ],
     "innerSpacing": 10,
     "padding": 20,
-    "diagramPadding": 10,
+    "diagramPadding": 20,
     "sortContainers": true,
-    "alignWidthSameType": true,
+    "alignWidthSameType": false,
     "alignDebug": false,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Crossing containers",
-    "layerSpacing": 120,
+    "layerSpacing": 180,
     "elementSpacing": 10,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 25,
-    "elementWidth": 300,
+    "nodeSizeByEdgeCount": 20,
+    "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "edgeLabelSpacing": true
   },
   "filter": {
     "elementTypes": [
@@ -56,13 +58,17 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": []
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
       }
     ]
   },
   "view": {
-    "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "/_Generated"
+    "name": "GEMMA domeinen",
+    "folder": "/_Generated/Domeinen"
   },
   "appearance": {
     "styleByProperty": {
@@ -90,18 +96,18 @@
       "enabled": false,
       "relTypes": [],
       "elementType": "",
-      "property": "",
+      "property": "GEMMA type",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
     },
     "nestingLevel": {
-      "fontEnabled": false,
-      "rootFontSize": 14,
+      "fontEnabled": true,
+      "rootFontSize": 12,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
-      "colorEnabled": false,
+      "colorEnabled": true,
       "rootColor": "#2B5796",
-      "lightenPerLevel": 15
+      "lightenPerLevel": 35
     },
     "highlightRepeated": {
       "enabled": false,
@@ -109,7 +115,17 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 1,
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      }
+    ]
+  },
+  "_lastTabIndex": 0,
   "description": "Preset met startconfiguratie\n",
   "action": "new_view"
 }
