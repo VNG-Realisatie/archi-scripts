@@ -1,0 +1,115 @@
+{
+  "name": "Driver/Beleidskader/is grondslag voor diensten en processen",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [],
+    "nestingRelationTypes": [
+      "association-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
+    "nodeSizeByEdgeCount": 25,
+    "elementWidth": 180,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": true,
+    "labelMaxLineWidth": 160,
+    "edgeLabelSpacing": false
+  },
+  "filter": {
+    "elementTypes": [],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "depth": 1,
+        "elementTypes": [],
+        "relationTypes": [
+          "association-relationship"
+        ],
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "view": {
+    "name": "Begraafplaatsen en crematoria",
+    "folder": "/_Generated"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "GEMMA type",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "_lastTabIndex": 1,
+  "description": "Selecteer beleidskaders en genereer geneste view",
+  "action": "new_view"
+}

@@ -21,7 +21,7 @@
     "alignWidthSameType": false,
     "alignDebug": true,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
+    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 0,
@@ -34,8 +34,8 @@
     "maxWidth": 0,
     "aspectRatio": 2,
     "viewSizeMode": "none",
-    "labelSizing": true,
-    "labelMaxLineWidth": 300,
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
     "edgeLabelSpacing": true
   },
   "filter": {
@@ -93,7 +93,7 @@
     ]
   },
   "view": {
-    "name": "Inkomsten",
+    "name": "Archief",
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen"
   },
   "appearance": {
@@ -109,7 +109,7 @@
         "relTypes": [
           "specialization-relationship"
         ],
-        "property": "Toelichting",
+        "property": "GGM-uml-type",
         "colorRange": "Greens",
         "lineWidth": 3
       }
@@ -138,7 +138,7 @@
       "lightenPerLevel": 15
     },
     "highlightRepeated": {
-      "enabled": false,
+      "enabled": true,
       "colorRange": "Pastel1"
     }
   },
@@ -172,7 +172,7 @@
       }
     ]
   },
-  "_lastTabIndex": 1,
+  "_lastTabIndex": 2,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }
