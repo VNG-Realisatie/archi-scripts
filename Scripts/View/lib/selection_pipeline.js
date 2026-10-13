@@ -597,11 +597,22 @@ function _computeSubGroupingIds(cumulative) {
   return subGroupingIds;
 }
 
-/** Walk parentMap upward from parentId; return true if childId would form a cycle. */
+/** Strip a synthetic occurrence suffix (`${id}_occ_N`) to recover the element id. */
+function _baseId(id) {
+  const i = id.indexOf("_occ_");
+  return i < 0 ? id : id.substring(0, i);
+}
+
+/**
+ * Walk parentMap upward from parentId; return true if childId would form a cycle.
+ * Compares element ids, not occurrence ids: a fresh `X_occ_N` under an ancestor
+ * that is (an occurrence of) X is still a cycle.
+ */
 function _wouldCycle(map, childId, parentId) {
+  const childBase = _baseId(childId);
   let cur = parentId;
   while (cur) {
-    if (cur === childId) return true;
+    if (_baseId(cur) === childBase) return true;
     cur = map[cur];
   }
   return false;
@@ -643,6 +654,8 @@ function _resolveNesting(elements, nestingRels, params) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
     if (!srcId || !tgtId) continue;
+    // Self-loops (oortjes) can never be containment: draw them as a connection.
+    if (srcId === tgtId) { notNestedNestingRels.push(rel); continue; }
     const isReversed = reverseTypes.has(rel.type);
     const [parentId, childId] = isReversed ? [tgtId, srcId] : [srcId, tgtId];
 
@@ -709,7 +722,7 @@ function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentM
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId) continue;
+    if (!srcId || !tgtId || srcId === tgtId) continue;
     const isReversed = reverseTypes.has(rel.type);
     const [parentId, childId] = isReversed ? [tgtId, srcId] : [srcId, tgtId];
     if (!childRelsByParent[parentId]) childRelsByParent[parentId] = [];
@@ -782,12 +795,8 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
   const containerIds = new Set();
   for (const childId of Object.keys(parentMap)) containerIds.add(parentMap[childId]);
   // `parentMap` keys: ids that have a parent. Normalise occurrence ids back to base.
-  const stripOcc = id => {
-    const i = id.indexOf("_occ_");
-    return i < 0 ? id : id.substring(0, i);
-  };
   const childIds = new Set();
-  for (const k of Object.keys(parentMap)) childIds.add(stripOcc(k));
+  for (const k of Object.keys(parentMap)) childIds.add(_baseId(k));
 
   let nestedElements = 0, standalones = 0;
   for (const el of elements) {
