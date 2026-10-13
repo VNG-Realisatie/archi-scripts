@@ -74,7 +74,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
-      "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
+      "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
       "edgeLabelSpacing",
     ],
     supportedOptions: {
@@ -98,7 +98,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "labelPosition", "reverseRelationTypes",
-      "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
+      "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
@@ -192,7 +192,7 @@ const ALGORITHMS = Object.freeze({
       ...ALWAYS_ACTIVE_PARAMS,
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
       "nestingRelationTypes", "sortContainers",
-      "layerSpacing", "elementSpacing", "connectionSpacing", "nodeSizeByEdgeCount",
+      "layerSpacing", "elementSpacing", "connectionSpacing",
     ],
     supportedOptions: {
       direction:     DIRECTION_VALUES,
@@ -213,7 +213,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "layerSpacing", "elementSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount", "reverseRelationTypes",
+      "layerSpacing", "elementSpacing", "connectionElementSpacing", "connectionSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
       direction:     DIRECTION_VALUES,
@@ -536,9 +536,8 @@ const DEFAULT_PRESET = Object.freeze({
     connectionsMode:       "Between containers",   // "Between containers" | "Crossing containers"
     layerSpacing:          180,
     elementSpacing:        40,
-    connectionSpacing:        20,
+    connectionSpacing:        25,              // also the port spacing on elements (ELK: portPort)
     connectionElementSpacing: 40,
-    nodeSizeByEdgeCount:      25,
     elementWidth:          140,
     elementHeight:         60,
     maxWidth:              0,

@@ -268,7 +268,6 @@ Preset {
 
     innerSpacing, padding, layerSpacing,    // Level spacing,
     elementSpacing,                         // Element spacing
-    nodeSizeByEdgeCount,                    // inflate hub nodes by edge count (0 = off)
     elementWidth, elementHeight : numbers   // element size
 
     maxWidth, maxHeight, aspectRatio        // View size constraints
@@ -560,7 +559,7 @@ The Layout tab decides *how* objects are positioned.
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Element size and spacing ────────────────────────────────────────────┐ │
 │ │  Width: [140 ▲▼]  ☑ Width by label length    Max width: [400 ▲▼]     │ │
-│ │  Height: [60 ▲▼]  Element spacing: [40 ▲▼]   Port spacing: [25 ▲▼]   │ │
+│ │  Height: [60 ▲▼]  Element spacing: [40 ▲▼]                           │ │
 │ │  Layer spacing: [180 ▲▼]  ☑ Layer spacing by label width              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Direction ───────────────────────────────────────────────────────────┐ │
@@ -571,7 +570,7 @@ The Layout tab decides *how* objects are positioned.
 │ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
 │ │  Routing: [Orthogonal ▼]  Label: [Middle ▼]  Cycle breaking: [Greedy ▼] │
 │ │  Layer ranking: [Balanced ▼]                                          │ │
-│ │  Connection spacing: [20 ▲▼]   Connection-element spacing: [40 ▲▼]   │ │
+│ │  Connection spacing: [25 ▲▼]   Connection-element spacing: [40 ▲▼]   │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting     ─────────────────────────────────────────────────────────┐ │
 │ │  Draw these relation types as containers                              │ │
@@ -630,7 +629,6 @@ Algorithm radio button tooltips:
 | Max width | Maximum label pixel width before wrapping to two lines (px). Active when "Width by label length" is on. |
 | Element height | Height of all elements (px). Disabled when "Width by label length" is on. |
 | Element spacing | Minimum distance between elements (px). |
-| Port spacing | Adds extra element size based on connections on the busiest side. 0 = disabled. |
 | Layer spacing | Distance between hierarchy levels (px). Disabled when "Layer spacing by label width" is on. |
 | Layer spacing by label width | Labels participate as ELK layout constraints; routing expands to prevent overlap. Forces layer spacing to 20 px. Layered only. |
 
@@ -654,7 +652,7 @@ Parameters in this group are active only for algorithms that support them; unsup
 | Label | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
 | Cycle breaking | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
 | Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
-| Connection spacing | Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability. |
+| Connection spacing | Distance between parallel connections **and** between the connection points (ports) on one side of an element (px). One value for both, so parallel connections run straight into the element. Elements grow to fit their connections; 0 = no growth. ELK Layered: `spacing.edgeEdge`/`edgeEdgeBetweenLayers` + `spacing.portPort`/`portsSurrounding`, ports centred (`portAlignment CENTER`), leaves sized by ELK (`nodeSize.constraints [PORTS, MINIMUM_SIZE]`). |
 | Connection-element spacing | Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements. |
 
 #### Nesting
@@ -1740,7 +1738,7 @@ The block has four sub-objects, one per engine plus a shared `layout` section:
 | `ELK` | `elk.js` — spread into root `layoutOptions` AND every node's `layoutOptions` (target:NODES options require per-node placement) | Full ELK option string, e.g. `"elk.spacing.edgeEdge": 10` |
 | `Dagre` | `dagre.js` — `Object.assign` into `g.setGraph()` after `PARAM_MAPPING`, values cast to numbers | Dagre graph property, e.g. `edgesep: 10` |
 | `Graphviz` | `graphviz.js` — overrides specific DOT attributes (currently `esep`) | DOT attribute value, e.g. `esep: "+8"` |
-| `layout` | `generate_view.js` — pre-layout, engine-agnostic (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`) | `nodeSizeByEdgeCount`; `labelChar*` / `labelLine*` / `labelH/VPadding` / `labelMin*` tuning keys |
+| `layout` | `generate_view.js` — pre-layout, engine-agnostic (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`) | `labelChar*` / `labelLine*` / `labelH/VPadding` / `labelMin*` tuning keys |
 
 **ELK option resolution order within `engineParams.ELK`** (last writer wins):
 
@@ -1750,9 +1748,9 @@ The block has four sub-objects, one per engine plus a shared `layout` section:
 | 2 | `PARAM_MAPPING` GUI params → `rootEngineOpts` |
 | 3 (highest) | `engineParams.ELK` — spread last into `layoutOptions` and each node's `layoutOptions` |
 
-**`layout.nodeSizeByEdgeCount`** (default 0 = off): when > 0, `expandNodeSizesForEdgeDensity` inflates `node.height` (LR/RL direction) or `node.width` (TB/BT) to `maxSideEdgeCount × value` so hub nodes have space for their ports. Applies to all engines before the graph is handed off.
+**Edge-density sizing** (`params.connectionSpacing`, 0 = off): `expandNodeSizesForEdgeDensity` inflates `node.height` (LR/RL direction) or `node.width` (TB/BT) to `(maxSideEdgeCount + 1) × value` so hub nodes have space for their ports. Applies to all engines before the graph is handed off; ELK Layered additionally sizes leaves to their actual ports (see Connection spacing).
 
-**`layout` label-sizing keys** (driven by `params.labelSizing` GUI checkbox, active for Pack and Grid only): `sizeLabelBasedNodes` estimates each node's label pixel width (`label.length × labelCharWidth`), then sets `node.width`/`height` accordingly. `labelMaxLineWidth` (default 400) is a GUI-exposed `params` key (spinner "Label width:", active for Pack and Grid). Labels narrower than `labelMaxLineWidth − 2×labelHPadding` fit on one line; wider labels find the space nearest the midpoint and wrap to two lines (double height). Minimum sizes are clamped by `labelMinWidth` / `labelMinHeight`. Runs after `expandNodeSizesForEdgeDensity` so edge-density expansion still wins if it produces a larger value.
+**`layout` label-sizing keys** (driven by `params.labelSizing` GUI checkbox, active for Pack and Grid only): `sizeLabelBasedNodes` estimates each node's label pixel width (`label.length × labelCharWidth`), then sets `node.width`/`height` accordingly. `labelMaxLineWidth` (default 400) is a GUI-exposed `params` key (spinner "Label width:", active for Pack and Grid). Labels narrower than `labelMaxLineWidth − 2×labelHPadding` fit on one line; wider labels find the space nearest the midpoint and wrap to two lines (double height). Minimum sizes are clamped by `labelMinWidth` / `labelMinHeight`. Runs before `expandNodeSizesForEdgeDensity` so edge-density expansion still wins if it produces a larger value.
 
 **Pack `aspectRatio` fix**: Pack's `aspectRatio` GUI param was previously visible in the UI but missing from `elk.js` PARAM_MAPPING — it was never sent to ELK. Fixed by adding the standard `aspectRatio: (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {}` mapping to Pack's root PARAM_MAPPING block.
 

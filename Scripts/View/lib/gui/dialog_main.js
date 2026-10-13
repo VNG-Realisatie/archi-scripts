@@ -1350,12 +1350,10 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addSpinnerRow(grpSize, "Max width:", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label pixel width before wrapping to two lines (px).");
   if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  // Row 2: Height [2] | Element spacing [2] | Port spacing [2]
-  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",       60, 10,  500, 10, w, "Height of all elements (px).");
-  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",      40,  0,  500,  5, w, "Minimum distance between elements (px).");
-  _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25,  0,  200,  5, w,
-    "Adds extra element size based on the number of connections on the busiest side.\n" +
-    "Use this to prevent ports from overlapping on highly connected elements.\n0 = disabled.");
+  // Row 2: Height [2] | Element spacing [2] | (empty) [2]
+  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",  60, 10, 500, 10, w, "Height of all elements (px).");
+  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing", 40,  0, 500,  5, w, "Minimum distance between elements (px).");
+  new LabelWidget(grpSize, SWT.NONE); new LabelWidget(grpSize, SWT.NONE);
 
   // Row 3: Layer spacing [2] | Layer spacing by label width [4]
   _addSpinnerRow(grpSize, "Layer spacing:", "spinLayerSpacing", 180, 0, 2000, 20, w, "Distance between hierarchy levels (px). Active in layered, tree, and flow layouts.");
@@ -1408,7 +1406,9 @@ function _buildLayoutTab(tabFolder, ctx) {
   const spacingComp = new CompositeWidget(routComp, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(8, 3).applyTo(spacingComp);
   GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(spacingComp);
-  _addSpinnerRow(spacingComp, "Connection spacing:",         "spinConnectionSpacing",        20, 0, 200, 5, w, "Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability.");
+  _addSpinnerRow(spacingComp, "Connection spacing:",         "spinConnectionSpacing",        25, 0, 200, 5, w,
+    "Distance between parallel connections, and between the connection points on one side of an element (px).\n" +
+    "Elements grow to fit their connections. One value for both keeps parallel connections straight into the element.\n0 = no element growth.");
   _addSpinnerRow(spacingComp, "Connection-element spacing:", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements.");
 
   // ── Nesting structure ─────────────────────────────────────────────────────────
@@ -2456,7 +2456,6 @@ function _syncToUI(ctx) {
   _spinSet(w.spinDiagramPadding,           p.diagramPadding           !== undefined ? p.diagramPadding           : DP.diagramPadding);
   _spinSet(w.spinConnectionSpacing,        p.connectionSpacing        !== undefined ? p.connectionSpacing        : DP.connectionSpacing);
   _spinSet(w.spinConnectionElementSpacing, p.connectionElementSpacing !== undefined ? p.connectionElementSpacing : DP.connectionElementSpacing);
-  _spinSet(w.spinNodeSizeByEdgeCount,  p.nodeSizeByEdgeCount  !== undefined ? p.nodeSizeByEdgeCount  : DP.nodeSizeByEdgeCount);
   _spinSet(w.spinLabelMaxLineWidth,    p.labelMaxLineWidth    !== undefined ? p.labelMaxLineWidth    : DP.labelMaxLineWidth);
   _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
 
@@ -2677,7 +2676,6 @@ function _saveUI(ctx) {
   if (w.spinDiagramPadding)           c.params.diagramPadding           = w.spinDiagramPadding.getSelection();
   if (w.spinConnectionSpacing)        c.params.connectionSpacing        = w.spinConnectionSpacing.getSelection();
   if (w.spinConnectionElementSpacing) c.params.connectionElementSpacing = w.spinConnectionElementSpacing.getSelection();
-  if (w.spinNodeSizeByEdgeCount)  c.params.nodeSizeByEdgeCount  = w.spinNodeSizeByEdgeCount.getSelection();
   if (w.spinLabelMaxLineWidth)    c.params.labelMaxLineWidth    = w.spinLabelMaxLineWidth.getSelection();
   if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
@@ -2852,7 +2850,6 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinDiagramPadding,           active.has("diagramPadding"));
   _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
   _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
-  _enable(w.spinNodeSizeByEdgeCount,    active.has("nodeSizeByEdgeCount"));
   _enable(w.spinLabelMaxLineWidth,      _labelSizingOn);
 
   // View size radios: enable/disable each option based on algorithm support.

@@ -26,9 +26,8 @@
     "connectionsMode": "Crossing containers",
     "layerSpacing": 0,
     "elementSpacing": 20,
-    "connectionSpacing": 20,
+    "connectionSpacing": 25,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 25,
     "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
@@ -147,20 +146,13 @@
       "elk.spacing.nodeSelfLoop": 20,
       "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
       "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
-      "elk.spacing.edgeEdge": 15,
-      "elk.spacing.edgeNode": 15,
-      "elk.layered.spacing.edgeNodeBetweenLayers": 40,
       "org.eclipse.elk.portConstraints": "FIXED_SIDE"
     },
-    "Dagre": {
-      "edgesep": 30
-    },
+    "Dagre": {},
     "Graphviz": {
       "esep": "+8"
     },
-    "layout": {
-      "nodeSizeByEdgeCount": 25
-    }
+    "layout": {}
   },
   "viewProperties": {
     "addObjectId": true,

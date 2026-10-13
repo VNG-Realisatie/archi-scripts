@@ -561,7 +561,7 @@ Preset {
     containerAlgorithm   : "Layered"|"Grid"|"Pack"   // inside containers
     connectionsMode      : "Between containers"|"Crossing containers"
     innerSpacing, padding, layerSpacing, elementSpacing,
-    elementWidth, elementHeight, nodeSizeByEdgeCount : number
+    elementWidth, elementHeight : number
     maxWidth, maxHeight, aspectRatio : number        // 0 = unconstrained
     viewSizeMode : "none"|"maxWidth"|"maxHeight"|"aspectRatio"
     sortContainers, alignWidthSameType, snapColumnsToGrid,

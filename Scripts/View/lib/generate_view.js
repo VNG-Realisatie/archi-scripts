@@ -457,8 +457,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   }
 
   const engineParams = preset.engineParams || {};
-  expandNodeSizesForEdgeDensity(nodes, edges, params);
   sizeLabelBasedNodes(nodes, params, engineParams);
+  expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
 
   return {
     algorithm:      preset.algorithm,

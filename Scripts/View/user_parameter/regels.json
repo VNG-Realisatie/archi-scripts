@@ -20,14 +20,14 @@
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 15,
-    "nodeSizeByEdgeCount": 0,
     "elementWidth": 350,
     "elementHeight": 25,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": false,
+    "connectionSpacing": 20
   },
   "filter": {
     "elementTypes": [],

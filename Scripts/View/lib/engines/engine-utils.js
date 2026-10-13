@@ -221,15 +221,15 @@ const MIN_CONNECTIONS_FOR_ENLARGEMENT = 2;
  * Pre-layout: expand node height (horizontal direction) or width (vertical direction)
  * so that nodes with many connections have enough space for their edge ports.
  *
- * Controlled by params.nodeSizeByEdgeCount (px per edge on busiest side).
+ * Controlled by params.connectionSpacing (px per edge on busiest side — the port spacing).
  * 0 or absent = disabled. Only expands — never shrinks below the current size.
  *
  * @param {Object[]} nodes   LayoutGraph nodes (mutated in place)
  * @param {Object[]} edges   LayoutGraph edges
- * @param {Object}   params  preset.params (needs .direction, .nodeSizeByEdgeCount)
+ * @param {Object}   params  preset.params (needs .direction, .connectionSpacing)
  */
 function expandNodeSizesForEdgeDensity(nodes, edges, params) {
-  const spacing = params && params.nodeSizeByEdgeCount;
+  const spacing = params && params.connectionSpacing;
   if (!spacing || spacing <= 0) return;
 
   const dir = (params && params.direction) || "Right";

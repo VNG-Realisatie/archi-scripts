@@ -25,14 +25,14 @@
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
-    "nodeSizeByEdgeCount": 25,
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
     "maxHeight": 1000,
     "aspectRatio": 1.33,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": false,
+    "connectionSpacing": 25
   },
   "filter": {
     "elementTypes": [
