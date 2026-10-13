@@ -10,6 +10,8 @@ Rules apply in layers, narrowest wins on conflict:
 | Repo | `ai/rules.md` (this file) | All scripts in this repo |
 | Skill | `ai/jarchi-scripting/SKILL.md` | jArchi scripting patterns and platform rules |
 | Skill | `ai/elkjs/SKILL.md` | ELK graph layout options, algorithms, JSON format |
+| Skill | `ai/dagre/SKILL.md` | Dagre graph layout: graphlib API, layout options, output format |
+| Skill | `ai/graphviz/SKILL.md` | Graphviz layout: DOT language, attributes, JSON output |
 | Subsystem | `Scripts/<subfolder>/CLAUDE.md` | Rules for one subfolder only |
 
 Tool-specific files (`.claude/rules.md`, `.cursor/rules.md`, `.github/copilot/instructions.md`) are reference-only adapters — they point here and carry no rules of their own.
@@ -50,7 +52,7 @@ When adding a new rule or skill:
 ## Rule priority
 
 1. `ai/jarchi-scripting/SKILL.md` — jArchi patterns, coding standards, SWT/GTK rules (highest repo authority)
-2. `ai/elkjs/SKILL.md` — ELK layout rules when working on graph layout code
+2. `ai/elkjs/SKILL.md`, `ai/dagre/SKILL.md`, `ai/graphviz/SKILL.md` — engine layout rules when working on that engine's layout code
 3. `Scripts/<subfolder>/CLAUDE.md` — subsystem-specific rules when editing that subfolder
 4. Global tool defaults (lowest priority)
 
