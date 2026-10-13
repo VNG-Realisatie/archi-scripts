@@ -351,7 +351,7 @@ function layout(graph) {
 
   // ELK Radial requires a spanning tree (no cycles). Convert here so c2c terminates.
   const processedEdgeList = graph.algorithm === "Radial" ? _spanningTree(nodeMap, edgeList) : edgeList;
-  const { elkGraph, liftedEdgesMap } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
+  const { elkGraph, edgeMeta } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
   const layouted = elk.layout(elkGraph);
   log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}`);
 
@@ -411,7 +411,7 @@ function layout(graph) {
 
   // Collect edges
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
-  _collectEdgeResults(layouted, liftedEdgesMap, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, debugLog);
+  _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, debugLog);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   resultEdges.push(...selfLoops.map(selfLoopResult));
@@ -430,7 +430,6 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   _attachChildren(nodeMap, parentMap);
   _sortNodeChildren(nodeMap, graph.sortContainers);
   const rootChildren = _collectRootChildren(nodeMap, parentMap, graph.sortContainers);
-  const rootEdges    = _classifyEdges(edgeList, parentMap, nodeMap);
 
   // Container nodes: let ELK auto-size from children + padding.
   // containerAlgorithm param selects the ELK algorithm used inside each container.
@@ -493,10 +492,15 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     }
   }
 
-  const { liftedRootEdges, liftedEdgesMap } = _liftCrossHierarchyEdges(rootEdges, parentMap, hierarchyMode === "INCLUDE_CHILDREN");
-  const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: liftedRootEdges };
+  // Hierarchical ports need an edge-routing algorithm on both sides of every container boundary;
+  // ELK layered honours the port positions the inner layout chose. Other algorithms: lift instead.
+  const edgeMode = hierarchyMode === "INCLUDE_CHILDREN" ? "include"
+    : (ALGORITHMS[graph.algorithm].engineAlgorithmId === "layered" && containerAlgoId === "layered") ? "ports"
+    : "lift";
+  const { rootEdges, edgeMeta } = _placeEdges(edgeList, parentMap, nodeMap, edgeMode);
+  const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: rootEdges };
   if (graph.options.maxWidth > 0) elkGraph.width = graph.options.maxWidth;
-  return { elkGraph, liftedEdgesMap };
+  return { elkGraph, edgeMeta };
 }
 
 function _spanningTree(nodeMap, edgeList) {
@@ -577,50 +581,91 @@ function _collectRootChildren(nodeMap, parentMap, sortContainers) {
   return ctrs.concat(leaves);
 }
 
-function _classifyEdges(edgeList, parentMap, nodeMap) {
-  const root = [];
+/**
+ * Place every edge in the edges[] of its lowest common ancestor container (LCA) — ELK's
+ * default edge coordinates (elk.json.edgeCoords CONTAINER) are relative to that container,
+ * so _collectEdgeResults can offset by the container the edge is stored in.
+ *
+ * Edges whose endpoints are not both direct children of the LCA cross container boundaries:
+ *   include  INCLUDE_CHILDREN — keep the real endpoints; ELK routes the full path.
+ *   ports    SEPARATE_CHILDREN + layered — split into segments joined by a hierarchical port
+ *            on each crossed container. The inner segment makes the inner layout reserve port
+ *            space on the element and route up to the container border; the outer layout
+ *            connects to the port position the inner layout chose.
+ *   lift     SEPARATE_CHILDREN otherwise — replace each nested endpoint by its ancestor that
+ *            is a direct child of the LCA; ELK routes between opaque container boxes.
+ *
+ * Edges between a container and one of its own descendants cannot be laid out and are dropped
+ * (the writer draws them unrouted).
+ *
+ * @returns {{ rootEdges: Object[], edgeMeta: Object }}  edgeMeta per ELK edge id:
+ *   lifted  { origSrcId, origTgtId }
+ *   segment { segOf, segIdx, segCount, origSrcId, origTgtId }
+ */
+function _placeEdges(edgeList, parentMap, nodeMap, mode) {
+  const ROOT = "root";
+  const rootEdges = [];
+  const edgeMeta  = {};
+  for (const node of Object.values(nodeMap)) { node.edges = []; delete node.ports; }
+  const addTo = (ctrId, e) => (ctrId === ROOT ? rootEdges : nodeMap[ctrId].edges).push(e);
+  // Ancestor chain of a node, nearest first, ending in ROOT.
+  const ancestors = id => {
+    const out = []; let p = parentMap[id];
+    while (p !== undefined) { out.push(p); p = parentMap[p]; }
+    out.push(ROOT);
+    return out;
+  };
+
   for (const edge of edgeList) {
-    const sp = parentMap[edge.sources[0]];
-    const tp = parentMap[edge.targets[0]];
-    if (sp !== undefined && tp !== undefined && sp === tp) {
-      const parent = nodeMap[sp];
-      if (parent) { parent.edges = parent.edges || []; parent.edges.push(edge); continue; }
-    }
-    root.push(edge);
-  }
-  return root;
-}
-
-
-function _liftCrossHierarchyEdges(rootEdges, parentMap, includeChildren) {
-  const liftedEdgesMap = {};
-  const liftedRootEdges = rootEdges.map(edge => {
     const srcId = edge.sources[0], tgtId = edge.targets[0];
-    let liftedSrc = srcId, p = parentMap[liftedSrc];
-    while (p !== undefined) { liftedSrc = p; p = parentMap[liftedSrc]; }
-    let liftedTgt = tgtId;
-    p = parentMap[liftedTgt];
-    while (p !== undefined) { liftedTgt = p; p = parentMap[liftedTgt]; }
-    // Drop cross-hierarchy edges whose endpoints share the same topmost ancestor —
-    // they are already owned by that container. Self-loops are exempt: srcId === tgtId
-    // means liftedSrc === liftedTgt trivially, but the edge must still reach root.
-    if (liftedSrc === liftedTgt && srcId !== tgtId) return null;
+    const srcAnc = ancestors(srcId), tgtAnc = ancestors(tgtId);
+    if (srcAnc.includes(tgtId) || tgtAnc.includes(srcId)) continue;  // container ↔ own descendant
+    const lca = srcAnc.find(a => tgtAnc.includes(a));
+    // Containers crossed below the LCA, nearest the endpoint first.
+    const srcChain = srcAnc.slice(0, srcAnc.indexOf(lca));
+    const tgtChain = tgtAnc.slice(0, tgtAnc.indexOf(lca));
 
-    if (includeChildren) {
-      // INCLUDE_CHILDREN: ELK sees all nodes and routes edges between the actual elements,
-      // including the inside-container path. Keep original IDs — no entry in liftedEdgesMap.
-      return edge;
+    if (mode === "include" || (srcChain.length === 0 && tgtChain.length === 0)) {
+      addTo(lca, edge);
+      continue;
     }
 
-    // SEPARATE_CHILDREN: replace nested IDs with topmost ancestor so ELK routes between
-    // opaque containers.
-    if (liftedSrc !== srcId || liftedTgt !== tgtId) {
-      liftedEdgesMap[edge.id] = { origSrcId: srcId, origTgtId: tgtId };
-      return Object.assign({}, edge, { sources: [liftedSrc], targets: [liftedTgt] });
+    if (mode === "lift") {
+      const liftedSrc = srcChain.length ? srcChain[srcChain.length - 1] : srcId;
+      const liftedTgt = tgtChain.length ? tgtChain[tgtChain.length - 1] : tgtId;
+      edgeMeta[edge.id] = { origSrcId: srcId, origTgtId: tgtId };
+      addTo(lca, Object.assign({}, edge, { sources: [liftedSrc], targets: [liftedTgt] }));
+      continue;
     }
-    return edge;
-  }).filter(Boolean);
-  return { liftedRootEdges, liftedEdgesMap };
+
+    // ports: endpoint → port(src parent) → … → port(tgt parent) → endpoint.
+    // Each segment lives in the container that owns it; the label goes on the LCA segment.
+    const portOf = ctrId => {
+      const port = { id: `${edge.id}__p_${ctrId}` };
+      (nodeMap[ctrId].ports = nodeMap[ctrId].ports || []).push(port);
+      return port.id;
+    };
+    const stops = [srcId], owners = [];
+    for (const c of srcChain)                 { stops.push(portOf(c)); owners.push(c); }
+    owners.push(lca);
+    for (const c of tgtChain.slice().reverse()) { stops.push(portOf(c)); owners.push(c); }
+    stops.push(tgtId);
+    const segCount = stops.length - 1;
+    for (let i = 0; i < segCount; i++) {
+      const seg = {
+        id:          `${edge.id}__seg${i}`,
+        _archiRelId: edge._archiRelId,
+        _relName:    edge._relName,
+        sources:     [stops[i]],
+        targets:     [stops[i + 1]],
+      };
+      if (edge.properties) seg.properties = edge.properties;
+      if (edge.labels && owners[i] === lca) seg.labels = edge.labels;
+      edgeMeta[seg.id] = { segOf: edge.id, segIdx: i, segCount, origSrcId: srcId, origTgtId: tgtId };
+      addTo(owners[i], seg);
+    }
+  }
+  return { rootEdges, edgeMeta };
 }
 
 // ── Result extraction ─────────────────────────────────────────────────────────
@@ -738,112 +783,146 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
   }
 }
 
-function _collectEdgeResults(elkNode, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines, debugLog) {
-  const containerNodeId = elkNode.id === "root" ? null : elkNode.id;
-  const containerNode   = containerNodeId ? resultNodes.find(n => n.id === containerNodeId) : null;
-  const offsetX = containerNode ? containerNode.x : 0;
-  const offsetY = containerNode ? containerNode.y : 0;
+/**
+ * Collect routed edges from the ELK result into LayoutResult edges (absolute coordinates).
+ * Edge sections are relative to the container whose edges[] holds the edge (see _placeEdges).
+ * Hierarchical-port segments (edgeMeta.segOf) are buffered and joined into one path, in
+ * segment order, once all segments of the relation are collected.
+ */
+function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, labelPosition, isSplines, debugLog) {
+  const byId = {};
+  for (const n of resultNodes) byId[n.id] = n;
+  const segGroups = {};
 
-  if (debugLog && containerNodeId) {
-    if (!containerNode)
-      debugLog(`⚠ [edge-collect] container "${containerNodeId}" not in resultNodes — offset forced to (0,0)!`);
-    else
-      debugLog(`  [edge-collect] container "${containerNodeId}" abs=(${offsetX},${offsetY})  edges=${(elkNode.edges || []).length}`);
-  }
+  (function walk(elkNode) {
+    const containerNodeId = elkNode.id === "root" ? null : elkNode.id;
+    const containerNode   = containerNodeId ? byId[containerNodeId] : null;
+    const offsetX = containerNode ? containerNode.x : 0;
+    const offsetY = containerNode ? containerNode.y : 0;
 
-  for (const edge of (elkNode.edges || [])) {
-    const sections = edge.sections;
-    if (!sections || sections.length === 0) continue;
-    const section = sections[0];  // used for label position, debug section coords, and spline sampling
+    if (debugLog && containerNodeId) {
+      if (!containerNode)
+        debugLog(`⚠ [edge-collect] container "${containerNodeId}" not in resultNodes — offset forced to (0,0)!`);
+      else
+        debugLog(`  [edge-collect] container "${containerNodeId}" abs=(${offsetX},${offsetY})  edges=${(elkNode.edges || []).length}`);
+    }
 
-    const lifted = liftedEdgesMap && liftedEdgesMap[edge.id];
-    const originalId = edge._archiRelId || edge.id;
-
-    // Collect bendpoints from ALL sections. With INCLUDE_CHILDREN, ELK may produce multiple
-    // sections for cross-hierarchy edges (one per hierarchy level crossing). Concatenate them
-    // so the full path — including the inside-container segment — reaches the writer.
-    // For SPLINES, only section[0] is sampled (SPLINES is not used with INCLUDE_CHILDREN).
-    let bps;
-    if (isSplines) {
-      bps = _sampleSplineSection(section, offsetX, offsetY, SPLINE_SAMPLE_POINTS);
-    } else {
-      bps = [];
-      for (let si = 0; si < sections.length; si++) {
-        const sec = sections[si];
-        // Add the section-junction point as a bendpoint when consecutive sections don't share
-        // their endpoint/startpoint (ELK always chains them, but be explicit).
-        if (si > 0) {
-          const prev = sections[si - 1].endPoint || { x: 0, y: 0 };
-          const cur  = sec.startPoint            || { x: 0, y: 0 };
-          if (Math.abs(cur.x - prev.x) > 0.5 || Math.abs(cur.y - prev.y) > 0.5) {
-            bps.push({ x: Math.round(offsetX + prev.x), y: Math.round(offsetY + prev.y) });
-          }
-        }
-        for (const bp of (sec.bendPoints || [])) {
-          bps.push({ x: Math.round(offsetX + bp.x), y: Math.round(offsetY + bp.y) });
-        }
+    const abs = p => ({ x: offsetX + ((p && p.x) || 0), y: offsetY + ((p && p.y) || 0) });
+    for (const edge of (elkNode.edges || [])) {
+      if (!edge.sections || edge.sections.length === 0) continue;
+      const lbl = edge.labels && edge.labels[0];
+      const rec = {
+        edge,
+        sections: edge.sections.map(s => ({
+          startPoint: abs(s.startPoint),
+          endPoint:   abs(s.endPoint),
+          bendPoints: (s.bendPoints || []).map(abs),
+        })),
+        label: lbl && lbl.x !== undefined
+          ? { x: offsetX + lbl.x + (lbl.width || 0) / 2, y: offsetY + lbl.y + (lbl.height || 0) / 2 }
+          : null,
+      };
+      const meta = edgeMeta && edgeMeta[edge.id];
+      if (meta && meta.segOf !== undefined) {
+        const grp = segGroups[meta.segOf] = segGroups[meta.segOf] || { meta, recs: [] };
+        grp.recs[meta.segIdx] = rec;
+        continue;
       }
+      _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debugLog);
     }
+    for (const child of (elkNode.children || [])) walk(child);
+  })(layouted);
 
-    // If the layout computed a straight segment (no bendpoints), inject the edge
-    // midpoint so Archi routes along the layout's spacing rather than through the
-    // element centres.
-    if (bps.length === 0) {
-      const sp = section.startPoint || { x: 0, y: 0 };
-      const lastSec = sections[sections.length - 1];
-      const ep = (lastSec && lastSec.endPoint) || { x: 0, y: 0 };
-      bps.push({
-        x: Math.round(offsetX + (sp.x + ep.x) / 2),
-        y: Math.round(offsetY + (sp.y + ep.y) / 2),
-      });
+  for (const [relId, { meta, recs }] of Object.entries(segGroups)) {
+    const complete = recs.filter(Boolean).length === meta.segCount;
+    if (!complete) {
+      console.warn(`  ⚠ [elk] relation "${relId}": ${recs.filter(Boolean).length}/${meta.segCount} port segments routed — left unrouted`);
+      continue;
     }
+    const label = (recs.find(r => r.label) || {}).label || null;
+    const joined = { edge: recs[0].edge, sections: [].concat(...recs.map(r => r.sections)), label, segCount: meta.segCount };
+    _emitEdgeResult(joined, meta, resultEdges, labelPosition, isSplines, debugLog);
+  }
+}
 
-    // Section start/end (absolute) — the physical exit/entry ports of the connection.
-    // Passed to the writer so extra label-alignment bendpoints stay outside elements.
-    const _sp     = section.startPoint || { x: 0, y: 0 };
-    const _lastSec = sections[sections.length - 1];
-    const _ep     = (_lastSec && _lastSec.endPoint) || { x: 0, y: 0 };
-    const srcPort = { x: Math.round(offsetX + _sp.x), y: Math.round(offsetY + _sp.y) };
-    const tgtPort = { x: Math.round(offsetX + _ep.x), y: Math.round(offsetY + _ep.y) };
+/**
+ * Turn one collected edge (absolute sections) into a LayoutResult edge.
+ * @param {Object} rec     { edge, sections, label, segCount? }
+ * @param {Object} meta    edgeMeta entry (lifted or segment) — restores the original endpoints
+ */
+function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debugLog) {
+  const { edge, sections } = rec;
+  const originalId = edge._archiRelId || edge.id;
+  const first = sections[0], last = sections[sections.length - 1];
+  const rnd = p => ({ x: Math.round(p.x), y: Math.round(p.y) });
 
-    if (debugLog) {
-      const sp = _sp, ep = _ep;
-      const liftStr = lifted
-        ? `  LIFTED origSrc=${lifted.origSrcId.substring(0, 8)} origTgt=${lifted.origTgtId.substring(0, 8)}`
-        : "";
-      const secStr = sections.length > 1 ? ` (${sections.length} sections)` : "";
-      debugLog(`  [edge] ${originalId.substring(0, 14)}${liftStr}${secStr}` +
-               `  section=(${Math.round(offsetX + sp.x)},${Math.round(offsetY + sp.y)})→(${Math.round(offsetX + ep.x)},${Math.round(offsetY + ep.y)})` +
-               `  bps=${bps.length}${bps.length === 0 ? "  ← NO BENDPOINTS (will render straight)" : ""}`);
-      if (bps.length > 0)
-        debugLog(`         ${bps.map((b, i) => `bp[${i}]=(${b.x},${b.y})`).join("  ")}`);
+  // Collect bendpoints from ALL sections. INCLUDE_CHILDREN may produce one section per hierarchy
+  // level crossing, and hierarchical-port segments are joined here as consecutive sections.
+  // Junctions between sections become bendpoints, except where the path runs straight through.
+  let bps = [];
+  const junctions = new Set();
+  for (let si = 0; si < sections.length; si++) {
+    const sec = sections[si];
+    if (si > 0) {
+      const prev = sections[si - 1].endPoint, cur = sec.startPoint;
+      junctions.add(bps.length); bps.push(rnd(prev));
+      if (Math.abs(cur.x - prev.x) > 0.5 || Math.abs(cur.y - prev.y) > 0.5) { junctions.add(bps.length); bps.push(rnd(cur)); }
     }
-
-    // Label position — use ELK's computed result when available (edgeLabelSpacing mode),
-    // otherwise derive from geometry.
-    let { labelX, labelY } = _computeLabelPoint(section, bps, offsetX, offsetY, labelPosition, edge._relName);
-    if (edge.labels && edge.labels[0] && edge.labels[0].x !== undefined) {
-      const lbl = edge.labels[0];
-      labelX = Math.round(offsetX + lbl.x + (lbl.width  || 0) / 2);
-      labelY = Math.round(offsetY + lbl.y + (lbl.height || 0) / 2);
+    if (isSplines) bps.push(..._sampleSplineSection(sec, 0, 0, SPLINE_SAMPLE_POINTS));
+    else           bps.push(...sec.bendPoints.map(rnd));
+  }
+  if (junctions.size) {
+    const kept = [];
+    for (let i = 0; i < bps.length; i++) {
+      const a = kept.length ? kept[kept.length - 1] : rnd(first.startPoint);
+      const b = i + 1 < bps.length ? bps[i + 1] : rnd(last.endPoint);
+      const p = bps[i];
+      const straight = (Math.abs(a.x - p.x) <= 1 && Math.abs(p.x - b.x) <= 1)
+                    || (Math.abs(a.y - p.y) <= 1 && Math.abs(p.y - b.y) <= 1);
+      if (junctions.has(i) && straight) continue;
+      kept.push(p);
     }
-
-    resultEdges.push({
-      id:            originalId,
-      sourceId:      lifted ? lifted.origSrcId : edge.sources[0],
-      targetId:      lifted ? lifted.origTgtId : edge.targets[0],
-      bendpoints:    bps,
-      srcPort,
-      tgtPort,
-      labelX,
-      labelY,
-      isStraight:    edge._isStraight || false,
-    });
+    bps = kept;
   }
 
-  for (const child of (elkNode.children || [])) {
-    _collectEdgeResults(child, liftedEdgesMap, resultNodes, resultEdges, labelPosition, isSplines, debugLog);
+  // If the layout computed a straight segment (no bendpoints), inject the edge
+  // midpoint so Archi routes along the layout's spacing rather than through the
+  // element centres.
+  if (bps.length === 0) {
+    bps.push(rnd({ x: (first.startPoint.x + last.endPoint.x) / 2, y: (first.startPoint.y + last.endPoint.y) / 2 }));
   }
+
+  // Section start/end (absolute) — the physical exit/entry ports of the connection.
+  // Passed to the writer so extra label-alignment bendpoints stay outside elements.
+  const srcPort = rnd(first.startPoint);
+  const tgtPort = rnd(last.endPoint);
+
+  if (debugLog) {
+    const liftStr = meta
+      ? `  ${rec.segCount ? `PORTS(${rec.segCount} segments)` : "LIFTED"} origSrc=${meta.origSrcId.substring(0, 8)} origTgt=${meta.origTgtId.substring(0, 8)}`
+      : "";
+    const secStr = sections.length > 1 ? ` (${sections.length} sections)` : "";
+    debugLog(`  [edge] ${originalId.substring(0, 14)}${liftStr}${secStr}` +
+             `  section=(${srcPort.x},${srcPort.y})→(${tgtPort.x},${tgtPort.y})  bps=${bps.length}`);
+    debugLog(`         ${bps.map((b, i) => `bp[${i}]=(${b.x},${b.y})`).join("  ")}`);
+  }
+
+  // Label position — use ELK's computed result when available (edgeLabelSpacing mode),
+  // otherwise derive from geometry.
+  let { labelX, labelY } = _computeLabelPoint({ startPoint: first.startPoint, endPoint: last.endPoint }, bps, 0, 0, labelPosition, edge._relName);
+  if (rec.label) { labelX = Math.round(rec.label.x); labelY = Math.round(rec.label.y); }
+
+  resultEdges.push({
+    id:            originalId,
+    sourceId:      meta ? meta.origSrcId : edge.sources[0],
+    targetId:      meta ? meta.origTgtId : edge.targets[0],
+    bendpoints:    bps,
+    srcPort,
+    tgtPort,
+    labelX,
+    labelY,
+    isStraight:    edge._isStraight || false,
+  });
 }
 
 function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition, relName) {

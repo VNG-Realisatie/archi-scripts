@@ -1040,13 +1040,13 @@ When nesting is active, two additional parameters control how ELK lays out conta
 | Parameter | Values | Effect |
 |---|---|---|
 | `containerAlgorithm` | `"Layered"` (default), `"Grid"`, `"Pack"` | ELK algorithm used to arrange children **inside** each container. Maps to `layered`/`box`/`rectpacking`. |
-| `connectionsMode` | `"Between containers"` (default), `"Crossing containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; cross-container connections route to/from the container as an opaque box. `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. |
+| `connectionsMode` | `"Between containers"` (default), `"Crossing containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; with Layered root and container, cross-container connections pass the container border through a hierarchical port and continue to the element inside (otherwise they route to/from the container as an opaque box). `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. |
 
 Valid combinations (all with root = algorithm selected by the user):
 
 | Root | Container | Connections | Cross-container edges | Container children |
 |---|---|---|---|---|
-| Layered | Layered | Between containers | Lifted to root, routed by Layered | Laid out with Layered |
+| Layered | Layered | Between containers | Routed by Layered via hierarchical ports on container borders | Laid out with Layered |
 | Layered | Grid | Between containers | Lifted to root, routed by Layered | Compactly packed |
 | Layered | Grid | Crossing containers | Root sees all, routes directly | Compactly packed |
 | Layered | Pack | Between containers | Lifted to root, routed by Layered | Packed with order |
@@ -1720,12 +1720,13 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 
 Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph in `_buildLayoutGraph` (`generate_view.js` — `srcId === tgtId && !supportsSelfLoops` → skipped) so they never reach ELK, and any existing self-loop VisualRelations are deleted from the target view before the relation loop — they are **not drawn**. Layered (`supportsSelfLoops: true`) includes self-loops in the ELK graph and uses the routed sections from ELK. Placement is controlled by `elk.layered.edgeRouting.selfLoopDistribution` (default `EQUALLY`) and `selfLoopOrdering` (default `SEQUENCED`). The writer falls back to `_synthesiseSelfLoopBendpoints` (NE-corner loop) only when ELK returns an empty section (no bendpoints).
 
-**Cross-hierarchy edge handling — `_liftCrossHierarchyEdges`.** `_classifyEdges` routes same-immediate-parent edges into their container's `edges[]` array; all other edges (cross-hierarchy and root-level) go into `rootEdges[]`. `_liftCrossHierarchyEdges` then processes `rootEdges` in two modes:
+**Cross-hierarchy edge handling — `_placeEdges`.** Every edge is stored in the `edges[]` of its lowest common ancestor container (LCA; `root` when the endpoints share no container). ELK's default edge coordinates (`elk.json.edgeCoords: CONTAINER`) are relative to that LCA, so `_collectEdgeResults` offsets each edge by the container it is stored in. Edges whose endpoints are not both direct children of the LCA cross container boundaries and are handled per mode:
 
-- **SEPARATE_CHILDREN** (`Between containers`): each nested endpoint ID is replaced with its topmost root-level ancestor ID. ELK routes between the opaque container boundaries. The original IDs are stored in `liftedEdgesMap`; `_collectEdgeResults` uses the map to restore them on the result edge so the writer can locate the correct visual relation.
-- **INCLUDE_CHILDREN** (`Crossing containers`): original nested element IDs are kept — `liftedEdgesMap` stays empty. ELK receives the actual element IDs and routes the full path, including the segment inside the container. `_collectEdgeResults` concatenates all `edge.sections` (not only `[0]`) because ELK may split a cross-hierarchy route into one section per hierarchy level.
+- **INCLUDE_CHILDREN** (`Crossing containers`): the original nested element IDs are kept and ELK routes the full path. `_collectEdgeResults` concatenates all `edge.sections` because ELK may split a cross-hierarchy route into one section per hierarchy level.
+- **SEPARATE_CHILDREN, root and container Layered** (`Between containers`): the edge is split into segments joined by a **hierarchical port** on every crossed container (`element → port(parent) → … → port(parent) → element`). Each segment lives in the container that owns it, and the label goes on the LCA segment. Because the inner segment is part of the container's own layout, the inner element reserves port space for the outside connection and the route reaches the container border at the right height; the outer layout connects to the port position the inner layout chose. `_collectEdgeResults` buffers the segments (`edgeMeta.segOf`) and joins them into one path. Junction points where the path runs straight through are dropped.
+- **SEPARATE_CHILDREN, other algorithms**: each nested endpoint is replaced by its ancestor that is a direct child of the LCA, so ELK routes between opaque container boxes (`edgeMeta` restores the original IDs).
 
-Both modes filter edges where `liftedSrc === liftedTgt` (both endpoints share the same topmost ancestor) — those edges are already owned by the shared container and must not appear as duplicates in root.
+Edges between a container and one of its own descendants cannot be laid out and are skipped (the writer draws them unrouted).
 
 **`engineParams` — hidden parameters block.** `DEFAULT_PRESET.engineParams` in `defs.js` is the SSOT for all defaults. A preset file only needs entries it wants to change; missing keys inherit from `DEFAULT_PRESET`. Resolved by `_mergeEngineParams` in `generate_view.js` (deep-merge per engine key) before any engine sees the graph.
 
