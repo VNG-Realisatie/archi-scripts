@@ -189,7 +189,8 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
       ? step.elementTypes.join(", ")  : "all";
     const propStr = (step.propFilter && step.propFilter.key && step.propFilter.value)
       ? `  ·  prop: ${step.propFilter.key}=${step.propFilter.value}` : "";
-    console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  depth: ${step.depth || 1}  ·  element types: ${stepElemStr}${propStr}`);
+    const repeatStr = step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW ? "until nothing new" : `${Defs.repeatMaxRuns(step.repeat)}×`;
+    console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  repeat: ${repeatStr}  ·  element types: ${stepElemStr}${propStr}`);
     if (debugSteps) {
       const inLabel = stepInput.length === 0 ? "(empty)"
         : stepInput.length <= 6
@@ -197,8 +198,13 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
           : stepInput.slice(0, 5).map(e => `"${e.name}" [${e.type}]`).join(", ") + ` … +${stepInput.length - 5} more`;
       console.log(`Step ${stepIdx} input (${stepInput.length}): ${inLabel}`);
     }
-    const { added, rels: stepRels, cumulative: newCumul } =
+    const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
       _expandStepWithRelations(stepInput, step, cumulativeElems, allRelIds, debugSteps);
+    if (step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW) {
+      console.log(capped
+        ? `Step ${stepIdx}: stopped at the maximum of ${Defs.REPEAT_MAX} runs — more elements may be reachable`
+        : `Step ${stepIdx}: nothing new after ${runs}×`);
+    }
     cumulativeElems = newCumul;
     added.forEach(o => addedElements.push(o));
     stepRels.forEach(r => addedRelations.push(r));
@@ -456,11 +462,13 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
  * Used by both buildObjectSet and the dialog's live counters so they can never diverge.
  *
  * @param {Object[]} base       - Step input elements (frontier for hop 1)
- * @param {Object}   step       - { relationTypes, elementTypes, depth }
+ * @param {Object}   step       - { relationTypes, elementTypes, repeat }
  * @param {Object[]} cumulative - Elements accumulated so far (before this step)
  * @param {Set}      seenRelIds - Dedup set threaded across all steps; mutated in place
  * @param {boolean}  [verbose]  - Per-hop detail logging (pipeline debug only)
- * @returns {{ added: Object[], rels: Object[], cumulative: Object[] }}
+ * @returns {{ added: Object[], rels: Object[], cumulative: Object[], runs: number, capped: boolean }}
+ *   runs   — number of runs that added elements
+ *   capped — true when the run limit was reached while the last run still added elements
  */
 function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = false) {
   const hops   = _expandStepFrontiers(base, step, verbose, cumulative);
@@ -479,24 +487,29 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
     hopRels.forEach(r => newRels.push(r));
     prevHopFrontier = hopFrontier;  // next hop: current frontier becomes the trigger
   }
-  return { added, rels: newRels, cumulative: cumul };
+  const runs   = hops.filter(h => h.length > 0).length;
+  const capped = hops.length === Defs.repeatMaxRuns(step.repeat) && hops[hops.length - 1].length > 0;
+  return { added, rels: newRels, cumulative: cumul, runs, capped };
 }
 
-/** Expand by following relations up to depth hops. Returns per-hop frontier arrays. */
+/**
+ * Expand by running the step up to its repeat count; each run starts from the previous
+ * run's additions. Stops early when a run adds nothing. Returns per-run frontier arrays.
+ */
 function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
-  const { depth = 1, elementTypes = [], relationTypes = [] } = step;
+  const { elementTypes = [], relationTypes = [] } = step;
+  const maxRuns  = Defs.repeatMaxRuns(step.repeat);
   const baseIds  = new Set(base.map(o => o.id));
   const cumulIds = new Set(cumulative.map(o => o.id));
   const addedIds = new Set();
   const hops     = [];
   let frontier   = [...base];
-  const subGroupingIds = _computeSubGroupingIds(cumulative);
 
-  for (let hop = 0; hop < depth; hop++) {
+  for (let hop = 0; hop < maxRuns; hop++) {
     const nextFrontier = [];
     for (const element of frontier) {
       try {
-        const stats = { total: 0, accept: 0, wrongElemType: 0, alreadySeen: 0, subGrouping: 0 };
+        const stats = { total: 0, accept: 0, wrongElemType: 0, alreadySeen: 0 };
         const wrongRelDetails = [];
         const wrongElemDetails = [];
         $(element).rels().each(rel => {
@@ -514,23 +527,6 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
           const other = isOutgoing ? rel.target : rel.source;
           if (!other) return;
           if (baseIds.has(other.id) || cumulIds.has(other.id) || addedIds.has(other.id)) { stats.alreadySeen++; return; }
-
-          // Skip groupings that are direct children of already-selected groupings,
-          // but only in the narrow case where a bidirectional relation-type filter is
-          // active and could accidentally descend into a selected grouping's own
-          // sub-hierarchy while the step's intent is to walk upward.
-          // Do NOT skip when:
-          //   - no relation-type filter (all types = user wants everything), or
-          //   - the matching entry has an explicit ":out" suffix (user wants children).
-          if (subGroupingIds.has(other.id)) {
-            const skipSubGroup = isOutgoing
-              && relationTypes.length > 0
-              && !relationTypes.some(e => {
-                const ci = e.indexOf(":");
-                return ci >= 0 && e.substring(0, ci) === type && e.substring(ci + 1) === "out";
-              });
-            if (skipSubGroup) { stats.subGrouping++; return; }
-          }
 
           const otherType = other.type || "";
           if (elementTypes.length > 0 && !elementTypes.includes(otherType)) {
@@ -561,9 +557,8 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
             skips.push(`${stats.wrongElemType} wrong-elem-type: [${shown}]`);
           }
           if (stats.alreadySeen > 0) skips.push(`${stats.alreadySeen} already-selected`);
-          if (stats.subGrouping > 0) skips.push(`${stats.subGrouping} sub-grouping`);
           const skipStr = skips.length ? `  (${skips.join("  |  ")})` : "";
-          console.log(`    hop${hop + 1} "${element.name}" [${element.type}]: ${stats.total} rels → ${stats.accept} accepted${skipStr}`);
+          console.log(`    run${hop + 1} "${element.name}" [${element.type}]: ${stats.total} rels → ${stats.accept} accepted${skipStr}`);
         }
       } catch (e) {}
     }
@@ -572,29 +567,6 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
     if (frontier.length === 0) break;
   }
   return hops;
-}
-
-/**
- * Pre-compute direct grouping-children of already-selected groupings.
- * When a step traverses aggregation:in to find container groupings, skip any
- * found grouping that is itself a direct sub-grouping of an already-selected
- * grouping — it belongs to the selected hierarchy, not to an external domain.
- */
-function _computeSubGroupingIds(cumulative) {
-  const subGroupingIds = new Set();
-  for (const el of cumulative) {
-    if (el.type !== "grouping") continue;
-    try {
-      $(el).rels().each(rel => {
-        if (rel.type === "aggregation-relationship" &&
-            rel.source && rel.source.id === el.id &&
-            rel.target && rel.target.type === "grouping") {
-          subGroupingIds.add(rel.target.id);
-        }
-      });
-    } catch(e) {}
-  }
-  return subGroupingIds;
 }
 
 /** Strip a synthetic occurrence suffix (`${id}_occ_N`) to recover the element id. */

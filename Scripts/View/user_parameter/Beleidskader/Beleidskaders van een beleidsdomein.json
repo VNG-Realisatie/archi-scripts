@@ -45,7 +45,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "driver"
         ],
@@ -59,7 +59,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "driver"
         ],

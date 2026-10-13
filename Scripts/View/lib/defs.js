@@ -554,7 +554,7 @@ const DEFAULT_PRESET = Object.freeze({
     diagramTypes:  [],
   },
   relatedElements: {
-    steps: [],  // each: { depth, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
+    steps: [],  // each: { repeat, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
   },
   view: {
     name:   "",
@@ -606,6 +606,33 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
 // Overrides the user's Layer spacing spinner so ELK has enough room between
 // layers to route connections around their labels without manual tuning.
 const EDGE_LABEL_LAYER_SPACING = 20;
+
+// ── Step repeat ───────────────────────────────────────────────────────────────
+// A step's `repeat` is 1–5 (run the step that many times, each run starting from the
+// previous run's additions) or REPEAT_UNTIL_NOTHING_NEW (run until a run adds nothing,
+// capped at REPEAT_MAX so a broad filter cannot walk the whole model).
+const REPEAT_UNTIL_NOTHING_NEW = "untilNothingNew";
+const REPEAT_MAX               = 10;
+const REPEAT_OPTIONS = Object.freeze([
+  { value: 1, label: "1×" },
+  { value: 2, label: "2×" },
+  { value: 3, label: "3×" },
+  { value: 4, label: "4×" },
+  { value: 5, label: "5×" },
+  { value: REPEAT_UNTIL_NOTHING_NEW, label: "until nothing new" },
+]);
+
+/** Normalise a preset/GUI repeat value to a REPEAT_OPTIONS value; anything unknown → 1. */
+function normalizeRepeat(v) {
+  const opt = REPEAT_OPTIONS.find(o => o.value === v || String(o.value) === String(v));
+  return opt ? opt.value : 1;
+}
+
+/** Number of runs a repeat value allows (REPEAT_MAX for until-nothing-new). */
+function repeatMaxRuns(v) {
+  const r = normalizeRepeat(v);
+  return r === REPEAT_UNTIL_NOTHING_NEW ? REPEAT_MAX : r;
+}
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -682,7 +709,7 @@ function validatePreset(raw) {
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
   if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
     preset.relatedElements.steps = raw.relatedElements.steps.map(step => ({
-      depth:         Number(step.depth)         || 1,
+      repeat:        normalizeRepeat(step.repeat),
       elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
       relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
       diagramTypes:  Array.isArray(step.diagramTypes)  ? step.diagramTypes  : [],
@@ -823,5 +850,6 @@ if (typeof module !== "undefined" && module.exports) {
     EDGE_LABEL_LAYER_SPACING,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
+    REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
   };
 }

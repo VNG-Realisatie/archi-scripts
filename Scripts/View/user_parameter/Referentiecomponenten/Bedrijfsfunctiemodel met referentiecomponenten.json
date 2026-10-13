@@ -48,7 +48,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 4,
+        "repeat": 4,
         "elementTypes": [
           "business-function"
         ],
@@ -62,7 +62,7 @@
         }
       },
       {
-        "depth": 4,
+        "repeat": 4,
         "elementTypes": [
           "application-service"
         ],
@@ -76,7 +76,7 @@
         }
       },
       {
-        "depth": 2,
+        "repeat": 2,
         "elementTypes": [
           "application-component"
         ],

@@ -199,8 +199,14 @@ everything; for a relation type, "neither direction selected" means *follow all 
 ordered list of expansion steps. **Each step expands outward from the previous step's
 additions only** — not from the whole accumulated set — so a sequence reads as "from these,
 reach those; from *those*, reach the next". A step specifies which relation types to follow
-(direction-aware), how many hops, and an element-type filter that prunes only what that step
-adds. An **empty step ends the chain**: every later step then adds nothing.
+(direction-aware), how often it repeats, and an element-type filter that prunes only what that
+step adds. **Repeat** runs the step 1–5 times or *until nothing new* (at most 10 runs); each run
+starts from the previous run's additions. An **empty step ends the chain**: every later step
+then adds nothing.
+
+**A wider filter never yields less.** Ticking an extra relation type or direction in a step can
+only keep or grow what that step adds — there are no hidden exceptions that skip elements the
+filter allows.
 
 **Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds
 a missing relation — it only re-lays-out what is already on the view. `EXPAND_VIEW` expands
@@ -496,7 +502,7 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 |---|---|---|---|
 | Relation line | edge | Element spacing | node spacing |
 | Relation line style | edge routing | Level spacing | layer spacing |
-| View / Diagram | graph | Relation levels | depth / hops |
+| View / Diagram | graph | Repeat | runs / hops |
 | Layout style | algorithm / engine | Layer ranking | ranker |
 | Level | rank / layer | Tight packing / Pack | rectpacking |
 | Flow direction | direction | Preset | parameter / config file |
@@ -574,7 +580,7 @@ Preset {
   }
   engineParams : { ELK?{…}, Dagre?{…}, Graphviz?{…}, layout?{…} }  // ✦ typed overrides
 }
-Step { depth:int≥1, elementTypes:ElTypeId[], relationTypes:EncRelTypeId[] }
+Step { repeat:1..5|"untilNothingNew", elementTypes:ElTypeId[], relationTypes:EncRelTypeId[] }
 ```
 
 **Encoded relation-type strings.** `"type"` = both directions; `"type:in"` = incoming only;

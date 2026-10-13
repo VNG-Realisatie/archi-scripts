@@ -43,7 +43,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "business-service"
         ],
@@ -57,7 +57,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "driver"
         ],

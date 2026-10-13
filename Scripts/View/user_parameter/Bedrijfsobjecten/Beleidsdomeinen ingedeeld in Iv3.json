@@ -51,7 +51,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 5,
+        "repeat": 5,
         "elementTypes": [
           "grouping"
         ],

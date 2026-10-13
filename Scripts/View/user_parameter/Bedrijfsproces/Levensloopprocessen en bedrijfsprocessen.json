@@ -43,7 +43,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "business-process"
         ],
@@ -57,7 +57,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [],
         "relationTypes": [
           "aggregation-relationship:out",
@@ -70,7 +70,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [],
         "relationTypes": [
           "triggering-relationship"

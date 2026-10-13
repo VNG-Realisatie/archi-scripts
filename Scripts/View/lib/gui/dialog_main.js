@@ -694,10 +694,10 @@ function _updateFilteredCount(ctx) {
   const _setFilteredError = () => {
     try { w.lblFilteredCount.setText("—"); } catch (x) {}
   };
-  const _setRel = (b, eCount, rCount) => {
+  const _setRel = (b, eCount, rCount, suffix) => {
     if (!b || !b.lblBlockCounts) return;
     const cnt = { elems: eCount, rels: rCount, diagrams: 0, views: 0, folders: 0 };
-    try { b.lblBlockCounts.setText(_formatCountsBody(cnt)); } catch (x) {}
+    try { b.lblBlockCounts.setText(_formatCountsBody(cnt) + (suffix || "")); } catch (x) {}
   };
 
   const objects = ctx.rawModelObjects;
@@ -740,7 +740,7 @@ function _updateFilteredCount(ctx) {
 
     const globalRelIds = _relLabelsToIds(Array.from(relLabels));
     const steps = (ctx.relBlocks || []).map(b => ({
-      depth:         b.depthSpinner.getSelection(),
+      repeat:        b.getRepeat(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
@@ -780,11 +780,13 @@ function _updateFilteredCount(ctx) {
       );
       if (b.refreshPropCombo) b.refreshPropCombo(candidates);
 
-      const { added, rels: stepRels, cumulative: newCumul } =
+      const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
         Pipeline.expandStepWithRelations(stepInput, step, cumulative, seenRelIds);
       cumulative = newCumul;
       stepRels.forEach(r => finalRels.push(r));
-      _setRel(b, added.length, stepRels.length);
+      const runInfo = step.repeat !== Defs.REPEAT_UNTIL_NOTHING_NEW ? ""
+        : capped ? `  (stopped at max ${Defs.REPEAT_MAX}×)` : `  (nothing new after ${runs}×)`;
+      _setRel(b, added.length, stepRels.length, runInfo);
       stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
       stepInput = added;                                                       // chain advance
     }
@@ -908,7 +910,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   // ── Related elements ─────────────────────────────────────────────────────────
   // Dynamic multi-block UI. Each block is an independent expansion step with its
   // own relation types (each with two direction checkboxes), element filter, and
-  // relation-levels (depth) control.
+  // repeat control.
   const grpRel = _group(page, "Expand selection", 1);
 
   // Header row: explanation text (grabs width) | [+ Add related…] button on the right.
@@ -1044,7 +1046,7 @@ function _relCheckGrid(parent, numCols, onChange) {
 }
 
 // Append a new block to the Related elements group.
-// stepData (optional): { depth, elementTypes, relationTypes } from a preset to restore.
+// stepData (optional): { repeat, elementTypes, relationTypes } from a preset to restore.
 // opts.startCollapsed (optional boolean): if true, build the block in collapsed state.
 function _addRelatedBlock(ctx, stepData, opts) {
   const w = ctx.widgets;
@@ -1109,34 +1111,40 @@ function _addRelatedBlock(ctx, stepData, opts) {
   _lbl(body, "Filter added element types:");
   const typeSelector = _typeSelector(body, ELEMENT_TYPES, 90, onChange);
 
-  const depthRow = new CompositeWidget(body, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 2).spacing(4, 0).applyTo(depthRow);
-  const lblDepth = new LabelWidget(depthRow, SWT.NONE);
-  lblDepth.setText("Depth:");
-  lblDepth.setToolTipText("The depth controls how many times the expansion is repeated.");
-  GridDataFactory.swtDefaults().applyTo(lblDepth);
-  const depthSpinner = new SpinnerWidget(depthRow, SWT.BORDER);
-  depthSpinner.setValues(1, 1, 5, 0, 1, 1);
-  depthSpinner.setToolTipText("The depth controls how many times the expansion is repeated.");
-  GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(depthSpinner);
-  // Recompute on arrow click (Selection) and on focus-out (after keyboard edit) —
-  // not on Modify, which fires per keystroke.
-  depthSpinner.addListener(SWT.Selection, onChange);
-  depthSpinner.addListener(SWT.FocusOut, onChange);
+  const repeatRow = new CompositeWidget(body, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 2).spacing(4, 0).applyTo(repeatRow);
+  const repeatTip =
+    "How many times this step runs. Each run starts from the previous run's additions. " +
+    `"until nothing new" runs until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`;
+  const lblRepeat = new LabelWidget(repeatRow, SWT.NONE);
+  lblRepeat.setText("Repeat:");
+  lblRepeat.setToolTipText(repeatTip);
+  GridDataFactory.swtDefaults().applyTo(lblRepeat);
+  const cmbRepeat = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  Defs.REPEAT_OPTIONS.forEach(o => cmbRepeat.add(o.label));
+  cmbRepeat.select(0);
+  cmbRepeat.setToolTipText(repeatTip);
+  GridDataFactory.swtDefaults().applyTo(cmbRepeat);
+  cmbRepeat.addListener(SWT.Selection, onChange);
+  const getRepeat = () => Defs.REPEAT_OPTIONS[Math.max(0, cmbRepeat.getSelectionIndex())].value;
+  const setRepeat = (v) => {
+    const r = Defs.normalizeRepeat(v);
+    cmbRepeat.select(Math.max(0, Defs.REPEAT_OPTIONS.findIndex(o => o.value === r)));
+  };
 
-  const lblProp = new LabelWidget(depthRow, SWT.NONE);
+  const lblProp = new LabelWidget(repeatRow, SWT.NONE);
   lblProp.setText("Property:");
   lblProp.setToolTipText("Only add elements that have this property set to the chosen value.");
   GridDataFactory.swtDefaults().applyTo(lblProp);
-  const cmbProp = new ComboWidget(depthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  const cmbProp = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
   cmbProp.setToolTipText("Choose a property to filter on. Leave blank to add all elements regardless of properties.");
   GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbProp);
 
-  const lblVal = new LabelWidget(depthRow, SWT.NONE);
+  const lblVal = new LabelWidget(repeatRow, SWT.NONE);
   lblVal.setText("Value:");
   lblVal.setToolTipText("Only add elements whose selected property have this value.");
   GridDataFactory.swtDefaults().applyTo(lblVal);
-  const cmbVal = new ComboWidget(depthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  const cmbVal = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
   cmbVal.setToolTipText("Choose the required property value. Only active when a property is also selected.");
   GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbVal);
 
@@ -1182,7 +1190,7 @@ function _addRelatedBlock(ctx, stepData, opts) {
     container: block, body, lblBlockCounts,
     btnUp, btnDown, btnCollapse, btnRemove,
     collapsed: false,
-    relCheckGrid, typeSelector, depthSpinner,
+    relCheckGrid, typeSelector, cmbRepeat, getRepeat,
     propFilterKey: cmbProp, propFilterValue: cmbVal,
     refreshPropCombo,
   };
@@ -1198,7 +1206,7 @@ function _addRelatedBlock(ctx, stepData, opts) {
   if (stepData) {
     relCheckGrid.setEncoded(stepData.relationTypes || []);
     typeSelector.setSelected(stepData.elementTypes || []);
-    depthSpinner.setSelection(Number(stepData.depth) || 1);
+    setRepeat(stepData.repeat);
     if (stepData.propFilter && stepData.propFilter.key) {
       const pf = stepData.propFilter;
       const pitems = Array.from({ length: cmbProp.getItemCount() }, (_, i) => cmbProp.getItem(i));
@@ -2684,7 +2692,7 @@ function _saveUI(ctx) {
   // Related elements — round-trip the dynamic step-block array.
   c.relatedElements = {
     steps: (ctx.relBlocks || []).map(b => ({
-      depth:         b.depthSpinner.getSelection(),
+      repeat:        b.getRepeat(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],

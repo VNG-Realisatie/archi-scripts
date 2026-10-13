@@ -93,7 +93,7 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 | Element alignment | Node placement |
 | Level spacing | Layer spacing |
 | Element spacing | Node spacing |
-| Relation levels | Depth, hops |
+| Repeat | Runs, hops |
 | Layer ranking | Ranker |
 | Tight packing, Pack | rectpacking |
 | Preset | Parameter file, config file |
@@ -194,7 +194,7 @@ Three inputs:
   - *Algorithm* — which layout engine and algorithm to use.
   - *Layout parameters* — spacing, direction, routing style, view-size constraints, nesting and reversal flags.
   - *Filters* — element types, relation types (with per-direction toggles), diagram-object types to include.
-  - *Related-elements layers* — an ordered list of expansion steps, each specifying which relation types to follow, how many hops, and an element-type pruning filter.
+  - *Related-elements layers* — an ordered list of expansion steps, each specifying which relation types to follow, how often to repeat, and an element-type pruning filter.
   - *View naming* — folder and name used when creating new views.
 - **Action** — a runtime verb, never part of the preset:
   - `NEW_VIEW` — create a fresh view from the full selection.
@@ -367,7 +367,10 @@ Preset {
 }
 
 Step {
-  depth          : int   ≥ 1            // Recurrence (hops within this step)
+  repeat         : 1..5 | "untilNothingNew"
+                                        // runs of this step; each run starts from the previous
+                                        // run's additions. "untilNothingNew" stops when a run adds
+                                        // nothing, capped at REPEAT_MAX (10) runs
   elementTypes   : ElTypeId[]           // prune this step's additions
   relationTypes  : EncodedRelTypeId[]   // direction-aware (see below)
   diagramTypes   : DgTypeId[]           // unused (diagram objects don't traverse)
@@ -477,7 +480,7 @@ The Selection tab decides *which* objects feed the layout: the counts group at t
   │  │ │  ──────────────────────────────────────────────────────────── │  │  │
   │  │ │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …         │  │  │
   │  │ │  Filter element types:  [chip selector]                       │  │  │
-  │  │ │  Depth: [1  ▲▼]  Property: [          ▼]  Value: [          ▼] │  │  │
+  │  │ │  Repeat: [1×  ▼]  Property: [         ▼]  Value: [          ▼] │  │  │
   │  │ └───────────────────────────────────────────────────────────────┘  │  │
   │  │ ┌─ Step 2 ──────────────────────────────────────────────────────┐  │  │
   │  │ │  Added:  nothing                        [▲] [▼] [▸] [✕]       │  │  │
@@ -498,7 +501,7 @@ The **Current selection** group shows three summary lines and a per-block counte
 
 Only types with count > 0 are rendered on each line. Empty selection renders `Selected: nothing` (no First-object suffix).
 
-Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, property/value filter, and block ordering operation.
+Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, repeat control, property/value filter, and block ordering operation.
 
 Each refresh emits a grouped block to the Archi console (mirroring the pipeline's own block on action click) so the user can compare prediction to result:
 
@@ -521,7 +524,7 @@ The `Total to view` row is grouped into three sub-lines: **elements** (container
 
 The additive rule is exact: `Filtered.elements + Σ Step N.adds.elements = Total.elements` AND `Filtered.relations + Σ Step N.adds.relations = Total.relations`. Per-step `adds.relations` is the count of new relations found in that step's pass: relations of the step's type where at least one endpoint was in the cumulative set *before* this step (old×old, old→new, new→old — new×new excluded), minus any already counted in a prior pass. Not a count of raw-selection relations.
 
-The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, depth change, property/value filter change, block reorder) push the same values to that label and to the console.
+The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, repeat change, property/value filter change, block reorder) push the same values to that label and to the console.
 
 #### Global filter
 
@@ -538,7 +541,7 @@ The Related-elements group (GUI title: **Expand selection**) opens with a one-li
 - **Header row**: `Added:` count label; reorder (▲ ▼); collapse/expand (▾/▸); remove (✕).
 - **Relation types**: per relation type, two independent direction checkboxes (same encoding as the global filter).
 - **Element-type filter** (block-scoped — prunes only what this block adds).
-- **Depth** (≥ 1; hops to follow) · **Property** / **Value** (optional property=value gate; blank = inactive). Only elements whose named property equals the chosen value are added. The Property combo is populated from elements reachable by this step's relation and element-type filters (dry-run without the gate); the Value combo cascades from the selected property.
+- **Repeat** (`1×`–`5×` or `until nothing new`, max 10 runs; the `Adds:` label then shows `(nothing new after N×)` or `(stopped at max 10×)`) · **Property** / **Value** (optional property=value gate; blank = inactive). Only elements whose named property equals the chosen value are added. The Property combo is populated from elements reachable by this step's relation and element-type filters (dry-run without the gate); the Value combo cascades from the selected property.
 
 Each step's additions feed the next step's input — chain ([Steps](#steps) section Step 3). An empty step terminates the chain.
 
@@ -800,7 +803,7 @@ Output:
   relations:   11 nestings · 98 connections
 ```
 
-The structure matches the console's `Total to view:` row (same sub-lines: elements / relations / diagram). On-screen hides subfields whose value is 0 and skips a sub-line when all its subfields are 0; the console keeps everything visible for stable log columns. The strip refreshes on every dialog change (filter toggle, block edit, depth change, block reorder) so the user sees the predicted view contents in real time — without opening a console.
+The structure matches the console's `Total to view:` row (same sub-lines: elements / relations / diagram). On-screen hides subfields whose value is 0 and skips a sub-line when all its subfields are 0; the console keeps everything visible for stable log columns. The strip refreshes on every dialog change (filter toggle, block edit, repeat change, block reorder) so the user sees the predicted view contents in real time — without opening a console.
 
 | Action | Naming rule |
 |---|---|
@@ -973,7 +976,7 @@ Step 2  Apply the global Filter
 
 Step 3  Related-elements expansion (chain)
   For each ordered step in preset.relatedElements.steps:
-    hops   = _expandStepFrontiers(input, step)   (one array per depth hop)
+    hops   = _expandStepFrontiers(input, step)   (one array per run; stops early on an empty run)
     additions = hops.flat()
     final-selection = final-selection ∪ additions
     prevHopFrontier = step input (for hop 1); previous hop's elements (for hop 2+)
@@ -1025,7 +1028,7 @@ Step 6  Partition diagram objects
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
 - **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepFrontiers` and then `findRelationsBetween` per-hop identically, direction-aware, using the previous hop's frontier as the iteration collection so inter-hop relations (hop1→hop2, etc.) are included and intra-step cross-relations to earlier-step elements are excluded.
-- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all depth hops of new relations found in each hop's pass (direction-aware, between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all runs (hops) of new relations found in each hop's pass (direction-aware, between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
 - **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
 - **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
 - **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
@@ -1809,7 +1812,7 @@ Ref: `lib/engines/graphviz.js`.
 
 ### Related-elements blocks
 
-Each block is stored as an object containing its SWT widget references: group container (title bar), body composite (hidden on collapse), count label, reorder/collapse/remove buttons, a `collapsed` boolean, and widget wrappers for the relation-check grid, element-type selector, and depth spinner.
+Each block is stored as an object containing its SWT widget references: group container (title bar), body composite (hidden on collapse), count label, reorder/collapse/remove buttons, a `collapsed` boolean, and widget wrappers for the relation-check grid, element-type selector, and repeat dropdown.
 
 Key functions: `_addRelatedBlock(ctx, stepData, opts?)` appends a step block; `opts.startCollapsed` collapses it on creation. `_removeRelatedBlock` disposes the block and renumbers survivors. `_moveRelatedBlock(ctx, blockObj, ±1)` swaps position in the array and reorders SWT widgets via `moveBelow`. `_toggleCollapseBlock` toggles `body.layoutData.exclude` + visibility.
 
@@ -1817,7 +1820,7 @@ Ref: `dialog_main.js::_addRelatedBlock`, `::_removeRelatedBlock`, `::_moveRelate
 
 ### Live counter policy
 
-Checkboxes, direction toggles, chip add/remove, block reorder/add/remove → fire on `SWT.Selection` (immediate). Depth spinner → `SWT.Selection` (arrow click) + `SWT.FocusOut`. Not `SWT.Modify` — per-keystroke recompute is wasteful.
+Checkboxes, direction toggles, repeat dropdown, chip add/remove, block reorder/add/remove → fire on `SWT.Selection` (immediate). Spinners → `SWT.Selection` (arrow click) + `SWT.FocusOut`. Not `SWT.Modify` — per-keystroke recompute is wasteful.
 
 ### Dialog state model
 
@@ -1827,7 +1830,7 @@ The dialog separates configuration (model) from UI state (view):
 - **`ctx.widgets`** — flat map of named widget references.
 - **`_syncToUI()`** — pushes `config` → widgets; called after `createDialogArea` and after preset apply.
 - **`_saveUI()`** — reads widgets → `config`; called before run and before preset save.
-- **`_updateActionControls(action)`** — enables/disables depth spinner and view name field based on the selected action.
+- **`_updateActionControls(action)`** — enables/disables the view name field based on the selected action.
 - **`_updateAlgoControls(algo)`** — enables/disables direction/routing/ranker controls based on `algorithm.supportedOptions`.
 - **`ctx.widgets.algRadios`** — `Map<algorithmName, ButtonWidget>`. All radio buttons share the same SWT composite parent (auto-mutually-exclusive on click).
 - **`_updateActionColors()`** — sets active/inactive visual state on the action toggle buttons; called from all action toggle listeners and from `_syncToUI`.
@@ -1923,7 +1926,7 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 | Empty direction selection = follow all | `getEncoded()` includes only types where `chkIn.getSelection() \|\| chkOut.getSelection()`. Absent from the list → unconstrained at runtime ([Steps](#steps) step 5: empty union → all types allowed). |
 | Algorithm selection via radio table | `_buildLayoutTab` — `algTableComp` 6-col composite; `ctx.widgets.algRadios: Map<algName, ButtonWidget>`. `_syncToUI`: deselect all then `algRadios.get(name)?.setSelection(true)`. `_saveUI`: iterate algRadios to find selected; fallback `"Layered"`. |
 | Step auto-collapse on preset load | `_addRelatedBlock(ctx, stepData, opts)` — when `opts.startCollapsed`: body hidden, `gd.exclude = true`, `btnCollapse.setText("▸")`, `blockObj.collapsed = true`. `_syncToUI` passes `{ startCollapsed: idx > 0 }` for preset steps. |
-| Spinner recomputes on commit, not keystroke | Depth spinner binds `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
+| Spinner recomputes on commit, not keystroke | Spinners that drive live counts bind `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
 | Coordinate conversion engine-agnostic via `parentId` | Engine adapters set `parentId` on result nodes; `_writeView` applies parent-relative conversion using `_getParentAbsOffset` (parent-first iteration ensures parent's NEW bounds are in place). |
 | UI-only state partitioned | `_*`-prefixed keys (`_lastTabIndex`, …) preserved by `preset_io.readSession` after `validatePreset` strips unknowns. |
 | ELK Radial spanning-tree pre-processing | `engines/elk.js::_spanningTree` — BFS over the graph; cycle edges dropped; virtual edges `id: "__span_N"` join disconnected components; `_writeView` skips virtuals (`_archiRelId: null`). |

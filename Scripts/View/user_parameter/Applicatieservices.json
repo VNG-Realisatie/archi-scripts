@@ -43,7 +43,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "grouping"
         ],
@@ -53,7 +53,7 @@
         "diagramTypes": []
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "application-service"
         ],

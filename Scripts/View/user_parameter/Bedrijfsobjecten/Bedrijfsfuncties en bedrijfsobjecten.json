@@ -50,7 +50,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 5,
+        "repeat": 5,
         "elementTypes": [
           "business-function"
         ],
@@ -64,7 +64,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "business-object"
         ],

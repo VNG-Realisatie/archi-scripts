@@ -43,7 +43,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [],
         "relationTypes": [
           "association-relationship"
