@@ -75,7 +75,7 @@ const ALGORITHMS = Object.freeze({
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
       "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
-      "edgeLabelSpacing",
+      "connectionLabelSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
@@ -545,7 +545,7 @@ const DEFAULT_PRESET = Object.freeze({
     viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
     labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
     labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
-    edgeLabelSpacing:      false,  // treat edge labels as layout constraints in ELK Layered (prevents overlap)
+    connectionLabelSpacing:      false,  // reserve space for connection labels in ELK Layered (prevents overlap)
   },
   filter: {
     elementTypes:  [],
@@ -601,10 +601,10 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMinHeight:   30,
 });
 
-// Forced layer spacing (px) used by ELK Layered when edgeLabelSpacing is on.
-// Overrides the user's Layer spacing spinner so ELK has enough room between
-// layers to route connections around their labels without manual tuning.
-const EDGE_LABEL_LAYER_SPACING = 20;
+// Minimum distance (px) between an element and the first / last bendpoint of a connection,
+// so the bend never falls inside the end decoration Archi draws there (diamond, arrowhead).
+// Floor for connectionElementSpacing between layers (ELK Layered: edgeNodeBetweenLayers).
+const CONNECTION_END_CLEARANCE = 25;
 
 // ── Step repeat ───────────────────────────────────────────────────────────────
 // A step's `repeat` is 1–5 (run the step that many times, each run starting from the
@@ -846,7 +846,7 @@ if (typeof module !== "undefined" && module.exports) {
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS,
-    EDGE_LABEL_LAYER_SPACING,
+    CONNECTION_END_CLEARANCE,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,

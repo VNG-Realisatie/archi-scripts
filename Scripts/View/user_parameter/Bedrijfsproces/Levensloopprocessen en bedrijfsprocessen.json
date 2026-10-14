@@ -32,7 +32,7 @@
     "viewSizeMode": "none",
     "labelSizing": true,
     "labelMaxLineWidth": 160,
-    "edgeLabelSpacing": true
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementTypes": [],

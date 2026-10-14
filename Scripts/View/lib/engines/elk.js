@@ -14,7 +14,7 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONTAINER_LABEL_CLEARANCE } = Defs;
+const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONTAINER_LABEL_CLEARANCE, CONNECTION_END_CLEARANCE } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 
@@ -84,24 +84,24 @@ const _LAYERED_CONN_SPACING      = (v) => ({
   "elk.spacing.edgeEdge":                      String(v),
   "elk.layered.spacing.edgeEdgeBetweenLayers": String(v),
 });
+// edgeNodeBetweenLayers is also the distance from an element to the first / last bendpoint:
+// floored at CONNECTION_END_CLEARANCE so the bend stays clear of Archi's end decoration.
 const _LAYERED_CONN_ELEM_SPACING = (v) => ({
   "elk.spacing.edgeNode":                      String(v),
-  "elk.layered.spacing.edgeNodeBetweenLayers": String(v),
+  "elk.layered.spacing.edgeNodeBetweenLayers": String(Math.max(v, CONNECTION_END_CLEARANCE)),
   "elk.spacing.nodeSelfLoop":                  String(v),
 });
-const _EDGE_LABEL_SPACING = (v) => v ? {
-  "elk.edgeLabels.inline":                               "false",
+// Label placement only; "elk.edgeLabels.inline" is a per-label option, set on each label in layout().
+const _CONN_LABEL_SPACING = (v) => v ? {
   // "elk.layered.edgeLabels.centerLabelPlacementStrategy": "MEDIAN_LAYER",
   "elk.layered.edgeLabels.centerLabelPlacementStrategy": "CENTER",
-} : {
-  "elk.edgeLabels.inline": "true",
-};
+} : {};
 
 // Shared base objects — spread into root/container; padding and aspectRatio are added per scope.
 const _LAYERED_BASE = {
   direction:                _DIRECTION,
   routing:                  _LAYERED_ROUTING,
-  edgeLabelSpacing:         _EDGE_LABEL_SPACING,
+  connectionLabelSpacing:         _CONN_LABEL_SPACING,
   elementSpacing:           _ELEM_SPACING,
   layerSpacing:             _LAYER_SPACING,
   connectionSpacing:        _LAYERED_CONN_SPACING,
@@ -239,9 +239,11 @@ function layout(graph) {
 
   // Map GUI params to ELK root options (SPLINES CONSERVATIVE mode inlined in _LAYERED_ROUTING)
   const rootEngineOpts  = _mapParamsScoped(graph.algorithm, graph.options, "root");
-  // edgeLabelSpacing forces layer spacing to 20 so ELK has room to route around labels.
-  if (graph.options.edgeLabelSpacing)
-    rootEngineOpts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(Defs.EDGE_LABEL_LAYER_SPACING);
+  // Reserve label space (Layered): every connection gets a label box in its own label layer, so
+  // ELK's layer spacing becomes the element ↔ label distance (= connectionSpacing) — see _labelBoxes.
+  const reserveLabels = graph.options.connectionLabelSpacing && alg.engineAlgorithmId === "layered";
+  if (reserveLabels)
+    rootEngineOpts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(graph.options.connectionSpacing || 0);
   const elkEngineParams = Object.fromEntries(
     Object.entries(Object.assign({}, DEFAULT_ELK_PARAMS, (graph.engineParams && graph.engineParams.ELK) || {})).map(([k, v]) => [k, String(v)])
   );
@@ -272,6 +274,9 @@ function layout(graph) {
     if (node.parent) parentMap[node.id] = node.parent;
   }
 
+  // Connection-label sizing uses the same text estimate and tuning as label-based node sizing
+  // (defaults + preset engineParams.layout).
+  const lp = Object.assign({}, Defs.LABEL_SIZING_DEFAULTS, graph.engineParams && graph.engineParams.layout);
   const edgeList = [];
   const selfLoops = [];
   for (const edge of graph.edges) {
@@ -289,10 +294,7 @@ function layout(graph) {
       targets:     [edge.target],
     };
     if (edge.weight) entry.properties = { "elk.priority": edge.weight };
-    if (graph.options.edgeLabelSpacing && edge.label) {
-      const { labelCharWidth: charW, labelLineHeight: lineH, labelHPadding: hPad } = Defs.LABEL_SIZING_DEFAULTS;
-      entry.labels = [{ id: edge.id + "_lbl", text: edge.label, width: EngineUtils._textWidth(edge.label, charW) + hPad, height: lineH }];
-    }
+    if (reserveLabels) entry.labels = [_labelBox(edge, lp, graph.options)];
     edgeList.push(entry);
   }
 
@@ -428,6 +430,39 @@ function layout(graph) {
   };
 }
 
+/**
+ * Label box for one connection in Reserve-label-space mode. Every connection gets one, so every
+ * gap between two element layers holds a label layer and its width is decided per gap:
+ *   gap = 2 × connectionSpacing + box length in the flow direction
+ * The box is stretched in the flow direction to at least layerSpacing − 2 × connectionSpacing, so
+ *   gap without labels  = layerSpacing
+ *   gap with a label    = max(layerSpacing, label + 2 × connectionSpacing)
+ *   element → label     = max(connectionSpacing, (layerSpacing − label) / 2)
+ * Connections without a label get an invisible box (GAP_LABEL_SUFFIX; ignored by _collectEdgeResults).
+ * ELK ignores labels with empty text, hence the placeholder text.
+ * Label size: same text estimate and tuning as label-based node sizing; hPad / vPad are its margin.
+ * inline: ELK centres the label on the line and reserves that box — where Archi draws it.
+ */
+const GAP_LABEL_SUFFIX = "_gap";
+function _labelBox(edge, lp, opts) {
+  const flowIsX  = opts.direction !== "Up" && opts.direction !== "Down";
+  const minFlow  = Math.max(0, (opts.layerSpacing || 0) - 2 * (opts.connectionSpacing || 0));
+  let w = 0, h = 0;
+  if (edge.label) {
+    const lines = edge.label.split("\n");
+    w = Math.max(...lines.map(l => EngineUtils._textWidth(l, lp.labelCharWidth))) + lp.labelHPadding;
+    h = lines.length * lp.labelLineHeight + lp.labelVPadding;
+  }
+  if (flowIsX) w = Math.max(w, minFlow); else h = Math.max(h, minFlow);
+  return {
+    id:            edge.id + (edge.label ? "_lbl" : GAP_LABEL_SUFFIX),
+    text:          edge.label || "_",
+    width:         w,
+    height:        h,
+    layoutOptions: { "elk.edgeLabels.inline": "true" },
+  };
+}
+
 // ── Graph building ────────────────────────────────────────────────────────────
 
 function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
@@ -442,8 +477,10 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   // compaction options follow the "Container layout" choice, not the root "Algorithm".
   const containerAlgName = graph.options.containerAlgorithm;
   const containerEngineOpts = _mapParamsScoped(containerAlgName || graph.algorithm, graph.options, "container");
-  if (graph.options.edgeLabelSpacing && "elk.layered.spacing.nodeNodeBetweenLayers" in containerEngineOpts)
-    containerEngineOpts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(Defs.EDGE_LABEL_LAYER_SPACING);
+  // Reserve label space: element ↔ label distance inside Layered containers too (see _labelBox).
+  if (graph.options.connectionLabelSpacing && ALGORITHMS[graph.algorithm].engineAlgorithmId === "layered"
+      && "elk.layered.spacing.nodeNodeBetweenLayers" in containerEngineOpts)
+    containerEngineOpts["elk.layered.spacing.nodeNodeBetweenLayers"] = String(graph.options.connectionSpacing || 0);
   const containerAlgoId  = containerAlgName
     ? ALGORITHMS[containerAlgName].engineAlgorithmId
     : ALGORITHMS[graph.algorithm].engineAlgorithmId;
@@ -841,7 +878,7 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
     const abs = p => ({ x: offsetX + ((p && p.x) || 0), y: offsetY + ((p && p.y) || 0) });
     for (const edge of (elkNode.edges || [])) {
       if (!edge.sections || edge.sections.length === 0) continue;
-      const lbl = edge.labels && edge.labels[0];
+      const lbl = edge.labels && edge.labels.find(l => !l.id.endsWith(GAP_LABEL_SUFFIX));
       const rec = {
         edge,
         sections: edge.sections.map(s => ({
@@ -874,6 +911,44 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
     const joined = { edge: recs[0].edge, sections: [].concat(...recs.map(r => r.sections)), label, segCount: meta.segCount };
     _emitEdgeResult(joined, meta, resultEdges, labelPosition, isSplines, debugLog);
   }
+}
+
+/**
+ * Remove tiny jogs ELK leaves between two parallel segments — e.g. a port 1–3 px off the line it
+ * joins, because node placement could not put the long segment exactly in line with the port.
+ * The shorter of the two parallel segments moves onto the longer one's line (shifting a path end
+ * along the element side by < JOG_MAX), so the jog disappears. Then duplicate and collinear
+ * interior points are dropped; the two path ends are always kept.
+ * @param {{x:number,y:number}[]} path  [start, ...bendpoints, end] (absolute)
+ * @returns {{x:number,y:number}[]}
+ */
+const JOG_MAX = 5;  // px
+function _straightenJogs(path) {
+  const p = path.map(q => ({ x: q.x, y: q.y }));
+  const len  = (u, v) => Math.abs(u.x - v.x) + Math.abs(u.y - v.y);
+  const horz = (u, v) => Math.abs(u.y - v.y) < 0.5 && Math.abs(u.x - v.x) >= 0.5;
+  const vert = (u, v) => Math.abs(u.x - v.x) < 0.5 && Math.abs(u.y - v.y) >= 0.5;
+  for (let i = 1; i + 2 < p.length; i++) {
+    const a = p[i - 1], b = p[i], c = p[i + 1], d = p[i + 2];
+    for (const [par, perp, k] of [[horz, vert, "y"], [vert, horz, "x"]]) {
+      if (!(par(a, b) && perp(b, c) && par(c, d) && len(b, c) < JOG_MAX)) continue;
+      if (len(a, b) <= len(c, d)) a[k] = b[k] = c[k];
+      else                        c[k] = d[k] = b[k];
+    }
+  }
+  const out = [];
+  p.forEach((q, i) => {
+    const prev = out[out.length - 1];
+    if (prev && len(prev, q) < 0.5) { if (i === p.length - 1) out[out.length - 1] = q; return; }
+    out.push(q);
+  });
+  for (let i = out.length - 2; i >= 1; i--) {
+    const a = out[i - 1], b = out[i], c = out[i + 1];
+    const collinear = (Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5)
+                   || (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5);
+    if (collinear) out.splice(i, 1);
+  }
+  return out;
 }
 
 /**
@@ -916,17 +991,25 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debug
     bps = kept;
   }
 
+  // Straighten tiny jogs (orthogonal / polyline only). The path ends may shift along the element
+  // side by less than JOG_MAX, so the ports below are taken from the straightened path.
+  let pathStart = rnd(first.startPoint), pathEnd = rnd(last.endPoint);
+  if (!isSplines) {
+    const path = _straightenJogs([pathStart, ...bps, pathEnd]);
+    pathStart = path[0]; pathEnd = path[path.length - 1]; bps = path.slice(1, -1);
+  }
+
   // If the layout computed a straight segment (no bendpoints), inject the edge
   // midpoint so Archi routes along the layout's spacing rather than through the
   // element centres.
   if (bps.length === 0) {
-    bps.push(rnd({ x: (first.startPoint.x + last.endPoint.x) / 2, y: (first.startPoint.y + last.endPoint.y) / 2 }));
+    bps.push(rnd({ x: (pathStart.x + pathEnd.x) / 2, y: (pathStart.y + pathEnd.y) / 2 }));
   }
 
   // Section start/end (absolute) — the physical exit/entry ports of the connection.
   // Passed to the writer so extra label-alignment bendpoints stay outside elements.
-  const srcPort = rnd(first.startPoint);
-  const tgtPort = rnd(last.endPoint);
+  const srcPort = pathStart;
+  const tgtPort = pathEnd;
 
   if (debugLog) {
     const liftStr = meta
@@ -938,7 +1021,7 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debug
     debugLog(`         ${bps.map((b, i) => `bp[${i}]=(${b.x},${b.y})`).join("  ")}`);
   }
 
-  // Label position — use ELK's computed result when available (edgeLabelSpacing mode),
+  // Label position — use ELK's computed result when available (connectionLabelSpacing mode),
   // otherwise derive from geometry.
   let { labelX, labelY } = _computeLabelPoint({ startPoint: first.startPoint, endPoint: last.endPoint }, bps, 0, 0, labelPosition, edge._relName);
   if (rec.label) { labelX = Math.round(rec.label.x); labelY = Math.round(rec.label.y); }

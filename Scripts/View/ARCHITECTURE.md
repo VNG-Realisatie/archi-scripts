@@ -557,20 +557,19 @@ The Layout tab decides *how* objects are positioned.
 │ │   Compact:  ○ Grid      ○ Pack                                        │ │
 │ │  Circular:  ○ Radial    ○ Twopi    ○ Circo                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Element size and spacing ────────────────────────────────────────────┐ │
-│ │  Width: [140 ▲▼]  ☑ Width by label length    Max width: [400 ▲▼]     │ │
-│ │  Height: [60 ▲▼]  Element spacing: [40 ▲▼]                           │ │
-│ │  Layer spacing: [180 ▲▼]  ☑ Layer spacing by label width              │ │
+│ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
+│ │  Size:     Width   [140]  ☐ By label        Max width [400]           │ │
+│ │            Height  [ 60]                                              │ │
+│ │  Spacing:  Element [ 40]  Layer  [180]                                │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Direction ───────────────────────────────────────────────────────────┐ │
-│ │  Flow direction:  [Left → Right  ▼]                                   │ │
+│ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
+│ │  Order:    Direction [Right ▼]  Cycles [Greedy ▼]  Ranking [Balanced ▼] │
 │ │  ── Reversed - draw these relation types in other direction ────────  │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
-│ │  Routing: [Orthogonal ▼]  Label: [Middle ▼]  Cycle breaking: [Greedy ▼] │
-│ │  Layer ranking: [Balanced ▼]                                          │ │
-│ │  Connection spacing: [25 ▲▼]   Connection-element spacing: [40 ▲▼]   │ │
+│ │  Line:     Routing [Orthogonal ▼]  Label [Middle ▼]  ☐ Reserve label space │
+│ │  Spacing:  Between [ 25]  To element [ 40]                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting     ─────────────────────────────────────────────────────────┐ │
 │ │  Draw these relation types as containers                              │ │
@@ -620,40 +619,40 @@ Algorithm radio button tooltips:
 | Twopi | Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz) |
 | Circo | Cyclic dependency and domain overviews with limited nesting support (Graphviz) |
 
-#### Element size and spacing
+Elements, Flow and Connections share one column grid: a row heading (*Size:*, *Spacing:*, …) followed by up to three label/control pairs; a checkbox takes a whole pair. Every column takes the width of its widest single-column cell across all three groups (`_formRow` / `_alignFormColumns` in `dialog_main.js`), so fields line up vertically between the groups. Field names are short; the row heading gives the context, the tooltip the full description.
 
-| Parameter | Description |
-|---|---|
-| Element width | Width of all elements (px). Disabled when "Width by label length" is on. |
-| Width by label length | Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only). |
-| Max width | Maximum label pixel width before wrapping to two lines (px). Active when "Width by label length" is on. |
-| Element height | Height of all elements (px). Disabled when "Width by label length" is on. |
-| Element spacing | Minimum distance between elements (px). |
-| Layer spacing | Distance between hierarchy levels (px). Disabled when "Layer spacing by label width" is on. |
-| Layer spacing by label width | Labels participate as ELK layout constraints; routing expands to prevent overlap. Forces layer spacing to 20 px. Layered only. |
+Parameters are active only for algorithms that support them (see [Algorithm capability matrix](#algorithm-capability-matrix)); unsupported parameters are greyed.
 
-#### Direction
+#### Elements
 
-Parameters in this group are active only for algorithms that support them (see [Algorithm capability matrix](#algorithm-capability-matrix)); unsupported parameters are greyed.
+| Row | Field | Parameter | Description |
+|---|---|---|---|
+| Size | Width | `elementWidth` | Width of all elements (px). Disabled when *By label* is on. |
+| (Size) | Height | `elementHeight` | Height of all elements (px). Disabled when *By label* is on. |
+| Size | By label | `labelSizing` | Derive element width and height from the label text; long labels wrap to 2 lines (Pack and Grid only). |
+| Size | Max width | `labelMaxLineWidth` | Maximum label width before wrapping to two lines (px). Active when *By label* is on. |
+| Spacing | Element | `elementSpacing` | Minimum distance between elements (px). |
+| Spacing | Layer | `layerSpacing` | Distance between layers (px). With *Reserve label space*, a gap holding a long label widens to label + 2 × *Between*. |
 
-| Parameter | Tooltip |
-|---|---|
-| Flow direction | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
+#### Flow
+
+| Row | Field | Parameter | Description |
+|---|---|---|---|
+| Order | Direction | `direction` | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
+| Order | Cycles | `acyclicer` | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
+| Order | Ranking | `ranking` | How elements are assigned to layers. Balanced: minimises edge lengths. Uniform: shallowest possible layer. Top-aligned: pulled to the deepest layer. |
 
 **Reversed** — a checkbox per relation type. Checked types have their source/target swapped in the layout graph so the engine traverses them in the reversed direction — meaningful for ranking algorithms where direction drives hierarchy. See [Engine adapter contract](#engine-adapter-contract).
 
 #### Connections
 
-Parameters in this group are active only for algorithms that support them; unsupported parameters are greyed.
-
-| Parameter | Tooltip |
-|---|---|
-| Routing | How connection lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
-| Label | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
-| Cycle breaking | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
-| Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
-| Connection spacing | Distance between parallel connections **and** between the connection points (ports) on one side of an element (px). One value for both, so parallel connections run straight into the element. Elements grow to fit their connections; 0 = no growth. ELK Layered: `spacing.edgeEdge`/`edgeEdgeBetweenLayers` + `spacing.portPort`/`portsSurrounding`, ports centred (`portAlignment CENTER`), leaves sized by ELK (`nodeSize.constraints [PORTS, MINIMUM_SIZE]`). |
-| Connection-element spacing | Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements. |
+| Row | Field | Parameter | Description |
+|---|---|---|---|
+| Line | Routing | `routing` | How connection lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
+| Line | Label | `labelPosition` | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
+| Line | Reserve label space | `connectionLabelSpacing` | Reserve space for each connection label so labels don't overlap other labels, connections or elements. A layer gap stays *Layer* wide and widens to label + 2 × *Between* where a label needs it (plus room for bends next to the label). Layered only. See [Edge label placement](#edge-label-placement-connectionlabelspacing-mode). |
+| Spacing | Between | `connectionSpacing` | Distance between parallel connections **and** between the connection points (ports) on one side of an element (px). One value for both, so parallel connections run straight into the element. Elements grow to fit their connections; 0 = no growth. ELK Layered: `spacing.edgeEdge`/`edgeEdgeBetweenLayers` + `spacing.portPort`/`portsSurrounding`, ports centred (`portAlignment CENTER`), leaves sized by ELK (`nodeSize.constraints [PORTS, MINIMUM_SIZE]`). |
+| Spacing | To element | `connectionElementSpacing` | Minimum distance between a connection and elements it passes near (px). Between an element and the first / last bend at least `CONNECTION_END_CLEARANCE` (25 px), so the bend stays clear of Archi's end symbol (diamond, arrowhead) — ELK Layered `edgeNodeBetweenLayers = max(value, 25)`. |
 
 #### Nesting
 
@@ -1273,11 +1272,25 @@ LayoutResult {
 
 Element labels are intrinsic to nodes — the result carries no separate element-label coordinates. The writer places each node's `label` inside the node's bounds at its standard position.
 
-#### Edge label placement (`edgeLabelSpacing` mode)
+#### Edge label placement (`connectionLabelSpacing` mode)
 
-When `edgeLabelSpacing` is on (ELK Layered only), each edge in the input graph carries a `labels` entry with the label's pixel dimensions. ELK routes the edge to reserve clearance around the label and returns the computed label center in `result_edge.labels[0].{x, y}` (container-relative coordinates). The adapter reads this and stores the absolute center as `labelX / labelY` in the LayoutResult edge, overriding the default geometry-based computation.
+When `connectionLabelSpacing` is on (ELK Layered only), each edge in the input graph carries a `labels` entry with the label's estimated pixel dimensions — the same `_textWidth` estimate and tuning (`LABEL_SIZING_DEFAULTS` + preset `engineParams.layout`) as label-based node sizing; one line per `\n`, plus `labelHPadding` / `labelVPadding` as margin. Each label is `elk.edgeLabels.inline`: ELK centres it on the line (as Archi draws it) and reserves that box and returns the computed label center in `result_edge.labels[0].{x, y}` (container-relative coordinates). The adapter reads this and stores the absolute center as `labelX / labelY` in the LayoutResult edge, overriding the default geometry-based computation.
 
-Archi places a connection label at the **arc-length midpoint** of the bendpoint path (`textPosition = CENTER`). For L-shaped orthogonal edges where the vertical segment is taller than the horizontal, this midpoint falls in the vertical piece — away from where ELK reserved label space (typically a horizontal, flow-direction segment). The writer compensates by computing the arc distance `D` from source to the ELK label position, then injecting a perpendicular tab of arc-length `|L − 2D|` on a segment away from the label. This shifts the arc-midpoint to the ELK label position without moving the label itself. See `_applyEdgeStyle` in `generate_view.js`.
+**Layer gaps** (`_labelBox` in `elk.js`). ELK puts a label in its own label layer, with the layer spacing on both sides — the same setting as between two elements. So in this mode ELK's layer spacing is set to `connectionSpacing` (*Between*), and **every** connection gets a label box stretched in the flow direction to at least `layerSpacing − 2 × connectionSpacing`; connections without a label get an invisible box (placeholder text, 0 px thick — ELK ignores labels with empty text; `_collectEdgeResults` skips these boxes). Result per gap between two element layers:
+
+| | Width |
+|---|---|
+| no label | `layerSpacing` |
+| label of length W | `max(layerSpacing, W + 2 × connectionSpacing)` |
+| element → label | `max(connectionSpacing, (layerSpacing − W) / 2)` |
+
+ELK only bends connections in the narrow channels between an element layer and a label layer, never inside the label layer. A channel with bends grows to fit them (`edgeNodeBetweenLayers` on both sides, `edgeEdgeBetweenLayers` between bends), so a gap where connections both carry a label and bend is wider than the table by that routing room.
+
+Archi places a Middle connection label at the **middle point by index** of the drawn point list (source anchor, bendpoints, target anchor — draw2d `ConnectionLocator.MIDDLE`); for an even count, at the midpoint of the middle segment. The writer (`_insertLabelMidpointBp` in `generate_view.js`) snaps the ELK label centre onto the nearest path segment, makes it a bendpoint (or reuses the bendpoint it coincides with), and adds collinear bendpoints on the shorter side until the same number of bendpoints lies before and after it. The route is unchanged; the label lands exactly where ELK reserved its space.
+
+#### Jog straightening
+
+ELK's node placement cannot always put a long segment exactly in line with the port it leaves, and then routes a tiny jog (1–3 px) right after the port. `_straightenJogs` in `elk.js` removes every perpendicular jog shorter than `JOG_MAX` (5 px) between two parallel segments: the shorter of the two moves onto the longer one's line, shifting a path end along the element side by less than `JOG_MAX`. Real bends are kept. Orthogonal and polyline routing only.
 
 ### View-size constraints
 

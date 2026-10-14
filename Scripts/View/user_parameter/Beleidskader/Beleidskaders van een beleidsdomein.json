@@ -34,7 +34,7 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
-    "edgeLabelSpacing": false
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementTypes": [],

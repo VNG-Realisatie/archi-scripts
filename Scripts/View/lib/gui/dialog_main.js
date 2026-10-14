@@ -1339,29 +1339,28 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   w.algRadios = algRadios;
 
-  // ── Element size and spacing ───────────────────────────────────────────────────
-  const grpSize = _group(page, "Element size and spacing", 6);
+  // Elements / Flow / Connections share one column grid (heading | label control | …) so their
+  // fields line up across the three boxes — see _formRow / _alignFormColumns.
+  const formRows = [];
 
-  // Row 1: Width [2] | Width by label length [2] | Max width [2]
-  _addSpinnerRow(grpSize, "Width:",     "spinElementWidth",     140, 10, 1000, 10, w, "Width of all elements (px).");
-  _addCheck(grpSize, "Width by label length",
-    "Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only).",
+  // ── Elements ──────────────────────────────────────────────────────────────────
+  const grpSize = _group(page, "Elements", 1);
+
+  let row = _formRow(grpSize, "Size:", formRows);
+  _addSpinnerRow(row, "Width",     "spinElementWidth",      140, 10, 1000, 10, w, "Width of all elements (px).");
+  _addCheck(row, "By label",
+    "Derive element width (and height) from the label text; long labels wrap to 2 lines.\nWidth and Height are disabled when active (Pack and Grid only).",
     2, w, "chkLabelSizing");
-  _addSpinnerRow(grpSize, "Max width:", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label pixel width before wrapping to two lines (px).");
+  _addSpinnerRow(row, "Max width", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label width before wrapping to two lines (px). Active with By label.");
   if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  // Row 2: Height [2] | Element spacing [2] | (empty) [2]
-  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",  60, 10, 500, 10, w, "Height of all elements (px).");
-  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing", 40,  0, 500,  5, w, "Minimum distance between elements (px).");
-  new LabelWidget(grpSize, SWT.NONE); new LabelWidget(grpSize, SWT.NONE);
+  row = _formRow(grpSize, "", formRows);
+  _addSpinnerRow(row, "Height",    "spinElementHeight",      60, 10,  500, 10, w, "Height of all elements (px).");
 
-  // Row 3: Layer spacing [2] | Layer spacing by label width [4]
-  _addSpinnerRow(grpSize, "Layer spacing:", "spinLayerSpacing", 180, 0, 2000, 20, w, "Distance between hierarchy levels (px). Active in layered, tree, and flow layouts.");
-  _addCheck(grpSize, "Layer spacing by label width",
-    "When on: labels participate as layout constraints. ELK expands routing paths to prevent overlap.\n" +
-    "When off: labels are drawn as overlays; faster but may overlap in dense graphs. Layered only.",
-    4, w, "chkEdgeLabelSpacing");
-  if (w.chkEdgeLabelSpacing) w.chkEdgeLabelSpacing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  row = _formRow(grpSize, "Spacing:", formRows);
+  _addSpinnerRow(row, "Element", "spinElementSpacing", 40, 0,  500,  5, w, "Minimum distance between elements (px).");
+  _addSpinnerRow(row, "Layer",   "spinLayerSpacing",  180, 0, 2000, 20, w, "Distance between layers (px). Active in layered, tree, and flow layouts.\n" +
+    "With Reserve label space, a layer gap holding a long label widens to label + 2 × Between.");
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -1371,14 +1370,13 @@ function _buildLayoutTab(tabFolder, ctx) {
     _updateNestingLevelState(ctx);  // keep nesting level group enabled/disabled in sync
   };
 
-  // ── Direction ─────────────────────────────────────────────────────────────────
-  const grpDir = _group(page, "Direction", 1);
+  // ── Flow ──────────────────────────────────────────────────────────────────────
+  const grpDir = _group(page, "Flow", 1);
 
-  const dirComp = new CompositeWidget(grpDir, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(8, 3).applyTo(dirComp);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(dirComp);
-  _addCombo(dirComp, "Flow direction:", DIRECTION_LABELS, 0, 120, "cmbDirection", w, "Direction of the main flow. Active in layered, tree, and directed-flow algorithms.");
-  new LabelWidget(dirComp, SWT.NONE); new LabelWidget(dirComp, SWT.NONE);
+  row = _formRow(grpDir, "Order:", formRows);
+  _addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w, "Direction of the main flow. Active in layered, tree, and directed-flow algorithms.");
+  _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
+  _addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w, "How elements are assigned to layers. Balanced minimises edge lengths; Uniform places elements at the shallowest possible layer; Top-aligned pulls them to the deepest layer.");
 
   _groupSep(grpDir, 1, "Reversed - draw these relation types in other direction");
   w.lstReverseTypes = _checkboxGrid(grpDir, RELATION_TYPE_LABELS, 4, onParamsChange);
@@ -1386,30 +1384,26 @@ function _buildLayoutTab(tabFolder, ctx) {
   // ── Connections ───────────────────────────────────────────────────────────────
   const grpRout = _group(page, "Connections", 1);
 
-  const routComp = new CompositeWidget(grpRout, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(8, 3).applyTo(routComp);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(routComp);
-
-  _addCombo(routComp, "Routing:",        ROUTING_ALL,      0, 160, "cmbRouting",       w);
+  row = _formRow(grpRout, "Line:", formRows);
+  _addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
   w.cmbRouting.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS));
   _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS);
-  _addCombo(routComp, "Label:",          LABEL_POS_ALL,    1,  90, "cmbLabelPosition", w);
+  _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
   w.cmbLabelPosition.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS));
   _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
-  _addCombo(routComp, "Cycle breaking:", ACYCLICER_LABELS, 0,  90, "cmbAcyclicer",     w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
+  _addCheck(row, "Reserve label space",
+    "Reserve space for each connection label, so labels don't overlap other labels, connections or elements.\n" +
+    "A layer gap stays Layer wide, and widens where a label needs label + 2 × Between. Layered only.",
+    2, w, "chkConnectionLabelSpacing");
 
-  _addCombo(routComp, "Layer ranking:",  RANKING_LABELS,   0, 110, "cmbRanking",       w, "How nodes are assigned to rank layers. Balanced minimises edge lengths; Uniform places nodes at the shallowest possible rank; Top-aligned pulls nodes to the deepest rank.");
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  // Sub-composite keeps the long "Connection-element spacing:" label out of
-  // routComp's shared column pool, preventing it from widening the whole block.
-  const spacingComp = new CompositeWidget(routComp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(8, 3).applyTo(spacingComp);
-  GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(spacingComp);
-  _addSpinnerRow(spacingComp, "Connection spacing:",         "spinConnectionSpacing",        25, 0, 200, 5, w,
+  row = _formRow(grpRout, "Spacing:", formRows);
+  _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        25, 0, 200, 5, w,
     "Distance between parallel connections, and between the connection points on one side of an element (px).\n" +
     "Elements grow to fit their connections. One value for both keeps parallel connections straight into the element.\n0 = no element growth.");
-  _addSpinnerRow(spacingComp, "Connection-element spacing:", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements.");
+  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px).\n" +
+    "Between an element and the first / last bend at least 25, to keep the bend clear of the end symbol.");
+
+  _alignFormColumns(formRows);
 
   // ── Nesting structure ─────────────────────────────────────────────────────────
   const grpNest = _group(page, "Nesting", 1);
@@ -1492,7 +1486,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.radioViewSizeMaxWidth.setToolTipText("Spread layout outward to reach the target width. No compression if already larger.");
   const _spMaxWidth = new SpinnerWidget(hintRow, SWT.BORDER);
   _spMaxWidth.setValues(0, 0, 99999, 0, 100, 500);
-  GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(_spMaxWidth);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(_spMaxWidth);
   _spMaxWidth.setToolTipText("Target view width (px).");
   w.spinMaxWidth = _spMaxWidth;
 
@@ -1929,7 +1923,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
 
   const nestRootFontSp = new SpinnerWidget(nestFontRow, SWT.BORDER);
   nestRootFontSp.setValues(14, 8, 24, 0, 1, 2);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestRootFontSp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestRootFontSp);
   nestRootFontSp.setToolTipText("Font size for root containers (depth 0)");
   nestRootFontSp.addListener(SWT.Selection, onChange);
   w.spinNestRootFontSize = nestRootFontSp;
@@ -1946,7 +1940,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   w.lblNestDecrease = lblNestDecrease;
   const nestFontDecreaseSp = new SpinnerWidget(nestFontRow, SWT.BORDER);
   nestFontDecreaseSp.setValues(2, 1, 6, 0, 1, 1);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestFontDecreaseSp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestFontDecreaseSp);
   nestFontDecreaseSp.setToolTipText("Reduce font size by this many points per nesting level");
   nestFontDecreaseSp.addListener(SWT.Selection, onChange);
   w.spinNestFontDecrease = nestFontDecreaseSp;
@@ -1988,7 +1982,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   w.lblNestLighten = lblNestLighten;
   const nestLightenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
   nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestLightenSp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestLightenSp);
   nestLightenSp.setToolTipText("Percentage to lighten fill color per level toward root");
   nestLightenSp.addListener(SWT.Selection, onChange);
   w.spinNestLighten = nestLightenSp;
@@ -2204,6 +2198,56 @@ function _groupSep(parent, span, label) {
   const lbl = new LabelWidget(parent, SWT.NONE);
   lbl.setText(label);
   GridDataFactory.fillDefaults().span(span, 1).applyTo(lbl);
+}
+
+// Aligned form row: heading | label control | label control | label control (FORM_COLS cells).
+// Rows registered in `rows` are aligned by _alignFormColumns, also across different groups.
+// A checkbox takes a whole label/control pair (span 2).
+const SPINNER_WIDTH = 65;  // every number spinner — fits 4 digits
+const FORM_COLS   = 7;  // heading + 3 label/control pairs
+const FORM_HSPACE = 8;  // horizontal spacing between cells
+function _formRow(parent, heading, rows) {
+  const row = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(FORM_COLS).margins(0, 0).spacing(FORM_HSPACE, 3).applyTo(row);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
+  new LabelWidget(row, SWT.NONE).setText(heading);
+  rows.push(row);
+  return row;
+}
+
+// Line up the columns of all rows (also across groups). A column is as wide as its widest
+// single-column cell. Cells with their own width hint (spinners: SPINNER_WIDTH) keep it; so do spanning cells
+// (checkboxes) at their natural width — the remaining column space becomes the indent of the
+// next cell, so the following cells still line up. All cells are vertically centred.
+function _alignFormColumns(rows) {
+  const cells = row => {
+    let col = 0;
+    return Array.from(row.getChildren()).map(c => {
+      const gd = c.getLayoutData();
+      const span = (gd && gd.horizontalSpan) || 1;
+      const hint = gd && gd.widthHint > 0 ? gd.widthHint : -1;
+      const cell = { c, col, span, hint, natural: c.computeSize(SWT.DEFAULT, SWT.DEFAULT).x };
+      col += span;
+      return cell;
+    });
+  };
+  const widths = [];
+  for (const row of rows)
+    for (const { col, span, hint, natural } of cells(row))
+      if (span === 1 && hint <= 0) widths[col] = Math.max(widths[col] || 0, natural);
+  for (const row of rows)
+    for (const { col, span, hint } of cells(row))
+      if (span === 1 && hint > 0) widths[col] = Math.max(widths[col] || 0, hint);
+  for (const row of rows) {
+    let indent = 0;
+    for (const { c, col, span, hint, natural } of cells(row)) {
+      let slot = -FORM_HSPACE;
+      for (let i = col; i < col + span; i++) slot += (widths[i] || 0) + FORM_HSPACE;
+      const own = span > 1 ? natural : hint > 0 ? hint : slot;
+      GridDataFactory.swtDefaults().span(span, 1).indent(indent, 0).hint(own, SWT.DEFAULT).applyTo(c);
+      indent = Math.max(0, slot - own);
+    }
+  }
 }
 
 // Label + read-only combo + items + selection + width hint + widget registration.
@@ -2438,7 +2482,7 @@ function _syncToUI(ctx) {
   _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
   _chkSet(w.chkShowInEvery,  !!(p.showInEveryContainer));
   _chkSet(w.chkLabelSizing,  !!(p.labelSizing));
-  if (w.chkEdgeLabelSpacing) w.chkEdgeLabelSpacing.setSelection(!!p.edgeLabelSpacing);
+  if (w.chkConnectionLabelSpacing) w.chkConnectionLabelSpacing.setSelection(!!p.connectionLabelSpacing);
   if (w.cmbContainerAlgorithm) {
     const idx = CONTAINER_ALGO_LABELS.indexOf(p.containerAlgorithm || "Layered");
     w.cmbContainerAlgorithm.select(idx >= 0 ? idx : 0);
@@ -2664,7 +2708,7 @@ function _saveUI(ctx) {
   if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
   if (w.chkShowInEvery)          c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
   if (w.chkLabelSizing)          c.params.labelSizing          = w.chkLabelSizing.getSelection();
-  if (w.chkEdgeLabelSpacing)     c.params.edgeLabelSpacing     = w.chkEdgeLabelSpacing.getSelection();
+  if (w.chkConnectionLabelSpacing)     c.params.connectionLabelSpacing     = w.chkConnectionLabelSpacing.getSelection();
   if (w.cmbContainerAlgorithm)   c.params.containerAlgorithm   = w.cmbContainerAlgorithm.getText();
   if (w.cmbConnectionsMode)      c.params.connectionsMode      = w.cmbConnectionsMode.getText();
 
@@ -2806,7 +2850,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
   _enable(w.chkLabelSizing,          active.has("labelSizing"));
-  _enable(w.chkEdgeLabelSpacing,     active.has("edgeLabelSpacing"));
+  _enable(w.chkConnectionLabelSpacing,     active.has("connectionLabelSpacing"));
   const _labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
   _enable(w.spinElementWidth,  !_labelSizingOn);
   _enable(w.spinElementHeight, !_labelSizingOn);
@@ -2845,8 +2889,7 @@ function _updateAlgorithmControls(ctx) {
       }
     }
   }
-  const _edgeLblSpacingOn = active.has("edgeLabelSpacing") && w.chkEdgeLabelSpacing && w.chkEdgeLabelSpacing.getSelection();
-  _enable(w.spinLayerSpacing, active.has("layerSpacing") && !_edgeLblSpacingOn);
+  _enable(w.spinLayerSpacing,             active.has("layerSpacing"));
   _enable(w.spinDiagramPadding,           active.has("diagramPadding"));
   _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
   _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
@@ -2964,7 +3007,7 @@ function _addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) 
   new LabelWidget(parent, SWT.NONE).setText(label);
   const sp = new SpinnerWidget(parent, SWT.BORDER);
   sp.setValues(defVal, min, max, 0, step, step * 5);
-  GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(sp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(sp);
   if (tooltip) sp.setToolTipText(tooltip);
   w[key] = sp;
 }

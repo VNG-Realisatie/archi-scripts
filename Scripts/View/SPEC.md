@@ -538,8 +538,9 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layout tab groups: *Algorithm* (style-grouped radio table), *Element size and spacing*,
-*Direction* (+ reversed types), *Connections* (routing / label / ranking), *Nesting* (nesting
+Layout tab groups: *Algorithm* (style-grouped radio table), *Elements* (size, spacing),
+*Flow* (direction, cycles, ranking + reversed types), *Connections* (routing, label, label space,
+spacing), *Nesting* (nesting
 types + container inner layout, between/crossing, inner spacing, padding, sort, align width,
 snap columns, show in every container), *View dimensions* (none / width / height / aspect).
 Appearance tab groups: *Style by property*, *Style by related property*, *Style by connected
