@@ -75,6 +75,8 @@ const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
+// Container-type modes in the Nesting group; index order matches _getNestContainerTypes.
+const NEST_CONTAINER_MODE_LABELS = ["Any element", "Grouping only", "Selected types"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -795,6 +797,7 @@ function _updateFilteredCount(ctx) {
     // The on-screen Output row + console block must reflect what the writer will produce.
     const livePresetParams = {
       nestingRelationTypes: w.lstNestingTypes ? _relLabelsToIds(_listGetSelected(w.lstNestingTypes)) : [],
+      nestingContainerTypes: _getNestContainerTypes(w),
       reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
       showInEveryContainer:           !!(w.chkShowInEvery     && w.chkShowInEvery.getSelection()),
     };
@@ -1293,8 +1296,10 @@ function _renumberAndReorderRelBlocks(ctx) {
 // ── Layout tab ────────────────────────────────────────────────────────────────
 
 function _buildLayoutTab(tabFolder, ctx) {
-  const { page, finish } = _scrolledTab(tabFolder, "Layout");
+  const { page, scrolled, finish } = _scrolledTab(tabFolder, "Layout");
   const w = ctx.widgets;
+  ctx.layoutScrolled = scrolled;
+  ctx.layoutPage     = page;
 
   // ── Algorithm ─────────────────────────────────────────────────────────────────
   // Algorithm selection uses a 5-row × 6-col table: [Style label:] [○ Algo] [○ Algo] …
@@ -1368,6 +1373,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   const onParamsChange = () => {
     _updateFilteredCount(ctx);
     _updateNestingLevelState(ctx);  // keep nesting level group enabled/disabled in sync
+    _updateNestContainerBox(ctx);   // container types only apply when a nesting type is checked
   };
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
@@ -1413,6 +1419,20 @@ function _buildLayoutTab(tabFolder, ctx) {
   GridDataFactory.fillDefaults().applyTo(_nestLbl);
 
   w.lstNestingTypes = _checkboxGrid(grpNest, RELATION_TYPE_LABELS, 4, onParamsChange);
+
+  // Container types: which element types may be a parent. Mode is derived from the
+  // stored array ([] → Any, ["grouping"] → Grouping only, else Selected types).
+  const ctrTypeRow = new CompositeWidget(grpNest, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 0).applyTo(ctrTypeRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctrTypeRow);
+  _addCombo(ctrTypeRow, "Container types:", NEST_CONTAINER_MODE_LABELS, 0, 160, "cmbNestContainerMode", w,
+    "Element types that may become a container. A nesting-type relation whose parent has another type is drawn as a connection.");
+  w.nestContainerBox = new CompositeWidget(grpNest, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).applyTo(w.nestContainerBox);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(w.nestContainerBox);
+  w.lstNestContainerTypes = _typeSelector(w.nestContainerBox, ELEMENT_TYPES, 80, onParamsChange);
+  w.cmbNestContainerMode.addListener(SWT.Selection, () => { _updateNestContainerBox(ctx); onParamsChange(); });
+  _updateNestContainerBox(ctx);  // start hidden ("Any element")
 
   const ctrComp = new CompositeWidget(grpNest, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(6, 4).applyTo(ctrComp);
@@ -2028,6 +2048,48 @@ function _buildAppearanceTab(tabFolder, ctx) {
   finish();
 }
 
+// Container types for nesting: [] = any element type, ["grouping"] = Grouping only,
+// otherwise the types chosen in the selector (none chosen = any).
+function _getNestContainerTypes(w) {
+  if (!w.cmbNestContainerMode) return [];
+  switch (w.cmbNestContainerMode.getSelectionIndex()) {
+    case 1:  return ["grouping"];
+    case 2:  return w.lstNestContainerTypes ? w.lstNestContainerTypes.getSelected() : [];
+    default: return [];
+  }
+}
+
+function _setNestContainerTypes(ctx, types) {
+  const w = ctx.widgets;
+  if (!w.cmbNestContainerMode) return;
+  const mode = types.length === 0 ? 0 : (types.length === 1 && types[0] === "grouping") ? 1 : 2;
+  w.cmbNestContainerMode.select(mode);
+  if (w.lstNestContainerTypes) w.lstNestContainerTypes.setSelected(mode === 2 ? types : []);
+  _updateNestContainerBox(ctx);
+}
+
+// Show the type selector only in "Selected types" mode; enable the controls only when
+// the algorithm supports nesting and at least one nesting relation type is checked.
+function _updateNestContainerBox(ctx) {
+  const w = ctx.widgets;
+  if (!w.cmbNestContainerMode || !w.nestContainerBox) return;
+  let algName = "Layered";
+  for (const [name, r] of (w.algRadios || new Map())) { if (r.getSelection()) { algName = name; break; } }
+  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
+  const on  = (alg.activeParams || []).includes("nestingContainerTypes")
+    && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
+  _enable(w.cmbNestContainerMode,  on);
+  _enable(w.lstNestContainerTypes, on);
+
+  const show = w.cmbNestContainerMode.getSelectionIndex() === 2;
+  const gd   = w.nestContainerBox.getLayoutData();
+  if (gd && gd.exclude === !show) return;  // no visibility change — skip relayout
+  try { w.nestContainerBox.setVisible(show); } catch (e) {}
+  if (gd) { gd.exclude = !show; w.nestContainerBox.setLayoutData(gd); }
+  try { (ctx.layoutPage || w.nestContainerBox.getParent()).layout(true, true); } catch (e) {}
+  _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
+}
+
 // Enable/disable the "Style by nesting level" controls based on whether any nesting
 // relation types are configured in the Layout tab. Called from _syncToUI and when
 // nesting types change, so both tabs stay in sync.
@@ -2472,6 +2534,7 @@ function _syncToUI(ctx) {
 
   // Nesting / reverse multi-select lists
   if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
+  _setNestContainerTypes(ctx, p.nestingContainerTypes || []);
   if (w.lstReverseTypes) _listSelectLabels(w.lstReverseTypes, _relIdsToLabels(p.reverseRelationTypes || []));
 
   // Container appearance
@@ -2698,6 +2761,7 @@ function _saveUI(ctx) {
 
   // Nesting / reverse
   if (w.lstNestingTypes)  c.params.nestingRelationTypes = _relLabelsToIds(_listGetSelected(w.lstNestingTypes));
+  if (w.cmbNestContainerMode) c.params.nestingContainerTypes = _getNestContainerTypes(w);
   if (w.lstReverseTypes)  c.params.reverseRelationTypes = _relLabelsToIds(_listGetSelected(w.lstReverseTypes));
 
   // Container
@@ -2842,6 +2906,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.cmbRanking,         active.has("ranking"));
   _enable(w.cmbAcyclicer,       active.has("acyclicer"));
   _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
+  _updateNestContainerBox(ctx);
   _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));
   _enable(w.spinInnerSpacing,   active.has("innerSpacing"));
   _enable(w.spinPadding,        active.has("padding"));

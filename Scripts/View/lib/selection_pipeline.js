@@ -730,6 +730,39 @@ function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentM
 }
 
 /**
+ * Split relations into nesting candidates and connections. Single source of truth for
+ * the writer (generate_view) and predictViewCounts, so dialog counts match the output.
+ *
+ * A relation is a nesting candidate when its type is in params.nestingRelationTypes AND
+ * its parent (source; target for reversed types) has a type in params.nestingContainerTypes
+ * (empty = any type). Every other relation is a connection.
+ *
+ * @returns {{ nestingRels: Object[], connectionRels: Object[], containerTypeRejected: number }}
+ *   containerTypeRejected — nesting-type relations drawn as a line because of the container type.
+ */
+function _splitNestingRels(relations, params) {
+  const nestingTypes   = new Set(params.nestingRelationTypes || []);
+  const containerTypes = new Set(params.nestingContainerTypes || []);
+  const reverseTypes   = new Set(params.reverseRelationTypes || []);
+  const nestingRels    = [];
+  const connectionRels = [];
+  let containerTypeRejected = 0;
+  for (const rel of relations) {
+    if (!nestingTypes.has(rel.type)) { connectionRels.push(rel); continue; }
+    if (containerTypes.size > 0) {
+      const parent = reverseTypes.has(rel.type) ? rel.target : rel.source;
+      if (!parent || !containerTypes.has(parent.type)) {
+        connectionRels.push(rel);
+        containerTypeRejected++;
+        continue;
+      }
+    }
+    nestingRels.push(rel);
+  }
+  return { nestingRels, connectionRels, containerTypeRejected };
+}
+
+/**
  * Predict the counts that will appear on the generated view, given the pipeline's
  * elements + relations + the current preset.params. Used by both the pipeline log
  * and the dialog's live counter so what the user sees matches what gets written.
@@ -746,13 +779,7 @@ function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentM
  *   diagramObjects   — canvas-only positional objects
  */
 function _predictViewCounts(elements, relations, diagramNodeCount, params) {
-  const nestingTypes  = new Set(params.nestingRelationTypes);
-  const nestingRels   = [];
-  const connectionRels = [];
-  for (const rel of relations) {
-    if (nestingTypes.has(rel.type)) nestingRels.push(rel);
-    else                            connectionRels.push(rel);
-  }
+  const { nestingRels, connectionRels } = _splitNestingRels(relations, params);
   const { parentMap, occurrenceMap, parentRels, notNestedNestingRels } = _resolveNesting(elements, nestingRels, params);
   // skippedCircularNestingRels not needed here: circular rels don't affect view counts
   // Sum of (occurrences - 1) over every element — extra appearances.
@@ -851,6 +878,7 @@ if (typeof module !== "undefined" && module.exports) {
     expandStepWithRelations:  _expandStepWithRelations,
     logCountBlock:            _logCountBlock,
     findRelationsBetween:     _findRelationsBetween,
+    splitNestingRels:         _splitNestingRels,
     resolveNesting:           _resolveNesting,
     predictViewCounts:        _predictViewCounts,
   };

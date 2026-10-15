@@ -35,7 +35,7 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
-  "nestingRelationTypes", "padding",
+  "nestingRelationTypes", "nestingContainerTypes", "padding",
   "sortContainers", "alignWidthSameType", "alignDebug",
   "showInEveryContainer", "containerAlgorithm",
 ]);
@@ -44,7 +44,7 @@ const PARAMS_ELK_NESTING = Object.freeze([
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
 // Graphviz cluster-nesting controls — Dot, Neato, FDP.
-const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "innerSpacing"]);
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "nestingContainerTypes", "innerSpacing"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
 const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
@@ -191,7 +191,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS,
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "sortContainers",
+      "nestingRelationTypes", "nestingContainerTypes", "sortContainers",
       "layerSpacing", "elementSpacing", "connectionSpacing",
     ],
     supportedOptions: {
@@ -524,6 +524,7 @@ const DEFAULT_PRESET = Object.freeze({
     acyclicer:             "Default",
     reverseRelationTypes:  [],
     nestingRelationTypes:  [],
+    nestingContainerTypes: [],                     // element types allowed as container; [] = any
     innerSpacing:          20,
     padding:               20,
     diagramPadding:        10,

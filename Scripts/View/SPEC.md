@@ -249,6 +249,9 @@ those relations are drawn: instead of lines, the child element is drawn **inside
 box (box-in-box). This makes the view express **hierarchy and ownership directly**, and —
 because containment removes the line — it makes **double relations and unexpected structure**
 easy to spot. Nesting unlocks further controls:
+- **Container types** — restrict which element types may become a container (e.g. *Grouping
+  only*). A nesting-type relation from a parent of another type is drawn as a connection; its
+  child stays where its other nestings put it, or at view root.
 - **Container inner layout** — the algorithm used to arrange children *inside* each container.
 - **Connections between vs. crossing containers** — whether cross-container lines route to the
   container as an opaque box, or to the specific inner element.
@@ -559,6 +562,7 @@ Preset {
     direction, routing, labelPosition, ranking      // gated by algorithm
     reverseRelationTypes : RelTypeId[]               // drawn reversed
     nestingRelationTypes : RelTypeId[]               // drawn as nesting
+    nestingContainerTypes: ElementTypeId[]           // allowed parent types; [] = any
     containerAlgorithm   : "Layered"|"Grid"|"Pack"   // inside containers
     connectionsMode      : "Between containers"|"Crossing containers"
     innerSpacing, padding, layerSpacing, elementSpacing,

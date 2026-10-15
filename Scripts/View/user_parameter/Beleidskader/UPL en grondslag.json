@@ -1,6 +1,6 @@
 {
   "name": "Beleidskader/UPL en grondslag",
-  "algorithm": "Pack",
+  "algorithm": "Layered",
   "params": {
     "direction": "Right",
     "routing": "Orthogonal",
@@ -9,8 +9,10 @@
     "acyclicer": "Default",
     "reverseRelationTypes": [],
     "nestingRelationTypes": [
+      "aggregation-relationship",
       "association-relationship"
     ],
+    "nestingContainerTypes": [],
     "innerSpacing": 10,
     "padding": 20,
     "diagramPadding": 10,
@@ -18,10 +20,10 @@
     "alignWidthSameType": false,
     "alignDebug": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
+    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
-    "layerSpacing": 180,
+    "layerSpacing": 0,
     "elementSpacing": 30,
     "connectionSpacing": 25,
     "connectionElementSpacing": 20,
@@ -32,7 +34,7 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
-    "connectionLabelSpacing": false
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementTypes": [],
@@ -42,9 +44,9 @@
   "relatedElements": {
     "steps": [
       {
-        "repeat": 1,
+        "repeat": "untilNothingNew",
         "elementTypes": [
-          "business-service"
+          "grouping"
         ],
         "relationTypes": [
           "aggregation-relationship:out"
@@ -56,12 +58,26 @@
         }
       },
       {
-        "repeat": 1,
+        "repeat": "untilNothingNew",
         "elementTypes": [
           "driver"
         ],
         "relationTypes": [
-          "association-relationship:in"
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
+      },
+      {
+        "repeat": 2,
+        "elementTypes": [
+          "business-service"
+        ],
+        "relationTypes": [
+          "association-relationship:out"
         ],
         "diagramTypes": [],
         "propFilter": {
@@ -73,7 +89,7 @@
   },
   "view": {
     "name": "Burgerzaken",
-    "folder": "/Beleidskader"
+    "folder": "/Beleidskaders"
   },
   "appearance": {
     "styleByProperty": {
@@ -125,6 +141,6 @@
     "properties": []
   },
   "_lastTabIndex": 1,
-  "description": "Selecteer beleidskaders en genereer geneste view",
+  "description": "Selecteer beleidskaders en genereer layered view",
   "action": "new_view"
 }

@@ -179,13 +179,12 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
-  const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
-  const nestingRels  = [];
-  const routedRels   = [];
-  for (const rel of relations) {
-    if (nestingTypes.has(rel.type)) nestingRels.push(rel);
-    else                            routedRels.push(rel);
-  }
+  // Nesting candidates also require an allowed container (parent) type.
+  const split       = Pipeline.splitNestingRels(relations, preset.params);
+  const nestingRels = split.nestingRels;
+  const routedRels  = split.connectionRels;
+  if (split.containerTypeRejected > 0)
+    console.log(`  Container type: ${split.containerTypeRejected} nesting-type relations drawn as connection (parent type not in ${preset.params.nestingContainerTypes.join(", ")})`);
 
   // Determine the target view.
   //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, unless the preset names a

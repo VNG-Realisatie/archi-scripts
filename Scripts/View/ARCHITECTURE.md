@@ -265,6 +265,7 @@ Preset {
 
     reverseRelationTypes : RelTypeId[]  // Relations drawn reversed
     nestingRelationTypes : RelTypeId[]  // Relations drawn as nesting
+    nestingContainerTypes: ElementTypeId[] // Element types allowed as container; [] = any
 
     innerSpacing, padding, layerSpacing,    // Level spacing,
     elementSpacing,                         // Element spacing
@@ -574,6 +575,8 @@ The Layout tab decides *how* objects are positioned.
 │ ┌─ Nesting     ─────────────────────────────────────────────────────────┐ │
 │ │  Draw these relation types as containers                              │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
+│ │  Container types: [Any element | Grouping only | Selected types ▼]    │ │
+│ │  (Selected types → element-type chip selector)                        │ │
 │ │  ── Inside container ───────────────────────────────────────────────  │ │
 │ │  Container layout: [Layered ▼]  Connections: [Between containers ▼]  │ │
 │ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
@@ -1066,8 +1069,10 @@ Valid combinations (all with root = algorithm selected by the user):
 
 Every relation in the pipeline's output is assigned an initial role:
 
-- **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes`.
+- **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes` **and** its parent (source; target for reversed types) has a type in `preset.params.nestingContainerTypes` (empty = any type).
 - **Routed** — otherwise.
+
+Both the writer and the dialog counters use `splitNestingRels` (selection_pipeline.js) for this split.
 
 The set in the preset is the only authority. Initial role assignment is total (no relation is left unassigned) and deterministic (same inputs → same roles).
 
@@ -1601,8 +1606,8 @@ Algorithmic structures used by the pipeline (and consumed by `_buildLayoutGraph`
 | `childIds` | the set of element ids that have a parent | nested elements (counted) |
 | `containerIds` | the set of element ids that are parents | containers (counted) |
 | `occurrenceMap` | element id → list of occurrence ids | occurrences |
-| `routedRels` | array of relations whose type is NOT in `nestingRelationTypes` | connections |
-| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` | nestings |
+| `routedRels` | array of relations not selected as nesting (type or container type rejected) | connections |
+| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` and whose parent type is allowed | nestings |
 | `parentRels` | nesting bindings (`{rel, srcOccId, tgtOccId}`) that survived multi-parent resolution | applied nestings |
 
 ## Orchestrator — generate_view.js
