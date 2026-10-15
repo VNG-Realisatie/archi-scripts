@@ -219,8 +219,9 @@ let _elk = null;
 function _loadELK() {
   if (_elk) return _elk;
   try {
+    const t0 = Date.now();
     _elk = require(REPO_ROOT + "node_modules/elkjs/index.js");
-    console.log("ELK layout engine loaded.");
+    console.log(`ELK layout engine loaded (${Date.now() - t0} ms).`);
   } catch (e) {
     throw new Error("ELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.");
   }
@@ -334,7 +335,9 @@ function layout(graph) {
 
     const { elkGraph: pass1ElkGraph } = _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph);
     log("Calculating layout (pass 1 — measure natural widths)...");
+    const t1 = Date.now();
     const pass1Layouted = elk.layout(pass1ElkGraph);
+    log(`ELK pass 1: ${Date.now() - t1} ms`);
 
     // Per-level target widths from pass-1 rendered sizes. Apply as an exact width on
     // leaves, and a min-size floor on containers (never shrink below content).
@@ -358,8 +361,9 @@ function layout(graph) {
   // ELK Radial requires a spanning tree (no cycles). Convert here so c2c terminates.
   const processedEdgeList = graph.algorithm === "Radial" ? _spanningTree(nodeMap, edgeList) : edgeList;
   const { elkGraph, edgeMeta } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
+  const tLayout = Date.now();
   const layouted = elk.layout(elkGraph);
-  log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}`);
+  log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}  (${Date.now() - tLayout} ms)`);
 
   // Align-by-level diagnostics: compare each box's target to its final rendered width.
   // A container final < target means the MINIMUM_SIZE floor was not honoured by the engine.

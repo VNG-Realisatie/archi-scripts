@@ -54,6 +54,7 @@ function _getAdapter(engine) {
  * @returns {ArchimateView[]}
  */
 function generate_view(rawPreset, uiSelection, actionId) {
+  Common.startCounter("generate_view");
   const preset = validatePreset(rawPreset);
   const action = actionId || ACTION.NEW_VIEW.id;
 
@@ -161,7 +162,9 @@ function _applyViewProperties(view, preset) {
 // ── Single view ───────────────────────────────────────────────────────────────
 
 function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
+  const timer = _phaseTimer();
   const objectSet = Pipeline.buildObjectSet(uiSelection, preset, actionId);
+  timer.lap("selection");
   const { elements, diagramObjects, diagramConnections, existingView } = objectSet;
 
   // LAYOUT_ONLY: keep only relations that already have a visual on the view.
@@ -229,6 +232,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     const viewName = viewNameOverride || _resolveViewName(preset, elements);
     view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
+  timer.lap("view target");
 
   // Build concept→VOs map once; used by both _buildLayoutGraph (LAYOUT_ONLY cap) and _writeView (VO pairing).
   const existingVosByConcept = new Map();
@@ -248,6 +252,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Build LayoutGraph (uniform — no action branch).
   console.log("\nLayout graph:");
   const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, graphVosCap);
+  timer.lap("layout graph");
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
     return null;
@@ -270,6 +275,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   console.log("\nLayout:");
   const alg = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
+  timer.lap("layout");
   console.log(`  Layout result: ${result.nodes.length} elements · ${result.edges.length} connections`);
   if (result.nodes.length > 0) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -285,14 +291,32 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Write — single function, action-agnostic.
   console.log("\nWrite:");
   const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels, existingVosByConcept);
+  timer.lap("write");
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
   if (writtenView) {
     Appearance.applyAppearance(writtenView, preset, actionId);
     _applyViewProperties(writtenView, preset);
+    timer.lap("appearance");
   }
 
+  console.log(`\nTiming: ${timer.summary()}`);
   return writtenView;
+}
+
+// Phase durations of one view generation, logged as one summary line — shows where the time goes.
+function _phaseTimer() {
+  const laps = [];
+  const t0 = Date.now();
+  let t = t0;
+  return {
+    lap(name) { const now = Date.now(); laps.push(`${name} ${_fmtMs(now - t)}`); t = now; },
+    summary() { return `${laps.join(" · ")}  (total ${_fmtMs(t - t0)})`; },
+  };
+}
+
+function _fmtMs(ms) {
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
 // ── One view per element ──────────────────────────────────────────────────────
