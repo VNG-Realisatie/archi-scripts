@@ -692,8 +692,12 @@ function _placeEdges(edgeList, parentMap, nodeMap, mode) {
     // Containers crossed below the LCA, nearest the endpoint first.
     const srcChain = srcAnc.slice(0, srcAnc.indexOf(lca));
     const tgtChain = tgtAnc.slice(0, tgtAnc.indexOf(lca));
+    // ports: a connection ending on a container itself also gets a port on it — once a container
+    // has hierarchical ports, ELK puts the implicit port of a direct connection in its top-left corner.
+    const isCtr  = id => mode === "ports" && srcId !== tgtId && nodeMap[id].children.length > 0;
+    const ctrEnd = isCtr(srcId) || isCtr(tgtId);
 
-    if (mode === "include" || (srcChain.length === 0 && tgtChain.length === 0)) {
+    if (mode === "include" || (srcChain.length === 0 && tgtChain.length === 0 && !ctrEnd)) {
       addTo(lca, edge);
       continue;
     }
@@ -713,11 +717,11 @@ function _placeEdges(edgeList, parentMap, nodeMap, mode) {
       (nodeMap[ctrId].ports = nodeMap[ctrId].ports || []).push(port);
       return port.id;
     };
-    const stops = [srcId], owners = [];
+    const stops = [isCtr(srcId) ? portOf(srcId) : srcId], owners = [];
     for (const c of srcChain)                 { stops.push(portOf(c)); owners.push(c); }
     owners.push(lca);
     for (const c of tgtChain.slice().reverse()) { stops.push(portOf(c)); owners.push(c); }
-    stops.push(tgtId);
+    stops.push(isCtr(tgtId) ? portOf(tgtId) : tgtId);
     const segCount = stops.length - 1;
     for (let i = 0; i < segCount; i++) {
       const seg = {
