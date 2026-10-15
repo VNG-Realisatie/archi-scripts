@@ -28,7 +28,7 @@ const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 const Chroma    = require("chroma-js");
 
 const {
-  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
+  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
   DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
@@ -71,6 +71,8 @@ const ROUTING_TOOLTIPS        = Object.fromEntries(Object.values(ROUTING).map(r 
 const LABEL_POS_ALL           = LABEL_POSITIONS.map(lp => lp.val);
 const LABEL_POS_TOOLTIPS      = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp.val, lp.tooltip]));
 const RANKING_LABELS          = RANKING.map(r => r.val);
+const NODE_PLACEMENT_LABELS   = NODE_PLACEMENT.map(n => n.val);
+const NODE_PLACEMENT_TOOLTIPS = Object.fromEntries(NODE_PLACEMENT.map(n => [n.val, n.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
@@ -1384,6 +1386,11 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
   _addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w, "How elements are assigned to layers. Balanced minimises edge lengths; Uniform places elements at the shallowest possible layer; Top-aligned pulls them to the deepest layer.");
 
+  row = _formRow(grpDir, "Placement:", formRows);
+  _addCombo(row, "Elements", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
+  w.cmbNodePlacement.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS));
+  _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
+
   _groupSep(grpDir, 1, "Reversed - draw these relation types in other direction");
   w.lstReverseTypes = _checkboxGrid(grpDir, RELATION_TYPE_LABELS, 4, onParamsChange);
 
@@ -2531,6 +2538,8 @@ function _syncToUI(ctx) {
   _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition || algDef.labelPositionDefault || DP.labelPosition);
   _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking       || DP.ranking);
   _comboSelect(w.cmbAcyclicer,    ACYCLICER_LABELS, p.acyclicer     || DP.acyclicer);
+  _comboSelect(w.cmbNodePlacement, NODE_PLACEMENT_LABELS, p.nodePlacement || DP.nodePlacement);
+  _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
 
   // Nesting / reverse multi-select lists
   if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
@@ -2758,6 +2767,7 @@ function _saveUI(ctx) {
   if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
   if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
   if (w.cmbAcyclicer)     c.params.acyclicer     = ACYCLICER_LABELS[w.cmbAcyclicer.getSelectionIndex()]   || "Default";
+  if (w.cmbNodePlacement) c.params.nodePlacement = NODE_PLACEMENT_LABELS[w.cmbNodePlacement.getSelectionIndex()] || "Straight";
 
   // Nesting / reverse
   if (w.lstNestingTypes)  c.params.nestingRelationTypes = _relLabelsToIds(_listGetSelected(w.lstNestingTypes));
@@ -2905,6 +2915,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.cmbLabelPosition,   active.has("labelPosition"));
   _enable(w.cmbRanking,         active.has("ranking"));
   _enable(w.cmbAcyclicer,       active.has("acyclicer"));
+  _enable(w.cmbNodePlacement,   active.has("nodePlacement"));
   _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
   _updateNestContainerBox(ctx);
   _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));

@@ -284,7 +284,9 @@ Preset {
     containerAlgorithm : string     // Algorithm for children inside containers:
                                     // "Layered" | "Grid" | "Pack"
     connectionsMode    : string     // How cross-container connections are routed:
-                                    // "Between containers" | "Crossing containers"
+                                    // "Crossing containers" | "Between containers"
+    nodePlacement      : string     // Element placement within a layer (Layered):
+                                    // "Straight" | "Compact"
   }
 
   filter {
@@ -565,6 +567,7 @@ The Layout tab decides *how* objects are positioned.
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Greedy ▼]  Ranking [Balanced ▼] │
+│ │  Placement: Elements [Straight ▼]                                     │ │
 │ │  ── Reversed - draw these relation types in other direction ────────  │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
@@ -644,6 +647,7 @@ Parameters are active only for algorithms that support them (see [Algorithm capa
 | Order | Direction | `direction` | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
 | Order | Cycles | `acyclicer` | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
 | Order | Ranking | `ranking` | How elements are assigned to layers. Balanced: minimises edge lengths. Uniform: shallowest possible layer. Top-aligned: pulled to the deepest layer. |
+| Placement | Elements | `nodePlacement` | Where elements sit within their layer. Straight (`BRANDES_KOEPF`): aligned for straight connections, fewest bends. Compact (`NETWORK_SIMPLEX`): shortest total connection length, usually a smaller view, a few more bends; crossings are the same. Layered only. |
 
 **Reversed** — a checkbox per relation type. Checked types have their source/target swapped in the layout graph so the engine traverses them in the reversed direction — meaningful for ranking algorithms where direction drives hierarchy. See [Engine adapter contract](#engine-adapter-contract).
 
@@ -1043,7 +1047,7 @@ When nesting is active, two additional parameters control how ELK lays out conta
 | Parameter | Values | Effect |
 |---|---|---|
 | `containerAlgorithm` | `"Layered"` (default), `"Grid"`, `"Pack"` | ELK algorithm used to arrange children **inside** each container. Maps to `layered`/`box`/`rectpacking`. |
-| `connectionsMode` | `"Between containers"` (default), `"Crossing containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; with Layered root and container, cross-container connections pass the container border through a hierarchical port and continue to the element inside (otherwise they route to/from the container as an opaque box). `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. |
+| `connectionsMode` | `"Crossing containers"` (default), `"Between containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; with Layered root and container, cross-container connections pass the container border through a hierarchical port and continue to the element inside (otherwise they route to/from the container as an opaque box). `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. Default because crossing minimisation then spans all levels: with `SEPARATE_CHILDREN` the port order on each container border is fixed by its inner layout before the outer layout runs, which leaves crossings the outer layout cannot remove. |
 
 Valid combinations (all with root = algorithm selected by the user):
 

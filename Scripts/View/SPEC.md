@@ -564,7 +564,8 @@ Preset {
     nestingRelationTypes : RelTypeId[]               // drawn as nesting
     nestingContainerTypes: ElementTypeId[]           // allowed parent types; [] = any
     containerAlgorithm   : "Layered"|"Grid"|"Pack"   // inside containers
-    connectionsMode      : "Between containers"|"Crossing containers"
+    connectionsMode      : "Crossing containers"|"Between containers"
+    nodePlacement        : "Straight"|"Compact"       // within a layer (Layered)
     innerSpacing, padding, layerSpacing, elementSpacing,
     elementWidth, elementHeight : number
     maxWidth, maxHeight, aspectRatio : number        // 0 = unconstrained

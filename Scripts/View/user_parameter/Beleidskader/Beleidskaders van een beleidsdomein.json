@@ -22,7 +22,7 @@
     "snapColumnsToGrid": false,
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
-    "connectionsMode": "Between containers",
+    "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
     "elementSpacing": 30,
     "connectionSpacing": 25,

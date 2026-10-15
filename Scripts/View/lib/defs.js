@@ -73,12 +73,13 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
+      "direction", "nodePlacement", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
       "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
       "connectionLabelSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
+      nodePlacement:      ["Straight", "Compact"],
       routing:            ["Orthogonal", "Polyline", "Splines"],
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Layered", "Grid", "Pack"],
@@ -374,6 +375,16 @@ const RANKING = Object.freeze([
   { val: "Top-aligned" },
 ]);
 
+// ── Element placement within a layer (Layered only) ───────────────────────────
+// Engine-specific strategy identifiers live in engines/elk.js.
+
+const NODE_PLACEMENT = Object.freeze([
+  { val: "Straight", default: true,
+    tooltip: "Aligns elements so connections run as straight as possible (fewest bends)." },
+  { val: "Compact",
+    tooltip: "Shortest total connection length; usually a smaller view, with a few more bends." },
+]);
+
 // ── Acyclicer options (Dagre only) ────────────────────────────────────────────
 
 const ACYCLICER = Object.freeze([
@@ -518,6 +529,7 @@ const DEFAULT_PRESET = Object.freeze({
   algorithm: "Layered",
   params: {
     direction:             "Right",
+    nodePlacement:         "Straight",              // "Straight" | "Compact" (Layered only)
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
@@ -534,7 +546,7 @@ const DEFAULT_PRESET = Object.freeze({
     snapColumnsToGrid:     false,
     showInEveryContainer:  false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
-    connectionsMode:       "Between containers",   // "Between containers" | "Crossing containers"
+    connectionsMode:       "Crossing containers",  // "Crossing containers" | "Between containers"
     layerSpacing:          180,
     elementSpacing:        40,
     connectionSpacing:        25,              // also the port spacing on elements (ELK: portPort)
@@ -837,7 +849,7 @@ if (typeof module !== "undefined" && module.exports) {
     STYLES, ALGORITHMS, ALGO_ENGINE,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
+    RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,

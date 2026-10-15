@@ -45,17 +45,18 @@ const DEFAULT_ELK_PARAMS = {
   "elk.layered.cycleBreaking.strategy":           "GREEDY",
   "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
   "elk.layered.edgeRouting.selfLoopOrdering":     "SEQUENCED",
-  // "elk.layered.nodePlacement.strategy":           "NETWORK_SIMPLEX",
-  "elk.layered.nodePlacement.strategy":           "BRANDES_KOEPF",  // alternative: BRANDES_KOEPF (default) — optimised for minimal edge length; NETWORK_SIMPLEX is faster but can produce longer edges
   "elk.layered.crossingMinimization.strategy":    "LAYER_SWEEP",  // default — iterative layer-by-layer sweeps; INTERACTIVE keeps existing order (needs prior positions). NB: an invalid value is silently ignored by ELK
   // Greedy switch post-pass (swaps adjacent nodes while crossings drop) is by default only active
   // for graphs < 40 nodes; 0 = always active. Thoroughness = number of random sweep restarts (default 7).
   // Measured on 60–80 node test graphs: ~15% fewer crossings, ~4× layout time (still ~1 s).
   "elk.layered.crossingMinimization.greedySwitch.activationThreshold": 0,
-  "elk.layered.thoroughness":                     50,
+  // 25: on 7 test views (Crossing containers) as few or fewer crossings than 50; 15 or lower
+  // leaves extra crossings. Layout time in Archi (interpreted GraalJS) ~45% less than 50.
+  "elk.layered.thoroughness":                     25,
   "elk.layered.considerModelOrder.strategy":      "NONE",
   "elk.layered.feedbackEdges":                    "true",
   "elk.spacing.nodeSelfLoop":                     40,
+  // elk.layered.nodePlacement.strategy is intentionally absent: driven by nodePlacement via PARAM_MAPPING.
   // elk.spacing.edgeEdge, elk.spacing.edgeNode, elk.layered.spacing.edgeEdgeBetweenLayers,
   // elk.layered.spacing.edgeNodeBetweenLayers are intentionally absent: they are driven by
   // connectionSpacing / connectionElementSpacing via PARAM_MAPPING. DEFAULT_ELK_PARAMS is
@@ -75,6 +76,10 @@ const _LAYERED_ROUTING = (v) => ({
 // Shared param-mapping functions — referenced in multiple algorithm root/container scopes.
 const _DIRECTION     = (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" });
 const _ELEM_SPACING  = (v) => ({ "elk.spacing.nodeNode": String(v) });
+// Straight: BRANDES_KOEPF — aligns nodes for straight connections (fewest bends).
+// Compact:  NETWORK_SIMPLEX — minimises total connection length; measured on nested views:
+//           up to ~30% shorter connections and a smaller view, a few more bends, same crossings.
+const _NODE_PLACEMENT = (v) => ({ "elk.layered.nodePlacement.strategy": v === "Compact" ? "NETWORK_SIMPLEX" : "BRANDES_KOEPF" });
 const _LAYER_SPACING = (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) });
 const _PAD_DIAGRAM   = (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` });
 const _PAD_CONTAINER = (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` });
@@ -100,6 +105,7 @@ const _CONN_LABEL_SPACING = (v) => v ? {
 // Shared base objects — spread into root/container; padding and aspectRatio are added per scope.
 const _LAYERED_BASE = {
   direction:                _DIRECTION,
+  nodePlacement:            _NODE_PLACEMENT,
   routing:                  _LAYERED_ROUTING,
   connectionLabelSpacing:         _CONN_LABEL_SPACING,
   elementSpacing:           _ELEM_SPACING,
