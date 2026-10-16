@@ -87,7 +87,9 @@ const _LAYERED_ROUTING = (v) => ({
 
 // Shared param-mapping functions — referenced in multiple algorithm root/container scopes.
 const _DIRECTION     = (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" });
-const _ELEM_SPACING  = (v) => ({ "elk.spacing.nodeNode": String(v) });
+// Element spacing is the minimum distance between elements — also between unconnected groups,
+// which layered / mrtree / force lay out separately and pack with spacing.componentComponent.
+const _ELEM_SPACING  = (v) => ({ "elk.spacing.nodeNode": String(v), "elk.spacing.componentComponent": String(v) });
 // Straight: BRANDES_KOEPF — aligns nodes for straight connections (fewest bends).
 // Compact:  NETWORK_SIMPLEX — minimises total connection length; measured on nested views:
 //           up to ~30% shorter connections and a smaller view, a few more bends, same crossings.

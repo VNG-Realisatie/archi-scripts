@@ -50,13 +50,15 @@ function _getAdapter(engine) {
  *
  * @param {Object}          rawPreset   raw preset object (will be validated)
  * @param {ArchiCollection} uiSelection $(selection) from Archi UI
- * @param {string}          actionId    ACTION.*.id (runtime — not stored in preset)
+ * @param {string}          actionId    ACTION.*.id (runtime — not stored in preset files);
+ *                                      falls back to rawPreset.action (set by CLI scripts), then NEW_VIEW
  * @returns {ArchimateView[]}
  */
 function generate_view(rawPreset, uiSelection, actionId) {
   Common.startCounter("generate_view");
   const preset = validatePreset(rawPreset);
-  const action = actionId || ACTION.NEW_VIEW.id;
+  // CLI scripts set preset.action instead of passing actionId; validatePreset drops it, so read it here.
+  const action = actionId || rawPreset.action || ACTION.NEW_VIEW.id;
 
   // §A.10: capability masking. Replace preset.params with the effective subset
   // for runtime consumption. Inactive keys are silently dropped here; the raw
