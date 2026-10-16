@@ -2641,7 +2641,8 @@ function _syncToUI(ctx) {
   _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
   _setNestContainerTypes(ctx, p.nestingContainerTypes);
   _spinSet(w.spinMaxWidth, p.maxWidth);
-  const arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
+  let arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
+  if (arIdx < 0) arIdx = AR_OPTIONS.findIndex(a => a.val === Defs.AR_DEFAULT);  // no ratio yet
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
   // View size radio — restore from config; infer from non-zero values for old presets without viewSizeMode.

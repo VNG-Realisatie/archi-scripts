@@ -462,8 +462,10 @@ const LABEL_POSITIONS = Object.freeze([
 
 // ── Aspect ratio options ──────────────────────────────────────────────────────
 
+// No "free" entry: View size › Free is the no-ratio choice. AR_DEFAULT is shown when a preset
+// has no ratio yet (aspectRatio 0).
+const AR_DEFAULT = 1.78;
 const AR_OPTIONS = Object.freeze([
-  { val: 0.00, label: "free"            },
   { val: 3.00, label: "3:1  landscape"  },
   { val: 2.00, label: "2:1  wide"       },
   { val: 1.78, label: "16:9 widescreen" },
@@ -922,7 +924,7 @@ if (typeof module !== "undefined" && module.exports) {
     STYLES, ALGORITHMS, ALGO_ENGINE, HIDDEN_PARAMS, PARAM_LABELS, LAYOUT_GROUPS,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
+    RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
