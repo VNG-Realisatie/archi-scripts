@@ -45,6 +45,11 @@ const PARAMS_ELK_NESTING = Object.freeze([
 // value that differs from the default. diagramPadding only offsets the whole diagram on the canvas.
 const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
 
+// Minimum distance (px) between an element and the first / last bendpoint of a connection,
+// so the bend never falls inside the end decoration Archi draws there (diamond, arrowhead).
+// Floor for connectionElementSpacing between layers (ELK Layered: edgeNodeBetweenLayers).
+const CONNECTION_END_CLEARANCE = 25;
+
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
 // "Not used by …" hints, tooltips and the capability matrix in ARCHITECTURE.md.
 const PARAM_LABELS = Object.freeze({
@@ -77,6 +82,77 @@ const PARAM_LABELS = Object.freeze({
   maxWidth:                 "Max width",
   diagramPadding:           "Diagram padding",
 });
+// Tooltip per layout param: [what it does, unit / detail]. The dialog adds a third line
+// "Used by: …" computed from activeParams, so tooltips never contradict the registry.
+const PARAM_TOOLTIPS = Object.freeze({
+  nestingRelationTypes:     ["Draw a checked relation type as nesting: the child inside its parent.",
+                             "Parent = source of the relation; with Reverse for layout, the target."],
+  reverseRelationTypes:     ["Lay out a checked relation type from target to source.",
+                             "Changes the flow order and the nesting parent; arrows are unchanged."],
+  nestingContainerTypes:    ["Element types that may be a nesting parent.",
+                             "A nesting relation whose parent has another type is drawn as a line."],
+  containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
+                             "Grid or Pack: Connections is locked to Between containers."],
+  connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
+                             "Crossing containers: the whole view is one layout; connections run straight to the element inside."],
+  padding:                  ["Space between a container's border and its contents.", "px"],
+  sortContainers:           ["Order containers by type and name, as elements always are.",
+                             "Grid and Pack keep this order; the other algorithms start from it."],
+  showInEveryContainer:     ["An element nested in several containers appears in each of them.",
+                             "Off: it appears in the first container only."],
+  alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
+                             "Each parent level is one padding step wider; a container never gets narrower than its contents."],
+  snapColumnsToGrid:        ["Line columns up top to bottom on one grid across the whole view.",
+                             "Each column is as wide as its widest element; element sizes are unchanged."],
+  direction:                ["Direction of the main flow.", ""],
+  acyclicer:                ["How relation cycles are broken before layout.",
+                             "Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles."],
+  ranking:                  ["How elements are assigned to layers.",
+                             "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
+  nodePlacement:            ["Where elements sit within their layer.", ""],
+  layerSpacing:             ["Distance between layers along the flow; Radial and Twopi: between rings.",
+                             "px — with Reserve label space a gap widens to fit its labels."],
+  elementWidth:             ["Width of every element.", "px — not used with By label."],
+  elementHeight:            ["Height of every element.", "px — not used with By label."],
+  labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
+  labelMaxLineWidth:        ["Label width at which By label wraps to a second line.", "px — only with By label."],
+  elementSpacing:           ["Minimum distance between elements, also between unconnected groups.", "px"],
+  routing:                  ["How connection lines are drawn.", ""],
+  labelPosition:            ["Where the connection label sits.", ""],
+  connectionLabelSpacing:   ["Keep connection labels clear of other labels, connections and elements.",
+                             "A layer gap widens where a label needs label + 2 × Between."],
+  connectionSpacing:        ["Distance between parallel connections, and between connection points on one side of an element.",
+                             "px — elements grow to fit their connections; 0 = no growth."],
+  connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
+                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol.`],
+  aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
+  maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
+                             "px — element sizes are unchanged."],
+});
+
+/**
+ * "Used by: …" line for a param, from activeParams.
+ * @param {string} key  param name
+ * @returns {string}    e.g. "Used by: Layered, Dagre" or "Used by: all algorithms except Twopi"
+ */
+function paramUsedBy(key) {
+  const names = Object.keys(ALGORITHMS);
+  const users = names.filter(n => ALGORITHMS[n].activeParams.includes(key));
+  const rest  = names.filter(n => !users.includes(n));
+  if (!rest.length)                     return "Used by: all algorithms";
+  if (rest.length <= 3 && users.length) return `Used by: all algorithms except ${rest.join(", ")}`;
+  return `Used by: ${users.join(", ") || "none"}`;
+}
+
+/**
+ * Full tooltip for a layout param: what it does, an optional extra line (e.g. the selected
+ * option's explanation), unit / detail, and "Used by".
+ */
+function paramTooltip(key, extra) {
+  const [what, detail] = PARAM_TOOLTIPS[key] || ["", ""];
+  return [what, extra, detail, paramUsedBy(key)].filter(Boolean).join("\n");
+}
+
 const LAYOUT_GROUPS = Object.freeze({
   Relations:   ["nestingRelationTypes", "reverseRelationTypes", "nestingContainerTypes"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
@@ -292,7 +368,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Spring-model layout for undirected networks with partial cluster nesting. No direction control (Graphviz neato)",
+    tooltip: "Spring-model layout for undirected networks, with cluster nesting. No direction control (Graphviz neato)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -368,7 +444,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Circular layout placing nodes on concentric circles. Best for ring topologies and cyclic dependency patterns (Graphviz circo)",
+    tooltip: "Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo)",
     paramConflicts: CONFLICTS_VIEW,
   },
 });
@@ -382,13 +458,13 @@ const ALGO_ENGINE = Object.freeze(
 
 const ACTION = Object.freeze({
   NEW_VIEW:      { id: "new_view",      label: "New view",      default: true,
-    tooltip: "Creates a new view from the selected elements and their relations." },
+    tooltip: "Creates a view from the selection, the Selection tab steps and their relations." },
   ONE_EACH:      { id: "one_each",      label: "One view each",
-    tooltip: "Creates one view per selected element. Each view is named after its element." },
+    tooltip: "Creates one view per selected element, named after the element." },
   EXPAND_VIEW:   { id: "expand_view",   label: "Expand view",
-    tooltip: "Adds elements related to the current selection to the open view. Existing elements are kept in place." },
+    tooltip: "Adds elements related to the selection to the view (steps on the Selection tab).\nThe selection and the added elements are laid out; the rest of the view stays in place." },
   LAYOUT_ONLY:   { id: "layout_only",   label: "Layout only",
-    tooltip: "Re-positions all elements on the selected view. No elements or relations are added or removed." },
+    tooltip: "Lays out all elements on the view again.\nNothing is added or removed." },
 });
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -665,11 +741,6 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMinHeight:   30,
 });
 
-// Minimum distance (px) between an element and the first / last bendpoint of a connection,
-// so the bend never falls inside the end decoration Archi draws there (diamond, arrowhead).
-// Floor for connectionElementSpacing between layers (ELK Layered: edgeNodeBetweenLayers).
-const CONNECTION_END_CLEARANCE = 25;
-
 // ── Step repeat ───────────────────────────────────────────────────────────────
 // A step's `repeat` is 1–5 (run the step that many times, each run starting from the
 // previous run's additions) or REPEAT_UNTIL_NOTHING_NEW (run until a run adds nothing,
@@ -921,7 +992,8 @@ function effectiveParams(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    STYLES, ALGORITHMS, ALGO_ENGINE, HIDDEN_PARAMS, PARAM_LABELS, LAYOUT_GROUPS,
+    STYLES, ALGORITHMS, ALGO_ENGINE, HIDDEN_PARAMS, PARAM_LABELS, PARAM_TOOLTIPS, LAYOUT_GROUPS,
+    paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
     RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
