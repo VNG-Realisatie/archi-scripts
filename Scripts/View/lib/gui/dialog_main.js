@@ -9,7 +9,7 @@
  *   Tabs       — Selection · Layout · Appearance · Properties
  *   Totals     — what the current settings put on a view
  *   Actions    — Create new view (Folder, Name, New view, One view each) ·
- *                Modify view "<selected view>" (Expand view, Layout only — in place) · Cancel
+ *                Modify selected view (View, Expand view, Layout only — in place); Cancel below
  */
 console.log("Loading dialog_main.js");
 
@@ -434,7 +434,7 @@ function _getBoldFont() {
 
 // Default dialog dimensions. Width set explicitly to avoid SWT computing a wide size from
 // content hints; height sized so one Related block fits without scroll.
-const DEFAULT_DIALOG_WIDTH  = 925;
+const DEFAULT_DIALOG_WIDTH  = 1000;
 const DEFAULT_DIALOG_HEIGHT = 1470;  // height is set to max, then constrained by screen size in open()
 
 // ── open() ────────────────────────────────────────────────────────────────────
@@ -2360,9 +2360,11 @@ function _buildActionArea(area, ctx, dlg, targetViewName) {
   GridDataFactory.fillDefaults().grab(true, false).indent(6, 4).applyTo(lblTotals);
   w.lblViewTotals = lblTotals;
 
+  // 2 columns: Create | Modify, Cancel below Modify. Both groups have the same rows
+  // (one field row, one button row), so fields and buttons line up.
   const row = new CompositeWidget(area, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
-  GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(row);
+  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(0, 2).spacing(8, 6).applyTo(row);
 
   // ── Create new view ──
   const grpCreate = _group(row, "Create new view", 4, { grabV: true, bold: false });
@@ -2385,11 +2387,16 @@ function _buildActionArea(area, ctx, dlg, targetViewName) {
   w.btnOneEach.setToolTipText(ACTION.ONE_EACH.tooltip + "\nName is not used.");
 
   // ── Modify view ──
-  const shortName = targetViewName.length > 40 ? targetViewName.substring(0, 39) + "…" : targetViewName;
-  const grpModify = _group(row, targetViewName ? `Modify view "${shortName}"` : "Modify view", 2, { grabV: true, bold: false });
-  const lblModify = new LabelWidget(grpModify, SWT.NONE);
-  lblModify.setText(targetViewName ? "Changes this view in place." : "Select a view, or elements on a view.");
-  GridDataFactory.fillDefaults().span(2, 1).grab(true, false).applyTo(lblModify);
+  const grpModify = _group(row, "Modify selected view", 2, { grabV: true, bold: false });
+  new LabelWidget(grpModify, SWT.NONE).setText("View:");
+  // Read-only field (not a label) so the row has the same height as Folder / Name;
+  // a long name scrolls inside it and is shown in full in the tooltip.
+  const txtTarget = new TextWidget(grpModify, SWT.BORDER | SWT.READ_ONLY);
+  txtTarget.setText(targetViewName || "— select a view, or elements on a view —");
+  txtTarget.setToolTipText(targetViewName
+    ? `${targetViewName}\nExpand view and Layout only change this view in place.`
+    : "Expand view and Layout only need a selected view, or elements on a view.");
+  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(txtTarget);
 
   w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(ACTION.EXPAND_VIEW.id, dlg, ctx));
   w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
@@ -2398,10 +2405,11 @@ function _buildActionArea(area, ctx, dlg, targetViewName) {
   w.btnExpandView.setEnabled(!!targetViewName);
   w.btnLayoutOnly.setEnabled(!!targetViewName);
 
-  // ── Cancel ──
+  // ── Cancel: bottom right, under Modify ──
+  new LabelWidget(row, SWT.NONE);
   const btnCancel = new ButtonWidget(row, SWT.PUSH);
   btnCancel.setText("Cancel");
-  GridDataFactory.swtDefaults().align(SWT.END, SWT.END).hint(90, SWT.DEFAULT).applyTo(btnCancel);
+  GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).hint(90, SWT.DEFAULT).applyTo(btnCancel);
   btnCancel.addListener(SWT.Selection, () => {
     _persistSession(ctx);  // remember _lastTabIndex even on cancel
     Java.super(dlg).cancelPressed();
