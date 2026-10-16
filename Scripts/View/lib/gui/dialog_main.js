@@ -433,9 +433,9 @@ function _getBoldFont() {
 }
 
 // Default dialog dimensions. Width set explicitly to avoid SWT computing a wide size from
-// content hints; height sized so one Related block fits without scroll.
+// content hints. Height: the monitor's usable height, at most DEFAULT_DIALOG_HEIGHT.
 const DEFAULT_DIALOG_WIDTH  = 1000;
-const DEFAULT_DIALOG_HEIGHT = 1470;  // height is set to max, then constrained by screen size in open()
+const DEFAULT_DIALOG_HEIGHT = 1600;
 
 // ── open() ────────────────────────────────────────────────────────────────────
 
@@ -618,9 +618,19 @@ function open(uiSelection) {
     isHelpAvailable: function() { return false; },
 
     getInitialSize: function() {
-      const sz = Java.super(dlg).getInitialSize();
       const Point = Java.type("org.eclipse.swt.graphics.Point");
-      return new Point(DEFAULT_DIALOG_WIDTH, DEFAULT_DIALOG_HEIGHT);
+      let height = DEFAULT_DIALOG_HEIGHT;
+      try { height = Math.min(height, dlg.getShell().getMonitor().getClientArea().height); } catch (e) {}
+      return new Point(DEFAULT_DIALOG_WIDTH, height);
+    },
+
+    // Top of the monitor's usable area, centred horizontally — the dialog uses the full height.
+    getInitialLocation: function(size) {
+      const Point = Java.type("org.eclipse.swt.graphics.Point");
+      try {
+        const area = dlg.getShell().getMonitor().getClientArea();
+        return new Point(area.x + Math.max(0, Math.round((area.width - size.x) / 2)), area.y);
+      } catch (e) { return Java.super(dlg).getInitialLocation(size); }
     },
 
     createButtonBar: function(parent) {
@@ -2388,15 +2398,22 @@ function _buildActionArea(area, ctx, dlg, targetViewName) {
 
   // ── Modify view ──
   const grpModify = _group(row, "Modify selected view", 2, { grabV: true, bold: false });
-  new LabelWidget(grpModify, SWT.NONE).setText("View:");
-  // Read-only field (not a label) so the row has the same height as Folder / Name;
-  // a long name scrolls inside it and is shown in full in the tooltip.
-  const txtTarget = new TextWidget(grpModify, SWT.BORDER | SWT.READ_ONLY);
-  txtTarget.setText(targetViewName || "— select a view, or elements on a view —");
-  txtTarget.setToolTipText(targetViewName
+  // "View: <name>" as text, right after the label, in a row as high as a text field (centred),
+  // so it lines up with Folder / Name. A long name is cut off; the tooltip shows it in full.
+  const viewRow = new CompositeWidget(grpModify, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).spacing(6, 0).applyTo(viewRow);
+  GridDataFactory.fillDefaults().span(2, 1).grab(true, false)
+    .hint(150, w.txtViewFolder.computeSize(SWT.DEFAULT, SWT.DEFAULT).y).applyTo(viewRow);
+  const lblView = new LabelWidget(viewRow, SWT.NONE);
+  lblView.setText("View:");
+  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).grab(false, true).applyTo(lblView);
+  const lblTarget = new LabelWidget(viewRow, SWT.NONE);
+  lblTarget.setText(targetViewName || "— select a view, or elements on a view");
+  lblTarget.setToolTipText(targetViewName
     ? `${targetViewName}\nExpand view and Layout only change this view in place.`
     : "Expand view and Layout only need a selected view, or elements on a view.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(txtTarget);
+  GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, true).hint(100, SWT.DEFAULT).applyTo(lblTarget);
+  if (targetViewName) { const f = _getBoldFont(); if (f) try { lblTarget.setFont(f); } catch (e) {} }
 
   w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(ACTION.EXPAND_VIEW.id, dlg, ctx));
   w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
