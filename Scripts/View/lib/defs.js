@@ -48,7 +48,7 @@ const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
 // "Not used by …" hints, tooltips and the capability matrix in ARCHITECTURE.md.
 const PARAM_LABELS = Object.freeze({
-  nestingRelationTypes:     "Show as container",
+  nestingRelationTypes:     "Nesting",
   reverseRelationTypes:     "Reverse for layout",
   nestingContainerTypes:    "Container types",
   containerAlgorithm:       "Layout inside",

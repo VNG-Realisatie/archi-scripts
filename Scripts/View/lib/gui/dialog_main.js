@@ -1394,7 +1394,7 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   // ── Relations ─────────────────────────────────────────────────────────────────
   const grpRel = _group(page, "Relations", 1);
-  _lbl(grpRel, "Show as container — draw these relation types as box in box:");
+  _lbl(grpRel, "Nesting — draw these relation types as nesting: the child element inside its parent (box in box):");
   w.lstNestingTypes = _checkboxGrid(grpRel, RELATION_TYPE_LABELS, 4, onParamsChange);
 
   // Container types: which element types may be a parent. Mode is derived from the
@@ -1484,7 +1484,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   // ── View size ─────────────────────────────────────────────────────────────────
   const grpVS = _group(page, "View size", 1);
 
-  // Inline row: ○ Aspect ratio [combo]  ○ Max width [spinner]  ● None
+  // Inline row: ● Free  ○ Aspect ratio [combo]  ○ Max width [spinner]
   // All three radios live in the same composite → SWT mutual exclusion is automatic.
   const hintRow = new CompositeWidget(grpVS, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(hintRow);
@@ -1503,6 +1503,10 @@ function _buildLayoutTab(tabFolder, ctx) {
     return r;
   };
 
+  w.radioViewSizeNone = _vsRadio("Free", 16);
+  w.radioViewSizeNone.setSelection(true);
+  w.radioViewSizeNone.setToolTipText("No size constraint: the layout determines the view size.");
+
   w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio:", 8);
   w.radioViewSizeAspectRatio.setToolTipText("Arrange the layout toward this width-to-height ratio.\nElement sizes are unchanged.");
   _addCombo(hintRow, null, AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
@@ -1517,9 +1521,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.spinMaxWidth = _spMaxWidth;
   _spMaxWidth.addListener(SWT.Modify, () => _updateConnectionsMode(ctx));
 
-  w.radioViewSizeNone = _vsRadio("None", 16);
-  w.radioViewSizeNone.setSelection(true);
-  w.radioViewSizeNone.setToolTipText("No constraint: the layout determines the view size.");
   w.layoutHints["View size"] = _groupHint(grpVS);
 
   finish();
@@ -1535,7 +1536,7 @@ function _groupHint(group) {
   return lbl;
 }
 
-// True when the algorithm nests and at least one relation type is checked under Show as container.
+// True when the algorithm nests and at least one relation type is checked under Nesting.
 function _nestingOn(w, alg) {
   return alg.activeParams.includes("nestingRelationTypes")
     && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
@@ -1543,7 +1544,7 @@ function _nestingOn(w, alg) {
 
 // Fill each Layout group's hint: the settings the chosen algorithm does not use
 // ("Not used by Force: Direction, Cycles."), or the whole group. Containers also says when
-// it waits for a Show as container type.
+// it waits for a Nesting relation type.
 function _updateLayoutHints(ctx, algName) {
   const w = ctx.widgets;
   if (!w.layoutHints) return;
@@ -1557,7 +1558,7 @@ function _updateLayoutHints(ctx, algName) {
              : unused.length ? `Not used by ${algName}: ${unused.map(k => Defs.PARAM_LABELS[k]).join(", ")}.`
              : "";
     if (group === "Containers" && !unused.length && !_nestingOn(w, alg))
-      text = "Check a relation type under Show as container to use these settings.";
+      text = "Check a relation type under Nesting to use these settings.";
     if (String(lbl.getText()) === text) continue;
     lbl.setText(text);
     lbl.setVisible(!!text);
