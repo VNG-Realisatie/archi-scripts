@@ -1464,8 +1464,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   if (w.cmbConnectionsMode)
     w.cmbConnectionsMode.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  // Row: Inner spacing | Padding (fills all 4 cols exactly)
-  _addSpinnerRow(ctrComp, "Inner spacing:", "spinInnerSpacing", 20, 0, 200, 5, w, "Minimum distance between elements inside a container (px).");
   _addSpinnerRow(ctrComp, "Padding:",       "spinPadding",      20, 0, 200, 5, w, "Space between container border and its contents (px).");
 
   // Checkboxes in an 8-col sub-composite spanning all 4 cols of ctrComp.
@@ -2551,7 +2549,6 @@ function _syncToUI(ctx) {
   if (w.lstReverseTypes) _listSelectLabels(w.lstReverseTypes, _relIdsToLabels(p.reverseRelationTypes || []));
 
   // Container appearance
-  _spinSet(w.spinInnerSpacing, p.innerSpacing  !== undefined ? p.innerSpacing  : DP.innerSpacing);
   _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : DP.padding);
   _chkSet(w.chkSortContainers, !!(p.sortContainers));
   _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
@@ -2779,7 +2776,6 @@ function _saveUI(ctx) {
   if (w.lstReverseTypes)  c.params.reverseRelationTypes = _relLabelsToIds(_listGetSelected(w.lstReverseTypes));
 
   // Container
-  if (w.spinInnerSpacing) c.params.innerSpacing       = w.spinInnerSpacing.getSelection();
   if (w.spinPadding)      c.params.padding            = w.spinPadding.getSelection();
   if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
   if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
@@ -2923,7 +2919,6 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
   _updateNestContainerBox(ctx);
   _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));
-  _enable(w.spinInnerSpacing,   active.has("innerSpacing"));
   _enable(w.spinPadding,        active.has("padding"));
   _enable(w.chkSortContainers,  active.has("sortContainers"));
   _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));

@@ -16,12 +16,10 @@
       "access-relationship",
       "aggregation-relationship"
     ],
-    "innerSpacing": 10,
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": false,
     "alignWidthSameType": true,
-    "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
     "containerAlgorithm": "Layered",

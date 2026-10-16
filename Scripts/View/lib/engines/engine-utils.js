@@ -104,7 +104,7 @@ function sortedNodes(nodes, parentMap, sortContainers) {
  * @param {Function} [log]             optional logger (e.g. console.log) for diagnostics
  * @returns {Object}                   { id: targetWidth } for every item
  */
-function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log, debugLog) {
+function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
   // Children index from parentMap.
   const childrenOf = {};
   for (const childId of Object.keys(parentMap)) {
@@ -178,18 +178,6 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log, debu
     );
     for (const L of levels) log(`  level ${L}: ${byLevel[L].length} box(es)  ⇒ W[${L}]=${W[L]}`);
   }
-  if (typeof debugLog === "function") {
-    for (const it of items) {
-      const id = it.id,
-        L = level(it.id);
-      const kind = isContainer(id) ? "container" : "leaf     ";
-      const nat = widthOf(id),
-        tgt = targetById[id];
-      const note = isContainer(id) ? "(floor)" : tgt > nat ? "(grow)" : tgt < nat ? "(SHRINK?)" : "(same)";
-      debugLog(`    ${kind} L${L} sub${subtreeDepth(id)} natural=${nat} target=${tgt} ${note}  "${nameOf[id]}"`);
-    }
-  }
-
   return targetById;
 }
 

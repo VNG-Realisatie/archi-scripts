@@ -36,15 +36,16 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
   "nestingRelationTypes", "nestingContainerTypes", "padding",
-  "sortContainers", "alignWidthSameType", "alignDebug",
+  "sortContainers", "alignWidthSameType",
   "showInEveryContainer", "containerAlgorithm",
 ]);
 
 // View-size params — maxWidth + aspectRatio (ELK: met by calibrating elk.aspectRatio — elk.js _fitViewSize).
+// Graphviz has aspectRatio only: it cannot narrow a layout without scaling elements.
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
-// Graphviz cluster-nesting controls — Dot, Neato, FDP.
-const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "nestingContainerTypes", "innerSpacing"]);
+// Graphviz cluster-nesting controls — Dot, Neato, FDP. padding = cluster margin (graphviz.js).
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "nestingContainerTypes", "padding"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
 const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
@@ -158,7 +159,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
+      "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
@@ -175,7 +176,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
+      "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
@@ -213,9 +214,10 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz routes self-loops natively across all algorithms
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "layerSpacing", "elementSpacing", "connectionElementSpacing", "connectionSpacing", "reverseRelationTypes",
+      "layerSpacing", "elementSpacing", "reverseRelationTypes",
+      // connectionSpacing / connectionElementSpacing: dot has no equivalent (sep/esep are not used by dot)
     ],
     supportedOptions: {
       direction:     DIRECTION_VALUES,
@@ -234,7 +236,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
       "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
     ],
@@ -254,7 +256,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
       "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
     ],
@@ -274,7 +276,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
       "routing", "labelPosition",
       "elementSpacing", "connectionElementSpacing",
     ],
@@ -294,8 +296,8 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
-      "labelPosition", "layerSpacing", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
+      "labelPosition", "layerSpacing",
     ],
     supportedOptions: {
       labelPosition: LP_GV,
@@ -312,7 +314,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
       "labelPosition", "elementSpacing",
     ],
     supportedOptions: {
@@ -348,13 +350,13 @@ const ROUTING = Object.freeze({
   ORTHOGONAL:    { id: "Orthogonal",           label: "Orthogonal",
     tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
   POLYLINE:      { id: "Polyline",             label: "Polyline",
-    tooltip: "Draws relation lines with diagonal bends. Works with all algorithms." },
+    tooltip: "Draws relation lines with diagonal bends." },
   STRAIGHT:      { id: "Straight",             label: "Straight",
     tooltip: "Draws relation lines as direct straight lines." },
   SPLINE:        { id: "Spline (approximated)", label: "Spline (approximated)",
-    tooltip: "Graphviz B-splines converted to bendpoints. Only available with Graphviz algorithms." },
+    tooltip: "Graphviz curves, approximated with bendpoints. Graphviz only." },
   SPLINES:       { id: "Splines",              label: "Splines",
-    tooltip: "Smooth Bézier curve edges. Available with Layered and Tree algorithms." },
+    tooltip: "Draws relation lines as smooth curves. Layered only." },
 });
 
 // ── Directions ────────────────────────────────────────────────────────────────
@@ -538,12 +540,10 @@ const DEFAULT_PRESET = Object.freeze({
     reverseRelationTypes:  [],
     nestingRelationTypes:  [],
     nestingContainerTypes: [],                     // element types allowed as container; [] = any
-    innerSpacing:          20,
     padding:               20,
     diagramPadding:        10,
     sortContainers:        false,
     alignWidthSameType:    false,
-    alignDebug:            false,
     snapColumnsToGrid:     false,
     showInEveryContainer:  false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
@@ -675,7 +675,7 @@ function decodeRelType(encoded) {
  * - Fills missing params from DEFAULT_PRESET
  * - Validates algorithm exists
  * - Validates option values against supportedOptions
- * - Applies algorithm-specific labelPosition default
+ * - Replaces unsupported option values (labelPosition: algorithm default; others: first option)
  * Throws a descriptive string if validation fails.
  * @param {Object} raw  raw preset object (from JSON)
  * @returns {Object}    normalised preset
@@ -706,10 +706,12 @@ function validatePreset(raw) {
     }
   }
 
-  // apply labelPosition default if not set or not supported
-  const lpOpts = alg.supportedOptions.labelPosition;
-  if (lpOpts && !lpOpts.includes(preset.params.labelPosition)) {
-    preset.params.labelPosition = alg.labelPositionDefault;
+  // Every select-type param must hold a supported value — also when the value is the
+  // DEFAULT_PRESET default (e.g. containerAlgorithm "Layered" is not an option for Tree).
+  // labelPosition falls back to the algorithm's own default, the others to their first option.
+  for (const [key, opts] of Object.entries(alg.supportedOptions)) {
+    if (opts.includes(preset.params[key])) continue;
+    preset.params[key] = (key === "labelPosition" && alg.labelPositionDefault) ? alg.labelPositionDefault : opts[0];
   }
 
   // filter

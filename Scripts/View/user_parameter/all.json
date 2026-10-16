@@ -13,11 +13,9 @@
       "specialization-relationship"
     ],
     "nestingRelationTypes": [],
-    "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": false,
-    "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",

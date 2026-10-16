@@ -160,17 +160,10 @@ const PARAM_MAPPING = {
   },
 
   Grid: {
-    root:      { innerSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
-    container: { innerSpacing: _ELEM_SPACING, aspectRatio: _AR,                                padding: _PAD_CONTAINER },
+    root:      { elementSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
+    container: { elementSpacing: _ELEM_SPACING, aspectRatio: _AR,                                padding: _PAD_CONTAINER },
   },
 
-  // rectpacking tight-packing options:
-  //   packing.strategy                       COMPACTION (default) — row compaction; alternatives: SIMPLE
-  //   packing.compaction.iterations          passes of row compaction; more = tighter (default 1)
-  //   packing.compaction.rowHeightReevaluation re-evaluates row height after each move (default false)
-  //   orderBySize                            sort nodes largest-first before placement (default false)
-  //   whiteSpaceElimination.strategy         post-pass to fill gaps; NONE = off (default)
-  //   widthApproximation.optimizationGoal    MAX_SCALE_DRIVEN (default) — maximises use of target width
   // rectpacking tight-packing options:
   //   packing.strategy                       COMPACTION (default) — row compaction; alternatives: SIMPLE
   //   packing.compaction.iterations          passes of row compaction; more = tighter (default 1)
@@ -187,7 +180,7 @@ const PARAM_MAPPING = {
       // than the widest container is ignored and a too-narrow target can yield zero-width
       // nodes. maxWidth goes through view-size calibration instead (_fitViewSize).
       aspectRatio:    _AR_PACK,
-      innerSpacing:   (v) => ({
+      elementSpacing: (v) => ({
         "elk.spacing.nodeNode": String(v),
         "elk.rectpacking.packing.compaction.iterations": "5",
         // "elk.rectpacking.packing.compaction.rowHeightReevaluation": "true",
@@ -202,7 +195,7 @@ const PARAM_MAPPING = {
       // aspectRatio propagated to containers so their internal layout matches the root AR,
       // producing a more consistent overall shape.
       aspectRatio:    _AR_PACK,
-      innerSpacing:   (v) => ({
+      elementSpacing: (v) => ({
         "elk.spacing.nodeNode": String(v),
         "elk.rectpacking.packing.compaction.iterations": "5",
         "elk.rectpacking.trybox": "true",  // trybox is a lightweight pre-compaction pass that reduces the number of moves needed in compaction, improving performance with minimal impact on tightness
@@ -414,7 +407,6 @@ function _layoutOnce(graph, measureOnly) {
 
   // All layout-step output is indented under the "Layout:" header logged by the orchestrator.
   const log      = measureOnly ? () => {} : msg => console.log("  " + msg);
-  const debugLog = graph.options.alignDebug && !measureOnly ? log : null;
 
   // ── ELK config log (permanent) ────────────────────────────────────────────────
   {
@@ -458,7 +450,7 @@ function _layoutOnce(graph, measureOnly) {
     _resetNodesForPass2(nodeMap, origSizes, containerIds);
     // One nesting level adds left+right container padding to the width (label clearance is top-only).
     const ring = 2 * (graph.options.padding || 0);
-    const targetWidths = alignWidthsByLevel(Object.values(nodeMap), parentMap, renderedWidths, ring, log, debugLog);
+    const targetWidths = alignWidthsByLevel(Object.values(nodeMap), parentMap, renderedWidths, ring, log);
     for (const id of Object.keys(nodeMap)) {
       const w = targetWidths[id];
       if (!(w > 0)) continue;
@@ -482,13 +474,13 @@ function _layoutOnce(graph, measureOnly) {
   // A container final < target means the MINIMUM_SIZE floor was not honoured by the engine.
   if (alignTargets) {
     const finalWidths = _collectRenderedWidths(layouted);
-    log("[alignByLevel] target vs final rendered width (mismatches flagged):");
+    log("[alignByLevel] target vs final rendered width — mismatches:");
     for (const id of Object.keys(alignTargets)) {
       const tgt = alignTargets[id]; if (!(tgt > 0)) continue;
       const fin = finalWidths[id] || 0;
       const isC = alignContainerIds.has(id);
       const bad = isC ? fin + 0.5 < tgt : Math.abs(fin - tgt) > 0.5;  // leaf must equal; container must be ≥
-      if (!bad && !graph.options.alignDebug) continue;
+      if (!bad) continue;
       const flag = bad ? "  ⚠ MISMATCH" : "";
       const name = (nodeMap[id] && nodeMap[id]._name) || id;
       log(`    ${isC ? "container" : "leaf     "} pass1=${alignPass1Widths[id] || 0} target=${tgt} final=${Math.round(fin)}${flag}  "${name}"`);
@@ -520,30 +512,9 @@ function _layoutOnce(graph, measureOnly) {
     return resultNodes.length ? { width: Math.round(x1 - x0), height: Math.round(y1 - y0) } : { width: 0, height: 0 };
   }
 
-  // Debug: dump every result node (absolute coords as ELK produced them). Containers first,
-  // then their children indented, so a misplaced/mis-sized container is easy to spot.
-  if (debugLog) {
-    const nameById = {};
-    for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
-    const childrenOf = {};
-    for (const rn of resultNodes) (childrenOf[rn.parentId || "__root__"] = childrenOf[rn.parentId || "__root__"] || []).push(rn);
-    const byId = {}; for (const rn of resultNodes) byId[rn.id] = rn;
-    debugLog(`[result-nodes] ${resultNodes.length} nodes (abs coords; children indented under parent):`);
-    const dump = (pid, indent) => {
-      for (const rn of (childrenOf[pid] || [])) {
-        const kids = childrenOf[rn.id] ? childrenOf[rn.id].length : 0;
-        const kind = kids > 0 ? `container(${kids})` : "leaf";
-        const nm = nameById[rn.id] || rn.id;
-        debugLog(`${indent}${kind} abs=(${Math.round(rn.x)},${Math.round(rn.y)}) size=${Math.round(rn.width)}×${Math.round(rn.height)}  "${nm}"  [${rn.id.substring(0,8)}]`);
-        dump(rn.id, indent + "    ");
-      }
-    };
-    dump("__root__", "  ");
-  }
-
   // Collect edges
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
-  _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, debugLog);
+  _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, log);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   resultEdges.push(...selfLoops.map(selfLoopResult));
@@ -986,7 +957,7 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
  * Hierarchical-port segments (edgeMeta.segOf) are buffered and joined into one path, in
  * segment order, once all segments of the relation are collected.
  */
-function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, labelPosition, isSplines, debugLog) {
+function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, labelPosition, isSplines, log) {
   const byId = {};
   for (const n of resultNodes) byId[n.id] = n;
   const segGroups = {};
@@ -997,12 +968,8 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
     const offsetX = containerNode ? containerNode.x : 0;
     const offsetY = containerNode ? containerNode.y : 0;
 
-    if (debugLog && containerNodeId) {
-      if (!containerNode)
-        debugLog(`⚠ [edge-collect] container "${containerNodeId}" not in resultNodes — offset forced to (0,0)!`);
-      else
-        debugLog(`  [edge-collect] container "${containerNodeId}" abs=(${offsetX},${offsetY})  edges=${(elkNode.edges || []).length}`);
-    }
+    if (containerNodeId && !containerNode)
+      log(`⚠ [edge-collect] container "${containerNodeId}" not in resultNodes — offset forced to (0,0)`);
 
     const abs = p => ({ x: offsetX + ((p && p.x) || 0), y: offsetY + ((p && p.y) || 0) });
     for (const edge of (elkNode.edges || [])) {
@@ -1025,7 +992,7 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
         grp.recs[meta.segIdx] = rec;
         continue;
       }
-      _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debugLog);
+      _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines);
     }
     for (const child of (elkNode.children || [])) walk(child);
   })(layouted);
@@ -1038,7 +1005,7 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
     }
     const label = (recs.find(r => r.label) || {}).label || null;
     const joined = { edge: recs[0].edge, sections: [].concat(...recs.map(r => r.sections)), label, segCount: meta.segCount };
-    _emitEdgeResult(joined, meta, resultEdges, labelPosition, isSplines, debugLog);
+    _emitEdgeResult(joined, meta, resultEdges, labelPosition, isSplines);
   }
 }
 
@@ -1085,7 +1052,7 @@ function _straightenJogs(path) {
  * @param {Object} rec     { edge, sections, label, segCount? }
  * @param {Object} meta    edgeMeta entry (lifted or segment) — restores the original endpoints
  */
-function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debugLog) {
+function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
   const { edge, sections } = rec;
   const originalId = edge._archiRelId || edge.id;
   const first = sections[0], last = sections[sections.length - 1];
@@ -1139,16 +1106,6 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines, debug
   // Passed to the writer so extra label-alignment bendpoints stay outside elements.
   const srcPort = pathStart;
   const tgtPort = pathEnd;
-
-  if (debugLog) {
-    const liftStr = meta
-      ? `  ${rec.segCount ? `PORTS(${rec.segCount} segments)` : "LIFTED"} origSrc=${meta.origSrcId.substring(0, 8)} origTgt=${meta.origTgtId.substring(0, 8)}`
-      : "";
-    const secStr = sections.length > 1 ? ` (${sections.length} sections)` : "";
-    debugLog(`  [edge] ${originalId.substring(0, 14)}${liftStr}${secStr}` +
-             `  section=(${srcPort.x},${srcPort.y})→(${tgtPort.x},${tgtPort.y})  bps=${bps.length}`);
-    debugLog(`         ${bps.map((b, i) => `bp[${i}]=(${b.x},${b.y})`).join("  ")}`);
-  }
 
   // Label position — use ELK's computed result when available (connectionLabelSpacing mode),
   // otherwise derive from geometry.
@@ -1264,7 +1221,7 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   const isContainer = id => containerIds.has(id);
   const centerOf = n => n.x + (n.width || 0) / 2;
   const rightOf  = n => n.x + (n.width || 0);
-  const spacing = options.innerSpacing || options.elementSpacing || 0;
+  const spacing = options.elementSpacing || 0;
   const pad = options.padding || 0;
 
   const leaves = resultNodes.filter(n => !isContainer(n.id));

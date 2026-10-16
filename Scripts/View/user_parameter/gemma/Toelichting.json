@@ -12,11 +12,9 @@
       "specialization-relationship"
     ],
     "nestingRelationTypes": [],
-    "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": true,
-    "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
     "layerSpacing": 180,

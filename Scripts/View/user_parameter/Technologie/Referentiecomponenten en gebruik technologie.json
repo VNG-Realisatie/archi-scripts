@@ -12,11 +12,9 @@
       "serving-relationship"
     ],
     "nestingRelationTypes": [],
-    "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": true,
-    "alignDebug": false,
     "snapColumnsToGrid": true,
     "showInEveryContainer": true,
     "layerSpacing": 120,

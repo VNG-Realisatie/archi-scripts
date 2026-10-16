@@ -14,12 +14,10 @@
     "nestingRelationTypes": [
       "aggregation-relationship"
     ],
-    "innerSpacing": 10,
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": true,
     "alignWidthSameType": true,
-    "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
     "containerAlgorithm": "Layered",

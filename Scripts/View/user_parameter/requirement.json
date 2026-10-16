@@ -16,7 +16,6 @@
       "association-relationship",
       "realization-relationship"
     ],
-    "innerSpacing": 20,
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,

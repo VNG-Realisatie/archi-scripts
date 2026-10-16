@@ -619,8 +619,6 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
     }
     console.log(nodeLogLine + "...");
   }
-  const _dbgW = preset.params.alignDebug;
-  if (_dbgW) console.log(`  [write-nodes] node | path | result-abs | parent-offset | written-rel(bounds)`);
   for (const rn of sortedNodes) {
     const archiId = _stripOccSuffix(rn.id);
     const existing = _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds);
@@ -647,7 +645,6 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
           // jArchi throws "Target already contains object" when the element is already
           // in that VO. visualIndex is set unconditionally so children can find this
           // node as their parent even if the bounds update fails.
-          if (_dbgW) console.log(`    ${_dbgName(rn)} | same-parent-concept | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
           try {
             existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
           } catch (e) { console.error(`Failed to update bounds for ${archiId}: ${e}`); }
@@ -655,7 +652,6 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
         } else {
           // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
           const target = newParentVisual || view;
-          if (_dbgW) console.log(`    ${_dbgName(rn)} | re-parent | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
           try {
             target.add(existing, relX, relY);
             existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
@@ -667,12 +663,6 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
 
       // Same parent — reposition within current container.
       const off = _getParentAbsOffset(existing);
-      if (_dbgW) {
-        const parentRn = rn.parentId ? nodeById[rn.parentId] : null;
-        const parentRnStr = parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—";
-        const mismatch = (parentRn && (Math.round(parentRn.x) !== Math.round(off.x) || Math.round(parentRn.y) !== Math.round(off.y))) ? "  ⚠ OFFSET≠parentRn" : "";
-        console.log(`    ${_dbgName(rn)} | same-parent | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | off=(${Math.round(off.x)},${Math.round(off.y)}) parentRn=${parentRnStr} | rel=(${Math.round(rn.x - off.x)},${Math.round(rn.y - off.y)}) ${Math.round(rn.width)}×${Math.round(rn.height)}${mismatch}`);
-      }
       existing.bounds = {
         x: rn.x - off.x,
         y: rn.y - off.y,
@@ -693,7 +683,6 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
     const parentRn = parentVisual ? nodeById[rn.parentId] : null;
     const relX = parentRn ? rn.x - parentRn.x : rn.x;
     const relY = parentRn ? rn.y - parentRn.y : rn.y;
-    if (_dbgW) console.log(`    ${_dbgName(rn)} | create | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
     try {
       visualIndex[rn.id] = target.add(el, relX, relY, rn.width, rn.height);
     } catch (e) {
@@ -821,7 +810,7 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
 // srcPort / tgtPort are the physical exit/entry points of the connection on the element
 // boundary (ELK section start/end).  Using these instead of element centres ensures
 // extra collinear points cannot fall inside source or target elements.
-function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort, log) {
+function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort) {
   if (!lx && !ly) return bps;
 
   // Build path using ports as endpoints (they are on element boundaries, not inside).
@@ -862,7 +851,6 @@ function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort, log) {
     // On a segment end: reuse that vertex instead of inserting a duplicate.
     const v = tSnap <= EPS ? seg : seg + 1;  // path index of the vertex
     if (v === 0 || v === n - 1) {
-      if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  at port, skip  bps ${N}→${N}`);
       return bps;
     }
     P = path[v];
@@ -882,7 +870,6 @@ function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort, log) {
   }));
 
   const result = [...head, ...befPts, P, ...aftPts, ...tail];
-  if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  snap=(${P.x},${P.y})  dist=${Math.round(minD)}px  added before=${b} after=${a}  bps ${N}→${result.length}  mid@${head.length + b}`);
   return result;
 }
 
@@ -894,8 +881,6 @@ function _applyEdgeStyle(connection, re, preset) {
   }
 
   try { connection.deleteAllBendpoints(); } catch (e) { console.error(`Failed to clear bendpoints on ${connection && connection.id}: ${e}`); }
-
-  const _dbg = preset.params.alignDebug;
 
   // Self-loop: use engine bendpoints when the engine routed the connection
   // (Graphviz native, ELK Layered, Dagre partial). Synthesise a NE-corner loop only
@@ -910,7 +895,6 @@ function _applyEdgeStyle(connection, re, preset) {
   }
 
   if (re.isStraight || !re.bendpoints || re.bendpoints.length === 0) {
-    if (_dbg) console.log(`    [edge-bp] ${re.id}  bps=0${re.isStraight ? " (isStraight)" : ""}  → straight line`);
     return;
   }
 
@@ -918,21 +902,13 @@ function _applyEdgeStyle(connection, re, preset) {
   const tgtCenter = _getAbsCenter(connection.target);
   const relType = connection.concept && connection.concept.type;
   const isReversed = (preset.params.reverseRelationTypes || []).includes(relType);
-  const balancedBps = _insertLabelMidpointBp(re.bendpoints, srcCenter, tgtCenter, re.labelX, re.labelY, re.srcPort, re.tgtPort, _dbg ? console.log : null);
+  const balancedBps = _insertLabelMidpointBp(re.bendpoints, srcCenter, tgtCenter, re.labelX, re.labelY, re.srcPort, re.tgtPort);
   const archiBps = balancedBps.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),
     startY: Math.round(bp.y - srcCenter.y),
     endX:   Math.round(bp.x - tgtCenter.x),
     endY:   Math.round(bp.y - tgtCenter.y),
   }));
-
-  if (_dbg) {
-    console.log(`    [edge-bp] ${re.id}  src=(${srcCenter.x},${srcCenter.y}) tgt=(${tgtCenter.x},${tgtCenter.y})  bps=${re.bendpoints.length}→${balancedBps.length}${isReversed ? "  reversed" : ""}${re.labelX ? `  lbl=(${re.labelX},${re.labelY})` : ""}`);
-    balancedBps.forEach((bp, i) => {
-      const r = archiBps[i];
-      console.log(`      bp[${i}] abs=(${bp.x},${bp.y})  → start=(${r.startX},${r.startY}) end=(${r.endX},${r.endY})`);
-    });
-  }
 
   const ordered = isReversed ? archiBps.reverse() : archiBps;
   ordered.forEach((bp, i) => { try { connection.addRelativeBendpoint(bp, i); } catch (e) {} });
@@ -990,12 +966,6 @@ function _sortNodesParentFirst(nodes, nodeById) {
  * (0, 0) if the visual is at root. Under parent-first iteration, callers can rely
  * on parents having been repositioned before children read this.
  */
-// Compact node label for write-path debug lines: short id + parent marker.
-function _dbgName(rn) {
-  const tag = rn.parentId ? `child-of[${String(rn.parentId).substring(0, 8)}]` : "root";
-  return `[${String(rn.id).substring(0, 8)}] ${tag}`;
-}
-
 function _getParentAbsOffset(vo) {
   let x = 0, y = 0;
   try {

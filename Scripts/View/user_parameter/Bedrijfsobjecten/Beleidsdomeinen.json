@@ -14,17 +14,15 @@
     "nestingRelationTypes": [
       "aggregation-relationship"
     ],
-    "innerSpacing": 10,
     "padding": 10,
     "sortContainers": true,
     "alignWidthSameType": true,
-    "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
-    "elementSpacing": 40,
+    "elementSpacing": 10,
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
