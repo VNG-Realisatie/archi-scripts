@@ -27,7 +27,7 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "viewSizeMode": "aspectRatio",
+    "viewSizeMode": "none",
     "labelSizing": false
   },
   "filter": {

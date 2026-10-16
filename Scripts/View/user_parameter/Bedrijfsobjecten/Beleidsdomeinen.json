@@ -2,7 +2,7 @@
   "name": "Bedrijfsobjectmodel/Beleidsdomeinen",
   "algorithm": "Pack",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -28,7 +28,6 @@
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 1.33,
     "viewSizeMode": "none",
     "labelSizing": false,

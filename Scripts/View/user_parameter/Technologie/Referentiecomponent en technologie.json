@@ -2,7 +2,7 @@
   "name": "gemma/Referentiecomponent en technische architectuur",
   "algorithm": "Layered",
   "params": {
-    "direction": "Top → Bottom",
+    "direction": "Down",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -24,7 +24,6 @@
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 5000,
-    "maxHeight": 1000,
     "aspectRatio": 0.75,
     "viewSizeMode": "none"
   },

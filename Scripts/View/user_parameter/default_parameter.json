@@ -2,7 +2,7 @@
   "name": "default_parameter",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -16,14 +16,12 @@
     "innerSpacing": 20,
     "padding": 20,
     "sortContainers": true,
-    "alignSameType": false,
     "showInEveryContainer": false,
     "layerSpacing": 180,
     "elementSpacing": 40,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 0,
     "aspectRatio": 0
   },
   "filter": {

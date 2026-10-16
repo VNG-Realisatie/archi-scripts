@@ -2,7 +2,7 @@
   "name": "GGM bedrijfsobject specialisaties",
   "algorithm": "Dot",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Straight",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -17,14 +17,12 @@
     "innerSpacing": 10,
     "padding": 20,
     "sortContainers": false,
-    "alignSameType": true,
     "showInEveryContainer": true,
     "layerSpacing": 200,
     "elementSpacing": 60,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 0,
     "aspectRatio": 0
   },
   "filter": {

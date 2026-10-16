@@ -3,6 +3,7 @@
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Compact",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -22,7 +23,7 @@
     "snapColumnsToGrid": false,
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Between containers",
     "layerSpacing": 0,
     "elementSpacing": 30,
     "connectionSpacing": 25,
@@ -30,8 +31,8 @@
     "elementWidth": 220,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0,
-    "viewSizeMode": "none",
+    "aspectRatio": 0.75,
+    "viewSizeMode": "aspectRatio",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
     "connectionLabelSpacing": true
@@ -88,7 +89,7 @@
     ]
   },
   "view": {
-    "name": "Burgerzaken",
+    "name": "0 Bestuur, Politiek en Ondersteuning",
     "folder": "/Beleidskaders"
   },
   "appearance": {

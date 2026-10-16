@@ -2,7 +2,7 @@
   "name": "all",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -27,7 +27,6 @@
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false,

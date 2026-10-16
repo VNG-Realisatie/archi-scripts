@@ -2,7 +2,7 @@
   "name": "grouping",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -11,14 +11,12 @@
     "innerSpacing": 20,
     "padding": 20,
     "sortContainers": true,
-    "alignSameType": false,
     "showInEveryContainer": false,
     "layerSpacing": 180,
     "elementSpacing": 15,
     "elementWidth": 270,
     "elementHeight": 25,
     "maxWidth": 0,
-    "maxHeight": 0,
     "aspectRatio": 0
   },
   "filter": {

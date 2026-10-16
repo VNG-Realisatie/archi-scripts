@@ -2,7 +2,7 @@
   "name": "Toelichting",
   "algorithm": "Layered",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -24,9 +24,8 @@
     "elementWidth": 240,
     "elementHeight": 40,
     "maxWidth": 0,
-    "maxHeight": 1000,
     "aspectRatio": 0,
-    "viewSizeMode": "aspectRatio"
+    "viewSizeMode": "none"
   },
   "filter": {
     "elementTypes": [],
