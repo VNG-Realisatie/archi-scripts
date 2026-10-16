@@ -512,7 +512,7 @@ const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GENERATED_VIEW_FOLDER = "/Views/_Generated";
+const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views, like preset view.folder
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
@@ -576,7 +576,8 @@ const DEFAULT_PRESET = Object.freeze({
   },
   view: {
     name:   "",
-    folder: "",
+    folder: "",   // path under /Views, e.g. "/_Generated/Test"; "" = GENERATED_VIEW_FOLDER
+    suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
   },
   appearance: {
     styleByProperty: {
@@ -742,6 +743,7 @@ function validatePreset(raw) {
   if (raw.view && typeof raw.view === "object") {
     if (raw.view.name   !== undefined) preset.view.name   = String(raw.view.name);
     if (raw.view.folder !== undefined) preset.view.folder = String(raw.view.folder);
+    if (raw.view.suffix !== undefined) preset.view.suffix = String(raw.view.suffix);
   }
 
   // appearance

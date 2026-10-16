@@ -351,7 +351,7 @@ function _generateOneEach(preset, uiSelection) {
   const views = [];
   for (const element of seeds) {
     console.log(`\nGenerating view for: ${element.name}`);
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name);
+    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + preset.view.suffix);
     if (view) views.push(view);
   }
   return views;
@@ -1020,7 +1020,8 @@ function _collectVisualsFrom(view) {
 }
 
 function _resolveFolder(viewFolder) {
-  const path = viewFolder ? "/Views" + viewFolder : "/Views" + GENERATED_VIEW_FOLDER;
+  // viewFolder is a path under /Views ("/_Generated/Test"); "" = GENERATED_VIEW_FOLDER.
+  const path = "/Views" + (viewFolder || GENERATED_VIEW_FOLDER);
   try { return ArchiFolders.getFolderPath(path); }
   catch (e) {
     console.log(`Folder "${path}" not found — using default. (${e})`);

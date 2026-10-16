@@ -1,9 +1,9 @@
 /**
  * Genereer de views van de GGM data-objecten en de GEMMA bedrijfsobjecten
  *
- * Configuratie van de te genereren views in
- * - GGM/user_parameter/ggmDO.js en
- * - GGM/user_parameter/ggmBO.js
+ * Configuratie van de te genereren views in de presets (View/user_parameter/gemma/ggm/)
+ * - "GGM data-object specialisaties" en
+ * - "GGM bedrijfsobject specialisaties"
  *
  * Hoe te gebruiken:
  * - selecteer één of meerdere Beleidsdomeinen
@@ -17,7 +17,9 @@
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common = require(REPO_ROOT + "_lib/Common.js");
 const Selection = require(REPO_ROOT + "_lib/selection.js");
-const View = require(REPO_ROOT + "View/include_view_presets.js");
+const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+const GenView  = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 
@@ -40,20 +42,19 @@ try {
     console.log(`\nGenereer GGM data-objectmodellen`);
     console.log(`==============================`);
     
-    let param = View.read_user_parameter(__FILE__, "ggmDO", "GenerateMultiple", "LR");
-    param.viewFolder = GgmGemma.FOLDER_GGM_DATAOBJECT;
-    param.viewNameSuffix = GgmGemma.VIEW_NAME_SUFFIX;
-    let generatedViews = View.generate_view(param, GEMMA_Beleidsdomeinen);
-    styleLabelsProperties(generatedViews);
+    let preset = PresetIO.readPreset("gemma/ggm/GGM data-object specialisaties");
+    preset.view.folder = GgmGemma.FOLDER_GGM_DATAOBJECT;
+    preset.view.suffix = GgmGemma.VIEW_NAME_SUFFIX;
+    styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id)));
 
     console.log();
     console.log(`\nGenereer GEMMA bedrijfsobjectmodellen`);
     console.log(`=====================================`);
     
-    param = View.read_user_parameter(__FILE__, "ggmBO", "GenerateMultiple", "LR");
-    param.viewFolder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
-    generatedViews = View.generate_view(param, GEMMA_Beleidsdomeinen);
-    styleLabelsProperties(generatedViews);
+    preset = PresetIO.readPreset("gemma/ggm/GGM bedrijfsobject specialisaties");
+    preset.view.folder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
+    preset.view.suffix = "";
+    styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id)));
   }
   console.log();
 } catch (error) {
@@ -61,6 +62,13 @@ try {
 }
 
 Common.finishConsoleLog();
+
+// generate_view returns an array of views; the styling helpers below work on a collection.
+function _toCollection(views) {
+  const coll = $();
+  views.forEach((v) => coll.add(v));
+  return coll;
+}
 
 /**
  *
