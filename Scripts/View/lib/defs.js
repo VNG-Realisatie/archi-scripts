@@ -45,6 +45,48 @@ const PARAMS_ELK_NESTING = Object.freeze([
 // value that differs from the default. diagramPadding only offsets the whole diagram on the canvas.
 const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
 
+// Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
+// "Not used by …" hints, tooltips and the capability matrix in ARCHITECTURE.md.
+const PARAM_LABELS = Object.freeze({
+  nestingRelationTypes:     "Show as container",
+  reverseRelationTypes:     "Reverse for layout",
+  nestingContainerTypes:    "Container types",
+  containerAlgorithm:       "Layout inside",
+  connectionsMode:          "Connections",
+  padding:                  "Padding",
+  sortContainers:           "Sort containers",
+  showInEveryContainer:     "Show in every container",
+  alignWidthSameType:       "Same width per level",
+  snapColumnsToGrid:        "Snap columns to grid",
+  direction:                "Direction",
+  acyclicer:                "Cycles",
+  ranking:                  "Ranking",
+  nodePlacement:            "Placement",
+  layerSpacing:             "Layer gap",
+  elementWidth:             "Width",
+  elementHeight:            "Height",
+  labelSizing:              "By label",
+  labelMaxLineWidth:        "Wrap at",
+  elementSpacing:           "Gap",
+  routing:                  "Routing",
+  labelPosition:            "Label",
+  connectionLabelSpacing:   "Reserve label space",
+  connectionSpacing:        "Between",
+  connectionElementSpacing: "To element",
+  aspectRatio:              "Aspect ratio",
+  maxWidth:                 "Max width",
+  diagramPadding:           "Diagram padding",
+});
+const LAYOUT_GROUPS = Object.freeze({
+  Relations:   ["nestingRelationTypes", "reverseRelationTypes", "nestingContainerTypes"],
+  Containers:  ["containerAlgorithm", "connectionsMode", "padding",
+                "sortContainers", "showInEveryContainer", "alignWidthSameType", "snapColumnsToGrid"],
+  Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "layerSpacing"],
+  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
+  Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
+  "View size": ["aspectRatio", "maxWidth"],
+});
+
 // View-size params — maxWidth + aspectRatio (ELK: met by calibrating elk.aspectRatio — elk.js _fitViewSize).
 // Graphviz has aspectRatio only: it cannot narrow a layout without scaling elements.
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
@@ -877,7 +919,7 @@ function effectiveParams(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    STYLES, ALGORITHMS, ALGO_ENGINE, HIDDEN_PARAMS,
+    STYLES, ALGORITHMS, ALGO_ENGINE, HIDDEN_PARAMS, PARAM_LABELS, LAYOUT_GROUPS,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
     RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,

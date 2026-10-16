@@ -1376,148 +1376,119 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   w.algRadios = algRadios;
 
-  // Elements / Flow / Connections share one column grid (heading | label control | …) so their
-  // fields line up across the three boxes — see _formRow / _alignFormColumns.
+  // Groups in the order of deciding: structure (Relations, Containers), then Flow, Elements,
+  // Connections, View size. Each group ends with a hint line naming what the chosen algorithm
+  // does not use (_updateLayoutHints). Containers, Flow, Elements and Connections share one
+  // column grid (heading | label control | …) — see _formRow / _alignFormColumns.
   const formRows = [];
+  w.layoutHints = {};
+  let row;
 
-  // ── Elements ──────────────────────────────────────────────────────────────────
-  const grpSize = _group(page, "Elements", 1);
-
-  let row = _formRow(grpSize, "Size:", formRows);
-  _addSpinnerRow(row, "Width",     "spinElementWidth",      DP.elementWidth, 10, 1000, 10, w, "Width of all elements (px).");
-  _addCheck(row, "By label",
-    "Derive element width (and height) from the label text; long labels wrap to 2 lines.\nWidth and Height are disabled when active (Pack and Grid only).",
-    2, w, "chkLabelSizing");
-  _addSpinnerRow(row, "Max width", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w, "Maximum label width before wrapping to two lines (px). Active with By label.");
-  if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
-
-  row = _formRow(grpSize, "", formRows);
-  _addSpinnerRow(row, "Height",    "spinElementHeight",      DP.elementHeight, 10,  500, 10, w, "Height of all elements (px).");
-
-  row = _formRow(grpSize, "Spacing:", formRows);
-  _addSpinnerRow(row, "Element", "spinElementSpacing", DP.elementSpacing, 0,  500,  5, w, "Minimum distance between elements (px).");
-  _addSpinnerRow(row, "Layer",   "spinLayerSpacing",  DP.layerSpacing, 0, 2000, 20, w, "Distance between layers (px). Active in layered, tree, and flow layouts.\n" +
-    "With Reserve label space, a layer gap holding a long label widens to label + 2 × Between.");
-
-  // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
-  // role split (nestings vs connections, containers vs nested elements, occurrence
-  // duplication) — refresh the live Output counters so the dialog reflects the change.
+  // Nesting / reverse / show-in-every alter the on-view role split (nestings vs connections,
+  // containers vs nested elements, occurrences): refresh the live counters and dependent controls.
   const onParamsChange = () => {
     _updateFilteredCount(ctx);
-    _updateNestingLevelState(ctx);  // keep nesting level group enabled/disabled in sync
-    _updateNestContainerBox(ctx);   // container types only apply when a nesting type is checked
+    _updateNestingLevelState(ctx);  // Appearance: nesting level needs a nesting type
+    _updateAlgorithmControls(ctx);  // Containers / Container types need a nesting type
   };
 
-  // ── Flow ──────────────────────────────────────────────────────────────────────
-  const grpDir = _group(page, "Flow", 1);
-
-  row = _formRow(grpDir, "Order:", formRows);
-  _addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w, "Direction of the main flow. Active in layered, tree, and directed-flow algorithms.");
-  _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
-  _addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w, "How elements are assigned to layers. Balanced minimises edge lengths; Uniform places elements at the shallowest possible layer; Top-aligned pulls them to the deepest layer.");
-
-  row = _formRow(grpDir, "Placement:", formRows);
-  _addCombo(row, "Elements", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
-  w.cmbNodePlacement.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS));
-  _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
-
-  _groupSep(grpDir, 1, "Reversed - draw these relation types in other direction");
-  w.lstReverseTypes = _checkboxGrid(grpDir, RELATION_TYPE_LABELS, 4, onParamsChange);
-
-  // ── Connections ───────────────────────────────────────────────────────────────
-  const grpRout = _group(page, "Connections", 1);
-
-  row = _formRow(grpRout, "Line:", formRows);
-  _addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
-  w.cmbRouting.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS));
-  _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS);
-  _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
-  w.cmbLabelPosition.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS));
-  _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
-  _addCheck(row, "Reserve label space",
-    "Reserve space for each connection label, so labels don't overlap other labels, connections or elements.\n" +
-    "A layer gap stays Layer wide, and widens where a label needs label + 2 × Between. Layered only.",
-    2, w, "chkConnectionLabelSpacing");
-
-  row = _formRow(grpRout, "Spacing:", formRows);
-  _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w,
-    "Distance between parallel connections, and between the connection points on one side of an element (px).\n" +
-    "Elements grow to fit their connections. One value for both keeps parallel connections straight into the element.\n0 = no element growth.");
-  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px).\n" +
-    "Between an element and the first / last bend at least 25, to keep the bend clear of the end symbol.");
-
-  _alignFormColumns(formRows);
-
-  // ── Nesting structure ─────────────────────────────────────────────────────────
-  const grpNest = _group(page, "Nesting", 1);
-
-  const _nestLbl = new LabelWidget(grpNest, SWT.NONE);
-  _nestLbl.setText("Draw these relation types as containers");
-  GridDataFactory.fillDefaults().applyTo(_nestLbl);
-
-  w.lstNestingTypes = _checkboxGrid(grpNest, RELATION_TYPE_LABELS, 4, onParamsChange);
+  // ── Relations ─────────────────────────────────────────────────────────────────
+  const grpRel = _group(page, "Relations", 1);
+  _lbl(grpRel, "Show as container — draw these relation types as box in box:");
+  w.lstNestingTypes = _checkboxGrid(grpRel, RELATION_TYPE_LABELS, 4, onParamsChange);
 
   // Container types: which element types may be a parent. Mode is derived from the
   // stored array ([] → Any, ["grouping"] → Grouping only, else Selected types).
-  const ctrTypeRow = new CompositeWidget(grpNest, SWT.NONE);
+  const ctrTypeRow = new CompositeWidget(grpRel, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 0).applyTo(ctrTypeRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctrTypeRow);
+  GridDataFactory.fillDefaults().grab(true, false).indent(0, 4).applyTo(ctrTypeRow);
   _addCombo(ctrTypeRow, "Container types:", NEST_CONTAINER_MODE_LABELS, 0, 160, "cmbNestContainerMode", w,
-    "Element types that may become a container. A nesting-type relation whose parent has another type is drawn as a connection.");
-  w.nestContainerBox = new CompositeWidget(grpNest, SWT.NONE);
+    "Element types that may become a container.\nA relation of a checked type whose parent has another type is drawn as a line.");
+  w.nestContainerBox = new CompositeWidget(grpRel, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).applyTo(w.nestContainerBox);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(w.nestContainerBox);
   w.lstNestContainerTypes = _typeSelector(w.nestContainerBox, ELEMENT_TYPES, 80, onParamsChange);
-  w.cmbNestContainerMode.addListener(SWT.Selection, () => { _updateNestContainerBox(ctx); onParamsChange(); });
-  _updateNestContainerBox(ctx);  // start hidden ("Any element")
+  w.cmbNestContainerMode.addListener(SWT.Selection, onParamsChange);
 
-  const ctrComp = new CompositeWidget(grpNest, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(6, 4).applyTo(ctrComp);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctrComp);
+  _groupSep(grpRel, 1, "Reverse for layout — lay out these relation types against their direction (arrows are unchanged):");
+  w.lstReverseTypes = _checkboxGrid(grpRel, RELATION_TYPE_LABELS, 4, onParamsChange);
+  w.layoutHints.Relations = _groupHint(grpRel);
 
-  const _ctrSep = new LabelWidget(ctrComp, SWT.SEPARATOR | SWT.HORIZONTAL);
-  GridDataFactory.fillDefaults().grab(true, false).span(4, 1).hint(SWT.DEFAULT, 6).applyTo(_ctrSep);
-  const _ctrLbl = new LabelWidget(ctrComp, SWT.NONE);
-  _ctrLbl.setText("Inside container");
-  GridDataFactory.fillDefaults().span(4, 1).applyTo(_ctrLbl);
-
-  // Row: Container layout | Connections mode (fills all 4 cols exactly)
-  _addCombo(ctrComp, "Container layout:", CONTAINER_ALGO_LABELS,   0, 120, "cmbContainerAlgorithm", w,
-    "ELK algorithm used to arrange children inside each container.");
-  _addCombo(ctrComp, "Connections:",      CONNECTIONS_MODE_LABELS, 0, 160, "cmbConnectionsMode", w,
+  // ── Containers ────────────────────────────────────────────────────────────────
+  const grpCtr = _group(page, "Containers", 1);
+  row = _formRow(grpCtr, "Layout:", formRows);
+  _addCombo(row, "Layout inside", CONTAINER_ALGO_LABELS,   0, SWT.DEFAULT, "cmbContainerAlgorithm", w,
+    "ELK algorithm that arranges the elements inside each container.");
+  _addCombo(row, "Connections",   CONNECTIONS_MODE_LABELS, 0, SWT.DEFAULT, "cmbConnectionsMode", w,
     CONNECTIONS_MODE_TOOLTIP);
-  if (w.cmbContainerAlgorithm)
-    w.cmbContainerAlgorithm.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
-  if (w.cmbConnectionsMode)
-    w.cmbConnectionsMode.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  _addSpinnerRow(row, "Padding", "spinPadding", DP.padding, 0, 200, 5, w, "Space between the container border and its contents (px).");
+  w.cmbContainerAlgorithm.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  w.cmbConnectionsMode.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  _addSpinnerRow(ctrComp, "Padding:",       "spinPadding",      DP.padding, 0, 200, 5, w, "Space between container border and its contents (px).");
+  row = _formRow(grpCtr, "Options:", formRows);
+  _addCheck(row, "Sort containers",         "Sort containers alphabetically within each level.", 2, w, "chkSortContainers");
+  _addCheck(row, "Show in every container", "An element in several containers appears in each of them.", 2, w, "chkShowInEvery");
+  w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
+  row = _formRow(grpCtr, "", formRows);
+  _addCheck(row, "Same width per level",    "Give the boxes of one nesting level the same width; each parent level is one padding step wider.", 2, w, "chkAlignWidthSameType");
+  _addCheck(row, "Snap columns to grid",    "Line columns up top to bottom on one grid across the whole view.\nElement sizes are unchanged.", 2, w, "chkSnapColumns");
+  w.layoutHints.Containers = _groupHint(grpCtr);
 
-  // Checkboxes in an 8-col sub-composite spanning all 4 cols of ctrComp.
-  const chkComp = new CompositeWidget(ctrComp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(8).equalWidth(true).margins(0, 0).spacing(6, 2).applyTo(chkComp);
-  GridDataFactory.fillDefaults().span(4, 1).grab(true, false).applyTo(chkComp);
+  // ── Flow ──────────────────────────────────────────────────────────────────────
+  const grpFlow = _group(page, "Flow", 1);
+  row = _formRow(grpFlow, "Order:", formRows);
+  _addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w, "Direction of the main flow.");
+  _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w, "How relation cycles are broken before layout.\nDefault: depth-first. Greedy: a heuristic that reverses few relations.\nNo effect without cycles.");
+  _addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w, "How elements are assigned to layers.\nBalanced: short connections. Uniform: as early as possible. Top-aligned: pulled to the deepest layer.");
+  row = _formRow(grpFlow, "Layers:", formRows);
+  _addCombo(row, "Placement", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
+  w.cmbNodePlacement.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS));
+  _addSpinnerRow(row, "Layer gap", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w, "Distance between layers (px); Radial and Twopi: between rings.\n" +
+    "With Reserve label space, a gap holding a long label widens to label + 2 × Between.");
+  w.layoutHints.Flow = _groupHint(grpFlow);
 
-  // Row 1: Sort containers | Show in every container
-  _addCheck(chkComp, "Sort containers",         "Sort containers alphabetically within each level.",                                                                                                                                                             4, w, "chkSortContainers");
-  _addCheck(chkComp, "Show in every container", "An element in multiple containers appears in each of them.",                                                                                                                                                    4, w, "chkShowInEvery");
-  // Row 2: Align widths by level | Snap columns to grid
-  _addCheck(chkComp, "Align widths by level",   "Use a common width per nesting level, with each parent level one padding step wider than its children.",                                                                                                        4, w, "chkAlignWidthSameType");
-  _addCheck(chkComp, "Snap columns to grid",    "Line leaf columns up top-to-bottom on one shared grid across the whole view: each column as wide as its widest leaf, gaps tightened to the minimum the container paddings need. Element sizes are unchanged.", 4, w, "chkSnapColumns");
-  // Refresh the live Output counters when 'Show in every container' toggles.
-  if (w.chkShowInEvery) {
-    w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
-    w.chkShowInEvery.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
-  }
+  // ── Elements ──────────────────────────────────────────────────────────────────
+  const grpEl = _group(page, "Elements", 1);
+  row = _formRow(grpEl, "Size:", formRows);
+  _addSpinnerRow(row, "Width",  "spinElementWidth",  DP.elementWidth,  10, 1000, 10, w, "Width of all elements (px).");
+  _addSpinnerRow(row, "Height", "spinElementHeight", DP.elementHeight, 10,  500, 10, w, "Height of all elements (px).");
+  row = _formRow(grpEl, "", formRows);
+  _addCheck(row, "By label", "Size each element to its label; long labels wrap to two lines.\nReplaces Width and Height.", 2, w, "chkLabelSizing");
+  _addSpinnerRow(row, "Wrap at", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w, "Label width at which By label wraps to a second line (px).");
+  w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  row = _formRow(grpEl, "Spacing:", formRows);
+  _addSpinnerRow(row, "Gap", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w, "Minimum distance between elements (px).");
+  w.layoutHints.Elements = _groupHint(grpEl);
 
-  // ── View dimensions ────────────────────────────────────────────────────────────
-  const grpVS = _group(page, "View dimensions", 6);
+  // ── Connections ───────────────────────────────────────────────────────────────
+  const grpCon = _group(page, "Connections", 1);
+  row = _formRow(grpCon, "Line:", formRows);
+  _addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
+  w.cmbRouting.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS));
+  _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
+  w.cmbLabelPosition.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS));
+  _addCheck(row, "Reserve label space",
+    "Keep each connection label clear of other labels, connections and elements.\n" +
+    "A layer gap stays Layer gap wide, and widens where a label needs label + 2 × Between.", 2, w, "chkConnectionLabelSpacing");
+  row = _formRow(grpCon, "Spacing:", formRows);
+  _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w,
+    "Distance between parallel connections, and between connection points on one side of an element (px).\n" +
+    "Elements grow to fit their connections; 0 = no growth.");
+  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w,
+    "Minimum distance between a connection and the elements it passes (px).\n" +
+    `The first and last bend stay at least ${Defs.CONNECTION_END_CLEARANCE} from the element, clear of the end symbol.`);
+  w.layoutHints.Connections = _groupHint(grpCon);
+
+  _alignFormColumns(formRows);
+
+  // ── View size ─────────────────────────────────────────────────────────────────
+  const grpVS = _group(page, "View size", 1);
 
   // Inline row: ○ Aspect ratio [combo]  ○ Max width [spinner]  ● None
   // All three radios live in the same composite → SWT mutual exclusion is automatic.
   const hintRow = new CompositeWidget(grpVS, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(hintRow);
-  GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(hintRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(hintRow);
 
   const _vsRadio = (label, extraPx) => {
     const r = new ButtonWidget(hintRow, SWT.RADIO);
@@ -1533,25 +1504,70 @@ function _buildLayoutTab(tabFolder, ctx) {
   };
 
   w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio:", 8);
-  w.radioViewSizeAspectRatio.setToolTipText("Arrange the layout toward this width-to-height ratio. ELK re-runs the layout until the view comes close; element sizes are unchanged.");
+  w.radioViewSizeAspectRatio.setToolTipText("Arrange the layout toward this width-to-height ratio.\nElement sizes are unchanged.");
   _addCombo(hintRow, null, AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
-  if (w.cmbAspectRatio) w.cmbAspectRatio.addListener(SWT.Selection, () => _updateConnectionsMode(ctx));
+  w.cmbAspectRatio.addListener(SWT.Selection, () => _updateConnectionsMode(ctx));
 
   w.radioViewSizeMaxWidth = _vsRadio("Max width:");
-  w.radioViewSizeMaxWidth.setToolTipText("ELK: the view is at most this wide — when the natural layout is wider, elements are arranged in more rows (sizes unchanged). Graphviz: positions are spread outward to this width.");
+  w.radioViewSizeMaxWidth.setToolTipText("The view is at most this wide: a wider layout is arranged in more rows.\nElement sizes are unchanged.");
   const _spMaxWidth = new SpinnerWidget(hintRow, SWT.BORDER);
   _spMaxWidth.setValues(0, 0, 99999, 0, 100, 500);
   GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(_spMaxWidth);
-  _spMaxWidth.setToolTipText("View width (px) of the element bounding box.");
+  _spMaxWidth.setToolTipText("Maximum view width (px).");
   w.spinMaxWidth = _spMaxWidth;
   _spMaxWidth.addListener(SWT.Modify, () => _updateConnectionsMode(ctx));
 
   w.radioViewSizeNone = _vsRadio("None", 16);
   w.radioViewSizeNone.setSelection(true);
-  w.radioViewSizeNone.setToolTipText("No constraint; layout determines the view bounds.");
-
+  w.radioViewSizeNone.setToolTipText("No constraint: the layout determines the view size.");
+  w.layoutHints["View size"] = _groupHint(grpVS);
 
   finish();
+}
+
+// Grey hint line at the bottom of a Layout group; hidden (excluded) while empty.
+function _groupHint(group) {
+  const lbl = new LabelWidget(group, SWT.WRAP);
+  try { lbl.setForeground(group.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
+  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(lbl);
+  lbl.getLayoutData().exclude = true;
+  lbl.setVisible(false);
+  return lbl;
+}
+
+// True when the algorithm nests and at least one relation type is checked under Show as container.
+function _nestingOn(w, alg) {
+  return alg.activeParams.includes("nestingRelationTypes")
+    && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
+}
+
+// Fill each Layout group's hint: the settings the chosen algorithm does not use
+// ("Not used by Force: Direction, Cycles."), or the whole group. Containers also says when
+// it waits for a Show as container type.
+function _updateLayoutHints(ctx, algName) {
+  const w = ctx.widgets;
+  if (!w.layoutHints) return;
+  const alg = ALGORITHMS[algName];
+  let changed = false;
+  for (const [group, params] of Object.entries(Defs.LAYOUT_GROUPS)) {
+    const lbl = w.layoutHints[group];
+    if (!lbl) continue;
+    const unused = params.filter(k => !alg.activeParams.includes(k));
+    let text = unused.length === params.length ? `Not used by ${algName}.`
+             : unused.length ? `Not used by ${algName}: ${unused.map(k => Defs.PARAM_LABELS[k]).join(", ")}.`
+             : "";
+    if (group === "Containers" && !unused.length && !_nestingOn(w, alg))
+      text = "Check a relation type under Show as container to use these settings.";
+    if (String(lbl.getText()) === text) continue;
+    lbl.setText(text);
+    lbl.setVisible(!!text);
+    lbl.getLayoutData().exclude = !text;
+    changed = true;
+  }
+  if (changed) {
+    try { ctx.layoutPage.layout(true, true); } catch (e) {}
+    _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
+  }
 }
 
 // ── Appearance tab helpers ────────────────────────────────────────────────────
@@ -2936,7 +2952,11 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinElementWidth,      active.has("elementWidth")  && !labelSizingOn);
   _enable(w.spinElementHeight,     active.has("elementHeight") && !labelSizingOn);
   _enable(w.spinLabelMaxLineWidth, labelSizingOn);
+  // Containers settings only matter once a relation type is shown as container.
+  if (!_nestingOn(w, alg))
+    for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) _enable(w[PARAM_WIDGETS[k].w], false);
   _updateNestContainerBox(ctx);
+  _updateLayoutHints(ctx, _selectedAlgorithm(w));
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
   _enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
@@ -3018,7 +3038,8 @@ function _updateConnectionsMode(ctx) {
   const w = ctx.widgets;
   if (!w.cmbConnectionsMode || !w.algRadios) return;
   const algName = _selectedAlgorithm(w);
-  if (!ALGORITHMS[algName].activeParams.includes("connectionsMode")) { _enable(w.cmbConnectionsMode, false); return; }
+  const alg     = ALGORITHMS[algName];
+  if (!alg.activeParams.includes("connectionsMode") || !_nestingOn(w, alg)) { _enable(w.cmbConnectionsMode, false); return; }
   const arIdx  = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
   const reason = Defs.connectionsModeLock(algName, {
     containerAlgorithm: w.cmbContainerAlgorithm ? w.cmbContainerAlgorithm.getText() : "",
