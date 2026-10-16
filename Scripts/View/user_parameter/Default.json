@@ -85,7 +85,5 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 1,
-  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
-  "action": "new_view"
+  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel"
 }

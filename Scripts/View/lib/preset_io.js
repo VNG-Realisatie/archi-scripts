@@ -148,7 +148,9 @@ function readPreset(name) {
  * @param {Object} preset  preset object
  */
 function writePreset(name, preset) {
-  writeJSON(_presetPath(name), preset);
+  // Dialog/session state (action, _lastTabIndex, …) is not part of a preset.
+  const clean = Object.fromEntries(Object.entries(preset).filter(([k]) => k !== "action" && !k.startsWith("_")));
+  writeJSON(_presetPath(name), clean);
   console.log(`Preset saved: "${name}"`);
 }
 

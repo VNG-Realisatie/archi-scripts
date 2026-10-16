@@ -46,8 +46,7 @@
         "relationTypes": [
           "aggregation-relationship:in",
           "specialization-relationship"
-        ],
-        "diagramTypes": []
+        ]
       }
     ]
   },
@@ -55,6 +54,5 @@
     "name": "Geo-Object",
     "suffix": "",
     "folder": ""
-  },
-  "action": "new_view"
+  }
 }

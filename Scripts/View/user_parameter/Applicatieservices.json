@@ -46,8 +46,7 @@
         ],
         "relationTypes": [
           "aggregation-relationship:out"
-        ],
-        "diagramTypes": []
+        ]
       },
       {
         "repeat": 1,
@@ -56,8 +55,7 @@
         ],
         "relationTypes": [
           "aggregation-relationship:out"
-        ],
-        "diagramTypes": []
+        ]
       }
     ]
   },
@@ -110,7 +108,5 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 0,
-  "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel",
-  "action": "new_view"
+  "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel"
 }

@@ -82,6 +82,40 @@ const CONNECTIONS_MODE_TOOLTIP =
   "Crossing containers: connections route through container boundaries to specific elements.";
 // Container-type modes in the Nesting group; index order matches _getNestContainerTypes.
 const NEST_CONTAINER_MODE_LABELS = ["Any element", "Grouping only", "Selected types"];
+const DP = DEFAULT_PRESET.params;
+
+// Layout params with one plain widget: loaded (_syncToUI), saved (_saveUI) and enabled per
+// algorithm (_updateAlgorithmControls) from this table, so every param follows defs.activeParams.
+//   kind: spin | check | combo (items = full list; the algorithm's supportedOptions narrow it) |
+//         relTypes (relation-type checkbox grid, stored as relation type ids)
+// Params with their own handling: nestingContainerTypes (mode combo + type selector) and the
+// view size (maxWidth / aspectRatio / viewSizeMode radios).
+const PARAM_WIDGETS = Object.freeze({
+  elementWidth:             { w: "spinElementWidth",             kind: "spin" },
+  elementHeight:            { w: "spinElementHeight",            kind: "spin" },
+  labelSizing:              { w: "chkLabelSizing",               kind: "check" },
+  labelMaxLineWidth:        { w: "spinLabelMaxLineWidth",        kind: "spin" },
+  elementSpacing:           { w: "spinElementSpacing",           kind: "spin" },
+  layerSpacing:             { w: "spinLayerSpacing",             kind: "spin" },
+  direction:                { w: "cmbDirection",                 kind: "combo", items: DIRECTION_LABELS },
+  acyclicer:                { w: "cmbAcyclicer",                 kind: "combo", items: ACYCLICER_LABELS },
+  ranking:                  { w: "cmbRanking",                   kind: "combo", items: RANKING_LABELS },
+  nodePlacement:            { w: "cmbNodePlacement",             kind: "combo", items: NODE_PLACEMENT_LABELS },
+  reverseRelationTypes:     { w: "lstReverseTypes",              kind: "relTypes" },
+  routing:                  { w: "cmbRouting",                   kind: "combo", items: ROUTING_ALL },
+  labelPosition:            { w: "cmbLabelPosition",             kind: "combo", items: LABEL_POS_ALL },
+  connectionLabelSpacing:   { w: "chkConnectionLabelSpacing",    kind: "check" },
+  connectionSpacing:        { w: "spinConnectionSpacing",        kind: "spin" },
+  connectionElementSpacing: { w: "spinConnectionElementSpacing", kind: "spin" },
+  nestingRelationTypes:     { w: "lstNestingTypes",              kind: "relTypes" },
+  containerAlgorithm:       { w: "cmbContainerAlgorithm",        kind: "combo", items: CONTAINER_ALGO_LABELS },
+  connectionsMode:          { w: "cmbConnectionsMode",           kind: "combo", items: CONNECTIONS_MODE_LABELS },
+  padding:                  { w: "spinPadding",                  kind: "spin" },
+  sortContainers:           { w: "chkSortContainers",            kind: "check" },
+  showInEveryContainer:     { w: "chkShowInEvery",               kind: "check" },
+  alignWidthSameType:       { w: "chkAlignWidthSameType",        kind: "check" },
+  snapColumnsToGrid:        { w: "chkSnapColumns",               kind: "check" },
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -413,7 +447,6 @@ const DEFAULT_DIALOG_HEIGHT = 1470;  // height is set to max, then constrained b
 function open(uiSelection) {
   PresetIO.ensureDefault();
   const config = PresetIO.readSession();
-  if (!config.action) config.action = ACTION.NEW_VIEW.id;
 
   const w = {};       // widget map
   const ctx = { config, widgets: w, uiSelection, firstName: "", relBlocks: [] };  // firstName set below
@@ -602,24 +635,10 @@ function open(uiSelection) {
       // Intentionally empty — buttons are in _buildActionRow.
     },
 
-    // JFace routes all button clicks here. Save UI, store action, close dialog.
-    // generate_view runs after dlg.open() returns — avoids operating on disposed shell.
-    // action is a runtime parameter, NOT stored in config/preset (validatePreset strips unknown keys).
+    // The action buttons are custom (see _buildActionRow → _runAction); only Cancel ends up here.
     buttonPressed: function(buttonId) {
-      if (buttonId === IDialogConstants.CANCEL_ID) {
-        _persistSession(ctx);  // remember _lastTabIndex even on cancel
-        Java.super(dlg).cancelPressed();
-        return;
-      }
-      _saveUI(ctx);
-      _persistSession(ctx);
-      const ACTION_MAP = {};
-      ACTION_MAP[IDialogConstants.OK_ID] = ACTION.NEW_VIEW.id;
-      ACTION_MAP[101] = ACTION.LAYOUT_ONLY.id;
-      ACTION_MAP[102] = ACTION.EXPAND_VIEW.id;
-      ACTION_MAP[103] = ACTION.ONE_EACH.id;
-      ctx._actionId = ACTION_MAP[buttonId] || ACTION.NEW_VIEW.id;
-      Java.super(dlg).okPressed();  // sets returnCode = OK and closes dialog
+      if (buttonId === IDialogConstants.CANCEL_ID) _persistSession(ctx);  // remember _lastTabIndex
+      Java.super(dlg).buttonPressed(buttonId);
     },
   });
 
@@ -750,7 +769,6 @@ function _updateFilteredCount(ctx) {
       repeat:        b.getRepeat(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
-      diagramTypes:  [],
       propFilter: {
         key:   b.propFilterKey   && b.propFilterKey.getSelectionIndex()   > 0 ? b.propFilterKey.getItem(b.propFilterKey.getSelectionIndex())     : "",
         value: b.propFilterValue && b.propFilterValue.getSelectionIndex() > 0 ? b.propFilterValue.getItem(b.propFilterValue.getSelectionIndex()) : "",
@@ -1357,19 +1375,19 @@ function _buildLayoutTab(tabFolder, ctx) {
   const grpSize = _group(page, "Elements", 1);
 
   let row = _formRow(grpSize, "Size:", formRows);
-  _addSpinnerRow(row, "Width",     "spinElementWidth",      140, 10, 1000, 10, w, "Width of all elements (px).");
+  _addSpinnerRow(row, "Width",     "spinElementWidth",      DP.elementWidth, 10, 1000, 10, w, "Width of all elements (px).");
   _addCheck(row, "By label",
     "Derive element width (and height) from the label text; long labels wrap to 2 lines.\nWidth and Height are disabled when active (Pack and Grid only).",
     2, w, "chkLabelSizing");
-  _addSpinnerRow(row, "Max width", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label width before wrapping to two lines (px). Active with By label.");
+  _addSpinnerRow(row, "Max width", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w, "Maximum label width before wrapping to two lines (px). Active with By label.");
   if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
   row = _formRow(grpSize, "", formRows);
-  _addSpinnerRow(row, "Height",    "spinElementHeight",      60, 10,  500, 10, w, "Height of all elements (px).");
+  _addSpinnerRow(row, "Height",    "spinElementHeight",      DP.elementHeight, 10,  500, 10, w, "Height of all elements (px).");
 
   row = _formRow(grpSize, "Spacing:", formRows);
-  _addSpinnerRow(row, "Element", "spinElementSpacing", 40, 0,  500,  5, w, "Minimum distance between elements (px).");
-  _addSpinnerRow(row, "Layer",   "spinLayerSpacing",  180, 0, 2000, 20, w, "Distance between layers (px). Active in layered, tree, and flow layouts.\n" +
+  _addSpinnerRow(row, "Element", "spinElementSpacing", DP.elementSpacing, 0,  500,  5, w, "Minimum distance between elements (px).");
+  _addSpinnerRow(row, "Layer",   "spinLayerSpacing",  DP.layerSpacing, 0, 2000, 20, w, "Distance between layers (px). Active in layered, tree, and flow layouts.\n" +
     "With Reserve label space, a layer gap holding a long label widens to label + 2 × Between.");
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
@@ -1413,10 +1431,10 @@ function _buildLayoutTab(tabFolder, ctx) {
     2, w, "chkConnectionLabelSpacing");
 
   row = _formRow(grpRout, "Spacing:", formRows);
-  _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        25, 0, 200, 5, w,
+  _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w,
     "Distance between parallel connections, and between the connection points on one side of an element (px).\n" +
     "Elements grow to fit their connections. One value for both keeps parallel connections straight into the element.\n0 = no element growth.");
-  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px).\n" +
+  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px).\n" +
     "Between an element and the first / last bend at least 25, to keep the bend clear of the end symbol.");
 
   _alignFormColumns(formRows);
@@ -1464,7 +1482,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   if (w.cmbConnectionsMode)
     w.cmbConnectionsMode.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  _addSpinnerRow(ctrComp, "Padding:",       "spinPadding",      20, 0, 200, 5, w, "Space between container border and its contents (px).");
+  _addSpinnerRow(ctrComp, "Padding:",       "spinPadding",      DP.padding, 0, 200, 5, w, "Space between container border and its contents (px).");
 
   // Checkboxes in an 8-col sub-composite spanning all 4 cols of ctrComp.
   const chkComp = new CompositeWidget(ctrComp, SWT.NONE);
@@ -1523,7 +1541,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.radioViewSizeNone.setSelection(true);
   w.radioViewSizeNone.setToolTipText("No constraint; layout determines the view bounds.");
 
-  _addSpinnerRow(grpVS, "Diagram padding:", "spinDiagramPadding", 10, 0, 200, 5, w, "Space between the diagram boundary and the outermost elements (px). Applied by all engines.");
 
   finish();
 }
@@ -2082,10 +2099,8 @@ function _setNestContainerTypes(ctx, types) {
 function _updateNestContainerBox(ctx) {
   const w = ctx.widgets;
   if (!w.cmbNestContainerMode || !w.nestContainerBox) return;
-  let algName = "Layered";
-  for (const [name, r] of (w.algRadios || new Map())) { if (r.getSelection()) { algName = name; break; } }
-  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
-  const on  = (alg.activeParams || []).includes("nestingContainerTypes")
+  const alg = ALGORITHMS[_selectedAlgorithm(w)];
+  const on  = alg.activeParams.includes("nestingContainerTypes")
     && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
   _enable(w.cmbNestContainerMode,  on);
   _enable(w.lstNestContainerTypes, on);
@@ -2220,15 +2235,11 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
 
 // ── Action row (below preset) ─────────────────────────────────────────────────
 
-function _runAction(buttonId, dlg, ctx) {
-  const ACTION_MAP = {};
-  ACTION_MAP[IDialogConstants.OK_ID] = ACTION.NEW_VIEW.id;
-  ACTION_MAP[101] = ACTION.LAYOUT_ONLY.id;
-  ACTION_MAP[102] = ACTION.EXPAND_VIEW.id;
-  ACTION_MAP[103] = ACTION.ONE_EACH.id;
+// Save the settings, remember the action and close; generate_view runs after dlg.open() returns.
+function _runAction(actionId, dlg, ctx) {
   _saveUI(ctx);
   _persistSession(ctx);
-  ctx._actionId = ACTION_MAP[buttonId] || ACTION.NEW_VIEW.id;
+  ctx._actionId = actionId;
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
 }
@@ -2353,11 +2364,11 @@ function _buildActionRow(area, ctx, dlg, hasVisual) {
     Java.super(dlg).cancelPressed();
   });
 
-  w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(IDialogConstants.OK_ID, dlg, ctx));
-  w.btnOneEach = _actionBtn(grpCreate, "One view each", () => _runAction(103, dlg, ctx));
+  w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(ACTION.NEW_VIEW.id,    dlg, ctx));
+  w.btnOneEach = _actionBtn(grpCreate, "One view each", () => _runAction(ACTION.ONE_EACH.id,    dlg, ctx));
 
-  w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(102, dlg, ctx));
-  w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(101, dlg, ctx));
+  w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(ACTION.EXPAND_VIEW.id, dlg, ctx));
+  w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
   w.btnExpandView.setEnabled(hasVisual);
   w.btnLayoutOnly.setEnabled(hasVisual);
 }
@@ -2525,58 +2536,19 @@ function _syncToUI(ctx) {
   const p = c.params || {};
 
   // Algorithm radio selection
-  const algName = c.algorithm || "Layered";
+  const algName = c.algorithm;
   if (w.algRadios) {
     w.algRadios.forEach(r => r.setSelection(false));
     const r = w.algRadios.get(algName);
     if (r) r.setSelection(true);
   }
 
-  // Direction / routing / label / ranking
-  const DP     = DEFAULT_PRESET.params;
-  const algDef = ALGORITHMS[algName] || {};
-  _comboSelect(w.cmbDirection,    DIRECTION_LABELS, p.direction     || DP.direction);
-  _comboSelect(w.cmbRouting,      ROUTING_ALL,      p.routing       || DP.routing);
-  _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition || algDef.labelPositionDefault || DP.labelPosition);
-  _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking       || DP.ranking);
-  _comboSelect(w.cmbAcyclicer,    ACYCLICER_LABELS, p.acyclicer     || DP.acyclicer);
-  _comboSelect(w.cmbNodePlacement, NODE_PLACEMENT_LABELS, p.nodePlacement || DP.nodePlacement);
+  // Layout params (validatePreset guarantees every key is present)
+  for (const [key, def] of Object.entries(PARAM_WIDGETS)) _paramToWidget(w[def.w], def, p[key]);
   _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
-
-  // Nesting / reverse multi-select lists
-  if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
-  _setNestContainerTypes(ctx, p.nestingContainerTypes || []);
-  if (w.lstReverseTypes) _listSelectLabels(w.lstReverseTypes, _relIdsToLabels(p.reverseRelationTypes || []));
-
-  // Container appearance
-  _spinSet(w.spinPadding,      p.padding       !== undefined ? p.padding       : DP.padding);
-  _chkSet(w.chkSortContainers, !!(p.sortContainers));
-  _chkSet(w.chkAlignWidthSameType, !!(p.alignWidthSameType));
-  _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
-  _chkSet(w.chkShowInEvery,  !!(p.showInEveryContainer));
-  _chkSet(w.chkLabelSizing,  !!(p.labelSizing));
-  if (w.chkConnectionLabelSpacing) w.chkConnectionLabelSpacing.setSelection(!!p.connectionLabelSpacing);
-  if (w.cmbContainerAlgorithm) {
-    const idx = CONTAINER_ALGO_LABELS.indexOf(p.containerAlgorithm || "Layered");
-    w.cmbContainerAlgorithm.select(idx >= 0 ? idx : 0);
-  }
-  if (w.cmbConnectionsMode) {
-    const idx = CONNECTIONS_MODE_LABELS.indexOf(p.connectionsMode || "Between containers");
-    w.cmbConnectionsMode.select(idx >= 0 ? idx : 0);
-  }
-
-  // Sizes
-  _spinSet(w.spinElementWidth,   p.elementWidth   !== undefined ? p.elementWidth   : DP.elementWidth);
-  _spinSet(w.spinElementHeight,  p.elementHeight  !== undefined ? p.elementHeight  : DP.elementHeight);
-  _spinSet(w.spinElementSpacing,       p.elementSpacing       !== undefined ? p.elementSpacing       : DP.elementSpacing);
-  _spinSet(w.spinLayerSpacing,         p.layerSpacing         !== undefined ? p.layerSpacing         : DP.layerSpacing);
-  _spinSet(w.spinDiagramPadding,           p.diagramPadding           !== undefined ? p.diagramPadding           : DP.diagramPadding);
-  _spinSet(w.spinConnectionSpacing,        p.connectionSpacing        !== undefined ? p.connectionSpacing        : DP.connectionSpacing);
-  _spinSet(w.spinConnectionElementSpacing, p.connectionElementSpacing !== undefined ? p.connectionElementSpacing : DP.connectionElementSpacing);
-  _spinSet(w.spinLabelMaxLineWidth,    p.labelMaxLineWidth    !== undefined ? p.labelMaxLineWidth    : DP.labelMaxLineWidth);
-  _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
-
-  const arIdx = AR_OPTIONS.findIndex(a => a.val === (p.aspectRatio !== undefined ? p.aspectRatio : DP.aspectRatio));
+  _setNestContainerTypes(ctx, p.nestingContainerTypes);
+  _spinSet(w.spinMaxWidth, p.maxWidth);
+  const arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
   // View size radio — restore from config; infer from non-zero values for old presets without viewSizeMode.
@@ -2756,48 +2728,16 @@ function _saveUI(ctx) {
   if (!c.view)   c.view   = {};
   if (!c.filter) c.filter = { elementTypes: [], relationTypes: [], diagramTypes: [] };
 
-  // Algorithm — read from radio buttons
-  if (w.algRadios) {
-    c.algorithm = "Layered"; // fallback
-    for (const [name, r] of w.algRadios) { if (r.getSelection()) { c.algorithm = name; break; } }
+  // Algorithm and layout params
+  if (w.algRadios) c.algorithm = _selectedAlgorithm(w);
+  for (const [key, def] of Object.entries(PARAM_WIDGETS)) {
+    const ctrl = w[def.w];
+    if (ctrl) c.params[key] = _paramFromWidget(ctrl, def);
   }
-
-  // Direction / routing / label / ranking
-  if (w.cmbDirection)     c.params.direction     = DIRECTION_LABELS[w.cmbDirection.getSelectionIndex()]    || "Right";
-  if (w.cmbRouting)       { const _ri = w.cmbRouting.getSelectionIndex(); c.params.routing = (_ri >= 0 ? w.cmbRouting.getItem(_ri) : null) || "Orthogonal"; }
-  if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
-  if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
-  if (w.cmbAcyclicer)     c.params.acyclicer     = ACYCLICER_LABELS[w.cmbAcyclicer.getSelectionIndex()]   || "Default";
-  if (w.cmbNodePlacement) c.params.nodePlacement = NODE_PLACEMENT_LABELS[w.cmbNodePlacement.getSelectionIndex()] || "Straight";
-
-  // Nesting / reverse
-  if (w.lstNestingTypes)  c.params.nestingRelationTypes = _relLabelsToIds(_listGetSelected(w.lstNestingTypes));
   if (w.cmbNestContainerMode) c.params.nestingContainerTypes = _getNestContainerTypes(w);
-  if (w.lstReverseTypes)  c.params.reverseRelationTypes = _relLabelsToIds(_listGetSelected(w.lstReverseTypes));
-
-  // Container
-  if (w.spinPadding)      c.params.padding            = w.spinPadding.getSelection();
-  if (w.chkSortContainers) c.params.sortContainers    = w.chkSortContainers.getSelection();
-  if (w.chkAlignWidthSameType) c.params.alignWidthSameType = w.chkAlignWidthSameType.getSelection();
-  if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
-  if (w.chkShowInEvery)          c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
-  if (w.chkLabelSizing)          c.params.labelSizing          = w.chkLabelSizing.getSelection();
-  if (w.chkConnectionLabelSpacing)     c.params.connectionLabelSpacing     = w.chkConnectionLabelSpacing.getSelection();
-  if (w.cmbContainerAlgorithm)   c.params.containerAlgorithm   = w.cmbContainerAlgorithm.getText();
-  if (w.cmbConnectionsMode)      c.params.connectionsMode      = w.cmbConnectionsMode.getText();
-
-  // Sizes
-  if (w.spinElementWidth)   c.params.elementWidth   = w.spinElementWidth.getSelection();
-  if (w.spinElementHeight)  c.params.elementHeight  = w.spinElementHeight.getSelection();
-  if (w.spinElementSpacing)       c.params.elementSpacing       = w.spinElementSpacing.getSelection();
-  if (w.spinLayerSpacing)         c.params.layerSpacing         = w.spinLayerSpacing.getSelection();
-  if (w.spinDiagramPadding)           c.params.diagramPadding           = w.spinDiagramPadding.getSelection();
-  if (w.spinConnectionSpacing)        c.params.connectionSpacing        = w.spinConnectionSpacing.getSelection();
-  if (w.spinConnectionElementSpacing) c.params.connectionElementSpacing = w.spinConnectionElementSpacing.getSelection();
-  if (w.spinLabelMaxLineWidth)    c.params.labelMaxLineWidth    = w.spinLabelMaxLineWidth.getSelection();
-  if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
+  if (w.spinMaxWidth)         c.params.maxWidth = w.spinMaxWidth.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
-  c.params.aspectRatio  = AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0;
+  c.params.aspectRatio  = AR_OPTIONS[Math.max(0, arIdx)].val;
   c.params.viewSizeMode = _getViewSizeMode(w);
 
   // Filter
@@ -2811,7 +2751,6 @@ function _saveUI(ctx) {
       repeat:        b.getRepeat(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
-      diagramTypes:  [],
       propFilter: {
         key:   b.propFilterKey   && b.propFilterKey.getSelectionIndex()   > 0 ? b.propFilterKey.getItem(b.propFilterKey.getSelectionIndex())     : "",
         value: b.propFilterValue && b.propFilterValue.getSelectionIndex() > 0 ? b.propFilterValue.getItem(b.propFilterValue.getSelectionIndex()) : "",
@@ -2905,88 +2844,73 @@ function _updateAlgorithmControls(ctx) {
   _markModified(ctx);
   const w = ctx.widgets;
   if (!w.algRadios) return;
-  let algName = "Layered";
-  for (const [name, r] of w.algRadios) { if (r.getSelection()) { algName = name; break; } }
-  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
+  const alg    = ALGORITHMS[_selectedAlgorithm(w)];
+  const active = new Set(alg.activeParams);
 
-  const active = new Set(alg.activeParams || []);
-  _enable(w.cmbDirection,       active.has("direction"));
-  _enable(w.cmbRouting,         active.has("routing"));
-  _enable(w.cmbLabelPosition,   active.has("labelPosition"));
-  _enable(w.cmbRanking,         active.has("ranking"));
-  _enable(w.cmbAcyclicer,       active.has("acyclicer"));
-  _enable(w.cmbNodePlacement,   active.has("nodePlacement"));
-  _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
+  // Select-type params offer the algorithm's supported values; inactive ones keep the full list.
+  for (const [key, def] of Object.entries(PARAM_WIDGETS))
+    if (def.kind === "combo" && w[def.w]) _setComboItems(w[def.w], alg.supportedOptions[key] || def.items);
+  _comboTooltipSync(w.cmbRouting,       ROUTING_TOOLTIPS);
+  _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
+  _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
+
+  for (const [key, def] of Object.entries(PARAM_WIDGETS)) _enable(w[def.w], active.has(key));
+  // By label replaces the fixed element size; its max width only applies with By label on.
+  const labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
+  _enable(w.spinElementWidth,      active.has("elementWidth")  && !labelSizingOn);
+  _enable(w.spinElementHeight,     active.has("elementHeight") && !labelSizingOn);
+  _enable(w.spinLabelMaxLineWidth, labelSizingOn);
   _updateNestContainerBox(ctx);
-  _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));
-  _enable(w.spinPadding,        active.has("padding"));
-  _enable(w.chkSortContainers,  active.has("sortContainers"));
-  _enable(w.chkAlignWidthSameType, active.has("alignWidthSameType"));
-  _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
-  _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
-  _enable(w.chkLabelSizing,          active.has("labelSizing"));
-  _enable(w.chkConnectionLabelSpacing,     active.has("connectionLabelSpacing"));
-  const _labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
-  _enable(w.spinElementWidth,  !_labelSizingOn);
-  _enable(w.spinElementHeight, !_labelSizingOn);
-  _enable(w.cmbContainerAlgorithm,   active.has("containerAlgorithm"));
-  // Container algo list follows the root algorithm. The container choice wins over the
-  // connections mode: _updateConnectionsMode (via _applyViewSizeMode below) locks the
-  // connections mode to "Between containers" when Crossing containers is not possible.
-  if (w.cmbContainerAlgorithm) {
-    const fullList = (alg.supportedOptions && alg.supportedOptions.containerAlgorithm) || [];
-    if (fullList.length > 0) {
-      const curCtr = w.cmbContainerAlgorithm.getText();
-      w.cmbContainerAlgorithm.removeAll();
-      fullList.forEach(a => w.cmbContainerAlgorithm.add(a));
-      const ni = fullList.indexOf(curCtr);
-      w.cmbContainerAlgorithm.select(ni >= 0 ? ni : 0);
-    }
-  }
-  _enable(w.spinLayerSpacing,             active.has("layerSpacing"));
-  _enable(w.spinDiagramPadding,           active.has("diagramPadding"));
-  _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
-  _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
-  _enable(w.spinLabelMaxLineWidth,      _labelSizingOn);
 
-  // View size radios: enable/disable each option based on algorithm support.
-  // The spinners/combo are controlled by _applyViewSizeMode, not directly here.
+  // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
   _enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
   _enable(w.radioViewSizeAspectRatio, active.has("aspectRatio"));
-  // If the currently selected mode is no longer supported, fall back to None.
-  const _vsMode = _getViewSizeMode(w);
-  const _vsModeStillActive = _vsMode === "none"
-    || (_vsMode === "maxWidth"    && active.has("maxWidth"))
-    || (_vsMode === "aspectRatio" && active.has("aspectRatio"));
-  if (!_vsModeStillActive && w.radioViewSizeNone) {
+  const vsMode = _getViewSizeMode(w);
+  if (vsMode !== "none" && !active.has(vsMode) && w.radioViewSizeNone) {
     w.radioViewSizeNone.setSelection(true);
-    [w.radioViewSizeMaxWidth, w.radioViewSizeAspectRatio]
-      .forEach(r => { if (r) r.setSelection(false); });
+    [w.radioViewSizeMaxWidth, w.radioViewSizeAspectRatio].forEach(r => { if (r) r.setSelection(false); });
   }
-  _applyViewSizeMode(ctx);
+  _applyViewSizeMode(ctx);  // also locks the connections mode when needed
+}
 
-  // Filter routing options to what this algorithm supports
-  if (w.cmbRouting && alg.supportedOptions && alg.supportedOptions.routing) {
-    const supported = alg.supportedOptions.routing;
-    const cur       = w.cmbRouting.getSelectionIndex();
-    const curLabel  = cur >= 0 ? w.cmbRouting.getItem(cur) : "";
-    w.cmbRouting.removeAll();
-    supported.forEach(r => w.cmbRouting.add(r));
-    const ni = supported.indexOf(curLabel);
-    w.cmbRouting.select(ni >= 0 ? ni : 0);
-    _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS);
+// Name of the algorithm whose radio is selected.
+function _selectedAlgorithm(w) {
+  for (const [name, r] of (w.algRadios || new Map())) if (r.getSelection()) return name;
+  return DEFAULT_PRESET.algorithm;
+}
+
+// Replace a read-only combo's items, keeping the current value when it is still offered.
+function _setComboItems(combo, items) {
+  const cur = String(combo.getText());
+  combo.removeAll();
+  items.forEach(i => combo.add(i));
+  const idx = items.indexOf(cur);
+  combo.select(idx >= 0 ? idx : 0);
+}
+
+function _paramToWidget(ctrl, def, value) {
+  if (!ctrl || value === undefined || value === null) return;
+  switch (def.kind) {
+    case "spin":  ctrl.setSelection(value); break;
+    case "check": ctrl.setSelection(!!value); break;
+    case "relTypes": _listSelectLabels(ctrl, _relIdsToLabels(value)); break;
+    case "combo": {
+      // The value may be outside the current (algorithm-filtered) items: add it so it survives
+      // until _updateAlgorithmControls sets the items for the newly selected algorithm.
+      let idx = ctrl.indexOf(String(value));
+      if (idx < 0) { ctrl.add(String(value)); idx = ctrl.getItemCount() - 1; }
+      ctrl.select(idx);
+      break;
+    }
   }
+}
 
-  // Label position: add Natural only for Graphviz
-  if (w.cmbLabelPosition && alg.supportedOptions && alg.supportedOptions.labelPosition) {
-    const supported = alg.supportedOptions.labelPosition;
-    const cur       = w.cmbLabelPosition.getSelectionIndex();
-    const curLabel  = cur >= 0 ? w.cmbLabelPosition.getItem(cur) : "Middle";
-    w.cmbLabelPosition.removeAll();
-    supported.forEach(lp => w.cmbLabelPosition.add(lp));
-    const ni = supported.indexOf(curLabel);
-    w.cmbLabelPosition.select(ni >= 0 ? ni : 0);
-    _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
+function _paramFromWidget(ctrl, def) {
+  switch (def.kind) {
+    case "spin":     return ctrl.getSelection();
+    case "check":    return ctrl.getSelection();
+    case "relTypes": return _relLabelsToIds(_listGetSelected(ctrl));
+    case "combo":    return String(ctrl.getText());
   }
 }
 
@@ -3017,10 +2941,8 @@ function _applyViewSizeMode(ctx) {
 function _updateConnectionsMode(ctx) {
   const w = ctx.widgets;
   if (!w.cmbConnectionsMode || !w.algRadios) return;
-  let algName = "Layered";
-  for (const [name, r] of w.algRadios) { if (r.getSelection()) { algName = name; break; } }
-  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
-  if (!(alg.activeParams || []).includes("connectionsMode")) { _enable(w.cmbConnectionsMode, false); return; }
+  const algName = _selectedAlgorithm(w);
+  if (!ALGORITHMS[algName].activeParams.includes("connectionsMode")) { _enable(w.cmbConnectionsMode, false); return; }
   const arIdx  = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
   const reason = Defs.connectionsModeLock(algName, {
     containerAlgorithm: w.cmbContainerAlgorithm ? w.cmbContainerAlgorithm.getText() : "",
@@ -3036,12 +2958,6 @@ function _updateConnectionsMode(ctx) {
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function _comboSelect(combo, items, value) {
-  if (!combo) return;
-  const idx = items.indexOf(value);
-  combo.select(idx >= 0 ? idx : 0);
-}
-
 function _comboTooltipSync(combo, tooltipMap) {
   if (!combo) return;
   const idx = combo.getSelectionIndex();
@@ -3051,10 +2967,6 @@ function _comboTooltipSync(combo, tooltipMap) {
 
 function _spinSet(spinner, value) {
   if (spinner) spinner.setSelection(value);
-}
-
-function _chkSet(btn, value) {
-  if (btn) btn.setSelection(value);
 }
 
 function _enable(widget, enabled) {
@@ -3089,21 +3001,12 @@ function _addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) 
   w[key] = sp;
 }
 
-// Merge a loaded preset onto ctx.config, but preserve current session values
-// for params that are INACTIVE in the new algorithm. Greyed-in-UI params keep
-// their values across preset switches; the engine ignores them via activeParams.
+// Load a validated preset into ctx.config. The preset replaces every setting — values of
+// params that are inactive for its algorithm included, so a later Save writes back exactly
+// what was loaded. Dialog-state fields (_lastTabIndex) are kept.
 function _mergePreset(ctx, validated) {
-  const oldParams = ctx.config.params ? Object.assign({}, ctx.config.params) : {};
-  const newAlg    = validated.algorithm;
-  const activeSet = new Set((ALGORITHMS[newAlg] && ALGORITHMS[newAlg].activeParams) || []);
-
-  Object.assign(ctx.config, validated);
-
-  if (ctx.config.params) {
-    Object.keys(oldParams).forEach(key => {
-      if (!activeSet.has(key)) ctx.config.params[key] = oldParams[key];
-    });
-  }
+  for (const k of Object.keys(ctx.config)) if (!k.startsWith("_")) delete ctx.config[k];
+  Object.assign(ctx.config, JSON.parse(JSON.stringify(validated)));
 }
 
 function _refreshPresetCombo(combo, currentName) {

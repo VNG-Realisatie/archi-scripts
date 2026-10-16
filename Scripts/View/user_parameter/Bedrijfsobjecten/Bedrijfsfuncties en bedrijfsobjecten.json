@@ -54,7 +54,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -68,7 +67,6 @@
         "relationTypes": [
           "access-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -137,7 +135,5 @@
       }
     ]
   },
-  "_lastTabIndex": 2,
-  "description": "Selecteer bedrijfsfunctie bedrijfsfunctielagen en genereer startview",
-  "action": "new_view"
+  "description": "Selecteer bedrijfsfunctie bedrijfsfunctielagen en genereer startview"
 }

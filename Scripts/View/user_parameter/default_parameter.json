@@ -33,8 +33,7 @@
       {
         "repeat": 1,
         "elementTypes": [],
-        "relationTypes": [],
-        "diagramTypes": []
+        "relationTypes": []
       }
     ]
   },
@@ -42,6 +41,5 @@
     "name": "",
     "suffix": "",
     "folder": ""
-  },
-  "action": "new_view"
+  }
 }

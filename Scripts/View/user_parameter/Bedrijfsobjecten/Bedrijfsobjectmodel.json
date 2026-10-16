@@ -52,7 +52,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -67,7 +66,6 @@
           "association-relationship",
           "specialization-relationship"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -81,7 +79,6 @@
         "relationTypes": [
           "aggregation-relationship:in"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -162,7 +159,5 @@
       }
     ]
   },
-  "_lastTabIndex": 2,
-  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
-  "action": "new_view"
+  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel"
 }

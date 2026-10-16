@@ -86,6 +86,14 @@ function generate_view(rawPreset, uiSelection, actionId) {
     ].filter(Boolean);
     console.log(`Params: ${parts.join("  ")}`);
   }
+  {
+    // Params without a dialog control (defs.HIDDEN_PARAMS): show a preset value that differs
+    // from the default, so it does not act unseen.
+    const hidden = Defs.HIDDEN_PARAMS
+      .filter(k => k in preset.params && preset.params[k] !== Defs.DEFAULT_PRESET.params[k])
+      .map(k => `${k}=${preset.params[k]}`);
+    if (hidden.length) console.log(`Preset values not in dialog: ${hidden.join("  ")}`);
+  }
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";

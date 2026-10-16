@@ -53,7 +53,6 @@
           "driver"
         ],
         "relationTypes": [],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -68,7 +67,6 @@
           "business-object"
         ],
         "relationTypes": [],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -89,7 +87,6 @@
           "realization-relationship",
           "triggering-relationship"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -150,7 +147,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "_lastTabIndex": 0,
-  "description": "Selecteer een beleidskader en genereer het procesmodel",
-  "action": "new_view"
+  "description": "Selecteer een beleidskader en genereer het procesmodel"
 }

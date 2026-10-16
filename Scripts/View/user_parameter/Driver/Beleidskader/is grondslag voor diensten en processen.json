@@ -45,7 +45,6 @@
         "relationTypes": [
           "association-relationship"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -106,7 +105,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "_lastTabIndex": 1,
-  "description": "Selecteer beleidskaders en genereer geneste view",
-  "action": "new_view"
+  "description": "Selecteer beleidskaders en genereer geneste view"
 }

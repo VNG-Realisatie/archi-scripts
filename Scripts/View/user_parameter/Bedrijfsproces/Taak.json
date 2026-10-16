@@ -45,7 +45,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -58,7 +57,6 @@
           "aggregation-relationship:out",
           "triggering-relationship"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -70,7 +68,6 @@
         "relationTypes": [
           "triggering-relationship"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -131,7 +128,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "_lastTabIndex": 0,
-  "description": "Selecteer een taak (bedrijfsproces) en genereer genest plaat met processen en gebeurtenissen",
-  "action": "new_view"
+  "description": "Selecteer een taak (bedrijfsproces) en genereer genest plaat met processen en gebeurtenissen"
 }

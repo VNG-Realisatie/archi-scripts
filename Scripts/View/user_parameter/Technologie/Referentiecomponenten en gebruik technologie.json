@@ -39,16 +39,14 @@
         "elementTypes": [],
         "relationTypes": [
           "serving-relationship:in"
-        ],
-        "diagramTypes": []
+        ]
       },
       {
         "repeat": 1,
         "elementTypes": [],
         "relationTypes": [
           "realization-relationship:in"
-        ],
-        "diagramTypes": []
+        ]
       }
     ]
   },
@@ -100,7 +98,5 @@
       "colorRange": "Pastel2"
     }
   },
-  "_lastTabIndex": 1,
-  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
-  "action": "new_view"
+  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur"
 }

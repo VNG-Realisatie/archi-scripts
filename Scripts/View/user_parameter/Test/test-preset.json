@@ -43,7 +43,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "wiki-gemma-model kernobject",
           "value": "rijbewijs"
@@ -104,7 +103,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "_lastTabIndex": 1,
-  "description": "Testen van Connection spacing",
-  "action": "new_view"
+  "description": "Testen van Connection spacing"
 }

@@ -40,6 +40,11 @@ const PARAMS_ELK_NESTING = Object.freeze([
   "showInEveryContainer", "containerAlgorithm",
 ]);
 
+// Params without a dialog control: no or minimal effect on the view. They stay in DEFAULT_PRESET
+// and activeParams (the engines use them), so a preset can still set them; generate_view logs a
+// value that differs from the default. diagramPadding only offsets the whole diagram on the canvas.
+const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
+
 // View-size params — maxWidth + aspectRatio (ELK: met by calibrating elk.aspectRatio — elk.js _fitViewSize).
 // Graphviz has aspectRatio only: it cannot narrow a layout without scaling elements.
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
@@ -567,7 +572,7 @@ const DEFAULT_PRESET = Object.freeze({
     diagramTypes:  [],
   },
   relatedElements: {
-    steps: [],  // each: { repeat, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
+    steps: [],  // each: { repeat, elementTypes, relationTypes, propFilter: { key, value } }
   },
   view: {
     name:   "",
@@ -727,7 +732,6 @@ function validatePreset(raw) {
       repeat:        normalizeRepeat(step.repeat),
       elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
       relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
-      diagramTypes:  Array.isArray(step.diagramTypes)  ? step.diagramTypes  : [],
       propFilter:    (step.propFilter && typeof step.propFilter === "object")
                        ? { key: String(step.propFilter.key || ""), value: String(step.propFilter.value || "") }
                        : { key: "", value: "" },
@@ -871,7 +875,7 @@ function effectiveParams(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    STYLES, ALGORITHMS, ALGO_ENGINE,
+    STYLES, ALGORITHMS, ALGO_ENGINE, HIDDEN_PARAMS,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
     RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,

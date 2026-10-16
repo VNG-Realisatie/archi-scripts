@@ -52,7 +52,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -66,7 +65,6 @@
         "relationTypes": [
           "serving-relationship:in"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -80,7 +78,6 @@
         "relationTypes": [
           "realization-relationship:in"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -157,7 +154,5 @@
       }
     ]
   },
-  "_lastTabIndex": 3,
-  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n",
-  "action": "new_view"
+  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n"
 }

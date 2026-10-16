@@ -50,7 +50,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -64,7 +63,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -78,7 +76,6 @@
         "relationTypes": [
           "association-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -139,7 +136,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "_lastTabIndex": 1,
-  "description": "Selecteer beleidskaders en genereer layered view",
-  "action": "new_view"
+  "description": "Selecteer beleidskaders en genereer layered view"
 }

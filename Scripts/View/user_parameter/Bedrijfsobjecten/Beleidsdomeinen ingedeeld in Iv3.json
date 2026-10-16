@@ -55,7 +55,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -122,7 +121,5 @@
       }
     ]
   },
-  "_lastTabIndex": 0,
-  "description": "Preset met startconfiguratie\n",
-  "action": "new_view"
+  "description": "Preset met startconfiguratie\n"
 }

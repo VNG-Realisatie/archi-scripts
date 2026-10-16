@@ -48,7 +48,6 @@
         "relationTypes": [
           "aggregation-relationship:out"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -67,7 +66,6 @@
           "realization-relationship",
           "triggering-relationship:in"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -81,7 +79,6 @@
         "relationTypes": [
           "aggregation-relationship:in"
         ],
-        "diagramTypes": [],
         "propFilter": {
           "key": "",
           "value": ""
@@ -142,7 +139,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "_lastTabIndex": 0,
-  "description": "Selecteer taakveld of beleidsdomein en genereer layered view",
-  "action": "new_view"
+  "description": "Selecteer taakveld of beleidsdomein en genereer layered view"
 }

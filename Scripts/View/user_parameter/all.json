@@ -87,7 +87,5 @@
     }
   },
   "engineParams": {},
-  "_lastTabIndex": 0,
-  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
-  "action": "new_view"
+  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur"
 }
