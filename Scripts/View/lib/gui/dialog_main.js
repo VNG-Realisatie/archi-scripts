@@ -5,12 +5,11 @@
  * Exports open(uiSelection) → calls generate_view on OK.
  *
  * Dialog layout:
- *   Selection  — current selection info · filter (multi-select lists) · related elements
- *   Layout     — style · algorithm · direction · routing · nesting · sizing
- *   Appearance — style by property · by related property · by connected element · nesting level · highlight repeated
- *   View       — name · folder
- *   Preset     — combo (auto-apply) · ⚙ gear menu · Save · Save As…
- *   Actions    — 4 buttons in button bar (New view, One view each, Expand view, Layout only)
+ *   Preset row — combo (loads on pick) · * modified · Save · Save As… | Rename… · Delete; description
+ *   Tabs       — Selection · Layout · Appearance · Properties
+ *   Totals     — what the current settings put on a view
+ *   Actions    — Create new view (Folder, Name, New view, One view each) ·
+ *                Modify view "<selected view>" (Expand view, Layout only — in place) · Cancel
  */
 console.log("Loading dialog_main.js");
 
@@ -571,14 +570,14 @@ function open(uiSelection) {
     ]);
   }
 
-  // Has visual context: enables Expand view / Layout only buttons.
-  // True when visual objects are on a canvas OR when a view is selected from the model tree.
-  let hasVisual = false;
+  // The view Expand view / Layout only work on: the view of selected canvas objects, or a view
+  // selected in the model tree. "" = none, the Modify group is then disabled.
+  let targetViewName = "";
   try {
     uiSelection.each(o => {
-      if (o.view)                              hasVisual = true;  // canvas visual object
-      if (o.type === "archimate-diagram-model") hasVisual = true;  // view from model tree
-      
+      if (targetViewName) return;
+      if (o.view)                                    targetViewName = String(o.view.name || "");
+      else if (o.type === "archimate-diagram-model") targetViewName = String(o.name || "");
     });
   } catch (e) {}
 
@@ -589,7 +588,7 @@ function open(uiSelection) {
     createDialogArea: function(parent) {
       const area = Java.super(dlg).createDialogArea(parent);
       dlg.setTitle("Generate View");
-      dlg.setMessage("Select an action to generate or layout a view.");
+      dlg.setMessage("Choose what to include (Selection) and how to arrange it (Layout), then an action below.");
 
       GridLayoutFactory.fillDefaults().numColumns(1).margins(8, 0).spacing(4, 4).applyTo(area);
 
@@ -604,11 +603,12 @@ function open(uiSelection) {
       _buildAppearanceTab(tabFolder, ctx);
       _buildViewPropertiesTab(tabFolder, ctx);
 
-      _buildViewRow(area, ctx);
-      _buildActionRow(area, ctx, dlg, hasVisual);
+      ctx.area = area;
+      _buildActionArea(area, ctx, dlg, targetViewName);
       _syncToUI(ctx);
       _updateFilteredCount(ctx);  // populate Filtered line on dialog open
       ctx._ready = true;          // enable modified indicator from here on
+      if (_differsFromSaved(ctx)) _markModified(ctx);  // session changed since the last save
 
       tabFolder.setSelection(config._lastTabIndex || 0);
       return area;
@@ -624,7 +624,7 @@ function open(uiSelection) {
     },
 
     createButtonBar: function(parent) {
-      // All buttons are in _buildActionRow (custom composite in the dialog area).
+      // All buttons are in _buildActionArea (custom composite in the dialog area).
       // Return an empty zero-height composite so the JFace button bar adds no space.
       const bar = new CompositeWidget(parent, SWT.NONE);
       GridDataFactory.swtDefaults().hint(0, 0).applyTo(bar);
@@ -632,10 +632,10 @@ function open(uiSelection) {
     },
 
     createButtonsForButtonBar: function(parent) {
-      // Intentionally empty — buttons are in _buildActionRow.
+      // Intentionally empty — buttons are in _buildActionArea.
     },
 
-    // The action buttons are custom (see _buildActionRow → _runAction); only Cancel ends up here.
+    // The action buttons are custom (see _buildActionArea → _runAction); only Cancel ends up here.
     buttonPressed: function(buttonId) {
       if (buttonId === IDialogConstants.CANCEL_ID) _persistSession(ctx);  // remember _lastTabIndex
       Java.super(dlg).buttonPressed(buttonId);
@@ -831,8 +831,7 @@ function _updateFilteredCount(ctx) {
     if (w.lblViewTotals) {
       try {
         w.lblViewTotals.setText(_formatOutputLine(view));
-        const parent = w.lblViewTotals.getParent && w.lblViewTotals.getParent();
-        if (parent && parent.layout) parent.layout();
+        if (ctx.area) ctx.area.layout(true, true);  // the line count may change
       } catch (e) {}
     }
 
@@ -2344,69 +2343,69 @@ function _addCombo(parent, label, items, selectedIdx, widthHint, key, w, tooltip
   return cmb;
 }
 
-function _buildActionRow(area, ctx, dlg, hasVisual) {
+// Bottom of the dialog: the totals line, then one group per kind of action, Cancel on the right.
+//   Create new view — Folder and Name apply to these actions only.
+//   Modify view     — works on the selected view in place.
+function _buildActionArea(area, ctx, dlg, targetViewName) {
   const w = ctx.widgets;
 
-  const sep = new LabelWidget(area, SWT.SEPARATOR | SWT.HORIZONTAL);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sep);
+  // Always-visible totals: what the current settings put on a view. Multi-line; sub-lines for
+  // elements / relations / diagram objects (see _formatOutputLine).
+  const lblTotals = new LabelWidget(area, SWT.NONE);
+  lblTotals.setText("On the generated view: —");
+  lblTotals.setToolTipText(
+    "What the current settings put on the view:\n" +
+    "containers, nested elements, standalones, extra occurrences (Show in every container),\n" +
+    "nestings (box in box), connections (lines) and diagram objects.");
+  GridDataFactory.fillDefaults().grab(true, false).indent(6, 4).applyTo(lblTotals);
+  w.lblViewTotals = lblTotals;
 
-  const btnRow = new CompositeWidget(area, SWT.NONE);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(btnRow);
-  GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(btnRow);
+  const row = new CompositeWidget(area, SWT.NONE);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
+  GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(row);
 
-  // " " (not "") so GTK reserves the title-bar slot — matches labelled siblings' height.
-  const grpCancel = _group(btnRow, " ",                    1, { grabV: true, spaceV: 0, bold: false });
-  const grpCreate = _group(btnRow, "Create new view",      2, { grabV: true, spaceV: 0, bold: false });
-  const grpModify = _group(btnRow, "Modify selected view", 2, { grabV: true, spaceV: 0, bold: false });
+  // ── Create new view ──
+  const grpCreate = _group(row, "Create new view", 4, { grabV: true, bold: false });
 
-  _actionBtn(grpCancel, "Cancel", () => {
-    _persistSession(ctx);  // remember _lastTabIndex even on cancel
-    Java.super(dlg).cancelPressed();
-  });
+  new LabelWidget(grpCreate, SWT.NONE).setText("Folder:");
+  w.txtViewFolder = new TextWidget(grpCreate, SWT.BORDER);
+  w.txtViewFolder.setToolTipText(`Folder under Views, e.g. /_Generated/Project.\nEmpty = ${Defs.GENERATED_VIEW_FOLDER}.`);
+  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewFolder);
 
-  w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(ACTION.NEW_VIEW.id,    dlg, ctx));
-  w.btnOneEach = _actionBtn(grpCreate, "One view each", () => _runAction(ACTION.ONE_EACH.id,    dlg, ctx));
+  new LabelWidget(grpCreate, SWT.NONE).setText("Name:");
+  w.txtViewName = new TextWidget(grpCreate, SWT.BORDER);
+  w.txtViewName.setToolTipText("Name of the new view.\nPre-filled with the first selected object.\nA view with this name in the folder is overwritten.");
+  GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewName);
+
+  w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(ACTION.NEW_VIEW.id, dlg, ctx));
+  w.btnOneEach = _actionBtn(grpCreate, "One view each", () => _runAction(ACTION.ONE_EACH.id, dlg, ctx));
+  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(w.btnNewView);
+  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(w.btnOneEach);
+  w.btnNewView.setToolTipText(ACTION.NEW_VIEW.tooltip);
+  w.btnOneEach.setToolTipText(ACTION.ONE_EACH.tooltip + "\nName is not used.");
+
+  // ── Modify view ──
+  const shortName = targetViewName.length > 40 ? targetViewName.substring(0, 39) + "…" : targetViewName;
+  const grpModify = _group(row, targetViewName ? `Modify view "${shortName}"` : "Modify view", 2, { grabV: true, bold: false });
+  const lblModify = new LabelWidget(grpModify, SWT.NONE);
+  lblModify.setText(targetViewName ? "Changes this view in place." : "Select a view, or elements on a view.");
+  GridDataFactory.fillDefaults().span(2, 1).grab(true, false).applyTo(lblModify);
 
   w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(ACTION.EXPAND_VIEW.id, dlg, ctx));
   w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
-  w.btnExpandView.setEnabled(hasVisual);
-  w.btnLayoutOnly.setEnabled(hasVisual);
-}
+  w.btnExpandView.setToolTipText(ACTION.EXPAND_VIEW.tooltip);
+  w.btnLayoutOnly.setToolTipText(ACTION.LAYOUT_ONLY.tooltip);
+  w.btnExpandView.setEnabled(!!targetViewName);
+  w.btnLayoutOnly.setEnabled(!!targetViewName);
 
-// ── View name and location ────────────────────────────────────────────────────
-
-function _buildViewRow(area, ctx) {
-  const w = ctx.widgets;
-
-  // 4-column grid: [Folder lbl] [Folder field] [Name lbl] [Name field] on row 1;
-  // a single-cell totals strip spanning all columns on row 2.
-  const grpView = _group(area, "Generated view", 4);
-
-  new LabelWidget(grpView, SWT.NONE).setText("Folder:");
-  const txtFolder = new TextWidget(grpView, SWT.BORDER);
-  txtFolder.setToolTipText("Archi folder path under /Views (e.g. /Project/Generated).");
-  GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtFolder);
-  w.txtViewFolder = txtFolder;
-
-  new LabelWidget(grpView, SWT.NONE).setText("Name:");
-  const txtName = new TextWidget(grpView, SWT.BORDER);
-  txtName.setToolTipText("View name. Pre-filled from the first selected object.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).applyTo(txtName);
-  w.txtViewName = txtName;
-
-  // Row 2: always-visible totals strip. Multi-line; sub-lines for elements / relations /
-  // diagram objects. Hide-zero subfields, skip empty sub-lines (see _formatOutputLine).
-  const lblTotals = new LabelWidget(grpView, SWT.NONE);
-  lblTotals.setText("On the generated view: —");
-  lblTotals.setToolTipText(
-    "What will be on the generated view. "  +
-    "Number of containers, nested elements, standalones; extra occurrences when 'Show in every container' " +
-    "is on; nestings (drawn as box-in-box) and connections (drawn as lines); " +
-    "diagram objects (canvas-only).");
-  // Vertical grab so multi-line text doesn't clip; span 4 columns of the parent grid.
-  GridDataFactory.fillDefaults().span(4, 1).grab(true, false)
-    .hint(SWT.DEFAULT, SWT.DEFAULT).applyTo(lblTotals);
-  w.lblViewTotals = lblTotals;
+  // ── Cancel ──
+  const btnCancel = new ButtonWidget(row, SWT.PUSH);
+  btnCancel.setText("Cancel");
+  GridDataFactory.swtDefaults().align(SWT.END, SWT.END).hint(90, SWT.DEFAULT).applyTo(btnCancel);
+  btnCancel.addListener(SWT.Selection, () => {
+    _persistSession(ctx);  // remember _lastTabIndex even on cancel
+    Java.super(dlg).cancelPressed();
+  });
 }
 
 // ── Modified indicator ────────────────────────────────────────────────────────
@@ -2424,108 +2423,160 @@ function _clearModified(ctx) {
 
 // ── Preset row ────────────────────────────────────────────────────────────────
 
+// Row 1: Preset [combo] *  Save  Save As…  |  Rename…  Delete      Row 2: the preset's description.
+// Save / Save As write the current settings; Rename / Delete act on the saved file only.
 function _buildPresetRow(parent, ctx, dlg) {
   const w   = ctx.widgets;
   const row = new CompositeWidget(parent, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
-  // columns: delete | label | combo | modified-star | save | save-as
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(9, 2).spacing(4, 0).applyTo(row);
-
-  // Delete — left, disabled for Default, with confirm
-  const btnDelete = _pushBtn(row, "Delete", "Delete the selected preset", () => {
-    const name      = ctx.config.name || PresetIO.DEFAULT_PRESET_NAME;
-    const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
-    if (isDefault) return;
-    if (!window.confirm("Delete preset \"" + name + "\"?")) return;
-    try {
-      PresetIO.deletePreset(name);
-      const fallback = PresetIO.readPreset(PresetIO.DEFAULT_PRESET_NAME);
-      _mergePreset(ctx, fallback);
-      ctx.config.name = PresetIO.DEFAULT_PRESET_NAME;
-      _refreshPresetCombo(cmbPreset, PresetIO.DEFAULT_PRESET_NAME);
-      btnDelete.setEnabled(false);
-      _syncToUI(ctx);
-      _clearModified(ctx);
-      _updateFilteredCount(ctx);
-    } catch (e) { console.error("Delete failed: " + e); }
-  });
-  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnDelete);
-  w.btnDelete = btnDelete;
+  GridLayoutFactory.fillDefaults().numColumns(8).margins(9, 2).spacing(4, 2).applyTo(row);
 
   new LabelWidget(row, SWT.NONE).setText("Preset:");
 
   const cmbPreset = new ComboWidget(row, SWT.READ_ONLY | SWT.DROP_DOWN);
   GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(cmbPreset);
-  _refreshPresetCombo(cmbPreset, ctx.config.name);
+  cmbPreset.setToolTipText("Choosing a preset loads all its settings.");
   w.cmbPreset = cmbPreset;
 
-  // Modified indicator — hidden until user changes a setting
+  // Modified indicator — shown while the settings differ from the saved preset
   const lblModified = new LabelWidget(row, SWT.NONE);
   lblModified.setText("*");
-  lblModified.setToolTipText("Unsaved changes — click Save to overwrite, Save As… to create a new preset");
+  lblModified.setToolTipText("Unsaved changes.\nSave overwrites this preset; Save As… creates a new one.");
   lblModified.setVisible(false);
   w.lblModified = lblModified;
 
-  // Save — silent overwrite
-  const btnSave = _pushBtn(row, "Save", "Overwrite the current preset with these settings", () => {
+  const btnSave = _pushBtn(row, "Save", "Overwrite this preset with the current settings.", () => {
     _saveUI(ctx);
-    const name = ctx.config.name || PresetIO.DEFAULT_PRESET_NAME;
-    PresetIO.writePreset(name, ctx.config);
-    _refreshPresetCombo(cmbPreset, name);
-    _clearModified(ctx);
+    PresetIO.writePreset(_presetName(ctx), ctx.config);
+    _afterPresetChange(ctx);
   });
-  GridDataFactory.swtDefaults().hint(60, SWT.DEFAULT).applyTo(btnSave);
+  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnSave);
 
-  // Save As… — new name + folder + description
-  const btnSaveAs = _pushBtn(row, "Save As…", "Save these settings as a new preset", () => {
-    const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
+  const btnSaveAs = _pushBtn(row, "Save As…", "Save the current settings as a new preset.", () => {
     _saveUI(ctx);
-    PresetsDialog.openSaveAs({
-      title:              "Save As…",
-      message:            "Save current settings as a new preset.",
-      defaultName:        ctx.config.name || "",
-      defaultDescription: ctx.config.description || "",
-      onConfirm(newName, description) {
-        ctx.config.name        = newName;
-        ctx.config.description = description;
-        try { cmbPreset.setToolTipText(description); } catch (x) {}
-        PresetIO.writePreset(newName, ctx.config);
-        _refreshPresetCombo(cmbPreset, newName);
-        _clearModified(ctx);
-      },
+    _openPresetNameDialog(ctx, "Save As…", "Save the current settings as a new preset.", (newName, description) => {
+      ctx.config.name        = newName;
+      ctx.config.description = description;
+      PresetIO.writePreset(newName, ctx.config);
+      _afterPresetChange(ctx);
     });
   });
-  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).applyTo(btnSaveAs);
+  GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(btnSaveAs);
 
-  // Auto-apply on dropdown selection; suppress modified during load
+  const sep = new LabelWidget(row, SWT.SEPARATOR | SWT.VERTICAL);
+  GridDataFactory.swtDefaults().hint(SWT.DEFAULT, 20).indent(6, 0).applyTo(sep);
+
+  w.btnRename = _pushBtn(row, "Rename…", "Rename or move the saved preset, or change its description.\nUnsaved changes are kept in the dialog, not written.", () => {
+    const oldName = _presetName(ctx);
+    _openPresetNameDialog(ctx, "Rename…", `Rename or move preset "${oldName}".`, (newName, description) => {
+      const saved = PresetIO.readPreset(oldName);
+      saved.name        = newName;
+      saved.description = description;
+      PresetIO.writePreset(newName, saved);
+      if (newName !== oldName) PresetIO.deletePreset(oldName);
+      ctx.config.name        = newName;
+      ctx.config.description = description;
+      _afterPresetChange(ctx, { keepModified: true });
+    });
+  });
+  GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(w.btnRename);
+
+  w.btnDelete = _pushBtn(row, "Delete", "Delete the saved preset and load Default.", () => {
+    const name = _presetName(ctx);
+    if (name === PresetIO.DEFAULT_PRESET_NAME) return;
+    if (!window.confirm(`Delete preset "${name}"?`)) return;
+    try {
+      PresetIO.deletePreset(name);
+      _loadPreset(ctx, PresetIO.DEFAULT_PRESET_NAME);
+    } catch (e) { console.error("Delete failed: " + e); }
+  });
+  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnDelete);
+
+  // Row 2: description of the preset (hidden when empty), aligned under the combo.
+  new LabelWidget(row, SWT.NONE);
+  w.lblPresetDescription = new LabelWidget(row, SWT.WRAP);
+  try { w.lblPresetDescription.setForeground(row.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (x) {}
+  GridDataFactory.fillDefaults().grab(true, false).span(7, 1).hint(300, SWT.DEFAULT).applyTo(w.lblPresetDescription);
+
   cmbPreset.addListener(SWT.Selection, () => {
     const idx = cmbPreset.getSelectionIndex();
-    if (idx < 0) return;
-    const name = cmbPreset.getItem(idx);
-    try {
-      ctx._ready = false;
-      const loaded = PresetIO.readPreset(name);
-      _mergePreset(ctx, loaded);
-      ctx.config.name = name;
-      _syncToUI(ctx);
-      _clearModified(ctx);
-      _updateFilteredCount(ctx);
-      try { cmbPreset.setToolTipText(loaded.description || ""); } catch (x) {}
-      // Delete disabled for Default
-      const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
-      try { w.btnDelete.setEnabled(!isDefault); } catch (x) {}
-    } catch (e) {
-      console.error("Load preset: " + e);
-    } finally {
-      ctx._ready = true;
-    }
+    if (idx >= 0) _loadPreset(ctx, String(cmbPreset.getItem(idx)));
   });
 
-  // Set initial delete-button state
+  _afterPresetChange(ctx, { keepModified: true });
+}
+
+function _presetName(ctx) {
+  return ctx.config.name || PresetIO.DEFAULT_PRESET_NAME;
+}
+
+// Load a saved preset into the dialog (all settings), as when it is picked in the combo.
+function _loadPreset(ctx, name) {
   try {
-    const isDefault = (ctx.config.name || PresetIO.DEFAULT_PRESET_NAME) === PresetIO.DEFAULT_PRESET_NAME;
-    btnDelete.setEnabled(!isDefault);
+    ctx._ready = false;  // no modified indicator while the widgets are filled
+    const loaded = PresetIO.readPreset(name);
+    _mergePreset(ctx, loaded);
+    ctx.config.name = name;
+    _syncToUI(ctx);
+    _updateFilteredCount(ctx);
+  } catch (e) {
+    console.error("Load preset: " + e);
+  } finally {
+    ctx._ready = true;
+  }
+  _afterPresetChange(ctx);
+}
+
+// Refresh the preset row after a load / save / rename / delete: combo items and selection,
+// description line, Rename/Delete state (not for Default) and the modified indicator.
+function _afterPresetChange(ctx, opts) {
+  const w    = ctx.widgets;
+  const name = _presetName(ctx);
+  _refreshPresetCombo(w.cmbPreset, name);
+  const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
+  try { w.btnDelete.setEnabled(!isDefault); w.btnRename.setEnabled(!isDefault); } catch (x) {}
+
+  const desc = String(ctx.config.description || "");
+  try {
+    w.lblPresetDescription.setText(desc);
+    const gd = w.lblPresetDescription.getLayoutData();
+    if (gd) { gd.exclude = !desc; w.lblPresetDescription.setVisible(!!desc); }
+    w.lblPresetDescription.getParent().getParent().layout(true, true);
   } catch (x) {}
+
+  if (!(opts && opts.keepModified)) _clearModified(ctx);
+}
+
+// Name + folder + description dialog for Save As / Rename. Asks before overwriting another preset.
+function _openPresetNameDialog(ctx, title, message, onConfirm) {
+  const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
+  const current = _presetName(ctx);
+  PresetsDialog.openSaveAs({
+    title, message,
+    defaultName:        current === PresetIO.DEFAULT_PRESET_NAME ? "" : current,
+    defaultDescription: ctx.config.description || "",
+    onConfirm(newName, description) {
+      if (newName !== current && PresetIO.listPresets().includes(newName)
+          && !window.confirm(`Preset "${newName}" already exists. Overwrite it?`)) return;
+      onConfirm(newName, description);
+    },
+  });
+}
+
+// True when the dialog's settings differ from the saved preset they came from (e.g. a session
+// that was changed but not saved). The view name is left out: it is pre-filled from the selection.
+function _differsFromSaved(ctx) {
+  try {
+    const saved = PresetIO.readPreset(_presetName(ctx));
+    const pick  = c => JSON.stringify({
+      algorithm: c.algorithm, params: c.params, filter: c.filter, relatedElements: c.relatedElements,
+      appearance: c.appearance, folder: c.view && c.view.folder,
+      // the dialog lists every property of the model; only the enabled ones are settings
+      viewProperties: c.viewProperties && [c.viewProperties.addObjectId,
+        (c.viewProperties.properties || []).filter(r => r.enabled)],
+    });
+    return pick(saved) !== pick(ctx.config);
+  } catch (e) { return false; }  // preset file gone — nothing to compare with
 }
 
 // ── Sync config ↔ UI ──────────────────────────────────────────────────────────
