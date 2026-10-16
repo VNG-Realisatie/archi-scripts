@@ -254,7 +254,10 @@ easy to spot. Nesting unlocks further controls:
   child stays where its other nestings put it, or at view root.
 - **Container inner layout** — the algorithm used to arrange children *inside* each container.
 - **Connections between vs. crossing containers** — whether cross-container lines route to the
-  container as an opaque box, or to the specific inner element.
+  container as an opaque box, or to the specific inner element. *Crossing* lays the whole
+  hierarchy out as one graph, so it is unavailable — and *between* is used — when the inner
+  layout is a packing layout or a view size is set (unconnected elements would stack in one
+  column).
 - **Show in every container** — when an element is a child in several nestings, draw it inside
   each (extra occurrences) instead of only the first. ✦ On algorithms that do not draw
   containment, the element is still drawn once even though the counters report the extra
@@ -269,8 +272,8 @@ an element is a container exactly when something resolves to be its child. When 
 nestings claim the same child, the first wins unless *show in every container* is on.
 
 **View dimensions.** At most one size hint is active at a time — max width, max height, or
-aspect ratio. A hint may only **spread positions outward** to fill a target, never scale or
-compress (see the no-scaling rule).
+aspect ratio. A hint is met by **arranging elements differently** (e.g. more rows) or by
+**spreading positions outward**, never by scaling (see the no-scaling rule).
 
 ---
 
@@ -607,14 +610,13 @@ its own registry rather than copying a static table.
 
 | Engine | maxWidth / maxHeight | aspectRatio |
 |---|---|---|
-| Layered-family (ranked) | hard layout bounds — nodes placed within the area, no scaling | not supported |
-| Compact / packing | hard bounds where the engine supports an area target | supported as a ratio hint |
+| Layered-family (ranked) | max width is an upper bound, met by re-arranging (more rows); unreachable when connection chains set the width or connections cross containers — reported | met approximately by re-arranging; same limit |
+| Compact / packing | max width is an upper bound, met by re-arranging | met approximately by re-arranging |
 | Force / network | position-spread to a minimum target; never compress | supported as a ratio hint |
 | Simple ranked (no area) | not supported | not supported |
 
-The previous design disagreed on whether the ranked engine honoured max-height and
-aspect-ratio; this table is the reconciled contract — engines either set hard bounds or apply
-position-spread, never coordinate scaling.
+Engines meet a target by arranging elements differently or by position-spread, never by
+coordinate scaling. A target that cannot be met is reported, not forced.
 
 ### Current realisation
 

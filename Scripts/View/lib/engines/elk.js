@@ -25,7 +25,8 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 //   container: applied to each container node's layoutOptions in _buildELKGraph
 //
 // Parameters handled outside PARAM_MAPPING:
-//   maxWidth              → set as elkGraph.width (root graph bound, not options)
+//   maxWidth / aspectRatio → view-size calibration in layout() (re-runs ELK with a searched
+//                           elk.aspectRatio; see _fitViewSize)
 //   nestingRelationTypes  → graph structure (parentMap)
 //   sortContainers        → node sort order via engine-utils.sortedNodes (ELK: _sortNodeChildren)
 //   alignWidthSameType    → two-pass layout; pass 1 measures natural widths, then every box is
@@ -65,6 +66,17 @@ const DEFAULT_ELK_PARAMS = {
 
 // Shared aspect-ratio mapping reused wherever both root and container scopes carry the same fn.
 const _AR = (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {};
+// Pack: rectpacking's width approximation loops forever on mixed box sizes at high ratios
+// (elkjs 0.11.1 and 0.12.0, both optimization goals; e.g. one 3000–3660 px wide box among
+// twenty 220 px boxes hangs from ratio 4, never at ≤ 3 in any probe) — a hang that freezes
+// Archi. The ratio is capped at PACK_ASPECT_RATIO_MAX (= the widest GUI option, 3:1).
+// ASPECT_RATIO_DRIVEN: row width chosen to match the ratio (default MAX_SCALE_DRIVEN
+// maximises scale in a viewport of that ratio).
+const PACK_ASPECT_RATIO_MAX = 3;
+const _AR_PACK = (v) => v > 0 ? {
+  "elk.aspectRatio": String(Math.min(v, PACK_ASPECT_RATIO_MAX)),
+  "elk.rectpacking.widthApproximation.optimizationGoal": "ASPECT_RATIO_DRIVEN",
+} : {};
 
 // Shared routing fn used in both root and container scopes for Layered.
 // CONSERVATIVE spline mode inlined here — no separate post-mapping special case needed.
@@ -124,12 +136,12 @@ const _TREE_BASE = {
 const PARAM_MAPPING = {
   Layered: {
     root:      { ..._LAYERED_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
-    container: { ..._LAYERED_BASE,                                                  padding: _PAD_CONTAINER },
+    container: { ..._LAYERED_BASE, aspectRatio: _AR,                                padding: _PAD_CONTAINER },
   },
 
   Tree: {
     root:      { ..._TREE_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
-    container: { ..._TREE_BASE,                                                  padding: _PAD_CONTAINER },
+    container: { ..._TREE_BASE, aspectRatio: _AR,                                padding: _PAD_CONTAINER },
   },
 
   Force: {
@@ -149,7 +161,7 @@ const PARAM_MAPPING = {
 
   Grid: {
     root:      { innerSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
-    container: { innerSpacing: _ELEM_SPACING,                                                  padding: _PAD_CONTAINER },
+    container: { innerSpacing: _ELEM_SPACING, aspectRatio: _AR,                                padding: _PAD_CONTAINER },
   },
 
   // rectpacking tight-packing options:
@@ -167,13 +179,14 @@ const PARAM_MAPPING = {
   //     → set conditionally in _buildELKGraph: only when sortContainers is off (they conflict)
   //   whiteSpaceElimination.strategy         post-pass to fill gaps; NONE = off (default)
   //   widthApproximation.optimizationGoal    MAX_SCALE_DRIVEN (default) — maximises use of target width
+  //     → ASPECT_RATIO_DRIVEN whenever an aspect ratio is set (_AR_PACK)
   Pack: {
     root: {
-      // Pack uses aspectRatio only. maxWidth is intentionally NOT mapped to
-      // rectpacking.widthApproximation.targetWidth: with SEPARATE_CHILDREN the container
-      // boxes are pre-sized bottom-up, so a target narrower than the widest container is
-      // ignored (result stays wider) and a too-narrow target can yield zero-width nodes.
-      aspectRatio:    _AR,
+      // maxWidth is NOT mapped to rectpacking.widthApproximation.targetWidth: with
+      // SEPARATE_CHILDREN the container boxes are pre-sized bottom-up, so a target narrower
+      // than the widest container is ignored and a too-narrow target can yield zero-width
+      // nodes. maxWidth goes through view-size calibration instead (_fitViewSize).
+      aspectRatio:    _AR_PACK,
       innerSpacing:   (v) => ({
         "elk.spacing.nodeNode": String(v),
         "elk.rectpacking.packing.compaction.iterations": "5",
@@ -188,7 +201,7 @@ const PARAM_MAPPING = {
     container: {
       // aspectRatio propagated to containers so their internal layout matches the root AR,
       // producing a more consistent overall shape.
-      aspectRatio:    _AR,
+      aspectRatio:    _AR_PACK,
       innerSpacing:   (v) => ({
         "elk.spacing.nodeNode": String(v),
         "elk.rectpacking.packing.compaction.iterations": "5",
@@ -240,6 +253,100 @@ function _loadELK() {
  * @returns {LayoutResult}     — { nodes, edges, viewWidth, viewHeight }
  */
 function layout(graph) {
+  const k = _fitViewSize(graph);
+  if (k === null) return _layoutOnce(graph);
+  return _layoutOnce(Object.assign({}, graph, { options: Object.assign({}, graph.options, { aspectRatio: k }) }));
+}
+
+// ── View size ─────────────────────────────────────────────────────────────────
+// ELK has no size bound for these layouts: containers are laid out bottom-up and the root
+// graph's width is output only. The lever is elk.aspectRatio — in every scope (root and each
+// container) it sets how wide ELK packs unconnected children into rows. Its effect on the view
+// is coarse and compounds across nesting levels (0.75 on every level gave a 0.27 view), so the
+// adapter calibrates: it re-runs ELK with one ratio k for all scopes and searches k on a log
+// scale until the measured view meets the target. Element sizes are never touched.
+//   aspectRatio  k whose view width / height is closest to the target
+//   maxWidth     natural layout when it fits; otherwise the widest layout that fits
+// Measured size = bounding box of all elements (as logged by "View size generated").
+// Views whose width is set by connection chains (layer count) have no lever: logged, not met.
+const VIEW_SIZE_K_MIN     = 0.1;
+const VIEW_SIZE_K_MAX     = 10;
+const VIEW_SIZE_TOLERANCE = 0.03;  // relative aspect-ratio error accepted as a match
+const VIEW_SIZE_MAX_RUNS  = 10;    // measuring ELK runs per search, before the final run
+
+/**
+ * Search the elk.aspectRatio that meets the active view-size target.
+ * @returns {number|null}  ratio for the final run; null = no target (or natural layout fits)
+ */
+function _fitViewSize(graph) {
+  const o = graph.options;
+  const target = o.aspectRatio > 0 ? "aspectRatio" : o.maxWidth > 0 ? "maxWidth" : null;
+  if (!target) return null;
+  const log = msg => console.log("  " + msg);
+  const t0 = Date.now();
+  const kMax = ALGORITHMS[graph.algorithm].engineAlgorithmId === "rectpacking" ? PACK_ASPECT_RATIO_MAX : VIEW_SIZE_K_MAX;
+  let runs = 0;
+  const measure = k => {
+    runs++;
+    const m = _layoutOnce(Object.assign({}, graph, { options: Object.assign({}, o, { aspectRatio: k }) }), true);
+    m.k = k;
+    return m;
+  };
+  const size = m => `${m.width}×${m.height} px`;
+  const done = msg => log(`View size: ${msg}  (${runs} layout runs, ${Date.now() - t0} ms)`);
+
+  if (target === "maxWidth") {
+    const natural = measure(0);
+    if (natural.width <= o.maxWidth) { done(`max width ${o.maxWidth} px — natural layout fits (${size(natural)})`); return null; }
+    let lo = VIEW_SIZE_K_MIN, hi = kMax;
+    let best = measure(lo);
+    if (best.width > o.maxWidth) {
+      done(`⚠ max width ${o.maxWidth} px not reachable — narrowest layout ${size(best)} (connection chains or the widest container set the minimum)`);
+      return lo;
+    }
+    while (runs < VIEW_SIZE_MAX_RUNS && hi / lo > 1.02) {
+      const k = Math.sqrt(lo * hi), m = measure(k);
+      if (m.width <= o.maxWidth) { lo = k; if (m.width > best.width) best = m; }
+      else hi = k;
+    }
+    done(`max width ${o.maxWidth} px → ${size(best)}  (natural ${size(natural)}, elk.aspectRatio ${best.k.toFixed(2)})`);
+    return best.k;
+  }
+
+  // aspectRatio: bisection on k; the view ratio grows with k (in steps — row counts are integers).
+  const goal = o.aspectRatio;
+  const ratio = m => m.width / m.height;
+  const err   = m => Math.abs(Math.log(ratio(m) / goal));
+  let best = measure(goal);
+  const report = () => done(`aspect ratio ${goal} → ${ratio(best).toFixed(2)}, ${size(best)}  (elk.aspectRatio ${best.k.toFixed(2)})`);
+  if (err(best) <= VIEW_SIZE_TOLERANCE) { report(); return best.k; }
+  const first = best, up = ratio(first) < goal;
+  const edge    = up ? kMax : VIEW_SIZE_K_MIN;
+  const extreme = first.k === edge ? first : measure(edge);
+  if (err(extreme) < err(best)) best = extreme;
+  // The extreme is still on the same side of the goal: no k gets closer than it.
+  if ((ratio(extreme) < goal) === up) {
+    const still = extreme !== first && extreme.width === first.width && extreme.height === first.height;
+    done(`⚠ aspect ratio ${goal} not reachable — ${still ? "layout does not respond" : "closest"}: ${ratio(best).toFixed(2)}, ${size(best)}`);
+    return best.k;
+  }
+  let lo = up ? Math.min(goal, kMax) : VIEW_SIZE_K_MIN, hi = up ? kMax : goal;
+  while (runs < VIEW_SIZE_MAX_RUNS && err(best) > VIEW_SIZE_TOLERANCE && hi / lo > 1.02) {
+    const k = Math.sqrt(lo * hi), m = measure(k);
+    if (err(m) < err(best)) best = m;
+    if (ratio(m) < goal) lo = k; else hi = k;
+  }
+  report();
+  return best.k;
+}
+
+/**
+ * One ELK layout run.
+ * @param {LayoutGraph} graph
+ * @param {boolean} [measureOnly]  quiet run that returns only the element bounding box { width, height }
+ * @returns {LayoutResult|{width:number,height:number}}
+ */
+function _layoutOnce(graph, measureOnly) {
   const elk = _loadELK();
   const alg = ALGORITHMS[graph.algorithm];
   if (!alg) throw `ELK: unknown algorithm "${graph.algorithm}"`;
@@ -306,8 +413,8 @@ function layout(graph) {
   }
 
   // All layout-step output is indented under the "Layout:" header logged by the orchestrator.
-  const log      = msg => console.log("  " + msg);
-  const debugLog = graph.options.alignDebug ? log : null;
+  const log      = measureOnly ? () => {} : msg => console.log("  " + msg);
+  const debugLog = graph.options.alignDebug && !measureOnly ? log : null;
 
   // ── ELK config log (permanent) ────────────────────────────────────────────────
   {
@@ -402,6 +509,15 @@ function layout(graph) {
     const nameById = {};
     for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
     _snapColumnsToGrid(resultNodes, graph.options, nameById, log);
+  }
+
+  if (measureOnly) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of resultNodes) {
+      x0 = Math.min(x0, n.x);           y0 = Math.min(y0, n.y);
+      x1 = Math.max(x1, n.x + n.width); y1 = Math.max(y1, n.y + n.height);
+    }
+    return resultNodes.length ? { width: Math.round(x1 - x0), height: Math.round(y1 - y0) } : { width: 0, height: 0 };
   }
 
   // Debug: dump every result node (absolute coords as ELK produced them). Containers first,
@@ -577,7 +693,6 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     : "lift";
   const { rootEdges, edgeMeta } = _placeEdges(edgeList, parentMap, nodeMap, edgeMode);
   const elkGraph = { id: "root", layoutOptions, children: rootChildren, edges: rootEdges };
-  if (graph.options.maxWidth > 0) elkGraph.width = graph.options.maxWidth;
   return { elkGraph, edgeMeta };
 }
 

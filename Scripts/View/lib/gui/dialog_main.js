@@ -77,6 +77,9 @@ const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
+const CONNECTIONS_MODE_TOOLTIP =
+  "Between containers: connections route to/from the container box as a whole. " +
+  "Crossing containers: connections route through container boundaries to specific elements.";
 // Container-type modes in the Nesting group; index order matches _getNestContainerTypes.
 const NEST_CONTAINER_MODE_LABELS = ["Any element", "Grouping only", "Selected types"];
 
@@ -1455,8 +1458,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(ctrComp, "Container layout:", CONTAINER_ALGO_LABELS,   0, 120, "cmbContainerAlgorithm", w,
     "ELK algorithm used to arrange children inside each container.");
   _addCombo(ctrComp, "Connections:",      CONNECTIONS_MODE_LABELS, 0, 160, "cmbConnectionsMode", w,
-    "Between containers: connections route to/from the container box as a whole. " +
-    "Crossing containers: connections route through container boundaries to specific elements.");
+    CONNECTIONS_MODE_TOOLTIP);
   if (w.cmbContainerAlgorithm)
     w.cmbContainerAlgorithm.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
   if (w.cmbConnectionsMode)
@@ -1506,16 +1508,18 @@ function _buildLayoutTab(tabFolder, ctx) {
   };
 
   w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio:", 8);
-  w.radioViewSizeAspectRatio.setToolTipText("Spread layout outward to match the target aspect ratio. No compression if already larger.");
+  w.radioViewSizeAspectRatio.setToolTipText("Arrange the layout toward this width-to-height ratio. ELK re-runs the layout until the view comes close; element sizes are unchanged.");
   _addCombo(hintRow, null, AR_LABELS, 0, 150, "cmbAspectRatio", w, "Target width-to-height ratio.");
+  if (w.cmbAspectRatio) w.cmbAspectRatio.addListener(SWT.Selection, () => _updateConnectionsMode(ctx));
 
   w.radioViewSizeMaxWidth = _vsRadio("Max width:");
-  w.radioViewSizeMaxWidth.setToolTipText("Spread layout outward to reach the target width. No compression if already larger.");
+  w.radioViewSizeMaxWidth.setToolTipText("ELK: the view is at most this wide — when the natural layout is wider, elements are arranged in more rows (sizes unchanged). Graphviz: positions are spread outward to this width.");
   const _spMaxWidth = new SpinnerWidget(hintRow, SWT.BORDER);
   _spMaxWidth.setValues(0, 0, 99999, 0, 100, 500);
   GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(_spMaxWidth);
-  _spMaxWidth.setToolTipText("Target view width (px).");
+  _spMaxWidth.setToolTipText("View width (px) of the element bounding box.");
   w.spinMaxWidth = _spMaxWidth;
+  _spMaxWidth.addListener(SWT.Modify, () => _updateConnectionsMode(ctx));
 
   w.radioViewSizeNone = _vsRadio("None", 16);
   w.radioViewSizeNone.setSelection(true);
@@ -2931,38 +2935,17 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinElementWidth,  !_labelSizingOn);
   _enable(w.spinElementHeight, !_labelSizingOn);
   _enable(w.cmbContainerAlgorithm,   active.has("containerAlgorithm"));
-  _enable(w.cmbConnectionsMode,      active.has("connectionsMode"));
-  // "Crossing containers" (INCLUDE_CHILDREN) requires the same algorithm at all hierarchy
-  // levels. The two combos enforce this constraint on each other:
-  //   • container algo ≠ root  → disable connections mode, reset to "Between containers"
-  //   • connections mode = "Crossing containers"  → filter container algo to root only
-  if (w.cmbConnectionsMode && w.cmbContainerAlgorithm) {
-    const crossingSelected = w.cmbConnectionsMode.isEnabled()
-      && w.cmbConnectionsMode.getText() === "Crossing containers";
-
-    if (crossingSelected) {
-      // Filter container algo dropdown to root algorithm only.
+  // Container algo list follows the root algorithm. The container choice wins over the
+  // connections mode: _updateConnectionsMode (via _applyViewSizeMode below) locks the
+  // connections mode to "Between containers" when Crossing containers is not possible.
+  if (w.cmbContainerAlgorithm) {
+    const fullList = (alg.supportedOptions && alg.supportedOptions.containerAlgorithm) || [];
+    if (fullList.length > 0) {
       const curCtr = w.cmbContainerAlgorithm.getText();
       w.cmbContainerAlgorithm.removeAll();
-      w.cmbContainerAlgorithm.add(algName);
-      w.cmbContainerAlgorithm.select(0);
-    } else {
-      // Restore full container algo list (may have been narrowed by the branch above).
-      const fullList = (alg.supportedOptions && alg.supportedOptions.containerAlgorithm) || [];
-      if (fullList.length > 0) {
-        const curCtr = w.cmbContainerAlgorithm.getText();
-        w.cmbContainerAlgorithm.removeAll();
-        fullList.forEach(a => w.cmbContainerAlgorithm.add(a));
-        const ni = fullList.indexOf(curCtr);
-        w.cmbContainerAlgorithm.select(ni >= 0 ? ni : 0);
-      }
-      // If container algo ≠ root, connections mode cannot be "Crossing containers".
-      const ctrAlgo = w.cmbContainerAlgorithm.getText();
-      if (w.cmbConnectionsMode.isEnabled() && ctrAlgo && ctrAlgo !== algName) {
-        _enable(w.cmbConnectionsMode, false);
-        const idx = CONNECTIONS_MODE_LABELS.indexOf("Between containers");
-        if (idx >= 0) w.cmbConnectionsMode.select(idx);
-      }
+      fullList.forEach(a => w.cmbContainerAlgorithm.add(a));
+      const ni = fullList.indexOf(curCtr);
+      w.cmbContainerAlgorithm.select(ni >= 0 ? ni : 0);
     }
   }
   _enable(w.spinLayerSpacing,             active.has("layerSpacing"));
@@ -3031,6 +3014,29 @@ function _applyViewSizeMode(ctx) {
   const mode = _getViewSizeMode(w);
   _enable(w.spinMaxWidth,   mode === "maxWidth");
   _enable(w.cmbAspectRatio, mode === "aspectRatio");
+  _updateConnectionsMode(ctx);
+}
+
+// Connections mode follows Defs.connectionsModeLock: Grid / Pack inside containers or an active
+// view size force "Between containers" and lock the combo; the tooltip names the reason.
+function _updateConnectionsMode(ctx) {
+  const w = ctx.widgets;
+  if (!w.cmbConnectionsMode || !w.algRadios) return;
+  let algName = "Layered";
+  for (const [name, r] of w.algRadios) { if (r.getSelection()) { algName = name; break; } }
+  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
+  if (!(alg.activeParams || []).includes("connectionsMode")) { _enable(w.cmbConnectionsMode, false); return; }
+  const arIdx  = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
+  const reason = Defs.connectionsModeLock(algName, {
+    containerAlgorithm: w.cmbContainerAlgorithm ? w.cmbContainerAlgorithm.getText() : "",
+    viewSizeMode:       _getViewSizeMode(w),
+    aspectRatio:        AR_OPTIONS[Math.max(0, arIdx)] ? AR_OPTIONS[Math.max(0, arIdx)].val : 0,
+    maxWidth:           w.spinMaxWidth ? w.spinMaxWidth.getSelection() : 0,
+  });
+  _enable(w.cmbConnectionsMode, !reason);
+  if (reason) w.cmbConnectionsMode.select(CONNECTIONS_MODE_LABELS.indexOf("Between containers"));
+  w.cmbConnectionsMode.setToolTipText(CONNECTIONS_MODE_TOOLTIP +
+    (reason ? `\n\nLocked to Between containers: Crossing containers is not possible with ${reason}.` : ""));
 }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────

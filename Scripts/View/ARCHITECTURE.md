@@ -683,8 +683,8 @@ Three inline options: **Aspect ratio** (combo immediately to its right), **Max w
 
 | Parameter | Tooltip |
 |---|---|
-| Max width | View width target (px). 0 = unconstrained. When the natural layout is smaller than the target, node positions are spread outward until the bounding box reaches the target; if already larger, no action (compression is forbidden — see [Engine adapter contract](#engine-adapter-contract)). |
-| Aspect ratio | Width-to-height ratio of generated layout. 0 = free. |
+| Max width | View width (px) of the element bounding box. 0 = unconstrained. ELK: upper bound — when the natural layout is wider, elements are arranged in more rows (sizes unchanged). Graphviz: minimum — positions are spread outward to this width. See [View-size: per-engine behavior](#view-size-per-engine-behavior). |
+| Aspect ratio | Width-to-height ratio the view is arranged toward. 0 = free. ELK re-runs the layout until the view comes close; element sizes are unchanged. |
 | Diagram padding | Space between the diagram boundary and the outermost elements (px). Applied by all engines. |
 
 `viewSizeMode` is stored in the preset ([Preset schema](#preset-schema)) so the active radio is restored on load. Old presets without this field default to the first non-zero view-size value found.
@@ -876,7 +876,7 @@ authoritative and the table must be regenerated from it whenever `activeParams` 
 | **Element spacing** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | **Element width/height** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Node size by edge count** | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
-| **Max width** | ✓ | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Max width** | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Max height** | — | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Aspect ratio** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Nesting relation types** | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | — | — |
@@ -1047,17 +1047,23 @@ When nesting is active, two additional parameters control how ELK lays out conta
 | Parameter | Values | Effect |
 |---|---|---|
 | `containerAlgorithm` | `"Layered"` (default), `"Grid"`, `"Pack"` | ELK algorithm used to arrange children **inside** each container. Maps to `layered`/`box`/`rectpacking`. |
-| `connectionsMode` | `"Crossing containers"` (default), `"Between containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; with Layered root and container, cross-container connections pass the container border through a hierarchical port and continue to the element inside (otherwise they route to/from the container as an opaque box). `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. Default because crossing minimisation then spans all levels: with `SEPARATE_CHILDREN` the port order on each container border is fixed by its inner layout before the outer layout runs, which leaves crossings the outer layout cannot remove. |
+| `connectionsMode` | `"Crossing containers"` (default), `"Between containers"` (locked when Crossing is not possible — see below) | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; with Layered root and container, cross-container connections pass the container border through a hierarchical port and continue to the element inside (otherwise they route to/from the container as an opaque box). `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. Default because crossing minimisation then spans all levels: with `SEPARATE_CHILDREN` the port order on each container border is fixed by its inner layout before the outer layout runs, which leaves crossings the outer layout cannot remove. |
+
+**Connections mode lock — `Defs.connectionsModeLock`.** *Crossing containers* lays the whole hierarchy out as one layered graph, which rules it out in two cases; the connections mode is then *Between containers*, and the dialog shows that value greyed with the reason in its tooltip:
+
+- **Container layout Grid or Pack** — ELK rejects a connection into a `box` / `rectpacking` container (`UnsupportedGraphException`), and without connections the root stacks the containers in one column.
+- **View size active** (aspect ratio or max width with a value) — a hierarchical layout does not pack unconnected elements into rows, so they stack in one column and the view-size calibration has no lever ([View-size: per-engine behavior](#view-size-per-engine-behavior)).
+
+The container choice wins: the container list always shows every option of the root algorithm. `effectiveParams` applies the same rule at run time, so a preset file with a locked combination runs as *Between containers*; `generate_view` logs `Connections: "Between containers" (Crossing containers not possible with …)`.
 
 Valid combinations (all with root = algorithm selected by the user):
 
 | Root | Container | Connections | Cross-container edges | Container children |
 |---|---|---|---|---|
 | Layered | Layered | Between containers | Routed by Layered via hierarchical ports on container borders | Laid out with Layered |
-| Layered | Grid | Between containers | Lifted to root, routed by Layered | Compactly packed |
-| Layered | Grid | Crossing containers | Root sees all, routes directly | Compactly packed |
-| Layered | Pack | Between containers | Lifted to root, routed by Layered | Packed with order |
-| Layered | Pack | Crossing containers | Root sees all, routes directly | Packed with order |
+| Layered | Layered | Crossing containers | Root sees all, routes directly | Laid out with Layered — one layered graph, so unconnected children stack in one layer |
+| Layered | Grid | Between containers (locked) | Lifted to root, routed by Layered | Compactly packed |
+| Layered | Pack | Between containers (locked) | Lifted to root, routed by Layered | Packed with order |
 | Tree | Grid | Between containers | Lifted to root, tree-routed | Compactly packed |
 | Tree | Pack | Between containers | Lifted to root, tree-routed | Packed with order |
 | Grid | Layered | n/a (root has no edge routing) | None | Laid out with Layered |
@@ -1305,7 +1311,7 @@ ELK's node placement cannot always put a long segment exactly in line with the p
 
 Three mutually exclusive parameters control how large the generated view may be ([Layout tab](#layout-tab)). Only one is active at a time — `viewSizeMode` in the preset records which one. The adapter receives only the active constraint; the others are zeroed. Old presets without a `viewSizeMode` field default to the first non-zero view-size value found.
 
-Not every algorithm supports every view-size parameter. Unsupported parameters are deactivated in the UI regardless of mode selection (see [Algorithm capability matrix](#algorithm-capability-matrix)). None of these parameters may trigger scaling of element dimensions — see the no-scaling rule below.
+Not every algorithm supports every view-size parameter. Unsupported parameters are deactivated in the UI regardless of mode selection (see [Algorithm capability matrix](#algorithm-capability-matrix)). None of these parameters may trigger scaling of element dimensions — see the no-scaling rule below. An engine meets a target by arranging elements differently (re-running its layout with other packing settings) or by position spread; how each engine does it is in [View-size: per-engine behavior](#view-size-per-engine-behavior).
 
 ### No post-layout scaling
 
@@ -1914,9 +1920,19 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 
 | Engine | maxWidth / maxHeight | aspectRatio |
 |---|---|---|
-| **ELK** | **maxWidth only** (maxHeight is not in any ELK algorithm's `activeParams`, so it is greyed in the GUI and never reaches runtime). maxWidth is set as `elkGraph.width`; ELK places all nodes within that bound without coordinate scaling. | **Supported.** Mapped to `elk.aspectRatio` via each ELK algorithm's `_AR` PARAM_MAPPING entry; ELK adjusts positions only, never node sizes. |
+| **ELK** | **maxWidth only** (maxHeight is not in any ELK algorithm's `activeParams`). Upper bound, met by calibration (below): natural layout when it fits, otherwise the widest layout that fits. | **Supported**, met by calibration (below): the layout whose ratio is closest to the target. |
 | **Graphviz** | Position-spread minimum: after `layout()`, `_applySpread()` checks whether the natural bounding box is smaller than the requested value. If so, node *centers* are spread outward until the target is reached. If already larger, nothing done — compression is forbidden. | Passed as `ratio=<1/AR>`. Graphviz adjusts positions only, not node sizes. |
 | **Dagre** | Not supported. | Not supported. |
+
+**ELK view-size calibration — `_fitViewSize`.** ELK has no size bound for nested layouts: containers are laid out bottom-up, and the root graph's `width` is output only (setting it as input has no effect). Topdown layout (`elk.topdownLayout`) fixes container boxes first but fits the content by scaling, which the no-scaling rule forbids. The lever that remains is `elk.aspectRatio`: in every scope — root and each container (`_AR` in both PARAM_MAPPING scopes) — it sets how wide ELK packs unconnected children into rows (Layered: component packing; Grid: box; Pack: rectpacking). Its effect on the view is coarse and compounds across nesting levels (0.75 on every level gave a 0.27 view), so `layout()` calibrates: it runs ELK with one ratio *k* for all scopes and searches *k* on a log scale in [0.1, 10], measuring the element bounding box after each run (`_layoutOnce(graph, measureOnly)` — quiet, no edge collection).
+
+- **Aspect ratio** — first run at *k* = target; then the extreme in the needed direction; then bisection. Stops at 3 % ratio error or 10 runs. Takes the closest run.
+- **Max width** — first run without `elk.aspectRatio` (ELK defaults); if it fits, done. Otherwise bisection for the largest *k* whose width fits; takes the widest fitting run.
+- **Final run** — one more full layout with the chosen *k*, with normal logging and edge routing (ELK is deterministic, so it reproduces the measured run).
+- **No lever** — the ratio does not respond when the width is set by connection chains (Layered layer count), and never with *Crossing containers* (`INCLUDE_CHILDREN`): ELK does not pack disconnected components in a hierarchical layout, so unconnected children stack in one layer (one column for direction Right) and `elk.layered.wrapping.*` has no effect either. The search stops after two runs and logs `⚠ … not reachable` with the closest size.
+- **Pack** — rectpacking's width approximation loops forever on mixed box sizes at high ratios (elkjs 0.11.1 and 0.12.0, either optimization goal; seen from ratio 4, never at ≤ 3), which freezes Archi. `_AR_PACK` caps the ratio at `PACK_ASPECT_RATIO_MAX` = 3 (the widest GUI option) and the search range with it; it also sets `widthApproximation.optimizationGoal: ASPECT_RATIO_DRIVEN` (row width chosen to match the ratio, instead of the default `MAX_SCALE_DRIVEN`).
+- **Result** — the ratio moves in steps (row counts are integers), so it lands near the target, not on it. One line is logged: `View size: … (N layout runs, T ms)`. `alignWidthSameType` runs both passes inside every measuring run.
+- An `elk.aspectRatio` in `engineParams.ELK` overrides *k* and disables calibration in effect.
 
 ## Platform notes — View-subsystem specifics
 

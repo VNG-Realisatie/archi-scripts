@@ -26,7 +26,7 @@ const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const {
   ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER, PROP_ID,
-  validatePreset, effectiveParams,
+  validatePreset, effectiveParams, connectionsModeLock,
 } = Defs;
 
 const JUNCTION_DIAMETER = 14;
@@ -68,6 +68,8 @@ function generate_view(rawPreset, uiSelection, actionId) {
     && _rawParams[k] !== undefined && _rawParams[k] !== null
     && !(Array.isArray(_rawParams[k]) && _rawParams[k].length === 0));
   if (_dropped.length) console.log(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
+  if (_rawParams.connectionsMode !== preset.params.connectionsMode && preset.params.connectionsMode !== undefined)
+    console.log(`Connections: "${preset.params.connectionsMode}" (Crossing containers not possible with ${connectionsModeLock(preset.algorithm, _rawParams)})`);
 
   console.log(`\n=== generate_view ===`);
   console.log(`Action: ${action}`);

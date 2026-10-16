@@ -40,7 +40,7 @@ const PARAMS_ELK_NESTING = Object.freeze([
   "showInEveryContainer", "containerAlgorithm",
 ]);
 
-// View-size params — maxWidth + aspectRatio, all algorithms that support it (Pack excluded — no maxWidth).
+// View-size params — maxWidth + aspectRatio (ELK: met by calibrating elk.aspectRatio — elk.js _fitViewSize).
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
 // Graphviz cluster-nesting controls — Dot, Neato, FDP.
@@ -121,6 +121,7 @@ const ALGORITHMS = Object.freeze({
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
+    paramConflicts: CONFLICTS_VIEW,  // view-size mode "none" zeroes aspectRatio
   },
 
   Stress: {
@@ -133,6 +134,7 @@ const ALGORITHMS = Object.freeze({
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)",
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Radial: {
@@ -145,6 +147,7 @@ const ALGORITHMS = Object.freeze({
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Domain overviews and hub-and-spoke structures (ELK)",
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Grid: {
@@ -171,15 +174,13 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING,
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
-      "elementSpacing", "aspectRatio", "reverseRelationTypes",
+      "elementSpacing", "reverseRelationTypes",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
     tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
-    // maxWidth intentionally absent: nested rectpacking is bottom-up and ignores a target
-    // narrower than its container boxes. Aspect ratio is the only view-size lever.
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -821,6 +822,26 @@ function validatePreset(raw) {
 }
 
 /**
+ * Why "Crossing containers" cannot be used with these params, or null when it can.
+ * Crossing containers lays the whole hierarchy out as one layered graph (ELK INCLUDE_CHILDREN):
+ *   - Grid / Pack inside containers: ELK rejects connections into those containers
+ *     (UnsupportedGraphException), and the root stacks unconnected containers in one column;
+ *   - view size: a hierarchical layout does not pack unconnected elements into rows, so they
+ *     stack in one column and aspect ratio / max width have no effect.
+ * "Between containers" is then used and the choice is locked in the dialog.
+ * @param {string} algorithm  root algorithm name
+ * @param {Object} params     raw preset params (with viewSizeMode)
+ * @returns {string|null}     reason, for log and tooltip
+ */
+function connectionsModeLock(algorithm, params) {
+  const p = params || {};
+  if (p.containerAlgorithm && p.containerAlgorithm !== algorithm) return `container layout ${p.containerAlgorithm}`;
+  if (p.viewSizeMode === "aspectRatio" && p.aspectRatio > 0) return "view size aspect ratio";
+  if (p.viewSizeMode === "maxWidth"    && p.maxWidth    > 0) return "view size max width";
+  return null;
+}
+
+/**
  * Return the subset of `preset.params` that the chosen algorithm declares as
  * active. Inactive keys are omitted (not zeroed) so consumers that read with
  * `|| default` degrade cleanly. The raw `preset.params` is never mutated —
@@ -841,6 +862,8 @@ function effectiveParams(preset) {
     if (!active.has(key))       continue;
     out[key] = (conflictKeys.has(key) && key !== viewSizeMode) ? 0 : preset.params[key];
   }
+  if (out.connectionsMode === "Crossing containers" && connectionsModeLock(preset.algorithm, preset.params))
+    out.connectionsMode = "Between containers";
   return out;
 }
 
@@ -860,7 +883,7 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS,
     CONNECTION_END_CLEARANCE,
-    validatePreset, effectiveParams,
+    validatePreset, effectiveParams, connectionsModeLock,
     encodeRelType, decodeRelType,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
   };
