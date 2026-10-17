@@ -21,6 +21,8 @@ const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
+const InputDialog       = Java.type("org.eclipse.jface.dialogs.InputDialog");
+const WindowConstants   = Java.type("org.eclipse.jface.window.Window");
 
 // ── Save As / Rename dialog ───────────────────────────────────────────────────
 
@@ -35,10 +37,12 @@ const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants"
  *   defaultDescription {string}   pre-filled description
  *   showDescription    {boolean}  show description field (default true)
  *   onConfirm          {function(fullName, description)} called on OK
+ *   parentShell        {Shell}    the calling dialog's shell; the Save As dialog opens on top of
+ *                                 it (with Archi's main shell it would open behind a modal dialog)
  */
 function openSaveAs({
   title, message, defaultName, defaultFolder, defaultDescription,
-  showDescription = true, onConfirm,
+  showDescription = true, onConfirm, parentShell,
 }) {
   let dlg;
 
@@ -103,7 +107,9 @@ function openSaveAs({
         const idx   = cmbFolder.getSelectionIndex();
         const count = cmbFolder.getItemCount();
         if (idx !== count - 1) return;  // not "New folder…"
-        const newFolder = window.prompt("New folder name:", "");
+        // Parented to this dialog so the prompt opens on top of it.
+        const input = new InputDialog(cmbFolder.getShell(), "New folder", "New folder name:", "", null);
+        const newFolder = input.open() === WindowConstants.OK ? String(input.getValue() || "") : "";
         if (newFolder && newFolder.trim()) {
           const f = newFolder.trim();
           if (folders.indexOf(f) < 0) folders.push(f);
@@ -163,7 +169,8 @@ function openSaveAs({
   };
 
   const SaveAsDialog = Java.extend(TitleAreaDialog, dlgImpl);
-  dlg = new SaveAsDialog(shell);
+  // No console output here: called from an SWT handler, where it blocks until the dialog closes.
+  dlg = new SaveAsDialog(parentShell || shell);
   dlg.open();
 }
 

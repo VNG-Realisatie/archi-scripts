@@ -137,12 +137,14 @@ function readPreset(name) {
  * Write a preset to disk. Creates parent directories as needed.
  * @param {string} name    preset name — "name" or "folder/name" (without .json)
  * @param {Object} preset  preset object
+ * @param {{quiet?:boolean}} [opts]  quiet: no console line — for callers inside an SWT handler of
+ *                                   a modal dialog, where console output blocks until it closes
  */
-function writePreset(name, preset) {
+function writePreset(name, preset, opts) {
   // Dialog/session state (action, _lastTabIndex, …) is not part of a preset.
   const clean = Object.fromEntries(Object.entries(preset).filter(([k]) => k !== "action" && !k.startsWith("_")));
   writeJSON(_presetPath(name), clean);
-  console.log(`Preset saved: "${name}"`);
+  if (!(opts && opts.quiet)) console.log(`Preset saved: "${name}"`);
 }
 
 /**

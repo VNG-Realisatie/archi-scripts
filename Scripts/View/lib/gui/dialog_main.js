@@ -27,6 +27,9 @@ const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 const Appearance = require(REPO_ROOT + "View/lib/appearance");
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { ruleTable } = require(REPO_ROOT + "View/lib/gui/rule_table");
+// Loaded with this module, not on the first Save As click: console output from inside an SWT
+// handler (as the module's "Loading …" line) blocks until this modal dialog closes.
+const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
 const Chroma    = require("chroma-js");
 
 const {
@@ -565,6 +568,7 @@ function open(uiSelection) {
   });
 
   dlg = new ConfigDialog(shell);
+  ctx.dlg = dlg;  // its shell parents the dialogs opened from it (Save As, confirmations)
   const result = dlg.open();  // blocks until dialog closes
 
   // Dialog is fully closed here — safe to run generate_view
@@ -2175,7 +2179,7 @@ function _buildPresetRow(parent, ctx, dlg) {
 
   const btnSave = _pushBtn(row, "Save", "Overwrite this preset with the current settings.", () => {
     _saveUI(ctx);
-    PresetIO.writePreset(_presetName(ctx), ctx.config);
+    PresetIO.writePreset(_presetName(ctx), ctx.config, { quiet: true });
     _afterPresetChange(ctx);
   });
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnSave);
@@ -2185,7 +2189,7 @@ function _buildPresetRow(parent, ctx, dlg) {
     _openPresetNameDialog(ctx, "Save As…", "Save the current settings as a new preset.", (newName, description) => {
       ctx.config.name        = newName;
       ctx.config.description = description;
-      PresetIO.writePreset(newName, ctx.config);
+      PresetIO.writePreset(newName, ctx.config, { quiet: true });
       _afterPresetChange(ctx);
     });
   });
@@ -2200,7 +2204,7 @@ function _buildPresetRow(parent, ctx, dlg) {
       const saved = PresetIO.readPreset(oldName);
       saved.name        = newName;
       saved.description = description;
-      PresetIO.writePreset(newName, saved);
+      PresetIO.writePreset(newName, saved, { quiet: true });
       if (newName !== oldName) PresetIO.deletePreset(oldName);
       ctx.config.name        = newName;
       ctx.config.description = description;
@@ -2212,7 +2216,7 @@ function _buildPresetRow(parent, ctx, dlg) {
   w.btnDelete = _pushBtn(row, "Delete", "Delete the saved preset and load Default.", () => {
     const name = _presetName(ctx);
     if (name === PresetIO.DEFAULT_PRESET_NAME) return;
-    if (!window.confirm(`Delete preset "${name}"?`)) return;
+    if (!_confirm(ctx, "Delete preset", `Delete preset "${name}"?`)) return;
     try {
       PresetIO.deletePreset(name);
       _loadPreset(ctx, PresetIO.DEFAULT_PRESET_NAME);
@@ -2276,16 +2280,42 @@ function _afterPresetChange(ctx, opts) {
 }
 
 // Name + folder + description dialog for Save As / Rename. Asks before overwriting another preset.
+// Shell of the Generate View dialog: parent for the dialogs it opens, so they appear on top.
+// Shell of the Generate View dialog: the parent of the dialogs opened from it, so they open on
+// top of it. (Archi's main window as parent puts them behind this modal dialog; on GTK the
+// active shell can also be the main window, so it is taken from the dialog itself.)
+function _dialogShell(ctx) {
+  try { const sh = ctx.dlg && ctx.dlg.getShell(); if (sh && !sh.isDisposed()) return sh; } catch (e) {}
+  return shell;
+}
+
+// Parent for a confirmation: the Save As dialog when it is open (Overwrite?), else this dialog.
+function _confirmParent(ctx) {
+  try {
+    const Display = Java.type("org.eclipse.swt.widgets.Display");
+    const own = _dialogShell(ctx);
+    const active = Display.getCurrent().getActiveShell();
+    if (active && active.getParent && active.getParent() === own) return active;
+    return own;
+  } catch (e) { return _dialogShell(ctx); }
+}
+
+// Yes/no question on top of the topmost open dialog (window.confirm would open behind it).
+function _confirm(ctx, title, message) {
+  const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
+  return MessageDialog.openConfirm(_confirmParent(ctx), title, message);
+}
+
 function _openPresetNameDialog(ctx, title, message, onConfirm) {
-  const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
   const current = _presetName(ctx);
   PresetsDialog.openSaveAs({
     title, message,
     defaultName:        current === PresetIO.DEFAULT_PRESET_NAME ? "" : current,
     defaultDescription: ctx.config.description || "",
+    parentShell:        _dialogShell(ctx),
     onConfirm(newName, description) {
       if (newName !== current && PresetIO.listPresets().includes(newName)
-          && !window.confirm(`Preset "${newName}" already exists. Overwrite it?`)) return;
+          && !_confirm(ctx, "Overwrite preset", `Preset "${newName}" already exists. Overwrite it?`)) return;
       onConfirm(newName, description);
     },
   });

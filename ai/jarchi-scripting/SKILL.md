@@ -86,6 +86,8 @@ jArchi scripts run on SWT (Standard Widget Toolkit) with GTK native theming on L
 - **`SWT.TOGGLE` mutual exclusion**: calling `setSelection(false)` on a TOGGLE button programmatically does **not** fire a Selection event. Safe to iterate and deselect siblings without re-entry guards.
 - **GTK rendering timing**: `setBackground()` / `setForeground()` called during `createDialogArea` may not render correctly until after the first paint. Use `display.asyncExec(fn)` in the `create()` callback to re-apply colors after the shell is visible.
 - **`setBackground(null)` resets to system default**, but on GTK this is indistinguishable from the "active" appearance of toggle buttons. Always set an explicit `SWT.COLOR_WIDGET_BACKGROUND` for inactive state.
+- **No console output inside an SWT handler of a modal dialog.** `console.log` / `console.error` called from a listener while a modal dialog is open blocks until that dialog closes; the rest of the handler then runs late (a child dialog it opens appears only after the parent is closed). This includes the `Loading …` line of a module first `require`d inside a handler: load such modules at top level, before the dialog opens.
+- **Parent child dialogs on the calling dialog's shell** (`dlg.getShell()`), not on the global `shell` (Archi's main window): with the main window as parent the child can open behind the modal dialog. `Display.getActiveShell()` is not reliable for this on GTK (it can report the main window). Do not add `SWT.ON_TOP` to a dialog's shell style on GTK: the shell then does not show.
 - **`setForeground(null)`** resets to system default (black). Use this for "active" state. Use `SWT.COLOR_DARK_GRAY` for "inactive but enabled" state.
 
 ### Bold Fonts
