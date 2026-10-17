@@ -46,13 +46,19 @@
   "relatedElements": {
     "steps": [
       {
+        "repeat": 2,
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      },
+      {
         "repeat": "untilNothingNew",
         "rules": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
         ]
       },
       {
-        "repeat": 1,
+        "repeat": 3,
         "rules": [
           {"previous": "driver", "relation": "association-relationship", "added": "business-service"},
           {"previous": "driver", "direction": "incoming", "relation": "association-relationship"}
@@ -61,7 +67,7 @@
     ]
   },
   "view": {
-    "name": "Burgerzaken",
+    "name": "0 Bestuur, Politiek en Ondersteuning",
     "folder": "/Beleidskaders en diensten",
     "suffix": ""
   },
@@ -90,5 +96,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "description": "Selecteer een taakveld of beleidsdomein en genereer een nested view diensten en de beleidskaders die grondslag zijn "
+  "description": "Selecteer een taakveld en maak een nested view alle diensten en de wettelijk grondslag"
 }

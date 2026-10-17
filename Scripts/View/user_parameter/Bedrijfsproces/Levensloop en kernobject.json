@@ -4,10 +4,15 @@
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Straight",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
+    "reverseRules": [],
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
@@ -16,54 +21,61 @@
     "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
-    "layerSpacing": 180,
-    "elementSpacing": 30,
-    "connectionSpacing": 25,
+    "layerSpacing": 40,
+    "elementSpacing": 20,
+    "connectionSpacing": 20,
     "connectionElementSpacing": 20,
-    "elementWidth": 180,
+    "elementWidth": 220,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0,
+    "aspectRatio": 1.78,
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": false,
-    "nestingRules": [
-      {"relation": "aggregation-relationship"}
-    ],
-    "reverseRules": []
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "diagramRules": [],
+    "relationRules": []
   },
   "relatedElements": {
     "steps": [
       {
-        "repeat": 1,
+        "repeat": 2,
         "rules": [
-          {"direction": "outgoing", "relation": "aggregation-relationship"}
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "repeat": 1,
         "rules": [
-          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-process"},
-          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
-        ]
-      },
-      {
-        "repeat": 1,
-        "rules": [
+          {"added": "business-process"},
           {"added": "business-object"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"relation": "association-relationship", "added": "value"},
+          {"relation": "access-relationship", "added": "path"},
+          {"relation": "specialization-relationship"},
+          {"previous": "business-object", "relation": "association-relationship", "added": "business-object"},
+          {"previous": "business-object", "relation": "specialization-relationship"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Begraafplaatsen en crematoria",
-    "folder": "/Levensloopproces"
+    "name": "Burgerzaken",
+    "folder": "/Levensloopproces en kernobject",
+    "suffix": ""
   },
   "appearance": {
     "styleByProperty": {
