@@ -1,129 +1,103 @@
-# view readme
+# View — generate and lay out Archi views
 
-Generate and auto layout Archi view(s)
+Generate and automatically lay out ArchiMate views from a selection.
 
 Use cases:
 
 - quickly generate a starting point for a new view
-- generate multiple context views (one element and all its related elements)
-- analyse your model by generating different views.
-- use nesting to find unexpected relations, see double relations, etc.
+- generate many context views (one element and its related elements each)
+- analyse your model by laying it out in different ways
+- use nesting to find unexpected relations, double relations, etc.
 
-Based on "generate views using graphlib" by Herve Jouin.
-See https://forum.archimatetool.com/index.php?topic=639.msg3563#msg3563
+Based on "generate views using graphlib" by Hervé Jouin
+(<https://forum.archimatetool.com/index.php?topic=639.msg3563#msg3563>).
 
-## files
+## Getting started
 
-file with generate_view function
+1. Select elements, a folder, or a view (in the model tree or on a canvas).
+2. Run **`_gui.ajs`**. The *Generate View* dialog opens:
+   - **Selection** — filter the selection and add related elements in steps;
+   - **Layout** — algorithm, nesting, flow, element size, connections, view size;
+   - **Appearance** — colour elements and relations by property or nesting level;
+   - **Properties** — properties written to the generated view.
+3. Click an action:
+   - **New view** / **One view each** — create view(s) in *Folder* with *Name*;
+   - **Expand view** / **Layout only** — change the selected view in place.
 
-- include_view.js
+Hover over any setting for what it does and which algorithms use it. Settings the chosen
+algorithm does not use are greyed and named in the group's hint line.
 
-wrapper files with parameter for generating a specific view
+## Presets
 
-- _generate.ajs
-- _generate_multiple.ajs
-- _expand.ajs
-- _layout_LR.ajs
-- _layout_TB.ajs
-- _layout_nested_LR.ajs
-- _layout_nested_TB.ajs
+A preset is a saved set of dialog settings: `user_parameter/<folder>/<name>.json` (plain JSON).
+Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used
+settings are kept in `user_parameter/_session.json` (local, not in git).
 
-## wrapper files with user_parameter
+## Shortcut scripts
 
-Create a file with a layout configuration in the user_parameter folder. Use this configuration parameter with a wrapper file using this name-format:
-- <user_parameter>\_\<action>\_\<direction>.ajs
+Run a preset without the dialog.
 
-Examples:
-- application_Generate_LR.ajs
-  - use the param configuration in the file **./user_parameter/application.js**
-  - generate a view for the selected elements
-  - use directed layout left-to-right
+**Last-used settings** (session):
 
-## generate_view parameters
+| Script | Action |
+|---|---|
+| `_generate.ajs` | New view |
+| `_generate_multiple.ajs` | One view each |
+| `_expand.ajs` | Expand view |
+| `_layout_only.ajs` | Layout only |
+| `_layout_LR.ajs`, `_layout_TB.ajs` | Layout only, direction Right / Down |
+| `_layout_nested_LR.ajs`, `_layout_nested_TB.ajs` | Layout only with preset `nested` |
 
-All the parameters of the generate_view function are contained in one object, the param object.
+**Named preset**: name a script `<preset>_<Action>_<Direction>.ajs` and give it these lines:
 
-Configure the behavior of generate_view with the folowing parameters.
+```js
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common    = require(REPO_ROOT + "_lib/Common");
+const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
 
-- Which elements and relations to include in the view
-  - `action`, generate and/or layout a view
-    - Generate new views
-      - GENERATE_SINGLE (default)
-        generate a view with the selected elements and THEIR related elements (add elements and relations `graphDepth` relations deep)
-      - GENERATE_MULTIPLE
-        generate for each selected element a view of the element and ITS related elements (add elements and relations `graphDepth` relations deep)
-    - Change an existing view
-      - EXPAND_HERE
-        expand the in the view selected element(s) with their related elements (add elements and relations 1 relation deep)
-      - LAYOUT
-        layout the selected view. Do not add elements or relations
-  - `graphDepth`, add elements and relation to the selection `graphDepth` relation deep
-    - default is 1
-    - Used for the GENERATE_SINGLE and GENERATE_MULTIPLE actions
-    - integer -  number of relations to follow
-  - `includeElementType`, element types that will be included in the view
-    - default is no filter
-    - [..] (empty array) all element types are included
-    - [type, type, ...] array of element types like business-actor, application-component, technology-collaboration, node, ...
-  - `includeRelationType`, relationship types that will be included in the view
-    - default is no filter
-    - [..] (empty array) all relationship types in the model
-    - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
-  - `excludeFromView`, exclude a marked set of relations from the view
-    - default is false
-    - boolean [true, false]
-    - in the model you 'mark' the to exclude relations with the property excludeFromView=true. The marked relation and ITS related element are skipped
-- How to draw given relationship types
-  - `layoutReversed`, relationship types that will be reversed in the layout
-    - default none
-    - [..] (empty array) no relationships are reversed
-    - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
-  - `layoutNested`, relationship types that will be rendered nested (embed target elements in the source element)
-    - default none
-    - [..] (empty array) no relationships are nested
-    - [type, type, ...] array of relationship types like realization-relationship, assignment-relationship, ...
-- View to generate
-  - `viewName`, name of the view to create
-    - default is none
-    - "" (empty string) or none, the "name of first selected object" is used as the viewName
-    - "foo" is used as viewname
-    - only valid in the `action` GENERATE_SINGLE, ignored for other actions
-    - In the action GENERATE_MULTIPLE the individual names of the selected elements are used as the viewName
-  - `viewNameSuffix`, suffix added to the viewName
-    - default is no suffix
-    - "" (empty string), no suffix
-    - " (GGM)" string is appended to the viewName
-  - `viewFolder`, view is added to the folder `/Views/<viewFolder>`
-    - default is empty
-    - "" (emtpy string), view is added to the folder `/Views/_Generated`
-    - "/sub/sub/foldername" string starting with a `/`, containing one or more subfolders
-    - don't include the main folder /Views
-- How to layout and size the view
-  - Dagre layout options - for more information see <https://github.com/dagrejs/dagre/wiki#configuring-the-layout>
-  - `graphDirection`, direction of the graph
-    - TB -   Top-Bottom (default)
-    - BT -   Bottom-Top
-    - LR -   Left-Right
-    - RL -   right-Left
-  - `graphAlign`, alignment of the graph
-    - UL -   Up Left
-    - UR -   Up Right
-    - DL -   Down Left
-    - DR -   Down Right
-    - default is none which centers de graph
-  - `ranker`, algorithm to assigns a rank to each node in the input graph.
-    - network-simplex (default)
-    - longest-path
-    - tight-tree
+Common.initConsoleLog(__FILE__, true);
+RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA views" });  // folder optional
+Common.finishConsoleLog();
+```
 
-  - `nodeWidth`, width of a drawn element
-    - integer - number of pixels for the width (default NODE_WIDTH)
-  - `nodeHeight`, height of a drawn element
-    - integer - number of pixels for the height (default NODE_HEIGHT)
-  - `hSep`, horizontal distance between two drawn elements
-    - integer - number of pixels that separate nodes horizontally  (defaults to 50)
-  - `vSep`, vertical distance between two drawn elements
-    - integer - number of pixels that separate nodes vertically  (defaults to 50)
-- For jArchi script development
-  - `debug`, print debug messages on the console
-    - boolean, true or false  (default is false)
+- `<preset>` — preset name (with `folder`: `user_parameter/<folder>/<preset>.json`)
+- `<Action>` — `Generate` (New view), `GenerateMultiple` (One view each), `Expand`, `Layout`
+- `<Direction>` — `LR`, `RL`, `TB` or `BT`; overrides the preset's direction
+
+Example: `TAenIA_Layout_TB.ajs` lays out the selected view with preset
+`GEMMA views/TAenIA`, top to bottom. Use `{ preset: "folder/name" }` to name the preset
+explicitly (see `Scripts/GEMMA/GGM/ggmBO_Layout_LR.ajs`).
+
+## Scripting
+
+```js
+const PresetIO   = require(REPO_ROOT + "View/lib/preset_io");
+const GenView    = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION } = require(REPO_ROOT + "View/lib/defs");
+
+const preset = PresetIO.readPreset("gemma/ggm/GGM data-object specialisaties");
+preset.view.folder = "/Data-objecten (GGM)";
+preset.view.suffix = " (GGM)";                       // One view each: appended to each name
+const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  // → view[]
+```
+
+`ACTION`: `NEW_VIEW`, `ONE_EACH`, `EXPAND_VIEW`, `LAYOUT_ONLY`. See
+`Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` for a complete example.
+
+## Files
+
+| Path | Role |
+|---|---|
+| `lib/defs.js` | single source of truth: algorithms, parameters, labels, tooltips, preset defaults |
+| `lib/generate_view.js` | the API: selection → layout → write the view |
+| `lib/selection_pipeline.js` | filter and related-element steps |
+| `lib/engines/` | layout engines: ELK, Dagre, Graphviz |
+| `lib/appearance.js` | styling pass |
+| `lib/preset_io.js` | presets and session |
+| `lib/run_preset.js` | filename-driven shortcut scripts |
+| `lib/gui/` | the Generate View dialog |
+| `tools/check_registry.js` | checks that registry, defaults, dialog widgets, labels and groups agree |
+| `tools/gen_docs_tables.js` | writes the parameter tables and capability matrix in ARCHITECTURE.md |
+
+Documentation: [ARCHITECTURE.md](ARCHITECTURE.md) (design and implementation, incl. all
+parameters per algorithm) and [SPEC.md](SPEC.md) (rebuild specification).

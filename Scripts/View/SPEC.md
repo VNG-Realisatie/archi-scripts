@@ -152,8 +152,8 @@ Relations partition into **nestings** and **connections**; elements partition in
 folded into the element categories.
 
 **Action** is a runtime parameter, never part of a preset (sharing a preset across selections
-requires action-agnosticism). The concrete persisted **preset JSON schema** is in the
-[Appendix](#preset-json-schema); ✦ `Step.diagramTypes` is removed (it never traversed).
+requires action-agnosticism); headless scripts may name it next to the preset. The concrete
+persisted **preset JSON schema** is in the [Appendix](#preset-json-schema).
 
 ---
 
@@ -165,8 +165,8 @@ Four actions in two groups. The writer is identical for all four; an action diff
 | Group | Action | Object set | Target view | VisualSet at start |
 |---|---|---|---|---|
 | **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a fresh view in the preset's folder/name (overwrites by name) | empty |
-| | `ONE_EACH` | each selected element, run independently | one fresh view per element, named after the element | empty |
-| **Modify selected view** | `EXPAND_VIEW` | selection drives expansion; unselected visuals stay put | the selected view (or a copy at the preset name, if set) | captured |
+| | `ONE_EACH` | each selected element, run independently | one fresh view per element, named after the element (plus an optional preset suffix) | empty |
+| **Modify selected view** | `EXPAND_VIEW` | selection drives expansion; unselected visuals stay put | the selected view, in place | captured |
 | | `LAYOUT_ONLY` | the view's current contents only — no expansion | the selected view | captured |
 
 A model-tree selection can only drive the Create group (nothing identifies a target view). A
@@ -176,9 +176,9 @@ Modify acts in place.
 **The single writer rule** (action-agnostic, no per-action branch): *for each result object —
 if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood
 re-derived from current nesting); otherwise **create** it with default appearance.* Same for
-relations: existing → rewrite bendpoints; new → create. The system may overwrite a view's
-contents only when an action explicitly says so (`NEW_VIEW` onto a matching name); Modify
-actions never delete existing visuals as a side effect.
+relations: existing → rewrite bendpoints; new → create. A view's contents are overwritten only
+by `NEW_VIEW` onto a matching name; Modify actions never copy, rename or replace a view, nor
+delete existing visuals — the preset's view name and folder apply to new views only.
 
 ---
 
@@ -221,59 +221,65 @@ the action will write: the displayed totals and the on-view result agree object-
 
 ## 7. Layout options
 
-Layout decides *how* objects are positioned. Options are grouped; per-algorithm support is in
-the [capability matrix](#capability-matrix) (an option not supported by the chosen algorithm
-is shown disabled, its value preserved but ignored).
+Layout decides *how* objects are positioned. Options are grouped in the order of deciding —
+structure (relations, containers) first, then flow, elements, connections and view size.
+Per-algorithm support is in the [capability matrix](#capability-matrix): an option the chosen
+algorithm does not use is shown disabled, its value preserved but ignored, and each group
+names the options it cannot use (*"Not used by …"*). Every option has one label, one
+explanation and a "used by" list, all from the SSOT.
 
-**Algorithm styles.** Algorithms are grouped by the kind of insight they give, all visible at
-once:
-- **Flow** — directional flows, dependencies, process chains.
-- **Hierarchy** — decomposition, containment, org/breakdown structures.
-- **Network** — interconnected elements with no strict hierarchy; clustering, impact.
-- **Compact** — overview/grouping with space efficiency; portfolios, catalogues.
-- **Circular** — cyclic, hub-centred, concentric relationships.
+**Algorithm styles.** Algorithms are grouped by the insight they give, all visible at once:
+**Flow** (directional flows, process chains), **Hierarchy** (decomposition, breakdown
+structures), **Network** (connectivity, clustering, impact), **Compact** (portfolios,
+catalogues) and **Circular** (cycles, hub-and-spoke).
 
-**Element size & spacing.** Fixed element width/height; minimum spacing between elements; and,
-for ranked layouts, spacing between levels.
+**Relations — nesting and reversal.** Selecting relation types as **nesting** changes how
+those relations are drawn: instead of lines, the child element is drawn **inside** its
+parent's box (box-in-box). This makes the view express **hierarchy and ownership directly**,
+and — because containment removes the line — it makes **double relations and unexpected
+structure** easy to spot. **Container types** restrict which element types may become a
+container (e.g. *Grouping only*); a nesting-type relation from a parent of another type is
+drawn as a connection. **Reverse for layout** lays out the chosen relation types against their
+direction — it changes the flow order and which element is the nesting parent; the model
+relation is never modified and arrows keep their model direction.
 
-**Direction & reversed relations.** A main flow direction (for algorithms where direction
-drives ranking). **Reversed relation types** have their source/target swapped *for layout
-traversal only*; the model relation is never modified, and the drawing keeps its intrinsic
-model direction.
-
-**Connections.** Line routing (orthogonal / polyline / straight / curved), label position, and
-ranking strategy — each honoured only by the algorithms that support it.
-
-**Nesting — what it adds.** Selecting one or more relation types as *nesting types* changes how
-those relations are drawn: instead of lines, the child element is drawn **inside** the parent's
-box (box-in-box). This makes the view express **hierarchy and ownership directly**, and —
-because containment removes the line — it makes **double relations and unexpected structure**
-easy to spot. Nesting unlocks further controls:
-- **Container types** — restrict which element types may become a container (e.g. *Grouping
-  only*). A nesting-type relation from a parent of another type is drawn as a connection; its
-  child stays where its other nestings put it, or at view root.
-- **Container inner layout** — the algorithm used to arrange children *inside* each container.
-- **Connections between vs. crossing containers** — whether cross-container lines route to the
-  container as an opaque box, or to the specific inner element. *Crossing* lays the whole
-  hierarchy out as one graph, so it is unavailable — and *between* is used — when the inner
-  layout is a packing layout or a view size is set (unconnected elements would stack in one
-  column).
-- **Show in every container** — when an element is a child in several nestings, draw it inside
-  each (extra occurrences) instead of only the first. ✦ On algorithms that do not draw
-  containment, the element is still drawn once even though the counters report the extra
-  occurrences; the spec states this explicitly so the count is never read as a bug.
-- **Width alignment by level** and **column snapping** — refinements that make nested frames
-  telescope cleanly and align leaf columns view-wide. Both are **position/size-by-derivation
-  only** and never scale a leaf (see [§8](#8-engine-contract)).
+**Containers** (active once a nesting type is chosen):
+- **Layout inside** — the algorithm used to arrange children *inside* each container.
+- **Connections between vs. crossing containers** — *between*: each container is laid out on
+  its own and connections enter at its border; *crossing*: the whole hierarchy is one layout
+  and connections run straight to the inner element. Crossing is unavailable — and *between*
+  is used — when the inner layout is a packing layout or a view size is set (unconnected
+  elements would stack in one column).
+- **Padding** — space between a container's border and its contents.
+- **Show in every container** — an element that is a child in several nestings is drawn inside
+  each (extra occurrences) instead of only the first. ✦ Algorithms that do not draw containment
+  still draw it once, though the counters report the extra occurrences — not a bug.
+- **Sort containers**, **same width per level** and **snap columns to grid** — refinements that
+  order containers, make nested frames telescope cleanly and align columns view-wide. They are
+  **position/size-by-derivation only** and never scale a leaf (see [§8](#8-engine-contract)).
 
 **Consequences (not separate controls).** For a nesting relation the **source is the parent**,
 the **target the child** (swapped if the type is also reversed). Container-ness is **derived**:
 an element is a container exactly when something resolves to be its child. When several
 nestings claim the same child, the first wins unless *show in every container* is on.
 
-**View dimensions.** At most one size hint is active at a time — max width, max height, or
-aspect ratio. A hint is met by **arranging elements differently** (e.g. more rows) or by
-**spreading positions outward**, never by scaling (see the no-scaling rule).
+**Flow.** A main direction (for algorithms where direction drives ranking); how cycles are
+broken and elements assigned to layers (for the simple ranked algorithm); where elements sit
+within a layer; and the gap between layers (between rings for radial layouts).
+
+**Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen
+width; and the minimum **gap** between elements, also between unconnected groups.
+
+**Connections.** Line routing (orthogonal / polyline / straight / curved), label position,
+reserved space for labels, the distance between parallel connections (elements grow to fit
+their connections) and the clearance between a connection and the elements it passes.
+
+**View size.** *Free* (default), an **aspect ratio**, or a **max width** — at most one at a
+time. A target is met by **arranging elements differently** (e.g. more rows), never by
+scaling (see the no-scaling rule). An engine that can only widen a layout offers no max width.
+
+**Preset-only options** with no or minimal effect on the view (e.g. the canvas margin) have
+no control; a preset can still set them, and a non-default value is logged.
 
 ---
 
@@ -288,7 +294,7 @@ LayoutResult`. Adapters self-register ([§3](#3-architecture)).
 - **edges** — id, source, target (already swapped for reversed types), label, weight. Nestings
   are expressed via the parent id on the child node, never as edges.
 - **options** — algorithm-specific parameters the adapter translates from the preset.
-- **constraints** — at most one of maxWidth / maxHeight / aspectRatio is non-zero.
+- **constraints** — at most one of maxWidth / aspectRatio is non-zero.
 - **flags** — width-alignment, container sorting.
 
 **LayoutResult (out).**
@@ -332,37 +338,34 @@ The dialog defines a selection + layout + styling, previews the result live, and
 action. It is the only surface that edits presets. (Full mockup in the
 [Appendix](#dialog-mockup).)
 
-**Preset row.** A combo lists saved presets; selecting one **applies it immediately** (no
-Apply button) and silently discards unsaved edits to the previous one. A modified marker
-(`*`) appears whenever the live settings differ from the loaded preset. **Save** overwrites
-silently; **Save As…** captures name/folder/description into a new preset. **Delete** removes
-the selected preset after confirmation. A **Default** preset always exists and cannot be
-deleted. **Session continuity:** on open, the last-used configuration — including UI-only state
-like the active tab and which steps are collapsed — is restored; session state is user-local
-and never shared as a preset.
+**Preset row.** Picking a preset (also from nested folders) **loads all its settings** at once
+and discards unsaved edits; its description shows below. `*` marks settings that differ from
+the saved preset, also a restored session. **Save** overwrites; **Save As…** and **Rename…**
+(name, folder, description) ask before overwriting another preset; **Delete** confirms first.
+**Default** always exists and cannot be renamed or deleted. The last-used configuration and
+UI state are restored on open; this session is user-local, never shared as a preset.
 
 **Tabs.** Three tabs, each owning one concern ✦ (separate modules):
 - **Selection** — the live counts (selected → containing → filtered → per-step adds), the
   global filter, and the ordered related-elements steps. Each step shows what it adds, with
   reorder / collapse / remove controls and per-relation **incoming/outgoing** toggles. On
   preset load, steps after the first start collapsed.
-- **Layout** — the algorithm radio table (all styles always visible), size/spacing, direction
-  + reversed types, connections, nesting + its inner-container controls, and the view-dimension
-  hint. Options unsupported by the chosen algorithm are disabled, their values kept.
+- **Layout** — the algorithm radio table (all styles always visible), then the groups of
+  [§7](#7-layout-options). Options unsupported by the chosen algorithm are disabled, their
+  values kept, and named in the group's hint line.
 - **Appearance** — the five styling groups ([§10](#10-colouring--appearance)), with a master
   on/off ✦.
+- **Properties** — key/value properties written to each generated view.
 
-**Control labels** ✦ are reconciled to one canonical set (e.g. the related-elements group and
-its help text are named consistently in UI, logs, and this spec).
+**Totals and actions.** Below the tabs, an always-visible line shows the predicted on-view
+totals. Two equal action groups follow: **Create new view** (folder, name; *New view*, *One
+view each*) — always enabled; and **Modify selected view** (the target view's name; *Expand
+view*, *Layout only*) — enabled only when the selection identifies a view, otherwise saying
+what to select. Folder and name belong to the Create group only. **Cancel** sits below,
+bottom right, and preserves UI state.
 
-**Generated view + action row.** A *Generated view* group (folder, name) carries an
-always-visible `Output:` strip with the predicted on-view totals. The action row has **Cancel**
-(always enabled, preserves UI state), the **Create new view** group (always enabled), and the
-**Modify selected view** group (enabled only when the selection identifies a view). The default
-button is *New view* when no view is identified, *Layout only* when one is.
-
-**Interaction rules.** Preset selection auto-applies. Switching presets discards unsaved
-changes without a confirm dialog (the `*` marker is the warning). Spinner recomputes fire on
+**Interaction rules.** Switching presets discards unsaved changes without a confirm dialog
+(the `*` marker is the warning). Spinner recomputes fire on
 value-commit (arrow click / focus loss), not per keystroke, because relation traversal for live
 counts is costly. An empty selection opens normally and runs (producing an empty view); a
 malformed preset never aborts the dialog — it falls back to defaults.
@@ -506,21 +509,23 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 
 | GUI label | Internal | GUI label | Internal |
 |---|---|---|---|
-| Relation line | edge | Element spacing | node spacing |
-| Relation line style | edge routing | Level spacing | layer spacing |
-| View / Diagram | graph | Repeat | runs / hops |
-| Layout style | algorithm / engine | Layer ranking | ranker |
-| Level | rank / layer | Tight packing / Pack | rectpacking |
-| Flow direction | direction | Preset | parameter / config file |
-| Element alignment | node placement | One view each | per element |
-| Re-layout | layout only | Align width by level | alignWidthSameType |
+| Routing | edge routing | Gap | node spacing |
+| Label | edge label position | Layer gap | layer spacing |
+| Nesting | nesting relation types | Between | edge-edge / port spacing |
+| Reverse for layout | reversed relation types | To element | edge-node spacing |
+| Layout inside | container algorithm | Padding | container padding |
+| Same width per level | alignWidthSameType | Placement | node placement |
+| Cycles | acyclicer | Ranking | ranker |
+| View size › Free | no size constraint | Wrap at | label max line width |
+| Layout only | re-layout | One view each | per element |
 
 ### Dialog mockup
 
 ```
 ┌─ Generate View ────────────────────────────────────────────────────────────┐
-│ [Delete]  Preset: [Application Flow LR *  ▼]  [Save]  [Save As…]           │
-│ ┌─[Selection]──[Layout]──[Appearance]───────────────────────────────────┐  │
+│ Preset: [Application Flow LR  ▼] *  [Save] [Save As…] │ [Rename…] [Delete] │
+│         Views of application flows, left to right             (description) │
+│ ┌─[Selection]──[Layout]──[Appearance]──[Properties]─────────────────────┐  │
 │ │  Current selection                                                    │  │
 │ │    Selected: 3 elements, 2 relations, 1 view   First: Actor: Customer │  │
 │ │    Containing: 12 elements, 8 relations                               │  │
@@ -528,27 +533,27 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 │ │  Filter element types  [search] [chips]                               │  │
 │ │  Filter relation types  access ○← ○→  aggregation ○← ○→  …            │  │
 │ │  Filter diagram types   ○ group  ○ note  ○ image  ○ legend            │  │
-│ │  Expand selection                       [+ Add related elements]      │  │
-│ │   ┌ Step 1   Added: 4 elements, 3 relations   [▲][▼][▾][✕] ┐          │  │
-│ │   │  access ○← ○→  …   Element types [chips]   Levels [1 ▲▼]│         │  │
-│ │   └──────────────────────────────────────────────────────┘            │  │
+│ │  Expand selection                                   [+ Add step]      │  │
+│ │   ┌ Step 1   Adds: 4 elements, 3 relations     [▲][▼][▾][✕] ┐        │  │
+│ │   │  access ○← ○→  …   Element types [chips]   Repeat [1× ▼]│        │  │
+│ │   └───────────────────────────────────────────────────────┘          │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
-│ ┌─ Generated view ──────────────────────────────────────────────────────┐  │
-│ │  Folder: [/_Generated]   Name: [Customer view]                        │  │
-│ │  Output:  elements: 18 containers · 92 nested                         │  │
-│ │           relations: 11 nestings · 98 connections                     │  │
-│ └───────────────────────────────────────────────────────────────────────┘  │
-│ [Cancel]   ┌ Create new view ────────────┐  ┌ Modify selected view ──┐     │
-│            │ [New view] [One view each]  │  │ [Expand] [Layout only] │     │
-│            └─────────────────────────────┘  └────────────────────────┘     │
+│ On the generated view:  elements: 18 containers · 92 nested elements       │
+│                         relations: 11 nestings · 98 connections            │
+│ ┌ Create new view ──────────────────┐ ┌ Modify selected view ───────────┐  │
+│ │ Folder [/_Generated]  Name [____] │ │ View: Customer journey          │  │
+│ │ [New view]     [One view each]    │ │ [Expand view]   [Layout only]   │  │
+│ └───────────────────────────────────┘ └─────────────────────────────────┘  │
+│                                                                  [Cancel]  │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layout tab groups: *Algorithm* (style-grouped radio table), *Elements* (size, spacing),
-*Flow* (direction, cycles, ranking + reversed types), *Connections* (routing, label, label space,
-spacing), *Nesting* (nesting
-types + container inner layout, between/crossing, inner spacing, padding, sort, align width,
-snap columns, show in every container), *View dimensions* (none / width / height / aspect).
+Layout tab groups: *Algorithm* (style-grouped radio table), *Relations* (nesting types,
+container types, reverse for layout), *Containers* (layout inside, between/crossing, padding,
+sort, show in every container, same width per level, snap columns), *Flow* (direction, cycles,
+ranking, placement, layer gap), *Elements* (width, height, by label + wrap at, gap),
+*Connections* (routing, label, reserve label space, between, to element), *View size* (free /
+aspect ratio / max width). Each group ends with a grey "Not used by …" hint.
 Appearance tab groups: *Style by property*, *Style by related property*, *Style by connected
 element*, *Style by nesting level*, *Highlight repeated elements*, plus the master toggle.
 
@@ -562,23 +567,24 @@ Preset {
   name          : string
   algorithm     : enum                       // Layout style
   params {
-    direction, routing, labelPosition, ranking      // gated by algorithm
-    reverseRelationTypes : RelTypeId[]               // drawn reversed
-    nestingRelationTypes : RelTypeId[]               // drawn as nesting
-    nestingContainerTypes: ElementTypeId[]           // allowed parent types; [] = any
-    containerAlgorithm   : "Layered"|"Grid"|"Pack"   // inside containers
+    direction, routing, labelPosition, ranking, acyclicer, nodePlacement  // gated by algorithm
+    nestingRelationTypes : RelTypeId[]               // Nesting
+    reverseRelationTypes : RelTypeId[]               // Reverse for layout
+    nestingContainerTypes: ElementTypeId[]           // Container types; [] = any
+    containerAlgorithm   : "Layered"|"Grid"|"Pack"   // Layout inside
     connectionsMode      : "Crossing containers"|"Between containers"
-    nodePlacement        : "Straight"|"Compact"       // within a layer (Layered)
-    innerSpacing, padding, layerSpacing, elementSpacing,
-    elementWidth, elementHeight : number
-    maxWidth, maxHeight, aspectRatio : number        // 0 = unconstrained
-    viewSizeMode : "none"|"maxWidth"|"maxHeight"|"aspectRatio"
+    elementWidth, elementHeight, elementSpacing, layerSpacing,
+    connectionSpacing, connectionElementSpacing, padding, labelMaxLineWidth : number
+    diagramPadding : number                          // preset-only (no dialog control)
+    maxWidth, aspectRatio : number                   // 0 = unconstrained
+    viewSizeMode : "none"|"maxWidth"|"aspectRatio"   // "none" = Free
     sortContainers, alignWidthSameType, snapColumnsToGrid,
-    showInEveryContainer, labelSizing : boolean
+    showInEveryContainer, labelSizing, connectionLabelSpacing : boolean
   }
   filter { elementTypes:ElTypeId[], relationTypes:EncRelTypeId[], diagramTypes:DgTypeId[] }
   relatedElements { steps : Step[] }               // ordered chain
-  view { name, folder : string }                   // for the Create actions
+  view { name, folder, suffix : string }           // Create actions only; suffix: One view each
+  description : string                             // shown under the preset combo
   appearance {
     enabled : boolean                              // ✦ master styling on/off
     styleByProperty { element{…}, relation{… lineWidth} }
@@ -589,7 +595,8 @@ Preset {
   }
   engineParams : { ELK?{…}, Dagre?{…}, Graphviz?{…}, layout?{…} }  // ✦ typed overrides
 }
-Step { repeat:1..5|"untilNothingNew", elementTypes:ElTypeId[], relationTypes:EncRelTypeId[] }
+Step { repeat:1..5|"untilNothingNew", elementTypes:ElTypeId[], relationTypes:EncRelTypeId[],
+       propFilter:{ key, value } }
 ```
 
 **Encoded relation-type strings.** `"type"` = both directions; `"type:in"` = incoming only;
@@ -597,7 +604,8 @@ Step { repeat:1..5|"untilNothingNew", elementTypes:ElTypeId[], relationTypes:Enc
 
 ### Capability matrix
 
-✦ Derived from each algorithm's active-parameter list — never hand-maintained. The matrix maps
+Derived from each algorithm's active-parameter list — never hand-maintained (today generated
+into ARCHITECTURE.md by `tools/gen_docs_tables.js`). The matrix maps
 algorithm → { style, nesting capability (full/partial/cluster/none), self-loop capability
 (native/partial/none), active params, allowed select-values }. An option absent from an
 algorithm's active set is disabled in the UI and ignored at runtime. The authoritative rows for
@@ -606,17 +614,15 @@ its own registry rather than copying a static table.
 
 ### Per-engine view-size
 
-✦ Single source of truth, contradiction removed.
-
-| Engine | maxWidth / maxHeight | aspectRatio |
+| Engine | max width | aspect ratio |
 |---|---|---|
-| Layered-family (ranked) | max width is an upper bound, met by re-arranging (more rows); unreachable when connection chains set the width or connections cross containers — reported | met approximately by re-arranging; same limit |
-| Compact / packing | max width is an upper bound, met by re-arranging | met approximately by re-arranging |
-| Force / network | position-spread to a minimum target; never compress | supported as a ratio hint |
+| Layered-family (ranked) and packing | upper bound, met by re-arranging (more rows); when unreachable (connection chains or the widest container set the width) the narrowest layout is used and this is reported | met approximately by re-arranging |
+| Force / stress / radial | not supported | met approximately by re-arranging |
+| Cluster engines (dot family) | not supported — they can only widen a layout without scaling | passed as a ratio hint |
 | Simple ranked (no area) | not supported | not supported |
 
-Engines meet a target by arranging elements differently or by position-spread, never by
-coordinate scaling. A target that cannot be met is reported, not forced.
+Engines meet a target by arranging elements differently, never by coordinate scaling. A
+target that cannot be met is reported, not forced.
 
 ### Current realisation
 
@@ -627,7 +633,8 @@ coordinate scaling. A target that cannot be met is reported, not forced.
 - **File map (target):** `lib/generate_view.js` (orchestrator + writer), `lib/defs.js` (SSOT),
   `lib/selection_pipeline.js`, `lib/preset_io.js`, `lib/appearance.js`, `lib/engines/*`
   (registered adapters), `lib/gui/*` (per-tab dialog modules), headless `_*.ajs` entry scripts,
-  `user_parameter/*.json` presets + `_session.json`.
+  `user_parameter/**/*.json` presets + `_session.json`, `lib/run_preset.js` (filename-driven
+  shortcut scripts), `tools/` (registry check, docs-table generator).
 
 ### Delta — spec vs current implementation
 
@@ -635,17 +642,15 @@ Deliberate departures a rebuild adopts:
 
 1. **`schemaVersion` + explicit migration** replaces silent unknown-key stripping and
    view-size-mode inference.
-2. **Capability matrix derived from `activeParams`**, fixing the omissions (self-loops,
-   container algorithm, connections mode, label sizing, node-size-by-edge-count) and the
-   ELK max-height / aspect-ratio contradiction.
-3. **Self-loop handling is a first-class contract** (vocabulary, capability, writer rule).
-4. **`engineParams` promoted** from a hidden bag to a typed, per-engine override block in the
+2. **Self-loop handling is a first-class contract** (vocabulary, capability, writer rule).
+3. **`engineParams` promoted** from a hidden bag to a typed, per-engine override block in the
    schema.
-5. **`Step.diagramTypes` removed** (dead field — diagram objects never traverse).
-6. **One reconciled view-size table** per engine; the matrix-vs-behaviour contradiction is gone.
-7. **Engine-adapter registry** makes adapter discovery structural, not convention.
-8. **GUI specified as per-tab modules** instead of one monolithic dialog file; control labels
-   reconciled to one canonical set.
-9. **Master Appearance on/off** (`appearance.enabled`) replaces "no-op only when every feature
+4. **Engine-adapter registry** makes adapter discovery structural, not convention.
+5. **GUI specified as per-tab modules** instead of one monolithic dialog file.
+6. **Master Appearance on/off** (`appearance.enabled`) replaces "no-op only when every feature
    is individually off".
-10. **Error/resilience model** and **verification/acceptance contract** are newly specified.
+7. **Error/resilience model** and **verification/acceptance contract** are newly specified.
+
+Already realised: the capability matrix is derived from the registry; `Step.diagramTypes` is
+removed; one reconciled per-engine view-size table; control labels, tooltips and "used by"
+lists come from one canonical SSOT set.
