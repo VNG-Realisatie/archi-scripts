@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "gemma/Referentiecomponent en technische architectuur",
   "algorithm": "Layered",
   "params": {
@@ -7,11 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship"
-    ],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": true,
@@ -23,29 +19,32 @@
     "elementHeight": 60,
     "maxWidth": 5000,
     "aspectRatio": 0.75,
-    "viewSizeMode": "none"
+    "viewSizeMode": "none",
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "application-component"
+    "elementRules": [
+      {"elementType": "application-component"}
     ],
-    "relationTypes": [],
-    "diagramTypes": []
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [],
-        "relationTypes": [
-          "serving-relationship:in"
+        "rules": [
+          {"direction": "incoming", "relation": "serving-relationship"}
         ]
       },
       {
         "repeat": 1,
-        "elementTypes": [],
-        "relationTypes": [
-          "realization-relationship:in"
+        "rules": [
+          {"direction": "incoming", "relation": "realization-relationship"}
         ]
       }
     ]
@@ -56,33 +55,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "application-component",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Pastel1"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "driver",
-      "property": "",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": true,

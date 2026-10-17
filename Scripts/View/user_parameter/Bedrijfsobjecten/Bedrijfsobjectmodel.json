@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -7,13 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": false,
@@ -33,56 +27,42 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": true
+    "connectionLabelSpacing": true,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "grouping"
+    "elementRules": [
+      {"elementType": "grouping"}
     ],
-    "relationTypes": [],
-    "diagramTypes": []
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-object"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-object"
-        ],
-        "relationTypes": [
-          "association-relationship",
-          "specialization-relationship"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"relation": "association-relationship", "added": "business-object"},
+          {"relation": "specialization-relationship", "added": "business-object"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "grouping"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:in"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
       }
     ]
   },
@@ -92,35 +72,11 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": true,
-        "relTypes": [
-          "specialization-relationship"
-        ],
-        "property": "GGM-uml-type",
-        "colorRange": "Greens",
-        "lineWidth": 3
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [
+        {"color": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Greens"}
+      ],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 3
     },
     "nestingLevel": {
       "fontEnabled": true,

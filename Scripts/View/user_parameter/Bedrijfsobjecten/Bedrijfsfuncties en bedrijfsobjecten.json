@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
   "algorithm": "Pack",
   "params": {
@@ -7,15 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [
-      "access-relationship",
-      "aggregation-relationship"
-    ],
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": false,
@@ -33,44 +25,39 @@
     "maxWidth": 0,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": false,
+    "nestingRules": [
+      {"relation": "access-relationship"},
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "business-function"
+    "elementRules": [
+      {"elementType": "business-function"}
     ],
-    "relationTypes": [
-      "aggregation-relationship"
+    "relationRules": [
+      {"relation": "aggregation-relationship"}
     ],
-    "diagramTypes": []
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 5,
-        "elementTypes": [
-          "business-function"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-object"
-        ],
-        "relationTypes": [
-          "access-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "access-relationship", "added": "business-object"}
+        ]
       }
     ]
   },
@@ -80,35 +67,11 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": true,
-      "relTypes": [
-        "access-relationship:in"
+      "rules": [
+        {"color": "target", "relation": "access-relationship", "propertyOf": "relation", "property": "Confidence", "colorRange": "Greens"}
       ],
-      "property": "Confidence",
-      "colorRange": "Greens"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": true,

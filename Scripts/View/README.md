@@ -19,6 +19,11 @@ Based on "generate views using graphlib" by Hervé Jouin
    - **Selection** — filter the selection and add related elements in steps;
    - **Layout** — algorithm, nesting, flow, element size, connections, view size;
    - **Appearance** — colour elements and relations by property or nesting level;
+
+   Every filter — global filter, steps, nesting, reverse, style by property — is a table of
+   rules: *Source type · Relation type · Target type*, each rule *Include* or *Exclude*.
+   *All* matches any type. A step's rules read from the previous step's elements:
+   *Previous step elements · Direction · Added relations · Added elements*.
    - **Properties** — properties written to the generated view.
 3. Click an action:
    - **New view** / **One view each** — create view(s) in *Folder* with *Name*;
@@ -32,6 +37,9 @@ algorithm does not use are greyed and named in the group's hint line.
 A preset is a saved set of dialog settings: `user_parameter/<folder>/<name>.json` (plain JSON).
 Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used
 settings are kept in `user_parameter/_session.json` (local, not in git).
+
+Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring
+it up to date with `node Scripts/View/tools/migrate_presets_relrows.js` (`--dry-run` first).
 
 ## Shortcut scripts
 
@@ -91,13 +99,16 @@ const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  
 | `lib/defs.js` | single source of truth: algorithms, parameters, labels, tooltips, preset defaults |
 | `lib/generate_view.js` | the API: selection → layout → write the view |
 | `lib/selection_pipeline.js` | filter and related-element steps |
+| `lib/rel_filter.js` | rule lists: matching, validation, preset file form (pure, testable in Node) |
 | `lib/engines/` | layout engines: ELK, Dagre, Graphviz |
 | `lib/appearance.js` | styling pass |
 | `lib/preset_io.js` | presets and session |
 | `lib/run_preset.js` | filename-driven shortcut scripts |
-| `lib/gui/` | the Generate View dialog |
+| `lib/gui/` | the Generate View dialog; `rule_table.js` is the rule-table widget |
 | `tools/check_registry.js` | checks that registry, defaults, dialog widgets, labels and groups agree |
 | `tools/gen_docs_tables.js` | writes the parameter tables and capability matrix in ARCHITECTURE.md |
+| `tools/rel_filter_test.js` | Node tests for the rule lists |
+| `tools/migrate_presets_relrows.js` | one-shot migration of presets to rule lists |
 
 Documentation: [ARCHITECTURE.md](ARCHITECTURE.md) (design and implementation, incl. all
 parameters per algorithm) and [SPEC.md](SPEC.md) (rebuild specification).

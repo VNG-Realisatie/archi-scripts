@@ -24,16 +24,18 @@ const Defs      = require(REPO_ROOT + "View/lib/defs");
 const PresetIO  = require(REPO_ROOT + "View/lib/preset_io");
 const GenView   = require(REPO_ROOT + "View/lib/generate_view");
 const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Appearance = require(REPO_ROOT + "View/lib/appearance");
+const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
+const { ruleTable } = require(REPO_ROOT + "View/lib/gui/rule_table");
 const Chroma    = require("chroma-js");
 
 const {
   STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
-  RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
+  RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
-  DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
+  DIAGRAM_TYPES, DIAGRAM_TYPE_ID_TO_LABEL,
   COLOR_RANGES, PROP_ID,
   DEFAULT_PRESET, validatePreset,
-  encodeRelType, decodeRelType,
 } = Defs;
 
 // ── SWT imports ───────────────────────────────────────────────────────────────
@@ -45,23 +47,19 @@ const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
 const GroupWidget       = Java.type("org.eclipse.swt.widgets.Group");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
-const ListWidget              = Java.type("org.eclipse.swt.widgets.List");
 const TextWidget              = Java.type("org.eclipse.swt.widgets.Text");
 const TabFolderWidget         = Java.type("org.eclipse.swt.widgets.TabFolder");
 const TabItemWidget           = Java.type("org.eclipse.swt.widgets.TabItem");
 const ScrolledCompositeWidget = Java.type("org.eclipse.swt.custom.ScrolledComposite");
-const SashFormWidget          = Java.type("org.eclipse.swt.custom.SashForm");
 const CanvasWidget            = Java.type("org.eclipse.swt.widgets.Canvas");
 const SWTColor                = Java.type("org.eclipse.swt.graphics.Color");
-const RowLayout               = Java.type("org.eclipse.swt.layout.RowLayout");
-const RowData                 = Java.type("org.eclipse.swt.layout.RowData");
 const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
 // ── Derived lists ─────────────────────────────────────────────────────────────
-// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_LABELS,
+// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL,
 // COLOR_RANGES are imported from Defs above.
 
 const DIRECTION_LABELS        = DIRECTIONS.map(d => d.val);
@@ -76,16 +74,127 @@ const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
-// Container-type modes in the Nesting group; index order matches _getNestContainerTypes.
-const NEST_CONTAINER_MODE_LABELS = ["Any element", "Grouping only", "Selected types"];
 const DP = DEFAULT_PRESET.params;
+
+// ── Rule tables ───────────────────────────────────────────────────────────────
+// Column sets of the rule tables (widget: gui/rule_table.js; rule kinds: rel_filter.js).
+const _ALL = { value: "", label: "All" };
+const ELEMENT_ITEMS  = Object.freeze([_ALL, ...ELEMENT_TYPES.map((t, i) => ({ value: t, label: ELEMENT_TYPE_LABELS[i] }))]);
+const RELATION_ITEMS = Object.freeze([_ALL, ...RELATION_TYPE_IDS.map((t, i) => ({ value: t, label: RELATION_TYPE_LABELS[i] }))
+  .sort((a, b) => a.label.localeCompare(b.label))]);
+const DIAGRAM_ITEMS  = Object.freeze([_ALL, ...Object.keys(DIAGRAM_TYPE_ID_TO_LABEL).map(k => ({ value: k, label: DIAGRAM_TYPE_ID_TO_LABEL[k] }))]);
+const MODE_ITEMS = Object.freeze([{ value: "include", label: "Include" }, { value: "exclude", label: "Exclude" }]);
+const DIRECTION_ITEMS = Object.freeze([
+  { value: "either", label: "Either" }, { value: "outgoing", label: "Outgoing" }, { value: "incoming", label: "Incoming" },
+]);
+const STEP_PROP_OF_ITEMS = Object.freeze([
+  { value: "added", label: "Added element" }, { value: "relation", label: "Added relation" },
+  { value: "previous", label: "Previous element" },
+]);
+const STYLE_COLOR_ITEMS = Object.freeze([
+  { value: "element", label: "Element (own property)" }, { value: "relation", label: "Relation" },
+  { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
+]);
+const STYLE_PROP_OF_ITEMS = Object.freeze([
+  { value: "element", label: "Element" }, { value: "relation", label: "Relation" },
+  { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
+]);
+
+const _modeCol = { key: "mode", header: "Mode", kind: "choice", items: MODE_ITEMS, width: 85,
+  tooltip: "Include keeps what matches this rule. Exclude removes it.\nResult = all Include rules minus all Exclude rules." };
+const _onCol = { key: "on", header: "On", kind: "check", tooltip: "Switch this rule on or off without deleting it." };
+const _typeCol = (key, header, tooltip, width) => ({ key, header, tooltip, kind: "choice", items: ELEMENT_ITEMS, width: width || 170 });
+const _relCol  = (key, header, tooltip) => ({ key, header, tooltip, kind: "choice", items: RELATION_ITEMS, width: 120 });
+const _propCols = what => [
+  { key: "property", header: "Property", kind: "prop", width: 110, optional: true,
+    tooltip: `Only ${what} whose property has this value. Leave empty for no condition.` },
+  { key: "value", header: "Value", kind: "value", width: 100, optional: true, enabled: r => !!r.property,
+    tooltip: `Only ${what} whose property has this value.` },
+];
+const _COUNT_TIP = "(n): relations / elements this step adds with only this rule. Rules can overlap, so the sum can " +
+                   "exceed the step total. For an Exclude rule: how many it removes from the other rules' result.";
+
+// Global filter: the type combo shows the rule's count, "Business Actor (12)".
+const _FILTER_COUNT_TIP = "\n(n): how many this rule keeps on its own; for an Exclude rule, how many it removes " +
+                          "from the other rules' result.";
+const ELEMENT_RULE_COLUMNS = Object.freeze([
+  _modeCol,
+  Object.assign(_typeCol("elementType", "Element type", "Type to match. All = any type." + _FILTER_COUNT_TIP, 200), { count: "count" }),
+  ..._propCols("match elements"),
+]);
+const DIAGRAM_RULE_COLUMNS = Object.freeze([
+  _modeCol, { key: "diagramType", header: "Diagram type", kind: "choice", items: DIAGRAM_ITEMS, width: 180, count: "count",
+              tooltip: "Type to match. All = any type." + _FILTER_COUNT_TIP },
+]);
+const RELATION_RULE_COLUMNS = Object.freeze([
+  _modeCol,
+  _typeCol("source", "Source type", "Element type at the start of the relation. All = any type."),
+  _relCol("relation", "Relation type", "Relationship type. All = any type."),
+  _typeCol("target", "Target type", "Element type at the end of the relation. All = any type."),
+]);
+const FEATURE_RULE_COLUMNS = Object.freeze([_onCol, ...RELATION_RULE_COLUMNS]);
+// Nesting / reverse: the relation-type combo shows the rule's count, "Aggregation (62)".
+const _countedRelCol = Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "relations", width: 150,
+  tooltip: "Relationship type. All = any type.\n(n): relations on the view this rule matches on its own; " +
+           "for an Exclude rule, how many it removes from the other rules' matches." });
+const _COUNTED_FEATURE_COLUMNS = [_onCol, RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1], _countedRelCol, RELATION_RULE_COLUMNS[3]];
+const NESTING_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
+  { key: "nested", header: "Nested", kind: "count", width: 50, format: n => String(n),
+    tooltip: "Of those relations, how many are drawn as nesting. The others are drawn as a line: " +
+             "their child already has a parent, or the nesting would be circular." }]);
+const REVERSE_RULE_COLUMNS = Object.freeze(_COUNTED_FEATURE_COLUMNS);
+const FILTER_RELATION_RULE_COLUMNS = Object.freeze([RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1],
+  Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "count", width: 150,
+    tooltip: "Relationship type. All = any type.\n(n): relations between the filtered elements this rule keeps on its own; " +
+             "for an Exclude rule, how many it removes from the other rules' result." }),
+  RELATION_RULE_COLUMNS[3]]);
+const STEP_RULE_COLUMNS = Object.freeze([
+  _modeCol,
+  _typeCol("previous", "Previous step\nelements",
+    "Only elements of this type from the previous step are expanded (step 1: the filtered selection). All = any.", 150),
+  { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
+    tooltip: "Outgoing: the relation starts at an element of the previous step.\n" +
+             "Incoming: the relation ends at an element of the previous step.\nEither: both (default)." },
+  // The rule's counts sit after the chosen type: "Aggregation (18)", "Business Service (5)".
+  Object.assign(_relCol("relation", "Added\nrelations", "Relationship types to follow from the previous step.\n" + _COUNT_TIP),
+    { count: "relations", width: 150 }),
+  Object.assign(_typeCol("added", "Added\nelements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
+    { count: "elements" }),
+  { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS, width: 120, optional: true,
+    tooltip: "Where the property is read: the added element, the followed relation or the element from the previous step." },
+  ..._propCols("add elements"),
+]);
+const STYLE_RULE_COLUMNS = Object.freeze([
+  _onCol,
+  { key: "color", header: "Color", kind: "choice", items: STYLE_COLOR_ITEMS, width: 150,
+    tooltip: "What gets the color: the element itself (using its own property), the relation, " +
+             "or the source / target element of a matching relation.",
+    // Element colors by its own property; a relation has no "element" to read from.
+    onChange: r => {
+      if (r.color === "element") r.propertyOf = "element";
+      else if (r.color === "relation" && r.propertyOf === "element") r.propertyOf = "relation";
+    } },
+  _typeCol("source", "Source", "Element type at the start of the relation (Color = Element: the element type). All = any.", 140),
+  Object.assign(_relCol("relation", "Relation", "Relationship type. All = any type."),
+    { width: 105, enabled: r => r.color !== "element" }),
+  Object.assign(_typeCol("target", "Target", "Element type at the end of the relation. All = any.", 140),
+    { enabled: r => r.color !== "element" }),
+  { key: "propertyOf", header: "Property of", kind: "choice", items: STYLE_PROP_OF_ITEMS, width: 120,
+    enabled: r => r.color !== "element",
+    tooltip: "Whose property supplies the value: the element, the relation, its source or its target." },
+  { key: "property", header: "Property", kind: "prop", width: 140, count: "count",
+    tooltip: "The property whose values give the colors.\n(n): objects on the view this rule colors " +
+             "(no property chosen yet: objects it reaches)." },
+  { key: "colorRange", header: "Range", kind: "custom", cells: 2, create: (p, v, on) => _rangeCell(p, v, on),
+    tooltip: "Colors from low to high value of the property." },
+  { key: "warn", kind: "warn" },
+]);
 
 // Layout params with one plain widget: loaded (_syncToUI), saved (_saveUI) and enabled per
 // algorithm (_updateAlgorithmControls) from this table, so every param follows defs.activeParams.
 //   kind: spin | check | combo (items = full list; the algorithm's supportedOptions narrow it) |
-//         relTypes (relation-type checkbox grid, stored as relation type ids)
-// Params with their own handling: nestingContainerTypes (mode combo + type selector) and the
-// view size (maxWidth / aspectRatio / viewSizeMode radios).
+//         rules (rule table, gui/rule_table.js)
+// Params with their own handling: the view size (maxWidth / aspectRatio / viewSizeMode radios).
 const PARAM_WIDGETS = Object.freeze({
   elementWidth:             { w: "spinElementWidth",             kind: "spin" },
   elementHeight:            { w: "spinElementHeight",            kind: "spin" },
@@ -97,13 +206,13 @@ const PARAM_WIDGETS = Object.freeze({
   acyclicer:                { w: "cmbAcyclicer",                 kind: "combo", items: ACYCLICER_LABELS },
   ranking:                  { w: "cmbRanking",                   kind: "combo", items: RANKING_LABELS },
   nodePlacement:            { w: "cmbNodePlacement",             kind: "combo", items: NODE_PLACEMENT_LABELS },
-  reverseRelationTypes:     { w: "lstReverseTypes",              kind: "relTypes" },
+  reverseRules:             { w: "tblReverseRules",              kind: "rules" },
   routing:                  { w: "cmbRouting",                   kind: "combo", items: ROUTING_ALL },
   labelPosition:            { w: "cmbLabelPosition",             kind: "combo", items: LABEL_POS_ALL },
   connectionLabelSpacing:   { w: "chkConnectionLabelSpacing",    kind: "check" },
   connectionSpacing:        { w: "spinConnectionSpacing",        kind: "spin" },
   connectionElementSpacing: { w: "spinConnectionElementSpacing", kind: "spin" },
-  nestingRelationTypes:     { w: "lstNestingTypes",              kind: "relTypes" },
+  nestingRules:             { w: "tblNestingRules",              kind: "rules" },
   containerAlgorithm:       { w: "cmbContainerAlgorithm",        kind: "combo", items: CONTAINER_ALGO_LABELS },
   connectionsMode:          { w: "cmbConnectionsMode",           kind: "combo", items: CONNECTIONS_MODE_LABELS },
   padding:                  { w: "spinPadding",                  kind: "spin" },
@@ -114,44 +223,6 @@ const PARAM_WIDGETS = Object.freeze({
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-// Unified get/set for all type-selection controls (checkboxes, type-selector, plain lists).
-// Each control exposes getSelected() / setSelected(labels) — duck-typed at call time.
-function _ctrlSetSelected(ctrl, labels) {
-  if (!ctrl) return;
-  if (ctrl.setSelected) { ctrl.setSelected(labels || []); return; }
-  // fallback: plain ListWidget
-  if (!labels || !labels.length) { ctrl.setSelection(Java.to([], "int[]")); return; }
-  const items = Array.from({ length: ctrl.getItemCount() }, (_, i) => String(ctrl.getItem(i)));
-  const idxs  = labels.map(l => items.indexOf(String(l))).filter(i => i >= 0);
-  ctrl.setSelection(Java.to(idxs, "int[]"));
-}
-function _ctrlGetSelected(ctrl) {
-  if (!ctrl) return [];
-  if (ctrl.getSelected) return ctrl.getSelected();
-  const sel = ctrl.getSelection();
-  return sel ? Array.from(sel).map(s => String(s)) : [];
-}
-
-// Keep old names as aliases — used in several places.
-const _listSelectLabels = _ctrlSetSelected;
-const _listGetSelected  = _ctrlGetSelected;
-
-// Map relation type IDs → labels (for multi-select lists).
-function _relIdsToLabels(ids) {
-  return ids.map(id => {
-    const base = id.replace(/:in$|:out$/, "");
-    const idx  = RELATION_TYPE_IDS.indexOf(base);
-    return idx >= 0 ? RELATION_TYPE_LABELS[idx] : base;
-  });
-}
-
-function _relLabelsToIds(labels) {
-  return labels.map(lbl => {
-    const idx = RELATION_TYPE_LABELS.indexOf(lbl);
-    return idx >= 0 ? RELATION_TYPE_IDS[idx] : lbl;
-  });
-}
 
 // Wrap a tab's content composite in a ScrolledComposite so it survives dialog resize.
 // Returns the inner content composite to add widgets to.
@@ -176,162 +247,6 @@ function _scrolledTab(tabFolder, tabLabel) {
       scrolled.setContent(page);
       _resizeScrolled(scrolled, page);
     },
-  };
-}
-
-// ── Type selector: search+list on left, chip panel on right ────────────────────────────────────
-// Click an item in the available list to add it as a chip.
-// Click a chip (shows "Label ×") to remove it.
-// Returns controller with getSelected/setSelected/enable.
-function _typeSelector(parent, allItems, availHeight, onChange) {
-  const h = availHeight || 180;
-
-  // SashForm maintains a fixed 50/50 split regardless of chip content changes.
-  // GridLayout would reallocate width as chips grow; SashForm weights prevent that.
-  const ctr = new SashFormWidget(parent, SWT.HORIZONTAL);
-  ctr.setSashWidth(6);
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, h + 26).applyTo(ctr);
-
-  // ── Left column: search + available list ──────────────────────────────────────
-  const leftCol = new CompositeWidget(ctr, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(leftCol);
-
-  const srch = new TextWidget(leftCol, SWT.BORDER | SWT.SEARCH | SWT.ICON_CANCEL);
-  srch.setMessage("Search…");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(srch);
-
-  const availList = new ListWidget(leftCol, SWT.BORDER | SWT.SINGLE | SWT.V_SCROLL);
-  allItems.forEach(i => availList.add(i));
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, h).applyTo(availList);
-
-  // ── Right column: label + chip panel (wrapped RowLayout) ─────────────────────
-  const rightCol = new CompositeWidget(ctr, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(rightCol);
-
-  _lbl(rightCol, "Selected (none = keep all):");
-
-  // Chip panel: RowLayout with wrap. No border, fixed height — chips wrap inside the space.
-  const chipPanel = new CompositeWidget(rightCol, SWT.NONE);
-  const chipRL = new RowLayout(SWT.HORIZONTAL);
-  chipRL.wrap         = true;
-  chipRL.pack         = true;
-  chipRL.spacing      = 3;
-  chipRL.marginWidth  = 0;
-  chipRL.marginHeight = 2;
-  chipPanel.setLayout(chipRL);
-  // grab(true, false) + hint height: panel fills horizontally but never grows vertically
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, h).applyTo(chipPanel);
-
-  const selectedSet = new Set();
-  let currentFilter = "";
-
-  // Re-layout after chip add/remove: reflow the shell so ScrolledComposite updates.
-  const reflow = () => {
-    try { chipPanel.layout(true, true); } catch (e) {}
-    try { ctr.getShell().layout(true, true); } catch (e) {}
-  };
-
-  const addChip = (item) => {
-    const btn = new ButtonWidget(chipPanel, SWT.PUSH);
-    btn.setText(item + "  ×");
-    btn.setToolTipText("Click to remove");
-    btn.addListener(SWT.Selection, () => {
-      selectedSet.delete(item);
-      btn.dispose();
-      reflow();
-      if (onChange) onChange();
-    });
-  };
-
-  const refreshAvail = () => {
-    const q = currentFilter.toLowerCase();
-    availList.removeAll();
-    allItems.filter(i => !q || i.toLowerCase().includes(q)).forEach(i => availList.add(i));
-  };
-
-  // Click available → add chip
-  availList.addListener(SWT.Selection, () => {
-    const idx = availList.getSelectionIndex();
-    if (idx < 0) return;
-    const item = String(availList.getItem(idx));
-    if (!selectedSet.has(item)) {
-      selectedSet.add(item);
-      addChip(item);
-      reflow();
-      if (onChange) onChange();
-    }
-  });
-
-  srch.addListener(SWT.Modify, () => { currentFilter = srch.getText(); refreshAvail(); });
-  srch.addListener(SWT.DefaultSelection, () => { srch.setText(""); currentFilter = ""; refreshAvail(); });
-
-  // 50/50 split — set after both children are created
-  ctr.setWeights(Java.to([1, 1], "int[]"));
-
-  return {
-    getSelected: () => Array.from(selectedSet),
-    setSelected: (items) => {
-      // Dispose all existing chips, rebuild from items
-      const existing = chipPanel.getChildren();
-      for (let i = 0; i < existing.length; i++) existing[i].dispose();
-      selectedSet.clear();
-      (items || []).forEach(item => {
-        const s = String(item);
-        selectedSet.add(s);
-        addChip(s);
-      });
-      reflow();
-    },
-    enable: (en) => {
-      srch.setEnabled(en);
-      availList.setEnabled(en);
-      chipPanel.setEnabled(en);
-      const ch = chipPanel.getChildren();
-      for (let i = 0; i < ch.length; i++) ch[i].setEnabled(en);
-    },
-  };
-}
-
-// ── Checkbox grid: sorted alpha, column-major distribution across numCols columns ─────────────
-// For 11 relation types with numCols=4: distribution is 3,3,3,2 per column.
-// Single-click to toggle. Returns controller with getSelected/setSelected/enable.
-function _checkboxGrid(parent, labels, numCols, onChange) {
-  const sorted = [...labels].sort();
-  const ncols  = numCols || 4;
-  const nrows  = Math.ceil(sorted.length / ncols);
-
-  // Outer composite: ncols sub-composites side by side.
-  // equalWidth(true) forces all ncols to the same pixel width so corresponding
-  // columns align visually between the relation-type and diagram-type filter grids.
-  const outer = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(ncols).equalWidth(true).margins(0, 0).spacing(6, 0).applyTo(outer);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
-
-  // One vertical sub-composite per column.
-  // fillDefaults + grab(true,false) + align BEGINNING: equal share of width, top-aligned.
-  const colComps = Array.from({ length: ncols }, () => {
-    const c = new CompositeWidget(outer, SWT.NONE);
-    GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 1).applyTo(c);
-    GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(c);
-    return c;
-  });
-
-  // Add checkboxes in column-major order: item i → column Math.floor(i / nrows)
-  const boxes = sorted.map((lbl, i) => {
-    const chk = new ButtonWidget(colComps[Math.floor(i / nrows)], SWT.CHECK);
-    chk.setText(lbl);
-    GridDataFactory.fillDefaults().applyTo(chk);
-    if (onChange) chk.addListener(SWT.Selection, onChange);
-    return { lbl, chk };
-  });
-
-  return {
-    getSelected: () => boxes.filter(b => b.chk.getSelection()).map(b => b.lbl),
-    setSelected: (items) => {
-      const s = new Set((items || []).map(String));
-      boxes.forEach(b => b.chk.setSelection(s.has(b.lbl)));
-    },
-    enable: (en) => boxes.forEach(b => b.chk.setEnabled(en)),
   };
 }
 
@@ -603,7 +518,7 @@ function open(uiSelection) {
       ctx.area = area;
       _buildActionArea(area, ctx, dlg, targetViewName);
       _syncToUI(ctx);
-      _updateFilteredCount(ctx);  // populate Filtered line on dialog open
+      _updateFilteredCount(ctx);  // populate the live counters on dialog open
       ctx._ready = true;          // enable modified indicator from here on
       if (_differsFromSaved(ctx)) _markModified(ctx);  // session changed since the last save
 
@@ -675,7 +590,7 @@ function _persistSession(ctx) {
  * Recount elements/relations/diagram objects after applying current filter settings,
  * then walk the dynamic Related-elements blocks updating each one's counter line.
  *
- * Filtered line meaning: counts AFTER the global Filter group, BEFORE any blocks.
+ * The global filter's counts appear per rule in its type combos (AFTER the filter, BEFORE any blocks).
  * Each block's counter line shows the additions contributed by THAT block alone.
  * Block N's pruned output is block N+1's base (cumulative cascade).
  */
@@ -719,79 +634,60 @@ function _formatOutputLine(view) {
 function _updateFilteredCount(ctx) {
   _markModified(ctx);
   const w = ctx.widgets;
-  if (!w.lblFilteredCount) return;
+  if (!w.tblElementRules) return;  // Selection tab not built yet
 
-  const _setFiltered = (counts) => {
-    try { w.lblFilteredCount.setText(_formatCountsBody(counts)); } catch (x) {}
-  };
-  const _setFilteredError = () => {
-    try { w.lblFilteredCount.setText("—"); } catch (x) {}
-  };
   const _setRel = (b, eCount, rCount, suffix) => {
     if (!b || !b.lblBlockCounts) return;
     const cnt = { elems: eCount, rels: rCount, diagrams: 0, views: 0, folders: 0 };
-    try { b.lblBlockCounts.setText(_formatCountsBody(cnt) + (suffix || "")); } catch (x) {}
+    b.addsText = _formatCountsBody(cnt) + (suffix || "");
+    _refreshBlockHeader(b);
   };
 
   const objects = ctx.rawModelObjects;
   if (!objects || !objects.length) {
-    _setFilteredError();
     (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
+    ctx.predicted = null;
+    _updateStyleWarnings(ctx);
     return;
   }
 
   try {
-    // Read current global filter from widget controllers
-    const elemFilter = new Set(_ctrlGetSelected(w.lstFilterElements));
-    const relLabels  = new Set(_ctrlGetSelected(w.lstFilterRelations));
-    const diagLabels = new Set(_ctrlGetSelected(w.lstFilterDiagram));
+    const filter = {
+      elementRules:  w.tblElementRules  ? w.tblElementRules.getRules()  : [],
+      diagramRules:  w.tblDiagramRules  ? w.tblDiagramRules.getRules()  : [],
+      relationRules: w.tblRelationRules ? w.tblRelationRules.getRules() : [],
+    };
 
-    const relIds  = new Set(_relLabelsToIds(Array.from(relLabels)));
-    const diagIds = new Set(Array.from(diagLabels).map(l => DIAGRAM_TYPE_LABEL_TO_ID[l] || l));
-    // jArchi still returns .type === "archimate-diagram-model" for view-reference VOs;
-    // add the alias so "reference" filter correctly counts them.
-    if (diagIds.has("diagram-model-reference")) diagIds.add("archimate-diagram-model");
-
-    // Filtered base — only the elements survive the element-type filter and feed step 3.
-    // Per-type relations/diagrams in the raw selection are counted but reported separately
-    // (they are NOT what determines the "Filtered base: N relations" row — that's
-    // rels-between-filtered-elements, computed below).
+    // Filtered base — only the elements survive the element filter and feed the steps.
+    // Explicit relations in the selection are not counted: the view's relations are derived
+    // from the elements (rels-between-filtered-elements, computed below).
     let elems = 0, diagrams = 0;
     const filteredElements = [];
     for (const o of objects) {
       const t = o.type || "";
-      if (t.endsWith("-relationship")) {
-        // explicit relations in the selection are not propagated to the view as bare
-        // edges — step 5 derives all view relations from the elements. So we don't
-        // include them in the filtered counter row anymore.
-      } else if (t in DIAGRAM_TYPES) {
-        if (!diagLabels.size || diagIds.has(t)) diagrams++;
-      } else {
-        if (!elemFilter.size || elemFilter.has(t)) { elems++; filteredElements.push(o); }
-      }
+      if (t.endsWith("-relationship")) continue;
+      if (t in DIAGRAM_TYPES) { if (Pipeline.diagramPasses(filter.diagramRules, t)) diagrams++; }
+      else if (RuleLists.matchElement(filter.elementRules, o)) { elems++; filteredElements.push(o); }
     }
 
-    const globalRelIds = _relLabelsToIds(Array.from(relLabels));
-    const steps = (ctx.relBlocks || []).map(b => ({
-      repeat:        b.getRepeat(),
-      elementTypes:  b.typeSelector.getSelected(),
-      relationTypes: b.relCheckGrid.getEncoded(),
-      propFilter: {
-        key:   b.propFilterKey   && b.propFilterKey.getSelectionIndex()   > 0 ? b.propFilterKey.getItem(b.propFilterKey.getSelectionIndex())     : "",
-        value: b.propFilterValue && b.propFilterValue.getSelectionIndex() > 0 ? b.propFilterValue.getItem(b.propFilterValue.getSelectionIndex()) : "",
-      },
-    }));
-
-    // Collect relations incrementally: base uses global filter; each step uses its own
-    // relation-type filter — mirrors the pipeline exactly so Adds: counters match the view.
-    // seenRelIds is threaded across calls to _findRelationsBetween to prevent double-counting.
+    // Collect relations incrementally: base uses the global relation rules; each step its own
+    // rules — mirrors the pipeline exactly so Adds: counters match the view.
+    // seenRelIds is threaded across calls to prevent double-counting.
     const seenRelIds = new Set();
-    const finalRels  = Pipeline.findRelationsBetween(filteredElements, globalRelIds, seenRelIds);
-    // Rels-between filtered elements under the global filter (NOT a raw-selection
-    // relation count). Honours the user's rule: "you can't have a relation without
-    // the elements" — only rels with both endpoints in the surviving element set count.
+    const finalRels  = Pipeline.findRelationsBetween(filteredElements, Pipeline.globalRelationMatch(filter), seenRelIds);
+    // Only rels with both endpoints in the surviving element set count.
     const filteredBaseRels = finalRels.length;
-    _setFiltered({ elems, rels: filteredBaseRels, diagrams, views: 0, folders: 0 });
+
+    // Global filter counters, per rule in its type combo.
+    const rawElements = objects.filter(o => { const t = o.type || ""; return !t.endsWith("-relationship") && !(t in DIAGRAM_TYPES); });
+    const rawDiagrams = objects.filter(o => (o.type || "") in DIAGRAM_TYPES);
+    if (w.tblElementRules) w.tblElementRules.setCounts(_filterRuleCounts(w.tblElementRules, rawElements,
+      (list, o) => RuleLists.matchElement(list, o)));
+    if (w.tblDiagramRules) w.tblDiagramRules.setCounts(_filterRuleCounts(w.tblDiagramRules, rawDiagrams,
+      (list, o) => Pipeline.diagramPasses(list, o.type || "")));
+    if (w.tblRelationRules) w.tblRelationRules.setCounts(_filterRuleCounts(w.tblRelationRules,
+      Pipeline.findRelationsBetween(filteredElements, null, new Set()),
+      (list, r) => RuleLists.matchRelation(list, r.type, r.source && r.source.type, r.target && r.target.type, true)));
 
     // Walk steps under chain semantics: step 1's input is the filtered base; step N
     // (N≥2)'s input is step N-1's added elements only. An empty step terminates the chain.
@@ -799,21 +695,17 @@ function _updateFilteredCount(ctx) {
     let stepInput  = filteredElements.slice();
     const stepCounts = [];
     let stepIdx = 0;
-    for (let i = 0; i < (ctx.relBlocks || []).length; i++) {
+    for (const b of (ctx.relBlocks || [])) {
       stepIdx++;
-      const b    = ctx.relBlocks[i];
-      const step = steps[i];
-
-      // Dry-run without propFilter: compute reachable candidates for combo population.
-      // Snapshot seenRelIds so this pass doesn't affect relation deduplication.
-      const stepForCandidates = { ...step, propFilter: { key: "", value: "" } };
-      const { added: candidates } = Pipeline.expandStepWithRelations(
-        stepInput, stepForCandidates, cumulative, new Set(seenRelIds)
-      );
-      if (b.refreshPropCombo) b.refreshPropCombo(candidates);
-
-      const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
+      const step = { repeat: b.getRepeat(), rules: b.table.getRules() };
+      const seenBefore = new Set(seenRelIds);
+      const { added, rels: stepRels, cumulative: newCumul, runs, capped, candidates } =
         Pipeline.expandStepWithRelations(stepInput, step, cumulative, seenRelIds);
+      // Candidates: everything the step saw before its rules — the rules' property lists.
+      b.candidates = candidates;
+      b.table.refreshItems();
+      b.table.setCounts(_stepRuleCounts(b, step, stepInput, cumulative, seenBefore,
+        { elements: added.length, relations: stepRels.length }));
       cumulative = newCumul;
       stepRels.forEach(r => finalRels.push(r));
       const runInfo = step.repeat !== Defs.REPEAT_UNTIL_NOTHING_NEW ? ""
@@ -822,16 +714,18 @@ function _updateFilteredCount(ctx) {
       stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
       stepInput = added;                                                       // chain advance
     }
+    // What the view will hold — Appearance uses it for property lists and the ⚠ conflict check.
+    ctx.predicted = { elements: cumulative, relations: finalRels };
 
     // Predict view-level counts (duplicates, containers) using the current params.
     // The on-screen Output row + console block must reflect what the writer will produce.
     const livePresetParams = {
-      nestingRelationTypes: w.lstNestingTypes ? _relLabelsToIds(_listGetSelected(w.lstNestingTypes)) : [],
-      nestingContainerTypes: _getNestContainerTypes(w),
-      reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
-      showInEveryContainer:           !!(w.chkShowInEvery     && w.chkShowInEvery.getSelection()),
+      nestingRules:         w.tblNestingRules ? w.tblNestingRules.getRules() : [],
+      reverseRules:         w.tblReverseRules ? w.tblReverseRules.getRules() : [],
+      showInEveryContainer: !!(w.chkShowInEvery && w.chkShowInEvery.getSelection()),
     };
     const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams);
+    _updateLayoutRuleCounts(ctx, cumulative, finalRels, livePresetParams);
 
     // Update the on-screen Output line in the "Generated view" group (always visible,
     // multi-line, hide-zero per the canonical-vocabulary plan).
@@ -871,9 +765,9 @@ function _updateFilteredCount(ctx) {
       ],
     });
   } catch (e) {
-    _setFilteredError();
     (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
   }
+  _updateStyleWarnings(ctx);
 }
 
 // ── Selection tab ─────────────────────────────────────────────────────────────
@@ -917,212 +811,184 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   w.lblContainingCount.setToolTipText(
     "After recursively expanding folders to their elements and views to their visual contents.");
 
-  new LabelWidget(ctrComp, SWT.NONE).setText("Filtered:");
-  w.lblFilteredCount = _selLine(ctrComp);
-  w.lblFilteredCount.setText("—");
-  w.lblFilteredCount.setToolTipText(
-    "After the global filter (element / relation / diagram types) is applied. " +
-    "This is the base for any related-elements steps below.");
-
   // Horizontal rule separating count lines from the filter sub-section.
   const filterSep = new LabelWidget(grpInfo, SWT.SEPARATOR | SWT.HORIZONTAL);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(filterSep);
 
   const onFilterChange = () => _updateFilteredCount(ctx);
 
-  _lbl(grpInfo, "Filter selection by element type:");
-  w.lstFilterElements = _typeSelector(grpInfo, ELEMENT_TYPES, 120, onFilterChange);
+  const onSelLayout = () => {
+    try { ctx.selectionPage.layout(true, true); } catch (e) {}
+    _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
+  };
 
-  _lbl(grpInfo, "Filter selection by relation types (none = keep all):");
-  w.lstFilterRelations = _checkboxGrid(grpInfo, RELATION_TYPE_LABELS, 4, onFilterChange);
+  _lbl(grpInfo, "Filter selection by element type (none = keep all):");
+  w.tblElementRules = ruleTable(grpInfo, {
+    kind: "element", columns: ELEMENT_RULE_COLUMNS, filterList: true, propCondition: true,
+    onChange: onFilterChange, onLayout: onSelLayout,
+    propItems:  r => _propNames(_rawElements(ctx, r.elementType)),
+    valueItems: r => _propValues(_rawElements(ctx, r.elementType), r.property),
+  });
 
-  _lbl(grpInfo, "Filter selection by diagram types (none = keep all):");
-  w.lstFilterDiagram = _checkboxGrid(grpInfo, DIAGRAM_TYPE_LABELS, 4, onFilterChange);
+  // Diagram objects only come from selected views: without them the diagram filter is hidden
+  // (its rules are kept and saved).
+  const diagBox = new CompositeWidget(grpInfo, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 4).applyTo(diagBox);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(diagBox);
+  _lbl(diagBox, "Filter selection by diagram type (none = keep all):");
+  w.tblDiagramRules = ruleTable(diagBox, {
+    kind: "diagram", columns: DIAGRAM_RULE_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
+  });
+  const hasDiagramObjects = (ctx.rawModelObjects || []).some(o => (o.type || "") in DIAGRAM_TYPES);
+  diagBox.setVisible(hasDiagramObjects);
+  diagBox.getLayoutData().exclude = !hasDiagramObjects;
 
-  // ── Related elements ─────────────────────────────────────────────────────────
-  // Dynamic multi-block UI. Each block is an independent expansion step with its
-  // own relation types (each with two direction checkboxes), element filter, and
-  // repeat control.
+  _lbl(grpInfo, "Filter selection by relations (none = keep all):");
+  w.tblRelationRules = ruleTable(grpInfo, {
+    kind: "relation", columns: FILTER_RELATION_RULE_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
+  });
+
+  // ── Expand selection ─────────────────────────────────────────────────────────
+  // One block per step; each holds a rule table. "+ Add step" sits below the steps.
   const grpRel = _group(page, "Expand selection", 1);
 
-  // Header row: explanation text (grabs width) | [+ Add related…] button on the right.
-  const hdrRow = new CompositeWidget(grpRel, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 0).applyTo(hdrRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(hdrRow);
-
-  const lblExplain = new LabelWidget(hdrRow, SWT.WRAP);
-  // lblExplain.setText("Expand the selection by following relations to neighbouring elements. Each block below adds a step.");
-  // lblExplain.setText("Add related elements to the selection by following relations. Each block below adds a step.");
-  lblExplain.setText("Expand the selection with connected elements. Each step defines which relation to follow.");  
+  const lblExplain = new LabelWidget(grpRel, SWT.WRAP);
+  lblExplain.setText("Expand the selection with connected elements. Each step defines which relation to follow.");
   GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(lblExplain);
-
-  const btnAddBlock = new ButtonWidget(hdrRow, SWT.PUSH);
-  btnAddBlock.setText("+ Add step");
-  btnAddBlock.setToolTipText("Each step builds on the previous selection.");
-  GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).applyTo(btnAddBlock);
-  btnAddBlock.addListener(SWT.Selection, () => _addRelatedBlock(ctx));
 
   const blocksContainer = new CompositeWidget(grpRel, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 8).applyTo(blocksContainer);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(blocksContainer);
   w.blocksContainer = blocksContainer;
 
+  const btnAddBlock = new ButtonWidget(grpRel, SWT.PUSH);
+  btnAddBlock.setText("+ Add step");
+  btnAddBlock.setToolTipText("Each step builds on the previous selection.");
+  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(btnAddBlock);
+  btnAddBlock.addListener(SWT.Selection, () => _addRelatedBlock(ctx));
+
   finish();
 }
 
-// ── Related elements: block lifecycle ─────────────────────────────────────────
+// ── Property lists for rule tables ───────────────────────────────────────────
 
-// Build the relation-type grid. Each cell shows a name checkbox plus two direction
-// checkboxes (☐ ← incoming, ☐ → outgoing). At least one direction must be ticked
-// while the relation itself is on.
-// Returns controller with getEncoded(), setEncoded(arr), enable(bool).
-// _relCheckGrid: direction-only checkboxes per relation type.
-// Each row: [label] [← in] [→ out]. No per-type selection checkbox.
-// Empty selection (no box ticked anywhere) = follow all relation types in all directions.
-function _relCheckGrid(parent, numCols, onChange) {
-  const rows = Object.values(RELATION_TYPES)
-    .map(r => ({ id: r.id, label: r.label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-
-  const ncols = numCols || 4;
-  const nrows = Math.ceil(rows.length / ncols);
-
-  const outer = new CompositeWidget(parent, SWT.NONE);
-  // spacing(10, 0): at least 10px between columns, as required by UX spec.
-  GridLayoutFactory.fillDefaults().numColumns(ncols).margins(0, 0).spacing(10, 0).applyTo(outer);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
-
-  const colComps = Array.from({ length: ncols }, () => {
-    const c = new CompositeWidget(outer, SWT.NONE);
-    GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 1).applyTo(c);
-    GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).applyTo(c);
-    return c;
-  });
-
-
-  
-  const relRows = rows.map((r, i) => {
-    const cell = new CompositeWidget(colComps[Math.floor(i / nrows)], SWT.NONE);
-    GridLayoutFactory.fillDefaults().numColumns(4)
-      .margins(0, 0).spacing(0, 0).applyTo(cell);
-    GridDataFactory.fillDefaults().grab(true, false).applyTo(cell);
-
-    const lbl = new LabelWidget(cell, SWT.NONE);
-    lbl.setText(r.label);
-    // Fixed-width column so ← aligns vertically across all rows (longest name ≈ "Specialization").
-    GridDataFactory.swtDefaults().hint(105, SWT.DEFAULT).applyTo(lbl);
-
-    // Left checkbox (with text "←")
-    const chkIn = new ButtonWidget(cell, SWT.CHECK);
-    chkIn.setText("←");
-    chkIn.setToolTipText("Follow incoming relations (other → this element)");
-    GridDataFactory.swtDefaults()
-        .align(SWT.BEGINNING, SWT.CENTER)   // explicit vertical center
-        .hint(40, SWT.DEFAULT)              // let height be natural
-        .applyTo(chkIn);
-
-    // Arrow label (→)
-    const lblOut = new LabelWidget(cell, SWT.NONE);
-    lblOut.setText("→");
-    GridDataFactory.swtDefaults()
-        .align(SWT.BEGINNING, SWT.CENTER)
-        .hint(20, SWT.DEFAULT)
-        .applyTo(lblOut);
-
-    // Right checkbox – use a non‑breaking space as text to fix baseline alignment
-    const chkOut = new ButtonWidget(cell, SWT.CHECK);
-    chkOut.setText("\u00A0");   // invisible but reserves text vertical space
-    chkOut.setToolTipText("Follow outgoing relations (this element → other)");
-    GridDataFactory.swtDefaults()
-        .align(SWT.BEGINNING, SWT.CENTER)
-        .hint(40, SWT.DEFAULT)   // same width as left checkbox for symmetry
-        .applyTo(chkOut);
-
-    // Direction checkboxes are always enabled; no parent relation-type checkbox.
-    // Unchecking both is allowed — empty selection across all rows means "follow all".
-    chkIn.addListener(SWT.Selection, () => { if (onChange) onChange(); });
-    chkOut.addListener(SWT.Selection, () => { if (onChange) onChange(); });
-
-    return { id: r.id, label: r.label, chkIn, chkOut };
-  });
-
-  return {
-    // Returns encoded array. Empty = all relation types/directions followed.
-    getEncoded: () => relRows
-      .filter(r => r.chkIn.getSelection() || r.chkOut.getSelection())
-      .map(r => encodeRelType(r.id, r.chkIn.getSelection(), r.chkOut.getSelection())),
-    setEncoded: (encoded) => {
-      const byId = new Map();
-      (encoded || []).forEach(e => {
-        const dec = decodeRelType(e);
-        byId.set(dec.type, dec);
-      });
-      relRows.forEach(r => {
-        const dec = byId.get(r.id);
-        if (dec) {
-          r.chkIn.setSelection(dec.inSel);
-          r.chkOut.setSelection(dec.outSel);
-        } else {
-          r.chkIn.setSelection(false);
-          r.chkOut.setSelection(false);
-        }
-      });
-    },
-    enable: (en) => {
-      relRows.forEach(r => {
-        r.chkIn.setEnabled(en);
-        r.chkOut.setEnabled(en);
-      });
-    },
-  };
+/** Sorted property names found on the objects. */
+function _propNames(objs) {
+  const names = new Set();
+  for (const o of objs || []) {
+    try { const ks = o.prop(); if (Array.isArray(ks)) ks.forEach(k => { if (k) names.add(String(k)); }); } catch (e) {}
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
-// Append a new block to the Related elements group.
-// stepData (optional): { repeat, elementTypes, relationTypes } from a preset to restore.
-// opts.startCollapsed (optional boolean): if true, build the block in collapsed state.
-function _addRelatedBlock(ctx, stepData, opts) {
+/** Sorted non-empty values of one property on the objects. */
+function _propValues(objs, key) {
+  if (!key) return [];
+  const vals = new Set();
+  for (const o of objs || []) {
+    try { const v = o.prop(key); if (v !== null && v !== undefined && v !== "") vals.add(String(v)); } catch (e) {}
+  }
+  return Array.from(vals).sort((a, b) => a.localeCompare(b));
+}
+
+/** Elements of the raw selection, optionally of one type. */
+function _rawElements(ctx, type) {
+  return (ctx.rawModelObjects || []).filter(o => _ELEM_TYPE_SET.has(o.type) && (!type || o.type === type));
+}
+
+/**
+ * Per-rule counts of a step: what the step adds with this rule alone — same input, same repeat —
+ * so a rule's count changes only when the rule or the step input changes, never because another
+ * rule was added. An Exclude rule: what it removes from the other rules' result. Results are
+ * cached per rule and input, so adding a rule computes only the new one.
+ * @returns {{elements:number, relations:number}[]}  one entry per displayed rule
+ */
+function _stepRuleCounts(b, step, input, cumulative, seen, total) {
+  const rules = b.table.displayedRules();
+  if (!b.countCache || b.countCache.size > 500) b.countCache = new Map();
+  const sig = `${step.repeat}|${_idsSig(input)}|${_idsSig(cumulative)}|${_idsSig(Array.from(seen))}`;
+  const run = list => {
+    const key = `${sig}|${JSON.stringify(list)}`;
+    let r = b.countCache.get(key);
+    if (!r) {
+      const res = Pipeline.expandStepWithRelations(input, { repeat: step.repeat, rules: list }, cumulative, new Set(seen));
+      r = { elements: res.added.length, relations: res.rels.length };
+      b.countCache.set(key, r);
+    }
+    return r;
+  };
+  return rules.map((r, i) => {
+    if (r.mode !== "exclude") return run([r]);
+    const without = run(rules.filter((_, j) => j !== i));
+    return { elements: without.elements - total.elements, relations: without.relations - total.relations };
+  });
+}
+
+/** Short signature of a list of objects (or ids) for cache keys: count + FNV-1a hash of the ids. */
+function _idsSig(list) {
+  let h = 0x811c9dc5;
+  for (const o of list) {
+    const id = String(o && o.id !== undefined ? o.id : o);
+    for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    h ^= 0x2c; h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${list.length}:${h.toString(16)}`;
+}
+
+/** The objects a step rule's property is read from, among the step's candidates. */
+function _stepPropObjects(b, rule) {
+  const probe = [Object.assign({}, rule, { mode: "include", property: "", value: "" })];
+  return (b.candidates || []).filter(c => RuleLists.matchStep(probe, c)).map(c =>
+    rule.propertyOf === "relation" ? c.rel : rule.propertyOf === "previous" ? c.frontier : c.other);
+}
+
+// ── Expand selection: step blocks ─────────────────────────────────────────────
+
+// Append a new step block.
+// stepData (optional): { repeat, rules } from a preset to restore.
+function _addRelatedBlock(ctx, stepData) {
   const w = ctx.widgets;
   const blocksContainer = w.blocksContainer;
-  const idx = ctx.relBlocks.length;
   const onChange = () => _updateFilteredCount(ctx);
+  const onLayout = () => {
+    try { ctx.selectionPage.layout(true, true); } catch (e) {}
+    _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
+  };
 
-  // Outer block: GroupWidget with native title bar ("Step N").
+  // Frame without a native title: the header row below carries the title, so collapsing
+  // (triangle left) and moving (arrows right) look different and sit apart.
   const block = new GroupWidget(blocksContainer, SWT.NONE);
-  block.setText("Step " + (idx + 1));
-  const f = _getBoldFont(); if (f) try { block.setFont(f); } catch (e) {}
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(block);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(block);
 
-  // Header row: [Added: (static)] [count (grabs)] [▲] [▼] [▾] [✕]
+  // Header row: [▾] Step N · summary (grabs) [↑] [↓]   [✕]
   const header = new CompositeWidget(block, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(4, 0).applyTo(header);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(header);
 
-  // "Added:" static prefix label.
-  const lblAddedPfx = new LabelWidget(header, SWT.NONE);
-  lblAddedPfx.setText("Adds:");
-  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(lblAddedPfx);
-
-  // Count label grabs the remaining width.
-  const lblBlockCounts = new LabelWidget(header, SWT.NONE);
-  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.CENTER).applyTo(lblBlockCounts);
-  lblBlockCounts.setText("nothing");
-  lblBlockCounts.setToolTipText(
-    "What THIS step adds on top of the base (delta, not cumulative). " +
-    "Filtered + every step's added = total on the view.");
-  lblAddedPfx.setToolTipText(lblBlockCounts.getToolTipText());
-
-  const _hdrBtn = (txt, tip) => {
+  const _hdrBtn = (txt, tip, indent) => {
     const b = new ButtonWidget(header, SWT.PUSH);
     b.setText(txt);
     b.setToolTipText(tip);
-    GridDataFactory.swtDefaults().hint(28, 22).applyTo(b);
+    GridDataFactory.swtDefaults().hint(28, 22).indent(indent || 0, 0).applyTo(b);
     return b;
   };
-  const btnUp       = _hdrBtn("▲", "Move this step up");
-  const btnDown     = _hdrBtn("▼", "Move this step down");
   const btnCollapse = _hdrBtn("▾", "Collapse / expand this step");
-  const btnRemove   = _hdrBtn("✕",  "Remove this step");
+
+  const lblTitle = new LabelWidget(header, SWT.NONE);
+  const f = _getBoldFont(); if (f) try { lblTitle.setFont(f); } catch (e) {}
+  lblTitle.setToolTipText("Collapse / expand this step");
+  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(lblTitle);
+
+  const lblBlockCounts = new LabelWidget(header, SWT.NONE);
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.CENTER).applyTo(lblBlockCounts);
+  lblBlockCounts.setToolTipText(
+    "What THIS step adds on top of the base (delta, not cumulative). " +
+    "Filtered + every step's added = total on the view.");
+
+  const btnUp     = _hdrBtn("↑", "Move this step up");
+  const btnDown   = _hdrBtn("↓", "Move this step down");
+  const btnRemove = _hdrBtn("✕", "Remove this step", 12);
 
   // Horizontal rule separating header from body.
   const blkSep = new LabelWidget(block, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -1131,140 +997,72 @@ function _addRelatedBlock(ctx, stepData, opts) {
   // Body (collapsible). Use GridData.exclude on collapse so layout reclaims the space.
   const body = new CompositeWidget(block, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 4).applyTo(body);
-  const bodyGd = GridDataFactory.fillDefaults().grab(true, false).create();
-  body.setLayoutData(bodyGd);
+  body.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
-  _lbl(body, "Follow these relation types and add elements (none = follow all):");
-  const relCheckGrid = _relCheckGrid(body, 4, onChange);
-  // 5px spacer below the relation check grid before the next section.
-  const relSpacer = new LabelWidget(body, SWT.NONE);
-  GridDataFactory.fillDefaults().hint(SWT.DEFAULT, 5).applyTo(relSpacer);
-
-  _lbl(body, "Filter added element types:");
-  const typeSelector = _typeSelector(body, ELEMENT_TYPES, 90, onChange);
-
-  const repeatRow = new CompositeWidget(body, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 2).spacing(4, 0).applyTo(repeatRow);
   const repeatTip =
     "How many times this step runs. Each run starts from the previous run's additions. " +
     `"until nothing new" runs until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`;
-  const lblRepeat = new LabelWidget(repeatRow, SWT.NONE);
-  lblRepeat.setText("Repeat:");
-  lblRepeat.setToolTipText(repeatTip);
-  GridDataFactory.swtDefaults().applyTo(lblRepeat);
-  const cmbRepeat = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
-  Defs.REPEAT_OPTIONS.forEach(o => cmbRepeat.add(o.label));
-  cmbRepeat.select(0);
-  cmbRepeat.setToolTipText(repeatTip);
-  GridDataFactory.swtDefaults().applyTo(cmbRepeat);
-  cmbRepeat.addListener(SWT.Selection, onChange);
-  const getRepeat = () => Defs.REPEAT_OPTIONS[Math.max(0, cmbRepeat.getSelectionIndex())].value;
-  const setRepeat = (v) => {
-    const r = Defs.normalizeRepeat(v);
-    cmbRepeat.select(Math.max(0, Defs.REPEAT_OPTIONS.findIndex(o => o.value === r)));
-  };
-
-  const lblProp = new LabelWidget(repeatRow, SWT.NONE);
-  lblProp.setText("Property:");
-  lblProp.setToolTipText("Only add elements that have this property set to the chosen value.");
-  GridDataFactory.swtDefaults().applyTo(lblProp);
-  const cmbProp = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbProp.setToolTipText("Choose a property to filter on. Leave blank to add all elements regardless of properties.");
-  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbProp);
-
-  const lblVal = new LabelWidget(repeatRow, SWT.NONE);
-  lblVal.setText("Value:");
-  lblVal.setToolTipText("Only add elements whose selected property has this value.");
-  GridDataFactory.swtDefaults().applyTo(lblVal);
-  const cmbVal = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbVal.setToolTipText("Choose the required property value. Only active when a property is also selected.");
-  GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbVal);
-
-  // _candidates: elements reachable by this step (set by _updateFilteredCount dry-run).
-  let _candidates = [];
-
-  function refreshPropCombo(candidates) {
-    _candidates = candidates || [];
-    const prev = cmbProp.getSelectionIndex() > 0 ? cmbProp.getItem(cmbProp.getSelectionIndex()) : "";
-    cmbProp.removeAll();
-    cmbProp.add("");
-    const props = new Set();
-    _candidates.forEach(obj => {
-      try { const ks = obj.prop(); if (Array.isArray(ks)) ks.forEach(k => { if (k) props.add(String(k)); }); } catch (e) {}
-    });
-    Array.from(props).sort().forEach(p => cmbProp.add(p));
-    const items = Array.from({ length: cmbProp.getItemCount() }, (_, i) => cmbProp.getItem(i));
-    cmbProp.select(Math.max(0, items.indexOf(prev)));
-    refreshValCombo();
-  }
-
-  function refreshValCombo() {
-    const propIdx = cmbProp.getSelectionIndex();
-    const propKey = propIdx > 0 ? cmbProp.getItem(propIdx) : "";
-    const prev = cmbVal.getSelectionIndex() > 0 ? cmbVal.getItem(cmbVal.getSelectionIndex()) : "";
-    cmbVal.removeAll();
-    cmbVal.add("");
-    if (propKey) {
-      const vals = new Set();
-      _candidates.forEach(obj => {
-        try { const v = obj.prop(propKey); if (v !== null && v !== undefined && v !== "") vals.add(String(v)); } catch (e) {}
-      });
-      Array.from(vals).sort().forEach(v => cmbVal.add(v));
-    }
-    const items = Array.from({ length: cmbVal.getItemCount() }, (_, i) => cmbVal.getItem(i));
-    cmbVal.select(Math.max(0, items.indexOf(prev)));
-  }
-
-  cmbProp.addListener(SWT.Selection, () => { refreshValCombo(); onChange(); });
-  cmbVal.addListener(SWT.Selection, onChange);
-
+  let cmbRepeat = null;
   const blockObj = {
-    container: block, body, lblBlockCounts,
+    container: block, header, body, blkSep, lblTitle, lblBlockCounts,
     btnUp, btnDown, btnCollapse, btnRemove,
-    collapsed: false,
-    relCheckGrid, typeSelector, cmbRepeat, getRepeat,
-    propFilterKey: cmbProp, propFilterValue: cmbVal,
-    refreshPropCombo,
+    collapsed: false, addsText: "nothing", candidates: [],
+    getRepeat: () => Defs.REPEAT_OPTIONS[Math.max(0, cmbRepeat ? cmbRepeat.getSelectionIndex() : 0)].value,
   };
+
+  blockObj.table = ruleTable(body, {
+    kind: "step", columns: STEP_RULE_COLUMNS, filterList: true, propCondition: true,
+    onChange: () => { _refreshBlockHeader(blockObj); onChange(); }, onLayout,
+    propItems:  r => _propNames(_stepPropObjects(blockObj, r)),
+    valueItems: r => _propValues(_stepPropObjects(blockObj, r), r.property),
+    footer: footer => {
+      const lblRepeat = new LabelWidget(footer, SWT.NONE);
+      lblRepeat.setText("Repeat:");
+      lblRepeat.setToolTipText(repeatTip);
+      cmbRepeat = new ComboWidget(footer, SWT.READ_ONLY | SWT.DROP_DOWN);
+      Defs.REPEAT_OPTIONS.forEach(o => cmbRepeat.add(o.label));
+      cmbRepeat.select(0);
+      cmbRepeat.setToolTipText(repeatTip);
+      cmbRepeat.addListener(SWT.Selection, onChange);
+    },
+  });
+  blockObj.table.setRules(stepData ? stepData.rules : []);
+  if (stepData) {
+    const r = Defs.normalizeRepeat(stepData.repeat);
+    cmbRepeat.select(Math.max(0, Defs.REPEAT_OPTIONS.findIndex(o => o.value === r)));
+  }
   ctx.relBlocks.push(blockObj);
 
-  // Button handlers (capture blockObj after creation)
   btnUp.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, -1));
   btnDown.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, +1));
   btnCollapse.addListener(SWT.Selection, () => _toggleCollapseBlock(ctx, blockObj));
+  lblTitle.addListener(SWT.MouseUp, () => _toggleCollapseBlock(ctx, blockObj));
+  lblBlockCounts.addListener(SWT.MouseUp, () => _toggleCollapseBlock(ctx, blockObj));
   btnRemove.addListener(SWT.Selection, () => _removeRelatedBlock(ctx, blockObj));
 
-  // Restore from preset if provided
-  if (stepData) {
-    relCheckGrid.setEncoded(stepData.relationTypes || []);
-    typeSelector.setSelected(stepData.elementTypes || []);
-    setRepeat(stepData.repeat);
-    if (stepData.propFilter && stepData.propFilter.key) {
-      const pf = stepData.propFilter;
-      const pitems = Array.from({ length: cmbProp.getItemCount() }, (_, i) => cmbProp.getItem(i));
-      const ki = pitems.indexOf(pf.key);
-      if (ki >= 0) { cmbProp.select(ki); } else { cmbProp.add(pf.key); cmbProp.select(cmbProp.getItemCount() - 1); }
-      refreshValCombo();
-      if (pf.value) {
-        const vitems = Array.from({ length: cmbVal.getItemCount() }, (_, i) => cmbVal.getItem(i));
-        const vi = vitems.indexOf(pf.value);
-        if (vi >= 0) { cmbVal.select(vi); } else { cmbVal.add(pf.value); cmbVal.select(cmbVal.getItemCount() - 1); }
-      }
-    }
-  }
-
-  // Apply initial collapsed state (used when loading presets: step 1 expanded, rest collapsed).
-  if (opts && opts.startCollapsed) {
-    blockObj.collapsed = true;
-    try { body.setVisible(false); } catch (e) {}
-    const gd = body.getLayoutData();
-    if (gd) gd.exclude = true;
-    try { btnCollapse.setText("▸"); } catch (e) {}
-  }
 
   _renumberAndReorderRelBlocks(ctx);
   _updateFilteredCount(ctx);
   _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
+}
+
+// Header summary: "· Adds: …"; collapsed, it also names the number of rules.
+function _refreshBlockHeader(b) {
+  if (!b || !b.lblBlockCounts) return;
+  const n = b.table ? b.table.displayedRules().length : 0;
+  const rulesPart = b.collapsed ? `${n} rule${n === 1 ? "" : "s"} · ` : "";
+  try { b.lblBlockCounts.setText(`·  ${rulesPart}Adds: ${b.addsText || "nothing"}`); } catch (e) {}
+}
+
+function _setBlockCollapsed(b, collapsed) {
+  b.collapsed = collapsed;
+  for (const part of [b.body, b.blkSep]) {
+    try { part.setVisible(!collapsed); } catch (e) {}
+    const gd = part.getLayoutData();
+    if (gd) gd.exclude = collapsed;
+  }
+  try { b.btnCollapse.setText(collapsed ? "▸" : "▾"); } catch (e) {}
+  _refreshBlockHeader(b);
 }
 
 function _removeRelatedBlock(ctx, blockObj) {
@@ -1290,21 +1088,16 @@ function _moveRelatedBlock(ctx, blockObj, direction) {
 }
 
 function _toggleCollapseBlock(ctx, blockObj) {
-  blockObj.collapsed = !blockObj.collapsed;
-  blockObj.body.setVisible(!blockObj.collapsed);
-  const gd = blockObj.body.getLayoutData();
-  if (gd) gd.exclude = blockObj.collapsed;
-  blockObj.btnCollapse.setText(blockObj.collapsed ? "▸" : "▾");
+  _setBlockCollapsed(blockObj, !blockObj.collapsed);
   try { ctx.selectionPage.layout(true, true); } catch (e) {}
   _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
-// Reorder block widgets to match ctx.relBlocks order, then update the native Group
-// title bar ("Step N") and enabled state of move buttons. The counter line uses the
-// invariant "Added:" prefix so reordering doesn't touch it.
+// Reorder block widgets to match ctx.relBlocks order, then update the title ("Step N") and
+// the enabled state of the move buttons.
 function _renumberAndReorderRelBlocks(ctx) {
   ctx.relBlocks.forEach((b, i) => {
-    try { b.container.setText("Step " + (i + 1)); } catch (e) {}
+    try { b.lblTitle.setText("Step " + (i + 1)); } catch (e) {}
     b.btnUp.setEnabled(i > 0);
     b.btnDown.setEnabled(i < ctx.relBlocks.length - 1);
   });
@@ -1391,25 +1184,29 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   // ── Relations ─────────────────────────────────────────────────────────────────
   const grpRel = _group(page, "Relations", 1);
-  _lbl(grpRel, "Nesting — draw these relation types as nesting: the child element inside its parent (box in box):")
-    .setToolTipText(Defs.paramTooltip("nestingRelationTypes"));
-  w.lstNestingTypes = _checkboxGrid(grpRel, RELATION_TYPE_LABELS, 4, onParamsChange);
+  const onLayoutPage = () => {
+    try { ctx.layoutPage.layout(true, true); } catch (e) {}
+    _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
+  };
+  _lbl(grpRel, "Nesting — draw these as nesting, child inside its parent:")
+    .setToolTipText(Defs.paramTooltip("nestingRules"));
+  w.tblNestingRules = ruleTable(grpRel, {
+    kind: "relation", columns: NESTING_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
+    emptyText: "No nesting: every relation is drawn as a line.",
+  });
+  _noteLabel(grpRel, "The parent is the source — or the target if the relation is also in Reverse below.");
+  w.lblNestingNote = _noteLabel(grpRel, "");
+  w.lblNestingNote.getLayoutData().exclude = true;
+  w.lblNestingNote.setVisible(false);
 
-  // Container types: which element types may be a parent. Mode is derived from the
-  // stored array ([] → Any, ["grouping"] → Grouping only, else Selected types).
-  const ctrTypeRow = new CompositeWidget(grpRel, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 0).applyTo(ctrTypeRow);
-  GridDataFactory.fillDefaults().grab(true, false).indent(0, 4).applyTo(ctrTypeRow);
-  _addCombo(ctrTypeRow, "Container types:", NEST_CONTAINER_MODE_LABELS, 0, 160, "cmbNestContainerMode", w);
-  w.nestContainerBox = new CompositeWidget(grpRel, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).applyTo(w.nestContainerBox);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(w.nestContainerBox);
-  w.lstNestContainerTypes = _typeSelector(w.nestContainerBox, ELEMENT_TYPES, 80, onParamsChange);
-  w.cmbNestContainerMode.addListener(SWT.Selection, onParamsChange);
-
-  _groupSep(grpRel, 1, "Reverse for layout — lay out these relation types against their direction (arrows are unchanged):")
-    .setToolTipText(Defs.paramTooltip("reverseRelationTypes"));
-  w.lstReverseTypes = _checkboxGrid(grpRel, RELATION_TYPE_LABELS, 4, onParamsChange);
+  _groupSep(grpRel, 1, "Reverse — flip these relations:")
+    .setToolTipText(Defs.paramTooltip("reverseRules"));
+  w.tblReverseRules = ruleTable(grpRel, {
+    kind: "relation", columns: REVERSE_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
+    emptyText: "No relations are reversed.",
+  });
+  _noteLabel(grpRel, "Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
+                     "Nesting: if the relation is also nested, the target becomes the parent.");
   w.layoutHints.Relations = _groupHint(grpRel);
 
   // ── Containers ────────────────────────────────────────────────────────────────
@@ -1518,8 +1315,7 @@ function _buildLayoutTab(tabFolder, ctx) {
 function _applyLayoutTooltips(w) {
   for (const [key, def] of Object.entries(PARAM_WIDGETS))
     if (w[def.w] && w[def.w].setToolTipText) w[def.w].setToolTipText(Defs.paramTooltip(key));
-  // relation-type grids are controllers: tooltip on their heading instead
-  if (w.cmbNestContainerMode) w.cmbNestContainerMode.setToolTipText(Defs.paramTooltip("nestingContainerTypes"));
+  // rule tables are controllers: tooltip on their heading instead
   for (const [ctrl, key] of [[w.radioViewSizeAspectRatio, "aspectRatio"], [w.cmbAspectRatio, "aspectRatio"],
                              [w.radioViewSizeMaxWidth, "maxWidth"], [w.spinMaxWidth, "maxWidth"]])
     if (ctrl) ctrl.setToolTipText(Defs.paramTooltip(key));
@@ -1537,6 +1333,83 @@ function _updateComboTooltips(w) {
   }
 }
 
+// Grey explanatory line under a control.
+function _noteLabel(parent, text) {
+  const lbl = new LabelWidget(parent, SWT.WRAP);
+  lbl.setText(text);
+  try { lbl.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
+  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(lbl);
+  return lbl;
+}
+
+/**
+ * Layout › Relations counters: per nesting / reverse rule the relations on the predicted view it
+ * matches (rule alone; an Exclude rule: what it removes from the other rules' matches) and, for
+ * nesting, how many of them become a nesting. A note explains nesting relations drawn as a line.
+ */
+function _updateLayoutRuleCounts(ctx, elements, relations, params) {
+  const w = ctx.widgets;
+  if (!w.tblNestingRules || !w.tblReverseRules) return;
+  const split = Pipeline.splitNestingRels(relations, params);
+  const nest  = Pipeline.resolveNesting(elements, split.nestingRels, params);
+  const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
+  w.tblNestingRules.setCounts(_featureRuleCounts(w.tblNestingRules, relations, nestedIds));
+  w.tblReverseRules.setCounts(_featureRuleCounts(w.tblReverseRules, relations, null));
+
+  const loops  = nest.notNestedNestingRels.filter(r => r.source && r.target && r.source.id === r.target.id).length;
+  const multi  = nest.notNestedNestingRels.length - loops;
+  const circ   = (nest.skippedCircularNestingRels || []).length;
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+  const parts = [];
+  if (multi) parts.push(`${plural(multi, "matching relation is", "matching relations are")} drawn as a line: the child already has a parent (the first one wins). ` +
+                        "Show in every container (Containers) shows such a child in every parent.");
+  if (circ)  parts.push(`${plural(circ, "matching relation", "matching relations")} would make a circular nesting and ${circ === 1 ? "is" : "are"} not drawn.`);
+  if (loops) parts.push(`${plural(loops, "self-relation is", "self-relations are")} drawn as a line.`);
+  const text = parts.join("\n");
+  const lbl = w.lblNestingNote;
+  if (!lbl || String(lbl.getText()) === text) return;
+  lbl.setText(text);
+  lbl.setVisible(!!text);
+  lbl.getLayoutData().exclude = !text;
+  try { ctx.layoutPage.layout(true, true); } catch (e) {}
+  _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
+}
+
+/**
+ * Per-rule counts of a global filter table: how many objects the rule keeps on its own; an
+ * Exclude rule: how many it removes from the other rules' result.
+ * @param test (rules, object) => boolean — the filter list's match function
+ */
+function _filterRuleCounts(table, objects, test) {
+  const rules = table.displayedRules();
+  const kept  = objects.filter(o => test(rules, o)).length;
+  return rules.map((rule, i) => rule.mode !== "exclude"
+    ? { count: objects.filter(o => test([rule], o)).length }
+    : { count: objects.filter(o => test(rules.filter((_, j) => j !== i), o)).length - kept });
+}
+
+/** Per-rule counts of a nesting / reverse table over the predicted view's relations. */
+function _featureRuleCounts(table, relations, nestedIds) {
+  const rules  = table.displayedRules();
+  const match  = (list, r) => RuleLists.matchRelation(list, r.type, r.source && r.source.type, r.target && r.target.type, false);
+  const active = rules.filter(r => r.on !== false);
+  const allHits = relations.filter(r => match(active, r)).length;
+  return rules.map((rule, i) => {
+    if (rule.on === false) return {};
+    if (rule.mode !== "exclude") {
+      const hit = relations.filter(r => match([rule], r));
+      return { relations: hit.length, nested: nestedIds ? hit.filter(r => nestedIds.has(r.id)).length : undefined };
+    }
+    const others = rules.filter((r, j) => j !== i && r.on !== false);
+    return { relations: relations.filter(r => match(others, r)).length - allHits };
+  });
+}
+
+/** True when a nesting rule list nests anything: an Include rule that is on. */
+function _hasNestingRules(w) {
+  return !!w.tblNestingRules && w.tblNestingRules.getRules().some(r => r.on !== false && r.mode !== "exclude");
+}
+
 // Grey hint line at the bottom of a Layout group; hidden (excluded) while empty.
 function _groupHint(group) {
   const lbl = new LabelWidget(group, SWT.WRAP);
@@ -1547,10 +1420,9 @@ function _groupHint(group) {
   return lbl;
 }
 
-// True when the algorithm nests and at least one relation type is checked under Nesting.
+// True when the algorithm nests and a Nesting rule is on.
 function _nestingOn(w, alg) {
-  return alg.activeParams.includes("nestingRelationTypes")
-    && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
+  return alg.activeParams.includes("nestingRules") && _hasNestingRules(w);
 }
 
 // Fill each Layout group's hint: the settings the chosen algorithm does not use
@@ -1569,7 +1441,7 @@ function _updateLayoutHints(ctx, algName) {
              : unused.length ? `Not used by ${algName}: ${unused.map(k => Defs.PARAM_LABELS[k]).join(", ")}.`
              : "";
     if (group === "Containers" && !unused.length && !_nestingOn(w, alg))
-      text = "Check a relation type under Nesting to use these settings.";
+      text = "Add a Nesting rule to use these settings.";
     if (String(lbl.getText()) === text) continue;
     lbl.setText(text);
     lbl.setVisible(!!text);
@@ -1667,317 +1539,166 @@ function _solidColorSwatch(parent, hexColor, key, w) {
   return { canvas, setColor };
 }
 
-// Builds a READ_ONLY combo populated with property names found on rawModelObjects.
-// getTypes(): () => string[] of type IDs. Empty = all. objKind: "element"|"relation".
-// Registers combo on w[key]. Returns { combo, refresh() }.
-function _buildDynamicPropCombo(parent, ctx, getTypes, objKind, key, w, tooltip) {
-  const cmb = new ComboWidget(parent, SWT.READ_ONLY | SWT.DROP_DOWN);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(cmb);
-  if (tooltip) cmb.setToolTipText(tooltip);
-  w[key] = cmb;
-
-  function refresh() {
-    const prevVal = cmb.getSelectionIndex() > 0 ? cmb.getItem(cmb.getSelectionIndex()) : "";
-    cmb.removeAll();
-    cmb.add(""); // blank placeholder = feature inactive
-
-    const types = getTypes ? getTypes() : [];
-    const props = new Set();
-    (ctx.rawModelObjects || []).forEach(obj => {
-      if (!obj || !obj.type) return;
-      const t = String(obj.type);
-      if (objKind === "element") {
-        if (!_ELEM_TYPE_SET.has(t)) return;
-        if (types.length > 0 && !types.includes(t)) return;
-      } else {
-        if (!_REL_TYPE_ID_SET.has(t)) return;
-        if (types.length > 0 && !types.includes(t)) return;
-      }
-      try {
-        const keys = obj.prop();
-        if (Array.isArray(keys)) keys.forEach(k => { if (k) props.add(String(k)); });
-      } catch (e) {}
-    });
-
-    Array.from(props).sort().forEach(p => cmb.add(p));
-    const items = Array.from({ length: cmb.getItemCount() }, (_, i) => cmb.getItem(i));
-    const ri = items.indexOf(prevVal);
-    cmb.select(ri >= 0 ? ri : 0);
-  }
-
-  return { combo: cmb, refresh };
-}
-
-// Enable or disable all downstream controls that depend on a property being selected.
-// Called on property combo selection change and from _syncToUI.
+// Enable or disable the controls that depend on a feature being on (Highlight repeated).
+// Called from the feature's checkbox and from _syncToUI.
 function _updateAppearancePropStates(ctx) {
   const w = ctx.widgets;
-  if (!w.sbpElementProp) return; // appearance tab not yet built
-
-  const _rc  = (key) => { try { if (w[key + "Canvas"]) w[key + "Canvas"].redraw(); } catch (e) {} };
-  const _en  = (key, on) => _enable(w[key], on);
-
-  // 1a — Style by property: Elements
-  const sbpElemOn = !!(w.chkSbpElemEnabled && w.chkSbpElemEnabled.getSelection());
-  _en("sbpElementType",     sbpElemOn);
-  _en("sbpElementPropLbl",  sbpElemOn);
-  _en("sbpElementProp",     sbpElemOn);
-  const hasSbpElem = sbpElemOn && w.sbpElementProp.getSelectionIndex() > 0;
-  _en("sbpElementRangeLbl", hasSbpElem);
-  _en("sbpElementRange",    hasSbpElem); _rc("sbpElementRange");
-
-  // 1b — Style by property: Relations
-  const sbpRelOn = !!(w.chkSbpRelEnabled && w.chkSbpRelEnabled.getSelection());
-  _en("sbpRelType",         sbpRelOn);
-  _en("sbpRelPropLbl",      sbpRelOn);
-  _en("sbpRelProp",         sbpRelOn);
-  const hasSbpRel = sbpRelOn && w.sbpRelProp && w.sbpRelProp.getSelectionIndex() > 0;
-  _en("sbpRelRangeLbl",     hasSbpRel);
-  _en("sbpRelRange",        hasSbpRel); _rc("sbpRelRange");
-  _en("lblSbpRelWidth",     hasSbpRel);
-  _en("sbpRelLineWidth",    hasSbpRel);
-
-  // 2 — Style by related property
-  const sbrpOn = !!(w.chkSbrpEnabled && w.chkSbrpEnabled.getSelection());
-  _en("sbrpRelTypes",       sbrpOn);
-  _en("sbrpPropLbl",        sbrpOn);
-  _en("sbrpProp",           sbrpOn);
-  const hasSbrp = sbrpOn && w.sbrpProp && w.sbrpProp.getSelectionIndex() > 0;
-  _en("sbrpRangeLbl",       hasSbrp);
-  _en("sbrpRange",          hasSbrp); _rc("sbrpRange");
-
-  // 3 — Style by connected element
-  const sbceOn = !!(w.chkSbceEnabled && w.chkSbceEnabled.getSelection());
-  _en("sbceRelTypes",       sbceOn);
-  _en("lblSbceElemType",    sbceOn);
-  _en("sbceElementType",    sbceOn);
-  _en("sbcePropLbl",        sbceOn);
-  _en("sbceProp",           sbceOn);
-  const hasSbce = sbceOn && w.sbceProp && w.sbceProp.getSelectionIndex() > 0;
-  _en("sbceRangeLbl",       hasSbce);
-  _en("sbceRange",          hasSbce); _rc("sbceRange");
-  _en("lblSbceConflict",    hasSbce);
-  _en("sbceConflictColor",  hasSbce);
-  _en("sbceConflictSwatch", hasSbce);
-  try { if (w.sbceConflictSwatch) w.sbceConflictSwatch.redraw(); } catch (e) {}
-
-  // 5 — Highlight repeated elements
-  const hlOn = !!(w.chkHighlightRep && w.chkHighlightRep.getSelection());
-  _en("lblHighlightRepRange",   hlOn);
-  _en("cmbHighlightRepRange",   hlOn); _rc("cmbHighlightRepRange");
+  if (!w.chkHighlightRep) return; // appearance tab not yet built
+  const hlOn = !!w.chkHighlightRep.getSelection();
+  _enable(w.lblHighlightRepRange, hlOn);
+  _enable(w.cmbHighlightRepRange, hlOn);
+  try { if (w.cmbHighlightRepRangeCanvas) w.cmbHighlightRepRangeCanvas.redraw(); } catch (e) {}
 }
 
-// ── Appearance tab helpers ─────────────────────────────────────────────────────
+// Range cell of a style rule: colour-range combo + gradient strip (two grid cells).
+function _rangeCell(parent, value, onChange) {
+  const tmp = {};
+  const cmb = _colorRangeSelector(parent, value || "Blues", "range", tmp, null,
+    () => onChange(String(cmb.getText())));
+  GridDataFactory.swtDefaults().hint(95, SWT.DEFAULT).align(SWT.FILL, SWT.CENTER).applyTo(cmb);
+  GridDataFactory.swtDefaults().hint(36, 18).align(SWT.FILL, SWT.CENTER).applyTo(tmp.rangeCanvas);
+  return {
+    set: v => {
+      const i = COLOR_RANGES.indexOf(v);
+      if (i >= 0 && cmb.getSelectionIndex() !== i) { cmb.select(i); try { tmp.rangeCanvas.redraw(); } catch (e) {} }
+    },
+    enable: on => { cmb.setEnabled(on); try { tmp.rangeCanvas.redraw(); } catch (e) {} },
+    setToolTipText: t => cmb.setToolTipText(t),
+  };
+}
 
-// Creates a "Property: [combo—fills] Color range: [combo][strip]" one-line row.
-// Color range is right-aligned because the property combo grabs all spare width.
-// Returns { refresh() } for re-scanning model properties.
-function _buildPropColorRow(parent, ctx, getTypes, objKind, propKey, rangeDefault, rangeKey, w, propTip, rangeTip, onChange) {
-  const row = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(4, 0).applyTo(row);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
+// A style rule as a sentence, for the row tooltip.
+function _styleRuleSentence(r) {
+  const el  = t => t ? _typeToDisplay(t) : "element";
+  const rel = r.relation ? `${_typeToDisplay(r.relation.replace(/-relationship$/, ""))} relation` : "relation";
+  const pat = `${rel}${r.source ? ` from ${el(r.source)}` : ""}${r.target ? ` to ${el(r.target)}` : ""}`;
+  const prop = r.property ? `"${r.property}"` : "(no property chosen)";
+  const of = { element: "its own", relation: "the relation's", source: "the source element's", target: "the target element's" };
+  const range = `, from the ${r.colorRange} range`;
+  const off = r.on === false ? " (off)" : "";
+  if (r.color === "element")  return `Color every ${el(r.source)} by its own ${prop}${range}.${off}`;
+  if (r.color === "relation") return `Color every ${pat} by ${of[r.propertyOf] || "its own"} ${prop}${range}.${off}`;
+  const of2 = r.propertyOf === "element" ? "its own" : of[r.propertyOf];
+  return `Color the ${r.color} element of every ${pat} by ${of2} ${prop}${range}.${off}`;
+}
 
-  const propLbl = new LabelWidget(row, SWT.NONE);
-  propLbl.setText("Property:");
-  w[propKey + "Lbl"] = propLbl;
-  const propCtrl = _buildDynamicPropCombo(row, ctx, getTypes, objKind, propKey, w, propTip);
-  const rangeLbl = new LabelWidget(row, SWT.NONE);
-  rangeLbl.setText("Color range:");
-  w[rangeKey + "Lbl"] = rangeLbl;
-  _colorRangeSelector(row, rangeDefault, rangeKey, w, rangeTip, onChange);
+// Property names for a style rule: from the objects the predicted view holds (falls back to
+// the raw selection before the first count).
+function _stylePropItems(ctx, r) {
+  const pred = ctx.predicted;
+  const els  = pred ? pred.elements  : _rawElements(ctx, "");
+  const rels = pred ? pred.relations : (ctx.rawModelObjects || []).filter(o => _REL_TYPE_ID_SET.has(o.type));
+  const of = r.color === "element" ? "element" : r.propertyOf === "element" ? r.color : r.propertyOf;
+  if (of === "relation") return _propNames(rels.filter(x => !r.relation || x.type === r.relation));
+  const type = of === "target" ? r.target : r.source;
+  return _propNames(els.filter(x => !type || x.type === type));
+}
 
-  w[propKey].addListener(SWT.Selection, () => { _updateAppearancePropStates(ctx); onChange(); });
-  return propCtrl; // { combo, refresh }
+// ⚠ column of the style rules: rules that style the same object on the predicted view.
+function _updateStyleWarnings(ctx) {
+  const w = ctx.widgets;
+  const t = w.tblStyleRules;
+  if (!t) return;
+  t.refreshItems();
+  const warnings = new Map();
+  const counts = [];
+  const pred = ctx.predicted;
+  if (pred) {
+    const styled = new Map();
+    t.displayedRules().forEach((r, i) => {
+      counts[i] = {};
+      if (r.on === false) return;
+      try {
+        const targets = Appearance.computeRuleTargets(r, pred.elements, pred.relations);
+        const ids = new Set();
+        targets.forEach((h, id) => { if (h.values.size > 0) ids.add(`${h.kind}:${id}`); });
+        // Feedback in the Property combo: colored objects, or reached objects before a property is chosen.
+        counts[i] = { count: r.property ? ids.size : targets.size };
+        if (r.property) styled.set(i, ids);
+      } catch (e) {}
+    });
+    RuleLists.detectRuleConflicts(styled).forEach(c => warnings.set(c.rule,
+      `Rule ${c.with.map(j => j + 1).join(", ")} also styles ${c.count} of these objects. ` +
+      "The last rule wins. Change a rule or switch one off."));
+  }
+  t.setCounts(counts);
+  t.setWarnings(warnings);
+
+  const lbl = w.lblStyleConflicts;
+  if (!lbl) return;
+  const text = warnings.size === 0 ? ""
+    : `⚠ Rules ${Array.from(warnings.keys()).map(i => i + 1).join(", ")} style the same objects. ` +
+      "The last rule wins. Change a rule or switch one off.";
+  if (String(lbl.getText()) === text) return;
+  lbl.setText(text);
+  lbl.setVisible(!!text);
+  lbl.getLayoutData().exclude = !text;
+  try { ctx.appearancePage.layout(true, true); } catch (e) {}
+  _resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
 }
 
 // ── Appearance tab ────────────────────────────────────────────────────────────
 
 function _buildAppearanceTab(tabFolder, ctx) {
-  const { page, finish } = _scrolledTab(tabFolder, "Appearance");
+  const { page, scrolled, finish } = _scrolledTab(tabFolder, "Appearance");
   const w = ctx.widgets;
   const onChange = () => _markModified(ctx);
+  ctx.appearancePage     = page;
+  ctx.appearanceScrolled = scrolled;
 
-  // ── 1. Style by property ──────────────────────────────────────────────────
+  // ── 1. Style by property: style rules ──────────────────────────────────────
   const grpSbp = _group(page, "Style by property", 1);
 
   const sbpDescLbl = new LabelWidget(grpSbp, SWT.WRAP);
-  // sbpDescLbl.setText("Apply color to elements or relations based on a selected property value to reveal patterns and intensity differences.");
-  sbpDescLbl.setText("Color-code elements or relations based on property values.");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpDescLbl);
+  sbpDescLbl.setText("Color elements or relations by property values. Each rule says what gets the color and whose property gives the value.");
+  GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(sbpDescLbl);
 
-  // Elements: enable checkbox (label = "Element type:") + type combo on one row
-  const sbpElemHeader = new CompositeWidget(grpSbp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0,0).spacing(4,0).applyTo(sbpElemHeader);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpElemHeader);
+  const onStyleChange = () => { _markModified(ctx); _updateStyleWarnings(ctx); };
+  w.tblStyleRules = ruleTable(grpSbp, {
+    kind: "style", columns: STYLE_RULE_COLUMNS, onChange: onStyleChange,
+    onLayout: () => {
+      try { ctx.appearancePage.layout(true, true); } catch (e) {}
+      _resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
+    },
+    propItems: r => _stylePropItems(ctx, r),
+    rowTooltip: _styleRuleSentence,
+    emptyText: "No style rules.",
+    addTooltip: "Add a style rule. Where two rules style the same object, the last rule wins (⚠).",
+  });
 
-  const chkSbpElem = new ButtonWidget(sbpElemHeader, SWT.CHECK);
-  chkSbpElem.setText("Element type:");
-  chkSbpElem.setToolTipText("Apply color to elements based on a property value");
-  w.chkSbpElemEnabled = chkSbpElem;
+  w.lblStyleConflicts = _noteLabel(grpSbp, "");
+  w.lblStyleConflicts.getLayoutData().exclude = true;
+  w.lblStyleConflicts.setVisible(false);
 
-  const sbpElemType = new ComboWidget(sbpElemHeader, SWT.READ_ONLY | SWT.DROP_DOWN);
-  sbpElemType.add("Any"); ELEMENT_TYPE_LABELS.forEach(l => sbpElemType.add(l));
-  sbpElemType.select(0);
-  GridDataFactory.fillDefaults().applyTo(sbpElemType);
-  sbpElemType.setToolTipText("Select which elements are styled");
-  w.sbpElementType = sbpElemType;
+  const sbpFoot = new CompositeWidget(grpSbp, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 2).spacing(6, 0).applyTo(sbpFoot);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpFoot);
+  const mixedTip = "Used when an element or relation gets more than one different value for the property, " +
+                   "so no single color from the range applies.";
+  const lblMixed = new LabelWidget(sbpFoot, SWT.NONE);
+  lblMixed.setText("Mixed values color:");
+  lblMixed.setToolTipText(mixedTip);
+  const txtMixed = new TextWidget(sbpFoot, SWT.BORDER);
+  txtMixed.setToolTipText(mixedTip);
+  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).applyTo(txtMixed);
+  txtMixed.setText(DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor);
+  w.txtMixedColor = txtMixed;
+  const mixedSwatch = _solidColorSwatch(sbpFoot, txtMixed.getText(), "mixedSwatch", w);
+  const mixedOnChange = () => { mixedSwatch.setColor(txtMixed.getText().trim()); onChange(); };
+  txtMixed.addListener(SWT.FocusOut, mixedOnChange);
+  txtMixed.addListener(SWT.DefaultSelection, mixedOnChange);
 
-  const sbpElemBody = new CompositeWidget(grpSbp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(14, 2).spacing(4, 3).applyTo(sbpElemBody);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpElemBody);
-  w.sbpElemBody = sbpElemBody;
-
-  let sbpElemPropRefresh = null;
-  const getElemTypes = () => {
-    const idx = w.sbpElementType ? w.sbpElementType.getSelectionIndex() : 0;
-    return idx > 0 && ELEMENT_TYPES[idx - 1] ? [ELEMENT_TYPES[idx - 1]] : [];
-  };
-  const sbpElemPropCtrl = _buildPropColorRow(sbpElemBody, ctx, getElemTypes, "element",
-    "sbpElementProp", "Blues", "sbpElementRange", w,
-    "Choose which information is shown as color",
-    "Colors used for the values, low → high.", onChange);
-  sbpElemPropRefresh = sbpElemPropCtrl.refresh;
-  sbpElemType.addListener(SWT.Selection, () => { if (sbpElemPropRefresh) sbpElemPropRefresh(); onChange(); });
-
-  chkSbpElem.addListener(SWT.Selection, () => { _updateAppearancePropStates(ctx); onChange(); });
-
-  // Relations: enable checkbox (label = "Relation type:") + type combo on one row
-  const sbpRelHeader = new CompositeWidget(grpSbp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0,0).spacing(4,0).applyTo(sbpRelHeader);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpRelHeader);
-
-  const chkSbpRel = new ButtonWidget(sbpRelHeader, SWT.CHECK);
-  chkSbpRel.setText("Relation type:");
-  chkSbpRel.setToolTipText("Apply color to relations based on a property value");
-  w.chkSbpRelEnabled = chkSbpRel;
-
-  const sbpRelType = new ComboWidget(sbpRelHeader, SWT.READ_ONLY | SWT.DROP_DOWN);
-  sbpRelType.add("Any"); RELATION_TYPE_LABELS.forEach(l => sbpRelType.add(l));
-  sbpRelType.select(0);
-  GridDataFactory.fillDefaults().applyTo(sbpRelType);
-  sbpRelType.setToolTipText("Select which relation type is styled");
-  w.sbpRelType = sbpRelType;
-
-  const sbpRelBody = new CompositeWidget(grpSbp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(14, 2).spacing(4, 3).applyTo(sbpRelBody);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpRelBody);
-  w.sbpRelBody = sbpRelBody;
-
-  let sbpRelPropRefresh = null;
-  const getRelTypes = () => {
-    const idx = w.sbpRelType ? w.sbpRelType.getSelectionIndex() : 0;
-    return idx > 0 && RELATION_TYPE_IDS[idx - 1] ? [RELATION_TYPE_IDS[idx - 1]] : [];
-  };
-  sbpRelType.addListener(SWT.Selection, () => { if (sbpRelPropRefresh) sbpRelPropRefresh(); onChange(); });
-
-  const sbpRelPropCtrl = _buildPropColorRow(sbpRelBody, ctx, getRelTypes, "relation",
-    "sbpRelProp", "Reds", "sbpRelRange", w,
-    "Choose which relation information is shown as color",
-    "Colors used for the values, low → high.", onChange);
-  sbpRelPropRefresh = sbpRelPropCtrl.refresh;
-
-  const sbpRelWidthRow = new CompositeWidget(sbpRelBody, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0,0).spacing(4,0).applyTo(sbpRelWidthRow);
-  GridDataFactory.fillDefaults().applyTo(sbpRelWidthRow);
-  const sbpRelWidthLbl = new LabelWidget(sbpRelWidthRow, SWT.NONE);
-  sbpRelWidthLbl.setText("Set line width:");
-  w.lblSbpRelWidth = sbpRelWidthLbl;
-  const sbpRelWidthCmb = new ComboWidget(sbpRelWidthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
-  sbpRelWidthCmb.add("No change");
-  sbpRelWidthCmb.add("1 - Normal");
-  sbpRelWidthCmb.add("2 - Medium");
-  sbpRelWidthCmb.add("3 - Heavy");
-  sbpRelWidthCmb.select(0);
-  GridDataFactory.fillDefaults().applyTo(sbpRelWidthCmb);
-  sbpRelWidthCmb.setToolTipText("Set a fixed line width on all matched connections");
-  sbpRelWidthCmb.addListener(SWT.Selection, onChange);
-  w.sbpRelLineWidth = sbpRelWidthCmb;
-
-  chkSbpRel.addListener(SWT.Selection, () => { _updateAppearancePropStates(ctx); onChange(); });
-
-  // ── 2. Style by related property ─────────────────────────────────────────
-  const grpSbrp = _group(page, "Style by related property", 1);
-
-  const chkSbrp = new ButtonWidget(grpSbrp, SWT.CHECK);
-  chkSbrp.setText("Color elements based on properties of their related relations.");
-  w.chkSbrpEnabled = chkSbrp;
-
-  const sbrpBody = new CompositeWidget(grpSbrp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(14, 2).spacing(4, 3).applyTo(sbrpBody);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbrpBody);
-  w.sbrpBody = sbrpBody;
-
-  let sbrpPropRefresh = null;
-  const getSbrpRelTypes = () => (w.sbrpRelTypes ? w.sbrpRelTypes.getEncoded() : []).map(e => e.replace(/:in$|:out$/, ""));
-  const sbrpRelGridOnChange = () => { if (sbrpPropRefresh) sbrpPropRefresh(); onChange(); };
-  w.sbrpRelTypes = _relCheckGrid(sbrpBody, 4, sbrpRelGridOnChange);
-
-  const sbrpPropCtrl = _buildPropColorRow(sbrpBody, ctx, getSbrpRelTypes, "relation",
-    "sbrpProp", "OrRd", "sbrpRange", w,
-    "Choose which relation property is used for coloring",
-    "Colors used for the values, low → high.", onChange);
-  sbrpPropRefresh = sbrpPropCtrl.refresh;
-
-  chkSbrp.addListener(SWT.Selection, () => { _updateAppearancePropStates(ctx); onChange(); });
-
-  // ── 3. Style by connected element ────────────────────────────────────────
-  const grpSbce = _group(page, "Style by connected element", 1);
-
-  const chkSbce = new ButtonWidget(grpSbce, SWT.CHECK);
-  chkSbce.setText("Color elements based on properties of connected elements through relations.");
-  w.chkSbceEnabled = chkSbce;
-
-  const sbceBody = new CompositeWidget(grpSbce, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(14, 2).spacing(4, 3).applyTo(sbceBody);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbceBody);
-  w.sbceBody = sbceBody;
-
-  let sbcePropRefresh = null;
-  const getSbceRelTypes = () => (w.sbceRelTypes ? w.sbceRelTypes.getEncoded() : []).map(e => e.replace(/:in$|:out$/, ""));
-  const sbceRelGridOnChange = () => { if (sbcePropRefresh) sbcePropRefresh(); onChange(); };
-  w.sbceRelTypes = _relCheckGrid(sbceBody, 4, sbceRelGridOnChange);
-
-  const sbceElemTypeRow = new CompositeWidget(sbceBody, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(0,0).spacing(4,0).applyTo(sbceElemTypeRow);
-  GridDataFactory.fillDefaults().applyTo(sbceElemTypeRow);
-  const sbceElemTypeLbl = new LabelWidget(sbceElemTypeRow, SWT.NONE);
-  sbceElemTypeLbl.setText("Element type:");
-  w.lblSbceElemType = sbceElemTypeLbl;
-  const sbceElemType = new ComboWidget(sbceElemTypeRow, SWT.READ_ONLY | SWT.DROP_DOWN);
-  sbceElemType.add("Any"); ELEMENT_TYPE_LABELS.forEach(l => sbceElemType.add(l));
-  sbceElemType.select(0);
-  GridDataFactory.fillDefaults().applyTo(sbceElemType);
-  sbceElemType.setToolTipText("Select which connected elements are used for coloring");
-  w.sbceElementType = sbceElemType;
-
-  const getSbceElemTypes = () => {
-    const idx = w.sbceElementType ? w.sbceElementType.getSelectionIndex() : 0;
-    return idx > 0 && ELEMENT_TYPES[idx - 1] ? [ELEMENT_TYPES[idx - 1]] : [];
-  };
-  const sbcePropCtrl = _buildPropColorRow(sbceBody, ctx, getSbceElemTypes, "element",
-    "sbceProp", "Purples", "sbceRange", w,
-    "Choose which property of connected elements is used for coloring",
-    "Colors used for the values, low → high.", onChange);
-  sbcePropRefresh = sbcePropCtrl.refresh;
-  sbceElemType.addListener(SWT.Selection, () => { if (sbcePropRefresh) sbcePropRefresh(); onChange(); });
-
-  const sbceConflictRow = new CompositeWidget(sbceBody, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(3).margins(0,2).spacing(4,0).applyTo(sbceConflictRow);
-  GridDataFactory.fillDefaults().applyTo(sbceConflictRow);
-  const sbceConflictLbl = new LabelWidget(sbceConflictRow, SWT.NONE);
-  sbceConflictLbl.setText("Multiple targets:");
-  w.lblSbceConflict = sbceConflictLbl;
-  const txtSbceConflict = new TextWidget(sbceConflictRow, SWT.BORDER);
-  txtSbceConflict.setToolTipText("Color for elements connected to more than one target element");
-  GridDataFactory.swtDefaults().hint(80, SWT.DEFAULT).applyTo(txtSbceConflict);
-  txtSbceConflict.setText("#FF6B35");
-  w.sbceConflictColor = txtSbceConflict;
-  const sbceConflictSwatch = _solidColorSwatch(sbceConflictRow, "#FF6B35", "sbceConflictSwatch", w);
-  const sbceConflictOnChange = () => { sbceConflictSwatch.setColor(txtSbceConflict.getText().trim()); onChange(); };
-  txtSbceConflict.addListener(SWT.FocusOut, sbceConflictOnChange);
-  txtSbceConflict.addListener(SWT.DefaultSelection, sbceConflictOnChange);
-
-  chkSbce.addListener(SWT.Selection, () => { _updateAppearancePropStates(ctx); onChange(); });
+  const widthTip = "Line width for all relations colored by a rule with Color = Relation.";
+  const lblWidth = new LabelWidget(sbpFoot, SWT.NONE);
+  lblWidth.setText("Line width of styled relations:");
+  lblWidth.setToolTipText(widthTip);
+  GridDataFactory.swtDefaults().indent(16, 0).applyTo(lblWidth);
+  const cmbWidth = new ComboWidget(sbpFoot, SWT.READ_ONLY | SWT.DROP_DOWN);
+  ["No change", "1 - Normal", "2 - Medium", "3 - Heavy"].forEach(t => cmbWidth.add(t));
+  cmbWidth.select(0);
+  cmbWidth.setToolTipText(widthTip);
+  cmbWidth.addListener(SWT.Selection, onChange);
+  w.cmbStyleLineWidth = cmbWidth;
 
   // ── 4. Style by nesting level ─────────────────────────────────────────────
   const grpNest = _group(page, "Style by nesting level", 1);
@@ -2100,66 +1821,19 @@ function _buildAppearanceTab(tabFolder, ctx) {
   _colorRangeSelector(hlRow, "Pastel1", "cmbHighlightRepRange", w,
     "Color scale for assigning distinct colors to repeated element identities.", onChange);
 
-  // Initial population of dynamic property combos
-  sbpElemPropCtrl.refresh();
-  sbpRelPropCtrl.refresh();
-  sbrpPropCtrl.refresh();
-  sbcePropCtrl.refresh();
-
   _updateNestingLevelState(ctx);
   _updateAppearancePropStates(ctx);
   finish();
 }
 
-// Container types for nesting: [] = any element type, ["grouping"] = Grouping only,
-// otherwise the types chosen in the selector (none chosen = any).
-function _getNestContainerTypes(w) {
-  if (!w.cmbNestContainerMode) return [];
-  switch (w.cmbNestContainerMode.getSelectionIndex()) {
-    case 1:  return ["grouping"];
-    case 2:  return w.lstNestContainerTypes ? w.lstNestContainerTypes.getSelected() : [];
-    default: return [];
-  }
-}
-
-function _setNestContainerTypes(ctx, types) {
-  const w = ctx.widgets;
-  if (!w.cmbNestContainerMode) return;
-  const mode = types.length === 0 ? 0 : (types.length === 1 && types[0] === "grouping") ? 1 : 2;
-  w.cmbNestContainerMode.select(mode);
-  if (w.lstNestContainerTypes) w.lstNestContainerTypes.setSelected(mode === 2 ? types : []);
-  _updateNestContainerBox(ctx);
-}
-
-// Show the type selector only in "Selected types" mode; enable the controls only when
-// the algorithm supports nesting and at least one nesting relation type is checked.
-function _updateNestContainerBox(ctx) {
-  const w = ctx.widgets;
-  if (!w.cmbNestContainerMode || !w.nestContainerBox) return;
-  const alg = ALGORITHMS[_selectedAlgorithm(w)];
-  const on  = alg.activeParams.includes("nestingContainerTypes")
-    && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
-  _enable(w.cmbNestContainerMode,  on);
-  _enable(w.lstNestContainerTypes, on);
-
-  const show = w.cmbNestContainerMode.getSelectionIndex() === 2;
-  const gd   = w.nestContainerBox.getLayoutData();
-  if (gd && gd.exclude === !show) return;  // no visibility change — skip relayout
-  try { w.nestContainerBox.setVisible(show); } catch (e) {}
-  if (gd) { gd.exclude = !show; w.nestContainerBox.setLayoutData(gd); }
-  try { (ctx.layoutPage || w.nestContainerBox.getParent()).layout(true, true); } catch (e) {}
-  _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
-}
-
 // Enable/disable the "Style by nesting level" controls based on whether any nesting
-// relation types are configured in the Layout tab. Called from _syncToUI and when
-// nesting types change, so both tabs stay in sync.
+// rules are configured in the Layout tab. Called from _syncToUI and when the nesting rules
+// change, so both tabs stay in sync.
 function _updateNestingLevelState(ctx) {
   const w = ctx.widgets;
   if (!w.chkNestFont) return; // Appearance tab not yet built — skip
 
-  const nestingTypes = w.lstNestingTypes ? _listGetSelected(w.lstNestingTypes) : [];
-  const hasNesting   = nestingTypes.length > 0;
+  const hasNesting = _hasNestingRules(w);
 
   try { w.lblNestingInfo.setVisible(!hasNesting); } catch (e) {}
   try {
@@ -2650,7 +2324,6 @@ function _syncToUI(ctx) {
 
   // Layout params (validatePreset guarantees every key is present)
   for (const [key, def] of Object.entries(PARAM_WIDGETS)) _paramToWidget(w[def.w], def, p[key]);
-  _setNestContainerTypes(ctx, p.nestingContainerTypes);
   _spinSet(w.spinMaxWidth, p.maxWidth);
   let arIdx = AR_OPTIONS.findIndex(a => a.val === p.aspectRatio);
   if (arIdx < 0) arIdx = AR_OPTIONS.findIndex(a => a.val === Defs.AR_DEFAULT);  // no ratio yet
@@ -2668,10 +2341,11 @@ function _syncToUI(ctx) {
     Object.entries(_vsMap).forEach(([k, r]) => { if (r) r.setSelection(k === _vsMode); });
   }
 
-  // Filter multi-select lists
-  if (w.lstFilterElements)  _listSelectLabels(w.lstFilterElements,  c.filter ? c.filter.elementTypes  : []);
-  if (w.lstFilterRelations) _listSelectLabels(w.lstFilterRelations, c.filter ? _relIdsToLabels(c.filter.relationTypes || []) : []);
-  if (w.lstFilterDiagram)   _listSelectLabels(w.lstFilterDiagram,   c.filter ? (c.filter.diagramTypes || []).map(id => DIAGRAM_TYPE_ID_TO_LABEL[id] || id) : []);
+  // Filter rule tables
+  const flt = c.filter || {};
+  if (w.tblElementRules)  w.tblElementRules.setRules(flt.elementRules);
+  if (w.tblDiagramRules)  w.tblDiagramRules.setRules(flt.diagramRules);
+  if (w.tblRelationRules) w.tblRelationRules.setRules(flt.relationRules);
 
   // Related elements — rebuild step blocks from preset.
   // Dispose existing blocks first so reapplying a preset (or session load) is clean.
@@ -2682,7 +2356,7 @@ function _syncToUI(ctx) {
       ctx.relBlocks.shift();
     }
     const steps = (c.relatedElements && c.relatedElements.steps) || [];
-    steps.forEach((step, idx) => _addRelatedBlock(ctx, step, { startCollapsed: idx > 0 }));
+    steps.forEach(step => _addRelatedBlock(ctx, step));
     _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   }
 
@@ -2698,84 +2372,17 @@ function _syncToUI(ctx) {
   const DA   = DEFAULT_PRESET.appearance;
 
   const sbp  = app.styleByProperty        || {};
-  const sbpe = sbp.element                || {};
-  const sbpr = sbp.relation               || {};
-  const sbrp = app.styleByRelatedProperty || {};
-  const sbce = app.styleByConnectedElement || {};
   const nl   = app.nestingLevel           || {};
   const hr   = app.highlightRepeated      || {};
 
-  // Restore a saved property name into a dynamic combo: if the name isn't in the
-  // current items (selection changed since last run), add it so _saveUI can read it back.
-  const _restorePropCombo = (combo, savedProp) => {
-    if (!combo || !savedProp) return;
-    const n = combo.getItemCount();
-    const items = Array.from({ length: n }, (_, i) => combo.getItem(i));
-    let idx = items.indexOf(savedProp);
-    if (idx < 0) { combo.add(savedProp); idx = combo.getItemCount() - 1; }
-    combo.select(idx);
-  };
-
-  // Feature 1 — Style by property (element)
-  if (w.chkSbpElemEnabled) w.chkSbpElemEnabled.setSelection(!!(sbpe.enabled));
-  if (w.sbpElementType) {
-    const typeLabel = sbpe.elementType ? ELEMENT_TYPE_LABELS[ELEMENT_TYPES.indexOf(sbpe.elementType)] : "";
-    const items = Array.from({ length: w.sbpElementType.getItemCount() }, (_, i) => w.sbpElementType.getItem(i));
-    const idx = typeLabel ? items.indexOf(typeLabel) : 0;
-    w.sbpElementType.select(idx >= 0 ? idx : 0);
+  // Style by property — rules, mixed-values colour, line width
+  if (w.tblStyleRules) w.tblStyleRules.setRules(sbp.rules);
+  if (w.txtMixedColor) {
+    const hex = sbp.mixedValuesColor || DA.styleByProperty.mixedValuesColor;
+    w.txtMixedColor.setText(hex);
+    try { if (w.mixedSwatchSet) w.mixedSwatchSet(hex); } catch (e) {}
   }
-  _restorePropCombo(w.sbpElementProp, sbpe.property);
-  if (w.sbpElementRange) {
-    const idx = COLOR_RANGES.indexOf(sbpe.colorRange || DA.styleByProperty.element.colorRange);
-    w.sbpElementRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("Blues"));
-    try { if (w.sbpElementRangeCanvas) w.sbpElementRangeCanvas.redraw(); } catch (e) {}
-  }
-
-  // Feature 1 — Style by property (relation)
-  if (w.chkSbpRelEnabled) w.chkSbpRelEnabled.setSelection(!!(sbpr.enabled));
-  if (w.sbpRelType) {
-    const typeId = (sbpr.relTypes && sbpr.relTypes.length > 0) ? sbpr.relTypes[0].replace(/:in$|:out$/, "") : "";
-    const labelIdx = typeId ? RELATION_TYPE_IDS.indexOf(typeId) : -1;
-    w.sbpRelType.select(labelIdx >= 0 ? labelIdx + 1 : 0);
-  }
-  _restorePropCombo(w.sbpRelProp, sbpr.property);
-  if (w.sbpRelRange) {
-    const idx = COLOR_RANGES.indexOf(sbpr.colorRange || DA.styleByProperty.relation.colorRange);
-    w.sbpRelRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("Reds"));
-    try { if (w.sbpRelRangeCanvas) w.sbpRelRangeCanvas.redraw(); } catch (e) {}
-  }
-  if (w.sbpRelLineWidth) w.sbpRelLineWidth.select(Math.max(0, Math.min(3, sbpr.lineWidth || 0)));
-
-  // Feature 2 — Style by related property
-  if (w.chkSbrpEnabled) w.chkSbrpEnabled.setSelection(!!(sbrp.enabled));
-  if (w.sbrpRelTypes)  w.sbrpRelTypes.setEncoded(sbrp.relTypes || []);
-  _restorePropCombo(w.sbrpProp, sbrp.property);
-  if (w.sbrpRange) {
-    const idx = COLOR_RANGES.indexOf(sbrp.colorRange || DA.styleByRelatedProperty.colorRange);
-    w.sbrpRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("OrRd"));
-    try { if (w.sbrpRangeCanvas) w.sbrpRangeCanvas.redraw(); } catch (e) {}
-  }
-
-  // Feature 3 — Style by connected element
-  if (w.chkSbceEnabled) w.chkSbceEnabled.setSelection(!!(sbce.enabled));
-  if (w.sbceRelTypes)  w.sbceRelTypes.setEncoded(sbce.relTypes || []);
-  if (w.sbceElementType) {
-    const typeLabel = sbce.elementType ? ELEMENT_TYPE_LABELS[ELEMENT_TYPES.indexOf(sbce.elementType)] : "";
-    const items = Array.from({ length: w.sbceElementType.getItemCount() }, (_, i) => w.sbceElementType.getItem(i));
-    const idx = typeLabel ? items.indexOf(typeLabel) : 0;
-    w.sbceElementType.select(idx >= 0 ? idx : 0);
-  }
-  _restorePropCombo(w.sbceProp, sbce.property);
-  if (w.sbceRange) {
-    const idx = COLOR_RANGES.indexOf(sbce.colorRange || DA.styleByConnectedElement.colorRange);
-    w.sbceRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("Purples"));
-    try { if (w.sbceRangeCanvas) w.sbceRangeCanvas.redraw(); } catch (e) {}
-  }
-  if (w.sbceConflictColor) {
-    const hex = sbce.conflictColor || DA.styleByConnectedElement.conflictColor;
-    w.sbceConflictColor.setText(hex);
-    try { if (w.sbceConflictSwatchSet) w.sbceConflictSwatchSet(hex); } catch (e) {}
-  }
+  if (w.cmbStyleLineWidth) w.cmbStyleLineWidth.select(Math.max(0, Math.min(3, sbp.lineWidth || 0)));
 
   // Feature 4 — Style by nesting level
   if (w.chkNestFont)        w.chkNestFont.setSelection(!!(nl.fontEnabled));
@@ -2831,7 +2438,6 @@ function _saveUI(ctx) {
   const w = ctx.widgets;
   if (!c.params) c.params = {};
   if (!c.view)   c.view   = {};
-  if (!c.filter) c.filter = { elementTypes: [], relationTypes: [], diagramTypes: [] };
 
   // Algorithm and layout params
   if (w.algRadios) c.algorithm = _selectedAlgorithm(w);
@@ -2839,28 +2445,21 @@ function _saveUI(ctx) {
     const ctrl = w[def.w];
     if (ctrl) c.params[key] = _paramFromWidget(ctrl, def);
   }
-  if (w.cmbNestContainerMode) c.params.nestingContainerTypes = _getNestContainerTypes(w);
   if (w.spinMaxWidth)         c.params.maxWidth = w.spinMaxWidth.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
   c.params.aspectRatio  = AR_OPTIONS[Math.max(0, arIdx)].val;
   c.params.viewSizeMode = _getViewSizeMode(w);
 
   // Filter
-  if (w.lstFilterElements)  c.filter.elementTypes  = _listGetSelected(w.lstFilterElements);
-  if (w.lstFilterRelations) c.filter.relationTypes = _relLabelsToIds(_listGetSelected(w.lstFilterRelations));
-  if (w.lstFilterDiagram)   c.filter.diagramTypes  = _listGetSelected(w.lstFilterDiagram).map(l => DIAGRAM_TYPE_LABEL_TO_ID[l] || l);
+  c.filter = {
+    elementRules:  w.tblElementRules  ? w.tblElementRules.getRules()  : [],
+    diagramRules:  w.tblDiagramRules  ? w.tblDiagramRules.getRules()  : [],
+    relationRules: w.tblRelationRules ? w.tblRelationRules.getRules() : [],
+  };
 
   // Related elements — round-trip the dynamic step-block array.
   c.relatedElements = {
-    steps: (ctx.relBlocks || []).map(b => ({
-      repeat:        b.getRepeat(),
-      elementTypes:  b.typeSelector.getSelected(),
-      relationTypes: b.relCheckGrid.getEncoded(),
-      propFilter: {
-        key:   b.propFilterKey   && b.propFilterKey.getSelectionIndex()   > 0 ? b.propFilterKey.getItem(b.propFilterKey.getSelectionIndex())     : "",
-        value: b.propFilterValue && b.propFilterValue.getSelectionIndex() > 0 ? b.propFilterValue.getItem(b.propFilterValue.getSelectionIndex()) : "",
-      },
-    })),
+    steps: (ctx.relBlocks || []).map(b => ({ repeat: b.getRepeat(), rules: b.table.getRules() })),
   };
 
   // View
@@ -2871,51 +2470,12 @@ function _saveUI(ctx) {
   if (!c.appearance) c.appearance = JSON.parse(JSON.stringify(DEFAULT_PRESET.appearance));
   const _cmbVal = (cmb, def) => cmb && cmb.getSelectionIndex() >= 0 ? cmb.getItem(cmb.getSelectionIndex()) : def;
 
-  // Feature 1 — Style by property (element)
-  c.appearance.styleByProperty.element.enabled  = !!(w.chkSbpElemEnabled && w.chkSbpElemEnabled.getSelection());
-  if (w.sbpElementType) {
-    const typeIdx = w.sbpElementType.getSelectionIndex();
-    c.appearance.styleByProperty.element.elementType = typeIdx > 0 ? (ELEMENT_TYPES[typeIdx - 1] || "") : "";
-  }
-  if (w.sbpElementProp) {
-    const idx = w.sbpElementProp.getSelectionIndex();
-    c.appearance.styleByProperty.element.property = idx > 0 ? w.sbpElementProp.getItem(idx) : "";
-  }
-  c.appearance.styleByProperty.element.colorRange = _cmbVal(w.sbpElementRange, "Blues");
-
-  // Feature 1 — Style by property (relation)
-  c.appearance.styleByProperty.relation.enabled   = !!(w.chkSbpRelEnabled && w.chkSbpRelEnabled.getSelection());
-  const sbpRelTypeIdx = w.sbpRelType ? w.sbpRelType.getSelectionIndex() : 0;
-  c.appearance.styleByProperty.relation.relTypes  = sbpRelTypeIdx > 0 && RELATION_TYPE_IDS[sbpRelTypeIdx - 1] ? [RELATION_TYPE_IDS[sbpRelTypeIdx - 1]] : [];
-  if (w.sbpRelProp) {
-    const idx = w.sbpRelProp.getSelectionIndex();
-    c.appearance.styleByProperty.relation.property = idx > 0 ? w.sbpRelProp.getItem(idx) : "";
-  }
-  c.appearance.styleByProperty.relation.colorRange = _cmbVal(w.sbpRelRange, "Reds");
-  c.appearance.styleByProperty.relation.lineWidth   = w.sbpRelLineWidth ? w.sbpRelLineWidth.getSelectionIndex() : 0;
-
-  // Feature 2 — Style by related property
-  c.appearance.styleByRelatedProperty.enabled   = !!(w.chkSbrpEnabled && w.chkSbrpEnabled.getSelection());
-  c.appearance.styleByRelatedProperty.relTypes  = w.sbrpRelTypes ? w.sbrpRelTypes.getEncoded() : [];
-  if (w.sbrpProp) {
-    const idx = w.sbrpProp.getSelectionIndex();
-    c.appearance.styleByRelatedProperty.property = idx > 0 ? w.sbrpProp.getItem(idx) : "";
-  }
-  c.appearance.styleByRelatedProperty.colorRange = _cmbVal(w.sbrpRange, "OrRd");
-
-  // Feature 3 — Style by connected element
-  c.appearance.styleByConnectedElement.enabled      = !!(w.chkSbceEnabled && w.chkSbceEnabled.getSelection());
-  c.appearance.styleByConnectedElement.relTypes     = w.sbceRelTypes ? w.sbceRelTypes.getEncoded() : [];
-  if (w.sbceElementType) {
-    const typeIdx = w.sbceElementType.getSelectionIndex();
-    c.appearance.styleByConnectedElement.elementType = typeIdx > 0 ? (ELEMENT_TYPES[typeIdx - 1] || "") : "";
-  }
-  if (w.sbceProp) {
-    const idx = w.sbceProp.getSelectionIndex();
-    c.appearance.styleByConnectedElement.property = idx > 0 ? w.sbceProp.getItem(idx) : "";
-  }
-  c.appearance.styleByConnectedElement.colorRange    = _cmbVal(w.sbceRange, "Purples");
-  c.appearance.styleByConnectedElement.conflictColor = w.sbceConflictColor ? w.sbceConflictColor.getText().trim() : "#FF6B35";
+  // Style by property
+  c.appearance.styleByProperty = {
+    rules:            w.tblStyleRules ? w.tblStyleRules.getRules() : [],
+    mixedValuesColor: w.txtMixedColor ? w.txtMixedColor.getText().trim() : DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor,
+    lineWidth:        w.cmbStyleLineWidth ? Math.max(0, w.cmbStyleLineWidth.getSelectionIndex()) : 0,
+  };
 
   // Feature 4 — Style by nesting level
   c.appearance.nestingLevel.fontEnabled         = !!(w.chkNestFont  && w.chkNestFont.getSelection());
@@ -2963,10 +2523,9 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.spinElementWidth,      active.has("elementWidth")  && !labelSizingOn);
   _enable(w.spinElementHeight,     active.has("elementHeight") && !labelSizingOn);
   _enable(w.spinLabelMaxLineWidth, labelSizingOn);
-  // Containers settings only matter once a relation type is shown as container.
+  // Containers settings only matter once a Nesting rule is on.
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) _enable(w[PARAM_WIDGETS[k].w], false);
-  _updateNestContainerBox(ctx);
   _updateLayoutHints(ctx, _selectedAlgorithm(w));
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
@@ -3000,7 +2559,7 @@ function _paramToWidget(ctrl, def, value) {
   switch (def.kind) {
     case "spin":  ctrl.setSelection(value); break;
     case "check": ctrl.setSelection(!!value); break;
-    case "relTypes": _listSelectLabels(ctrl, _relIdsToLabels(value)); break;
+    case "rules": ctrl.setRules(value); break;
     case "combo": {
       // The value may be outside the current (algorithm-filtered) items: add it so it survives
       // until _updateAlgorithmControls sets the items for the newly selected algorithm.
@@ -3016,7 +2575,7 @@ function _paramFromWidget(ctrl, def) {
   switch (def.kind) {
     case "spin":     return ctrl.getSelection();
     case "check":    return ctrl.getSelection();
-    case "relTypes": return _relLabelsToIds(_listGetSelected(ctrl));
+    case "rules":    return ctrl.getRules();
     case "combo":    return String(ctrl.getText());
   }
 }
@@ -3072,7 +2631,7 @@ function _spinSet(spinner, value) {
 
 function _enable(widget, enabled) {
   if (!widget) return;
-  if (widget.enable) { widget.enable(enabled); return; }  // controller (checkboxGrid, typeSelector)
+  if (widget.enable) { widget.enable(enabled); return; }  // controller (rule table, colour-range cell)
   try { widget.setEnabled(enabled); } catch (e) {}
 }
 

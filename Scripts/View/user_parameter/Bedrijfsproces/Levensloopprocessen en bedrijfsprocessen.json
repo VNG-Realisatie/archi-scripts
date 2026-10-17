@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Bedrijfsproces/Levensloopprocessen en bedrijfsprocessen",
   "algorithm": "Layered",
   "params": {
@@ -7,10 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
@@ -30,50 +27,37 @@
     "viewSizeMode": "none",
     "labelSizing": true,
     "labelMaxLineWidth": 160,
-    "connectionLabelSpacing": true
+    "connectionLabelSpacing": true,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": []
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-process"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-process"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [],
-        "relationTypes": [
-          "aggregation-relationship:out",
-          "triggering-relationship"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship"},
+          {"relation": "triggering-relationship"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [],
-        "relationTypes": [
-          "triggering-relationship"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"relation": "triggering-relationship"}
+        ]
       }
     ]
   },
@@ -83,33 +67,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,

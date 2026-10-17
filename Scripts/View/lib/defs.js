@@ -12,6 +12,7 @@ console.log("Loading defs.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
+const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
-  "nestingRelationTypes", "nestingContainerTypes", "padding",
+  "nestingRules", "padding",
   "sortContainers", "alignWidthSameType",
   "showInEveryContainer", "containerAlgorithm",
 ]);
@@ -53,9 +54,8 @@ const CONNECTION_END_CLEARANCE = 25;
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
 // "Not used by …" hints, tooltips and the capability matrix in ARCHITECTURE.md.
 const PARAM_LABELS = Object.freeze({
-  nestingRelationTypes:     "Nesting",
-  reverseRelationTypes:     "Reverse for layout",
-  nestingContainerTypes:    "Container types",
+  nestingRules:             "Nesting",
+  reverseRules:             "Reverse",
   containerAlgorithm:       "Layout inside",
   connectionsMode:          "Connections",
   padding:                  "Padding",
@@ -85,12 +85,10 @@ const PARAM_LABELS = Object.freeze({
 // Tooltip per layout param: [what it does, unit / detail]. The dialog adds a third line
 // "Used by: …" computed from activeParams, so tooltips never contradict the registry.
 const PARAM_TOOLTIPS = Object.freeze({
-  nestingRelationTypes:     ["Draw a checked relation type as nesting: the child inside its parent.",
-                             "Parent = source of the relation; with Reverse for layout, the target."],
-  reverseRelationTypes:     ["Lay out a checked relation type from target to source.",
-                             "Changes the flow order and the nesting parent; arrows are unchanged."],
-  nestingContainerTypes:    ["Element types that may be a nesting parent.",
-                             "A nesting relation whose parent has another type is drawn as a line."],
+  nestingRules:             ["Draw matching relations as nesting: the child inside its parent.",
+                             "Parent = source of the relation; with Reverse, the target."],
+  reverseRules:             ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
+                             "Nesting: if the relation is also nested, the target becomes the parent."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
                              "Grid or Pack: Connections is locked to Between containers."],
   connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
@@ -154,7 +152,7 @@ function paramTooltip(key, extra) {
 }
 
 const LAYOUT_GROUPS = Object.freeze({
-  Relations:   ["nestingRelationTypes", "reverseRelationTypes", "nestingContainerTypes"],
+  Relations:   ["nestingRules", "reverseRules"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
                 "sortContainers", "showInEveryContainer", "alignWidthSameType", "snapColumnsToGrid"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "layerSpacing"],
@@ -168,7 +166,7 @@ const LAYOUT_GROUPS = Object.freeze({
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
 // Graphviz cluster-nesting controls — Dot, Neato, FDP. padding = cluster margin (graphviz.js).
-const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "nestingContainerTypes", "padding"]);
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingRules", "padding"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
 const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
@@ -197,7 +195,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "nodePlacement", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
+      "direction", "nodePlacement", "routing", "labelPosition", "reverseRules", "connectionsMode",
       "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
       "connectionLabelSpacing",
     ],
@@ -222,7 +220,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "labelPosition", "reverseRelationTypes",
+      "direction", "labelPosition", "reverseRules",
       "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
@@ -283,7 +281,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
-      "elementSpacing", "reverseRelationTypes",
+      "elementSpacing", "reverseRules",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
@@ -300,7 +298,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
-      "elementSpacing", "reverseRelationTypes",
+      "elementSpacing", "reverseRules",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
@@ -316,8 +314,8 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS,
-      "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "nestingContainerTypes", "sortContainers",
+      "direction", "ranking", "acyclicer", "labelPosition", "reverseRules",
+      "nestingRules", "sortContainers",
       "layerSpacing", "elementSpacing", "connectionSpacing",
     ],
     supportedOptions: {
@@ -339,7 +337,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "layerSpacing", "elementSpacing", "reverseRelationTypes",
+      "layerSpacing", "elementSpacing", "reverseRules",
       // connectionSpacing / connectionElementSpacing: dot has no equivalent (sep/esep are not used by dot)
     ],
     supportedOptions: {
@@ -361,7 +359,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
+      "elementSpacing", "connectionElementSpacing", "reverseRules",
     ],
     supportedOptions: {
       routing:       ROUTING_GV_POLY,
@@ -381,7 +379,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
+      "elementSpacing", "connectionElementSpacing", "reverseRules",
     ],
     supportedOptions: {
       routing:       ROUTING_GV_POLY,
@@ -653,6 +651,7 @@ const COLOR_RANGES = Object.freeze([
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
+  schemaVersion: 2,   // 2 = rule lists (rel_filter.js); presets without it are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -662,9 +661,8 @@ const DEFAULT_PRESET = Object.freeze({
     labelPosition:         "Middle",
     ranking:               "Balanced",
     acyclicer:             "Default",
-    reverseRelationTypes:  [],
-    nestingRelationTypes:  [],
-    nestingContainerTypes: [],                     // element types allowed as container; [] = any
+    reverseRules:          [],                     // rule list (rel_filter "relation"): flipped relations; [] = none
+    nestingRules:          [],                     // rule list (rel_filter "relation"): relations drawn as nesting; [] = none
     padding:               20,
     diagramPadding:        10,
     sortContainers:        false,
@@ -686,13 +684,14 @@ const DEFAULT_PRESET = Object.freeze({
     labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
     connectionLabelSpacing:      false,  // reserve space for connection labels in ELK Layered (prevents overlap)
   },
+  // Filter lists (empty = keep everything); rule shapes in rel_filter.js.
   filter: {
-    elementTypes:  [],
-    relationTypes: [],
-    diagramTypes:  [],
+    elementRules:  [],   // kind "element"
+    diagramRules:  [],   // kind "diagram"
+    relationRules: [],   // kind "relation"
   },
   relatedElements: {
-    steps: [],  // each: { repeat, elementTypes, relationTypes, propFilter: { key, value } }
+    steps: [],  // each: { repeat, rules: [kind "step"] }
   },
   view: {
     name:   "",
@@ -700,14 +699,11 @@ const DEFAULT_PRESET = Object.freeze({
     suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
   },
   appearance: {
+    // Style rules (kind "style"); a later rule wins where two rules style the same object.
     styleByProperty: {
-      element:  { enabled: false, elementType: "", property: "", colorRange: "Blues" },
-      relation: { enabled: false, relTypes: [], property: "", colorRange: "Reds", lineWidth: 0 },
-    },
-    styleByRelatedProperty: { enabled: false, relTypes: [], property: "", colorRange: "OrRd" },
-    styleByConnectedElement: {
-      enabled: false, relTypes: [], elementType: "", property: "",
-      colorRange: "Purples", conflictColor: "#FF6B35",
+      rules:            [],
+      mixedValuesColor: "#FF6B35",   // element / relation that gets more than one value
+      lineWidth:        0,           // 0 = no change; 1..3 for relations styled by a Color = Relation rule
     },
     nestingLevel: {
       fontEnabled:        false,
@@ -768,28 +764,39 @@ function repeatMaxRuns(v) {
   return r === REPEAT_UNTIL_NOTHING_NEW ? REPEAT_MAX : r;
 }
 
-// ── Relation-direction encoding ───────────────────────────────────────────────
-// Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
-//   "type"      → both directions
-//   "type:in"   → incoming only (other → element)
-//   "type:out"  → outgoing only (element → other)
-// The UI disallows "neither direction" — at least one of inSel/outSel is always true.
-function encodeRelType(typeId, inSel, outSel) {
-  if (inSel && outSel) return typeId;
-  if (inSel)           return typeId + ":in";
-  if (outSel)          return typeId + ":out";
-  return typeId;  // defensive — UI should never produce this
-}
-
-function decodeRelType(encoded) {
-  const i = encoded.indexOf(":");
-  if (i < 0) return { type: encoded, inSel: true, outSel: true };
-  const type = encoded.substring(0, i);
-  const dir  = encoded.substring(i + 1);
-  return { type, inSel: dir === "in", outSel: dir === "out" };
-}
-
 // ── Preset validation ─────────────────────────────────────────────────────────
+
+/** Valid ids for rule normalisation (rel_filter.normalizeRules). */
+function _ruleValidity() {
+  return {
+    elements:    new Set(ELEMENT_TYPES),
+    relations:   new Set(RELATION_TYPE_IDS),
+    diagrams:    new Set(Object.keys(DIAGRAM_TYPES)),
+    colorRanges: new Set(COLOR_RANGES),
+  };
+}
+
+/**
+ * Keys of the pre-rule-list preset format found in `raw`. Presets are migrated offline
+ * (tools/migrate_presets_relrows.js); loading one unmigrated would silently drop its filters.
+ */
+function _legacyKeys(raw) {
+  const found = [];
+  const has = (o, k) => o && typeof o === "object" && k in o;
+  for (const k of ["nestingRelationTypes", "reverseRelationTypes", "nestingContainerTypes"])
+    if (has(raw.params, k)) found.push(`params.${k}`);
+  for (const k of ["elementTypes", "relationTypes", "diagramTypes"])
+    if (has(raw.filter, k)) found.push(`filter.${k}`);
+  const steps = raw.relatedElements && raw.relatedElements.steps;
+  if (Array.isArray(steps) && steps.some(st => st && (has(st, "elementTypes") || has(st, "relationTypes") || has(st, "propFilter"))))
+    found.push("relatedElements.steps[].elementTypes/relationTypes/propFilter");
+  for (const k of ["styleByRelatedProperty", "styleByConnectedElement"])
+    if (has(raw.appearance, k)) found.push(`appearance.${k}`);
+  if (raw.appearance && raw.appearance.styleByProperty &&
+      ("element" in raw.appearance.styleByProperty || "relation" in raw.appearance.styleByProperty))
+    found.push("appearance.styleByProperty.element/relation");
+  return found;
+}
 
 /**
  * Validate and normalise a preset object.
@@ -802,6 +809,12 @@ function decodeRelType(encoded) {
  * @returns {Object}    normalised preset
  */
 function validatePreset(raw) {
+  if (raw.schemaVersion !== undefined && raw.schemaVersion !== DEFAULT_PRESET.schemaVersion)
+    throw `Preset schemaVersion ${raw.schemaVersion} is not supported (expected ${DEFAULT_PRESET.schemaVersion}).`;
+  const legacy = _legacyKeys(raw);
+  if (legacy.length)
+    throw `Preset uses the old filter format (${legacy.join(", ")}). Run: node Scripts/View/tools/migrate_presets_relrows.js`;
+
   const preset = JSON.parse(JSON.stringify(DEFAULT_PRESET));  // deep clone defaults
 
   // top-level
@@ -811,10 +824,17 @@ function validatePreset(raw) {
   const alg = ALGORITHMS[preset.algorithm];
   if (!alg) throw `Unknown algorithm: "${preset.algorithm}". Valid algorithms: ${Object.keys(ALGORITHMS).join(", ")}`;
 
+  const valid = _ruleValidity();
+  const rules = (kind, list, where) => RuleLists.normalizeRules(kind, list, valid, where);
+
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
     for (const [key, rawVal] of Object.entries(raw.params)) {
       if (!(key in DEFAULT_PRESET.params)) continue;  // unknown key ignored
+      if (key === "nestingRules" || key === "reverseRules") {
+        preset.params[key] = rules("relation", rawVal, `params.${key}`);
+        continue;
+      }
       // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.
       const _DIR_MIGRATE = { "Left → Right": "Right", "Right → Left": "Left", "Top → Bottom": "Down", "Bottom → Top": "Up" };
       const val = (key === "direction" && _DIR_MIGRATE[rawVal]) ? _DIR_MIGRATE[rawVal] : rawVal;
@@ -837,20 +857,16 @@ function validatePreset(raw) {
 
   // filter
   if (raw.filter && typeof raw.filter === "object") {
-    if (Array.isArray(raw.filter.elementTypes))  preset.filter.elementTypes  = raw.filter.elementTypes;
-    if (Array.isArray(raw.filter.relationTypes)) preset.filter.relationTypes = raw.filter.relationTypes;
-    if (Array.isArray(raw.filter.diagramTypes))  preset.filter.diagramTypes  = raw.filter.diagramTypes;
+    preset.filter.elementRules  = rules("element",  raw.filter.elementRules,  "filter.elementRules");
+    preset.filter.diagramRules  = rules("diagram",  raw.filter.diagramRules,  "filter.diagramRules");
+    preset.filter.relationRules = rules("relation", raw.filter.relationRules, "filter.relationRules");
   }
 
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
   if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
-    preset.relatedElements.steps = raw.relatedElements.steps.map(step => ({
-      repeat:        normalizeRepeat(step.repeat),
-      elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
-      relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
-      propFilter:    (step.propFilter && typeof step.propFilter === "object")
-                       ? { key: String(step.propFilter.key || ""), value: String(step.propFilter.value || "") }
-                       : { key: "", value: "" },
+    preset.relatedElements.steps = raw.relatedElements.steps.map((step, i) => ({
+      repeat: normalizeRepeat(step.repeat),
+      rules:  rules("step", step.rules, `relatedElements.steps[${i}].rules`),
     }));
   }
 
@@ -867,40 +883,10 @@ function validatePreset(raw) {
     const pa = preset.appearance;
 
     if (ra.styleByProperty && typeof ra.styleByProperty === "object") {
-      if (ra.styleByProperty.element && typeof ra.styleByProperty.element === "object") {
-        const re = ra.styleByProperty.element;
-        if (typeof re.enabled    === "boolean") pa.styleByProperty.element.enabled    = re.enabled;
-        if (typeof re.elementType === "string") pa.styleByProperty.element.elementType = re.elementType;
-        if (typeof re.property   === "string")  pa.styleByProperty.element.property   = re.property;
-        if (typeof re.colorRange === "string")  pa.styleByProperty.element.colorRange  = re.colorRange;
-      }
-      if (ra.styleByProperty.relation && typeof ra.styleByProperty.relation === "object") {
-        const rr = ra.styleByProperty.relation;
-        if (typeof rr.enabled    === "boolean") pa.styleByProperty.relation.enabled   = rr.enabled;
-        if (Array.isArray(rr.relTypes))         pa.styleByProperty.relation.relTypes  = rr.relTypes;
-        if (typeof rr.property   === "string")  pa.styleByProperty.relation.property  = rr.property;
-        if (typeof rr.colorRange === "string")  pa.styleByProperty.relation.colorRange = rr.colorRange;
-        if (typeof rr.lineWidth  === "number")  pa.styleByProperty.relation.lineWidth  = Math.max(0, Math.min(3, Math.round(rr.lineWidth)));
-        if (typeof rr.resize     === "boolean") pa.styleByProperty.relation.lineWidth  = rr.resize ? 1 : 0; // back-compat: old boolean → 0 or 1
-      }
-    }
-
-    if (ra.styleByRelatedProperty && typeof ra.styleByRelatedProperty === "object") {
-      const rp = ra.styleByRelatedProperty;
-      if (typeof rp.enabled    === "boolean") pa.styleByRelatedProperty.enabled    = rp.enabled;
-      if (Array.isArray(rp.relTypes))         pa.styleByRelatedProperty.relTypes   = rp.relTypes;
-      if (typeof rp.property   === "string")  pa.styleByRelatedProperty.property   = rp.property;
-      if (typeof rp.colorRange === "string")  pa.styleByRelatedProperty.colorRange = rp.colorRange;
-    }
-
-    if (ra.styleByConnectedElement && typeof ra.styleByConnectedElement === "object") {
-      const rc = ra.styleByConnectedElement;
-      if (typeof rc.enabled      === "boolean") pa.styleByConnectedElement.enabled      = rc.enabled;
-      if (Array.isArray(rc.relTypes))           pa.styleByConnectedElement.relTypes      = rc.relTypes;
-      if (typeof rc.elementType  === "string")  pa.styleByConnectedElement.elementType   = rc.elementType;
-      if (typeof rc.property     === "string")  pa.styleByConnectedElement.property      = rc.property;
-      if (typeof rc.colorRange   === "string")  pa.styleByConnectedElement.colorRange    = rc.colorRange;
-      if (typeof rc.conflictColor === "string") pa.styleByConnectedElement.conflictColor = rc.conflictColor;
+      const rs = ra.styleByProperty;
+      pa.styleByProperty.rules = rules("style", rs.rules, "appearance.styleByProperty.rules");
+      if (typeof rs.mixedValuesColor === "string") pa.styleByProperty.mixedValuesColor = rs.mixedValuesColor;
+      if (typeof rs.lineWidth === "number")        pa.styleByProperty.lineWidth = Math.max(0, Math.min(3, Math.round(rs.lineWidth)));
     }
 
     if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
@@ -1008,7 +994,6 @@ if (typeof module !== "undefined" && module.exports) {
     LABEL_SIZING_DEFAULTS,
     CONNECTION_END_CLEARANCE,
     validatePreset, effectiveParams, connectionsModeLock,
-    encodeRelType, decodeRelType,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
   };
 }

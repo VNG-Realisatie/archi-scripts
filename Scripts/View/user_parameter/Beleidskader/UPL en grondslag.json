@@ -1,25 +1,28 @@
 {
+  "schemaVersion": 2,
   "name": "Beleidskader/UPL en grondslag",
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
-    "nodePlacement": "Compact",
+    "nodePlacement": "Straight",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [],
-    "nestingRelationTypes": [
-      "aggregation-relationship",
-      "association-relationship"
+    "reverseRules": [
+      {"source": "driver", "relation": "association-relationship", "target": "driver"}
     ],
-    "nestingContainerTypes": [],
+    "nestingRules": [
+      {"relation": "aggregation-relationship"},
+      {"source": "driver", "relation": "association-relationship", "target": "business-service"},
+      {"source": "driver", "relation": "association-relationship", "target": "driver"}
+    ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": true,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
+    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 0,
@@ -29,93 +32,44 @@
     "elementWidth": 220,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0.75,
-    "viewSizeMode": "aspectRatio",
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "diagramRules": [],
+    "relationRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": "untilNothingNew",
-        "elementTypes": [
-          "grouping"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
+        ]
       },
       {
-        "repeat": "untilNothingNew",
-        "elementTypes": [
-          "driver"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
-      },
-      {
-        "repeat": 2,
-        "elementTypes": [
-          "business-service"
-        ],
-        "relationTypes": [
-          "association-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "repeat": 1,
+        "rules": [
+          {"previous": "driver", "relation": "association-relationship", "added": "business-service"},
+          {"previous": "driver", "direction": "incoming", "relation": "association-relationship"}
+        ]
       }
     ]
   },
   "view": {
-    "name": "0 Bestuur, Politiek en Ondersteuning",
-    "folder": "/Beleidskaders"
+    "name": "Burgerzaken",
+    "folder": "/Beleidskaders en diensten",
+    "suffix": ""
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,
@@ -136,5 +90,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "description": "Selecteer beleidskaders en genereer layered view"
+  "description": "Selecteer een taakveld of beleidsdomein en genereer een nested view diensten en de beleidskaders die grondslag zijn "
 }

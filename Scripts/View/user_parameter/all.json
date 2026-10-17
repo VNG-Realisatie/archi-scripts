@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "all",
   "algorithm": "Layered",
   "params": {
@@ -7,12 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": false,
     "alignWidthSameType": false,
@@ -28,12 +23,18 @@
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false,
-    "connectionSpacing": 25
+    "connectionSpacing": 25,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []
@@ -44,33 +45,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,

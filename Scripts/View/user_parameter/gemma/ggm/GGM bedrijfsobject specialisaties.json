@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "GGM bedrijfsobject specialisaties",
   "algorithm": "Dot",
   "params": {
@@ -6,14 +7,6 @@
     "routing": "Straight",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
     "padding": 10,
     "sortContainers": false,
     "showInEveryContainer": true,
@@ -22,30 +15,36 @@
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "grouping",
-      "business-object"
+    "elementRules": [
+      {"elementType": "grouping"},
+      {"elementType": "business-object"}
     ],
-    "relationTypes": [
-      "aggregation-relationship:in",
-      "specialization-relationship"
+    "relationRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "specialization-relationship"}
     ],
-    "diagramTypes": []
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": "untilNothingNew",
-        "elementTypes": [
-          "grouping",
-          "business-object"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:in",
-          "specialization-relationship"
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"},
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "business-object"},
+          {"relation": "specialization-relationship", "added": "grouping"},
+          {"relation": "specialization-relationship", "added": "business-object"}
         ]
       }
     ]

@@ -64,7 +64,9 @@ One name per concept across UI, docs, logs, and code. Terms grouped by subject.
 **Subsystem**
 - **Layout** — algorithmic positioning of all visible objects on a view.
 - **Preset** — a named, persistable bundle of selection, layout, and styling configuration.
-- **Step** — one ordered related-elements expansion rule inside a preset.
+- **Step** — one ordered related-elements expansion stage inside a preset; holds a rule list.
+- **rule / rule list** — a rule is a pattern over element and relation types (*All* = any),
+  *Include* or *Exclude*; a list keeps any Include match minus any Exclude match.
 - **Action** — a runtime verb (create / per-element / expand / re-layout); never stored in a preset.
 - **Session** — the last-used configuration, restored when the UI opens.
 - **VisualSet** — the existing visual objects of one target view, captured before a run.
@@ -136,7 +138,8 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | **container** | nested element | 1 → 1..N | containment is **derived** from resolved nestings, never declared |
 | **element** | container role | — | an element may be a container in one relation and a child in another (no contradiction) |
 | **diagram object** | model concept | N → 0 | realises nothing in the model |
-| **Preset** | Step | 1 → 0..N | ordered list; an empty list = no expansion |
+| **Preset** | Step | 1 → 0..N | ordered list, each with its rules; empty = no expansion |
+| Preset | rule list | 1 → 6 | filter (elements, diagram objects, relations), nesting, reverse, style; empty filter = all, empty feature list = none |
 | Preset | appearance config | 1 → 1 | styling rules, with a master on/off ✦ |
 | **VisualSet** | view | 1 → 1 | existing visuals of one target view, captured pre-run |
 | **LayoutGraph** | element + nesting + connection | projection | engine-facing view of the object set |
@@ -189,24 +192,25 @@ contents; elements; relations) and canvas objects (VisualElements, VisualRelatio
 objects, or a whole view — which yields the view's complete contents, split into model
 concepts and diagram objects). Mixed selections are valid and normalise into one object set.
 
-**Filtering.** A global filter narrows what is included, in three independent parts: element
-types, relation types (each with independent incoming/outgoing direction toggles), and
-diagram-object types. Filtering is **visibility-only**: hiding an element never alters the
-nesting structure between elements that survive the filter. An empty filter includes
-everything; for a relation type, "neither direction selected" means *follow all directions*.
+**Filtering.** A global filter narrows what is included, in three independent rule lists:
+elements (type, optionally a property value), diagram-object types, and relations (source
+type, relation type, target type — the relations drawn between the selected elements).
+Filtering is **visibility-only**: hiding an element never alters the nesting structure between
+surviving elements. An empty list includes everything.
 
 **Related-elements steps build on each other.** Beyond the filtered base, the user adds an
 ordered list of expansion steps. **Each step expands outward from the previous step's
 additions only** — not from the whole accumulated set — so a sequence reads as "from these,
-reach those; from *those*, reach the next". A step specifies which relation types to follow
-(direction-aware), how often it repeats, and an element-type filter that prunes only what that
-step adds. **Repeat** runs the step 1–5 times or *until nothing new* (at most 10 runs); each run
-starts from the previous run's additions. An **empty step ends the chain**: every later step
-then adds nothing.
+reach those; from *those*, reach the next". A step rule reads from that set: *previous-step
+type → direction (outgoing / incoming / either) → added relation type → added element type*,
+plus an optional property value; it shows what it reaches. Followed relations are drawn; the
+added type and property only decide which elements join. **Repeat** runs the step 1–5 times or
+*until nothing new* (at most 10 runs), each run from the previous run's additions. An **empty
+step ends the chain**.
 
-**A wider filter never yields less.** Ticking an extra relation type or direction in a step can
-only keep or grow what that step adds — there are no hidden exceptions that skip elements the
-filter allows.
+**A wider filter never yields less.** An extra Include rule can only keep or grow what a step
+adds; an extra Exclude rule can only shrink it — there are no hidden exceptions. A rule that
+names an unknown type is rejected with a message, never widened to *All*.
 
 **Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds
 a missing relation — it only re-lays-out what is already on the view. `EXPAND_VIEW` expands
@@ -233,15 +237,14 @@ explanation and a "used by" list, all from the SSOT.
 structures), **Network** (connectivity, clustering, impact), **Compact** (portfolios,
 catalogues) and **Circular** (cycles, hub-and-spoke).
 
-**Relations — nesting and reversal.** Selecting relation types as **nesting** changes how
-those relations are drawn: instead of lines, the child element is drawn **inside** its
-parent's box (box-in-box). This makes the view express **hierarchy and ownership directly**,
-and — because containment removes the line — it makes **double relations and unexpected
-structure** easy to spot. **Container types** restrict which element types may become a
-container (e.g. *Grouping only*); a nesting-type relation from a parent of another type is
-drawn as a connection. **Reverse for layout** lays out the chosen relation types against their
-direction — it changes the flow order and which element is the nesting parent; the model
-relation is never modified and arrows keep their model direction.
+**Relations — nesting and reversal.** Relations matching a **nesting** rule are drawn as
+containment: the child element sits **inside** its parent's box (box-in-box). This makes the
+view express **hierarchy and ownership directly**, and — because containment removes the line —
+makes **double relations and unexpected structure** easy to spot. A rule's source and target
+types restrict which elements may be a container (e.g. source *Grouping*). Relations matching a
+**reverse** rule are flipped: the flow lays them out from target to source, a nested one has
+its target as parent; model relation and arrows stay unchanged. Each rule counts the relations
+it hits and how many become a nesting; the dialog says why the others are drawn as a line.
 
 **Containers** (active once a nesting type is chosen):
 - **Layout inside** — the algorithm used to arrange children *inside* each container.
@@ -346,10 +349,10 @@ the saved preset, also a restored session. **Save** overwrites; **Save As…** a
 UI state are restored on open; this session is user-local, never shared as a preset.
 
 **Tabs.** Three tabs, each owning one concern ✦ (separate modules):
-- **Selection** — the live counts (selected → containing → filtered → per-step adds), the
-  global filter, and the ordered related-elements steps. Each step shows what it adds, with
-  reorder / collapse / remove controls and per-relation **incoming/outgoing** toggles. On
-  preset load, steps after the first start collapsed.
+- **Selection** — the live counts (selected → containing; per filter rule, per step), the
+  global filter, and the ordered steps. Every rule list is a table with one rule per row. Each
+  step shows what it adds, per rule and in total, with collapse / reorder / remove controls. On
+  preset load, all steps start expanded.
 - **Layout** — the algorithm radio table (all styles always visible), then the groups of
   [§7](#7-layout-options). Options unsupported by the chosen algorithm are disabled, their
   values kept, and named in the group's hint line.
@@ -382,15 +385,13 @@ in the preset (`appearance.enabled`). When off, no element appearance is touched
 individual group settings. When on, styling applies across all four actions; on re-layout /
 expand it replaces prior styling overrides.
 
-Five rules, applied in this precedence (later wins on the same element): **nesting level →
-highlight repeated → style by property → style by related property → style by connected
-element**.
-- **Style by property** — colour elements (or relations) by a named property value, evenly
-  mapped onto a chosen colour scale; relations may also take a fixed line width.
-- **Style by related property** — colour an element by a property read from its connected
-  relations (matched by type + direction).
-- **Style by connected element** — colour an element by a property of the elements it connects
-  to; a configurable conflict colour applies when several matching targets disagree.
+Three groups, applied in this precedence (later wins on the same object): **nesting level →
+highlight repeated → style by property**.
+- **Style by property** — style rules, applied in order: what gets the colour (an element by
+  its own property, a relation, or the source / target element of a matching relation), whose
+  property gives the value, and a colour scale. Several different values on one object give a
+  *mixed values* colour; styled relations may take a fixed line width. Two rules on one object
+  are flagged in the dialog; the last wins.
 - **Style by nesting level** — vary container font size and fill colour by nesting depth, but
   only along an unbroken **same-type chain** from each root container; a different-type
   container breaks the chain for itself and its descendants. Active only when nesting types are
@@ -485,10 +486,10 @@ The system's invariants are directly testable; a rebuild is accepted when these 
 - **SSOT/adapter separation.** Functional metadata (algorithms, params, labels, allowed values,
   defaults) lives in the SSOT; all engine-specific translation lives in adapters. Adding an
   algorithm = one SSOT entry + one adapter mapping; adding an engine = one registration.
-- **Schema migration** ✦. Every preset carries a `schemaVersion`. Loading an older version runs
-  an explicit, documented migration to the current shape; there are no silent inference
-  fallbacks. New configuration keys are added to the defaults in the same change that
-  introduces them, or they are dropped by validation.
+- **Schema migration.** Every preset carries a `schemaVersion`. An older shape is migrated by an
+  explicit, documented one-shot migration; loading an unmigrated preset is refused with a
+  message, never silently reinterpreted. New configuration keys are added to the defaults in
+  the same change that introduces them, or they are dropped by validation.
 - **Vocabulary.** Follow rules 15–16; the [Vocabulary](#2-vocabulary) section is authoritative.
 - **Logging.** Console output mirrors the orchestration phases as named steps (validate →
   selection → target → layout graph → layout → write), each with a consistent, column-stable
@@ -511,8 +512,8 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 |---|---|---|---|
 | Routing | edge routing | Gap | node spacing |
 | Label | edge label position | Layer gap | layer spacing |
-| Nesting | nesting relation types | Between | edge-edge / port spacing |
-| Reverse for layout | reversed relation types | To element | edge-node spacing |
+| Nesting | nesting rules | Between | edge-edge / port spacing |
+| Reverse | reverse rules | To element | edge-node spacing |
 | Layout inside | container algorithm | Padding | container padding |
 | Same width per level | alignWidthSameType | Placement | node placement |
 | Cycles | acyclicer | Ranking | ranker |
@@ -529,14 +530,15 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 │ │  Current selection                                                    │  │
 │ │    Selected: 3 elements, 2 relations, 1 view   First: Actor: Customer │  │
 │ │    Containing: 12 elements, 8 relations                               │  │
-│ │    Filtered:   9 elements, 6 relations                                │  │
-│ │  Filter element types  [search] [chips]                               │  │
-│ │  Filter relation types  access ○← ○→  aggregation ○← ○→  …            │  │
-│ │  Filter diagram types   ○ group  ○ note  ○ image  ○ legend            │  │
-│ │  Expand selection                                   [+ Add step]      │  │
-│ │   ┌ Step 1   Adds: 4 elements, 3 relations     [▲][▼][▾][✕] ┐        │  │
-│ │   │  access ○← ○→  …   Element types [chips]   Repeat [1× ▼]│        │  │
-│ │   └───────────────────────────────────────────────────────┘          │  │
+│ │  Filter by element type   Mode | Element type          [+ Add rule] │  │
+│ │  Filter by diagram type   Mode | Diagram type          [+ Add rule] │  │
+│ │  Filter by relations      Mode | Source | Relation | Target  [+ …]  │  │
+│ │  Expand selection                                                     │  │
+│ │   ┌ ▾ Step 1 · Adds: 4 elements · 3 relations        [↑][↓]   [✕] ┐  │  │
+│ │   │ Mode | Previous step | Direction | Added relations | Added …  │  │  │
+│ │   │ [+ Add rule]  ☐ Property condition   Repeat [1× ▼]            │  │  │
+│ │   └────────────────────────────────────────────────────────────────┘  │  │
+│ │   [+ Add step]                                                        │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
 │ On the generated view:  elements: 18 containers · 92 nested elements       │
 │                         relations: 11 nestings · 98 connections            │
@@ -548,29 +550,28 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layout tab groups: *Algorithm* (style-grouped radio table), *Relations* (nesting types,
-container types, reverse for layout), *Containers* (layout inside, between/crossing, padding,
+Layout tab groups: *Algorithm* (style-grouped radio table), *Relations* (nesting rules,
+reverse rules), *Containers* (layout inside, between/crossing, padding,
 sort, show in every container, same width per level, snap columns), *Flow* (direction, cycles,
 ranking, placement, layer gap), *Elements* (width, height, by label + wrap at, gap),
 *Connections* (routing, label, reserve label space, between, to element), *View size* (free /
 aspect ratio / max width). Each group ends with a grey "Not used by …" hint.
-Appearance tab groups: *Style by property*, *Style by related property*, *Style by connected
-element*, *Style by nesting level*, *Highlight repeated elements*, plus the master toggle.
+Appearance tab groups: *Style by property* (style rules), *Style by nesting level*, *Highlight
+repeated elements*, plus the master toggle.
 
 ### Preset JSON schema
 
-Persisted keys (GUI labels in comments). `schemaVersion` and `appearance.enabled` are new ✦.
+Persisted keys (GUI labels in comments). `appearance.enabled` is new ✦.
 
 ```
 Preset {
-  schemaVersion : int                       // ✦ explicit migration anchor
+  schemaVersion : 2                         // migration anchor
   name          : string
   algorithm     : enum                       // Layout style
   params {
     direction, routing, labelPosition, ranking, acyclicer, nodePlacement  // gated by algorithm
-    nestingRelationTypes : RelTypeId[]               // Nesting
-    reverseRelationTypes : RelTypeId[]               // Reverse for layout
-    nestingContainerTypes: ElementTypeId[]           // Container types; [] = any
+    nestingRules : RelationRule[]                    // Nesting; [] = none
+    reverseRules : RelationRule[]                    // Reverse; [] = none
     containerAlgorithm   : "Layered"|"Grid"|"Pack"   // Layout inside
     connectionsMode      : "Crossing containers"|"Between containers"
     elementWidth, elementHeight, elementSpacing, layerSpacing,
@@ -581,26 +582,31 @@ Preset {
     sortContainers, alignWidthSameType, snapColumnsToGrid,
     showInEveryContainer, labelSizing, connectionLabelSpacing : boolean
   }
-  filter { elementTypes:ElTypeId[], relationTypes:EncRelTypeId[], diagramTypes:DgTypeId[] }
+  filter { elementRules:ElementRule[], diagramRules:DiagramRule[], relationRules:RelationRule[] }  // [] = all
   relatedElements { steps : Step[] }               // ordered chain
   view { name, folder, suffix : string }           // Create actions only; suffix: One view each
   description : string                             // shown under the preset combo
   appearance {
     enabled : boolean                              // ✦ master styling on/off
-    styleByProperty { element{…}, relation{… lineWidth} }
-    styleByRelatedProperty { enabled, relTypes, property, colorRange }
-    styleByConnectedElement { enabled, relTypes, elementType, property, colorRange, conflictColor }
+    styleByProperty { rules:StyleRule[], mixedValuesColor:hex, lineWidth:0..3 }
     nestingLevel { font*, color*, rootColor, lightenPerLevel, … }
     highlightRepeated { enabled, colorRange }
   }
   engineParams : { ELK?{…}, Dagre?{…}, Graphviz?{…}, layout?{…} }  // ✦ typed overrides
 }
-Step { repeat:1..5|"untilNothingNew", elementTypes:ElTypeId[], relationTypes:EncRelTypeId[],
-       propFilter:{ key, value } }
+Step         { repeat:1..5|"untilNothingNew", rules:StepRule[] }        // [] = follow all
+ElementRule  { mode, elementType, property, value }
+DiagramRule  { mode, diagramType }
+RelationRule { on, mode, source, relation, target }
+StepRule     { mode, previous, direction:"either"|"outgoing"|"incoming", relation, added,
+               propertyOf:"added"|"relation"|"previous", property, value }
+StyleRule    { on, color:"element"|"relation"|"source"|"target", source, relation, target,
+               propertyOf:"element"|"relation"|"source"|"target", property, colorRange }
 ```
 
-**Encoded relation-type strings.** `"type"` = both directions; `"type:in"` = incoming only;
-`"type:out"` = outgoing only; **absent** = follow all directions for that type.
+**Rule fields.** `mode` is `"include"` (default) or `"exclude"`; a type field holds a type id or
+`""` (= All); `on` defaults to true. Files omit fields at their default and write one rule per
+line, so a step with many rules stays readable and a diff shows one changed rule as one line.
 
 ### Capability matrix
 
@@ -640,8 +646,8 @@ target that cannot be met is reported, not forced.
 
 Deliberate departures a rebuild adopts:
 
-1. **`schemaVersion` + explicit migration** replaces silent unknown-key stripping and
-   view-size-mode inference.
+1. **Explicit migration** also replaces silent unknown-key stripping and view-size-mode
+   inference.
 2. **Self-loop handling is a first-class contract** (vocabulary, capability, writer rule).
 3. **`engineParams` promoted** from a hidden bag to a typed, per-engine override block in the
    schema.
@@ -651,6 +657,6 @@ Deliberate departures a rebuild adopts:
    is individually off".
 7. **Error/resilience model** and **verification/acceptance contract** are newly specified.
 
-Already realised: the capability matrix is derived from the registry; `Step.diagramTypes` is
-removed; one reconciled per-engine view-size table; control labels, tooltips and "used by"
+Already realised: `schemaVersion` with an offline migration (rule lists, version 2); the
+capability matrix is derived from the registry; `Step.diagramTypes` is removed; one reconciled per-engine view-size table; control labels, tooltips and "used by"
 lists come from one canonical SSOT set.

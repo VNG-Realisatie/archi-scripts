@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "requirement",
   "algorithm": "Layered",
   "params": {
@@ -6,16 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "assignment-relationship",
-      "association-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship",
-      "assignment-relationship",
-      "association-relationship",
-      "realization-relationship"
-    ],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -24,12 +15,22 @@
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "assignment-relationship"},
+      {"relation": "association-relationship"},
+      {"relation": "realization-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "assignment-relationship"},
+      {"relation": "association-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []

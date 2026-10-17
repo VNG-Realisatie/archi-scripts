@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Bedrijfsobjecten/Bedrijfsobjecten per domein",
   "algorithm": "Pack",
   "params": {
@@ -7,13 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
     "padding": 10,
     "diagramPadding": 20,
     "sortContainers": false,
@@ -32,30 +26,30 @@
     "aspectRatio": 1.33,
     "viewSizeMode": "none",
     "labelSizing": true,
-    "labelMaxLineWidth": 160
+    "labelMaxLineWidth": 160,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "grouping"
+    "elementRules": [
+      {"elementType": "grouping"}
     ],
-    "relationTypes": [],
-    "diagramTypes": []
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 4,
-        "elementTypes": [
-          "grouping",
-          "business-object"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"},
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
+        ]
       }
     ]
   },
@@ -65,33 +59,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": true,

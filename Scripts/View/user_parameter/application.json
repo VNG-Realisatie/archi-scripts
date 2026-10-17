@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "application",
   "algorithm": "Layered",
   "params": {
@@ -6,12 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -20,33 +15,39 @@
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "application-collaboration",
-      "application-component",
-      "application-event",
-      "application-function",
-      "application-interaction",
-      "application-interface",
-      "application-process",
-      "application-service",
-      "grouping"
+    "elementRules": [
+      {"elementType": "application-collaboration"},
+      {"elementType": "application-component"},
+      {"elementType": "application-event"},
+      {"elementType": "application-function"},
+      {"elementType": "application-interaction"},
+      {"elementType": "application-interface"},
+      {"elementType": "application-process"},
+      {"elementType": "application-service"},
+      {"elementType": "grouping"}
     ],
-    "relationTypes": [
-      "access-relationship",
-      "aggregation-relationship",
-      "assignment-relationship",
-      "association-relationship",
-      "composition-relationship",
-      "influence-relationship",
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship",
-      "triggering-relationship"
+    "relationRules": [
+      {"relation": "access-relationship"},
+      {"relation": "aggregation-relationship"},
+      {"relation": "assignment-relationship"},
+      {"relation": "association-relationship"},
+      {"relation": "composition-relationship"},
+      {"relation": "influence-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"},
+      {"relation": "triggering-relationship"}
     ],
-    "diagramTypes": []
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []

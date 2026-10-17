@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "business",
   "algorithm": "Layered",
   "params": {
@@ -6,12 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -20,33 +15,39 @@
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "business-actor",
-      "business-collaboration",
-      "business-event",
-      "business-function",
-      "business-interaction",
-      "business-interface",
-      "business-object",
-      "business-process",
-      "business-role",
-      "business-service",
-      "contract",
-      "product",
-      "representation"
+    "elementRules": [
+      {"elementType": "business-actor"},
+      {"elementType": "business-collaboration"},
+      {"elementType": "business-event"},
+      {"elementType": "business-function"},
+      {"elementType": "business-interaction"},
+      {"elementType": "business-interface"},
+      {"elementType": "business-object"},
+      {"elementType": "business-process"},
+      {"elementType": "business-role"},
+      {"elementType": "business-service"},
+      {"elementType": "contract"},
+      {"elementType": "product"},
+      {"elementType": "representation"}
     ],
-    "relationTypes": [
-      "aggregation-relationship",
-      "assignment-relationship",
-      "composition-relationship",
-      "serving-relationship",
-      "specialization-relationship",
-      "realization-relationship"
+    "relationRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "assignment-relationship"},
+      {"relation": "composition-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"},
+      {"relation": "realization-relationship"}
     ],
-    "diagramTypes": []
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []

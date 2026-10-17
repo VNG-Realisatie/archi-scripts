@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "regels",
   "algorithm": "Layered",
   "params": {
@@ -7,8 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": true,
     "alignWidthSameType": false,
@@ -24,12 +23,14 @@
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false,
-    "connectionSpacing": 20
+    "connectionSpacing": 20,
+    "nestingRules": [],
+    "reverseRules": []
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []
@@ -40,33 +41,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,

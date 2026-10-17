@@ -66,7 +66,7 @@ Stable terms. Used in code, UI labels, and documentation. No synonyms.
 |                     | **nested element**   | Drawn inside a container; not itself a container.                                                                                                                                                              |
 |                     | **standalone**       | Drawn at view root; no children, not inside anything.                                                                                                                                                          |
 |                     | **extra occurrence** | Second or Nth visual appearance of the same element under another container (when `showInEveryContainer: true`). Applies whether the duplicated visual is a nested element or a sub-container.                 |
-| VisualRelation role | **nesting**          | Drawn as box-in-box (the nested element sits inside the container's box; no line). Driven by `params.nestingRelationTypes`.                                                                                    |
+| VisualRelation role | **nesting**          | Drawn as box-in-box (the nested element sits inside the container's box; no line). Driven by `params.nestingRules`.                                                                                    |
 |                     | **connection**       | Drawn as a line between two boxes. Every VisualRelation is either a nesting or a connection.                                                                                                                   |
 | Canvas-only         | **diagram object**   | A canvas-only object with no model concept: note, group, image, legend, view-reference, or a connection drawn between diagram objects. Belongs to exactly one view.                                            |
 | Subsystem           | **Layout**           | Algorithmic positioning of all visible objects on a view.                                                                                                                                                      |
@@ -255,6 +255,8 @@ Field names below are the persisted JSON keys; the inline comments use the GUI l
 
 ```
 Preset {
+  schemaVersion : 2                     // 2 = rule lists; older presets are migrated offline
+                                        // (tools/migrate_presets_relrows.js) and refused unmigrated
   name        : string                  // saved preset's identifier
   algorithm   : enum                    // Layout style
 
@@ -263,9 +265,8 @@ Preset {
     ranking, acyclicer, nodePlacement   // Ranking, Cycles (Dagre), Placement (Layered)
                 : option strings        // allowed values: ALGORITHMS[*].supportedOptions
 
-    nestingRelationTypes : RelTypeId[]  // Nesting — relation types drawn as nesting
-    reverseRelationTypes : RelTypeId[]  // Reverse for layout
-    nestingContainerTypes: ElementTypeId[] // Container types; [] = any
+    nestingRules : RelationRule[]       // Nesting — relations drawn as nesting; [] = none
+    reverseRules : RelationRule[]       // Reverse — flipped relations; [] = none
 
     elementWidth, elementHeight,        // Width, Height
     elementSpacing, layerSpacing,       // Gap, Layer gap
@@ -287,10 +288,10 @@ Preset {
     connectionsMode    : string     // "Crossing containers" | "Between containers"
   }
 
-  filter {
-    elementTypes  : ElTypeId[]          // empty = all
-    relationTypes : EncodedRelTypeId[]  // each entry: "type" | "type:in" | "type:out"
-    diagramTypes  : DgTypeId[]
+  filter {                              // every list: empty = keep all
+    elementRules  : ElementRule[]       // seed elements
+    diagramRules  : DiagramRule[]       // diagram objects of selected views
+    relationRules : RelationRule[]      // relations between the filtered elements
   }
 
   relatedElements {
@@ -310,33 +311,10 @@ Preset {
 
   appearance {
     styleByProperty {
-      element {
-        enabled     : boolean           // colour elements by a model property value
-        elementType : ElTypeId | ""     // "" = all types
-        property    : string            // property name (case-sensitive)
-        colorRange  : string            // ColorBrewer scheme name
-      }
-      relation {
-        enabled    : boolean            // colour relations by a property value
-        relTypes   : EncodedRelTypeId[] // same encoding as filter.relationTypes
-        property   : string             // property name on the relation (case-sensitive)
-        colorRange : string             // ColorBrewer scheme name
-        lineWidth  : number             // 0 = no change; 1 = Normal, 2 = Medium, 3 = Heavy
-      }
-    }
-    styleByRelatedProperty {
-      enabled    : boolean              // colour elements by a property of connected relations
-      relTypes   : EncodedRelTypeId[]   // same encoding as filter.relationTypes
-      property   : string              // property name on the relation (case-sensitive)
-      colorRange : string              // ColorBrewer scheme name
-    }
-    styleByConnectedElement {
-      enabled       : boolean           // colour elements by a property of connected elements
-      relTypes      : EncodedRelTypeId[]// same encoding as filter.relationTypes
-      elementType   : ElTypeId | ""     // "" = all target types
-      property      : string            // property name on the connected element (case-sensitive)
-      colorRange    : string            // ColorBrewer scheme name
-      conflictColor : string            // hex fill colour when multiple targets match
+      rules            : StyleRule[]    // applied in order; the later rule wins on one object
+      mixedValuesColor : string         // hex fill for an object that gets several values
+      lineWidth        : number         // 0 = no change; 1 = Normal, 2 = Medium, 3 = Heavy —
+                                        // for relations colored by a Color = Relation rule
     }
     nestingLevel {
       fontEnabled          : boolean    // vary font size by nesting depth
@@ -374,33 +352,45 @@ Step {
                                         // runs of this step; each run starts from the previous
                                         // run's additions. "untilNothingNew" stops when a run adds
                                         // nothing, capped at REPEAT_MAX (10) runs
-  elementTypes   : ElTypeId[]           // prune this step's additions
-  relationTypes  : EncodedRelTypeId[]   // direction-aware (see below)
-  propFilter     : { key: string, value: string }
-                                        // property=value gate; empty strings = inactive
+  rules          : StepRule[]           // [] = follow every relation
 }
 ```
 
-#### Encoded relation type strings
+#### Rule lists
 
-Used by the `EncodedRelTypeId[]` fields above (`filter.relationTypes`, `Layer.relationTypes`).
+One rule model for every filter (`lib/rel_filter.js`, pure; widget `lib/gui/rule_table.js`).
+A list keeps what matches **any active Include rule**, unless an **Exclude rule** matches too;
+order has no meaning (style rules excepted: the later rule wins). A type field holds a type id
+or `""` (= All); `mode` defaults to `"include"`, `on` to true.
 
-| Encoded value | Meaning |
-|---|---|
-| `"type"` | both directions |
-| `"type:in"` | incoming only (traversed element is the relation's target) |
-| `"type:out"` | outgoing only (traversed element is the relation's source) |
+| Rule kind | Fields | Used by | Empty list |
+|---|---|---|---|
+| `element`  | mode, elementType, property, value | `filter.elementRules` | keep all |
+| `diagram`  | mode, diagramType | `filter.diagramRules` | keep all |
+| `relation` | on, mode, source, relation, target | `filter.relationRules`, `params.nestingRules`, `params.reverseRules` | filter: keep all · nesting/reverse: none |
+| `step`     | mode, previous, direction, relation, added, propertyOf, property, value | `steps[].rules` | follow all |
+| `style`    | on, color, source, relation, target, propertyOf, property, colorRange | `appearance.styleByProperty.rules` | no styling |
 
-Per relation type, two independent direction checkboxes are shown: **○ ←** (incoming) and **○ →** (outgoing). There is no separate "activate this relation" master toggle.
+**Step rules are written from the previous step's elements.** `direction`: `outgoing` = the
+previous-step element is the relation's source, `incoming` = its target, `either` (default) =
+both. `previous` constrains the previous-step element's type, `added` the new element's type;
+`propertyOf` (`added` / `relation` / `previous`) says whose property must equal `value`. Which
+relations a step *draws* (`matchStepRelation`): an Include rule matches on relation type,
+direction and `previous` only — `added` and the property only decide which elements join;
+an Exclude rule matches in full. This keeps a migrated step exactly equal to its old form.
 
-| UI state | Encoded form | Meaning |
-|---|---|---|
-| ☑ ← only | `"type:in"` | incoming only |
-| ☑ → only | `"type:out"` | outgoing only |
-| ☑ ← and ☑ → | `"type"` | both directions |
-| ○ ← and ○ → | *(absent from list)* | follow all — unconstrained |
+**Style rules.** `color`: `element` (the element by its own property; `source` holds its type),
+`relation`, `source` / `target` (that end of a matching relation — model-wide relations, so a
+relation need not be on the view). `propertyOf`: `element` (the styled element), `relation`,
+`source`, `target`. Several distinct values on one object → `mixedValuesColor`.
 
-Empty selection (neither direction checked) is meaningful: the relation type is absent from the encoded list. [Step 5](#steps) treats "empty union → all types allowed", so the absent type is followed in all directions. No UI enforcement prevents the both-unchecked state; it is the idiomatic "don't filter" state.
+**Validation.** `validatePreset` normalises each rule; an unknown key, enum value or type id
+skips the rule with a console warning — a typo never widens a filter to All. A preset with the
+old keys (`filter.elementTypes`, `steps[].relationTypes`, `params.nestingRelationTypes`, …) is
+refused with a message naming the migration script.
+
+**File form.** `rel_filter.stringifyPreset` (used by `preset_io.writeJSON`) omits fields at their
+default, writes a pass-all filter list as `[]` and puts every rule on one line.
 
 ### Action
 
@@ -467,28 +457,31 @@ The Selection tab decides *which* objects feed the layout: the counts group at t
   │  │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │ │
   │  │               First object: Business Actor: Customer                │ │
   │  │  Containing:  12 elements, 8 relations                              │ │
-  │  │  Filtered:    9 elements, 6 relations                               │ │
   │  │  ────────────────────────────────────────────────────────────────   │ │
-  │  │  Filter element types  (empty = all included):                      │ │
-  │  │  [search field]  ┊  [chip panel: × BusinessActor  × Application]    │ │
-  │  │  Filter relation types:                                             │ │
-  │  │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …               │ │
-  │  │  Filter diagram types:                                              │ │
-  │  │  ○ group  ○ note  ○ image  ○ legend                                 │ │
+  │  │  Filter selection by element type (none = keep all):                │ │
+  │  │   Mode    │ Element type                                     ✕      │ │
+  │  │   Include │ All                                              ✕      │ │
+  │  │   [+ Add rule]  ☐ Property condition                                │ │
+  │  │  Filter selection by diagram type (none = keep all):                │ │
+  │  │   Mode │ Diagram type     [+ Add rule]                              │ │
+  │  │  Filter selection by relations (none = keep all):                   │ │
+  │  │   Mode │ Source type │ Relation type │ Target type   [+ Add rule]   │ │
   │  └─────────────────────────────────────────────────────────────────────┘ │
   │  ┌─ Expand selection ─────────────────────────────────────────────────┐  │
-  │  │ Expand by following relations to neighbouring elements.            │  │
-  │  │ Each block below adds a step.            [+ Add related elements]  │  │
-  │  │ ┌─ Step 1 ──────────────────────────────────────────────────────┐  │  │
-  │  │ │  Added:  4 elements, 3 relations        [▲] [▼] [▾] [✕]       │  │  │
-  │  │ │  ──────────────────────────────────────────────────────────── │  │  │
-  │  │ │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …         │  │  │
-  │  │ │  Filter element types:  [chip selector]                       │  │  │
-  │  │ │  Repeat: [1×  ▼]  Property: [         ▼]  Value: [          ▼] │  │  │
-  │  │ └───────────────────────────────────────────────────────────────┘  │  │
-  │  │ ┌─ Step 2 ──────────────────────────────────────────────────────┐  │  │
-  │  │ │  Added:  nothing                        [▲] [▼] [▸] [✕]       │  │  │
-  │  │ └───────────────────────────────────────────────────────────────┘  │  │
+  │  │ Expand the selection with connected elements. Each step defines    │  │
+  │  │ which relation to follow.                                          │  │
+  │  │ ┌──────────────────────────────────────────────────────────────┐   │  │
+  │  │ │ [▾] Step 1 · Adds: 4 elements · 3 relations   [↑] [↓]   [✕]  │   │  │
+  │  │ │ ──────────────────────────────────────────────────────────── │   │  │
+  │  │ │ Mode   │Previous step│Direction│Added          │Added      │ │   │  │
+  │  │ │        │elements     │         │relations      │elements   │ │   │  │
+  │  │ │Include │Grouping     │Outgoing │Aggregation (3)│All (4)    │✕│   │  │
+  │  │ │ [+ Add rule]  ☐ Property condition   Repeat: [1× ▼]          │   │  │
+  │  │ └──────────────────────────────────────────────────────────────┘   │  │
+  │  │ ┌──────────────────────────────────────────────────────────────┐   │  │
+  │  │ │ [▸] Step 2 · 1 rule · Adds: nothing           [↑] [↓]   [✕]  │   │  │
+  │  │ └──────────────────────────────────────────────────────────────┘   │  │
+  │  │ [+ Add step]                                                       │  │
   │  └────────────────────────────────────────────────────────────────────┘  │
   └──────────────────────────────────────────────────────────────────────────┘
 
@@ -496,16 +489,16 @@ The Selection tab decides *which* objects feed the layout: the counts group at t
 
 #### Current selection & live counts
 
-The **Current selection** group shows three summary lines and a per-block counter inside each related-elements block:
+The **Current selection** group shows two summary lines; what the filter keeps shows per rule in the filter tables' type combos, and each related-elements block has its own counter:
 
 - **Selected** — raw count of what the user picked in the UI. Includes a `First object: <Type>: <Name>` suffix naming the first iterated object.
 - **Containing** — count after recursive expansion of folders and views.
-- **Filtered** — count after the global filter is applied.
-- **Added** — one counter per block, in the block's header row. Shows what the block ADDS (not cumulative). Zero-count renders as `Added: nothing`.
+- **Filter rules** — each rule's type combo shows how many it keeps on its own, e.g. *Grouping (28)* (no separate *Filtered* line).
+- **Adds** — one counter per block, in the block's header row. Shows what the block ADDS (not cumulative). Zero-count renders as `Adds: nothing`; a collapsed block also names its number of rules. Per rule, the chosen Added relations / Added elements type shows `(n)` in its combo, e.g. *Aggregation (3)*: what the step adds with only that rule — same input, same repeat — so adding or changing another rule never changes it (rules may overlap; an Exclude rule shows what it removes from the other rules' result). `_stepRuleCounts` runs the step per rule and caches the result per rule and step input.
 
 Only types with count > 0 are rendered on each line. Empty selection renders `Selected: nothing` (no First-object suffix).
 
-Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, repeat control, property/value filter, and block ordering operation.
+Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStepWithRelations(stepInput, step, …)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every rule change, repeat change and block ordering operation.
 
 Each refresh emits a grouped block to the Archi console (mirroring the pipeline's own block on action click) so the user can compare prediction to result:
 
@@ -532,20 +525,19 @@ The on-screen [totals line](#totals-line) (below the tabs) carries the same grou
 
 #### Global filter
 
-Three independent filter controls below the counts. Filtering is visibility-only; it does not alter nesting structure ([Invariants](#invariants) — filter is non-destructive).
+Three independent rule tables below the counts ([Rule lists](#rule-lists)). Each rule's type combo shows how many it keeps on its own, *Grouping (28)* (an Exclude rule: how many it removes from the other rules' result); `_filterRuleCounts`. Filtering is visibility-only; it does not alter nesting structure ([Invariants](#invariants) — filter is non-destructive). Each table shows the default row `Include | All` when nothing is filtered.
 
-- **Filter element types** — a search field with a chip panel. Empty = all element types included.
-- **Filter relation types** — per relation type, two independent direction checkboxes (○← incoming, ○→ outgoing). Empty (both unchecked) = follow all directions for that type. See [Preset schema](#preset-schema) for encoding.
-- **Filter diagram types** — checkboxes for each diagram-object type in the closed set. Unchecked = included.
+- **Element type** — Mode · Element type, plus Property · Value behind *Property condition* (on and locked as soon as a rule uses a property).
+- **Diagram type** — Mode · Diagram type: the diagram objects of selected views (a view reference matches *reference*). Shown only when the selection holds diagram objects; its rules are kept either way.
+- **Relations** — Mode · Source type · Relation type · Target type: which relations between the filtered elements are drawn.
 
 #### Related-elements blocks
 
-The Related-elements group (GUI title: **Expand selection**) opens with a one-line explanation and a `[+ Add related elements]` button on the same row. Below it sits a dynamic, ordered list of blocks. Each block is a `Step N` group:
+The Related-elements group (GUI title: **Expand selection**) opens with a one-line explanation; below it sits a dynamic, ordered list of blocks and, under the last one, `[+ Add step]`. Each block is a frame:
 
-- **Header row**: `Added:` count label; reorder (▲ ▼); collapse/expand (▾/▸); remove (✕).
-- **Relation types**: per relation type, two independent direction checkboxes (same encoding as the global filter).
-- **Element-type filter** (block-scoped — prunes only what this block adds).
-- **Repeat** (`1×`–`5×` or `until nothing new`, max 10 runs; the `Adds:` label then shows `(nothing new after N×)` or `(stopped at max 10×)`) · **Property** / **Value** (optional property=value gate; blank = inactive). Only elements whose named property equals the chosen value are added. The Property combo is populated from elements reachable by this step's relation and element-type filters (dry-run without the gate); the Value combo cascades from the selected property.
+- **Header row**: collapse/expand triangle (▾/▸) and the bold title `Step N` on the left (title and summary are clickable too); the `Adds:` summary; move (↑ ↓) and, set apart, remove (✕) on the right. Different place and shape, so collapsing and moving cannot be confused.
+- **Rule table** (kind `step`): Mode · Previous step elements · Direction · Added relations · Added elements (each combo shows the rule's count after the chosen type), plus Property of · Property · Value behind *Property condition*. Property and Value lists come from the step's candidates (every relation the step saw, before its rules) that match the rule's types.
+- **Footer**: `[+ Add rule]`, *Property condition*, **Repeat** (`1×`–`5×` or `until nothing new`, max 10 runs; the `Adds:` label then shows `(nothing new after N×)` or `(stopped at max 10×)`).
 
 Each step's additions feed the next step's input — chain ([Steps](#steps) section Step 3). An empty step terminates the chain.
 
@@ -563,19 +555,27 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ │   Compact:  ○ Grid      ○ Pack                                        │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Relations ───────────────────────────────────────────────────────────┐ │
-│ │  Nesting — draw these relation types as nesting: the child element    │ │
-│ │  inside its parent (box in box):                                      │ │
-│ │  ☐ Access  ☑ Aggregation  ☐ Assignment  ☐ Association  …              │ │
-│ │  Container types: [Any element ▼]   (Selected types → type selector)  │ │
-│ │  ── Reverse for layout — lay out these relation types against their   │ │
-│ │     direction (arrows are unchanged):                                 │ │
-│ │  ☐ Access  ☐ Aggregation  ☐ Assignment  ☐ Association  …              │ │
+│ │  Nesting — draw these as nesting, child inside its parent:            │ │
+│ │   On │ Mode    │ Source │ Relation         │ Target │ Nested │       │ │
+│ │   ☑  │ Include │ All    │ Aggregation (62) │ All    │ 37     │ ✕     │ │
+│ │   ☑  │ Include │ Driver │ Association (8)  │ Driver │ 0      │ ✕     │ │
+│ │   [+ Add rule]                                                        │ │
+│ │  The parent is the source — or the target if the relation is also in  │ │
+│ │  Reverse below.                                                       │ │
+│ │  31 matching relations are drawn as a line: the child already has a   │ │
+│ │  parent (the first one wins). Show in every container (Containers)    │ │
+│ │  shows such a child in every parent.                                  │ │
+│ │  ── Reverse — flip these relations:                                   │ │
+│ │   On │ Mode    │ Source │ Relation         │ Target │               │ │
+│ │   No relations are reversed.     [+ Add rule]                         │ │
+│ │  Flow: laid out from target to source, against the Direction in the   │ │
+│ │  Flow box (arrows unchanged). Nesting: the target becomes the parent. │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Crossing… ▼]  Padding [20] │
 │ │  Options:  ☐ Sort containers          ☐ Show in every container       │ │
 │ │            ☐ Same width per level     ☐ Snap columns to grid          │ │
-│ │  Check a relation type under Nesting to use these settings.   (hint)  │ │
+│ │  Add a Nesting rule to use these settings.                    (hint)  │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
@@ -599,7 +599,9 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 
 **One source.** Every label, tooltip and the "Used by" line come from `defs.js` (`PARAM_LABELS`, `PARAM_TOOLTIPS`, `paramUsedBy`, `LAYOUT_GROUPS`); the dialog loads, saves and enables each param through one table (`PARAM_WIDGETS` in `dialog_main.js`). `tools/check_registry.js` checks that registry, defaults, widgets, labels and groups agree; `tools/gen_docs_tables.js` writes the tables below.
 
-**Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Each group ends with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, To element."*, or *"Not used by Force."* for a whole group. Containers settings are also greyed, with a hint, until a relation type is checked under Nesting.
+**Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the predicted view it matches on its own — shown after the chosen relation type, *Aggregation (62)* (an Exclude rule: what it removes from the other rules' matches) — and, for nesting, how many of them become a nesting (*Nested*). A grey note under Nesting says why matching relations are drawn as a line instead: the child already has a parent (first wins while *Show in every container* is off), the nesting would be circular, or the relation is a self-relation. Computed in `_updateLayoutRuleCounts` with the same `splitNestingRels` / `resolveNesting` as the writer.
+
+**Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Each group ends with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, To element."*, or *"Not used by Force."* for a whole group. Containers settings are also greyed, with a hint, until a Nesting rule is on.
 
 **Shared grid.** Containers, Flow, Elements and Connections share one column grid: a row heading (*Size:*, *Order:*, …) followed by up to three label/control pairs; a checkbox takes a whole pair (`_formRow` / `_alignFormColumns`), so fields line up across the groups.
 
@@ -647,9 +649,8 @@ Field = dialog label; Tooltip = its first two lines (the third, "Used by", is th
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Nesting | `nestingRelationTypes` | Draw a checked relation type as nesting: the child inside its parent. — Parent = source of the relation; with Reverse for layout, the target. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
-| Reverse for layout | `reverseRelationTypes` | Lay out a checked relation type from target to source. — Changes the flow order and the nesting parent; arrows are unchanged. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
-| Container types | `nestingContainerTypes` | Element types that may be a nesting parent. — A nesting relation whose parent has another type is drawn as a line. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+| Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+| Reverse | `reverseRules` | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
 
 **Containers**
 
@@ -716,23 +717,18 @@ The Appearance tab applies **post-write visual styling** (fill colours, fonts, l
 ```
 ┌─[Selection]──[Layout]──[Appearance]──────────────────────────────────────────┐
 │ ┌─ Style by property ─────────────────────────────────────────────────────┐  │
-│ │  ○ Element type: [Any ▼]                                               │  │
-│ │     Property: [Status ▼]  Color: [Set1 ▼] [====]                       │  │
-│ │  ○ Relation type: [Any ▼]                                              │  │
-│ │     Property: [Kind ▼]  Color: [Reds ▼] [====]                         │  │
-│ │     Set line width: [No change ▼]                                      │  │
-│ └─────────────────────────────────────────────────────────────────────────┘  │
-│ ┌─ Style by related property ─────────────────────────────────────────────┐  │
-│ │  access ○← ○→  aggregation ○← ○→  …                                    │  │
-│ │  Property: [Phase ▼]  Color: [OrRd ▼] [====]                           │  │
-│ └─────────────────────────────────────────────────────────────────────────┘  │
-│ ┌─ Style by connected element ────────────────────────────────────────────┐  │
-│ │  access ○← ○→  aggregation ○← ○→  …  Target type: [Any ▼]              │  │
-│ │  Property: [Domain ▼]  Color: [Purples ▼] [====]                       │  │
-│ │  Multiple targets: [#FF6B35 ▪]                                         │  │
+│ │ Color elements or relations by property values. Each rule says what gets  │  │
+│ │ the color and whose property gives the value.                             │  │
+│ │ On│Color          │Source  │Relation   │Target │Property of│Property│Range │  │
+│ │ ☑ │Element (own…) │App Comp│ —         │ —     │ —         │Status  │Blues▓│✕ │
+│ │ ☑ │Relation       │All     │Flow       │All    │Relation   │Volume  │Reds ▓│✕ │
+│ │ ☑ │Source element │All     │Serving    │All    │Relation   │Priority│OrRd▓⚠│✕ │
+│ │ [+ Add rule]                                                              │  │
+│ │ ⚠ Rules 3, 4 style the same objects. The last rule wins. …               │  │
+│ │ Mixed values color: [#FF6B35 ▪]   Line width of styled relations: [▼]     │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
-│ │  (Active only when nesting relation types are configured in Layout tab)  │  │
+│ │  (Active only when a Nesting rule is configured in the Layout tab)       │  │
 │ │  ☑ Apply font by level   Root size: [14 ▲▼] pt  ☑ Bold                  │  │
 │ │  Decrease/level: [2 ▲▼] pt                                              │  │
 │ │  ☑ Apply color by level  Root color: [#2C5F8A ▪] [=====] lighter       │  │
@@ -746,33 +742,28 @@ The Appearance tab applies **post-write visual styling** (fill colours, fonts, l
 
 Styling always runs when any feature is enabled, regardless of action (NEW_VIEW, ONE_EACH, EXPAND_VIEW, LAYOUT_ONLY). On LAYOUT_ONLY/EXPAND_VIEW, existing appearance overrides are replaced.
 
-Precedence when multiple rules target the same element: nestingLevel → highlightRepeated → styleByProperty → styleByRelatedProperty → styleByConnectedElement. Later rules win.
+Precedence when several groups target the same element: nestingLevel → highlightRepeated → styleByProperty (its rules in list order). Later wins.
 
-Five groups (in tab order):
+Three groups (in tab order):
 
 #### Style by property
 
-Colors elements or relations based on a named property value. Active when a property is selected in the combo (no enable checkbox). Color range combo + gradient preview strip are disabled until a property is chosen.
+One rule table (kind `style`, [Rule lists](#rule-lists)); it replaced the former Style by property (element / relation), Style by related property and Style by connected element groups:
 
-**Elements sub-section:** Unique property values are sorted and mapped to evenly-spaced colours on the chosen ColorBrewer scale.
+| Color | Property of | Was |
+|---|---|---|
+| Element (own property) | — (the element) | Style by property → elements |
+| Relation | Relation / Source element / Target element | Style by property → relations |
+| Source / Target element | Relation | Style by related property |
+| Source / Target element | the other end | Style by connected element |
 
-**Relations sub-section:** Colors the relation's `lineColor`. When a line width is selected (1 Normal / 2 Medium / 3 Heavy), that fixed width is applied to all matched connections; "No change" leaves `lineWidth` untouched.
+A rule is active when it is on and has a property. Its Property combo shows feedback after the chosen name, *Status (14)*: the objects on the predicted view the rule colors; before a property is chosen, just *(n)*: the objects it reaches. Unique values are sorted and mapped to evenly spaced colours on the rule's ColorBrewer range; an object with several different values gets the **mixed values color**. Relations colored by a `Color = Relation` rule take the fixed **line width** when one is chosen. Rules apply in list order; where two rules style the same object the later wins, and the dialog marks both with ⚠ (computed on the predicted view contents with `appearance.computeRuleTargets` and `rel_filter.detectRuleConflicts`). The row tooltip reads the rule as a sentence (`_styleRuleSentence`).
 
-#### Style by related property
-
-Colors elements based on properties of their connected relations. Active when a property is selected. Uses the same ← → relation-type grid as the Selection tab's related-elements blocks.
-
-For each element on the view, reads the named property from matching relations and colours the element. Multiple matching relations: last-match wins.
-
-#### Style by connected element
-
-Colors elements based on properties of elements they are connected to via matching relations. Active when a property is selected.
-
-When a source element connects to exactly one matching target element, it gets the target's property value mapped to a scale color. When it connects to multiple matching targets, it gets `conflictColor`.
+On EXPAND_VIEW / LAYOUT_ONLY a rule that is **off** resets what it would style (fill, or line colour and width) unless another rule styled it; manually set colours elsewhere are left alone.
 
 #### Style by nesting level
 
-Active only when at least one nesting relation type is configured in the Layout tab. An informational label replaces the controls when nesting is not configured. All controls appear on two compact rows (one for font, one for color).
+Active only when a Nesting rule is on in the Layout tab. An informational label replaces the controls when nesting is not configured. All controls appear on two compact rows (one for font, one for color).
 
 **Font rule.** Root containers (depth 0) get `rootFontSize` pt (+ bold if `rootFontBold`). Each deeper level gets `rootFontSize - depth × fontDecreasePerLevel` pt, clamped at the Archi default (9 pt). Non-containers are untouched. Only containers in the same-type chain from their subtree root are affected (see Type chain rule below).
 
@@ -860,7 +851,7 @@ Tech-agnostic rules for all interactive controls. Platform-specific implementati
 | **Direction checkboxes: empty = follow all.** Both-unchecked is valid. No UI enforcement prevents it. The system interprets absence from the encoded list as unconstrained ([Preset schema](#preset-schema), [Steps](#steps) step 5). | Eliminates the need for a two-level "relation on/off vs direction" interaction. Reduces friction for the common case: no filter = all relations followed. |
 | **Algorithm selection uses a radio table.** All algorithms for all styles are always visible simultaneously in a style-grouped table. | Users scan the full option space without opening a combo. Makes style/algorithm relationships visible at a glance. |
 | **Live counts update on value-commit, not per-keystroke.** Spinner controls fire on arrow-click or focus-loss; not on each keystroke. | Relation traversal for live counts is expensive. Per-keystroke recompute produces flicker and wasted CPU. |
-| **Steps 2+ start collapsed on preset load.** When loading a preset with multiple step blocks, only step 1 is expanded; later steps start collapsed. | Each block takes significant vertical space. Collapsed steps are accessible via the expand control (▸). |
+| **Steps start expanded on preset load.** Every step block opens expanded, so all rules and counts are visible at once. | The user collapses a block (▾) when it is in the way; a collapsed block names its rule count. |
 
 ---
 
@@ -885,9 +876,8 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 <!-- generated:capability-matrix -->
 | Parameter | Layered | Tree | Force | Stress | Radial | Grid | Pack | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Nesting `nestingRelationTypes` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
-| Reverse for layout `reverseRelationTypes` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
-| Container types `nestingContainerTypes` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| Nesting `nestingRules` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| Reverse `reverseRules` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
 | Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
 | Padding `padding` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — | — | — |
@@ -943,19 +933,18 @@ The selection's *source* — the model tree vs a view's canvas — is orthogonal
 
 ### Shared helpers — dialog and pipeline use the same code paths
 
-Two entry points, one set of helpers. The dialog's live counter and the full pipeline both go through `_expandStep` / `_matchesRelationType` (and the per-step wrapper `_expandStepCounts`), so a correct dialog count is a true prediction of what the pipeline will write:
+Two entry points, one set of helpers. The dialog's live counter and the full pipeline both go through `expandStepWithRelations` / `findRelationsBetween` in `selection_pipeline.js`, which match with the one rule module `rel_filter.js`, so a correct dialog count is a true prediction of what the pipeline will write:
 
 ```
-              ┌──────────────────────────────────────────────────┐
-              │   selection_pipeline.js (shared helpers)         │
-              │                                                  │
-              │   _expandStep ──┬──► _matchesRelationTypeDir     │
-              │                 │                                │
-              │   _findRelationsBetween ──► _matchesRelationType │
-              │                                                  │
-              │   _expandStepCounts ──► _expandStep              │
-              │                      └► _matchesRelationType     │
-              └──────────────────────────────────────────────────┘
+              ┌──────────────────────────────────────────────────────┐
+              │   selection_pipeline.js (shared helpers)             │
+              │                                                      │
+              │   _expandStepWithRelations                           │
+              │     ├─► _expandStepFrontiers ──► RuleLists.matchStep │
+              │     └─► _findRelationsBetween ─► matchStepRelation   │
+              │   _findRelationsBetween (base) ─► matchRelation      │
+              │   _applyFilter ──► matchElement · _diagramPasses     │
+              └──────────────────────────────────────────────────────┘
                        ▲                              ▲
                        │                              │
     ┌──────────────────┴───────┐    ┌─────────────────┴──────────┐
@@ -963,20 +952,20 @@ Two entry points, one set of helpers. The dialog's live counter and the full pip
     │  on every UI change      │    │  on action button click    │
     │                          │    │                            │
     │  Pipeline                │    │  Pipeline                  │
-    │   .expandStep(           │    │   .buildObjectSet(         │
-    │     stepInput, step)     │    │     uiSelection,           │
+    │   .expandStepWith-       │    │   .buildObjectSet(         │
+    │     Relations(…)         │    │     uiSelection,           │
     │  per block (chain)       │    │     preset, actionId)      │
-    │  → added elements        │    │  → object set with         │
-    │                          │    │    elements + relations    │
+    │  → added + candidates    │    │  → object set with         │
+    │  + per-rule runs         │    │    elements + relations    │
     │                          │    │    + visuals + view        │
     └──────────────────────────┘    └────────────────────────────┘
                 │                                  │
                 ▼                                  ▼
         Updates the on-screen          Sent to engine → writer →
-        "Filtered" / "Adds:" lines     view is created/modified
+        filter / step / layout counts  view is created/modified
 ```
 
-Both entry points apply the same per-step relation-type filter (see Step 5 below) and log a grouped count block of the same shape to the Archi console, so prediction and result can be eyeballed side-by-side.
+Both entry points apply the same per-step rules (see Step 5 below) and log a grouped count block of the same shape to the Archi console, so prediction and result can be eyeballed side-by-side.
 
 ### Steps
 
@@ -997,26 +986,27 @@ Step 1  Selection → model + diagram objects (+ VisualSet)
   is empty.
 
 Step 2  Apply the global Filter
-  Element-type filter, relation-type filter (direction-aware),
-  diagram-type filter. Filter is visibility only; it does not
-  alter nesting structure.
+  Element rules (type, property), relation rules (source type,
+  relation type, target type), diagram rules. Filter is visibility
+  only; it does not alter nesting structure.
 
 Step 3  Related-elements expansion (chain)
   For each ordered step in preset.relatedElements.steps:
-    hops   = _expandStepFrontiers(input, step)   (one array per run; stops early on an empty run)
+    hops   = _expandStepFrontiers(input, step)   (one array per run; stops early on an empty run;
+                                                  a relation is followed when matchStep accepts it)
     additions = hops.flat()
     final-selection = final-selection ∪ additions
     prevHopFrontier = step input (for hop 1); previous hop's elements (for hop 2+)
     For each hop frontier in hops:
-      stepRelations += relations of step's type between hop-frontier and
-                       prevHopFrontier, direction-aware (`:in`/`:out` honoured)
+      stepRelations += relations between hop-frontier and prevHopFrontier
+                       that matchStepRelation accepts (type + direction)
       cumulative    += hop-frontier
       prevHopFrontier = hop-frontier
     input = additions                              (chain: next step starts here)
   Step 1's input is the filtered base.
   An empty step terminates the chain — every later step adds zero.
 
-  Relation collection per hop (direction-aware):
+  Relation collection per hop (rule direction honoured):
     hop 1: stepInput ↔ hop1  ✓  |  hop 2: hop1 ↔ hop2 ✓  |  hopN×hopN ✗
     Earlier-step elements outside the triggering collection are not iterated.
 
@@ -1026,19 +1016,19 @@ Step 4  Separate the element set
 
 Step 5  Find relations between elements (collected incrementally in Step 3)
   Relations are collected in two passes:
-  · Base pass: relations between the filtered-base elements, filtered
-    by the global relation-type filter.
-  · Per-step pass (inside Step 3's loop): for each hop, collect relations of
-    the step's type between two collections — the current hop's discovered
-    elements and the collection that triggered their discovery (the step input
-    for hop 1; the previous hop's elements for hop 2+). The `:in`/`:out`
-    direction suffix is applied during collection (direction-aware), so only
-    relations reachable in the intended traversal direction are included.
-    Relations between the new hop's elements and earlier-step elements outside
-    the triggering collection are not collected. An empty step filter (= "all")
-    applies no type or direction restriction from the step side.
+  · Base pass: relations between the filtered-base elements that match the
+    global relation rules.
+  · Per-step pass (inside Step 3's loop): for each hop, collect the relations
+    between two collections — the current hop's discovered elements and the
+    collection that triggered their discovery (the step input for hop 1; the
+    previous hop's elements for hop 2+) — that matchStepRelation accepts:
+    relation type, direction and previous-step type of an Include rule
+    (added type and property only decide which elements join); an Exclude
+    rule in full. Relations between the new hop's elements and earlier-step
+    elements outside the triggering collection are not collected. An empty
+    rule list applies no restriction from the step side.
   A shared seenRelIds set prevents double-counting across passes.
-  (See [Preset schema](#preset-schema) for encoding.)
+  (See [Rule lists](#rule-lists).)
 
 Step 6  Partition diagram objects
   diagram-model-connection objects are edges, not nodes — they
@@ -1054,8 +1044,8 @@ Step 6  Partition diagram objects
 - **No view mutation.** The pipeline reads only; it never edits a view. *(Rule 4 in [ai/rules.md](../../ai/rules.md))*
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
-- **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepFrontiers` and then `findRelationsBetween` per-hop identically, direction-aware, using the previous hop's frontier as the iteration collection so inter-hop relations (hop1→hop2, etc.) are included and intra-step cross-relations to earlier-step elements are excluded.
-- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all runs (hops) of new relations found in each hop's pass (direction-aware, between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Dialog and pipeline share the per-step rules.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepWithRelations` (frontiers, then `findRelationsBetween` per hop) identically, using the previous hop's frontier as the iteration collection so inter-hop relations (hop1→hop2, etc.) are included and intra-step cross-relations to earlier-step elements are excluded.
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all runs (hops) of new relations found in each hop's pass (between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
 - **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
 - **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
 - **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
@@ -1102,7 +1092,7 @@ Valid combinations (all with root = algorithm selected by the user):
 
 Every relation in the pipeline's output is assigned an initial role:
 
-- **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes` **and** its parent (source; target for reversed types) has a type in `preset.params.nestingContainerTypes` (empty = any type).
+- **Nesting** — if the relation matches `preset.params.nestingRules` (relation type, source type, target type; the parent is the source, or the target for a reversed relation). A rule's source type is how a container type is restricted (e.g. source *Grouping*).
 - **Routed** — otherwise.
 
 Both the writer and the dialog counters use `splitNestingRels` (selection_pipeline.js) for this split.
@@ -1113,7 +1103,7 @@ The set in the preset is the only authority. Initial role assignment is total (n
 
 ### Parent / child direction
 
-For a nesting relation: the **source** is the parent and the **target** is the child — unless the relation's type is also in `preset.params.reverseRelationTypes`, in which case the **target** is parent and the **source** is child. The flip applies to nesting roles in exactly the same way it applies to routed-edge layout direction ([Reversed edges](#reversed-edges)).
+For a nesting relation: the **source** is the parent and the **target** is the child — unless the relation also matches `preset.params.reverseRules` (`Pipeline.isReversed`), in which case the **target** is parent and the **source** is child. The flip applies to nesting roles in exactly the same way it applies to routed-edge layout direction ([Reversed edges](#reversed-edges)).
 
 ### Multi-parent resolution
 
@@ -1424,7 +1414,7 @@ Rationale-only. Each decision references the invariant or user story that motiva
 | Empty direction selection means follow all. | When neither direction checkbox is active for a relation type, the type is absent from the encoded list. [Steps](#steps) step 5 interprets the empty union as "all types allowed". The both-unchecked state is the idiomatic "don't filter this type" state, not an error. |
 | Spinner recomputes fire on value-commit, not on keystroke. | Live counts can be expensive (relation traversal). Per-keystroke recompute is wasteful and produces flicker. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms across all styles are always visible simultaneously. Users scan the full option space without opening a combo; style/algorithm relationships are visible at a glance. |
-| Steps 2+ start collapsed when a preset is loaded. | Each step block occupies significant vertical space. Collapsing later steps on load lets the user confirm step 1 before configuring subsequent steps; all steps remain accessible via the expand control. |
+| Steps start expanded when a preset is loaded. | All rules and their counts are visible at once; a block is collapsed on demand. |
 | Coordinate conversion is engine-agnostic via `parentId` on result nodes. | Each engine handles nesting differently. Carrying parent info on the result is the simplest way to convert without engine-specific code in the orchestrator. |
 
 ## Rules & precedence
@@ -1550,13 +1540,13 @@ The `"archimate-diagram-model"` alias is included because jArchi 1.12 reports vi
 
 Ref: `Scripts/_lib/selection.js`, `lib/defs.js`.
 
-### Encoded relation type helpers
+### Rule-list module
 
-`encodeRelType(typeId, inSel, outSel)` and `decodeRelType(encoded)` translate between direction-checkbox state and the encoded relation type string format ([Preset schema](#preset-schema)). UI controls round-trip through these. Ref: `lib/defs.js`.
+`lib/rel_filter.js` is pure (no Archi, no Java) and has no dependency on `defs.js`: `defaultRule`, `normalizeRule(s)` (validity sets passed in by `validatePreset`), `serializeRule`, `isPassAll`, `evalRules`, `matchElement`, `matchDiagram`, `matchRelation`, `matchStep`, `matchStepRelation`, `styleRuleMatchesRelation`, `detectRuleConflicts`, `compactPreset`, `stringifyPreset`. Tests: `node Scripts/View/tools/rel_filter_test.js`. See [Rule lists](#rule-lists). Ref: `lib/rel_filter.js`.
 
 ### Preset validation
 
-`validatePreset(raw)` deep-clones `DEFAULT_PRESET`, merges in raw values, validates option values against `algorithm.supportedOptions`, drops unknown top-level keys, normalises `relatedElements.steps`, and returns the result. Realises [Invariants](#invariants) (validation is total). Old presets without a `viewSizeMode` field are handled by `_inferViewSizeMode`: the first non-zero view-size parameter determines the mode (matching the old "first set wins" behaviour). Ref: `lib/defs.js::validatePreset`.
+`validatePreset(raw)` deep-clones `DEFAULT_PRESET`, merges in raw values, validates option values against `algorithm.supportedOptions`, drops unknown top-level keys, normalises every rule list (rejecting unusable rules with a warning) and `relatedElements.steps`, and returns the result. A preset whose `schemaVersion` differs, or that still has keys of the pre-rule-list format, is refused. Realises [Invariants](#invariants) (validation is total). Old presets without a `viewSizeMode` field are handled by `_inferViewSizeMode`: the first non-zero view-size parameter determines the mode (matching the old "first set wins" behaviour). Ref: `lib/defs.js::validatePreset`.
 
 ## Selection pipeline — implementation
 
@@ -1604,13 +1594,13 @@ Step 3  Related-elements expansion (chain) — SKIPPED for LAYOUT_ONLY.
 Step 4  Drop relations, folders, view nodes from the collection.
 
 Step 5  Collected incrementally inside Step 3's loop (and once for the base before the loop).
-        Base:     _findRelationsBetween(filteredElements, globalRelTypes, allRelIds)
+        Base:     _findRelationsBetween(filteredElements, _globalRelationMatch(filter), allRelIds)
         Per step: prevHopFrontier = stepInput
                   for each hop frontier in hops:
                     cumulative += hop-frontier
-                    _findRelationsBetween(cumulative, step.relationTypes, allRelIds,
-                                         prevHopFrontier, directionAware=true)
-                    iterateSubset=prevHopFrontier, direction-aware:
+                    _findRelationsBetween(cumulative, matchStepRelation(step.rules, …),
+                                         allRelIds, prevHopFrontier)
+                    iterateSubset=prevHopFrontier:
                       prevFrontier×hopFrontier ✓  |  earlier×hopFrontier ✗  |  hopN×hopN ✗
                     prevHopFrontier = hop-frontier
         allRelIds is threaded across calls to prevent double-counting.
@@ -1620,11 +1610,11 @@ Step 6  Partition diagramConnections (type === "diagram-model-connection")
         from diagramObjects (everything else).
 ```
 
-### Direction-aware traversal
+### Step traversal and direction
 
-`_expandStep` iterates the relations of each element in the current step input. For each relation, it determines the traversal direction (outgoing = element is source; incoming = element is target) and checks it against the step's `relationTypes` direction suffixes (`:in`, `:out`, or both) per [Preset schema](#preset-schema). Non-matching relations are skipped; matching relations yield the neighbouring element, which is added to the expansion set. Ref: `selection_pipeline.js::_expandStep`, `::_matchesRelationTypeDir`.
+`_expandStepFrontiers` iterates the relations of each element in the current step input and builds a candidate per relation — `_stepCandidate(rel, element)`: `{ rel, frontier, other, outgoing }`, where `outgoing` means the frontier element is the relation's source. A candidate whose other end is already selected is skipped; the rest are recorded (the dialog reads the rules' property lists from them) and `RuleLists.matchStep(step.rules, cand)` decides whether `other` joins. A rule's `direction` is checked against `outgoing`, `previous` against the frontier element's type, `added` against the other end's type, and the property against `propertyOf`. Ref: `selection_pipeline.js::_expandStepFrontiers`, `rel_filter.js::matchStep`.
 
-**Relation collection is also direction-aware.** After `_expandStepFrontiers` discovers a hop's elements, `_findRelationsBetween` is called to collect the step's relations. It iterates the *previous hop's frontier* (step input for hop 1) — the collection that triggered the new elements' discovery — and applies `_matchesRelationTypeDir` so the `:in`/`:out` suffix is enforced. This means only relations that the traversal itself would have followed are collected. A relation from a Step N container back to a Step (N-2) element — outside the triggering collection and in the wrong direction — is not incidentally collected and cannot produce a spurious extra occurrence when `showInEveryContainer: true`. Steps without a direction suffix (e.g. `association-relationship`) are unaffected: `_matchesRelationTypeDir` with no suffix matches both directions.
+**Relation collection follows the same rules.** After `_expandStepFrontiers` discovers a hop's elements, `_findRelationsBetween` collects the step's relations. It iterates the *previous hop's frontier* (step input for hop 1) — the collection that triggered the new elements' discovery — and keeps a relation when `matchStepRelation` accepts its candidate (relation type, direction and previous type of an Include rule; an Exclude rule in full). This means only relations that the traversal itself would have followed are collected. A relation from a Step N container back to a Step (N-2) element — outside the triggering collection and in the wrong direction — is not incidentally collected and cannot produce a spurious extra occurrence when `showInEveryContainer: true`.
 
 ### Internal data structures
 
@@ -1638,8 +1628,8 @@ Algorithmic structures used by the pipeline (and consumed by `_buildLayoutGraph`
 | `childIds` | the set of element ids that have a parent | nested elements (counted) |
 | `containerIds` | the set of element ids that are parents | containers (counted) |
 | `occurrenceMap` | element id → list of occurrence ids | occurrences |
-| `routedRels` | array of relations not selected as nesting (type or container type rejected) | connections |
-| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` and whose parent type is allowed | nestings |
+| `routedRels` | array of relations that match no nesting rule | connections |
+| `nestingRels` | array of relations that match `params.nestingRules` | nestings |
 | `parentRels` | nesting bindings (`{rel, srcOccId, tgtOccId}`) that survived multi-parent resolution | applied nestings |
 
 ## Orchestrator — generate_view.js
@@ -1730,24 +1720,24 @@ Returns `{ depthById, isContainerById, inSameTypeChainById, maxContainerDepth }`
 
 `_applyHighlightRepeated` groups VOs by `vo.concept.id`; applies `Chroma.scale(range).padding([0.15,0.15]).colors(N)` to concepts that appear ≥ 2 times.
 
-### Style by property / style by related property
+### Style by property
 
-Both use `Chroma.scale(range).padding([0.15,0.15]).colors(N)` where N = number of unique property values (sorted for stable order). `_applyColorByRelationProperty` uses `$(el).rels()` to walk model relations; `_matchesRelDir` checks type and direction against the encoded `relTypes` list (same encoding as `filter.relationTypes`).
+`_applyStyleRules` runs the rules in order. `computeRuleTargets(rule, elements, relations)` (exported; also used by the dialog's ⚠ check on the predicted view) returns object id → `{ kind, values }`: for `color: element` the view's elements of the rule's source type; for `relation` the view's relations matching the pattern; for `source` / `target` the view's elements that are that end of a matching model relation (`$(el).rels()`). One value → `_colorScale(range, N)` over the rule's sorted unique values; several → `mixedValuesColor`. Overlaps between rules are logged as `⚠` via `rel_filter.detectRuleConflicts`.
 
 Ref: `lib/appearance.js`.
 
 ### GUI Appearance tab — dialog_main.js
 
-`_buildAppearanceTab(tabFolder, ctx)` — follows the same `_scrolledTab` / `_group` / finish pattern as the Layout tab. Five groups, in tab order matching [Appearance tab](#appearance-tab): **Style by property**, **Style by related property**, **Style by connected element**, **Style by nesting level**, **Highlight repeated elements**.
+`_buildAppearanceTab(tabFolder, ctx)` — follows the same `_scrolledTab` / `_group` / finish pattern as the Layout tab. Three groups, in tab order matching [Appearance tab](#appearance-tab): **Style by property** (rule table `w.tblStyleRules`, mixed values colour, line width), **Style by nesting level**, **Highlight repeated elements**.
 
-**Nesting telescope active state.** `_updateNestingTelescopeState(ctx)` enables/disables the telescope controls based on `ctx.widgets.lstNestingTypes` selection. Called from:
+**Nesting level active state.** `_updateNestingLevelState(ctx)` enables/disables the nesting-level controls based on whether a Nesting rule is on (`_hasNestingRules`). Called from:
 - `_syncToUI` (after all widgets are built)
 - `onParamsChange` in `_buildLayoutTab` (when nesting type checkboxes change)
 - The `chkTelescopeColor` toggle listener (to enable/disable root-colour and lighten-percent fields)
 
 **`COLOR_RANGES`** — module-level constant in `dialog_main.js`; the same ColorBrewer scheme names used by `appearance.js`. The combo items for all three colour-range combos are populated from this list.
 
-**Colour by relation property.** The relation selector reuses `_relCheckGrid(parent, 4, onChange)` unchanged — same look, same encoded output format as the Selection tab's relation grids.
+**Style rules.** Property lists come from the predicted view contents (`ctx.predicted`, set by `_updateFilteredCount`) filtered on the rule's types (`_stylePropItems`); `_updateStyleWarnings` fills the ⚠ column and the conflict line after every count and every style change.
 
 `_saveUI` / `_syncToUI` extended with `appearance` block read/write. Modified indicator fires on every Appearance control change via the same `_markModified(ctx)` pattern as all other tabs.
 
@@ -1861,7 +1851,7 @@ Ref: `lib/engines/graphviz.js`.
 
 Each block is stored as an object containing its SWT widget references: group container (title bar), body composite (hidden on collapse), count label, reorder/collapse/remove buttons, a `collapsed` boolean, and widget wrappers for the relation-check grid, element-type selector, and repeat dropdown.
 
-Key functions: `_addRelatedBlock(ctx, stepData, opts?)` appends a step block; `opts.startCollapsed` collapses it on creation. `_removeRelatedBlock` disposes the block and renumbers survivors. `_moveRelatedBlock(ctx, blockObj, ±1)` swaps position in the array and reorders SWT widgets via `moveBelow`. `_toggleCollapseBlock` toggles `body.layoutData.exclude` + visibility.
+Key functions: `_addRelatedBlock(ctx, stepData?)` appends a step block (expanded); `_removeRelatedBlock` disposes the block and renumbers survivors. `_moveRelatedBlock(ctx, blockObj, ±1)` swaps position in the array and reorders SWT widgets via `moveBelow`. `_toggleCollapseBlock` toggles `body.layoutData.exclude` + visibility.
 
 Ref: `dialog_main.js::_addRelatedBlock`, `::_removeRelatedBlock`, `::_moveRelatedBlock`.
 
@@ -1877,18 +1867,16 @@ The dialog separates configuration (model) from UI state (view):
 - **`ctx.widgets`** — flat map of named widget references.
 - **`_syncToUI()`** — pushes `config` → widgets; called after `createDialogArea` and after preset apply.
 - **`_saveUI()`** — reads widgets → `config`; called before run and before preset save.
-- **`PARAM_WIDGETS`** — layout param → widget key and kind (`spin` / `check` / `combo` / `relTypes`). `_syncToUI`, `_saveUI` and `_updateAlgorithmControls` loop over it; params with their own handling are `nestingContainerTypes` and the view size (`maxWidth`, `aspectRatio`, `viewSizeMode`). Hidden params (`Defs.HIDDEN_PARAMS`) have no entry, so `_saveUI` keeps their preset value.
+- **`PARAM_WIDGETS`** — layout param → widget key and kind (`spin` / `check` / `combo` / `rules`). `_syncToUI`, `_saveUI` and `_updateAlgorithmControls` loop over it; the view size (`maxWidth`, `aspectRatio`, `viewSizeMode`) has its own handling. Hidden params (`Defs.HIDDEN_PARAMS`) have no entry, so `_saveUI` keeps their preset value.
 - **`_updateAlgorithmControls(ctx)`** — for the selected algorithm: combo items from `supportedOptions` (full list when inactive), enabled state from `activeParams`, the By label and Nesting dependencies, view-size radios, the connections-mode lock and the group hints (`_updateLayoutHints`).
 - **Tooltips** — `_applyLayoutTooltips` / `_updateComboTooltips` set every Layout tooltip from `Defs.paramTooltip(key, optionText)`.
 - **`ctx.widgets.algRadios`** — `Map<algorithmName, ButtonWidget>`. All radio buttons share the same SWT composite parent (auto-mutually-exclusive on click).
 
 Ref: `dialog_main.js`.
 
-### Relation filter widgets
+### Rule tables
 
-The direction-checkbox grid (used in global filter and in each related-elements block) stores one row per relation type: the relation type ID, a checkbox widget for incoming (←), and a checkbox widget for outgoing (→). No master activation checkbox. `getEncoded()` includes only rows where at least one direction is checked. `setEncoded(list)` sets each row's checkboxes from decoded direction suffixes; rows absent from the list are left unchecked.
-
-The reverse and nesting checkbox grids (one checkbox per relation type, no direction) are stored as arrays at `ctx.widgets[name + "_checks"]`. Ref: `dialog_main.js::createRelCheckGrid`.
+Every rule list in the dialog is one `ruleTable(parent, opts)` (`lib/gui/rule_table.js`): a header row of labels, one row of controls per rule with a ✕ to remove it, and a footer with `[+ Add rule]`, the optional *Property condition* toggle and the caller's own controls (a step's Repeat). Column kinds: `choice` (read-only combo), `check`, `prop` / `value` (property lists from `opts.propItems` / `opts.valueItems`), `count` (`(n)` per rule), `warn` (⚠), `custom` (the colour-range cell). Optional columns appear with Property condition or as soon as a rule has a property. Controls write straight into the rule; add / remove / toggle rebuild the grid, value changes only refresh enabled states and lists. Combos shrink to a minimum width in a narrow dialog. The controller: `getRules()` (normalised; a pass-all filter list gives `[]`), `setRules`, `displayedRules`, `setCounts`, `setWarnings`, `refreshItems`, `enable`. Column sets live at the top of `dialog_main.js` (`ELEMENT_RULE_COLUMNS`, `DIAGRAM_RULE_COLUMNS`, `RELATION_RULE_COLUMNS`, `FEATURE_RULE_COLUMNS`, `STEP_RULE_COLUMNS`, `STYLE_RULE_COLUMNS`).
 
 ### SWT interaction notes
 
@@ -1979,13 +1967,13 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 | Action-agnostic writer | One `_writeView` function. Per-object rule: exists → reposition (appearance preserved; parenthood re-derived from [Writer parenthood](#writer-parenthood) — move via jArchi 1.10 API if parent changed); else → create. Same rule for relations: existing → rewrite bendpoints; new → add. |
 | Folders and view nodes stripped before layout | `selection_pipeline.js` step 4 — excludes `type === "folder"` and `type === "archimate-diagram-model"`. |
 | Related-elements panel is multi-step + chain | `dialog_main.js::_addRelatedBlock` / `_updateFilteredCount` — step N+1's input = step N's additions only. An empty step zeros every later step. |
-| Per-relation direction toggles independent | `_relCheckGrid` — `chkIn` (←) and `chkOut` (→) are independent direction checkboxes per relation type. No master activation checkbox. |
-| Empty direction selection = follow all | `getEncoded()` includes only types where `chkIn.getSelection() \|\| chkOut.getSelection()`. Absent from the list → unconstrained at runtime ([Steps](#steps) step 5: empty union → all types allowed). |
+| One rule model for every filter | `rel_filter.js` (matching, validation, file form) + `gui/rule_table.js` (widget); every list a table of Include / Exclude rules. |
+| Empty filter list = keep all | `evalRules(…, emptyMeansAll)` — filter lists keep everything without an active Include rule; feature lists (nesting, reverse, style) select nothing. |
 | Algorithm selection via radio table | `_buildLayoutTab` — `algTableComp` 6-col composite; `ctx.widgets.algRadios: Map<algName, ButtonWidget>`. `_syncToUI`: deselect all then `algRadios.get(name)?.setSelection(true)`. `_saveUI`: iterate algRadios to find selected; fallback `"Layered"`. |
-| Step auto-collapse on preset load | `_addRelatedBlock(ctx, stepData, opts)` — when `opts.startCollapsed`: body hidden, `gd.exclude = true`, `btnCollapse.setText("▸")`, `blockObj.collapsed = true`. `_syncToUI` passes `{ startCollapsed: idx > 0 }` for preset steps. |
+| Steps open expanded | `_syncToUI` builds every preset step with `_addRelatedBlock(ctx, step)`; `_setBlockCollapsed` (triangle, header rule count) runs only on the user's toggle. |
 | Spinner recomputes on commit, not keystroke | Spinners that drive live counts bind `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
 | Coordinate conversion engine-agnostic via `parentId` | Engine adapters set `parentId` on result nodes; `_writeView` applies parent-relative conversion using `_getParentAbsOffset` (parent-first iteration ensures parent's NEW bounds are in place). |
 | UI-only state partitioned | `_*`-prefixed keys (`_lastTabIndex`, …) preserved by `preset_io.readSession` after `validatePreset` strips unknowns. |
 | ELK Radial spanning-tree pre-processing | `engines/elk.js::_spanningTree` — BFS over the graph; cycle edges dropped; virtual edges `id: "__span_N"` join disconnected components; `_writeView` skips virtuals (`_archiRelId: null`). |
 | Cancel group `setText(" ")` | `_buildActionRow` — single space so GTK reserves title-bar height matching labelled siblings. |
-| Per-step element-type filter is step-scoped | `_expandStep` applies `step.elementTypes` after relation traversal; step's row count and chain-forward input both reflect the pruned set. |
+| Per-step added type is step-scoped | `matchStep` checks a rule's `added` type on the new element; the step's count and chain-forward input both reflect it. |

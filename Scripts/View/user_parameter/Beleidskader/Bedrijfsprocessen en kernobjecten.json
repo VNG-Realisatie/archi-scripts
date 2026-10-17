@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Beleidskader/Bedrijfsprocessen en kernobjecten",
   "algorithm": "Layered",
   "params": {
@@ -7,17 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship"
-    ],
-    "nestingRelationTypes": [
-      "access-relationship",
-      "aggregation-relationship",
-      "realization-relationship"
-    ],
-    "nestingContainerTypes": [
-      "business-process"
-    ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
@@ -37,60 +27,61 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
-    "connectionLabelSpacing": true
+    "connectionLabelSpacing": true,
+    "nestingRules": [
+      {"source": "business-process", "relation": "access-relationship"},
+      {"source": "business-process", "relation": "aggregation-relationship"},
+      {"relation": "realization-relationship", "target": "business-process"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-service",
-          "driver"
-        ],
-        "relationTypes": [],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"added": "business-service"},
+          {"added": "driver"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-process",
-          "business-event",
-          "business-actor",
-          "business-object"
-        ],
-        "relationTypes": [],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"added": "business-process"},
+          {"added": "business-event"},
+          {"added": "business-actor"},
+          {"added": "business-object"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "business-event",
-          "business-object",
-          "business-process"
-        ],
-        "relationTypes": [
-          "access-relationship",
-          "aggregation-relationship",
-          "association-relationship",
-          "flow-relationship",
-          "realization-relationship",
-          "triggering-relationship"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"relation": "access-relationship", "added": "business-event"},
+          {"relation": "access-relationship", "added": "business-object"},
+          {"relation": "access-relationship", "added": "business-process"},
+          {"relation": "aggregation-relationship", "added": "business-event"},
+          {"relation": "aggregation-relationship", "added": "business-object"},
+          {"relation": "aggregation-relationship", "added": "business-process"},
+          {"relation": "association-relationship", "added": "business-event"},
+          {"relation": "association-relationship", "added": "business-object"},
+          {"relation": "association-relationship", "added": "business-process"},
+          {"relation": "flow-relationship", "added": "business-event"},
+          {"relation": "flow-relationship", "added": "business-object"},
+          {"relation": "flow-relationship", "added": "business-process"},
+          {"relation": "realization-relationship", "added": "business-event"},
+          {"relation": "realization-relationship", "added": "business-object"},
+          {"relation": "realization-relationship", "added": "business-process"},
+          {"relation": "triggering-relationship", "added": "business-event"},
+          {"relation": "triggering-relationship", "added": "business-object"},
+          {"relation": "triggering-relationship", "added": "business-process"}
+        ]
       }
     ]
   },
@@ -100,33 +91,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,

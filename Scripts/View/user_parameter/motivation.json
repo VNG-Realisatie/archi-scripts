@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "motivation",
   "algorithm": "Layered",
   "params": {
@@ -6,14 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship",
-      "specialization-relationship"
-    ],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -22,18 +15,26 @@
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "constraint",
-      "grouping"
+    "elementRules": [
+      {"elementType": "constraint"},
+      {"elementType": "grouping"}
     ],
-    "relationTypes": [
-      "aggregation-relationship",
-      "specialization-relationship"
+    "relationRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "specialization-relationship"}
     ],
-    "diagramTypes": []
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []

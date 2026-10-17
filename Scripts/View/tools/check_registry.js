@@ -18,7 +18,7 @@ const { ALGORITHMS, DEFAULT_PRESET, validatePreset, effectiveParams } = Defs;
 const problems = [];
 
 // Params the dialog handles with its own code instead of PARAM_WIDGETS.
-const OWN_HANDLING = ["nestingContainerTypes", "maxWidth", "aspectRatio", "viewSizeMode"];
+const OWN_HANDLING = ["maxWidth", "aspectRatio", "viewSizeMode"];
 const HIDDEN = Defs.HIDDEN_PARAMS || [];
 
 // Widget table, read from the dialog source (the dialog itself needs SWT and cannot load in Node).

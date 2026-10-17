@@ -27,7 +27,7 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 // Parameters handled outside PARAM_MAPPING:
 //   maxWidth / aspectRatio → view-size calibration in layout() (re-runs ELK with a searched
 //                           elk.aspectRatio; see _fitViewSize)
-//   nestingRelationTypes  → graph structure (parentMap)
+//   nestingRules          → graph structure (parentMap)
 //   sortContainers        → node sort order via engine-utils.sortedNodes (ELK: _sortNodeChildren)
 //   alignWidthSameType    → two-pass layout; pass 1 measures natural widths, then every box is
 //                           aligned by nesting level via engine-utils.alignWidthsByLevel

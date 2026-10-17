@@ -16,7 +16,8 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-const Defs = require(REPO_ROOT + "View/lib/defs");
+const Defs      = require(REPO_ROOT + "View/lib/defs");
+const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { validatePreset, SESSION_FILENAME } = Defs;
 
 const USER_PARAM_FOLDER    = "user_parameter";
@@ -43,13 +44,14 @@ function readJSON(path) {
   return JSON.parse(content);
 }
 
+// Presets and the session file: rule lists one rule per line (rel_filter.stringifyPreset).
 function writeJSON(path, obj) {
   const File       = Java.type("java.io.File");
   const FileWriter = Java.type("java.io.FileWriter");
   try {
     new File(path).getParentFile().mkdirs();
     const writer = new FileWriter(path);
-    writer.write(JSON.stringify(obj, null, 2));
+    writer.write(RuleLists.stringifyPreset(obj));
     writer.close();
   } catch (e) {
     console.error("Failed to write file:", path, e);

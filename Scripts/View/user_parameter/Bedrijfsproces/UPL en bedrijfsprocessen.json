@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Bedrijfsproces/UPL en bedrijfsprocessen",
   "algorithm": "Layered",
   "params": {
@@ -7,11 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
-    "nestingContainerTypes": [],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": true,
@@ -31,58 +27,47 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
-    "connectionLabelSpacing": true
+    "connectionLabelSpacing": true,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": []
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": "untilNothingNew",
-        "elementTypes": [
-          "grouping"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
       },
       {
         "repeat": "untilNothingNew",
-        "elementTypes": [
-          "business-service",
-          "business-process",
-          "business-event"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out",
-          "association-relationship",
-          "realization-relationship",
-          "triggering-relationship:in"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-service"},
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-process"},
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-event"},
+          {"relation": "association-relationship", "added": "business-service"},
+          {"relation": "association-relationship", "added": "business-process"},
+          {"relation": "association-relationship", "added": "business-event"},
+          {"relation": "realization-relationship", "added": "business-service"},
+          {"relation": "realization-relationship", "added": "business-process"},
+          {"relation": "realization-relationship", "added": "business-event"},
+          {"direction": "incoming", "relation": "triggering-relationship", "added": "business-service"},
+          {"direction": "incoming", "relation": "triggering-relationship", "added": "business-process"},
+          {"direction": "incoming", "relation": "triggering-relationship", "added": "business-event"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "grouping"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:in"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
       }
     ]
   },
@@ -92,33 +77,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,

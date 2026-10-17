@@ -84,7 +84,7 @@ function generate_view(rawPreset, uiSelection, actionId) {
       p.labelPosition    && `label=${p.labelPosition}`,
       `spacing=el:${p.elementSpacing ?? "—"} layer:${p.layerSpacing ?? "—"}`,
       `size=${p.elementWidth ?? "—"}×${p.elementHeight ?? "—"}`,
-      (p.nestingRelationTypes && p.nestingRelationTypes.length) && `nesting=${p.nestingRelationTypes.length}types containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode || "Between containers"}`,
+      (p.nestingRules && p.nestingRules.length) && `nesting=${p.nestingRules.length}rules containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode || "Between containers"}`,
     ].filter(Boolean);
     console.log(`Params: ${parts.join("  ")}`);
   }
@@ -194,12 +194,9 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
-  // Nesting candidates also require an allowed container (parent) type.
   const split       = Pipeline.splitNestingRels(relations, preset.params);
   const nestingRels = split.nestingRels;
   const routedRels  = split.connectionRels;
-  if (split.containerTypeRejected > 0)
-    console.log(`  Container type: ${split.containerTypeRejected} nesting-type relations drawn as connection (parent type not in ${preset.params.nestingContainerTypes.join(", ")})`);
 
   // Determine the target view.
   //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, changed in place
@@ -339,8 +336,6 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
-  const reverseTypes = new Set(params.reverseRelationTypes || []);
-
   // Nesting structure shared with the pipeline's predictViewCounts so dialog/console
   // counts agree with the writer's actual output. Single source of truth.
   const nesting = Pipeline.resolveNesting(elements, nestingRels, params);
@@ -442,7 +437,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     if (edgeIds.has(rel.id)) continue;
     edgeIds.add(rel.id);
 
-    const isReversed = reverseTypes.has(rel.type);
+    const isReversed = Pipeline.isReversed(rel, params);
     const srcOccs = occurrenceMap[srcId] || [srcId];
     const tgtOccs = occurrenceMap[tgtId] || [tgtId];
     srcOccs.forEach((srcOccId, si) => {
@@ -689,7 +684,6 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
   console.log(`  Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
   const _processedRelIds = new Set();
-  const _reverseTypes    = new Set(preset.params.reverseRelationTypes || []);
   for (const re of result.edges) {
     // re.id may be occurrence-unique ("relId_0_1"); re.conceptId is always the model id.
     const conceptId = re.conceptId || re.id;
@@ -698,7 +692,7 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
 
     // re.sourceId/targetId are in layout direction; reversed-typed relations swap them.
     // Un-reverse to obtain the model's source→target order for view.add().
-    const isRev         = _reverseTypes.has(archiRel.type);
+    const isRev         = Pipeline.isReversed(archiRel, preset.params);
     const modelSrcOccId = isRev ? re.targetId : re.sourceId;
     const modelTgtOccId = isRev ? re.sourceId : re.targetId;
     const srcVisual = visualIndex[modelSrcOccId]
@@ -884,8 +878,7 @@ function _applyEdgeStyle(connection, re, preset) {
 
   const srcCenter = _getAbsCenter(connection.source);
   const tgtCenter = _getAbsCenter(connection.target);
-  const relType = connection.concept && connection.concept.type;
-  const isReversed = (preset.params.reverseRelationTypes || []).includes(relType);
+  const isReversed = !!connection.concept && Pipeline.isReversed(connection.concept, preset.params);
   const balancedBps = _insertLabelMidpointBp(re.bendpoints, srcCenter, tgtCenter, re.labelX, re.labelY, re.srcPort, re.tgtPort);
   const archiBps = balancedBps.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),

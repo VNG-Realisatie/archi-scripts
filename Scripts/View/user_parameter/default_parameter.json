@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "default_parameter",
   "algorithm": "Layered",
   "params": {
@@ -6,13 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "association-relationship",
-      "realization-relationship",
-      "serving-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -21,19 +15,25 @@
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "association-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [],
-        "relationTypes": []
+        "rules": []
       }
     ]
   },

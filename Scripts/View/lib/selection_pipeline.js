@@ -24,6 +24,7 @@ const REPO_ROOT = (() => {
 
 const Selection = require(REPO_ROOT + "_lib/selection");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
+const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { ACTION } = Defs;
 
 /**
@@ -76,7 +77,6 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const filteredRelCount  = collection.filter("relationship").size();
   const filteredCounts    = { elems: filteredElemCount, rels: filteredRelCount, diag: diagramObjects.length };
 
-  const globalRelTypes = preset.filter.relationTypes;
 
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
@@ -85,14 +85,14 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const filteredElementsArr = [];
   filteredElements.each(o => filteredElementsArr.push(o));   // plain array for step expansion
 
-  // Collect relations incrementally: base uses global filter; each step uses its own
-  // relation-type filter so that a step only adds relations of the types it followed.
+  // Collect relations incrementally: base uses the global relation rules; each step uses its
+  // own rules so that a step only adds relations it followed.
   // For modify actions the relation-type filter is also skipped — same rationale as the
   // element filter: EXPAND_VIEW / LAYOUT_ONLY must include ALL existing relations on the
   // view (e.g. both configured nesting types), not only those matching the filter.
-  const baseRelTypes = isModifyAction ? [] : globalRelTypes;
+  const baseRelMatch = isModifyAction ? null : _globalRelationMatch(preset.filter);
   const allRelIds    = new Set();
-  const allRelations = _findRelationsBetween(filteredElementsArr, baseRelTypes, allRelIds);
+  const allRelations = _findRelationsBetween(filteredElementsArr, baseRelMatch, allRelIds);
   const filteredBaseRels = allRelations.length;
 
   const addedElements = [], addedRelations = [], stepCounts = [];
@@ -183,14 +183,9 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
   let stepIdx = 0;
   for (const step of steps) {
     stepIdx++;
-    const stepRelStr  = (step.relationTypes && step.relationTypes.length > 0)
-      ? step.relationTypes.join(", ") : "all";
-    const stepElemStr = (step.elementTypes  && step.elementTypes.length > 0)
-      ? step.elementTypes.join(", ")  : "all";
-    const propStr = (step.propFilter && step.propFilter.key && step.propFilter.value)
-      ? `  ·  prop: ${step.propFilter.key}=${step.propFilter.value}` : "";
     const repeatStr = step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW ? "until nothing new" : `${Defs.repeatMaxRuns(step.repeat)}×`;
-    console.log(`Step ${stepIdx} filter:  relation types: ${stepRelStr}  ·  repeat: ${repeatStr}  ·  element types: ${stepElemStr}${propStr}`);
+    console.log(`Step ${stepIdx} rules:  repeat: ${repeatStr}`);
+    _logRules(step.rules, _describeStepRule, "    ");
     if (debugSteps) {
       const inLabel = stepInput.length === 0 ? "(empty)"
         : stepInput.length <= 6
@@ -294,12 +289,29 @@ function _logCountBlock(title, rows) {
 
 function _logFilter(filter) {
   if (!filter) { console.log("Filter: none"); return; }
-  const elems = filter.elementTypes;
-  const rels  = filter.relationTypes;
-  const diag  = filter.diagramTypes;
-  console.log(`Filter element types:  ${elems.length === 0 ? "all" : elems.join(", ")}`);
-  console.log(`Filter relation types: ${rels.length  === 0 ? "all" : rels.join(", ")}`);
-  console.log(`Filter diagram types:  ${diag.length  === 0 ? "all" : diag.join(", ")}`);
+  console.log("Filter element rules:");
+  _logRules(filter.elementRules, r => `${r.elementType || "all"}${r.property ? `  ${r.property}=${r.value}` : ""}`, "  ");
+  console.log("Filter relation rules:");
+  _logRules(filter.relationRules, _describeRelationRule, "  ");
+  console.log("Filter diagram rules:");
+  _logRules(filter.diagramRules, r => r.diagramType || "all", "  ");
+}
+
+function _describeRelationRule(r) {
+  return `${r.source || "all"}  ${r.relation || "all"}  ${r.target || "all"}`;
+}
+
+function _describeStepRule(r) {
+  const prop = r.property ? `  ${r.propertyOf}.${r.property}=${r.value}` : "";
+  return `previous: ${r.previous || "all"}  ${r.direction}  relation: ${r.relation || "all"}  added: ${r.added || "all"}${prop}`;
+}
+
+/** One console line per rule ("all" when the list is empty). Off rules are marked. */
+function _logRules(rules, describe, indent) {
+  if (!rules || rules.length === 0) { console.log(`${indent}all`); return; }
+  for (const r of rules) {
+    console.log(`${indent}${r.mode === "exclude" ? "exclude" : "include"}${r.on === false ? " (off)" : ""}  ${describe(r)}`);
+  }
 }
 
 /**
@@ -409,51 +421,40 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
 
 function _applyFilter(collection, filter) {
   if (!filter) return collection;
-  const { elementTypes = [], relationTypes = [] } = filter;
+  const { elementRules = [], relationRules = [] } = filter;
   return collection.filter(o => {
     const type = o.type || "";
-    if (type.endsWith("-relationship")) return _matchesRelationType(type, relationTypes, o);
-    if (elementTypes.length > 0 && !elementTypes.includes(type)) return false;
-    return true;
+    if (type.endsWith("-relationship")) {
+      return RuleLists.matchRelation(relationRules, type, o.source && o.source.type, o.target && o.target.type, true);
+    }
+    return RuleLists.matchElement(elementRules, o);
   });
 }
 
 function _applyDiagramFilter(diagramObjects, filter) {
-  if (!filter || !filter.diagramTypes || filter.diagramTypes.length === 0) return diagramObjects;
-  const { diagramTypes } = filter;
-  return diagramObjects.filter(o => diagramTypes.includes(o.type || ""));
-}
-
-/** Type-only relation match (direction ignored). Used by _findRelationsBetween. */
-function _matchesRelationType(type, relationTypes, rel) {
-  if (relationTypes.length === 0) return true;
-  for (const entry of relationTypes) {
-    const i = entry.indexOf(":");
-    const entryType = i < 0 ? entry : entry.substring(0, i);
-    if (entryType === type) return true;
-  }
-  return false;
+  if (!filter || !filter.diagramRules || filter.diagramRules.length === 0) return diagramObjects;
+  return diagramObjects.filter(o => _diagramPasses(filter.diagramRules, o.type || ""));
 }
 
 /**
- * Direction-aware match used by _expandStepFrontiers.
- * isOutgoing === true when the traversing element is the relation's source.
- *   "type"      → both directions
- *   "type:in"   → only when traversing toward incoming  (isOutgoing === false)
- *   "type:out"  → only when traversing toward outgoing  (isOutgoing === true)
+ * Diagram filter test for one diagram object type. jArchi reports a view-reference object as
+ * "archimate-diagram-model"; it is matched as "diagram-model-reference" (the type users pick).
  */
-function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
-  if (relationTypes.length === 0) return true;
-  for (const entry of relationTypes) {
-    const i = entry.indexOf(":");
-    const entryType = i < 0 ? entry : entry.substring(0, i);
-    if (entryType !== type) continue;
-    const dir = i < 0 ? "both" : entry.substring(i + 1);
-    if (dir === "both") return true;
-    if (dir === "out"  && isOutgoing)  return true;
-    if (dir === "in"   && !isOutgoing) return true;
-  }
-  return false;
+function _diagramPasses(rules, type) {
+  return RuleLists.matchDiagram(rules, type === "archimate-diagram-model" ? "diagram-model-reference" : type);
+}
+
+/** Predicate for the global relation rules, or null when they filter nothing. */
+function _globalRelationMatch(filter) {
+  const rules = filter && filter.relationRules;
+  if (RuleLists.isPassAll("relation", rules)) return null;
+  return rel => RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, true);
+}
+
+/** Step candidate: one relation seen from one element of the previous step. */
+function _stepCandidate(rel, frontier) {
+  const outgoing = !!(rel.source && rel.source.id === frontier.id);
+  return { rel, frontier, other: outgoing ? rel.target : rel.source, outgoing };
 }
 
 /**
@@ -462,16 +463,20 @@ function _matchesRelationTypeDir(type, relationTypes, isOutgoing) {
  * Used by both buildObjectSet and the dialog's live counters so they can never diverge.
  *
  * @param {Object[]} base       - Step input elements (frontier for hop 1)
- * @param {Object}   step       - { relationTypes, elementTypes, repeat }
+ * @param {Object}   step       - { repeat, rules }
  * @param {Object[]} cumulative - Elements accumulated so far (before this step)
  * @param {Set}      seenRelIds - Dedup set threaded across all steps; mutated in place
  * @param {boolean}  [verbose]  - Per-hop detail logging (pipeline debug only)
- * @returns {{ added: Object[], rels: Object[], cumulative: Object[], runs: number, capped: boolean }}
+ * @returns {{ added: Object[], rels: Object[], cumulative: Object[], runs: number, capped: boolean,
+ *             candidates: Object[] }}
+ *   candidates — every (relation, previous-step element, new element) the step saw, before the
+ *                rules; the dialog reads the property lists of the step's rules from them
  *   runs   — number of runs that added elements
  *   capped — true when the run limit was reached while the last run still added elements
  */
 function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = false) {
-  const hops   = _expandStepFrontiers(base, step, verbose, cumulative);
+  const candidates = [];
+  const hops   = _expandStepFrontiers(base, step, verbose, cumulative, candidates);
   const added  = hops.flat();
   const newRels = [];
   let cumul           = cumulative.slice();
@@ -479,25 +484,25 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
   for (const hopFrontier of hops) {
     cumul = cumul.concat(hopFrontier);
     // Collect relations between this hop's discoveries and the collection that triggered
-    // them (prevHopFrontier). Direction-aware so the step's :in/:out suffix is honoured —
-    // matching _expandStepFrontiers' own traversal direction. This prevents incidental
+    // them (prevHopFrontier). Matched with the step's rules (relation type, direction and
+    // previous-step type) so the traversal direction is honoured. This prevents incidental
     // relations from earlier-step elements (outside the triggering collection) being
     // collected as nesting candidates.
-    const hopRels = _findRelationsBetween(cumul, step.relationTypes, seenRelIds, prevHopFrontier, true);
+    const hopRels = _findRelationsBetween(cumul, (rel, el) => RuleLists.matchStepRelation(step.rules, _stepCandidate(rel, el)), seenRelIds, prevHopFrontier);
     hopRels.forEach(r => newRels.push(r));
     prevHopFrontier = hopFrontier;  // next hop: current frontier becomes the trigger
   }
   const runs   = hops.filter(h => h.length > 0).length;
   const capped = hops.length === Defs.repeatMaxRuns(step.repeat) && hops[hops.length - 1].length > 0;
-  return { added, rels: newRels, cumulative: cumul, runs, capped };
+  return { added, rels: newRels, cumulative: cumul, runs, capped, candidates };
 }
 
 /**
  * Expand by running the step up to its repeat count; each run starts from the previous
  * run's additions. Stops early when a run adds nothing. Returns per-run frontier arrays.
  */
-function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
-  const { elementTypes = [], relationTypes = [] } = step;
+function _expandStepFrontiers(base, step, verbose = false, cumulative = [], candidatesOut = null) {
+  const rules    = step.rules || [];
   const maxRuns  = Defs.repeatMaxRuns(step.repeat);
   const baseIds  = new Set(base.map(o => o.id));
   const cumulIds = new Set(cumulative.map(o => o.id));
@@ -509,37 +514,21 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
     const nextFrontier = [];
     for (const element of frontier) {
       try {
-        const stats = { total: 0, accept: 0, wrongElemType: 0, alreadySeen: 0 };
-        const wrongRelDetails = [];
-        const wrongElemDetails = [];
+        const stats = { total: 0, accept: 0, rejected: 0, alreadySeen: 0 };
+        const rejectedDetails = [];
         $(element).rels().each(rel => {
           stats.total++;
-          const type = rel.type || "";
-          const isOutgoing = !!(rel.source && rel.source.id === element.id);
-          if (!_matchesRelationTypeDir(type, relationTypes, isOutgoing)) {
-            if (verbose) {
-              const other = isOutgoing ? rel.target : rel.source;
-              wrongRelDetails.push(`${type}(${isOutgoing ? "out" : "in"})→"${other ? other.name : "?"}"[${other ? other.type : "?"}]`);
-            }
-            return;
-          }
-
-          const other = isOutgoing ? rel.target : rel.source;
+          const cand = _stepCandidate(rel, element);
+          const other = cand.other;
           if (!other) return;
-          if (baseIds.has(other.id) || cumulIds.has(other.id) || addedIds.has(other.id)) { stats.alreadySeen++; return; }
+          if (baseIds.has(other.id) || cumulIds.has(other.id)) { stats.alreadySeen++; return; }
+          if (candidatesOut) candidatesOut.push(cand);
+          if (addedIds.has(other.id)) { stats.alreadySeen++; return; }
 
-          const otherType = other.type || "";
-          if (elementTypes.length > 0 && !elementTypes.includes(otherType)) {
-            stats.wrongElemType++;
-            if (verbose) wrongElemDetails.push(`"${other.name}"[${otherType}]`);
+          if (!RuleLists.matchStep(rules, cand)) {
+            stats.rejected++;
+            if (verbose) rejectedDetails.push(`${rel.type || ""}(${cand.outgoing ? "out" : "in"})→"${other.name}"[${other.type || ""}]`);
             return;
-          }
-
-          if (step.propFilter && step.propFilter.key && step.propFilter.value) {
-            try {
-              const pv = other.prop(step.propFilter.key);
-              if (pv === null || pv === undefined || String(pv) !== step.propFilter.value) return;
-            } catch (e) { return; }
           }
 
           addedIds.add(other.id);
@@ -548,13 +537,9 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = []) {
         });
         if (verbose) {
           const skips = [];
-          if (wrongRelDetails.length > 0) {
-            const shown = wrongRelDetails.slice(0, 4).join(", ") + (wrongRelDetails.length > 4 ? " …" : "");
-            skips.push(`${wrongRelDetails.length} wrong-rel-type: [${shown}]`);
-          }
-          if (stats.wrongElemType > 0) {
-            const shown = wrongElemDetails.slice(0, 3).join(", ") + (wrongElemDetails.length > 3 ? " …" : "");
-            skips.push(`${stats.wrongElemType} wrong-elem-type: [${shown}]`);
+          if (rejectedDetails.length > 0) {
+            const shown = rejectedDetails.slice(0, 4).join(", ") + (rejectedDetails.length > 4 ? " …" : "");
+            skips.push(`${stats.rejected} no rule matched: [${shown}]`);
           }
           if (stats.alreadySeen > 0) skips.push(`${stats.alreadySeen} already-selected`);
           const skipStr = skips.length ? `  (${skips.join("  |  ")})` : "";
@@ -613,7 +598,7 @@ function _wouldCycle(map, childId, parentId) {
  * the child sits on the rel.source side; otherwise on the rel.target side.
  */
 function _resolveNesting(elements, nestingRels, params) {
-  const reverseTypes = new Set(params.reverseRelationTypes);
+  const isReversedRel = rel => isReversed(rel, params);
   const showInEvery  = !!params.showInEveryContainer;
   const parentMap = {};
   const occurrenceMap = {};
@@ -628,14 +613,14 @@ function _resolveNesting(elements, nestingRels, params) {
     if (!srcId || !tgtId) continue;
     // Self-loops (oortjes) can never be containment: draw them as a connection.
     if (srcId === tgtId) { notNestedNestingRels.push(rel); continue; }
-    const isReversed = reverseTypes.has(rel.type);
-    const [parentId, childId] = isReversed ? [tgtId, srcId] : [srcId, tgtId];
+    const reversed = isReversedRel(rel);
+    const [parentId, childId] = reversed ? [tgtId, srcId] : [srcId, tgtId];
 
     // Build a binding aligned to (rel.source, rel.target) for the writer.
     // The child's occurrence sits on the source side iff the rel is reversed.
     const pushBinding = (boundChildOcc) => {
-      const srcOccId = isReversed ? boundChildOcc : parentId;
-      const tgtOccId = isReversed ? parentId      : boundChildOcc;
+      const srcOccId = reversed ? boundChildOcc : parentId;
+      const tgtOccId = reversed ? parentId      : boundChildOcc;
       parentRels.push({ rel, srcOccId, tgtOccId });
     };
 
@@ -677,7 +662,7 @@ function _resolveNesting(elements, nestingRels, params) {
   // When showInEveryContainer is on, propagate each container's children into
   // every extra occurrence so they don't render as empty boxes.
   if (showInEvery) {
-    _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentMap, occurrenceMap, parentRels);
+    _propagateExtraOccurrences(elements, nestingRels, isReversedRel, parentMap, occurrenceMap, parentRels);
   }
 
   return { parentMap, occurrenceMap, parentRels, skippedCircularNestingRels, notNestedNestingRels };
@@ -688,17 +673,17 @@ function _resolveNesting(elements, nestingRels, params) {
  * occurrences (created when showInEveryContainer is on). Mutates parentMap,
  * occurrenceMap, and parentRels in place.
  */
-function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentMap, occurrenceMap, parentRels) {
-  // Build parentBaseId → [{rel, childId, isReversed}] from the original nesting rels.
+function _propagateExtraOccurrences(elements, nestingRels, isReversedRel, parentMap, occurrenceMap, parentRels) {
+  // Build parentBaseId → [{rel, childId, reversed}] from the original nesting rels.
   const childRelsByParent = {};
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
     if (!srcId || !tgtId || srcId === tgtId) continue;
-    const isReversed = reverseTypes.has(rel.type);
-    const [parentId, childId] = isReversed ? [tgtId, srcId] : [srcId, tgtId];
+    const reversed = isReversedRel(rel);
+    const [parentId, childId] = reversed ? [tgtId, srcId] : [srcId, tgtId];
     if (!childRelsByParent[parentId]) childRelsByParent[parentId] = [];
-    childRelsByParent[parentId].push({ rel, childId, isReversed });
+    childRelsByParent[parentId].push({ rel, childId, reversed });
   }
 
   // Seed queue from every extra occurrence created in the initial pass.
@@ -712,7 +697,7 @@ function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentM
   // BFS: replicate each container's direct children into each extra occurrence.
   while (queue.length > 0) {
     const { primaryBaseId, extraOccId } = queue.shift();
-    for (const { rel, childId, isReversed } of (childRelsByParent[primaryBaseId] || [])) {
+    for (const { rel, childId, reversed } of (childRelsByParent[primaryBaseId] || [])) {
       if (!occurrenceMap[childId]) continue;
       const childOccurrences = occurrenceMap[childId];
       if (childOccurrences.some(id => parentMap[id] === extraOccId)) continue;
@@ -720,8 +705,8 @@ function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentM
       if (!_wouldCycle(parentMap, newOccId, extraOccId)) {
         occurrenceMap[childId] = [...childOccurrences, newOccId];
         parentMap[newOccId]    = extraOccId;
-        const srcOccId = isReversed ? newOccId   : extraOccId;
-        const tgtOccId = isReversed ? extraOccId : newOccId;
+        const srcOccId = reversed ? newOccId   : extraOccId;
+        const tgtOccId = reversed ? extraOccId : newOccId;
         parentRels.push({ rel, srcOccId, tgtOccId });
         queue.push({ primaryBaseId: childId, extraOccId: newOccId });
       }
@@ -730,36 +715,36 @@ function _propagateExtraOccurrences(elements, nestingRels, reverseTypes, parentM
 }
 
 /**
+ * Is this relation reversed (params.reverseRules)? Reversed relations are laid out from target
+ * to source and, when nested, have the target as parent. Single source of truth for the
+ * writer, the layout graph and the counters.
+ */
+function isReversed(rel, params) {
+  const rules = params.reverseRules;
+  if (!rules || rules.length === 0) return false;
+  return RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false);
+}
+
+/**
  * Split relations into nesting candidates and connections. Single source of truth for
  * the writer (generate_view) and predictViewCounts, so dialog counts match the output.
  *
- * A relation is a nesting candidate when its type is in params.nestingRelationTypes AND
- * its parent (source; target for reversed types) has a type in params.nestingContainerTypes
- * (empty = any type). Every other relation is a connection.
+ * A relation is a nesting candidate when it matches params.nestingRules (relation type and
+ * source / target element type; the parent is the source, or the target for a reversed
+ * relation). Every other relation is a connection.
  *
- * @returns {{ nestingRels: Object[], connectionRels: Object[], containerTypeRejected: number }}
- *   containerTypeRejected — nesting-type relations drawn as a line because of the container type.
+ * @returns {{ nestingRels: Object[], connectionRels: Object[] }}
  */
 function _splitNestingRels(relations, params) {
-  const nestingTypes   = new Set(params.nestingRelationTypes || []);
-  const containerTypes = new Set(params.nestingContainerTypes || []);
-  const reverseTypes   = new Set(params.reverseRelationTypes || []);
+  const rules          = params.nestingRules || [];
   const nestingRels    = [];
   const connectionRels = [];
-  let containerTypeRejected = 0;
   for (const rel of relations) {
-    if (!nestingTypes.has(rel.type)) { connectionRels.push(rel); continue; }
-    if (containerTypes.size > 0) {
-      const parent = reverseTypes.has(rel.type) ? rel.target : rel.source;
-      if (!parent || !containerTypes.has(parent.type)) {
-        connectionRels.push(rel);
-        containerTypeRejected++;
-        continue;
-      }
-    }
-    nestingRels.push(rel);
+    const isNesting = rules.length > 0 &&
+      RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false);
+    (isNesting ? nestingRels : connectionRels).push(rel);
   }
-  return { nestingRels, connectionRels, containerTypeRejected };
+  return { nestingRels, connectionRels };
 }
 
 /**
@@ -819,7 +804,7 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
 
 /**
  * Find all relations whose source AND target are both in `elements`.
- * Applies type filter (empty = all types allowed).
+ * @param {Function|null} [match]    (relation, iteratedElement) => boolean. null = all relations.
  * @param {Set}      [seenRelIds]    Optional external dedup set — mutated in place so the caller
  *                                   can thread it across successive calls to prevent double-counting.
  * @param {Object[]} [iterateSubset] Optional subset of elements to iterate. Both endpoints are
@@ -827,7 +812,7 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
  *                                   pre-step cumulative snapshot to exclude new×new relations.
  *                                   Defaults to `elements`.
  */
-function _findRelationsBetween(elements, relTypeFilter, seenRelIds, iterateSubset, directionAware) {
+function _findRelationsBetween(elements, match, seenRelIds, iterateSubset) {
   if (elements.length === 0) return [];
   const elementIds = new Set(elements.map(e => e.id));
   const seen       = seenRelIds || new Set();
@@ -840,11 +825,7 @@ function _findRelationsBetween(elements, relTypeFilter, seenRelIds, iterateSubse
         const srcId = rel.source && rel.source.id;
         const tgtId = rel.target && rel.target.id;
         if (!srcId || !tgtId || !elementIds.has(srcId) || !elementIds.has(tgtId)) return false;
-        if (!relTypeFilter || relTypeFilter.length === 0) return true;
-        const isOutgoing = srcId === element.id;
-        return directionAware
-          ? _matchesRelationTypeDir(rel.type, relTypeFilter, isOutgoing)
-          : _matchesRelationType(rel.type, relTypeFilter, rel);
+        return !match || match(rel, element);
       }).each(rel => {
         seen.add(rel.id);
         relations.push(rel);
@@ -879,6 +860,10 @@ if (typeof module !== "undefined" && module.exports) {
     logCountBlock:            _logCountBlock,
     findRelationsBetween:     _findRelationsBetween,
     splitNestingRels:         _splitNestingRels,
+    isReversed,
+    globalRelationMatch:      _globalRelationMatch,
+    diagramPasses:            _diagramPasses,
+    stepCandidate:            _stepCandidate,
     resolveNesting:           _resolveNesting,
     predictViewCounts:        _predictViewCounts,
   };

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "grouping",
   "algorithm": "Layered",
   "params": {
@@ -6,8 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -16,16 +15,18 @@
     "elementWidth": 270,
     "elementHeight": 25,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": []
   },
   "filter": {
-    "elementTypes": [
-      "grouping"
+    "elementRules": [
+      {"elementType": "grouping"}
     ],
-    "relationTypes": [
-      "aggregation-relationship"
+    "relationRules": [
+      {"relation": "aggregation-relationship"}
     ],
-    "diagramTypes": []
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []

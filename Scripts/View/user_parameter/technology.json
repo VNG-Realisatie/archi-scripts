@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "technology",
   "algorithm": "Layered",
   "params": {
@@ -6,11 +7,6 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "serving-relationship"
-    ],
-    "nestingRelationTypes": [],
     "padding": 20,
     "sortContainers": true,
     "showInEveryContainer": false,
@@ -19,27 +15,32 @@
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "grouping",
-      "artifact",
-      "communication-network",
-      "device",
-      "node",
-      "path",
-      "system-software",
-      "technology-collaboration",
-      "technology-event",
-      "technology-function",
-      "technology-interaction",
-      "technology-interface",
-      "technology-process",
-      "technology-service"
+    "elementRules": [
+      {"elementType": "grouping"},
+      {"elementType": "artifact"},
+      {"elementType": "communication-network"},
+      {"elementType": "device"},
+      {"elementType": "node"},
+      {"elementType": "path"},
+      {"elementType": "system-software"},
+      {"elementType": "technology-collaboration"},
+      {"elementType": "technology-event"},
+      {"elementType": "technology-function"},
+      {"elementType": "technology-interaction"},
+      {"elementType": "technology-interface"},
+      {"elementType": "technology-process"},
+      {"elementType": "technology-service"}
     ],
-    "relationTypes": [],
-    "diagramTypes": []
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": []

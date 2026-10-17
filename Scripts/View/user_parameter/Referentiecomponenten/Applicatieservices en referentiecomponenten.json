@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Referentiecomponenten/Applicatieservices en referentiecomponenten",
   "algorithm": "Pack",
   "params": {
@@ -7,14 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "realization-relationship",
-      "specialization-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship",
-      "realization-relationship"
-    ],
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": true,
@@ -32,55 +25,42 @@
     "maxWidth": 0,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": false,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "realization-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [
-      "grouping"
+    "elementRules": [
+      {"elementType": "grouping"}
     ],
-    "relationTypes": [],
-    "diagramTypes": []
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [
-          "grouping"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "application-service"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "application-component"
-        ],
-        "relationTypes": [
-          "realization-relationship:in"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+        ]
       }
     ]
   },
@@ -90,33 +70,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": true,

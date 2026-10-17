@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 2,
   "name": "Beleidskader/Beleidskaders van een beleidsdomein",
   "algorithm": "Layered",
   "params": {
@@ -7,12 +8,6 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRelationTypes": [
-      "association-relationship"
-    ],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": true,
@@ -32,38 +27,32 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 160,
-    "connectionLabelSpacing": false
+    "connectionLabelSpacing": false,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "association-relationship"}
+    ]
   },
   "filter": {
-    "elementTypes": [],
-    "relationTypes": [],
-    "diagramTypes": []
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "elementTypes": [
-          "driver"
-        ],
-        "relationTypes": [
-          "aggregation-relationship:out"
-        ],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
+        ]
       },
       {
         "repeat": 1,
-        "elementTypes": [
-          "driver"
-        ],
-        "relationTypes": [],
-        "propFilter": {
-          "key": "",
-          "value": ""
-        }
+        "rules": [
+          {"added": "driver"}
+        ]
       }
     ]
   },
@@ -73,33 +62,9 @@
   },
   "appearance": {
     "styleByProperty": {
-      "element": {
-        "enabled": false,
-        "elementType": "",
-        "property": "Vertrouwelijkheid",
-        "colorRange": "Blues"
-      },
-      "relation": {
-        "enabled": false,
-        "relTypes": [],
-        "property": "GGM-guid",
-        "colorRange": "Reds",
-        "lineWidth": 0
-      }
-    },
-    "styleByRelatedProperty": {
-      "enabled": false,
-      "relTypes": [],
-      "property": "GGM-guid",
-      "colorRange": "OrRd"
-    },
-    "styleByConnectedElement": {
-      "enabled": false,
-      "relTypes": [],
-      "elementType": "",
-      "property": "GEMMA type",
-      "colorRange": "Purples",
-      "conflictColor": "#FF6B35"
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
     },
     "nestingLevel": {
       "fontEnabled": false,
