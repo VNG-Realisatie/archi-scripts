@@ -548,11 +548,11 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 ```
 ┌─[Selection]──[Layout]─────────────────────────────────────────────────────┐
 │ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
-│ │      Flow:  ○ Layered   ○ Dagre    ○ Dot                              │ │
+│ │ Flow:       ○ Layered   ○ Dagre    ○ Dot                              │ │
 │ │ Hierarchy:  ○ Tree      ○ Twopi                                       │ │
-│ │   Network:  ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
-│ │  Circular:  ○ Radial    ○ Circo                                       │ │
-│ │   Compact:  ○ Grid      ○ Pack                                        │ │
+│ │ Network:    ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
+│ │ Circular:   ○ Radial    ○ Circo                                       │ │
+│ │ Compact:    ○ Grid      ○ Pack                                        │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting ─────────────────────────────────────────────────────────────┐ │
 │ │  Draw these relations as nesting, child inside its parent:            │ │
@@ -606,7 +606,7 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 
 **Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Each group ends with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, Distance to element."*, or *"Not used by Force."* for a whole group. Containers settings are also greyed, with a hint, until a Nesting rule is on.
 
-**Shared grid.** Containers, Flow, Elements and Connections share one column grid: a row heading (*Size:*, *Order:*, …) followed by up to three label/control pairs; a checkbox takes a whole pair (`_formRow` / `_alignFormColumns`), so fields line up across the groups. A loose row (Elements › Size, Connections › Spacing) lines up only its heading and first pair; the rest follows right behind it.
+**Form rows.** Containers, Flow, Elements and Connections share one heading column (*Size:*, *Order:*, …), as wide as the widest heading; after it each label sits right before its control (6 px) and pairs follow each other (20 px) — no column alignment across rows (`_formRow` / `_alignFormColumns`). An option that depends on a switch sits closer behind it (*☐ Use label width  Wrap label at*). Rows that share a raster key line up as a small table (Containers › Options). Nothing stretches with the dialog: combos and spinners keep their width, the algorithm radios and rule tables their natural column widths; notes and hints wrap at the box width (`_wrapToParent`). A rule table is never cut off: when it is wider than the tab (Property condition on), the dialog grows — only wider, within the monitor, never back — and on a monitor that is too narrow the tab scrolls horizontally (`_resizeScrolled`, data `fitWidth`).
 
 **Look.** Every group has a slightly lighter background than the page (`_getGroupBackground`), inherited by its children. A combo or spinner's label greys together with it (`_enable`).
 

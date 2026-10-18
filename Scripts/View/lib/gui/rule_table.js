@@ -45,7 +45,7 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
  *             count   read-only count label, set with setCounts; "(n)" or col.format(n)
  *             warn    read-only "⚠" label, set with setWarnings
  *             custom  create(parent, value, onChange) → { set(v), enable(on) }; cells = grid cells used
- *   width     preferred width (px); combos shrink to minWidth when the dialog is narrow
+ *   width     width (px); cells keep it, nothing stretches with the dialog
  *   optional  true: shown only with Property condition (or when a rule has a property)
  *   enabled   (rule) => boolean; the cell is greyed when false
  *   onChange  (rule) => void; normalise related fields after this column changed
@@ -72,6 +72,7 @@ function ruleTable(parent, opts) {
   const outer = new CompositeWidget(parent, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 3).applyTo(outer);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
+  outer.setData("fitWidth", true);   // the dialog widens rather than cut a rule off (_resizeScrolled)
 
   let grid = null;
 
@@ -176,8 +177,7 @@ function ruleTable(parent, opts) {
         const c = new ComboWidget(grid, SWT.READ_ONLY | SWT.DROP_DOWN);
         const ci = choiceItems(col, rule, i);
         comboItems(c, ci.labels, ci.selected);
-        gd().grab(!!col.width && col.width > 100, false).hint(col.width || SWT.DEFAULT, SWT.DEFAULT)
-          .minSize(Math.min(col.width || 60, 70), SWT.DEFAULT).applyTo(c);
+        gd().hint(col.width || SWT.DEFAULT, SWT.DEFAULT).applyTo(c);
         c.setToolTipText(tip);
         c.addListener(SWT.Selection, () => {
           const it = col.items[c.getSelectionIndex()];
@@ -199,7 +199,7 @@ function ruleTable(parent, opts) {
       case "value": {
         const c = new ComboWidget(grid, SWT.READ_ONLY | SWT.DROP_DOWN);
         fillList(c, col, rule, i);
-        gd().grab(true, false).hint(col.width || 100, SWT.DEFAULT).minSize(60, SWT.DEFAULT).applyTo(c);
+        gd().hint(col.width || 100, SWT.DEFAULT).applyTo(c);
         c.setToolTipText(tip);
         c.addListener(SWT.Selection, () => {
           const k = c.getSelectionIndex();

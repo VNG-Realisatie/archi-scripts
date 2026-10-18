@@ -110,7 +110,7 @@ const STYLE_PROP_OF_ITEMS = Object.freeze([
 const _modeCol = { key: "mode", header: "Mode", kind: "choice", items: MODE_ITEMS, width: 85,
   tooltip: "Include keeps what matches this rule. Exclude removes it.\nResult = all Include rules minus all Exclude rules." };
 const _onCol = { key: "on", header: "On", kind: "check", tooltip: "Switch this rule on or off without deleting it." };
-const _typeCol = (key, header, tooltip, width) => ({ key, header, tooltip, kind: "choice", items: ELEMENT_ITEMS, width: width || 170 });
+const _typeCol = (key, header, tooltip, width) => ({ key, header, tooltip, kind: "choice", items: ELEMENT_ITEMS, width: width || 150 });
 const _relCol  = (key, header, tooltip) => ({ key, header, tooltip, kind: "choice", items: RELATION_ITEMS, width: 120 });
 const _propCols = what => [
   { key: "property", header: "Property", kind: "prop", width: 110, optional: true,
@@ -241,7 +241,7 @@ const PARAM_WIDGETS = Object.freeze({
 function _scrolledTab(tabFolder, tabLabel) {
   const tab      = new TabItemWidget(tabFolder, SWT.NONE);
   tab.setText(tabLabel);
-  const scrolled = new ScrolledCompositeWidget(tabFolder, SWT.V_SCROLL);
+  const scrolled = new ScrolledCompositeWidget(tabFolder, SWT.V_SCROLL | SWT.H_SCROLL);
   scrolled.setExpandHorizontal(true);
   scrolled.setExpandVertical(true);
   tab.setControl(scrolled);
@@ -332,14 +332,55 @@ function _typeToDisplay(t) {
 }
 
 // Recompute ScrolledComposite min-size after page content changes.
-// Width fixed to viewport so only vertical scrolling triggers.
+// The page takes the viewport width, unless a control that must be shown whole (a rule table,
+// data "fitWidth") is wider: then the dialog grows — only wider, within the monitor — and when
+// the monitor is too narrow too the tab scrolls horizontally.
 function _resizeScrolled(scrolled, page) {
   if (!scrolled || !page) return;
   try {
-    const w = scrolled.getClientArea().width;
-    const useW = w > 0 ? w : SWT.DEFAULT;
-    scrolled.setMinSize(page.computeSize(useW, SWT.DEFAULT));
+    let clientW = scrolled.getClientArea().width;
+    if (clientW <= 0 || !scrolled.isVisible()) {
+      scrolled.setMinSize(page.computeSize(clientW > 0 ? clientW : SWT.DEFAULT, SWT.DEFAULT));
+      return;
+    }
+    // Page width at which every fitWidth control has its natural width.
+    const short = _fitShortfall(page);
+    let wantW = short === null ? clientW : page.getSize().x + short;
+    if (wantW > clientW) {
+      _growShell(scrolled.getShell(), wantW - clientW);
+      clientW = scrolled.getClientArea().width;
+    }
+    scrolled.setMinSize(page.computeSize(Math.max(clientW, wantW), SWT.DEFAULT));
   } catch (e) {}
+}
+
+// Largest (natural width − current width) over the visible fitWidth controls under root;
+// null when there are none.
+function _fitShortfall(root) {
+  let short = null;
+  const walk = c => {
+    for (const k of c.getChildren()) {
+      if (k.isDisposed() || !k.getVisible()) continue;
+      if (k.getData("fitWidth")) {
+        const d = k.computeSize(SWT.DEFAULT, SWT.DEFAULT).x - k.getSize().x;
+        short = short === null ? d : Math.max(short, d);
+      } else if (k instanceof CompositeWidget) walk(k);
+    }
+  };
+  walk(root);
+  return short;
+}
+
+// Widen the (visible) shell by dx, kept within the monitor; it never shrinks.
+function _growShell(shell, dx) {
+  if (!shell || !shell.isVisible() || dx <= 0) return;
+  const area = shell.getMonitor().getClientArea();
+  const b = shell.getBounds();
+  const newW = Math.min(area.width, b.width + dx);
+  if (newW <= b.width) return;
+  const newX = Math.max(area.x, Math.min(b.x - Math.round((newW - b.width) / 2), area.x + area.width - newW));
+  shell.setBounds(newX, b.y, newW, b.height);
+  shell.layout(true, true);
 }
 
 
@@ -551,6 +592,15 @@ function open(uiSelection) {
       if (_differsFromSaved(ctx)) _markModified(ctx);  // session changed since the last save
 
       tabFolder.setSelection(config._lastTabIndex || 0);
+      // Fit the shown tab once the dialog is open, and every tab when it is selected.
+      const fitTab = () => {
+        const i = tabFolder.getSelectionIndex();
+        const pairs = [[ctx.selectionScrolled, ctx.selectionPage], [ctx.layoutScrolled, ctx.layoutPage],
+                       [ctx.appearanceScrolled, ctx.appearancePage]];
+        if (pairs[i]) _resizeScrolled(pairs[i][0], pairs[i][1]);
+      };
+      tabFolder.addListener(SWT.Selection, fitTab);
+      area.getDisplay().asyncExec(() => { try { if (!area.isDisposed()) fitTab(); } catch (e) {} });
       return area;
     },
 
@@ -1159,16 +1209,18 @@ function _buildLayoutTab(tabFolder, ctx) {
   const w = ctx.widgets;
   ctx.layoutScrolled = scrolled;
   ctx.layoutPage     = page;
+  page.getLayout().verticalSpacing = 8;          // between boxes
+  const BOX = { marginH: 8, marginV: 6 };       // inside a box
 
   // ── Algorithm ─────────────────────────────────────────────────────────────────
   // Algorithm selection uses a 5-row × 6-col table: [Style label:] [○ Algo] [○ Algo] …
   // All radio buttons are in the same composite so SWT auto-groups them (mutually exclusive).
-  const grpAlg = _group(page, "Algorithm", 4, { spaceH: 6 });
+  const grpAlg = _group(page, "Algorithm", 4, Object.assign({ spaceH: 6 }, BOX));
 
   // Algorithm radio table spans all 4 columns of grpAlg.
   const algTableComp = new CompositeWidget(grpAlg, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(8, 3).applyTo(algTableComp);
-  GridDataFactory.fillDefaults().span(4, 1).grab(true, false).applyTo(algTableComp);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(GAP_PAIR, 3).applyTo(algTableComp);
+  GridDataFactory.swtDefaults().span(4, 1).applyTo(algTableComp);
 
   const algRadios = new Map();
   const maxAlgCols = Math.max(...Object.values(STYLES).map(s => s.algorithms.length));
@@ -1178,11 +1230,10 @@ function _buildLayoutTab(tabFolder, ctx) {
     const styleLbl = new LabelWidget(algTableComp, SWT.NONE);
     styleLbl.setText(styleName + ":");
     if (style.tooltip) styleLbl.setToolTipText(style.tooltip);
-    GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).applyTo(styleLbl);
+    GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(styleLbl);
 
-    // Radio buttons for this style's algorithms, then empty labels for vacant slots.
-    // Both radio buttons AND empty placeholders grab(true) so all 5 algorithm columns
-    // flex equally with the dialog width (same behaviour as the relation checkbox columns).
+    // Radio buttons for this style's algorithms, then empty labels for vacant slots. Columns
+    // are as wide as their widest radio; nothing stretches with the dialog.
     for (let i = 0; i < maxAlgCols; i++) {
       const algName = style.algorithms[i];
       if (algName) {
@@ -1190,13 +1241,11 @@ function _buildLayoutTab(tabFolder, ctx) {
         const radio = new ButtonWidget(algTableComp, SWT.RADIO);
         radio.setText(algName);
         if (alg.tooltip) radio.setToolTipText(alg.tooltip);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(radio);
+        GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(radio);
         algRadios.set(algName, radio);
         radio.addListener(SWT.Selection, () => { if (radio.getSelection()) { _updateAlgorithmControls(ctx); } });
       } else {
-        // Empty placeholder: grab so the column still flexes even with no radio button.
-        const ph = new LabelWidget(algTableComp, SWT.NONE);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(ph);
+        new LabelWidget(algTableComp, SWT.NONE);  // empty slot
       }
     }
   });
@@ -1206,7 +1255,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   // Groups in the order of deciding: structure (Relations, Containers), then Flow, Elements,
   // Connections, View size. Each group ends with a hint line naming what the chosen algorithm
   // does not use (_updateLayoutHints). Containers, Flow, Elements and Connections share one
-  // column grid (heading | label control | …) — see _formRow / _alignFormColumns.
+  // heading column (heading | label control | …) — see _formRow / _alignFormColumns.
   const formRows = [];
   w.layoutHints = {};
   let row;
@@ -1220,7 +1269,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   };
 
   // ── Nesting · Reverse ─────────────────────────────────────────────────────────
-  const grpNest = _group(page, "Nesting", 1);
+  const grpNest = _group(page, "Nesting", 1, BOX);
   const onLayoutPage = () => {
     try { ctx.layoutPage.layout(true, true); } catch (e) {}
     _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
@@ -1243,7 +1292,7 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   w.layoutHints.Nesting = _groupHint(grpNest);
 
-  const grpRev = _group(page, "Reverse", 1);
+  const grpRev = _group(page, "Reverse", 1, BOX);
   _lbl(grpRev, "Flip these relations:")
     .setToolTipText(Defs.paramTooltip("reverseRules"));
   w.tblReverseRules = ruleTable(grpRev, Object.assign({
@@ -1255,7 +1304,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.layoutHints.Reverse = _groupHint(grpRev);
 
   // ── Containers ────────────────────────────────────────────────────────────────
-  const grpCtr = _group(page, "Containers", 1);
+  const grpCtr = _group(page, "Containers", 1, BOX);
   row = _formRow(grpCtr, "Layout:", formRows);
   _addCombo(row, "Layout inside", CONTAINER_ALGO_LABELS,   0, SWT.DEFAULT, "cmbContainerAlgorithm", w);
   _addCombo(row, "Connections",   CONNECTIONS_MODE_LABELS, 0, SWT.DEFAULT, "cmbConnectionsMode", w);
@@ -1263,17 +1312,17 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.cmbContainerAlgorithm.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
   w.cmbConnectionsMode.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  row = _formRow(grpCtr, "Options:", formRows);
+  row = _formRow(grpCtr, "Options:", formRows, "ctrOptions");
   _addCheck(row, "Sort containers", null, 2, w, "chkSortContainers");
   _addCheck(row, "Show in every container", null, 2, w, "chkShowInEvery");
   w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
-  row = _formRow(grpCtr, "", formRows);
+  row = _formRow(grpCtr, "", formRows, "ctrOptions");
   _addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
   _addCheck(row, "Snap columns to grid", null, 2, w, "chkSnapColumns");
   w.layoutHints.Containers = _groupHint(grpCtr);
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
-  const grpFlow = _group(page, "Flow", 1);
+  const grpFlow = _group(page, "Flow", 1, BOX);
   row = _formRow(grpFlow, "Order:", formRows);
   _addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w);
   _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w);
@@ -1285,11 +1334,12 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.layoutHints.Flow = _groupHint(grpFlow);
 
   // ── Elements ──────────────────────────────────────────────────────────────────
-  const grpEl = _group(page, "Elements", 1);
-  row = _formRow(grpEl, "Size:", formRows, true);
+  const grpEl = _group(page, "Elements", 1, BOX);
+  row = _formRow(grpEl, "Size:", formRows);
   _addSpinnerRow(row, "Width",  "spinElementWidth",  DP.elementWidth,  10, 1000, 10, w);
   _addCheck(row, "Use label width", null, 2, w, "chkLabelSizing");
   _addSpinnerRow(row, "Wrap label at", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w);
+  w.spinLabelMaxLineWidth.getData("label").setData("follows", true);   // belongs to Use label width
   row = _formRow(grpEl, "", formRows);
   _addSpinnerRow(row, "Height", "spinElementHeight", DP.elementHeight, 10,  500, 10, w);
   w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
@@ -1298,14 +1348,14 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.layoutHints.Elements = _groupHint(grpEl);
 
   // ── Connections ───────────────────────────────────────────────────────────────
-  const grpCon = _group(page, "Connections", 1);
+  const grpCon = _group(page, "Connections", 1, BOX);
   row = _formRow(grpCon, "Line:", formRows);
   _addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
   w.cmbRouting.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
   w.cmbLabelPosition.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addCheck(row, "Reserve label space", null, 2, w, "chkConnectionLabelSpacing");
-  row = _formRow(grpCon, "Spacing:", formRows, true);
+  row = _formRow(grpCon, "Spacing:", formRows);
   _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w);
   _addSpinnerRow(row, "Distance to element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w);
   w.layoutHints.Connections = _groupHint(grpCon);
@@ -1313,32 +1363,27 @@ function _buildLayoutTab(tabFolder, ctx) {
   _alignFormColumns(formRows);
 
   // ── View size ─────────────────────────────────────────────────────────────────
-  const grpVS = _group(page, "View size", 1);
+  const grpVS = _group(page, "View size", 1, BOX);
 
   // Inline row: ● Free  ○ Aspect ratio [combo]  ○ Max width [spinner]
   // All three radios live in the same composite → SWT mutual exclusion is automatic.
   const hintRow = new CompositeWidget(grpVS, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(8, 0).applyTo(hintRow);
+  GridLayoutFactory.fillDefaults().numColumns(5).margins(0, 0).spacing(GAP_FIELD, 0).applyTo(hintRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(hintRow);
 
-  const _vsRadio = (label, extraPx) => {
+  const _vsRadio = (label, first) => {
     const r = new ButtonWidget(hintRow, SWT.RADIO);
     r.setText(label);
-    if (extraPx) {
-      const sz = r.computeSize(SWT.DEFAULT, SWT.DEFAULT);
-      GridDataFactory.swtDefaults().hint(sz.x + extraPx, SWT.DEFAULT).applyTo(r);
-    } else {
-      GridDataFactory.swtDefaults().applyTo(r);
-    }
+    GridDataFactory.swtDefaults().indent(first ? 0 : GAP_PAIR - GAP_FIELD, 0).applyTo(r);
     r.addListener(SWT.Selection, () => { if (r.getSelection()) _applyViewSizeMode(ctx); });
     return r;
   };
 
-  w.radioViewSizeNone = _vsRadio("Free", 16);
+  w.radioViewSizeNone = _vsRadio("Free", true);
   w.radioViewSizeNone.setSelection(true);
   w.radioViewSizeNone.setToolTipText("No size constraint: the layout determines the view size.");
 
-  w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio:", 8);
+  w.radioViewSizeAspectRatio = _vsRadio("Aspect ratio:");
   _addCombo(hintRow, null, AR_LABELS, 0, 150, "cmbAspectRatio", w);
   w.cmbAspectRatio.addListener(SWT.Selection, () => _updateConnectionsMode(ctx));
 
@@ -1384,7 +1429,28 @@ function _noteLabel(parent, text) {
   lbl.setText(text);
   try { lbl.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
   GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(lbl);
+  _wrapToParent(lbl);
   return lbl;
+}
+
+// A wrapping label breaks at its parent's width: the width hint follows the parent on resize, so
+// the label's height fits its lines (a fixed hint gives lines of one width and a height of another).
+function _wrapToParent(lbl) {
+  const parent = lbl.getParent();
+  parent.addListener(SWT.Resize, () => {
+    try {
+      const lay = parent.getLayout();
+      const inner = parent.getClientArea().width - 2 * lay.marginWidth - lay.marginLeft - lay.marginRight;
+      const gd = lbl.getLayoutData();
+      if (inner > 50 && gd.widthHint !== inner) {
+        gd.widthHint = inner;
+        parent.layout(true, false);
+        // The label's height changed: let the tab's scrolled area follow.
+        for (let c = parent; c; c = c.getParent())
+          if (c instanceof ScrolledCompositeWidget) { _resizeScrolled(c, c.getContent()); break; }
+      }
+    } catch (e) {}
+  });
 }
 
 /**
@@ -1463,6 +1529,7 @@ function _groupHint(group) {
   const lbl = new LabelWidget(group, SWT.WRAP);
   try { lbl.setForeground(group.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
   GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(lbl);
+  _wrapToParent(lbl);
   lbl.getLayoutData().exclude = true;
   lbl.setVisible(false);
   return lbl;
@@ -2033,59 +2100,60 @@ function _group(parent, label, numColumns, opts) {
   return grp;
 }
 
-// Aligned form row: heading | label control | label control | label control (FORM_COLS cells).
-// Rows registered in `rows` are aligned by _alignFormColumns, also across different groups.
-// A loose row (4th argument) lines up only its heading and first label/control pair; what follows
-// sits right behind it at natural width, so related controls stay together.
-// A checkbox takes a whole label/control pair (span 2).
+// Form row: heading | label control | label control | label control (FORM_COLS cells).
+// _alignFormColumns lines up only the headings (one column for every registered row, also across
+// groups); after the heading, each label sits right before its control and pairs follow each other.
+// A checkbox takes a whole label/control pair (span 2). Rows that share a `raster` key form a
+// small table: their cells line up by column (e.g. a 2×2 block of checkboxes). A label with data
+// "follows" sits closer to the cell before it: an option that depends on that switch.
 const SPINNER_WIDTH = 65;  // every number spinner — fits 4 digits
-const FORM_COLS   = 7;  // heading + 3 label/control pairs
-const FORM_HSPACE = 8;  // horizontal spacing between cells
-function _formRow(parent, heading, rows, loose) {
+const FORM_COLS     = 7;   // heading + 3 label/control pairs
+const GAP_FIELD     = 6;   // label → its control
+const GAP_PAIR      = 20;  // pair → next pair on the same row
+const GAP_HEADING   = 12;  // heading → first pair
+const GAP_FOLLOW    = 10;  // switch → the option that depends on it (label data "follows")
+function _formRow(parent, heading, rows, raster) {
   const row = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(FORM_COLS).margins(0, 0).spacing(FORM_HSPACE, 3).applyTo(row);
+  GridLayoutFactory.fillDefaults().numColumns(FORM_COLS).margins(0, 0).spacing(0, 3).applyTo(row);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
   new LabelWidget(row, SWT.NONE).setText(heading);
-  row._loose = !!loose;
+  row.setData("raster", raster || null);
   rows.push(row);
   return row;
 }
 
-// Line up the columns of all rows (also across groups). A column is as wide as its widest
-// single-column cell. Cells with their own width hint (spinners: SPINNER_WIDTH) keep it; so do spanning cells
-// (checkboxes) at their natural width — the remaining column space becomes the indent of the
-// next cell, so the following cells still line up. All cells are vertically centred.
 function _alignFormColumns(rows) {
   const cells = row => {
     let col = 0;
     return Array.from(row.getChildren()).map(c => {
       const gd = c.getLayoutData();
       const span = (gd && gd.horizontalSpan) || 1;
-      const hint = gd && gd.widthHint > 0 ? gd.widthHint : -1;
-      const cell = { c, col, span, hint, natural: c.computeSize(SWT.DEFAULT, SWT.DEFAULT).x };
+      const cell = { c, col, span, natural: c.computeSize(SWT.DEFAULT, SWT.DEFAULT).x };
       col += span;
       return cell;
     });
   };
-  const widths = [];
-  for (const row of rows)
-    for (const { col, span, hint, natural } of cells(row))
-      if (span === 1 && hint <= 0 && !(row._loose && col >= 3)) widths[col] = Math.max(widths[col] || 0, natural);
-  for (const row of rows)
-    for (const { col, span, hint } of cells(row))
-      if (span === 1 && hint > 0 && !(row._loose && col >= 3)) widths[col] = Math.max(widths[col] || 0, hint);
+  const headingW = Math.max(0, ...rows.map(r => cells(r)[0].natural));
+  // Raster rows: per raster key, the widest cell of each column.
+  const rasterW = new Map();
   for (const row of rows) {
-    let indent = 0;
-    for (const { c, col, span, hint, natural } of cells(row)) {
-      if (row._loose && col >= 3) {
-        GridDataFactory.swtDefaults().span(span, 1).hint(hint > 0 ? hint : natural, SWT.DEFAULT).applyTo(c);
-        continue;
-      }
-      let slot = -FORM_HSPACE;
-      for (let i = col; i < col + span; i++) slot += (widths[i] || 0) + FORM_HSPACE;
-      const own = span > 1 ? natural : hint > 0 ? hint : slot;
-      GridDataFactory.swtDefaults().span(span, 1).indent(indent, 0).hint(own, SWT.DEFAULT).applyTo(c);
-      indent = Math.max(0, slot - own);
+    const key = row.getData("raster");
+    if (!key) continue;
+    const ws = rasterW.get(key) || [];
+    for (const { col, natural } of cells(row)) if (col > 0) ws[col] = Math.max(ws[col] || 0, natural);
+    rasterW.set(key, ws);
+  }
+  for (const row of rows) {
+    const ws = rasterW.get(row.getData("raster"));
+    for (const { c, col, span } of cells(row)) {
+      const gd = GridDataFactory.swtDefaults().span(span, 1).align(SWT.BEGINNING, SWT.CENTER);
+      const old = c.getLayoutData();
+      let hint = old && old.widthHint > 0 ? old.widthHint : SWT.DEFAULT;   // spinners keep theirs
+      if (col === 0) hint = headingW;
+      else if (ws && ws[col]) hint = ws[col];
+      const indent = col === 0 ? 0 : col === 1 ? GAP_HEADING : col % 2 === 0 ? GAP_FIELD
+                   : c.getData("follows") ? GAP_FOLLOW : GAP_PAIR;
+      gd.hint(hint, SWT.DEFAULT).indent(indent, 0).applyTo(c);
     }
   }
 }
