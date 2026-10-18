@@ -23,7 +23,8 @@ const el = (type, props) => ({ id: type, type, prop: k => (props || {})[k] });
 
 // ── normalise / serialise ─────────────────────────────────────────────────────
 eq(norm("relation", [{ relation: "serving-relationship" }]),
-   [{ on: true, mode: "include", source: "", relation: "serving-relationship", target: "" }], "normalise fills defaults");
+   [{ on: true, mode: "include", source: "", relation: "serving-relationship", target: "",
+      propertyOf: "relation", property: "", value: "" }], "normalise fills defaults");
 eq(norm("relation", [{ relaton: "serving-relationship" }]), [], "unknown key rejects the rule");
 eq(norm("relation", [{ relation: "nonsense-relationship" }]), [], "unknown type rejects the rule");
 eq(norm("step", [{ direction: "sideways" }]), [], "unknown enum rejects the rule");
@@ -55,6 +56,17 @@ eq(off("serving-relationship", "a", "b", false), false, "off rule is ignored");
 const incExc = rel([{ relation: "serving-relationship" }, { mode: "exclude", source: "grouping" }]);
 eq(incExc("serving-relationship", "grouping",        "b", true), false, "exclude vetoes include");
 eq(incExc("serving-relationship", "business-object", "b", true), true,  "exclude does not apply elsewhere");
+// property condition: read from the relation, its source or its target
+const pObj = props => ({ prop: k => props[k] });
+const pRel = { type: "serving-relationship", source: Object.assign(pObj({ Laag: "A" }), { type: "grouping" }),
+               target: Object.assign(pObj({}), { type: "grouping" }) };
+Object.assign(pRel, pObj({ Soort: "x" }));
+const relP = rules => RF.matchRelation(norm("relation", rules), pRel.type, "grouping", "grouping", false, pRel);
+eq(relP([{ property: "Soort", value: "x" }]), true,  "relation property matches");
+eq(relP([{ property: "Soort", value: "y" }]), false, "relation property differs");
+eq(relP([{ propertyOf: "source", property: "Laag", value: "A" }]), true,  "source property matches");
+eq(relP([{ propertyOf: "target", property: "Laag", value: "A" }]), false, "target property differs");
+eq(norm("relation", [{ propertyOf: "element" }]), [], "unknown propertyOf rejects the rule");
 
 // ── element filter ────────────────────────────────────────────────────────────
 const elRules = norm("element", [{ elementType: "business-object" }, { elementType: "grouping", property: "Status", value: "Active" }]);

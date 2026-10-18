@@ -241,7 +241,8 @@ catalogues) and **Circular** (cycles, hub-and-spoke).
 containment: the child element sits **inside** its parent's box (box-in-box). This makes the
 view express **hierarchy and ownership directly**, and — because containment removes the line —
 makes **double relations and unexpected structure** easy to spot. A rule's source and target
-types restrict which elements may be a container (e.g. source *Grouping*). Relations matching a
+types restrict which elements may be a container (e.g. source *Grouping*); an optional
+property condition — on the relation, its source or its target — narrows a rule further. Relations matching a
 **reverse** rule are flipped: the flow lays them out from target to source, a nested one has
 its target as parent; model relation and arrows stay unchanged. Each rule counts the relations
 it hits and how many become a nesting; the dialog says why the others are drawn as a line.
@@ -597,7 +598,8 @@ Preset {
 Step         { repeat:1..5|"untilNothingNew", rules:StepRule[] }        // [] = follow all
 ElementRule  { mode, elementType, property, value }
 DiagramRule  { mode, diagramType }
-RelationRule { on, mode, source, relation, target }
+RelationRule { on, mode, source, relation, target,
+               propertyOf:"relation"|"source"|"target", property, value }
 StepRule     { mode, previous, direction:"either"|"outgoing"|"incoming", relation, added,
                propertyOf:"added"|"relation"|"previous", property, value }
 StyleRule    { on, color:"element"|"relation"|"source"|"target", source, relation, target,

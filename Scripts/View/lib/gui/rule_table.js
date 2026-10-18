@@ -11,7 +11,9 @@
  * refresh enabled states and property lists.
  *
  * Filter lists (opts.filterList) always show at least the default rule (= keep everything) and
- * hand back [] for it; feature lists may be empty.
+ * hand back [] for it; feature lists may be empty. With opts.placeholder an empty feature list
+ * shows the default rule switched off, as an example to switch on; untouched, it is handed back
+ * as [].
  */
 console.log("Loading rule_table.js");
 
@@ -53,7 +55,8 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
  * @param {Composite} parent
  * @param {{kind:string, columns:Object[], filterList?:boolean, propCondition?:boolean,
  *          onChange?:Function, onLayout?:Function, propItems?:Function, valueItems?:Function,
- *          rowTooltip?:Function, emptyText?:string, footer?:Function, addTooltip?:string}} opts
+ *          rowTooltip?:Function, emptyText?:string, footer?:Function, addTooltip?:string,
+ *          placeholder?:boolean}} opts
  */
 function ruleTable(parent, opts) {
   const kind = opts.kind;
@@ -98,6 +101,17 @@ function ruleTable(parent, opts) {
   if (opts.footer) opts.footer(footer);
 
   const changed = () => { if (opts.onChange) opts.onChange(); };
+  // The placeholder rule: the default rule, switched off.
+  const placeholderRule = () => Object.assign(RuleLists.defaultRule(kind), { on: false });
+  const isPlaceholder = r => {
+    const p = placeholderRule();
+    return Object.keys(p).every(k => r[k] === p[k]);
+  };
+  const fillEmpty = () => {
+    if (rules.length > 0) return;
+    if (opts.filterList)  rules.push(RuleLists.defaultRule(kind));
+    else if (opts.placeholder) rules.push(placeholderRule());
+  };
   const anyProperty = () => rules.some(r => !!r.property);
   const visibleCols = () => {
     const showOptional = propOn || anyProperty();
@@ -249,7 +263,7 @@ function ruleTable(parent, opts) {
       GridDataFactory.swtDefaults().hint(28, 22).align(SWT.CENTER, SWT.CENTER).applyTo(btnDel);
       btnDel.addListener(SWT.Selection, () => {
         rules.splice(rules.indexOf(rule), 1);
-        if (opts.filterList && rules.length === 0) rules.push(RuleLists.defaultRule(kind));
+        fillEmpty();
         rebuild(); changed();
       });
       cells.set("#del", { col: null, ctrl: btnDel });
@@ -308,11 +322,12 @@ function ruleTable(parent, opts) {
     /** Normalised rules; a filter list that keeps everything gives []. */
     getRules() {
       const out = rules.map(r => Object.assign(RuleLists.defaultRule(kind), r));
-      return opts.filterList && RuleLists.isPassAll(kind, out) ? [] : out;
+      if (opts.filterList) return RuleLists.isPassAll(kind, out) ? [] : out;
+      return opts.placeholder && out.length === 1 && isPlaceholder(out[0]) ? [] : out;
     },
     setRules(list) {
       rules = (list || []).map(r => Object.assign(RuleLists.defaultRule(kind), r));
-      if (opts.filterList && rules.length === 0) rules.push(RuleLists.defaultRule(kind));
+      fillEmpty();
       counts = []; warnings = new Map(); propOn = false;
       rebuild();
     },

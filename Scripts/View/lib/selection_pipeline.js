@@ -425,7 +425,7 @@ function _applyFilter(collection, filter) {
   return collection.filter(o => {
     const type = o.type || "";
     if (type.endsWith("-relationship")) {
-      return RuleLists.matchRelation(relationRules, type, o.source && o.source.type, o.target && o.target.type, true);
+      return RuleLists.matchRelation(relationRules, type, o.source && o.source.type, o.target && o.target.type, true, o);
     }
     return RuleLists.matchElement(elementRules, o);
   });
@@ -448,7 +448,7 @@ function _diagramPasses(rules, type) {
 function _globalRelationMatch(filter) {
   const rules = filter && filter.relationRules;
   if (RuleLists.isPassAll("relation", rules)) return null;
-  return rel => RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, true);
+  return rel => RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, true, rel);
 }
 
 /** Step candidate: one relation seen from one element of the previous step. */
@@ -722,15 +722,15 @@ function _propagateExtraOccurrences(elements, nestingRels, isReversedRel, parent
 function isReversed(rel, params) {
   const rules = params.reverseRules;
   if (!rules || rules.length === 0) return false;
-  return RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false);
+  return RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false, rel);
 }
 
 /**
  * Split relations into nesting candidates and connections. Single source of truth for
  * the writer (generate_view) and predictViewCounts, so dialog counts match the output.
  *
- * A relation is a nesting candidate when it matches params.nestingRules (relation type and
- * source / target element type; the parent is the source, or the target for a reversed
+ * A relation is a nesting candidate when it matches params.nestingRules (relation type,
+ * source / target element type and property condition; the parent is the source, or the target for a reversed
  * relation). Every other relation is a connection.
  *
  * @returns {{ nestingRels: Object[], connectionRels: Object[] }}
@@ -741,7 +741,7 @@ function _splitNestingRels(relations, params) {
   const connectionRels = [];
   for (const rel of relations) {
     const isNesting = rules.length > 0 &&
-      RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false);
+      RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, false, rel);
     (isNesting ? nestingRels : connectionRels).push(rel);
   }
   return { nestingRels, connectionRels };

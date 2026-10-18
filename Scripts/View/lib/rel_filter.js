@@ -8,7 +8,8 @@
  * Rule kinds (field → meaning; "" = All):
  *   element   { mode, elementType, property, value }                      global element filter
  *   diagram   { mode, diagramType }                                       global diagram filter
- *   relation  { on, mode, source, relation, target }                      global relation filter, nesting, reverse
+ *   relation  { on, mode, source, relation, target,                       global relation filter, nesting, reverse
+ *               propertyOf, property, value }
  *   step      { mode, previous, direction, relation, added,               expand-selection step
  *               propertyOf, property, value }
  *   style     { on, color, source, relation, target, propertyOf,          Appearance › Style by property
@@ -27,6 +28,7 @@ const DIRECTIONS  = Object.freeze(["either", "outgoing", "incoming"]);
 const STEP_PROP_OF  = Object.freeze(["added", "relation", "previous"]);
 const STYLE_COLOR   = Object.freeze(["element", "relation", "source", "target"]);
 const STYLE_PROP_OF = Object.freeze(["element", "relation", "source", "target"]);
+const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
 
 // kind → { defaults, types: field → valid-set name, enums: field → allowed values }
 const KINDS = Object.freeze({
@@ -41,9 +43,10 @@ const KINDS = Object.freeze({
     enums:    { mode: MODES },
   },
   relation: {
-    defaults: { on: true, mode: "include", source: "", relation: "", target: "" },
+    defaults: { on: true, mode: "include", source: "", relation: "", target: "",
+                propertyOf: "relation", property: "", value: "" },
     types:    { source: "elements", relation: "relations", target: "elements" },
-    enums:    { mode: MODES },
+    enums:    { mode: MODES, propertyOf: REL_PROP_OF },
   },
   step: {
     defaults: { mode: "include", previous: "", direction: "either", relation: "", added: "",
@@ -170,13 +173,21 @@ function matchDiagram(rules, type) {
   return evalRules(rules, r => _typeOk(r.diagramType, type), true);
 }
 
+/** The object a relation rule's property is read from: the relation, its source or its target. */
+function relationPropObject(rule, rel) {
+  if (!rel) return undefined;
+  return rule.propertyOf === "source" ? rel.source : rule.propertyOf === "target" ? rel.target : rel;
+}
+
 /**
- * Source / relation / target match. Filter lists pass emptyMeansAll=true (global relation
- * filter); feature lists (nesting, reverse) pass false.
+ * Source / relation / target match, plus the property condition when `rel` (the relation
+ * object) is given — without it a rule with a property never matches. Filter lists pass
+ * emptyMeansAll=true (global relation filter); feature lists (nesting, reverse) pass false.
  */
-function matchRelation(rules, relType, srcType, tgtType, emptyMeansAll) {
+function matchRelation(rules, relType, srcType, tgtType, emptyMeansAll, rel) {
   return evalRules(rules, r =>
-    _typeOk(r.relation, relType) && _typeOk(r.source, srcType) && _typeOk(r.target, tgtType),
+    _typeOk(r.relation, relType) && _typeOk(r.source, srcType) && _typeOk(r.target, tgtType) &&
+    _propOk(r, relationPropObject(r, rel)),
     emptyMeansAll);
 }
 
@@ -312,9 +323,9 @@ function stringifyPreset(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    MODES, DIRECTIONS, STEP_PROP_OF, STYLE_COLOR, STYLE_PROP_OF, KINDS,
+    MODES, DIRECTIONS, STEP_PROP_OF, STYLE_COLOR, STYLE_PROP_OF, REL_PROP_OF, KINDS,
     defaultRule, normalizeRule, normalizeRules, serializeRule, isPassAll,
-    evalRules, matchElement, matchDiagram, matchRelation, matchStep, matchStepRelation,
+    evalRules, matchElement, matchDiagram, matchRelation, relationPropObject, matchStep, matchStepRelation,
     styleRuleMatchesRelation, detectRuleConflicts,
     compactPreset, stringifyPreset,
   };

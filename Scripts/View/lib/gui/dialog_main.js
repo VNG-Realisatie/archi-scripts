@@ -98,6 +98,10 @@ const STYLE_COLOR_ITEMS = Object.freeze([
   { value: "element", label: "Element (own property)" }, { value: "relation", label: "Relation" },
   { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
 ]);
+const REL_PROP_OF_ITEMS = Object.freeze([
+  { value: "relation", label: "Relation" }, { value: "source", label: "Source element" },
+  { value: "target", label: "Target element" },
+]);
 const STYLE_PROP_OF_ITEMS = Object.freeze([
   { value: "element", label: "Element" }, { value: "relation", label: "Relation" },
   { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
@@ -140,12 +144,17 @@ const FEATURE_RULE_COLUMNS = Object.freeze([_onCol, ...RELATION_RULE_COLUMNS]);
 const _countedRelCol = Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "relations", width: 150,
   tooltip: "Relationship type. All = any type.\n(n): relations on the view this rule matches on its own; " +
            "for an Exclude rule, how many it removes from the other rules' matches." });
-const _COUNTED_FEATURE_COLUMNS = [_onCol, RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1], _countedRelCol, RELATION_RULE_COLUMNS[3]];
+const _COUNTED_FEATURE_COLUMNS = [_onCol, RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1], _countedRelCol, RELATION_RULE_COLUMNS[3],
+  { key: "propertyOf", header: "Property of", kind: "choice", items: REL_PROP_OF_ITEMS, width: 120, optional: true,
+    tooltip: "Where the property is read: the relation, its source or its target element." },
+  ..._propCols("relations")];
 const NESTING_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "nested", header: "Nested", kind: "count", width: 50, format: n => String(n),
     tooltip: "Of those relations, how many are drawn as nesting. The others are drawn as a line: " +
              "their child already has a parent, or the nesting would be circular." }]);
-const REVERSE_RULE_COLUMNS = Object.freeze(_COUNTED_FEATURE_COLUMNS);
+// Reverse: an empty cell where Nesting has its Nested count, so both tables line up.
+const REVERSE_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
+  { key: "_spacer", header: "", kind: "count", width: 50 }]);
 const FILTER_RELATION_RULE_COLUMNS = Object.freeze([RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1],
   Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "count", width: 150,
     tooltip: "Relationship type. All = any type.\n(n): relations between the filtered elements this rule keeps on its own; " +
@@ -946,6 +955,14 @@ function _stepPropObjects(b, rule) {
     rule.propertyOf === "relation" ? c.rel : rule.propertyOf === "previous" ? c.frontier : c.other);
 }
 
+/** The objects a nesting / reverse rule's property is read from, among the predicted view's relations. */
+function _relPropObjects(ctx, rule) {
+  const probe = [Object.assign({}, rule, { on: true, mode: "include", property: "", value: "" })];
+  return (ctx.viewRelations || [])
+    .filter(r => RuleLists.matchRelation(probe, r.type, r.source && r.source.type, r.target && r.target.type, false))
+    .map(r => RuleLists.relationPropObject(rule, r));
+}
+
 // ── Expand selection: step blocks ─────────────────────────────────────────────
 
 // Append a new step block.
@@ -1194,10 +1211,15 @@ function _buildLayoutTab(tabFolder, ctx) {
   };
   _lbl(grpRel, "Nesting — draw these as nesting, child inside its parent:")
     .setToolTipText(Defs.paramTooltip("nestingRules"));
-  w.tblNestingRules = ruleTable(grpRel, {
+  const relPropItems = {
+    propCondition: true, placeholder: true,
+    propItems:  r => _propNames(_relPropObjects(ctx, r)),
+    valueItems: r => _propValues(_relPropObjects(ctx, r), r.property),
+  };
+  w.tblNestingRules = ruleTable(grpRel, Object.assign({
     kind: "relation", columns: NESTING_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No nesting: every relation is drawn as a line.",
-  });
+  }, relPropItems));
   _noteLabel(grpRel, "The parent is the source — or the target if the relation is also in Reverse below.");
   w.lblNestingNote = _noteLabel(grpRel, "");
   w.lblNestingNote.getLayoutData().exclude = true;
@@ -1205,10 +1227,10 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   _groupSep(grpRel, 1, "Reverse — flip these relations:")
     .setToolTipText(Defs.paramTooltip("reverseRules"));
-  w.tblReverseRules = ruleTable(grpRel, {
+  w.tblReverseRules = ruleTable(grpRel, Object.assign({
     kind: "relation", columns: REVERSE_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No relations are reversed.",
-  });
+  }, relPropItems));
   _noteLabel(grpRel, "Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
                      "Nesting: if the relation is also nested, the target becomes the parent.");
   w.layoutHints.Relations = _groupHint(grpRel);
@@ -1354,6 +1376,9 @@ function _noteLabel(parent, text) {
 function _updateLayoutRuleCounts(ctx, elements, relations, params) {
   const w = ctx.widgets;
   if (!w.tblNestingRules || !w.tblReverseRules) return;
+  ctx.viewRelations = relations;   // property lists of the nesting / reverse rules
+  w.tblNestingRules.refreshItems();
+  w.tblReverseRules.refreshItems();
   const split = Pipeline.splitNestingRels(relations, params);
   const nest  = Pipeline.resolveNesting(elements, split.nestingRels, params);
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
@@ -1395,7 +1420,7 @@ function _filterRuleCounts(table, objects, test) {
 /** Per-rule counts of a nesting / reverse table over the predicted view's relations. */
 function _featureRuleCounts(table, relations, nestedIds) {
   const rules  = table.displayedRules();
-  const match  = (list, r) => RuleLists.matchRelation(list, r.type, r.source && r.source.type, r.target && r.target.type, false);
+  const match  = (list, r) => RuleLists.matchRelation(list, r.type, r.source && r.source.type, r.target && r.target.type, false, r);
   const active = rules.filter(r => r.on !== false);
   const allHits = relations.filter(r => match(active, r)).length;
   return rules.map((rule, i) => {

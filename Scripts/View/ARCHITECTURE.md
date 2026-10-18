@@ -367,7 +367,7 @@ or `""` (= All); `mode` defaults to `"include"`, `on` to true.
 |---|---|---|---|
 | `element`  | mode, elementType, property, value | `filter.elementRules` | keep all |
 | `diagram`  | mode, diagramType | `filter.diagramRules` | keep all |
-| `relation` | on, mode, source, relation, target | `filter.relationRules`, `params.nestingRules`, `params.reverseRules` | filter: keep all · nesting/reverse: none |
+| `relation` | on, mode, source, relation, target, propertyOf, property, value | `filter.relationRules`, `params.nestingRules`, `params.reverseRules` | filter: keep all · nesting/reverse: none |
 | `step`     | mode, previous, direction, relation, added, propertyOf, property, value | `steps[].rules` | follow all |
 | `style`    | on, color, source, relation, target, propertyOf, property, colorRange | `appearance.styleByProperty.rules` | no styling |
 
