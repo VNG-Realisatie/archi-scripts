@@ -269,11 +269,11 @@ Preset {
     reverseRules : RelationRule[]       // Reverse — flipped relations; [] = none
 
     elementWidth, elementHeight,        // Width, Height
-    elementSpacing, layerSpacing,       // Gap, Layer gap
+    elementSpacing, layerSpacing,       // Distance, Layer distance
     connectionSpacing,                  // Between
-    connectionElementSpacing,           // To element
+    connectionElementSpacing,           // Distance to element
     padding,                            // Padding (container border ↔ contents)
-    labelMaxLineWidth : numbers (px)    // Wrap at (with By label)
+    labelMaxLineWidth : numbers (px)    // Wrap label at (with Use label width)
     diagramPadding    : number (px)     // preset-only (HIDDEN_PARAMS): canvas margin
 
     maxWidth, aspectRatio : numbers     // View size (0 = unconstrained)
@@ -281,7 +281,7 @@ Preset {
 
     sortContainers, showInEveryContainer,  // Sort containers, Show in every container
     alignWidthSameType,                    // Same width per level (key kept for back-compat)
-    snapColumnsToGrid, labelSizing,        // Snap columns to grid, By label
+    snapColumnsToGrid, labelSizing,        // Snap columns to grid, Use label width
     connectionLabelSpacing : booleans      // Reserve label space
 
     containerAlgorithm : string     // Layout inside: "Layered" | "Grid" | "Pack"
@@ -543,7 +543,7 @@ Each step's additions feed the next step's input — chain ([Steps](#steps) sect
 
 ### Layout tab
 
-The Layout tab decides *how* objects are positioned. Groups follow the order of deciding — structure first (Relations, Containers), then Flow, Elements, Connections and View size.
+The Layout tab decides *how* objects are positioned. Groups follow the order of deciding — structure first (Nesting, Reverse, Containers), then Flow, Elements, Connections and View size.
 
 ```
 ┌─[Selection]──[Layout]─────────────────────────────────────────────────────┐
@@ -554,8 +554,8 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ │  Circular:  ○ Radial    ○ Circo                                       │ │
 │ │   Compact:  ○ Grid      ○ Pack                                        │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Relations ───────────────────────────────────────────────────────────┐ │
-│ │  Nesting — draw these as nesting, child inside its parent:            │ │
+│ ┌─ Nesting ─────────────────────────────────────────────────────────────┐ │
+│ │  Draw these relations as nesting, child inside its parent:            │ │
 │ │   On │ Mode    │ Source │ Relation         │ Target │ Nested │       │ │
 │ │   ☑  │ Include │ All    │ Aggregation (62) │ All    │ 37     │ ✕     │ │
 │ │   ☑  │ Include │ Driver │ Association (8)  │ Driver │ 0      │ ✕     │ │
@@ -565,9 +565,12 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ │  31 matching relations are drawn as a line: the child already has a   │ │
 │ │  parent (the first one wins). Show in every container (Containers)    │ │
 │ │  shows such a child in every parent.                                  │ │
-│ │  ── Reverse — flip these relations:                                   │ │
-│ │   On │ Mode    │ Source │ Relation         │ Target │               │ │
-│ │   No relations are reversed.     [+ Add rule]                         │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Reverse ─────────────────────────────────────────────────────────────┐ │
+│ │  Flip these relations:                                                │ │
+│ │   On │ Mode    │ Source │ Relation         │ Target │        │       │ │
+│ │   ☐  │ Include │ All    │ All              │ All    │        │ ✕     │ │
+│ │   [+ Add rule]  ☐ Property condition                                  │ │
 │ │  Flow: laid out from target to source, against the Direction in the   │ │
 │ │  Flow box (arrows unchanged). Nesting: the target becomes the parent. │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
@@ -579,17 +582,17 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
-│ │  Layers:   Placement [Straight ▼]  Layer gap [180]                    │ │
+│ │  Layers:   Placement [Straight ▼]  Layer distance [180]               │ │
 │ │  Not used by Layered: Cycles, Ranking.                        (hint)  │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
-│ │  Size:     Width [140]  Height [60]                                   │ │
-│ │            ☐ By label   Wrap at [400]                                 │ │
-│ │  Spacing:  Gap [40]                                                   │ │
+│ │  Size:     Width [140]  ☐ Use label width  Wrap label at [400]        │ │
+│ │            Height [60]                                                │ │
+│ │  Spacing:  Distance [40]                                              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
 │ │  Line:     Routing [Orthogonal ▼]  Label [Middle ▼]  ☐ Reserve label space │
-│ │  Spacing:  Between [25]  To element [40]                              │ │
+│ │  Spacing:  Between [25]  Distance to element [40]                │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ View size ───────────────────────────────────────────────────────────┐ │
 │ │  ● Free   ○ Aspect ratio: [16:9 widescreen ▼]   ○ Max width: [0]       │ │
@@ -601,11 +604,15 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 
 **Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the predicted view it matches on its own — shown after the chosen relation type, *Aggregation (62)* (an Exclude rule: what it removes from the other rules' matches) — and, for nesting, how many of them become a nesting (*Nested*). A grey note under Nesting says why matching relations are drawn as a line instead: the child already has a parent (first wins while *Show in every container* is off), the nesting would be circular, or the relation is a self-relation. Computed in `_updateLayoutRuleCounts` with the same `splitNestingRels` / `resolveNesting` as the writer.
 
-**Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Each group ends with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, To element."*, or *"Not used by Force."* for a whole group. Containers settings are also greyed, with a hint, until a Nesting rule is on.
+**Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Each group ends with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, Distance to element."*, or *"Not used by Force."* for a whole group. Containers settings are also greyed, with a hint, until a Nesting rule is on.
 
-**Shared grid.** Containers, Flow, Elements and Connections share one column grid: a row heading (*Size:*, *Order:*, …) followed by up to three label/control pairs; a checkbox takes a whole pair (`_formRow` / `_alignFormColumns`), so fields line up across the groups.
+**Shared grid.** Containers, Flow, Elements and Connections share one column grid: a row heading (*Size:*, *Order:*, …) followed by up to three label/control pairs; a checkbox takes a whole pair (`_formRow` / `_alignFormColumns`), so fields line up across the groups. A loose row (Elements › Size, Connections › Spacing) lines up only its heading and first pair; the rest follows right behind it.
 
-**Locks.** Connections falls back to *Between containers* (greyed, reason in the tooltip) when Layout inside is Grid or Pack, or a view size is active — see [Container algorithm and connections mode](#container-algorithm-and-connections-mode). Width and Height are greyed while By label is on; Wrap at only applies with By label.
+**Look.** Every group has a slightly lighter background than the page (`_getGroupBackground`), inherited by its children. A combo or spinner's label greys together with it (`_enable`).
+
+**Empty Nesting / Reverse.** An empty table shows the default rule switched off, as an example; untouched it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
+
+**Locks.** Connections falls back to *Between containers* (greyed, reason in the tooltip) when Layout inside is Grid or Pack, or a view size is active — see [Container algorithm and connections mode](#container-algorithm-and-connections-mode). Width and Height are greyed while Use label width is on; Wrap label at only applies with Use label width.
 
 #### Algorithm selection
 
@@ -645,11 +652,16 @@ Algorithms are organised into five styles in a radio table; all algorithms are a
 Field = dialog label; Tooltip = its first two lines (the third, "Used by", is the last column).
 
 <!-- generated:layout-params -->
-**Relations**
+**Nesting**
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
 | Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+
+**Reverse**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
 | Reverse | `reverseRules` | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
 
 **Containers**
@@ -672,17 +684,17 @@ Field = dialog label; Tooltip = its first two lines (the third, "Used by", is th
 | Cycles | `acyclicer` | How relation cycles are broken before layout. — Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles. | Dagre |
 | Ranking | `ranking` | How elements are assigned to layers. — Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster. | Dagre |
 | Placement | `nodePlacement` | Where elements sit within their layer. | Layered |
-| Layer gap | `layerSpacing` | Distance between layers along the flow; Radial and Twopi: between rings. — px — with Reserve label space a gap widens to fit its labels. | Layered, Radial, Dagre, Dot, Twopi |
+| Layer distance | `layerSpacing` | Distance between layers along the flow; Radial and Twopi: between rings. — px — with Reserve label space a gap widens to fit its labels. | Layered, Radial, Dagre, Dot, Twopi |
 
 **Elements**
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Width | `elementWidth` | Width of every element. — px — not used with By label. | all algorithms |
-| Height | `elementHeight` | Height of every element. — px — not used with By label. | all algorithms |
-| By label | `labelSizing` | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack |
-| Wrap at | `labelMaxLineWidth` | Label width at which By label wraps to a second line. — px — only with By label. | Grid, Pack |
-| Gap | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px | all algorithms except Twopi |
+| Width | `elementWidth` | Width of every element. — px — not used with Use label width. | all algorithms |
+| Height | `elementHeight` | Height of every element. — px — not used with Use label width. | all algorithms |
+| Use label width | `labelSizing` | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack |
+| Wrap label at | `labelMaxLineWidth` | Label width at which Use label width wraps to a second line. — px — only with Use label width. | Grid, Pack |
+| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px | all algorithms except Twopi |
 
 **Connections**
 
@@ -692,7 +704,7 @@ Field = dialog label; Tooltip = its first two lines (the third, "Used by", is th
 | Label | `labelPosition` | Where the connection label sits. | Layered, Tree, Dagre, Dot, Neato, FDP, SFDP, Twopi, Circo |
 | Reserve label space | `connectionLabelSpacing` | Keep connection labels clear of other labels, connections and elements. — A layer gap widens where a label needs label + 2 × Between. | Layered |
 | Between | `connectionSpacing` | Distance between parallel connections, and between connection points on one side of an element. — px — elements grow to fit their connections; 0 = no growth. | Layered, Tree, Dagre |
-| To element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. | Layered, Tree, Neato, FDP, SFDP |
+| Distance to element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. | Layered, Tree, Neato, FDP, SFDP |
 
 **View size**
 
@@ -889,17 +901,17 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Layer gap `layerSpacing` | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | — | — | — | ✓ | — |
+| Layer distance `layerSpacing` | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | — | — | — | ✓ | — |
 | Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| By label `labelSizing` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Wrap at `labelMaxLineWidth` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Gap `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Use label width `labelSizing` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Wrap label at `labelMaxLineWidth` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ |
 | Routing `routing` | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
 | Label `labelPosition` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
 | Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| To element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | — |
+| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | — |
 | Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Max width `maxWidth` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -1303,7 +1315,7 @@ Element labels are intrinsic to nodes — the result carries no separate element
 
 When `connectionLabelSpacing` is on (ELK Layered only), each edge in the input graph carries a `labels` entry with the label's estimated pixel dimensions — the same `_textWidth` estimate and tuning (`LABEL_SIZING_DEFAULTS` + preset `engineParams.layout`) as label-based node sizing; one line per `\n`, plus `labelHPadding` / `labelVPadding` as margin. Each label is `elk.edgeLabels.inline`: ELK centres it on the line (as Archi draws it) and reserves that box and returns the computed label center in `result_edge.labels[0].{x, y}` (container-relative coordinates). The adapter reads this and stores the absolute center as `labelX / labelY` in the LayoutResult edge, overriding the default geometry-based computation.
 
-**Layer gaps** (`_labelBox` in `elk.js`). ELK puts a label in its own label layer, with the layer spacing on both sides — the same setting as between two elements. So in this mode ELK's layer spacing is set to `connectionSpacing` (*Between*), and **every** connection gets a label box stretched in the flow direction to at least `layerSpacing − 2 × connectionSpacing`; connections without a label get an invisible box (placeholder text, 0 px thick — ELK ignores labels with empty text; `_collectEdgeResults` skips these boxes). Result per gap between two element layers:
+**Layer distances** (`_labelBox` in `elk.js`). ELK puts a label in its own label layer, with the layer spacing on both sides — the same setting as between two elements. So in this mode ELK's layer spacing is set to `connectionSpacing` (*Between*), and **every** connection gets a label box stretched in the flow direction to at least `layerSpacing − 2 × connectionSpacing`; connections without a label get an invisible box (placeholder text, 0 px thick — ELK ignores labels with empty text; `_collectEdgeResults` skips these boxes). Result per gap between two element layers:
 
 | | Width |
 |---|---|
@@ -1868,7 +1880,7 @@ The dialog separates configuration (model) from UI state (view):
 - **`_syncToUI()`** — pushes `config` → widgets; called after `createDialogArea` and after preset apply.
 - **`_saveUI()`** — reads widgets → `config`; called before run and before preset save.
 - **`PARAM_WIDGETS`** — layout param → widget key and kind (`spin` / `check` / `combo` / `rules`). `_syncToUI`, `_saveUI` and `_updateAlgorithmControls` loop over it; the view size (`maxWidth`, `aspectRatio`, `viewSizeMode`) has its own handling. Hidden params (`Defs.HIDDEN_PARAMS`) have no entry, so `_saveUI` keeps their preset value.
-- **`_updateAlgorithmControls(ctx)`** — for the selected algorithm: combo items from `supportedOptions` (full list when inactive), enabled state from `activeParams`, the By label and Nesting dependencies, view-size radios, the connections-mode lock and the group hints (`_updateLayoutHints`).
+- **`_updateAlgorithmControls(ctx)`** — for the selected algorithm: combo items from `supportedOptions` (full list when inactive), enabled state from `activeParams`, the Use label width and Nesting dependencies, view-size radios, the connections-mode lock and the group hints (`_updateLayoutHints`).
 - **Tooltips** — `_applyLayoutTooltips` / `_updateComboTooltips` set every Layout tooltip from `Defs.paramTooltip(key, optionText)`.
 - **`ctx.widgets.algRadios`** — `Map<algorithmName, ButtonWidget>`. All radio buttons share the same SWT composite parent (auto-mutually-exclusive on click).
 

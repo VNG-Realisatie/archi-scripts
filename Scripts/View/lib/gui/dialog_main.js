@@ -356,6 +356,22 @@ function _getBoldFont() {
   return _boldFontCache;
 }
 
+// Module-level group background: the widget background, a little lighter, so groups stand out
+// from the page. Lazy-created once per script load. Never disposed (like the bold font).
+let _groupBgCache = null;
+function _getGroupBackground() {
+  if (_groupBgCache) return _groupBgCache;
+  try {
+    const display = Java.type("org.eclipse.swt.widgets.Display").getCurrent();
+    const rgb = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND).getRGB();
+    const dark = (rgb.red + rgb.green + rgb.blue) / 3 < 128;
+    const f = dark ? 0.08 : 0.5;   // share of the way to white
+    const up = c => Math.round(c + (255 - c) * f);
+    _groupBgCache = new SWTColor(display, up(rgb.red), up(rgb.green), up(rgb.blue));
+  } catch (e) {}
+  return _groupBgCache;
+}
+
 // Default dialog dimensions. Width set explicitly to avoid SWT computing a wide size from
 // content hints. Height: the monitor's usable height, at most DEFAULT_DIALOG_HEIGHT.
 const DEFAULT_DIALOG_WIDTH  = 1000;
@@ -1203,37 +1219,40 @@ function _buildLayoutTab(tabFolder, ctx) {
     _updateAlgorithmControls(ctx);  // Containers / Container types need a nesting type
   };
 
-  // ── Relations ─────────────────────────────────────────────────────────────────
-  const grpRel = _group(page, "Relations", 1);
+  // ── Nesting · Reverse ─────────────────────────────────────────────────────────
+  const grpNest = _group(page, "Nesting", 1);
   const onLayoutPage = () => {
     try { ctx.layoutPage.layout(true, true); } catch (e) {}
     _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
   };
-  _lbl(grpRel, "Nesting — draw these as nesting, child inside its parent:")
+  _lbl(grpNest, "Draw these relations as nesting, child inside its parent:")
     .setToolTipText(Defs.paramTooltip("nestingRules"));
   const relPropItems = {
     propCondition: true, placeholder: true,
     propItems:  r => _propNames(_relPropObjects(ctx, r)),
     valueItems: r => _propValues(_relPropObjects(ctx, r), r.property),
   };
-  w.tblNestingRules = ruleTable(grpRel, Object.assign({
+  w.tblNestingRules = ruleTable(grpNest, Object.assign({
     kind: "relation", columns: NESTING_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No nesting: every relation is drawn as a line.",
   }, relPropItems));
-  _noteLabel(grpRel, "The parent is the source — or the target if the relation is also in Reverse below.");
-  w.lblNestingNote = _noteLabel(grpRel, "");
+  _noteLabel(grpNest, "The parent is the source — or the target if the relation is also in Reverse below.");
+  w.lblNestingNote = _noteLabel(grpNest, "");
   w.lblNestingNote.getLayoutData().exclude = true;
   w.lblNestingNote.setVisible(false);
 
-  _groupSep(grpRel, 1, "Reverse — flip these relations:")
+  w.layoutHints.Nesting = _groupHint(grpNest);
+
+  const grpRev = _group(page, "Reverse", 1);
+  _lbl(grpRev, "Flip these relations:")
     .setToolTipText(Defs.paramTooltip("reverseRules"));
-  w.tblReverseRules = ruleTable(grpRel, Object.assign({
+  w.tblReverseRules = ruleTable(grpRev, Object.assign({
     kind: "relation", columns: REVERSE_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No relations are reversed.",
   }, relPropItems));
-  _noteLabel(grpRel, "Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
+  _noteLabel(grpRev, "Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
                      "Nesting: if the relation is also nested, the target becomes the parent.");
-  w.layoutHints.Relations = _groupHint(grpRel);
+  w.layoutHints.Reverse = _groupHint(grpRev);
 
   // ── Containers ────────────────────────────────────────────────────────────────
   const grpCtr = _group(page, "Containers", 1);
@@ -1262,20 +1281,20 @@ function _buildLayoutTab(tabFolder, ctx) {
   row = _formRow(grpFlow, "Layers:", formRows);
   _addCombo(row, "Placement", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
   w.cmbNodePlacement.addListener(SWT.Selection, () => _updateComboTooltips(w));
-  _addSpinnerRow(row, "Layer gap", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
+  _addSpinnerRow(row, "Layer distance", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
   w.layoutHints.Flow = _groupHint(grpFlow);
 
   // ── Elements ──────────────────────────────────────────────────────────────────
   const grpEl = _group(page, "Elements", 1);
-  row = _formRow(grpEl, "Size:", formRows);
+  row = _formRow(grpEl, "Size:", formRows, true);
   _addSpinnerRow(row, "Width",  "spinElementWidth",  DP.elementWidth,  10, 1000, 10, w);
-  _addSpinnerRow(row, "Height", "spinElementHeight", DP.elementHeight, 10,  500, 10, w);
+  _addCheck(row, "Use label width", null, 2, w, "chkLabelSizing");
+  _addSpinnerRow(row, "Wrap label at", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w);
   row = _formRow(grpEl, "", formRows);
-  _addCheck(row, "By label", null, 2, w, "chkLabelSizing");
-  _addSpinnerRow(row, "Wrap at", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w);
+  _addSpinnerRow(row, "Height", "spinElementHeight", DP.elementHeight, 10,  500, 10, w);
   w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
   row = _formRow(grpEl, "Spacing:", formRows);
-  _addSpinnerRow(row, "Gap", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w);
+  _addSpinnerRow(row, "Distance", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w);
   w.layoutHints.Elements = _groupHint(grpEl);
 
   // ── Connections ───────────────────────────────────────────────────────────────
@@ -1286,9 +1305,9 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
   w.cmbLabelPosition.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addCheck(row, "Reserve label space", null, 2, w, "chkConnectionLabelSpacing");
-  row = _formRow(grpCon, "Spacing:", formRows);
+  row = _formRow(grpCon, "Spacing:", formRows, true);
   _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w);
-  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w);
+  _addSpinnerRow(row, "Distance to element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w);
   w.layoutHints.Connections = _groupHint(grpCon);
 
   _alignFormColumns(formRows);
@@ -1508,7 +1527,7 @@ function _colorRangeSelector(parent, defaultName, key, w, tooltip, onChange) {
     const bounds = canvas.getClientArea();
     // When disabled (intrinsic or inherited via parent), paint flat background.
     if (!cmb.isEnabled()) {
-      e.gc.setBackground(e.display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
+      e.gc.setBackground(canvas.getBackground());
       e.gc.fillRectangle(0, 0, bounds.width, bounds.height);
       return;
     }
@@ -1552,7 +1571,7 @@ function _solidColorSwatch(parent, hexColor, key, w) {
   canvas.addListener(SWT.Paint, e => {
     const b = canvas.getClientArea();
     if (!canvas.isEnabled()) {
-      e.gc.setBackground(e.display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
+      e.gc.setBackground(canvas.getBackground());
       e.gc.fillRectangle(0, 0, b.width, b.height);
       return;
     }
@@ -2001,6 +2020,8 @@ function _group(parent, label, numColumns, opts) {
   const grp = new GroupWidget(parent, SWT.NONE);
   grp.setText(label);
   if (opts.bold !== false) { const f = _getBoldFont(); if (f) try { grp.setFont(f); } catch (e) {} }
+  const bg = _getGroupBackground();
+  if (bg) try { grp.setBackground(bg); grp.setBackgroundMode(SWT.INHERIT_DEFAULT); } catch (e) {}
   GridDataFactory.fillDefaults()
     .grab(opts.grabH !== false, opts.grabV || false)
     .applyTo(grp);
@@ -2012,28 +2033,20 @@ function _group(parent, label, numColumns, opts) {
   return grp;
 }
 
-// Horizontal separator + sub-section label inside a multi-col group.
-// span = number of columns in the parent group's GridLayout.
-function _groupSep(parent, span, label) {
-  const sep = new LabelWidget(parent, SWT.SEPARATOR | SWT.HORIZONTAL);
-  GridDataFactory.fillDefaults().grab(true, false).span(span, 1).hint(SWT.DEFAULT, 6).applyTo(sep);
-  const lbl = new LabelWidget(parent, SWT.NONE);
-  lbl.setText(label);
-  GridDataFactory.fillDefaults().span(span, 1).applyTo(lbl);
-  return lbl;
-}
-
 // Aligned form row: heading | label control | label control | label control (FORM_COLS cells).
 // Rows registered in `rows` are aligned by _alignFormColumns, also across different groups.
+// A loose row (4th argument) lines up only its heading and first label/control pair; what follows
+// sits right behind it at natural width, so related controls stay together.
 // A checkbox takes a whole label/control pair (span 2).
 const SPINNER_WIDTH = 65;  // every number spinner — fits 4 digits
 const FORM_COLS   = 7;  // heading + 3 label/control pairs
 const FORM_HSPACE = 8;  // horizontal spacing between cells
-function _formRow(parent, heading, rows) {
+function _formRow(parent, heading, rows, loose) {
   const row = new CompositeWidget(parent, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(FORM_COLS).margins(0, 0).spacing(FORM_HSPACE, 3).applyTo(row);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
   new LabelWidget(row, SWT.NONE).setText(heading);
+  row._loose = !!loose;
   rows.push(row);
   return row;
 }
@@ -2057,13 +2070,17 @@ function _alignFormColumns(rows) {
   const widths = [];
   for (const row of rows)
     for (const { col, span, hint, natural } of cells(row))
-      if (span === 1 && hint <= 0) widths[col] = Math.max(widths[col] || 0, natural);
+      if (span === 1 && hint <= 0 && !(row._loose && col >= 3)) widths[col] = Math.max(widths[col] || 0, natural);
   for (const row of rows)
     for (const { col, span, hint } of cells(row))
-      if (span === 1 && hint > 0) widths[col] = Math.max(widths[col] || 0, hint);
+      if (span === 1 && hint > 0 && !(row._loose && col >= 3)) widths[col] = Math.max(widths[col] || 0, hint);
   for (const row of rows) {
     let indent = 0;
     for (const { c, col, span, hint, natural } of cells(row)) {
+      if (row._loose && col >= 3) {
+        GridDataFactory.swtDefaults().span(span, 1).hint(hint > 0 ? hint : natural, SWT.DEFAULT).applyTo(c);
+        continue;
+      }
       let slot = -FORM_HSPACE;
       for (let i = col; i < col + span; i++) slot += (widths[i] || 0) + FORM_HSPACE;
       const own = span > 1 ? natural : hint > 0 ? hint : slot;
@@ -2075,8 +2092,10 @@ function _alignFormColumns(rows) {
 
 // Label + read-only combo + items + selection + width hint + widget registration.
 function _addCombo(parent, label, items, selectedIdx, widthHint, key, w, tooltip) {
-  if (label) new LabelWidget(parent, SWT.NONE).setText(label);
+  const lbl = label ? new LabelWidget(parent, SWT.NONE) : null;
+  if (lbl) lbl.setText(label);
   const cmb = new ComboWidget(parent, SWT.READ_ONLY | SWT.DROP_DOWN);
+  if (lbl) cmb.setData("label", lbl);
   items.forEach(it => cmb.add(it));
   cmb.select(selectedIdx);
   GridDataFactory.swtDefaults().hint(widthHint, SWT.DEFAULT).applyTo(cmb);
@@ -2573,7 +2592,7 @@ function _updateAlgorithmControls(ctx) {
   _updateComboTooltips(w);
 
   for (const [key, def] of Object.entries(PARAM_WIDGETS)) _enable(w[def.w], active.has(key));
-  // By label replaces the fixed element size; its max width only applies with By label on.
+  // Use label width replaces the fixed element size; its max width only applies with Use label width on.
   const labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
   _enable(w.spinElementWidth,      active.has("elementWidth")  && !labelSizingOn);
   _enable(w.spinElementHeight,     active.has("elementHeight") && !labelSizingOn);
@@ -2688,6 +2707,8 @@ function _enable(widget, enabled) {
   if (!widget) return;
   if (widget.enable) { widget.enable(enabled); return; }  // controller (rule table, colour-range cell)
   try { widget.setEnabled(enabled); } catch (e) {}
+  // The label in front of a combo / spinner greys with it (see _addCombo, _addSpinnerRow).
+  try { const lbl = widget.getData("label"); if (lbl) lbl.setEnabled(enabled); } catch (e) {}
 }
 
 function _pushBtn(parent, label, tip, handler) {
@@ -2708,8 +2729,10 @@ function _addCheck(parent, label, tip, span, w, key) {
 }
 
 function _addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) {
-  new LabelWidget(parent, SWT.NONE).setText(label);
+  const lbl = new LabelWidget(parent, SWT.NONE);
+  lbl.setText(label);
   const sp = new SpinnerWidget(parent, SWT.BORDER);
+  sp.setData("label", lbl);
   sp.setValues(defVal, min, max, 0, step, step * 5);
   GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(sp);
   if (tooltip) sp.setToolTipText(tooltip);

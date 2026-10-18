@@ -511,14 +511,14 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 
 | GUI label | Internal | GUI label | Internal |
 |---|---|---|---|
-| Routing | edge routing | Gap | node spacing |
-| Label | edge label position | Layer gap | layer spacing |
+| Routing | edge routing | Distance | node spacing |
+| Label | edge label position | Layer distance | layer spacing |
 | Nesting | nesting rules | Between | edge-edge / port spacing |
-| Reverse | reverse rules | To element | edge-node spacing |
+| Reverse | reverse rules | Distance to element | edge-node spacing |
 | Layout inside | container algorithm | Padding | container padding |
 | Same width per level | alignWidthSameType | Placement | node placement |
 | Cycles | acyclicer | Ranking | ranker |
-| View size › Free | no size constraint | Wrap at | label max line width |
+| View size › Free | no size constraint | Wrap label at | label max line width |
 | Layout only | re-layout | One view each | per element |
 
 ### Dialog mockup
@@ -551,8 +551,8 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layout tab groups: *Algorithm* (style-grouped radio table), *Relations* (nesting rules,
-reverse rules), *Containers* (layout inside, between/crossing, padding,
+Layout tab groups: *Algorithm* (style-grouped radio table), *Nesting* (nesting rules),
+*Reverse* (reverse rules), *Containers* (layout inside, between/crossing, padding,
 sort, show in every container, same width per level, snap columns), *Flow* (direction, cycles,
 ranking, placement, layer gap), *Elements* (width, height, by label + wrap at, gap),
 *Connections* (routing, label, reserve label space, between, to element), *View size* (free /
