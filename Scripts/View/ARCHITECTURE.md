@@ -560,8 +560,6 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ │   ☑  │ Include │ All    │ Aggregation (62) │ All    │ 37     │ ✕     │ │
 │ │   ☑  │ Include │ Driver │ Association (8)  │ Driver │ 0      │ ✕     │ │
 │ │   [+ Add rule]                                                        │ │
-│ │  The parent is the source — or the target if the relation is also in  │ │
-│ │  Reverse below.                                                       │ │
 │ │  31 matching relations are drawn as a line: the child already has a   │ │
 │ │  parent (the first one wins). Show in every container (Containers)    │ │
 │ │  shows such a child in every parent.                                  │ │
@@ -571,19 +569,15 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ │   On │ Mode    │ Source │ Relation         │ Target │        │       │ │
 │ │   ☐  │ Include │ All    │ All              │ All    │        │ ✕     │ │
 │ │   [+ Add rule]  ☐ Property condition                                  │ │
-│ │  Flow: laid out from target to source, against the Direction in the   │ │
-│ │  Flow box (arrows unchanged). Nesting: the target becomes the parent. │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Crossing… ▼]  Padding [20] │
 │ │  Options:  ☐ Sort containers          ☐ Show in every container       │ │
 │ │            ☐ Same width per level     ☐ Snap columns to grid          │ │
-│ │  Add a Nesting rule to use these settings.                    (hint)  │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
 │ │  Layers:   Placement [Straight ▼]  Layer distance [180]               │ │
-│ │  Not used by Layered: Cycles, Ranking.                        (hint)  │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
 │ │  Size:     Width [140]  ☐ Use label width  Wrap label at [400]        │ │
@@ -604,9 +598,9 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 
 **Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the predicted view it matches on its own — shown after the chosen relation type, *Aggregation (62)* (an Exclude rule: what it removes from the other rules' matches) — and, for nesting, how many of them become a nesting (*Nested*). A grey note under Nesting says why matching relations are drawn as a line instead: the child already has a parent (first wins while *Show in every container* is off), the nesting would be circular, or the relation is a self-relation. Computed in `_updateLayoutRuleCounts` with the same `splitNestingRels` / `resolveNesting` as the writer.
 
-**Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Each group ends with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, Distance to element."*, or *"Not used by Force."* for a whole group. Containers settings are also greyed, with a hint, until a Nesting rule is on.
+**Inactive settings.** A setting the chosen algorithm does not use (not in its `activeParams`) is greyed and keeps its value. Connections, Nesting, Reverse and View size end with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, Distance to element."*, or *"Not used by Force."* for a whole group; Containers, Flow and Elements show the same text as the box's tooltip. Containers settings are also greyed, with a tooltip, until a Nesting rule is on. The explanation of the Nesting and Reverse rules (parent = source, what Reverse does in Flow and Nesting) is the tooltip of those boxes.
 
-**Form rows.** Containers, Flow, Elements and Connections share one heading column (*Size:*, *Order:*, …), as wide as the widest heading; after it each label sits right before its control (6 px) and pairs follow each other (20 px) — no column alignment across rows (`_formRow` / `_alignFormColumns`). An option that depends on a switch sits closer behind it (*☐ Use label width  Wrap label at*). Rows that share a raster key line up as a small table (Containers › Options). Nothing stretches with the dialog: combos and spinners keep their width, the algorithm radios and rule tables their natural column widths; notes and hints wrap at the box width (`_wrapToParent`). A rule table is never cut off: when it is wider than the tab (Property condition on), the dialog grows — only wider, within the monitor, never back — and on a monitor that is too narrow the tab scrolls horizontally (`_resizeScrolled`, data `fitWidth`).
+**Form rows.** Containers, Flow, Elements and Connections share one heading column (*Size:*, *Order:*, …), as wide as the widest heading; after it each label sits right before its control (6 px) and pairs follow each other (20 px) (`_formRow` / `_alignFormColumns`). Rows that share a raster key line up as a table: every column starts at the same x, labels as wide as the widest label of their column, so the controls stand below each other. Flow, Elements and Connections share a raster over the first label/control pair only — the fields behind it follow on as in a plain row; Containers › Options is a full 2×2 raster. Spinners have one width (65 px), combos keep their natural width. Nothing stretches with the dialog: combos and spinners keep their width, the algorithm radios and rule tables their natural column widths; notes and hints wrap at the box width (`_wrapToParent`). A rule table is never cut off: when it is wider than the tab (Property condition on), the dialog grows — only wider, within the monitor, never back — and on a monitor that is too narrow the tab scrolls horizontally (`_resizeScrolled`, data `fitWidth`).
 
 **Look.** Every group has a slightly lighter background than the page (`_getGroupBackground`), inherited by its children. A combo or spinner's label greys together with it (`_enable`).
 

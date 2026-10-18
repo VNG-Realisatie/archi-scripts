@@ -556,7 +556,7 @@ Layout tab groups: *Algorithm* (style-grouped radio table), *Nesting* (nesting r
 sort, show in every container, same width per level, snap columns), *Flow* (direction, cycles,
 ranking, placement, layer gap), *Elements* (width, height, by label + wrap at, gap),
 *Connections* (routing, label, reserve label space, between, to element), *View size* (free /
-aspect ratio / max width). Each group ends with a grey "Not used by …" hint.
+aspect ratio / max width). Connections, Nesting, Reverse and View size end with a grey "Not used by …" hint; Containers, Flow and Elements show it as the box's tooltip.
 Appearance tab groups: *Style by property* (style rules), *Style by nesting level*, *Highlight
 repeated elements*, plus the master toggle.
 

@@ -1258,6 +1258,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   // heading column (heading | label control | …) — see _formRow / _alignFormColumns.
   const formRows = [];
   w.layoutHints = {};
+  w.layoutGroups = {};   // groups whose "Not used by" hint is a tooltip, not a line (_updateLayoutHints)
   let row;
 
   // Nesting / reverse / show-in-every alter the on-view role split (nestings vs connections,
@@ -1285,7 +1286,7 @@ function _buildLayoutTab(tabFolder, ctx) {
     kind: "relation", columns: NESTING_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No nesting: every relation is drawn as a line.",
   }, relPropItems));
-  _noteLabel(grpNest, "The parent is the source — or the target if the relation is also in Reverse below.");
+  grpNest.setToolTipText("The parent is the source — or the target if the relation is also in Reverse.");
   w.lblNestingNote = _noteLabel(grpNest, "");
   w.lblNestingNote.getLayoutData().exclude = true;
   w.lblNestingNote.setVisible(false);
@@ -1299,8 +1300,8 @@ function _buildLayoutTab(tabFolder, ctx) {
     kind: "relation", columns: REVERSE_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No relations are reversed.",
   }, relPropItems));
-  _noteLabel(grpRev, "Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
-                     "Nesting: if the relation is also nested, the target becomes the parent.");
+  grpRev.setToolTipText("Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
+                        "Nesting: if the relation is also nested, the target becomes the parent.");
   w.layoutHints.Reverse = _groupHint(grpRev);
 
   // ── Containers ────────────────────────────────────────────────────────────────
@@ -1319,43 +1320,42 @@ function _buildLayoutTab(tabFolder, ctx) {
   row = _formRow(grpCtr, "", formRows, "ctrOptions");
   _addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
   _addCheck(row, "Snap columns to grid", null, 2, w, "chkSnapColumns");
-  w.layoutHints.Containers = _groupHint(grpCtr);
+  w.layoutGroups.Containers = grpCtr;
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = _group(page, "Flow", 1, BOX);
-  row = _formRow(grpFlow, "Order:", formRows);
+  row = _formRow(grpFlow, "Order:", formRows, "form", 2);
   _addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w);
   _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w);
   _addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w);
-  row = _formRow(grpFlow, "Layers:", formRows);
+  row = _formRow(grpFlow, "Layers:", formRows, "form", 2);
   _addCombo(row, "Placement", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
   w.cmbNodePlacement.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addSpinnerRow(row, "Layer distance", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
-  w.layoutHints.Flow = _groupHint(grpFlow);
+  w.layoutGroups.Flow = grpFlow;
 
   // ── Elements ──────────────────────────────────────────────────────────────────
   const grpEl = _group(page, "Elements", 1, BOX);
-  row = _formRow(grpEl, "Size:", formRows);
+  row = _formRow(grpEl, "Size:", formRows, "form", 2);
   _addSpinnerRow(row, "Width",  "spinElementWidth",  DP.elementWidth,  10, 1000, 10, w);
   _addCheck(row, "Use label width", null, 2, w, "chkLabelSizing");
   _addSpinnerRow(row, "Wrap label at", "spinLabelMaxLineWidth", DP.labelMaxLineWidth, 60, 2000, 20, w);
-  w.spinLabelMaxLineWidth.getData("label").setData("follows", true);   // belongs to Use label width
-  row = _formRow(grpEl, "", formRows);
+  row = _formRow(grpEl, "", formRows, "form", 2);
   _addSpinnerRow(row, "Height", "spinElementHeight", DP.elementHeight, 10,  500, 10, w);
   w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
-  row = _formRow(grpEl, "Spacing:", formRows);
+  row = _formRow(grpEl, "Spacing:", formRows, "form", 2);
   _addSpinnerRow(row, "Distance", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w);
-  w.layoutHints.Elements = _groupHint(grpEl);
+  w.layoutGroups.Elements = grpEl;
 
   // ── Connections ───────────────────────────────────────────────────────────────
   const grpCon = _group(page, "Connections", 1, BOX);
-  row = _formRow(grpCon, "Line:", formRows);
+  row = _formRow(grpCon, "Line:", formRows, "form", 2);
   _addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
   w.cmbRouting.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
   w.cmbLabelPosition.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addCheck(row, "Reserve label space", null, 2, w, "chkConnectionLabelSpacing");
-  row = _formRow(grpCon, "Spacing:", formRows);
+  row = _formRow(grpCon, "Spacing:", formRows, "form", 2);
   _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w);
   _addSpinnerRow(row, "Distance to element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w);
   w.layoutHints.Connections = _groupHint(grpCon);
@@ -1550,13 +1550,15 @@ function _updateLayoutHints(ctx, algName) {
   let changed = false;
   for (const [group, params] of Object.entries(Defs.LAYOUT_GROUPS)) {
     const lbl = w.layoutHints[group];
-    if (!lbl) continue;
+    const grp = w.layoutGroups && w.layoutGroups[group];
+    if (!lbl && !grp) continue;
     const unused = params.filter(k => !alg.activeParams.includes(k));
     let text = unused.length === params.length ? `Not used by ${algName}.`
              : unused.length ? `Not used by ${algName}: ${unused.map(k => Defs.PARAM_LABELS[k]).join(", ")}.`
              : "";
     if (group === "Containers" && !unused.length && !_nestingOn(w, alg))
       text = "Add a Nesting rule to use these settings.";
+    if (!lbl) { try { grp.setToolTipText(text); } catch (e) {} continue; }   // tooltip on the box
     if (String(lbl.getText()) === text) continue;
     lbl.setText(text);
     lbl.setVisible(!!text);
@@ -2104,20 +2106,23 @@ function _group(parent, label, numColumns, opts) {
 // _alignFormColumns lines up only the headings (one column for every registered row, also across
 // groups); after the heading, each label sits right before its control and pairs follow each other.
 // A checkbox takes a whole label/control pair (span 2). Rows that share a `raster` key form a
-// small table: their cells line up by column (e.g. a 2×2 block of checkboxes). A label with data
-// "follows" sits closer to the cell before it: an option that depends on that switch.
+// table: every column starts at the same x — labels as wide as the widest label of their column,
+// so the controls line up below each other. Controls keep their own width (spinners one width,
+// combos their natural width); a checkbox spanning a pair takes its natural width. `rasterCols`
+// limits the raster to the first columns (2 = the first label/control pair); cells after them
+// follow each other as in a plain row.
 const SPINNER_WIDTH = 65;  // every number spinner — fits 4 digits
 const FORM_COLS     = 7;   // heading + 3 label/control pairs
 const GAP_FIELD     = 6;   // label → its control
 const GAP_PAIR      = 20;  // pair → next pair on the same row
 const GAP_HEADING   = 12;  // heading → first pair
-const GAP_FOLLOW    = 10;  // switch → the option that depends on it (label data "follows")
-function _formRow(parent, heading, rows, raster) {
+function _formRow(parent, heading, rows, raster, rasterCols) {
   const row = new CompositeWidget(parent, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(FORM_COLS).margins(0, 0).spacing(0, 3).applyTo(row);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
   new LabelWidget(row, SWT.NONE).setText(heading);
   row.setData("raster", raster || null);
+  row.setData("rasterCols", rasterCols || FORM_COLS - 1);
   rows.push(row);
   return row;
 }
@@ -2134,26 +2139,52 @@ function _alignFormColumns(rows) {
     });
   };
   const headingW = Math.max(0, ...rows.map(r => cells(r)[0].natural));
-  // Raster rows: per raster key, the widest cell of each column.
-  const rasterW = new Map();
+  const gapBefore = col => col === 1 ? GAP_HEADING : col % 2 === 0 ? GAP_FIELD : GAP_PAIR;
+  const ownWidth = (c, natural) => { const gd = c.getLayoutData(); return gd && gd.widthHint > 0 ? gd.widthHint : natural; };
+  // Raster rows: per raster key, the widest single-column cell of each column, and from that
+  // the x at which each column starts (x = 0 right after the heading column).
+  const rasterX = new Map();
   for (const row of rows) {
     const key = row.getData("raster");
     if (!key) continue;
-    const ws = rasterW.get(key) || [];
-    for (const { col, natural } of cells(row)) if (col > 0) ws[col] = Math.max(ws[col] || 0, natural);
-    rasterW.set(key, ws);
+    const r = rasterX.get(key) || { ws: [] };
+    const n = row.getData("rasterCols");
+    for (const { c, col, span, natural } of cells(row))
+      if (col > 0 && col <= n && span === 1) r.ws[col] = Math.max(r.ws[col] || 0, ownWidth(c, natural));
+    rasterX.set(key, r);
+  }
+  // A cell spanning columns (a checkbox over a pair) widens the first of them when it does not fit.
+  for (const row of rows) {
+    const r = rasterX.get(row.getData("raster"));
+    if (!r) continue;
+    for (const { c, col, span, natural } of cells(row)) {
+      if (col === 0 || span === 1 || col > row.getData("rasterCols")) continue;
+      let room = r.ws[col] || 0;
+      for (let k = col + 1; k < col + span; k++) room += gapBefore(k) + (r.ws[k] || 0);
+      const need = ownWidth(c, natural);
+      if (need > room) r.ws[col] = (r.ws[col] || 0) + need - room;
+    }
+  }
+  for (const r of rasterX.values()) {
+    r.xs = [];
+    let x = 0;
+    for (let col = 1; col < FORM_COLS; col++) { x += gapBefore(col); r.xs[col] = x; x += r.ws[col] || 0; }
   }
   for (const row of rows) {
-    const ws = rasterW.get(row.getData("raster"));
-    for (const { c, col, span } of cells(row)) {
+    const r = rasterX.get(row.getData("raster"));
+    const n = row.getData("rasterCols");
+    let x = 0;   // where the previous cell ended
+    for (const { c, col, span, natural } of cells(row)) {
       const gd = GridDataFactory.swtDefaults().span(span, 1).align(SWT.BEGINNING, SWT.CENTER);
-      const old = c.getLayoutData();
-      let hint = old && old.widthHint > 0 ? old.widthHint : SWT.DEFAULT;   // spinners keep theirs
-      if (col === 0) hint = headingW;
-      else if (ws && ws[col]) hint = ws[col];
-      const indent = col === 0 ? 0 : col === 1 ? GAP_HEADING : col % 2 === 0 ? GAP_FIELD
-                   : c.getData("follows") ? GAP_FOLLOW : GAP_PAIR;
-      gd.hint(hint, SWT.DEFAULT).indent(indent, 0).applyTo(c);
+      if (col === 0) { gd.hint(headingW, SWT.DEFAULT).applyTo(c); continue; }
+      const own = ownWidth(c, natural);
+      // Labels fill their raster column, so the control after them starts at the column's x.
+      const isLabel = col % 2 === 1 && span === 1;
+      const inRaster = r && col <= n;
+      const w = inRaster && isLabel ? Math.max(own, r.ws[col] || 0) : own;
+      const start = inRaster ? r.xs[col] : x + gapBefore(col);
+      gd.hint(w, SWT.DEFAULT).indent(Math.max(0, start - x), 0).applyTo(c);
+      x = Math.max(x, start) + w;
     }
   }
 }
