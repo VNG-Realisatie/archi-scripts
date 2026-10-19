@@ -500,7 +500,7 @@ function open(uiSelection) {
   // Collect flat array of model objects for live filter statistics.
   // Used by _updateFilteredCount to recount after filter changes.
   const rawModelObjects = [];
-  const selectedVisuals = [];   // visual elements in the selection: their containers steer the one-parent choice
+  const selectedVisuals = [];   // visual elements in the selection: one-parent choice and pairing (describeVisuals)
   try {
     const seen = new Set();
     const add = o => {
@@ -534,7 +534,7 @@ function open(uiSelection) {
     });
   } catch (e) {}
   ctx.rawModelObjects = rawModelObjects;
-  ctx.currentContainers = Pipeline.currentContainers(selectedVisuals);
+  ctx.visuals = Pipeline.describeVisuals(selectedVisuals);
 
   // Log to Archi console BEFORE dialog opens (dialog blocks; console.log inside SWT handlers is unreliable).
   {
@@ -809,7 +809,7 @@ function _updateFilteredCount(ctx) {
       nestingRules:         w.tblNestingRules ? w.tblNestingRules.getRules() : [],
       reverseRules:         w.tblReverseRules ? w.tblReverseRules.getRules() : [],
     };
-    const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams, ctx.currentContainers);
+    const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams, ctx.visuals);
     _updateLayoutRuleCounts(ctx, cumulative, finalRels, livePresetParams);
 
     // Update the on-screen Output line in the "Generated view" group (always visible,
@@ -1469,7 +1469,7 @@ function _updateLayoutRuleCounts(ctx, elements, relations, params) {
   w.tblNestingRules.refreshItems();
   w.tblReverseRules.refreshItems();
   const split = Pipeline.splitNestingRels(relations, params);
-  const nest  = Pipeline.resolveNesting(elements, split.nestingRels, params, ctx.currentContainers);
+  const nest  = Pipeline.resolveNesting(elements, split.nestingRels, params, ctx.visuals);
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
   w.tblNestingRules.setCounts(_featureRuleCounts(w.tblNestingRules, relations, nestedIds));
   w.tblReverseRules.setCounts(_featureRuleCounts(w.tblReverseRules, relations, null));

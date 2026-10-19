@@ -17,6 +17,8 @@ const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PROP_ID = "Object ID";
+// View property recording one managed extra occurrence: "<element id> in <container id> [in …]".
+const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -920,7 +922,7 @@ function validatePreset(raw) {
     if (typeof rv.addObjectId === "boolean") preset.viewProperties.addObjectId = rv.addObjectId;
     if (Array.isArray(rv.properties)) {
       preset.viewProperties.properties = rv.properties
-        .filter(p => p && typeof p.key === "string" && p.key !== PROP_ID)
+        .filter(p => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE)
         .map(p => ({
           key:     String(p.key),
           value:   p.value !== undefined ? String(p.value) : "",
@@ -988,7 +990,7 @@ if (typeof module !== "undefined" && module.exports) {
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
-    PROP_ID,
+    PROP_ID, PROP_MANAGED_OCCURRENCE,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
     CONTAINER_LABEL_CLEARANCE,

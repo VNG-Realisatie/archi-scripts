@@ -36,7 +36,7 @@ const { ACTION } = Defs;
  *   visualElements:     VisualElement[],     // existing on target view
  *   visualRelations:    VisualRelation[],    // existing on target view
  *   existingView:       ArchimateView | null // target view for EXPAND_VIEW / LAYOUT_ONLY
- *   currentContainers:  Map<string, Set<string>> // element id → container element ids on the view
+ *   visuals:            Object[]             // visualElements described: chain, managed (describeVisuals)
  * }}
  */
 function buildObjectSet(uiSelection, preset, actionId) {
@@ -138,8 +138,8 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
 
   // Predict on-view counts using the same algorithm the writer uses.
-  const currentContainers = _currentContainers(existing.visualElements);
-  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params, currentContainers);
+  const visuals = _describeVisuals(existing.visualElements);
+  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params, visuals);
 
   // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
   // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
@@ -183,7 +183,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
     visualElements:    existing.visualElements,
     visualRelations:   existing.visualRelations,
     existingView:      existing.existingView,
-    currentContainers,
+    visuals,
   };
 }
 
@@ -592,24 +592,155 @@ function _byNameThenId(a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
+/** Placement of an occurrence: element id and its container chain up to the view root. */
+function _placementKey(elementId, chain) {
+  return chain.length ? `${elementId} in ${chain.join(" in ")}` : elementId;
+}
+
 /**
- * The containers the visuals currently sit in: element id → Set of the element ids of their
- * parent visuals (view root: no entry). Feeds the one-parent choice of resolveNesting.
- * @param {Object[]} visualElements  visual elements on the target view
- * @returns {Map<string, Set<string>>}
+ * Classify the element visuals of one view as managed or user content (Part A: Managed extra
+ * occurrences, step 1). Pure — runs in Node.
+ *   1. A visual whose placement matches a record is managed; each record matches one visual,
+ *      the first in view order.
+ *   2. An element without user content: its first visual becomes user content.
+ *   3. A managed visual holding user content becomes user content.
+ * @param {Array<{id, conceptId, parentVisualId}>} raw  all element visuals of the view, view order;
+ *   diagram objects (notes, groups) with conceptId null — never managed, always user content
+ * @param {string[]} records  PROP_MANAGED_OCCURRENCE values on the view
+ * @returns {Array<{id, conceptId, parentVisualId, chain: string[], managed: boolean}>}  view order
  */
-function _currentContainers(visualElements) {
-  const out = new Map();
-  for (const ve of (visualElements || [])) {
-    if (!ve || !ve.concept || !ve.concept.id) continue;
-    let p = null;
-    try { p = $(ve).parent().filter("element").first(); } catch (e) {}
-    const parentId = p && p.concept && p.concept.id;
-    if (!parentId) continue;
-    if (!out.has(ve.concept.id)) out.set(ve.concept.id, new Set());
-    out.get(ve.concept.id).add(parentId);
+function _classifyVisuals(raw, records) {
+  const byId = new Map(raw.map(v => [v.id, v]));
+  const left = new Map();
+  for (const r of (records || [])) left.set(r, (left.get(r) || 0) + 1);
+  const out = raw.map(v => {
+    const chain = [];
+    for (let p = byId.get(v.parentVisualId); p; p = byId.get(p.parentVisualId)) chain.push(p.conceptId);
+    const key = _placementKey(v.conceptId, chain);
+    const managed = !!v.conceptId && chain.length > 0 && (left.get(key) || 0) > 0;
+    if (managed) left.set(key, left.get(key) - 1);
+    return { id: v.id, conceptId: v.conceptId, parentVisualId: v.parentVisualId || null, chain, managed };
+  });
+  const outById = new Map(out.map(v => [v.id, v]));
+  const hasUser = new Set(out.filter(v => !v.managed).map(v => v.conceptId));
+  for (const v of out) {
+    if (!v.conceptId || hasUser.has(v.conceptId)) continue;
+    v.managed = false;
+    hasUser.add(v.conceptId);
+  }
+  for (const v of out) {
+    if (v.managed) continue;
+    for (let p = outById.get(v.parentVisualId); p && p.managed; p = outById.get(p.parentVisualId)) p.managed = false;
   }
   return out;
+}
+
+/**
+ * Describe visual elements for nesting resolution and pairing: per visual its element, parent
+ * visual, container chain and whether it is managed. Classified over the whole view (records,
+ * contents of containers), returned for the given visuals only, in view order.
+ * @param {Object[]} visualElements  visual elements of one view (the VisualSet, or the dialog's selection)
+ */
+function _describeVisuals(visualElements) {
+  const wanted = new Set((visualElements || []).filter(ve => ve && ve.id).map(ve => String(ve.id)));
+  if (wanted.size === 0) return [];
+  const first = visualElements.find(ve => ve && ve.view);
+  if (!first) return [];
+  const view = first.view;
+  const raw = [], seen = new Set();
+  const parentOf = o => { try { const p = $(o).parent().filter("element").first(); return p ? String(p.id) : null; } catch (e) { return null; } };
+  try {
+    $(view).find("element").each(ve => {
+      if (!ve.concept || !ve.concept.id || ve.type in Defs.DIAGRAM_TYPES) return;
+      seen.add(String(ve.id));
+      raw.push({ id: String(ve.id), conceptId: ve.concept.id, parentVisualId: parentOf(ve) });
+    });
+    // Notes, groups, view references: user content, so a managed container holding one is kept.
+    for (const dt of Object.keys(Defs.DIAGRAM_TYPES)) {
+      if (dt === "diagram-model-connection") continue;
+      try { $(view).find(dt).each(o => {
+        if (seen.has(String(o.id))) return;   // a view reference is found under two types
+        seen.add(String(o.id));
+        raw.push({ id: String(o.id), conceptId: null, parentVisualId: parentOf(o) });
+      }); } catch (e) {}
+    }
+  } catch (e) { console.error(`Failed to read the visuals of view "${view && view.name}": ${e}`); }
+  let records = [];
+  try { records = [...(view.prop(Defs.PROP_MANAGED_OCCURRENCE, true) || [])].map(String); } catch (e) {}
+  return _classifyVisuals(raw, records).filter(v => wanted.has(v.id));
+}
+
+/**
+ * Pair occurrences with the visuals on the view (Part A: Managed extra occurrences, step 3).
+ * Per element user content first, then managed visuals; each takes a free occurrence with its own
+ * container chain, else one with the same direct container, else any. A user visual left over
+ * becomes an extra occurrence in its current container; a managed one is removed. Extends
+ * occurrenceMap and parentMap in place.
+ * @returns {{ visualOf: Object, occurrenceOf: Map, removedVisualIds: string[], managedOccs: Set, userInPlace: number }}
+ *   visualOf: occurrence id → visual id; occurrenceOf: visual id → occurrence id;
+ *   managedOccs: occurrences that are managed after the run (paired with a managed visual, or new
+ *   while the element has other content); userInPlace: user visuals the settings place nowhere
+ */
+function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
+  const chainOf = occ => { const c = []; for (let p = parentMap[occ]; p; p = parentMap[p]) c.push(_baseId(p)); return c; };
+  const byConcept = new Map();
+  for (const v of (visuals || [])) {
+    if (!occurrenceMap[v.conceptId]) continue;   // element not laid out: visual left as it is
+    if (!byConcept.has(v.conceptId)) byConcept.set(v.conceptId, []);
+    byConcept.get(v.conceptId).push(v);
+  }
+  const visualOf = {}, occurrenceOf = new Map(), removedVisualIds = [], managedOccs = new Set(), leftover = [];
+  for (const el of elements) {
+    const occs = occurrenceMap[el.id];
+    const vis = byConcept.get(el.id) || [];
+    const free = occs.map(occ => ({ occ, key: _placementKey(el.id, chainOf(occ)), direct: _baseId(parentMap[occ] || "") }));
+    const take = (v, test) => {
+      const i = free.findIndex(test);
+      if (i < 0) return false;
+      const { occ } = free.splice(i, 1)[0];
+      visualOf[occ] = v.id;
+      occurrenceOf.set(v.id, occ);
+      if (v.managed) managedOccs.add(occ);
+      return true;
+    };
+    for (const group of [vis.filter(v => !v.managed), vis.filter(v => v.managed)]) {
+      let rest = group.filter(v => !take(v, f => f.key === _placementKey(el.id, v.chain)));
+      rest = rest.filter(v => !take(v, f => f.direct === (v.chain[0] || "")));
+      rest = rest.filter(v => !take(v, () => true));
+      for (const v of rest) (v.managed ? removedVisualIds.push(v.id) : leftover.push(v));
+    }
+    // New occurrences are managed — except the first while the element has no user content.
+    const user = vis.some(v => !v.managed);
+    free.forEach((f, i) => { if (user || i > 0) managedOccs.add(f.occ); });
+  }
+  // Leftover user visuals: an occurrence of their own, under the node of their current container.
+  for (const v of leftover) {
+    const occ = `${v.conceptId}_occ_${occurrenceMap[v.conceptId].length}`;
+    occurrenceMap[v.conceptId] = [...occurrenceMap[v.conceptId], occ];
+    visualOf[occ] = v.id;
+    occurrenceOf.set(v.id, occ);
+  }
+  for (const v of leftover) {
+    const occ = occurrenceOf.get(v.id);
+    const parentOcc = v.parentVisualId ? occurrenceOf.get(v.parentVisualId) : null;
+    if (parentOcc) parentMap[occ] = parentOcc;
+  }
+  return { visualOf, occurrenceOf, removedVisualIds, managedOccs, userInPlace: leftover.length };
+}
+
+/**
+ * Records of the managed occurrences that exist after a write (PROP_MANAGED_OCCURRENCE values),
+ * sorted. `exists(occ)` tells whether the occurrence got a visual.
+ */
+function _managedRecords(nesting, exists) {
+  const out = [];
+  for (const occ of nesting.managedOccs) {
+    if (!exists(occ)) continue;
+    const chain = [];
+    for (let p = nesting.parentMap[occ]; p; p = nesting.parentMap[p]) chain.push(_baseId(p));
+    if (chain.length) out.push(_placementKey(_baseId(occ), chain));
+  }
+  return out.sort();
 }
 
 /**
@@ -657,19 +788,21 @@ function _stronglyConnected(nodeIds, succ) {
  *      What remains is acyclic.
  *   2. Parents per child: every parent reached by a relation that matches a nesting rule
  *      with everyContainer; plus at most one parent from the other relations — a container
- *      the child sits in on the view (currentContainers), else the first by name, then id.
+ *      a user-content visual of the child sits in on the view, else the first by name, then id.
  *      The other relations are drawn as connections (notNestedNestingRels).
  *   3. Occurrences: an element appears once under each occurrence of each of its parents,
  *      so an extra occurrence of a container gets its own copies of the container's children.
  *      The first occurrence has the element id, the others `${id}_occ_N`.
+ *   4. Pairing with the visuals on the view (_pairVisuals): unpaired user visuals add occurrences.
  *
  * @param {Object[]} elements
  * @param {Object[]} nestingRels   nesting candidates (splitNestingRels)
  * @param {Object}   params        preset.params (nestingRules, reverseRules)
- * @param {Map<string, Set<string>>} [currentContainers]  see _currentContainers
+ * @param {Object[]} [visuals]    visuals on the target view (describeVisuals); none for a new view
  * @returns {{ parentMap, occurrenceMap,
  *             parentRels: Array<{rel, srcOccId, tgtOccId}>,
- *             circularNestingRels, cycles: Array<{elements, rels}>, notNestedNestingRels }}
+ *             circularNestingRels, cycles: Array<{elements, rels}>, notNestedNestingRels,
+ *             visualOf, occurrenceOf, removedVisualIds, managedOccs }}  (see _pairVisuals)
  *
  * Each parentRels entry binds a nesting relation to the specific occurrence
  * each visual endpoint should use. `srcOccId` is the occurrence id to render
@@ -677,8 +810,15 @@ function _stronglyConnected(nodeIds, succ) {
  * model); `tgtOccId` likewise for rel.target. For reversed relation types,
  * the child sits on the rel.source side; otherwise on the rel.target side.
  */
-function _resolveNesting(elements, nestingRels, params, currentContainers) {
+function _resolveNesting(elements, nestingRels, params, visuals) {
   const rules = params.nestingRules || [];
+  // The containers user content sits in on the view: element id → container element ids.
+  const currentContainers = new Map();
+  for (const v of (visuals || [])) {
+    if (v.managed || !v.chain.length) continue;
+    if (!currentContainers.has(v.conceptId)) currentContainers.set(v.conceptId, new Set());
+    currentContainers.get(v.conceptId).add(v.chain[0]);
+  }
   const byId  = new Map(elements.map(el => [el.id, el]));
   const notNestedNestingRels = [];
 
@@ -737,7 +877,7 @@ function _resolveNesting(elements, nestingRels, params, currentContainers) {
   const nestedPair = new Set();  // "parent child" pairs that nest
   const pairKey = (p, ch) => p + " " + ch;
   for (const [childId, list] of byChild) {
-    const current = (currentContainers && currentContainers.get(childId)) || new Set();
+    const current = currentContainers.get(childId) || new Set();
     const order = (a, b) => (current.has(b) - current.has(a)) || _byNameThenId(byId.get(a), byId.get(b));
     const parents = new Set(list.filter(c => c.every).map(c => c.parentId));
     const one = [...new Set(list.filter(c => !c.every).map(c => c.parentId))].sort(order);
@@ -776,7 +916,10 @@ function _resolveNesting(elements, nestingRels, params, currentContainers) {
   };
   for (const el of elements) visit(el.id);
 
-  return { parentMap, occurrenceMap, parentRels, circularNestingRels, cycles, notNestedNestingRels };
+  // 4. Pairing with the visuals on the view.
+  const pairing = _pairVisuals(elements, occurrenceMap, parentMap, visuals);
+
+  return { parentMap, occurrenceMap, parentRels, circularNestingRels, cycles, notNestedNestingRels, ...pairing };
 }
 
 /**
@@ -822,16 +965,17 @@ function _splitNestingRels(relations, params) {
  *   containers       — elements with ≥1 child
  *   nestedElements   — elements inside a container; not themselves a container
  *   standalones      — elements at view root with no children
- *   extraOccurrences — extra visual appearances (nesting rules with everyContainer)
+ *   extraOccurrences — extra visual appearances (nesting rules with everyContainer; visuals of
+ *                      user content the settings place nowhere)
  *   relations        — total inter-element relations (= nestings + connections)
  *   nestings         — relations drawn as box-in-box
  *   connections      — relations drawn as a line
  *   diagramObjects   — canvas-only positional objects
  */
-function _predictViewCounts(elements, relations, diagramNodeCount, params, currentContainers) {
+function _predictViewCounts(elements, relations, diagramNodeCount, params, visuals) {
   const { nestingRels, connectionRels } = _splitNestingRels(relations, params);
   const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels } =
-    _resolveNesting(elements, nestingRels, params, currentContainers);
+    _resolveNesting(elements, nestingRels, params, visuals);
   // Sum of (occurrences - 1) over every element — extra appearances.
   let extraOccurrences = 0;
   for (const elId of Object.keys(occurrenceMap)) {
@@ -948,7 +1092,9 @@ if (typeof module !== "undefined" && module.exports) {
     diagramPasses:            _diagramPasses,
     stepCandidate:            _stepCandidate,
     resolveNesting:           _resolveNesting,
-    currentContainers:        _currentContainers,
+    describeVisuals:          _describeVisuals,
+    classifyVisuals:          _classifyVisuals,
+    managedRecords:           _managedRecords,
     predictViewCounts:        _predictViewCounts,
   };
 }

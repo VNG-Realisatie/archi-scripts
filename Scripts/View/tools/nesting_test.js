@@ -1,6 +1,7 @@
 /**
  * Node tests for nesting resolution (selection_pipeline.resolveNesting): several parents,
- * every container, cycles, order independence. Run from the repo root:
+ * every container, cycles, order independence; managed occurrences (capture, pairing, records)
+ * and connections between occurrences (layout graph). Run from the repo root:
  *   node Scripts/View/tools/nesting_test.js [model.archimate]
  * With a model file (default /home/mark/temp/wiki-gemma-model.archimate, skipped when absent)
  * the view "Views/_Generated/Kennismodel (copy)" is resolved in both relation orders.
@@ -22,11 +23,16 @@ const params = rules => Defs.validatePreset({ params: { nestingRules: rules, rev
 const AGG = [{ relation: "aggregation-relationship" }];
 const AGG_EVERY = [{ relation: "aggregation-relationship", everyContainer: true }];
 
-function run(p, elements, rels, current) {
+function resolve(p, elements, rels, visuals) {
   const split = Pipeline.splitNestingRels(rels, p);
-  const nesting = Pipeline.resolveNesting(elements, split.nestingRels, p, current);
-  return H.summarize(nesting, new Map(elements.map(e => [e.id, e])));
+  return Pipeline.resolveNesting(elements, split.nestingRels, p, visuals);
 }
+function run(p, elements, rels, visuals) {
+  return H.summarize(resolve(p, elements, rels, visuals), new Map(elements.map(e => [e.id, e])));
+}
+// Visuals on a view: [visual id, element id, parent visual id], in view order, plus records.
+const visuals = (rows, records) =>
+  Pipeline.classifyVisuals(rows.map(([id, conceptId, parentVisualId]) => ({ id, conceptId, parentVisualId: parentVisualId || null })), records || []);
 const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " ⊂"));
 
 // ── cycles ────────────────────────────────────────────────────────────────────
@@ -52,8 +58,11 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   eq(placementOf(s, "X"), "X ⊂ [Alpha]", "one parent: first by name");
   eq(s.lines, ["r1"], "one parent: the other relation is drawn as a line");
   eq(run(params(AGG), [x, q, p], rels.slice().reverse()), s, "one parent: order-free");
-  const cur = run(params(AGG), [p, q, x], rels, new Map([["x", new Set(["p"])]]));
+  const cur = run(params(AGG), [p, q, x], rels, visuals([["vp", "p"], ["vq", "q"], ["vx", "x", "vp"]]));
   eq(placementOf(cur, "X"), "X ⊂ [Beta]", "one parent: the current container wins");
+  const mgd = run(params(AGG), [p, q, x], rels,
+    visuals([["vp", "p"], ["vq", "q"], ["vx", "x", "vq"], ["vx2", "x", "vp"]], ["x in p"]));
+  eq(placementOf(mgd, "X"), "X ⊂ [Alpha]", "one parent: only user content counts as the current container");
   const [s1, s2] = [el("s2", "Same"), el("s1", "Same")];
   const tie = run(params(AGG), [s1, s2, x], [rel("t1", s1, x), rel("t2", s2, x)]);
   eq(tie.nested, ["t2:s1>x"], "one parent: same name → by id");
@@ -81,6 +90,84 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   eq(loop.lines, ["l"], "self-relation is drawn as a line");
 }
 
+// ── managed occurrences ──────────────────────────────────────────────────────
+{
+  const [g1, g2, c, k] = [el("g1", "G1"), el("g2", "G2"), el("c", "C"), el("k", "K", "business-object")];
+  const elements = [g1, g2, c, k];
+  const rels = [rel("r1", g1, c), rel("r2", g2, c), rel("r3", c, k, "composition-relationship")];
+  const every = params([...AGG_EVERY, { relation: "composition-relationship" }]);
+  const one   = params([...AGG, { relation: "composition-relationship" }]);
+  const contents = vs => ({ elements, relations: rels, visuals: vs, visualRelations: [] });
+  const created = n => Object.values(n.occurrenceMap).flat().filter(o => !n.visualOf[o]).length;
+  const step = (p, cont) => { const n = resolve(p, elements, rels, cont.visuals); return { n, next: H.simulateWrite(cont, n) }; };
+
+  const fresh = step(every, contents([]));
+  eq(fresh.next.records, ["c in g2", "k in c in g2"], "managed: a new view records its extra occurrences");
+  const again = step(every, fresh.next);
+  eq([created(again.n), again.n.removedVisualIds.length, again.next.records], [0, 0, fresh.next.records],
+     "managed: a second run changes nothing");
+  const off = step(one, fresh.next);
+  eq([off.n.removedVisualIds.sort(), off.next.records], [["new:c_occ_1", "new:k_occ_1"], []],
+     "managed: switched off → the extra occurrences are removed");
+  const on = step(every, off.next);
+  eq([created(on.n), on.next.records], [2, ["c in g2", "k in c in g2"]], "managed: switched back on → restored");
+
+  // The user's own visuals: g1 ⊃ c ⊃ k; a copy of c in g2 placed by hand (no record).
+  const hand = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["vk", "k", "vc"], ["vc2", "c", "vg2"]]);
+  const h = step(one, contents(hand));
+  eq([h.n.removedVisualIds, h.n.userInPlace, h.n.parentMap[h.n.occurrenceOf.get("vc2")]], [[], 1, "g2"],
+     "user content the settings place nowhere stays in its container, laid out");
+  const he = step(every, contents(hand));
+  eq([h.n.removedVisualIds, he.n.visualOf.c_occ_1, he.next.records], [[], "vc2", ["k in c in g2"]],
+     "user content fills a placement before a managed one is made");
+
+  // Moved by the user: the managed copy of c is now at the root → user content.
+  const moved = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["vc2", "c"]], ["c in g2"]);
+  eq(moved.map(v => v.managed), [false, false, false, false], "managed: a moved occurrence is user content");
+  // Last occurrence: the user deleted c in g1; the managed copy in g2 is all that is left.
+  const last = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc2", "c", "vg2"]], ["c in g2"]);
+  eq(last.map(v => v.managed), [false, false, false], "managed: an element's last occurrence is user content");
+  const lastOff = step(one, contents(last));
+  eq([lastOff.n.removedVisualIds, lastOff.n.visualOf.c, lastOff.n.parentMap.c], [[], "vc2", "g2"],
+     "managed: the last occurrence is never removed, and its container is the current one");
+  // User content inside a managed container keeps the container.
+  const inside = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["vc2", "c", "vg2"], ["vx", "k", "vc2"]],
+    ["c in g2"]);
+  eq(inside.find(v => v.id === "vc2").managed, false, "managed: a container holding user content is user content");
+  const note = Pipeline.classifyVisuals([{ id: "vg2", conceptId: "g2" }, { id: "vc2", conceptId: "c", parentVisualId: "vg2" },
+    { id: "vn", conceptId: null, parentVisualId: "vc2" }, { id: "vc", conceptId: "c" }], ["c in g2"]);
+  eq(note.map(v => v.managed), [false, false, false, false], "managed: a note inside makes the container user content");
+  // Same placement twice: one record, two visuals → the first in view order is managed.
+  const twice = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["va", "c", "vg2"], ["vb", "c", "vg2"]],
+    ["c in g2"]);
+  eq(twice.map(v => v.managed), [false, false, false, true, false], "managed: same placement twice → first managed");
+  const tw = step(every, contents(twice));
+  eq([tw.n.removedVisualIds, tw.n.visualOf.c_occ_1], [["va"], "vb"], "managed: the user's copy takes the placement");
+  // A record that matches nothing is dropped.
+  eq(visuals([["vg1", "g1"]], ["c in g2"]).map(v => v.managed), [false], "managed: a stale record is dropped");
+}
+
+// ── connections between occurrences ──────────────────────────────────────────
+{
+  const [g1, g2, a, b, x] = [el("g1", "G1"), el("g2", "G2"), el("a", "A", "business-actor"),
+                             el("b", "B", "business-role"), el("x", "X", "business-role")];
+  const elements = [g1, g2, a, b, x];
+  const rels = [rel("n1", g1, a), rel("n2", g2, a), rel("n3", g1, b), rel("n4", g2, b),
+                rel("s1", a, b, "serving-relationship"), rel("s2", x, a, "serving-relationship"),
+                rel("s3", g1, a, "serving-relationship")];
+  const preset = Defs.validatePreset({ algorithm: "Layered", params: { nestingRules: AGG_EVERY, reverseRules: [] } });
+  const graph = cont => H.layoutGraph(preset, { elements, relations: rels, visuals: [], visualRelations: [], ...cont });
+  const edgesOf = g => g.edges.map(e => `${e.id}:${e.source}>${e.target}`).sort();
+  eq(edgesOf(graph({})), ["s1:a>b", "s2:x>a", "s3:g1>a_occ_1"],
+     "connections: once per relation, closest pair; not between a container and its own content");
+  const vs = visuals([["vg1", "g1"], ["vg2", "g2"], ["va", "a", "vg1"], ["va2", "a", "vg2"], ["vb", "b", "vg1"],
+                      ["vb2", "b", "vg2"], ["vx", "x"]], ["a in g2", "b in g2"]);
+  const vrs = [{ id: "c1", concept: rels[4], source: { id: "va2" }, target: { id: "vb" } },
+               { id: "c2", concept: rels[4], source: { id: "va" }, target: { id: "vb" } }];
+  eq(edgesOf(graph({ visuals: vs, visualRelations: vrs })).filter(e => e.startsWith("s1")),
+     ["s1:a_occ_1>b", "s1_1:a>b"], "connections: those on the view keep their ends, each laid out");
+}
+
 // ── Kennismodel (copy) ───────────────────────────────────────────────────────
 const MODEL = process.argv[2] || "/home/mark/temp/wiki-gemma-model.archimate";
 if (fs.existsSync(MODEL)) {
@@ -96,6 +183,14 @@ if (fs.existsSync(MODEL)) {
     const groep = placementOf(s, "Groep"), cap = placementOf(s, "Capability");
     if (label === "every container") {
       eq([groep, cap.split(", ").length], ["Groep ⊂ [Kennismodel, Kennismodel-wiki]", 5], `Kennismodel (copy), ${label}: every parent`);
+      const preset = Defs.validatePreset({ params: { nestingRules: rules, reverseRules: [] } });
+      const g = H.layoutGraph(preset, H.newView(fwd));
+      eq([g.nodes.length, g.edges.length], [128, 60], `Kennismodel (copy), ${label}: one connection per relation`);
+      const first = H.resolve(p, fwd).nesting;
+      const next = H.simulateWrite(fwd, first);
+      const second = H.resolve(p, next).nesting;
+      eq([second.removedVisualIds.length, Object.values(second.occurrenceMap).flat().filter(o => !second.visualOf[o]).length,
+          H.simulateWrite(next, second).records], [0, 0, next.records], `Kennismodel (copy), ${label}: a second run is stable`);
     } else {
       eq(groep.split(", ").length, 1, `Kennismodel (copy), ${label}: Groep has one parent`);
     }

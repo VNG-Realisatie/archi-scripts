@@ -412,7 +412,7 @@ For actions in the **Create new view** group, the VisualSet is empty. For action
 
 ### Managed-occurrence record
 
-The view records which extra occurrences the system placed ([Managed extra occurrences](#managed-extra-occurrences)). A record identifies a **placement** — element, its chain of containers up to the view root, and the nesting relation — not a visual object, so a copied view keeps its managed occurrences. The system rewrites the records after every run; the user does not edit them. Storage: [Part B](#managed-extra-occurrences--target).
+The view records which extra occurrences the system placed ([Managed extra occurrences](#managed-extra-occurrences)). A record identifies a **placement** — the element and its chain of containers up to the view root — not a visual object, so a copied view keeps its managed occurrences. The chain alone fixes the occurrence; the nesting relation is not part of it, so a managed occurrence stays managed when another rule takes over its nesting. The system rewrites the records after every run; the user does not edit them. Storage: [Part B](#managed-occurrences).
 
 ## Generate View dialog
 
@@ -1113,18 +1113,28 @@ Example: a composition from P1 (rule without *every container*) and an aggregati
 
 Determinism: the parent choice uses only names, ids and the current view, so the same inputs give the same parents.
 
+### Connections between occurrences
+
+A relation drawn as a connection, whose source or target has several occurrences, is drawn **once**:
+
+- **Already on the view** — each connection of the relation on the view keeps its two ends and is laid out (user content first).
+- **Otherwise** — one connection between the pair of occurrences **closest together in the container tree** (the deepest container holding both; a pair where one contains the other only when no other pair exists), on a tie the first occurrences.
+- A self-relation stays a loop on one occurrence.
+
+Drawing it between every pair of occurrences multiplies the lines (Kennismodel (copy) with *every container* on all aggregations: 3,918 connections for 60 relations on 128 occurrences) — unreadable and slow to lay out. The closest pair keeps the line short and inside the container where both ends meet.
+
 ### Managed extra occurrences
 
 Extra occurrences follow from the settings (nesting rules with `everyContainer`), not from the user's choice. Every action — `LAYOUT_ONLY` included — therefore **reconciles** them, so trying another rule, algorithm or layout never leaves stale copies behind, and switching back restores them. This is the one exception to "Modify actions never add or delete visuals" ([Invariants](#invariants) 4).
 
-1. **Capture.** The VisualSet's occurrences are split into **managed** (matching a [Managed-occurrence record](#managed-occurrence-record) on the view) and **user content** (everything else, including duplicates placed by hand and occurrences on views made before this feature).
-2. **Resolve.** [Multi-parent resolution](#multi-parent-resolution) gives the wanted placements: per element its parents, and for extra container occurrences their copied children.
-3. **Pair.** User content is paired first, each occurrence preferring the placement matching its current container; a user occurrence left without a placement stays in its current container and is laid out there. Managed occurrences fill the remaining placements, again preferring their current container.
-4. **Add and remove.** A placement with no occurrence gets a new, managed one. A managed occurrence left without a placement is removed, with the connections drawn to it.
+1. **Capture.** The VisualSet's occurrences are split into **managed** (matching a [Managed-occurrence record](#managed-occurrence-record) on the view) and **user content** (everything else, including duplicates placed by hand and occurrences on views made before this feature). The edge cases below then turn some managed occurrences into user content.
+2. **Resolve.** [Multi-parent resolution](#multi-parent-resolution) gives the wanted placements: per element its parents, and for extra container occurrences their copied children. Only user content counts as the child's current container.
+3. **Pair.** Per element, user content is paired first, then managed occurrences; each prefers the placement with its own container chain, then one with the same direct container, then any. A user occurrence left without a placement stays in its current container and is laid out there.
+4. **Add and remove.** A placement with no occurrence gets a new, managed one — except the first, if the element has no user content. A managed occurrence left without a placement is removed, with the connections drawn to it.
 5. **Record.** The view's records are rewritten to describe exactly the managed occurrences after the run.
 
 Edge cases:
-- **Last occurrence.** A managed occurrence that is the element's only one left (the user deleted the others) becomes user content — an element never disappears from the view.
+- **Last occurrence.** An element whose occurrences are all managed (the user deleted the others) has its first one in view order turned into user content — an element never disappears from the view.
 - **Moved by the user.** A record that no longer matches the view (the object was moved or deleted by hand) is dropped; the object, if any, is user content.
 - **User content inside a managed container.** The container cannot be removed without deleting user content, so it becomes user content itself and the run logs it.
 - **Hand-drawn connection to a managed occurrence.** Removed with the occurrence; the system cannot tell it from the connections it drew itself.
@@ -1146,12 +1156,11 @@ The writer derives every visual's parent from the current run's nesting decision
 
 - An element whose parentMap entry names another element → drawn **inside** that parent's visual.
 - An element whose parentMap entry is absent → drawn at **view root**.
-- An existing VisualElement whose current visual parent differs from the new parentMap → **re-parented** (moved under the new parent). Bounds are then expressed relative to the new parent.
-- **Exception — same parent element, other visual.** When the parent element is unchanged but another of its visuals is paired, the child stays where it is: moving it would detach it from its nesting connection, and Archi would draw that as a line.
+- An existing VisualElement whose current visual parent differs from the visual paired with its parent occurrence → **re-parented** (moved under that visual). Bounds are then expressed relative to the new parent.
 
 There is no per-action branch; the same rule applies to NEW_VIEW, ONE_EACH, EXPAND_VIEW, and LAYOUT_ONLY. See [Invariants](#invariants) (writer invariant).
 
-**Pairing.** When an element has several visuals on the view, each occurrence is paired with one visual, preferring the visual whose current parent has the occurrence's parent element. Visuals left over: a **managed** one is removed, a **user-content** one stays and is laid out in its current container ([Managed extra occurrences](#managed-extra-occurrences)). Outside that, the writer deletes visuals only through the explicit name-overwrite path (Invariant 4).
+**Pairing.** Each occurrence is paired with at most one visual of its element, before the layout graph is built ([Managed extra occurrences](#managed-extra-occurrences), step 3). Visuals left over: a **managed** one is removed, a **user-content** one stays and is laid out in its current container. Outside that, the writer deletes visuals only through the explicit name-overwrite path (Invariant 4). A nesting connection is kept when it joins the two paired visuals, otherwise added; a connection left over keeps no bendpoints.
 
 ### Width alignment by level
 
@@ -1398,7 +1407,8 @@ Rationale-only. Each decision references the invariant or user story that motiva
 | A relation matching several nesting rules gets *every container* if any of them has it. | Rule order then has no meaning, as for every other rule list; an extra rule can only add occurrences ("a wider filter never yields less"). |
 | One-parent choice uses the current view, then names — never model or rule order. | Re-layout keeps elements where the user has them; a fresh view is reproducible and predictable. |
 | Extra occurrences are managed and reconciled by every action, including Layout only. | Layout only is for trying layouts without changing the view's content. Extra occurrences are a consequence of the settings, not content; letting them go stale (or not appear) made the *every container* option seem broken on re-layout. |
-| Managed occurrences are recorded on the view as placements (element, container chain, relation), not as visual-object ids. | A view copy gives every visual a new id; placements survive it. Only recorded occurrences are removed, so hand-placed duplicates are never lost. |
+| Managed occurrences are recorded on the view as placements (element and container chain), not as visual-object ids. | A view copy gives every visual a new id; placements survive it. Only recorded occurrences are removed, so hand-placed duplicates are never lost. |
+| A connection is drawn once per relation, between the occurrences closest together; one already on the view keeps its ends. | A relation is one fact about two elements; every pair of occurrences multiplied the lines (3,918 for 60 relations on a 128-occurrence test view). The closest pair keeps the line local; keeping the user's ends means re-layout never moves a line to other boxes. |
 | Coordinate conversion is engine-agnostic via `parentId` on result nodes. | Each engine handles nesting differently. Carrying parent info on the result is the simplest way to convert without engine-specific code in the orchestrator. |
 
 ## Rules & precedence
@@ -1465,21 +1475,22 @@ How the View subsystem realises [SPEC.md](SPEC.md) and Part A in jArchi 1.12 (Gr
 ```
 selection ─► selection_pipeline ─► object set: elements, relations, diagram objects, VisualSet
                                     split: nesting candidates | connections
-                                    resolve nesting → parents, occurrences, nesting bindings
+                                    resolve nesting → parents, occurrences, nesting bindings,
+                                    pairing with the visuals
           ─► generate_view ───────► layout graph: nodes = occurrences, edges = routed relations
           ─► adapter ─────────────► layout result, absolute coordinates
-          ─► generate_view ───────► write: pair occurrences with visuals, reposition / create,
-                                    bendpoints, nestings ─► appearance ─► view properties
+          ─► generate_view ───────► write: reposition / create / remove, bendpoints, nestings,
+                                    records ─► appearance ─► view properties
 ```
 
 | Id | Value | Valid in |
 |---|---|---|
 | model id | element or relation id | object set, nesting bindings, model lookup |
-| occurrence id | element id for the first occurrence, `<element id>_occ_N` for extra ones | layout graph, layout result, nesting bindings |
+| occurrence id | element id for the first occurrence, `<element id>_occ_N` for extra ones (an unpaired user visual continues the numbering) | layout graph, layout result, nesting bindings |
 | visual id | id of an object on the view | VisualSet, writer |
 
-- An edge carries an occurrence-unique id (`<relation id>_<i>_<j>` when an end has several occurrences) **and** the relation id; the writer looks the model up by the relation id.
-- The writer maps occurrence → visual once; coordinates, bendpoints and nestings all go through that map.
+- An edge carries an edge id (the relation id; `<relation id>_<k>` for the k-th further connection of a relation drawn more than once on the view) **and** the relation id; the writer looks the model up by the relation id.
+- Pairing maps occurrence → visual once (pipeline); coordinates, bendpoints and nestings all go through that map.
 - **Every nesting binding names occurrences that exist as nodes.** A binding whose occurrence has no node is turned into a connection when the graph is built — otherwise the relation is neither nested nor routed and its visual keeps stale bendpoints.
 
 ## B.3 Realisation choices
@@ -1508,30 +1519,34 @@ selection ─► selection_pipeline ─► object set: elements, relations, diag
 - **Cycles first.** Strongly connected components (Tarjan) of the candidate graph parent → child; every candidate inside one component is routed and the cycle logged by its element names. What remains is acyclic, so later steps need no cycle checks.
 - **Parents per child.** Every parent reached by a relation that matches a rule with `everyContainer` (`RuleLists.matchEveryContainer`: Exclude rules still veto), plus at most one parent from the other relations — a container the child sits in on the target view (`currentContainers`, from the VisualSet; the dialog takes it from the selected view), else by name, then id. All candidates between a chosen parent and the child nest; the rest are routed.
 - **Occurrences, parents first.** An element gets one occurrence under each occurrence of each of its parents, so an extra occurrence of a container gets copies of all its children. The first occurrence keeps the element id, the others are `<id>_occ_N`, numbered in parent order.
+- **Pairing is part of the resolution**, so the predicted counts, the dialog and the layout graph see the same occurrences, unpaired user visuals included (each a node under the node of its current container).
+- **Connections between occurrences** (layout graph): an existing visual relation maps its two visuals to their nodes; otherwise the pair is chosen over all source × target occurrences by: not one containing the other, then the deepest common container, then occurrence order.
 
 ### Writer
 
 - **Parent-first.** Nodes are written after their parent, so the parent's new bounds exist when a child is converted to parent-relative coordinates.
-- **Pairing.** Per element, the visual whose current parent has the new parent's element is preferred; each visual is used once.
-- **Re-parenting** uses the jArchi 1.10 move (`parent.add(existingVisual, x, y)`), which keeps the visual, its appearance and its connections. When the parent element is unchanged but another visual of it was paired, the child is not moved: the nesting connection still points at the old parent visual, and Archi would draw it as a line.
+- **Pairing** comes from the resolution; the writer only follows it. Diagram objects are matched by their own id.
+- **Re-parenting** uses the jArchi 1.10 move (`parent.add(existingVisual, x, y)`), which keeps the visual, its appearance and its connections.
+- **Connections** are matched per visual pair, each visual relation used once; a visual relation between other visuals is not reused for another pair.
 - **Bendpoints** are Archi relative bendpoints (offsets from source and target centres). For reversed relations their order is flipped back to the model direction.
 - **Middle labels.** Archi puts a Middle label at the middle point *by index* of source anchor, bendpoints, target anchor. To put it where the engine reserved space, the writer makes the label point a bendpoint and adds collinear bendpoints on the shorter side until both sides hold as many. The drawn route is unchanged.
 - **Self-loops** are deleted from the view for algorithms without self-loop support; otherwise the engine's route is used, or a small corner loop when the engine returns none.
-- **Connections the engine did not route** get their bendpoints cleared, so switching algorithms leaves no stale routing.
+- **Connections the engine did not route** (and nesting connections not matched to a binding) get their bendpoints cleared, so switching algorithms leaves no stale routing.
 - Appearance and view properties run after the write. Setting bounds keeps a visual's appearance (verified by `test/test_visual_props.ajs`).
 
-### Managed extra occurrences — target
+### Managed occurrences
 
 Realises SPEC §7 and Part A [Managed extra occurrences](#managed-extra-occurrences).
 
-- **Record:** one view property per managed occurrence.
+- **Record:** one view property per managed occurrence (duplicate keys, `prop(key, value, true)`).
   ```
   key   : "Managed occurrence"
-  value : "<element id> in <container element id> [in <its container element id> …] via <relation id>"
+  value : "<element id> in <container element id> [in <its container element id> …]"
   ```
   The container chain runs from the direct container up to the view root. Model ids survive a view copy (Archi gives every visual a new id); visual ids would not.
-- **Where:** records are matched when the VisualSet is captured, before anything changes (pipeline). Wanted placements come from nesting resolution. Pairing, adding and removing happen in the writer; the records are rewritten at the end of the write. The predicted counts include this, so the dialog's totals stay exact.
-- **Removal** deletes the visual, and Archi removes its connections and children with it. The writer first checks it holds no user content.
+- **Capture** (`describeVisuals`, pipeline): per visual its element, parent visual and container chain, and whether it is managed — matched against the records before anything changes, then the edge cases applied (no user content → first visual; user content inside → its containers). The pure part (`classifyVisuals`) runs in Node. The dialog captures the same from the selected view.
+- **Pairing** (`resolveNesting`), **adding and removing** (writer, after the nodes are written so a moved child is out first) and **records** (rewritten at the end of the write) follow Part A step by step. The predicted counts include the unpaired user visuals, so the dialog's totals stay exact.
+- **Removal** deletes the visual, and Archi removes its connections and children with it; by construction it holds no user content.
 - **Every visual gets a node.** An unpaired user visual keeps its current parent in the layout graph; nothing is left behind unpositioned.
 
 ### ELK adapter
@@ -1571,7 +1586,7 @@ Realises SPEC §7 and Part A [Managed extra occurrences](#managed-extra-occurren
 | Presets | `presets/**/*.json` | Folders allowed. `_Default` = the code defaults, hidden. `all` = base preset of `View/_*.ajs`. |
 | Session | `presets/_session.json` | Last settings plus UI state (`_`-prefixed keys); git-ignored |
 | View properties | the generated view | From the Properties tab; optional object-id property |
-| Managed-occurrence records | view property `Managed occurrence` | *Target* |
+| Managed-occurrence records | view property `Managed occurrence` | Rewritten by every run; not for editing |
 
 Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its properties.
 
@@ -1592,7 +1607,7 @@ View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jar
 | `node Scripts/View/tools/rel_filter_test.js` | Rule model |
 | `node Scripts/View/tools/check_registry.js` | Registry ↔ defaults ↔ dialog widgets |
 | `node Scripts/View/tools/gen_docs_tables.js --check` / `--write` | Generated tables in Part A |
-| `node Scripts/View/tools/nesting_test.js [model.archimate]` | Nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders) |
+| `node Scripts/View/tools/nesting_test.js [model.archimate]` | Nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders); managed occurrences: capture, pairing, connections between occurrences |
 | `node Scripts/View/tools/view_harness.js <model.archimate> <view path> [preset] [--layout]` | A view from a model file → pipeline input → nesting → layout graph → engine — not the writer, not rendering |
 | `test/test_visual_props.ajs`, `test/_test_self_loops.ajs` (in Archi) | Appearance kept by bounds; self-loop drawing |
 | Run the action in Archi on a test view | Writer and rendering |
@@ -1602,7 +1617,6 @@ View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jar
 Code that does not yet meet SPEC.md or Part A. Fixing one removes it here.
 
 1. `NEW_VIEW` creates or empties the target view **before** the layout runs, so an engine failure leaves an empty view (SPEC §12: no partial view).
-2. Managed extra occurrences are not built: `LAYOUT_ONLY` caps occurrences at the visuals on the view, and unpaired visuals are left unpositioned.
-3. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
-4. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).
-5. Part A still repeats functional content of SPEC.md — see the [content division](#content-division).
+2. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
+3. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).
+4. Part A still repeats functional content of SPEC.md — see the [content division](#content-division).

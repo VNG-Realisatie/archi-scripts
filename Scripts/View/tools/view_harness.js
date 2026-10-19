@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
  * Node harness for the View subsystem without Archi: a view from an .archimate file → selection
- * (elements, relations, current containers) → nesting resolution → layout graph → engine.
- * Covers pipeline, nesting, layout graph and adapters — not the writer, not rendering.
+ * (elements, relations, visuals with their managed-occurrence records) → nesting resolution and
+ * pairing → layout graph → engine. Covers pipeline, nesting, layout graph and adapters — not the
+ * writer (simulateWrite models its pairing outcome), not rendering.
  *
  * Run: node Scripts/View/tools/view_harness.js <model.archimate> "<folder/…/view name>" [preset.json]
  *        [--on-view]   relations drawn on the view only (default: every model relation between its elements)
+ *        [--new-view]  ignore the visuals on the view, as a Create action does (default: modify the view)
  *        [--reverse]   feed elements and relations in reverse order (order-independence check)
  *        [--layout]    also run the layout engine
  *
- * As a module: loadModel, viewContents, resolve, layoutGraph, layout (see below).
+ * As a module: loadModel, viewContents, newView, resolve, layoutGraph, layout, simulateWrite (see below).
  */
 const fs   = require("fs");
 const path = require("path");
@@ -112,52 +114,77 @@ function findView(model, viewPath) {
 }
 
 /**
- * What the pipeline would see for a view: its elements, relations and current containers.
+ * What the pipeline would see for a view: its elements, relations, visuals (describeVisuals form)
+ * and visual relations.
  * @param {{onView?: boolean, reverse?: boolean}} [opts]
  *   onView  — only relations drawn on the view (LAYOUT_ONLY, EXPAND_VIEW); default: all model
- *             relations between the view's elements (a Create action from the view)
+ *             relations between the view's elements
  *   reverse — reverse element and relation order
  */
 function viewContents(model, view, opts) {
   opts = opts || {};
-  const elements = [], seen = new Set(), visualElements = [], drawnRelIds = new Set();
-  const currentContainers = new Map();
-  const walk = (node, parentConceptId) => {
+  const elements = [], seen = new Set(), raw = [], visualRelations = [], drawnRelIds = new Set();
+  const walk = (node, parentVisualId) => {
     for (const c of node.children) {
-      if (c.tag === "sourceConnection" && c.attrs.archimateRelationship) drawnRelIds.add(c.attrs.archimateRelationship);
+      if (c.tag === "sourceConnection" && c.attrs.archimateRelationship) {
+        const rel = model.relations.get(c.attrs.archimateRelationship);
+        drawnRelIds.add(c.attrs.archimateRelationship);
+        if (rel) visualRelations.push({ id: c.attrs.id, concept: rel, source: { id: c.attrs.source }, target: { id: c.attrs.target } });
+      }
       if (c.tag !== "child") continue;
       const el = c.attrs.archimateElement && model.elements.get(c.attrs.archimateElement);
       if (el) {
         if (!seen.has(el.id)) { seen.add(el.id); elements.push(el); }
-        visualElements.push({ id: c.attrs.id, concept: el, parentConceptId });
-        if (parentConceptId) {
-          if (!currentContainers.has(el.id)) currentContainers.set(el.id, new Set());
-          currentContainers.get(el.id).add(parentConceptId);
-        }
+        raw.push({ id: c.attrs.id, conceptId: el.id, parentVisualId });
       }
-      walk(c, el ? el.id : parentConceptId);
+      walk(c, el ? c.attrs.id : parentVisualId);
     }
   };
   walk(view.node, null);
+  const records = view.node.children
+    .filter(c => c.tag === "property" && c.attrs.key === Defs.PROP_MANAGED_OCCURRENCE).map(c => c.attrs.value || "");
   let relations = [...model.relations.values()].filter(r =>
     r.source && r.target && seen.has(r.source.id) && seen.has(r.target.id) && (!opts.onView || drawnRelIds.has(r.id)));
   if (opts.reverse) { elements.reverse(); relations = relations.reverse(); }
-  return { elements, relations, visualElements, currentContainers };
+  return { elements, relations, visuals: Pipeline.classifyVisuals(raw, records), visualRelations };
 }
 
-/** Nesting split + resolution, as the writer and the dialog counters do it. */
+/** The same contents as a Create action sees them: no visuals on a target view. */
+function newView(contents) {
+  return { ...contents, visuals: [], visualRelations: [] };
+}
+
+/** Nesting split + resolution (with pairing), as the writer and the dialog counters do it. */
 function resolve(params, contents) {
   const split = Pipeline.splitNestingRels(contents.relations, params);
-  const nesting = Pipeline.resolveNesting(contents.elements, split.nestingRels, params, contents.currentContainers);
+  const nesting = Pipeline.resolveNesting(contents.elements, split.nestingRels, params, contents.visuals);
   return { split, nesting };
 }
 
-/** The LayoutGraph generate_view would hand to the engine (Create action: no occurrence cap). */
+/** The LayoutGraph generate_view would hand to the engine. */
 function layoutGraph(preset, contents) {
   const GenView = require(LIB + "generate_view");
   const split = Pipeline.splitNestingRels(contents.relations, preset.params);
   return GenView.buildLayoutGraph(preset, contents.elements, split.connectionRels.slice(), split.nestingRels, [],
-    null, contents.currentContainers);
+    contents.visuals, contents.visualRelations);
+}
+
+/**
+ * The visuals and records a write leaves on the view, from a resolution's pairing: paired visuals
+ * kept, new ones created (id "new:<occurrence>"), removed ones gone, records rewritten.
+ * Connections are not modelled. Returns contents for the next run.
+ */
+function simulateWrite(contents, nesting) {
+  const visualOfOcc = occ => nesting.visualOf[occ] || `new:${occ}`;
+  const raw = [];
+  for (const el of contents.elements) {
+    for (const occ of nesting.occurrenceMap[el.id]) {
+      const p = nesting.parentMap[occ];
+      raw.push({ id: visualOfOcc(occ), conceptId: el.id, parentVisualId: p ? visualOfOcc(p) : null });
+    }
+  }
+  const records = Pipeline.managedRecords(nesting, () => true);
+  return { ...contents, visuals: Pipeline.classifyVisuals(raw, records), visualRelations: [], records };
 }
 
 /** Run the preset's engine on a layout graph; returns the LayoutResult. */
@@ -183,7 +210,8 @@ function summarize(nesting, byId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, viewContents, resolve, layoutGraph, layout, summarize };
+  module.exports = { parseXml, jarchiType, loadModel, findView, viewContents, newView, resolve, layoutGraph, layout,
+                     simulateWrite, summarize };
 }
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
@@ -191,17 +219,21 @@ if (typeof module !== "undefined" && module.exports) {
 if (require.main === module) {
   const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
   const flags = new Set(process.argv.slice(2).filter(a => a.startsWith("--")));
-  if (args.length < 2) { _log("usage: view_harness.js <model.archimate> <view path> [preset.json] [--on-view] [--reverse] [--layout]"); process.exit(2); }
+  if (args.length < 2) { _log("usage: view_harness.js <model.archimate> <view path> [preset.json] [--on-view] [--new-view] [--reverse] [--layout]"); process.exit(2); }
   const preset = Defs.validatePreset(args[2] ? JSON.parse(fs.readFileSync(args[2], "utf8")) : {});
   const model = loadModel(args[0]);
   const view = findView(model, args[1]);
-  const contents = viewContents(model, view, { onView: flags.has("--on-view"), reverse: flags.has("--reverse") });
+  let contents = viewContents(model, view, { onView: flags.has("--on-view"), reverse: flags.has("--reverse") });
+  if (flags.has("--new-view")) contents = newView(contents);
   const { split, nesting } = resolve(preset.params, contents);
   const byId = new Map(contents.elements.map(e => [e.id, e]));
   const s = summarize(nesting, byId);
   _log(`View "${view.path}": ${contents.elements.length} elements · ${contents.relations.length} relations · ` +
        `${split.nestingRels.length} nesting candidates`);
   _log(`Nested ${nesting.parentRels.length} · drawn as a line ${nesting.notNestedNestingRels.length} · circular ${nesting.circularNestingRels.length}`);
+  _log(`Visuals ${contents.visuals.length} (${contents.visuals.filter(v => v.managed).length} managed) · paired ${Object.keys(nesting.visualOf).length} · ` +
+       `to create ${Object.values(nesting.occurrenceMap).flat().filter(o => !nesting.visualOf[o]).length} · ` +
+       `managed to remove ${nesting.removedVisualIds.length} · user content in place ${nesting.userInPlace}`);
   for (const c of s.cycles) _log(`  cycle: ${c}`);
   for (const p of s.placements) if (!p.endsWith("[root]")) _log(`  ${p}`);
   if (flags.has("--layout")) {

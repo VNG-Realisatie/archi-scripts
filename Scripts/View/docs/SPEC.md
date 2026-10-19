@@ -148,7 +148,7 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | Preset | rule list | 1 → 6 | filter (elements, diagram objects, relations), nesting, reverse, style; empty filter = all, empty feature list = none |
 | Preset | appearance config | 1 → 1 | styling rules, with a master on/off ✦ |
 | **VisualSet** | view | 1 → 1 | existing visuals of one target view, captured pre-run |
-| **managed-occurrence record** ✦ | view | N → 1 | element + its chain of containers + the nesting relation that placed it; stored on the view, so it survives a view copy |
+| **managed-occurrence record** ✦ | view | N → 1 | element + its chain of containers up to the view root; stored on the view, so it survives a view copy |
 | **LayoutGraph** | element + nesting + connection | projection | engine-facing view of the object set |
 
 **Closed enumerations** (extending any is a deliberate change): element types and relation
@@ -279,6 +279,8 @@ filed under several groupings) and wins when a relation matches several rules. T
 nesting relations of one child give it **at most one** parent — the container it already sits
 in, else the first by name; the rest are drawn as connections. Algorithms that do not draw
 containment draw each element once, though the counters report the extra occurrences.
+A connection whose ends have several occurrences is drawn **once**, between the occurrences
+closest together in the container tree; one already on the view keeps its ends.
 Nesting relations that together form a **cycle** (A contains B … contains A) are all drawn as
 connections: a cycle is nearly always a modelling error, and lines make it visible. The
 dialog counts them under *circular*; the log names each cycle.
@@ -693,6 +695,7 @@ Deliberate departures a rebuild adopts:
     "surplus occurrences left in place"; unpaired user occurrences are laid out, not left behind.
 
 Already realised: `schemaVersion` with an offline migration (rule lists, version 2); every
-container per nesting rule (8); order-independent parents and cycles drawn as connections (9); the
+container per nesting rule (8); order-independent parents and cycles drawn as connections (9);
+managed extra occurrences (10); the
 capability matrix is derived from the registry; `Step.diagramTypes` is removed; one reconciled per-engine view-size table; control labels, tooltips and "used by"
 lists come from one canonical SSOT set.
