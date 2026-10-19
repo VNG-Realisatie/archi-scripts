@@ -646,17 +646,26 @@ function _writeView(preset, result, objectSet, view, nesting) {
     _applyEdgeStyle(connection, re, preset);
   }
 
-  // ── Nesting connections (parent-child boxes): existing between the paired visuals → keep, new → add ──
-  let _nestCreated = 0, _nestSkipped = 0;
-  for (const binding of (parentRels || [])) {
+  // ── Nesting connections (parent-child boxes): existing between the paired visuals → keep, new → add.
+  // Other lines of a nested relation are removed: what is shown as nesting is not also a line. ──
+  const _vrById = new Map();
+  existingRelsByConcept.forEach(list => list.forEach(vr => _vrById.set(String(vr.id), vr)));
+  const nc = Pipeline.nestingConnections(parentRels || [], nesting.visualOf, [..._vrById.values()]);
+  let _nestCreated = 0, _nestSkipped = 0, _nestLinesRemoved = 0;
+  (parentRels || []).forEach((binding, i) => {
+    if (nc.keptVrIds[i]) { _consumedVrIds.add(nc.keptVrIds[i]); _nestSkipped++; return; }
     const { rel, srcOccId, tgtOccId } = binding;
     const srcV = visualIndex[srcOccId];
     const tgtV = visualIndex[tgtOccId];
-    if (!srcV || !tgtV) continue;
-    if (_findVr(rel.id, srcV, tgtV)) { _nestSkipped++; continue; }
+    if (!srcV || !tgtV) return;
     try { view.add(rel, srcV, tgtV); _nestCreated++; } catch (e) { console.error(`Failed to add nesting rel ${rel.id}: ${e}`); }
+  });
+  for (const id of nc.removedVrIds) {
+    _consumedVrIds.add(id);
+    try { _vrById.get(id).delete(); _nestLinesRemoved++; } catch (e) { console.error(`Failed to remove line of nested relation ${id}: ${e}`); }
   }
-  console.log(`  Nestings: ${_nestCreated} created · ${_nestSkipped} existing`);
+  const _linesNote = _nestLinesRemoved ? ` · ${_nestLinesRemoved} line${_nestLinesRemoved !== 1 ? "s" : ""} of nested relations removed` : "";
+  console.log(`  Nestings: ${_nestCreated} created · ${_nestSkipped} existing${_linesNote}`);
 
   // Clear bendpoints on existing connections not matched above (e.g. edges dropped by ELK when
   // both endpoints lift to the same root container, or a nesting connection to another visual).

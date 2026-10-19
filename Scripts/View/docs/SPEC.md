@@ -188,8 +188,9 @@ if a counterpart exists in the VisualSet, **reposition** it (appearance preserve
 re-derived from current nesting); otherwise **create** it with default appearance.* Same for
 relations: existing → rewrite bendpoints; new → create. A view's contents are overwritten only
 by `NEW_VIEW` onto a matching name; Modify actions never copy, rename or replace a view, nor
-delete existing visuals — the preset's view name and folder apply to new views only. ✦ The one
-exception: every action reconciles **managed extra occurrences** ([§7](#7-layout-options)).
+delete existing visuals — the preset's view name and folder apply to new views only. ✦ The
+exceptions: every action reconciles **managed extra occurrences**, and removes the lines of a
+relation drawn as nesting ([§7](#7-layout-options)).
 
 ---
 
@@ -280,7 +281,8 @@ nesting relations of one child give it **at most one** parent — the container 
 in, else the first by name; the rest are drawn as connections. Algorithms that do not draw
 containment draw each element once, though the counters report the extra occurrences.
 A connection whose ends have several occurrences is drawn **once**, between the occurrences
-closest together in the container tree; one already on the view keeps its ends.
+closest together in the container tree; one already on the view keeps its ends. A relation
+drawn as nesting is never also drawn as a line: a line of it left from an earlier run is removed.
 Nesting relations that together form a **cycle** (A contains B … contains A) are all drawn as
 connections: a cycle is nearly always a modelling error, and lines make it visible. The
 dialog counts them under *circular*; the log names each cycle.
@@ -452,7 +454,8 @@ System-wide, grouped by theme. Code reviews enforce them.
 9. **One action-agnostic writer** — exists → reposition; else → create; same for relations.
    No per-action branch.
 10. **No silent data loss** — overwrite only when an action explicitly says so; Modify never
-    deletes visuals, except managed extra occurrences the settings no longer ask for ✦.
+    deletes visuals, except managed extra occurrences the settings no longer ask for and lines
+    of relations drawn as nesting ✦.
 11. **Appearance preservation** — repositioning a visual never changes its appearance
     properties; the system relies on this for expand/re-layout.
 

@@ -143,6 +143,18 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " âŠ
   eq(twice.map(v => v.managed), [false, false, false, true, false], "managed: same placement twice â†’ first managed");
   const tw = step(every, contents(twice));
   eq([tw.n.removedVisualIds, tw.n.visualOf.c_occ_1], [["va"], "vb"], "managed: the user's copy takes the placement");
+  // A relation drawn as nesting is not also a line: the line from a one-parent run is removed.
+  const lineRun = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["vk", "k", "vc"]]);
+  const vrs = [{ id: "n1", concept: rels[0], source: { id: "vg1" }, target: { id: "vc" } },
+               { id: "l2", concept: rels[1], source: { id: "vg2" }, target: { id: "vc" } },
+               { id: "n3", concept: rels[2], source: { id: "vc" }, target: { id: "vk" } }];
+  const ev = resolve(every, elements, rels, lineRun);
+  const nc = Pipeline.nestingConnections(ev.parentRels, ev.visualOf, vrs);
+  eq([nc.keptVrIds.filter(Boolean).sort(), nc.removedVrIds], [["n1", "n3"], ["l2"]],
+     "nesting connections: kept between the paired visuals, the old line of a nested relation removed");
+  const on1 = resolve(one, elements, rels, lineRun);
+  eq(Pipeline.nestingConnections(on1.parentRels, on1.visualOf, vrs).removedVrIds, [],
+     "nesting connections: a relation drawn as a line keeps its line");
   // A record that matches nothing is dropped.
   eq(visuals([["vg1", "g1"]], ["c in g2"]).map(v => v.managed), [false], "managed: a stale record is dropped");
 }

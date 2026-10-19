@@ -1160,7 +1160,7 @@ The writer derives every visual's parent from the current run's nesting decision
 
 There is no per-action branch; the same rule applies to NEW_VIEW, ONE_EACH, EXPAND_VIEW, and LAYOUT_ONLY. See [Invariants](#invariants) (writer invariant).
 
-**Pairing.** Each occurrence is paired with at most one visual of its element, before the layout graph is built ([Managed extra occurrences](#managed-extra-occurrences), step 3). Visuals left over: a **managed** one is removed, a **user-content** one stays and is laid out in its current container. Outside that, the writer deletes visuals only through the explicit name-overwrite path (Invariant 4). A nesting connection is kept when it joins the two paired visuals, otherwise added; a connection left over keeps no bendpoints.
+**Pairing.** Each occurrence is paired with at most one visual of its element, before the layout graph is built ([Managed extra occurrences](#managed-extra-occurrences), step 3). Visuals left over: a **managed** one is removed, a **user-content** one stays and is laid out in its current container. Outside that, the writer deletes visuals only through the explicit name-overwrite path (Invariant 4). A nesting connection is kept when it joins the two paired visuals, otherwise added. Any other connection of a relation drawn as nesting is **removed** — what is shown as nesting is not also shown as a line (e.g. the line left from a run in which the child had another parent).
 
 ### Width alignment by level
 
@@ -1375,7 +1375,7 @@ System-wide. Code reviews catch violations.
 1. **Determinism.** Same inputs → same view, always. No reliance on hash-iteration order for layout decisions. *(Rule 8 in [ai/rules.md](../../../ai/rules.md))*
 2. **Appearance preservation.** Updating a visual object's position does not change its appearance properties (colours, fonts, sizes, text). The system relies on this for EXPAND_VIEW and LAYOUT_ONLY.
 3. **Parent-relative coordinates.** A nested visual object's bounds are expressed relative to its immediate parent visual object. The layout engine returns absolute coordinates; the orchestrator converts at write time.
-4. **No silent data loss.** The orchestrator may overwrite a view's contents only when the action explicitly says so (NEW_VIEW with a name that matches an existing view in the same folder). EXPAND_VIEW must never delete existing visuals as a side effect of name resolution. The only visuals a Modify action removes are managed extra occurrences the settings no longer ask for ([Managed extra occurrences](#managed-extra-occurrences)).
+4. **No silent data loss.** The orchestrator may overwrite a view's contents only when the action explicitly says so (NEW_VIEW with a name that matches an existing view in the same folder). EXPAND_VIEW must never delete existing visuals as a side effect of name resolution. The only visuals a Modify action removes are managed extra occurrences the settings no longer ask for ([Managed extra occurrences](#managed-extra-occurrences)) and the lines of relations drawn as nesting ([Writer parenthood](#writer-parenthood)); the relation stays visible as nesting.
 5. **Validation is total.** Every preset that enters the orchestrator has passed validation: unknown top-level keys are dropped; missing keys take defaults; option values are checked against the algorithm's supported options.
 6. **UI-only state is partitioned.** The preset schema carries only configuration that affects view generation. UI-only state (last tab index, collapsed-block flags, …) rides as separate keys preserved through the same persistence file but invisible to the orchestrator.
 7. **Action is not in the preset.** Sharing a preset across users and selections requires the preset to be selection- and action-agnostic.
@@ -1408,6 +1408,7 @@ Rationale-only. Each decision references the invariant or user story that motiva
 | One-parent choice uses the current view, then names — never model or rule order. | Re-layout keeps elements where the user has them; a fresh view is reproducible and predictable. |
 | Extra occurrences are managed and reconciled by every action, including Layout only. | Layout only is for trying layouts without changing the view's content. Extra occurrences are a consequence of the settings, not content; letting them go stale (or not appear) made the *every container* option seem broken on re-layout. |
 | Managed occurrences are recorded on the view as placements (element and container chain), not as visual-object ids. | A view copy gives every visual a new id; placements survive it. Only recorded occurrences are removed, so hand-placed duplicates are never lost. |
+| A relation drawn as nesting loses its other lines on the view. | Containment already shows the relation; a left-over line (from a run where the child had another parent) shows it twice and reads as a second relation. |
 | A connection is drawn once per relation, between the occurrences closest together; one already on the view keeps its ends. | A relation is one fact about two elements; every pair of occurrences multiplied the lines (3,918 for 60 relations on a 128-occurrence test view). The closest pair keeps the line local; keeping the user's ends means re-layout never moves a line to other boxes. |
 | Coordinate conversion is engine-agnostic via `parentId` on result nodes. | Each engine handles nesting differently. Carrying parent info on the result is the simplest way to convert without engine-specific code in the orchestrator. |
 
@@ -1531,7 +1532,8 @@ selection ─► selection_pipeline ─► object set: elements, relations, diag
 - **Bendpoints** are Archi relative bendpoints (offsets from source and target centres). For reversed relations their order is flipped back to the model direction.
 - **Middle labels.** Archi puts a Middle label at the middle point *by index* of source anchor, bendpoints, target anchor. To put it where the engine reserved space, the writer makes the label point a bendpoint and adds collinear bendpoints on the shorter side until both sides hold as many. The drawn route is unchanged.
 - **Self-loops** are deleted from the view for algorithms without self-loop support; otherwise the engine's route is used, or a small corner loop when the engine returns none.
-- **Connections the engine did not route** (and nesting connections not matched to a binding) get their bendpoints cleared, so switching algorithms leaves no stale routing.
+- **Connections the engine did not route** get their bendpoints cleared, so switching algorithms leaves no stale routing.
+- **Nesting connections** (`nestingConnections`, pipeline — pure, tested in Node): per binding the visual relation between the two paired visuals is kept; every other visual relation of a nested relation is deleted.
 - Appearance and view properties run after the write. Setting bounds keeps a visual's appearance (verified by `test/test_visual_props.ajs`).
 
 ### Managed occurrences

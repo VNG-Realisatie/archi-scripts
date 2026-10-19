@@ -729,6 +729,41 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
 }
 
 /**
+ * Visual relations of the nested relations (Part A: Writer parenthood): per binding the one
+ * between its two paired visuals is kept; every other visual relation of a nested relation is
+ * removed — what is shown as nesting is not also shown as a line. Pure — runs in Node.
+ * @param {Array<{rel, srcOccId, tgtOccId}>} parentRels  nesting bindings
+ * @param {Object} visualOf  occurrence id → visual id (pairing)
+ * @param {Array<{id, concept, source, target}>} visualRelations  visual relations on the view
+ * @returns {{ keptVrIds: Array<string|null>, removedVrIds: string[] }}
+ *   keptVrIds per binding (null: none on the view, to be added)
+ */
+function _nestingConnections(parentRels, visualOf, visualRelations) {
+  const byRel = new Map();
+  for (const vr of (visualRelations || [])) {
+    const relId = vr.concept && vr.concept.id;
+    if (!relId) continue;
+    if (!byRel.has(relId)) byRel.set(relId, []);
+    byRel.get(relId).push(vr);
+  }
+  const used = new Set();
+  const keptVrIds = parentRels.map(b => {
+    const s = visualOf[b.srcOccId], t = visualOf[b.tgtOccId];
+    if (!s || !t) return null;
+    const vr = (byRel.get(b.rel.id) || []).find(c => !used.has(String(c.id)) && c.source && c.target &&
+      String(c.source.id) === String(s) && String(c.target.id) === String(t));
+    if (!vr) return null;
+    used.add(String(vr.id));
+    return String(vr.id);
+  });
+  const removedVrIds = [];
+  for (const relId of new Set(parentRels.map(b => b.rel.id))) {
+    for (const vr of (byRel.get(relId) || [])) if (!used.has(String(vr.id))) removedVrIds.push(String(vr.id));
+  }
+  return { keptVrIds, removedVrIds };
+}
+
+/**
  * Records of the managed occurrences that exist after a write (PROP_MANAGED_OCCURRENCE values),
  * sorted. `exists(occ)` tells whether the occurrence got a visual.
  */
@@ -1095,6 +1130,7 @@ if (typeof module !== "undefined" && module.exports) {
     describeVisuals:          _describeVisuals,
     classifyVisuals:          _classifyVisuals,
     managedRecords:           _managedRecords,
+    nestingConnections:       _nestingConnections,
     predictViewCounts:        _predictViewCounts,
   };
 }
