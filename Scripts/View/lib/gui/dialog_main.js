@@ -155,7 +155,7 @@ const NESTING_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
              "and the other relations are drawn as a line." },
   { key: "nested", header: "Nested", kind: "count", width: 50, format: n => String(n),
     tooltip: "Of those relations, how many are drawn as nesting. The others are drawn as a line: " +
-             "their child already has a parent, or the nesting would be circular." }]);
+             "their child already has a parent, or they form a circular nesting." }]);
 // Reverse: an empty cell where Nesting has its Nested count, so both tables line up.
 const REVERSE_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "_spacer", header: "", kind: "count", width: 40 },
@@ -500,6 +500,7 @@ function open(uiSelection) {
   // Collect flat array of model objects for live filter statistics.
   // Used by _updateFilteredCount to recount after filter changes.
   const rawModelObjects = [];
+  const selectedVisuals = [];   // visual elements in the selection: their containers steer the one-parent choice
   try {
     const seen = new Set();
     const add = o => {
@@ -515,7 +516,7 @@ function open(uiSelection) {
         // Skip ArchimateView concepts — view-reference VOs may appear in find("element")
         // with their .concept pointing to the referenced view (type "archimate-diagram-model")
         try { $(o).find("element").each(ve => {
-          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") add(ve.concept);
+          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") { add(ve.concept); selectedVisuals.push(ve); }
         }); } catch (e) {}
         try { $(o).find("relation").each(vr => { if (vr.concept) add(vr.concept); }); } catch (e) {}
         Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
@@ -526,12 +527,14 @@ function open(uiSelection) {
         // Selection.getSelection recurses via $(obj).children() and extracts
         // concepts from canvas VOs and diagram objects in one pass.
         try { Selection.getSelection($(o), "*").each(add); } catch (e) {}
+        if (o.view && o.concept) selectedVisuals.push(o);
       } else {
         add(o);
       }
     });
   } catch (e) {}
   ctx.rawModelObjects = rawModelObjects;
+  ctx.currentContainers = Pipeline.currentContainers(selectedVisuals);
 
   // Log to Archi console BEFORE dialog opens (dialog blocks; console.log inside SWT handlers is unreliable).
   {
@@ -806,7 +809,7 @@ function _updateFilteredCount(ctx) {
       nestingRules:         w.tblNestingRules ? w.tblNestingRules.getRules() : [],
       reverseRules:         w.tblReverseRules ? w.tblReverseRules.getRules() : [],
     };
-    const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams);
+    const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams, ctx.currentContainers);
     _updateLayoutRuleCounts(ctx, cumulative, finalRels, livePresetParams);
 
     // Update the on-screen Output line in the "Generated view" group (always visible,
@@ -1466,19 +1469,20 @@ function _updateLayoutRuleCounts(ctx, elements, relations, params) {
   w.tblNestingRules.refreshItems();
   w.tblReverseRules.refreshItems();
   const split = Pipeline.splitNestingRels(relations, params);
-  const nest  = Pipeline.resolveNesting(elements, split.nestingRels, params);
+  const nest  = Pipeline.resolveNesting(elements, split.nestingRels, params, ctx.currentContainers);
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
   w.tblNestingRules.setCounts(_featureRuleCounts(w.tblNestingRules, relations, nestedIds));
   w.tblReverseRules.setCounts(_featureRuleCounts(w.tblReverseRules, relations, null));
 
   const loops  = nest.notNestedNestingRels.filter(r => r.source && r.target && r.source.id === r.target.id).length;
   const multi  = nest.notNestedNestingRels.length - loops;
-  const circ   = (nest.skippedCircularNestingRels || []).length;
+  const circ   = nest.circularNestingRels.length;
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
   const parts = [];
   if (multi) parts.push(`${plural(multi, "matching relation is", "matching relations are")} drawn as a line: the child already has a parent. ` +
                         "A rule with Every shows such a child in every parent.");
-  if (circ)  parts.push(`${plural(circ, "matching relation", "matching relations")} would make a circular nesting and ${circ === 1 ? "is" : "are"} not drawn.`);
+  if (circ)  parts.push(`${plural(circ, "matching relation forms", "matching relations form")} a circular nesting ` +
+                        `(${plural(nest.cycles.length, "cycle", "cycles")}, named in the log) and ${circ === 1 ? "is" : "are"} drawn as a line.`);
   if (loops) parts.push(`${plural(loops, "self-relation is", "self-relations are")} drawn as a line.`);
   const text = parts.join("\n");
   const lbl = w.lblNestingNote;

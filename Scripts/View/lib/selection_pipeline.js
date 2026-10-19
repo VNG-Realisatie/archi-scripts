@@ -36,6 +36,7 @@ const { ACTION } = Defs;
  *   visualElements:     VisualElement[],     // existing on target view
  *   visualRelations:    VisualRelation[],    // existing on target view
  *   existingView:       ArchimateView | null // target view for EXPAND_VIEW / LAYOUT_ONLY
+ *   currentContainers:  Map<string, Set<string>> // element id → container element ids on the view
  * }}
  */
 function buildObjectSet(uiSelection, preset, actionId) {
@@ -137,7 +138,8 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
 
   // Predict on-view counts using the same algorithm the writer uses.
-  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params);
+  const currentContainers = _currentContainers(existing.visualElements);
+  const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params, currentContainers);
 
   // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
   // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
@@ -181,6 +183,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
     visualElements:    existing.visualElements,
     visualRelations:   existing.visualRelations,
     existingView:      existing.existingView,
+    currentContainers,
   };
 }
 
@@ -582,37 +585,91 @@ function _baseId(id) {
   return i < 0 ? id : id.substring(0, i);
 }
 
-/**
- * Walk parentMap upward from parentId; return true if childId would form a cycle.
- * Compares element ids, not occurrence ids: a fresh `X_occ_N` under an ancestor
- * that is (an occurrence of) X is still a cycle.
- */
-function _wouldCycle(map, childId, parentId) {
-  const childBase = _baseId(childId);
-  let cur = parentId;
-  while (cur) {
-    if (_baseId(cur) === childBase) return true;
-    cur = map[cur];
-  }
-  return false;
+/** Order elements by name, then id — plain code-point order, so it never depends on the locale. */
+function _byNameThenId(a, b) {
+  const na = (a && a.name) || "", nb = (b && b.name) || "";
+  if (na !== nb) return na < nb ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /**
- * Resolve nesting structure (parentMap, occurrenceMap, parentRels) given a flat
- * list of nesting relations and the relevant preset.params flags. Single source of
- * truth — used by the writer's _buildLayoutGraph AND by predictViewCounts (so dialog/
- * pipeline counters agree with what the writer will actually produce).
+ * The containers the visuals currently sit in: element id → Set of the element ids of their
+ * parent visuals (view root: no entry). Feeds the one-parent choice of resolveNesting.
+ * @param {Object[]} visualElements  visual elements on the target view
+ * @returns {Map<string, Set<string>>}
+ */
+function _currentContainers(visualElements) {
+  const out = new Map();
+  for (const ve of (visualElements || [])) {
+    if (!ve || !ve.concept || !ve.concept.id) continue;
+    let p = null;
+    try { p = $(ve).parent().filter("element").first(); } catch (e) {}
+    const parentId = p && p.concept && p.concept.id;
+    if (!parentId) continue;
+    if (!out.has(ve.concept.id)) out.set(ve.concept.id, new Set());
+    out.get(ve.concept.id).add(parentId);
+  }
+  return out;
+}
+
+/**
+ * Strongly connected components (Tarjan, iterative). Returns node id → component number.
+ * @param {string[]} nodeIds
+ * @param {Map<string, string[]>} succ  node id → successor ids
+ */
+function _stronglyConnected(nodeIds, succ) {
+  const idx = new Map(), low = new Map(), onStack = new Set(), stack = [], comp = new Map();
+  let next = 0, nComp = 0;
+  const open = v => { idx.set(v, next); low.set(v, next); next++; stack.push(v); onStack.add(v); };
+  for (const root of nodeIds) {
+    if (idx.has(root)) continue;
+    open(root);
+    const work = [[root, 0]];
+    while (work.length) {
+      const top = work[work.length - 1];
+      const v = top[0], ns = succ.get(v) || [];
+      if (top[1] < ns.length) {
+        const w = ns[top[1]++];
+        if (!idx.has(w)) { open(w); work.push([w, 0]); }
+        else if (onStack.has(w)) low.set(v, Math.min(low.get(v), idx.get(w)));
+        continue;
+      }
+      work.pop();
+      if (work.length) { const u = work[work.length - 1][0]; low.set(u, Math.min(low.get(u), low.get(v))); }
+      if (low.get(v) === idx.get(v)) {
+        let w;
+        do { w = stack.pop(); onStack.delete(w); comp.set(w, nComp); } while (w !== v);
+        nComp++;
+      }
+    }
+  }
+  return comp;
+}
+
+/**
+ * Resolve nesting structure (parentMap, occurrenceMap, parentRels) from the nesting
+ * candidates. Single source of truth — used by the writer's _buildLayoutGraph AND by
+ * predictViewCounts, so dialog and pipeline counters agree with what the writer produces.
+ * No step depends on relation, rule or element order (Part A: Multi-parent resolution).
  *
- * Behaviour matches _buildLayoutGraph's prior inline logic:
- *   relation without everyContainer: first-wins; later candidates for the same child are
- *     either silently skipped (multi-parent) or skipped with a cycle log.
- *   relation matching a nesting rule with everyContainer: each (child, parent) pair creates
- *     a new occurrence id when needed; cycles still skip.
- *   (Interim: still model-order dependent; the order-independent resolution is the next step.)
+ *   1. Cycles: nesting relations inside one strongly connected component of the graph
+ *      parent → child are all drawn as connections (circularNestingRels, cycles).
+ *      What remains is acyclic.
+ *   2. Parents per child: every parent reached by a relation that matches a nesting rule
+ *      with everyContainer; plus at most one parent from the other relations — a container
+ *      the child sits in on the view (currentContainers), else the first by name, then id.
+ *      The other relations are drawn as connections (notNestedNestingRels).
+ *   3. Occurrences: an element appears once under each occurrence of each of its parents,
+ *      so an extra occurrence of a container gets its own copies of the container's children.
+ *      The first occurrence has the element id, the others `${id}_occ_N`.
  *
+ * @param {Object[]} elements
+ * @param {Object[]} nestingRels   nesting candidates (splitNestingRels)
+ * @param {Object}   params        preset.params (nestingRules, reverseRules)
+ * @param {Map<string, Set<string>>} [currentContainers]  see _currentContainers
  * @returns {{ parentMap, occurrenceMap,
  *             parentRels: Array<{rel, srcOccId, tgtOccId}>,
- *             skippedCycle, skippedMultiParent }}
+ *             circularNestingRels, cycles: Array<{elements, rels}>, notNestedNestingRels }}
  *
  * Each parentRels entry binds a nesting relation to the specific occurrence
  * each visual endpoint should use. `srcOccId` is the occurrence id to render
@@ -620,126 +677,106 @@ function _wouldCycle(map, childId, parentId) {
  * model); `tgtOccId` likewise for rel.target. For reversed relation types,
  * the child sits on the rel.source side; otherwise on the rel.target side.
  */
-function _resolveNesting(elements, nestingRels, params) {
-  const isReversedRel = rel => isReversed(rel, params);
-  const nestingRules = params.nestingRules || [];
-  let anyEvery = false;
-  const isEveryRel = rel => RuleLists.matchEveryContainer(nestingRules, rel.type,
-    rel.source && rel.source.type, rel.target && rel.target.type, rel);
-  const parentMap = {};
-  const occurrenceMap = {};
-  for (const el of elements) occurrenceMap[el.id] = [el.id];
-  const parentRels = [];
-  const skippedCircularNestingRels = [];
+function _resolveNesting(elements, nestingRels, params, currentContainers) {
+  const rules = params.nestingRules || [];
+  const byId  = new Map(elements.map(el => [el.id, el]));
   const notNestedNestingRels = [];
 
+  // Candidates, in relation-id order so every output list is order-free.
+  const cands = [];
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId) continue;
-    // Self-loops (oortjes) can never be containment: draw them as a connection.
-    if (srcId === tgtId) { notNestedNestingRels.push(rel); continue; }
-    const reversed = isReversedRel(rel);
-    const [parentId, childId] = reversed ? [tgtId, srcId] : [srcId, tgtId];
+    // Self-loops (oortjes) can never be containment; an end outside the view neither.
+    if (!srcId || !tgtId || srcId === tgtId || !byId.has(srcId) || !byId.has(tgtId)) {
+      notNestedNestingRels.push(rel);
+      continue;
+    }
+    const reversed = isReversed(rel, params);
+    cands.push({
+      rel, reversed,
+      parentId: reversed ? tgtId : srcId,
+      childId:  reversed ? srcId : tgtId,
+      every:    RuleLists.matchEveryContainer(rules, rel.type, rel.source.type, rel.target.type, rel),
+    });
+  }
+  cands.sort((a, b) => a.rel.id < b.rel.id ? -1 : a.rel.id > b.rel.id ? 1 : 0);
 
-    // Build a binding aligned to (rel.source, rel.target) for the writer.
-    // The child's occurrence sits on the source side iff the rel is reversed.
-    const pushBinding = (boundChildOcc) => {
-      const srcOccId = reversed ? boundChildOcc : parentId;
-      const tgtOccId = reversed ? parentId      : boundChildOcc;
-      parentRels.push({ rel, srcOccId, tgtOccId });
-    };
-
-    const showInEvery = isEveryRel(rel);
-    if (showInEvery) anyEvery = true;
-    if (!showInEvery) {
-      if (parentMap[childId] === undefined) {
-        if (_wouldCycle(parentMap, childId, parentId)) {
-          skippedCircularNestingRels.push(rel);
-        } else {
-          parentMap[childId] = parentId;
-          pushBinding(childId);
-        }
-      } else {
-        notNestedNestingRels.push(rel);
-      }
+  // 1. Cycles.
+  const succ = new Map();
+  for (const c of cands) {
+    if (!succ.has(c.parentId)) succ.set(c.parentId, []);
+    succ.get(c.parentId).push(c.childId);
+  }
+  const comp = _stronglyConnected([...succ.keys()].sort(), succ);
+  const circularNestingRels = [];
+  const cycleRels = new Map();   // component → rels
+  const acyclic = [];
+  for (const c of cands) {
+    const k = comp.get(c.parentId);
+    if (k !== undefined && k === comp.get(c.childId)) {
+      circularNestingRels.push(c.rel);
+      if (!cycleRels.has(k)) cycleRels.set(k, []);
+      cycleRels.get(k).push(c.rel);
     } else {
-      const occs = occurrenceMap[childId] || [childId];
-      const unassigned = occs.find(id => parentMap[id] === undefined);
-      let boundChildOcc = null;
-      if (unassigned && !_wouldCycle(parentMap, unassigned, parentId)) {
-        parentMap[unassigned] = parentId;
-        boundChildOcc = unassigned;
-      } else {
-        const alreadyHere = occs.find(id => parentMap[id] === parentId);
-        if (alreadyHere) {
-          boundChildOcc = alreadyHere;
-        } else {
-          const occId = `${childId}_occ_${occs.length}`;
-          if (!_wouldCycle(parentMap, occId, parentId)) {
-            occurrenceMap[childId] = [...occs, occId];
-            parentMap[occId] = parentId;
-            boundChildOcc = occId;
-          }
+      acyclic.push(c);
+    }
+  }
+  const cycles = [...cycleRels.entries()].map(([k, rels]) => ({
+    elements: elements.filter(el => comp.get(el.id) === k).sort(_byNameThenId),
+    rels,
+  })).sort((a, b) => _byNameThenId(a.elements[0], b.elements[0]));
+
+  // 2. Parents per child.
+  const byChild = new Map();
+  for (const c of acyclic) {
+    if (!byChild.has(c.childId)) byChild.set(c.childId, []);
+    byChild.get(c.childId).push(c);
+  }
+  const parentsOf = new Map();   // child id → parent ids, in placement order
+  const nestedPair = new Set();  // "parent child" pairs that nest
+  const pairKey = (p, ch) => p + " " + ch;
+  for (const [childId, list] of byChild) {
+    const current = (currentContainers && currentContainers.get(childId)) || new Set();
+    const order = (a, b) => (current.has(b) - current.has(a)) || _byNameThenId(byId.get(a), byId.get(b));
+    const parents = new Set(list.filter(c => c.every).map(c => c.parentId));
+    const one = [...new Set(list.filter(c => !c.every).map(c => c.parentId))].sort(order);
+    if (one.length) parents.add(one[0]);
+    parentsOf.set(childId, [...parents].sort(order));
+    for (const p of parents) nestedPair.add(pairKey(p, childId));
+  }
+  const relsByPair = new Map();
+  for (const c of acyclic) {
+    const k = pairKey(c.parentId, c.childId);
+    if (!nestedPair.has(k)) { notNestedNestingRels.push(c.rel); continue; }
+    if (!relsByPair.has(k)) relsByPair.set(k, []);
+    relsByPair.get(k).push(c);
+  }
+
+  // 3. Occurrences, parents first (the remaining graph is acyclic).
+  const parentMap = {};
+  const occurrenceMap = {};
+  const parentRels = [];
+  const visit = id => {
+    if (occurrenceMap[id]) return occurrenceMap[id];
+    const parents = parentsOf.get(id);
+    if (!parents) return (occurrenceMap[id] = [id]);
+    const occs = [];
+    for (const p of parents) {
+      for (const pOcc of visit(p)) {
+        const occ = occs.length ? `${id}_occ_${occs.length}` : id;
+        occs.push(occ);
+        parentMap[occ] = pOcc;
+        for (const c of relsByPair.get(pairKey(p, id))) {
+          parentRels.push({ rel: c.rel, srcOccId: c.reversed ? occ : pOcc, tgtOccId: c.reversed ? pOcc : occ });
         }
       }
-      if (boundChildOcc) pushBinding(boundChildOcc);
     }
-  }
+    return (occurrenceMap[id] = occs);
+  };
+  for (const el of elements) visit(el.id);
 
-  // When a rule has everyContainer, propagate each container's children into
-  // every extra occurrence so they don't render as empty boxes.
-  if (anyEvery) {
-    _propagateExtraOccurrences(elements, nestingRels, isReversedRel, isEveryRel, parentMap, occurrenceMap, parentRels);
-  }
-
-  return { parentMap, occurrenceMap, parentRels, skippedCircularNestingRels, notNestedNestingRels };
-}
-
-/**
- * BFS propagation: replicate each container's direct children into its extra
- * occurrences (created for nesting rules with everyContainer). Mutates parentMap,
- * occurrenceMap, and parentRels in place.
- */
-function _propagateExtraOccurrences(elements, nestingRels, isReversedRel, isEveryRel, parentMap, occurrenceMap, parentRels) {
-  // Build parentBaseId → [{rel, childId, reversed}] from the original nesting rels.
-  const childRelsByParent = {};
-  for (const rel of nestingRels) {
-    const srcId = rel.source && rel.source.id;
-    const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId || srcId === tgtId || !isEveryRel(rel)) continue;
-    const reversed = isReversedRel(rel);
-    const [parentId, childId] = reversed ? [tgtId, srcId] : [srcId, tgtId];
-    if (!childRelsByParent[parentId]) childRelsByParent[parentId] = [];
-    childRelsByParent[parentId].push({ rel, childId, reversed });
-  }
-
-  // Seed queue from every extra occurrence created in the initial pass.
-  const queue = [];
-  for (const el of elements) {
-    const occurrences = occurrenceMap[el.id] || [];
-    for (const extraOccId of occurrences.slice(1))  // index 0 is the primary
-      queue.push({ primaryBaseId: el.id, extraOccId });
-  }
-
-  // BFS: replicate each container's direct children into each extra occurrence.
-  while (queue.length > 0) {
-    const { primaryBaseId, extraOccId } = queue.shift();
-    for (const { rel, childId, reversed } of (childRelsByParent[primaryBaseId] || [])) {
-      if (!occurrenceMap[childId]) continue;
-      const childOccurrences = occurrenceMap[childId];
-      if (childOccurrences.some(id => parentMap[id] === extraOccId)) continue;
-      const newOccId = `${childId}_occ_${childOccurrences.length}`;
-      if (!_wouldCycle(parentMap, newOccId, extraOccId)) {
-        occurrenceMap[childId] = [...childOccurrences, newOccId];
-        parentMap[newOccId]    = extraOccId;
-        const srcOccId = reversed ? newOccId   : extraOccId;
-        const tgtOccId = reversed ? extraOccId : newOccId;
-        parentRels.push({ rel, srcOccId, tgtOccId });
-        queue.push({ primaryBaseId: childId, extraOccId: newOccId });
-      }
-    }
-  }
+  return { parentMap, occurrenceMap, parentRels, circularNestingRels, cycles, notNestedNestingRels };
 }
 
 /**
@@ -791,10 +828,10 @@ function _splitNestingRels(relations, params) {
  *   connections      — relations drawn as a line
  *   diagramObjects   — canvas-only positional objects
  */
-function _predictViewCounts(elements, relations, diagramNodeCount, params) {
+function _predictViewCounts(elements, relations, diagramNodeCount, params, currentContainers) {
   const { nestingRels, connectionRels } = _splitNestingRels(relations, params);
-  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels } = _resolveNesting(elements, nestingRels, params);
-  // skippedCircularNestingRels not needed here: circular rels don't affect view counts
+  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels } =
+    _resolveNesting(elements, nestingRels, params, currentContainers);
   // Sum of (occurrences - 1) over every element — extra appearances.
   let extraOccurrences = 0;
   for (const elId of Object.keys(occurrenceMap)) {
@@ -825,7 +862,7 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params) {
     extraOccurrences,
     relations:        relations.length,
     nestings:         parentRels.length,
-    connections:      connectionRels.length + notNestedNestingRels.length,
+    connections:      connectionRels.length + notNestedNestingRels.length + circularNestingRels.length,
     diagramObjects:   diagramNodeCount || 0,
   };
 }
@@ -911,6 +948,7 @@ if (typeof module !== "undefined" && module.exports) {
     diagramPasses:            _diagramPasses,
     stepCandidate:            _stepCandidate,
     resolveNesting:           _resolveNesting,
+    currentContainers:        _currentContainers,
     predictViewCounts:        _predictViewCounts,
   };
 }

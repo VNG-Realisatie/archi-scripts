@@ -1504,9 +1504,10 @@ selection ─► selection_pipeline ─► object set: elements, relations, diag
 
 ### Nesting
 
-- **One resolution**, used by the predicted counts and the layout graph.
-- Extra occurrences of a container get copies of its children, breadth-first, each with its own occurrence id.
-- *Target* (SPEC §7, Part A [Multi-parent resolution](#multi-parent-resolution)): `everyContainer` per rule wins over rules without it; otherwise one parent by current container → name → id; cycles found as strongly connected components of the candidate-nesting graph, and all their relations routed. No step depends on relation or rule order.
+- **One resolution** (`resolveNesting`), used by the predicted counts, the dialog's rule counts and the layout graph. No step depends on relation, rule or element order: candidates are taken in relation-id order and every choice compares names and ids.
+- **Cycles first.** Strongly connected components (Tarjan) of the candidate graph parent → child; every candidate inside one component is routed and the cycle logged by its element names. What remains is acyclic, so later steps need no cycle checks.
+- **Parents per child.** Every parent reached by a relation that matches a rule with `everyContainer` (`RuleLists.matchEveryContainer`: Exclude rules still veto), plus at most one parent from the other relations — a container the child sits in on the target view (`currentContainers`, from the VisualSet; the dialog takes it from the selected view), else by name, then id. All candidates between a chosen parent and the child nest; the rest are routed.
+- **Occurrences, parents first.** An element gets one occurrence under each occurrence of each of its parents, so an extra occurrence of a container gets copies of all its children. The first occurrence keeps the element id, the others are `<id>_occ_N`, numbered in parent order.
 
 ### Writer
 
@@ -1591,7 +1592,8 @@ View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jar
 | `node Scripts/View/tools/rel_filter_test.js` | Rule model |
 | `node Scripts/View/tools/check_registry.js` | Registry ↔ defaults ↔ dialog widgets |
 | `node Scripts/View/tools/gen_docs_tables.js --check` / `--write` | Generated tables in Part A |
-| Node harness: stub `Java` and `__DIR__`, feed a view exported from a model | Pipeline, nesting, layout graph, adapters — not the writer, not rendering |
+| `node Scripts/View/tools/nesting_test.js [model.archimate]` | Nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders) |
+| `node Scripts/View/tools/view_harness.js <model.archimate> <view path> [preset] [--layout]` | A view from a model file → pipeline input → nesting → layout graph → engine — not the writer, not rendering |
 | `test/test_visual_props.ajs`, `test/_test_self_loops.ajs` (in Archi) | Appearance kept by bounds; self-loop drawing |
 | Run the action in Archi on a test view | Writer and rendering |
 
@@ -1600,8 +1602,7 @@ View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jar
 Code that does not yet meet SPEC.md or Part A. Fixing one removes it here.
 
 1. `NEW_VIEW` creates or empties the target view **before** the layout runs, so an engine failure leaves an empty view (SPEC §12: no partial view).
-2. Nesting follows relation order (first wins) and drops the closing relation of a cycle (SPEC §7).
-3. Managed extra occurrences are not built: `LAYOUT_ONLY` caps occurrences at the visuals on the view, and unpaired visuals are left unpositioned.
-4. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
-5. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).
-6. Part A still repeats functional content of SPEC.md — see the [content division](#content-division).
+2. Managed extra occurrences are not built: `LAYOUT_ONLY` caps occurrences at the visuals on the view, and unpaired visuals are left unpositioned.
+3. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
+4. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).
+5. Part A still repeats functional content of SPEC.md — see the [content division](#content-division).

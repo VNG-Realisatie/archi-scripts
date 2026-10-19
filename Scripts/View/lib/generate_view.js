@@ -234,7 +234,8 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
 
   // Build LayoutGraph (uniform — no action branch).
   console.log("\nLayout graph:");
-  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, graphVosCap);
+  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, graphVosCap,
+                                  objectSet.currentContainers);
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
@@ -332,29 +333,29 @@ function _generateOneEach(preset, uiSelection) {
 
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
-function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept) {
+function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept, currentContainers) {
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
   // Nesting structure shared with the pipeline's predictViewCounts so dialog/console
   // counts agree with the writer's actual output. Single source of truth.
-  const nesting = Pipeline.resolveNesting(elements, nestingRels, params);
+  const nesting = Pipeline.resolveNesting(elements, nestingRels, params, currentContainers);
   const parentMap    = nesting.parentMap;
   const occurrenceMap = nesting.occurrenceMap;
   const parentRels   = nesting.parentRels;
-  const skippedCircularNestingRels = nesting.skippedCircularNestingRels || [];
-  const notNestedNestingRels       = nesting.notNestedNestingRels       || [];
+  const circularNestingRels  = nesting.circularNestingRels;
+  const notNestedNestingRels = nesting.notNestedNestingRels;
 
-  // Log each circular nesting so users can investigate the problematic relations.
-  for (const r of skippedCircularNestingRels) {
-    const src = (r.source && r.source.name) || (r.source && r.source.id) || "?";
-    const tgt = (r.target && r.target.name) || (r.target && r.target.id) || "?";
-    console.log(`  Circular nesting skipped: "${src}" → "${tgt}" (${r.type})`);
+  // Name each nesting cycle so the user can find the relations to fix or exclude.
+  for (const c of nesting.cycles) {
+    const names = c.elements.map(el => `"${el.name || el.id}"`).join(", ");
+    console.log(`  Circular nesting (${c.rels.length} relations drawn as connections): ${names}`);
   }
 
-  // Nesting relations not applied as containment (multi-parent) are drawn as
+  // Nesting relations not applied as containment (other parent, cycle) are drawn as
   // connections so the model relation stays visible in the view.
   for (const r of notNestedNestingRels) routedRels.push(r);
+  for (const r of circularNestingRels)  routedRels.push(r);
 
   // Nodes from elements.
   const nodes = [];
@@ -503,7 +504,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     _nestingStats: {
       candidates:        nestingRels.length,
       applied:           parentRels.length,
-      circularNestings:  skippedCircularNestingRels.length,
+      circularNestings:  circularNestingRels.length,
       notNestedNestings: notNestedNestingRels.length + cappedNestingRels,
     },
   };
@@ -1026,5 +1027,5 @@ function _getAbsCenter(visual) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generate_view };
+  module.exports = { generate_view, buildLayoutGraph: _buildLayoutGraph };   // buildLayoutGraph: Node harness
 }

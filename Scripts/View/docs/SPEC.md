@@ -692,6 +692,7 @@ Deliberate departures a rebuild adopts:
 10. **Managed extra occurrences**, recorded on the view and reconciled by every action, replace
     "surplus occurrences left in place"; unpaired user occurrences are laid out, not left behind.
 
-Already realised: `schemaVersion` with an offline migration (rule lists, version 2); the
+Already realised: `schemaVersion` with an offline migration (rule lists, version 2); every
+container per nesting rule (8); order-independent parents and cycles drawn as connections (9); the
 capability matrix is derived from the registry; `Step.diagramTypes` is removed; one reconciled per-engine view-size table; control labels, tooltips and "used by"
 lists come from one canonical SSOT set.
