@@ -41,7 +41,7 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // Defined after _guiRoutingToGraphviz so that function can be referenced here.
 // Note: px → inches conversion uses / 96 (96 DPI screen).
 
-// maxWidth is not supported: Graphviz 'size' scales node sizes (forbidden — ARCHITECTURE.md §A.8),
+// maxWidth is not supported: Graphviz 'size' scales node sizes (forbidden — SPEC §8, no post-layout scaling),
 // and spreading positions afterwards can only widen, never narrow. View size = aspectRatio only.
 const _GV_PAD = (v) => ({ pad: (v / 96).toFixed(4) });
 
@@ -251,7 +251,7 @@ function _runDot(dotSource, engine, binPath) {
 // ── Origin normalisation ──────────────────────────────────────────────────────
 // Shift all coordinates so no position is negative (min(x) >= 0, min(y) >= 0) and round them.
 // Node sizes and relative positions are unchanged. Graphviz has no max-width control: view
-// size is set by aspect ratio only (Graphviz 'size' would scale elements — ARCHITECTURE.md §A.8).
+// size is set by aspect ratio only (Graphviz 'size' would scale elements — SPEC §8).
 function _normalizeOrigin(resultNodes, resultEdges) {
   if (!resultNodes.length) return;
   let nx0 = Infinity, ny0 = Infinity;

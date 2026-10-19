@@ -79,7 +79,7 @@ function applyAppearance(view, preset, actionId) {
 // find() call, so reference equality cannot be used as a Map key.
 //
 // inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
-// chain from its depth-0 root ancestor (see "Type chain rule" in ARCHITECTURE.md).
+// chain from its depth-0 root ancestor (see "Type chain" in SPEC.md, Appearance tab).
 // rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
 function _computeViewDepths(view) {
   const depthById       = new Map();

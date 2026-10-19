@@ -3,8 +3,8 @@
  *
  * Orchestrator. One pipeline → one layout engine call → one writer (action-agnostic).
  *
- * The writer's rule (§A.11.11): per result object,
- *   exists on target view? → reposition (appearance preserved; parenthood re-derived from §A.6)
+ * The writer's rule (SPEC §5): per result object,
+ *   exists on target view? → reposition (appearance preserved; parenthood re-derived from the nesting)
  *   else                  → create (default appearance)
  *
  * No per-action branches inside the writer. Action only determines (a) which
@@ -60,7 +60,7 @@ function generate_view(rawPreset, uiSelection, actionId) {
   // CLI scripts set preset.action instead of passing actionId; validatePreset drops it, so read it here.
   const action = actionId || rawPreset.action || ACTION.NEW_VIEW.id;
 
-  // §A.10: capability masking. Replace preset.params with the effective subset
+  // SPEC §11: capability masking. Replace preset.params with the effective subset
   // for runtime consumption. Inactive keys are silently dropped here; the raw
   // preset on disk is preserved by validatePreset for UI restoration on
   // algorithm switch.
@@ -365,7 +365,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   }
 
   // Diagram-object nodes (root-level, sized from current canvas bounds).
-  // diagram-model-connection objects are edges, never nodes (§A.5 step 6).
+  // diagram-model-connection objects are edges, never nodes (SPEC appendix: Selection run order, 6).
   for (const vo of diagramObjects) {
     if (vo.type === "diagram-model-connection") continue;
     if (nodeIds.has(vo.id)) continue;
@@ -380,7 +380,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(vo.id);
   }
 
-  // Edges from routed relations: each relation once (Part A: Connections between occurrences).
+  // Edges from routed relations: each relation once (SPEC: Connections between occurrences).
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
   const removed = new Set(nesting.removedVisualIds);
   const drawnByRel = new Map();   // relation id → [[source occ, target occ]] of its visual relations
@@ -482,16 +482,16 @@ function _stripOccSuffix(id) {
 /**
  * Apply a layout result to a target view. Action-agnostic.
  *
- * Per-object rule (§A.11.11):
- *   - exists → reposition (appearance preserved; parenthood re-derived from §A.6).
+ * Per-object rule (SPEC §5):
+ *   - exists → reposition (appearance preserved; parenthood re-derived from the nesting).
  *   - Otherwise → create (default appearance).
  * Which visual an occurrence repositions comes from the pairing in the nesting resolution;
  * managed visuals left without an occurrence are removed, and the view's managed-occurrence
- * records are rewritten (Part A: Managed extra occurrences).
+ * records are rewritten (SPEC: Managed extra occurrences).
  *
  * Same rule for visual relations: existing → rewrite bendpoints; new → add.
  *
- * Parent-first iteration (§A.11.10) guarantees a child's parent VO is in place
+ * Parent-first iteration (SPEC §11) guarantees a child's parent VO is in place
  * (added or repositioned) before the child is processed.
  */
 function _writeView(preset, result, objectSet, view, nesting) {
@@ -549,7 +549,7 @@ function _writeView(preset, result, objectSet, view, nesting) {
 
     if (existing) {
       _kept++;
-      // Derive desired parent from this run's nesting decisions (§A.6.6, §A.11.9).
+      // Derive desired parent from this run's nesting decisions (SPEC: Writer parenthood).
       const newParentVisual = rn.parentId ? visualIndex[rn.parentId] : null;
       const currentParentVO = $(existing).parent().filter("element").first() || null;
       const newParentId = newParentVisual ? String(newParentVisual.id) : null;

@@ -598,7 +598,7 @@ function _placementKey(elementId, chain) {
 }
 
 /**
- * Classify the element visuals of one view as managed or user content (Part A: Managed extra
+ * Classify the element visuals of one view as managed or user content (SPEC: Managed extra
  * occurrences, step 1). Pure — runs in Node.
  *   1. A visual whose placement matches a record is managed; each record matches one visual,
  *      the first in view order.
@@ -671,7 +671,7 @@ function _describeVisuals(visualElements) {
 }
 
 /**
- * Pair occurrences with the visuals on the view (Part A: Managed extra occurrences, step 3).
+ * Pair occurrences with the visuals on the view (SPEC: Managed extra occurrences, step 3).
  * Per element user content first, then managed visuals; each takes a free occurrence with its own
  * container chain, else one with the same direct container, else any. A user visual left over
  * becomes an extra occurrence in its current container; a managed one is removed. Extends
@@ -729,7 +729,7 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
 }
 
 /**
- * Visual relations of the nested relations (Part A: Writer parenthood): per binding the one
+ * Visual relations of the nested relations (SPEC: Writer parenthood): per binding the one
  * between its two paired visuals is kept; every other visual relation of a nested relation is
  * removed — what is shown as nesting is not also shown as a line. Pure — runs in Node.
  * @param {Array<{rel, srcOccId, tgtOccId}>} parentRels  nesting bindings
@@ -816,7 +816,7 @@ function _stronglyConnected(nodeIds, succ) {
  * Resolve nesting structure (parentMap, occurrenceMap, parentRels) from the nesting
  * candidates. Single source of truth — used by the writer's _buildLayoutGraph AND by
  * predictViewCounts, so dialog and pipeline counters agree with what the writer produces.
- * No step depends on relation, rule or element order (Part A: Multi-parent resolution).
+ * No step depends on relation, rule or element order (SPEC: Roles and parents).
  *
  *   1. Cycles: nesting relations inside one strongly connected component of the graph
  *      parent → child are all drawn as connections (circularNestingRels, cycles).

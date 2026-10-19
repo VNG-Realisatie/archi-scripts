@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Generate the ARCHITECTURE.md tables that mirror defs.js, so the docs cannot drift from the
- * registry. Each table sits between markers in ARCHITECTURE.md:
+ * Generate the SPEC.md appendix tables that mirror defs.js, so the docs cannot drift from the
+ * registry. Each table sits between markers in SPEC.md:
  *   <!-- generated:<name> -->  …  <!-- /generated:<name> -->
  *
  * Run from the repo root:
@@ -12,7 +12,7 @@ const fs   = require("fs");
 const path = require("path");
 
 const VIEW = path.join(__dirname, "..");
-const DOC  = path.join(VIEW, "docs", "ARCHITECTURE.md");
+const DOC  = path.join(VIEW, "docs", "SPEC.md");
 global.Java    = { type: () => ({}) };
 global.__DIR__ = path.join(VIEW, "lib") + "/";
 const _log = console.log; console.log = () => {};
@@ -63,7 +63,7 @@ const stale = [];
 for (const [name, make] of Object.entries(tables)) {
   const open = `<!-- generated:${name} -->`, close = `<!-- /generated:${name} -->`;
   const i = doc.indexOf(open), j = doc.indexOf(close);
-  if (i < 0 || j < 0) { console.log(`✗ markers for "${name}" not found in ARCHITECTURE.md`); process.exitCode = 1; continue; }
+  if (i < 0 || j < 0) { console.log(`✗ markers for "${name}" not found in SPEC.md`); process.exitCode = 1; continue; }
   const fresh = `${open}\n${make().join("\n")}\n${close}`;
   if (doc.slice(i, j + close.length) !== fresh) { stale.push(name); doc = doc.slice(0, i) + fresh + doc.slice(j + close.length); }
 }

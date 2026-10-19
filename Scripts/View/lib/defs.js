@@ -54,7 +54,7 @@ const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
 const CONNECTION_END_CLEARANCE = 25;
 
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
-// "Not used by …" hints, tooltips and the capability matrix in ARCHITECTURE.md.
+// "Not used by …" hints, tooltips and the capability matrix in SPEC.md.
 const PARAM_LABELS = Object.freeze({
   nestingRules:             "Nesting",
   reverseRules:             "Reverse",
@@ -958,7 +958,7 @@ function connectionsModeLock(algorithm, params) {
  * Return the subset of `preset.params` that the chosen algorithm declares as
  * active. Inactive keys are omitted (not zeroed) so consumers that read with
  * `|| default` degrade cleanly. The raw `preset.params` is never mutated —
- * it stays intact for UI restoration on algorithm switch (§A.9, §A.10).
+ * it stays intact for UI restoration on algorithm switch (SPEC §11, capability masking).
  *
  * @param {Object} preset  validated preset
  * @returns {Object}       masked params subset

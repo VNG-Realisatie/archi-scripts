@@ -6,9 +6,9 @@ it must honour, never *how* a particular platform realises them. The current rea
 (jArchi / SWT / ELK / Dagre / Graphviz) and all large reference tables live in the
 [Appendix](#appendix), which is not part of the ≤550-line readable body.
 
-**Division.** This document is the *what*; [ARCHITECTURE.md](ARCHITECTURE.md) Part B is the
-*how*. Part A of ARCHITECTURE.md still holds functional detail to be merged in here; on a
-conflict this document wins ([Content division](ARCHITECTURE.md#content-division)).
+**Division.** This document is the single *what*; [ARCHITECTURE.md](ARCHITECTURE.md) holds
+the design decisions with their reasons (Part A) and the *how* (Part B). On a conflict this
+document wins ([Content division](ARCHITECTURE.md#content-division)).
 
 `✦` marks a deliberate improvement over the previous design; every `✦` is itemised in the
 [Appendix delta](#delta--spec-vs-current-implementation).
@@ -16,21 +16,24 @@ conflict this document wins ([Content division](ARCHITECTURE.md#content-division
 ---
 
 ## 1. Purpose & scope
+<!-- @keep: do not rewrite this section — wording reviewed and signed off -->
 
-Starting from a **selection**, generate or modify the layout of ArchiMate **views**. The
-system turns a chosen subset of the model — plus rules for which related elements to pull
-in — into a positioned, optionally styled diagram.
+### Purpose
 
-**Use cases:** quickly seed a new view; generate many context views (one element + its
-neighbours each); analyse a model by re-laying it out different ways; use nesting to expose
-unexpected or duplicate relations.
+Starting with a selection, generate or modify the layout of ArchiMate **views**. The script turns a chosen subset of the model (plus rules for which related elements to include) into a positioned diagram.
 
-**In scope:** generating/modifying views with different layouts; storing and reusing
-selection + layout + styling configurations (presets); a configuration UI; session
-continuity.
+### Use cases
 
-**Out of scope:** model authoring beyond what layout implies; editing element properties;
-image export; view diff/merge; real-time collaboration.
+- quickly generate a starting point for a new view
+- generate multiple context views (one element and its related elements)
+- analyse your model by generating different views.
+- use nesting to find unexpected relations, see double relations, etc.
+
+### Scope
+
+In scope: generating or modifying views with different layouts; storing and reusing selection and layout configurations (presets); a configuration UI; session continuity.
+
+Out of scope: model authoring beyond what layout implies; editing element properties; exporting to image formats; view diff/merge; real-time collaborative editing.
 
 ---
 
@@ -77,12 +80,12 @@ One name per concept across UI, docs, logs, and code. Terms grouped by subject.
 - **Session** — the last-used configuration, restored when the UI opens.
 - **VisualSet** — the existing visual objects of one target view, captured before a run.
 
-**Counter rule.** *Relations* is a model word. On the view, count **nestings** and
-**connections**; never "relations". Internal data-structure names (`parentMap`, `childIds`,
+**Counter rule.** *Relations* is a model word: selection counters (filtered base, step adds)
+use it; on the view, count **nestings** and **connections**, never "relations". Internal data-structure names (`parentMap`, `childIds`,
 `occurrenceMap`, …) are code-only and never surface in the UI or logs.
 
 The internal→GUI display-label map (e.g. *Relation line* = edge, *Level* = rank) is in the
-[Appendix](#display-label-map).
+[Appendix](#display-label-map); the vocabulary in this section is the subsystem's authority.
 
 ---
 
@@ -231,6 +234,7 @@ re-layout can never strip element types that are already drawn.
 **Live counts are a promise, not an estimate** ✦ in spirit. The dialog's predicted counts are
 produced by the *same* selection logic the API runs, so what the counters show is exactly what
 the action will write: the displayed totals and the on-view result agree object-for-object.
+Details: [run order](#selection-run-order) and [counting rules](#counting-rules).
 
 ---
 
@@ -292,7 +296,8 @@ too — reconciles them: missing ones are added and recorded on the view, record
 asked for are removed, and switching back restores them. Only recorded ones are ever removed.
 User content takes a parent first and is always laid out, in its current container if the
 settings place it nowhere. A managed occurrence becomes user content when it is the element's
-last one, the user moved it, or it contains user content.
+last one, the user moved it, or it contains user content. Details: [nesting
+reference](#nesting-reference).
 
 **Flow.** A main direction (for algorithms where direction drives ranking); how cycles are
 broken and elements assigned to layers (for the simple ranked algorithm); where elements sit
@@ -359,15 +364,16 @@ passes, so it is not an exception to this rule.
 
 **Adapter obligations.** Honour every option active for the chosen algorithm and ignore the
 rest; translate values to native form; apply size constraints without scaling; return absolute
-coordinates; never read or write a view.
+coordinates; never read or write a view. Field lists: [layout graph and
+result](#layout-graph-and-result).
 
 ---
 
 ## 9. UX — Generate View dialog
 
 The dialog defines a selection + layout + styling, previews the result live, and runs an
-action. It is the only surface that edits presets. (Full mockup in the
-[Appendix](#dialog-mockup).)
+action. It is the only surface that edits presets. (Mockups and per-control behaviour:
+[dialog reference](#dialog-reference).)
 
 **Preset row.** Picking a preset (also from nested folders) **loads all its settings** at once
 and discards unsaved edits; its description shows below. `*` marks settings that differ from
@@ -465,10 +471,12 @@ System-wide, grouped by theme. Code reviews enforce them.
     handled, missing keys defaulted, option values checked against the algorithm.
 14. **Capability masking** — values for options inactive on the chosen algorithm are ignored
     at runtime; a non-empty inactive value reaching runtime is a defect and is logged.
+15. **UI-only state is partitioned** — a preset holds only what affects generation; UI-only
+    state (active tab, collapsed steps, …) rides beside it in the session, unseen by the API.
 
 **Vocabulary & naming.**
-15. **One canonical vocabulary** — one name per concept across UI, logs, and code.
-16. **Rename integrally** — a renamed key/label/string is updated everywhere in one change; no
+16. **One canonical vocabulary** — one name per concept across UI, logs, and code.
+17. **Rename integrally** — a renamed key/label/string is updated everywhere in one change; no
     dual-readers or compatibility shims for in-repo data.
 
 ---
@@ -521,55 +529,56 @@ The system's invariants are directly testable; a rebuild is accepted when these 
   explicit, documented one-shot migration; loading an unmigrated preset is refused with a
   message, never silently reinterpreted. New configuration keys are added to the defaults in
   the same change that introduces them, or they are dropped by validation.
-- **Vocabulary.** Follow rules 15–16; the [Vocabulary](#2-vocabulary) section is authoritative.
+- **Vocabulary.** Follow rules 16–17; the [Vocabulary](#2-vocabulary) section is authoritative.
 - **Logging.** Console output mirrors the orchestration phases as named steps (validate →
-  selection → target → layout graph → layout → write), each with a consistent, column-stable
-  count block so prediction and result can be compared at a glance.
-- **Rule layering.** Rules apply global → repo → skill → subsystem, **narrowest wins**. This
-  spec is the subsystem authority for the View system.
+  selection → layout graph → layout → target → write), each with a consistent, column-stable
+  count block so prediction and result can be compared at a glance ([console
+  logging](#console-logging)).
+- **Rule layering.** Rules apply global → repo → skill → subsystem, **narrowest wins**
+  ([scopes](#rule-scopes)). This spec is the subsystem authority for the View system.
 
 ---
 
 ## Appendix
 
-Not part of the ≤550-line body. Reference tables, the dialog mockup, the concrete preset
-schema, the current realisation, and the delta from today.
+Not part of the ≤550-line body. The functional reference behind the body — dialog, preset
+schema, selection, counting, nesting, layout graph — plus the current realisation and the delta
+from today. Persisted keys and engine names may appear here; function and file names stay in
+[ARCHITECTURE.md](ARCHITECTURE.md) Part B.
 
 ### Display-label map
 
-Internal names never appear in UI labels; tooltips may use them parenthetically.
+Internal names never appear in UI labels or button text; tooltips may use them
+parenthetically. When the preset schema is described in prose, the GUI labels are used.
 
 | GUI label | Internal | GUI label | Internal |
 |---|---|---|---|
-| Routing | edge routing | Distance | node spacing |
-| Label | edge label position | Layer distance | layer spacing |
-| Nesting | nesting rules | Between | edge-edge / port spacing |
-| Reverse | reverse rules | Distance to element | edge-node spacing |
-| Layout inside | container algorithm | Padding | container padding |
-| Same width per level | alignWidthSameType | Placement | node placement |
-| Cycles | acyclicer | Ranking | ranker |
-| View size › Free | no size constraint | Wrap label at | label max line width |
+| Relation line | edge | Distance | node spacing |
+| Routing | edge routing | Layer distance | layer spacing |
+| Label | edge label position | Between | edge-edge / port spacing |
+| View, diagram | graph | Distance to element | edge-node spacing |
+| Layout style | algorithm, engine | Padding | container padding |
+| Level | rank, layer | Placement | node placement |
+| Direction | direction, orientation | Ranking | ranker |
+| Nesting | nesting rules | Cycles | acyclicer |
+| Reverse | reverse rules | Pack | rectpacking |
+| Layout inside | container algorithm | Wrap label at | label max line width |
+| Same width per level | alignWidthSameType | Snap columns to grid | snapColumnsToGrid |
+| View size › Free | no size constraint | Repeat | runs, hops |
 | Layout only | re-layout | One view each | per element |
+| Preset | parameter file, config file | | |
 
-### Dialog mockup
+### Dialog reference
+
+The dialog is 1000 px wide and as tall as the monitor's usable area (at most 1600 px); each tab
+scrolls on its own, the preset row and the action area stay visible.
 
 ```
 ┌─ Generate View ────────────────────────────────────────────────────────────┐
 │ Preset: [Application Flow LR  ▼] *  [Save] [Save As…] │ [Rename…] [Delete] │
 │         Views of application flows, left to right             (description) │
 │ ┌─[Selection]──[Layout]──[Appearance]──[Properties]─────────────────────┐  │
-│ │  Current selection                                                    │  │
-│ │    Selected: 3 elements, 2 relations, 1 view   First: Actor: Customer │  │
-│ │    Containing: 12 elements, 8 relations                               │  │
-│ │  Filter by element type   Mode | Element type          [+ Add rule] │  │
-│ │  Filter by diagram type   Mode | Diagram type          [+ Add rule] │  │
-│ │  Filter by relations      Mode | Source | Relation | Target  [+ …]  │  │
-│ │  Expand selection                                                     │  │
-│ │   ┌ ▾ Step 1 · Adds: 4 elements · 3 relations        [↑][↓]   [✕] ┐  │  │
-│ │   │ Mode | Previous step | Direction | Added relations | Added …  │  │  │
-│ │   │ [+ Add rule]  ☐ Property condition   Repeat [1× ▼]            │  │  │
-│ │   └────────────────────────────────────────────────────────────────┘  │  │
-│ │   [+ Add step]                                                        │  │
+│ │   (tab content, below)                                                │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
 │ On the generated view:  elements: 18 containers · 92 nested elements       │
 │                         relations: 11 nestings · 98 connections            │
@@ -581,75 +590,782 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layout tab groups: *Algorithm* (style-grouped radio table), *Nesting* (nesting rules),
-*Reverse* (reverse rules), *Containers* (layout inside, between/crossing, padding,
-sort, same width per level, snap columns), *Flow* (direction, cycles,
-ranking, placement, layer gap), *Elements* (width, height, by label + wrap at, gap),
-*Connections* (routing, label, reserve label space, between, to element), *View size* (free /
-aspect ratio / max width). Connections, Nesting, Reverse and View size end with a grey "Not used by …" hint; Containers, Flow and Elements show it as the box's tooltip.
-Appearance tab groups: *Style by property* (style rules), *Style by nesting level*, *Highlight
-repeated elements*, plus the master toggle.
+#### Preset row
+
+Above the tab strip, left to right:
+
+- **Preset combo** — every saved preset, also in nested folders (`folder/sub/name`); Default
+  first. Picking one loads all its settings — values of options its algorithm does not use
+  included — so a later Save writes back exactly what was loaded. Unsaved changes are discarded
+  without a prompt.
+- **`*`** — shown while the settings differ from the saved preset: after any change, and on open
+  when the session differs from the preset it came from (the view name is not compared — it is
+  pre-filled from the selection). Cleared by Save, Save As or loading a preset.
+- **Save** — overwrites the current preset with the current settings.
+- **Save As…** — Name, Folder and Description; writes a new preset and selects it. Asks before
+  overwriting another preset.
+- **Rename…** — same dialog; renames or moves the *saved* preset and edits its description.
+  Unsaved changes stay in the dialog and are not written. Asks before overwriting another preset.
+- **Delete** — after a confirm, deletes the saved preset and loads Default.
+- **Description line** — the preset's description, grey, under the combo; hidden when empty.
+
+**Default** always exists (created on first run if absent); Rename and Delete are disabled for
+it. A preset file holds only the [preset schema](#preset-json-schema) — never the action or
+dialog state. On open, the last-used settings are restored from the user-local session, which
+also holds UI-only state such as the active tab.
+
+#### Selection tab
+
+Decides *which* objects feed the layout: the counts at the top, then the global filter, then
+the steps.
+
+```
+┌─[Selection]──[Layout]────────────────────────────────────────────────────┐
+│ ┌─ Current selection ─────────────────────────────────────────────────┐  │
+│ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │  │
+│ │               First object: Business Actor: Customer                │  │
+│ │  Containing:  12 elements, 8 relations                              │  │
+│ │  Filter selection by element type (none = keep all):                │  │
+│ │   Mode    │ Element type                                     ✕      │  │
+│ │   Include │ All                                              ✕      │  │
+│ │   [+ Add rule]  ☐ Property condition                                │  │
+│ │  Filter selection by diagram type (none = keep all):                │  │
+│ │   Mode │ Diagram type     [+ Add rule]                              │  │
+│ │  Filter selection by relations (none = keep all):                   │  │
+│ │   Mode │ Source type │ Relation type │ Target type   [+ Add rule]   │  │
+│ └─────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Expand selection ─────────────────────────────────────────────────┐   │
+│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
+│ │ │ [▾] Step 1 · Adds: 4 elements · 3 relations   [↑] [↓]   [✕]  │   │   │
+│ │ │ Mode   │Previous step│Direction│Added          │Added      │ │   │   │
+│ │ │        │elements     │         │relations      │elements   │ │   │   │
+│ │ │Include │Grouping     │Outgoing │Aggregation (3)│All (4)    │✕│   │   │
+│ │ │ [+ Add rule]  ☐ Property condition   Repeat: [1× ▼]          │   │   │
+│ │ └──────────────────────────────────────────────────────────────┘   │   │
+│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
+│ │ │ [▸] Step 2 · 1 rule · Adds: nothing           [↑] [↓]   [✕]  │   │   │
+│ │ └──────────────────────────────────────────────────────────────┘   │   │
+│ │ [+ Add step]                                                       │   │
+│ └────────────────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Current selection.** Two summary lines; what the filter keeps shows per rule, and each step
+has its own counter:
+
+- **Selected** — what the user picked, with a `First object: <Type>: <Name>` suffix naming the
+  first object. An empty selection shows `Selected: nothing` (no suffix).
+- **Containing** — the count after folders and views are opened up.
+- **Filter rules** — each rule's type combo shows how many it keeps on its own, *Grouping (28)*
+  (an Exclude rule: how many it removes from the other rules' result).
+- **Adds** — one counter per step, in its header: what the step *adds*, not cumulative;
+  `Adds: nothing` when zero; a collapsed step also names its number of rules. Per rule, the
+  chosen Added relations / Added elements type shows `(n)`, *Aggregation (3)*: what the step
+  adds with only that rule — same input, same repeat — so adding or changing another rule never
+  changes it (an Exclude rule shows what it removes from the other rules' result).
+
+Only types with a count above zero are shown. Counts update on every rule, repeat and step-order
+change, with the same selection logic the action runs ([Counting rules](#counting-rules)).
+
+**Global filter.** Three independent rule tables ([rule lists](#rule-lists)); each shows the
+default row `Include | All` when nothing is filtered.
+- **Element type** — Mode · Element type, plus Property · Value behind *Property condition* (on
+  and locked as soon as a rule uses a property).
+- **Diagram type** — Mode · Diagram type: the diagram objects of selected views (a view
+  reference matches *reference*). Shown only when the selection holds diagram objects; its
+  rules are kept either way.
+- **Relations** — Mode · Source type · Relation type · Target type: which relations between the
+  filtered elements are drawn.
+
+**Steps** (GUI title *Expand selection*). A one-line explanation, the ordered steps, and
+`[+ Add step]` under the last one. Each step is a frame:
+- **Header** — collapse triangle (▾/▸) and the bold title `Step N` on the left (title and
+  summary are clickable too); the `Adds:` summary; move (↑ ↓) and, set apart, remove (✕) on the
+  right — different place and shape, so collapsing and moving cannot be confused.
+- **Rule table** — Mode · Previous step elements · Direction · Added relations · Added elements
+  (each combo shows the rule's count after the chosen type), plus Property of · Property · Value
+  behind *Property condition*. Property and value lists come from the step's candidates (every
+  relation the step saw, before its rules) that match the rule's types.
+- **Footer** — `[+ Add rule]`, *Property condition*, **Repeat** (`1×`–`5×` or `until nothing
+  new`, at most 10 runs; `Adds:` then shows `(nothing new after N×)` or `(stopped at max 10×)`).
+
+#### Layout tab
+
+Decides *how* objects are positioned; groups follow the order of deciding.
+
+```
+┌─[Selection]──[Layout]─────────────────────────────────────────────────────┐
+│ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
+│ │ Flow:       ○ Layered   ○ Dagre    ○ Dot                              │ │
+│ │ Hierarchy:  ○ Tree      ○ Twopi                                       │ │
+│ │ Network:    ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
+│ │ Circular:   ○ Radial    ○ Circo                                       │ │
+│ │ Compact:    ○ Grid      ○ Pack                                        │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Nesting ─────────────────────────────────────────────────────────────┐ │
+│ │  Draw these relations as nesting, child inside its parent:            │ │
+│ │   On │ Mode    │ Source │ Relation        │ Target │ Every │ Nested │ │ │
+│ │   ☑  │ Include │ All    │ Aggregation (62)│ All    │  ☑    │ 37     │✕│ │
+│ │   ☑  │ Include │ Driver │ Association (8) │ Driver │  ☐    │ 0      │✕│ │
+│ │   [+ Add rule]                                                        │ │
+│ │  31 matching relations are drawn as a line: the child already has a   │ │
+│ │  parent. A rule with Every shows such a child in every parent.        │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Reverse ─────────────────────────────────────────────────────────────┐ │
+│ │  Flip these relations:                                                │ │
+│ │   On │ Mode    │ Source │ Relation         │ Target │        │       │ │
+│ │   ☐  │ Include │ All    │ All              │ All    │        │ ✕     │ │
+│ │   [+ Add rule]  ☐ Property condition                                  │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
+│ │  Layout:   Layout inside [Layered ▼]  Connections [Crossing… ▼]  Padding [20] │
+│ │  Options:  ☐ Sort containers                                          │ │
+│ │            ☐ Same width per level     ☐ Snap columns to grid          │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
+│ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
+│ │  Layers:   Placement [Straight ▼]  Layer distance [180]               │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
+│ │  Size:     Width [140]  ☐ Use label width  Wrap label at [400]        │ │
+│ │            Height [60]                                                │ │
+│ │  Spacing:  Distance [40]                                              │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
+│ │  Line:     Routing [Orthogonal ▼]  Label [Middle ▼]  ☐ Reserve label space │
+│ │  Spacing:  Between [25]  Distance to element [40]                     │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ View size ───────────────────────────────────────────────────────────┐ │
+│ │  ● Free   ○ Aspect ratio: [16:9 widescreen ▼]   ○ Max width: [0]      │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+- **One source.** Every label, tooltip and "Used by" line comes from the SSOT; the tables below
+  are generated from it.
+- **Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the
+  predicted view it matches on its own — after the chosen relation type, *Aggregation (62)* (an
+  Exclude rule: what it removes from the other rules' matches) — and, for nesting, how many
+  become a nesting (*Nested*). A grey note under Nesting says why the others are drawn as a
+  line: the child already has a parent (one parent per child for rules without *Every*), the
+  nesting would be circular, or the relation is a self-relation. Computed with the same
+  resolution as the writer.
+- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its
+  value. Connections, Nesting, Reverse and View size end with a grey hint naming them — *"Not
+  used by Dot: Reserve label space, Between, Distance to element."*, or *"Not used by Force."*
+  for a whole group; Containers, Flow and Elements show it as the box's tooltip. Containers is
+  also greyed, with a tooltip, until a Nesting rule is on. The explanation of the Nesting and
+  Reverse rules is the tooltip of those boxes.
+- **Locks.** Connections falls back to *Between containers* (greyed, reason in the tooltip) when
+  Layout inside is Grid or Pack, or a view size is active ([nesting reference](#containers-and-connections-mode)).
+  Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
+- **Empty Nesting / Reverse.** An empty table shows the default rule switched off, as an
+  example; untouched it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*,
+  so the two tables line up.
+- **Form rows.** Containers, Flow, Elements and Connections share one heading column (*Size:*,
+  *Order:*, …), as wide as the widest heading; each label sits right before its control and
+  pairs follow each other. Rows that share a raster line up as a table: every column starts at
+  the same x, so the controls stand below each other. Flow, Elements and Connections share a
+  raster over the first label/control pair only; Containers › Options is a full 2×2 raster. All
+  spinners have one width, combos keep their natural width. Nothing stretches with the dialog;
+  notes and hints wrap at the box width. A rule table is never cut off: when it is wider than
+  the tab, the dialog grows — only wider, within the monitor, never back — and on a monitor that
+  is too narrow the tab scrolls horizontally.
+- **Look.** Every group has a slightly lighter background than the page, inherited by its
+  children. A control's label greys together with it.
+
+**Algorithms** — five styles in a radio table, all algorithms always visible.
+
+<!-- generated:styles -->
+| Style | Algorithms | Tooltip |
+|---|---|---|
+| Flow | Layered, Dagre, Dot | Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models. |
+| Hierarchy | Tree, Twopi | Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition. |
+| Network | Force, Stress, Neato, FDP, SFDP | Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks. |
+| Circular | Radial, Circo | Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures. |
+| Compact | Grid, Pack | Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries. |
+<!-- /generated:styles -->
+
+<!-- generated:algorithms -->
+| Algorithm | Engine | Nesting | Self-loops | Tooltip |
+|---|---|---|---|---|
+| Layered | ELK | full | ✓ | Process models, application flows, service interactions with strong directionality and nested containers (ELK) |
+| Tree | ELK | full | — | Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK) |
+| Force | ELK | none | — | Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK) |
+| Stress | ELK | none | — | Dependency maps and impact analysis emphasising relational distance (ELK) |
+| Radial | ELK | none | — | Domain overviews and hub-and-spoke structures (ELK) |
+| Grid | ELK | full | — | Portfolio overviews, catalogs and inventories with strong nesting support (ELK) |
+| Pack | ELK | full | — | High-level landscape summaries and grouped overviews with strong nesting support (ELK) |
+| Dagre | Dagre | partial | ~ | Fast process and application flows with limited nesting support (Dagre) |
+| Dot | Graphviz | cluster | ✓ | Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot) |
+| Neato | Graphviz | cluster | ✓ | Spring-model layout for undirected networks, with cluster nesting. No direction control (Graphviz neato) |
+| FDP | Graphviz | cluster | ✓ | Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp) |
+| SFDP | Graphviz | none | ✓ | Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp) |
+| Twopi | Graphviz | none | ✓ | Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi) |
+| Circo | Graphviz | none | ✓ | Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo) |
+<!-- /generated:algorithms -->
+
+**Layout options** — Field = dialog label; Tooltip = its first two lines (the third, "Used
+by", is the last column).
+
+<!-- generated:layout-params -->
+**Nesting**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; a rule with Every shows it in every parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+
+**Reverse**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Reverse | `reverseRules` | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+
+**Containers**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Layout inside | `containerAlgorithm` | Algorithm that arranges the elements inside each container. — Grid or Pack: Connections is locked to Between containers. | Layered, Tree, Grid, Pack |
+| Connections | `connectionsMode` | Between containers: each container is laid out on its own; connections enter at its border. — Crossing containers: the whole view is one layout; connections run straight to the element inside. | Layered |
+| Padding | `padding` | Space between a container's border and its contents. — px | Layered, Tree, Grid, Pack, Dot, Neato, FDP |
+| Sort containers | `sortContainers` | Order containers by type and name, as elements always are. — Grid and Pack keep this order; the other algorithms start from it. | Layered, Tree, Grid, Pack, Dagre |
+| Same width per level | `alignWidthSameType` | Give all boxes of one nesting level the same width. — Each parent level is one padding step wider; a container never gets narrower than its contents. | Layered, Tree, Grid, Pack |
+| Snap columns to grid | `snapColumnsToGrid` | Line columns up top to bottom on one grid across the whole view. — Each column is as wide as its widest element; element sizes are unchanged. | Grid, Pack |
+
+**Flow**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Direction | `direction` | Direction of the main flow. | Layered, Tree, Dagre, Dot |
+| Cycles | `acyclicer` | How relation cycles are broken before layout. — Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles. | Dagre |
+| Ranking | `ranking` | How elements are assigned to layers. — Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster. | Dagre |
+| Placement | `nodePlacement` | Where elements sit within their layer. | Layered |
+| Layer distance | `layerSpacing` | Distance between layers along the flow; Radial and Twopi: between rings. — px — with Reserve label space a gap widens to fit its labels. | Layered, Radial, Dagre, Dot, Twopi |
+
+**Elements**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Width | `elementWidth` | Width of every element. — px — not used with Use label width. | all algorithms |
+| Height | `elementHeight` | Height of every element. — px — not used with Use label width. | all algorithms |
+| Use label width | `labelSizing` | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack |
+| Wrap label at | `labelMaxLineWidth` | Label width at which Use label width wraps to a second line. — px — only with Use label width. | Grid, Pack |
+| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px | all algorithms except Twopi |
+
+**Connections**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Routing | `routing` | How connection lines are drawn. | Layered, Dot, Neato, FDP, SFDP |
+| Label | `labelPosition` | Where the connection label sits. | Layered, Tree, Dagre, Dot, Neato, FDP, SFDP, Twopi, Circo |
+| Reserve label space | `connectionLabelSpacing` | Keep connection labels clear of other labels, connections and elements. — A layer gap widens where a label needs label + 2 × Between. | Layered |
+| Between | `connectionSpacing` | Distance between parallel connections, and between connection points on one side of an element. — px — elements grow to fit their connections; 0 = no growth. | Layered, Tree, Dagre |
+| Distance to element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. | Layered, Tree, Neato, FDP, SFDP |
+
+**View size**
+
+| Field | Parameter | Tooltip | Used by |
+|---|---|---|---|
+| Aspect ratio | `aspectRatio` | Arrange the layout toward this width-to-height ratio. — Element sizes are unchanged. | all algorithms except Dagre |
+| Max width | `maxWidth` | The view is at most this wide: a wider layout is arranged in more rows. — px — element sizes are unchanged. | Layered, Tree, Grid, Pack |
+<!-- /generated:layout-params -->
+
+**Preset-only options** have no dialog control because they hardly change the view; a preset can
+still set them, and a run logs a value that differs from the default (*"Preset values not in
+dialog: diagramPadding=20"*):
+
+| Option | Effect |
+|---|---|
+| `diagramPadding` | Margin between the canvas origin and the outermost elements (px); shifts the whole diagram only. |
+
+`viewSizeMode` records the selected View size radio (`"none"` = Free).
+
+#### Appearance tab
+
+```
+┌─[Selection]──[Layout]──[Appearance]──────────────────────────────────────────┐
+│ ┌─ Style by property ─────────────────────────────────────────────────────┐  │
+│ │ Color elements or relations by property values. Each rule says what gets  │  │
+│ │ the color and whose property gives the value.                             │  │
+│ │ On│Color          │Source  │Relation   │Target │Property of│Property│Range │  │
+│ │ ☑ │Element (own…) │App Comp│ —         │ —     │ —         │Status  │Blues▓│✕ │
+│ │ ☑ │Relation       │All     │Flow       │All    │Relation   │Volume  │Reds ▓│✕ │
+│ │ ☑ │Source element │All     │Serving    │All    │Relation   │Priority│OrRd▓⚠│✕ │
+│ │ [+ Add rule]                                                              │  │
+│ │ ⚠ Rules 3, 4 style the same objects. The last rule wins. …               │  │
+│ │ Mixed values color: [#FF6B35 ▪]   Line width of styled relations: [▼]     │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
+│ │  ☑ Apply font by level   Root size: [14 ▲▼] pt  ☑ Bold                  │  │
+│ │  Decrease/level: [2 ▲▼] pt                                              │  │
+│ │  ☑ Apply color by level  Root color: [#2C5F8A ▪] [=====] lighter       │  │
+│ │  Lighten/level: [15 ▲▼] %                                              │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│ ┌─ Highlight repeated elements ───────────────────────────────────────────┐  │
+│ │  ☑ Enable  Color range: [Pastel1 ▼] [====]                             │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Style by property.** One rule table ([style rules](#rule-lists)). A rule is active when it is
+on and has a property. Its Property combo shows the objects on the predicted view the rule
+colours, *Status (14)*; before a property is chosen just *(n)*: the objects it reaches. Unique
+values are sorted and mapped to evenly spaced colours of the rule's colour range; an object with
+several different values gets the *mixed values* colour. Relations coloured by a *Color =
+Relation* rule take the fixed line width when one is chosen. Where two rules style the same
+object the later wins, and the dialog marks both with ⚠ (computed on the predicted view). The
+row tooltip reads the rule as a sentence. On Expand view / Layout only, a rule that is **off**
+resets what it would style (fill, or line colour and width) unless another rule styled it;
+colours set by hand elsewhere are left alone.
+
+**Style by nesting level.** Active only when a Nesting rule is on; otherwise an informational
+label replaces the controls. Two compact rows, one for font, one for colour.
+- **Font.** Root containers (depth 0) get the root size (bold if set); each deeper level the root
+  size minus depth × decrease, never below the tool's default (9 pt). Containers only.
+- **Colour.** Each chain uses its root container's current fill as the darkest anchor (or the
+  root colour when it has none; with neither, the chain is skipped); each level inward is
+  lightened by *Lighten/level* % toward white. Leaves of the chain's type are coloured at their
+  own depth too.
+- **Type chain.** Each root container defines its chain's type. Styling applies to containers
+  (font) and containers and leaves (colour) whose type matches the root's and whose whole
+  ancestor chain back to the root has that type. A container of another type breaks the chain:
+  neither it nor any descendant is styled.
+
+**Highlight repeated elements.** Gives each element that appears more than once on the view its
+own fill colour from the range (needs a nesting rule with *Every*). Enable and range on one row.
+
+**Colour ranges.** Every range combo offers the same set of ColorBrewer schemes, with a
+gradient preview strip that repaints on change.
+
+#### Properties tab
+
+```
+┌─[Selection]──[Layout]──[Appearance]──[Properties]───────────────────────────┐
+│  Add or update properties of the generated view(s)                          │
+│  ┌─ Object ID ──────────────────────────────────────────────────────────┐   │
+│  │  ☐ Add unique Object ID                                              │   │
+│  │     Leaves existing Object ID unchanged                              │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│  ┌─ View properties ────────────────────────────────────────────────────┐   │
+│  │  ☐  Domain          [  ▼]                                            │   │
+│  │  ☑  Phase           [Draft               ▼]                          │   │
+│  │  ☐  Status          [  ▼]                                            │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+- One row per property key found on any view of the model (except *Object ID*): a checkbox, the
+  key, and an editable combo of all values found for that key. Nothing is pre-selected.
+- After layout and styling, every enabled row's value is written to the generated view;
+  disabled rows are ignored. The preset keeps every configured row, enabled or not.
+- **Object ID.** When checked and the view has no *Object ID* property, a new unique id is
+  written; an existing one is never overwritten. *One view each* gives each view its own id.
+
+#### Totals line and action area
+
+**Totals line** — between the tabs and the actions, always visible, the predicted on-view
+totals in the console's grouped form ([Counting rules](#counting-rules)), **hide-zero**: a
+field with value 0 is omitted, a sub-line whose fields are all 0 is skipped. It refreshes on
+every dialog change.
+
+**Action area** — two groups with the same rows (one field row, one button row), so fields and
+buttons line up; Cancel below, bottom right.
+- **Create new view** — *Folder* and *Name* (this group only), *New view*, *One view each*.
+  Always enabled.
+- **Modify selected view** — *View: \<name\>* names the target (the view of the selected canvas
+  objects, or a view selected in the model tree); *Expand view*, *Layout only*, both in place.
+  *Expand view* is enabled only when objects on the view are selected — it expands from them.
+  Without a target the line says what to select and the buttons are disabled.
+- **Cancel** — discards changes; remembers UI-only state (active tab) for the next open.
+
+| Action | View name and folder |
+|---|---|
+| **New view** | Name from the Name field (pre-filled with the first selected object); folder from Folder, a path under Views (`/_Generated/Project`; empty = `/_Generated`). A view with that name in the folder is overwritten. |
+| **One view each** | One view per element, named after the element plus the preset's suffix (e.g. `" (GGM)"`); Name is not used. |
+| **Expand view / Layout only** | The selected view itself; Folder and Name are not used. |
+
+#### Interaction rules
+
+- **Preset auto-apply.** Selecting a preset loads its values at once; there is no Apply button.
+- **Modified indicator** and **silent switch.** Switching presets discards unsaved changes
+  without a confirm; the `*` is the warning.
+- **Default preset** always present; it cannot be renamed or deleted.
+- **Algorithm radio table.** All algorithms of all styles are always visible.
+- **Commit, not keystroke.** Live counts recompute on value-commit (arrow click, focus loss).
+- **Steps start expanded** on preset load; a collapsed step names its rule count.
+- **Empty selection** opens normally, all counts zero; actions still run. A malformed preset
+  never aborts the dialog: unknown keys are dropped, missing keys get defaults.
 
 ### Preset JSON schema
 
-Persisted keys (GUI labels in comments). `appearance.enabled` is new ✦.
+A preset is a value: it validates against this schema and round-trips losslessly to its stored
+form. Keys are the persisted JSON keys; comments use the GUI labels.
 
 ```
 Preset {
-  schemaVersion : 3                         // migration anchor (✦ 3: everyContainer per rule)
+  schemaVersion : 3                    // 2 = rule lists; 3 = everyContainer per nesting rule ✦
   name          : string
-  algorithm     : enum                       // Layout style
+  algorithm     : enum                 // Layout style
   params {
-    direction, routing, labelPosition, ranking, acyclicer, nodePlacement  // gated by algorithm
-    nestingRules : RelationRule[]                    // Nesting; [] = none
-    reverseRules : RelationRule[]                    // Reverse; [] = none
-    containerAlgorithm   : "Layered"|"Grid"|"Pack"   // Layout inside
-    connectionsMode      : "Crossing containers"|"Between containers"
-    elementWidth, elementHeight, elementSpacing, layerSpacing,
-    connectionSpacing, connectionElementSpacing, padding, labelMaxLineWidth : number
-    diagramPadding : number                          // preset-only (no dialog control)
-    maxWidth, aspectRatio : number                   // 0 = unconstrained
-    viewSizeMode : "none"|"maxWidth"|"aspectRatio"   // "none" = Free
-    sortContainers, alignWidthSameType, snapColumnsToGrid,
-    labelSizing, connectionLabelSpacing : boolean
+    direction, routing, labelPosition,           // Direction, Routing, Label
+    ranking, acyclicer, nodePlacement : option   // Ranking, Cycles, Placement — gated by algorithm
+    nestingRules : RelationRule[]                // Nesting; [] = none
+    reverseRules : RelationRule[]                // Reverse; [] = none
+    containerAlgorithm : "Layered"|"Grid"|"Pack" // Layout inside
+    connectionsMode    : "Crossing containers"|"Between containers"
+    elementWidth, elementHeight,                 // Width, Height
+    elementSpacing, layerSpacing,                // Distance, Layer distance
+    connectionSpacing, connectionElementSpacing, // Between, Distance to element
+    padding, labelMaxLineWidth : number (px)     // Padding, Wrap label at
+    diagramPadding : number (px)                 // preset only: canvas margin
+    maxWidth, aspectRatio : number               // View size; 0 = unconstrained
+    viewSizeMode : "none"|"maxWidth"|"aspectRatio"   // which View size radio; "none" = Free
+    sortContainers, alignWidthSameType,          // Sort containers, Same width per level
+    snapColumnsToGrid, labelSizing,              // Snap columns to grid, Use label width
+    connectionLabelSpacing : boolean             // Reserve label space
   }
-  filter { elementRules:ElementRule[], diagramRules:DiagramRule[], relationRules:RelationRule[] }  // [] = all
-  relatedElements { steps : Step[] }               // ordered chain
-  view { name, folder, suffix : string }           // Create actions only; suffix: One view each
-  description : string                             // shown under the preset combo
+  filter {                                       // every list: [] = keep all
+    elementRules  : ElementRule[]                // seed elements
+    diagramRules  : DiagramRule[]                // diagram objects of selected views
+    relationRules : RelationRule[]               // relations between the filtered elements
+  }
+  relatedElements { steps : Step[] }             // ordered chain, one per step block
+  view {                                         // Create actions only
+    name   : string                              // New view; "" = first selected object
+    folder : string                              // path under Views; "" = "/_Generated"
+    suffix : string                              // One view each: appended to each element name
+  }
+  description : string                           // shown under the preset combo
   appearance {
-    enabled : boolean                              // ✦ master styling on/off
-    styleByProperty { rules:StyleRule[], mixedValuesColor:hex, lineWidth:0..3 }
-    nestingLevel { font*, color*, rootColor, lightenPerLevel, … }
-    highlightRepeated { enabled, colorRange }
+    enabled : boolean                            // ✦ master styling on/off
+    styleByProperty {
+      rules : StyleRule[]                        // in order; the later rule wins on one object
+      mixedValuesColor : hex                     // fill for an object with several values
+      lineWidth : 0..3                           // 0 = no change; 1 Normal, 2 Medium, 3 Heavy
+    }
+    nestingLevel {
+      fontEnabled, rootFontBold : boolean
+      rootFontSize, fontDecreasePerLevel : number (pt)
+      colorEnabled : boolean
+      rootColor : hex                            // fill of root containers (darkest)
+      lightenPerLevel : number (%, 0–50)
+    }
+    highlightRepeated { enabled : boolean, colorRange : scheme name }
   }
-  engineParams : { ELK?{…}, Dagre?{…}, Graphviz?{…}, layout?{…} }  // ✦ typed overrides
+  engineParams { ELK?, Dagre?, Graphviz?, layout? }   // ✦ typed per-engine overrides only;
+                                                      // deep-merged over adapter defaults
+  viewProperties {
+    addObjectId : boolean                        // write a unique Object ID when the view has none
+    properties : { key, value : string, enabled : boolean }[]   // key never "Object ID"
+  }
 }
-Step         { repeat:1..5|"untilNothingNew", rules:StepRule[] }        // [] = follow all
-ElementRule  { mode, elementType, property, value }
-DiagramRule  { mode, diagramType }
-RelationRule { on, mode, source, relation, target,
-               propertyOf:"relation"|"source"|"target", property, value,
-               everyContainer }                    // ✦ nesting rules only; default false
-StepRule     { mode, previous, direction:"either"|"outgoing"|"incoming", relation, added,
-               propertyOf:"added"|"relation"|"previous", property, value }
-StyleRule    { on, color:"element"|"relation"|"source"|"target", source, relation, target,
-               propertyOf:"element"|"relation"|"source"|"target", property, colorRange }
+Step { repeat : 1..5 | "untilNothingNew", rules : StepRule[] }   // [] = follow every relation
 ```
 
-**Rule fields.** `mode` is `"include"` (default) or `"exclude"`; a type field holds a type id or
-`""` (= All); `on` defaults to true, `everyContainer` to false. Files omit fields at their default and write one rule per
-line, so a step with many rules stays readable and a diff shows one changed rule as one line.
+`repeat`: each run starts from the previous run's additions; *until nothing new* stops when a
+run adds nothing, at most 10 runs.
+
+#### Rule lists
+
+One rule model for every list. A list keeps what matches **any active Include rule**, unless an
+**Exclude rule** matches too; order has no meaning (style rules excepted: the later rule wins).
+A type field holds a type id or `""` (= All); `mode` defaults to `"include"`, `on` to true,
+`everyContainer` to false.
+
+| Rule kind | Fields | Used by | Empty list |
+|---|---|---|---|
+| element  | mode, elementType, property, value | `filter.elementRules` | keep all |
+| diagram  | mode, diagramType | `filter.diagramRules` | keep all |
+| relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting rules only) | `filter.relationRules`, `params.nestingRules`, `params.reverseRules` | filter: keep all · nesting / reverse: none |
+| step     | mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].rules` | follow all |
+| style    | on, color (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange | `appearance.styleByProperty.rules` | no styling |
+
+**Step rules are written from the previous step's elements.** `direction`: `outgoing` = the
+previous-step element is the relation's source, `incoming` = its target, `either` (default) =
+both. `previous` constrains the previous-step element's type, `added` the new element's type;
+`propertyOf` says whose property must equal `value`. Which relations a step *draws*: an Include
+rule matches on relation type, direction and `previous` only — `added` and the property only
+decide which elements join; an Exclude rule matches in full.
+
+**Style rules.** `color`: `element` (the element by its own property; `source` holds its type),
+`relation`, `source` / `target` (that end of a matching relation — model-wide relations, so the
+relation need not be on the view). `propertyOf`: whose property gives the value.
+
+**Validation.** Each rule is normalised; an unknown key, enum value or type id skips the rule
+with a warning — a typo never widens a list to All. A preset with an older shape is refused with
+a message naming its migration.
+
+**File form.** Fields at their default are omitted, a pass-all list is written as `[]`, and every
+rule sits on one line, so a diff shows one changed rule as one changed line.
+
+### Selection run order
+
+The selection turns (selection, preset, action) into the object set for layout. Same input,
+same model → same set; it reads only, never edits a view; sets, not lists (no duplicates).
+
+1. **Open up the selection.** Folders → their contents; views → their visual contents, split into
+   model concepts and diagram objects; canvas objects → the concepts behind them. A Modify action
+   also captures the VisualSet of its target view (bounds, appearance, parenthood) — before any
+   model traversal, so reposition-vs-create never depends on stage order.
+2. **Global filter** — element rules, relation rules, diagram rules. Visibility only: hiding an
+   element never changes the nesting between the elements that remain.
+3. **Steps, as a chain.** Step 1 starts from the filtered base; each later step from the previous
+   step's additions only; an empty step ends the chain. Within a step, each run starts from the
+   previous run's additions.
+4. **Elements only** — relations, folders and views leave the element set.
+5. **Relations**, collected in two passes with no relation counted twice:
+   - *base* — relations between filtered-base elements that the relation rules keep;
+   - *per run* — relations between the run's new elements and the collection that reached them
+     (the step input for the first run, the previous run's elements after that) that a step
+     rule draws. Relations among one run's new elements, and to earlier-step elements outside
+     that collection, are not collected.
+6. **Diagram objects** — connections between diagram objects are edges, never nodes; they are
+   kept apart from positional diagram objects and rerouted when their ends move.
+
+**Modify actions.** Neither applies the element filter (2): it would hide drawn element types,
+sizing containers for a subset while the hidden elements stay outside them. *Layout only*
+skips the steps (3) and keeps only relations already drawn on the view. *Expand view* needs
+elements selected on the view (a view from the model tree is refused), runs the steps from them,
+starts from the relations drawn on the view (no missing relation between elements already there
+is added) plus the relations the steps follow; then every element and diagram object of the view
+joins, so the whole view is laid out.
+
+### Counting rules
+
+The dialog's live counts and the action use the same selection and nesting logic, so a count is
+a promise. Before opening, and on every action, the console prints one grouped block:
+
+```
+Selected:    0 elements · 0 relations · 1 view · 0 diagram objects · 0 folders
+Containing: 110 elements · 113 relations · 0 diagram objects
+Filtered base:    8 elements ·  11 relations · 0 diagram objects
+Step 1 adds:    102 elements ·  98 relations
+──────────────────────────────────────────────
+Total to view:
+  elements:    18 containers ·  92 nested elements ·   0 standalones ·   0 extra occurrences
+  relations:   11 nestings   ·  98 connections
+  diagram:      0 diagram objects
+```
+
+- **Exact sums.** `Filtered base + Σ Step N adds = Total`, for elements and for relations. A
+  step's relations are the new relations of its runs (per run, between the new elements and the
+  collection that reached them), minus any counted before — never a count of raw selection
+  relations.
+- **Elements partition.** `elements = containers + nested elements + standalones`; it counts
+  model elements, so *every container* never inflates it. **Extra occurrences** are a separate
+  field, never folded in.
+- **Relations partition** on the view: `relations = nestings + connections`. Pipeline counters
+  say *relations*; view-side rows say *nestings* and *connections*.
+- **Extra occurrences on non-nesting algorithms.** Only algorithms that draw containment show
+  extra occurrences as boxes; the others draw each element once, while the count still reports
+  them.
+- The console prints every field, column-aligned; the dialog's totals line hides zeros.
+
+### Nesting reference
+
+#### Containers and connections mode
+
+*Layout inside* arranges the children of each container. *Crossing containers* (default) lays
+the whole hierarchy out as one graph: connections run straight to the element inside, and
+crossing minimisation spans all levels. *Between containers* lays out each container on its
+own; connections enter at its border. **Lock:** crossing is impossible — *between* is used,
+greyed with the reason — when Layout inside is Grid or Pack (connections into a packed container
+are not supported; without them the containers stack in one column) or a view size is active (a
+one-graph layout does not pack unconnected elements into rows). The container choice wins; a
+preset with a locked combination runs as *between*, and the log says so. With a root Grid or
+Pack there are no connections between containers, so the option is inactive.
+
+#### Roles and parents
+
+- **Role.** A relation matching a nesting rule is a **nesting candidate**; every other relation
+  is a connection. The preset is the only authority; the split is total and deterministic.
+- **Direction.** For a nesting, source = parent, target = child — swapped when the relation also
+  matches a reverse rule, exactly as reversal flips a connection's layout direction.
+- **Several parents** — never decided by rule or model order:
+
+| Relation matches | Outcome |
+|---|---|
+| a rule with *every container* (wins when the relation matches several nesting rules) | **Every parent.** The child appears inside this parent whatever its other relations do; each appearance is its own node mapping back to the same element. An extra occurrence of a container gets its own copies of the container's children. |
+| only rules without it | **One parent.** All such relations of one child together give it at most one parent: the container its user-content occurrence sits in on the view, else the first by name, then by id. The other relations are drawn as connections. |
+
+  Example: a composition from P1 (rule without *every container*) and an aggregation from P2
+  (rule with it) put the child in P1 **and** in P2.
+- **Cycles.** Nesting candidates that together form a containment cycle are **all** drawn as
+  connections; candidates outside it are unaffected. The dialog counts them as *circular*, the
+  log names each cycle by its elements. To nest part of a cycle anyway, exclude the other
+  relations with an Exclude rule.
+- **Asymmetric roles.** An element may be a parent in one relation and a child in another;
+  roles are per relation. Diamonds and deep chains follow from the same rules.
+- **Container derivation.** A container is any element with at least one child after
+  resolution — derived, never declared; being a container does not change an element's type.
+- **Nothing undrawn.** A nesting candidate that does not become containment is drawn as a
+  connection.
+
+#### Connections between occurrences
+
+A connection whose source or target has several occurrences is drawn **once**:
+- **already on the view** — each connection of the relation on the view keeps its two ends and is
+  laid out;
+- **otherwise** — between the pair of occurrences closest together in the container tree: not one
+  inside the other, then the deepest common container, then the first occurrences;
+- a self-relation stays a loop on one occurrence.
+
+#### Managed extra occurrences
+
+Every action — *Layout only* too — reconciles them:
+
+1. **Capture.** The VisualSet's occurrences split into **managed** (matching a record on the
+   view) and **user content** (everything else: hand-placed duplicates, occurrences on views made
+   before records existed). The edge cases below turn some managed occurrences into user content.
+2. **Resolve** — the wanted placements: per element its parents, and for extra container
+   occurrences their copied children. Only user content counts as a child's current container.
+3. **Pair.** Per element, user content first, then managed; each prefers the placement with its
+   own container chain, then one with the same direct container, then any. A user occurrence
+   left without a placement stays in its current container and is laid out there.
+4. **Add and remove.** A placement without an occurrence gets a new, managed one — except the
+   first, if the element has no user content. A managed occurrence left without a placement is
+   removed, with the connections drawn to it.
+5. **Record.** The view's records are rewritten to describe exactly its managed occurrences.
+
+A **record** identifies a placement — the element and its chain of containers up to the view
+root — not a visual object, so a copied view keeps its managed occurrences, and a managed
+occurrence stays managed when another rule takes over its nesting. Edge cases:
+- **Last occurrence** — an element whose occurrences are all managed has its first, in view
+  order, turned into user content; an element never disappears from the view.
+- **Moved by the user** — a record that no longer matches the view is dropped; the object, if
+  any, is user content.
+- **User content inside a managed container** — the container becomes user content (it cannot be
+  removed without deleting user content); the run logs it.
+- **Hand-drawn connection to a managed occurrence** — removed with it; the system cannot tell it
+  from the connections it drew itself.
+- **Same placement twice** — the first matching object in view order is managed, the other user
+  content.
+
+#### Writer parenthood
+
+Each visual's parent is re-derived per run from the nesting decisions, for every action: an
+occurrence with a parent is drawn inside the visual paired with that parent, otherwise at view
+root; an existing visual under another parent is moved there, keeping its appearance and
+connections, its bounds relative to the new parent. Each occurrence pairs with at most one
+visual of its element; a leftover managed visual is removed, a leftover user visual stays and
+is laid out in its current container. A nesting's visual relation between the two paired
+visuals is kept, otherwise added; every other line of a relation drawn as nesting is removed.
+
+**Preserved vs re-derived** on Modify actions: appearance (colours, fonts, line styles, sizes
+set by hand) is never touched by the writer; parenthood is re-derived; bendpoints of existing
+connections are rewritten from the layout result (their style untouched). The Create group
+never modifies the view the selection came from.
+
+### Sizing refinements
+
+#### Same width per level
+
+Boxes at the same nesting depth get a common width, so a nested view reads as telescoping
+frames instead of ragged boxes. It never changes parent or child. *Level*: root boxes are 0, the
+children of a level-*N* container *N+1*.
+
+```
+W[deepest level] = narrowest box at that level (the leaf base width)
+W[L]             = W[L+1] + ring          (ring = left + right container padding)
+```
+
+A **leaf** takes exactly its level width. A **container** treats it as a floor: if its
+side-by-side content needs more, it stays wider (never below content). Example — deepest branch
+`B ⊃ B1 ⊃ B1a ⊃ leaf`, a level-0 container `A` holding two boxes side by side, a lone level-0 leaf
+`C`; leaf width 200, ring 20:
+
+| Level | `W[L]` | Leaves | Containers |
+|---|---|---|---|
+| 0 | 260 | `C` → 260 | `A` → at least 260, wider to fit its two children |
+| 1 | 240 | `A2` → 240 | `A1` → at least 240 |
+| 2 | 220 | `A1a` → 220 | `B1a` → at least 220 |
+| 3 | 200 (anchor) | `Bx` → 200 | — |
+
+It needs each container's natural width, so a first sizing pass measures it and the widths are
+set *between* passes — never after the final layout. Available only where the engine sizes
+containers from content ([capability matrix](#capability-matrix)).
+
+#### Snap columns to grid
+
+Puts every leaf column on one shared grid, so columns line up top to bottom across the whole
+view (Grid and Pack only; independent of the option above). Each column is as wide as its widest
+leaf, columns packed left to right, every leaf moved onto its column's centre. Gaps start tight
+and widen only where sibling containers would overlap, by exactly the overlap, repeated until
+clean. Leaves are moved, never resized; containers are re-wrapped around them.
+
+### Layout graph and result
+
+```
+LayoutGraph {
+  algorithm : enum
+  nodes : [{ id, label, elementType, width, height,   // leaves sized; containers sized by the engine
+             parent : nodeId | null }]                // nesting
+  edges : [{ id, source, target,                      // already swapped for reversed relations
+             label, weight }]                         // weight: hint per relation type
+  options : object                                    // per-algorithm parameters
+  maxWidth, aspectRatio : number                      // only the active one non-zero
+  alignWidthSameType, sortContainers : boolean
+}
+LayoutResult {
+  nodes : [{ id, x, y, width, height, parentId }]     // ABSOLUTE
+  edges : [{ id, sourceId, targetId,
+             bendpoints : [{ x, y }],                 // ABSOLUTE
+             isStraight : boolean,
+             labelX, labelY : number }]               // 0,0 = no placement
+  viewWidth, viewHeight : number
+}
+```
+
+The writer draws each connection against its model relation and orders bendpoints by the model
+relation's source and target when the graph reversed them. Element labels sit inside their node
+at the standard position. With *Reserve label space* the layout reserves room for each
+connection label between element layers, and the label is drawn there.
 
 ### Capability matrix
 
-Derived from each algorithm's active-parameter list — never hand-maintained (today generated
-into ARCHITECTURE.md by `tools/gen_docs_tables.js`). The matrix maps
-algorithm → { style, nesting capability (full/partial/cluster/none), self-loop capability
-(native/partial/none), active params, allowed select-values }. An option absent from an
-algorithm's active set is disabled in the UI and ignored at runtime. The authoritative rows for
-the current engines are generated from the SSOT registry; a rebuild reproduces the matrix from
-its own registry rather than copying a static table.
+Each algorithm declares a style (UI grouping only), a nesting capability (full / partial /
+cluster / none), a self-loop capability, its active options and the allowed values of its select
+options. An option outside the active set is greyed in the dialog, keeps its value, and is
+ignored at runtime. Adding an algorithm is one SSOT entry plus one adapter mapping. The matrix is
+generated from the registry — never edited by hand.
+
+✓ active · — greyed out in the dialog.
+
+<!-- generated:capability-matrix -->
+| Parameter | Layered | Tree | Force | Stress | Radial | Grid | Pack | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Nesting `nestingRules` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| Reverse `reverseRules` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Padding `padding` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — | — | — |
+| Sort containers `sortContainers` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — |
+| Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Snap columns to grid `snapColumnsToGrid` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
+| Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Layer distance `layerSpacing` | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | — | — | — | ✓ | — |
+| Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Use label width `labelSizing` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Wrap label at `labelMaxLineWidth` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Routing `routing` | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
+| Label `labelPosition` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | — |
+| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Max width `maxWidth` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Self-loops** (capability) | ✓ | — | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+<!-- /generated:capability-matrix -->
+
+**Self-loops** is a capability, not an option: ✓ = routed (by the engine, or a small corner loop
+drawn by the writer), ~ = partial (the engine tries, the writer draws the loop on failure), — =
+not drawn (left out of the layout graph and removed on re-layout).
 
 ### Per-engine view-size
 
@@ -662,6 +1378,39 @@ its own registry rather than copying a static table.
 
 Engines meet a target by arranging elements differently, never by coordinate scaling. A
 target that cannot be met is reported, not forced.
+
+### Console logging
+
+Each orchestration phase is a step: one blank line, a header at root indent (`Step name:`),
+detail lines indented two spaces. The final `View "…" written` line is at root indent.
+
+| Step header | Covers |
+|---|---|
+| `=== generate_view ===` | Action, algorithm, options, view name and folder, requested view size |
+| `Pipeline — build object set:` | Filtered base, step adds, totals ([counting rules](#counting-rules)) |
+| `Layout graph:` | Relation roles (nestings · connections), nestings applied, cycles |
+| `View target:` | Modify actions: the view identified (before the layout graph) |
+| `Layout:` | Engine passes, width alignment, layout result, view size |
+| `View target:` | Create actions: the view created or overwritten — after the layout succeeded |
+| `Write:` | Nodes written (extra occurrences included), connections, final counts |
+
+The dialog logs one block before it opens (Selected / Containing / Filtered), not on widget
+changes. There is no debug flag; width-alignment and container-offset mismatches are always
+logged with `⚠`.
+
+### Rule scopes
+
+Rules apply in scopes, broad → narrow; for one concern the narrowest scope that addresses it
+wins, broader rules apply where narrower ones are silent. Plan files and other working notes are
+not rules; they never override them. The concrete files per scope are listed in the repo's
+`ai/rules.md`.
+
+| Scope | Governs |
+|---|---|
+| Global | Conventions across the user's projects — naming, module layout, file headers, logging. |
+| Repo-wide | Entry point and vocabulary; runtime constraints; module structure; testing policy; README. |
+| Shared library | Contracts every subsystem relies on — selection helpers, utilities, folder resolution. |
+| Subsystem | This system's own rules: this specification and ARCHITECTURE.md. |
 
 ### Current realisation
 
