@@ -111,5 +111,5 @@ const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  
 | `tools/rel_filter_test.js` | Node tests for the rule lists |
 | `tools/migrate_presets_relrows.js` | one-shot migration of presets to rule lists |
 
-Documentation: [ARCHITECTURE.md](docs/ARCHITECTURE.md) (design and implementation, incl. all
-parameters per algorithm) and [SPEC.md](docs/SPEC.md) (rebuild specification).
+Documentation: [SPEC.md](docs/SPEC.md) — what the subsystem does; [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+— design decisions (Part A) and how they are realised (Part B), incl. all parameters per algorithm.

@@ -4,7 +4,11 @@ A single, self-contained specification for rebuilding the View subsystem from sc
 The body is **implementation-free**: it states *what* the system must do and the contracts
 it must honour, never *how* a particular platform realises them. The current realisation
 (jArchi / SWT / ELK / Dagre / Graphviz) and all large reference tables live in the
-[Appendix](#appendix), which is not part of the ≤500-line readable body.
+[Appendix](#appendix), which is not part of the ≤550-line readable body.
+
+**Division.** This document is the *what*; [ARCHITECTURE.md](ARCHITECTURE.md) Part B is the
+*how*. Part A of ARCHITECTURE.md still holds functional detail to be merged in here; on a
+conflict this document wins ([Content division](ARCHITECTURE.md#content-division)).
 
 `✦` marks a deliberate improvement over the previous design; every `✦` is itemised in the
 [Appendix delta](#delta--spec-vs-current-implementation).
@@ -44,8 +48,8 @@ One name per concept across UI, docs, logs, and code. Terms grouped by subject.
 - **VisualElement** — the placement of one element on one view; has bounds, may carry
   appearance overrides, points back to its element.
 - **VisualRelation** — the drawing of one relation on one view; has endpoints and bendpoints.
-- **occurrence** — a visual appearance of an element on a view. Normally one per view; with
-  *show in every container* an element may have several.
+- **occurrence** — a visual appearance of an element on a view. Normally one per view; a
+  nesting rule set to *every container* can give an element several.
 - **diagram object** — a canvas-only object with no model concept (note, group, image,
   legend, view-reference). Belongs to exactly one view.
 
@@ -54,6 +58,8 @@ One name per concept across UI, docs, logs, and code. Terms grouped by subject.
 - **nested element** — drawn inside a container; not itself a container.
 - **standalone** — drawn at view root; contains nothing, contained by nothing.
 - **extra occurrence** — the 2nd..Nth appearance of one element under different containers.
+  ✦ **Managed** when the system placed it for an *every container* rule — the system may also
+  remove it; any other occurrence is **user content**.
 
 **VisualRelation roles**
 - **nesting** — drawn as containment (box-in-box, no line).
@@ -132,7 +138,7 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | view | VisualRelation | 1 → 0..N | and its drawn relations |
 | view | diagram object | 1 → 0..N | canvas-only objects |
 | **VisualElement** | element | N → 1 | each placement realises exactly one element |
-| **element** | occurrence | 1 → 0..N | one element, many appearances across views (and >1 per view under *show in every container*) |
+| **element** | occurrence | 1 → 0..N | one element, many appearances across views (and >1 per view under an *every container* rule) |
 | **relation** | element (source, target) | N → 2 | directed; source and target are elements |
 | **VisualRelation** | relation | N → 1 | draws one relation, as a *nesting* or a *connection* |
 | **container** | nested element | 1 → 1..N | containment is **derived** from resolved nestings, never declared |
@@ -142,6 +148,7 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | Preset | rule list | 1 → 6 | filter (elements, diagram objects, relations), nesting, reverse, style; empty filter = all, empty feature list = none |
 | Preset | appearance config | 1 → 1 | styling rules, with a master on/off ✦ |
 | **VisualSet** | view | 1 → 1 | existing visuals of one target view, captured pre-run |
+| **managed-occurrence record** ✦ | view | N → 1 | element + its chain of containers + the nesting relation that placed it; stored on the view, so it survives a view copy |
 | **LayoutGraph** | element + nesting + connection | projection | engine-facing view of the object set |
 
 **Closed enumerations** (extending any is a deliberate change): element types and relation
@@ -181,7 +188,8 @@ if a counterpart exists in the VisualSet, **reposition** it (appearance preserve
 re-derived from current nesting); otherwise **create** it with default appearance.* Same for
 relations: existing → rewrite bendpoints; new → create. A view's contents are overwritten only
 by `NEW_VIEW` onto a matching name; Modify actions never copy, rename or replace a view, nor
-delete existing visuals — the preset's view name and folder apply to new views only.
+delete existing visuals — the preset's view name and folder apply to new views only. ✦ The one
+exception: every action reconciles **managed extra occurrences** ([§7](#7-layout-options)).
 
 ---
 
@@ -213,7 +221,8 @@ adds; an extra Exclude rule can only shrink it — there are no hidden exception
 names an unknown type is rejected with a message, never widened to *All*.
 
 **Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds
-a missing relation — it only re-lays-out what is already on the view. `EXPAND_VIEW` expands
+a missing relation — it only re-lays-out what is already on the view (managed extra
+occurrences excepted, [§7](#7-layout-options)). `EXPAND_VIEW` expands
 from the elements selected on the view and adds only what the steps reach; the rest of the view
 keeps its content. Neither applies the element-type filter, so a
 re-layout can never strip element types that are already drawn.
@@ -256,17 +265,30 @@ it hits and how many become a nesting; the dialog says why the others are drawn 
   is used — when the inner layout is a packing layout or a view size is set (unconnected
   elements would stack in one column).
 - **Padding** — space between a container's border and its contents.
-- **Show in every container** — an element that is a child in several nestings is drawn inside
-  each (extra occurrences) instead of only the first. ✦ Algorithms that do not draw containment
-  still draw it once, though the counters report the extra occurrences — not a bug.
 - **Sort containers**, **same width per level** and **snap columns to grid** — refinements that
   order containers, make nested frames telescope cleanly and align columns view-wide. They are
   **position/size-by-derivation only** and never scale a leaf (see [§8](#8-engine-contract)).
 
 **Consequences (not separate controls).** For a nesting relation the **source is the parent**,
 the **target the child** (swapped if the type is also reversed). Container-ness is **derived**:
-an element is a container exactly when something resolves to be its child. When several
-nestings claim the same child, the first wins unless *show in every container* is on.
+an element is a container exactly when something resolves to be its child.
+
+**Several parents** ✦ — never decided by rule or model order. A nesting rule set to **every
+container** places the child in *each* parent it reaches (extra occurrences — e.g. an element
+filed under several groupings) and wins when a relation matches several rules. The other
+nesting relations of one child give it **at most one** parent — the container it already sits
+in, else the first by name; the rest are drawn as connections. Algorithms that do not draw
+containment draw each element once, though the counters report the extra occurrences.
+Nesting relations that together form a **cycle** (A contains B … contains A) are all drawn as
+connections: a cycle is nearly always a modelling error, and lines make it visible. The
+dialog counts them under *circular*; the log names each cycle.
+
+**Managed extra occurrences** ✦. They follow from the settings, so every action — `LAYOUT_ONLY`
+too — reconciles them: missing ones are added and recorded on the view, recorded ones no longer
+asked for are removed, and switching back restores them. Only recorded ones are ever removed.
+User content takes a parent first and is always laid out, in its current container if the
+settings place it nowhere. A managed occurrence becomes user content when it is the element's
+last one, the user moved it, or it contains user content.
 
 **Flow.** A main direction (for algorithms where direction drives ranking); how cycles are
 broken and elements assigned to layers (for the simple ranked algorithm); where elements sit
@@ -399,7 +421,7 @@ highlight repeated → style by property**.
   container breaks the chain for itself and its descendants. Active only when nesting types are
   configured.
 - **Highlight repeated** — give each element that appears more than once on the view its own
-  colour (needs *show in every container*).
+  colour (needs a nesting rule set to *every container*).
 
 ---
 
@@ -428,7 +450,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 9. **One action-agnostic writer** — exists → reposition; else → create; same for relations.
    No per-action branch.
 10. **No silent data loss** — overwrite only when an action explicitly says so; Modify never
-    deletes visuals as a naming side effect.
+    deletes visuals, except managed extra occurrences the settings no longer ask for ✦.
 11. **Appearance preservation** — repositioning a visual never changes its appearance
     properties; the system relies on this for expand/re-layout.
 
@@ -459,9 +481,11 @@ Previously implicit; specified here as a contract.
 - **Empty / invalid selection.** A run proceeds and produces an empty (or unchanged) view; this
   is not an error.
 - **Invalid preset.** Validation repairs it to defaults; the run never aborts on preset shape.
-- **Partial results.** Edges the engine dropped have any stale routing cleared; surplus
-  existing visuals with no result counterpart are left untouched, never deleted, and the count
-  is logged.
+- **Partial results.** Edges the engine dropped have any stale routing cleared; ✦ a nesting
+  that cannot be drawn as containment is drawn as a connection, never left as it was.
+- **Managed occurrences** ✦. A record that no longer matches the view is dropped. Removing a
+  managed occurrence removes connections drawn to it, hand-drawn ones included. A view without
+  records (made before this feature) holds only user content.
 
 ---
 
@@ -503,7 +527,7 @@ The system's invariants are directly testable; a rebuild is accepted when these 
 
 ## Appendix
 
-Not part of the ≤500-line body. Reference tables, the dialog mockup, the concrete preset
+Not part of the ≤550-line body. Reference tables, the dialog mockup, the concrete preset
 schema, the current realisation, and the delta from today.
 
 ### Display-label map
@@ -554,7 +578,7 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 
 Layout tab groups: *Algorithm* (style-grouped radio table), *Nesting* (nesting rules),
 *Reverse* (reverse rules), *Containers* (layout inside, between/crossing, padding,
-sort, show in every container, same width per level, snap columns), *Flow* (direction, cycles,
+sort, same width per level, snap columns), *Flow* (direction, cycles,
 ranking, placement, layer gap), *Elements* (width, height, by label + wrap at, gap),
 *Connections* (routing, label, reserve label space, between, to element), *View size* (free /
 aspect ratio / max width). Connections, Nesting, Reverse and View size end with a grey "Not used by …" hint; Containers, Flow and Elements show it as the box's tooltip.
@@ -567,7 +591,7 @@ Persisted keys (GUI labels in comments). `appearance.enabled` is new ✦.
 
 ```
 Preset {
-  schemaVersion : 2                         // migration anchor
+  schemaVersion : 3                         // migration anchor (✦ 3: everyContainer per rule)
   name          : string
   algorithm     : enum                       // Layout style
   params {
@@ -582,7 +606,7 @@ Preset {
     maxWidth, aspectRatio : number                   // 0 = unconstrained
     viewSizeMode : "none"|"maxWidth"|"aspectRatio"   // "none" = Free
     sortContainers, alignWidthSameType, snapColumnsToGrid,
-    showInEveryContainer, labelSizing, connectionLabelSpacing : boolean
+    labelSizing, connectionLabelSpacing : boolean
   }
   filter { elementRules:ElementRule[], diagramRules:DiagramRule[], relationRules:RelationRule[] }  // [] = all
   relatedElements { steps : Step[] }               // ordered chain
@@ -600,7 +624,8 @@ Step         { repeat:1..5|"untilNothingNew", rules:StepRule[] }        // [] = 
 ElementRule  { mode, elementType, property, value }
 DiagramRule  { mode, diagramType }
 RelationRule { on, mode, source, relation, target,
-               propertyOf:"relation"|"source"|"target", property, value }
+               propertyOf:"relation"|"source"|"target", property, value,
+               everyContainer }                    // ✦ nesting rules only; default false
 StepRule     { mode, previous, direction:"either"|"outgoing"|"incoming", relation, added,
                propertyOf:"added"|"relation"|"previous", property, value }
 StyleRule    { on, color:"element"|"relation"|"source"|"target", source, relation, target,
@@ -608,7 +633,7 @@ StyleRule    { on, color:"element"|"relation"|"source"|"target", source, relatio
 ```
 
 **Rule fields.** `mode` is `"include"` (default) or `"exclude"`; a type field holds a type id or
-`""` (= All); `on` defaults to true. Files omit fields at their default and write one rule per
+`""` (= All); `on` defaults to true, `everyContainer` to false. Files omit fields at their default and write one rule per
 line, so a step with many rules stays readable and a diff shows one changed rule as one line.
 
 ### Capability matrix
@@ -659,6 +684,13 @@ Deliberate departures a rebuild adopts:
 6. **Master Appearance on/off** (`appearance.enabled`) replaces "no-op only when every feature
    is individually off".
 7. **Error/resilience model** and **verification/acceptance contract** are newly specified.
+8. **Every container per nesting rule** replaces the global *show in every container*
+   (`params.showInEveryContainer`); schema version 3, migrated offline: a preset with the global
+   switch on gets `everyContainer` on each nesting rule.
+9. **Order-independent parents** replace *first wins* in model order; every relation of a
+   nesting cycle is drawn as a connection (today the closing one is dropped from the view).
+10. **Managed extra occurrences**, recorded on the view and reconciled by every action, replace
+    "surplus occurrences left in place"; unpaired user occurrences are laid out, not left behind.
 
 Already realised: `schemaVersion` with an offline migration (rule lists, version 2); the
 capability matrix is derived from the registry; `Step.diagramTypes` is removed; one reconciled per-engine view-size table; control labels, tooltips and "used by"

@@ -34,7 +34,8 @@ archi-scripts/
 ├── Scripts/
 │   └── View/
 │       ├── CLAUDE.md           ← subsystem entry point (all tools)
-│       └── docs/ARCHITECTURE.md ← full subsystem design + rationale
+│       ├── docs/SPEC.md        ← what: functional specification
+│       └── docs/ARCHITECTURE.md ← design decisions + how: realisation, module index
 ├── CLAUDE.md                   ← Claude Code auto-load → ai/rules.md
 ├── .cursorrules                ← Cursor auto-load → .cursor/rules.md
 ├── .cursor/rules.md            ← Cursor inline mirror of hard rules
@@ -68,7 +69,8 @@ When adding a new rule or skill:
 | ELK Layered algorithm options | `ai/elkjs/docs/elk-layered.md` |
 | ELK layout options (spacing, routing, ports) | `ai/elkjs/docs/layout-options-core.md` |
 | ELK JSON graph format | `ai/elkjs/docs/json-format.md` |
-| View subsystem — full architecture | `Scripts/View/docs/ARCHITECTURE.md` |
+| View subsystem — functional spec (what) | `Scripts/View/docs/SPEC.md` |
+| View subsystem — design decisions + realisation (how) | `Scripts/View/docs/ARCHITECTURE.md` |
 | View subsystem — entry/references | `Scripts/View/CLAUDE.md` |
 
 ## Hard rules
