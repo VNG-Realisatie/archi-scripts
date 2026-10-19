@@ -386,6 +386,31 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     }
   }
 
+  // Occurrences dropped by the cap have no node: forget them, and draw their nesting
+  // relations as connections. Otherwise such a relation is neither routed nor nested,
+  // and its visual relation keeps the stale bendpoints of the previous layout.
+  let cappedNestingRels = 0;
+  if (existingVosByConcept) {
+    for (const id of Object.keys(occurrenceMap)) {
+      occurrenceMap[id] = occurrenceMap[id].filter(occId => nodeIds.has(occId));
+    }
+    for (const occId of Object.keys(parentMap)) {
+      if (!nodeIds.has(occId)) delete parentMap[occId];
+    }
+    const dropped = parentRels.filter(b => !nodeIds.has(b.srcOccId) || !nodeIds.has(b.tgtOccId));
+    if (dropped.length) {
+      const kept = parentRels.filter(b => !dropped.includes(b));
+      parentRels.length = 0;
+      parentRels.push(...kept);
+      const nestedRelIds = new Set(kept.map(b => b.rel.id));
+      for (const b of dropped) {
+        if (nestedRelIds.has(b.rel.id) || routedRels.includes(b.rel)) continue;
+        routedRels.push(b.rel);
+        cappedNestingRels++;
+      }
+    }
+  }
+
   // Diagram-object nodes (root-level, sized from current canvas bounds).
   // diagram-model-connection objects are edges, never nodes (§A.5 step 6).
   for (const vo of diagramObjects) {
@@ -479,7 +504,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
       candidates:        nestingRels.length,
       applied:           parentRels.length,
       circularNestings:  skippedCircularNestingRels.length,
-      notNestedNestings: notNestedNestingRels.length,
+      notNestedNestings: notNestedNestingRels.length + cappedNestingRels,
     },
   };
 }
