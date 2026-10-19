@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "gemma/Referentiecomponenten en gebruik technische architectuur",
   "algorithm": "Layered",
   "params": {
@@ -12,7 +12,6 @@
     "sortContainers": false,
     "alignWidthSameType": true,
     "snapColumnsToGrid": true,
-    "showInEveryContainer": true,
     "layerSpacing": 120,
     "elementSpacing": 50,
     "elementWidth": 300,

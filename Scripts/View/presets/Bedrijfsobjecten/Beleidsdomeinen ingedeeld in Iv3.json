@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Bedrijfsobjecten/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Pack",
   "params": {
@@ -13,7 +13,6 @@
     "sortContainers": true,
     "alignWidthSameType": false,
     "snapColumnsToGrid": true,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
@@ -29,7 +28,7 @@
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": true,
     "nestingRules": [
-      {"relation": "aggregation-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "reverseRules": [
       {"relation": "realization-relationship"},

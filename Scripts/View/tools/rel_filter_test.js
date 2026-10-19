@@ -24,7 +24,7 @@ const el = (type, props) => ({ id: type, type, prop: k => (props || {})[k] });
 // ── normalise / serialise ─────────────────────────────────────────────────────
 eq(norm("relation", [{ relation: "serving-relationship" }]),
    [{ on: true, mode: "include", source: "", relation: "serving-relationship", target: "",
-      propertyOf: "relation", property: "", value: "" }], "normalise fills defaults");
+      propertyOf: "relation", property: "", value: "", everyContainer: false }], "normalise fills defaults");
 eq(norm("relation", [{ relaton: "serving-relationship" }]), [], "unknown key rejects the rule");
 eq(norm("relation", [{ relation: "nonsense-relationship" }]), [], "unknown type rejects the rule");
 eq(norm("step", [{ direction: "sideways" }]), [], "unknown enum rejects the rule");
@@ -33,6 +33,11 @@ eq(RF.serializeRule("step", norm("step", [{ relation: "serving-relationship", ad
    { relation: "serving-relationship", added: "business-object" }, "serialise omits defaults");
 eq(RF.serializeRule("relation", norm("relation", [{ on: false, relation: "serving-relationship" }])[0]),
    { on: false, relation: "serving-relationship" }, "serialise keeps on:false");
+eq(RF.serializeRule("relation", norm("relation", [{ relation: "aggregation-relationship", everyContainer: true }])[0]),
+   { relation: "aggregation-relationship", everyContainer: true }, "serialise keeps everyContainer:true");
+eq(RF.serializeRule("relation", norm("relation", [{ relation: "aggregation-relationship", everyContainer: false }])[0]),
+   { relation: "aggregation-relationship" }, "serialise omits everyContainer:false");
+eq(norm("relation", [{ everyContainer: "yes" }]), [], "non-boolean everyContainer rejects the rule");
 eq(RF.isPassAll("relation", []), true, "empty list passes all");
 eq(RF.isPassAll("relation", norm("relation", [{}])), true, "default rule passes all");
 eq(RF.isPassAll("relation", norm("relation", [{ relation: "serving-relationship" }])), false, "specific rule filters");
@@ -56,6 +61,16 @@ eq(off("serving-relationship", "a", "b", false), false, "off rule is ignored");
 const incExc = rel([{ relation: "serving-relationship" }, { mode: "exclude", source: "grouping" }]);
 eq(incExc("serving-relationship", "grouping",        "b", true), false, "exclude vetoes include");
 eq(incExc("serving-relationship", "business-object", "b", true), true,  "exclude does not apply elsewhere");
+// every container: an Include rule with the flag, vetoed by Exclude rules; rule order is irrelevant
+const every = rules => (t, s, g) => RF.matchEveryContainer(norm("relation", rules), t, s, g);
+const evA = every([{ relation: "aggregation-relationship" }, { relation: "serving-relationship", everyContainer: true }]);
+eq(evA("serving-relationship",     "a", "b"), true,  "every: rule with the flag matches");
+eq(evA("aggregation-relationship", "a", "b"), false, "every: rule without the flag does not");
+eq(every([{ relation: "serving-relationship", everyContainer: true }, { relation: "serving-relationship" }])("serving-relationship", "a", "b"), true,
+   "every: a second matching rule without the flag does not cancel it (order-free)");
+eq(every([{ relation: "serving-relationship", everyContainer: true }, { mode: "exclude", source: "grouping" }])("serving-relationship", "grouping", "b"), false,
+   "every: exclude vetoes");
+eq(every([])("serving-relationship", "a", "b"), false, "every: empty list");
 // property condition: read from the relation, its source or its target
 const pObj = props => ({ prop: k => props[k] });
 const pRel = { type: "serving-relationship", source: Object.assign(pObj({ Laag: "A" }), { type: "grouping" }),

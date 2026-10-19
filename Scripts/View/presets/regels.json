@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "regels",
   "algorithm": "Layered",
   "params": {
@@ -12,7 +12,6 @@
     "sortContainers": true,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,

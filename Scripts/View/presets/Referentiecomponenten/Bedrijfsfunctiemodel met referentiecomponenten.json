@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Pack",
   "params": {
@@ -13,7 +13,6 @@
     "sortContainers": false,
     "alignWidthSameType": true,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
@@ -27,9 +26,9 @@
     "viewSizeMode": "aspectRatio",
     "labelSizing": false,
     "nestingRules": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "everyContainer": true},
+      {"relation": "serving-relationship", "everyContainer": true}
     ],
     "reverseRules": [
       {"relation": "realization-relationship"},

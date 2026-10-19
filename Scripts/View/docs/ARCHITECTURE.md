@@ -571,7 +571,7 @@ The Layout tab decides *how* objects are positioned. Groups follow the order of 
 │ │   ☑  │ Include │ Driver │ Association (8) │ Driver │  ☐    │ 0      │✕│ │
 │ │   [+ Add rule]                                                        │ │
 │ │  31 matching relations are drawn as a line: the child already has a   │ │
-│ │  parent. Every container on a rule shows such a child in every parent.│ │
+│ │  parent. A rule with Every shows such a child in every parent.        │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Reverse ─────────────────────────────────────────────────────────────┐ │
 │ │  Flip these relations:                                                │ │
@@ -659,7 +659,7 @@ Field = dialog label; Tooltip = its first two lines (the third, "Used by", is th
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+| Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; a rule with Every shows it in every parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
 
 **Reverse**
 
@@ -675,7 +675,6 @@ Field = dialog label; Tooltip = its first two lines (the third, "Used by", is th
 | Connections | `connectionsMode` | Between containers: each container is laid out on its own; connections enter at its border. — Crossing containers: the whole view is one layout; connections run straight to the element inside. | Layered |
 | Padding | `padding` | Space between a container's border and its contents. — px | Layered, Tree, Grid, Pack, Dot, Neato, FDP |
 | Sort containers | `sortContainers` | Order containers by type and name, as elements always are. — Grid and Pack keep this order; the other algorithms start from it. | Layered, Tree, Grid, Pack, Dagre |
-| Show in every container | `showInEveryContainer` | An element nested in several containers appears in each of them. — Off: it appears in the first container only. | Layered, Tree, Grid, Pack |
 | Same width per level | `alignWidthSameType` | Give all boxes of one nesting level the same width. — Each parent level is one padding step wider; a container never gets narrower than its contents. | Layered, Tree, Grid, Pack |
 | Snap columns to grid | `snapColumnsToGrid` | Line columns up top to bottom on one grid across the whole view. — Each column is as wide as its widest element; element sizes are unchanged. | Grid, Pack |
 
@@ -897,7 +896,6 @@ Adding a new algorithm requires one entry in the SSOT and one entry in the relev
 | Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
 | Padding `padding` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — | — | — |
 | Sort containers `sortContainers` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — |
-| Show in every container `showInEveryContainer` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Snap columns to grid `snapColumnsToGrid` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
@@ -1497,7 +1495,7 @@ selection ─► selection_pipeline ─► object set: elements, relations, diag
 
 - **File form.** Plain JSON, one rule per line, defaults omitted — a changed rule is one changed line in a diff.
 - **Schema version gates loading.** A different `schemaVersion` is refused with a message. A shape change ships with a one-shot, idempotent Node migration in `tools/` that rewrites every preset, `_session.json` included. No conversion at load time.
-- *Target:* version 3 — `everyContainer` per nesting rule replaces `params.showInEveryContainer`; the migration sets it on every nesting rule of a preset whose global switch was on.
+- Version 3: `everyContainer` per nesting rule replaces `params.showInEveryContainer`; `tools/migrate_presets_everycontainer.js` sets it on every nesting rule of a preset whose global switch was on.
 
 ### Selection pipeline
 
@@ -1602,7 +1600,7 @@ View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jar
 Code that does not yet meet SPEC.md or Part A. Fixing one removes it here.
 
 1. `NEW_VIEW` creates or empties the target view **before** the layout runs, so an engine failure leaves an empty view (SPEC §12: no partial view).
-2. Nesting follows relation order (first wins), uses the global `showInEveryContainer`, and drops the closing relation of a cycle (SPEC §7).
+2. Nesting follows relation order (first wins) and drops the closing relation of a cycle (SPEC §7).
 3. Managed extra occurrences are not built: `LAYOUT_ONLY` caps occurrences at the visuals on the view, and unpaired visuals are left unpositioned.
 4. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
 5. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).

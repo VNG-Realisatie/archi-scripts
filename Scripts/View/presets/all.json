@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "all",
   "algorithm": "Layered",
   "params": {
@@ -14,13 +14,14 @@
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "nestingRules": [],
+    "nestingRules": [
+      {"on": false, "relation": "aggregation-relationship", "everyContainer": true}
+    ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 60,
@@ -50,7 +51,7 @@
     ]
   },
   "view": {
-    "name": "Groep",
+    "name": "Kennismodel",
     "folder": "/_Generated",
     "suffix": ""
   },

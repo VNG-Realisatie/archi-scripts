@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Technologie/technology",
   "algorithm": "Layered",
   "params": {
@@ -19,7 +19,6 @@
     "sortContainers": true,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,

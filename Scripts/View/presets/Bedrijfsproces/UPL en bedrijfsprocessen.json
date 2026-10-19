@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Bedrijfsproces/UPL en bedrijfsprocessen",
   "algorithm": "Layered",
   "params": {
@@ -13,7 +13,6 @@
     "sortContainers": true,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 0,

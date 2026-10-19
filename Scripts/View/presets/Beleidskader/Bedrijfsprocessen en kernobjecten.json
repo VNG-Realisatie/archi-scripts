@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Beleidskader/Bedrijfsprocessen en kernobjecten",
   "algorithm": "Layered",
   "params": {
@@ -13,7 +13,6 @@
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 60,
@@ -29,9 +28,9 @@
     "labelMaxLineWidth": 160,
     "connectionLabelSpacing": true,
     "nestingRules": [
-      {"source": "business-process", "relation": "access-relationship"},
-      {"source": "business-process", "relation": "aggregation-relationship"},
-      {"relation": "realization-relationship", "target": "business-process"}
+      {"source": "business-process", "relation": "access-relationship", "everyContainer": true},
+      {"source": "business-process", "relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "target": "business-process", "everyContainer": true}
     ],
     "reverseRules": [
       {"relation": "realization-relationship"}

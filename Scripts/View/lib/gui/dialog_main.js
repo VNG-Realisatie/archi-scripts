@@ -149,12 +149,17 @@ const _COUNTED_FEATURE_COLUMNS = [_onCol, RELATION_RULE_COLUMNS[0], RELATION_RUL
     tooltip: "Where the property is read: the relation, its source or its target element." },
   ..._propCols("relations")];
 const NESTING_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
+  { key: "everyContainer", header: "Every", kind: "check", width: 40, default: false,
+    enabled: r => r.mode !== "exclude",
+    tooltip: "A child with several parents: on = it appears in every parent; off = it appears in one parent " +
+             "and the other relations are drawn as a line." },
   { key: "nested", header: "Nested", kind: "count", width: 50, format: n => String(n),
     tooltip: "Of those relations, how many are drawn as nesting. The others are drawn as a line: " +
              "their child already has a parent, or the nesting would be circular." }]);
 // Reverse: an empty cell where Nesting has its Nested count, so both tables line up.
 const REVERSE_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
-  { key: "_spacer", header: "", kind: "count", width: 50 }]);
+  { key: "_spacer", header: "", kind: "count", width: 40 },
+  { key: "_spacer2", header: "", kind: "count", width: 50 }]);
 const FILTER_RELATION_RULE_COLUMNS = Object.freeze([RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1],
   Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "count", width: 150,
     tooltip: "Relationship type. All = any type.\n(n): relations between the filtered elements this rule keeps on its own; " +
@@ -229,7 +234,6 @@ const PARAM_WIDGETS = Object.freeze({
   connectionsMode:          { w: "cmbConnectionsMode",           kind: "combo", items: CONNECTIONS_MODE_LABELS },
   padding:                  { w: "spinPadding",                  kind: "spin" },
   sortContainers:           { w: "chkSortContainers",            kind: "check" },
-  showInEveryContainer:     { w: "chkShowInEvery",               kind: "check" },
   alignWidthSameType:       { w: "chkAlignWidthSameType",        kind: "check" },
   snapColumnsToGrid:        { w: "chkSnapColumns",               kind: "check" },
 });
@@ -801,7 +805,6 @@ function _updateFilteredCount(ctx) {
     const livePresetParams = {
       nestingRules:         w.tblNestingRules ? w.tblNestingRules.getRules() : [],
       reverseRules:         w.tblReverseRules ? w.tblReverseRules.getRules() : [],
-      showInEveryContainer: !!(w.chkShowInEvery && w.chkShowInEvery.getSelection()),
     };
     const view = Pipeline.predictViewCounts(cumulative, finalRels, diagrams, livePresetParams);
     _updateLayoutRuleCounts(ctx, cumulative, finalRels, livePresetParams);
@@ -1315,8 +1318,6 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   row = _formRow(grpCtr, "Options:", formRows, "ctrOptions");
   _addCheck(row, "Sort containers", null, 2, w, "chkSortContainers");
-  _addCheck(row, "Show in every container", null, 2, w, "chkShowInEvery");
-  w.chkShowInEvery.addListener(SWT.Selection, onParamsChange);
   row = _formRow(grpCtr, "", formRows, "ctrOptions");
   _addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
   _addCheck(row, "Snap columns to grid", null, 2, w, "chkSnapColumns");
@@ -1475,8 +1476,8 @@ function _updateLayoutRuleCounts(ctx, elements, relations, params) {
   const circ   = (nest.skippedCircularNestingRels || []).length;
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
   const parts = [];
-  if (multi) parts.push(`${plural(multi, "matching relation is", "matching relations are")} drawn as a line: the child already has a parent (the first one wins). ` +
-                        "Show in every container (Containers) shows such a child in every parent.");
+  if (multi) parts.push(`${plural(multi, "matching relation is", "matching relations are")} drawn as a line: the child already has a parent. ` +
+                        "A rule with Every shows such a child in every parent.");
   if (circ)  parts.push(`${plural(circ, "matching relation", "matching relations")} would make a circular nesting and ${circ === 1 ? "is" : "are"} not drawn.`);
   if (loops) parts.push(`${plural(loops, "self-relation is", "self-relations are")} drawn as a line.`);
   const text = parts.join("\n");
@@ -1517,6 +1518,11 @@ function _featureRuleCounts(table, relations, nestedIds) {
     const others = rules.filter((r, j) => j !== i && r.on !== false);
     return { relations: relations.filter(r => match(others, r)).length - allHits };
   });
+}
+
+/** True when an active nesting Include rule has Every (a child appears in every parent). */
+function _hasEveryContainer(w) {
+  return !!w.tblNestingRules && w.tblNestingRules.getRules().some(r => r.on !== false && r.mode !== "exclude" && r.everyContainer === true);
 }
 
 /** True when a nesting rule list nests anything: an Include rule that is on. */
@@ -1661,7 +1667,7 @@ function _solidColorSwatch(parent, hexColor, key, w) {
 function _updateAppearancePropStates(ctx) {
   const w = ctx.widgets;
   if (!w.chkHighlightRep) return; // appearance tab not yet built
-  const hlOn = !!w.chkHighlightRep.getSelection();
+  const hlOn = !!w.chkHighlightRep.getSelection() && _hasEveryContainer(w);
   _enable(w.lblHighlightRepRange, hlOn);
   _enable(w.cmbHighlightRepRange, hlOn);
   try { if (w.cmbHighlightRepRangeCanvas) w.cmbHighlightRepRangeCanvas.redraw(); } catch (e) {}
@@ -1925,7 +1931,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
 
   const chkHighlightRep = new ButtonWidget(hlRow, SWT.CHECK);
   chkHighlightRep.setText("Enable");
-  chkHighlightRep.setToolTipText("Elements that appear more than once on this view receive a shared color per identity.");
+  chkHighlightRep.setToolTipText("Elements that appear more than once on this view receive a shared color per identity.\nNeeds a Nesting rule with Every.");
   chkHighlightRep.addListener(SWT.Selection, () => {
     _updateAppearancePropStates(ctx);
     onChange();
@@ -1970,6 +1976,8 @@ function _updateNestingLevelState(ctx) {
   _enable(w.lblNestFontPt,        hasNesting);
   _enable(w.nestMidSep,           hasNesting);
   _enable(w.chkNestColor,         hasNesting);
+  _enable(w.chkHighlightRep,      _hasEveryContainer(w));  // repeats only come from rules with Every
+  _updateAppearancePropStates(ctx);
 
   const hasColor = hasNesting && w.chkNestColor.getSelection();
   _enable(w.txtRootColor,         hasColor);

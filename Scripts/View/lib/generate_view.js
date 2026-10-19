@@ -695,7 +695,7 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
   }
 
   // Concept over-supply: more existing VOs than result nodes for a concept
-  // (e.g. user toggled showInEveryContainer off, or EXPAND_VIEW added a
+  // (e.g. user switched everyContainer off, or EXPAND_VIEW added a
   // narrower nesting). Surplus VOs are left in place — deletion is forbidden
   // outside the explicit name-overwrite path (Invariant 4).
   let unpaired = 0;

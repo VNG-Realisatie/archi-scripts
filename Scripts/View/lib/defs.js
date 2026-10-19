@@ -38,7 +38,7 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 const PARAMS_ELK_NESTING = Object.freeze([
   "nestingRules", "padding",
   "sortContainers", "alignWidthSameType",
-  "showInEveryContainer", "containerAlgorithm",
+  "containerAlgorithm",
 ]);
 
 // Params without a dialog control: no or minimal effect on the view. They stay in DEFAULT_PRESET
@@ -60,7 +60,6 @@ const PARAM_LABELS = Object.freeze({
   connectionsMode:          "Connections",
   padding:                  "Padding",
   sortContainers:           "Sort containers",
-  showInEveryContainer:     "Show in every container",
   alignWidthSameType:       "Same width per level",
   snapColumnsToGrid:        "Snap columns to grid",
   direction:                "Direction",
@@ -86,7 +85,8 @@ const PARAM_LABELS = Object.freeze({
 // "Used by: …" computed from activeParams, so tooltips never contradict the registry.
 const PARAM_TOOLTIPS = Object.freeze({
   nestingRules:             ["Draw matching relations as nesting: the child inside its parent.",
-                             "Parent = source of the relation; with Reverse, the target."],
+                             "Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; " +
+                             "a rule with Every shows it in every parent."],
   reverseRules:             ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
                              "Nesting: if the relation is also nested, the target becomes the parent."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
@@ -96,8 +96,6 @@ const PARAM_TOOLTIPS = Object.freeze({
   padding:                  ["Space between a container's border and its contents.", "px"],
   sortContainers:           ["Order containers by type and name, as elements always are.",
                              "Grid and Pack keep this order; the other algorithms start from it."],
-  showInEveryContainer:     ["An element nested in several containers appears in each of them.",
-                             "Off: it appears in the first container only."],
   alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
                              "Each parent level is one padding step wider; a container never gets narrower than its contents."],
   snapColumnsToGrid:        ["Line columns up top to bottom on one grid across the whole view.",
@@ -155,7 +153,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Nesting:     ["nestingRules"],
   Reverse:     ["reverseRules"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sortContainers", "showInEveryContainer", "alignWidthSameType", "snapColumnsToGrid"],
+                "sortContainers", "alignWidthSameType", "snapColumnsToGrid"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -652,7 +650,7 @@ const COLOR_RANGES = Object.freeze([
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 2,   // 2 = rule lists (rel_filter.js); presets without it are migrated offline
+  schemaVersion: 3,   // 2 = rule lists (rel_filter.js); 3 = everyContainer per nesting rule; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -673,7 +671,6 @@ const DEFAULT_PRESET = Object.freeze({
     sortContainers:        false,
     alignWidthSameType:    false,
     snapColumnsToGrid:     false,
-    showInEveryContainer:  false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
     connectionsMode:       "Between containers",   // "Crossing containers" | "Between containers"
     layerSpacing:          60,

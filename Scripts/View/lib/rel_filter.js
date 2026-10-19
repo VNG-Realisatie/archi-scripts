@@ -44,7 +44,7 @@ const KINDS = Object.freeze({
   },
   relation: {
     defaults: { on: true, mode: "include", source: "", relation: "", target: "",
-                propertyOf: "relation", property: "", value: "" },
+                propertyOf: "relation", property: "", value: "", everyContainer: false },
     types:    { source: "elements", relation: "relations", target: "elements" },
     enums:    { mode: MODES, propertyOf: REL_PROP_OF },
   },
@@ -86,9 +86,9 @@ function normalizeRule(kind, raw, valid, where) {
   const out = Object.assign({}, K.defaults);
   for (const [key, val] of Object.entries(raw)) {
     if (!(key in K.defaults)) return bad(`unknown key "${key}"`);
-    if (key === "on") {
-      if (typeof val !== "boolean") return bad(`"on" must be true or false`);
-      out.on = val;
+    if (key === "on" || key === "everyContainer") {
+      if (typeof val !== "boolean") return bad(`"${key}" must be true or false`);
+      out[key] = val;
     } else if (key in K.types) {
       const s = String(val);
       if (s !== "" && !valid[K.types[key]].has(s)) return bad(`unknown ${key} "${s}"`);
@@ -171,6 +171,15 @@ function matchElement(rules, el) {
 /** Global diagram filter: does this diagram object type pass? Empty list keeps everything. */
 function matchDiagram(rules, type) {
   return evalRules(rules, r => _typeOk(r.diagramType, type), true);
+}
+
+/**
+ * Does the relation match a nesting rule with everyContainer? Exclude rules still veto, so an
+ * excluded relation is never "every container". Rule order has no meaning.
+ */
+function matchEveryContainer(rules, relType, srcType, tgtType, rel) {
+  const every = rules.filter(r => r.mode === "exclude" || r.everyContainer === true);
+  return matchRelation(every, relType, srcType, tgtType, false, rel);
 }
 
 /** The object a relation rule's property is read from: the relation, its source or its target. */
@@ -325,7 +334,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     MODES, DIRECTIONS, STEP_PROP_OF, STYLE_COLOR, STYLE_PROP_OF, REL_PROP_OF, KINDS,
     defaultRule, normalizeRule, normalizeRules, serializeRule, isPassAll,
-    evalRules, matchElement, matchDiagram, matchRelation, relationPropObject, matchStep, matchStepRelation,
+    evalRules, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
     styleRuleMatchesRelation, detectRuleConflicts,
     compactPreset, stringifyPreset,
   };

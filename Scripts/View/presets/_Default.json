@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "_Default",
   "algorithm": "Layered",
   "params": {
@@ -20,7 +20,6 @@
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 60,

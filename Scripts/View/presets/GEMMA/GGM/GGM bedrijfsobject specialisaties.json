@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "GEMMA/GGM/GGM bedrijfsobject specialisaties",
   "algorithm": "Dot",
   "params": {
@@ -15,14 +15,13 @@
       {"relation": "specialization-relationship"}
     ],
     "nestingRules": [
-      {"relation": "aggregation-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 10,
     "diagramPadding": 10,
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 200,

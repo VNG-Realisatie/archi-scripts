@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -14,14 +14,13 @@
       {"relation": "serving-relationship"}
     ],
     "nestingRules": [
-      {"relation": "aggregation-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 0,

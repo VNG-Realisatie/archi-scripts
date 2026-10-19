@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Bedrijfsproces/Levensloop en bedrijfsprocessen",
   "algorithm": "Layered",
   "params": {
@@ -18,7 +18,6 @@
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 20,

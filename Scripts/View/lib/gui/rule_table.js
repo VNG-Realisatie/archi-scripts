@@ -39,7 +39,7 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
  *   header    heading; "\n" for two lines
  *   tooltip   heading + cell tooltip
  *   kind      choice  read-only combo; items: [{ value, label }]
- *             check   checkbox (boolean field)
+ *             check   checkbox (boolean field; col.default false: unchecked when the rule has no value)
  *             prop    read-only combo of property names (opts.propItems(rule, key))
  *             value   read-only combo of property values (opts.valueItems(rule, key))
  *             count   read-only count label, set with setCounts; "(n)" or col.format(n)
@@ -189,7 +189,7 @@ function ruleTable(parent, opts) {
       }
       case "check": {
         const b = new ButtonWidget(grid, SWT.CHECK);
-        b.setSelection(rule[col.key] !== false);
+        b.setSelection(rule[col.key] === undefined ? col.default !== false : !!rule[col.key]);
         gd().align(SWT.CENTER, SWT.CENTER).applyTo(b);
         b.setToolTipText(tip);
         b.addListener(SWT.Selection, () => { rule[col.key] = b.getSelection(); refresh(); changed(); });

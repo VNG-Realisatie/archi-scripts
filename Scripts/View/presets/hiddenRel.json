@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "hiddenRel",
   "algorithm": "Layered",
   "params": {
@@ -9,7 +9,6 @@
     "ranking": "Balanced",
     "padding": 20,
     "sortContainers": true,
-    "showInEveryContainer": false,
     "layerSpacing": 180,
     "elementSpacing": 40,
     "elementWidth": 140,

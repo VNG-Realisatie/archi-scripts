@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Bedrijfsproces/Levensloop en kernobject",
   "algorithm": "Layered",
   "params": {
@@ -11,14 +11,13 @@
     "acyclicer": "Default",
     "reverseRules": [],
     "nestingRules": [
-      {"relation": "aggregation-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 40,

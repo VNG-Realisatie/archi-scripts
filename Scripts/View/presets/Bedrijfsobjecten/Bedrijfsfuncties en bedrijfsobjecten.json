@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
   "algorithm": "Pack",
   "params": {
@@ -13,7 +13,6 @@
     "sortContainers": false,
     "alignWidthSameType": true,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 120,
@@ -27,8 +26,8 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "nestingRules": [
-      {"relation": "access-relationship"},
-      {"relation": "aggregation-relationship"}
+      {"relation": "access-relationship", "everyContainer": true},
+      {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "reverseRules": [
       {"relation": "realization-relationship"},

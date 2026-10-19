@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Beleidskader/UPL en grondslag",
   "algorithm": "Layered",
   "params": {
@@ -13,16 +13,15 @@
       {"source": "driver", "relation": "association-relationship", "target": "driver"}
     ],
     "nestingRules": [
-      {"relation": "aggregation-relationship"},
-      {"source": "driver", "relation": "association-relationship", "target": "business-service"},
-      {"source": "driver", "relation": "association-relationship", "target": "driver"}
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"source": "driver", "relation": "association-relationship", "target": "business-service", "everyContainer": true},
+      {"source": "driver", "relation": "association-relationship", "target": "driver", "everyContainer": true}
     ],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": true,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 0,

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "Referentiecomponenten/Applicatieservices en referentiecomponenten",
   "algorithm": "Pack",
   "params": {
@@ -13,7 +13,6 @@
     "sortContainers": true,
     "alignWidthSameType": true,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
@@ -27,8 +26,8 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "nestingRules": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "realization-relationship"}
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "everyContainer": true}
     ],
     "reverseRules": [
       {"relation": "realization-relationship"},

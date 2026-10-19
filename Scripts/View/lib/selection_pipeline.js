@@ -604,10 +604,11 @@ function _wouldCycle(map, childId, parentId) {
  * pipeline counters agree with what the writer will actually produce).
  *
  * Behaviour matches _buildLayoutGraph's prior inline logic:
- *   showInEveryContainer=false: first-wins; later candidates for the same child are
+ *   relation without everyContainer: first-wins; later candidates for the same child are
  *     either silently skipped (multi-parent) or skipped with a cycle log.
- *   showInEveryContainer=true:  each (child, parent) pair creates a new occurrence
- *     id when needed; cycles still skip.
+ *   relation matching a nesting rule with everyContainer: each (child, parent) pair creates
+ *     a new occurrence id when needed; cycles still skip.
+ *   (Interim: still model-order dependent; the order-independent resolution is the next step.)
  *
  * @returns {{ parentMap, occurrenceMap,
  *             parentRels: Array<{rel, srcOccId, tgtOccId}>,
@@ -621,7 +622,10 @@ function _wouldCycle(map, childId, parentId) {
  */
 function _resolveNesting(elements, nestingRels, params) {
   const isReversedRel = rel => isReversed(rel, params);
-  const showInEvery  = !!params.showInEveryContainer;
+  const nestingRules = params.nestingRules || [];
+  let anyEvery = false;
+  const isEveryRel = rel => RuleLists.matchEveryContainer(nestingRules, rel.type,
+    rel.source && rel.source.type, rel.target && rel.target.type, rel);
   const parentMap = {};
   const occurrenceMap = {};
   for (const el of elements) occurrenceMap[el.id] = [el.id];
@@ -646,6 +650,8 @@ function _resolveNesting(elements, nestingRels, params) {
       parentRels.push({ rel, srcOccId, tgtOccId });
     };
 
+    const showInEvery = isEveryRel(rel);
+    if (showInEvery) anyEvery = true;
     if (!showInEvery) {
       if (parentMap[childId] === undefined) {
         if (_wouldCycle(parentMap, childId, parentId)) {
@@ -681,10 +687,10 @@ function _resolveNesting(elements, nestingRels, params) {
     }
   }
 
-  // When showInEveryContainer is on, propagate each container's children into
+  // When a rule has everyContainer, propagate each container's children into
   // every extra occurrence so they don't render as empty boxes.
-  if (showInEvery) {
-    _propagateExtraOccurrences(elements, nestingRels, isReversedRel, parentMap, occurrenceMap, parentRels);
+  if (anyEvery) {
+    _propagateExtraOccurrences(elements, nestingRels, isReversedRel, isEveryRel, parentMap, occurrenceMap, parentRels);
   }
 
   return { parentMap, occurrenceMap, parentRels, skippedCircularNestingRels, notNestedNestingRels };
@@ -692,16 +698,16 @@ function _resolveNesting(elements, nestingRels, params) {
 
 /**
  * BFS propagation: replicate each container's direct children into its extra
- * occurrences (created when showInEveryContainer is on). Mutates parentMap,
+ * occurrences (created for nesting rules with everyContainer). Mutates parentMap,
  * occurrenceMap, and parentRels in place.
  */
-function _propagateExtraOccurrences(elements, nestingRels, isReversedRel, parentMap, occurrenceMap, parentRels) {
+function _propagateExtraOccurrences(elements, nestingRels, isReversedRel, isEveryRel, parentMap, occurrenceMap, parentRels) {
   // Build parentBaseId → [{rel, childId, reversed}] from the original nesting rels.
   const childRelsByParent = {};
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId || srcId === tgtId) continue;
+    if (!srcId || !tgtId || srcId === tgtId || !isEveryRel(rel)) continue;
     const reversed = isReversedRel(rel);
     const [parentId, childId] = reversed ? [tgtId, srcId] : [srcId, tgtId];
     if (!childRelsByParent[parentId]) childRelsByParent[parentId] = [];
@@ -779,7 +785,7 @@ function _splitNestingRels(relations, params) {
  *   containers       — elements with ≥1 child
  *   nestedElements   — elements inside a container; not themselves a container
  *   standalones      — elements at view root with no children
- *   extraOccurrences — extra visual appearances (showInEveryContainer)
+ *   extraOccurrences — extra visual appearances (nesting rules with everyContainer)
  *   relations        — total inter-element relations (= nestings + connections)
  *   nestings         — relations drawn as box-in-box
  *   connections      — relations drawn as a line
