@@ -297,7 +297,7 @@ function _inline(obj) {
 }
 
 /**
- * Preset JSON as written to user_parameter/: two-space indent, every rule on one line, so a
+ * Preset JSON as written to presets/: two-space indent, every rule on one line, so a
  * step with 18 rules stays 18 lines and a git diff shows one changed rule as one line.
  */
 function stringifyPreset(preset) {

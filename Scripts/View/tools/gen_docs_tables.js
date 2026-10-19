@@ -12,7 +12,7 @@ const fs   = require("fs");
 const path = require("path");
 
 const VIEW = path.join(__dirname, "..");
-const DOC  = path.join(VIEW, "ARCHITECTURE.md");
+const DOC  = path.join(VIEW, "docs", "ARCHITECTURE.md");
 global.Java    = { type: () => ({}) };
 global.__DIR__ = path.join(VIEW, "lib") + "/";
 const _log = console.log; console.log = () => {};

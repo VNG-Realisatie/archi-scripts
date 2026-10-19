@@ -5,9 +5,9 @@
  * and manages the session file (_session.json).
  *
  * File layout:
- *   Scripts/View/user_parameter/<name>.json          — root presets
- *   Scripts/View/user_parameter/<folder>/<name>.json — foldered presets (name = "folder/name")
- *   Scripts/View/user_parameter/_session.json        — last-used session (excluded from git)
+ *   Scripts/View/presets/<name>.json          — root presets
+ *   Scripts/View/presets/<folder>/<name>.json — foldered presets (name = "folder/name")
+ *   Scripts/View/presets/_session.json        — last-used session (excluded from git)
  */
 console.log("Loading preset_io.js");
 
@@ -20,8 +20,8 @@ const Defs      = require(REPO_ROOT + "View/lib/defs");
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { validatePreset, SESSION_FILENAME } = Defs;
 
-const USER_PARAM_FOLDER    = "user_parameter";
-const DEFAULT_PRESET_NAME  = "Default";
+const USER_PARAM_FOLDER    = "presets";
+const DEFAULT_PRESET_NAME  = "_Default";   // "_" prefix: not listed in the dialog
 
 const VIEW_DIR = (() => {
   const p = __DIR__.replace(/\\/g, "/");
@@ -87,7 +87,7 @@ function _scanPresets() {
       const f     = files[i];
       const fname = String(f.getName());
       if (f.isDirectory()) walk(f, prefix + fname + "/");
-      else if (fname.endsWith(".json") && !(prefix === "" && fname === SESSION_FILENAME)) {
+      else if (fname.endsWith(".json") && !fname.startsWith("_")) {   // "_" prefix = not a selectable preset (e.g. _session.json)
         names.push(prefix + fname.replace(/\.json$/, ""));
         if (prefix) folders.add(prefix.slice(0, -1));
       }
@@ -100,7 +100,7 @@ function _scanPresets() {
 /**
  * List named preset files in the preset directory and all its sub-directories
  * (excludes the session file).
- * @returns {string[]} sorted preset names — "name" or "folder/sub/name"; Default first
+ * @returns {string[]} sorted preset names — "name" or "folder/sub/name" ("_" files excluded)
  */
 function listPresets() {
   return _scanPresets().names.sort((a, b) => {
@@ -125,6 +125,7 @@ function listFolders() {
  * @throws if file not found
  */
 function readPreset(name) {
+  if (name === DEFAULT_PRESET_NAME) ensureDefault();
   const path = _presetPath(name);
   const raw  = readJSON(path);
   if (!raw) throw `Preset not found: "${name}" (${path})`;
@@ -219,7 +220,6 @@ if (typeof module !== "undefined" && module.exports) {
     writePreset,
     deletePreset,
     movePreset,
-    ensureDefault,
     readSession,
     writeSession,
     readJSON,

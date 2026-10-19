@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Node.js migration to rule lists (schemaVersion 2, lib/rel_filter.js): rewrites every preset
- * under user_parameter/ (recursively, _session.json included) in place.
+ * under presets/ (recursively, _session.json included) in place.
  * Idempotent — a preset already at schemaVersion 2 is left untouched.
  *
  * Run: node Scripts/View/tools/migrate_presets_relrows.js [--dry-run]
@@ -28,7 +28,7 @@ global.Java    = { type: () => ({}) };
 const Defs      = require("../lib/defs");
 const RuleLists = require("../lib/rel_filter");
 
-const PRESETS_DIR = path.join(__dirname, "..", "user_parameter");
+const PRESETS_DIR = path.join(__dirname, "..", "presets");
 const DRY_RUN     = process.argv.includes("--dry-run");
 
 function walk(dir) {

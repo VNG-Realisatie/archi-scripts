@@ -34,9 +34,9 @@ algorithm does not use are greyed and named in the group's hint line.
 
 ## Presets
 
-A preset is a saved set of dialog settings: `user_parameter/<folder>/<name>.json` (plain JSON).
+A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON).
 Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used
-settings are kept in `user_parameter/_session.json` (local, not in git).
+settings are kept in `presets/_session.json` (local, not in git).
 
 Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring
 it up to date with `node Scripts/View/tools/migrate_presets_relrows.js` (`--dry-run` first).
@@ -49,7 +49,7 @@ Run a preset without the dialog.
 
 | Script | Action |
 |---|---|
-| `_generate.ajs` | New view |
+| `_generate.ajs` | New view with the `_Default` preset |
 | `_generate_multiple.ajs` | One view each |
 | `_expand.ajs` | Expand view |
 | `_layout_only.ajs` | Layout only |
@@ -64,11 +64,11 @@ const Common    = require(REPO_ROOT + "_lib/Common");
 const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
 
 Common.initConsoleLog(__FILE__, true);
-RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA views" });  // folder optional
+RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA" });  // folder optional
 Common.finishConsoleLog();
 ```
 
-- `<preset>` — preset name (with `folder`: `user_parameter/<folder>/<preset>.json`)
+- `<preset>` — preset name (with `folder`: `presets/<folder>/<preset>.json`)
 - `<Action>` — `Generate` (New view), `GenerateMultiple` (One view each), `Expand`, `Layout`
 - `<Direction>` — `LR`, `RL`, `TB` or `BT`; overrides the preset's direction
 
@@ -110,5 +110,5 @@ const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  
 | `tools/rel_filter_test.js` | Node tests for the rule lists |
 | `tools/migrate_presets_relrows.js` | one-shot migration of presets to rule lists |
 
-Documentation: [ARCHITECTURE.md](ARCHITECTURE.md) (design and implementation, incl. all
-parameters per algorithm) and [SPEC.md](SPEC.md) (rebuild specification).
+Documentation: [ARCHITECTURE.md](docs/ARCHITECTURE.md) (design and implementation, incl. all
+parameters per algorithm) and [SPEC.md](docs/SPEC.md) (rebuild specification).

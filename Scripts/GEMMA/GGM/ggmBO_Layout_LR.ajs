@@ -1,7 +1,7 @@
 /**
  * Shortcut: run a GGM preset on the selection. The filename gives the action and direction:
  *   <name>_<Generate|GenerateMultiple|Expand|Layout>_<LR|RL|TB|BT>.ajs
- * Preset: Scripts/View/user_parameter/gemma/ggm/GGM bedrijfsobject specialisaties.json
+ * Preset: Scripts/View/presets/GEMMA/GGM/GGM bedrijfsobject specialisaties.json
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common    = require(REPO_ROOT + "_lib/Common");

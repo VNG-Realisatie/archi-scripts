@@ -641,7 +641,7 @@ target that cannot be met is reported, not forced.
 - **File map (target):** `lib/generate_view.js` (orchestrator + writer), `lib/defs.js` (SSOT),
   `lib/selection_pipeline.js`, `lib/preset_io.js`, `lib/appearance.js`, `lib/engines/*`
   (registered adapters), `lib/gui/*` (per-tab dialog modules), headless `_*.ajs` entry scripts,
-  `user_parameter/**/*.json` presets + `_session.json`, `lib/run_preset.js` (filename-driven
+  `presets/**/*.json` presets + `_session.json`, `lib/run_preset.js` (filename-driven
   shortcut scripts), `tools/` (registry check, docs-table generator).
 
 ### Delta — spec vs current implementation

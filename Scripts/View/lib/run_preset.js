@@ -3,13 +3,13 @@
  *
  *   <preset>_<Action>_<Direction>.ajs     e.g. TAenIA_Layout_LR.ajs
  *
- *   preset     preset name under user_parameter/ (opts.folder is put in front: "GEMMA views/TAenIA")
+ *   preset     preset name under presets/ (opts.folder is put in front: "GEMMA/TAenIA")
  *   Action     Generate | GenerateMultiple | Expand | Layout
  *   Direction  LR | RL | TB | BT — overrides the preset's direction (optional)
  *
  * A shortcut script is then three lines:
  *   const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
- *   RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA views" });
+ *   RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA" });
  */
 console.log("Loading run_preset.js");
 

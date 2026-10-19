@@ -1,7 +1,7 @@
 /**
  * Genereer de views van de GGM data-objecten en de GEMMA bedrijfsobjecten
  *
- * Configuratie van de te genereren views in de presets (View/user_parameter/gemma/ggm/)
+ * Configuratie van de te genereren views in de presets (View/presets/GEMMA/GGM/)
  * - "GGM data-object specialisaties" en
  * - "GGM bedrijfsobject specialisaties"
  *

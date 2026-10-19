@@ -425,7 +425,6 @@ const DEFAULT_DIALOG_HEIGHT = 1600;
  * @param {ArchiCollection} uiSelection  $(selection) captured before dialog opens
  */
 function open(uiSelection) {
-  PresetIO.ensureDefault();
   const config = PresetIO.readSession();
 
   const w = {};       // widget map

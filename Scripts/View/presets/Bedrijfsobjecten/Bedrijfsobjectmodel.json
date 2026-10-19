@@ -4,10 +4,18 @@
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Straight",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingRules": [
+      {"relation": "aggregation-relationship"}
+    ],
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": false,
@@ -27,21 +35,14 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": true,
-    "nestingRules": [
-      {"relation": "aggregation-relationship"}
-    ],
-    "reverseRules": [
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"}
-    ]
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementRules": [
       {"elementType": "grouping"}
     ],
-    "relationRules": [],
-    "diagramRules": []
+    "diagramRules": [],
+    "relationRules": []
   },
   "relatedElements": {
     "steps": [
@@ -67,8 +68,9 @@
     ]
   },
   "view": {
-    "name": "Archief",
-    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen"
+    "name": "Begraafplaatsen en crematoria",
+    "folder": "/Bedrijfsobjecten/Bedrijfsobjectmodellen",
+    "suffix": ""
   },
   "appearance": {
     "styleByProperty": {
@@ -107,13 +109,7 @@
   },
   "viewProperties": {
     "addObjectId": true,
-    "properties": [
-      {
-        "key": "Publiceren",
-        "value": "GEMMA Online en redactie",
-        "enabled": true
-      }
-    ]
+    "properties": []
   },
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel"
 }

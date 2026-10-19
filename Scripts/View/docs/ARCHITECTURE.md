@@ -1468,7 +1468,7 @@ Concrete files that fill each scope from [Rules & precedence](#rules--precedence
 | Repo-wide                         | `readme.md`                                        | User-facing project overview                                                                                                  |
 | View                              | `Scripts/View/CLAUDE.md`                           | Reference-only: pointers to `ARCHITECTURE.md` and `ai/jarchi-scripting/SKILL.md`                                              |
 | View                              | `Scripts/View/README.md`                           | User-facing entry point: invocation guide and preset descriptions                                                             |
-| View                              | `Scripts/View/ARCHITECTURE.md`                     | Defines design constraints (Part A) and implementation state (Part B)                                                         |
+| View                              | `Scripts/View/docs/ARCHITECTURE.md`                     | Defines design constraints (Part A) and implementation state (Part B)                                                         |
 | Plan                              | `~/.claude/plans/<plan-name>.md`                   | Active WIP: phases, tasks, bug fixes, Done log; not a rule file; references `ARCHITECTURE.md` without duplicating constraints |
 
 ## Module inventory
@@ -1485,7 +1485,7 @@ Scripts/
 │   └── archi_folders.js                 # getFolderPath()
 └── View/
     ├── _gui.ajs                         # Open GUI dialog
-    ├── _generate.ajs                    # Read session; call generate_view(new_view)
+    ├── _generate.ajs                    # Read _Default preset; call generate_view(new_view)
     ├── _expand.ajs                      # Read session; call generate_view(expand_view)
     ├── _layout_only.ajs                 # Read session; call generate_view(layout_only)
     │
@@ -1515,7 +1515,7 @@ Scripts/
     │       │
     │       └── dialog_presets.js        # Presets management dialog
     │
-    ├── user_parameter/
+    ├── presets/
     │   ├── *.json                       # Saved named presets
     │   └── _session.json                # Last-used session (gitignored)
     │

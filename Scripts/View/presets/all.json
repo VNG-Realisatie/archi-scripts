@@ -4,11 +4,19 @@
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Straight",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingRules": [],
     "padding": 20,
+    "diagramPadding": 10,
     "sortContainers": false,
     "alignWidthSameType": false,
     "snapColumnsToGrid": false,
@@ -17,31 +25,34 @@
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0,
+    "aspectRatio": 1.78,
     "viewSizeMode": "none",
     "labelSizing": false,
-    "connectionSpacing": 25,
-    "nestingRules": [],
-    "reverseRules": [
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
-    ]
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "diagramRules": [],
+    "relationRules": []
   },
   "relatedElements": {
-    "steps": []
+    "steps": [
+      {
+        "repeat": 1,
+        "rules": []
+      }
+    ]
   },
   "view": {
-    "name": "",
-    "folder": "/_Generated"
+    "name": "Functie-indeling naar domein",
+    "folder": "/_Generated",
+    "suffix": ""
   },
   "appearance": {
     "styleByProperty": {
@@ -64,5 +75,9 @@
     }
   },
   "engineParams": {},
-  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur"
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Selecteer een view of 1 of meer elementen en genereer een view"
 }

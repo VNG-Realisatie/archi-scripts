@@ -1,13 +1,19 @@
 {
   "schemaVersion": 2,
-  "name": "Beleidskader/Beleidskaders van een beleidsdomein",
+  "name": "Technologie/technology",
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Straight",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingRules": [],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": true,
@@ -17,48 +23,45 @@
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 180,
-    "elementSpacing": 30,
+    "elementSpacing": 40,
     "connectionSpacing": 25,
-    "connectionElementSpacing": 20,
-    "elementWidth": 240,
+    "connectionElementSpacing": 40,
+    "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false,
-    "labelMaxLineWidth": 160,
-    "connectionLabelSpacing": false,
-    "nestingRules": [
-      {"relation": "aggregation-relationship"}
-    ],
-    "reverseRules": [
-      {"relation": "association-relationship"}
-    ]
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementRules": [
+      {"elementType": "grouping"},
+      {"elementType": "artifact"},
+      {"elementType": "communication-network"},
+      {"elementType": "device"},
+      {"elementType": "node"},
+      {"elementType": "path"},
+      {"elementType": "system-software"},
+      {"elementType": "technology-collaboration"},
+      {"elementType": "technology-event"},
+      {"elementType": "technology-function"},
+      {"elementType": "technology-interaction"},
+      {"elementType": "technology-interface"},
+      {"elementType": "technology-process"},
+      {"elementType": "technology-service"}
+    ],
+    "diagramRules": [],
+    "relationRules": []
   },
   "relatedElements": {
-    "steps": [
-      {
-        "repeat": 1,
-        "rules": [
-          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
-        ]
-      },
-      {
-        "repeat": 1,
-        "rules": [
-          {"added": "driver"}
-        ]
-      }
-    ]
+    "steps": []
   },
   "view": {
-    "name": "Burgerzaken",
-    "folder": "/Beleidskaders"
+    "name": "",
+    "folder": "",
+    "suffix": ""
   },
   "appearance": {
     "styleByProperty": {
@@ -72,7 +75,7 @@
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
-      "rootColor": "#2B5796",
+      "rootColor": "",
       "lightenPerLevel": 15
     },
     "highlightRepeated": {
@@ -85,5 +88,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "description": "Selecteer een beleidsdomein en nest de beleidskaders"
+  "description": ""
 }
