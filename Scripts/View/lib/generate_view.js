@@ -201,19 +201,18 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Determine the target view.
   //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, changed in place
   //                               (preset view name and folder apply to new views only).
-  //   NEW_VIEW                  → a new view (created or overwritten by name).
-  console.log("\nView target:");
-  let view;
-  if (actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id) {
+  //   NEW_VIEW                  → a new view (created or overwritten by name) — only after the
+  //                               layout succeeded, so a failed run leaves an existing view as it was.
+  let view = null;
+  const inPlace = actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
+  if (inPlace) {
+    console.log("\nView target:");
     view = existingView;
     if (!view) {
       console.error(`${actionId}: no existing view in selection`);
       return null;
     }
     console.log(`  Using: "${view.name}" (in place)`);
-  } else {
-    const viewName = viewNameOverride || _resolveViewName(preset, elements);
-    view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
   timer.lap("view target");
 
@@ -256,6 +255,12 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
       if (n.y + n.height> y1) y1 = n.y + n.height;
     }
     console.log(`  View size generated: ${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`);
+  }
+
+  if (!inPlace) {
+    console.log("\nView target:");
+    const viewName = viewNameOverride || _resolveViewName(preset, elements);
+    view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
 
   // Write — single function, action-agnostic.

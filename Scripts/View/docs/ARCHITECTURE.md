@@ -1590,7 +1590,7 @@ Realises SPEC §7 and Part A [Managed extra occurrences](#managed-extra-occurren
 | View properties | the generated view | From the Properties tab; optional object-id property |
 | Managed-occurrence records | view property `Managed occurrence` | Rewritten by every run; not for editing |
 
-Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its properties.
+Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its properties. The view is created or emptied only **after** the layout succeeded; an engine failure leaves an existing view as it was and creates none.
 
 ## B.5 Platform constraints
 
@@ -1618,7 +1618,6 @@ View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jar
 
 Code that does not yet meet SPEC.md or Part A. Fixing one removes it here.
 
-1. `NEW_VIEW` creates or empties the target view **before** the layout runs, so an engine failure leaves an empty view (SPEC §12: no partial view).
-2. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
-3. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).
-4. Part A still repeats functional content of SPEC.md — see the [content division](#content-division).
+1. `viewSizeMode` is inferred for old presets instead of migrated (SPEC delta 1).
+2. Adapters are chosen by a fixed switch, not a registry (SPEC delta 4); the dialog is one module (SPEC delta 5).
+3. Part A still repeats functional content of SPEC.md — see the [content division](#content-division).

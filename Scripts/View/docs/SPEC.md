@@ -478,7 +478,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 Previously implicit; specified here as a contract.
 
 - **Engine failure.** If an adapter throws or returns an unusable result, the run aborts
-  cleanly with a logged reason; **no partial view is written**. Where an algorithm is known to
+  cleanly with a logged reason; **no partial view is written** and an existing view of that name is left as it was (a Create action creates or empties its view only after the layout succeeded). Where an algorithm is known to
   fail on certain graph shapes, the adapter pre-conditions the graph (e.g. cycle/forest
   pre-processing) rather than letting the engine crash.
 - **Target resolution failure.** If a Modify action cannot identify its view, or a Create
