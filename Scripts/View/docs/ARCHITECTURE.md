@@ -199,7 +199,7 @@ Three inputs:
 - **Action** — a runtime verb, never part of the preset:
   - `NEW_VIEW` — create a fresh view from the full selection.
   - `ONE_EACH` — create one view per selected element.
-  - `EXPAND_VIEW` — add related elements to an existing view, in place; visuals outside the selection stay where they are.
+  - `EXPAND_VIEW` — add the elements related to the elements selected on a view (and the relations the steps follow) to that view, in place, and lay out the whole view. The rest of the view keeps its content.
   - `LAYOUT_ONLY` — re-layout the existing view contents in place, without adding or removing elements.
 
 Output: `ArchimateView` — the views that were written or updated, with all elements positioned and relations routed.
@@ -394,7 +394,7 @@ default, writes a pass-all filter list as `[]` and puts every rule on one line.
 
 ### Action
 
-A runtime parameter, not preset content: `generate_view(preset, selection, actionId)`. Preset files do not store it (`PresetIO.writePreset` drops `action` and dialog-state keys starting with `_`). Shortcut scripts may set `preset.action` in code; `generate_view` uses it when no `actionId` is passed. Scripts named `<preset>_<Generate|GenerateMultiple|Expand|Layout>_<LR|RL|TB|BT>.ajs` run through `lib/run_preset.js`, which takes preset, action and direction from the filename.
+A runtime parameter, not preset content: `generate_view(preset, selection, actionId)`. Preset files do not store it (`PresetIO.writePreset` drops `action` and dialog-state keys starting with `_`). Shortcut scripts may set `preset.action` in code; `generate_view` uses it when no `actionId` is passed. Scripts named `<preset>_<Generate|GenerateMultiple|Expand|Layout>_<LR|RL|TB|BT>.ajs` run through `lib/run_preset.js`, which takes preset, action and direction from the filename. The `View/_*.ajs` scripts run `RunPreset.fromBase`: the base preset `all` (or `_Default`, the code defaults, when it is absent) with fixed param overrides, validated again.
 
 ### VisualSet
 
@@ -831,7 +831,7 @@ The structure matches the console's `Total to view:` row (same sub-lines: elemen
 Two groups with the same rows (one field row, one button row) so fields and buttons line up; Cancel below, bottom right.
 
 - **Create new view** — *Folder* and *Name* (these apply to this group only), *New view*, *One view each*. Always enabled. VisualSet at pipeline start is empty ([VisualSet](#visualset)).
-- **Modify selected view** — *View: \<name\>* names the target view (the view of the selected canvas objects, or a view selected in the model tree); *Expand view*, *Layout only*. Both work on that view **in place**. Without a target view the line says what to select and the buttons are disabled. VisualSet is captured from the target view at pipeline start.
+- **Modify selected view** — *View: \<name\>* names the target view (the view of the selected canvas objects, or a view selected in the model tree); *Expand view*, *Layout only*. Both work on that view **in place**. *Expand view* is enabled only when objects on the view are selected — it expands from them. Without a target view the line says what to select and the buttons are disabled. VisualSet is captured from the target view at pipeline start.
 - **Cancel** — discards changes; remembers UI-only state (active tab) for the next open.
 
 | Action | View name and folder |
@@ -928,7 +928,7 @@ Pipeline behaviour is determined by the action's group, not by the individual ac
 | Group | Actions | VisualSet at pipeline start | Selection's role |
 |---|---|---|---|
 | **Create new view** | NEW_VIEW, ONE_EACH | Empty | Content source: every element in the selection (and its related-elements expansion) becomes part of the fresh view. |
-| **Modify selected view** | EXPAND_VIEW, LAYOUT_ONLY | Captured from the target view | Identifies the target view; when only a subset of canvas objects is selected, also scopes the expansion. All existing visuals stay; selected visuals (and any added related elements) are repositioned. |
+| **Modify selected view** | EXPAND_VIEW, LAYOUT_ONLY | Captured from the target view | Identifies the target view. EXPAND_VIEW: the selected canvas elements are the steps' input; every visual stays and the whole view (with the added elements) is laid out. |
 
 The selection's *source* — the model tree vs a view's canvas — is orthogonal to the group but constrains validity:
 
@@ -977,7 +977,7 @@ Both entry points apply the same per-step rules (see Step 5 below) and log a gro
 
 **EXPAND_VIEW and LAYOUT_ONLY skip Step 2.** The element-type filter is not applied for either action in the "Modify selected view" group. These actions re-layout or expand elements already on the view; applying the filter would exclude visible element types, causing containers to be sized for only the filtered subset while the excluded elements remain at positions outside those bounds.
 
-LAYOUT_ONLY additionally skips Step 3 (no related-elements expansion) and, after Step 5, filters `relations` down to only those that already have a visual on the existing view — so LAYOUT_ONLY never adds missing relations. EXPAND_VIEW runs Step 3 normally from the unfiltered base and does not filter relations. See [Action-group dispatch](#action-group-dispatch) for group definitions.
+LAYOUT_ONLY additionally skips Step 3 (no related-elements expansion) and, after Step 5, filters `relations` down to only those that already have a visual on the existing view — so LAYOUT_ONLY never adds missing relations. EXPAND_VIEW requires elements selected on the view (a view from the model tree is refused). It runs Step 3 from the selected elements; its base relations are the relations drawn on the view (no missing relations between elements already on it are added), plus the relations the steps follow. Steps 4–6 then take every element and diagram object on the view, so the whole view is laid out. See [Action-group dispatch](#action-group-dispatch) for group definitions.
 
 ```
 Step 1  Selection → model + diagram objects (+ VisualSet)
@@ -1233,7 +1233,7 @@ VisualSet is **captured from the target view** before model expansion runs. All 
 
 | Action | Object set | Target view |
 |---|---|---|
-| **EXPAND_VIEW** | Selection (a whole view, or a subset of its canvas objects) drives related-elements expansion. Visuals outside the selection stay in place; selected visuals and any added related elements are repositioned. | The selected view itself, changed in place. `preset.view.name` / `folder` are not used (they apply to new views only); a view is never copied or replaced by name. |
+| **EXPAND_VIEW** | Elements selected on the view (not the view in the model tree) drive related-elements expansion. Added: the step elements and the relations the steps follow. The whole view is laid out; its existing content is unchanged. | The selected view itself, changed in place. `preset.view.name` / `folder` are not used (they apply to new views only); a view is never copied or replaced by name. |
 | **LAYOUT_ONLY** | The selected view's current contents only — no related-elements expansion. | Same as EXPAND_VIEW: the selected view, in place. |
 
 What "preserved" / "re-derived" means concretely:
@@ -1485,9 +1485,10 @@ Scripts/
 │   └── archi_folders.js                 # getFolderPath()
 └── View/
     ├── _gui.ajs                         # Open GUI dialog
-    ├── _generate.ajs                    # Read _Default preset; call generate_view(new_view)
-    ├── _expand.ajs                      # Read session; call generate_view(expand_view)
-    ├── _layout_only.ajs                 # Read session; call generate_view(layout_only)
+    ├── _generate.ajs                    # Base preset → RunPreset.fromBase(new_view)
+    ├── _expand.ajs                      # Base preset → RunPreset.fromBase(expand_view)
+    ├── _layout_only.ajs                 # Base preset → RunPreset.fromBase(layout_only)
+    ├── _layout_*.ajs                    # Same, direction and nesting overridden
     │
     ├── presets/
     │   └── *.ajs                        # Wrapper: load preset → generate_view

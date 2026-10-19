@@ -33,7 +33,8 @@
     "reverseRules": [
       {"relation": "realization-relationship"},
       {"relation": "specialization-relationship"}
-    ]
+    ],
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [

@@ -21,7 +21,9 @@
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
-    ]
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [
@@ -56,5 +58,11 @@
     "name": "",
     "suffix": "",
     "folder": ""
+  },
+  "appearance": {
+    "nestingLevel": {
+      "rootFontBold": true,
+      "rootColor": ""
+    }
   }
 }

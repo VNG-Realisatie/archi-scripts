@@ -17,7 +17,9 @@
     "maxWidth": 0,
     "aspectRatio": 0,
     "nestingRules": [],
-    "reverseRules": []
+    "reverseRules": [],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [
@@ -35,5 +37,11 @@
     "name": "",
     "suffix": "",
     "folder": ""
+  },
+  "appearance": {
+    "nestingLevel": {
+      "rootFontBold": true,
+      "rootColor": ""
+    }
   }
 }

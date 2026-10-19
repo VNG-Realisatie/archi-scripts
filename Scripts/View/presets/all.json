@@ -23,18 +23,18 @@
     "showInEveryContainer": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
-    "layerSpacing": 180,
+    "layerSpacing": 60,
     "elementSpacing": 40,
     "connectionSpacing": 25,
     "connectionElementSpacing": 40,
-    "elementWidth": 140,
+    "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 1.78,
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": false
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementRules": [],
@@ -50,7 +50,7 @@
     ]
   },
   "view": {
-    "name": "Functie-indeling naar domein",
+    "name": "Groep",
     "folder": "/_Generated",
     "suffix": ""
   },

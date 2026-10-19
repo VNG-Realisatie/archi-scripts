@@ -34,7 +34,8 @@
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
-    ]
+    ],
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [

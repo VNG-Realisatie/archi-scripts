@@ -551,13 +551,14 @@ function open(uiSelection) {
   }
 
   // The view Expand view / Layout only work on: the view of selected canvas objects, or a view
-  // selected in the model tree. "" = none, the Modify group is then disabled.
-  let targetViewName = "";
+  // selected in the model tree (Layout only). name "" = none, the Modify group is then disabled;
+  // onCanvas: objects on the view are selected — Expand view needs them to expand from.
+  const target = { name: "", onCanvas: false };
   try {
     uiSelection.each(o => {
-      if (targetViewName) return;
-      if (o.view)                                    targetViewName = String(o.view.name || "");
-      else if (o.type === "archimate-diagram-model") targetViewName = String(o.name || "");
+      if (target.name) return;
+      if (o.view)                                    { target.name = String(o.view.name || ""); target.onCanvas = true; }
+      else if (o.type === "archimate-diagram-model") target.name = String(o.name || "");
     });
   } catch (e) {}
 
@@ -584,7 +585,7 @@ function open(uiSelection) {
       _buildViewPropertiesTab(tabFolder, ctx);
 
       ctx.area = area;
-      _buildActionArea(area, ctx, dlg, targetViewName);
+      _buildActionArea(area, ctx, dlg, target);
       _syncToUI(ctx);
       _updateFilteredCount(ctx);  // populate the live counters on dialog open
       ctx._ready = true;          // enable modified indicator from here on
@@ -2205,7 +2206,8 @@ function _addCombo(parent, label, items, selectedIdx, widthHint, key, w, tooltip
 // Bottom of the dialog: the totals line, then one group per kind of action, Cancel on the right.
 //   Create new view — Folder and Name apply to these actions only.
 //   Modify view     — works on the selected view in place.
-function _buildActionArea(area, ctx, dlg, targetViewName) {
+function _buildActionArea(area, ctx, dlg, target) {
+  const targetViewName = target.name;
   const w = ctx.widgets;
 
   // Always-visible totals: what the current settings put on a view. Multi-line; sub-lines for
@@ -2260,6 +2262,7 @@ function _buildActionArea(area, ctx, dlg, targetViewName) {
   lblTarget.setText(targetViewName || "— select a view, or elements on a view");
   lblTarget.setToolTipText(targetViewName
     ? `${targetViewName}\nExpand view and Layout only change this view in place.`
+      + (target.onCanvas ? "" : "\nExpand view needs elements selected on the view.")
     : "Expand view and Layout only need a selected view, or elements on a view.");
   GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, true).hint(100, SWT.DEFAULT).applyTo(lblTarget);
   if (targetViewName) { const f = _getBoldFont(); if (f) try { lblTarget.setFont(f); } catch (e) {} }
@@ -2268,7 +2271,7 @@ function _buildActionArea(area, ctx, dlg, targetViewName) {
   w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
   w.btnExpandView.setToolTipText(ACTION.EXPAND_VIEW.tooltip);
   w.btnLayoutOnly.setToolTipText(ACTION.LAYOUT_ONLY.tooltip);
-  w.btnExpandView.setEnabled(!!targetViewName);
+  w.btnExpandView.setEnabled(target.onCanvas);
   w.btnLayoutOnly.setEnabled(!!targetViewName);
 
   // ── Cancel: bottom right, under Modify ──

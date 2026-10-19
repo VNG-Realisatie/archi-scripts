@@ -25,7 +25,8 @@
     "labelSizing": false,
     "connectionSpacing": 20,
     "nestingRules": [],
-    "reverseRules": []
+    "reverseRules": [],
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [],

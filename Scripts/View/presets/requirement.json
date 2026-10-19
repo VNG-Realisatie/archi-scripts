@@ -25,7 +25,9 @@
     "reverseRules": [
       {"relation": "assignment-relationship"},
       {"relation": "association-relationship"}
-    ]
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [],
@@ -39,5 +41,11 @@
     "name": "",
     "suffix": "",
     "folder": ""
+  },
+  "appearance": {
+    "nestingLevel": {
+      "rootFontBold": true,
+      "rootColor": ""
+    }
   }
 }

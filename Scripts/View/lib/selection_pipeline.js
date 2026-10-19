@@ -59,11 +59,23 @@ function buildObjectSet(uiSelection, preset, actionId) {
   let collection     = expanded.modelCollection;
   let diagramObjects = expanded.diagramObjects;
 
+  const isModifyAction = actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
+  const isExpand       = actionId === ACTION.EXPAND_VIEW.id;
+
+  // ── Step 1 (continued): existing view contents — target identification + per-VO existence (EXPAND_VIEW + LAYOUT_ONLY).
+  const existing = _collectExistingVisuals(uiSelection, actionId, INDENT);
+  // EXPAND_VIEW expands from elements selected on the view; a view picked in the model tree has no
+  // such selection. The whole view is laid out, but only the steps' relations are added to it.
+  if (isExpand && (existing.viewFromTree || !existing.existingView)) {
+    console.error("Expand view: select one or more elements on the view (not the view in the model tree).");
+    return { elements: [], relations: [], diagramObjects: [], diagramConnections: [],
+             visualElements: [], visualRelations: [], existingView: null };
+  }
+
   // ── Step 2: filter (skipped for the "Modify selected view" group — EXPAND_VIEW and
   // LAYOUT_ONLY re-layout/expand all elements already on the view; applying the filter
   // would exclude visible element types, causing containers to be sized for only the
   // filtered subset while excluded elements remain at positions outside those bounds) ──
-  const isModifyAction = actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
   if (!isModifyAction) {
     _logFilter(preset.filter);
     collection     = _applyFilter(collection, preset.filter);
@@ -90,9 +102,13 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // For modify actions the relation-type filter is also skipped — same rationale as the
   // element filter: EXPAND_VIEW / LAYOUT_ONLY must include ALL existing relations on the
   // view (e.g. both configured nesting types), not only those matching the filter.
+  // EXPAND_VIEW: the base relations are the ones drawn on the view — no missing relations between
+  // elements already on it are added.
   const baseRelMatch = isModifyAction ? null : _globalRelationMatch(preset.filter);
   const allRelIds    = new Set();
-  const allRelations = _findRelationsBetween(filteredElementsArr, baseRelMatch, allRelIds);
+  const allRelations = isExpand
+    ? _viewRelations(existing.visualRelations, allRelIds)
+    : _findRelationsBetween(filteredElementsArr, baseRelMatch, allRelIds);
   const filteredBaseRels = allRelations.length;
 
   const addedElements = [], addedRelations = [], stepCounts = [];
@@ -106,8 +122,12 @@ function buildObjectSet(uiSelection, preset, actionId) {
   addedElements.forEach(o => collection.add(o));
   addedRelations.forEach(r => allRelations.push(r));
 
-  // ── Step 4: elements are the filtered base plus step additions ──
-  const elements = [...filteredElementsArr, ...addedElements];
+  // ── Step 4: elements are the filtered base plus step additions
+  // (EXPAND_VIEW: every element on the view plus step additions, so the whole view is laid out) ──
+  const elements = isExpand
+    ? _uniqueById([...existing.visualElements.map(ve => ve.concept).filter(Boolean), ...addedElements])
+    : [...filteredElementsArr, ...addedElements];
+  if (isExpand) diagramObjects = _expandViews($(existing.existingView)).diagramObjects;
 
   // ── Step 5: relations collected incrementally in step 3 above (base: global filter; per step: step's filter). ──
   const relations = allRelations;
@@ -115,9 +135,6 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // ── Step 6: partition diagram-model-connection (edges) from positional diagram objects ──
   const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
-
-  // ── Step 1 (continued): existing view contents — target identification + per-VO existence (EXPAND_VIEW + LAYOUT_ONLY) ──
-  const existing = _collectExistingVisuals(uiSelection, actionId, INDENT);
 
   // Predict on-view counts using the same algorithm the writer uses.
   const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params);
@@ -413,10 +430,15 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
         else addVE(vo);
       });
     } catch (e) {}
+    // EXPAND_VIEW lays out the whole view, not only the selected visuals.
+    if (actionId === ACTION.EXPAND_VIEW.id && existingView) {
+      try { $(existingView).find("element").each(addVE); } catch (e) {}
+      try { $(existingView).find("relation").each(addVR); } catch (e) {}
+    }
   }
 
   console.log(`${logPrefix}Existing on view: ${visualElements.length} VEs · ${visualRelations.length} VRs · view: "${existingView && existingView.name || "none"}"`);
-  return { existingView, visualElements, visualRelations };
+  return { existingView, visualElements, visualRelations, viewFromTree: viewFound };
 }
 
 function _applyFilter(collection, filter) {
@@ -833,6 +855,24 @@ function _findRelationsBetween(elements, match, seenRelIds, iterateSubset) {
     } catch (e) {}
   }
   return relations;
+}
+
+/** The model relations of visual relations (each once); their ids are added to `seenRelIds`. */
+function _viewRelations(visualRelations, seenRelIds) {
+  const relations = [];
+  for (const vr of visualRelations) {
+    const rel = vr.concept;
+    if (!rel || !rel.id || seenRelIds.has(rel.id)) continue;
+    seenRelIds.add(rel.id);
+    relations.push(rel);
+  }
+  return relations;
+}
+
+/** Objects with an id, each id once (first occurrence kept). */
+function _uniqueById(objects) {
+  const seen = new Set();
+  return objects.filter(o => o && o.id && !seen.has(o.id) && seen.add(o.id));
 }
 
 /**

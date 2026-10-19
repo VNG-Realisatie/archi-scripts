@@ -169,7 +169,7 @@ Four actions in two groups. The writer is identical for all four; an action diff
 |---|---|---|---|---|
 | **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a fresh view in the preset's folder/name (overwrites by name) | empty |
 | | `ONE_EACH` | each selected element, run independently | one fresh view per element, named after the element (plus an optional preset suffix) | empty |
-| **Modify selected view** | `EXPAND_VIEW` | selection drives expansion; unselected visuals stay put | the selected view, in place | captured |
+| **Modify selected view** | `EXPAND_VIEW` | elements selected on the view drive expansion; the whole view is laid out | the selected view, in place | captured |
 | | `LAYOUT_ONLY` | the view's current contents only — no expansion | the selected view | captured |
 
 A model-tree selection can only drive the Create group (nothing identifies a target view). A
@@ -214,7 +214,8 @@ names an unknown type is rejected with a message, never widened to *All*.
 
 **Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds
 a missing relation — it only re-lays-out what is already on the view. `EXPAND_VIEW` expands
-but leaves every unselected visual in place. Neither applies the element-type filter, so a
+from the elements selected on the view and adds only what the steps reach; the rest of the view
+keeps its content. Neither applies the element-type filter, so a
 re-layout can never strip element types that are already drawn.
 
 **Live counts are a promise, not an estimate** ✦ in spirit. The dialog's predicted counts are

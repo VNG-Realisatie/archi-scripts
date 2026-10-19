@@ -461,7 +461,7 @@ const ACTION = Object.freeze({
   ONE_EACH:      { id: "one_each",      label: "One view each",
     tooltip: "Creates one view per selected element, named after the element." },
   EXPAND_VIEW:   { id: "expand_view",   label: "Expand view",
-    tooltip: "Adds elements related to the selection to the view (steps on the Selection tab).\nThe selection and the added elements are laid out; the rest of the view stays in place." },
+    tooltip: "Adds elements related to the elements selected on the view (steps on the Selection tab),\nwith the relations the steps follow, and lays out the whole view.\nNeeds elements selected on the view, not the view in the model tree." },
   LAYOUT_ONLY:   { id: "layout_only",   label: "Layout only",
     tooltip: "Lays out all elements on the view again.\nNothing is added or removed." },
 });
@@ -662,7 +662,11 @@ const DEFAULT_PRESET = Object.freeze({
     labelPosition:         "Middle",
     ranking:               "Balanced",
     acyclicer:             "Default",
-    reverseRules:          [],                     // rule list (rel_filter "relation"): flipped relations; [] = none
+    reverseRules:          [                       // rule list (rel_filter "relation"): flipped relations; [] = none
+      { relation: "realization-relationship" },
+      { relation: "serving-relationship" },
+      { relation: "specialization-relationship" },
+    ],
     nestingRules:          [],                     // rule list (rel_filter "relation"): relations drawn as nesting; [] = none
     padding:               20,
     diagramPadding:        10,
@@ -671,19 +675,19 @@ const DEFAULT_PRESET = Object.freeze({
     snapColumnsToGrid:     false,
     showInEveryContainer:  false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
-    connectionsMode:       "Crossing containers",  // "Crossing containers" | "Between containers"
-    layerSpacing:          180,
+    connectionsMode:       "Between containers",   // "Crossing containers" | "Between containers"
+    layerSpacing:          60,
     elementSpacing:        40,
     connectionSpacing:        25,              // also the port spacing on elements (ELK: portPort)
     connectionElementSpacing: 40,
-    elementWidth:          140,
+    elementWidth:          200,
     elementHeight:         60,
     maxWidth:              0,
-    aspectRatio:           0,
+    aspectRatio:           1.78,
     viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
     labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
     labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
-    connectionLabelSpacing:      false,  // reserve space for connection labels in ELK Layered (prevents overlap)
+    connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
   },
   // Filter lists (empty = keep everything); rule shapes in rel_filter.js.
   filter: {
@@ -692,7 +696,7 @@ const DEFAULT_PRESET = Object.freeze({
     relationRules: [],   // kind "relation"
   },
   relatedElements: {
-    steps: [],  // each: { repeat, rules: [kind "step"] }
+    steps: [{ repeat: 1, rules: [] }],  // each: { repeat, rules: [kind "step"] }
   },
   view: {
     name:   "",
@@ -709,10 +713,10 @@ const DEFAULT_PRESET = Object.freeze({
     nestingLevel: {
       fontEnabled:        false,
       rootFontSize:       14,
-      rootFontBold:       true,
+      rootFontBold:       false,
       fontDecreasePerLevel: 2,
       colorEnabled:       false,
-      rootColor:          "",
+      rootColor:          "#2B5796",
       lightenPerLevel:     15,
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },

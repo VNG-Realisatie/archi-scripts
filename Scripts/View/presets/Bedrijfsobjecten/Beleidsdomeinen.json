@@ -30,7 +30,8 @@
     "reverseRules": [
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
-    ]
+    ],
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [

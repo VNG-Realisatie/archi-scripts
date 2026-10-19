@@ -36,7 +36,8 @@ algorithm does not use are greyed and named in the group's hint line.
 
 A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON).
 Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used
-settings are kept in `presets/_session.json` (local, not in git).
+settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are
+not listed in the dialog; `_Default.json` holds the code defaults.
 
 Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring
 it up to date with `node Scripts/View/tools/migrate_presets_relrows.js` (`--dry-run` first).
@@ -45,16 +46,16 @@ it up to date with `node Scripts/View/tools/migrate_presets_relrows.js` (`--dry-
 
 Run a preset without the dialog.
 
-**Last-used settings** (session):
+**Base preset** — the preset `all` (edit it in the dialog; without it the code defaults `_Default`):
 
 | Script | Action |
 |---|---|
-| `_generate.ajs` | New view with the `_Default` preset |
+| `_generate.ajs` | New view |
 | `_generate_multiple.ajs` | One view each |
-| `_expand.ajs` | Expand view |
+| `_expand.ajs` | Expand view — from the elements selected on a view; the whole view is laid out |
 | `_layout_only.ajs` | Layout only |
-| `_layout_LR.ajs`, `_layout_TB.ajs` | Layout only, direction Right / Down |
-| `_layout_nested_LR.ajs`, `_layout_nested_TB.ajs` | Layout only with preset `nested` |
+| `_layout_LR.ajs`, `_layout_TB.ajs` | Layout only, direction Right / Down, no nesting |
+| `_layout_nested_LR.ajs`, `_layout_nested_TB.ajs` | Layout only, direction Right / Down, aggregation as nesting |
 
 **Named preset**: name a script `<preset>_<Action>_<Direction>.ajs` and give it these lines:
 

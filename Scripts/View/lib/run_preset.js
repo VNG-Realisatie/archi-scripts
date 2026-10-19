@@ -10,13 +10,21 @@
  * A shortcut script is then three lines:
  *   const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
  *   RunPreset.fromFilename(__FILE__, $(selection), { folder: "GEMMA" });
+ *
+ * The View/_*.ajs scripts run the base preset instead (fromBase), with fixed overrides:
+ *   RunPreset.fromBase($(selection), ACTION.LAYOUT_ONLY.id, { direction: "Down" });
  */
 console.log("Loading run_preset.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 const GenView  = require(REPO_ROOT + "View/lib/generate_view");
-const { ACTION } = require(REPO_ROOT + "View/lib/defs");
+const Defs     = require(REPO_ROOT + "View/lib/defs");
+const { ACTION } = Defs;
+
+// Base preset of the View/_*.ajs scripts: a normal preset, so it is edited in the dialog.
+// _Default (the code defaults) is used when it does not exist.
+const BASE_PRESET_NAME = "all";
 
 const FILENAME_ACTIONS = Object.freeze({
   Generate:         ACTION.NEW_VIEW.id,
@@ -59,6 +67,21 @@ function fromFilename(file, selection, opts = {}) {
   return GenView.generate_view(preset, selection, parsed.actionId);
 }
 
+/**
+ * Run the base preset on the selection, with some params overridden.
+ * @param {ArchiCollection} selection  usually $(selection)
+ * @param {string}          actionId   ACTION.*.id
+ * @param {Object}          [params]   params that replace the preset's, e.g. { direction: "Down", nestingRules: [] }
+ * @returns {ArchimateView[]} generated / changed views
+ */
+function fromBase(selection, actionId, params = {}) {
+  const name   = PresetIO.listPresets().includes(BASE_PRESET_NAME) ? BASE_PRESET_NAME : PresetIO.DEFAULT_PRESET_NAME;
+  const preset = PresetIO.readPreset(name);
+  Object.assign(preset.params, params);
+  console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
+  return GenView.generate_view(Defs.validatePreset(preset), selection, actionId);  // validate the overrides too
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS };
+  module.exports = { fromFilename, fromBase, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
 }

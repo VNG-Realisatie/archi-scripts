@@ -24,7 +24,9 @@
     "reverseRules": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
-    ]
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
   },
   "filter": {
     "elementRules": [
