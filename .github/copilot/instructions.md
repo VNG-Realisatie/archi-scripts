@@ -1,6 +1,6 @@
 # Copilot instructions — archi-scripts
 
-See [`ai/rules.md`](../../ai/rules.md) for layer model, folder structure, and source references.
+See [`ai/rules.md`](../../ai/rules.md) for layers, source references, and hard rules.
 
 ## Hard rules
 
