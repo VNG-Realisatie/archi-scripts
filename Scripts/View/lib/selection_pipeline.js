@@ -70,7 +70,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   if (isExpand && (existing.viewFromTree || !existing.existingView)) {
     console.error("Expand view: select one or more elements on the view (not the view in the model tree).");
     return { elements: [], relations: [], diagramObjects: [], diagramConnections: [],
-             visualElements: [], visualRelations: [], existingView: null };
+             visualElements: [], visualRelations: [], existingView: null, visuals: [] };
   }
 
   // ── Step 2: filter (skipped for the "Modify selected view" group — EXPAND_VIEW and
