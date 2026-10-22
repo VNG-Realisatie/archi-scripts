@@ -139,7 +139,6 @@ const RELATION_RULE_COLUMNS = Object.freeze([
   _relCol("relation", "Relation type", "Relationship type. All = any type."),
   _typeCol("target", "Target type", "Element type at the end of the relation. All = any type."),
 ]);
-const FEATURE_RULE_COLUMNS = Object.freeze([_onCol, ...RELATION_RULE_COLUMNS]);
 // Nesting / reverse: the relation-type combo shows the rule's count, "Aggregation (62)".
 const _countedRelCol = Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "relations", width: 150,
   tooltip: "Relationship type. All = any type.\n(n): relations on the view this rule matches on its own; " +
@@ -266,14 +265,6 @@ function _scrolledTab(tabFolder, tabLabel) {
   };
 }
 
-// ── Column wrapper: keeps label + control in one grid cell ──────────────────────────────────
-function _col(parent) {
-  const c = new CompositeWidget(parent, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(2, 3).applyTo(c);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(c);
-  return c;
-}
-
 function _lbl(parent, text) {
   const l = new LabelWidget(parent, SWT.NONE);
   l.setText(text || "");
@@ -302,7 +293,7 @@ function _countSelection(coll) {
   return { elems, rels, views, diagrams, folders };
 }
 
-// Ordered (key, singular, plural) tuples driving _formatCountsLine output order.
+// Ordered (key, singular, plural) tuples driving _formatCountsBody output order.
 const _COUNT_LABELS = [
   ["elems",    "element",  "elements"],
   ["rels",     "relation", "relations"],
@@ -311,13 +302,8 @@ const _COUNT_LABELS = [
   ["folders",  "folder",   "folders"],
 ];
 
-// Render a count line: "Prefix: 3 elements, 2 relations; First object: …".
-// Types with count 0 are omitted entirely. Empty selection → "Prefix: nothing".
-function _formatCountsLine(prefix, counts, firstObject) {
-  return `${prefix}: ${_formatCountsBody(counts, firstObject)}`;
-}
-
-// The body part only — used for the right column of 2-col counter rows.
+// A count line: "3 elements · 2 relations  (first: …)". Types with count 0 are omitted;
+// an empty selection gives "nothing". Used for the right column of 2-col counter rows.
 function _formatCountsBody(counts, firstObject) {
   const parts = [];
   for (const [key, sg, pl] of _COUNT_LABELS) {
@@ -747,13 +733,13 @@ function _updateFilteredCount(ctx) {
     // Filtered base — only the elements survive the element filter and feed the steps.
     // Explicit relations in the selection are not counted: the view's relations are derived
     // from the elements (rels-between-filtered-elements, computed below).
-    let elems = 0, diagrams = 0;
+    let diagrams = 0;
     const filteredElements = [];
     for (const o of objects) {
       const t = o.type || "";
       if (t.endsWith("-relationship")) continue;
       if (t in DIAGRAM_TYPES) { if (Pipeline.diagramPasses(filter.diagramRules, t)) diagrams++; }
-      else if (RuleLists.matchElement(filter.elementRules, o)) { elems++; filteredElements.push(o); }
+      else if (RuleLists.matchElement(filter.elementRules, o)) filteredElements.push(o);
     }
 
     // Collect relations incrementally: base uses the global relation rules; each step its own
@@ -761,8 +747,6 @@ function _updateFilteredCount(ctx) {
     // seenRelIds is threaded across calls to prevent double-counting.
     const seenRelIds = new Set();
     const finalRels  = Pipeline.findRelationsBetween(filteredElements, Pipeline.globalRelationMatch(filter), seenRelIds);
-    // Only rels with both endpoints in the surviving element set count.
-    const filteredBaseRels = finalRels.length;
 
     // Global filter counters, per rule in its type combo.
     const rawElements = objects.filter(o => { const t = o.type || ""; return !t.endsWith("-relationship") && !(t in DIAGRAM_TYPES); });
@@ -779,10 +763,7 @@ function _updateFilteredCount(ctx) {
     // (N≥2)'s input is step N-1's added elements only. An empty step terminates the chain.
     let cumulative = filteredElements.slice();
     let stepInput  = filteredElements.slice();
-    const stepCounts = [];
-    let stepIdx = 0;
     for (const b of (ctx.relBlocks || [])) {
-      stepIdx++;
       const step = { repeat: b.getRepeat(), rules: b.table.getRules() };
       const seenBefore = new Set(seenRelIds);
       const { added, rels: stepRels, cumulative: newCumul, runs, capped, candidates } =
@@ -797,7 +778,6 @@ function _updateFilteredCount(ctx) {
       const runInfo = step.repeat !== Defs.REPEAT_UNTIL_NOTHING_NEW ? ""
         : capped ? `  (stopped at max ${Defs.REPEAT_MAX}×)` : `  (nothing new after ${runs}×)`;
       _setRel(b, added.length, stepRels.length, runInfo);
-      stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
       stepInput = added;                                                       // chain advance
     }
     // What the view will hold — Appearance uses it for property lists and the ⚠ conflict check.
@@ -820,35 +800,6 @@ function _updateFilteredCount(ctx) {
         if (ctx.area) ctx.area.layout(true, true);  // the line count may change
       } catch (e) {}
     }
-
-    // Console grouped block — same grouped Total to view shape as the pipeline so
-    // dialog prediction and pipeline result can be compared row-by-row.
-    const rows = [{
-      label: "Filtered base:",
-      elements: elems, relations: filteredBaseRels, diagramObjects: diagrams,
-    }];
-    for (const lc of stepCounts) {
-      rows.push({ label: `Step ${lc.idx} adds: `, elements: lc.elems, relations: lc.rels });
-    }
-    if (stepCounts.length > 0) rows.push({ rule: true });
-    rows.push({
-      label: "Total to view:",
-      group: [
-        { sublabel: "elements:  ", fields: [
-            ["containers",       view.containers],
-            ["nestedElements",   view.nestedElements],
-            ["standalones",      view.standalones],
-            ["extraOccurrences", view.extraOccurrences],
-          ] },
-        { sublabel: "relations: ", fields: [
-            ["nestings",         view.nestings],
-            ["connections",      view.connections],
-          ] },
-        { sublabel: "diagram:   ", fields: [
-            ["diagramObjects",   view.diagramObjects],
-          ] },
-      ],
-    });
   } catch (e) {
     (ctx.relBlocks || []).forEach(b => _setRel(b, 0, 0));
   }
