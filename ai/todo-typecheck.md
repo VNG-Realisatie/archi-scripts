@@ -39,9 +39,9 @@ Daarna npm run typecheck. Commits volgens ai/rules.md.
 Uitkomst stap 3: alle checks goed. Gevonden: uitgeschakelde rijen op de Properties-tab verwijderden
 view-properties (in strijd met de SPEC) — hersteld in `bc094ee`.
 
-## 4. Open bevindingen — jij beslist, daarna Opus
+## 4. Open bevindingen — jij beslist, daarna Opus (gedaan 2026-10-22)
 
-- [ ] Keuzes invullen in de prompt:
+- [x] Keuzes invullen in de prompt:
 
 ```
 Voer deze beslissingen door voor de open typecheck-bevindingen in de View-subsystem
@@ -58,6 +58,11 @@ Per beslissing een fix-commit; verwijder de bijbehorende casts en commentaren.
 Controle: npm run typecheck, node Scripts/View/tools/{rel_filter_test,nesting_test}.js,
 tools/compare-layouts.js tegen de vorige HEAD.
 ```
+
+Uitkomst stap 4 (`a173c70`..`b965e8a`): graphvizBin en preset.debug verwijderd; standaard-reverseRules
+genormaliseerd; stap volgt geen relatie met een relatie als ander uiteinde (SPEC: relaties op relaties
+nog niet ondersteund); ontbrekende Views-map → foutmelding; `_runDot` stderr via tempbestand.
+Nog te doen in Archi: Graphviz-preset (Dot) opnieuw draaien — `_runDot` is in Node niet te testen.
 
 ## 5. Copilot-adapter opschonen — Sonnet
 
