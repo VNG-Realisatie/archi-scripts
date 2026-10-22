@@ -1,6 +1,6 @@
 {
   // Static type checking of jArchi scripts: JSDoc + tsc, no emit. Run: npm run typecheck
-  // Scope grows module by module; see types/README.md.
+  // Scope and how to extend it: types/README.md.
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
@@ -20,16 +20,7 @@
     "Scripts/_lib/Common.js",
     "Scripts/_lib/archi_folders.js",
     "Scripts/_lib/selection.js",
-    "Scripts/View/lib/appearance.js",
-    "Scripts/View/lib/defs.js",
-    "Scripts/View/lib/engines/dagre.js",
-    "Scripts/View/lib/engines/elk.js",
-    "Scripts/View/lib/engines/engine-utils.js",
-    "Scripts/View/lib/engines/graphviz.js",
-    "Scripts/View/lib/generate_view.js",
-    "Scripts/View/lib/preset_io.js",
-    "Scripts/View/lib/rel_filter.js",
-    "Scripts/View/lib/run_preset.js",
-    "Scripts/View/lib/selection_pipeline.js"
+    "Scripts/View/lib/*.js",
+    "Scripts/View/lib/engines/*.js"
   ]
 }
