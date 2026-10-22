@@ -93,7 +93,10 @@ function _presetPath(name) {
  */
 function _scanPresets() {
   const File = Java.type("java.io.File");
-  const names = /** @type {string[]} */ ([]), folders = /** @type {Set<string>} */ (new Set());
+  /** @type {string[]} */
+  const names = [];
+  /** @type {Set<string>} */
+  const folders = new Set();
   /** @type {(dir: any, prefix: string) => void}  dir: a java.io.File */
   const walk = (dir, prefix) => {
     const files = dir.listFiles();
