@@ -679,8 +679,10 @@ function _byNameThenId(a, b) {
 
 /**
  * Placement of an occurrence: element id and its container chain up to the view root.
- * @param {string | null} elementId
- * @param {string[]}      chain
+ * @template {string | null} E
+ * @param {E}        elementId
+ * @param {string[]} chain
+ * @returns {string | E}
  */
 function _placementKey(elementId, chain) {
   return chain.length ? `${elementId} in ${chain.join(" in ")}` : elementId;
@@ -875,10 +877,10 @@ function _nestingConnections(parentRels, visualOf, visualRelations) {
  * sorted. `exists(occ)` tells whether the occurrence got a visual.
  * @param {NestingResolution}        nesting
  * @param {(occ: string) => boolean} exists
- * @returns {(string | null)[]}
+ * @returns {string[]}
  */
 function _managedRecords(nesting, exists) {
-  /** @type {(string | null)[]} */
+  /** @type {string[]} */
   const out = [];
   for (const occ of nesting.managedOccs) {
     if (!exists(occ)) continue;
