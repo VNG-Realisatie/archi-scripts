@@ -229,7 +229,9 @@ function _getFuncName() {
   regExpString += `{${STACK_LEVEL_START}}`;
 
   let funcName = stack.match(regExpString);
-  if (funcName[2] == "<program>") {
+  // No match when the stack is shallower than expected or a path has characters outside the
+  // pattern (e.g. "&", "'", non-ASCII): log without a function name instead of throwing.
+  if (!funcName || funcName[2] == "<program>") {
     return "";
   } else {
     return `${funcName[2]}()`;
@@ -248,30 +250,6 @@ function generateUUID() {
     r = ((d + r) % 16) | 0;
     d = Math.floor(d / 16);
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
-
-/**
- * @returns UUID
- * https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
- * Note: The use of any UUID generator that relies on Math.random() is strongly discouraged
- *
- * Test: console.log(uuidv4());
- *
- * Not used yet. How to load module crypto?
- *
- */
-// function uuidv4() {
-//   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
-//     (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
-//   );
-// }
-// ChatGPT improved version
-function uuidv4() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16; // Generate random number between 0-15
-    const v = c === "x" ? r : (r & 0x3) | 0x8; // For 'y', ensure the variant is 10xx
-    return v.toString(16);
   });
 }
 
@@ -350,7 +328,6 @@ if (typeof module !== "undefined" && module.exports) {
     debugStackPush,
     debugStackPop,
     generateUUID,
-    uuidv4,
     formatRelation,
     getFormattedDateTime,
     concept,

@@ -45,7 +45,7 @@ General-purpose utilities and logging.
 - `debugStackPush(enabled)` / `debugStackPop()` — control call-stack tracking (GraalVM only)
 - `concept(object)` — unwrap visual objects to their model concept
 - `logInColumns(data, headers)` — tabular console output
-- `generateUUID()` / `uuidv4()` — UUID generators
+- `generateUUID()` — UUID generator
 - `formatRelation(rel, withTypes, reversed)` — human-readable relation string with optional type/direction
 - `getFormattedDateTime()` — returns `"DD-MM-YYYY HH:MM:SS"`
 
