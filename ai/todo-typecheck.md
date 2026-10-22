@@ -111,10 +111,10 @@ dialog_presets 32), bijna alle impliciete `any`. `types/swt.d.ts` typeert `Java.
 `Java.super` toegevoegd aan jarchi.d.ts. Fixes: dode code in dialog_main (ongebruikt console-blok,
 `_col`, `_formatCountsLine`, `FEATURE_RULE_COLUMNS`) en fallbacks voor een gevalideerde preset
 (`|| {}`, `_inferViewSizeMode`). Casts: dialog_main 30, rule_table 4, dialog_presets 2.
-Nog te doen in Archi: rule_table bewaart de property-namen van een combo als JS-property op het
-Java-object (`c._names`); als GraalJS die schrijfactie negeert, slaat een gekozen Property in een
-regel altijd "" op. Controleren: Property condition aan, een property kiezen, preset opslaan en de JSON
-bekijken. Zo ja: `setData("names", …)` / `getData`.
+In Archi bevestigd: rule_table bewaarde de property-namen van een combo als JS-property op het
+Java-object (`c._names`); GraalJS negeert die schrijfactie, dus een gekozen Property sloeg altijd ""
+op. Hersteld met `setData("names", JSON)`. Nog te doen in Archi: de controle herhalen (Appearance ›
+Style by property › + Add rule › Property kiezen: de combo blijft staan).
 
 ## 8. CI — Sonnet, na de push
 

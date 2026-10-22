@@ -186,10 +186,11 @@ function ruleTable(parent, opts) {
     const fn = col.kind === "prop" ? opts.propItems : opts.valueItems;
     return [""].concat((fn ? fn(rule, col.key) : []) || []);
   };
-  // Fill a property / value combo. The plain names stay on the control (_names) so a decorated
-  // label ("Status (14)") never ends up in the rule.
+  // Fill a property / value combo. The plain names stay on the control (data "names", as JSON:
+  // a JS property on a Java object is dropped) so a decorated label ("Status (14)") never ends
+  // up in the rule.
   /**
-   * @param {NamedCombo} c
+   * @param {Swt.Combo} c
    * @param {RuleTablePlainColumn<RuleByKind[K]>} col
    * @param {RuleByKind[K] & Record<string, any>} rule
    * @param {number} i
@@ -202,7 +203,7 @@ function ruleTable(parent, opts) {
     const n = col.count && counts[i] ? counts[i][col.count] : undefined;
     const idx = names.indexOf(value);
     if (n !== undefined && n !== null) labels[idx] = value ? `${value} (${n})` : `(${n})`;
-    c._names = names;
+    c.setData("names", JSON.stringify(names));
     if (String(c.getText()) === labels[idx] && c.getItemCount() === labels.length) return;
     c.removeAll();
     labels.forEach(l => c.add(String(l)));
@@ -244,13 +245,14 @@ function ruleTable(parent, opts) {
       }
       case "prop":
       case "value": {
-        const c = /** @type {NamedCombo} */ (new ComboWidget(grid, SWT.READ_ONLY | SWT.DROP_DOWN));
+        const c = new ComboWidget(grid, SWT.READ_ONLY | SWT.DROP_DOWN);
         fillList(c, col, rule, i);
         gd().hint(col.width || 100, SWT.DEFAULT).applyTo(c);
         c.setToolTipText(tip);
         c.addListener(SWT.Selection, () => {
           const k = c.getSelectionIndex();
-          rule[col.key] = k > 0 && c._names ? String(c._names[k]) : "";
+          const names = c.getData("names");
+          rule[col.key] = k > 0 && names ? String(JSON.parse(String(names))[k]) : "";
           if (col.kind === "prop" && !rule.property) rule.value = "";
           if (col.onChange) col.onChange(rule);
           refresh(); changed();
@@ -413,12 +415,6 @@ function ruleTable(parent, opts) {
     footer,
   };
 }
-
-/**
- * A property / value combo carrying its plain names as a JS property (fillList). Unverified: a
- * property written on a Java object may not stick in GraalJS.
- * @typedef {Swt.Combo & { _names?: string[] }} NamedCombo
- */
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { ruleTable };

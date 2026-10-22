@@ -55,6 +55,9 @@ lazily and treat a typo as a package; use `Java.type`.
   object key without `String()`. `String(x)` remains a harmless way to stringify any host value.
 - **Getters/setters** read and write as properties (`file.getName()` or `file.name`; jArchi's
   `getBounds()` is `vo.bounds`).
+- **No JS properties on Java objects:** `combo._names = […]` is dropped without an error (observed
+  on an SWT `Combo`, 2026-10-22); reading it back gives `undefined`. Keep the data in JS, or on an
+  SWT widget with `setData(key, value)` — a string round-trips; store a list as JSON.
 - **Exceptions** from Java are catchable; `e.getMessage()` works on a Java exception, `e.message`
   on a JS error — `String(e)` covers both.
 
