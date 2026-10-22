@@ -528,7 +528,7 @@ function _writeView(preset, result, objectSet, view, nesting) {
   // ── Nodes: reposition existing, add new ──
   {
     const containerNodeIds = new Set();
-    sortedNodes.forEach(n => { if (n.parent) containerNodeIds.add(n.parent); });
+    sortedNodes.forEach(n => { if (n.parentId) containerNodeIds.add(n.parentId); });
     const extraOccurrenceNodes = sortedNodes.filter(n => n.id.includes("_occ_"));
     let nodeLogLine = `  Writing ${sortedNodes.length} nodes`;
     if (extraOccurrenceNodes.length > 0) {
