@@ -151,6 +151,7 @@ function layout(graph) {
           const inner = points.slice(1, -1);
           selfLoopEdgeResults.push({
             id:         edge.id,
+            conceptId:  edge.conceptId,
             sourceId:   edge.source,
             targetId:   edge.target,
             bendpoints: inner.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
