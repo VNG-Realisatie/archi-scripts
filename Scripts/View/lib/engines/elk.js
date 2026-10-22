@@ -1116,6 +1116,7 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
 
   resultEdges.push({
     id:            originalId,
+    conceptId:     originalId,
     sourceId:      meta ? meta.origSrcId : edge.sources[0],
     targetId:      meta ? meta.origTgtId : edge.targets[0],
     bendpoints:    bps,
