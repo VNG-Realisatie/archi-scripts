@@ -62,11 +62,11 @@ tools/compare-layouts.js tegen de vorige HEAD.
 Uitkomst stap 4 (`a173c70`..`b965e8a`): graphvizBin en preset.debug verwijderd; standaard-reverseRules
 genormaliseerd; stap volgt geen relatie met een relatie als ander uiteinde (SPEC: relaties op relaties
 nog niet ondersteund); ontbrekende Views-map → foutmelding; `_runDot` stderr via tempbestand.
-Nog te doen in Archi: Graphviz-preset (Dot) opnieuw draaien — `_runDot` is in Node niet te testen.
+Graphviz-preset (Dot) in Archi opnieuw gedraaid: werkt.
 
-## 5. Copilot-adapter opschonen — Sonnet
+## 5. Copilot-adapter opschonen — Sonnet (gedaan: .github/copilot, .cursorrules en .cursor/ verwijzen alleen naar ai/rules.md)
 
-- [ ] Prompt:
+- [x] Prompt:
 
 ```
 .github/copilot/instructions.md herhaalt de harde regels uit ai/rules.md (in strijd met regel 10;
@@ -116,8 +116,7 @@ Java-object (`c._names`); GraalJS negeert die schrijfactie, dus een gekozen Prop
 op. Hersteld met `setData("names", JSON)` (`ef61f6a`), in Archi bevestigd.
 Daarbij gevonden: een smaller gemaakte stijlregel liet bij Layout only / Expand view kleuren van een
 eerdere run staan. Nu zet de stijlstap met stijlregels eerst alle vul- en lijnkleuren terug (SPEC §10,
-`083104c`). Nog te doen in Archi: Object ID zonder type → Layout only, dan een elementtype kiezen →
-Layout only; alleen dat type is nog gekleurd.
+`083104c`), in Archi bevestigd.
 
 ## 8. CI — Sonnet, na de push
 
@@ -131,5 +130,5 @@ Documenteer in types/README.md en ai/repo-guide.md § Testing. Eén commit.
 
 ## 9. Push en PR — jij
 
-- [ ] Pas na 1–3 pushen, zodat de fixes in Archi bevestigd zijn. Geen AI-vermelding in commit- of
+- [x] Pas na 1–3 pushen, zodat de fixes in Archi bevestigd zijn. Geen AI-vermelding in commit- of
   PR-teksten (regel 13).
