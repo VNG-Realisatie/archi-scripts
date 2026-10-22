@@ -113,8 +113,11 @@ dialog_presets 32), bijna alle impliciete `any`. `types/swt.d.ts` typeert `Java.
 (`|| {}`, `_inferViewSizeMode`). Casts: dialog_main 30, rule_table 4, dialog_presets 2.
 In Archi bevestigd: rule_table bewaarde de property-namen van een combo als JS-property op het
 Java-object (`c._names`); GraalJS negeert die schrijfactie, dus een gekozen Property sloeg altijd ""
-op. Hersteld met `setData("names", JSON)`. Nog te doen in Archi: de controle herhalen (Appearance ›
-Style by property › + Add rule › Property kiezen: de combo blijft staan).
+op. Hersteld met `setData("names", JSON)` (`ef61f6a`), in Archi bevestigd.
+Daarbij gevonden: een smaller gemaakte stijlregel liet bij Layout only / Expand view kleuren van een
+eerdere run staan. Nu zet de stijlstap met stijlregels eerst alle vul- en lijnkleuren terug (SPEC §10,
+`083104c`). Nog te doen in Archi: Object ID zonder type → Layout only, dan een elementtype kiezen →
+Layout only; alleen dat type is nog gekleurd.
 
 ## 8. CI — Sonnet, na de push
 
