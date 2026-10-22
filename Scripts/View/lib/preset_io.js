@@ -54,7 +54,7 @@ function writeJSON(path, obj) {
     writer.write(RuleLists.stringifyPreset(obj));
     writer.close();
   } catch (e) {
-    console.error("Failed to write file:", path, e);
+    console.error(`Failed to write file: ${path} ${e}`);
   }
 }
 
