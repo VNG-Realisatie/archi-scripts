@@ -307,8 +307,8 @@ function getFormattedDateTime() {
 /**
  * return a concept for a visual concept or concept
  * (a visual without a concept, such as a note or group, is returned as is)
- * @param {ArchiConcept | DiagramComponent} o
- * @returns {ArchiConcept | DiagramComponent}
+ * @param {ArchiObject} o
+ * @returns {ArchiObject}
  */
 function concept(o) {
   return o.concept ? o.concept : o;

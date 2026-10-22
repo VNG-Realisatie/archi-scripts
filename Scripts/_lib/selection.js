@@ -13,6 +13,7 @@
 console.log("Loading selection.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("./Common")} */
 const Common = require(REPO_ROOT + "_lib/Common");
 
 const DIAGRAM_OBJECT_TYPES = [
@@ -28,9 +29,10 @@ const DIAGRAM_OBJECT_TYPES = [
 /**
  * apply a function to the given collection
  *
- * @param {object} collection collection of Archi objects
- * @param {Function} pFunc function to apply to Archi (visual) objects
- * @param {array} pArgs optional array with arguments for the function
+ * @template {ArchiProxy} T
+ * @param {ArchiCollection<T>} collection collection of Archi objects
+ * @param {(object: T, args?: unknown[]) => void} pFunc function to apply to Archi (visual) objects
+ * @param {unknown[]} [pArgs] optional array with arguments for the function
  */
 function applyToCollection(collection, pFunc, pArgs) {
   console.log(`Apply ${pFunc.name} to selection`);
@@ -42,13 +44,13 @@ function applyToCollection(collection, pFunc, pArgs) {
  * return an array with the in the selection contained objects
  * wrapper function for getSelection()
  *
- * @param {object} startSelection - selection containing Archi objects
- * @param {string} selector - Archi selector for filtering the type of objects
- * @returns {array} - selected objects
+ * @param {ArchiCollection<ArchiObject>} startSelection - selection containing Archi objects
+ * @param {string} [selector] - Archi selector for filtering the type of objects
+ * @returns {ArchiObject[]} - selected objects
  */
 function getSelectionArray(startSelection, selector) {
   const collection = getSelection(startSelection, selector);
-  /** @type {any[]} */
+  /** @type {ArchiObject[]} */
   const list = [];
   collection.each((o) => list.push(o));
   return list;
@@ -58,9 +60,10 @@ function getSelectionArray(startSelection, selector) {
  * Return a collection of the model objects in the selection.
  * Containers (folders, views, canvas groupings) are recursively expanded.
  *
- * @param {object} startSelection - selection containing Archi objects (model tree or canvas)
- * @param {string} selector - Archi selector for filtering the type of objects (default "*")
- * @returns {object} - collection of model concepts (ArchiElement/ArchiRelation/Folder/ArchimateView)
+ * @param {ArchiCollection<ArchiObject>} startSelection - selection containing Archi objects (model tree or canvas)
+ * @param {string} [selector] - Archi selector for filtering the type of objects (default "*")
+ * @param {string} [logPrefix]
+ * @returns {ArchiCollection<ArchiObject>} - model concepts (ArchiElement/ArchiRelation/Folder/ArchimateView); diagram-model-* visuals as themselves
  */
 function getSelection(startSelection, selector = "*", logPrefix = "") {
   if (model == null || model.id == null) {
@@ -89,9 +92,9 @@ function getSelection(startSelection, selector = "*", logPrefix = "") {
  * Containers (folders, views, canvas groupings) are recursively expanded.
  * If exactly one visual object matches, expands to all visual objects of its type on the same view.
  *
- * @param {object} startSelection - selection containing Archi objects (must include canvas VOs)
- * @param {string} selector - Archi selector OR "diagram" pseudo-selector for diagram-model-* types
- * @returns {object} - collection of visual objects
+ * @param {ArchiCollection<ArchiObject>} startSelection - selection containing Archi objects (must include canvas VOs)
+ * @param {string} [selector] - Archi selector OR "diagram" pseudo-selector for diagram-model-* types
+ * @returns {ArchiCollection<VisualObject | VisualConnection>} - collection of visual objects
  */
 function getVisualSelection(startSelection, selector = "*") {
   if (model == null || model.id == null) {
@@ -109,7 +112,7 @@ function getVisualSelection(startSelection, selector = "*") {
 
   // Preserve existing behaviour: if exactly one VO selected, expand to all of its type on the view.
   if (coll.size() === 1) {
-    const obj = coll.first();
+    const obj = /** @type {VisualObject | VisualConnection} */ (coll.first());   // Cast: size() is 1
     console.log(`One concept selected, apply to all concepts of type ${obj.type}`);
     coll = $(obj.view).find(obj.type);
   }
@@ -123,15 +126,15 @@ function getVisualSelection(startSelection, selector = "*") {
  * For each visited obj, call decide(obj); add the returned value (if any) to the result.
  * Dedup by .id via internal Set.
  *
- * @param {object}   startSelection - Archi collection to walk
- * @param {Function} decide         - (obj) => object-to-add or null/undefined to skip
- * @returns {object} Archi collection of unique results
+ * @template {ArchiObject} R
+ * @param {ArchiCollection<ArchiObject>}               startSelection - Archi collection to walk
+ * @param {(obj: ArchiObject) => R | null | undefined} decide         - object-to-add or null/undefined to skip
+ * @returns {ArchiCollection<R>} Archi collection of unique results
  */
 function _walkAndCollect(startSelection, decide) {
-  /** @type {any} */
-  const coll = $();
+  const coll = /** @type {ArchiCollection<R>} */ ($());   // Cast: an empty collection holds any type
   const seen = new Set();
-  function walk(/** @type {any} */ obj) {
+  function walk(/** @type {ArchiObject} */ obj) {
     const target = decide(obj);
     if (target && target.id && !seen.has(target.id)) {
       seen.add(target.id);
@@ -143,6 +146,10 @@ function _walkAndCollect(startSelection, decide) {
   return coll;
 }
 
+/**
+ * @param {ArchiCollection<ArchiObject>} startSelection
+ * @param {string} [logPrefix]
+ */
 function _logSelected(startSelection, logPrefix = "") {
   if (startSelection.size() === 1) {
     console.log(`${logPrefix}Selected ${startSelection.first()}`);

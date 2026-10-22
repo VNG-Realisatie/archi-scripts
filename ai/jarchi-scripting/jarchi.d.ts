@@ -41,6 +41,8 @@ interface ArchiProxy {
 interface ArchiConcept extends ArchiProxy {
   specialization: string;
   readonly concept: this;
+  /** Not a visual. (A member a proxy lacks reads as undefined, so `o.view` tells visuals apart.) */
+  readonly view?: undefined;
 }
 
 interface ArchiElement extends ArchiConcept {
@@ -70,6 +72,8 @@ interface ArchiRelation extends ArchiConcept {
 }
 
 interface Folder extends ArchiProxy {
+  readonly view?: undefined;
+  readonly concept?: undefined;
   createFolder(name: string): Folder;
   add(child: ArchiConcept | ArchiView | Folder): this;
 }
@@ -172,6 +176,8 @@ interface VisualConnection extends DiagramComponent {
 
 /** Any view: ArchiMate, sketch or canvas (DiagramModelProxy). */
 interface ArchiView extends ArchiProxy {
+  readonly view?: undefined;
+  readonly concept?: undefined;
   /** Move an existing visual to the top level of this view. @since 1.10 */
   add(visual: VisualObject, x: number, y: number): VisualObject;
   createObject(type: string, x: number, y: number, width: number, height: number, autoNest?: boolean): VisualObject;
@@ -204,6 +210,8 @@ interface Specialization {
 
 /** A loaded model (ArchimateModelProxy). */
 interface ArchiModel extends ArchiProxy {
+  readonly view?: undefined;
+  readonly concept?: undefined;
   purpose: string;
   readonly specializations: Specialization[];
   createElement(type: string, name: string, folder?: Folder): ArchiElement;
@@ -306,9 +314,15 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   filter(predicate: (object: T) => boolean): ArchiCollection<T>;
   not(selector: string | ArchiCollection<ArchiProxy>): ArchiCollection<T>;
   has(selector: string): ArchiCollection<T>;
-  /** Union; the original collection is not changed. */
+  /**
+   * Append the objects of `other` to THIS collection and return it (it mutates, despite the
+   * source comment "create a new collection"); objects already present are not de-duplicated.
+   */
   add<U extends ArchiProxy>(other: ArchiCollection<U>): ArchiCollection<T | U>;
+  /** Append model.find(selector) of the first object's model to this collection (mutates). */
   add(selector: string): ArchiCollection<T | ArchiObject>;
+  /** java.util.ArrayList.add: append one object in place; returns true. @remarks unverified overload pick */
+  add(object: T): boolean;
 
   attr(name: string): unknown;
   attr(name: string, value: unknown): this;
@@ -324,6 +338,8 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
 // ── $ / jArchi ───────────────────────────────────────────────────────────────────────────────────
 
 interface JArchiStatic {
+  /** Empty collection (model.find("")). @remarks unverified */
+  <T extends ArchiProxy = ArchiObject>(): ArchiCollection<T>;
   /** `$(selection)` returns the selection itself. */
   <T extends ArchiProxy>(collection: ArchiCollection<T>): ArchiCollection<T>;
   <T extends ArchiProxy>(object: T): ArchiCollection<T>;
@@ -334,7 +350,8 @@ interface JArchiStatic {
   (selector: ViewSelector): ArchiCollection<ArchimateView>;
   /**
    * model.find(selector): a type ("business-actor"), ".Name", "#id", "*", …
-   * `#id` can match visuals as well as concepts.
+   * "#id" and "*" search every object in the model, visuals included; other selectors return
+   * only concepts, views and folders.
    */
   (selector: string): ArchiCollection<ArchiObject>;
   readonly model: {

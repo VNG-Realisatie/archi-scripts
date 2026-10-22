@@ -17,6 +17,7 @@
     "types/*.d.ts",
     "Scripts/_lib/Common.js",
     "Scripts/_lib/archi_folders.js",
+    "Scripts/_lib/selection.js",
     "Scripts/View/lib/rel_filter.js"
   ]
 }
