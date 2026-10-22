@@ -93,3 +93,140 @@ interface StepCandidate {
 interface PropertySource {
   prop(key: string): unknown;
 }
+
+// ── Presets (Scripts/View/lib/defs.js: DEFAULT_PRESET, validatePreset) ───────────────────────────
+
+/** Repeat of a step: 1–5 runs, or until a run adds nothing (capped at REPEAT_MAX). */
+type StepRepeat = 1 | 2 | 3 | 4 | 5 | "untilNothingNew";
+
+/** Expand-selection step: run its rule list `repeat` times. */
+interface Step {
+  repeat: StepRepeat;
+  rules: StepRule[];
+}
+
+type ViewSizeMode = "none" | "maxWidth" | "aspectRatio";
+type ConnectionsMode = "Between containers" | "Crossing containers";
+
+/** Layout params of a validated preset (DEFAULT_PRESET.params). */
+type PresetParams = {
+  direction: string;
+  nodePlacement: string;
+  routing: string;
+  labelPosition: string;
+  ranking: string;
+  acyclicer: string;
+  reverseRules: RelationRule[];
+  nestingRules: RelationRule[];
+  padding: number;
+  diagramPadding: number;
+  sortContainers: boolean;
+  alignWidthSameType: boolean;
+  snapColumnsToGrid: boolean;
+  containerAlgorithm: string;
+  connectionsMode: ConnectionsMode;
+  layerSpacing: number;
+  elementSpacing: number;
+  connectionSpacing: number;
+  connectionElementSpacing: number;
+  elementWidth: number;
+  elementHeight: number;
+  maxWidth: number;
+  aspectRatio: number;
+  viewSizeMode: ViewSizeMode;
+  labelSizing: boolean;
+  labelMaxLineWidth: number;
+  connectionLabelSpacing: boolean;
+};
+
+/**
+ * The params an algorithm uses (defs.effectiveParams): inactive keys are absent, a view-size
+ * param that is not the chosen mode is 0, and viewSizeMode itself is dropped.
+ */
+type EffectiveParams = Partial<Omit<PresetParams, "viewSizeMode">>;
+
+/** Label-sizing tuning (defs.LABEL_SIZING_DEFAULTS, overridable in engineParams.layout). */
+interface LabelSizing {
+  labelCharWidth: number;
+  labelLineHeight: number;
+  labelHPadding: number;
+  labelVPadding: number;
+  labelMaxLineWidth: number;
+  labelMinWidth: number;
+  labelMinHeight: number;
+}
+
+/** Engine overrides passed through as-is; each adapter merges them over its own defaults. */
+interface EngineParams {
+  layout?: Partial<LabelSizing>;
+  ELK?: Record<string, string | number | boolean>;
+  Dagre?: Record<string, string | number>;
+  Graphviz?: Record<string, string | number>;
+}
+
+interface ViewProperty {
+  key: string;
+  value: string;
+  enabled: boolean;
+}
+
+/** A validated preset (defs.validatePreset). */
+interface Preset {
+  schemaVersion: number;
+  name: string;
+  algorithm: string;
+  params: PresetParams;
+  filter: {
+    elementRules: ElementRule[];
+    diagramRules: DiagramRule[];
+    relationRules: RelationRule[];
+  };
+  relatedElements: { steps: Step[] };
+  view: { name: string; folder: string; suffix: string };
+  appearance: {
+    styleByProperty: { rules: StyleRule[]; mixedValuesColor: string; lineWidth: number };
+    nestingLevel: {
+      fontEnabled: boolean;
+      rootFontSize: number;
+      rootFontBold: boolean;
+      fontDecreasePerLevel: number;
+      colorEnabled: boolean;
+      rootColor: string;
+      lightenPerLevel: number;
+    };
+    highlightRepeated: { enabled: boolean; colorRange: string };
+  };
+  engineParams: EngineParams;
+  viewProperties: { addObjectId: boolean; properties: ViewProperty[] };
+}
+
+/** A preset after capability masking: params holds only what the algorithm uses. */
+type MaskedPreset = Omit<Preset, "params"> & { params: EffectiveParams };
+
+/**
+ * Preset JSON as read from a file or the dialog, before validatePreset: untrusted, every field
+ * optional and checked one by one. Typed loosely on purpose — this is the validation boundary.
+ */
+type PresetFile = { [key: string]: any };
+
+// ── Algorithms (defs.ALGORITHMS) ─────────────────────────────────────────────────────────────────
+
+type EngineName = "ELK" | "Dagre" | "Graphviz";
+
+interface AlgorithmSpec {
+  engine: EngineName;
+  /** Engine-internal identifier, e.g. "layered", "dot". */
+  engineAlgorithmId: string;
+  /** Style group shown in the dialog (defs.STYLES). */
+  style: string;
+  supportsNesting: "full" | "partial" | "cluster" | "none";
+  supportsSelfLoops: boolean | "partial";
+  /** Param keys the dialog enables and effectiveParams keeps. */
+  activeParams: readonly string[];
+  /** Allowed values per select-type param. */
+  supportedOptions: Readonly<Record<string, readonly string[]>>;
+  labelPositionDefault: string | null;
+  tooltip: string;
+  /** Mutually exclusive params: key → keys it zeroes. */
+  paramConflicts?: Readonly<Record<string, readonly string[]>>;
+}

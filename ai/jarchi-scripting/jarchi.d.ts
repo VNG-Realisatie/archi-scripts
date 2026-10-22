@@ -13,6 +13,31 @@
  * observed in a running Archi; check before relying on edge-case behaviour.
  */
 
+// ── ArchiMate type names (Archi com.archimatetool.model/model/archimate.ecore, kebab-case) ─────────
+
+/** Concrete ArchiMate element types, as `element.type` reports them. */
+type ArchimateElementType =
+  "application-collaboration" | "application-component" | "application-event" |
+  "application-function" | "application-interaction" | "application-interface" |
+  "application-process" | "application-service" | "artifact" | "assessment" | "business-actor" |
+  "business-collaboration" | "business-event" | "business-function" | "business-interaction" |
+  "business-interface" | "business-object" | "business-process" | "business-role" |
+  "business-service" | "capability" | "communication-network" | "constraint" | "contract" |
+  "course-of-action" | "data-object" | "deliverable" | "device" | "distribution-network" |
+  "driver" | "equipment" | "facility" | "gap" | "goal" | "grouping" | "implementation-event" |
+  "junction" | "location" | "material" | "meaning" | "node" | "outcome" | "path" | "plateau" |
+  "principle" | "product" | "representation" | "requirement" | "resource" | "stakeholder" |
+  "system-software" | "technology-collaboration" | "technology-event" | "technology-function" |
+  "technology-interaction" | "technology-interface" | "technology-process" | "technology-service"
+  | "value" | "value-stream" | "work-package";
+
+/** ArchiMate relationship types, as `relation.type` reports them. */
+type ArchimateRelationType =
+  "access-relationship" | "aggregation-relationship" | "assignment-relationship" |
+  "association-relationship" | "composition-relationship" | "flow-relationship" |
+  "influence-relationship" | "realization-relationship" | "serving-relationship" |
+  "specialization-relationship" | "triggering-relationship";
+
 // ── Proxies ──────────────────────────────────────────────────────────────────────────────────────
 
 /** Common base of every model object (EObjectProxy). */
