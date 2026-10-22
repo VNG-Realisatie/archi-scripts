@@ -239,37 +239,37 @@ function _buildDOT(graph) {
  * @returns {GraphvizJson}
  */
 function _runDot(dotSource, engine) {
-  const ProcessBuilder = Java.type("java.lang.ProcessBuilder");
-  const Arrays         = Java.type("java.util.Arrays");
+  const ProcessBuilder   = Java.type("java.lang.ProcessBuilder");
+  const Arrays           = Java.type("java.util.Arrays");
+  const Files            = Java.type("java.nio.file.Files");
+  const StandardCharsets = Java.type("java.nio.charset.StandardCharsets");
+  const JString          = Java.type("java.lang.String");
+  const Writer           = Java.type("java.io.OutputStreamWriter");
 
-  let proc;
+  // stderr goes to a file: left unread in a pipe while stdout is read, a full pipe blocks dot.
+  const errFile = Files.createTempFile("graphviz", ".err");
   try {
     const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, "-Tjson", "-K" + engine));
-    pb.redirectErrorStream(false);
-    proc = pb.start();
-  } catch (e) {
-    throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
+    pb.redirectError(ProcessBuilder.Redirect.to(errFile.toFile()));
+    let proc;
+    try { proc = pb.start(); }
+    catch (e) {
+      throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
+    }
+
+    const wr = new Writer(proc.getOutputStream(), StandardCharsets.UTF_8);
+    wr.write(dotSource);
+    wr.close();
+
+    const stdout = String(new JString(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+    const code = proc.waitFor();
+    if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${String(Files.readString(errFile)).trim()}`);
+
+    try { return JSON.parse(stdout); }
+    catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
+  } finally {
+    Files.deleteIfExists(errFile);
   }
-
-  const wr = new java.io.OutputStreamWriter(proc.getOutputStream(), "UTF-8");
-  wr.write(dotSource);
-  wr.close();
-
-  let line, stdout = "";
-  const br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream(), "UTF-8"));
-  while ((line = br.readLine()) !== null) stdout += line + "\n";
-  br.close();
-
-  let eline, stderr = "";
-  const er = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getErrorStream(), "UTF-8"));
-  while ((eline = er.readLine()) !== null) stderr += eline + "\n";
-  er.close();
-
-  const code = proc.waitFor();
-  if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${stderr.trim()}`);
-
-  try { return JSON.parse(stdout); }
-  catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
 }
 
 // ── Origin normalisation ──────────────────────────────────────────────────────

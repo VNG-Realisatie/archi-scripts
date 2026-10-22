@@ -192,7 +192,7 @@ Realises SPEC §7 and its [managed extra occurrences](SPEC.md#managed-extra-occu
 ### Dagre and Graphviz adapters
 
 - **Dagre:** `dagre-cluster-fix` for compound graphs; straight and polyline routing only; Dagre itself drops self-loops.
-- **Graphviz:** runs the `dot` binary as a process (`-K<engine> -Tjson`); clusters for nesting. No max width — Graphviz `size` scales nodes. Aspect ratio is passed as `ratio`.
+- **Graphviz:** runs the `dot` binary from the PATH as a process (`-K<engine> -Tjson`; stderr goes to a temp file so a full pipe cannot block it); clusters for nesting. No max width — Graphviz `size` scales nodes. Aspect ratio is passed as `ratio`.
 
 ### Appearance
 
