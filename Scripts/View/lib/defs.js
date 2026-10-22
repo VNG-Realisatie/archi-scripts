@@ -887,8 +887,9 @@ function validatePreset(raw) {
   // labelPosition falls back to the algorithm's own default, the others to their first option.
   for (const [key, opts] of Object.entries(alg.supportedOptions)) {
     // Casts: dynamic key into preset.params.
-    if (opts.includes(/** @type {string} */ (/** @type {Record<string, unknown>} */ (preset.params)[key]))) continue;
-    /** @type {Record<string, unknown>} */ (preset.params)[key] = (key === "labelPosition" && alg.labelPositionDefault) ? alg.labelPositionDefault : opts[0];
+    const params = /** @type {Record<string, unknown>} */ (preset.params);
+    if (opts.includes(/** @type {string} */ (params[key]))) continue;
+    params[key] = (key === "labelPosition" && alg.labelPositionDefault) ? alg.labelPositionDefault : opts[0];
   }
 
   // filter
@@ -983,8 +984,8 @@ function connectionsModeLock(algorithm, params) {
   const p = params || {};
   if (p.containerAlgorithm && p.containerAlgorithm !== algorithm) return `container layout ${p.containerAlgorithm}`;
   // Casts: an absent value compares as undefined > 0, i.e. false, which is intended.
-  if (p.viewSizeMode === "aspectRatio" && /** @type {number} */ (p.aspectRatio) > 0) return "view size aspect ratio";
-  if (p.viewSizeMode === "maxWidth"    && /** @type {number} */ (p.maxWidth)    > 0) return "view size max width";
+  if (p.viewSizeMode === "aspectRatio" && (p.aspectRatio || 0) > 0) return "view size aspect ratio";
+  if (p.viewSizeMode === "maxWidth"    && (p.maxWidth || 0)    > 0) return "view size max width";
   return null;
 }
 
