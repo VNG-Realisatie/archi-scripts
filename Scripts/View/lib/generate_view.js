@@ -103,10 +103,12 @@ function generate_view(rawPreset, uiSelection, actionId) {
   {
     // Params without a dialog control (defs.HIDDEN_PARAMS): show a preset value that differs
     // from the default, so it does not act unseen.
+    // Casts: k is a params key.
+    const shown    = /** @type {Record<string, unknown>} */ (preset.params);
+    const defaults = /** @type {Record<string, unknown>} */ (Defs.DEFAULT_PRESET.params);
     const hidden = Defs.HIDDEN_PARAMS
-      // Casts: k is a params key.
-      .filter(k => k in preset.params && /** @type {Record<string, unknown>} */ (preset.params)[k] !== /** @type {Record<string, unknown>} */ (Defs.DEFAULT_PRESET.params)[k])
-      .map(k => `${k}=${/** @type {Record<string, unknown>} */ (preset.params)[k]}`);
+      .filter(k => k in preset.params && shown[k] !== defaults[k])
+      .map(k => `${k}=${shown[k]}`);
     if (hidden.length) console.log(`Preset values not in dialog: ${hidden.join("  ")}`);
   }
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
@@ -435,14 +437,16 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
   const removed = new Set(nesting.removedVisualIds);
   /** @type {Map<string, [string, string][]>} */
+  /** @type {Map<string, [string, string][]>} */
   const drawnByRel = new Map();   // relation id → [[source occ, target occ]] of its visual relations
   for (const vr of (visualRelations || [])) {
     const relId = vr.concept && vr.concept.id;
     const srcOcc = vr.source && nesting.occurrenceOf.get(String(vr.source.id));
     const tgtOcc = vr.target && nesting.occurrenceOf.get(String(vr.target.id));
     if (!relId || !srcOcc || !tgtOcc || removed.has(String(vr.source.id)) || removed.has(String(vr.target.id))) continue;
-    if (!drawnByRel.has(relId)) drawnByRel.set(relId, []);
-    /** @type {[string, string][]} */ (drawnByRel.get(relId)).push([srcOcc, tgtOcc]);   // Cast: set just above
+    let drawn = drawnByRel.get(relId);
+    if (!drawn) { drawn = []; drawnByRel.set(relId, drawn); }
+    drawn.push([srcOcc, tgtOcc]);
   }
   /** @type {LayoutEdge[]} */
   const edges = [];
