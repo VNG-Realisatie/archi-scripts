@@ -287,8 +287,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   if (!inPlace) {
     console.log("\nView target:");
     const viewName = viewNameOverride || _resolveViewName(preset, elements);
-    // Cast: _resolveFolder yields null only when the model has no "Views" folder (renamed); not handled.
-    view = _getOrCreateView(/** @type {Folder} */ (_resolveFolder(preset.view.folder)), viewName);
+    view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
 
   // Write — single function, action-agnostic.
@@ -1018,17 +1017,18 @@ function _resolveViewName(preset, elements) {
 }
 
 /**
+ * The folder for a new view, created when missing. Throws when the model has no "Views" folder
+ * (renamed): the run then aborts before anything is written.
  * @param {string} viewFolder
- * @returns {Folder | null | undefined}
+ * @returns {Folder}
  */
 function _resolveFolder(viewFolder) {
+  if (!$("folder.Views").first()) throw `The model has no "Views" folder; the new view has nowhere to go. Rename the views folder back to "Views".`;
   // viewFolder is a path under /Views ("/_Generated/Test"); "" = GENERATED_VIEW_FOLDER.
   const path = "/Views" + (viewFolder || GENERATED_VIEW_FOLDER);
-  try { return ArchiFolders.getFolderPath(path); }
-  catch (e) {
-    console.log(`Folder "${path}" not found — using default. (${e})`);
-    return ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
-  }
+  const folder = ArchiFolders.getFolderPath(path);   // missing subfolders are created
+  if (!folder) throw `View folder "${path}" not found.`;
+  return folder;
 }
 
 /**
