@@ -65,6 +65,14 @@ update the remarks.
 - `node tools/compare-layouts.js <checkout> <model.archimate> "<view path>" [preset.json…]` —
   one layout digest per preset × algorithm; run it on two checkouts (`git worktree add`) and diff.
 
+## Possible simplification: relative requires
+
+The probe showed that `require("./x")` inside a module resolves next to that module. Requiring
+`View/lib` siblings by relative path (`require("./defs")`) instead of `REPO_ROOT + "…"` would let tsc
+follow the imports, and the `/** @type {typeof import(…)} */` lines could go. Entry `.ajs` scripts
+keep `REPO_ROOT` (they resolve against the scripts folder). Not done: it changes how modules load,
+so it needs its own change and a run in Archi.
+
 ## Extending the scope
 
 1. Add the file (or a glob) to `include` in `jsconfig.json`.

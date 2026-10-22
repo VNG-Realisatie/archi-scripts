@@ -12,7 +12,7 @@ read as properties (`vo.fillColor`), Java lists are array-like.
 
 ## Pitfalls
 
-1. **A collection is a `java.util.ArrayList`, not an array**: `each`, `filter`, `first`, `size`, `get`; no `map`/`reduce`. `each` ignores the return value — `return false` does not stop it.
+1. **A collection is a `java.util.ArrayList` that GraalJS treats as a JS array** (`length`, `[i]`, `for…of`, spread, `map` work), but **`filter` and `find` are jArchi's** (selector semantics, below). `each` ignores the return value — `return false` does not stop it; use `for…of` + `break`.
 2. **`.find()` = every descendant**, not `Array.find`; `.children()` = direct children only.
 3. **Selectors keep their side**: on a view or visual, `"element"` / `"relation"` select *visuals*; in the model, *concepts*. `$("#id")` and `$("*")` can return visuals too.
 4. **`add(collection)` changes the receiver** (and returns it), though the plugin source comments "new collection".
@@ -29,6 +29,7 @@ read as properties (`vo.fillColor`), Java lists are array-like.
 15. **Relationship ends can be relationships** (`rel.source` / `rel.target`) — check `.type` before treating an end as an element.
 16. **`exit()`** stops the script by throwing; Archi shows "Exited".
 17. **Undo and UI**: changes to a model open in Archi go on its undo stack; changes to a model only loaded by the script are not shown until `model.openInUI()` / `view.openInUI()`.
+18. **Java maps print as `{}`**: `JSON.stringify(vo.bounds)` / `view.viewpoint` gives `"{}"` though `bounds.x` reads fine — copy the fields first.
 
 ## Where to look
 

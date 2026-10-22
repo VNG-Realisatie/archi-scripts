@@ -10,12 +10,12 @@ werk (2, 5, 6, 8).
 
 ## 1. Probe draaien in Archi — jij
 
-- [ ] Model met elementen en relaties openen, een view selecteren.
-- [ ] *Scripts › Develop › probeJArchiApi* draaien; console-uitvoer opslaan (bijv. `~/probe-output.txt`).
+- [x] Model met elementen en relaties openen, een view selecteren.
+- [x] *Scripts › Develop › probeJArchiApi* draaien; console-uitvoer opslaan (bijv. `~/probe-output.txt`).
 
-## 2. Probe-uitkomst verwerken — Sonnet
+## 2. Probe-uitkomst verwerken — Sonnet (gedaan 2026-10-22, commit hieronder)
 
-- [ ] Prompt:
+- [x] Prompt:
 
 ```
 Verwerk de uitvoer van Scripts/Develop/probeJArchiApi.ajs (bijgevoegd / in ~/probe-output.txt).

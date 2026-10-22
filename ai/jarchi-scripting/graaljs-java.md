@@ -49,10 +49,10 @@ lazily and treat a typo as a package; use `Java.type`.
 - **Overloads:** the narrowest lossless match wins. Force one with
   `obj["method(java.lang.String,int)"](a, b)` (fully qualified types, no spaces). Constructors
   cannot be selected this way. Ambiguous calls throw "Multiple applicable overloads found".
-- **Arity:** calling a Java method with the wrong number of arguments fails — e.g. jArchi's
-  `console.error(msg)` takes one argument (use a template string), unlike Node's.
-- **Java strings** are JS strings in GraalJS (same representation). `String(x)` is still a
-  harmless way to turn any host value into a JS string.
+- **Arity:** calling a Java method with the wrong number of arguments throws
+  (`Arity error - expected: 1 actual: 3` for `console.error("a", b, c)`); use a template string.
+- **Java strings** are JS strings in GraalJS: `typeof element.type` is `"string"`, usable as an
+  object key without `String()`. `String(x)` remains a harmless way to stringify any host value.
 - **Getters/setters** read and write as properties (`file.getName()` or `file.name`; jArchi's
   `getBounds()` is `vo.bounds`).
 - **Exceptions** from Java are catchable; `e.getMessage()` works on a Java exception, `e.message`
@@ -62,14 +62,13 @@ lazily and treat a typo as a package; use `Java.type`.
 
 | Java value | From JS |
 |---|---|
-| `java.util.List` (incl. jArchi collections) | `list.size()`, `list.get(i)`; also `list.length`, `list[i]`, `for…of` through host list access (confirm with `Scripts/Develop/probeJArchiApi.ajs`) |
+| `java.util.List` (incl. jArchi collections) | A JS array to GraalJS: `Array.isArray` is true; `length`, `[i]`, `for…of`, spread and `map` work, next to `size()` / `get(i)`. Java's own methods win on a name clash (`forEach`, `add`; jArchi's `filter`, `find`) |
 | Java array | `arr.length`, `arr[i]`; create with `new (Java.type("int[]"))(5)` |
-| `java.util.Map` | `map.get(k)`, `map.put(k, v)`; `for (k in map)` iterates keys; with nashorn-compat `map.key` reads an entry (jArchi's `vo.bounds.x`) |
+| `java.util.Map` | `map.get(k)`, `map.put(k, v)`; `for (k in map)` iterates keys; with nashorn-compat `map.key` reads an entry (jArchi's `vo.bounds.x`). `JSON.stringify(map)` gives `"{}"` — copy the fields into a JS object first |
 
-A jArchi collection is a `java.util.ArrayList`, not a JS array: no `map`, `reduce`, `some`, … .
-Use jArchi's `each(fn)` and `filter(fn)` (`jarchi.d.ts`); `forEach` is Java's
-`Iterable.forEach`, not the array method — prefer `each`. Copy to an array
-(`each(o => arr.push(o))`) for array methods.
+A jArchi collection is a `java.util.ArrayList` that GraalJS presents as an array, so `map`,
+spread and `for…of` work. `filter` and `find` are jArchi's (selectors; `find` = descendants),
+`add` is jArchi's / ArrayList's, `forEach` is Java's `Iterable.forEach`.
 
 ## Extending Java classes
 

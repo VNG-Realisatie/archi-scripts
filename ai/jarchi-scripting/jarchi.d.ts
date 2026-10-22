@@ -10,7 +10,12 @@
  * preference is on, with the scripts folder as require-cwd.
  *
  * Tags: `@since` = first jArchi version. `@remarks unverified` = taken from source or wiki, not yet
- * observed in a running Archi; check before relying on edge-case behaviour.
+ * observed in a running Archi; check before relying on edge-case behaviour. Members without it were
+ * either read from the source or observed with Scripts/Develop/probeJArchiApi.ajs (jArchi 1.12.0,
+ * Archi 5.10, 2026-10-22).
+ *
+ * Java maps (vo.bounds, view.viewpoint, image) read field by field (`bounds.x`), but
+ * JSON.stringify gives "{}" for them: copy the fields into a JS object first.
  */
 
 // ── ArchiMate type names (Archi com.archimatetool.model/model/archimate.ecore, kebab-case) ─────────
@@ -64,7 +69,7 @@ interface ArchiProxy {
   /** First value of the property, or null when absent. */
   prop(key: string): string | null;
   /**
-   * true: all values (a java.util.List — iterable and indexable from JS; @remarks unverified), or null
+   * true: all values (a java.util.List — a JS array to GraalJS: isArray, spread, index), or null
    * when the property is absent. false: the first value, or null.
    */
   prop(key: string, allowDuplicate: true): string[] | null;
@@ -295,8 +300,10 @@ type ArchiObject = ArchiElement | ArchiRelation | Folder | ArchiView | Archimate
 
 // ── Collections ──────────────────────────────────────────────────────────────────────────────────
 //
-// A collection is a java.util.ArrayList of proxies (EObjectProxyCollection). Traversals keep their
-// side: on a view, "element"/"relation" select visuals; in the model they select concepts.
+// A collection is a java.util.ArrayList of proxies (EObjectProxyCollection). GraalJS treats it as a JS
+// array (probe: Array.isArray true; length, [i], for…of, spread, map work), but jArchi's own methods
+// win where names clash: filter(selector | fn), find(selector), add(…). Traversals keep their side:
+// on a view, "element"/"relation" select visuals; in the model they select concepts.
 
 type OnView = DiagramComponent | ArchiView;
 type ElementsOf<T> = T extends OnView ? VisualObject : ArchiElement;
@@ -314,8 +321,20 @@ type ViewSelector = "view" | `view.${string}`;
 interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   /** Number of objects (ArrayList.size). */
   size(): number;
-  /** List length via GraalJS host list access. @remarks unverified — prefer size(). */
+  /** Same as size() (GraalJS list access). */
   readonly length: number;
+  /** Indexed access, like get(i). */
+  readonly [index: number]: T;
+  /** for…of and spread work. */
+  [Symbol.iterator](): Iterator<T>;
+  /** Array.prototype.map on the list (GraalJS gives host lists the array prototype). */
+  map<U>(fn: (object: T, index: number) => U): U[];
+  /** Java's Iterable.forEach (a JS function is accepted); jArchi's each() does the same and returns the collection. */
+  forEach(fn: (object: T) => void): void;
+  /** Array.prototype methods on the list. @remarks unverified (map observed) */
+  some(fn: (object: T, index: number) => boolean): boolean;
+  every(fn: (object: T, index: number) => boolean): boolean;
+  reduce<U>(fn: (acc: U, object: T, index: number) => U, initial: U): U;
   /** nth object (ArrayList.get); throws when out of range. */
   get(index: number): T;
   isEmpty(): boolean;
@@ -373,7 +392,7 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   add<U extends ArchiProxy>(other: ArchiCollection<U>): ArchiCollection<T | U>;
   /** Append model.find(selector) of the first object's model to this collection (mutates). */
   add(selector: string): ArchiCollection<T | ArchiObject>;
-  /** java.util.ArrayList.add: append one object in place; returns true. @remarks unverified overload pick */
+  /** java.util.ArrayList.add: append one object in place; returns true. */
   add(object: T): boolean;
 
   /**
@@ -400,7 +419,7 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
 // ── $ / jArchi ───────────────────────────────────────────────────────────────────────────────────
 
 interface JArchiStatic {
-  /** Empty collection (model.find("")). @remarks unverified */
+  /** Empty collection (model.find("")). */
   <T extends ArchiProxy = ArchiObject>(): ArchiCollection<T>;
   /** `$(selection)` returns the selection itself. */
   <T extends ArchiProxy>(collection: ArchiCollection<T>): ArchiCollection<T>;

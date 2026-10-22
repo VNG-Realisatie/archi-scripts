@@ -56,5 +56,5 @@ Defaults, not hard rules; a reason to deviate goes in a comment.
 - **Errors.** Validate at the boundaries (user input, files, presets, external tools); trust internal code — the typecheck covers its contracts. No fallback for a case that cannot happen.
 - **Logging.** `console.log` for progress, `console.error` for errors (one argument: jArchi's console takes one; it has no `warn`), `Common.debug` for diagnostics.
 - **Selection.** Use `Selection.getSelection` / `getVisualSelection` (`_lib/selection.js`) when view references and single-object selections should expand; a script with its own selection semantics (e.g. View, `$(selection)`) says so.
-- **Java.** `Java.type("java.io.File")`, not the `java.io.File` package root; Java host objects are not JS objects (no spread, no `for…in` over their members).
+- **Java.** `Java.type("java.io.File")`, not the `java.io.File` package root. Java lists are arrays to GraalJS; Java maps are not plain objects (`JSON.stringify` gives `{}`).
 - **Vocabulary.** Per subsystem; View: `Scripts/View/docs/SPEC.md` § Vocabulary (rule 11).
