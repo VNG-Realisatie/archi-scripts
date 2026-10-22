@@ -76,6 +76,9 @@ interface LayoutResultEdge {
   /** Label position; 0,0 = no placement. */
   labelX: number;
   labelY: number;
+  /** ELK only: the connection's exit and entry points on the elements (absolute). */
+  srcPort?: Point;
+  tgtPort?: Point;
 }
 
 interface LayoutResult {

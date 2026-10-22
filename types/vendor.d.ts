@@ -79,3 +79,58 @@ interface GraphvizJsonEdge {
   /** Label position "x,y". */
   lp?: string;
 }
+
+// ── elkjs — repo's synchronous wrapper (Scripts/node_modules/elkjs/index.js) ────────────────────
+// Graph shapes after elkjs's elk-api.d.ts (EPL-2.0), restated here because that file does not
+// check cleanly without DOM types. The wrapper returns the laid-out graph directly, not a Promise.
+
+/** ELK layout options: every value is a string. */
+type ElkLayoutOptions = Record<string, string>;
+
+interface ElkShape {
+  id?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  labels?: ElkLabel[];
+  layoutOptions?: ElkLayoutOptions;
+}
+
+interface ElkNode extends ElkShape {
+  id: string;
+  children?: ElkNode[];
+  ports?: ElkPort[];
+  edges?: ElkExtendedEdge[];
+}
+
+interface ElkPort extends ElkShape {
+  id: string;
+}
+
+interface ElkLabel extends ElkShape {
+  text?: string;
+}
+
+interface ElkEdgeSection {
+  id: string;
+  startPoint: Point;
+  endPoint: Point;
+  bendPoints?: Point[];
+  incomingShape?: string;
+  outgoingShape?: string;
+}
+
+interface ElkExtendedEdge extends ElkShape {
+  id: string;
+  sources: string[];
+  targets: string[];
+  sections?: ElkEdgeSection[];
+  /** Set by ELK on output: the node the edge's coordinates are relative to. */
+  container?: string;
+}
+
+interface ElkSyncModule {
+  /** Lays out `graph` and returns it with positions filled in; extra fields on nodes and edges survive. */
+  layout<G extends ElkNode>(graph: G): G;
+}
