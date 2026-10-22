@@ -219,7 +219,7 @@ Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its pr
 
 ## B.5 Platform constraints
 
-View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md).
+View-specific jArchi behaviour; general jArchi rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md), SWT / GTK in [`swt-gtk.md`](../../../ai/jarchi-scripting/swt-gtk.md) and the repo's dialog style in [`ai/dialog-style.md`](../../../ai/dialog-style.md).
 
 - `$(view).children()` misses view references — find them per diagram type.
 - A view reference reports type `"archimate-diagram-model"` instead of `"diagram-model-reference"`; both are in `DIAGRAM_TYPES`.

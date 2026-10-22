@@ -17,7 +17,7 @@ Skills are canonical, tool-independent definitions with integrated reference doc
 
 | Skill | Canonical location | Purpose |
 |---|---|---|
-| `jarchi-scripting` | `ai/jarchi-scripting/SKILL.md` | JArchi script development: complete API, repo patterns, GraalVM/Java interop |
+| `jarchi-scripting` | `ai/jarchi-scripting/SKILL.md` | jArchi plugin: runtime, pitfalls, typed API (`jarchi.d.ts`), GraalJS/Java interop, SWT/GTK |
 | `elkjs` | `ai/elkjs/SKILL.md` | ELK graph layout: layout algorithms, JSON graph format, layout options |
 | `dagre` | `ai/dagre/SKILL.md` | Dagre/dagre-cluster-fix graph layout: graphlib API, layout options, output format, known limitations |
 | `graphviz` | `ai/graphviz/SKILL.md` | Graphviz layout: DOT language, layout engines, attributes, JSON output format |
