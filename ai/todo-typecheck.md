@@ -76,7 +76,7 @@ mist 11–15). Maak het een pure verwijzing zoals .claude/rules.md. Controleer .
 
 ## 6. Casts verminderen — Sonnet
 
-- [ ] Prompt:
+- [x] Prompt:
 
 ```
 In de typecheck-scope staan 157 JSDoc-casts (beleid: types/README.md), vooral in
@@ -87,6 +87,12 @@ Geen gedragswijziging; per module een commit. Bewijs: tools/same-code.js waar de
 blijven, tools/compare-layouts.js voor de layout-uitvoer; noem bewuste refactors in de commit.
 Rapporteer het aantal casts voor/na per bestand.
 ```
+
+Uitkomst stap 6 (`74721d5`..`59bd2a0`): casts 157 → 81 (selection_pipeline 62→22, elk 33→14,
+generate_view 23→21, appearance 9→2, defs 8→5, preset_io 3→1, engine-utils 2→1). Layout-digests gelijk.
+Rest is checkerbeperking (Partial EffectiveParams, narrowing in closures, jArchi duck typing); verder
+verminderen vraagt wijziging van types/*.d.ts of herstructurering. Niet aangeraakt: rel_filter, dagre,
+graphviz, selection, Common.
 
 ## 7. Scope uitbreiden naar gui/ — Opus
 
