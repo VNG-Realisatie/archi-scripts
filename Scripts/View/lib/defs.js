@@ -526,6 +526,7 @@ const ACYCLICER = Object.freeze([
 
 // ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
 
+/** @type {Readonly<Record<string, string>>} */
 const DIRECTION_MAP = Object.freeze({
   "Right": "LR",
   "Left":  "RL",

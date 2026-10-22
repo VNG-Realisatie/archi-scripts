@@ -11,14 +11,17 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, DIRECTION_MAP } = Defs;
+/** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { selfLoopResult, sortedNodes, applyParams } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 
 // Dagre ranker identifiers mapped from GUI ranking labels.
+/** @type {Record<string, string>} */
 const RANKER = {
   "Balanced":    "network-simplex",
   "Uniform":     "longest-path",
@@ -29,6 +32,7 @@ const RANKER = {
 // acyclicer is not here: the GUI always sets it (Default = Dagre's DFS, Greedy = "greedy").
 const DEFAULT_DAGRE_PARAMS = {};
 
+/** @type {ParamMapping} */
 const PARAM_MAPPING = {
   Dagre: {
     direction:         (v) => ({ rankdir: DIRECTION_MAP[v] }),
@@ -45,7 +49,9 @@ const PARAM_MAPPING = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @type {DagreModule | null} */
 let _dagre = null;
+/** @returns {DagreModule} */
 function _loadDagre() {
   if (_dagre) return _dagre;
   try {
@@ -54,16 +60,16 @@ function _loadDagre() {
   } catch (e) {
     throw new Error("dagre-cluster-fix not loaded. Check node_modules/dagre-cluster-fix/index.js.");
   }
-  return _dagre;
+  return /** @type {DagreModule} */ (_dagre);   // Cast: set by the require above
 }
 
 /**
  * Build and populate a dagre graphlib.Graph from nodes and edges.
- * @param {Object}   dagre        loaded dagre module
- * @param {Object}   engineOpts   mapped graph-level options
- * @param {Object[]} nodes        LayoutGraph nodes (sorted / equalized)
- * @param {Object[]} edges        edges to add (may include or exclude self-loops)
- * @returns {Object}              populated graphlib.Graph
+ * @param {DagreModule}             dagre        loaded dagre module
+ * @param {Record<string, unknown>} engineOpts   mapped graph-level options
+ * @param {LayoutNode[]}            nodes        LayoutGraph nodes (sorted / equalized)
+ * @param {LayoutEdge[]}            edges        edges to add (may include or exclude self-loops)
+ * @returns {DagreGraph}                         populated graphlib.Graph
  */
 function _buildDagreGraph(dagre, engineOpts, nodes, edges) {
   const g = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
@@ -111,7 +117,7 @@ function layout(graph) {
   const nodes = sortedNodes(graph.nodes, parentMap, graph.sortContainers);
 
   // engineParams values may be numeric strings ("50"); convert those, keep words ("greedy") as-is.
-  const _num = v => (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? Number(v) : v;
+  const _num = (/** @type {unknown} */ v) => (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? Number(v) : v;
   const engineOpts = Object.assign(
     {},
     DEFAULT_DAGRE_PARAMS,
@@ -122,7 +128,9 @@ function layout(graph) {
   );
 
   // Separate self-loops from regular edges
+  /** @type {LayoutEdge[]} */
   const selfLoops    = [];
+  /** @type {LayoutEdge[]} */
   const regularEdges = [];
   for (const edge of graph.edges) {
     (edge.source === edge.target ? selfLoops : regularEdges).push(edge);
@@ -132,6 +140,7 @@ function layout(graph) {
   // dagre-cluster-fix may throw on self-loop edges during dagre.layout() — attempt routing,
   // rebuild without self-loops and retry on error.
   let g;
+  /** @type {LayoutResultEdge[]} */
   const selfLoopEdgeResults = [];
 
   if (selfLoops.length === 0) {
@@ -164,7 +173,7 @@ function layout(graph) {
         }
       }
     } catch (e) {
-      console.log("Dagre self-loop routing failed (" + e.message + "); retrying without self-loops.");
+      console.log("Dagre self-loop routing failed (" + /** @type {Error} */ (e).message + "); retrying without self-loops.");
       g = _buildDagreGraph(dagre, engineOpts, nodes, regularEdges);
       dagre.layout(g);
       for (const edge of selfLoops) selfLoopEdgeResults.push(selfLoopResult(edge));
@@ -172,7 +181,9 @@ function layout(graph) {
   }
 
   // Extract LayoutResult
+  /** @type {LayoutResultNode[]} */
   const resultNodes = [];
+  /** @type {LayoutResultEdge[]} */
   const resultEdges = [...selfLoopEdgeResults];
 
   for (const nodeId of g.nodes()) {
@@ -189,7 +200,7 @@ function layout(graph) {
   for (const edgeObj of g.edges()) {
     if (edgeObj.v === edgeObj.w) continue;  // self-loops already in selfLoopEdgeResults
 
-    const edgeData = g.edge(edgeObj);
+    const edgeData = /** @type {DagreEdgeLabel} */ (g.edge(edgeObj));   // Cast: edgeObj comes from g.edges()
     const points   = edgeData.points || [];
 
     // Skip first and last points (they're on node boundaries — Archi doesn't use them)
@@ -216,7 +227,7 @@ function layout(graph) {
     }
 
     resultEdges.push({
-      id:         edgeData.id || edgeObj.name,
+      id:         edgeData.id || /** @type {string} */ (edgeObj.name),   // Cast: every edge is set with a name
       conceptId:  edgeData.conceptId,
       sourceId:   edgeObj.v,
       targetId:   edgeObj.w,
