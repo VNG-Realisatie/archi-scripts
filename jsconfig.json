@@ -15,6 +15,7 @@
   "include": [
     "ai/jarchi-scripting/jarchi.d.ts",
     "types/*.d.ts",
+    "Scripts/_lib/Common.js",
     "Scripts/View/lib/rel_filter.js"
   ]
 }
