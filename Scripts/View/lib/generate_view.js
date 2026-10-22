@@ -171,24 +171,26 @@ function _applyViewProperties(view, preset) {
   const vp = preset.viewProperties;
   if (!vp) return;
 
-  console.log("\nProperties:");
+  /** @type {string[]} */
+  const lines = [];
   (vp.properties || []).forEach(p => {
     // SPEC (Properties tab): disabled rows are ignored. An enabled row without a value clears the key.
     if (!p.key || p.key === PROP_ID || !p.enabled) return;
     if (p.value) {
       view.prop(p.key, p.value);
-      console.log(`  prop set:     ${p.key} = "${p.value}"`);
+      lines.push(`  prop set:     ${p.key} = "${p.value}"`);
     } else if (view.prop(p.key) !== null) {
       view.removeProp(p.key);
-      console.log(`  prop removed: ${p.key}`);
+      lines.push(`  prop removed: ${p.key}`);
     }
   });
 
   if (vp.addObjectId && !view.prop(PROP_ID)) {
     const id = Common.generateUUID();
     view.prop(PROP_ID, id);
-    console.log(`  prop set:     ${PROP_ID} = "${id}" (new)`);
+    lines.push(`  prop set:     ${PROP_ID} = "${id}" (new)`);
   }
+  if (lines.length) console.log("\nProperties:\n" + lines.join("\n"));   // no heading when nothing changed
 }
 
 // ── Single view ───────────────────────────────────────────────────────────────
