@@ -38,23 +38,10 @@ const { ACTION } = Defs;
  */
 function buildObjectSet(uiSelection, preset, actionId) {
   const INDENT     = "  ";
-  // debug is not a preset key, so validatePreset drops it: always false for a validated preset.
-  const debugSteps = !!/** @type {{ debug?: boolean }} */ (preset).debug;
 
   // ── Step 1: model objects from selection (uniform for canvas + model-tree) ──
   console.log("Current selection:");
   const raw = Selection.getSelection(uiSelection, "*", INDENT);
-  if (debugSteps) {
-    /** @type {ArchiObject[]} */
-    const items = [];
-    raw.each(o => items.push(o));
-    const CAP = 20;
-    items.slice(0, CAP).forEach(o => {
-      const kind = (o.type || "").endsWith("-relationship") ? "relation" : "element";
-      console.log(`${INDENT}  [${kind}] "${o.name || "(unnamed)"}"  ${o.type}`);
-    });
-    if (items.length > CAP) console.log(`${INDENT}  … +${items.length - CAP} more`);
-  }
   const expanded = _expandViews(raw, INDENT);
   let collection     = expanded.modelCollection;
   let diagramObjects = expanded.diagramObjects;
@@ -117,7 +104,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const addedElements = /** @type {ArchiElement[]} */ ([]), addedRelations = /** @type {ArchiRelation[]} */ ([]), stepCounts = /** @type {StepCount[]} */ ([]);
   if (actionId !== ACTION.LAYOUT_ONLY.id &&
       preset.relatedElements && Array.isArray(preset.relatedElements.steps)) {
-    const r = _expandRelatedElements(filteredElementsArr, preset.relatedElements.steps, allRelIds, debugSteps);
+    const r = _expandRelatedElements(filteredElementsArr, preset.relatedElements.steps, allRelIds);
     addedElements.push(...r.addedElements);
     addedRelations.push(...r.addedRelations);
     stepCounts.push(...r.stepCounts);
@@ -198,10 +185,9 @@ function buildObjectSet(uiSelection, preset, actionId) {
  * @param {ArchiElement[]} filteredElementsArr
  * @param {Step[]}         steps
  * @param {Set<string>}    allRelIds   dedup set, mutated
- * @param {boolean}        debugSteps
  * @returns {{ addedElements: ArchiElement[], addedRelations: ArchiRelation[], stepCounts: StepCount[] }}
  */
-function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugSteps) {
+function _expandRelatedElements(filteredElementsArr, steps, allRelIds) {
   /** @type {ArchiElement[]} */
   const addedElements  = [];
   /** @type {ArchiRelation[]} */
@@ -216,15 +202,8 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
     const repeatStr = step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW ? "until nothing new" : `${Defs.repeatMaxRuns(step.repeat)}×`;
     console.log(`Step ${stepIdx} rules:  repeat: ${repeatStr}`);
     _logRules(step.rules, _describeStepRule, "    ");
-    if (debugSteps) {
-      const inLabel = stepInput.length === 0 ? "(empty)"
-        : stepInput.length <= 6
-          ? stepInput.map(e => `"${e.name}" [${e.type}]`).join(", ")
-          : stepInput.slice(0, 5).map(e => `"${e.name}" [${e.type}]`).join(", ") + ` … +${stepInput.length - 5} more`;
-      console.log(`Step ${stepIdx} input (${stepInput.length}): ${inLabel}`);
-    }
     const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
-      _expandStepWithRelations(stepInput, step, cumulativeElems, allRelIds, debugSteps);
+      _expandStepWithRelations(stepInput, step, cumulativeElems, allRelIds);
     if (step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW) {
       console.log(capped
         ? `Step ${stepIdx}: stopped at the maximum of ${Defs.REPEAT_MAX} runs — more elements may be reachable`
@@ -234,14 +213,6 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
     added.forEach(o => addedElements.push(o));
     stepRels.forEach(r => addedRelations.push(r));
     stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
-    if (debugSteps && added.length > 0) {
-      const CAP = 15;
-      added.slice(0, CAP).forEach(o => {
-        const kind = (o.type || "").endsWith("-relationship") ? "relation" : "element";
-        console.log(`    [${kind}] "${o.name || "(unnamed)"}"  ${o.type}`);
-      });
-      if (added.length > CAP) console.log(`    … +${added.length - CAP} more`);
-    }
     // Chain advance: next step's input is THIS step's additions only.
     stepInput = added;
   }
@@ -557,17 +528,16 @@ function _stepCandidate(rel, frontier) {
  * @param {Step}           step       - { repeat, rules }
  * @param {ArchiElement[]} cumulative - Elements accumulated so far (before this step)
  * @param {Set<string>}    seenRelIds - Dedup set threaded across all steps; mutated in place
- * @param {boolean}        [verbose]  - Per-hop detail logging (pipeline debug only)
  * @returns {StepExpansion}
  *   candidates — every (relation, previous-step element, new element) the step saw, before the
  *                rules; the dialog reads the property lists of the step's rules from them
  *   runs   — number of runs that added elements
  *   capped — true when the run limit was reached while the last run still added elements
  */
-function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = false) {
+function _expandStepWithRelations(base, step, cumulative, seenRelIds) {
   /** @type {StepCandidate[]} */
   const candidates = [];
-  const hops   = _expandStepFrontiers(base, step, verbose, cumulative, candidates);
+  const hops   = _expandStepFrontiers(base, step, cumulative, candidates);
   const added  = hops.flat();
   /** @type {ArchiRelation[]} */
   const newRels = [];
@@ -594,12 +564,11 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
  * run's additions. Stops early when a run adds nothing. Returns per-run frontier arrays.
  * @param {ArchiElement[]}         base
  * @param {Step}                   step
- * @param {boolean}                [verbose]
  * @param {ArchiElement[]}         [cumulative]
  * @param {StepCandidate[] | null} [candidatesOut]  filled with every candidate seen
  * @returns {ArchiElement[][]}
  */
-function _expandStepFrontiers(base, step, verbose = false, cumulative = [], candidatesOut = null) {
+function _expandStepFrontiers(base, step, cumulative = [], candidatesOut = null) {
   const rules    = step.rules || [];
   const maxRuns  = Defs.repeatMaxRuns(step.repeat);
   const baseIds  = new Set(base.map(o => o.id));
@@ -615,38 +584,17 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = [], cand
     const nextFrontier = [];
     for (const element of frontier) {
       try {
-        const stats = { total: 0, accept: 0, rejected: 0, alreadySeen: 0 };
-        /** @type {string[]} */
-        const rejectedDetails = [];
         $(element).rels().each(rel => {
-          stats.total++;
           const cand = _stepCandidate(rel, element);
           const other = cand.other;
           if (!other) return;
-          if (baseIds.has(other.id) || cumulIds.has(other.id)) { stats.alreadySeen++; return; }
+          if (baseIds.has(other.id) || cumulIds.has(other.id)) return;
           if (candidatesOut) candidatesOut.push(cand);
-          if (addedIds.has(other.id)) { stats.alreadySeen++; return; }
-
-          if (!RuleLists.matchStep(rules, cand)) {
-            stats.rejected++;
-            if (verbose) rejectedDetails.push(`${rel.type || ""}(${cand.outgoing ? "out" : "in"})→"${other.name}"[${other.type || ""}]`);
-            return;
-          }
-
+          if (addedIds.has(other.id)) return;
+          if (!RuleLists.matchStep(rules, cand)) return;
           addedIds.add(other.id);
           nextFrontier.push(other);
-          stats.accept++;
         });
-        if (verbose) {
-          const skips = [];
-          if (rejectedDetails.length > 0) {
-            const shown = rejectedDetails.slice(0, 4).join(", ") + (rejectedDetails.length > 4 ? " …" : "");
-            skips.push(`${stats.rejected} no rule matched: [${shown}]`);
-          }
-          if (stats.alreadySeen > 0) skips.push(`${stats.alreadySeen} already-selected`);
-          const skipStr = skips.length ? `  (${skips.join("  |  ")})` : "";
-          console.log(`    run${hop + 1} "${element.name}" [${element.type}]: ${stats.total} rels → ${stats.accept} accepted${skipStr}`);
-        }
       } catch (e) {}
     }
     hops.push(nextFrontier);
