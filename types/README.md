@@ -14,6 +14,10 @@ npm run typecheck   # tsc -p jsconfig.json — exit 0 = no findings
 VS Code shows the same findings while editing (it reads `jsconfig.json`). The pinned version
 (`typescript` 6.0.3) is the one VS Code bundles, so editor and command line agree.
 
+CI (`.github/workflows/check.yml`) runs `npm ci`, the typecheck and the Node tests
+`rel_filter_test.js` and `nesting_test.js` on every push and pull request (Node 22). It checks the
+scope below only; a script outside it is not checked.
+
 ## What is checked
 
 | Scope (`jsconfig.json` › `include`) | Why |

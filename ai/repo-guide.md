@@ -66,4 +66,7 @@ one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else do
 | jArchi API assumptions | `Scripts/Develop/probeJArchiApi.ajs` in Archi |
 | A refactor or annotation changes no behaviour | `tools/same-code.js` (code), `tools/compare-layouts.js` (layout output) — `types/README.md` |
 
+CI (`.github/workflows/check.yml`, every push and pull request) runs the typecheck, `rel_filter_test.js`
+and `nesting_test.js`; the rest of this table is by hand.
+
 Debug output: the View pipeline logs its steps; `elk.js` logs the ELK options it uses.
