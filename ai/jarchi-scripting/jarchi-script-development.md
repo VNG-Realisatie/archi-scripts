@@ -351,7 +351,7 @@ No automated test framework — GraalVM/jArchi does not support Node test runner
 - CommonJS: use `require()` and `module.exports`
 - Require variables: PascalCase (`const Common = require(...)`)
 - Use explicit namespaces: `Common.debug()`, not bare `debug()`
-- No npm; vendor in `Scripts/node_modules/` if needed
+- No npm at runtime: vendor runtime libraries in `Scripts/node_modules/` (development tools only via the root `package.json`, `ai/rules.md` #15)
 - Always use `REPO_ROOT` for relative requires
 
 ### Function Naming

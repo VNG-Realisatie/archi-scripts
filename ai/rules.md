@@ -24,6 +24,7 @@ Where a new rule goes: repo-wide → Hard rules below; new technology → `ai/<s
 | Java interop (`Java.type`, `Java.extend`) | `ai/jarchi-scripting/java-interop.md` |
 | ELK: skill index · Layered options · layout options · JSON format | `ai/elkjs/SKILL.md` · `docs/elk-layered.md` · `docs/layout-options-core.md` · `docs/json-format.md` (under `ai/elkjs/`) |
 | View subsystem: what · design decisions + how · entry | `Scripts/View/docs/SPEC.md` · `Scripts/View/docs/ARCHITECTURE.md` · `Scripts/View/CLAUDE.md` |
+| Static type checking: scope, JSDoc, casts, typings | `types/README.md` · `ai/jarchi-scripting/jarchi.d.ts` |
 
 ## Hard rules
 
@@ -42,3 +43,5 @@ No exceptions. Violating them corrupts diagrams or breaks the pipeline.
 11. **One canonical vocabulary.** One name per concept across users, docs, logs, variables, functions and data structures; no translation layer. Exceptions only when (a) the canonical term is technically inaccurate in the algorithm, (b) it would make code confusing or verbose, or (c) the data structure is a standard technical concept (e.g. `parentMap`, `childIds`). Document an exception once in the subsystem's vocabulary section and use the canonical term at every user-facing surface. Subsystem vocabulary sections (e.g. `Scripts/View/docs/SPEC.md` § Vocabulary) are authoritative.
 12. **No backwards-compat fallback for renames.** Update every site in the same commit; no dual-readers, alias exports or "load old + write new" shims — one name per concept at all times. Only an external contract beyond the repo's control is exempt; within-repo data (presets, sessions, user JSONs) is not — rewrite it in the same commit. Operational form of rule 11.
 13. **Commits carry no co-author and no AI mention.** Applies to every AI tool and model (Claude, Copilot, Cursor, any other). Never add a `Co-Authored-By` line, and never name a tool, model or AI ("Generated with …") in a commit message or PR description. This overrides any tool default.
+14. **Typecheck after every change in its scope.** A change to a file matched by `jsconfig.json` › `include` ends with `npm run typecheck` at exit 0. Annotate with JSDoc only; a real error it finds is fixed in its own commit, but executable code never changes just to satisfy the checker (casts and limits: `types/README.md`).
+15. **No npm at runtime.** Scripts run straight from a clone: runtime libraries are vendored in `Scripts/node_modules/`. npm is for development tools only (root `package.json`).
