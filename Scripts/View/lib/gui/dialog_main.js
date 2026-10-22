@@ -1194,7 +1194,7 @@ function _buildLayoutTab(tabFolder, ctx) {
     for (let i = 0; i < maxAlgCols; i++) {
       const algName = style.algorithms[i];
       if (algName) {
-        const alg = ALGORITHMS[algName] || {};
+        const alg = ALGORITHMS[algName];
         const radio = new ButtonWidget(algTableComp, SWT.RADIO);
         radio.setText(algName);
         if (alg.tooltip) radio.setToolTipText(alg.tooltip);
@@ -2450,7 +2450,7 @@ function _differsFromSaved(ctx) {
 function _syncToUI(ctx) {
   const c = ctx.config;
   const w = ctx.widgets;
-  const p = c.params || {};
+  const p = c.params;
 
   // Algorithm radio selection
   const algName = c.algorithm;
@@ -2467,10 +2467,9 @@ function _syncToUI(ctx) {
   if (arIdx < 0) arIdx = AR_OPTIONS.findIndex(a => a.val === Defs.AR_DEFAULT);  // no ratio yet
   if (w.cmbAspectRatio) w.cmbAspectRatio.select(Math.max(0, arIdx));
 
-  // View size radio — restore from config; infer from non-zero values for old presets without viewSizeMode.
+  // View size radio
   {
-    const _vsAlg  = ALGORITHMS[c.algorithm] || {};
-    const _vsMode = p.viewSizeMode || _inferViewSizeMode(p, _vsAlg.paramConflicts);
+    const _vsMode = p.viewSizeMode;
     const _vsMap  = {
       none:        w.radioViewSizeNone,
       maxWidth:    w.radioViewSizeMaxWidth,
@@ -2480,7 +2479,7 @@ function _syncToUI(ctx) {
   }
 
   // Filter rule tables
-  const flt = c.filter || {};
+  const flt = c.filter;
   if (w.tblElementRules)  w.tblElementRules.setRules(flt.elementRules);
   if (w.tblDiagramRules)  w.tblDiagramRules.setRules(flt.diagramRules);
   if (w.tblRelationRules) w.tblRelationRules.setRules(flt.relationRules);
@@ -2506,12 +2505,12 @@ function _syncToUI(ctx) {
   _updateAlgorithmControls(ctx);
 
   // Appearance tab
-  const app  = c.appearance || {};
+  const app  = c.appearance;
   const DA   = DEFAULT_PRESET.appearance;
 
-  const sbp  = app.styleByProperty        || {};
-  const nl   = app.nestingLevel           || {};
-  const hr   = app.highlightRepeated      || {};
+  const sbp  = app.styleByProperty;
+  const nl   = app.nestingLevel;
+  const hr   = app.highlightRepeated;
 
   // Style by property — rules, mixed-values colour, line width
   if (w.tblStyleRules) w.tblStyleRules.setRules(sbp.rules);
@@ -2574,8 +2573,6 @@ function _syncToUI(ctx) {
 function _saveUI(ctx) {
   const c = ctx.config;
   const w = ctx.widgets;
-  if (!c.params) c.params = {};
-  if (!c.view)   c.view   = {};
 
   // Algorithm and layout params
   if (w.algRadios) c.algorithm = _selectedAlgorithm(w);
@@ -2605,7 +2602,6 @@ function _saveUI(ctx) {
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
 
   // Appearance
-  if (!c.appearance) c.appearance = JSON.parse(JSON.stringify(DEFAULT_PRESET.appearance));
   const _cmbVal = (cmb, def) => cmb && cmb.getSelectionIndex() >= 0 ? cmb.getItem(cmb.getSelectionIndex()) : def;
 
   // Style by property
@@ -2629,7 +2625,6 @@ function _saveUI(ctx) {
   c.appearance.highlightRepeated.colorRange = _cmbVal(w.cmbHighlightRepRange, "Pastel1");
 
   // View properties
-  if (!c.viewProperties) c.viewProperties = JSON.parse(JSON.stringify(DEFAULT_PRESET.viewProperties));
   if (w.vpAddObjectId) c.viewProperties.addObjectId = w.vpAddObjectId.getSelection();
   if (w.vpRows) {
     c.viewProperties.properties = w.vpRows.map(row => ({
@@ -2721,14 +2716,6 @@ function _paramFromWidget(ctrl, def) {
 function _getViewSizeMode(w) {
   if (w.radioViewSizeMaxWidth    && w.radioViewSizeMaxWidth.getSelection())    return "maxWidth";
   if (w.radioViewSizeAspectRatio && w.radioViewSizeAspectRatio.getSelection()) return "aspectRatio";
-  return "none";
-}
-
-function _inferViewSizeMode(params, conflicts) {
-  if (!conflicts || !params) return "none";
-  for (const param of Object.keys(conflicts)) {
-    if ((params[param] || 0) > 0) return param;
-  }
   return "none";
 }
 
