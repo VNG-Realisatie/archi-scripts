@@ -10,6 +10,14 @@ const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf(
 console.show();
 console.clear();
 console.log(`jArchi ${$.process.release.jArchiVersion} · Archi ${$.process.release.archiVersion} · ${$.process.engine}\n`);
+if (!model.isSet()) {
+  console.error("No model selected: select the model (or a view in it) in the Models tree and run again.");
+  exit();
+}
+if ($("element").size() < 2) {
+  console.error("The selected model needs at least two elements (and preferably a relation and a view).");
+  exit();
+}
 
 const results = [];
 function probe(name, fn) {
