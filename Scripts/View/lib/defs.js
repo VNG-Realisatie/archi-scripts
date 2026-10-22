@@ -584,12 +584,12 @@ const ELEMENT_TYPES = Object.freeze([
   "capability", "communication-network", "constraint", "contract",
   "course-of-action", "data-object", "deliverable", "device",
   "distribution-network", "driver", "equipment", "facility", "gap", "goal",
-  "grouping", "implementation-even", "junction", "location", "material",
+  "grouping", "implementation-event", "junction", "location", "material",
   "meaning", "node", "outcome", "path", "plateau", "principle", "product",
   "representation", "requirement", "resource", "stakeholder", "system-software",
   "technology-collaboration", "technology-event", "technology-function",
   "technology-interaction", "technology-interface", "technology-process",
-  "technology-service", "value", "work-package",
+  "technology-service", "value", "value-stream", "work-package",
 ]);
 
 // "business-actor" → "Business Actor"
