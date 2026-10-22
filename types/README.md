@@ -57,6 +57,14 @@ update the remarks.
   (`view?: undefined` on concepts, `bounds?: undefined` on connections), so `if (o.view)` narrows
   to visuals without a cast.
 
+## Proving a change is annotation-only
+
+- `node tools/same-code.js [--rev <git rev>] <file…>` — SAME when the file's executable code equals
+  that revision (default `HEAD`) once comments and cast parentheses are removed; DIFF shows the
+  first differing line.
+- `node tools/compare-layouts.js <checkout> <model.archimate> "<view path>" [preset.json…]` —
+  one layout digest per preset × algorithm; run it on two checkouts (`git worktree add`) and diff.
+
 ## Extending the scope
 
 1. Add the file (or a glob) to `include` in `jsconfig.json`.

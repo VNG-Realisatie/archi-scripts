@@ -1,0 +1,108 @@
+# Vervolgstappen typecheck en jarchi-skill
+
+Stand 2026-10-22, branch `ViewGenerationPlan`. Context voor elke nieuwe sessie: `types/README.md`,
+`ai/rules.md` (regels 14–15, Conventions) en de commits sinds `25854e1`. Start per stap een nieuwe
+sessie; de prompts gaan niet uit van eerdere gesprekken. Volgorde: 1 → 2 → 3 → 4 → 5 → 9 → 8;
+6 en 7 wanneer het uitkomt. Verwijder dit bestand als alles af is.
+
+Modelkeuze: **Opus** voor werk met oordeel of over veel bestanden (4, 7); **Sonnet** voor afgebakend
+werk (2, 5, 6, 8).
+
+## 1. Probe draaien in Archi — jij
+
+- [ ] Model met elementen en relaties openen, een view selecteren.
+- [ ] *Scripts › Develop › probeJArchiApi* draaien; console-uitvoer opslaan (bijv. `~/probe-output.txt`).
+
+## 2. Probe-uitkomst verwerken — Sonnet
+
+- [ ] Prompt:
+
+```
+Verwerk de uitvoer van Scripts/Develop/probeJArchiApi.ajs (bijgevoegd / in ~/probe-output.txt).
+Werk per punt bij:
+- ai/jarchi-scripting/jarchi.d.ts: @remarks unverified → verwijderen of corrigeren (collection.length,
+  for…of, forEach, each/return false, add(), $(), prop(key,true), ontbrekende members,
+  console.error-arity);
+- ai/jarchi-scripting/SKILL.md en graaljs-java.md waar een uitspraak niet klopt;
+- ai/rules.md § Conventions (logging, Java-strings) als de uitkomst dat vraagt;
+- werkt relatieve require("./x") binnen een module: noteer in types/README.md als vervolgvoorstel
+  (de typeof import-regels kunnen dan vervallen) — niet doorvoeren.
+Daarna npm run typecheck. Commits volgens ai/rules.md.
+```
+
+## 3. Handmatige checks in Archi — jij
+
+- [ ] Verse `git clone` zonder `npm install`, scripts-map daarop: `View/_generate.ajs` op de testview.
+- [ ] Graphviz-preset (Dot, Neato) op de testview — in Node niet te testen.
+- [ ] *Layout only* met algoritme Force (crashte vóór fix `181d748`).
+
+## 4. Open bevindingen — jij beslist, daarna Opus
+
+- [ ] Keuzes invullen in de prompt:
+
+```
+Voer deze beslissingen door voor de open typecheck-bevindingen in de View-subsystem
+(context: types/README.md, commits sinds 25854e1):
+- graphvizBin (graph.options, nooit gezet): <verwijderen | aansluiten via engineParams.Graphviz>
+- preset.debug (nooit gezet): <verwijderen | echte preset-key in DEFAULT_PRESET>
+- standaard-reverseRules in bestandsvorm na validatePreset: <normaliseren | laten>
+- stap-kandidaat waarvan het andere uiteinde een relatie is (selection_pipeline._stepCandidate): <overslaan | laten>
+- ontbrekende Views-map (generate_view._resolveFolder → null): <foutmelding | map aanmaken>
+- graphviz._runDot leest stdout en stderr na elkaar: stderr naar tempbestand volgens
+  ai/jarchi-scripting/graaljs-java.md
+Eerst SPEC.md / ARCHITECTURE.md bijwerken waar gedrag verandert (Scripts/View/CLAUDE.md), dan code.
+Per beslissing een fix-commit; verwijder de bijbehorende casts en commentaren.
+Controle: npm run typecheck, node Scripts/View/tools/{rel_filter_test,nesting_test}.js,
+tools/compare-layouts.js tegen de vorige HEAD.
+```
+
+## 5. Copilot-adapter opschonen — Sonnet
+
+- [ ] Prompt:
+
+```
+.github/copilot/instructions.md herhaalt de harde regels uit ai/rules.md (in strijd met regel 10;
+mist 11–15). Maak het een pure verwijzing zoals .claude/rules.md. Controleer .cursorrules en
+.cursor/ op hetzelfde. Eén docs-commit.
+```
+
+## 6. Casts verminderen — Sonnet
+
+- [ ] Prompt:
+
+```
+In de typecheck-scope staan 157 JSDoc-casts (beleid: types/README.md), vooral in
+Scripts/View/lib/selection_pipeline.js (63), engines/elk.js (33), generate_view.js (24).
+Verminder ze waar een kleine gedragsneutrale refactor of betere typing het oplost
+(Map.get-na-set via een helper, preciezere typedefs, overloads in types/*.d.ts).
+Geen gedragswijziging; per module een commit. Bewijs: tools/same-code.js waar de code gelijk moet
+blijven, tools/compare-layouts.js voor de layout-uitvoer; noem bewuste refactors in de commit.
+Rapporteer het aantal casts voor/na per bestand.
+```
+
+## 7. Scope uitbreiden naar gui/ — Opus
+
+- [ ] Prompt:
+
+```
+Breid de typecheck uit naar Scripts/View/lib/gui/ (dialog_main.js ±2900 regels, SWT via Java.type).
+Volg types/README.md § Extending: bottom-up (rule_table → dialog_presets → dialog_main), strict,
+alleen JSDoc. Voeg in types/ een minimale SWT/JFace-subset toe voor wat werkelijk gebruikt wordt;
+Java.type-resultaten mogen any blijven waar typing niets oplevert. Echte fouten in aparte
+fix-commits. Meld het aantal meldingen vooraf en de bevindingen achteraf.
+```
+
+## 8. CI — Sonnet, na de push
+
+- [ ] Prompt:
+
+```
+Voeg een GitHub Actions-workflow toe die bij push en PR draait: npm ci, npm run typecheck,
+node Scripts/View/tools/rel_filter_test.js en nesting_test.js. Node 22.
+Documenteer in types/README.md en ai/repo-guide.md § Testing. Eén commit.
+```
+
+## 9. Push en PR — jij
+
+- [ ] Pas na 1–3 pushen, zodat de fixes in Archi bevestigd zijn. Geen AI-vermelding in commit- of
+  PR-teksten (regel 13).

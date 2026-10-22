@@ -19,7 +19,7 @@ Where things are and how scripts are put together. Rules: `ai/rules.md`. jArchi 
 | `Scripts/View/` | View generation with ELK, Dagre, Graphviz (`Scripts/View/CLAUDE.md`) |
 | `Scripts/_lib/` | Shared modules (below) |
 | `Scripts/node_modules/` | Vendored runtime libraries (elkjs, dagre, chroma-js, papaparse, …) — no npm at runtime |
-| `types/`, `jsconfig.json`, `package.json` | Static type checking (`types/README.md`) — development only |
+| `types/`, `jsconfig.json`, `package.json`, `tools/` | Static type checking and its verification tools (`types/README.md`) — development only |
 
 Any script may use `Scripts/_lib/`; domain folders do not depend on each other.
 
@@ -64,5 +64,6 @@ one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else do
 | View pipeline, nesting, layout graph, ELK / Dagre adapters | Node, no Archi: `node Scripts/View/tools/view_harness.js <model.archimate> "<view path>" [preset.json] --layout`; `nesting_test.js`, `rel_filter_test.js` in the same folder |
 | Writer, Graphviz (needs `ProcessBuilder`), dialogs, everything else | Run the script in Archi on a small test model; golden path plus empty selection, one element, deep nesting |
 | jArchi API assumptions | `Scripts/Develop/probeJArchiApi.ajs` in Archi |
+| A refactor or annotation changes no behaviour | `tools/same-code.js` (code), `tools/compare-layouts.js` (layout output) — `types/README.md` |
 
 Debug output: the View pipeline logs its steps; `elk.js` logs the ELK options it uses.
