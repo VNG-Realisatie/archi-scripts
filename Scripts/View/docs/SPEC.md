@@ -956,8 +956,9 @@ gradient preview strip that repaints on change.
 
 - One row per property key found on any view of the model (except *Object ID*): a checkbox, the
   key, and an editable combo of all values found for that key. Nothing is pre-selected.
-- After layout and styling, every enabled row's value is written to the generated view;
-  disabled rows are ignored. The preset keeps every configured row, enabled or not.
+- After layout and styling, every enabled row's value is written to the generated view; an
+  enabled row without a value removes that key from the view. Disabled rows are ignored — they
+  never touch the view. The preset keeps every configured row, enabled or not.
 - **Object ID.** When checked and the view has no *Object ID* property, a new unique id is
   written; an existing one is never overwritten. *One view each* gives each view its own id.
 

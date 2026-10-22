@@ -173,11 +173,12 @@ function _applyViewProperties(view, preset) {
 
   console.log("\nProperties:");
   (vp.properties || []).forEach(p => {
-    if (!p.key || p.key === PROP_ID) return;
-    if (p.enabled && p.value) {
+    // SPEC (Properties tab): disabled rows are ignored. An enabled row without a value clears the key.
+    if (!p.key || p.key === PROP_ID || !p.enabled) return;
+    if (p.value) {
       view.prop(p.key, p.value);
       console.log(`  prop set:     ${p.key} = "${p.value}"`);
-    } else {
+    } else if (view.prop(p.key) !== null) {
       view.removeProp(p.key);
       console.log(`  prop removed: ${p.key}`);
     }
