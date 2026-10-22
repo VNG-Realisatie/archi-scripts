@@ -27,8 +27,8 @@ const PT2PX = 96 / 72;
 
 // DIRECTION_MAP imported from defs.js — shared with dagre.js.
 
-// Default Graphviz binary name (dot). Can be overridden per-layout via graph.options.graphvizBin.
-const GRAPHVIZ_BIN_DEFAULT = "dot";
+// Graphviz binary, found on the PATH.
+const GRAPHVIZ_BIN = "dot";
 
 // Derived: set of Graphviz algorithm names (used for engine validation guard).
 const GRAPHVIZ_ALGORITHMS = new Set(
@@ -106,8 +106,7 @@ function layout(graph) {
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
   console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
 
-  // graphvizBin is not a preset param, so validatePreset drops it and this is always the default.
-  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId, /** @type {{ graphvizBin?: string }} */ (graph.options).graphvizBin || GRAPHVIZ_BIN_DEFAULT);
+  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId);
   const _rawBb  = String(jsonOut.bb || "—");
   const _bbParts = _rawBb.split(",").map(parseFloat);
   const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
@@ -237,21 +236,19 @@ function _buildDOT(graph) {
 /**
  * @param {string} dotSource
  * @param {string} engine   Graphviz layout engine (-K)
- * @param {string} binPath
  * @returns {GraphvizJson}
  */
-function _runDot(dotSource, engine, binPath) {
+function _runDot(dotSource, engine) {
   const ProcessBuilder = Java.type("java.lang.ProcessBuilder");
   const Arrays         = Java.type("java.util.Arrays");
-  const bin = (binPath && binPath.trim()) ? binPath.trim() : GRAPHVIZ_BIN_DEFAULT;
 
   let proc;
   try {
-    const pb = new ProcessBuilder(Arrays.asList(bin, "-Tjson", "-K" + engine));
+    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, "-Tjson", "-K" + engine));
     pb.redirectErrorStream(false);
     proc = pb.start();
   } catch (e) {
-    throw new Error(`Graphviz not found at '${bin}'.\nInstall Graphviz (graphviz.org) and ensure 'dot' is on the system PATH.`);
+    throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
   }
 
   const wr = new java.io.OutputStreamWriter(proc.getOutputStream(), "UTF-8");
