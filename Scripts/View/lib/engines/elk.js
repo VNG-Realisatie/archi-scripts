@@ -263,8 +263,8 @@ function _mapParamsScoped(algName, opts, scope) {
   /** @type {Record<string, string>} */
   const result = {};
   for (const [key, fn] of Object.entries(entry[scope])) {
-    // Casts: key comes from the mapping, whose keys are param names.
-    if (/** @type {Record<string, unknown>} */ (opts)[key] !== undefined) Object.assign(result, fn(/** @type {Record<string, unknown>} */ (opts)[key], opts));
+    const value = /** @type {Record<string, unknown>} */ (opts)[key];   // Cast: key comes from the mapping, whose keys are param names.
+    if (value !== undefined) Object.assign(result, fn(value, opts));
   }
   return result;
 }
@@ -321,10 +321,11 @@ const VIEW_SIZE_MAX_RUNS  = 10;    // measuring ELK runs per search, before the 
  */
 function _fitViewSize(graph) {
   const o = graph.options;
-  // Casts below: target is set only when the param is > 0.
   /** @typedef {{ width: number, height: number, k: number }} ViewSizeRun */
-  const target = /** @type {number} */ (o.aspectRatio) > 0 ? "aspectRatio" : /** @type {number} */ (o.maxWidth) > 0 ? "maxWidth" : null;
+  const target = (o.aspectRatio || 0) > 0 ? "aspectRatio" : (o.maxWidth || 0) > 0 ? "maxWidth" : null;
   if (!target) return null;
+  // Cast: the target is set only when its param is > 0.
+  const goal = /** @type {number} */ (target === "aspectRatio" ? o.aspectRatio : o.maxWidth);
   const log = (/** @type {string} */ msg) => console.log("  " + msg);
   const t0 = Date.now();
   const kMax = ALGORITHMS[graph.algorithm].engineAlgorithmId === "rectpacking" ? PACK_ASPECT_RATIO_MAX : VIEW_SIZE_K_MAX;
@@ -340,16 +341,16 @@ function _fitViewSize(graph) {
 
   if (target === "maxWidth") {
     const natural = measure(0);
-    if (natural.width <= /** @type {number} */ (o.maxWidth)) { done(`max width ${o.maxWidth} px — natural layout fits (${size(natural)})`); return null; }
+    if (natural.width <= goal) { done(`max width ${o.maxWidth} px — natural layout fits (${size(natural)})`); return null; }
     let lo = VIEW_SIZE_K_MIN, hi = kMax;
     let best = measure(lo);
-    if (best.width > /** @type {number} */ (o.maxWidth)) {
+    if (best.width > goal) {
       done(`⚠ max width ${o.maxWidth} px not reachable — narrowest layout ${size(best)} (connection chains or the widest container set the minimum)`);
       return lo;
     }
     while (runs < VIEW_SIZE_MAX_RUNS && hi / lo > 1.02) {
       const k = Math.sqrt(lo * hi), m = measure(k);
-      if (m.width <= /** @type {number} */ (o.maxWidth)) { lo = k; if (m.width > best.width) best = m; }
+      if (m.width <= goal) { lo = k; if (m.width > best.width) best = m; }
       else hi = k;
     }
     done(`max width ${o.maxWidth} px → ${size(best)}  (natural ${size(natural)}, elk.aspectRatio ${best.k.toFixed(2)})`);
@@ -357,7 +358,6 @@ function _fitViewSize(graph) {
   }
 
   // aspectRatio: bisection on k; the view ratio grows with k (in steps — row counts are integers).
-  const goal = /** @type {number} */ (o.aspectRatio);
   const ratio = (/** @type {ViewSizeRun} */ m) => m.width / m.height;
   const err   = (/** @type {ViewSizeRun} */ m) => Math.abs(Math.log(ratio(m) / goal));
   let best = measure(goal);
@@ -499,7 +499,12 @@ function _layoutOnce(graph, measureOnly) {
   // pass 1 renders every box at its natural width → compute a per-level target width
   // (engine-utils.alignWidthsByLevel) → pass 2 with leaves set to that width and
   // containers floored by it (MINIMUM_SIZE), so same-level boxes line up.
-  let alignTargets = /** @type {Record<string, number> | null} */ (null), alignContainerIds = /** @type {Set<string> | null} */ (null), alignPass1Widths = /** @type {Record<string, number> | null} */ (null);
+  /** @type {Record<string, number> | null} */
+  let alignTargets = null;
+  /** @type {Set<string> | null} */
+  let alignContainerIds = null;
+  /** @type {Record<string, number> | null} */
+  let alignPass1Widths = null;
   if (graph.alignWidthSameType && Object.values(parentMap).length > 0) {
     const containerIds = new Set(Object.values(parentMap));
     /** @type {Record<string, { width?: number, height?: number }>} */
@@ -713,7 +718,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   // ports (+ one spacing margin at both ends) fit — never shrinking below the given size.
   // Without it, ports beyond the side make Archi's orthogonal anchor fall back to a corner.
   const portSpacing = graph.options.connectionSpacing;
-  if (/** @type {number} */ (portSpacing) > 0 && ALGORITHMS[graph.algorithm].engineAlgorithmId === "layered") {
+  if (portSpacing !== undefined && portSpacing > 0 && ALGORITHMS[graph.algorithm].engineAlgorithmId === "layered") {
     const parentOpts = {
       "elk.spacing.portPort":         String(portSpacing),
       "elk.spacing.portsSurrounding": `[top=${portSpacing},left=${portSpacing},bottom=${portSpacing},right=${portSpacing}]`,
@@ -930,7 +935,9 @@ function _placeEdges(edgeList, parentMap, nodeMap, mode) {
       (nodeMap[ctrId].ports = nodeMap[ctrId].ports || []).push(port);
       return port.id;
     };
-    const stops = [isCtr(srcId) ? portOf(srcId) : srcId], owners = /** @type {string[]} */ ([]);
+    const stops = [isCtr(srcId) ? portOf(srcId) : srcId];
+    /** @type {string[]} */
+    const owners = [];
     for (const c of srcChain)                 { stops.push(portOf(c)); owners.push(c); }
     owners.push(lca);
     for (const c of tgtChain.slice().reverse()) { stops.push(portOf(c)); owners.push(c); }
@@ -1142,7 +1149,7 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
       continue;
     }
     const label = (recs.find(r => r.label) || {}).label || null;
-    const joined = { edge: recs[0].edge, sections: /** @type {AbsSection[]} */ ([]).concat(...recs.map(r => r.sections)), label, segCount: meta.segCount };
+    const joined = { edge: recs[0].edge, sections: recs.flatMap(r => r.sections), label, segCount: meta.segCount };
     _emitEdgeResult(joined, meta, resultEdges, labelPosition, isSplines);
   }
 }
@@ -1168,9 +1175,11 @@ function _straightenJogs(path) {
   const horz = (u, v) => Math.abs(u.y - v.y) < 0.5 && Math.abs(u.x - v.x) >= 0.5;
   /** @type {PointTest} */
   const vert = (u, v) => Math.abs(u.x - v.x) < 0.5 && Math.abs(u.y - v.y) >= 0.5;
+  /** @type {[PointTest, PointTest, "x" | "y"][]} */
+  const axes = [[horz, vert, "y"], [vert, horz, "x"]];
   for (let i = 1; i + 2 < p.length; i++) {
     const a = p[i - 1], b = p[i], c = p[i + 1], d = p[i + 2];
-    for (const [par, perp, k] of /** @type {[PointTest, PointTest, "x" | "y"][]} */ ([[horz, vert, "y"], [vert, horz, "x"]])) {   // Cast: a list of tuples
+    for (const [par, perp, k] of axes) {
       if (!(par(a, b) && perp(b, c) && par(c, d) && len(b, c) < JOG_MAX)) continue;
       if (len(a, b) <= len(c, d)) a[k] = b[k] = c[k];
       else                        c[k] = d[k] = b[k];
@@ -1318,7 +1327,8 @@ function _collectRenderedWidths(layouted) {
   /** @param {ElkWorkNode | ElkRoot} node */
   function walk(node) {
     for (const child of (node.children || [])) {
-      if (/** @type {number} */ (child.width) > 0) widths[child.id] = /** @type {number} */ (child.width);   // Casts: absent compares as false
+      const cw = /** @type {number} */ (child.width);   // Cast: absent compares as false
+      if (cw > 0) widths[child.id] = cw;
       walk(child);
     }
   }
@@ -1436,7 +1446,10 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   //    Tight first; the loop below widens only the boundaries that actually collide.
   const yOver = (/** @type {LayoutResultNode} */ a, /** @type {LayoutResultNode} */ b) => a.y < b.y + (b.height || 0) && b.y < a.y + (a.height || 0);
   const slack = 2 * pad;
-  const gap = /** @type {number[]} */ ([]), rawGap = /** @type {number[]} */ ([]);
+  /** @type {number[]} */
+  const gap = [];
+  /** @type {number[]} */
+  const rawGap = [];
   for (let k = 0; k < cols.length - 1; k++) {
     let need = spacing;
     for (const a of cols[k].members) for (const b of cols[k + 1].members) {
@@ -1471,7 +1484,10 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   }
   // Find adjacent sibling containers that overlap; return { boundaryIndex: maxNeededWiden }.
   function findOverlaps() {
-    const widen = /** @type {Record<string, number>} */ ({}); const list = /** @type {string[]} */ ([]);
+    /** @type {Record<string, number>} */
+    const widen = {};
+    /** @type {string[]} */
+    const list = [];
     for (const pid of parents) {
       const sibs = (pid === ROOT ? resultNodes.filter(n => n.parentId == null) : (childrenByParent[pid] || []))
                      .filter(k => isContainer(k.id)).sort((a, b) => a.x - b.x);
@@ -1491,7 +1507,9 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   }
 
   // 4. Iterate: lay out tight, find collisions, widen exactly those boundaries, repeat.
-  let iters = 0, lastList = /** @type {string[]} */ ([]);
+  let iters = 0;
+  /** @type {string[]} */
+  let lastList = [];
   for (; iters < 8; iters++) {
     applyGrid();
     const { widen, list } = findOverlaps();
