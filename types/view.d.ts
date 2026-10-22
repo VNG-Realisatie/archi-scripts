@@ -376,4 +376,6 @@ interface RuleTable<K extends RuleKind> {
   refreshItems(): void;
   enable(on: boolean): void;
   footer: Swt.Composite;
+  /** Not an SWT control: code that sets tooltips on a mix of widgets checks for it. */
+  setToolTipText?: undefined;
 }

@@ -239,6 +239,18 @@ function matchEveryContainer(rules, relType, srcType, tgtType, rel) {
 
 /**
  * The object a relation rule's property is read from: the relation, its source or its target.
+ * @overload
+ * @param {{ propertyOf: string }} rule
+ * @param {ArchiRelation} rel
+ * @returns {ArchiConcept}
+ */
+/**
+ * @overload
+ * @param {{ propertyOf: string }} rule
+ * @param {ArchiRelation | null} [rel]
+ * @returns {ArchiConcept | undefined}
+ */
+/**
  * @param {{ propertyOf: string }}     rule
  * @param {ArchiRelation | null} [rel]
  */

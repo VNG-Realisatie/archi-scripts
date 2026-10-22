@@ -709,7 +709,8 @@ function _classifyVisuals(raw, records) {
  * Describe visual elements for nesting resolution and pairing: per visual its element, parent
  * visual, container chain and whether it is managed. Classified over the whole view (records,
  * contents of containers), returned for the given visuals only, in view order.
- * @param {VisualObject[]} visualElements  visual elements of one view (the VisualSet, or the dialog's selection)
+ * @param {DiagramObject[]} visualElements  visual elements of one view (the VisualSet, or the dialog's
+ *   selection); other visuals in the list (a selected connection) are left out
  * @returns {VisualDescription[]}
  */
 function _describeVisuals(visualElements) {
