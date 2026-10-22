@@ -916,9 +916,11 @@ values are sorted and mapped to evenly spaced colours of the rule's colour range
 several different values gets the *mixed values* colour. Relations coloured by a *Color =
 Relation* rule take the fixed line width when one is chosen. Where two rules style the same
 object the later wins, and the dialog marks both with ⚠ (computed on the predicted view). The
-row tooltip reads the rule as a sentence. On Expand view / Layout only, a rule that is **off**
-resets what it would style (fill, or line colour and width) unless another rule styled it;
-colours set by hand elsewhere are left alone.
+row tooltip reads the rule as a sentence. On Expand view / Layout only with at least one style
+rule (on or off), every element's fill and every relation's line colour and width on the view is
+**reset first** and the active rules colour again, so a changed rule never leaves colours of an
+earlier run behind. Objects coloured in the same pass by nesting level or highlight repeated are
+kept; colours set by hand on the view are lost. Without style rules nothing is reset.
 
 **Style by nesting level.** Active only when a Nesting rule is on; otherwise an informational
 label replaces the controls. Two compact rows, one for font, one for colour.
@@ -1255,9 +1257,10 @@ is laid out in its current container. A nesting's visual relation between the tw
 visuals is kept, otherwise added; every other line of a relation drawn as nesting is removed.
 
 **Preserved vs re-derived** on Modify actions: appearance (colours, fonts, line styles, sizes
-set by hand) is never touched by the writer; parenthood is re-derived; bendpoints of existing
-connections are rewritten from the layout result (their style untouched). The Create group
-never modifies the view the selection came from.
+set by hand) is never touched by the writer (the styling pass may reset colours,
+[§10](#10-colouring--appearance)); parenthood is re-derived; bendpoints of existing connections
+are rewritten from the layout result (their style untouched). The Create group never modifies
+the view the selection came from.
 
 ### Sizing refinements
 
