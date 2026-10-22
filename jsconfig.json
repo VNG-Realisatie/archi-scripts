@@ -1,0 +1,20 @@
+{
+  // Static type checking of jArchi scripts: JSDoc + tsc, no emit. Run: npm run typecheck
+  // Scope grows module by module; see types/README.md.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2023"],
+    "types": [],
+    "skipLibCheck": false
+  },
+  "include": [
+    "ai/jarchi-scripting/jarchi.d.ts",
+    "types/*.d.ts",
+    "Scripts/View/lib/rel_filter.js"
+  ]
+}
