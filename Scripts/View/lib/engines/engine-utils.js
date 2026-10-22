@@ -213,8 +213,8 @@ function applyParams(algName, opts, mapping) {
   /** @type {Record<string, unknown>} */
   const result = {};
   for (const [key, fn] of Object.entries(map)) {
-    // Casts: key comes from the mapping, whose keys are param names.
-    if (/** @type {Record<string, unknown>} */ (opts)[key] !== undefined) Object.assign(result, fn(/** @type {Record<string, unknown>} */ (opts)[key], opts));
+    const value = /** @type {Record<string, unknown>} */ (opts)[key];   // Cast: key comes from the mapping, whose keys are param names.
+    if (value !== undefined) Object.assign(result, fn(value, opts));
   }
   return result;
 }
