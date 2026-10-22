@@ -32,9 +32,12 @@ Daarna npm run typecheck. Commits volgens ai/rules.md.
 
 ## 3. Handmatige checks in Archi — jij
 
-- [ ] Verse `git clone` zonder `npm install`, scripts-map daarop: `View/_generate.ajs` op de testview.
-- [ ] Graphviz-preset (Dot, Neato) op de testview — in Node niet te testen.
-- [ ] *Layout only* met algoritme Force (crashte vóór fix `181d748`).
+- [x] Verse `git clone` zonder `npm install`, scripts-map daarop: `View/_generate.ajs` op de testview.
+- [x] Graphviz-preset (Dot, Neato) op de testview — in Node niet te testen.
+- [x] *Layout only* met algoritme Force (crashte vóór fix `181d748`).
+
+Uitkomst stap 3: alle checks goed. Gevonden: uitgeschakelde rijen op de Properties-tab verwijderden
+view-properties (in strijd met de SPEC) — hersteld in `bc094ee`.
 
 ## 4. Open bevindingen — jij beslist, daarna Opus
 
