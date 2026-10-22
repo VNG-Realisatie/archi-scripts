@@ -273,8 +273,9 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
   $(view).find("element").each(vo => {
     if (!vo.concept) return;
     const id = vo.concept.id;
-    if (!byConceptId.has(id)) byConceptId.set(id, []);
-    /** @type {VisualObject[]} */ (byConceptId.get(id)).push(vo);   // Cast: set just above
+    let vos = byConceptId.get(id);
+    if (!vos) { vos = []; byConceptId.set(id, vos); }
+    vos.push(vo);
   });
 
   /** @type {string[]} */
@@ -376,19 +377,27 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
   const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
 
   // The objects on the view, by model concept id.
-  const vosByElementId = /** @type {Map<string, VisualObject[]>} */ (new Map()), elementById = /** @type {Map<string, ArchiElement>} */ (new Map());
+  /** @type {Map<string, VisualObject[]>} */
+  const vosByElementId = new Map();
+  /** @type {Map<string, ArchiElement>} */
+  const elementById = new Map();
   $(view).find("element").each(vo => {
     if (!vo.concept) return;
     const id = vo.concept.id;
-    if (!vosByElementId.has(id)) { vosByElementId.set(id, []); elementById.set(id, vo.concept); }
-    /** @type {VisualObject[]} */ (vosByElementId.get(id)).push(vo);   // Cast: set just above
+    let vos = vosByElementId.get(id);
+    if (!vos) { vos = []; vosByElementId.set(id, vos); elementById.set(id, vo.concept); }
+    vos.push(vo);
   });
-  const vcsByRelationId = /** @type {Map<string, VisualConnection[]>} */ (new Map()), relationById = /** @type {Map<string, ArchiRelation>} */ (new Map());
+  /** @type {Map<string, VisualConnection[]>} */
+  const vcsByRelationId = new Map();
+  /** @type {Map<string, ArchiRelation>} */
+  const relationById = new Map();
   $(view).find("relation").each(vc => {
     if (!vc.concept || !vc.concept.id) return;
     const id = vc.concept.id;
-    if (!vcsByRelationId.has(id)) { vcsByRelationId.set(id, []); relationById.set(id, vc.concept); }
-    /** @type {VisualConnection[]} */ (vcsByRelationId.get(id)).push(vc);   // Cast: set just above
+    let vcs = vcsByRelationId.get(id);
+    if (!vcs) { vcs = []; vcsByRelationId.set(id, vcs); relationById.set(id, vc.concept); }
+    vcs.push(vc);
   });
   const elements  = Array.from(elementById.values());
   const relations = Array.from(relationById.values());
