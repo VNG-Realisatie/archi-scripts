@@ -24,6 +24,7 @@ const { LABEL_SIZING_DEFAULTS } = require(REPO_ROOT + "View/lib/defs");
 function selfLoopResult(edge) {
   return {
     id: edge.id,
+    conceptId: edge.conceptId,
     sourceId: edge.source,
     targetId: edge.target,
     bendpoints: [],
