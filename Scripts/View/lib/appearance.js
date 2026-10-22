@@ -19,12 +19,25 @@ const REPO_ROOT = (() => {
 })();
 
 const Chroma = require("chroma-js");
+/** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { COLOR_RANGES } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
 const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
+
+/**
+ * @typedef {object} ViewDepths
+ * @property {Map<string, number>}         depthById
+ * @property {Map<string, boolean>}        isContainerById
+ * @property {Map<string, boolean>}        inSameTypeChainById
+ * @property {Map<string, string | null | undefined>}  rootIdById  undefined: parent not on the view
+ * @property {number}                      maxContainerDepth
+ *
+ * @typedef {{ kind: "element" | "relation", values: Set<string> }} RuleTarget
+ */
 
 // Archi default font — used when resetting.
 const DEFAULT_FONT_NAME  = "Segoe UI";
@@ -35,6 +48,11 @@ const DEFAULT_FONT_STYLE = "normal";
 
 // actionId: "new_view" | "one_each" | "expand_view" | "layout_only"
 // Reset-on-disable applies only when actionId is "layout_only" or "expand_view".
+/**
+ * @param {ArchimateView} view
+ * @param {MaskedPreset}  preset  params masked to the algorithm (defs.effectiveParams)
+ * @param {string}        actionId
+ */
 function applyAppearance(view, preset, actionId) {
   const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
@@ -66,6 +84,7 @@ function applyAppearance(view, preset, actionId) {
   // VOs colored by an active feature are protected from being cleared by later disabled-feature
   // resets (which would otherwise overwrite earlier colors). Built incrementally: each active
   // feature adds its styled VO ids so subsequent resets can skip them.
+  /** @type {Set<string>} */
   const styledVoIds = new Set();
 
   _applyNestingLevel(view, nl, depths, isModify, styledVoIds);
@@ -82,10 +101,18 @@ function applyAppearance(view, preset, actionId) {
 // inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
 // chain from its depth-0 root ancestor (see "Type chain" in SPEC.md, Appearance tab).
 // rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
+/**
+ * @param {ArchimateView} view
+ * @returns {ViewDepths}
+ */
 function _computeViewDepths(view) {
+  /** @type {Map<string, number>} */
   const depthById       = new Map();
+  /** @type {Map<string, boolean>} */
   const isContainerById = new Map();
+  /** @type {Map<string, string | null>} */
   const parentIdById    = new Map();  // voId → parent voId | null
+  /** @type {Map<string, string | null>} */
   const elementTypeById = new Map();  // voId → vo.concept.type | null
   let maxContainerDepth = 0;
 
@@ -105,7 +132,9 @@ function _computeViewDepths(view) {
   // A VO is in the chain iff its element type equals that of its depth-0 root
   // ancestor AND every ancestor between them is also in the chain.
   // Stops propagating as soon as a type mismatch is encountered ("stop the tree").
+  /** @type {Map<string, boolean>} */
   const inSameTypeChainById = new Map();
+  /** @type {Map<string, string | null | undefined>} */
   const rootIdById          = new Map();  // voId → depth-0 root VO id | null
   const byDepth = [...depthById.entries()].sort((a, b) => a[1] - b[1]);
   for (const [voId, depth] of byDepth) {
@@ -136,6 +165,7 @@ function _computeViewDepths(view) {
   return { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth };
 }
 
+/** @param {VisualObject} vo */
 function _voDepth(vo) {
   let depth = 0;
   let p = $(vo).parent().filter("element").first();
@@ -145,6 +175,13 @@ function _voDepth(vo) {
 
 // ── Style by nesting level ────────────────────────────────────────────────────
 
+/**
+ * @param {ArchimateView}                          view
+ * @param {Preset["appearance"]["nestingLevel"]}   settings
+ * @param {ViewDepths}                             depths
+ * @param {boolean}                                isModify
+ * @param {Set<string>}                            styledVoIds
+ */
 function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
   const { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth } = depths;
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
@@ -157,6 +194,7 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
 
   // Snapshot fill colors of depth-0 chain roots before any modification so that
   // each chain's gradient is anchored to the root container's existing fill color.
+  /** @type {Map<string, string | null>} */
   const chainRootFillById = new Map();  // rootVoId → fill color string | null
   $(view).find("element").each(vo => {
     if (!vo.id) return;
@@ -166,7 +204,7 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
 
   // Returns the gradient anchor color for a VO: its chain root's current fill, or fallbackColor.
   // Returns null when neither is available — those VOs are skipped.
-  const anchorColor = voId => {
+  const anchorColor = (/** @type {string} */ voId) => {
     const rootId = rootIdById ? rootIdById.get(voId) : null;
     return (rootId ? chainRootFillById.get(rootId) : null) || fallbackColor;
   };
@@ -223,15 +261,23 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
 
 // ── Highlight repeated elements ───────────────────────────────────────────────
 
+/**
+ * @param {ArchimateView}                              view
+ * @param {Preset["appearance"]["highlightRepeated"]}  settings
+ * @param {boolean}                                    isModify
+ * @param {Set<string>}                                styledVoIds
+ */
 function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
+  /** @type {Map<string, VisualObject[]>} */
   const byConceptId = new Map();
   $(view).find("element").each(vo => {
     if (!vo.concept) return;
     const id = vo.concept.id;
     if (!byConceptId.has(id)) byConceptId.set(id, []);
-    byConceptId.get(id).push(vo);
+    /** @type {VisualObject[]} */ (byConceptId.get(id)).push(vo);   // Cast: set just above
   });
 
+  /** @type {string[]} */
   const multiIds = [];
   byConceptId.forEach((vos, id) => { if (vos.length > 1) multiIds.push(id); });
 
@@ -239,11 +285,11 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
     if (multiIds.length === 0) { console.log(`  highlightRepeated: 0 multi-occurrence elements`); return; }
     const colors = _colorScale(settings.colorRange, multiIds.length);
     let n = 0;
-    multiIds.forEach((id, i) => { byConceptId.get(id).forEach(vo => { vo.fillColor = colors[i]; styledVoIds.add(vo.id); n++; }); });
+    multiIds.forEach((id, i) => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { vo.fillColor = colors[i]; styledVoIds.add(vo.id); n++; }); });
     console.log(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
   } else if (isModify && settings.colorRange && multiIds.length > 0) {
     let n = 0;
-    multiIds.forEach(id => { byConceptId.get(id).forEach(vo => { vo.fillColor = null; n++; }); });
+    multiIds.forEach(id => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { vo.fillColor = null; n++; }); });
     console.log(`  highlightRepeated: ${n} VOs reset`);
   }
 }
@@ -262,14 +308,16 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
  *              by the property of rule.propertyOf (element = itself, relation, source, target)
  *   target     the target element likewise
  *
- * @param {Object}   rule       normalised style rule (rel_filter kind "style")
- * @param {Object[]} elements   element concepts in scope
- * @param {Object[]} relations  relation concepts in scope (used by color = relation)
- * @returns {Map<string,{kind:string, values:Set<string>}>}  object id → hit; values is empty
+ * @param {StyleRule}       rule       normalised style rule (rel_filter kind "style")
+ * @param {ArchiElement[]}  elements   element concepts in scope
+ * @param {ArchiRelation[]} relations  relation concepts in scope (used by color = relation)
+ * @returns {Map<string, RuleTarget>}  object id → hit; values is empty
  *          when the property is unset on the object(s)
  */
 function computeRuleTargets(rule, elements, relations) {
+  /** @type {Map<string, RuleTarget>} */
   const out = new Map();
+  /** @type {(id: string, kind: RuleTarget["kind"], obj: PropertySource | null | undefined) => void} */
   const hit = (id, kind, obj) => {
     let h = out.get(id);
     if (!h) { h = { kind, values: new Set() }; out.set(id, h); }
@@ -279,9 +327,10 @@ function computeRuleTargets(rule, elements, relations) {
       if (v !== null && v !== undefined && v !== "") h.values.add(String(v));
     } catch (e) {}
   };
-  const matches = r => RuleLists.styleRuleMatchesRelation(rule, r.type, r.source && r.source.type, r.target && r.target.type);
+  const matches = (/** @type {ArchiRelation} */ r) => RuleLists.styleRuleMatchesRelation(rule, r.type, r.source && r.source.type, r.target && r.target.type);
   // Whose property supplies the value: the relation, one of its ends, or (propertyOf "element")
   // the styled element itself.
+  /** @type {(r: ArchiRelation, el: ArchiElement | null) => PropertySource} */
   const readFrom = (r, el) => rule.propertyOf === "source" ? r.source
                             : rule.propertyOf === "target" ? r.target
                             : rule.propertyOf === "element" && el ? el : r;
@@ -314,6 +363,12 @@ function computeRuleTargets(rule, elements, relations) {
   return out;
 }
 
+/**
+ * @param {ArchimateView}                            view
+ * @param {Preset["appearance"]["styleByProperty"]}  settings
+ * @param {boolean}                                  isModify
+ * @param {Set<string>}                              styledVoIds
+ */
 function _applyStyleRules(view, settings, isModify, styledVoIds) {
   const rules = settings.rules || [];
   if (rules.length === 0) return;
@@ -321,25 +376,28 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
   const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
 
   // The objects on the view, by model concept id.
-  const vosByElementId = new Map(), elementById = new Map();
+  const vosByElementId = /** @type {Map<string, VisualObject[]>} */ (new Map()), elementById = /** @type {Map<string, ArchiElement>} */ (new Map());
   $(view).find("element").each(vo => {
     if (!vo.concept) return;
     const id = vo.concept.id;
     if (!vosByElementId.has(id)) { vosByElementId.set(id, []); elementById.set(id, vo.concept); }
-    vosByElementId.get(id).push(vo);
+    /** @type {VisualObject[]} */ (vosByElementId.get(id)).push(vo);   // Cast: set just above
   });
-  const vcsByRelationId = new Map(), relationById = new Map();
+  const vcsByRelationId = /** @type {Map<string, VisualConnection[]>} */ (new Map()), relationById = /** @type {Map<string, ArchiRelation>} */ (new Map());
   $(view).find("relation").each(vc => {
     if (!vc.concept || !vc.concept.id) return;
     const id = vc.concept.id;
     if (!vcsByRelationId.has(id)) { vcsByRelationId.set(id, []); relationById.set(id, vc.concept); }
-    vcsByRelationId.get(id).push(vc);
+    /** @type {VisualConnection[]} */ (vcsByRelationId.get(id)).push(vc);   // Cast: set just above
   });
   const elements  = Array.from(elementById.values());
   const relations = Array.from(relationById.values());
 
+  /** @type {Map<number, Set<string>>} */
   const styledByRule = new Map();     // rule index → Set("element:id" | "relation:id") it colored
+  /** @type {Set<string>} */
   const styledVcIds  = new Set();
+  /** @type {Map<string, RuleTarget>[]} */
   const inactive     = [];
 
   rules.forEach((rule, i) => {
@@ -352,9 +410,11 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
       Array.from(targets.values()).filter(h => h.values.size === 1).map(h => Array.from(h.values)[0])
     )).sort((a, b) => a.localeCompare(b));
     const colors   = unique.length ? _colorScale(rule.colorRange, unique.length) : [];
+    /** @type {Record<string, string>} */
     const colorMap = {};
     unique.forEach((val, k) => { colorMap[val] = colors[k]; });
 
+    /** @type {Set<string>} */
     const mine = new Set();
     let colored = 0, mixed = 0;
     targets.forEach((h, id) => {
@@ -407,6 +467,11 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
 // Qualitative schemes (Pastel1, Set2, …) are discrete — no padding.
 // Sequential/diverging schemes trim their dark end with padding([0.1, 0.4])
 // to keep colours in the light-to-medium range readable on light backgrounds.
+/**
+ * @param {string} rangeName
+ * @param {number} n
+ * @returns {string[]}
+ */
 function _colorScale(rangeName, n) {
   try {
     const scale = Chroma.scale(rangeName);
@@ -419,6 +484,11 @@ function _colorScale(rangeName, n) {
 }
 
 // Blend hex colour toward white by factor (0 = unchanged, 1 = white).
+/**
+ * @param {string | null} hex
+ * @param {number}        factor
+ * @returns {string}
+ */
 function _lightenHex(hex, factor) {
   return Chroma.mix(hex || "#000000", "#ffffff", Math.max(0, Math.min(1, factor)), "rgb").hex();
 }

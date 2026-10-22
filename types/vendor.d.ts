@@ -134,3 +134,23 @@ interface ElkSyncModule {
   /** Lays out `graph` and returns it with positions filled in; extra fields on nodes and edges survive. */
   layout<G extends ElkNode>(graph: G): G;
 }
+
+// ── chroma-js (Scripts/node_modules/chroma-js, required as "chroma-js") — gka.github.io/chroma.js ─
+
+declare module "chroma-js" {
+  interface ChromaColor {
+    hex(mode?: "auto" | "rgb" | "rgba" | "argb"): string;
+  }
+  interface ChromaScale {
+    (value: number): ChromaColor;
+    colors(count: number, format?: "hex"): string[];
+    padding(pad: number | [number, number]): ChromaScale;
+    domain(domain: number[]): ChromaScale;
+  }
+  interface ChromaStatic {
+    scale(colors?: string | string[]): ChromaScale;
+    mix(color1: string, color2: string, ratio?: number, mode?: string): ChromaColor;
+  }
+  const chroma: ChromaStatic;
+  export = chroma;
+}

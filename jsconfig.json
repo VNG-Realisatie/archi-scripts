@@ -10,6 +10,8 @@
     "module": "commonjs",
     "lib": ["ES2023"],
     "types": [],
+    // Vendored libraries in Scripts/node_modules are not analysed; types/vendor.d.ts declares what is used.
+    "maxNodeModuleJsDepth": 0,
     "skipLibCheck": false
   },
   "include": [
@@ -18,6 +20,7 @@
     "Scripts/_lib/Common.js",
     "Scripts/_lib/archi_folders.js",
     "Scripts/_lib/selection.js",
+    "Scripts/View/lib/appearance.js",
     "Scripts/View/lib/defs.js",
     "Scripts/View/lib/engines/dagre.js",
     "Scripts/View/lib/engines/elk.js",

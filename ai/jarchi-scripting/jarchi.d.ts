@@ -117,11 +117,13 @@ interface DiagramComponent extends ArchiProxy {
   /** The model concept drawn by this visual; null for notes, groups and other diagram objects. */
   readonly concept: ArchiConcept | null;
   specialization: string;
-  fontColor: string;
+  /** null = Archi default. */
+  fontColor: string | null;
   fontName: string;
   fontSize: number;
   fontStyle: string;
-  lineColor: string;
+  /** null = Archi default. */
+  lineColor: string | null;
   lineWidth: number;
 }
 
@@ -143,6 +145,7 @@ interface VisualObject extends DiagramComponent {
   bringForward(): this;
   sendToBack(): this;
   sendBackward(): this;
+  /** null = Archi default. */
   fillColor: string | null;
   /** @since 1.5 */
   iconColor: string;
