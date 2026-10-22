@@ -355,8 +355,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     const baseNode = {
       label:       el.name || "",
       elementType: el.type || "",
-      width:       el._width  || (el.type === "junction" ? JUNCTION_DIAMETER : params.elementWidth),
-      height:      el._height || (el.type === "junction" ? JUNCTION_DIAMETER : params.elementHeight),
+      width:       el.type === "junction" ? JUNCTION_DIAMETER : params.elementWidth,
+      height:      el.type === "junction" ? JUNCTION_DIAMETER : params.elementHeight,
     };
     for (const occId of occurrenceMap[el.id]) {
       nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
