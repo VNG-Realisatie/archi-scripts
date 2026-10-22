@@ -293,3 +293,87 @@ type CountRow = {
   group?: { sublabel: string; fields: [string, number][] }[];
   [field: string]: unknown;
 };
+
+// ── Dialog rule tables (Scripts/View/lib/gui/rule_table.js) ─────────────────────────────────────
+
+/** One choice of a "choice" column: the rule value and its label. */
+interface RuleTableItem {
+  value: string;
+  label: string;
+}
+
+/** Per-rule counts shown in a rule table, by count key (column key or column `count`). */
+type RuleTableCounts = Record<string, number | undefined>;
+
+/** A "custom" cell: a controller the table drives instead of an SWT control. */
+interface RuleTableCell {
+  set(value: any): void;
+  enable(on: boolean): void;
+  setToolTipText?(text: string): void;
+}
+
+/** Fields every rule-table column has (the column kinds are documented at ruleTable). R: the rule shape. */
+interface RuleTableColumnBase<R> {
+  /** Rule field; count / warn columns: the count key or a placeholder. */
+  key: string;
+  header?: string;
+  tooltip?: string;
+  width?: number;
+  /** Grid cells the column uses (custom: more than one). */
+  cells?: number;
+  optional?: boolean;
+  enabled?: (rule: R) => boolean;
+  onChange?: (rule: R) => void;
+  /** Count key shown after the selected item (choice, prop) or in the cell (count). */
+  count?: string;
+}
+
+interface RuleTableChoiceColumn<R = AnyRule> extends RuleTableColumnBase<R> {
+  kind: "choice";
+  items: readonly RuleTableItem[];
+}
+
+interface RuleTableCustomColumn<R = AnyRule> extends RuleTableColumnBase<R> {
+  kind: "custom";
+  create: (parent: Swt.Composite, value: any, onChange: (value: any) => void) => RuleTableCell;
+}
+
+interface RuleTablePlainColumn<R = AnyRule> extends RuleTableColumnBase<R> {
+  kind: "check" | "prop" | "value" | "count" | "warn";
+  /** check: false = unchecked when the rule has no value. */
+  default?: boolean;
+  /** count: the cell text for n (default "(n)"). */
+  format?: (n: number) => string;
+}
+
+type RuleTableColumn<R = AnyRule> = RuleTableChoiceColumn<R> | RuleTableCustomColumn<R> | RuleTablePlainColumn<R>;
+
+interface RuleTableOptions<K extends RuleKind> {
+  kind: K;
+  columns: readonly RuleTableColumn<RuleByKind[K]>[];
+  /** At least the default rule (= keep everything); hands back [] for it. */
+  filterList?: boolean;
+  propCondition?: boolean;
+  /** An empty feature list shows the default rule switched off. */
+  placeholder?: boolean;
+  onChange?: () => void;
+  onLayout?: () => void;
+  propItems?: (rule: RuleByKind[K], key: string) => string[];
+  valueItems?: (rule: RuleByKind[K], key: string) => string[];
+  rowTooltip?: (rule: RuleByKind[K]) => string;
+  emptyText?: string;
+  addTooltip?: string;
+  footer?: (footer: Swt.Composite) => void;
+}
+
+/** The controller ruleTable returns. */
+interface RuleTable<K extends RuleKind> {
+  getRules(): RuleByKind[K][];
+  setRules(list: readonly Partial<RuleByKind[K]>[] | null | undefined): void;
+  displayedRules(): RuleByKind[K][];
+  setCounts(list: RuleTableCounts[] | null | undefined): void;
+  setWarnings(map: Map<number, string> | null | undefined): void;
+  refreshItems(): void;
+  enable(on: boolean): void;
+  footer: Swt.Composite;
+}

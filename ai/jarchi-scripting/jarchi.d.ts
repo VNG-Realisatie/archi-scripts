@@ -536,17 +536,21 @@ declare var __SCRIPTS_DIR__: string;
 
 /**
  * Java interop (GraalJS). Results are Java objects whose shape tsc cannot know, hence `any`:
- * annotate the variable that receives a Java value when you need checking.
+ * annotate the variable that receives a Java value when you need checking. An interface, so a
+ * typings file can add `type()` overloads per class name (types/swt.d.ts does for SWT / JFace).
  */
-declare var Java: {
+interface JavaInterop {
   type(className: string): any;
   from(javaArray: any): any[];
   to(jsArray: unknown[], javaType?: string | object): any;
   extend(...types: any[]): any;
+  /** The superclass methods of an object made with Java.extend, e.g. Java.super(dlg).okPressed(). */
+  super(object: unknown): any;
   isJavaObject(value: unknown): boolean;
   isType(value: unknown): boolean;
   typeName(value: unknown): string | undefined;
-};
+}
+declare var Java: JavaInterop;
 /** Nashorn-compat package roots, e.g. Packages.java.io.File or java.io.File (prefer Java.type). */
 declare var Packages: any;
 declare var java: any;
