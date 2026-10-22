@@ -11,6 +11,7 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../defs")} */
 const { LABEL_SIZING_DEFAULTS } = require(REPO_ROOT + "View/lib/defs");
 
 // ── Self-loop pass-through ────────────────────────────────────────────────────
@@ -18,8 +19,8 @@ const { LABEL_SIZING_DEFAULTS } = require(REPO_ROOT + "View/lib/defs");
 /**
  * Build a pass-through LayoutResultEdge for a self-loop that was not routed by the engine.
  * The writer synthesises bendpoints from the node's bounds.
- * @param {Object} edge  LayoutGraph edge
- * @returns {Object}     LayoutResultEdge
+ * @param {LayoutEdge} edge
+ * @returns {LayoutResultEdge}
  */
 function selfLoopResult(edge) {
   return {
@@ -40,6 +41,8 @@ function selfLoopResult(edge) {
  * Comparator for nodes: by element type first, then by name.
  * Works with both LayoutGraph nodes (elementType / label) and
  * ELK nodeMap items (_type / _name).
+ * @param {{ elementType?: string, _type?: string, label?: string, _name?: string }} a
+ * @param {{ elementType?: string, _type?: string, label?: string, _name?: string }} b
  */
 function byTypeAndName(a, b) {
   const ta = a.elementType || a._type || "";
@@ -55,15 +58,16 @@ function byTypeAndName(a, b) {
  * Leaves are ALWAYS sorted by elementType then label; containers are sorted only when
  * sortContainers is true (otherwise they keep their original order).
  *
- * @param {Object[]} nodes           LayoutGraph nodes ({ id, elementType, label, parent, ... })
- * @param {Object}   parentMap       { childId: parentId }
- * @param {boolean}  sortContainers  whether to also sort containers
- * @returns {Object[]}               new sorted array
+ * @param {LayoutNode[]}            nodes           LayoutGraph nodes
+ * @param {Record<string, string>} parentMap       { childId: parentId }
+ * @param {boolean}                sortContainers  whether to also sort containers
+ * @returns {LayoutNode[]}                         new sorted array
  */
 function sortedNodes(nodes, parentMap, sortContainers) {
   const childSet = new Set(Object.values(parentMap));
 
   // Group by parent key
+  /** @type {Record<string, LayoutNode[]>} */
   const byParent = {};
   for (const node of nodes) {
     const key = node.parent || "__root__";
@@ -98,25 +102,29 @@ function sortedNodes(nodes, parentMap, sortContainers) {
  * past its level width). Widths are only known after a first layout pass, so the
  * caller passes pass-1 rendered widths via `renderedWidthById`.
  *
- * @param {Object[]} items             nodes to process — each needs { id }
- * @param {Object}   parentMap         { childId: parentId } — defines levels and subtrees
- * @param {Object}   renderedWidthById { id: pass-1 renderedWidth } for all boxes
- * @param {number}   ring              width added per nesting level (= 2 × container padding)
- * @param {Function} [log]             optional logger (e.g. console.log) for diagnostics
- * @returns {Object}                   { id: targetWidth } for every item
+ * @param {{ id: string, _name?: string, label?: string }[]} items  nodes to process
+ * @param {Record<string, string>} parentMap         { childId: parentId } — defines levels and subtrees
+ * @param {Record<string, number>} renderedWidthById { id: pass-1 renderedWidth } for all boxes
+ * @param {number}                 ring              width added per nesting level (= 2 × container padding)
+ * @param {(msg: string) => void}  [log]             optional logger (e.g. console.log) for diagnostics
+ * @returns {Record<string, number>}                 { id: targetWidth } for every item
  */
 function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
   // Children index from parentMap.
+  /** @type {Record<string, string[]>} */
   const childrenOf = {};
   for (const childId of Object.keys(parentMap)) {
     const p = parentMap[childId];
     (childrenOf[p] = childrenOf[p] || []).push(childId);
   }
+  /** @type {Record<string, string>} */
   const nameOf = {};
   for (const it of items) nameOf[it.id] = it._name || it.label || it.id;
-  const isContainer = (id) => !!(childrenOf[id] && childrenOf[id].length);
+  const isContainer = (/** @type {string} */ id) => !!(childrenOf[id] && childrenOf[id].length);
 
+  /** @type {Record<string, number>} */
   const levelCache = {};
+  /** @param {string} id */
   function level(id) {
     if (id in levelCache) return levelCache[id];
     let l = 0,
@@ -129,7 +137,12 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
   }
 
   // Sub-nesting depth: 0 for a leaf, else 1 + max child depth.
+  /** @type {Record<string, number>} */
   const subCache = {};
+  /**
+   * @param {string} id
+   * @returns {number}
+   */
   function subtreeDepth(id) {
     if (id in subCache) return subCache[id];
     const kids = childrenOf[id];
@@ -139,12 +152,13 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
     return (subCache[id] = 1 + m);
   }
 
-  const widthOf = (id) => {
+  const widthOf = (/** @type {string} */ id) => {
     const w = renderedWidthById[id];
     return w > 0 ? w : 0;
   };
 
   // Group box ids by level.
+  /** @type {Record<number, string[]>} */
   const byLevel = {};
   for (const it of items) (byLevel[level(it.id)] = byLevel[level(it.id)] || []).push(it.id);
   const levels = Object.keys(byLevel)
@@ -161,6 +175,7 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
   }
   if (!isFinite(anchor)) anchor = 0;
 
+  /** @type {Record<number, number>} */
   const W = {};
   W[deepestLevel] = anchor;
   for (let i = levels.length - 2; i >= 0; i--) {
@@ -169,6 +184,7 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
     W[L] = W[inner] + ring * (inner - L); // one ring per nesting level
   }
 
+  /** @type {Record<string, number>} */
   const targetById = {};
   for (const it of items) targetById[it.id] = W[level(it.id)] || 0;
 
@@ -187,16 +203,18 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
 /**
  * Apply a PARAM_MAPPING for the given algorithm and options.
  * Each engine owns its own mapping object; this function is the shared executor.
- * @param {string} algName
- * @param {Object} opts      graph.options
- * @param {Object} mapping   the engine's PARAM_MAPPING
- * @returns {Object}         merged attribute object
+ * @param {string}          algName
+ * @param {EffectiveParams} opts      graph.options
+ * @param {ParamMapping}    mapping   the engine's PARAM_MAPPING
+ * @returns {Record<string, unknown>} merged attribute object
  */
 function applyParams(algName, opts, mapping) {
   const map = mapping[algName] || {};
+  /** @type {Record<string, unknown>} */
   const result = {};
   for (const [key, fn] of Object.entries(map)) {
-    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
+    // Casts: key comes from the mapping, whose keys are param names.
+    if (/** @type {Record<string, unknown>} */ (opts)[key] !== undefined) Object.assign(result, fn(/** @type {Record<string, unknown>} */ (opts)[key], opts));
   }
   return result;
 }
@@ -213,9 +231,9 @@ const MIN_CONNECTIONS_FOR_ENLARGEMENT = 2;
  * Controlled by params.connectionSpacing (px per edge on busiest side — the port spacing).
  * 0 or absent = disabled. Only expands — never shrinks below the current size.
  *
- * @param {Object[]} nodes   LayoutGraph nodes (mutated in place)
- * @param {Object[]} edges   LayoutGraph edges
- * @param {Object}   params  preset.params (needs .direction, .connectionSpacing)
+ * @param {LayoutNode[]}    nodes   LayoutGraph nodes (mutated in place)
+ * @param {LayoutEdge[]}    edges   LayoutGraph edges
+ * @param {EffectiveParams | null | undefined} params  preset.params (needs .direction, .connectionSpacing)
  */
 function expandNodeSizesForEdgeDensity(nodes, edges, params) {
   const spacing = params && params.connectionSpacing;
@@ -224,7 +242,9 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
   const dir = (params && params.direction) || "Right";
   const isHorizontal = dir === "Left" || dir === "Right";
 
+  /** @type {Record<string, number>} */
   const inCount = {};
+  /** @type {Record<string, number>} */
   const outCount = {};
   for (const edge of edges) {
     if (edge.source === edge.target) continue; // self-loops don't occupy a side
@@ -252,12 +272,13 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
  * Enabled by params.labelSizing (GUI checkbox, active for Pack and Grid).
  * Tuning via engineParams.layout.labelChar*, labelLine*, labelH/VPadding, etc.
  *
- * @param {Object[]} nodes         LayoutGraph nodes (mutated in place)
- * @param {Object}   params        preset.params (needs .labelSizing)
- * @param {Object}   engineParams  merged engineParams (tuning keys in .layout)
+ * @param {LayoutNode[]} nodes         LayoutGraph nodes (mutated in place)
+ * @param {EffectiveParams | null | undefined} params  preset.params (needs .labelSizing)
+ * @param {EngineParams | null | undefined}    engineParams  merged engineParams (tuning keys in .layout)
  */
 function sizeLabelBasedNodes(nodes, params, engineParams) {
   if (!params || !params.labelSizing) return;
+  /** @type {LabelSizing} */
   const lp = Object.assign({}, LABEL_SIZING_DEFAULTS, engineParams && engineParams.layout);
   if (params.labelMaxLineWidth !== undefined) lp.labelMaxLineWidth = params.labelMaxLineWidth;
   const charW = lp.labelCharWidth;
@@ -301,6 +322,10 @@ function sizeLabelBasedNodes(nodes, params, engineParams) {
 
 // Estimated pixel width of a string: uppercase letters count double charW (they are wider),
 // every other character counts single. Uppercase detection covers accented letters too.
+/**
+ * @param {string} str
+ * @param {number} charW
+ */
 function _textWidth(str, charW) {
   let units = 0;
   for (const c of str) {
@@ -310,6 +335,10 @@ function _textWidth(str, charW) {
   return units * charW;
 }
 
+/**
+ * @param {string} str
+ * @param {number} mid
+ */
 function _nearestSpace(str, mid) {
   for (let d = 0; d <= mid; d++) {
     if (str[mid - d] === " ") return mid - d;
