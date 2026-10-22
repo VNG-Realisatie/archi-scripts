@@ -23,6 +23,7 @@
     "Scripts/View/lib/*.js",
     "Scripts/View/lib/engines/*.js",
     "Scripts/View/lib/gui/rule_table.js",
-    "Scripts/View/lib/gui/dialog_presets.js"
+    "Scripts/View/lib/gui/dialog_presets.js",
+    "Scripts/View/lib/gui/dialog_main.js"
   ]
 }
