@@ -232,3 +232,64 @@ interface AlgorithmSpec {
   /** Mutually exclusive params: key → keys it zeroes. */
   paramConflicts?: Readonly<Record<string, readonly string[]>>;
 }
+
+// ── Selection pipeline (Scripts/View/lib/selection_pipeline.js) ─────────────────────────────────
+
+/** A diagram object on a view: note, group, view reference, image, … or a diagram-model-connection. */
+type DiagramObject = VisualObject | VisualConnection;
+
+/** What buildObjectSet hands to the layout graph and the writer. */
+interface ObjectSet {
+  elements: ArchiElement[];
+  relations: ArchiRelation[];
+  /** Positional diagram objects (not diagram-model-connection). */
+  diagramObjects: DiagramObject[];
+  /** diagram-model-connection objects: edges, not laid out. */
+  diagramConnections: DiagramObject[];
+  /** Element visuals already on the target view (Expand view / Layout only). */
+  visualElements: VisualObject[];
+  visualRelations: VisualConnection[];
+  /** Target view for Expand view / Layout only. */
+  existingView: ArchiView | null;
+  visuals?: VisualDescription[];
+}
+
+/** One expand-selection step's result (expandStepWithRelations). */
+interface StepExpansion {
+  added: ArchiElement[];
+  rels: ArchiRelation[];
+  cumulative: ArchiElement[];
+  /** Runs that added elements. */
+  runs: number;
+  /** The run limit was reached while the last run still added elements. */
+  capped: boolean;
+  /** Every candidate the step saw, before its rules. */
+  candidates: StepCandidate[];
+}
+
+interface StepCount {
+  idx: number;
+  elems: number;
+  rels: number;
+}
+
+/** Predicted counts on the generated view (predictViewCounts); SPEC § Vocabulary. */
+interface ViewCounts {
+  elements: number;
+  containers: number;
+  nestedElements: number;
+  standalones: number;
+  extraOccurrences: number;
+  relations: number;
+  nestings: number;
+  connections: number;
+  diagramObjects: number;
+}
+
+/** One row of logCountBlock: counts by field name, a grouped row, or a separator. */
+type CountRow = {
+  label?: string;
+  rule?: boolean;
+  group?: { sublabel: string; fields: [string, number][] }[];
+  [field: string]: unknown;
+};

@@ -54,8 +54,12 @@ interface ArchiProxy {
   prop(): string[];
   /** First value of the property, or null when absent. */
   prop(key: string): string | null;
-  /** All values of the property (allowDuplicate=true), or the first value (false). */
-  prop(key: string, allowDuplicate: boolean): string[] | string | null;
+  /**
+   * true: all values (a java.util.List — iterable and indexable from JS; @remarks unverified), or null
+   * when the property is absent. false: the first value, or null.
+   */
+  prop(key: string, allowDuplicate: true): string[] | null;
+  prop(key: string, allowDuplicate: false): string | null;
   /** Set (or add, with allowDuplicate) a property. */
   prop(key: string, value: string, allowDuplicate?: boolean): this;
   removeProp(key: string, value?: string): this;
@@ -186,6 +190,8 @@ interface Bendpoint {
 /** A line on a view (DiagramModelConnectionProxy). */
 interface VisualConnection extends DiagramComponent {
   readonly concept: ArchiRelation | null;
+  /** A connection has no bounds (reads as undefined), which tells it apart from a VisualObject. */
+  readonly bounds?: undefined;
   readonly source: VisualObject | VisualConnection;
   readonly target: VisualObject | VisualConnection;
   labelVisible: boolean;
@@ -356,7 +362,8 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   attr(name: string, value: unknown): this;
   prop(): string[];
   prop(key: string): string | null;
-  prop(key: string, allowDuplicate: boolean): string[] | string | null;
+  prop(key: string, allowDuplicate: true): string[] | null;
+  prop(key: string, allowDuplicate: false): string | null;
   prop(key: string, value: string, allowDuplicate?: boolean): this;
   removeProp(key: string, value?: string): this;
   /** Delete every object in the collection. */

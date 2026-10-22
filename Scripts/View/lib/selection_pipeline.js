@@ -22,31 +22,30 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../../_lib/selection")} */
 const Selection = require(REPO_ROOT + "_lib/selection");
+/** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { ACTION } = Defs;
 
 /**
- * @returns {{
- *   elements:           ArchiElement[],
- *   relations:          ArchiRelation[],
- *   diagramObjects:     DiagramObject[],     // non-connection only
- *   diagramConnections: DiagramObject[],     // edges (no positions)
- *   visualElements:     VisualElement[],     // existing on target view
- *   visualRelations:    VisualRelation[],    // existing on target view
- *   existingView:       ArchimateView | null // target view for EXPAND_VIEW / LAYOUT_ONLY
- *   visuals:            Object[]             // visualElements described: chain, managed (describeVisuals)
- * }}
+ * @param {ArchiCollection<ArchiObject>} uiSelection  $(selection) from Archi UI
+ * @param {MaskedPreset}                 preset
+ * @param {string}                       actionId     ACTION.*.id
+ * @returns {ObjectSet}  visuals: visualElements described (chain, managed; describeVisuals)
  */
 function buildObjectSet(uiSelection, preset, actionId) {
   const INDENT     = "  ";
-  const debugSteps = !!preset.debug;
+  // debug is not a preset key, so validatePreset drops it: always false for a validated preset.
+  const debugSteps = !!/** @type {{ debug?: boolean }} */ (preset).debug;
 
   // ── Step 1: model objects from selection (uniform for canvas + model-tree) ──
   console.log("Current selection:");
   const raw = Selection.getSelection(uiSelection, "*", INDENT);
   if (debugSteps) {
+    /** @type {ArchiObject[]} */
     const items = [];
     raw.each(o => items.push(o));
     const CAP = 20;
@@ -94,7 +93,9 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
   // elements only — NOT the cumulative selection. An empty step terminates the chain.
-  const filteredElements    = collection.filter("element");  // jArchi collection
+  // Cast: the model collection holds concepts (diagram objects were split off), so "element" selects model elements.
+  const filteredElements    = /** @type {ArchiCollection<ArchiElement>} */ (collection.filter("element"));  // jArchi collection
+  /** @type {ArchiElement[]} */
   const filteredElementsArr = [];
   filteredElements.each(o => filteredElementsArr.push(o));   // plain array for step expansion
 
@@ -106,13 +107,14 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // EXPAND_VIEW: the base relations are the ones drawn on the view — no missing relations between
   // elements already on it are added.
   const baseRelMatch = isModifyAction ? null : _globalRelationMatch(preset.filter);
+  /** @type {Set<string>} */
   const allRelIds    = new Set();
   const allRelations = isExpand
     ? _viewRelations(existing.visualRelations, allRelIds)
     : _findRelationsBetween(filteredElementsArr, baseRelMatch, allRelIds);
   const filteredBaseRels = allRelations.length;
 
-  const addedElements = [], addedRelations = [], stepCounts = [];
+  const addedElements = /** @type {ArchiElement[]} */ ([]), addedRelations = /** @type {ArchiRelation[]} */ ([]), stepCounts = /** @type {StepCount[]} */ ([]);
   if (actionId !== ACTION.LAYOUT_ONLY.id &&
       preset.relatedElements && Array.isArray(preset.relatedElements.steps)) {
     const r = _expandRelatedElements(filteredElementsArr, preset.relatedElements.steps, allRelIds, debugSteps);
@@ -126,9 +128,9 @@ function buildObjectSet(uiSelection, preset, actionId) {
   // ── Step 4: elements are the filtered base plus step additions
   // (EXPAND_VIEW: every element on the view plus step additions, so the whole view is laid out) ──
   const elements = isExpand
-    ? _uniqueById([...existing.visualElements.map(ve => ve.concept).filter(Boolean), ...addedElements])
+    ? _uniqueById([.../** @type {ArchiElement[]} */ (existing.visualElements.map(ve => ve.concept).filter(Boolean)), ...addedElements])   // Cast: nulls filtered
     : [...filteredElementsArr, ...addedElements];
-  if (isExpand) diagramObjects = _expandViews($(existing.existingView)).diagramObjects;
+  if (isExpand) diagramObjects = _expandViews($(/** @type {ArchiView} */ (existing.existingView))).diagramObjects;   // Cast: checked at the start
 
   // ── Step 5: relations collected incrementally in step 3 above (base: global filter; per step: step's filter). ──
   const relations = allRelations;
@@ -143,6 +145,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
 
   // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
   // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
+  /** @type {CountRow[]} */
   const rows = [{
     label: isModifyAction ? "Unfiltered base:" : "Filtered base:",
     elements: filteredCounts.elems, relations: filteredBaseRels, diagramObjects: filteredCounts.diag,
@@ -192,11 +195,18 @@ function buildObjectSet(uiSelection, preset, actionId) {
 /**
  * Run the related-elements expansion chain (preset.relatedElements.steps).
  * Caller guards on actionId and steps existence.
- * @returns {{ addedElements: Object[], addedRelations: Object[], stepCounts: Array }}
+ * @param {ArchiElement[]} filteredElementsArr
+ * @param {Step[]}         steps
+ * @param {Set<string>}    allRelIds   dedup set, mutated
+ * @param {boolean}        debugSteps
+ * @returns {{ addedElements: ArchiElement[], addedRelations: ArchiRelation[], stepCounts: StepCount[] }}
  */
 function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugSteps) {
+  /** @type {ArchiElement[]} */
   const addedElements  = [];
+  /** @type {ArchiRelation[]} */
   const addedRelations = [];
+  /** @type {StepCount[]} */
   const stepCounts     = [];
   let stepInput       = filteredElementsArr.slice();
   let cumulativeElems = filteredElementsArr.slice();
@@ -255,6 +265,8 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds, debugStep
  * Single-line rows: each field renders only when != null.
  * Grouped rows: every field in `fields` renders (console = full, zeros included).
  * Plural rules: 1 → singular, else plural.
+ * @param {string}     title
+ * @param {CountRow[]} rows
  */
 function _logCountBlock(title, rows) {
   const RULE = "──────────────────────────────────────────────";
@@ -273,9 +285,14 @@ function _logCountBlock(title, rows) {
     ["diagramObjects",   "diagram object",   "diagram objects"],
     ["folders",          "folder",           "folders"],
   ];
+  /** @type {Record<string, string[]>} */
   const FIELD_MAP = Object.create(null);
   for (const f of FIELDS) FIELD_MAP[f[0]] = f;
 
+  /**
+   * @param {string}  key
+   * @param {unknown} v
+   */
   function fmtField(key, v) {
     const f = FIELD_MAP[key];
     if (!f) return `${v} ${key}`;          // unknown key falls through
@@ -307,6 +324,7 @@ function _logCountBlock(title, rows) {
   }
 }
 
+/** @param {Preset["filter"] | undefined} filter */
 function _logFilter(filter) {
   if (!filter) { console.log("Filter: none"); return; }
   console.log("Filter element rules:");
@@ -317,16 +335,24 @@ function _logFilter(filter) {
   _logRules(filter.diagramRules, r => r.diagramType || "all", "  ");
 }
 
+/** @param {RelationRule} r */
 function _describeRelationRule(r) {
   return `${r.source || "all"}  ${r.relation || "all"}  ${r.target || "all"}`;
 }
 
+/** @param {StepRule} r */
 function _describeStepRule(r) {
   const prop = r.property ? `  ${r.propertyOf}.${r.property}=${r.value}` : "";
   return `previous: ${r.previous || "all"}  ${r.direction}  relation: ${r.relation || "all"}  added: ${r.added || "all"}${prop}`;
 }
 
-/** One console line per rule ("all" when the list is empty). Off rules are marked. */
+/**
+ * One console line per rule ("all" when the list is empty). Off rules are marked.
+ * @template {{ on?: boolean, mode?: RuleMode }} R
+ * @param {R[] | undefined}      rules
+ * @param {(rule: R) => string}  describe
+ * @param {string}               indent
+ */
 function _logRules(rules, describe, indent) {
   if (!rules || rules.length === 0) { console.log(`${indent}all`); return; }
   for (const r of rules) {
@@ -338,21 +364,27 @@ function _logRules(rules, describe, indent) {
  * Replace any ArchimateView objects in the collection with the model elements,
  * relations and diagram objects visible on those views. Returns
  *   { modelCollection, diagramObjects }.
+ * @param {ArchiCollection<ArchiObject>} collection
+ * @param {string} [logPrefix]
+ * @returns {{ modelCollection: ArchiCollection<ArchiObject>, diagramObjects: DiagramObject[] }}
  */
 function _expandViews(collection, logPrefix = "") {
   const viewColl = collection.filter("view");
   if (viewColl.size() === 0) return { modelCollection: collection, diagramObjects: [] };
 
   let expanded = collection.not("view");
+  /** @type {Set<string>} */
   const expandedIds = new Set();
   expanded.each(o => expandedIds.add(o.id));
 
+  /** @type {DiagramObject[]} */
   const diagramObjects = [];
+  /** @type {Set<string>} */
   const diagSeen = new Set();
-  const addDiagramVO = vo => {
+  const addDiagramVO = (/** @type {DiagramObject} */ vo) => {
     if (vo && vo.id && !diagSeen.has(vo.id)) { diagSeen.add(vo.id); diagramObjects.push(vo); }
   };
-  const addConcept = concept => {
+  const addConcept = (/** @type {ArchiObject} */ concept) => {
     if (concept && concept.id && concept.type !== "archimate-diagram-model" &&
         !expandedIds.has(concept.id)) {
       expandedIds.add(concept.id);
@@ -385,18 +417,25 @@ function _expandViews(collection, logPrefix = "") {
  * For actions that target an existing view (EXPAND_VIEW, LAYOUT_ONLY), collect
  * the visual elements, visual relations, and the view itself from the UI selection.
  * Other actions get all-empty.
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @param {string} actionId
+ * @param {string} [logPrefix]
+ * @returns {{ existingView: ArchiView | null, visualElements: VisualObject[], visualRelations: VisualConnection[], viewFromTree?: boolean }}
  */
 function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
   if (actionId !== ACTION.EXPAND_VIEW.id && actionId !== ACTION.LAYOUT_ONLY.id) {
     return { existingView: null, visualElements: [], visualRelations: [] };
   }
 
+  /** @type {VisualObject[]} */
   const visualElements = [];
+  /** @type {VisualConnection[]} */
   const visualRelations = [];
-  const seenEl = new Set(), seenRel = new Set();
-  let existingView = null;
+  const seenEl = /** @type {Set<string>} */ (new Set()), seenRel = /** @type {Set<string>} */ (new Set());
+  // Cast: assigned inside addVE / addVR, which tsc does not follow; keep the declared type wide.
+  let existingView = /** @type {ArchiView | null} */ (null);
 
-  const addVE = ve => {
+  const addVE = (/** @type {VisualObject} */ ve) => {
     if (!ve || !ve.id || !ve.view || seenEl.has(ve.id)) return;
     // view-reference VOs sneak in via find("element"); they belong with diagram objects, not VEs.
     if (ve.type && ve.type in Defs.DIAGRAM_TYPES) return;
@@ -404,7 +443,7 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
     visualElements.push(ve);
     if (!existingView) existingView = ve.view;
   };
-  const addVR = vr => {
+  const addVR = (/** @type {VisualConnection} */ vr) => {
     if (!vr || !vr.id || !vr.view || seenRel.has(vr.id)) return;
     seenRel.add(vr.id);
     visualRelations.push(vr);
@@ -417,9 +456,9 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
     uiSelection.each(o => {
       if (o.type === "archimate-diagram-model" && !o.view) {
         viewFound = true;
-        existingView = o;
-        try { $(o).find("element").each(addVE); } catch (e) {}
-        try { $(o).find("relation").each(addVR); } catch (e) {}
+        existingView = /** @type {ArchiView} */ (o);   // Casts: type is archimate-diagram-model and it is not a visual
+        try { $(/** @type {ArchiView} */ (o)).find("element").each(addVE); } catch (e) {}
+        try { $(/** @type {ArchiView} */ (o)).find("relation").each(addVR); } catch (e) {}
       }
     });
   } catch (e) {}
@@ -429,8 +468,9 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
     try {
       Selection.getVisualSelection(uiSelection, "*").each(vo => {
         if (!vo || !vo.id || !vo.view) return;
-        if (vo.concept && vo.concept.type && vo.concept.type.endsWith("-relationship")) addVR(vo);
-        else addVE(vo);
+        // Casts: a visual whose concept is a relationship is a connection.
+        if (vo.concept && vo.concept.type && vo.concept.type.endsWith("-relationship")) addVR(/** @type {VisualConnection} */ (vo));
+        else addVE(/** @type {VisualObject} */ (vo));
       });
     } catch (e) {}
     // EXPAND_VIEW lays out the whole view, not only the selected visuals.
@@ -444,18 +484,30 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
   return { existingView, visualElements, visualRelations, viewFromTree: viewFound };
 }
 
+/**
+ * @param {ArchiCollection<ArchiObject>} collection
+ * @param {Preset["filter"] | undefined} filter
+ * @returns {ArchiCollection<ArchiObject>}
+ */
 function _applyFilter(collection, filter) {
   if (!filter) return collection;
   const { elementRules = [], relationRules = [] } = filter;
   return collection.filter(o => {
     const type = o.type || "";
     if (type.endsWith("-relationship")) {
-      return RuleLists.matchRelation(relationRules, type, o.source && o.source.type, o.target && o.target.type, true, o);
+      // Casts: the type tells relations from elements.
+      return RuleLists.matchRelation(relationRules, type, /** @type {ArchiRelation} */ (o).source && /** @type {ArchiRelation} */ (o).source.type,
+        /** @type {ArchiRelation} */ (o).target && /** @type {ArchiRelation} */ (o).target.type, true, /** @type {ArchiRelation} */ (o));
     }
-    return RuleLists.matchElement(elementRules, o);
+    return RuleLists.matchElement(elementRules, /** @type {ArchiElement} */ (o));
   });
 }
 
+/**
+ * @param {DiagramObject[]}              diagramObjects
+ * @param {Preset["filter"] | undefined} filter
+ * @returns {DiagramObject[]}
+ */
 function _applyDiagramFilter(diagramObjects, filter) {
   if (!filter || !filter.diagramRules || filter.diagramRules.length === 0) return diagramObjects;
   return diagramObjects.filter(o => _diagramPasses(filter.diagramRules, o.type || ""));
@@ -464,22 +516,36 @@ function _applyDiagramFilter(diagramObjects, filter) {
 /**
  * Diagram filter test for one diagram object type. jArchi reports a view-reference object as
  * "archimate-diagram-model"; it is matched as "diagram-model-reference" (the type users pick).
+ * @param {DiagramRule[]} rules
+ * @param {string}        type
  */
 function _diagramPasses(rules, type) {
   return RuleLists.matchDiagram(rules, type === "archimate-diagram-model" ? "diagram-model-reference" : type);
 }
 
-/** Predicate for the global relation rules, or null when they filter nothing. */
+/**
+ * Predicate for the global relation rules, or null when they filter nothing.
+ * @param {Preset["filter"] | undefined} filter
+ * @returns {((rel: ArchiRelation) => boolean) | null}
+ */
 function _globalRelationMatch(filter) {
   const rules = filter && filter.relationRules;
   if (RuleLists.isPassAll("relation", rules)) return null;
-  return rel => RuleLists.matchRelation(rules, rel.type, rel.source && rel.source.type, rel.target && rel.target.type, true, rel);
+  // Cast: isPassAll is true for an absent list.
+  return rel => RuleLists.matchRelation(/** @type {RelationRule[]} */ (rules), rel.type, rel.source && rel.source.type, rel.target && rel.target.type, true, rel);
 }
 
-/** Step candidate: one relation seen from one element of the previous step. */
+/**
+ * Step candidate: one relation seen from one element of the previous step.
+ * @param {ArchiRelation} rel
+ * @param {ArchiElement}  frontier
+ * @returns {StepCandidate}
+ */
 function _stepCandidate(rel, frontier) {
   const outgoing = !!(rel.source && rel.source.id === frontier.id);
-  return { rel, frontier, other: outgoing ? rel.target : rel.source, outgoing };
+  // Cast: the other end is taken to be an element. A relationship can also end on a relationship
+  // (ArchiMate allows it); such an end is not told apart here.
+  return { rel, frontier, other: /** @type {ArchiElement} */ (outgoing ? rel.target : rel.source), outgoing };
 }
 
 /**
@@ -487,22 +553,23 @@ function _stepCandidate(rel, frontier) {
  * relations between the resulting cumulative element set.
  * Used by both buildObjectSet and the dialog's live counters so they can never diverge.
  *
- * @param {Object[]} base       - Step input elements (frontier for hop 1)
- * @param {Object}   step       - { repeat, rules }
- * @param {Object[]} cumulative - Elements accumulated so far (before this step)
- * @param {Set}      seenRelIds - Dedup set threaded across all steps; mutated in place
- * @param {boolean}  [verbose]  - Per-hop detail logging (pipeline debug only)
- * @returns {{ added: Object[], rels: Object[], cumulative: Object[], runs: number, capped: boolean,
- *             candidates: Object[] }}
+ * @param {ArchiElement[]} base       - Step input elements (frontier for hop 1)
+ * @param {Step}           step       - { repeat, rules }
+ * @param {ArchiElement[]} cumulative - Elements accumulated so far (before this step)
+ * @param {Set<string>}    seenRelIds - Dedup set threaded across all steps; mutated in place
+ * @param {boolean}        [verbose]  - Per-hop detail logging (pipeline debug only)
+ * @returns {StepExpansion}
  *   candidates — every (relation, previous-step element, new element) the step saw, before the
  *                rules; the dialog reads the property lists of the step's rules from them
  *   runs   — number of runs that added elements
  *   capped — true when the run limit was reached while the last run still added elements
  */
 function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = false) {
+  /** @type {StepCandidate[]} */
   const candidates = [];
   const hops   = _expandStepFrontiers(base, step, verbose, cumulative, candidates);
   const added  = hops.flat();
+  /** @type {ArchiRelation[]} */
   const newRels = [];
   let cumul           = cumulative.slice();
   let prevHopFrontier = base;  // hop 1: step input triggered the frontier
@@ -513,7 +580,7 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
     // previous-step type) so the traversal direction is honoured. This prevents incidental
     // relations from earlier-step elements (outside the triggering collection) being
     // collected as nesting candidates.
-    const hopRels = _findRelationsBetween(cumul, (rel, el) => RuleLists.matchStepRelation(step.rules, _stepCandidate(rel, el)), seenRelIds, prevHopFrontier);
+    const hopRels = _findRelationsBetween(cumul, (/** @type {ArchiRelation} */ rel, /** @type {ArchiElement} */ el) => RuleLists.matchStepRelation(step.rules, _stepCandidate(rel, el)), seenRelIds, prevHopFrontier);
     hopRels.forEach(r => newRels.push(r));
     prevHopFrontier = hopFrontier;  // next hop: current frontier becomes the trigger
   }
@@ -525,21 +592,31 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds, verbose = 
 /**
  * Expand by running the step up to its repeat count; each run starts from the previous
  * run's additions. Stops early when a run adds nothing. Returns per-run frontier arrays.
+ * @param {ArchiElement[]}         base
+ * @param {Step}                   step
+ * @param {boolean}                [verbose]
+ * @param {ArchiElement[]}         [cumulative]
+ * @param {StepCandidate[] | null} [candidatesOut]  filled with every candidate seen
+ * @returns {ArchiElement[][]}
  */
 function _expandStepFrontiers(base, step, verbose = false, cumulative = [], candidatesOut = null) {
   const rules    = step.rules || [];
   const maxRuns  = Defs.repeatMaxRuns(step.repeat);
   const baseIds  = new Set(base.map(o => o.id));
   const cumulIds = new Set(cumulative.map(o => o.id));
+  /** @type {Set<string>} */
   const addedIds = new Set();
+  /** @type {ArchiElement[][]} */
   const hops     = [];
   let frontier   = [...base];
 
   for (let hop = 0; hop < maxRuns; hop++) {
+    /** @type {ArchiElement[]} */
     const nextFrontier = [];
     for (const element of frontier) {
       try {
         const stats = { total: 0, accept: 0, rejected: 0, alreadySeen: 0 };
+        /** @type {string[]} */
         const rejectedDetails = [];
         $(element).rels().each(rel => {
           stats.total++;
@@ -579,23 +656,39 @@ function _expandStepFrontiers(base, step, verbose = false, cumulative = [], cand
   return hops;
 }
 
-/** Strip a synthetic occurrence suffix (`${id}_occ_N`) to recover the element id. */
+/**
+ * Strip a synthetic occurrence suffix (`${id}_occ_N`) to recover the element id.
+ * @param {string} id
+ */
 function _baseId(id) {
   const i = id.indexOf("_occ_");
   return i < 0 ? id : id.substring(0, i);
 }
 
-/** Order elements by name, then id — plain code-point order, so it never depends on the locale. */
+/**
+ * Order elements by name, then id — plain code-point order, so it never depends on the locale.
+ * @param {{ id: string, name?: string } | undefined} a
+ * @param {{ id: string, name?: string } | undefined} b
+ */
 function _byNameThenId(a, b) {
   const na = (a && a.name) || "", nb = (b && b.name) || "";
   if (na !== nb) return na < nb ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  // Casts: callers compare elements that exist.
+  return /** @type {{ id: string }} */ (a).id < /** @type {{ id: string }} */ (b).id ? -1 : /** @type {{ id: string }} */ (a).id > /** @type {{ id: string }} */ (b).id ? 1 : 0;
 }
 
-/** Placement of an occurrence: element id and its container chain up to the view root. */
+/**
+ * Placement of an occurrence: element id and its container chain up to the view root.
+ * @param {string | null} elementId
+ * @param {string[]}      chain
+ */
 function _placementKey(elementId, chain) {
   return chain.length ? `${elementId} in ${chain.join(" in ")}` : elementId;
 }
+
+/**
+ * @typedef {{ id: string, conceptId: string | null, parentVisualId: string | null }} RawVisual  one visual as read from the view
+ */
 
 /**
  * Classify the element visuals of one view as managed or user content (SPEC: Managed extra
@@ -604,24 +697,27 @@ function _placementKey(elementId, chain) {
  *      the first in view order.
  *   2. An element without user content: its first visual becomes user content.
  *   3. A managed visual holding user content becomes user content.
- * @param {Array<{id, conceptId, parentVisualId}>} raw  all element visuals of the view, view order;
+ * @param {RawVisual[]} raw  all element visuals of the view, view order;
  *   diagram objects (notes, groups) with conceptId null — never managed, always user content
  * @param {string[]} records  PROP_MANAGED_OCCURRENCE values on the view
- * @returns {Array<{id, conceptId, parentVisualId, chain: string[], managed: boolean}>}  view order
+ * @returns {VisualDescription[]}  view order
  */
 function _classifyVisuals(raw, records) {
-  const byId = new Map(raw.map(v => [v.id, v]));
+  // Map keys include null (no parent visual): get(null) is simply undefined.
+  const byId = /** @type {Map<string | null, RawVisual>} */ (new Map(raw.map(v => [v.id, v])));
+  /** @type {Map<string | null, number>} */
   const left = new Map();
   for (const r of (records || [])) left.set(r, (left.get(r) || 0) + 1);
   const out = raw.map(v => {
-    const chain = [];
-    for (let p = byId.get(v.parentVisualId); p; p = byId.get(p.parentVisualId)) chain.push(p.conceptId);
+    const chain = /** @type {string[]} */ ([]);
+    // Cast: a parent visual is an element visual (describeVisuals filters parents on "element").
+    for (let p = byId.get(v.parentVisualId); p; p = byId.get(p.parentVisualId)) chain.push(/** @type {string} */ (p.conceptId));
     const key = _placementKey(v.conceptId, chain);
     const managed = !!v.conceptId && chain.length > 0 && (left.get(key) || 0) > 0;
-    if (managed) left.set(key, left.get(key) - 1);
+    if (managed) left.set(key, /** @type {number} */ (left.get(key)) - 1);   // Cast: > 0 checked above
     return { id: v.id, conceptId: v.conceptId, parentVisualId: v.parentVisualId || null, chain, managed };
   });
-  const outById = new Map(out.map(v => [v.id, v]));
+  const outById = /** @type {Map<string | null, VisualDescription>} */ (new Map(out.map(v => [v.id, v])));
   const hasUser = new Set(out.filter(v => !v.managed).map(v => v.conceptId));
   for (const v of out) {
     if (!v.conceptId || hasUser.has(v.conceptId)) continue;
@@ -639,7 +735,8 @@ function _classifyVisuals(raw, records) {
  * Describe visual elements for nesting resolution and pairing: per visual its element, parent
  * visual, container chain and whether it is managed. Classified over the whole view (records,
  * contents of containers), returned for the given visuals only, in view order.
- * @param {Object[]} visualElements  visual elements of one view (the VisualSet, or the dialog's selection)
+ * @param {VisualObject[]} visualElements  visual elements of one view (the VisualSet, or the dialog's selection)
+ * @returns {VisualDescription[]}
  */
 function _describeVisuals(visualElements) {
   const wanted = new Set((visualElements || []).filter(ve => ve && ve.id).map(ve => String(ve.id)));
@@ -647,8 +744,8 @@ function _describeVisuals(visualElements) {
   const first = visualElements.find(ve => ve && ve.view);
   if (!first) return [];
   const view = first.view;
-  const raw = [], seen = new Set();
-  const parentOf = o => { try { const p = $(o).parent().filter("element").first(); return p ? String(p.id) : null; } catch (e) { return null; } };
+  const raw = /** @type {RawVisual[]} */ ([]), seen = /** @type {Set<string>} */ (new Set());
+  const parentOf = (/** @type {DiagramObject} */ o) => { try { const p = $(o).parent().filter("element").first(); return p ? String(p.id) : null; } catch (e) { return null; } };
   try {
     $(view).find("element").each(ve => {
       if (!ve.concept || !ve.concept.id || ve.type in Defs.DIAGRAM_TYPES) return;
@@ -665,7 +762,7 @@ function _describeVisuals(visualElements) {
       }); } catch (e) {}
     }
   } catch (e) { console.error(`Failed to read the visuals of view "${view && view.name}": ${e}`); }
-  let records = [];
+  let records = /** @type {string[]} */ ([]);
   try { records = [...(view.prop(Defs.PROP_MANAGED_OCCURRENCE, true) || [])].map(String); } catch (e) {}
   return _classifyVisuals(raw, records).filter(v => wanted.has(v.id));
 }
@@ -676,24 +773,31 @@ function _describeVisuals(visualElements) {
  * container chain, else one with the same direct container, else any. A user visual left over
  * becomes an extra occurrence in its current container; a managed one is removed. Extends
  * occurrenceMap and parentMap in place.
- * @returns {{ visualOf: Object, occurrenceOf: Map, removedVisualIds: string[], managedOccs: Set, userInPlace: number }}
+ * @param {ArchiElement[]}               elements
+ * @param {Record<string, string[]>}     occurrenceMap  extended in place
+ * @param {Record<string, string>}       parentMap      extended in place
+ * @param {VisualDescription[] | undefined} visuals
+ * @returns {VisualPairing}
  *   visualOf: occurrence id → visual id; occurrenceOf: visual id → occurrence id;
  *   managedOccs: occurrences that are managed after the run (paired with a managed visual, or new
  *   while the element has other content); userInPlace: user visuals the settings place nowhere
  */
 function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
-  const chainOf = occ => { const c = []; for (let p = parentMap[occ]; p; p = parentMap[p]) c.push(_baseId(p)); return c; };
+  const chainOf = (/** @type {string} */ occ) => { const c = []; for (let p = parentMap[occ]; p; p = parentMap[p]) c.push(_baseId(p)); return c; };
+  /** @type {Map<string, VisualDescription[]>} */
   const byConcept = new Map();
   for (const v of (visuals || [])) {
-    if (!occurrenceMap[v.conceptId]) continue;   // element not laid out: visual left as it is
-    if (!byConcept.has(v.conceptId)) byConcept.set(v.conceptId, []);
-    byConcept.get(v.conceptId).push(v);
+    // Casts: a visual without a concept (note, group) has no occurrence, so the first test skips it.
+    if (!occurrenceMap[/** @type {string} */ (v.conceptId)]) continue;   // element not laid out: visual left as it is
+    if (!byConcept.has(/** @type {string} */ (v.conceptId))) byConcept.set(/** @type {string} */ (v.conceptId), []);
+    /** @type {VisualDescription[]} */ (byConcept.get(/** @type {string} */ (v.conceptId))).push(v);
   }
-  const visualOf = {}, occurrenceOf = new Map(), removedVisualIds = [], managedOccs = new Set(), leftover = [];
+  const visualOf = /** @type {Record<string, string>} */ ({}), occurrenceOf = /** @type {Map<string, string>} */ (new Map()), removedVisualIds = /** @type {string[]} */ ([]), managedOccs = /** @type {Set<string>} */ (new Set()), leftover = /** @type {VisualDescription[]} */ ([]);
   for (const el of elements) {
     const occs = occurrenceMap[el.id];
     const vis = byConcept.get(el.id) || [];
     const free = occs.map(occ => ({ occ, key: _placementKey(el.id, chainOf(occ)), direct: _baseId(parentMap[occ] || "") }));
+    /** @type {(v: VisualDescription, test: (f: { occ: string, key: string | null, direct: string }) => boolean) => boolean} */
     const take = (v, test) => {
       const i = free.findIndex(test);
       if (i < 0) return false;
@@ -715,15 +819,15 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
   }
   // Leftover user visuals: an occurrence of their own, under the node of their current container.
   for (const v of leftover) {
-    const occ = `${v.conceptId}_occ_${occurrenceMap[v.conceptId].length}`;
-    occurrenceMap[v.conceptId] = [...occurrenceMap[v.conceptId], occ];
+    const occ = `${v.conceptId}_occ_${occurrenceMap[/** @type {string} */ (v.conceptId)].length}`;   // Casts: leftovers are element visuals
+    occurrenceMap[/** @type {string} */ (v.conceptId)] = [...occurrenceMap[/** @type {string} */ (v.conceptId)], occ];
     visualOf[occ] = v.id;
     occurrenceOf.set(v.id, occ);
   }
   for (const v of leftover) {
     const occ = occurrenceOf.get(v.id);
     const parentOcc = v.parentVisualId ? occurrenceOf.get(v.parentVisualId) : null;
-    if (parentOcc) parentMap[occ] = parentOcc;
+    if (parentOcc) parentMap[/** @type {string} */ (occ)] = parentOcc;   // Cast: set in the loop above
   }
   return { visualOf, occurrenceOf, removedVisualIds, managedOccs, userInPlace: leftover.length };
 }
@@ -732,20 +836,22 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
  * Visual relations of the nested relations (SPEC: Writer parenthood): per binding the one
  * between its two paired visuals is kept; every other visual relation of a nested relation is
  * removed — what is shown as nesting is not also shown as a line. Pure — runs in Node.
- * @param {Array<{rel, srcOccId, tgtOccId}>} parentRels  nesting bindings
- * @param {Object} visualOf  occurrence id → visual id (pairing)
- * @param {Array<{id, concept, source, target}>} visualRelations  visual relations on the view
+ * @param {ParentRel[]}            parentRels  nesting bindings
+ * @param {Record<string, string>} visualOf  occurrence id → visual id (pairing)
+ * @param {VisualConnection[] | undefined} visualRelations  visual relations on the view
  * @returns {{ keptVrIds: Array<string|null>, removedVrIds: string[] }}
  *   keptVrIds per binding (null: none on the view, to be added)
  */
 function _nestingConnections(parentRels, visualOf, visualRelations) {
+  /** @type {Map<string, VisualConnection[]>} */
   const byRel = new Map();
   for (const vr of (visualRelations || [])) {
     const relId = vr.concept && vr.concept.id;
     if (!relId) continue;
     if (!byRel.has(relId)) byRel.set(relId, []);
-    byRel.get(relId).push(vr);
+    /** @type {VisualConnection[]} */ (byRel.get(relId)).push(vr);   // Cast: set just above
   }
+  /** @type {Set<string>} */
   const used = new Set();
   const keptVrIds = parentRels.map(b => {
     const s = visualOf[b.srcOccId], t = visualOf[b.tgtOccId];
@@ -756,6 +862,7 @@ function _nestingConnections(parentRels, visualOf, visualRelations) {
     used.add(String(vr.id));
     return String(vr.id);
   });
+  /** @type {string[]} */
   const removedVrIds = [];
   for (const relId of new Set(parentRels.map(b => b.rel.id))) {
     for (const vr of (byRel.get(relId) || [])) if (!used.has(String(vr.id))) removedVrIds.push(String(vr.id));
@@ -766,11 +873,16 @@ function _nestingConnections(parentRels, visualOf, visualRelations) {
 /**
  * Records of the managed occurrences that exist after a write (PROP_MANAGED_OCCURRENCE values),
  * sorted. `exists(occ)` tells whether the occurrence got a visual.
+ * @param {NestingResolution}        nesting
+ * @param {(occ: string) => boolean} exists
+ * @returns {(string | null)[]}
  */
 function _managedRecords(nesting, exists) {
+  /** @type {(string | null)[]} */
   const out = [];
   for (const occ of nesting.managedOccs) {
     if (!exists(occ)) continue;
+    /** @type {string[]} */
     const chain = [];
     for (let p = nesting.parentMap[occ]; p; p = nesting.parentMap[p]) chain.push(_baseId(p));
     if (chain.length) out.push(_placementKey(_baseId(occ), chain));
@@ -784,27 +896,28 @@ function _managedRecords(nesting, exists) {
  * @param {Map<string, string[]>} succ  node id → successor ids
  */
 function _stronglyConnected(nodeIds, succ) {
-  const idx = new Map(), low = new Map(), onStack = new Set(), stack = [], comp = new Map();
+  const idx = /** @type {Map<string, number>} */ (new Map()), low = /** @type {Map<string, number>} */ (new Map()), onStack = /** @type {Set<string>} */ (new Set()), stack = /** @type {string[]} */ ([]), comp = /** @type {Map<string, number>} */ (new Map());
   let next = 0, nComp = 0;
-  const open = v => { idx.set(v, next); low.set(v, next); next++; stack.push(v); onStack.add(v); };
+  // Casts below: every node on the work list was opened, so idx and low hold it.
+  const open = (/** @type {string} */ v) => { idx.set(v, next); low.set(v, next); next++; stack.push(v); onStack.add(v); };
   for (const root of nodeIds) {
     if (idx.has(root)) continue;
     open(root);
-    const work = [[root, 0]];
+    const work = /** @type {[string, number][]} */ ([[root, 0]]);
     while (work.length) {
       const top = work[work.length - 1];
       const v = top[0], ns = succ.get(v) || [];
       if (top[1] < ns.length) {
         const w = ns[top[1]++];
         if (!idx.has(w)) { open(w); work.push([w, 0]); }
-        else if (onStack.has(w)) low.set(v, Math.min(low.get(v), idx.get(w)));
+        else if (onStack.has(w)) low.set(v, Math.min(/** @type {number} */ (low.get(v)), /** @type {number} */ (idx.get(w))));
         continue;
       }
       work.pop();
-      if (work.length) { const u = work[work.length - 1][0]; low.set(u, Math.min(low.get(u), low.get(v))); }
+      if (work.length) { const u = work[work.length - 1][0]; low.set(u, Math.min(/** @type {number} */ (low.get(u)), /** @type {number} */ (low.get(v)))); }
       if (low.get(v) === idx.get(v)) {
         let w;
-        do { w = stack.pop(); onStack.delete(w); comp.set(w, nComp); } while (w !== v);
+        do { w = /** @type {string} */ (stack.pop()); onStack.delete(w); comp.set(w, nComp); } while (w !== v);
         nComp++;
       }
     }
@@ -830,14 +943,12 @@ function _stronglyConnected(nodeIds, succ) {
  *      The first occurrence has the element id, the others `${id}_occ_N`.
  *   4. Pairing with the visuals on the view (_pairVisuals): unpaired user visuals add occurrences.
  *
- * @param {Object[]} elements
- * @param {Object[]} nestingRels   nesting candidates (splitNestingRels)
- * @param {Object}   params        preset.params (nestingRules, reverseRules)
- * @param {Object[]} [visuals]    visuals on the target view (describeVisuals); none for a new view
- * @returns {{ parentMap, occurrenceMap,
- *             parentRels: Array<{rel, srcOccId, tgtOccId}>,
- *             circularNestingRels, cycles: Array<{elements, rels}>, notNestedNestingRels,
- *             visualOf, occurrenceOf, removedVisualIds, managedOccs }}  (see _pairVisuals)
+ * @param {ArchiElement[]}      elements
+ * @param {ArchiRelation[]}     nestingRels   nesting candidates (splitNestingRels)
+ * @param {EffectiveParams}     params        preset.params (nestingRules, reverseRules)
+ * @param {VisualDescription[]} [visuals]     visuals on the target view (describeVisuals); none for a new view
+ * @returns {NestingResolution}  parentMap, occurrenceMap, parentRels, circularNestingRels, cycles,
+ *             notNestedNestingRels, and the pairing (see _pairVisuals)
  *
  * Each parentRels entry binds a nesting relation to the specific occurrence
  * each visual endpoint should use. `srcOccId` is the occurrence id to render
@@ -848,16 +959,20 @@ function _stronglyConnected(nodeIds, succ) {
 function _resolveNesting(elements, nestingRels, params, visuals) {
   const rules = params.nestingRules || [];
   // The containers user content sits in on the view: element id → container element ids.
+  /** @type {Map<string | null, Set<string>>} */
   const currentContainers = new Map();
   for (const v of (visuals || [])) {
     if (v.managed || !v.chain.length) continue;
     if (!currentContainers.has(v.conceptId)) currentContainers.set(v.conceptId, new Set());
-    currentContainers.get(v.conceptId).add(v.chain[0]);
+    /** @type {Set<string>} */ (currentContainers.get(v.conceptId)).add(v.chain[0]);   // Cast: set just above
   }
   const byId  = new Map(elements.map(el => [el.id, el]));
+  /** @type {ArchiRelation[]} */
   const notNestedNestingRels = [];
 
   // Candidates, in relation-id order so every output list is order-free.
+  /** @typedef {{ rel: ArchiRelation, reversed: boolean, parentId: string, childId: string, every: boolean }} NestingCandidate */
+  /** @type {NestingCandidate[]} */
   const cands = [];
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
@@ -878,21 +993,25 @@ function _resolveNesting(elements, nestingRels, params, visuals) {
   cands.sort((a, b) => a.rel.id < b.rel.id ? -1 : a.rel.id > b.rel.id ? 1 : 0);
 
   // 1. Cycles.
+  /** @type {Map<string, string[]>} */
   const succ = new Map();
   for (const c of cands) {
     if (!succ.has(c.parentId)) succ.set(c.parentId, []);
-    succ.get(c.parentId).push(c.childId);
+    /** @type {string[]} */ (succ.get(c.parentId)).push(c.childId);   // Cast: set just above
   }
   const comp = _stronglyConnected([...succ.keys()].sort(), succ);
+  /** @type {ArchiRelation[]} */
   const circularNestingRels = [];
+  /** @type {Map<number, ArchiRelation[]>} */
   const cycleRels = new Map();   // component → rels
+  /** @type {NestingCandidate[]} */
   const acyclic = [];
   for (const c of cands) {
     const k = comp.get(c.parentId);
     if (k !== undefined && k === comp.get(c.childId)) {
       circularNestingRels.push(c.rel);
       if (!cycleRels.has(k)) cycleRels.set(k, []);
-      cycleRels.get(k).push(c.rel);
+      /** @type {ArchiRelation[]} */ (cycleRels.get(k)).push(c.rel);   // Cast: set just above
     } else {
       acyclic.push(c);
     }
@@ -903,16 +1022,21 @@ function _resolveNesting(elements, nestingRels, params, visuals) {
   })).sort((a, b) => _byNameThenId(a.elements[0], b.elements[0]));
 
   // 2. Parents per child.
+  /** @type {Map<string, NestingCandidate[]>} */
   const byChild = new Map();
   for (const c of acyclic) {
     if (!byChild.has(c.childId)) byChild.set(c.childId, []);
-    byChild.get(c.childId).push(c);
+    /** @type {NestingCandidate[]} */ (byChild.get(c.childId)).push(c);   // Cast: set just above
   }
+  /** @type {Map<string, string[]>} */
   const parentsOf = new Map();   // child id → parent ids, in placement order
+  /** @type {Set<string>} */
   const nestedPair = new Set();  // "parent child" pairs that nest
-  const pairKey = (p, ch) => p + " " + ch;
+  const pairKey = (/** @type {string} */ p, /** @type {string} */ ch) => p + " " + ch;
   for (const [childId, list] of byChild) {
     const current = currentContainers.get(childId) || new Set();
+    /** @type {(a: string, b: string) => number} */
+    // @ts-expect-error -- boolean arithmetic is intended: true − false = 1 puts current containers first
     const order = (a, b) => (current.has(b) - current.has(a)) || _byNameThenId(byId.get(a), byId.get(b));
     const parents = new Set(list.filter(c => c.every).map(c => c.parentId));
     const one = [...new Set(list.filter(c => !c.every).map(c => c.parentId))].sort(order);
@@ -920,29 +1044,35 @@ function _resolveNesting(elements, nestingRels, params, visuals) {
     parentsOf.set(childId, [...parents].sort(order));
     for (const p of parents) nestedPair.add(pairKey(p, childId));
   }
+  /** @type {Map<string, NestingCandidate[]>} */
   const relsByPair = new Map();
   for (const c of acyclic) {
     const k = pairKey(c.parentId, c.childId);
     if (!nestedPair.has(k)) { notNestedNestingRels.push(c.rel); continue; }
     if (!relsByPair.has(k)) relsByPair.set(k, []);
-    relsByPair.get(k).push(c);
+    /** @type {NestingCandidate[]} */ (relsByPair.get(k)).push(c);   // Cast: set just above
   }
 
   // 3. Occurrences, parents first (the remaining graph is acyclic).
+  /** @type {Record<string, string>} */
   const parentMap = {};
+  /** @type {Record<string, string[]>} */
   const occurrenceMap = {};
+  /** @type {ParentRel[]} */
   const parentRels = [];
+  /** @type {(id: string) => string[]} */
   const visit = id => {
     if (occurrenceMap[id]) return occurrenceMap[id];
     const parents = parentsOf.get(id);
     if (!parents) return (occurrenceMap[id] = [id]);
+    /** @type {string[]} */
     const occs = [];
     for (const p of parents) {
       for (const pOcc of visit(p)) {
         const occ = occs.length ? `${id}_occ_${occs.length}` : id;
         occs.push(occ);
         parentMap[occ] = pOcc;
-        for (const c of relsByPair.get(pairKey(p, id))) {
+        for (const c of /** @type {NestingCandidate[]} */ (relsByPair.get(pairKey(p, id)))) {   // Cast: p nests id
           parentRels.push({ rel: c.rel, srcOccId: c.reversed ? occ : pOcc, tgtOccId: c.reversed ? pOcc : occ });
         }
       }
@@ -961,6 +1091,8 @@ function _resolveNesting(elements, nestingRels, params, visuals) {
  * Is this relation reversed (params.reverseRules)? Reversed relations are laid out from target
  * to source and, when nested, have the target as parent. Single source of truth for the
  * writer, the layout graph and the counters.
+ * @param {ArchiRelation}   rel
+ * @param {EffectiveParams} params
  */
 function isReversed(rel, params) {
   const rules = params.reverseRules;
@@ -976,11 +1108,15 @@ function isReversed(rel, params) {
  * source / target element type and property condition; the parent is the source, or the target for a reversed
  * relation). Every other relation is a connection.
  *
- * @returns {{ nestingRels: Object[], connectionRels: Object[] }}
+ * @param {ArchiRelation[]}  relations
+ * @param {EffectiveParams}  params
+ * @returns {{ nestingRels: ArchiRelation[], connectionRels: ArchiRelation[] }}
  */
 function _splitNestingRels(relations, params) {
   const rules          = params.nestingRules || [];
+  /** @type {ArchiRelation[]} */
   const nestingRels    = [];
+  /** @type {ArchiRelation[]} */
   const connectionRels = [];
   for (const rel of relations) {
     const isNesting = rules.length > 0 &&
@@ -1006,6 +1142,12 @@ function _splitNestingRels(relations, params) {
  *   nestings         — relations drawn as box-in-box
  *   connections      — relations drawn as a line
  *   diagramObjects   — canvas-only positional objects
+ * @param {ArchiElement[]}      elements
+ * @param {ArchiRelation[]}     relations
+ * @param {number}              diagramNodeCount
+ * @param {EffectiveParams}     params
+ * @param {VisualDescription[]} [visuals]
+ * @returns {ViewCounts}
  */
 function _predictViewCounts(elements, relations, diagramNodeCount, params, visuals) {
   const { nestingRels, connectionRels } = _splitNestingRels(relations, params);
@@ -1048,19 +1190,22 @@ function _predictViewCounts(elements, relations, diagramNodeCount, params, visua
 
 /**
  * Find all relations whose source AND target are both in `elements`.
- * @param {Function|null} [match]    (relation, iteratedElement) => boolean. null = all relations.
- * @param {Set}      [seenRelIds]    Optional external dedup set — mutated in place so the caller
+ * @param {ArchiElement[]} elements
+ * @param {((rel: ArchiRelation, element: ArchiElement) => boolean) | null} [match]  null = all relations.
+ * @param {Set<string>}    [seenRelIds]    Optional external dedup set — mutated in place so the caller
  *                                   can thread it across successive calls to prevent double-counting.
- * @param {Object[]} [iterateSubset] Optional subset of elements to iterate. Both endpoints are
+ * @param {ArchiElement[]} [iterateSubset] Optional subset of elements to iterate. Both endpoints are
  *                                   still checked against the full `elements` set. Pass the
  *                                   pre-step cumulative snapshot to exclude new×new relations.
  *                                   Defaults to `elements`.
+ * @returns {ArchiRelation[]}
  */
 function _findRelationsBetween(elements, match, seenRelIds, iterateSubset) {
   if (elements.length === 0) return [];
   const elementIds = new Set(elements.map(e => e.id));
   const seen       = seenRelIds || new Set();
   const toIterate  = iterateSubset || elements;
+  /** @type {ArchiRelation[]} */
   const relations  = [];
   for (const element of toIterate) {
     try {
@@ -1079,8 +1224,14 @@ function _findRelationsBetween(elements, match, seenRelIds, iterateSubset) {
   return relations;
 }
 
-/** The model relations of visual relations (each once); their ids are added to `seenRelIds`. */
+/**
+ * The model relations of visual relations (each once); their ids are added to `seenRelIds`.
+ * @param {VisualConnection[]} visualRelations
+ * @param {Set<string>}        seenRelIds
+ * @returns {ArchiRelation[]}
+ */
 function _viewRelations(visualRelations, seenRelIds) {
+  /** @type {ArchiRelation[]} */
   const relations = [];
   for (const vr of visualRelations) {
     const rel = vr.concept;
@@ -1091,7 +1242,12 @@ function _viewRelations(visualRelations, seenRelIds) {
   return relations;
 }
 
-/** Objects with an id, each id once (first occurrence kept). */
+/**
+ * Objects with an id, each id once (first occurrence kept).
+ * @template {{ id: string }} T
+ * @param {T[]} objects
+ * @returns {T[]}
+ */
 function _uniqueById(objects) {
   const seen = new Set();
   return objects.filter(o => o && o.id && !seen.has(o.id) && seen.add(o.id));
@@ -1103,14 +1259,15 @@ function _uniqueById(objects) {
  * elements (same as buildObjectSet step 1). Relations, folders, and view nodes
  * are excluded. Used by ONE_EACH to determine the seed set.
  *
- * @param {ArchiCollection} uiSelection  $(selection) from Archi UI
- * @returns {Object[]}  array of jArchi model element objects
+ * @param {ArchiCollection<ArchiObject>} uiSelection  $(selection) from Archi UI
+ * @returns {ArchiElement[]}  array of jArchi model element objects
  */
 function getSeedElements(uiSelection) {
   const raw = Selection.getSelection(uiSelection, "*");
   const { modelCollection } = _expandViews(raw);
+  /** @type {ArchiElement[]} */
   const seeds = [];
-  modelCollection.filter("element").each(o => seeds.push(o));
+  modelCollection.filter("element").each(o => seeds.push(/** @type {ArchiElement} */ (o)));   // Cast: in the model collection "element" selects model elements
   return seeds;
 }
 
