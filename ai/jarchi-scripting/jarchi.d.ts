@@ -38,6 +38,15 @@ type ArchimateRelationType =
   "influence-relationship" | "realization-relationship" | "serving-relationship" |
   "specialization-relationship" | "triggering-relationship";
 
+/** Diagram object types for createObject / selectors. "diagram-model-legend" @since 1.12. */
+type DiagramObjectTypeName =
+  "diagram-model-note" | "diagram-model-group" | "diagram-model-image" | "diagram-model-reference" |
+  "diagram-model-legend" | "sketch-model-sticky" | "sketch-model-actor" | "canvas-model-block" |
+  "canvas-model-sticky" | "canvas-model-image";
+
+/** View types: ArchiMate, sketch, canvas. A view reference visual also reports "archimate-diagram-model". */
+type ViewTypeName = "archimate-diagram-model" | "sketch-model" | "canvas-model";
+
 // ── Proxies ──────────────────────────────────────────────────────────────────────────────────────
 
 /** Common base of every model object (EObjectProxy). */
@@ -149,8 +158,9 @@ interface VisualObject extends DiagramComponent {
   bringForward(): this;
   sendToBack(): this;
   sendBackward(): this;
-  /** null = Archi default. */
-  fillColor: string | null;
+  /** Reads the effective colour (the user's default when unset, since 1.11); assign null to reset. */
+  get fillColor(): string;
+  set fillColor(value: string | null);
   /** @since 1.5 */
   iconColor: string;
   opacity: number;
@@ -172,6 +182,12 @@ interface VisualObject extends DiagramComponent {
   borderType: number;
   /** View references only. */
   readonly refView: ArchiView;
+  /**
+   * Legends only (diagram-model-legend): showElements, showRelations, showSpecializationElements,
+   * showSpecializationRelations, rows (1–100), offset (−200…200), color (0 none, 1 core, 2 user),
+   * sort (0 name, 1 category). @since 1.12
+   */
+  options: Record<string, unknown>;
   /**
    * Delete this visual. Default true: children and attached connections go too.
    * false: children are re-parented to this object's parent. @since 1.8 (argument)
@@ -235,9 +251,11 @@ interface ArchimateView extends ArchiView {
   isAllowedConceptForViewpoint(conceptType: string): boolean;
 }
 
+/** A specialization (profile) of a concept type (ProfileProxy). @since 1.2 */
 interface Specialization {
   name: string;
-  conceptType: string;
+  /** The concept type it specialises, e.g. "business-actor". */
+  type: string;
   image: { [key: string]: unknown } | null;
   delete(): void;
 }
@@ -358,6 +376,15 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   /** java.util.ArrayList.add: append one object in place; returns true. @remarks unverified overload pick */
   add(object: T): boolean;
 
+  /**
+   * Read (first object) or set (all objects) an attribute by name: access-type, association-directed,
+   * borderType, bounds, connectionRouter, deriveLineColor, figureType, fillColor, fontColor, fontName,
+   * fontSize, fontStyle, gradient, iconColor, id (read), image, imagePosition, imageSource, index,
+   * influence-strength, junction-type, label-expression, label-value (read), labelVisible, lineColor,
+   * lineStyle, lineWidth, name, opacity, outlineOpacity, purpose, relativeBendpoints (read), showIcon,
+   * source, specialization, style, target, text, textAlignment, textPosition, type (read), view (read),
+   * viewpoint. Prefer the typed properties on the objects.
+   */
   attr(name: string): unknown;
   attr(name: string, value: unknown): this;
   prop(): string[];
@@ -389,14 +416,30 @@ interface JArchiStatic {
    * only concepts, views and folders.
    */
   (selector: string): ArchiCollection<ArchiObject>;
+  /** Models in Archi (dom/model/Model.java) — not the current-model global `model`. */
   readonly model: {
-    /** @since 1.2 */
+    /** Create a new, empty model. */
+    create(name: string): ArchiModel;
+    /** Load a model file (not opened in the Models tree; call openInUI()). */
+    load(path: string): ArchiModel;
+    /** @since 0.7 */
+    isModelLoaded(model: ArchiModel): boolean;
+    /** @since 0.7 */
+    getLoadedModels(): ArchiModel[];
+    /** Is this relationship type allowed between these concept types (ArchiMate rules)? */
+    isAllowedRelationship(relationType: string, sourceType: string, targetType: string): boolean;
+    /** format: "PNG" | "BMP" | "JPG" | "GIF" | "SVG". @since 1.2 */
     renderViewAsBase64(view: ArchiView, format: string, options?: object): string;
-    /** @since 1.7 */
-    renderViewToSVG(view: ArchiView, filePath: string, options?: object): void;
-    [member: string]: unknown;
+    renderViewToFile(view: ArchiView, path: string, format: string, options?: object): void;
+    renderViewAsSVGString(view: ArchiView, setViewBoxOrOptions: boolean | object): string;
+    /** options: setViewBox, textAsShapes, embedFonts, textOffsetWorkaround. @since 1.7 (options) */
+    renderViewToSVG(view: ArchiView, path: string, setViewBoxOrOptions: boolean | object): void;
+    renderViewToPDF(view: ArchiView, path: string, options?: object): void;
   };
-  readonly fs: { [member: string]: unknown };
+  readonly fs: {
+    /** Write a text file (default UTF-8). */
+    writeFile(path: string, text: string, encoding?: string): void;
+  };
   readonly process: {
     /** Java class name of the script engine. */
     readonly engine: string;
