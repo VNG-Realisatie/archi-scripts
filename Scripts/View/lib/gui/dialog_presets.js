@@ -10,6 +10,7 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
@@ -29,21 +30,24 @@ const WindowConstants   = Java.type("org.eclipse.jface.window.Window");
 /**
  * Open the Save As… / Rename… dialog.
  *
- * @param {Object} opts
- *   title              {string}   dialog title
- *   message            {string}   subtitle line
- *   defaultName        {string}   pre-filled preset name (may include "folder/" prefix)
- *   defaultFolder      {string}   pre-selected folder, or "" for root
- *   defaultDescription {string}   pre-filled description
- *   showDescription    {boolean}  show description field (default true)
- *   onConfirm          {function(fullName, description)} called on OK
- *   parentShell        {Shell}    the calling dialog's shell; the Save As dialog opens on top of
- *                                 it (with Archi's main shell it would open behind a modal dialog)
+ * @typedef {object} SaveAsOptions
+ * @property {string}  [title]              dialog title
+ * @property {string}  [message]            subtitle line
+ * @property {string}  defaultName          pre-filled preset name (may include "folder/" prefix)
+ * @property {string}  [defaultFolder]      pre-selected folder, or "" for root
+ * @property {string}  [defaultDescription] pre-filled description
+ * @property {boolean} [showDescription]    show description field (default true)
+ * @property {(fullName: string, description: string) => void} onConfirm  called on OK
+ * @property {Swt.Shell} [parentShell]      the calling dialog's shell; the Save As dialog opens on
+ *   top of it (with Archi's main shell it would open behind a modal dialog)
+ *
+ * @param {SaveAsOptions} opts
  */
 function openSaveAs({
   title, message, defaultName, defaultFolder, defaultDescription,
   showDescription = true, onConfirm, parentShell,
 }) {
+  /** @type {JFace.TitleAreaDialog} */
   let dlg;
 
   // Split folder prefix from name
@@ -59,12 +63,17 @@ function openSaveAs({
   // appended immediately so the combo shows them before the user clicks OK.
   let folders = PresetIO.listFolders();
 
-  const dlgState = {
+  // Cast: the fields are set in createDialogArea, before buttonPressed reads them.
+  const dlgState = /** @type {{ txtName: Swt.Text, cmbFolder: Swt.Combo, txtDesc: Swt.Text | null }} */ (/** @type {unknown} */ ({
     txtName:   null,
     cmbFolder: null,
     txtDesc:   null,
-  };
+  }));
 
+  /**
+   * @param {Swt.Combo} cmbFolder
+   * @param {string} selectFolder
+   */
   function _rebuildFolderCombo(cmbFolder, selectFolder) {
     cmbFolder.removeAll();
     cmbFolder.add(ROOT_LABEL);
@@ -75,7 +84,9 @@ function openSaveAs({
   }
 
   const dlgImpl = {
+    /** @param {Swt.Composite} parent */
     createDialogArea(parent) {
+      /** @type {Swt.Composite} */
       const area = Java.super(dlg).createDialogArea(parent);
       dlg.setTitle(title || "Save As…");
       dlg.setMessage(message || "");
@@ -135,6 +146,7 @@ function openSaveAs({
       return area;
     },
 
+    /** @param {number} buttonId */
     buttonPressed(buttonId) {
       if (buttonId === IDialogConstants.CANCEL_ID) {
         Java.super(dlg).cancelPressed();
@@ -162,6 +174,7 @@ function openSaveAs({
     isResizable()     { return false; },
     isHelpAvailable() { return false; },
 
+    /** @param {Swt.Composite} parent */
     createButtonsForButtonBar(parent) {
       Java.super(dlg).createButton(parent, IDialogConstants.CANCEL_ID, "Cancel", false);
       Java.super(dlg).createButton(parent, IDialogConstants.OK_ID,     "OK",     true);
