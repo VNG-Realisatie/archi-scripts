@@ -857,6 +857,10 @@ function validatePreset(raw) {
   /** @type {<K extends RuleKind>(kind: K, list: unknown, where: string) => RuleByKind[K][]} */
   const rules = (kind, list, where) => RuleLists.normalizeRules(kind, list, valid, where);
 
+  // DEFAULT_PRESET holds its rule lists in file form; defaults a preset leaves in place get the full shape too.
+  preset.params.nestingRules = rules("relation", preset.params.nestingRules, "params.nestingRules");
+  preset.params.reverseRules = rules("relation", preset.params.reverseRules, "params.reverseRules");
+
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
     for (const [key, rawVal] of Object.entries(raw.params)) {
