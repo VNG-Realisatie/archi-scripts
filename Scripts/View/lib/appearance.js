@@ -7,9 +7,10 @@
  * Rule precedence (later overrides earlier for the same VO):
  *   nestingLevel → highlightRepeated → styleByProperty rules (in list order)
  *
- * Reset on disable: when a feature is disabled and the action is layout_only or
- * expand_view, the elements that feature would have styled are reset to Archi defaults
- * (fillColor = null, font = Segoe UI 9 normal, lineWidth = 1).
+ * Reset on Modify (layout_only, expand_view): a disabled nesting-level or highlight feature
+ * resets the elements it would have styled to Archi defaults (fillColor = null, font = Segoe UI
+ * 9 normal); with style rules, every element fill and relation line colour / width not styled
+ * earlier in the pass is reset before the rules colour (SPEC §10, Style by property).
  */
 console.log("Loading appearance.js");
 
@@ -47,7 +48,7 @@ const DEFAULT_FONT_STYLE = "normal";
 // ── Public API ────────────────────────────────────────────────────────────────
 
 // actionId: "new_view" | "one_each" | "expand_view" | "layout_only"
-// Reset-on-disable applies only when actionId is "layout_only" or "expand_view".
+// Resets apply only when actionId is "layout_only" or "expand_view".
 /**
  * @param {ArchimateView} view
  * @param {MaskedPreset}  preset  params masked to the algorithm (defs.effectiveParams)
@@ -402,17 +403,24 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
   const elements  = Array.from(elementById.values());
   const relations = Array.from(relationById.values());
 
+  // Modify actions: reset every fill and line first, so a changed rule leaves no colours of an
+  // earlier run behind. Objects colored earlier in this pass (nesting level, highlight) are kept.
+  if (isModify) {
+    let n = 0;
+    vosByElementId.forEach(vos => vos.forEach(vo => {
+      if (styledVoIds.has(vo.id)) return;
+      vo.fillColor = null; n++;
+    }));
+    vcsByRelationId.forEach(vcs => vcs.forEach(vc => { vc.lineColor = null; vc.lineWidth = 1; n++; }));
+    if (n > 0) console.log(`  styleByProperty: ${n} objects reset`);
+  }
+
   /** @type {Map<number, Set<string>>} */
   const styledByRule = new Map();     // rule index → Set("element:id" | "relation:id") it colored
-  /** @type {Set<string>} */
-  const styledVcIds  = new Set();
-  /** @type {Map<string, RuleTarget>[]} */
-  const inactive     = [];
 
   rules.forEach((rule, i) => {
+    if (rule.on === false || !rule.property) return;
     const targets = computeRuleTargets(rule, elements, relations);
-    if (rule.on === false) { inactive.push(targets); return; }
-    if (!rule.property) return;
 
     // One value → its colour from the range; several different values → the mixed-values colour.
     const unique = Array.from(new Set(
@@ -435,7 +443,6 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
         (vcsByRelationId.get(id) || []).forEach(vc => {
           vc.lineColor = color;
           if (fixedWidth > 0) vc.lineWidth = fixedWidth;
-          styledVcIds.add(vc.id);
         });
       } else {
         (vosByElementId.get(id) || []).forEach(vo => { vo.fillColor = color; styledVoIds.add(vo.id); });
@@ -446,25 +453,6 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
     styledByRule.set(i, mine);
     console.log(`  styleByProperty rule ${i + 1}: ${targets.size} matched  ${colored} colored  ${mixed} mixed values  ${unique.length} unique values`);
   });
-
-  // Modify actions: a switched-off rule resets what it would have styled, unless another rule styled it.
-  if (isModify) {
-    let n = 0;
-    inactive.forEach(targets => targets.forEach((h, id) => {
-      if (h.kind === "relation") {
-        (vcsByRelationId.get(id) || []).forEach(vc => {
-          if (styledVcIds.has(vc.id)) return;
-          vc.lineColor = null; vc.lineWidth = 1; n++;
-        });
-      } else {
-        (vosByElementId.get(id) || []).forEach(vo => {
-          if (styledVoIds.has(vo.id)) return;
-          vo.fillColor = null; n++;
-        });
-      }
-    }));
-    if (n > 0) console.log(`  styleByProperty: ${n} objects reset (rules switched off)`);
-  }
 
   RuleLists.detectRuleConflicts(styledByRule).forEach(c =>
     console.log(`  ⚠ styleByProperty rule ${c.rule + 1} also styles ${c.count} objects of rule${c.with.length > 1 ? "s" : ""} ${c.with.map(j => j + 1).join(", ")}; the last rule wins`));
