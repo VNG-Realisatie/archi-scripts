@@ -21,6 +21,7 @@
     "Scripts/View/lib/defs.js",
     "Scripts/View/lib/engines/dagre.js",
     "Scripts/View/lib/engines/engine-utils.js",
+    "Scripts/View/lib/engines/graphviz.js",
     "Scripts/View/lib/rel_filter.js"
   ]
 }

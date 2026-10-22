@@ -53,3 +53,29 @@ interface DagreModule {
   };
   layout(graph: DagreGraph): void;
 }
+
+// ── Graphviz `-Tjson` output (graphviz.org/docs/outputs/json) — fields the adapter reads ─────────
+
+/** A graph, subgraph (cluster) or node object. Coordinates are strings in points. */
+interface GraphvizJson {
+  name?: string;
+  /** "llx,lly,urx,ury" */
+  bb?: string;
+  /** "x,y" (nodes) */
+  pos?: string;
+  /** Inches, as strings. */
+  width?: string;
+  height?: string;
+  objects?: GraphvizJson[];
+  edges?: GraphvizJsonEdge[];
+}
+
+interface GraphvizJsonEdge {
+  /** Custom attribute set by the adapter (eid="<edge id>"); Graphviz echoes it at top level or under attrs. */
+  eid?: string;
+  attrs?: { eid?: string };
+  /** Spline control points, "e,x,y x,y …". */
+  pos?: string;
+  /** Label position "x,y". */
+  lp?: string;
+}

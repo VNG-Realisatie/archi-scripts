@@ -475,8 +475,10 @@ declare var Java: {
   isType(value: unknown): boolean;
   typeName(value: unknown): string | undefined;
 };
-/** Nashorn-compat package root, e.g. Packages.java.io.File. */
+/** Nashorn-compat package roots, e.g. Packages.java.io.File or java.io.File (prefer Java.type). */
 declare var Packages: any;
+declare var java: any;
+declare var javax: any;
 /** Archi's main SWT Shell (org.eclipse.swt.widgets.Shell). */
 declare var shell: any;
 declare var workbench: any;
