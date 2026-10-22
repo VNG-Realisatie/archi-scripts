@@ -246,6 +246,10 @@ type ParentsOf<T> = T extends OnView ? VisualObject | ArchiView : Folder | Archi
 type EndsOf<T> = T extends OnView ? VisualObject | VisualConnection : ArchiElement | ArchiRelation;
 type ElementSelector = "element";
 type RelationSelector = "relation" | "relationship";
+/** "folder", "folder.Name" */
+type FolderSelector = "folder" | `folder.${string}`;
+/** "view", "view.Name" */
+type ViewSelector = "view" | `view.${string}`;
 
 interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   /** Number of objects (ArrayList.size). */
@@ -273,11 +277,11 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   /** Direct children. */
   children(): ArchiCollection<DescendantsOf<T>>;
   children(selector: ElementSelector): ArchiCollection<ElementsOf<T>>;
-  children(selector: "view"): ArchiCollection<ArchimateView>;
-  children(selector: "folder"): ArchiCollection<Folder>;
+  children(selector: ViewSelector): ArchiCollection<ArchimateView>;
+  children(selector: FolderSelector): ArchiCollection<Folder>;
   children(selector: string): ArchiCollection<DescendantsOf<T>>;
   parent(): ArchiCollection<ParentsOf<T>>;
-  parent(selector: "folder"): ArchiCollection<Folder>;
+  parent(selector: FolderSelector): ArchiCollection<Folder>;
   parent(selector: string): ArchiCollection<ParentsOf<T>>;
   /** All ancestors. @since 1.7 */
   parents(selector?: string): ArchiCollection<ParentsOf<T>>;
@@ -295,8 +299,8 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
 
   filter(selector: ElementSelector): ArchiCollection<Extract<T, ArchiElement | VisualObject>>;
   filter(selector: RelationSelector): ArchiCollection<Extract<T, ArchiRelation | VisualConnection>>;
-  filter(selector: "folder"): ArchiCollection<Extract<T, Folder>>;
-  filter(selector: "view"): ArchiCollection<Extract<T, ArchiView>>;
+  filter(selector: FolderSelector): ArchiCollection<Extract<T, Folder>>;
+  filter(selector: ViewSelector): ArchiCollection<Extract<T, ArchiView>>;
   filter(selector: string): ArchiCollection<T>;
   /** Keep the objects for which `predicate` returns true (java Predicate). */
   filter(predicate: (object: T) => boolean): ArchiCollection<T>;
@@ -323,9 +327,14 @@ interface JArchiStatic {
   /** `$(selection)` returns the selection itself. */
   <T extends ArchiProxy>(collection: ArchiCollection<T>): ArchiCollection<T>;
   <T extends ArchiProxy>(object: T): ArchiCollection<T>;
+  /** Model concepts and folders by kind (model.find). */
+  (selector: ElementSelector | `element.${string}`): ArchiCollection<ArchiElement>;
+  (selector: RelationSelector | `relation.${string}` | `relationship.${string}`): ArchiCollection<ArchiRelation>;
+  (selector: FolderSelector): ArchiCollection<Folder>;
+  (selector: ViewSelector): ArchiCollection<ArchimateView>;
   /**
-   * model.find(selector): "element", "relation", "view", "folder", a type ("business-actor"),
-   * ".Name", "#id", "*". `#id` can match visuals as well as concepts.
+   * model.find(selector): a type ("business-actor"), ".Name", "#id", "*", …
+   * `#id` can match visuals as well as concepts.
    */
   (selector: string): ArchiCollection<ArchiObject>;
   readonly model: {
