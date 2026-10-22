@@ -218,7 +218,9 @@ type → direction (outgoing / incoming / either) → added relation type → ad
 plus an optional property value; it shows what it reaches. Followed relations are drawn; the
 added type and property only decide which elements join. **Repeat** runs the step 1–5 times or
 *until nothing new* (at most 10 runs), each run from the previous run's additions. An **empty
-step ends the chain**.
+step ends the chain**. A step adds elements only: a relation whose other end is a relation
+(ArchiMate allows a relation on a relation) is not followed. Following relations on relations is
+not supported yet.
 
 **A wider filter never yields less.** An extra Include rule can only keep or grow what a step
 adds; an extra Exclude rule can only shrink it — there are no hidden exceptions. A rule that
@@ -1112,7 +1114,7 @@ same model → same set; it reads only, never edits a view; sets, not lists (no 
    element never changes the nesting between the elements that remain.
 3. **Steps, as a chain.** Step 1 starts from the filtered base; each later step from the previous
    step's additions only; an empty step ends the chain. Within a step, each run starts from the
-   previous run's additions.
+   previous run's additions. A relation whose other end is a relation is not followed.
 4. **Elements only** — relations, folders and views leave the element set.
 5. **Relations**, collected in two passes with no relation counted twice:
    - *base* — relations between filtered-base elements that the relation rules keep;

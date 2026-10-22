@@ -507,16 +507,25 @@ function _globalRelationMatch(filter) {
 }
 
 /**
- * Step candidate: one relation seen from one element of the previous step.
+ * Step candidate: one relation seen from one element of the previous step. Null when the other
+ * end is a relation (ArchiMate allows a relation on a relation): a step adds elements only.
  * @param {ArchiRelation} rel
  * @param {ArchiElement}  frontier
- * @returns {StepCandidate}
+ * @returns {StepCandidate | null}
  */
 function _stepCandidate(rel, frontier) {
   const outgoing = !!(rel.source && rel.source.id === frontier.id);
-  // Cast: the other end is taken to be an element. A relationship can also end on a relationship
-  // (ArchiMate allows it); such an end is not told apart here.
-  return { rel, frontier, other: /** @type {ArchiElement} */ (outgoing ? rel.target : rel.source), outgoing };
+  const other    = outgoing ? rel.target : rel.source;
+  if (!other || _isRelation(other)) return null;
+  return { rel, frontier, other, outgoing };
+}
+
+/**
+ * @param {ArchiElement | ArchiRelation} concept
+ * @returns {concept is ArchiRelation}
+ */
+function _isRelation(concept) {
+  return concept.type.endsWith("-relationship");
 }
 
 /**
@@ -550,7 +559,10 @@ function _expandStepWithRelations(base, step, cumulative, seenRelIds) {
     // previous-step type) so the traversal direction is honoured. This prevents incidental
     // relations from earlier-step elements (outside the triggering collection) being
     // collected as nesting candidates.
-    const hopRels = _findRelationsBetween(cumul, (/** @type {ArchiRelation} */ rel, /** @type {ArchiElement} */ el) => RuleLists.matchStepRelation(step.rules, _stepCandidate(rel, el)), seenRelIds, prevHopFrontier);
+    const hopRels = _findRelationsBetween(cumul, (/** @type {ArchiRelation} */ rel, /** @type {ArchiElement} */ el) => {
+      const cand = _stepCandidate(rel, el);
+      return !!cand && RuleLists.matchStepRelation(step.rules, cand);
+    }, seenRelIds, prevHopFrontier);
     hopRels.forEach(r => newRels.push(r));
     prevHopFrontier = hopFrontier;  // next hop: current frontier becomes the trigger
   }
@@ -586,8 +598,8 @@ function _expandStepFrontiers(base, step, cumulative = [], candidatesOut = null)
       try {
         $(element).rels().each(rel => {
           const cand = _stepCandidate(rel, element);
+          if (!cand) return;
           const other = cand.other;
-          if (!other) return;
           if (baseIds.has(other.id) || cumulIds.has(other.id)) return;
           if (candidatesOut) candidatesOut.push(cand);
           if (addedIds.has(other.id)) return;
