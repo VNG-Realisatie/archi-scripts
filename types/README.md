@@ -19,10 +19,11 @@ VS Code shows the same findings while editing (it reads `jsconfig.json`). The pi
 | Scope (`jsconfig.json` › `include`) | Why |
 |---|---|
 | `Scripts/View/lib/*.js`, `Scripts/View/lib/engines/*.js` | View subsystem: pipeline, writer, adapters |
+| `Scripts/View/lib/gui/*.js` | View dialog (SWT / JFace) |
 | `Scripts/_lib/Common.js`, `archi_folders.js`, `selection.js` | Shared modules the View code loads |
 
 Not checked: `.ajs` entry scripts (tsc does not read that extension; keep them thin),
-`View/lib/gui/` (SWT through `Java.type`, untyped), `View/tools/` (Node), other folders, and the
+`View/tools/` (Node), other folders, and the
 vendored libraries in `Scripts/node_modules/` (`maxNodeModuleJsDepth: 0`).
 
 Settings: `strict` (no implicit `any`, null checks), ES2022 target, no DOM library, no Node types.
@@ -35,6 +36,7 @@ Settings: `strict` (no implicit `any`, null checks), ES2022 target, no DOM libra
 | `types/view.d.ts` | Rules, presets, algorithm specs, pipeline shapes | `Scripts/View/lib/rel_filter.js`, `defs.js`, `selection_pipeline.js`; SPEC § Vocabulary |
 | `types/layout.d.ts` | `LayoutGraph` → `LayoutResult` engine contract, nesting resolution | SPEC §8 and the adapters |
 | `types/vendor.d.ts` | The members used of dagre-cluster-fix, elkjs (sync wrapper), chroma-js, Graphviz `-Tjson` | Library docs; only what the code uses |
+| `types/swt.d.ts` | The SWT / JFace members the dialog uses, as `Java.type("<class>")` overloads | SWT and JFace Javadoc; only what the code uses |
 
 `@remarks unverified` on a member means it comes from source or docs but has not been observed
 in a running Archi. `Scripts/Develop/probeJArchiApi.ajs` checks those points: run it in Archi and
@@ -53,6 +55,9 @@ update the remarks.
   only for a checker limitation. Never change executable code just to satisfy the checker.
 - **Object maps.** Rule, preset and params shapes are type aliases (not interfaces) so code that
   reads them by key can view them as `Record<string, unknown>`.
+- **Java classes.** `Java.type("<class>")` is typed for the classes listed in `types/swt.d.ts`
+  and `any` for every other class. A class the code starts to use gets a minimal entry there (the
+  members it calls); a Java value that stays `any` gets its type on the receiving declaration.
 - **jArchi duck typing.** A proxy without a member reads it as `undefined`; the typings say so
   (`view?: undefined` on concepts, `bounds?: undefined` on connections), so `if (o.view)` narrows
   to visuals without a cast.
@@ -82,11 +87,11 @@ so it needs its own change and a run in Archi.
 
 ## Limits
 
-A passing check does not show that a script works in Archi. It does not cover: what jArchi does
-at run time where the typings are `unverified`; Java interop (`Java.type` results are `any`); SWT
-behaviour; the `.ajs` entry scripts; data read from files (preset JSON is typed `PresetFile`, the
-validation boundary). Run the script in Archi, and the Node harness (`Scripts/View/tools/`), as
-before.
+A passing check does not show that a script works in Archi. It does not cover: what jArchi does at
+run time where the typings are `unverified`; Java interop beyond the listed classes (`Java.type`
+results are `any`, `Java.super` too); SWT behaviour; the `.ajs` entry scripts; data read from files
+(preset JSON is typed `PresetFile`, the validation boundary). Run the script in Archi, and the Node
+harness (`Scripts/View/tools/`), as before.
 
 Upgrading TypeScript: TypeScript 7 (the native compiler) changed parts of its JavaScript/JSDoc
 support. Move the pin only together with VS Code's bundled version, and re-run the check.

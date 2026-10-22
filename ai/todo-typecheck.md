@@ -94,9 +94,9 @@ Rest is checkerbeperking (Partial EffectiveParams, narrowing in closures, jArchi
 verminderen vraagt wijziging van types/*.d.ts of herstructurering. Niet aangeraakt: rel_filter, dagre,
 graphviz, selection, Common.
 
-## 7. Scope uitbreiden naar gui/ — Opus
+## 7. Scope uitbreiden naar gui/ — Opus (gedaan 2026-10-22)
 
-- [ ] Prompt:
+- [x] Prompt:
 
 ```
 Breid de typecheck uit naar Scripts/View/lib/gui/ (dialog_main.js ±2900 regels, SWT via Java.type).
@@ -105,6 +105,16 @@ alleen JSDoc. Voeg in types/ een minimale SWT/JFace-subset toe voor wat werkelij
 Java.type-resultaten mogen any blijven waar typing niets oplevert. Echte fouten in aparte
 fix-commits. Meld het aantal meldingen vooraf en de bevindingen achteraf.
 ```
+
+Uitkomst stap 7 (`c45b4b3`..`9ad4a32`): vooraf 535 meldingen (dialog_main 430, rule_table 73,
+dialog_presets 32), bijna alle impliciete `any`. `types/swt.d.ts` typeert `Java.type` per klassenaam;
+`Java.super` toegevoegd aan jarchi.d.ts. Fixes: dode code in dialog_main (ongebruikt console-blok,
+`_col`, `_formatCountsLine`, `FEATURE_RULE_COLUMNS`) en fallbacks voor een gevalideerde preset
+(`|| {}`, `_inferViewSizeMode`). Casts: dialog_main 30, rule_table 4, dialog_presets 2.
+Nog te doen in Archi: rule_table bewaart de property-namen van een combo als JS-property op het
+Java-object (`c._names`); als GraalJS die schrijfactie negeert, slaat een gekozen Property in een
+regel altijd "" op. Controleren: Property condition aan, een property kiezen, preset opslaan en de JSON
+bekijken. Zo ja: `setData("names", …)` / `getData`.
 
 ## 8. CI — Sonnet, na de push
 
