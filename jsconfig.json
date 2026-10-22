@@ -26,6 +26,7 @@
     "Scripts/View/lib/engines/elk.js",
     "Scripts/View/lib/engines/engine-utils.js",
     "Scripts/View/lib/engines/graphviz.js",
+    "Scripts/View/lib/preset_io.js",
     "Scripts/View/lib/rel_filter.js"
   ]
 }

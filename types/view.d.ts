@@ -170,10 +170,12 @@ interface ViewProperty {
   enabled: boolean;
 }
 
-/** A validated preset (defs.validatePreset). */
-interface Preset {
+/** A validated preset (defs.validatePreset). A type alias, so it can be read by key. */
+type Preset = {
   schemaVersion: number;
   name: string;
+  /** Free text, kept when a preset file is read (preset_io). */
+  description?: string;
   algorithm: string;
   params: PresetParams;
   filter: {
@@ -198,7 +200,7 @@ interface Preset {
   };
   engineParams: EngineParams;
   viewProperties: { addObjectId: boolean; properties: ViewProperty[] };
-}
+};
 
 /** A preset after capability masking: params holds only what the algorithm uses. */
 type MaskedPreset = Omit<Preset, "params"> & { params: EffectiveParams };
