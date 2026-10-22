@@ -29,6 +29,7 @@
     "Scripts/View/lib/generate_view.js",
     "Scripts/View/lib/preset_io.js",
     "Scripts/View/lib/rel_filter.js",
+    "Scripts/View/lib/run_preset.js",
     "Scripts/View/lib/selection_pipeline.js"
   ]
 }

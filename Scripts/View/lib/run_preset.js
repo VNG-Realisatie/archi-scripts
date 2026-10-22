@@ -17,8 +17,11 @@
 console.log("Loading run_preset.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("./preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+/** @type {typeof import("./generate_view")} */
 const GenView  = require(REPO_ROOT + "View/lib/generate_view");
+/** @type {typeof import("./defs")} */
 const Defs     = require(REPO_ROOT + "View/lib/defs");
 const { ACTION } = Defs;
 
@@ -26,12 +29,14 @@ const { ACTION } = Defs;
 // _Default (the code defaults) is used when it does not exist.
 const BASE_PRESET_NAME = "all";
 
+/** @type {Readonly<Record<string, string>>} */
 const FILENAME_ACTIONS = Object.freeze({
   Generate:         ACTION.NEW_VIEW.id,
   GenerateMultiple: ACTION.ONE_EACH.id,
   Expand:           ACTION.EXPAND_VIEW.id,
   Layout:           ACTION.LAYOUT_ONLY.id,
 });
+/** @type {Readonly<Record<string, string>>} */
 const FILENAME_DIRECTIONS = Object.freeze({ LR: "Right", RL: "Left", TB: "Down", BT: "Up" });
 
 /**
@@ -51,10 +56,10 @@ function parseFilename(file) {
 
 /**
  * Read the preset the script's filename names and run its action on the selection.
- * @param {string}          file       script path (__FILE__)
- * @param {ArchiCollection} selection  usually $(selection)
- * @param {Object}          [opts]     folder: preset folder; preset: preset name instead of the
- *                                     filename's; edit: function(preset) to adjust it before running
+ * @param {string}                       file       script path (__FILE__)
+ * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
+ * @param {{ folder?: string, preset?: string, edit?: (preset: Preset) => void }} [opts]
+ *   folder: preset folder; preset: preset name instead of the filename's; edit: adjust it before running
  * @returns {ArchimateView[]} generated / changed views
  */
 function fromFilename(file, selection, opts = {}) {
@@ -69,9 +74,9 @@ function fromFilename(file, selection, opts = {}) {
 
 /**
  * Run the base preset on the selection, with some params overridden.
- * @param {ArchiCollection} selection  usually $(selection)
- * @param {string}          actionId   ACTION.*.id
- * @param {Object}          [params]   params that replace the preset's, e.g. { direction: "Down", nestingRules: [] }
+ * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
+ * @param {string}                       actionId   ACTION.*.id
+ * @param {Partial<PresetParams>}        [params]   params that replace the preset's, e.g. { direction: "Down", nestingRules: [] }
  * @returns {ArchimateView[]} generated / changed views
  */
 function fromBase(selection, actionId, params = {}) {
