@@ -49,7 +49,8 @@ function applyAppearance(view, preset, actionId) {
   if (!anyEnabled && !isModify) return;
 
   console.log(`\nAppearance (${actionId || "?"})`);
-  const hasNestingTypes = preset.params.nestingRules.length > 0;
+  // params is the algorithm's effective subset: nestingRules is absent when the algorithm does not nest.
+  const hasNestingTypes = (preset.params.nestingRules || []).length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
     console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  lighten=${nl.lightenPerLevel}%/level`);
   if (hr.enabled)
