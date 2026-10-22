@@ -937,7 +937,7 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
     // zero or less"). Clamp to a minimum and warn with the node id so the cause stays visible.
     let w = child.width, h = child.height;
     if (!(w > 0) || !(h > 0)) {
-      console.warn(`  ⚠ [elk] node "${child.id}" has non-positive size (w=${w}, h=${h}); clamping to ${MIN_NODE_SIZE}px`);
+      console.log(`  ⚠ [elk] node "${child.id}" has non-positive size (w=${w}, h=${h}); clamping to ${MIN_NODE_SIZE}px`);
       if (!(w > 0)) w = MIN_NODE_SIZE;
       if (!(h > 0)) h = MIN_NODE_SIZE;
     }
@@ -1002,7 +1002,7 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
   for (const [relId, { meta, recs }] of Object.entries(segGroups)) {
     const complete = recs.filter(Boolean).length === meta.segCount;
     if (!complete) {
-      console.warn(`  ⚠ [elk] relation "${relId}": ${recs.filter(Boolean).length}/${meta.segCount} port segments routed — left unrouted`);
+      console.log(`  ⚠ [elk] relation "${relId}": ${recs.filter(Boolean).length}/${meta.segCount} port segments routed — left unrouted`);
       continue;
     }
     const label = (recs.find(r => r.label) || {}).label || null;
