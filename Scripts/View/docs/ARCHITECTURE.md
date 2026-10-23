@@ -207,7 +207,7 @@ Realises SPEC §7 and its [managed extra occurrences](SPEC.md#managed-extra-occu
 ### Dialog
 
 - **Configuration is the source of truth;** widgets are a view on it, with one sync in and one save out. Layout params are table-driven (`PARAM_WIDGETS`: param → widget kind), so loading, saving, enabling and tooltips are one loop. Labels, tooltips and "used by" come from `defs`.
-- **One rule-table widget** for every rule list.
+- **One rule-table widget** for every rule list. Its checkboxes are drawn on a Canvas: a disabled GTK checkbox keeps its blue tick and looks active, a drawn one turns grey. Counts of an off rule are computed with the rule switched on.
 - **Live counts recompute on commit** (selection events, spinner focus-out), never per keystroke.
 - **The action runs after the dialog closes:** the settings are saved to the session, then `generate_view` runs.
 

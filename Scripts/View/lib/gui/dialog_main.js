@@ -293,7 +293,7 @@ const STYLE_PROP_OF_ITEMS = Object.freeze([
 ]);
 
 /** @type {RuleTableChoiceColumn} */
-const _modeCol = { key: "mode", header: "Mode", kind: "choice", items: MODE_ITEMS, width: 85,
+const _modeCol = { key: "mode", header: "Mode", kind: "choice", items: MODE_ITEMS, width: 93,
   tooltip: "Include keeps what matches this rule. Exclude removes it.\nResult = all Include rules minus all Exclude rules." };
 /** @type {RuleTablePlainColumn} */
 const _onCol = { key: "on", header: "On", kind: "check", tooltip: "Switch this rule on or off without deleting it." };
@@ -330,13 +330,13 @@ const _FILTER_COUNT_TIP = "\n(n): how many this rule keeps on its own; for an Ex
                           "from the other rules' result.";
 /** @type {readonly RuleTableColumn<ElementRule>[]} */
 const ELEMENT_RULE_COLUMNS = Object.freeze([
-  _modeCol,
+  _onCol, _modeCol,
   Object.assign(_typeCol("elementType", "Element type", "Type to match. All = any type." + _FILTER_COUNT_TIP, 200), { count: "count" }),
   ..._propCols("match elements"),
 ]);
 /** @type {readonly RuleTableColumn<DiagramRule>[]} */
 const DIAGRAM_RULE_COLUMNS = Object.freeze([
-  _modeCol, { key: "diagramType", header: "Diagram type", kind: "choice", items: DIAGRAM_ITEMS, width: 180, count: "count",
+  _onCol, _modeCol, { key: "diagramType", header: "Diagram type", kind: "choice", items: DIAGRAM_ITEMS, width: 180, count: "count",
               tooltip: "Type to match. All = any type." + _FILTER_COUNT_TIP },
 ]);
 /** @type {readonly RuleTableChoiceColumn[]} */
@@ -370,14 +370,14 @@ const REVERSE_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "_spacer", header: "", kind: "count", width: 40 },
   { key: "_spacer2", header: "", kind: "count", width: 50 }]);
 /** @type {readonly RuleTableColumn<RelationRule>[]} */
-const FILTER_RELATION_RULE_COLUMNS = Object.freeze([RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1],
+const FILTER_RELATION_RULE_COLUMNS = Object.freeze([_onCol, RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1],
   Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "count", width: 150,
     tooltip: "Relationship type. All = any type.\n(n): relations between the filtered elements this rule keeps on its own; " +
              "for an Exclude rule, how many it removes from the other rules' result." }),
   RELATION_RULE_COLUMNS[3]]);
 /** @type {readonly RuleTableColumn<StepRule>[]} */
 const STEP_RULE_COLUMNS = Object.freeze([
-  _modeCol,
+  _onCol, _modeCol,
   _typeCol("previous", "Previous step\nelements",
     "Only elements of this type from the previous step are expanded (step 1: the filtered selection). All = any.", 150),
   { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
@@ -1231,7 +1231,8 @@ function _rawElements(ctx, type) {
  * @param {ArchiElement[]} cumulative
  * @param {Set<string>}    seen
  * @param {{elements:number, relations:number}} total  what the step adds with all its rules
- * @returns {{elements:number, relations:number}[]}  one entry per displayed rule
+ * @returns {{elements:number, relations:number}[]}  one entry per displayed rule; a rule that is
+ *   off is counted as if it were on
  */
 function _stepRuleCounts(b, step, input, cumulative, seen, total) {
   const rules = b.table.displayedRules();
@@ -1249,9 +1250,12 @@ function _stepRuleCounts(b, step, input, cumulative, seen, total) {
     return r;
   };
   return rules.map((r, i) => {
-    if (r.mode !== "exclude") return run([r]);
-    const without = run(rules.filter((_, j) => j !== i));
-    return { elements: without.elements - total.elements, relations: without.relations - total.relations };
+    const asOn = Object.assign({}, r, { on: true });
+    if (r.mode !== "exclude") return run([asOn]);
+    const others  = rules.filter((_, j) => j !== i);
+    const without = run(others);
+    const withIt  = r.on === false ? run([...others, asOn]) : total;
+    return { elements: without.elements - withIt.elements, relations: without.relations - withIt.relations };
   });
 }
 
@@ -1814,7 +1818,8 @@ function _updateLayoutRuleCounts(ctx, elements, relations, params) {
 
 /**
  * Per-rule counts of a global filter table: how many objects the rule keeps on its own; an
- * Exclude rule: how many it removes from the other rules' result.
+ * Exclude rule: how many it removes from the other rules' result. A rule that is off is counted
+ * as if it were on: what it would keep or remove.
  * @template {"element" | "diagram" | "relation"} K
  * @template T
  * @param {RuleTable<K>} table
@@ -1825,13 +1830,18 @@ function _updateLayoutRuleCounts(ctx, elements, relations, params) {
 function _filterRuleCounts(table, objects, test) {
   const rules = table.displayedRules();
   const kept  = objects.filter(o => test(rules, o)).length;
-  return rules.map((rule, i) => rule.mode !== "exclude"
-    ? { count: objects.filter(o => test([rule], o)).length }
-    : { count: objects.filter(o => test(rules.filter((_, j) => j !== i), o)).length - kept });
+  return rules.map((rule, i) => {
+    const asOn = Object.assign({}, rule, { on: true });
+    if (rule.mode !== "exclude") return { count: objects.filter(o => test([asOn], o)).length };
+    const others = rules.filter((_, j) => j !== i);
+    const withIt = rule.on === false ? objects.filter(o => test([...others, asOn], o)).length : kept;
+    return { count: objects.filter(o => test(others, o)).length - withIt };
+  });
 }
 
 /**
- * Per-rule counts of a nesting / reverse table over the predicted view's relations.
+ * Per-rule counts of a nesting / reverse table over the predicted view's relations. A rule that is
+ * off is counted as if it were on (its Nested count stays empty).
  * @param {RuleTable<"relation">} table
  * @param {ArchiRelation[]} relations
  * @param {Set<string> | null} nestedIds  relations drawn as nesting; null: no Nested column
@@ -1844,13 +1854,15 @@ function _featureRuleCounts(table, relations, nestedIds) {
   const active = rules.filter(r => r.on !== false);
   const allHits = relations.filter(r => match(active, r)).length;
   return rules.map((rule, i) => {
-    if (rule.on === false) return {};
+    const asOn = Object.assign({}, rule, { on: true });
     if (rule.mode !== "exclude") {
-      const hit = relations.filter(r => match([rule], r));
-      return { relations: hit.length, nested: nestedIds ? hit.filter(r => nestedIds.has(r.id)).length : undefined };
+      const hit = relations.filter(r => match([asOn], r));
+      // Nested: only for a rule that is on; what an off rule would nest needs a nesting run of its own.
+      return { relations: hit.length, nested: nestedIds && rule.on !== false ? hit.filter(r => nestedIds.has(r.id)).length : undefined };
     }
     const others = rules.filter((r, j) => j !== i && r.on !== false);
-    return { relations: relations.filter(r => match(others, r)).length - allHits };
+    const withIt = rule.on === false ? relations.filter(r => match([...others, asOn], r)).length : allHits;
+    return { relations: relations.filter(r => match(others, r)).length - withIt };
   });
 }
 
@@ -2112,15 +2124,15 @@ function _updateStyleWarnings(ctx) {
     const styled = new Map();
     t.displayedRules().forEach((r, i) => {
       counts[i] = {};
-      if (r.on === false) return;
       try {
-        const targets = Appearance.computeRuleTargets(r, pred.elements, pred.relations);
+        // A rule that is off is counted as if it were on, but takes no part in the conflict check.
+        const targets = Appearance.computeRuleTargets(Object.assign({}, r, { on: true }), pred.elements, pred.relations);
         /** @type {Set<string>} */
         const ids = new Set();
         targets.forEach((h, id) => { if (h.values.size > 0) ids.add(`${h.kind}:${id}`); });
         // Feedback in the Property combo: colored objects, or reached objects before a property is chosen.
         counts[i] = { count: r.property ? ids.size : targets.size };
-        if (r.property) styled.set(i, ids);
+        if (r.property && r.on !== false) styled.set(i, ids);
       } catch (e) {}
     });
     RuleLists.detectRuleConflicts(styled).forEach(c => warnings.set(c.rule,

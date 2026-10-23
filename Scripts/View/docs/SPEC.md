@@ -635,20 +635,20 @@ the steps.
 │ │               First object: Business Actor: Customer                │  │
 │ │  Containing:  12 elements, 8 relations                              │  │
 │ │  Filter selection by element type (none = keep all):                │  │
-│ │   Mode    │ Element type                                     ✕      │  │
-│ │   Include │ All                                              ✕      │  │
+│ │   On │ Mode    │ Element type                                ✕      │  │
+│ │   ☑  │ Include │ All                                         ✕      │  │
 │ │   [+ Add rule]  ☐ Property condition                                │  │
 │ │  Filter selection by diagram type (none = keep all):                │  │
-│ │   Mode │ Diagram type     [+ Add rule]                              │  │
+│ │   On │ Mode │ Diagram type     [+ Add rule]                         │  │
 │ │  Filter selection by relations (none = keep all):                   │  │
-│ │   Mode │ Source type │ Relation type │ Target type   [+ Add rule]   │  │
+│ │   On │ Mode │ Source type │ Relation type │ Target type  [+ Add rule]│  │
 │ └─────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Expand selection ─────────────────────────────────────────────────┐   │
 │ │ ┌──────────────────────────────────────────────────────────────┐   │   │
 │ │ │ [▾] Step 1 · Adds: 4 elements · 3 relations   [↑] [↓]   [✕]  │   │   │
-│ │ │ Mode   │Previous step│Direction│Added          │Added      │ │   │   │
-│ │ │        │elements     │         │relations      │elements   │ │   │   │
-│ │ │Include │Grouping     │Outgoing │Aggregation (3)│All (4)    │✕│   │   │
+│ │ │On│Mode   │Previous step│Direction│Added         │Added    │ │   │   │
+│ │ │  │       │elements     │         │relations     │elements │ │   │   │
+│ │ │☑ │Include│Grouping     │Outgoing │Aggregation(3)│All (4)  │✕│   │   │
 │ │ │ [+ Add rule]  ☐ Property condition   Repeat: [1× ▼]          │   │   │
 │ │ └──────────────────────────────────────────────────────────────┘   │   │
 │ │ ┌──────────────────────────────────────────────────────────────┐   │   │
@@ -673,17 +673,23 @@ has its own counter:
   adds with only that rule — same input, same repeat — so adding or changing another rule never
   changes it (an Exclude rule shows what it removes from the other rules' result).
 
-Only types with a count above zero are shown. Counts update on every rule, repeat and step-order
-change, with the same selection logic the action runs ([Counting rules](#counting-rules)).
+Only types with a count above zero are shown. Counts update on every rule, on/off, repeat and
+step-order change, with the same selection logic the action runs ([Counting rules](#counting-rules)).
+
+**Rules that are off.** In every rule table (Selection, Nesting, Reverse, Style) a rule that is
+off is greyed except its *On* box and ✕; its count stays visible, greyed, and shows what the
+rule *would* keep, add or remove when switched on. Switching a rule on or off updates every
+count: the active rules, the off rules, the step totals and *On the generated view*. A disabled
+*On* or *Every* box is drawn grey, so a ticked box never looks active when it does not apply.
 
 **Global filter.** Three independent rule tables ([rule lists](#rule-lists)); each shows the
 default row `Include | All` when nothing is filtered.
-- **Element type** — Mode · Element type, plus Property · Value behind *Property condition* (on
+- **Element type** — On · Mode · Element type, plus Property · Value behind *Property condition* (on
   and locked as soon as a rule uses a property).
-- **Diagram type** — Mode · Diagram type: the diagram objects of selected views (a view
+- **Diagram type** — On · Mode · Diagram type: the diagram objects of selected views (a view
   reference matches *reference*). Shown only when the selection holds diagram objects; its
   rules are kept either way.
-- **Relations** — Mode · Source type · Relation type · Target type: which relations between the
+- **Relations** — On · Mode · Source type · Relation type · Target type: which relations between the
   filtered elements are drawn.
 
 **Steps** (GUI title *Expand selection*). A one-line explanation, the ordered steps, and
@@ -691,7 +697,7 @@ default row `Include | All` when nothing is filtered.
 - **Header** — collapse triangle (▾/▸) and the bold title `Step N` on the left (title and
   summary are clickable too); the `Adds:` summary; move (↑ ↓) and, set apart, remove (✕) on the
   right — different place and shape, so collapsing and moving cannot be confused.
-- **Rule table** — Mode · Previous step elements · Direction · Added relations · Added elements
+- **Rule table** — On · Mode · Previous step elements · Direction · Added relations · Added elements
   (each combo shows the rule's count after the chosen type), plus Property of · Property · Value
   behind *Property condition*. Property and value lists come from the step's candidates (every
   relation the step saw, before its rules) that match the rule's types.
@@ -755,7 +761,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - **Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the
   predicted view it matches on its own — after the chosen relation type, *Aggregation (62)* (an
   Exclude rule: what it removes from the other rules' matches) — and, for nesting, how many
-  become a nesting (*Nested*). A grey note under Nesting says why the others are drawn as a
+  become a nesting (*Nested*; empty for a rule that is off). A grey note under Nesting says why the others are drawn as a
   line: the child already has a parent (one parent per child for rules without *Every*), the
   nesting would be circular, or the relation is a self-relation. Computed with the same
   resolution as the writer.
@@ -918,7 +924,8 @@ dialog: diagramPadding=20"*):
 
 **Style by property.** One rule table ([style rules](#rule-lists)). A rule is active when it is
 on and has a property. Its Property combo shows the objects on the predicted view the rule
-colours, *Status (14)*; before a property is chosen just *(n)*: the objects it reaches. Unique
+colours, *Status (14)*; before a property is chosen just *(n)*: the objects it reaches. A rule
+that is off shows what it would colour and takes no part in the ⚠ check. Unique
 values are sorted and mapped to evenly spaced colours of the rule's colour range; an object with
 several different values gets the *mixed values* colour. Relations coloured by a *Color =
 Relation* rule take the fixed line width when one is chosen. Where two rules style the same
@@ -1084,12 +1091,17 @@ One rule model for every list. A list keeps what matches **any active Include ru
 A type field holds a type id or `""` (= All); `mode` defaults to `"include"`, `on` to true,
 `everyContainer` to false.
 
+**On / off.** Every rule can be switched off without deleting it. An off rule keeps, adds and
+removes nothing, but an off Include rule still counts as an Include rule: a list whose Include
+rules are all off keeps nothing (filter: no elements; step: adds nothing). Only a list without
+Include rules falls back to its *Empty list* behaviour below.
+
 | Rule kind | Fields | Used by | Empty list |
 |---|---|---|---|
-| element  | mode, elementType, property, value | `filter.elementRules` | keep all |
-| diagram  | mode, diagramType | `filter.diagramRules` | keep all |
+| element  | on, mode, elementType, property, value | `filter.elementRules` | keep all |
+| diagram  | on, mode, diagramType | `filter.diagramRules` | keep all |
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting rules only) | `filter.relationRules`, `params.nestingRules`, `params.reverseRules` | filter: keep all · nesting / reverse: none |
-| step     | mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].rules` | follow all |
+| step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].rules` | follow all |
 | style    | on, color (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange | `appearance.styleByProperty.rules` | no styling |
 
 **Step rules are written from the previous step's elements.** `direction`: `outgoing` = the

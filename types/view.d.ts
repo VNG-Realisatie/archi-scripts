@@ -9,6 +9,7 @@ type RuleKind = "element" | "diagram" | "relation" | "step" | "style";
 type RuleMode = "include" | "exclude";
 
 type ElementRule = {
+  on: boolean;
   mode: RuleMode;
   elementType: string;
   property: string;
@@ -16,6 +17,7 @@ type ElementRule = {
 };
 
 type DiagramRule = {
+  on: boolean;
   mode: RuleMode;
   diagramType: string;
 };
@@ -33,6 +35,7 @@ type RelationRule = {
 };
 
 type StepRule = {
+  on: boolean;
   mode: RuleMode;
   previous: string;
   direction: "either" | "outgoing" | "incoming";
