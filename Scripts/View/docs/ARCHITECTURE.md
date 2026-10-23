@@ -46,6 +46,9 @@ Why the system behaves as [SPEC.md](SPEC.md) describes, where the choice was not
 | Selecting a preset applies it at once; there is no Apply button. | The universal pattern for preset pickers (DAWs, IDEs, Lightroom). Apply adds a click without adding safety, since overwriting a preset is a separate Save. |
 | A `*` marks settings that differ from the saved preset; switching presets discards changes without a confirm. | Users need to know when Save would do something; with Save and Save As explicit, a confirm on every switch would annoy more than help — the `*` shows the loss before it happens. |
 | A Default preset always exists and cannot be renamed or deleted. | The combo is never empty and there is always a safe fallback. |
+| Option labels and values name the result, not the engine technique; each value's tooltip gives its trade-off (SPEC §9). | Users choose by what they see. *Straight* and *Compact* named techniques: in a tree *Straight* gave no straighter lines than *Compact*, and its lean towards one corner was not visible from the name. |
+| An option is offered for an algorithm only when it has its effect there; where the engine lacks it, the adapter provides it. | One control must behave the same in every algorithm. Tree's engine has neither a layer distance nor line routing; with both greyed out, levels sat at element distance with slanted lines and nothing could be set. |
+| Placement offers *Centred* (default) and *Straight lines*, no balanced straight-line variant. | Measured: the balanced variant equals *Centred* in a tree and gives the fewest straight lines in other graphs — a choice without a distinct result. *Centred* is at least as good in a tree and puts the root in the middle. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms across all styles are always visible simultaneously. Users scan the full option space without opening a combo; style/algorithm relationships are visible at a glance. |
 | Steps start expanded when a preset is loaded. | All rules and their counts are visible at once; a block is collapsed on demand. |
 | *Every container* is a per-nesting-rule flag, not a global switch. | Whether a child may have several parents depends on the relation: a composition has one whole, an aggregation or grouping may have many. A global switch could not express both in one view. |
@@ -187,6 +190,8 @@ Realises SPEC §7 and its [managed extra occurrences](SPEC.md#managed-extra-occu
 - **Reserve label space** (Layered). Each connection label is an inline ELK label with its estimated size. Layer spacing becomes the connection spacing, and every edge gets a label box (empty ones invisible), so a gap between element layers is `max(layer spacing, label + 2 × connection spacing)`.
 - **Jogs** under 5 px right after a port, left by node placement, are straightened onto the longer segment.
 - **Same width per level** runs ELK twice: measure natural widths, then set leaf widths and container minimum sizes and lay out again. **Snap columns to grid** (Grid, Pack) is a position-only pass on the result; leaves are moved, never resized.
+- **Placement.** *Centred* = network-simplex placement: the shortest total connection length centres an element between its neighbours. *Straight lines* = Brandes-Köpf: each element is aligned with one neighbour, computed from four corners, and the smallest result is kept — hence the lean towards a corner.
+- **Tree** (mrtree) has one spacing for siblings and levels, and only two line styles of its own (a stub then a diagonal, or centre to centre); it ignores the general edge-routing option — ELK silently ignores every option an algorithm does not declare. **Layer distance:** every root-level box is widened in the flow direction by layer distance − element distance (a container by padding on both flow sides) and narrowed back after layout, centred — positions only, sizes unchanged; connection ends in the widened part move onto the real side. **Routing:** between the end points mrtree chose, the adapter draws *Orthogonal* (two bends halfway along the flow) or *Splines* (a cubic curve, sampled to bendpoints); *Polyline* keeps mrtree's line.
 - **Radial** cannot take compound graphs and needs a tree: a breadth-first spanning tree, with virtual edges joining the components that are never written.
 
 ### Dagre and Graphviz adapters
@@ -235,7 +240,9 @@ View-specific jArchi behaviour; general jArchi rules are in [`ai/jarchi-scriptin
 | `node Scripts/View/tools/check_registry.js` | Registry ↔ defaults ↔ dialog widgets |
 | `node Scripts/View/tools/gen_docs_tables.js --check` / `--write` | Generated tables in the SPEC.md appendix |
 | `node Scripts/View/tools/nesting_test.js [model.archimate]` | Nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders); managed occurrences: capture, pairing, connections between occurrences |
-| `node Scripts/View/tools/view_harness.js <model.archimate> <view path> [preset] [--layout]` | A view from a model file → pipeline input → nesting → layout graph → engine — not the writer, not rendering |
+| `node Scripts/View/tools/view_harness.js <model.archimate> <view path> [preset] [--on-view] [--layout]` | A view from a model file → pipeline input → nesting → layout graph → engine — not the writer, not rendering |
+| `node Scripts/View/tools/preset_diff.js <preset.json> [other.json]` | What a preset and the last dialog run (`_session.json`) differ in, after defaults; params the algorithm does not use are marked |
+| [`ai/view-testing.md`](../../../ai/view-testing.md) | Test approach for a reported view, and the test-case log |
 | `test/test_visual_props.ajs`, `test/_test_self_loops.ajs` (in Archi) | Appearance kept by bounds; self-loop drawing |
 | Run the action in Archi on a test view | Writer and rendering |
 

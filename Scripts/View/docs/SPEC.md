@@ -303,7 +303,9 @@ reference](#nesting-reference).
 
 **Flow.** A main direction (for algorithms where direction drives ranking); how cycles are
 broken and elements assigned to layers (for the simple ranked algorithm); where elements sit
-within a layer; and the gap between layers (between rings for radial layouts).
+within a layer — **centred** between the elements they connect to, or lined up for **straight
+lines** while leaning to one side; and the gap between layers (tree: between levels, never less
+than the element gap; radial: between rings).
 
 **Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen
 width; and the minimum **gap** between elements, also between unconnected groups.
@@ -403,10 +405,15 @@ view*, *Layout only*) — enabled only when the selection identifies a view, oth
 what to select. Folder and name belong to the Create group only. **Cancel** sits below,
 bottom right, and preserves UI state.
 
+**Self-explanatory options** ✦. A user picks an option by its effect, without knowing the
+engines. A label or value names the **result** (where elements land, how lines look), never an
+engine technique or a word whose meaning hides behaviour; one list answers **one question**;
+each value's tooltip gives its effect and trade-off. A label has the **same effect** in every
+algorithm; an algorithm offers it only when it has that effect, else it is disabled.
+
 **Interaction rules.** Switching presets discards unsaved changes without a confirm dialog
-(the `*` marker is the warning). Spinner recomputes fire on
-value-commit (arrow click / focus loss), not per keystroke, because relation traversal for live
-counts is costly. An empty selection opens normally and runs (producing an empty view); a
+(the `*` marker is the warning). Spinner recomputes fire on value-commit (arrow click / focus
+loss), not per keystroke, because relation traversal for live counts is costly. An empty selection opens normally and runs (producing an empty view); a
 malformed preset never aborts the dialog — it falls back to defaults.
 
 ---
@@ -726,7 +733,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
-│ │  Layers:   Placement [Straight ▼]  Layer distance [180]               │ │
+│ │  Layers:   Placement [Centred ▼]   Layer distance [180]               │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
 │ │  Size:     Width [140]  ☐ Use label width  Wrap label at [400]        │ │
@@ -841,8 +848,8 @@ by", is the last column).
 | Direction | `direction` | Direction of the main flow. | Layered, Tree, Dagre, Dot |
 | Cycles | `acyclicer` | How relation cycles are broken before layout. — Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles. | Dagre |
 | Ranking | `ranking` | How elements are assigned to layers. — Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster. | Dagre |
-| Placement | `nodePlacement` | Where elements sit within their layer. | Layered |
-| Layer distance | `layerSpacing` | Distance between layers along the flow; Radial and Twopi: between rings. — px — with Reserve label space a gap widens to fit its labels. | Layered, Radial, Dagre, Dot, Twopi |
+| Placement | `nodePlacement` | Where elements sit within their layer. — Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side. | Layered |
+| Layer distance | `layerSpacing` | Distance between layers along the flow; Tree: between levels; Radial and Twopi: between rings. — px — Tree: at least Distance between elements; with Reserve label space a gap widens to fit its labels. | Layered, Tree, Radial, Dagre, Dot, Twopi |
 
 **Elements**
 
@@ -858,7 +865,7 @@ by", is the last column).
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Routing | `routing` | How connection lines are drawn. | Layered, Dot, Neato, FDP, SFDP |
+| Routing | `routing` | How connection lines are drawn. | Layered, Tree, Dot, Neato, FDP, SFDP |
 | Label | `labelPosition` | Where the connection label sits. | Layered, Tree, Dagre, Dot, Neato, FDP, SFDP, Twopi, Circo |
 | Reserve label space | `connectionLabelSpacing` | Keep connection labels clear of other labels, connections and elements. — A layer gap widens where a label needs label + 2 × Between. | Layered |
 | Between | `connectionSpacing` | Distance between parallel connections, and between connection points on one side of an element. — px — elements grow to fit their connections; 0 = no growth. | Layered, Tree, Dagre |
@@ -1352,13 +1359,13 @@ generated from the registry — never edited by hand.
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Layer distance `layerSpacing` | ✓ | — | — | — | ✓ | — | — | ✓ | ✓ | — | — | — | ✓ | — |
+| Layer distance `layerSpacing` | ✓ | ✓ | — | — | ✓ | — | — | ✓ | ✓ | — | — | — | ✓ | — |
 | Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Use label width `labelSizing` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Wrap label at `labelMaxLineWidth` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ |
-| Routing `routing` | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
+| Routing `routing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
 | Label `labelPosition` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
 | Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | — | — | — | — | — | — |

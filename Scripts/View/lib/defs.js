@@ -110,9 +110,10 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles."],
   ranking:                  ["How elements are assigned to layers.",
                              "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
-  nodePlacement:            ["Where elements sit within their layer.", ""],
-  layerSpacing:             ["Distance between layers along the flow; Radial and Twopi: between rings.",
-                             "px — with Reserve label space a gap widens to fit its labels."],
+  nodePlacement:            ["Where elements sit within their layer.",
+                             "Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side."],
+  layerSpacing:             ["Distance between layers along the flow; Tree: between levels; Radial and Twopi: between rings.",
+                             "px — Tree: at least Distance between elements; with Reserve label space a gap widens to fit its labels."],
   elementWidth:             ["Width of every element.", "px — not used with Use label width."],
   elementHeight:            ["Height of every element.", "px — not used with Use label width."],
   labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
@@ -209,7 +210,7 @@ const ALGORITHMS = Object.freeze({
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
-      nodePlacement:      ["Straight", "Compact"],
+      nodePlacement:      ["Centred", "Straight lines"],
       routing:            ["Orthogonal", "Polyline", "Splines"],
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Layered", "Grid", "Pack"],
@@ -228,11 +229,12 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "labelPosition", "reverseRules",
+      "direction", "routing", "labelPosition", "reverseRules", "layerSpacing",
       "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
+      routing:            ["Orthogonal", "Splines", "Polyline"],   // drawn by the adapter (elk.js _routeTreeEdges)
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Grid", "Pack"],
     },
@@ -477,7 +479,7 @@ const ACTION = Object.freeze({
 
 const ROUTING = Object.freeze({
   ORTHOGONAL:    { id: "Orthogonal",           label: "Orthogonal",
-    tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
+    tooltip: "Draws relation lines with right-angle bends." },
   POLYLINE:      { id: "Polyline",             label: "Polyline",
     tooltip: "Draws relation lines with diagonal bends." },
   STRAIGHT:      { id: "Straight",             label: "Straight",
@@ -485,7 +487,7 @@ const ROUTING = Object.freeze({
   SPLINE:        { id: "Spline (approximated)", label: "Spline (approximated)",
     tooltip: "Graphviz curves, approximated with bendpoints. Graphviz only." },
   SPLINES:       { id: "Splines",              label: "Splines",
-    tooltip: "Draws relation lines as smooth curves. Layered only." },
+    tooltip: "Draws relation lines as smooth curves." },
 });
 
 // ── Directions ────────────────────────────────────────────────────────────────
@@ -511,10 +513,10 @@ const RANKING = Object.freeze([
 // Engine-specific strategy identifiers live in engines/elk.js.
 
 const NODE_PLACEMENT = Object.freeze([
-  { val: "Straight", default: true,
-    tooltip: "Aligns elements so connections run as straight as possible (fewest bends)." },
-  { val: "Compact",
-    tooltip: "Shortest total connection length; usually a smaller view, with a few more bends." },
+  { val: "Centred", default: true,
+    tooltip: "Elements sit centred between the elements they connect to; shortest connections and usually the smallest view." },
+  { val: "Straight lines",
+    tooltip: "As many straight connections as possible; the layout leans to one side, so parents may sit at the edge of their children." },
 ]);
 
 // ── Acyclicer options (Dagre only) ────────────────────────────────────────────
@@ -667,7 +669,7 @@ const DEFAULT_PRESET = Object.freeze({
   algorithm: "Layered",
   params: {
     direction:             "Right",
-    nodePlacement:         "Straight",              // "Straight" | "Compact" (Layered only)
+    nodePlacement:         "Centred",               // "Centred" | "Straight lines" (Layered only)
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",

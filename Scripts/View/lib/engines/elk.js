@@ -32,6 +32,7 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
  * @property {number}           [x]          set by ELK
  * @property {number}           [y]
  * @property {number}           [_minWidth]  alignWidthSameType pass 2: container width floor
+ * @property {number}           [_flowPad]   Tree layer distance: extra padding on both flow sides
  * @property {ElkWorkNode[]}    children
  * @property {ElkWorkEdge[]}    edges
  * @property {ElkPort[]}        [ports]
@@ -130,10 +131,12 @@ const _DIRECTION     = (/** @type {string} */ v) => ({ "elk.direction": ELK_DIRE
 // Element spacing is the minimum distance between elements — also between unconnected groups,
 // which layered / mrtree / force lay out separately and pack with spacing.componentComponent.
 const _ELEM_SPACING  = (/** @type {number} */ v) => ({ "elk.spacing.nodeNode": String(v), "elk.spacing.componentComponent": String(v) });
-// Straight: BRANDES_KOEPF — aligns nodes for straight connections (fewest bends).
-// Compact:  NETWORK_SIMPLEX — minimises total connection length; measured on nested views:
-//           up to ~30% shorter connections and a smaller view, a few more bends, same crossings.
-const _NODE_PLACEMENT = (/** @type {string} */ v) => ({ "elk.layered.nodePlacement.strategy": v === "Compact" ? "NETWORK_SIMPLEX" : "BRANDES_KOEPF" });
+// Centred:        NETWORK_SIMPLEX — minimises total connection length, which centres an element
+//                 between its neighbours; measured on nested views: up to ~30% shorter connections
+//                 and a smaller view, a few more bends, same crossings.
+// Straight lines: BRANDES_KOEPF — aligns each element with one neighbour, from one of four corners
+//                 (fixedAlignment NONE: the smallest result), so the layout leans to that corner.
+const _NODE_PLACEMENT = (/** @type {string} */ v) => ({ "elk.layered.nodePlacement.strategy": v === "Straight lines" ? "BRANDES_KOEPF" : "NETWORK_SIMPLEX" });
 const _LAYER_SPACING = (/** @type {number} */ v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) });
 const _PAD_DIAGRAM   = (/** @type {number} */ v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` });
 const _PAD_CONTAINER = (/** @type {number} */ v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` });
@@ -539,6 +542,22 @@ function _layoutOnce(graph, measureOnly) {
     log("Calculating layout...");
   }
 
+  // Tree layer distance: mrtree has one spacing (elk.spacing.nodeNode) for siblings and levels
+  // alike. Every root-level box is widened in the flow direction by layerSpacing − elementSpacing
+  // (containers: extra padding on both flow sides); after layout each box gets its own size back,
+  // centred in the widened one (positions only), and connection ends move onto the real sides.
+  const treeExtra = alg.engineAlgorithmId === "mrtree"
+    ? Math.max(0, (graph.options.layerSpacing || 0) - (graph.options.elementSpacing || 0)) : 0;
+  if (treeExtra > 0) {
+    const half = treeExtra / 2;
+    for (const node of Object.values(nodeMap)) {
+      if (parentMap[node.id]) continue;
+      if (node.children && node.children.length > 0) node._flowPad = half;   // container: _buildELKGraph
+      else if (_isVertical) node.height = /** @type {number} */ (node.height) + treeExtra;   // Cast: leaves have a size
+      else                  node.width  = /** @type {number} */ (node.width)  + treeExtra;
+    }
+  }
+
   // ELK Radial requires a spanning tree (no cycles). Convert here so c2c terminates.
   const processedEdgeList = graph.algorithm === "Radial" ? _spanningTree(nodeMap, edgeList) : edgeList;
   const { elkGraph, edgeMeta } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
@@ -582,6 +601,10 @@ function _layoutOnce(graph, measureOnly) {
     _snapColumnsToGrid(resultNodes, graph.options, nameById, log);
   }
 
+  // Tree layer distance: connections are collected against the widened boxes ELK placed.
+  const elkBoxes = treeExtra > 0 ? resultNodes.map(n => Object.assign({}, n)) : resultNodes;
+  if (treeExtra > 0) _narrowTreeBoxes(resultNodes, treeExtra, _isVertical);
+
   if (measureOnly) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const n of resultNodes) {
@@ -593,7 +616,10 @@ function _layoutOnce(graph, measureOnly) {
 
   // Collect edges
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
-  _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, graph.options.labelPosition || "Middle", isSplines, log);
+  _collectEdgeResults(layouted, edgeMeta, elkBoxes, resultEdges, graph.options.labelPosition || "Middle", isSplines, log);
+  if (treeExtra > 0) _clampEndsToTreeBoxes(resultEdges, resultNodes, _isVertical);
+  if (alg.engineAlgorithmId === "mrtree" && graph.options.routing !== "Polyline")
+    _routeTreeEdges(resultEdges, graph, _isVertical);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   resultEdges.push(...selfLoops.map(selfLoopResult));
@@ -697,6 +723,13 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     if (/** @type {number} */ (node._minWidth) > 0) {   // Cast: absent compares as false
       node.layoutOptions["elk.nodeSize.constraints"] = "[MINIMUM_SIZE]";
       node.layoutOptions["elk.nodeSize.minimum"]     = `(${node._minWidth}, 0)`;
+    }
+    // Tree layer distance (_layoutOnce): extra padding on both flow sides of a root-level container.
+    if (/** @type {number} */ (node._flowPad) > 0) {   // Cast: absent compares as false
+      const p = graph.options.padding || 0, f = /** @type {number} */ (node._flowPad);
+      const v = _isVertical ? f : 0, h = _isVertical ? 0 : f;
+      node.layoutOptions["elk.padding"] =
+        `[top=${p + CONTAINER_LABEL_CLEARANCE + v},left=${p + h},bottom=${p + v},right=${p + h}]`;
     }
   }
 
@@ -1083,6 +1116,91 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
       parentId: parentId || null,
     });
     _collectNodePositions(child, absX, absY, resultNodes, child.id);
+  }
+}
+
+/**
+ * Tree layer distance: give every root-level box its own size back, centred in the widened box
+ * ELK placed (flow direction only). Nested boxes keep their absolute positions.
+ * @param {LayoutResultNode[]} resultNodes  changed in place
+ * @param {number}             extra        widening in the flow direction
+ * @param {boolean}            vertical     flow Up / Down
+ */
+function _narrowTreeBoxes(resultNodes, extra, vertical) {
+  for (const n of resultNodes) {
+    if (n.parentId) continue;
+    if (vertical) { n.y += extra / 2; n.height -= extra; }
+    else          { n.x += extra / 2; n.width  -= extra; }
+  }
+}
+
+/**
+ * Tree layer distance: move connection ends that lie in the widened part of a root-level box
+ * onto the box's real side (flow coordinate clamped into the narrowed box).
+ * @param {LayoutResultEdge[]} resultEdges  changed in place
+ * @param {LayoutResultNode[]} resultNodes  narrowed boxes
+ * @param {boolean}            vertical     flow Up / Down
+ */
+function _clampEndsToTreeBoxes(resultEdges, resultNodes, vertical) {
+  /** @type {Record<string, LayoutResultNode>} */
+  const byId = {};
+  for (const n of resultNodes) byId[n.id] = n;
+  const rootOf = (/** @type {string} */ id) => {
+    let n = byId[id];
+    while (n && n.parentId && byId[n.parentId]) n = byId[n.parentId];
+    return n;
+  };
+  const clamp = (/** @type {Point | undefined} */ p, /** @type {string} */ id) => {
+    const n = rootOf(id);
+    if (!p || !n) return;
+    if (vertical) p.y = Math.min(Math.max(p.y, n.y), n.y + n.height);
+    else          p.x = Math.min(Math.max(p.x, n.x), n.x + n.width);
+  };
+  for (const e of resultEdges) { clamp(e.srcPort, e.sourceId); clamp(e.tgtPort, e.targetId); }
+}
+
+/**
+ * Tree routing: mrtree draws a short stub and then a diagonal to the target (AVOID_OVERLAP; it
+ * has no orthogonal or spline routing). Between the ports mrtree chose, the adapter draws
+ *   Orthogonal  two bends halfway along the flow: out, across, in
+ *   Splines     a cubic S-curve (control points halfway along the flow), sampled to bendpoints
+ * Polyline keeps mrtree's own route.
+ * @param {LayoutResultEdge[]} resultEdges  changed in place
+ * @param {LayoutGraph}        graph
+ * @param {boolean}            vertical     flow Up / Down
+ */
+function _routeTreeEdges(resultEdges, graph, vertical) {
+  /** @type {Record<string, string>} */
+  const nameById = {};
+  for (const e of graph.edges) nameById[e.conceptId || e.id] = e.label || "";
+  // Flow axis f, cross axis c: Right / Left → f = x; Up / Down → f = y.
+  const f = vertical ? "y" : "x", c = vertical ? "x" : "y";
+  const pt = (/** @type {number} */ fv, /** @type {number} */ cv) => vertical
+    ? { x: Math.round(cv), y: Math.round(fv) } : { x: Math.round(fv), y: Math.round(cv) };
+  for (const e of resultEdges) {
+    const s = e.srcPort, t = e.tgtPort;
+    if (!s || !t || e.sourceId === e.targetId) continue;
+    const mid = (s[f] + t[f]) / 2;
+    /** @type {Point[]} */
+    let bps;
+    if (Math.abs(s[c] - t[c]) < 1) {
+      bps = [pt(mid, s[c])];
+    } else if (graph.options.routing === "Splines") {
+      bps = [];
+      for (let j = 1; j <= SPLINE_SAMPLE_POINTS; j++) {
+        const u = j / (SPLINE_SAMPLE_POINTS + 1), mu = 1 - u;
+        // P0 = s, P1 = (mid, s.c), P2 = (mid, t.c), P3 = t
+        const fv = mu * mu * mu * s[f] + 3 * mu * mu * u * mid + 3 * mu * u * u * mid + u * u * u * t[f];
+        const cv = mu * mu * mu * s[c] + 3 * mu * mu * u * s[c] + 3 * mu * u * u * t[c] + u * u * u * t[c];
+        bps.push(pt(fv, cv));
+      }
+    } else {
+      bps = [pt(mid, s[c]), pt(mid, t[c])];
+    }
+    e.bendpoints = bps;
+    const lbl = _computeLabelPoint({ startPoint: s, endPoint: t }, bps, 0, 0,
+      graph.options.labelPosition || "Middle", nameById[e.id] || "");
+    e.labelX = lbl.labelX; e.labelY = lbl.labelY;
   }
 }
 
