@@ -108,11 +108,11 @@ const {
  * @property {Swt.Composite} blocksContainer
  * — Layout tab
  * @property {Map<string, Swt.Button>} algRadios
- * @property {Record<string, Swt.Label>} layoutHints   group → "Not used by" line
- * @property {Record<string, Swt.Group>} layoutGroups  group whose hint is a tooltip
+ * @property {Swt.Group}     grpContainers
  * @property {RuleTable<"relation">} tblNestingRules
  * @property {RuleTable<"relation">} tblReverseRules
  * @property {Swt.Label}     lblNestingNote
+ * @property {Swt.Label}     lblReverseNote
  * @property {Swt.Combo}     cmbContainerAlgorithm
  * @property {Swt.Combo}     cmbConnectionsMode
  * @property {Swt.Spinner}   spinPadding
@@ -295,9 +295,15 @@ const STYLE_PROP_OF_ITEMS = Object.freeze([
   { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
 ]);
 
+// Filter lists start from everything, feature lists (Nesting, Reverse) from nothing (rel_filter.js).
 /** @type {RuleTableChoiceColumn} */
 const _modeCol = { key: "mode", header: "Mode", kind: "choice", items: MODE_ITEMS, width: 93,
-  tooltip: "Include keeps what matches this rule. Exclude removes it.\nResult = all Include rules minus all Exclude rules." };
+  tooltip: "Include keeps what matches; Exclude removes it.\n" +
+           "No Include rule: all is kept, minus Exclude. All Include rules off: nothing is kept." };
+/** @type {RuleTableChoiceColumn} */
+const _featureModeCol = Object.assign({}, _modeCol, {
+  tooltip: "Include picks the matching relations; Exclude takes them out again.\n" +
+           "No Include rule that is on: nothing is picked." });
 /** @type {RuleTablePlainColumn} */
 const _onCol = { key: "on", header: "On", kind: "check", tooltip: "Switch this rule on or off without deleting it." };
 /**
@@ -314,7 +320,7 @@ const _typeCol = (key, header, tooltip, width) => ({ key, header, tooltip, kind:
  * @param {string} tooltip
  * @returns {RuleTableChoiceColumn}
  */
-const _relCol  = (key, header, tooltip) => ({ key, header, tooltip, kind: "choice", items: RELATION_ITEMS, width: 120 });
+const _relCol  = (key, header, tooltip) => ({ key, header, tooltip, kind: "choice", items: RELATION_ITEMS, width: 136 });
 /**
  * @param {string} what
  * @returns {RuleTableColumn<{ property: string }>[]}
@@ -350,11 +356,11 @@ const RELATION_RULE_COLUMNS = Object.freeze([
   _typeCol("target", "Target type", "Element type at the end of the relation. All = any type."),
 ]);
 // Nesting / reverse: the relation-type combo shows the rule's count, "Aggregation (62)".
-const _countedRelCol = Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "relations", width: 150,
+const _countedRelCol = Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "relations", width: 166,
   tooltip: "Relationship type. All = any type.\n(n): relations on the view this rule matches on its own; " +
            "for an Exclude rule, how many it removes from the other rules' matches." });
 /** @type {RuleTableColumn<RelationRule>[]} */
-const _COUNTED_FEATURE_COLUMNS = [_onCol, RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1], _countedRelCol, RELATION_RULE_COLUMNS[3],
+const _COUNTED_FEATURE_COLUMNS = [_onCol, _featureModeCol, RELATION_RULE_COLUMNS[1], _countedRelCol, RELATION_RULE_COLUMNS[3],
   { key: "propertyOf", header: "Property of", kind: "choice", items: REL_PROP_OF_ITEMS, width: 120, optional: true,
     tooltip: "Where the property is read: the relation, its source or its target element." },
   ..._propCols("relations")];
@@ -374,7 +380,7 @@ const REVERSE_RULE_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "_spacer2", header: "", kind: "count", width: 50 }]);
 /** @type {readonly RuleTableColumn<RelationRule>[]} */
 const FILTER_RELATION_RULE_COLUMNS = Object.freeze([_onCol, RELATION_RULE_COLUMNS[0], RELATION_RULE_COLUMNS[1],
-  Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "count", width: 150,
+  Object.assign({}, RELATION_RULE_COLUMNS[2], { count: "count", width: 166,
     tooltip: "Relationship type. All = any type.\n(n): relations between the filtered elements this rule keeps on its own; " +
              "for an Exclude rule, how many it removes from the other rules' result." }),
   RELATION_RULE_COLUMNS[3]]);
@@ -388,7 +394,7 @@ const STEP_RULE_COLUMNS = Object.freeze([
              "Incoming: the relation ends at an element of the previous step.\nEither: both (default)." },
   // The rule's counts sit after the chosen type: "Aggregation (18)", "Business Service (5)".
   Object.assign(_relCol("relation", "Added\nrelations", "Relationship types to follow from the previous step.\n" + _COUNT_TIP),
-    { count: "relations", width: 150 }),
+    { count: "relations", width: 166 }),
   Object.assign(_typeCol("added", "Added\nelements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
     { count: "elements" }),
   { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS, width: 120, optional: true,
@@ -660,7 +666,7 @@ function _getGroupBackground() {
 // Default dialog dimensions. Width set explicitly to avoid SWT computing a wide size from
 // content hints. Height: the monitor's usable height, at most DEFAULT_DIALOG_HEIGHT.
 const DEFAULT_DIALOG_WIDTH  = 1000;
-const DEFAULT_DIALOG_HEIGHT = 1600;
+const DEFAULT_DIALOG_HEIGHT = 1800;   // Layout tab without scrolling
 
 // ── open() ────────────────────────────────────────────────────────────────────
 
@@ -1141,7 +1147,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
     _resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   };
 
-  _lbl(grpInfo, "Filter selection by element type (none = keep all):");
+  _lbl(grpInfo, "Filter selection by element type (no Include rule = keep all, minus Exclude):");
   w.tblElementRules = ruleTable(grpInfo, {
     kind: "element", columns: ELEMENT_RULE_COLUMNS, filterList: true, propCondition: true,
     onChange: onFilterChange, onLayout: onSelLayout,
@@ -1154,7 +1160,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   const diagBox = new CompositeWidget(grpInfo, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 4).applyTo(diagBox);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(diagBox);
-  _lbl(diagBox, "Filter selection by diagram type (none = keep all):");
+  _lbl(diagBox, "Filter selection by diagram type (no Include rule = keep all, minus Exclude):");
   w.tblDiagramRules = ruleTable(diagBox, {
     kind: "diagram", columns: DIAGRAM_RULE_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
   });
@@ -1162,7 +1168,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   diagBox.setVisible(hasDiagramObjects);
   diagBox.getLayoutData().exclude = !hasDiagramObjects;
 
-  _lbl(grpInfo, "Filter selection by relations (none = keep all):");
+  _lbl(grpInfo, "Filter selection by relations (no Include rule = keep all, minus Exclude):");
   w.tblRelationRules = ruleTable(grpInfo, {
     kind: "relation", columns: FILTER_RELATION_RULE_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
   });
@@ -1523,18 +1529,19 @@ function _buildLayoutTab(tabFolder, ctx) {
   const BOX = { marginH: 8, marginV: 6 };       // inside a box
 
   // ── Algorithm ─────────────────────────────────────────────────────────────────
-  // Algorithm selection uses a 5-row × 6-col table: [Style label:] [○ Algo] [○ Algo] …
+  // Algorithm selection is a table, one row per style: [Style label:] [○ Algo] [○ Algo] …
   // All radio buttons are in the same composite so SWT auto-groups them (mutually exclusive).
   const grpAlg = _group(page, "Algorithm", 4, Object.assign({ spaceH: 6 }, BOX));
 
-  // Algorithm radio table spans all 4 columns of grpAlg.
+  // Algorithm radio table spans all 4 columns of grpAlg: a label column plus one per algorithm
+  // of the largest style.
+  const maxAlgCols = Math.max(...Object.values(STYLES).map(s => s.algorithms.length));
   const algTableComp = new CompositeWidget(grpAlg, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(GAP_PAIR, 3).applyTo(algTableComp);
+  GridLayoutFactory.fillDefaults().numColumns(1 + maxAlgCols).margins(0, 0).spacing(GAP_PAIR, 3).applyTo(algTableComp);
   GridDataFactory.swtDefaults().span(4, 1).applyTo(algTableComp);
 
   /** @type {Map<string, Swt.Button>} */
   const algRadios = new Map();
-  const maxAlgCols = Math.max(...Object.values(STYLES).map(s => s.algorithms.length));
 
   Object.entries(STYLES).forEach(([styleName, style]) => {
     // Style label — natural width, tooltip from STYLES.
@@ -1564,13 +1571,11 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.algRadios = algRadios;
 
   // Groups in the order of deciding: structure (Relations, Containers), then Flow, Elements,
-  // Connections, View size. Each group ends with a hint line naming what the chosen algorithm
-  // does not use (_updateLayoutHints). Containers, Flow, Elements and Connections share one
-  // heading column (heading | label control | …) — see _formRow / _alignFormColumns.
+  // Connections, View size. Settings the chosen algorithm does not use are greyed out.
+  // Containers, Flow, Elements and Connections share one heading column (heading | label
+  // control | …) — see _formRow / _alignFormColumns.
   /** @type {Swt.Composite[]} */
   const formRows = [];
-  w.layoutHints = {};
-  w.layoutGroups = {};   // groups whose "Not used by" hint is a tooltip, not a line (_updateLayoutHints)
   /** @type {Swt.Composite} */
   let row;
 
@@ -1600,13 +1605,14 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.tblNestingRules = ruleTable(grpNest, /** @type {RuleTableOptions<"relation">} */ (Object.assign({
     kind: "relation", columns: NESTING_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No nesting: every relation is drawn as a line.",
+    addTooltip: "Add a rule. Include picks relations to nest; Exclude takes relations out of those. " +
+                "Without an Include rule nothing is nested.",
   }, relPropItems)));
   grpNest.setToolTipText("The parent is the source — or the target if the relation is also in Reverse.");
   w.lblNestingNote = _noteLabel(grpNest, "");
   w.lblNestingNote.getLayoutData().exclude = true;
   w.lblNestingNote.setVisible(false);
 
-  w.layoutHints.Nesting = _groupHint(grpNest);
 
   const grpRev = _group(page, "Reverse", 1, BOX);
   _lbl(grpRev, "Flip these relations:")
@@ -1614,10 +1620,14 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.tblReverseRules = ruleTable(grpRev, /** @type {RuleTableOptions<"relation">} */ (Object.assign({
     kind: "relation", columns: REVERSE_RULE_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
     emptyText: "No relations are reversed.",
+    addTooltip: "Add a rule. Include picks relations to reverse; Exclude takes relations out of those. " +
+                "Without an Include rule nothing is reversed.",
   }, relPropItems)));
+  w.lblReverseNote = _noteLabel(grpRev, "");
+  w.lblReverseNote.getLayoutData().exclude = true;
+  w.lblReverseNote.setVisible(false);
   grpRev.setToolTipText("Flow: laid out from target to source, against the Direction in the Flow box (arrows unchanged).\n" +
                         "Nesting: if the relation is also nested, the target becomes the parent.");
-  w.layoutHints.Reverse = _groupHint(grpRev);
 
   // ── Containers ────────────────────────────────────────────────────────────────
   const grpCtr = _group(page, "Containers", 1, BOX);
@@ -1633,7 +1643,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   row = _formRow(grpCtr, "", formRows, "ctrOptions");
   _addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
   _addCheck(row, "Snap columns to grid", null, 2, w, "chkSnapColumns");
-  w.layoutGroups.Containers = grpCtr;
+  w.grpContainers = grpCtr;
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = _group(page, "Flow", 1, BOX);
@@ -1645,7 +1655,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   _addCombo(row, "Placement", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
   w.cmbNodePlacement.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addSpinnerRow(row, "Layer distance", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
-  w.layoutGroups.Flow = grpFlow;
 
   // ── Elements ──────────────────────────────────────────────────────────────────
   const grpEl = _group(page, "Elements", 1, BOX);
@@ -1661,7 +1670,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   row = _formRow(grpEl, "Order:", formRows, "form", 2);
   _addCombo(row, null, ELEMENT_ORDER_LABELS, 0, SWT.DEFAULT, "cmbElementOrder", w);
   _addCheck(row, "Cycle", null, 2, w, "chkCycleElementOrder");
-  w.layoutGroups.Elements = grpEl;
 
   // ── Connections ───────────────────────────────────────────────────────────────
   const grpCon = _group(page, "Connections", 1, BOX);
@@ -1677,7 +1685,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   // Selection: changed by the user only (not by setSelection while a preset is loaded)
   w.spinElementSpacing.addListener(SWT.Selection, () => _keepConnectionRoom(ctx, "element"));
   w.spinConnectionElementSpacing.addListener(SWT.Selection, () => _keepConnectionRoom(ctx, "connection"));
-  w.layoutHints.Connections = _groupHint(grpCon);
 
   _alignFormColumns(formRows);
 
@@ -1717,7 +1724,6 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.spinMaxWidth = _spMaxWidth;
   _spMaxWidth.addListener(SWT.Modify, () => _updateConnectionsMode(ctx));
 
-  w.layoutHints["View size"] = _groupHint(grpVS);
 
   _applyLayoutTooltips(w);
   finish();
@@ -1818,14 +1824,41 @@ function _updateLayoutRuleCounts(ctx, elements, relations, params) {
   if (circ)  parts.push(`${plural(circ, "matching relation forms", "matching relations form")} a circular nesting ` +
                         `(${plural(nest.cycles.length, "cycle", "cycles")}, named in the log) and ${circ === 1 ? "is" : "are"} drawn as a line.`);
   if (loops) parts.push(`${plural(loops, "self-relation is", "self-relations are")} drawn as a line.`);
-  const text = parts.join("\n");
-  const lbl = w.lblNestingNote;
-  if (!lbl || String(lbl.getText()) === text) return;
+  const nestNone = _noIncludeNote(w.tblNestingRules, "nested");
+  const changed = [
+    _setNote(w.lblNestingNote, nestNone || parts.join("\n")),
+    _setNote(w.lblReverseNote, _noIncludeNote(w.tblReverseRules, "reversed")),
+  ];
+  if (!changed.some(Boolean)) return;
+  try { ctx.layoutPage.layout(true, true); } catch (e) {}
+  _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
+}
+
+/**
+ * A feature list starts from nothing: with Exclude rules but no Include rule that is on, it picks
+ * nothing. The note says so; "" when the list has an Include rule that is on, or no rules.
+ * @param {RuleTable<"relation">} table
+ * @param {string} verb  "nested" | "reversed"
+ */
+function _noIncludeNote(table, verb) {
+  const rules = table.getRules();
+  if (!rules.some(r => r.mode === "exclude") || rules.some(r => r.on !== false && r.mode !== "exclude")) return "";
+  return `No Include rule is on: nothing is ${verb}. Exclude rules only take relations out of what Include rules pick — ` +
+         `add an Include rule for the relations to be ${verb}.`;
+}
+
+/**
+ * Show a note label with this text, hidden when empty.
+ * @param {Swt.Label | undefined} lbl
+ * @param {string} text
+ * @returns {boolean} whether the text changed
+ */
+function _setNote(lbl, text) {
+  if (!lbl || String(lbl.getText()) === text) return false;
   lbl.setText(text);
   lbl.setVisible(!!text);
   lbl.getLayoutData().exclude = !text;
-  try { ctx.layoutPage.layout(true, true); } catch (e) {}
-  _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
+  return true;
 }
 
 /**
@@ -1894,18 +1927,6 @@ function _hasNestingRules(w) {
   return !!w.tblNestingRules && w.tblNestingRules.getRules().some(r => r.on !== false && r.mode !== "exclude");
 }
 
-// Grey hint line at the bottom of a Layout group; hidden (excluded) while empty.
-/** @param {Swt.Group} group */
-function _groupHint(group) {
-  const lbl = new LabelWidget(group, SWT.WRAP);
-  try { lbl.setForeground(group.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
-  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(lbl);
-  _wrapToParent(lbl);
-  lbl.getLayoutData().exclude = true;
-  lbl.setVisible(false);
-  return lbl;
-}
-
 // True when the algorithm nests and a Nesting rule is on.
 /**
  * @param {DialogWidgets} w
@@ -1915,39 +1936,17 @@ function _nestingOn(w, alg) {
   return alg.activeParams.includes("nestingRules") && _hasNestingRules(w);
 }
 
-// Fill each Layout group's hint: the settings the chosen algorithm does not use
-// ("Not used by Force: Direction, Cycles."), or the whole group. Containers also says when
-// it waits for a Nesting relation type.
+// Containers settings are greyed out until a Nesting rule is on; the box's tooltip says why.
 /**
  * @param {DialogContext} ctx
  * @param {string} algName
  */
-function _updateLayoutHints(ctx, algName) {
+function _updateContainersHint(ctx, algName) {
   const w = ctx.widgets;
-  if (!w.layoutHints) return;
+  if (!w.grpContainers) return;
   const alg = ALGORITHMS[algName];
-  let changed = false;
-  for (const [group, params] of Object.entries(Defs.LAYOUT_GROUPS)) {
-    const lbl = w.layoutHints[group];
-    const grp = w.layoutGroups && w.layoutGroups[group];
-    if (!lbl && !grp) continue;
-    const unused = params.filter(k => !alg.activeParams.includes(k));
-    let text = unused.length === params.length ? `Not used by ${algName}.`
-             : unused.length ? `Not used by ${algName}: ${unused.map(k => /** @type {Record<string, string>} */ (Defs.PARAM_LABELS)[k]).join(", ")}.`
-             : "";
-    if (group === "Containers" && !unused.length && !_nestingOn(w, alg))
-      text = "Add a Nesting rule to use these settings.";
-    if (!lbl) { try { grp.setToolTipText(text); } catch (e) {} continue; }   // tooltip on the box
-    if (String(lbl.getText()) === text) continue;
-    lbl.setText(text);
-    lbl.setVisible(!!text);
-    lbl.getLayoutData().exclude = !text;
-    changed = true;
-  }
-  if (changed) {
-    try { ctx.layoutPage.layout(true, true); } catch (e) {}
-    _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
-  }
+  const usesContainers = Defs.LAYOUT_GROUPS.Containers.some(k => alg.activeParams.includes(k));
+  try { w.grpContainers.setToolTipText(usesContainers && !_nestingOn(w, alg) ? "Add a Nesting rule to use these settings." : ""); } catch (e) {}
 }
 
 // ── Appearance tab helpers ────────────────────────────────────────────────────
@@ -2758,11 +2757,16 @@ function _buildActionArea(area, ctx, dlg, target) {
   w.btnExpandView.setEnabled(target.onCanvas);
   w.btnLayoutOnly.setEnabled(!!targetViewName);
 
-  // ── Cancel: bottom right, under Modify ──
+  // ── Cancel: bottom right, under Modify, as wide as one of its buttons ──
   new LabelWidget(row, SWT.NONE);
-  const btnCancel = new ButtonWidget(row, SWT.PUSH);
+  const cancelRow = new CompositeWidget(row, SWT.NONE);
+  // margins / spacing as _group's defaults, so the columns match the Modify group's buttons
+  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(6, 0).spacing(4, 0).applyTo(cancelRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(cancelRow);
+  new LabelWidget(cancelRow, SWT.NONE);
+  const btnCancel = new ButtonWidget(cancelRow, SWT.PUSH);
   btnCancel.setText("Cancel");
-  GridDataFactory.swtDefaults().align(SWT.END, SWT.CENTER).hint(90, SWT.DEFAULT).applyTo(btnCancel);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(btnCancel);
   btnCancel.addListener(SWT.Selection, () => {
     _persistSession(ctx);  // remember _lastTabIndex even on cancel
     Java.super(dlg).cancelPressed();
@@ -3221,7 +3225,7 @@ function _updateAlgorithmControls(ctx) {
   // Containers settings only matter once a Nesting rule is on.
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) _enable(w[PARAM_WIDGETS[k].w], false);
-  _updateLayoutHints(ctx, _selectedAlgorithm(w));
+  _updateContainersHint(ctx, _selectedAlgorithm(w));
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
   _enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
@@ -3244,9 +3248,13 @@ function _selectedAlgorithm(w) {
   return DEFAULT_PRESET.algorithm;
 }
 
+const CONNECTION_ROOM_SLACK = 2;   // px
+
 /**
  * Algorithms that route connections between the elements (defs connectionsBetweenElements) need
- * Element distance ≥ 2 × Distance to element. The value the user changed wins; the other follows.
+ * Element distance ≥ 2 × Distance to element + CONNECTION_ROOM_SLACK: at exactly 2 × Graphviz finds
+ * elements touching within the connection margin and draws every connection straight. The value
+ * the user changed wins; the other follows.
  * @param {DialogContext} ctx
  * @param {"element" | "connection"} changed
  */
@@ -3255,9 +3263,9 @@ function _keepConnectionRoom(ctx, changed) {
   if (!w.algRadios || !w.spinElementSpacing || !w.spinConnectionElementSpacing) return;
   if (!ALGORITHMS[_selectedAlgorithm(w)].connectionsBetweenElements) return;
   const elem = w.spinElementSpacing.getSelection(), conn = w.spinConnectionElementSpacing.getSelection();
-  if (elem >= 2 * conn) return;
-  if (changed === "element") w.spinConnectionElementSpacing.setSelection(Math.floor(elem / 2));
-  else                       w.spinElementSpacing.setSelection(2 * conn);
+  if (elem >= 2 * conn + CONNECTION_ROOM_SLACK) return;
+  if (changed === "element") w.spinConnectionElementSpacing.setSelection(Math.max(0, Math.floor((elem - CONNECTION_ROOM_SLACK) / 2)));
+  else                       w.spinElementSpacing.setSelection(2 * conn + CONNECTION_ROOM_SLACK);
 }
 
 // Replace a read-only combo's items, keeping the current value when it is still offered.
