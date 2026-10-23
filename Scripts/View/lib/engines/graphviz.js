@@ -46,6 +46,11 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // maxWidth is not supported: Graphviz 'size' scales node sizes (forbidden — SPEC §8, no post-layout scaling),
 // and spreading positions afterwards can only widen, never narrow. View size = aspectRatio only.
 const _GV_PAD = (/** @type {number} */ v) => ({ pad: (v / 96).toFixed(4) });
+// sep and esep are margins in points around each element (px → pt: × 72/96). Element distance is
+// shared by two elements, so each gets half; a connection has no margin of its own, so esep is the
+// whole Connection–element distance.
+const _GV_SEP  = (/** @type {number} */ v) => ({ sep:  `+${(v / 2 * 72 / 96).toFixed(2)}` });
+const _GV_ESEP = (/** @type {number} */ v) => ({ esep: `+${(v * 72 / 96).toFixed(2)}` });
 
 /** @type {ParamMapping} */
 const PARAM_MAPPING = {
@@ -59,22 +64,23 @@ const PARAM_MAPPING = {
   },
   Neato: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    // neato keeps overlapping elements unless told to remove them; prism keeps the layout's shape
+    elementSpacing:           (v) => ({ overlap: "prism", ..._GV_SEP(v) }),
+    connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   FDP: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    elementSpacing:           _GV_SEP,
+    connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   SFDP: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    elementSpacing:           _GV_SEP,
+    connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
@@ -83,7 +89,7 @@ const PARAM_MAPPING = {
     // twopi alone leaves elements on top of each other when a ring is too small for them; vpsc
     // moves them apart (positions only), so the diameter follows the element size and distance
     // while a larger Layer distance still widens the rings.
-    elementSpacing: (v) => ({ overlap: "vpsc", sep: `+${(v / 96).toFixed(4)}` }),
+    elementSpacing: (v) => ({ overlap: "vpsc", ..._GV_SEP(v) }),
     diagramPadding: _GV_PAD,
     aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
@@ -150,6 +156,10 @@ function _buildDOT(graph) {
     : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
   delete engineOpts.esep;
 
+  // Twopi: a centre per connected part, and ring radii wide enough for the elements on them
+  const twopi = graph.algorithm === "Twopi" ? _twopiRings(graph, opts) : null;
+  if (twopi) engineOpts.ranksep = twopi.ranksep;
+
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
   const nodeH        = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
@@ -205,7 +215,8 @@ function _buildDOT(graph) {
         if (Math.abs(w - parseFloat(nodeW)) > 0.001 || Math.abs(h - parseFloat(nodeH)) > 0.001)
           szAttrs = ` width=${w.toFixed(4)} height=${h.toFixed(4)} fixedsize=true`;
       }
-      lines.push(`${indent}"${id}" [label="${label}"${szAttrs}]`);
+      const rootAttr = twopi && twopi.roots.has(id) ? " root=true" : "";
+      lines.push(`${indent}"${id}" [label="${label}"${szAttrs}${rootAttr}]`);
     }
     visiting.delete(id);
   }
@@ -233,6 +244,90 @@ function _buildDOT(graph) {
 
   lines.push("}");
   return lines.join("\n");
+}
+
+/**
+ * Centres and ring radii for twopi.
+ * Centre: per connected part the element with the most connections (first in input order on a
+ * tie). twopi's own choice ("most central node") can be an element at the edge, which puts the hub
+ * on an outer ring with its connections running across the whole view.
+ * Rings: element k steps from its centre lies on ring k, its centre on the circle. Layer distance is
+ * the space between elements, as in Layered: a ring lies Layer distance plus the largest half
+ * diagonal of each of the two rings outside the previous one (ring 1: outside the centre element),
+ * so along the radius the space is at least Layer distance whatever the angle.
+ * A full ring (its elements side by side with Element distance between them fill the circumference)
+ * is that tight at Layer distance = element height, and grows and shrinks with Layer distance from
+ * there; below element height its elements overlap and vpsc pushes them apart, so Layer distance
+ * has a visible effect also on a full ring. twopi uses one list of radii for every part, so each
+ * ring takes the largest over the parts.
+ * @param {LayoutGraph} graph
+ * @param {EffectiveParams} opts
+ * @returns {{ roots: Set<string>, ranksep: string }}
+ */
+function _twopiRings(graph, opts) {
+  const layerGap = opts.layerSpacing   ?? 96;   // twopi default: 1 inch
+  const elemGap  = opts.elementSpacing ?? 0;
+  const fullRingOffset = layerGap - (opts.elementHeight || 60);   // a full ring's radius relative to tight
+
+  /** @type {Record<string, string[]>} */
+  const adj = {};
+  for (const n of graph.nodes) adj[n.id] = [];
+  for (const e of graph.edges) {
+    if (e.source === e.target || !adj[e.source] || !adj[e.target]) continue;
+    adj[e.source].push(e.target);
+    adj[e.target].push(e.source);
+  }
+  const widthOf = Object.fromEntries(graph.nodes.map(n => [n.id, n.width || opts.elementWidth || 140]));
+  const halfDiag = Object.fromEntries(graph.nodes.map(n =>
+    [n.id, Math.hypot(widthOf[n.id], n.height || opts.elementHeight || 60) / 2]));
+
+  /** @type {Set<string>} */
+  const roots = new Set();
+  /** @type {Set<string>} */
+  const seen  = new Set();
+  /** @type {number[]} */
+  const ringWidth = [];   // per ring: the largest sum of (width + Element distance) over the parts
+  /** @type {number[]} */
+  const ringReach = [];   // per ring: the largest half diagonal, ring 0 = the centres
+  for (const start of graph.nodes) {
+    if (seen.has(start.id)) continue;
+    // Collect the connected part, in input order
+    const part = [start.id];
+    seen.add(start.id);
+    for (let i = 0; i < part.length; i++) {
+      for (const v of adj[part[i]]) if (!seen.has(v)) { seen.add(v); part.push(v); }
+    }
+    const inPart = new Set(part);
+    const root = graph.nodes.filter(n => inPart.has(n.id))
+      .reduce((best, n) => adj[n.id].length > adj[best.id].length ? n : best).id;
+    roots.add(root);
+
+    // Ring per element: breadth-first distance from the root
+    /** @type {Record<string, number>} */
+    const ring = { [root]: 0 };
+    const queue = [root];
+    /** @type {number[]} */
+    const width = [];
+    for (let i = 0; i < queue.length; i++) {
+      const u = queue[i];
+      if (ring[u] > 0) width[ring[u]] = (width[ring[u]] || 0) + widthOf[u] + elemGap;
+      ringReach[ring[u]] = Math.max(ringReach[ring[u]] || 0, halfDiag[u]);
+      for (const v of adj[u]) if (ring[v] === undefined) { ring[v] = ring[u] + 1; queue.push(v); }
+    }
+    width.forEach((w, k) => { ringWidth[k] = Math.max(ringWidth[k] || 0, w); });
+  }
+
+  // twopi's ranksep list: radius of ring 1, then the step to each next ring
+  /** @type {number[]} */
+  const steps = [];
+  let radius = 0;
+  for (let k = 1; k < ringWidth.length; k++) {
+    const r = Math.max(radius + ringReach[k - 1] + layerGap + ringReach[k], ringWidth[k] / (2 * Math.PI) + fullRingOffset);
+    steps.push(r - radius);
+    radius = r;
+  }
+  if (!steps.length) steps.push(layerGap);
+  return { roots, ranksep: steps.map(s => (s / 96).toFixed(4)).join(":") };
 }
 
 // ── Dot binary execution ──────────────────────────────────────────────────────
@@ -568,7 +663,7 @@ function _guiRoutingToGraphviz(routing) {
 function _renderGraphvizAttrs(attrs) {
   return Object.entries(attrs)
     .filter(([, v]) => v !== null && v !== undefined && String(v) !== '')
-    .map(([k, v]) => { const s = String(v); return (/[,\s]/.test(s) || s.charAt(0) === '+') ? `${k}="${s}"` : `${k}=${s}`; })
+    .map(([k, v]) => { const s = String(v); return (/[,:\s]/.test(s) || s.charAt(0) === '+') ? `${k}="${s}"` : `${k}=${s}`; })
     .join(' ');
 }
 

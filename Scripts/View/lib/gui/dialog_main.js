@@ -43,7 +43,7 @@ const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
 const Chroma    = require("chroma-js");
 
 const {
-  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
+  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
   DIAGRAM_TYPES, DIAGRAM_TYPE_ID_TO_LABEL,
@@ -129,6 +129,8 @@ const {
  * @property {Swt.Spinner}   spinLabelMaxLineWidth
  * @property {Swt.Spinner}   spinElementHeight
  * @property {Swt.Spinner}   spinElementSpacing
+ * @property {Swt.Combo}     cmbElementOrder
+ * @property {Swt.Button}    chkCycleElementOrder
  * @property {Swt.Combo}     cmbRouting
  * @property {Swt.Combo}     cmbLabelPosition
  * @property {Swt.Button}    chkConnectionLabelSpacing
@@ -258,6 +260,7 @@ const RANKING_LABELS          = RANKING.map(r => r.val);
 const NODE_PLACEMENT_LABELS   = NODE_PLACEMENT.map(n => n.val);
 const NODE_PLACEMENT_TOOLTIPS = Object.fromEntries(NODE_PLACEMENT.map(n => [n.val, n.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
+const ELEMENT_ORDER_LABELS    = ELEMENT_ORDER.map(o => o.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
@@ -431,6 +434,8 @@ const PARAM_WIDGETS = Object.freeze({
   labelSizing:              { w: "chkLabelSizing",               kind: "check" },
   labelMaxLineWidth:        { w: "spinLabelMaxLineWidth",        kind: "spin" },
   elementSpacing:           { w: "spinElementSpacing",           kind: "spin" },
+  elementOrder:             { w: "cmbElementOrder",              kind: "combo", items: ELEMENT_ORDER_LABELS },
+  cycleElementOrder:        { w: "chkCycleElementOrder",         kind: "check" },
   layerSpacing:             { w: "spinLayerSpacing",             kind: "spin" },
   direction:                { w: "cmbDirection",                 kind: "combo", items: DIRECTION_LABELS },
   acyclicer:                { w: "cmbAcyclicer",                 kind: "combo", items: ACYCLICER_LABELS },
@@ -907,8 +912,9 @@ function open(uiSelection) {
 }
 
 /** @param {DialogContext} ctx */
-function _persistSession(ctx) {
+function _persistSession(ctx, params = {}) {
   const session = JSON.parse(JSON.stringify(ctx.config));
+  Object.assign(session.params, params);
   if (ctx.widgets.tabFolder) session._lastTabIndex = ctx.widgets.tabFolder.getSelectionIndex();
   PresetIO.writeSession(session);
 }
@@ -1652,6 +1658,9 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
   row = _formRow(grpEl, "Spacing:", formRows, "form", 2);
   _addSpinnerRow(row, "Distance", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w);
+  row = _formRow(grpEl, "Order:", formRows, "form", 2);
+  _addCombo(row, null, ELEMENT_ORDER_LABELS, 0, SWT.DEFAULT, "cmbElementOrder", w);
+  _addCheck(row, "Cycle", null, 2, w, "chkCycleElementOrder");
   w.layoutGroups.Elements = grpEl;
 
   // ── Connections ───────────────────────────────────────────────────────────────
@@ -1665,6 +1674,9 @@ function _buildLayoutTab(tabFolder, ctx) {
   row = _formRow(grpCon, "Spacing:", formRows, "form", 2);
   _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        DP.connectionSpacing, 0, 200, 5, w);
   _addSpinnerRow(row, "Distance to element", "spinConnectionElementSpacing", DP.connectionElementSpacing, 0, 200, 5, w);
+  // Selection: changed by the user only (not by setSelection while a preset is loaded)
+  w.spinElementSpacing.addListener(SWT.Selection, () => _keepConnectionRoom(ctx, "element"));
+  w.spinConnectionElementSpacing.addListener(SWT.Selection, () => _keepConnectionRoom(ctx, "connection"));
   w.layoutHints.Connections = _groupHint(grpCon);
 
   _alignFormColumns(formRows);
@@ -2485,10 +2497,26 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
  */
 function _runAction(actionId, dlg, ctx) {
   _saveUI(ctx);
-  _persistSession(ctx);
+  const nextOrder = _cycleElementOrder(ctx.config.params, actionId);
+  _persistSession(ctx, nextOrder ? { elementOrder: nextOrder } : {});
   ctx._actionId = actionId;
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
+}
+
+/**
+ * Cycle: a new view starts with the selection order; each layout of an existing view takes the
+ * session's order, and the session gets the next one. Sets the run's order in params.
+ * @param {PresetParams} params  changed in place
+ * @param {string} actionId
+ * @returns {string|null} the order for the next run, or null without Cycle
+ */
+function _cycleElementOrder(params, actionId) {
+  if (!params.cycleElementOrder) return null;
+  const creates = actionId === ACTION.NEW_VIEW.id || actionId === ACTION.ONE_EACH.id;
+  if (creates) params.elementOrder = ELEMENT_ORDER_LABELS[0];
+  const i = ELEMENT_ORDER_LABELS.indexOf(params.elementOrder);
+  return ELEMENT_ORDER_LABELS[(i + 1) % ELEMENT_ORDER_LABELS.length];
 }
 
 // Action-row button: fills cell width, bottom-aligned within group.
@@ -3177,6 +3205,7 @@ function _updateAlgorithmControls(ctx) {
   if (!w.algRadios) return;
   const alg    = ALGORITHMS[_selectedAlgorithm(w)];
   const active = new Set(alg.activeParams);
+  _keepConnectionRoom(ctx, "element");
 
   // Select-type params offer the algorithm's supported values; inactive ones keep the full list.
   for (const [key, def] of Object.entries(PARAM_WIDGETS))
@@ -3213,6 +3242,22 @@ function _updateAlgorithmControls(ctx) {
 function _selectedAlgorithm(w) {
   for (const [name, r] of (w.algRadios || new Map())) if (r.getSelection()) return name;
   return DEFAULT_PRESET.algorithm;
+}
+
+/**
+ * Algorithms that route connections between the elements (defs connectionsBetweenElements) need
+ * Element distance ≥ 2 × Distance to element. The value the user changed wins; the other follows.
+ * @param {DialogContext} ctx
+ * @param {"element" | "connection"} changed
+ */
+function _keepConnectionRoom(ctx, changed) {
+  const w = ctx.widgets;
+  if (!w.algRadios || !w.spinElementSpacing || !w.spinConnectionElementSpacing) return;
+  if (!ALGORITHMS[_selectedAlgorithm(w)].connectionsBetweenElements) return;
+  const elem = w.spinElementSpacing.getSelection(), conn = w.spinConnectionElementSpacing.getSelection();
+  if (elem >= 2 * conn) return;
+  if (changed === "element") w.spinConnectionElementSpacing.setSelection(Math.floor(elem / 2));
+  else                       w.spinElementSpacing.setSelection(2 * conn);
 }
 
 // Replace a read-only combo's items, keeping the current value when it is still offered.

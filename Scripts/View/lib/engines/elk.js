@@ -634,8 +634,7 @@ function _layoutOnce(graph, measureOnly) {
   const isSplines = rootEngineOpts["elk.edgeRouting"] === "SPLINES";
   _collectEdgeResults(layouted, edgeMeta, elkBoxes, resultEdges, graph.options.labelPosition || "Middle", isSplines, log);
   if (treeExtra > 0) _clampEndsToTreeBoxes(resultEdges, resultNodes, _isVertical);
-  if (alg.engineAlgorithmId === "mrtree" && graph.options.routing !== "Polyline")
-    _routeTreeEdges(resultEdges, graph, _isVertical);
+  if (alg.engineAlgorithmId === "mrtree") _routeTreeEdges(resultEdges, graph, _isVertical);
 
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   resultEdges.push(...selfLoops.map(selfLoopResult));
@@ -965,7 +964,7 @@ function _collectRootChildren(nodeMap, parentMap, sortContainers) {
     .filter(id => parentMap[id] === undefined)
     .map(id => nodeMap[id]);
   const ctrs   = roots.filter(n => n.children.length > 0);
-  const leaves = roots.filter(n => n.children.length === 0).sort(byTypeAndName);
+  const leaves = roots.filter(n => n.children.length === 0);   // input order (Order, generate_view.js)
   if (sortContainers) ctrs.sort(byTypeAndName);
   return ctrs.concat(leaves);
 }
@@ -1237,10 +1236,10 @@ function _clampEndsToTreeBoxes(resultEdges, resultNodes, vertical) {
 
 /**
  * Tree routing: mrtree draws a short stub and then a diagonal to the target (AVOID_OVERLAP; it
- * has no orthogonal or spline routing). Between the ports mrtree chose, the adapter draws
- *   Orthogonal  two bends halfway along the flow: out, across, in
- *   Splines     a cubic S-curve (control points halfway along the flow), sampled to bendpoints
- * Polyline keeps mrtree's own route.
+ * has no orthogonal or spline routing).
+ *   Straight  no bendpoints: Archi draws a straight line between the elements
+ *   Splines   between the ports mrtree chose, a cubic S-curve (control points halfway along the
+ *             flow), sampled to bendpoints
  * @param {LayoutResultEdge[]} resultEdges  changed in place
  * @param {LayoutGraph}        graph
  * @param {boolean}            vertical     flow Up / Down
@@ -1256,12 +1255,13 @@ function _routeTreeEdges(resultEdges, graph, vertical) {
   for (const e of resultEdges) {
     const s = e.srcPort, t = e.tgtPort;
     if (!s || !t || e.sourceId === e.targetId) continue;
+    if (graph.options.routing !== "Splines") { e.bendpoints = []; e.isStraight = true; continue; }
     const mid = (s[f] + t[f]) / 2;
     /** @type {Point[]} */
     let bps;
     if (Math.abs(s[c] - t[c]) < 1) {
       bps = [pt(mid, s[c])];
-    } else if (graph.options.routing === "Splines") {
+    } else {
       bps = [];
       for (let j = 1; j <= SPLINE_SAMPLE_POINTS; j++) {
         const u = j / (SPLINE_SAMPLE_POINTS + 1), mu = 1 - u;
@@ -1270,8 +1270,6 @@ function _routeTreeEdges(resultEdges, graph, vertical) {
         const cv = mu * mu * mu * s[c] + 3 * mu * mu * u * s[c] + 3 * mu * u * u * t[c] + u * u * u * t[c];
         bps.push(pt(fv, cv));
       }
-    } else {
-      bps = [pt(mid, s[c]), pt(mid, t[c])];
     }
     e.bendpoints = bps;
     const lbl = _computeLabelPoint({ startPoint: s, endPoint: t }, bps, 0, 0,

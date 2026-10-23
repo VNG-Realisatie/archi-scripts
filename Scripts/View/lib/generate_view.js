@@ -37,7 +37,7 @@ const {
 const JUNCTION_DIAMETER = 14;
 
 /** @type {typeof import("./engines/engine-utils")} */
-const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes } = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes, byTypeAndName } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
 // require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
@@ -364,6 +364,46 @@ function _generateOneEach(preset, uiSelection) {
 
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
+// Element order (defs ELEMENT_ORDER) → comparator; Selection has none: the order the elements came in.
+/** @type {Record<string, (a: LayoutNode, b: LayoutNode) => number>} */
+const ORDER_COMPARE = {
+  "Name △":          (a, b) => (a.label || "").localeCompare(b.label || ""),
+  "Type and name △": byTypeAndName,
+  "Name ▽":          (a, b) => (b.label || "").localeCompare(a.label || ""),
+};
+
+/**
+ * With a sorted order, put the relations in the order of their elements too: some engines take the
+ * order of siblings from the relations (ELK Tree). Selection keeps the order they came in.
+ * @param {LayoutNode[]} nodes  already in order (_orderRootLeaves)
+ * @param {LayoutEdge[]} edges  changed in place
+ * @param {string} [order]
+ */
+function _orderEdges(nodes, edges, order) {
+  if (!order || !ORDER_COMPARE[order]) return;
+  const rank = new Map(nodes.map((n, i) => [n.id, i]));
+  const at = (/** @type {string} */ id) => rank.get(id) ?? nodes.length;
+  edges.sort((a, b) => at(a.source) - at(b.source) || at(a.target) - at(b.target));
+}
+
+/**
+ * Put the elements outside containers in the chosen order (defs ELEMENT_ORDER), in place: they
+ * keep their slots in the list, only their order among themselves changes. Selection keeps the
+ * order they came in. A container's contents keep the container's own order (the engines).
+ * @param {LayoutNode[]} nodes
+ * @param {string} [order]
+ */
+function _orderRootLeaves(nodes, order) {
+  const compare = order ? ORDER_COMPARE[order] : undefined;
+  if (!compare) return;
+  const containers = new Set(nodes.map(n => n.parent).filter(Boolean));
+  /** @type {number[]} */
+  const slots = [];
+  nodes.forEach((n, i) => { if (!n.parent && !containers.has(n.id)) slots.push(i); });
+  const sorted = slots.map(i => nodes[i]).sort(compare);
+  slots.forEach((i, k) => { nodes[i] = sorted[k]; });
+}
+
 /**
  * @param {MaskedPreset}                     preset
  * @param {ArchiElement[]}                   elements
@@ -433,6 +473,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(vo.id);
   }
 
+  _orderRootLeaves(nodes, params.elementOrder);
+
   // Edges from routed relations: each relation once (SPEC: Connections between occurrences).
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
   const removed = new Set(nesting.removedVisualIds);
@@ -477,6 +519,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
       });
     });
   }
+
+  _orderEdges(nodes, edges, params.elementOrder);
 
   const engineParams = preset.engineParams || {};
   sizeLabelBasedNodes(nodes, params, engineParams);

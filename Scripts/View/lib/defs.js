@@ -36,7 +36,7 @@ const STYLES = Object.freeze({
 // Shared groups spread into activeParams arrays; each algorithm shows only its unique additions.
 
 // Active in every algorithm — not algorithm-specific.
-const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding"]);
+const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding", "elementOrder", "cycleElementOrder"]);
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
@@ -64,6 +64,8 @@ const PARAM_LABELS = Object.freeze({
   connectionsMode:          "Connections",
   padding:                  "Padding",
   sortContainers:           "Sort containers",
+  elementOrder:             "Order",
+  cycleElementOrder:        "Cycle",
   alignWidthSameType:       "Same width per level",
   snapColumnsToGrid:        "Snap columns to grid",
   direction:                "Direction",
@@ -99,6 +101,10 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
                              "Crossing containers: the whole view is one layout; connections run straight to the element inside."],
   padding:                  ["Space between a container's border and its contents.", "px"],
+  elementOrder:             ["Order in which the elements outside containers go into the layout; another order gives the algorithm another starting point.",
+                             "Inside a container the container's own order holds."],
+  cycleElementOrder:        ["Each layout of an existing view takes the next order: Selection, Name △, Type and name △, Name ▽.",
+                             "A new view always starts with Selection."],
   sortContainers:           ["Order containers by type and name, as elements always are.",
                              "Grid and Pack keep this order; the other algorithms start from it."],
   alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
@@ -112,13 +118,14 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
   nodePlacement:            ["Where elements sit within their layer.",
                              "Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side."],
-  layerSpacing:             ["Distance between layers along the flow; Tree: between levels; Twopi: between rings, wider where elements would overlap.",
-                             "px — Tree: at least Distance between elements; with Reserve label space a gap widens to fit its labels."],
+  layerSpacing:             ["Space between the elements of successive layers along the flow; Tree: between levels; Twopi: between rings.",
+                             "px — Tree: at least Distance between elements; Twopi: a full ring is tight at element height and grows and shrinks with Layer distance; with Reserve label space a gap widens to fit its labels."],
   elementWidth:             ["Width of every element.", "px — not used with Use label width."],
   elementHeight:            ["Height of every element.", "px — not used with Use label width."],
   labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
   labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px — only with Use label width."],
-  elementSpacing:           ["Minimum distance between elements, also between unconnected groups.", "px"],
+  elementSpacing:           ["Minimum distance between elements, also between unconnected groups.",
+                             "px — Neato, FDP, SFDP: at least 2 × Distance to element, so a connection fits between two elements; the other value follows."],
   routing:                  ["How connection lines are drawn.", ""],
   labelPosition:            ["Where the connection label sits.", ""],
   connectionLabelSpacing:   ["Keep connection labels clear of other labels, connections and elements.",
@@ -126,7 +133,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionSpacing:        ["Distance between parallel connections, and between connection points on one side of an element.",
                              "px — elements grow to fit their connections; 0 = no growth."],
   connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
-                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol.`],
+                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of Distance between elements; the other value follows.`],
   aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
   maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
                              "px — element sizes are unchanged."],
@@ -164,7 +171,8 @@ const LAYOUT_GROUPS = Object.freeze({
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
                 "sortContainers", "alignWidthSameType", "snapColumnsToGrid"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "layerSpacing"],
-  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
+  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing",
+                "elementOrder", "cycleElementOrder"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
   "View size": ["aspectRatio", "maxWidth"],
 });
@@ -234,7 +242,7 @@ const ALGORITHMS = Object.freeze({
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
-      routing:            ["Orthogonal", "Splines", "Polyline"],   // drawn by the adapter (elk.js _routeTreeEdges)
+      routing:            ["Straight", "Splines"],   // elk.js _routeTreeEdges
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Grid", "Pack"],
     },
@@ -366,6 +374,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
@@ -386,6 +395,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
@@ -406,6 +416,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
       "routing", "labelPosition",
@@ -524,6 +535,17 @@ const NODE_PLACEMENT = Object.freeze([
 const ACYCLICER = Object.freeze([
   { val: "Default", default: true },
   { val: "Greedy" },
+]);
+
+// ── Element order (all algorithms) ────────────────────────────────────────────
+// Order of the elements outside containers as they go into the layout (generate_view.js);
+// inside a container the container's own order holds.
+
+const ELEMENT_ORDER = Object.freeze([
+  { val: "Selection", default: true },
+  { val: "Name △" },
+  { val: "Type and name △" },
+  { val: "Name ▽" },
 ]);
 
 // ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
@@ -683,6 +705,8 @@ const DEFAULT_PRESET = Object.freeze({
     padding:               20,
     diagramPadding:        10,
     sortContainers:        false,
+    elementOrder:          "Selection",            // ELEMENT_ORDER: elements outside containers
+    cycleElementOrder:     false,                  // each layout of an existing view takes the next elementOrder
     alignWidthSameType:    false,
     snapColumnsToGrid:     false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
@@ -1024,7 +1048,7 @@ if (typeof module !== "undefined" && module.exports) {
     paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
+    RANKING, NODE_PLACEMENT, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,

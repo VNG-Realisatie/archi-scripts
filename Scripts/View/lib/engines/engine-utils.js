@@ -55,8 +55,9 @@ function byTypeAndName(a, b) {
 /**
  * Return a sorted copy of LayoutGraph nodes.
  * Within each parent group: containers (nodes that have children) first, then leaves.
- * Leaves are ALWAYS sorted by elementType then label; containers are sorted only when
- * sortContainers is true (otherwise they keep their original order).
+ * Leaves inside a container are sorted by elementType then label; leaves outside containers keep
+ * their input order (Order, generate_view.js). Containers are sorted only when sortContainers is
+ * true (otherwise they keep their original order).
  *
  * @param {LayoutNode[]}            nodes           LayoutGraph nodes
  * @param {Record<string, string>} parentMap       { childId: parentId }
@@ -75,9 +76,10 @@ function sortedNodes(nodes, parentMap, sortContainers) {
   }
 
   const result = [];
-  for (const group of Object.values(byParent)) {
+  for (const [key, group] of Object.entries(byParent)) {
     const ctrs = group.filter((n) => childSet.has(n.id));
-    const leaves = group.filter((n) => !childSet.has(n.id)).sort(byTypeAndName);
+    const leaves = group.filter((n) => !childSet.has(n.id));
+    if (key !== "__root__") leaves.sort(byTypeAndName);
     if (sortContainers) ctrs.sort(byTypeAndName);
     result.push(...ctrs, ...leaves);
   }

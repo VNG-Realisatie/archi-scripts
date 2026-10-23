@@ -124,6 +124,8 @@ type PresetParams = {
   padding: number;
   diagramPadding: number;
   sortContainers: boolean;
+  elementOrder: string;
+  cycleElementOrder: boolean;
   alignWidthSameType: boolean;
   snapColumnsToGrid: boolean;
   containerAlgorithm: string;
@@ -226,6 +228,12 @@ interface AlgorithmSpec {
   style: string;
   supportsNesting: "full" | "partial" | "cluster" | "none";
   supportsSelfLoops: boolean | "partial";
+  /**
+   * Connections are routed between the elements, with Distance to element on both sides of the
+   * line; the router gives up when elements are closer (Graphviz esep < sep). The dialog keeps
+   * Element distance ≥ 2 × Distance to element.
+   */
+  connectionsBetweenElements?: boolean;
   /** Param keys the dialog enables and effectiveParams keeps. */
   activeParams: readonly string[];
   /** Allowed values per select-type param. */
