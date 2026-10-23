@@ -19,7 +19,7 @@ const REPO_ROOT = (() => {
 const Defs         = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP, CONTAINER_LABEL_CLEARANCE } = Defs;
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
 const { applyParams } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
@@ -51,6 +51,10 @@ const _GV_PAD = (/** @type {number} */ v) => ({ pad: (v / 96).toFixed(4) });
 // whole Connection–element distance.
 const _GV_SEP  = (/** @type {number} */ v) => ({ sep:  `+${(v / 2 * 72 / 96).toFixed(2)}` });
 const _GV_ESEP = (/** @type {number} */ v) => ({ esep: `+${(v * 72 / 96).toFixed(2)}` });
+// Neato, FDP, SFDP: their own spacing leaves elements closer than sep, and then the router finds
+// elements touching within esep and draws every connection straight. prism removes overlap to sep
+// and keeps the layout's shape.
+const _GV_OVERLAP_SEP = (/** @type {number} */ v) => ({ overlap: "prism", ..._GV_SEP(v) });
 
 /** @type {ParamMapping} */
 const PARAM_MAPPING = {
@@ -64,22 +68,21 @@ const PARAM_MAPPING = {
   },
   Neato: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    // neato keeps overlapping elements unless told to remove them; prism keeps the layout's shape
-    elementSpacing:           (v) => ({ overlap: "prism", ..._GV_SEP(v) }),
+    elementSpacing:           _GV_OVERLAP_SEP,
     connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   FDP: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           _GV_SEP,
+    elementSpacing:           _GV_OVERLAP_SEP,
     connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   SFDP: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           _GV_SEP,
+    elementSpacing:           _GV_OVERLAP_SEP,
     connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
@@ -130,8 +133,6 @@ function layout(graph) {
 
 /**
  * @typedef {{ x: number, y: number, w: number, h: number }} GvBox  a node or cluster box in px
- * @typedef {{ x: number, y: number, w?: number, h?: number, maxX?: number, maxY?: number }} GvCluster
- *   a cluster box, or (inside _deriveClusterBBs) an accumulator still being grown
  */
 
 /**
@@ -159,6 +160,8 @@ function _buildDOT(graph) {
   // Twopi: a centre per connected part, and ring radii wide enough for the elements on them
   const twopi = graph.algorithm === "Twopi" ? _twopiRings(graph, opts) : null;
   if (twopi) engineOpts.ranksep = twopi.ranksep;
+  // FDP removes overlap within its clusters itself; prism there only spreads the layout out.
+  if (graph.algorithm === "FDP" && graph.nodes.some(n => n.parent)) delete engineOpts.overlap;
 
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
@@ -410,24 +413,19 @@ function _extractResult(graph, jsonOut) {
 
   /** @type {Record<string, GvBox>} */
   const nodes    = {};
-  /** @type {Record<string, GvCluster>} */
+  /** @type {Record<string, GvBox>} */
   const clusters = {};
   _walkJSON(jsonOut, nodes, clusters, totalH);
 
-  // Derive cluster bounding boxes for engines that don't emit them (neato/fdp/sfdp)
-  const childSet = new Set();
-  for (const node of graph.nodes) { if (node.parent) childSet.add(node.id); }
-  const padding = graph.options.padding ?? 20;
-  _deriveClusterBBs(graph.nodes, nodes, clusters, childSet, padding);
-
+  // Every engine that nests (dot, fdp) emits a box per cluster; neato, which does not, ignores
+  // clusters when placing elements and so does not nest.
   /** @type {LayoutResultNode[]} */
   const resultNodes = [];
   for (const node of graph.nodes) {
     const isContainer = graph.nodes.some(m => m.parent === node.id);
     const pos = (isContainer && clusters[node.id]) ? clusters[node.id] : nodes[node.id];
     if (!pos) continue;
-    // Casts: after _deriveClusterBBs every cluster is a full box.
-    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: /** @type {number} */ (pos.w), height: /** @type {number} */ (pos.h), parentId: node.parent || null });
+    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h, parentId: node.parent || null });
   }
 
   const splines  = _guiRoutingToGraphviz(graph.options.routing || "Polyline");
@@ -449,7 +447,7 @@ function _extractResult(graph, jsonOut) {
 /**
  * @param {GraphvizJson | undefined}  obj
  * @param {Record<string, GvBox>}     nodes     filled: node name → box
- * @param {Record<string, GvCluster>} clusters  filled: container id → box
+ * @param {Record<string, GvBox>} clusters  filled: container id → box
  * @param {number}                    totalH    graph height in points (y is flipped)
  */
 function _walkJSON(obj, nodes, clusters, totalH) {
@@ -548,42 +546,6 @@ function _parseBb(s) {
 function _parseXY(s) {
   const p = s.split(",");
   return { x: parseFloat(p[0]), y: parseFloat(p[1]) };
-}
-
-/**
- * @param {LayoutNode[]}              graphNodes
- * @param {Record<string, GvBox>}     nodes
- * @param {Record<string, GvCluster>} clusters  extended in place
- * @param {Set<string>}               childSet
- * @param {number}                    padding
- */
-function _deriveClusterBBs(graphNodes, nodes, clusters, childSet, padding) {
-  /** @type {Record<string, string>} */
-  const parentOf = {};
-  for (const n of graphNodes) { if (n.parent) parentOf[n.id] = n.parent; }
-  for (const [childId, parentId] of Object.entries(parentOf)) {
-    if (clusters[parentId]) continue;
-    const childPos  = nodes[childId];
-    const parentPos = nodes[parentId];
-    for (const p of [childPos, parentPos]) {
-      if (!p) continue;
-      const acc = clusters[parentId] || { x: Infinity, y: Infinity, maxX: -Infinity, maxY: -Infinity };
-      acc.x    = Math.min(acc.x,    p.x);
-      acc.y    = Math.min(acc.y,    p.y);
-      acc.maxX = Math.max(acc.maxX || -Infinity, p.x + p.w);
-      acc.maxY = Math.max(acc.maxY || -Infinity, p.y + p.h);
-      clusters[parentId] = acc;
-    }
-  }
-  for (const [id, bb] of Object.entries(clusters)) {
-    if (bb.maxX !== undefined) {
-      clusters[id] = {
-        x: bb.x - padding, y: bb.y - (padding + CONTAINER_LABEL_CLEARANCE),
-        w: (bb.maxX - bb.x) + 2 * padding,
-        h: (/** @type {number} */ (bb.maxY) - bb.y) + 2 * padding + CONTAINER_LABEL_CLEARANCE,   // Cast: set with maxX
-      };
-    }
-  }
 }
 
 /**

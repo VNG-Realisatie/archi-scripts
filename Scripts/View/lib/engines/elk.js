@@ -130,7 +130,7 @@ const _LAYERED_ROUTING = (/** @type {string} */ v) => ({
 // Shared param-mapping functions — referenced in multiple algorithm root/container scopes.
 const _DIRECTION     = (/** @type {string} */ v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" });
 // Element spacing is the minimum distance between elements — also between unconnected groups,
-// which layered / mrtree / force lay out separately and pack with spacing.componentComponent.
+// which layered / mrtree / stress lay out separately and pack with spacing.componentComponent.
 const _ELEM_SPACING  = (/** @type {number} */ v) => ({ "elk.spacing.nodeNode": String(v), "elk.spacing.componentComponent": String(v) });
 // Centred:        NETWORK_SIMPLEX — minimises total connection length, which centres an element
 //                 between its neighbours; measured on nested views: up to ~30% shorter connections
@@ -189,11 +189,6 @@ const PARAM_MAPPING = {
   Tree: {
     root:      { ..._TREE_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
     container: { ..._TREE_BASE, aspectRatio: _AR,                                padding: _PAD_CONTAINER },
-  },
-
-  Force: {
-    root:      { elementSpacing: _ELEM_SPACING, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
-    container: { elementSpacing: _ELEM_SPACING,                                    padding: _PAD_CONTAINER },
   },
 
   Stress: {
@@ -579,6 +574,15 @@ function _layoutOnce(graph, measureOnly) {
     const t2 = Date.now();
     layouted = elk.layout(elkGraph);
     log(`ELK result (Radial second run, radius ${radialRadius}): width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}  (${Date.now() - t2} ms)`);
+  }
+
+  // Stress places elements by connection length only and leaves them on top of each other. ELK SPOrE
+  // moves them apart to Element distance (positions only) and draws the connections straight again.
+  if (alg.engineAlgorithmId === "stress") {
+    layouted.layoutOptions = Object.assign({}, layouted.layoutOptions, { "elk.algorithm": "sporeOverlap" });
+    const t2 = Date.now();
+    layouted = elk.layout(layouted);
+    log(`ELK result (Stress overlap removal): width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}  (${Date.now() - t2} ms)`);
   }
 
   // Align-by-level diagnostics: compare each box's target to its final rendered width.

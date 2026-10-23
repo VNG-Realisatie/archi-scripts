@@ -27,7 +27,7 @@ const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 const STYLES = Object.freeze({
   Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models." },
   Hierarchy: { algorithms: ["Tree", "Radial"],                               tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
-  Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],      tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
+  Network:   { algorithms: ["Stress", "Neato", "FDP", "SFDP"],               tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
   Circular:  { algorithms: ["Twopi", "Circo"],                               tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
   Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
 });
@@ -93,9 +93,11 @@ const PARAM_LABELS = Object.freeze({
 const PARAM_TOOLTIPS = Object.freeze({
   nestingRules:             ["Draw matching relations as nesting: the child inside its parent.",
                              "Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; " +
-                             "a rule with Every shows it in every parent."],
+                             "a rule with Every shows it in every parent. Only relations an Include rule picks are nested; Exclude rules take " +
+                             "relations out of those, so Exclude rules alone nest nothing."],
   reverseRules:             ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
-                             "Nesting: if the relation is also nested, the target becomes the parent."],
+                             "Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include rule picks are " +
+                             "reversed; Exclude rules take relations out of those, so Exclude rules alone reverse nothing."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
                              "Grid or Pack: Connections is locked to Between containers."],
   connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
@@ -125,7 +127,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
   labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px — only with Use label width."],
   elementSpacing:           ["Minimum distance between elements, also between unconnected groups.",
-                             "px — Neato, FDP, SFDP: at least 2 × Distance to element, so a connection fits between two elements; the other value follows."],
+                             "px — Neato, FDP, SFDP: at least 2 × Distance to element + 2, so a connection fits between two elements; the other value follows."],
   routing:                  ["How connection lines are drawn.", ""],
   labelPosition:            ["Where the connection label sits.", ""],
   connectionLabelSpacing:   ["Keep connection labels clear of other labels, connections and elements.",
@@ -133,7 +135,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionSpacing:        ["Distance between parallel connections, and between connection points on one side of an element.",
                              "px — elements grow to fit their connections; 0 = no growth."],
   connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
-                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of Distance between elements; the other value follows.`],
+                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of (Distance between elements − 2); the other value follows.`],
   aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
   maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
                              "px — element sizes are unchanged."],
@@ -181,7 +183,7 @@ const LAYOUT_GROUPS = Object.freeze({
 // Graphviz has aspectRatio only: it cannot narrow a layout without scaling elements.
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
-// Graphviz cluster-nesting controls — Dot, Neato, FDP. padding = cluster margin (graphviz.js).
+// Graphviz cluster-nesting controls — Dot, FDP. padding = cluster margin (graphviz.js).
 const PARAMS_GV_CLUSTER = Object.freeze(["nestingRules", "padding"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
@@ -249,19 +251,6 @@ const ALGORITHMS = Object.freeze({
     labelPositionDefault: "Middle",
     tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
     paramConflicts: CONFLICTS_VIEW,
-  },
-
-  Force: {
-    engine:               "ELK",
-    engineAlgorithmId:    "force",
-    style:                "Network",
-    supportsNesting:      "none",
-    supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
-    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
-    supportedOptions:     {},
-    labelPositionDefault: null,
-    tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
-    paramConflicts: CONFLICTS_VIEW,  // view-size mode "none" zeroes aspectRatio
   },
 
   Stress: {
@@ -372,51 +361,9 @@ const ALGORITHMS = Object.freeze({
     engine:               "Graphviz",
     engineAlgorithmId:    "neato",
     style:                "Network",
-    supportsNesting:      "cluster",
+    supportsNesting:      "none",   // neato places elements ignoring clusters; mode=ipsep crashes (Graphviz 14.1)
     supportsSelfLoops:    true,   // Graphviz native
-    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element
-    activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
-      "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRules",
-    ],
-    supportedOptions: {
-      routing:       ROUTING_GV_POLY,
-      labelPosition: LP_GV,
-    },
-    labelPositionDefault: "Natural",
-    tooltip: "Spring-model layout for undirected networks, with cluster nesting. No direction control (Graphviz neato)",
-    paramConflicts: CONFLICTS_VIEW,
-  },
-
-  FDP: {
-    engine:               "Graphviz",
-    engineAlgorithmId:    "fdp",
-    style:                "Network",
-    supportsNesting:      "cluster",
-    supportsSelfLoops:    true,   // Graphviz native
-    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element
-    activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
-      "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRules",
-    ],
-    supportedOptions: {
-      routing:       ROUTING_GV_POLY,
-      labelPosition: LP_GV,
-    },
-    labelPositionDefault: "Natural",
-    tooltip: "Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp)",
-    paramConflicts: CONFLICTS_VIEW,
-  },
-
-  SFDP: {
-    engine:               "Graphviz",
-    engineAlgorithmId:    "sfdp",
-    style:                "Network",
-    supportsNesting:      "none",
-    supportsSelfLoops:    true,   // Graphviz native
-    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
       "routing", "labelPosition",
@@ -427,7 +374,49 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp)",
+    tooltip: "Spring-model layout for undirected networks. No nesting (use FDP) and no direction control (Graphviz neato)",
+    paramConflicts: CONFLICTS_VIEW,
+  },
+
+  FDP: {
+    engine:               "Graphviz",
+    engineAlgorithmId:    "fdp",
+    style:                "Network",
+    supportsNesting:      "cluster",
+    supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
+    activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
+      "routing", "labelPosition",
+      "elementSpacing", "connectionElementSpacing", "reverseRules",
+    ],
+    supportedOptions: {
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
+    },
+    labelPositionDefault: "Natural",
+    tooltip: "Force-directed layout with cluster nesting; connections are routed around clusters (Graphviz fdp)",
+    paramConflicts: CONFLICTS_VIEW,
+  },
+
+  SFDP: {
+    engine:               "Graphviz",
+    engineAlgorithmId:    "sfdp",
+    style:                "Network",
+    supportsNesting:      "none",
+    supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
+    activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
+      "routing", "labelPosition",
+      "elementSpacing", "connectionElementSpacing",
+    ],
+    supportedOptions: {
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
+    },
+    labelPositionDefault: "Natural",
+    tooltip: "Force-directed layout like FDP, built up over coarser versions of the graph: only gains over FDP on large networks (100+ elements). No nesting (Graphviz sfdp)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
