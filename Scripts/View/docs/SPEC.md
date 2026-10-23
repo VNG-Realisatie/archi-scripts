@@ -167,7 +167,7 @@ A model-tree selection can only drive the Create group (nothing identifies a tar
 
 ## 7. Layout options
 
-Layout decides *how* objects are positioned. Options are grouped in the order of deciding — structure (relations, containers) first, then flow, elements, connections and view size. Per-algorithm support is in the [capability matrix](#capability-matrix): an option the chosen algorithm does not use is shown disabled, its value preserved but ignored, and each group names the options it cannot use (*"Not used by …"*). Every option has one label, one explanation and a "used by" list, all from the SSOT.
+Layout decides *how* objects are positioned. Options are grouped in the order of deciding — structure (relations, containers) first, then flow, elements, connections and view size. Per-algorithm support is in the [capability matrix](#capability-matrix): an option the chosen algorithm does not use is shown disabled, its value preserved but ignored. Every option has one label, one explanation and a "used by" list, all from the SSOT.
 
 **Algorithm styles.** Algorithms are grouped by the insight they give, all visible at once: **Flow** (directional flows, process chains), **Hierarchy** (decomposition, breakdown structures), **Network** (connectivity, clustering, impact), **Compact** (portfolios, catalogues) and **Circular** (cycles, hub-and-spoke).
 
@@ -189,7 +189,9 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Twopi** ✦ puts the best-connected element of each connected part in the centre and every other element on the ring of its distance (in relations) from there. Along the radius the space between two rings is at least the layer distance, whatever the angle. A ring whose elements, side by side with the element gap, fill its circumference is *full*: it is exactly tight at a layer distance equal to the element height and grows and shrinks with the layer distance from there — below it the elements are pushed apart and the ring deforms, so the layer distance always has a visible effect. The order of the elements on a ring follows **Order**; twopi does not reduce crossings.
 
-**Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen width; and the minimum **gap** between elements, also between unconnected groups. Where connections are routed between the elements (Neato, FDP, SFDP), the gap is at least twice the connection–element distance, so a connection fits between two elements: the dialog keeps the two values in step, the one changed by the user wins.
+**Stress** ✦ places elements by connection length only; elements that end up on top of each other are moved apart to the element gap afterwards, positions only.
+
+**Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen width; and the minimum **gap** between elements, also between unconnected groups. Where connections are routed between the elements (Neato, FDP, SFDP), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements: the dialog keeps the two values in step, the one changed by the user wins.
 
 **Order** ✦ — the order in which the elements outside containers enter the layout: as selected (**Selection**, default), by name ascending, by type and name ascending, or by name descending (△ ascending, ▽ descending). Another order gives the algorithm another starting point; an algorithm that keeps the input order (Tree, Twopi) shows it directly, others (Layered) use it as a start only. With **Cycle** on, a new view always starts with Selection and every layout of an existing view takes the next order, so repeated *Layout only* runs step through four layouts. Order never applies inside a container.
 
@@ -366,7 +368,7 @@ Internal names never appear in UI labels or button text; tooltips may use them p
 
 ### Dialog reference
 
-The dialog is 1000 px wide and as tall as the monitor's usable area (at most 1600 px); each tab scrolls on its own, the preset row and the action area stay visible.
+The dialog is 1000 px wide and as tall as the monitor's usable area (at most 1800 px); each tab scrolls on its own, the preset row and the action area stay visible.
 
 ```
 ┌─ Generate View ────────────────────────────────────────────────────────────┐
@@ -381,7 +383,7 @@ The dialog is 1000 px wide and as tall as the monitor's usable area (at most 160
 │ │ Folder [/_Generated]  Name [____] │ │ View: Customer journey          │  │
 │ │ [New view]     [One view each]    │ │ [Expand view]   [Layout only]   │  │
 │ └───────────────────────────────────┘ └─────────────────────────────────┘  │
-│                                                                  [Cancel]  │
+│                                                         [  Cancel   ]      │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -409,13 +411,13 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │  │
 │ │               First object: Business Actor: Customer                │  │
 │ │  Containing:  12 elements, 8 relations                              │  │
-│ │  Filter selection by element type (none = keep all):                │  │
+│ │  Filter selection by element type (no Include rule = keep all, …):  │  │
 │ │   On │ Mode    │ Element type                                ✕      │  │
 │ │   ☑  │ Include │ All                                         ✕      │  │
 │ │   [+ Add rule]  ☐ Property condition                                │  │
-│ │  Filter selection by diagram type (none = keep all):                │  │
+│ │  Filter selection by diagram type (no Include rule = keep all, …):  │  │
 │ │   On │ Mode │ Diagram type     [+ Add rule]                         │  │
-│ │  Filter selection by relations (none = keep all):                   │  │
+│ │  Filter selection by relations (no Include rule = keep all, …):     │  │
 │ │   On │ Mode │ Source type │ Relation type │ Target type  [+ Add rule]│  │
 │ └─────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Expand selection ─────────────────────────────────────────────────┐   │
@@ -464,7 +466,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
 │ │ Flow:       ○ Layered   ○ Dagre    ○ Dot                              │ │
 │ │ Hierarchy:  ○ Tree      ○ Radial                                      │ │
-│ │ Network:    ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
+│ │ Network:    ○ Stress    ○ Neato    ○ FDP      ○ SFDP                  │ │
 │ │ Circular:   ○ Twopi     ○ Circo                                       │ │
 │ │ Compact:    ○ Grid      ○ Pack                                        │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
@@ -510,7 +512,8 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 - **One source.** Every label, tooltip and "Used by" line comes from the SSOT; the tables below are generated from it.
 - **Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the predicted view it matches on its own — after the chosen relation type, *Aggregation (62)* (an Exclude rule: what it removes from the other rules' matches) — and, for nesting, how many become a nesting (*Nested*; empty for a rule that is off). A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for rules without *Every*), the nesting would be circular, or the relation is a self-relation. Computed with the same resolution as the writer.
-- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value. Connections, Nesting, Reverse and View size end with a grey hint naming them — *"Not used by Dot: Reserve label space, Between, Distance to element."*, or *"Not used by Force."* for a whole group; Containers, Flow and Elements show it as the box's tooltip. Containers is also greyed, with a tooltip, until a Nesting rule is on. The explanation of the Nesting and Reverse rules is the tooltip of those boxes.
+- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting rule is on, and its tooltip says so. The explanation of the Nesting and Reverse rules is the tooltip of those boxes.
+- **No Include rule.** A Nesting or Reverse list starts from nothing: with Exclude rules but no Include rule that is on, a grey note under the table says nothing is nested (reversed) and that an Include rule is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include rule, a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed, reason in the tooltip) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
 - **Empty Nesting / Reverse.** An empty table shows the default rule switched off, as an example; untouched it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
 - **Form rows.** Containers, Flow, Elements and Connections share one heading column (*Size:*, *Order:*, …), as wide as the widest heading; each label sits right before its control and pairs follow each other. Rows that share a raster line up as a table: every column starts at the same x, so the controls stand below each other. Flow, Elements and Connections share a raster over the first label/control pair only; Containers › Options is a full 2×2 raster. All spinners have one width, combos keep their natural width. Nothing stretches with the dialog; notes and hints wrap at the box width. A rule table is never cut off: when it is wider than the tab, the dialog grows — only wider, within the monitor, never back — and on a monitor that is too narrow the tab scrolls horizontally.
@@ -523,7 +526,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 |---|---|---|
 | Flow | Layered, Dagre, Dot | Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models. |
 | Hierarchy | Tree, Radial | Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition. |
-| Network | Force, Stress, Neato, FDP, SFDP | Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks. |
+| Network | Stress, Neato, FDP, SFDP | Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks. |
 | Circular | Twopi, Circo | Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures. |
 | Compact | Grid, Pack | Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries. |
 <!-- /generated:styles -->
@@ -533,16 +536,15 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 |---|---|---|---|---|
 | Layered | ELK | full | ✓ | Process models, application flows, service interactions with strong directionality and nested containers (ELK) |
 | Tree | ELK | full | — | Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK) |
-| Force | ELK | none | — | Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK) |
 | Stress | ELK | none | — | Dependency maps and impact analysis emphasising relational distance (ELK) |
 | Radial | ELK | none | — | Tree radiating from a central element: every depth on its own circle, each subtree in its own sector. Cycles are cut to a tree (ELK Radial) |
 | Grid | ELK | full | — | Portfolio overviews, catalogs and inventories with strong nesting support (ELK) |
 | Pack | ELK | full | — | High-level landscape summaries and grouped overviews with strong nesting support (ELK) |
 | Dagre | Dagre | partial | ~ | Fast process and application flows with limited nesting support (Dagre) |
 | Dot | Graphviz | cluster | ✓ | Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot) |
-| Neato | Graphviz | cluster | ✓ | Spring-model layout for undirected networks, with cluster nesting. No direction control (Graphviz neato) |
-| FDP | Graphviz | cluster | ✓ | Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp) |
-| SFDP | Graphviz | none | ✓ | Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp) |
+| Neato | Graphviz | none | ✓ | Spring-model layout for undirected networks. No nesting (use FDP) and no direction control (Graphviz neato) |
+| FDP | Graphviz | cluster | ✓ | Force-directed layout with cluster nesting; connections are routed around clusters (Graphviz fdp) |
+| SFDP | Graphviz | none | ✓ | Force-directed layout like FDP, built up over coarser versions of the graph: only gains over FDP on large networks (100+ elements). No nesting (Graphviz sfdp) |
 | Twopi | Graphviz | none | ✓ | Network on concentric circles by distance from a central element; every connection kept. No direction control or nesting (Graphviz twopi) |
 | Circo | Graphviz | none | ✓ | Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo) |
 <!-- /generated:algorithms -->
@@ -554,13 +556,13 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; a rule with Every shows it in every parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+| Nesting | `nestingRules` | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; a rule with Every shows it in every parent. Only relations an Include rule picks are nested; Exclude rules take relations out of those, so Exclude rules alone nest nothing. | Layered, Tree, Grid, Pack, Dagre, Dot, FDP |
 
 **Reverse**
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Reverse | `reverseRules` | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. | Layered, Tree, Grid, Pack, Dagre, Dot, Neato, FDP |
+| Reverse | `reverseRules` | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include rule picks are reversed; Exclude rules take relations out of those, so Exclude rules alone reverse nothing. | Layered, Tree, Grid, Pack, Dagre, Dot, FDP |
 
 **Containers**
 
@@ -568,7 +570,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 |---|---|---|---|
 | Layout inside | `containerAlgorithm` | Algorithm that arranges the elements inside each container. — Grid or Pack: Connections is locked to Between containers. | Layered, Tree, Grid, Pack |
 | Connections | `connectionsMode` | Between containers: each container is laid out on its own; connections enter at its border. — Crossing containers: the whole view is one layout; connections run straight to the element inside. | Layered |
-| Padding | `padding` | Space between a container's border and its contents. — px | Layered, Tree, Grid, Pack, Dot, Neato, FDP |
+| Padding | `padding` | Space between a container's border and its contents. — px | Layered, Tree, Grid, Pack, Dot, FDP |
 | Sort containers | `sortContainers` | Order containers by type and name, as elements always are. — Grid and Pack keep this order; the other algorithms start from it. | Layered, Tree, Grid, Pack, Dagre |
 | Same width per level | `alignWidthSameType` | Give all boxes of one nesting level the same width. — Each parent level is one padding step wider; a container never gets narrower than its contents. | Layered, Tree, Grid, Pack |
 | Snap columns to grid | `snapColumnsToGrid` | Line columns up top to bottom on one grid across the whole view. — Each column is as wide as its widest element; element sizes are unchanged. | Grid, Pack |
@@ -591,7 +593,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Height | `elementHeight` | Height of every element. — px — not used with Use label width. | all algorithms |
 | Use label width | `labelSizing` | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack |
 | Wrap label at | `labelMaxLineWidth` | Label width at which Use label width wraps to a second line. — px — only with Use label width. | Grid, Pack |
-| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px — Neato, FDP, SFDP: at least 2 × Distance to element, so a connection fits between two elements; the other value follows. | all algorithms |
+| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px — Neato, FDP, SFDP: at least 2 × Distance to element + 2, so a connection fits between two elements; the other value follows. | all algorithms |
 | Order | `elementOrder` | Order in which the elements outside containers go into the layout; another order gives the algorithm another starting point. — Inside a container the container's own order holds. | all algorithms |
 | Cycle | `cycleElementOrder` | Each layout of an existing view takes the next order: Selection, Name △, Type and name △, Name ▽. — A new view always starts with Selection. | all algorithms |
 
@@ -603,7 +605,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Label | `labelPosition` | Where the connection label sits. | Layered, Tree, Dagre, Dot, Neato, FDP, SFDP, Twopi, Circo |
 | Reserve label space | `connectionLabelSpacing` | Keep connection labels clear of other labels, connections and elements. — A layer gap widens where a label needs label + 2 × Between. | Layered |
 | Between | `connectionSpacing` | Distance between parallel connections, and between connection points on one side of an element. — px — elements grow to fit their connections; 0 = no growth. | Layered, Tree, Dagre |
-| Distance to element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of Distance between elements; the other value follows. | Layered, Tree, Neato, FDP, SFDP |
+| Distance to element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of (Distance between elements − 2); the other value follows. | Layered, Tree, Neato, FDP, SFDP |
 
 **View size**
 
@@ -684,7 +686,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 **Totals line** — between the tabs and the actions, always visible, the predicted on-view totals in the console's grouped form ([Counting rules](#counting-rules)), **hide-zero**: a field with value 0 is omitted, a sub-line whose fields are all 0 is skipped. It refreshes on every dialog change.
 
-**Action area** — two groups with the same rows (one field row, one button row), so fields and buttons line up; Cancel below, bottom right.
+**Action area** — two groups with the same rows (one field row, one button row), so fields and buttons line up; Cancel below, bottom right, as wide as a Modify button.
 - **Create new view** — *Folder* and *Name* (this group only), *New view*, *One view each*. Always enabled.
 - **Modify selected view** — *View: \<name\>* names the target (the view of the selected canvas objects, or a view selected in the model tree); *Expand view*, *Layout only*, both in place. *Expand view* is enabled only when objects on the view are selected — it expands from them. Without a target the line says what to select and the buttons are disabled.
 - **Cancel** — discards changes; remembers UI-only state (active tab) for the next open.
@@ -702,7 +704,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - **Default preset** always present; it cannot be renamed or deleted.
 - **Algorithm radio table.** All algorithms of all styles are always visible.
 - **Commit, not keystroke.** Live counts recompute on value-commit (arrow click, focus loss).
-- **Coupled distances.** For Neato, FDP and SFDP, Distance (elements) stays at least twice Distance to element: the value the user changes wins, the other follows; switching to one of these algorithms, or loading a preset for one that breaks the rule, lowers Distance to element at once — the `*` then shows the change.
+- **Coupled distances.** For Neato, FDP and SFDP, Distance (elements) stays at least twice Distance to element plus 2 px: the value the user changes wins, the other follows; switching to one of these algorithms, or loading a preset for one that breaks the rule, lowers Distance to element at once — the `*` then shows the change.
 - **Cycle.** An action saves the order for the next run in the session, so the dialog shows the order the next layout will use.
 - **Steps start expanded** on preset load; a collapsed step names its rule count.
 - **Empty selection** opens normally, all counts zero; actions still run. A malformed preset never aborts the dialog: unknown keys are dropped, missing keys get defaults.
@@ -946,37 +948,37 @@ Each algorithm declares a style (UI grouping only), a nesting capability (full /
 ✓ active · — greyed out in the dialog.
 
 <!-- generated:capability-matrix -->
-| Parameter | Layered | Tree | Force | Stress | Radial | Grid | Pack | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Nesting `nestingRules` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
-| Reverse `reverseRules` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
-| Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Padding `padding` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | — | — | — |
-| Sort containers `sortContainers` | ✓ | ✓ | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — |
-| Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Snap columns to grid `snapColumnsToGrid` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
-| Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Layer distance `layerSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | ✓ | — |
-| Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Use label width `labelSizing` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Wrap label at `labelMaxLineWidth` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Order `elementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Cycle `cycleElementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Routing `routing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
-| Label `labelPosition` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | — |
-| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Max width `maxWidth` | ✓ | ✓ | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Self-loops** (capability) | ✓ | — | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Parameter | Layered | Tree | Stress | Radial | Grid | Pack | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Nesting `nestingRules` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
+| Reverse `reverseRules` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
+| Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
+| Padding `padding` | ✓ | ✓ | — | — | ✓ | ✓ | — | ✓ | — | ✓ | — | — | — |
+| Sort containers `sortContainers` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — |
+| Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Snap columns to grid `snapColumnsToGrid` | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Direction `direction` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
+| Cycles `acyclicer` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Ranking `ranking` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
+| Layer distance `layerSpacing` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | — | — | — | ✓ | — |
+| Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Use label width `labelSizing` | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Wrap label at `labelMaxLineWidth` | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Order `elementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Cycle `cycleElementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Routing `routing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
+| Label `labelPosition` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
+| Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | — |
+| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Max width `maxWidth` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
+| Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Self-loops** (capability) | ✓ | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 <!-- /generated:capability-matrix -->
 
 **Self-loops** is a capability, not an option: ✓ = routed (by the engine, or a small corner loop drawn by the writer), ~ = partial (the engine tries, the writer draws the loop on failure), — = not drawn (left out of the layout graph and removed on re-layout).
@@ -986,7 +988,7 @@ Each algorithm declares a style (UI grouping only), a nesting capability (full /
 | Engine | max width | aspect ratio |
 |---|---|---|
 | Layered-family (ranked) and packing | upper bound, met by re-arranging (more rows); when unreachable (connection chains or the widest container set the width) the narrowest layout is used and this is reported | met approximately by re-arranging |
-| Force / stress / radial | not supported | met approximately by re-arranging |
+| Stress / radial | not supported | met approximately by re-arranging |
 | Cluster engines (dot family) | not supported — they can only widen a layout without scaling | passed as a ratio hint |
 | Simple ranked (no area) | not supported | not supported |
 
@@ -1022,7 +1024,7 @@ Rules apply in scopes, broad → narrow; for one concern the narrowest scope tha
 ### Current realisation
 
 - **Runtime:** a JavaScript script for the Archi modelling tool (jArchi 1.12 / GraalVM JS), SWT/GTK dialog.
-- **Engines:** ELK (Layered, Tree, Force, Stress, Radial, Grid, Pack), Dagre (Dagre), Graphviz (Dot, Twopi, Neato, FDP, SFDP, Circo).
+- **Engines:** ELK (Layered, Tree, Stress, Radial, Grid, Pack), Dagre (Dagre), Graphviz (Dot, Twopi, Neato, FDP, SFDP, Circo).
 - **File map (target):** `lib/generate_view.js` (orchestrator + writer), `lib/defs.js` (SSOT), `lib/selection_pipeline.js`, `lib/preset_io.js`, `lib/appearance.js`, `lib/engines/*` (registered adapters), `lib/gui/*` (per-tab dialog modules), headless `_*.ajs` entry scripts, `presets/**/*.json` presets + `_session.json`, `lib/run_preset.js` (filename-driven shortcut scripts), `tools/` (registry check, docs-table generator).
 
 ### Delta — spec vs current implementation
