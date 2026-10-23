@@ -305,7 +305,9 @@ reference](#nesting-reference).
 broken and elements assigned to layers (for the simple ranked algorithm); where elements sit
 within a layer — **centred** between the elements they connect to, or lined up for **straight
 lines** while leaning to one side; and the gap between layers (tree: between levels, never less
-than the element gap; radial: between rings).
+than the element gap; twopi: between rings, wider where elements would overlap). Radial sizes its
+rings itself: each depth on its own circle, every ring outside the one before, the first as large
+as its elements need.
 
 **Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen
 width; and the minimum **gap** between elements, also between unconnected groups.
@@ -712,9 +714,9 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 ┌─[Selection]──[Layout]─────────────────────────────────────────────────────┐
 │ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
 │ │ Flow:       ○ Layered   ○ Dagre    ○ Dot                              │ │
-│ │ Hierarchy:  ○ Tree      ○ Twopi                                       │ │
+│ │ Hierarchy:  ○ Tree      ○ Radial                                      │ │
 │ │ Network:    ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
-│ │ Circular:   ○ Radial    ○ Circo                                       │ │
+│ │ Circular:   ○ Twopi     ○ Circo                                       │ │
 │ │ Compact:    ○ Grid      ○ Pack                                        │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting ─────────────────────────────────────────────────────────────┐ │
@@ -795,9 +797,9 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Style | Algorithms | Tooltip |
 |---|---|---|
 | Flow | Layered, Dagre, Dot | Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models. |
-| Hierarchy | Tree, Twopi | Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition. |
+| Hierarchy | Tree, Radial | Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition. |
 | Network | Force, Stress, Neato, FDP, SFDP | Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks. |
-| Circular | Radial, Circo | Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures. |
+| Circular | Twopi, Circo | Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures. |
 | Compact | Grid, Pack | Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries. |
 <!-- /generated:styles -->
 
@@ -808,7 +810,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Tree | ELK | full | — | Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK) |
 | Force | ELK | none | — | Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK) |
 | Stress | ELK | none | — | Dependency maps and impact analysis emphasising relational distance (ELK) |
-| Radial | ELK | none | — | Domain overviews and hub-and-spoke structures (ELK) |
+| Radial | ELK | none | — | Tree radiating from a central element: every depth on its own circle, each subtree in its own sector. Cycles are cut to a tree (ELK Radial) |
 | Grid | ELK | full | — | Portfolio overviews, catalogs and inventories with strong nesting support (ELK) |
 | Pack | ELK | full | — | High-level landscape summaries and grouped overviews with strong nesting support (ELK) |
 | Dagre | Dagre | partial | ~ | Fast process and application flows with limited nesting support (Dagre) |
@@ -816,7 +818,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Neato | Graphviz | cluster | ✓ | Spring-model layout for undirected networks, with cluster nesting. No direction control (Graphviz neato) |
 | FDP | Graphviz | cluster | ✓ | Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp) |
 | SFDP | Graphviz | none | ✓ | Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp) |
-| Twopi | Graphviz | none | ✓ | Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi) |
+| Twopi | Graphviz | none | ✓ | Network on concentric circles by distance from a central element; every connection kept. No direction control or nesting (Graphviz twopi) |
 | Circo | Graphviz | none | ✓ | Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo) |
 <!-- /generated:algorithms -->
 
@@ -855,7 +857,7 @@ by", is the last column).
 | Cycles | `acyclicer` | How relation cycles are broken before layout. — Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles. | Dagre |
 | Ranking | `ranking` | How elements are assigned to layers. — Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster. | Dagre |
 | Placement | `nodePlacement` | Where elements sit within their layer. — Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side. | Layered |
-| Layer distance | `layerSpacing` | Distance between layers along the flow; Tree: between levels; Radial and Twopi: between rings. — px — Tree: at least Distance between elements; with Reserve label space a gap widens to fit its labels. | Layered, Tree, Radial, Dagre, Dot, Twopi |
+| Layer distance | `layerSpacing` | Distance between layers along the flow; Tree: between levels; Twopi: between rings, wider where elements would overlap. — px — Tree: at least Distance between elements; with Reserve label space a gap widens to fit its labels. | Layered, Tree, Dagre, Dot, Twopi |
 
 **Elements**
 
@@ -865,7 +867,7 @@ by", is the last column).
 | Height | `elementHeight` | Height of every element. — px — not used with Use label width. | all algorithms |
 | Use label width | `labelSizing` | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack |
 | Wrap label at | `labelMaxLineWidth` | Label width at which Use label width wraps to a second line. — px — only with Use label width. | Grid, Pack |
-| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px | all algorithms except Twopi |
+| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px | all algorithms |
 
 **Connections**
 
@@ -1371,12 +1373,12 @@ generated from the registry — never edited by hand.
 | Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Layer distance `layerSpacing` | ✓ | ✓ | — | — | ✓ | — | — | ✓ | ✓ | — | — | — | ✓ | — |
+| Layer distance `layerSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | ✓ | — |
 | Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Use label width `labelSizing` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Wrap label at `labelMaxLineWidth` | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Routing `routing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
 | Label `labelPosition` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |

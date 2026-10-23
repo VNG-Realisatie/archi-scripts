@@ -26,9 +26,9 @@ const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 
 const STYLES = Object.freeze({
   Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models." },
-  Hierarchy: { algorithms: ["Tree", "Twopi"],                                tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
+  Hierarchy: { algorithms: ["Tree", "Radial"],                               tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
   Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],      tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
-  Circular:  { algorithms: ["Radial", "Circo"],                              tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
+  Circular:  { algorithms: ["Twopi", "Circo"],                               tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
   Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
 });
 
@@ -112,7 +112,7 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
   nodePlacement:            ["Where elements sit within their layer.",
                              "Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side."],
-  layerSpacing:             ["Distance between layers along the flow; Tree: between levels; Radial and Twopi: between rings.",
+  layerSpacing:             ["Distance between layers along the flow; Tree: between levels; Twopi: between rings, wider where elements would overlap.",
                              "px — Tree: at least Distance between elements; with Reserve label space a gap widens to fit its labels."],
   elementWidth:             ["Width of every element.", "px — not used with Use label width."],
   elementHeight:            ["Height of every element.", "px — not used with Use label width."],
@@ -272,13 +272,13 @@ const ALGORITHMS = Object.freeze({
   Radial: {
     engine:               "ELK",
     engineAlgorithmId:    "radial",
-    style:                "Circular",
+    style:                "Hierarchy",
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
-    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "layerSpacing", "elementSpacing", "aspectRatio"],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
-    tooltip: "Domain overviews and hub-and-spoke structures (ELK)",
+    tooltip: "Tree radiating from a central element: every depth on its own circle, each subtree in its own sector. Cycles are cut to a tree (ELK Radial)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -423,18 +423,18 @@ const ALGORITHMS = Object.freeze({
   Twopi: {
     engine:               "Graphviz",
     engineAlgorithmId:    "twopi",
-    style:                "Hierarchy",
+    style:                "Circular",
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
-      "labelPosition", "layerSpacing",
+      "labelPosition", "layerSpacing", "elementSpacing",
     ],
     supportedOptions: {
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi)",
+    tooltip: "Network on concentric circles by distance from a central element; every connection kept. No direction control or nesting (Graphviz twopi)",
     paramConflicts: CONFLICTS_VIEW,
   },
 

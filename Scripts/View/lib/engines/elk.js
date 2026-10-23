@@ -44,6 +44,7 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
  * @property {string}           _relName
  * @property {string[]}         sources
  * @property {string[]}         targets
+ * @property {boolean}          [_treeReversed]  spanning-tree edge turned away from the root (Radial); turned back in the result
  * @property {Record<string, unknown>} [properties]
  * @property {ElkWorkLabel[]}   [labels]
  * @property {ElkEdgeSection[]} [sections]   set by ELK
@@ -201,8 +202,13 @@ const PARAM_MAPPING = {
   },
 
   Radial: {
-    root:      { layerSpacing: (/** @type {number} */ v) => ({ "elk.radial.radius": String(v) }), elementSpacing: _ELEM_SPACING, diagramPadding: _PAD_DIAGRAM },
-    container: {                                                              elementSpacing: _ELEM_SPACING, padding: _PAD_CONTAINER },
+    // No layerSpacing: elk.radial.radius is set only by the second run (_radialSecondRunRadius),
+    // which keeps every ring outside the one before.
+    // No elk.radial.compactor: RADIAL_COMPACTION depends on the input order and can pull a child
+    // inside its parent's ring (also with optimizationCriteria); WEDGE_COMPACTION scatters a depth
+    // over several radii.
+    root:      { elementSpacing: _ELEM_SPACING, diagramPadding: _PAD_DIAGRAM },
+    container: { elementSpacing: _ELEM_SPACING, padding: _PAD_CONTAINER },
   },
 
   Grid: {
@@ -560,10 +566,20 @@ function _layoutOnce(graph, measureOnly) {
 
   // ELK Radial requires a spanning tree (no cycles). Convert here so c2c terminates.
   const processedEdgeList = graph.algorithm === "Radial" ? _spanningTree(nodeMap, edgeList) : edgeList;
-  const { elkGraph, edgeMeta } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
+  let { elkGraph, edgeMeta } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph);
   const tLayout = Date.now();
-  const layouted = elk.layout(elkGraph);
+  let layouted = elk.layout(elkGraph);
   log(`ELK result: width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}  (${Date.now() - tLayout} ms)`);
+
+  // Radial: a second run with a fixed radius when deeper rings landed inside the first.
+  const radialRadius = graph.algorithm === "Radial" ? _radialSecondRunRadius(layouted, processedEdgeList) : 0;
+  if (radialRadius > 0) {
+    layoutOptions["elk.radial.radius"] = String(radialRadius);
+    ({ elkGraph, edgeMeta } = _buildELKGraph(layoutOptions, nodeMap, processedEdgeList, parentMap, graph));
+    const t2 = Date.now();
+    layouted = elk.layout(elkGraph);
+    log(`ELK result (Radial second run, radius ${radialRadius}): width=${Math.round(layouted.width || 0)} height=${Math.round(layouted.height || 0)}  (${Date.now() - t2} ms)`);
+  }
 
   // Align-by-level diagnostics: compare each box's target to its final rendered width.
   // A container final < target means the MINIMUM_SIZE floor was not honoured by the engine.
@@ -794,12 +810,69 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
 }
 
 /**
+ * ELK Radial puts ring k at k × step (step = largest element diagonal). When the first ring is too
+ * small for its elements ELK widens it and moves the second ring out with it, but leaves ring 3
+ * and deeper where they were — inside the first. A second run with a fixed radius R keeps ring 1 at
+ * the size it needs (r1), ring 2 at r1 + R and ring k ≥ 3 at k × R; R = (r1 + step) / 2 puts ring
+ * 3 one step outside ring 2.
+ * @param {ElkRoot}       layouted   first-run result
+ * @param {ElkWorkEdge[]} treeEdges  spanning tree, every edge pointing away from the root
+ * @returns {number} radius for the second run; 0 when the first run needs none
+ */
+function _radialSecondRunRadius(layouted, treeEdges) {
+  const kids = layouted.children || [];
+  /** @type {Record<string, ElkWorkNode>} */
+  const byId = {};
+  for (const c of kids) byId[c.id] = c;
+  const hasIncoming = new Set(treeEdges.map(e => e.targets[0]));
+  const root = kids.find(c => !hasIncoming.has(c.id));
+  if (!root) return 0;
+
+  /** @type {Record<string, string[]>} */
+  const out = {};
+  for (const e of treeEdges) (out[e.sources[0]] = out[e.sources[0]] || []).push(e.targets[0]);
+  /** @type {Record<string, number>} */
+  const depth = { [root.id]: 0 };
+  const queue = [root.id];
+  let maxDepth = 0;
+  while (queue.length) {
+    const cur = /** @type {string} */ (queue.shift());   // Cast: the queue is not empty
+    for (const nb of (out[cur] || [])) {
+      if (depth[nb] !== undefined) continue;
+      depth[nb] = depth[cur] + 1;
+      maxDepth = Math.max(maxDepth, depth[nb]);
+      queue.push(nb);
+    }
+  }
+  if (maxDepth < 3) return 0;
+
+  // Casts: ELK sets x, y on every node; leaves keep their size.
+  const centre = (/** @type {ElkWorkNode} */ n) => ({
+    x: /** @type {number} */ (n.x) + /** @type {number} */ (n.width)  / 2,
+    y: /** @type {number} */ (n.y) + /** @type {number} */ (n.height) / 2,
+  });
+  const c0 = centre(root);
+  const step = Math.max(...kids.map(n => Math.hypot(/** @type {number} */ (n.width), /** @type {number} */ (n.height))));
+  let ring1 = 0;
+  for (const id of Object.keys(depth)) {
+    if (depth[id] !== 1 || !byId[id]) continue;
+    const c = centre(byId[id]);
+    ring1 = Math.max(ring1, Math.hypot(c.x - c0.x, c.y - c0.y));
+  }
+  if (ring1 <= step + 1) return 0;   // first ring not widened: every ring at k × step
+  return Math.ceil((ring1 + step) / 2);
+}
+
+/**
  * @param {Record<string, ElkWorkNode>} nodeMap
  * @param {ElkWorkEdge[]}               edgeList
  * @returns {ElkWorkEdge[]}
  */
 function _spanningTree(nodeMap, edgeList) {
-  // BFS spanning tree — removes cycles so ELK Radial's c2c traversal terminates.
+  // BFS spanning tree — removes cycles so ELK Radial's c2c traversal terminates. Every tree edge
+  // points away from its component root: ELK Radial takes each node without an incoming edge as a
+  // root, so edges in the relation's own direction give several roots and stack their subtrees on
+  // one spot. Each component starts at its best-connected element, which keeps the tree shallow.
   // Disconnected components are connected to the first root via virtual edges.
   const nodeIds = Object.keys(nodeMap);
   if (!nodeIds.length) return edgeList;
@@ -820,7 +893,9 @@ function _spanningTree(nodeMap, edgeList) {
   /** @type {string[]} */
   const componentRoots = [];
 
-  for (const startId of nodeIds) {
+  const degree = (/** @type {string} */ id) => (adj[id] || []).length;
+  const byDegree = nodeIds.slice().sort((a, b) => degree(b) - degree(a));   // stable: ties keep input order
+  for (const startId of byDegree) {
     if (visited.has(startId)) continue;
     componentRoots.push(startId);
     visited.add(startId);
@@ -830,7 +905,8 @@ function _spanningTree(nodeMap, edgeList) {
       for (const { id: nbId, edge } of (adj[cur] || [])) {
         if (!visited.has(nbId)) {
           visited.add(nbId);
-          treeEdges.push(edge);
+          const away = edge.sources[0] === cur;
+          treeEdges.push(away ? edge : Object.assign({}, edge, { sources: [cur], targets: [nbId], _treeReversed: true }));
           queue.push(nbId);
         }
       }
@@ -1382,8 +1458,11 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
 
   // Section start/end (absolute) — the physical exit/entry ports of the connection.
   // Passed to the writer so extra label-alignment bendpoints stay outside elements.
-  const srcPort = pathStart;
-  const tgtPort = pathEnd;
+  // A spanning-tree edge laid out against its relation's direction (Radial) is turned back.
+  const flip    = !!edge._treeReversed && !meta;
+  const srcPort = flip ? pathEnd : pathStart;
+  const tgtPort = flip ? pathStart : pathEnd;
+  if (flip) bps = bps.slice().reverse();
 
   // Label position — use ELK's computed result when available (connectionLabelSpacing mode),
   // otherwise derive from geometry.
@@ -1393,8 +1472,8 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
   resultEdges.push({
     id:            originalId,
     conceptId:     originalId,
-    sourceId:      meta ? meta.origSrcId : edge.sources[0],
-    targetId:      meta ? meta.origTgtId : edge.targets[0],
+    sourceId:      meta ? meta.origSrcId : (flip ? edge.targets[0] : edge.sources[0]),
+    targetId:      meta ? meta.origTgtId : (flip ? edge.sources[0] : edge.targets[0]),
     bendpoints:    bps,
     srcPort,
     tgtPort,

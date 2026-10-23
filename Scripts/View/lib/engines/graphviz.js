@@ -80,6 +80,10 @@ const PARAM_MAPPING = {
   },
   Twopi: {
     layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    // twopi alone leaves elements on top of each other when a ring is too small for them; vpsc
+    // moves them apart (positions only), so the diameter follows the element size and distance
+    // while a larger Layer distance still widens the rings.
+    elementSpacing: (v) => ({ overlap: "vpsc", sep: `+${(v / 96).toFixed(4)}` }),
     diagramPadding: _GV_PAD,
     aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },

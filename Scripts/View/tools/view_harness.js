@@ -11,7 +11,8 @@
  *        [--reverse]   feed elements and relations in reverse order (order-independence check)
  *        [--layout]    also run the layout engine
  *
- * As a module: loadModel, viewContents, newView, resolve, layoutGraph, layout, simulateWrite (see below).
+ * As a module: loadModel, viewContents, newView, maskPreset, resolve, layoutGraph, layout, simulateWrite (see below).
+ * Params are masked to the algorithm's active ones (maskPreset), as generate_view does.
  */
 const fs   = require("fs");
 const path = require("path");
@@ -161,9 +162,18 @@ function resolve(params, contents) {
   return { split, nesting };
 }
 
+/**
+ * The preset as generate_view runs it: params masked to the algorithm's active ones, so an inactive
+ * param (e.g. connectionSpacing for Radial) does not change element sizes or spacing.
+ */
+function maskPreset(preset) {
+  return { ...preset, params: Defs.effectiveParams(preset) };
+}
+
 /** The LayoutGraph generate_view would hand to the engine. */
 function layoutGraph(preset, contents) {
   const GenView = require(LIB + "generate_view");
+  preset = maskPreset(preset);
   const split = Pipeline.splitNestingRels(contents.relations, preset.params);
   return GenView.buildLayoutGraph(preset, contents.elements, split.connectionRels.slice(), split.nestingRels, [],
     contents.visuals, contents.visualRelations);
@@ -210,7 +220,7 @@ function summarize(nesting, byId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseXml, jarchiType, loadModel, findView, viewContents, newView, resolve, layoutGraph, layout,
+  module.exports = { parseXml, jarchiType, loadModel, findView, viewContents, newView, maskPreset, resolve, layoutGraph, layout,
                      simulateWrite, summarize };
 }
 
@@ -220,7 +230,7 @@ if (require.main === module) {
   const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
   const flags = new Set(process.argv.slice(2).filter(a => a.startsWith("--")));
   if (args.length < 2) { _log("usage: view_harness.js <model.archimate> <view path> [preset.json] [--on-view] [--new-view] [--reverse] [--layout]"); process.exit(2); }
-  const preset = Defs.validatePreset(args[2] ? JSON.parse(fs.readFileSync(args[2], "utf8")) : {});
+  const preset = maskPreset(Defs.validatePreset(args[2] ? JSON.parse(fs.readFileSync(args[2], "utf8")) : {}));
   const model = loadModel(args[0]);
   const view = findView(model, args[1]);
   let contents = viewContents(model, view, { onView: flags.has("--on-view"), reverse: flags.has("--reverse") });
