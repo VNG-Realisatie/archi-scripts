@@ -16,7 +16,7 @@ Scripts/View/presets/_session.json
 # test files
 Scripts/_test
 Scripts/View/test
-Scripts/View/presets/test
+Scripts/View/presets/Test
 Scripts/View/presets/GEMMA/*
 !Scripts/View/presets/GEMMA/GGM
 
