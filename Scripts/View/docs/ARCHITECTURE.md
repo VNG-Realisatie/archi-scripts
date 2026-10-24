@@ -12,7 +12,7 @@
 
 On a conflict SPEC.md wins.
 
-**Order of change.** A behaviour change is written in SPEC.md first (its reason in Part A), a realisation change in Part B first, then the code. Docs and code change in the same commit.
+**Order of change.** A change is agreed with the user and built and verified in code first; after the user's approval the behaviour goes in SPEC.md (its reason in Part A) and the realisation in Part B. Docs and code change in the same commit. The binding steps are in [`Scripts/View/AGENTS.md`](../AGENTS.md) § Docs.
 
 ## Marker conventions
 
@@ -90,7 +90,7 @@ Why the system behaves as [SPEC.md](SPEC.md) describes, where the choice was not
 How the View subsystem realises [SPEC.md](SPEC.md) in jArchi 1.12 (GraalVM JS), SWT and Archi 5. Per subject: the **choice**, **why**, and **where**. The code documents itself; this part is the index and the reasoning behind it.
 
 **Rules for this part.**
-- A realisation change is written here **first**, then built. Planned realisation is marked *Target*; what the code does today and SPEC does not want yet is listed under [Known gaps](#b7-known-gaps).
+- A realisation change is written here after the user approved the built change, in the same commit (order: [Content division](#content-division)). Planned realisation is marked *Target*; what the code does today and SPEC does not want yet is listed under [Known gaps](#b7-known-gaps).
 - Not here: internal function or variable names, restated code, tables that the code or `tools/gen_docs_tables.js` already hold, change history (git).
 - Point to files and exported names only.
 
@@ -275,7 +275,8 @@ View-specific jArchi behaviour; general jArchi rules are in [`ai/jarchi-scriptin
 | `node Scripts/View/tools/nesting_test.js [model.archimate]` | Nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders); managed occurrences: capture, pairing, connections between occurrences |
 | `node Scripts/View/tools/view_harness.js <model.archimate> <view path> [preset] [--on-view] [--layout]` | A view from a model file → pipeline input → nesting → layout graph → engine — not the writer, not rendering; not Graphviz either (its Java stand-in cannot start the `dot` process) |
 | `node Scripts/View/tools/preset_diff.js <preset.json> [other.json]` | What a preset and the last dialog run (`_session.json`) differ in, after defaults; params the algorithm does not use are marked |
-| [`ai/view-testing.md`](../../../ai/view-testing.md) | Test approach for a reported view, and the test-case log |
+| Skill `view-testing` ([`ai/view-testing/SKILL.md`](../../../ai/view-testing/SKILL.md)) | Test approach for a reported view |
+| [test-cases.md](test-cases.md) | Log of reported view test cases: finding, cause, change, status |
 | `test/test_visual_props.ajs`, `test/_test_self_loops.ajs` (in Archi) | Appearance kept by bounds; self-loop drawing |
 | Run the action in Archi on a test view | Writer and rendering |
 

@@ -354,7 +354,7 @@ The system's invariants are directly testable; a rebuild is accepted when these 
 - **Schema migration.** Every preset carries a `schemaVersion`. An older shape is migrated by an explicit, documented one-shot migration; loading an unmigrated preset is refused with a message, never silently reinterpreted. New configuration keys are added to the defaults in the same change that introduces them, or they are dropped by validation.
 - **Vocabulary.** Follow rules 16–17; the [Vocabulary](#2-vocabulary) section is authoritative.
 - **Logging.** Console output mirrors the orchestration phases as named steps (validate → selection → layout graph → layout → target → write), each with a consistent, column-stable count block so prediction and result can be compared at a glance ([console logging](#console-logging)).
-- **Rule layering.** Rules apply global → repo → skill → subsystem, **narrowest wins** ([scopes](#rule-scopes)). This spec is the subsystem authority for the View system.
+- **Rule layering.** Development rules are layered generic → project → part, narrowest wins ([scopes](#rule-scopes)). This spec is the part's authority on what the View system does.
 
 ---
 
@@ -1031,14 +1031,7 @@ The dialog logs one block before it opens (Selected / Containing / Filtered), no
 
 ### Rule scopes
 
-Rules apply in scopes, broad → narrow; for one concern the narrowest scope that addresses it wins, broader rules apply where narrower ones are silent. Plan files and other working notes are not rules; they never override them. The concrete files per scope are listed in the repo's `ai/rules.md`.
-
-| Scope | Governs |
-|---|---|
-| Global | Conventions across the user's projects — naming, module layout, file headers, logging. |
-| Repo-wide | Entry point and vocabulary; runtime constraints; module structure; testing policy; README. |
-| Shared library | Contracts every subsystem relies on — selection helpers, utilities, folder resolution. |
-| Subsystem | This system's own rules: this specification and ARCHITECTURE.md. |
+Development rules apply in scopes — generic, project, shared library, part (the View system) — and for one concern the narrowest scope wins. The scopes, what each governs and their files are in the repo's [`AGENTS.md`](../../../AGENTS.md) § Hierarchy; the View system's own rules are in [`Scripts/View/AGENTS.md`](../AGENTS.md).
 
 ### Current realisation
 

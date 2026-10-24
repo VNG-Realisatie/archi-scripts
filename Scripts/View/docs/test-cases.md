@@ -1,43 +1,7 @@
-# View test approach
+# View test cases
 
-How to work a View test case the user reports ("view X with preset Y looks wrong").
-
-## Inputs
-
-- **Model:** `/home/mark/Documents/Archi/model-repository/wiki-gemma-model/.git/temp.archimate` — the
-  coArchi working copy: saved, not yet committed (views land under `model/diagrams/` only after a
-  coArchi commit). Compare its mtime with when the user saved. Other models live next to it, e.g.
-  `softwarecatalogus-archi-repository/.git/temp.archimate`; such a file can be a zip archive
-  (`file` says so) — unzip it and use `model.xml`.
-- **View:** a name without a folder is in `Views/Test`.
-- **Preset:** ask which one was used when the user does not name it. `Test/AlgoTree` =
-  `Scripts/View/presets/Test/AlgoTree.json`.
-- **What actually ran:** the dialog writes the parameters of its last run to
-  `Scripts/View/presets/_session.json`. Settings changed in the dialog are there, not in the preset
-  file.
-
-## Steps
-
-1. **Preset vs. session.** When the user names a preset, show how it differs from the last run:
-   `node Scripts/View/tools/preset_diff.js <preset.json>` (marks params the algorithm does not use).
-2. **The view as Archi wrote it.** Element bounds and connection bendpoints from the model file
-   (`<child><bounds>` relative to the parent; bendpoints relative to the source centre).
-3. **Reproduce in Node.** `node Scripts/View/tools/view_harness.js <model> "Views/Test/<view>"
-   Scripts/View/presets/_session.json --on-view --layout` — `--on-view` takes the relations drawn
-   on the view, as Layout and Expand do. Params are masked to the algorithm's active ones, as in
-   Archi. The reported size should match the view in Archi; if it does not, compare element sizes
-   first. An engine whose result depends on input order: check `--reverse` and shuffled orders.
-   Graphviz algorithms do not run in the harness (its Java stand-in cannot start the `dot`
-   process): feed `dot -K<engine> -Tjson` the DOT the adapter logs, or measure the view's geometry
-   from the model file. To run the adapter itself in Node, compile `graphviz.js` with its process
-   runner replaced by `child_process.execFileSync("dot", args, { input })`. Compare the console's
-   element count with the harness: the harness leaves diagram objects (notes, groups) out, Archi
-   lays them out — a single loose note changed circo's result.
-4. **Find the cause** in the adapter or engine (raw elkjs experiments:
-   `Scripts/node_modules/elkjs/lib/elk.bundled.js`), change, and measure again in the harness.
-5. **The user checks in Archi** — the writer and rendering are not covered by the harness.
-
-## Test cases
+Log of reported View test cases: what was wrong, the cause and the change. Procedure: skill
+`view-testing` (`ai/view-testing/SKILL.md`). Add a row per case; update Status after the check in Archi.
 
 | # | View | Preset | Finding | Status |
 |---|---|---|---|---|

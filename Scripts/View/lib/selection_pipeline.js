@@ -72,7 +72,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
     console.log(`${INDENT}Modify-selected-view action: element-type filter skipped`);
   }
 
-  // Filtered base counts — use jArchi selector API (ai/rules.md #11).
+  // Filtered base counts — use jArchi selector API (ai/jarchi-scripting/SKILL.md, Filter by selector).
   const filteredElemCount = collection.filter("element").size();
   const filteredRelCount  = collection.filter("relationship").size();
   const filteredCounts    = { elems: filteredElemCount, rels: filteredRelCount, diag: diagramObjects.length };
@@ -153,7 +153,7 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params, visuals);
 
   // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
-  // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
+  // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (AGENTS.md). ──
   /** @type {CountRow[]} */
   const rows = [{
     label: isModifyAction ? "Unfiltered base:" : "Filtered base:",
@@ -269,7 +269,7 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds) {
 function _logCountBlock(title, rows) {
   const RULE = "──────────────────────────────────────────────";
   // [key (== plural), singular, plural]. The key is the user-facing plural word —
-  // no abbreviations, per the canonical-vocabulary rule (ai/rules.md #11).
+  // no abbreviations, per the canonical-vocabulary rule (AGENTS.md).
   const FIELDS = [
     ["elements",         "element",          "elements"],
     ["relations",        "relation",         "relations"],
@@ -1174,7 +1174,7 @@ function _splitNestingRels(relations, params) {
  * elements + relations + the current preset.params. Used by both the pipeline log
  * and the dialog's live counter so what the user sees matches what gets written.
  *
- * Returned shape follows the canonical vocabulary (ai/rules.md #11):
+ * Returned shape follows the canonical vocabulary (AGENTS.md):
  *   elements         — unique model concepts (= containers + nestedElements + standalones)
  *   containers       — elements with ≥1 child
  *   nestedElements   — elements inside a container; not themselves a container

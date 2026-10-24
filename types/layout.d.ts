@@ -1,7 +1,7 @@
 /**
  * View subsystem — engine contract: layout(LayoutGraph) → LayoutResult (SPEC §8, appendix
  * "Layout graph and result"), plus the nesting resolution the graph carries. Not loaded at runtime.
- * Adapters (engines/*.js) see only these shapes: no $, no selection, no view (ai/rules.md #3).
+ * Adapters (engines/*.js) see only these shapes: no $, no selection, no view (Scripts/View/AGENTS.md).
  */
 
 /** One occurrence of an element (or a diagram object) to place. */
@@ -41,7 +41,7 @@ interface LayoutGraph {
   alignWidthSameType: boolean;
   snapColumnsToGrid: boolean;
   sortContainers: boolean;
-  /** Occurrence id → parent occurrence id (container-ness is derived from this; ai/rules.md #5). */
+  /** Occurrence id → parent occurrence id (container-ness is derived from this; Scripts/View/AGENTS.md). */
   _parentMap: Record<string, string>;
   _parentRels: ParentRel[];
   /** Element id → its occurrence ids. */

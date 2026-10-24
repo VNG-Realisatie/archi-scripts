@@ -944,7 +944,7 @@ function _persistSession(ctx, params = {}) {
 /**
  * Format the on-screen "Output:" strip for the Generated view group. Multi-line,
  * grouped by element/relation/diagram, hide-zero subfields, skip empty sub-lines.
- * Uses the canonical vocabulary (ai/rules.md #11): containers · nested elements ·
+ * Uses the canonical vocabulary (AGENTS.md): containers · nested elements ·
  * standalones · extra occurrences for the element role split; nestings · connections
  * for the relation form split; diagram objects for canvas-only objects. "Relation"
  * never appears on view-side rows (model-side term only).

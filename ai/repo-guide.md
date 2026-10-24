@@ -1,6 +1,6 @@
 # Repo guide — archi-scripts
 
-Where things are and how scripts are put together. Rules: `ai/rules.md`. jArchi itself:
+Where things are and how scripts are put together. Rules: `AGENTS.md`. jArchi itself:
 `ai/jarchi-scripting/SKILL.md`.
 
 ## Structure
@@ -16,7 +16,7 @@ Where things are and how scripts are put together. Rules: `ai/rules.md`. jArchi 
 | `Scripts/ImportExport_CSV/`, `Scripts/Sync from CSV/` | CSV import / export / sync |
 | `Scripts/Layout/` | Connection layout: L/S-shaped, orthogonal, spread |
 | `Scripts/Report/` | Markdown reports from views |
-| `Scripts/View/` | View generation with ELK, Dagre, Graphviz (`Scripts/View/CLAUDE.md`) |
+| `Scripts/View/` | View generation with ELK, Dagre, Graphviz (`Scripts/View/AGENTS.md`) |
 | `Scripts/_lib/` | Shared modules (below) |
 | `Scripts/node_modules/` | Vendored runtime libraries (elkjs, dagre, chroma-js, papaparse, …) — no npm at runtime |
 | `types/`, `jsconfig.json`, `package.json`, `tools/` | Static type checking and its verification tools (`types/README.md`) — development only |
@@ -61,7 +61,7 @@ one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else do
 | What | How |
 |---|---|
 | Types and API use (View/lib, three `_lib` modules) | `npm run typecheck` (`types/README.md`) |
-| View pipeline, nesting, layout graph, ELK / Dagre adapters | Node, no Archi: `node Scripts/View/tools/view_harness.js <model.archimate> "<view path>" [preset.json] --layout`; `nesting_test.js`, `rel_filter_test.js` in the same folder; a reported view: `ai/view-testing.md` |
+| View pipeline, nesting, layout graph, ELK / Dagre adapters | Node, no Archi: `node Scripts/View/tools/view_harness.js <model.archimate> "<view path>" [preset.json] --layout`; `nesting_test.js`, `rel_filter_test.js` in the same folder; a reported view: skill `view-testing` (`ai/view-testing/SKILL.md`) |
 | Writer, Graphviz (needs `ProcessBuilder`), dialogs, everything else | Run the script in Archi on a small test model; golden path plus empty selection, one element, deep nesting |
 | jArchi API assumptions | `Scripts/Develop/probeJArchiApi.ajs` in Archi |
 | A refactor or annotation changes no behaviour | `tools/same-code.js` (code), `tools/compare-layouts.js` (layout output) — `types/README.md` |
