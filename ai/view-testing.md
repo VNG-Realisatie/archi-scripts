@@ -6,7 +6,9 @@ How to work a View test case the user reports ("view X with preset Y looks wrong
 
 - **Model:** `/home/mark/Documents/Archi/model-repository/wiki-gemma-model/.git/temp.archimate` — the
   coArchi working copy: saved, not yet committed (views land under `model/diagrams/` only after a
-  coArchi commit). Compare its mtime with when the user saved.
+  coArchi commit). Compare its mtime with when the user saved. Other models live next to it, e.g.
+  `softwarecatalogus-archi-repository/.git/temp.archimate`; such a file can be a zip archive
+  (`file` says so) — unzip it and use `model.xml`.
 - **View:** a name without a folder is in `Views/Test`.
 - **Preset:** ask which one was used when the user does not name it. `Test/AlgoTree` =
   `Scripts/View/presets/Test/AlgoTree.json`.
@@ -27,7 +29,10 @@ How to work a View test case the user reports ("view X with preset Y looks wrong
    first. An engine whose result depends on input order: check `--reverse` and shuffled orders.
    Graphviz algorithms do not run in the harness (its Java stand-in cannot start the `dot`
    process): feed `dot -K<engine> -Tjson` the DOT the adapter logs, or measure the view's geometry
-   from the model file.
+   from the model file. To run the adapter itself in Node, compile `graphviz.js` with its process
+   runner replaced by `child_process.execFileSync("dot", args, { input })`. Compare the console's
+   element count with the harness: the harness leaves diagram objects (notes, groups) out, Archi
+   lays them out — a single loose note changed circo's result.
 4. **Find the cause** in the adapter or engine (raw elkjs experiments:
    `Scripts/node_modules/elkjs/lib/elk.bundled.js`), change, and measure again in the harness.
 5. **The user checks in Archi** — the writer and rendering are not covered by the harness.
@@ -46,3 +51,7 @@ How to work a View test case the user reports ("view X with preset Y looks wrong
 | 8 | Views/Test/network/* | session (Network algorithms) | Stress: 82 overlapping pairs on 480×537 (ELK Stress ignores Element distance; edge length 100 < element width; no overlap removal). Neato/FDP/SFDP: straight lines through elements also with Polyline/Splines — at Element distance = 2 × Distance to element `sep` = `esep` and the router falls back; FDP/SFDP without `overlap` still fell back at times. Force slow and messy (45 crossings, 14 lines through elements) | Stress + ELK SPOrE (0 overlap, 990×1104); dialog keeps Element distance ≥ 2 × Distance to element + 2; `overlap=prism` for Neato, FDP, SFDP (FDP with clusters: none); Force removed; to check in Archi |
 | 9 | FDP | Test/FDP | Nothing nested: the nesting list held only an Exclude rule (aggregation, target Grouping); a feature list starts from nothing | Not a bug. Mode tooltip per kind of list, filter labels say "no Include rule = keep all, minus Exclude", note under Nesting / Reverse when no Include rule is on; to check in Archi |
 | 10 | 0 Bestuur, Politiek en Ondersteuning | aggregation + composition nesting, Neato | 28 of 32 nested elements outside their container: neato places elements ignoring clusters (every mode; `mode=ipsep` crashes in Graphviz 14.1), and the adapter's derived cluster box held only the container and its first child | Neato does not nest (Nesting, Padding, Reverse greyed); cluster-box derivation removed (dot and fdp emit boxes); FDP nests with 0 outside |
+| 11 | circo | Test/Circo | Messy result: elements overlapping (`mindist` only), lines straight through elements (no routing), circles stretched by the aspect ratio; on a model with a hub circo gave a star with arcs | Circo: `overlap=prism` + `sep`, Routing and Distance to element, no aspect ratio; option Circles (One circle, default / Per cycle); tooltip says which models suit it | checked in Archi |
+| 12 | DevOps en rollen (copy) | Test/Circo | A relation floating towards DevOps team: user copies stayed in their old container while circo laid them out flat, at negative coordinates, clipped by Archi. A line starting inside Release: Graphviz passed no line ends, so the label points were interpolated from the element centre | User content the settings place nowhere goes to view root; Graphviz passes where each line leaves and enters the elements | checked in Archi |
+| 13 | DevOps en rollen (copy) | Test/Circo | At 50 % zoom arrowheads turned; on Tester → Test (15 px) dot and arrowhead lay on top of each other. Six pairs of elements overlapping: one loose note made two parts, and circo then skips overlap removal. Five roles 616–732 px from their team: circo's centre was an element outside every cycle. The note far from its element: its line was not laid out | Bendpoints 12 px from elements, 5 px apart; shortest connection 20 px (dialog floor for Element distance); circo second run (`neato -n1`) for a graph of more parts; Per cycle centre in the largest cycle; diagram connections laid out | checked in Archi |
+| 14 | Applicatiearchitectuur MVP (copy) | Test/Circo | The legend (a group with seven example elements) fell apart: the elements spread over the view, an empty group box left | Diagram-blocks: a diagram object with contents is laid out as one, keeping its size, appearance and contents; every container (also a group) counts when the writer moves a visual | to check in Archi |

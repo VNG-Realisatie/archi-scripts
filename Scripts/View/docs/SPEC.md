@@ -49,12 +49,17 @@ One name per concept across UI, docs, logs, and code. Terms grouped by subject.
 - **container** — drawn as a box around other VisualElements.
 - **nested element** — drawn inside a container; not itself a container.
 - **standalone** — drawn at view root; contains nothing, contained by nothing.
-- **extra occurrence** — the 2nd..Nth appearance of one element under different containers. ✦ **Managed** when the system placed it for an *every container* rule — the system may also remove it; any other occurrence is **user content**.
+- **extra occurrence** — the 2nd..Nth appearance of one element under different containers; a managed occurrence or user content (below).
 
 **VisualRelation roles**
 - **nesting** — drawn as containment (box-in-box, no line).
 - **connection** — drawn as a line between two boxes. Every VisualRelation is one or the other.
 - **self-loop** ✦ — a connection whose source and target are the same element. Whether it is drawn, and how, is an algorithm capability (see [Engine contract](#8-engine-contract)).
+
+**Existing view contents** ✦ — how *Expand view* and *Layout only* treat what is already on the view. Everything is laid out again according to the Layout tab; these three terms say what is kept ([§5](#5-actions)).
+- **user content** — every object already on the view that the system did not place itself: elements, connections and diagram objects. It is always kept. Whether it is nested, and where it goes, is decided by the layout: the nesting rules and the algorithm. Where it sat before plays no part.
+- **managed occurrence** — an extra occurrence the system placed itself for an *every container* rule and recorded on the view. It follows the settings: added when a rule asks for it, removed when no rule does any more, restored when the rule is switched back on. Only managed occurrences are ever removed.
+- **diagram-block** — a diagram object with contents, with everything inside it: a legend, or a frame with a title and elements. It keeps its size, appearance and contents; the layout decides only its position.
 
 **Subsystem**
 - **Layout** — algorithmic positioning of all visible objects on a view.
@@ -145,7 +150,15 @@ Four actions in two groups. The writer is identical for all four; an action diff
 
 A model-tree selection can only drive the Create group (nothing identifies a target view). A canvas/whole-view selection can drive either group: Create clones it into a fresh view; Modify acts in place.
 
-**The single writer rule** (action-agnostic, no per-action branch): *for each result object — if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from current nesting); otherwise **create** it with default appearance.* Same for relations: existing → rewrite bendpoints; new → create. A view's contents are overwritten only by `NEW_VIEW` onto a matching name; Modify actions never copy, rename or replace a view, nor delete existing visuals — the preset's view name and folder apply to new views only. ✦ The exceptions: every action reconciles **managed extra occurrences**, and removes the lines of a relation drawn as nesting ([§7](#7-layout-options)).
+**The single writer rule** (action-agnostic, no per-action branch): *for each result object — if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from current nesting); otherwise **create** it with default appearance.* Same for relations: existing → rewrite bendpoints; new → create. A view's contents are overwritten only by `NEW_VIEW` onto a matching name; Modify actions never copy, rename or replace a view, nor delete existing visuals — the preset's view name and folder apply to new views only. ✦ The exceptions: every action reconciles **managed occurrences**, and removes the lines of a relation drawn as nesting ([§7](#7-layout-options)).
+
+**What Expand view and Layout only keep** ✦. Both use the selection from the view, expand it when steps are set (*Expand view*), and lay everything out again according to the Layout tab. If nesting is off there, the view has no nesting afterwards. In the terms of [§2](#2-vocabulary):
+- **User content** is always kept; the layout decides whether it is nested and where it goes. Connections have three exceptions: the line of a relation drawn as nesting, a line to a managed occurrence that is removed, and a self-loop where the algorithm draws none.
+- **Managed occurrences** follow the settings.
+- **Diagram objects** keep their size and appearance; the layout engine decides their position. A diagram object is never nested: nesting rules select relations, and a diagram object has none.
+- **A diagram-block** keeps its size, appearance and contents; the engine decides only its position. A relation from outside to an object inside it is laid out as a relation to the diagram-block, and drawn to the object itself.
+
+*Why diagram-blocks:* a diagram object with contents is a composition made by hand. Typical cases are a legend with one example element per type, and a frame that groups elements under a title. Its contents have no relation a nesting rule could select, and they mean nothing on their own. Laid out one by one, a legend falls apart into loose example elements next to an empty box.
 
 ---
 
@@ -159,7 +172,7 @@ A model-tree selection can only drive the Create group (nothing identifies a tar
 
 **A wider filter never yields less.** An extra Include rule can only keep or grow what a step adds; an extra Exclude rule can only shrink it — there are no hidden exceptions. A rule that names an unknown type is rejected with a message, never widened to *All*.
 
-**Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds a missing relation — it only re-lays-out what is already on the view (managed extra occurrences excepted, [§7](#7-layout-options)). `EXPAND_VIEW` expands from the elements selected on the view and adds only what the steps reach; the rest of the view keeps its content. Neither applies the element-type filter, so a re-layout can never strip element types that are already drawn.
+**Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds a missing relation — it only re-lays-out what is already on the view (managed occurrences excepted, [§7](#7-layout-options)). `EXPAND_VIEW` expands from the elements selected on the view and adds only what the steps reach; the rest of the view keeps its content. Neither applies the element-type filter, so a re-layout can never strip element types that are already drawn.
 
 **Live counts are a promise, not an estimate** ✦ in spirit. The dialog's predicted counts are produced by the *same* selection logic the API runs, so what the counters show is exactly what the action will write: the displayed totals and the on-view result agree object-for-object. Details: [run order](#selection-run-order) and [counting rules](#counting-rules).
 
@@ -183,7 +196,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Several parents** ✦ — never decided by rule or model order. A nesting rule set to **every container** places the child in *each* parent it reaches (extra occurrences — e.g. an element filed under several groupings) and wins when a relation matches several rules. The other nesting relations of one child give it **at most one** parent — the container it already sits in, else the first by name; the rest are drawn as connections. Algorithms that do not draw containment draw each element once, though the counters report the extra occurrences. A connection whose ends have several occurrences is drawn **once**, between the occurrences closest together in the container tree; one already on the view keeps its ends. A relation drawn as nesting is never also drawn as a line: a line of it left from an earlier run is removed. Nesting relations that together form a **cycle** (A contains B … contains A) are all drawn as connections: a cycle is nearly always a modelling error, and lines make it visible. The dialog counts them under *circular*; the log names each cycle.
 
-**Managed extra occurrences** ✦. They follow from the settings, so every action — `LAYOUT_ONLY` too — reconciles them: missing ones are added and recorded on the view, recorded ones no longer asked for are removed, and switching back restores them. Only recorded ones are ever removed. User content takes a parent first and is always laid out, in its current container if the settings place it nowhere. A managed occurrence becomes user content when it is the element's last one, the user moved it, or it contains user content. Details: [nesting reference](#nesting-reference).
+**Managed occurrences** ✦. They follow from the settings, so every action — `LAYOUT_ONLY` too — reconciles them: missing ones are added and recorded on the view, recorded ones no longer asked for are removed, and switching back restores them. Only recorded ones are ever removed. User content takes a parent first and is always laid out, at view root if the settings place it nowhere. A managed occurrence becomes user content when it is the element's last one, the user moved it, or it contains user content. Details: [nesting reference](#nesting-reference).
 
 **Flow.** A main direction (for algorithms where direction drives ranking); how cycles are broken and elements assigned to layers (for the simple ranked algorithm); where elements sit within a layer — **centred** between the elements they connect to, or lined up for **straight lines** while leaning to one side; and the **layer distance**: the space between the elements of successive layers, border to border (tree: between levels, never less than the element gap; twopi: between rings). Radial sizes its rings itself: each depth on its own circle, every ring outside the one before, the first as large as its elements need.
 
@@ -191,11 +204,15 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Stress** ✦ places elements by connection length only; elements that end up on top of each other are moved apart to the element gap afterwards, positions only.
 
-**Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen width; and the minimum **gap** between elements, also between unconnected groups. Where connections are routed between the elements (Neato, FDP, SFDP), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements: the dialog keeps the two values in step, the one changed by the user wins.
+**Circo** ✦ places elements on circles, ordered so that few connections cross. **Circles** chooses between *One circle* (default): all elements on one circle, connections across it — an overview in which every element counts equally; and *Per cycle*: each cycle on its own circle, joined where cycles meet in one element or one relation. Cycles joined by two or more relations share a circle, and elements outside a cycle hang off it. With *Per cycle* the largest cycle of each connected part is in the middle. Elements keep the element gap also when the view has unconnected parts (a note, a loose element). Circo suits cycles (life cycles, control loops, chains that return to their start) and a model with many connections spread over its elements; a model with a dominant hub, a hierarchy or a flow direction is better served by Twopi or Radial, Tree, or Layered. It has no direction control and no nesting.
+
+**Elements.** Fixed width and height — or size **by label**, wrapping long labels at a chosen width; and the minimum **gap** between elements, also between unconnected groups. Where connections are routed between the elements (Neato, FDP, SFDP, Circo), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements: the dialog keeps the two values in step, the one changed by the user wins. There the gap is also at least the **shortest connection**, 20 px: room for both end symbols, so the relation type stays readable.
 
 **Order** ✦ — the order in which the elements outside containers enter the layout: as selected (**Selection**, default), by name ascending, by type and name ascending, or by name descending (△ ascending, ▽ descending). Another order gives the algorithm another starting point; an algorithm that keeps the input order (Tree, Twopi) shows it directly, others (Layered) use it as a start only. With **Cycle** on, a new view always starts with Selection and every layout of an existing view takes the next order, so repeated *Layout only* runs step through four layouts. Order never applies inside a container.
 
 **Connections.** Line routing (orthogonal / polyline / straight / curved; tree: straight or curved), label position, reserved space for labels, the distance between parallel connections (elements grow to fit their connections) and the clearance between a connection and the elements it passes.
+
+**Room for the end symbols** ✦. Archi draws the end symbol of a relation (arrowhead, dot, diamond) in the direction of the last few pixels of the line; zoomed out, a very short last stretch rounds to another angle. So a curved or polyline connection has no bend within 12 px of its elements and no two bends closer than 5 px; a connection with no bend left is drawn straight. Orthogonal lines keep their corners.
 
 **View size.** *Free* (default), an **aspect ratio**, or a **max width** — at most one at a time. A target is met by **arranging elements differently** (e.g. more rows), never by scaling (see the no-scaling rule). An engine that can only widen a layout offers no max width.
 
@@ -216,7 +233,7 @@ An engine is an opaque function behind one normalised interface, `layout(LayoutG
 
 **LayoutResult (out).**
 - **nodes** — same ids, with **absolute** x/y/width/height and a parent id (the orchestrator converts to parent-relative at write time).
-- **edges** — same ids, with **absolute** bendpoints, a straight-line flag, and an optional label position.
+- **edges** — same ids, with **absolute** bendpoints, a straight-line flag, an optional label position, and optionally the points where the line leaves and enters the elements.
 - **viewWidth / viewHeight** — the natural bounding box.
 
 Element labels are intrinsic to nodes; the result carries no separate label coordinates.
@@ -284,7 +301,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 
 **Writer discipline.**
 9. **One action-agnostic writer** — exists → reposition; else → create; same for relations. No per-action branch.
-10. **No silent data loss** — overwrite only when an action explicitly says so; Modify never deletes visuals, except managed extra occurrences the settings no longer ask for and lines of relations drawn as nesting ✦.
+10. **No silent data loss** — overwrite only when an action explicitly says so; Modify never deletes visuals, except managed occurrences the settings no longer ask for and lines of relations drawn as nesting ✦.
 11. **Appearance preservation** — repositioning a visual never changes its appearance properties; the system relies on this for expand/re-layout.
 
 **Determinism & validation.**
@@ -298,7 +315,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 17. **Rename integrally** — a renamed key/label/string is updated everywhere in one change; no dual-readers or compatibility shims for in-repo data.
 
 **Option semantics** ✦.
-18. **Stay within the algorithm** — an adapter sets only options the engine itself has; it may derive their values from the layout graph, but never places elements itself or adds its own ordering or crossing reduction, so the algorithms keep their own character. Accepted exceptions: Tree's layer distance and curved routing, and Radial's second run with a fixed radius — the engine lacks the option and the result is otherwise unusable.
+18. **Stay within the algorithm** — an adapter sets only options the engine itself has; it may derive their values from the layout graph, but never places elements itself or adds its own ordering or crossing reduction, so the algorithms keep their own character. Accepted exceptions: Tree's layer distance and curved routing, Radial's second run with a fixed radius, and Circo's second run when the graph has unconnected parts — the engine lacks the option and the result is otherwise unusable.
 19. **One meaning per option** — an option means the same in every algorithm that uses it: layer distance is the space between elements of successive layers or rings, border to border; element distance is the minimum space between elements.
 20. **Every active option has a visible effect** — over its whole range, except where the elements themselves set a hard minimum. Options that depend on each other are kept consistent in the dialog, visibly — never corrected silently at run time.
 
@@ -492,7 +509,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
 │ │  Order:    Direction [Right ▼]  Cycles [Default ▼]  Ranking [Balanced ▼] │
-│ │  Layers:   Placement [Centred ▼]   Layer distance [180]               │ │
+│ │  Layers:   Placement [Centred ▼]  Circles [One circle ▼]  Layer distance [180] │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
 │ │  Size:     Width [140]  ☐ Use label width  Wrap label at [400]        │ │
@@ -546,7 +563,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | FDP | Graphviz | cluster | ✓ | Force-directed layout with cluster nesting; connections are routed around clusters (Graphviz fdp) |
 | SFDP | Graphviz | none | ✓ | Force-directed layout like FDP, built up over coarser versions of the graph: only gains over FDP on large networks (100+ elements). No nesting (Graphviz sfdp) |
 | Twopi | Graphviz | none | ✓ | Network on concentric circles by distance from a central element; every connection kept. No direction control or nesting (Graphviz twopi) |
-| Circo | Graphviz | none | ✓ | Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo) |
+| Circo | Graphviz | none | ✓ | Elements on circles, ordered so that few connections cross. Suited to cycles (life cycles, control loops, chains that return to their start): Per cycle shows each cycle as its own circle where cycles meet in one element or one relation; One circle gives an overview in which every element counts equally. The model should have many connections spread over its elements and no dominant hub (use Twopi or Radial), hierarchy (use Tree) or flow direction (use Layered). Up to about 40 elements. No direction control or nesting (Graphviz circo) |
 <!-- /generated:algorithms -->
 
 **Layout options** — Field = dialog label; Tooltip = its first two lines (the third, "Used by", is the last column).
@@ -583,6 +600,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Cycles | `acyclicer` | How relation cycles are broken before layout. — Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles. | Dagre |
 | Ranking | `ranking` | How elements are assigned to layers. — Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster. | Dagre |
 | Placement | `nodePlacement` | Where elements sit within their layer. — Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side. | Layered |
+| Circles | `circles` | How the elements are divided over circles. | Circo |
 | Layer distance | `layerSpacing` | Space between the elements of successive layers along the flow; Tree: between levels; Twopi: between rings. — px — Tree: at least Distance between elements; Twopi: a full ring is tight at element height and grows and shrinks with Layer distance; with Reserve label space a gap widens to fit its labels. | Layered, Tree, Dagre, Dot, Twopi |
 
 **Elements**
@@ -593,7 +611,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Height | `elementHeight` | Height of every element. — px — not used with Use label width. | all algorithms |
 | Use label width | `labelSizing` | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack |
 | Wrap label at | `labelMaxLineWidth` | Label width at which Use label width wraps to a second line. — px — only with Use label width. | Grid, Pack |
-| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px — Neato, FDP, SFDP: at least 2 × Distance to element + 2, so a connection fits between two elements; the other value follows. | all algorithms |
+| Distance | `elementSpacing` | Minimum distance between elements, also between unconnected groups. — px — Neato, FDP, SFDP, Circo: at least 2 × Distance to element + 2, so a connection fits between two elements, and at least the shortest connection that shows both end symbols; the other value follows. | all algorithms |
 | Order | `elementOrder` | Order in which the elements outside containers go into the layout; another order gives the algorithm another starting point. — Inside a container the container's own order holds. | all algorithms |
 | Cycle | `cycleElementOrder` | Each layout of an existing view takes the next order: Selection, Name △, Type and name △, Name ▽. — A new view always starts with Selection. | all algorithms |
 
@@ -601,17 +619,17 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Routing | `routing` | How connection lines are drawn. | Layered, Tree, Dot, Neato, FDP, SFDP |
+| Routing | `routing` | How connection lines are drawn. | Layered, Tree, Dot, Neato, FDP, SFDP, Circo |
 | Label | `labelPosition` | Where the connection label sits. | Layered, Tree, Dagre, Dot, Neato, FDP, SFDP, Twopi, Circo |
 | Reserve label space | `connectionLabelSpacing` | Keep connection labels clear of other labels, connections and elements. — A layer gap widens where a label needs label + 2 × Between. | Layered |
 | Between | `connectionSpacing` | Distance between parallel connections, and between connection points on one side of an element. — px — elements grow to fit their connections; 0 = no growth. | Layered, Tree, Dagre |
-| Distance to element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of (Distance between elements − 2); the other value follows. | Layered, Tree, Neato, FDP, SFDP |
+| Distance to element | `connectionElementSpacing` | Minimum distance between a connection and the elements it passes. — px — the first and last bend stay at least 25 from the element, clear of the end symbol. Neato, FDP, SFDP, Circo: at most half of (Distance between elements − 2); the other value follows. | Layered, Tree, Neato, FDP, SFDP, Circo |
 
 **View size**
 
 | Field | Parameter | Tooltip | Used by |
 |---|---|---|---|
-| Aspect ratio | `aspectRatio` | Arrange the layout toward this width-to-height ratio. — Element sizes are unchanged. | all algorithms except Dagre |
+| Aspect ratio | `aspectRatio` | Arrange the layout toward this width-to-height ratio. — Element sizes are unchanged. | all algorithms except Dagre, Circo |
 | Max width | `maxWidth` | The view is at most this wide: a wider layout is arranged in more rows. — px — element sizes are unchanged. | Layered, Tree, Grid, Pack |
 <!-- /generated:layout-params -->
 
@@ -811,7 +829,7 @@ The selection turns (selection, preset, action) into the object set for layout. 
 5. **Relations**, collected in two passes with no relation counted twice:
    - *base* — relations between filtered-base elements that the relation rules keep;
    - *per run* — relations between the run's new elements and the collection that reached them (the step input for the first run, the previous run's elements after that) that a step rule draws. Relations among one run's new elements, and to earlier-step elements outside that collection, are not collected.
-6. **Diagram objects** — connections between diagram objects are edges, never nodes; they are kept apart from positional diagram objects and rerouted when their ends move.
+6. **Diagram objects** — a connection of a diagram object (a note's line to an element) is an edge, never a node; it is laid out with the other connections, so the note stays next to what it is about. A Modify action also finds the diagram-blocks on the view; their contents are not laid out.
 
 **Modify actions.** Neither applies the element filter (2): it would hide drawn element types, sizing containers for a subset while the hidden elements stay outside them. *Layout only* skips the steps (3) and keeps only relations already drawn on the view. *Expand view* needs elements selected on the view (a view from the model tree is refused), runs the steps from them, starts from the relations drawn on the view (no missing relation between elements already there is added) plus the relations the steps follow; then every element and diagram object of the view joins, so the whole view is laid out.
 
@@ -867,13 +885,13 @@ A connection whose source or target has several occurrences is drawn **once**:
 - **otherwise** — between the pair of occurrences closest together in the container tree: not one inside the other, then the deepest common container, then the first occurrences;
 - a self-relation stays a loop on one occurrence.
 
-#### Managed extra occurrences
+#### Managed occurrences
 
 Every action — *Layout only* too — reconciles them:
 
-1. **Capture.** The VisualSet's occurrences split into **managed** (matching a record on the view) and **user content** (everything else: hand-placed duplicates, occurrences on views made before records existed). The edge cases below turn some managed occurrences into user content.
+1. **Capture.** The VisualSet's occurrences split into **managed** (matching a record on the view) and **user content** (everything else: hand-placed duplicates, occurrences on views made before records existed). The edge cases below turn some managed occurrences into user content. Objects inside a diagram-block take no part: they are neither paired nor removed.
 2. **Resolve** — the wanted placements: per element its parents, and for extra container occurrences their copied children. Only user content counts as a child's current container.
-3. **Pair.** Per element, user content first, then managed; each prefers the placement with its own container chain, then one with the same direct container, then any. A user occurrence left without a placement stays in its current container and is laid out there.
+3. **Pair.** Per element, user content first, then managed; each prefers the placement with its own container chain, then one with the same direct container, then any. A user occurrence left without a placement stays on the view, at root.
 4. **Add and remove.** A placement without an occurrence gets a new, managed one — except the first, if the element has no user content. A managed occurrence left without a placement is removed, with the connections drawn to it.
 5. **Record.** The view's records are rewritten to describe exactly its managed occurrences.
 
@@ -886,9 +904,9 @@ A **record** identifies a placement — the element and its chain of containers 
 
 #### Writer parenthood
 
-Each visual's parent is re-derived per run from the nesting decisions, for every action: an occurrence with a parent is drawn inside the visual paired with that parent, otherwise at view root; an existing visual under another parent is moved there, keeping its appearance and connections, its bounds relative to the new parent. Each occurrence pairs with at most one visual of its element; a leftover managed visual is removed, a leftover user visual stays and is laid out in its current container. A nesting's visual relation between the two paired visuals is kept, otherwise added; every other line of a relation drawn as nesting is removed.
+Each visual's container is decided anew in every run, by the nesting rules only: an occurrence with a parent is drawn inside the visual paired with that parent, otherwise at view root — also when it sat inside an element or a diagram object before. An existing visual under another parent is moved there, keeping its appearance and connections, its bounds relative to the new parent. Objects inside a diagram-block keep their parent. Each occurrence pairs with at most one visual of its element; a leftover managed visual is removed, a leftover user visual stays on the view, at root. A nesting's visual relation between the two paired visuals is kept, otherwise added; every other line of a relation drawn as nesting is removed.
 
-**Preserved vs re-derived** on Modify actions: appearance (colours, fonts, line styles, sizes set by hand) is never touched by the writer (the styling pass may reset colours, [§10](#10-colouring--appearance)); parenthood is re-derived; bendpoints of existing connections are rewritten from the layout result (their style untouched). The Create group never modifies the view the selection came from.
+**Kept vs decided anew** on Modify actions: appearance (colours, fonts, line styles) is never touched by the writer; the styling pass may reset element colours ([§10](#10-colouring--appearance)), never inside a diagram-block. Element size comes from the Layout tab; diagram objects and diagram-blocks keep their size. Parenthood is decided anew; bendpoints of laid-out connections are rewritten from the layout result (their style untouched); lines inside a diagram-block are kept. The Create group never modifies the view the selection came from.
 
 ### Sizing refinements
 
@@ -962,6 +980,7 @@ Each algorithm declares a style (UI grouping only), a nesting capability (full /
 | Cycles `acyclicer` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Ranking `ranking` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
+| Circles `circles` | — | — | — | — | — | — | — | — | — | — | — | — | ✓ |
 | Layer distance `layerSpacing` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | — | — | — | ✓ | — |
 | Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -970,12 +989,12 @@ Each algorithm declares a style (UI grouping only), a nesting capability (full /
 | Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Order `elementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Cycle `cycleElementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Routing `routing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — |
+| Routing `routing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ |
 | Label `labelPosition` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
 | Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | — |
-| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | ✓ |
+| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | — |
 | Max width `maxWidth` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Self-loops** (capability) | ✓ | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -1040,6 +1059,6 @@ Deliberate departures a rebuild adopts:
 7. **Error/resilience model** and **verification/acceptance contract** are newly specified.
 8. **Every container per nesting rule** replaces the global *show in every container* (`params.showInEveryContainer`); schema version 3, migrated offline: a preset with the global switch on gets `everyContainer` on each nesting rule.
 9. **Order-independent parents** replace *first wins* in model order; every relation of a nesting cycle is drawn as a connection (today the closing one is dropped from the view).
-10. **Managed extra occurrences**, recorded on the view and reconciled by every action, replace "surplus occurrences left in place"; unpaired user occurrences are laid out, not left behind.
+10. **Managed occurrences**, recorded on the view and reconciled by every action, replace "surplus occurrences left in place"; unpaired user occurrences are laid out, not left behind.
 
-Already realised: `schemaVersion` with an offline migration (rule lists, version 2); every container per nesting rule (8); order-independent parents and cycles drawn as connections (9); managed extra occurrences (10); the capability matrix is derived from the registry; `Step.diagramTypes` is removed; one reconciled per-engine view-size table; control labels, tooltips and "used by" lists come from one canonical SSOT set.
+Already realised: `schemaVersion` with an offline migration (rule lists, version 2); every container per nesting rule (8); order-independent parents and cycles drawn as connections (9); managed occurrences (10); the capability matrix is derived from the registry; `Step.diagramTypes` is removed; one reconciled per-engine view-size table; control labels, tooltips and "used by" lists come from one canonical SSOT set.

@@ -19,7 +19,7 @@ const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PROP_ID = "Object ID";
-// View property recording one managed extra occurrence: "<element id> in <container id> [in …]".
+// View property recording one managed occurrence: "<element id> in <container id> [in …]".
 const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -55,6 +55,17 @@ const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
 // Floor for connectionElementSpacing between layers (ELK Layered: edgeNodeBetweenLayers).
 const CONNECTION_END_CLEARANCE = 25;
 
+// Length (px) of an ArchiMate end symbol (arrowhead, dot, diamond). The writer keeps bendpoints of
+// non-orthogonal lines this far from their elements, and closer bendpoints at least
+// BENDPOINT_MIN_GAP apart: Archi takes the direction of an end symbol from the last few pixels of
+// the line, and zoomed out those round to another angle.
+const CONNECTION_END_ROOM = 12;
+const BENDPOINT_MIN_GAP   = 5;
+// Shortest connection (px) with room for both end symbols, so the relation type stays readable.
+// Floor for Element distance where connections run straight between elements
+// (connectionsBetweenElements).
+const MIN_CONNECTION_LENGTH = 20;
+
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
 // "Not used by …" hints, tooltips and the capability matrix in SPEC.md.
 const PARAM_LABELS = Object.freeze({
@@ -72,6 +83,7 @@ const PARAM_LABELS = Object.freeze({
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
   nodePlacement:            "Placement",
+  circles:                  "Circles",
   layerSpacing:             "Layer distance",
   elementWidth:             "Width",
   elementHeight:            "Height",
@@ -120,6 +132,7 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
   nodePlacement:            ["Where elements sit within their layer.",
                              "Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side."],
+  circles:                  ["How the elements are divided over circles.", ""],
   layerSpacing:             ["Space between the elements of successive layers along the flow; Tree: between levels; Twopi: between rings.",
                              "px — Tree: at least Distance between elements; Twopi: a full ring is tight at element height and grows and shrinks with Layer distance; with Reserve label space a gap widens to fit its labels."],
   elementWidth:             ["Width of every element.", "px — not used with Use label width."],
@@ -127,7 +140,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
   labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px — only with Use label width."],
   elementSpacing:           ["Minimum distance between elements, also between unconnected groups.",
-                             "px — Neato, FDP, SFDP: at least 2 × Distance to element + 2, so a connection fits between two elements; the other value follows."],
+                             "px — Neato, FDP, SFDP, Circo: at least 2 × Distance to element + 2, so a connection fits between two elements, and at least the shortest connection that shows both end symbols; the other value follows."],
   routing:                  ["How connection lines are drawn.", ""],
   labelPosition:            ["Where the connection label sits.", ""],
   connectionLabelSpacing:   ["Keep connection labels clear of other labels, connections and elements.",
@@ -135,7 +148,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionSpacing:        ["Distance between parallel connections, and between connection points on one side of an element.",
                              "px — elements grow to fit their connections; 0 = no growth."],
   connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
-                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP: at most half of (Distance between elements − 2); the other value follows.`],
+                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP, Circo: at most half of (Distance between elements − 2); the other value follows.`],
   aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
   maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
                              "px — element sizes are unchanged."],
@@ -172,7 +185,7 @@ const LAYOUT_GROUPS = Object.freeze({
   Reverse:     ["reverseRules"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
                 "sortContainers", "alignWidthSameType", "snapColumnsToGrid"],
-  Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "layerSpacing"],
+  Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
   Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing",
                 "elementOrder", "cycleElementOrder"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
@@ -444,15 +457,22 @@ const ALGORITHMS = Object.freeze({
     style:                "Circular",
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
-      "labelPosition", "elementSpacing",
+      // aspectRatio: a ratio stretches the circle into an ellipse
+      ...ALWAYS_ACTIVE_PARAMS,
+      "circles", "routing", "labelPosition",
+      "elementSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
+      routing:       ROUTING_GV_POLY,
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo)",
+    tooltip: "Elements on circles, ordered so that few connections cross. Suited to cycles (life cycles, control loops, chains that return to their start): " +
+             "Per cycle shows each cycle as its own circle where cycles meet in one element or one relation; One circle gives an overview in which every element counts equally. " +
+             "The model should have many connections spread over its elements and no dominant hub (use Twopi or Radial), hierarchy (use Tree) or flow direction (use Layered). " +
+             "Up to about 40 elements. No direction control or nesting (Graphviz circo)",
     paramConflicts: CONFLICTS_VIEW,
   },
 });
@@ -517,6 +537,17 @@ const NODE_PLACEMENT = Object.freeze([
     tooltip: "Elements sit centred between the elements they connect to; shortest connections and usually the smallest view." },
   { val: "Straight lines",
     tooltip: "As many straight connections as possible; the layout leans to one side, so parents may sit at the edge of their children." },
+]);
+
+// ── Circles (Circo only) ──────────────────────────────────────────────────────
+// Engine identifiers (oneblock) live in engines/graphviz.js.
+
+const CIRCLES = Object.freeze([
+  { val: "One circle", default: true,
+    tooltip: "All elements on one circle; connections run across it. Also fits a model with a hub or without cycles." },
+  { val: "Per cycle",
+    tooltip: "Each cycle on its own circle, joined where cycles meet in one element or one relation; cycles joined by two or more relations share a circle. " +
+             "Elements outside a cycle hang off it, so a hub becomes a star." },
 ]);
 
 // ── Acyclicer options (Dagre only) ────────────────────────────────────────────
@@ -681,6 +712,7 @@ const DEFAULT_PRESET = Object.freeze({
   params: {
     direction:             "Right",
     nodePlacement:         "Centred",               // "Centred" | "Straight lines" (Layered only)
+    circles:               "One circle",            // "One circle" | "Per cycle" (Circo only)
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
@@ -1037,7 +1069,7 @@ if (typeof module !== "undefined" && module.exports) {
     paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
+    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
@@ -1047,7 +1079,7 @@ if (typeof module !== "undefined" && module.exports) {
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS,
-    CONNECTION_END_CLEARANCE,
+    CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,
     validatePreset, effectiveParams, connectionsModeLock,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
   };

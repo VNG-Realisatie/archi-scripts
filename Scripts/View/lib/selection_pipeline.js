@@ -56,7 +56,8 @@ function buildObjectSet(uiSelection, preset, actionId) {
   if (isExpand && (existing.viewFromTree || !existing.existingView)) {
     console.error("Expand view: select one or more elements on the view (not the view in the model tree).");
     return { elements: [], relations: [], diagramObjects: [], diagramConnections: [],
-             visualElements: [], visualRelations: [], existingView: null, visuals: [] };
+             visualElements: [], visualRelations: [], existingView: null, visuals: [],
+             diagramBlockOf: new Map(), diagramBlockVisualOf: new Map() };
   }
 
   // ── Step 2: filter (skipped for the "Modify selected view" group — EXPAND_VIEW and
@@ -119,9 +120,25 @@ function buildObjectSet(uiSelection, preset, actionId) {
 
   // ── Step 4: elements are the filtered base plus step additions
   // (EXPAND_VIEW: every element on the view plus step additions, so the whole view is laid out) ──
-  const elements = isExpand
+  const viewElements = isExpand
     ? _uniqueById([.../** @type {ArchiElement[]} */ (existing.visualElements.map(ve => ve.concept).filter(Boolean)), ...addedElements])   // Cast: nulls filtered
     : [...filteredElementsArr, ...addedElements];
+
+  // Diagram-blocks: a diagram object with contents (a legend, a frame) moves as one object with all it
+  // holds; its contents are not laid out. An element that appears only inside a diagram-block is not laid out.
+  const diagramBlockOf = isModifyAction ? _diagramBlockContents(existing.existingView) : new Map();
+  /** @type {Map<string, string>} */
+  const diagramBlockVisualOf = new Map();
+  /** @type {Set<string>} */
+  const outsideDiagramBlocks = new Set();
+  for (const ve of existing.visualElements) {
+    const cid = ve.concept && ve.concept.id;
+    if (!cid) continue;
+    if (!diagramBlockOf.has(String(ve.id))) outsideDiagramBlocks.add(cid);
+    else if (!diagramBlockVisualOf.has(cid)) diagramBlockVisualOf.set(cid, String(ve.id));
+  }
+  for (const cid of outsideDiagramBlocks) diagramBlockVisualOf.delete(cid);
+  const elements = viewElements.filter(el => !diagramBlockVisualOf.has(el.id));
   if (isExpand) diagramObjects = _expandViews($(/** @type {ArchiView} */ (existing.existingView))).diagramObjects;   // Cast: checked at the start
 
   // ── Step 5: relations collected incrementally in step 3 above (base: global filter; per step: step's filter). ──
@@ -129,10 +146,10 @@ function buildObjectSet(uiSelection, preset, actionId) {
 
   // ── Step 6: partition diagram-model-connection (edges) from positional diagram objects ──
   const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
-  const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection");
+  const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection" && !diagramBlockOf.has(String(o.id)));
 
   // Predict on-view counts using the same algorithm the writer uses.
-  const visuals = _describeVisuals(existing.visualElements);
+  const visuals = _describeVisuals(existing.visualElements.filter(ve => !diagramBlockOf.has(String(ve.id))));
   const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params, visuals);
 
   // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
@@ -167,7 +184,10 @@ function buildObjectSet(uiSelection, preset, actionId) {
   _logCountBlock("Pipeline — build object set:", rows);
 
   if (diagramConnections.length > 0) {
-    console.log(`  Diagram-object edges (not laid out): ${diagramConnections.length}`);
+    console.log(`  Diagram-object edges (laid out with the connections): ${diagramConnections.length}`);
+  }
+  if (diagramBlockOf.size > 0) {
+    console.log(`  Diagram-blocks: ${new Set(diagramBlockOf.values()).size} diagram objects with contents, moved as one with ${diagramBlockOf.size} objects inside`);
   }
 
   return {
@@ -178,6 +198,8 @@ function buildObjectSet(uiSelection, preset, actionId) {
     visualElements:    existing.visualElements,
     visualRelations:   existing.visualRelations,
     existingView:      existing.existingView,
+    diagramBlockOf,
+    diagramBlockVisualOf,
     visuals,
   };
 }
@@ -387,6 +409,36 @@ function _expandViews(collection, logPrefix = "") {
 
   console.log(`${logPrefix}Expanded ${viewColl.size()} view(s) → ${expanded.size()} model objects · ${diagramObjects.length} diagram objects`);
   return { modelCollection: expanded, diagramObjects };
+}
+
+/**
+ * Contents of diagram-blocks: every diagram object with no diagram object above it (a group, a note) holds
+ * a diagram-block of everything inside it. Returns visual id → diagram-block id, for the visuals inside a diagram-block.
+ * @param {ArchiView | null} view
+ * @returns {Map<string, string>}
+ */
+function _diagramBlockContents(view) {
+  /** @type {Map<string, string>} */
+  const out = new Map();
+  if (!view) return out;
+  /** @type {(o: ArchiObject | null | undefined) => boolean} */
+  const isDiagramObject = o => !!o && !!o.type && o.type in Defs.DIAGRAM_TYPES;
+  for (const dt of Object.keys(Defs.DIAGRAM_TYPES)) {
+    if (dt === "diagram-model-connection") continue;
+    try {
+      $(view).find(dt).each(d => {
+        // Cast: parent() of a visual is a visual, or the view (which has no .view).
+        for (let p = /** @type {VisualObject | null} */ ($(d).parent().first()); p && p.view; p = /** @type {VisualObject | null} */ ($(p).parent().first())) {
+          if (isDiagramObject(p)) return;   // inside another diagram object: part of that diagram-block
+        }
+        $(d).find().each(o => {
+          if (!o || !o.id || o.type === "diagram-model-connection" || (o.type || "").endsWith("-relationship")) return;
+          out.set(String(o.id), String(d.id));
+        });
+      });
+    } catch (e) {}
+  }
+  return out;
 }
 
 /**
@@ -662,7 +714,7 @@ function _placementKey(elementId, chain) {
  */
 
 /**
- * Classify the element visuals of one view as managed or user content (SPEC: Managed extra
+ * Classify the element visuals of one view as managed or user content (SPEC: Managed
  * occurrences, step 1). Pure — runs in Node.
  *   1. A visual whose placement matches a record is managed; each record matches one visual,
  *      the first in view order.
@@ -747,11 +799,11 @@ function _describeVisuals(visualElements) {
 }
 
 /**
- * Pair occurrences with the visuals on the view (SPEC: Managed extra occurrences, step 3).
+ * Pair occurrences with the visuals on the view (SPEC: Managed occurrences, step 3).
  * Per element user content first, then managed visuals; each takes a free occurrence with its own
  * container chain, else one with the same direct container, else any. A user visual left over
- * becomes an extra occurrence in its current container; a managed one is removed. Extends
- * occurrenceMap and parentMap in place.
+ * becomes an extra occurrence at view root — only the settings nest; a managed one is removed.
+ * Extends occurrenceMap and parentMap in place.
  * @param {ArchiElement[]}               elements
  * @param {Record<string, string[]>}     occurrenceMap  extended in place
  * @param {Record<string, string>}       parentMap      extended in place
@@ -759,7 +811,7 @@ function _describeVisuals(visualElements) {
  * @returns {VisualPairing}
  *   visualOf: occurrence id → visual id; occurrenceOf: visual id → occurrence id;
  *   managedOccs: occurrences that are managed after the run (paired with a managed visual, or new
- *   while the element has other content); userInPlace: user visuals the settings place nowhere
+ *   while the element has other content); userAtRoot: user visuals the settings place nowhere, laid out at view root
  */
 function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
   const chainOf = (/** @type {string} */ occ) => { const c = []; for (let p = parentMap[occ]; p; p = parentMap[p]) c.push(_baseId(p)); return c; };
@@ -805,7 +857,8 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
     const user = vis.some(v => !v.managed);
     free.forEach((f, i) => { if (user || i > 0) managedOccs.add(f.occ); });
   }
-  // Leftover user visuals: an occurrence of their own, under the node of their current container.
+  // Leftover user visuals: an occurrence of their own at view root. Only the settings nest: the
+  // container a visual sits in on the view is not kept.
   for (const v of leftover) {
     const conceptId = /** @type {string} */ (v.conceptId);   // Cast: leftovers are element visuals
     const occ = `${conceptId}_occ_${occurrenceMap[conceptId].length}`;
@@ -813,12 +866,7 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
     visualOf[occ] = v.id;
     occurrenceOf.set(v.id, occ);
   }
-  for (const v of leftover) {
-    const occ = occurrenceOf.get(v.id);
-    const parentOcc = v.parentVisualId ? occurrenceOf.get(v.parentVisualId) : null;
-    if (parentOcc) parentMap[/** @type {string} */ (occ)] = parentOcc;   // Cast: set in the loop above
-  }
-  return { visualOf, occurrenceOf, removedVisualIds, managedOccs, userInPlace: leftover.length };
+  return { visualOf, occurrenceOf, removedVisualIds, managedOccs, userAtRoot: leftover.length };
 }
 
 /**

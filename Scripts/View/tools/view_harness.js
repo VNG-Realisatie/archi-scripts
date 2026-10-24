@@ -243,7 +243,7 @@ if (require.main === module) {
   _log(`Nested ${nesting.parentRels.length} · drawn as a line ${nesting.notNestedNestingRels.length} · circular ${nesting.circularNestingRels.length}`);
   _log(`Visuals ${contents.visuals.length} (${contents.visuals.filter(v => v.managed).length} managed) · paired ${Object.keys(nesting.visualOf).length} · ` +
        `to create ${Object.values(nesting.occurrenceMap).flat().filter(o => !nesting.visualOf[o]).length} · ` +
-       `managed to remove ${nesting.removedVisualIds.length} · user content in place ${nesting.userInPlace}`);
+       `managed to remove ${nesting.removedVisualIds.length} · user content at view root ${nesting.userAtRoot}`);
   for (const c of s.cycles) _log(`  cycle: ${c}`);
   for (const p of s.placements) if (!p.endsWith("[root]")) _log(`  ${p}`);
   if (flags.has("--layout")) {

@@ -255,7 +255,7 @@ interface ObjectSet {
   relations: ArchiRelation[];
   /** Positional diagram objects (not diagram-model-connection). */
   diagramObjects: DiagramObject[];
-  /** diagram-model-connection objects: edges, not laid out. */
+  /** diagram-model-connection objects: laid out as edges between the objects they join. */
   diagramConnections: DiagramObject[];
   /** Element visuals already on the target view (Expand view / Layout only). */
   visualElements: VisualObject[];
@@ -263,6 +263,10 @@ interface ObjectSet {
   /** Target view for Expand view / Layout only. */
   existingView: ArchiView | null;
   visuals?: VisualDescription[];
+  /** Diagram-blocks: visual id → id of the diagram object with contents it sits in (Expand view / Layout only). */
+  diagramBlockOf?: Map<string, string>;
+  /** Elements that appear only inside a diagram-block: element id → its visual there. */
+  diagramBlockVisualOf?: Map<string, string>;
 }
 
 /** One expand-selection step's result (expandStepWithRelations). */

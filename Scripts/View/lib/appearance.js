@@ -53,8 +53,10 @@ const DEFAULT_FONT_STYLE = "normal";
  * @param {ArchimateView} view
  * @param {MaskedPreset}  preset  params masked to the algorithm (defs.effectiveParams)
  * @param {string}        actionId
+ * @param {Map<string, string>} [diagramBlockOf]  visuals inside a diagram-block: they keep their appearance
  */
-function applyAppearance(view, preset, actionId) {
+function applyAppearance(view, preset, actionId, diagramBlockOf) {
+  const keep = diagramBlockOf || new Map();
   const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
   const nl   = app.nestingLevel;
@@ -79,7 +81,7 @@ function applyAppearance(view, preset, actionId) {
     console.log(`  styleByProperty rule ${i + 1}  color=${r.color}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
   });
 
-  const depths = _computeViewDepths(view);
+  const depths = _computeViewDepths(view, keep);
   console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);
 
   // VOs colored by an active feature are protected from being cleared by later disabled-feature
@@ -88,9 +90,24 @@ function applyAppearance(view, preset, actionId) {
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, depths, isModify, styledVoIds);
-  _applyHighlightRepeated(view, hr, isModify, styledVoIds);
-  _applyStyleRules(view, sbp, isModify, styledVoIds);
+  _applyNestingLevel(view, nl, depths, isModify, styledVoIds, keep);
+  _applyHighlightRepeated(view, hr, isModify, styledVoIds, keep);
+  _applyStyleRules(view, sbp, isModify, styledVoIds, keep);
+}
+
+/**
+ * The element or relation visuals on a view, without those inside a diagram-block (SPEC: Diagram-blocks).
+ * @template {"element" | "relation"} S
+ * @param {ArchimateView}       view
+ * @param {S}                   selector
+ * @param {Map<string, string>} keep
+ * @returns {(S extends "element" ? VisualObject : VisualConnection)[]}
+ */
+function _onView(view, selector, keep) {
+  /** @type {any[]} */
+  const out = [];
+  $(view).find(selector).each(o => { if (!keep.has(String(o.id))) out.push(o); });
+  return out;
 }
 
 // ── Depth computation ─────────────────────────────────────────────────────────
@@ -104,9 +121,10 @@ function applyAppearance(view, preset, actionId) {
 // rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
 /**
  * @param {ArchimateView} view
+ * @param {Map<string, string>} keep  visuals inside a diagram-block: left out
  * @returns {ViewDepths}
  */
-function _computeViewDepths(view) {
+function _computeViewDepths(view, keep) {
   /** @type {Map<string, number>} */
   const depthById       = new Map();
   /** @type {Map<string, boolean>} */
@@ -117,7 +135,7 @@ function _computeViewDepths(view) {
   const elementTypeById = new Map();  // voId → vo.concept.type | null
   let maxContainerDepth = 0;
 
-  $(view).find("element").each(vo => {
+  _onView(view, "element", keep).forEach(vo => {
     if (!vo.id) return;
     const depth = _voDepth(vo);
     depthById.set(vo.id, depth);
@@ -182,8 +200,9 @@ function _voDepth(vo) {
  * @param {ViewDepths}                             depths
  * @param {boolean}                                isModify
  * @param {Set<string>}                            styledVoIds
+ * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
  */
-function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
+function _applyNestingLevel(view, settings, depths, isModify, styledVoIds, keep) {
   const { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth } = depths;
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
 
@@ -197,7 +216,7 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
   // each chain's gradient is anchored to the root container's existing fill color.
   /** @type {Map<string, string | null>} */
   const chainRootFillById = new Map();  // rootVoId → fill color string | null
-  $(view).find("element").each(vo => {
+  _onView(view, "element", keep).forEach(vo => {
     if (!vo.id) return;
     if (depthById.get(vo.id) === 0 && inSameTypeChainById.get(vo.id) === true)
       chainRootFillById.set(vo.id, vo.fillColor || null);
@@ -210,7 +229,7 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
     return (rootId ? chainRootFillById.get(rootId) : null) || fallbackColor;
   };
 
-  $(view).find("element").each(vo => {
+  _onView(view, "element", keep).forEach(vo => {
     if (!vo.id) return;
     const depth       = depthById.get(vo.id);
     const isContainer = isContainerById.get(vo.id);
@@ -267,11 +286,12 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
  * @param {Preset["appearance"]["highlightRepeated"]}  settings
  * @param {boolean}                                    isModify
  * @param {Set<string>}                                styledVoIds
+ * @param {Map<string, string>}                        keep  visuals inside a diagram-block: left out
  */
-function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
+function _applyHighlightRepeated(view, settings, isModify, styledVoIds, keep) {
   /** @type {Map<string, VisualObject[]>} */
   const byConceptId = new Map();
-  $(view).find("element").each(vo => {
+  _onView(view, "element", keep).forEach(vo => {
     if (!vo.concept) return;
     const id = vo.concept.id;
     let vos = byConceptId.get(id);
@@ -370,8 +390,9 @@ function computeRuleTargets(rule, elements, relations) {
  * @param {Preset["appearance"]["styleByProperty"]}  settings
  * @param {boolean}                                  isModify
  * @param {Set<string>}                              styledVoIds
+ * @param {Map<string, string>}                      keep  visuals inside a diagram-block: left out
  */
-function _applyStyleRules(view, settings, isModify, styledVoIds) {
+function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
   const rules = settings.rules || [];
   if (rules.length === 0) return;
   const mixedColor = settings.mixedValuesColor || "#FF6B35";
@@ -382,7 +403,7 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
   const vosByElementId = new Map();
   /** @type {Map<string, ArchiElement>} */
   const elementById = new Map();
-  $(view).find("element").each(vo => {
+  _onView(view, "element", keep).forEach(vo => {
     if (!vo.concept) return;
     const id = vo.concept.id;
     let vos = vosByElementId.get(id);
@@ -393,7 +414,7 @@ function _applyStyleRules(view, settings, isModify, styledVoIds) {
   const vcsByRelationId = new Map();
   /** @type {Map<string, ArchiRelation>} */
   const relationById = new Map();
-  $(view).find("relation").each(vc => {
+  _onView(view, "relation", keep).forEach(vc => {
     if (!vc.concept || !vc.concept.id) return;
     const id = vc.concept.id;
     let vcs = vcsByRelationId.get(id);

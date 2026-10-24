@@ -96,10 +96,13 @@ const PARAM_MAPPING = {
     diagramPadding: _GV_PAD,
     aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
+  // mindist alone leaves wide elements overlapping on the circle; prism removes that.
   Circo: {
-    elementSpacing: (v) => ({ mindist: (v / 96).toFixed(4) }),
-    diagramPadding: _GV_PAD,
-    aspectRatio:    (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    circles:                  (v) => v === "Per cycle" ? {} : { oneblock: "true" },
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ mindist: (v / 96).toFixed(4), ..._GV_OVERLAP_SEP(v) }),
+    connectionElementSpacing: _GV_ESEP,
+    diagramPadding:           _GV_PAD,
   },
 };
 
@@ -119,7 +122,14 @@ function layout(graph) {
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
   console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
 
-  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId);
+  // circo removes overlap only in a graph of one part; with more parts (a note, an unconnected
+  // element) Graphviz itself removes it in a second run: neato -n1 keeps circo's positions, applies
+  // the same overlap and sep, and routes the connections again.
+  const secondRun = graph.algorithm === "Circo" && _partCount(graph) > 1;
+  if (secondRun) console.log("  More than one part: overlap removed and connections routed in a second run (neato -n1)");
+  const jsonOut = secondRun
+    ? _runDot(_runGraphviz(dotSource, ["-Kcirco", "-Tdot"]), ["-Kneato", "-n1"])
+    : _runDot(dotSource, ["-K" + alg.engineAlgorithmId]);
   const _rawBb  = String(jsonOut.bb || "—");
   const _bbParts = _rawBb.split(",").map(parseFloat);
   const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
@@ -160,6 +170,8 @@ function _buildDOT(graph) {
   // Twopi: a centre per connected part, and ring radii wide enough for the elements on them
   const twopi = graph.algorithm === "Twopi" ? _twopiRings(graph, opts) : null;
   if (twopi) engineOpts.ranksep = twopi.ranksep;
+  // Circo per cycle: per part the centre of the block tree (one circle has no block tree)
+  const circoRoots = graph.algorithm === "Circo" && !engineOpts.oneblock ? _circoRoots(graph) : null;
   // FDP removes overlap within its clusters itself; prism there only spreads the layout out.
   if (graph.algorithm === "FDP" && graph.nodes.some(n => n.parent)) delete engineOpts.overlap;
 
@@ -218,7 +230,7 @@ function _buildDOT(graph) {
         if (Math.abs(w - parseFloat(nodeW)) > 0.001 || Math.abs(h - parseFloat(nodeH)) > 0.001)
           szAttrs = ` width=${w.toFixed(4)} height=${h.toFixed(4)} fixedsize=true`;
       }
-      const rootAttr = twopi && twopi.roots.has(id) ? " root=true" : "";
+      const rootAttr = (twopi && twopi.roots.has(id)) || (circoRoots && circoRoots.has(id)) ? " root=true" : "";
       lines.push(`${indent}"${id}" [label="${label}"${szAttrs}${rootAttr}]`);
     }
     visiting.delete(id);
@@ -247,6 +259,76 @@ function _buildDOT(graph) {
 
   lines.push("}");
   return lines.join("\n");
+}
+
+/**
+ * Centres for circo per cycle: per connected part an element of its largest cycle — the one with
+ * the most connections within that cycle, the first in input order on a tie. circo puts the
+ * root's cycle in the middle and the other cycles and elements around it, each element at the
+ * radius of the largest part hanging from the same element. Its own choice can be an element
+ * outside every cycle: then its few neighbours sit as far out as the whole cycle part, with
+ * connections across the view. A part without a cycle keeps circo's own choice.
+ * @param {LayoutGraph} graph
+ * @returns {Set<string>}  root element ids
+ */
+function _circoRoots(graph) {
+  /** @type {Map<string, Set<string>>} */
+  const adj = new Map(graph.nodes.map(n => [n.id, new Set()]));
+  for (const e of graph.edges) {
+    const a = adj.get(e.source), b = adj.get(e.target);
+    if (e.source === e.target || !a || !b) continue;
+    a.add(e.target);
+    b.add(e.source);
+  }
+  // Blocks (biconnected components, Tarjan): a cycle and every cycle sharing two elements with it.
+  /** @type {Map<string, number>} */
+  const index = new Map(), low = new Map(), partOf = new Map();
+  /** @type {[string, string][]} */
+  const stack = [];
+  /** @type {{ part: string, ids: Set<string>, edges: [string, string][] }[]} */
+  const blocks = [];
+  /** @type {(u: string, parent: string | null, part: string) => void} */
+  const visit = (u, parent, part) => {
+    index.set(u, index.size); low.set(u, index.get(u)); partOf.set(u, part);
+    for (const w of /** @type {Set<string>} */ (adj.get(u))) {
+      if (w === parent) continue;
+      if (!index.has(w)) {
+        stack.push([u, w]);
+        visit(w, u, part);
+        low.set(u, Math.min(/** @type {number} */ (low.get(u)), /** @type {number} */ (low.get(w))));
+        if (/** @type {number} */ (low.get(w)) >= /** @type {number} */ (index.get(u))) {
+          /** @type {[string, string][]} */
+          const edges = [];
+          let top;
+          do { top = /** @type {[string, string]} */ (stack.pop()); edges.push(top); } while (top[0] !== u || top[1] !== w);
+          blocks.push({ part, ids: new Set(edges.flat()), edges });
+        }
+      } else if (/** @type {number} */ (index.get(w)) < /** @type {number} */ (index.get(u))) {
+        stack.push([u, w]);
+        low.set(u, Math.min(/** @type {number} */ (low.get(u)), /** @type {number} */ (index.get(w))));
+      }
+    }
+  };
+  for (const n of graph.nodes) if (!index.has(n.id)) visit(n.id, null, n.id);
+
+  const order = new Map(graph.nodes.map((n, i) => [n.id, i]));
+  /** @type {Map<string, { part: string, ids: Set<string>, edges: [string, string][] }>} */
+  const largest = new Map();   // part → its largest cycle (first found on a tie)
+  for (const b of blocks) {
+    const cur = largest.get(b.part);
+    if (b.ids.size >= 3 && (!cur || b.ids.size > cur.ids.size)) largest.set(b.part, b);
+  }
+  /** @type {Set<string>} */
+  const roots = new Set();
+  for (const b of largest.values()) {
+    /** @type {Map<string, number>} */
+    const degree = new Map();
+    for (const [x, y] of b.edges) { degree.set(x, (degree.get(x) || 0) + 1); degree.set(y, (degree.get(y) || 0) + 1); }
+    const best = [...b.ids].sort((x, y) => /** @type {number} */ (degree.get(y)) - /** @type {number} */ (degree.get(x)) ||
+                                          /** @type {number} */ (order.get(x)) - /** @type {number} */ (order.get(y)))[0];
+    roots.add(best);
+  }
+  return roots;
 }
 
 /**
@@ -337,10 +419,37 @@ function _twopiRings(graph, opts) {
 
 /**
  * @param {string} dotSource
- * @param {string} engine   Graphviz layout engine (-K)
+ * @param {string[]} args   engine options, e.g. ["-Kcirco"]
  * @returns {GraphvizJson}
  */
-function _runDot(dotSource, engine) {
+function _runDot(dotSource, args) {
+  const stdout = _runGraphviz(dotSource, ["-Tjson", ...args]);
+  try { return JSON.parse(stdout); }
+  catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
+}
+
+/**
+ * Unconnected parts of the layout graph (elements linked by connections or containment).
+ * @param {LayoutGraph} graph
+ * @returns {number}
+ */
+function _partCount(graph) {
+  /** @type {Map<string, string>} */
+  const up = new Map(graph.nodes.map(n => [n.id, n.id]));
+  const find = (/** @type {string} */ id) => { let r = id; while (up.get(r) !== r) r = /** @type {string} */ (up.get(r)); return r; };
+  const join = (/** @type {string} */ a, /** @type {string} */ b) => { if (up.has(a) && up.has(b)) up.set(find(a), find(b)); };
+  for (const e of graph.edges) join(e.source, e.target);
+  for (const n of graph.nodes) if (n.parent) join(n.id, n.parent);
+  return new Set(graph.nodes.map(n => find(n.id))).size;
+}
+
+/**
+ * Run the Graphviz binary on DOT source; returns its standard output.
+ * @param {string}   dotSource
+ * @param {string[]} args  e.g. ["-Tjson", "-Kcirco"]
+ * @returns {string}
+ */
+function _runGraphviz(dotSource, args) {
   const ProcessBuilder   = Java.type("java.lang.ProcessBuilder");
   const Arrays           = Java.type("java.util.Arrays");
   const Files            = Java.type("java.nio.file.Files");
@@ -351,7 +460,7 @@ function _runDot(dotSource, engine) {
   // stderr goes to a file: left unread in a pipe while stdout is read, a full pipe blocks dot.
   const errFile = Files.createTempFile("graphviz", ".err");
   try {
-    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, "-Tjson", "-K" + engine));
+    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, ...args));
     pb.redirectError(ProcessBuilder.Redirect.to(errFile.toFile()));
     let proc;
     try { proc = pb.start(); }
@@ -366,9 +475,7 @@ function _runDot(dotSource, engine) {
     const stdout = String(new JString(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
     const code = proc.waitFor();
     if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${String(Files.readString(errFile)).trim()}`);
-
-    try { return JSON.parse(stdout); }
-    catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
+    return stdout;
   } finally {
     Files.deleteIfExists(errFile);
   }
@@ -501,10 +608,14 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
 
     /** @type {Point[]} */
     let bendpoints = [];
+    /** @type {{ start: Point, end: Point } | null} */
+    let ports = null;
     if (!skipBend && dotEdge.pos) {
-      bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines).map(p => ({
-        x: Math.round(p.x), y: Math.round(p.y),
-      }));
+      // Samples of a short curve round to the same pixel: keep one.
+      bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines)
+        .map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))
+        .filter((p, i, a) => i === 0 || p.x !== a[i - 1].x || p.y !== a[i - 1].y);
+      ports = _splineEnds(String(dotEdge.pos), totalH);
     }
 
     // Natural label position from Graphviz lp attribute
@@ -527,6 +638,8 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
       sourceId:   originalEdge.source,
       targetId:   originalEdge.target,
       bendpoints,
+      // Where the line leaves and enters the elements, so the writer's label points stay outside them.
+      ...(ports ? { srcPort: ports.start, tgtPort: ports.end } : {}),
       labelX,
       labelY,
       isStraight: skipBend,
@@ -546,6 +659,29 @@ function _parseBb(s) {
 function _parseXY(s) {
   const p = s.split(",");
   return { x: parseFloat(p[0]), y: parseFloat(p[1]) };
+}
+
+/**
+ * Ends of an edge on the element borders, in px: the arrow tips (s, e) when present, else the
+ * first and last point of the curve — Graphviz clips the curve at the borders.
+ * @param {string} posStr  Graphviz edge pos: [e,x,y] [s,x,y] x,y ...
+ * @param {number} totalH
+ * @returns {{ start: Point, end: Point } | null}
+ */
+function _splineEnds(posStr, totalH) {
+  /** @type {Point | null} */
+  let s = null, e = null;
+  /** @type {Point[]} */
+  const pts = [];
+  for (const tok of posStr.trim().split(/\s+/)) {
+    const p = tok.split(",");
+    const xy = p.length === 3 ? p.slice(1) : p;
+    const pt = { x: Math.round(parseFloat(xy[0]) * PT2PX), y: Math.round((totalH - parseFloat(xy[1])) * PT2PX) };
+    if (isNaN(pt.x) || isNaN(pt.y)) continue;
+    if (p[0] === "s") s = pt; else if (p[0] === "e") e = pt; else pts.push(pt);
+  }
+  if (pts.length < 2) return null;
+  return { start: s || pts[0], end: e || pts[pts.length - 1] };
 }
 
 /**

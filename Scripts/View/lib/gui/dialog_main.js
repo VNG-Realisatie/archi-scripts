@@ -43,7 +43,7 @@ const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
 const Chroma    = require("chroma-js");
 
 const {
-  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS,
+  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
   DIAGRAM_TYPES, DIAGRAM_TYPE_ID_TO_LABEL,
@@ -123,6 +123,7 @@ const {
  * @property {Swt.Combo}     cmbAcyclicer
  * @property {Swt.Combo}     cmbRanking
  * @property {Swt.Combo}     cmbNodePlacement
+ * @property {Swt.Combo}     cmbCircles
  * @property {Swt.Spinner}   spinLayerSpacing
  * @property {Swt.Spinner}   spinElementWidth
  * @property {Swt.Button}    chkLabelSizing
@@ -259,6 +260,8 @@ const LABEL_POS_TOOLTIPS      = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp
 const RANKING_LABELS          = RANKING.map(r => r.val);
 const NODE_PLACEMENT_LABELS   = NODE_PLACEMENT.map(n => n.val);
 const NODE_PLACEMENT_TOOLTIPS = Object.fromEntries(NODE_PLACEMENT.map(n => [n.val, n.tooltip]));
+const CIRCLES_LABELS          = CIRCLES.map(c => c.val);
+const CIRCLES_TOOLTIPS        = Object.fromEntries(CIRCLES.map(c => [c.val, c.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const ELEMENT_ORDER_LABELS    = ELEMENT_ORDER.map(o => o.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
@@ -447,6 +450,7 @@ const PARAM_WIDGETS = Object.freeze({
   acyclicer:                { w: "cmbAcyclicer",                 kind: "combo", items: ACYCLICER_LABELS },
   ranking:                  { w: "cmbRanking",                   kind: "combo", items: RANKING_LABELS },
   nodePlacement:            { w: "cmbNodePlacement",             kind: "combo", items: NODE_PLACEMENT_LABELS },
+  circles:                  { w: "cmbCircles",                   kind: "combo", items: CIRCLES_LABELS },
   reverseRules:             { w: "tblReverseRules",              kind: "rules" },
   routing:                  { w: "cmbRouting",                   kind: "combo", items: ROUTING_ALL },
   labelPosition:            { w: "cmbLabelPosition",             kind: "combo", items: LABEL_POS_ALL },
@@ -1654,6 +1658,8 @@ function _buildLayoutTab(tabFolder, ctx) {
   row = _formRow(grpFlow, "Layers:", formRows, "form", 2);
   _addCombo(row, "Placement", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
   w.cmbNodePlacement.addListener(SWT.Selection, () => _updateComboTooltips(w));
+  _addCombo(row, "Circles",   CIRCLES_LABELS,        0, SWT.DEFAULT, "cmbCircles",       w);
+  w.cmbCircles.addListener(SWT.Selection, () => _updateComboTooltips(w));
   _addSpinnerRow(row, "Layer distance", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
 
   // ── Elements ──────────────────────────────────────────────────────────────────
@@ -1749,7 +1755,8 @@ function _updateComboTooltips(w) {
   // Cast: a list of (combo, param, option tooltips) triples.
   for (const [ctrl, key, tips] of /** @type {[Swt.Combo, string, Record<string, string>][]} */ ([[w.cmbRouting, "routing", ROUTING_TOOLTIPS],
                                    [w.cmbLabelPosition, "labelPosition", LABEL_POS_TOOLTIPS],
-                                   [w.cmbNodePlacement, "nodePlacement", NODE_PLACEMENT_TOOLTIPS]])) {
+                                   [w.cmbNodePlacement, "nodePlacement", NODE_PLACEMENT_TOOLTIPS],
+                                   [w.cmbCircles, "circles", CIRCLES_TOOLTIPS]])) {
     if (!ctrl) continue;
     const item = String(ctrl.getText());
     ctrl.setToolTipText(Defs.paramTooltip(key, tips[item] ? `${item}: ${tips[item]}` : ""));
@@ -3254,7 +3261,8 @@ const CONNECTION_ROOM_SLACK = 2;   // px
  * Algorithms that route connections between the elements (defs connectionsBetweenElements) need
  * Element distance ≥ 2 × Distance to element + CONNECTION_ROOM_SLACK: at exactly 2 × Graphviz finds
  * elements touching within the connection margin and draws every connection straight. The value
- * the user changed wins; the other follows.
+ * the user changed wins; the other follows. Element distance is also at least the shortest
+ * connection that shows both end symbols (MIN_CONNECTION_LENGTH).
  * @param {DialogContext} ctx
  * @param {"element" | "connection"} changed
  */
@@ -3262,6 +3270,7 @@ function _keepConnectionRoom(ctx, changed) {
   const w = ctx.widgets;
   if (!w.algRadios || !w.spinElementSpacing || !w.spinConnectionElementSpacing) return;
   if (!ALGORITHMS[_selectedAlgorithm(w)].connectionsBetweenElements) return;
+  if (w.spinElementSpacing.getSelection() < Defs.MIN_CONNECTION_LENGTH) w.spinElementSpacing.setSelection(Defs.MIN_CONNECTION_LENGTH);
   const elem = w.spinElementSpacing.getSelection(), conn = w.spinConnectionElementSpacing.getSelection();
   if (elem >= 2 * conn + CONNECTION_ROOM_SLACK) return;
   if (changed === "element") w.spinConnectionElementSpacing.setSelection(Math.max(0, Math.floor((elem - CONNECTION_ROOM_SLACK) / 2)));
