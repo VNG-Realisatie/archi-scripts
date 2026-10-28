@@ -3,14 +3,14 @@
  *
  * Orchestrator. One pipeline → one layout engine call → one writer (action-agnostic).
  *
- * The writer's rule (§A.10.11): per result object,
- *   exists on target view? → reposition (preserve appearance + parenthood)
+ * The writer's rule (§A.11.11): per result object,
+ *   exists on target view? → reposition (appearance preserved; parenthood re-derived from §A.6)
  *   else                  → create (default appearance)
  *
  * No per-action branches inside the writer. Action only determines (a) which
  * objects feed the layout and (b) which view is the target.
  */
-console.log("generate_view.js");
+console.log("Loading generate_view.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
@@ -32,11 +32,11 @@ const JUNCTION_DIAMETER = 14;
 
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
 
-let _elkAdapter = null, _dagreAdapter = null, _dotAdapter = null;
+let _elkAdapter = null, _dagreAdapter = null, _graphvizAdapter = null;
 function _getAdapter(engine) {
-  if (engine === "ELK")      { if (!_elkAdapter)   _elkAdapter   = require(REPO_ROOT + "View/lib/engines/elk");   return _elkAdapter; }
-  if (engine === "Dagre")    { if (!_dagreAdapter) _dagreAdapter = require(REPO_ROOT + "View/lib/engines/dagre"); return _dagreAdapter; }
-  if (engine === "Graphviz") { if (!_dotAdapter)   _dotAdapter   = require(REPO_ROOT + "View/lib/engines/dot");   return _dotAdapter; }
+  if (engine === "ELK")      { if (!_elkAdapter)       _elkAdapter       = require(REPO_ROOT + "View/lib/engines/elk");       return _elkAdapter; }
+  if (engine === "Dagre")    { if (!_dagreAdapter)     _dagreAdapter     = require(REPO_ROOT + "View/lib/engines/dagre");     return _dagreAdapter; }
+  if (engine === "Graphviz") { if (!_graphvizAdapter)  _graphvizAdapter  = require(REPO_ROOT + "View/lib/engines/graphviz");  return _graphvizAdapter; }
   throw `Unknown engine: "${engine}"`;
 }
 
@@ -130,7 +130,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   console.log(`Layout result: ${result.nodes.length} nodes, ${result.edges.length} edges`);
 
   // Write — single function, action-agnostic.
-  return _writeView(preset, result, objectSet, view, nestingRels);
+  return _writeView(preset, result, objectSet, view, graph._parentRels);
 }
 
 // ── One view per element ──────────────────────────────────────────────────────
@@ -151,6 +151,7 @@ function _generateOneEach(preset, uiSelection) {
   const views = [];
   for (const element of elements) {
     console.log(`\nGenerating view for: ${element.name}`);
+    // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
     const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
     const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
     const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + suffix);
@@ -174,6 +175,16 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   // parentMap from nesting relations.
   const parentMap = {};
   const parentRels = [];
+
+  function _wouldCreateCycle(map, childId, parentId) {
+    let cur = parentId;
+    while (cur) {
+      if (cur === childId) return true;
+      cur = map[cur];
+    }
+    return false;
+  }
+
   for (const rel of nestingRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
@@ -182,20 +193,26 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 
     if (!params.showInEveryContainer) {
       if (parentMap[childId] === undefined) {
-        parentMap[childId] = parentId;
-        parentRels.push(rel);
+        if (_wouldCreateCycle(parentMap, childId, parentId)) {
+          console.log(`Nesting skipped (cycle): ${srcId} → ${tgtId} (${rel.type})`);
+        } else {
+          parentMap[childId] = parentId;
+          parentRels.push(rel);
+        }
       }
     } else {
       const occs = occurrenceMap[childId] || [childId];
       const unassigned = occs.find(id => parentMap[id] === undefined);
-      if (unassigned) {
+      if (unassigned && !_wouldCreateCycle(parentMap, unassigned, parentId)) {
         parentMap[unassigned] = parentId;
       } else {
         const alreadyHere = occs.find(id => parentMap[id] === parentId);
         if (!alreadyHere) {
           const occId = `${childId}_occ_${occs.length}`;
-          occurrenceMap[childId] = [...occs, occId];
-          parentMap[occId] = parentId;
+          if (!_wouldCreateCycle(parentMap, occId, parentId)) {
+            occurrenceMap[childId] = [...occs, occId];
+            parentMap[occId] = parentId;
+          }
         }
       }
       parentRels.push(rel);
@@ -278,8 +295,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     algorithm:      preset.algorithm,
     nodes, edges,
     options:        params,
-    alignSameType:  params.alignSameType || false,
-    sortContainers: !params.sortContainers,
+    alignWidthSameType: params.alignWidthSameType || false,
+    sortContainers: params.sortContainers || false,
     _parentMap:     parentMap,
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,
@@ -291,16 +308,16 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 /**
  * Apply a layout result to a target view. Action-agnostic.
  *
- * Per-object rule (§A.10.11):
- *   - VisualObject for this concept exists on the view → reposition (bounds only).
- *   - Otherwise                                       → create (default appearance).
+ * Per-object rule (§A.11.11):
+ *   - exists → reposition (appearance preserved; parenthood re-derived from §A.6).
+ *   - Otherwise → create (default appearance).
  *
  * Same rule for visual relations: existing → rewrite bendpoints; new → add.
  *
- * Parent-first iteration (§A.10.10) guarantees a child's parent VO is in place
+ * Parent-first iteration (§A.11.10) guarantees a child's parent VO is in place
  * (added or repositioned) before the child is processed.
  */
-function _writeView(preset, result, objectSet, view, nestingRels) {
+function _writeView(preset, result, objectSet, view, parentRels) {
   // Index result nodes once. Sort parent-first (engine output may be arbitrary order).
   const nodeById = Object.create(null);
   result.nodes.forEach(n => { nodeById[n.id] = n; });
@@ -329,9 +346,29 @@ function _writeView(preset, result, objectSet, view, nestingRels) {
     const existing = existingVoByConcept.get(archiId) || existingVoByVoId.get(archiId);
 
     if (existing) {
-      // Reposition. Parent-first sort guarantees the parent VO's NEW bounds are
-      // already in place, so reading the parent chain gives the parent's new
-      // absolute position. Visual parenthood is preserved (§A.10.9).
+      // Derive desired parent from this run's nesting decisions (§A.6.6, §A.11.9).
+      const newParentVisual = rn.parentId ? visualIndex[rn.parentId] : null;
+      const currentParentVO = $(existing).parent().filter("element").first() || null;
+      const newParentId = newParentVisual ? String(newParentVisual.id) : null;
+      const curParentId = currentParentVO ? String(currentParentVO.id) : null;
+
+      if (newParentId !== curParentId) {
+        // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
+        const target = newParentVisual || view;
+        const parentRn = newParentVisual ? nodeById[rn.parentId] : null;
+        const relX = parentRn ? rn.x - parentRn.x : rn.x;
+        const relY = parentRn ? rn.y - parentRn.y : rn.y;
+        try {
+          target.add(existing, relX, relY);
+          existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+          visualIndex[rn.id] = existing;
+        } catch (e) {
+          console.error(`Failed to re-parent element ${archiId}: ${e}`);
+        }
+        continue;
+      }
+
+      // Same parent — reposition within current container.
       const off = _getParentAbsOffset(existing);
       existing.bounds = {
         x: rn.x - off.x,
@@ -381,7 +418,7 @@ function _writeView(preset, result, objectSet, view, nestingRels) {
   }
 
   // ── Nesting connections (parent-child boxes): existing → skip, new → add ──
-  for (const rel of (nestingRels || [])) {
+  for (const rel of (parentRels || [])) {
     if (existingRelByConcept.has(rel.id)) continue;
     const srcV = visualIndex[rel.source && rel.source.id];
     const tgtV = visualIndex[rel.target && rel.target.id];
@@ -478,8 +515,10 @@ function _synthesiseSelfLoopBendpoints(connection) {
  */
 function _sortNodesParentFirst(nodes, nodeById) {
   const depth = Object.create(null);
+  const VISITING = -1;
   function d(n) {
-    if (depth[n.id] !== undefined) return depth[n.id];
+    if (depth[n.id] !== undefined) return depth[n.id] === VISITING ? 0 : depth[n.id];
+    depth[n.id] = VISITING;
     const parent = n.parentId && nodeById[n.parentId];
     depth[n.id] = parent ? 1 + d(parent) : 0;
     return depth[n.id];
@@ -507,7 +546,9 @@ function _getParentAbsOffset(vo) {
   return { x, y };
 }
 
+
 function _resolveViewName(preset, elements) {
+  // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
   const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
   const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
   if (preset.view.name) return preset.view.name + suffix;

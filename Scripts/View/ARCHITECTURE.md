@@ -55,7 +55,7 @@ Stable terms. Used in code, UI labels, and documentation. No synonyms.
 | **VisualRelation** | The drawing of one relation on one view's canvas. Has endpoints (VisualElements) and bendpoints. |
 | **DiagramObject** | A canvas-only object that has no model concept: note, group, image, legend, view-reference, or a connection drawn between diagram objects. Belongs to exactly one view. |
 | **Nesting** | The act of drawing a relation as a parent-child containment (one box inside another) rather than as a line. Driven by per-relation-type rules in the preset. |
-| **Container** | A VisualElement that visually nests other VisualElements as a consequence of nesting rules. Containers are never authored directly. |
+| **Container** | A VisualElement that visually nests other VisualElements as a consequence of nesting rules (§A.6). Containers are never authored directly. |
 | **Layout** | The algorithmic positioning of all visible objects on a view. |
 | **Preset** | A named, persistable bundle of layout configuration (algorithm choice + parameters + filters + related-elements rules + target naming). |
 | **Action** | What the system does on invocation: create a new view, create one view per element, expand an existing view, or re-lay-out an existing view. A runtime parameter — never stored in a preset. |
@@ -81,19 +81,6 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 | Parameter file, config file | Preset |
 | Per element | One view each |
 | Layout only | Re-layout |
-
-Algorithm display names:
-
-| Internal | GUI label |
-|---|---|
-| layered | Hierarchical |
-| mrtree | Tree |
-| force | Organic |
-| box | Grid |
-| stress | Balanced organic |
-| radial | Radial |
-| dagre | Hierarchical (nested) |
-| rectpacking | Pack |
 
 ## A.3 System architecture
 
@@ -127,7 +114,7 @@ Three layers, top to bottom. Each layer talks only to the one below.
 │  Input: (selection, preset, action).                     │
 └────────────────────────┬─────────────────────────────────┘
                          │ engine-independent layout graph
-                         │ (named boundary; see §A.7)
+                         │ (named boundary; see §A.8)
 ┌────────────────────────▼─────────────────────────────────┐
 │  Layer 3 — Engine adapters                               │
 │  One adapter per layout engine. Consumes the layout      │
@@ -138,10 +125,11 @@ Three layers, top to bottom. Each layer talks only to the one below.
 
 Shared infrastructure (used by Layers 1–2, not a layer itself):
   SSOT module           ← styles, algorithms, GUI parameters,
-                          per-algorithm allowed values, engine
-                          parameter mappings, action and routing
-                          constants, the closed set of
-                          diagram-object types.
+                          per-algorithm allowed values, action and
+                          routing constants, the closed set of
+                          diagram-object types, preset defaults.
+                          Functional/dialog data only — no engine-
+                          specific option names or conversions.
   Selection pipeline    ← selection → filter → related-elements
                           expansion → typed object set.
   Preset persistence    ← read/write preset bundles; preserve
@@ -156,6 +144,7 @@ Shared infrastructure (used by Layers 1–2, not a layer itself):
 - **The API → adapter boundary is the engine-independent layout graph.** Adapters must not see selections, presets, or views.
 - **SSOT is read-only at runtime.** Adding an algorithm, a parameter, or a diagram-object type is a single-file change.
 - **Engine adapters are isolated.** Adding a new engine requires no changes to other layers or other adapters.
+- **Strict SSOT / adapter separation.** `defs.js` contains only functional definitions: algorithm metadata, GUI parameters, display labels, allowed values, preset defaults. All engine-specific translations (option names, unit conversions, flag values) live exclusively in the adapter files in `PARAM_MAPPING`. Adding a new algorithm requires one SSOT entry (`defs.js`) and one `PARAM_MAPPING` entry in the relevant adapter — no other file changes.
 - **The entry-points layer is replaceable.** Any caller that can produce a validated preset + a selection can drive the view-generation API directly.
 
 ## A.4 Data model
@@ -243,7 +232,16 @@ Used by the `EncodedRelTypeId[]` fields above (`filter.relationTypes`, `Layer.re
 | `"type:in"` | incoming only (traversed element is the relation's target) |
 | `"type:out"` | outgoing only (traversed element is the relation's source) |
 
-The UI never produces the empty-direction state ("relation checked but neither direction lit"); at least one direction is always selected when a relation is active.
+Per relation type, two independent direction checkboxes are shown: **☐ ←** (incoming) and **☐ →** (outgoing). There is no separate "activate this relation" master toggle.
+
+| UI state | Encoded form | Meaning |
+|---|---|---|
+| ☑ ← only | `"type:in"` | incoming only |
+| ☑ → only | `"type:out"` | outgoing only |
+| ☑ ← and ☑ → | `"type"` | both directions |
+| ☐ ← and ☐ → | *(absent from list)* | follow all — unconstrained |
+
+Empty selection (neither direction checked) is meaningful: the relation type is absent from the encoded list. §A.5 step 5 treats "empty union → all types allowed", so the absent type is followed in all directions. No UI enforcement prevents the both-unchecked state; it is the idiomatic "don't filter" state.
 
 ### A.4.3 Action
 
@@ -257,11 +255,11 @@ The pipeline takes a user selection plus a validated preset plus an action and r
 
 `VisualSet` is the triple `{ visualElements, visualRelations, diagramObjects }` — the *existing* visual objects currently on a target view, captured together with their bounds, appearance, and visual parenthood.
 
-The writer (§A.10.11) consults the VisualSet per result object: a counterpart found in the set is **repositioned** (appearance + parenthood preserved); an object with no counterpart is **created** with default appearance. The VisualSet is captured before any model traversal, so reposition-vs-create is independent of pipeline-stage ordering.
+The writer (§A.11.11) consults the VisualSet per result object: a counterpart found in the set is **repositioned** (appearance preserved; parenthood re-derived from §A.6); an object with no counterpart is **created** with default appearance. The VisualSet is captured before any model traversal, so reposition-vs-create is independent of pipeline-stage ordering.
 
 ### Action-group dispatch
 
-Pipeline behaviour is determined by the action's group, not by the individual action. The two groups mirror the configuration dialog's action row (§A.8):
+Pipeline behaviour is determined by the action's group, not by the individual action. The two groups mirror the configuration dialog's action row (§A.9):
 
 | Group | Actions | VisualSet at pipeline start | Selection's role |
 |---|---|---|---|
@@ -277,7 +275,9 @@ The selection's *source* — the model tree vs a view's canvas — is orthogonal
 
 ### Steps
 
-LAYOUT_ONLY runs Step 1 only; Steps 2–6 are skipped because no model expansion applies.
+**EXPAND_VIEW and LAYOUT_ONLY skip Step 2.** The element-type filter is not applied for either action in the "Modify selected view" group. These actions re-layout or expand elements already on the view; applying the filter would exclude visible element types, causing containers to be sized for only the filtered subset while the excluded elements remain at positions outside those bounds.
+
+LAYOUT_ONLY additionally skips Step 3 (no related-elements expansion — re-layout what is already there, not add to it). EXPAND_VIEW runs Step 3 normally from the unfiltered base.
 
 ```
 Step 1  Selection → model + diagram objects (+ VisualSet)
@@ -330,15 +330,59 @@ Step 6  Partition diagram objects
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
 
-## A.6 Action semantics
+## A.6 Nesting
 
-Writing a layout result is **action-agnostic**. The single writing rule (§A.10.11):
+### A.6.1 Role assignment
 
-> For each result object — if a counterpart exists in the VisualSet (§A.5), **reposition** it (appearance + visual parenthood preserved). Otherwise **create** it (default appearance).
+Every relation in the pipeline's output is assigned exactly one role:
+
+- **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes`.
+- **Routed** — otherwise.
+
+The set in the preset is the only authority. Role assignment is total (no relation is left unassigned) and deterministic (same inputs → same roles).
+
+### A.6.2 Parent / child direction
+
+For a nesting relation: the **source** is the parent and the **target** is the child — unless the relation's type is also in `preset.params.reverseRelationTypes`, in which case the **target** is parent and the **source** is child. The flip applies to nesting roles in exactly the same way it applies to routed-edge layout direction (§A.8 "Reversed edges").
+
+### A.6.3 Multi-parent resolution
+
+Many nesting relations may name the same element as their child. The preset's `showInEveryContainer` boolean decides the outcome:
+
+| `showInEveryContainer` | Behaviour |
+|---|---|
+| `false` (default) | **First-wins.** The first nesting relation encountered (in pipeline order) assigns the child to its parent; later nesting relations that would assign the same child to a different parent are ignored for parenthood. The relation still exists in the model but does not draw a containment line nor a routed edge. |
+| `true` | **Visual instances.** The element appears once under each parent. Each visual instance is a distinct node in the layout but maps back to the same model element. Layout decisions per instance are independent. |
+
+Determinism: pipeline order is fixed (model iteration order is stable), so first-wins yields the same result on repeated runs.
+
+### A.6.4 Asymmetric roles
+
+An element may be a **parent in one relation and a child in another** — there is no contradiction. Nesting roles are per-relation, not per-element. An element with at least one nesting relation on the parent-side and at least one on the child-side is both a Container (it contains other elements) and itself contained in its own parent. Diamond and deep-chain nesting are natural consequences of §A.6.1–§A.6.3 applied to multiple relations.
+
+### A.6.5 Container derivation
+
+A Container is any element that has at least one child after §A.6.3 resolution. Container-ness is **derived** from the parentMap, never declared. Users do not author containers directly. The closed set of element types remains §A.4.1 — being a Container does not change an element's type.
+
+### A.6.6 Writer parenthood — action-agnostic
+
+The writer derives every visual's parent from the current run's nesting decisions, regardless of which action invoked the run:
+
+- An element whose parentMap entry names another element → drawn **inside** that parent's visual.
+- An element whose parentMap entry is absent → drawn at **view root**.
+- An existing VisualElement whose current visual parent differs from the new parentMap → **re-parented** (moved under the new parent). Bounds are then expressed relative to the new parent.
+
+There is no per-action branch. NEW_VIEW, ONE_EACH, EXPAND_VIEW, and LAYOUT_ONLY all apply the same rule.
+
+## A.7 Action semantics
+
+Writing a layout result is **action-agnostic**. The single writing rule (§A.11.11):
+
+> For each result object — if a counterpart exists in the VisualSet (§A.5), **reposition** it (appearance preserved; parenthood re-derived from §A.6). Otherwise **create** it (default appearance).
 
 Same rule for relations: existing → rewrite bendpoints; new → create.
 
-Actions are organised into two groups that match the dialog's action row (§A.8). Each action differs from its sibling in only two things — (1) what objects feed the layout and (2) which view is the target. The writer doesn't know or care which action invoked it.
+Actions are organised into two groups that match the dialog's action row (§A.9). Each action differs from its sibling in only two things — (1) what objects feed the layout and (2) which view is the target. The writer doesn't know or care which action invoked it.
 
 ### Create new view group
 
@@ -358,12 +402,12 @@ VisualSet is **captured from the target view** before model expansion runs. All 
 | **EXPAND_VIEW** | Selection (a whole view, or a subset of its canvas objects) drives related-elements expansion. Visuals outside the selection stay in place; selected visuals and any added related elements are repositioned. | The selected view itself. `preset.view.name` is ignored. |
 | **LAYOUT_ONLY** | The selected view's current contents only — no related-elements expansion. | The selected view itself. |
 
-What "preserved" means concretely:
+What "preserved" / "re-derived" means concretely:
 - **Appearance properties** (colours, fonts, line styles, sizes overridden by the user) — never touched by the writer; the engine produces sizes only as hints, the writer only sets `bounds`.
-- **Visual parenthood** (which parent VO contains this VO on the canvas) — preserved (§A.10.9); the writer never moves a VO to a different parent.
+- **Visual parenthood** — *re-derived* per run from §A.6 (nesting rules), not preserved. An existing VisualElement may be re-parented when the new parentMap names a different parent.
 - **Bendpoints on existing relations** — *rewritten* from the layout result, because the new endpoint positions invalidate old bendpoints. Style properties of the connection are untouched.
 
-## A.7 Engine adapter contract
+## A.8 Engine adapter contract
 
 A layout engine is an opaque function. The system exposes one normalised interface that every engine adapter must implement.
 
@@ -401,8 +445,8 @@ LayoutGraph {
   maxHeight      : number               // 0 = unconstrained
   aspectRatio    : number               // 0 = unconstrained
 
-  alignSameType  : boolean
-  sortContainers : boolean
+  alignWidthSameType : boolean
+  sortContainers     : boolean
 }
 ```
 
@@ -441,114 +485,152 @@ LayoutResult {
 
 Element labels are intrinsic to nodes — the result carries no separate element-label coordinates. The writer places each node's `label` inside the node's bounds at its standard position.
 
+### Node-size invariant
+
+**Node sizes come from the input or are calculated by the engine; they are never changed after layout.** Specifically:
+
+- **Leaf node** `width` and `height` are taken from `LayoutGraph.nodes[i].width/height` (set by the user via `elementWidth`/`elementHeight` parameters). The adapter passes these to the engine unchanged. The engine must not resize them.
+- **Container node** `width` and `height` are **not** set in the input. The engine computes container dimensions from children and padding natively. The adapter must not pre-size containers.
+- The `LayoutResult` is consumed as-is. No post-layout scaling or coordinate adjustment is applied anywhere in the pipeline.
+
+`alignWidthSameType` is the one sanctioned exception: it adjusts certain leaf widths *between* pass 1 and pass 2 of a two-pass layout so the engine sizes containers from equalized content. The adjustment is pre-layout (input to pass 2), not post-layout.
+
 ### Adapter obligations
 
 - Honour every parameter listed as **active** for the chosen algorithm; ignore inactive ones.
 - Translate the parameter values from their UI/preset form to the engine's native form.
-- Apply view-size constraints (`maxWidth`, `maxHeight`, `aspectRatio`) within whatever the engine supports natively; if the engine cannot enforce a constraint, the adapter must approximate or skip with a documented loss.
+- Apply view-size constraints (`maxWidth`, `maxHeight`, `aspectRatio`) natively via engine options; do not apply post-layout scaling.
 - Return absolute coordinates (the orchestrator converts to parent-relative).
 - Never read or write a view directly. Adapters operate only on `LayoutGraph` / `LayoutResult`.
 
-## A.8 GUI structure
+## A.9 GUI structure
 
 The UI is a tabbed dialog that drives the orchestrator.
 
 ### Top-to-bottom layout
 
-1. Preset row — load · save · manage.
+1. Preset row — a combo of saved presets 
 2. Tabs: **Selection** | **Layout**.
 3. View name and location (outside tabs).
 4. Action row: **Cancel** | **Create new view** group | **Modify selected view** group.
+
+### Presets
+Selecting a saved preset applies it immediately. 
+- **Load…** action (browse for a preset file, opens in the preset folder by default);
+- **Save** action (persist the current configuration as a named preset file, prefilled with the current name); 
+- **Manage…** action (rename or delete saved presets — loading is done via the combo, not from Manage).
 
 ### Selection tab
 
 The Selection tab decides *which* objects feed the layout: the counts table on top, then the global filter, then any related-elements blocks.
 
 ```
-┌─ Generate View ──────────────────────────────────────────────────────────┐
-│  Preset: [Application Flow LR  ▼]  [Load…]  [Save]  [Manage…]           │
-│  ┌─[Selection]──[Layout]──────────────────────────────────────────────┐ │
-│  │ ┌─ Current selection ──────────────────────────────────────────┐   │ │
-│  │ │               Elements  Relations  Diagrams  Views  Folders  │   │ │
-│  │ │  Selected        [n]      [n]       [n]      [—]    [—]     │   │ │
-│  │ │  Containing      [n]      [n]       [n]      [—]    [—]     │   │ │
-│  │ │  Filtered        [n]      [n]       [n]      [—]    [—]     │   │ │
-│  │ │  Related elem.1  [+n]     [+n]      [—]      [—]    [—]     │   │ │
-│  │ │  Related elem.2  [+n]     [+n]      [—]      [—]    [—]     │   │ │
-│  │ └──────────────────────────────────────────────────────────────┘   │ │
-│  │ ┌─ Filter  (empty = all included) ────────────────────────────┐    │ │
-│  │ │  Element types:   [search + available | chip selector]      │    │ │
-│  │ │  Relation types:  [4-col alphabetical checkbox grid]        │    │ │
-│  │ │  Diagram types:   [4-col grid, aligned with relations]      │    │ │
-│  │ └──────────────────────────────────────────────────────────────┘   │ │
-│  │ ┌─ Related elements ──────────────────────────────────────────┐    │ │
-│  │ │  [+ Add related elements]                                   │    │ │
-│  │ │  ┌─ Related elements 1 ─[▲][▼]─[▾]─[✕]──────────────────┐ │    │ │
-│  │ │  │  Relation types:                                       │ │    │ │
-│  │ │  │  ☐ access [←][→]  ☐ aggregation [←][→]  …             │ │    │ │
-│  │ │  │  Filter element types:  [chip selector]                │ │    │ │
-│  │ │  │  Depth:  [1  ▲▼]                                       │ │    │ │
-│  │ │  └────────────────────────────────────────────────────────┘ │    │ │
-│  │ └──────────────────────────────────────────────────────────────┘   │ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-│  ┌─ View name and location ───────────────────────────────────────────┐ │
-│  │  Name: [_____________________________]  Suffix: [Layered         ] │ │
-│  │  Folder: [/View/_Generated_________________________________________]│ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-│  [Cancel]  ┌─ Create new view ─────────────┐  ┌─ Modify selected view ─┐│
-│            │  [New view]  [One view each]   │  │  [Expand view ●]       ││
-│            └───────────────────────────────┘  │  [Layout only  ●]      ││
-│                                               └────────────────────────┘│
-└──────────────────────────────────────────────────────────────────────────┘
+┌─ Generate View ──────────────────────────────────────────────────────────────┐
+│  Preset: [Application Flow LR  ▼]  [Load…]  [Save]  [Manage…]               │
+│  ┌─[Selection]──[Layout]──────────────────────────────────────────────────┐  │
+│  │ ┌─ Current selection ────────────────────────────────────────────────┐ │  │
+│  │ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │ │  │
+│  │ │               First object: Business Actor: Customer                 │ │  │
+│  │ │  Containing:  12 elements, 8 relations                              │ │  │
+│  │ │  Filtered:    9 elements, 6 relations                               │ │  │
+│  │ │  ──────────────────────────────────────────────────────────────    │ │  │
+│  │ │  Filter element types  (empty = all included):                      │ │  │
+│  │ │  [search field]  ┊  [chip panel: × BusinessActor  × Application]    │ │  │
+│  │ │  Filter relation types:                                             │ │  │
+│  │ │  access ☐← ☐→  aggregation ☐← ☐→  assignment ☐← ☐→  …             │ │  │
+│  │ │  Filter diagram types:                                              │ │  │
+│  │ │  ☐ group  ☐ note  ☐ image  ☐ legend                                │ │  │
+│  │ └────────────────────────────────────────────────────────────────────┘ │  │
+│  │ ┌─ Related elements ─────────────────────────────────────────────────┐ │  │
+│  │ │ Expand by following relations to neighbouring elements.             │ │  │
+│  │ │ Each block below adds a step.            [+ Add related elements]   │ │  │
+│  │ │ ┌─ Step 1 ────────────────────────────────────────────────────┐   │ │  │
+│  │ │ │  Added:  4 elements, 3 relations        [▲] [▼] [▾] [✕]     │   │ │  │
+│  │ │ │  ─────────────────────────────────────────────────────────  │   │ │  │
+│  │ │ │  access ☐← ☐→  aggregation ☐← ☐→  assignment ☐← ☐→  …     │   │ │  │
+│  │ │ │  Filter element types:  [chip selector]                     │   │ │  │
+│  │ │ │  Relation levels:  [1  ▲▼]                                  │   │ │  │
+│  │ │ └─────────────────────────────────────────────────────────────┘   │ │  │
+│  │ │ ┌─ Step 2 ────────────────────────────────────────────────────┐   │ │  │
+│  │ │ │  Added:  nothing                        [▲] [▼] [▸] [✕]     │   │ │  │
+│  │ │ └─────────────────────────────────────────────────────────────┘   │ │  │
+│  │ └────────────────────────────────────────────────────────────────────┘ │  │
+│  └──────────────────────────────────────────────────────────────────────────┘  │
+│  ┌─ View name and location ───────────────────────────────────────────────┐   │
+│  │  Folder: [/View/_Generated________________]  Name: [Customer view____] │   │
+│  └────────────────────────────────────────────────────────────────────────┘   │
+│  [Cancel]   ┌─ Create new view ─────────────────┐   ┌─ Modify selected view ─┐│
+│             │  [New view]    [One view each]     │   │  [Expand view ●]        ││
+│             └───────────────────────────────────┘   │  [Layout only  ●]       ││
+│                                                      └────────────────────────┘│
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Layout tab
 
-The Layout tab decides *how* the objects are positioned: style and algorithm at the top, then flow / routing, nesting structure, sizing, reverse list, ranker.
+The Layout tab decides *how* the objects are positioned: algorithm selection at the top via a style-grouped radio table, then direction and routing parameters, nesting structure, sizing, and reverse list.
 
 ```
-┌─[Selection]──[Layout]──────────────────────────────────────────────┐
-│  Style:     [Flow          ▼]   Algorithm: [Layered  ▼]  (engine) │
-│  Hierarchical layout optimized for directional flows and …         │
-│  ──────────────────────────────────────────────────────────────    │
-│  Flow direction:  [Left → Right  ▼]                                │
-│  Relation lines:  [Orthogonal    ▼]   Label:  [Middle  ▼]          │
-│  ──────────────────────────────────────────────────────────────    │
-│  ┌─ Nesting structure ───────────────────────────────────────┐    │
-│  │  ☐ access  ☐ aggregation  ☐ assignment  …                │    │
-│  └───────────────────────────────────────────────────────────┘    │
-│  ┌─ Container appearance ─┐  ┌─ Size and spacing ┐  ┌─ View size ┐│
-│  │  spacing, checkboxes   │  │  spacing, width   │  │  max, ratio││
-│  └────────────────────────┘  └───────────────────┘  └────────────┘│
-│  ┌─ Reverse relation types ─────────────────────────────────────┐ │
-│  │  ☐ access  ☐ aggregation  …                                  │ │
-│  └──────────────────────────────────────────────────────────────┘ │
-│  Layer ranking (when applicable):  [Balanced ▼]                   │
-└────────────────────────────────────────────────────────────────────┘
+┌─[Selection]──[Layout]────────────────────────────────────────────────────┐
+│ ┌─ Size and spacing ────────────────────────────────────────────────────┐ │
+│ │  Width: [140 ▲▼]   Height: [60 ▲▼]   Element spacing: [40 ▲▼]        │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Algorithm ───────────────────────────────────────────────────────────┐ │
+│ │      Flow:  ○ Layered   ○ Dagre    ○ Dot                              │ │
+│ │ Hierarchy:  ○ Tree                                                    │ │
+│ │   Network:  ○ Force     ○ Stress   ○ Neato    ○ FDP    ○ SFDP         │ │
+│ │  Circular:  ○ Radial    ○ Twopi    ○ Circo                            │ │
+│ │   Compact:  ○ Grid      ○ Pack                                        │ │
+│ │  ── Direction and routing ──────────────────────────────────────────  │ │
+│ │  Flow direction:  [Left → Right  ▼]                                   │ │
+│ │  Relation lines:  [Orthogonal    ▼]    Label:  [Middle  ▼]            │ │
+│ │  Level spacing:   [180 ▲▼]                                            │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Reverse layout direction for relation types ─────────────────────────┐ │
+│ │  ☐ access  ☐ aggregation  ☐ assignment  ☐ association  …              │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Nesting structure … ─────────────────────────────────────────────────┐ │
+│ │  ☐ access  ☐ aggregation  ☐ assignment  ☐ association  …              │ │
+│ │  ── Container appearance ───────────────────────────────────────────  │ │
+│ │  Inner spacing: [10 ▲▼]   Padding: [10 ▲▼]   ☑ Sort   ☐ Align same   │ │
+│ │  ☐ Show in every container                                            │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ View size ───────────────────────────────────────────────────────────┐ │
+│ │  Max width: [0 ▲▼]   Max height: [0 ▲▼]   Aspect ratio: [0 ▲▼]       │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Action-row semantics
 
-The two groups here are the same groups §A.6 uses to organise action semantics.
+The two groups here are the same groups §A.7 uses to organise action semantics.
 
 - **Cancel** — always enabled. Discards changes. Preserves UI-only state for next open.
 - **Create new view** group — always enabled. Contains *New view* and *One view each*. VisualSet at pipeline start is empty (§A.5).
 - **Modify selected view** group — enabled only when the selection identifies an existing view (canvas VOs or a view node from the tree). Contains *Expand view* and *Layout only*. VisualSet is captured from the target view at pipeline start (§A.5).
 
-### Live counts in the selection table
+### Live counts in Current selection
 
-The table shows the current selection's content: rows for Selected (raw), Containing (after recursive expansion), Filtered (after the global filter), and one row per Related-elements block (each block shows the count it ADDS, not the cumulative total).
+The Current selection group shows three text lines and a per-block counter line inside each Related-elements block:
 
-**Counts do not have their own pipeline.** The dialog invokes the same selection-pipeline functions the view-generation API uses (§A.5), passing the current preset and selection; the count cells render whatever the pipeline returns. Determinism (§A.5 invariants — *Pure function*) guarantees the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, and block ordering operation. Spinner widgets defer recompute to value-commit (arrow click, focus loss) — not per-keystroke.
+- **Selected** — raw count of what the user picked in the UI. Includes a `First object: <Type>: <Name>` suffix naming the first iterated object.
+- **Containing** — count after recursive expansion of folders and views.
+- **Filtered** — count after the global Filter is applied.
+- **Added** — one counter line per block, in the block's header row. Prefix is always `Added:` (the step number appears in the group title bar, not the prefix). Shows what the block ADDS (not the cumulative total). Zero-count renders as `Added: nothing`.
+
+Only types with count > 0 are rendered on each line. Empty selection renders `Selected: nothing` (no First-object suffix).
+
+**Counts do not have their own pipeline.** The dialog invokes the same selection-pipeline functions the view-generation API uses (§A.5), passing the current preset and selection; the count text renders whatever the pipeline returns. Determinism (§A.5 invariants — *Pure function*) guarantees the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, and block ordering operation. Spinner widgets defer recompute to value-commit (arrow click, focus loss) — not per-keystroke.
 
 ### Related-elements blocks
 
-Dynamic, ordered list. Each block is:
+The Related-elements group opens with a one-line explanation and a `[+ Add related elements]` button on the same row. Below it sits a dynamic, ordered list of blocks. Each block is a `Step N` group whose body contains:
 
-- Title with reorder (up/down), collapse/expand, and remove controls.
-- Relation-types control with per-relation direction toggles (`←` incoming / `→` outgoing). At least one direction must be lit when a relation is active.
+- Header row spanning the full group body width: `Added:` prefix label, count label (`<e> elements, <r> relations` or `nothing` when zero), reorder (▲ ▼), collapse/expand (▾/▸), and remove (✕) controls on the right.
+- Horizontal separator below the header row.
+- Relation-types control: per relation type, two independent direction checkboxes (`☐ ←` incoming, `☐ →` outgoing). No master activation toggle. Both-unchecked means follow all directions for that type (empty = follow all, §A.4.2).
 - Element-type filter (block-scoped — prunes only what this block adds).
-- Depth control (≥ 1).
+- Relation-levels control (≥ 1; the number of relation hops the block follows).
 
 Block N's pruned output is block N+1's base (see A.5).
 
@@ -556,7 +638,61 @@ Block N's pruned output is block N+1's base (see A.5).
 
 GUI labels and button text use the display names defined in §A.2.1. Internal engine names may appear in tooltips parenthetically.
 
-## A.9 Algorithm capability matrix
+### Tooltips
+
+All tooltip strings are the canonical user-facing descriptions. Defined as `.tooltip` fields in `defs.js` (SSOT); applied to controls in `dialog_main.js`. The tables below are the SSOT for tooltip copy — update `defs.js` first, then these tables.
+
+#### Layout styles (style label tooltips)
+
+| Style | Tooltip |
+|---|---|
+| Flow | Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models. |
+| Hierarchy | Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition. |
+| Network | Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks. |
+| Circular | Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures. |
+| Compact | Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries. |
+
+#### Algorithms (radio button tooltips)
+
+| Algorithm | Tooltip |
+|---|---|
+| Layered | Process models, application flows, service interactions with strong directionality and nested containers (ELK) |
+| Tree | Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK) |
+| Force | Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK) |
+| Stress | Dependency maps and impact analysis emphasising relational distance (ELK) |
+| Radial | Domain overviews and hub-and-spoke structures (ELK) |
+| Grid | Portfolio overviews, catalogs and inventories with strong nesting support (ELK) |
+| Pack | High-level landscape summaries and grouped overviews with strong nesting support (ELK) |
+| Dagre | Fast process and application flows with limited nesting support (Dagre) |
+| Dot | Structured process models and dependency flows with strong nesting support (Graphviz) |
+| Neato | Integration networks and application landscapes with partial nesting support (Graphviz) |
+| FDP | Clustered integration networks with partial nesting support (Graphviz) |
+| SFDP | Large-scale integration networks and dependency maps without nesting support (Graphviz) |
+| Twopi | Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz) |
+| Circo | Cyclic dependency and domain overviews with limited nesting support (Graphviz) |
+
+#### Layout parameters
+
+| Parameter | Tooltip |
+|---|---|
+| Flow direction | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
+| Relation line style | How relation lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
+| Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
+| Level spacing | Distance between hierarchy levels (px). Used in layered, tree, and flow layouts. |
+| Element spacing | Minimum distance between elements (px). All layout types. |
+| Element width / Element height | Width / height of all elements in the view (px). |
+| Max width / Max height | Maximum view dimensions (px). 0 = unlimited. Graphviz scales output to fit when set. |
+| Aspect ratio | Width-to-height ratio of generated layout. 0 = free. |
+| Nesting relation types | Relations of these types are drawn as containment (parent-child boxes), not as lines. |
+| Inner spacing | Minimum distance between elements inside a container (px). |
+| Padding | Space between container border and contents (px). |
+| Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
+| Align same type | Resize leaf elements to match the tallest in their row, within same-type containers only. |
+| Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
+| Reverse relation types | Reverse direction before layout. Use to flip layout direction of specific relations. |
+| Label position | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
+
+## A.10 Algorithm capability matrix
 
 Not all algorithms support all parameters. A parameter that is inactive for the chosen algorithm is greyed in the UI; its value is kept (preserved across algorithm changes) but ignored at runtime.
 
@@ -570,7 +706,7 @@ Each algorithm declares:
 
 Adding a new algorithm = add one entry to the SSOT + one engine adapter (if a new engine) or extend an existing adapter. No other module changes.
 
-## A.10 Invariants
+## A.11 Invariants
 
 System-wide. Code reviews catch violations.
 
@@ -582,12 +718,12 @@ System-wide. Code reviews catch violations.
 6. **UI-only state is partitioned.** The preset schema carries only configuration that affects view generation. UI-only state (last tab index, collapsed-block flags, …) rides as separate keys preserved through the same persistence file but invisible to the orchestrator.
 7. **Action is not in the preset.** Sharing a preset across users and selections requires the preset to be selection- and action-agnostic.
 8. **Filter is non-destructive.** Filtering hides elements from a view; it does not alter the nesting structure between elements that survive the filter.
-9. **EXPAND_VIEW preserves visual parenthood.** When repositioning an already-on-view VO, its bounds are written relative to its *current* parent in the view tree — not relative to the parent the layout engine inferred. Existing visual structure (canvas groupings, nested compositions) is preserved; only positions within each parent rearrange. New elements are added at the layout's absolute coordinates, possibly under a layout-derived parent if that parent is also being newly added.
-10. **Write order is parent-first.** The write path sorts layout-result nodes so every node is processed after its parent. A child is never repositioned or added before its parent. This is what makes A.10.3 (parent-relative coordinates) hold under arbitrary engine output order, and prevents drawing-order overlap (a parent added after a child at the same level would render on top of it).
-11. **Layout writing is action-agnostic.** The orchestrator decides (a) which objects feed the layout and (b) which view is the target. The writer applies one rule per result object — *exists* → reposition (bounds only; appearance + parenthood preserved); *otherwise* → create (default appearance). Same rule for relations: existing → rewrite bendpoints; new → create. There is one write function; per-action branches inside the writer are forbidden.
-12. **Algorithm-capability masking.** Preset values for parameters not in the chosen algorithm's `activeParams` list are ignored at runtime. The raw preset stays intact (see §A.9: values are kept for UI restoration on algorithm switch); the orchestrator derives an effective parameter view from `(preset, algorithm.activeParams)` at entry and passes only that view to the pipeline, engine adapter, and writer. A non-empty inactive value reaching runtime is a defect — log it.
+9. **Visual parenthood is action-agnostic.** Every action derives visual parenthood from the current run's nesting decisions (§A.6). An existing VisualElement may be re-parented when the new parentMap dictates a different parent. The writer applies one rule per result object regardless of action.
+10. **Write order is parent-first.** The write path sorts layout-result nodes so every node is processed after its parent. A child is never repositioned or added before its parent. This is what makes A.11.3 (parent-relative coordinates) hold under arbitrary engine output order, and prevents drawing-order overlap (a parent added after a child at the same level would render on top of it).
+11. **Layout writing is action-agnostic.** The orchestrator decides (a) which objects feed the layout and (b) which view is the target. The writer applies one rule per result object — *exists* → reposition (appearance preserved; parenthood re-derived from §A.6); *otherwise* → create (default appearance). Same rule for relations: existing → rewrite bendpoints; new → create. There is one write function; per-action branches inside the writer are forbidden.
+12. **Algorithm-capability masking.** Preset values for parameters not in the chosen algorithm's `activeParams` list are ignored at runtime. The raw preset stays intact (see §A.10: values are kept for UI restoration on algorithm switch); the orchestrator derives an effective parameter view from `(preset, algorithm.activeParams)` at entry and passes only that view to the pipeline, engine adapter, and writer. A non-empty inactive value reaching runtime is a defect — log it.
 
-## A.11 Design decisions
+## A.12 Design decisions
 
 Rationale-only. Each decision references the invariant or user story that motivates it.
 
@@ -596,16 +732,18 @@ Rationale-only. Each decision references the invariant or user story that motiva
 | The set of diagram-object types is closed. | Each type needs explicit handling for filtering, traversal, and rendering. Allowing arbitrary types would defeat the closed-set assumption in the filter UI and in `Object.keys`-style iteration. |
 | Non-positional objects — Relations, VisualRelations, and diagram-model-connections — are partitioned from positional objects throughout the pipeline. | An edge has endpoints, not coordinates. Treating any of these as nodes would corrupt the layout graph; the same partition rule applies uniformly to all three kinds. |
 | Action is a runtime parameter, not preset content. | A preset is a *configuration*; an action is a *verb*. Sharing presets across selections requires action-agnosticism. |
-| The view name suffix is stored separately from the base name. | The suffix is algorithm-derived and updates automatically when the algorithm changes; the base name is user-chosen. Storing them combined would silently rewrite user input on algorithm switch. |
-| EXPAND_VIEW's target is derived from the existing visuals, not from the preset name. | The preset name is for *creating* a view. Expanding the selected view is a verb against that specific view, not a name-resolution. (See invariant A.10.4.) |
+| View name is a single user-controlled field. | A separate algorithm-derived suffix was found to silently rewrite the user's typed name on algorithm switch, which surprised users. Legacy preset files with a non-empty `view.suffix` are honoured at generation for back-compat but no longer surfaced in the dialog; the first save through the new dialog normalises the field to empty. |
+| EXPAND_VIEW's target is derived from the existing visuals, not from the preset name. | The preset name is for *creating* a view. Expanding the selected view is a verb against that specific view, not a name-resolution. (See invariant A.11.4.) |
 | Folders and view nodes are stripped from the element set before layout. | They are containers in the model browser, not placeable on a canvas. |
 | The related-elements panel is multi-block with cumulative semantics. | Real exploration patterns are layered: "from processes, get applications, then services". A single block can't express this. Cumulative ordering lets each block's filter scope its own additions. |
 | Per-relation direction toggles are independent (not mutually exclusive). | "Both", "incoming only", "outgoing only" are all common needs. Forcing a choice would lose the most-common case (both). |
-| The "neither direction lit" state is forbidden. | It is indistinguishable from "relation off"; allowing it confuses both the user and the encoded form. |
+| Empty direction selection means follow all. | When neither direction checkbox is active for a relation type, the type is absent from the encoded list. §A.5 step 5 interprets the empty union as "all types allowed". The both-unchecked state is the idiomatic "don't filter this type" state, not an error. |
 | Spinner recomputes fire on value-commit, not on keystroke. | Live counts can be expensive (relation traversal). Per-keystroke recompute is wasteful and produces flicker. |
+| Algorithm selection uses a style-grouped radio table, not a combo. | All 14 algorithms across 5 styles are always visible simultaneously. Users scan the full option space without opening a combo; style/algorithm relationships are visible at a glance. |
+| Steps 2+ start collapsed when a preset is loaded. | Each step block occupies significant vertical space. Collapsing later steps on load lets the user confirm step 1 before configuring subsequent steps; all steps remain accessible via the expand control. |
 | Coordinate conversion is engine-agnostic via `parentId` on result nodes. | Each engine handles nesting differently. Carrying parent info on the result is the simplest way to convert without engine-specific code in the orchestrator. |
 
-## A.12 Rules & precedence
+## A.13 Rules & precedence
 
 The View subsystem operates inside a layered rule system. A change to any module is constrained by rules from every applicable scope; conflicts are resolved by **scope narrowness — narrower wins**.
 
@@ -629,17 +767,30 @@ Plan files and similar transient working notes are not part of the precedence ch
 
 §B.1 lists the concrete files that realise each scope.
 
+## A.14 GUI interaction rules
+
+Rules that apply to all interactive controls in the configuration dialog. Code reviews catch violations.
+
+| Rule | Rationale |
+|---|---|
+| **Direction checkboxes: empty = follow all.** Both-unchecked is valid. No UI enforcement prevents it. The system interprets absence from the encoded list as "unconstrained" (§A.4.2, §A.5 step 5). | Eliminates the need for a two-level "relation on/off vs direction" interaction. Reduces friction for the common case: no filter = all relations followed. |
+| **Algorithm selection uses a radio table.** All algorithms for all styles are always visible simultaneously in a style-grouped table. | Users scan the full option space without opening a combo. Makes style/algorithm relationships visible at a glance. |
+| **Radio groups require same-parent placement.** SWT auto-groups `SWT.RADIO` buttons in the same composite parent — clicking one deselects all siblings. Programmatic `setSelection(true)` does NOT trigger auto-deselect; all siblings must be explicitly deselected first. | Prevents multiple algorithms appearing selected after a programmatic sync-to-UI call. |
+| **Spinners fire on commit, not keystroke.** Spinner controls bind `SWT.Selection` and `SWT.FocusOut`, not `SWT.Modify`. | Relation traversal for live counts is expensive. Per-keystroke recompute produces flicker and wasted CPU. |
+| **Steps 2+ start collapsed on preset load.** When `_syncToUI` loads a preset with multiple step blocks, only step 1 is expanded; later steps start collapsed. | Each block takes significant vertical space. Collapsed steps are accessible via the expand control (▸). |
+| **Group titles are bold by default; action-row groups are not.** `_group(parent, label, cols)` applies a bold font unless `{ bold: false }` is passed. | Bold titles create visual hierarchy in the scrolled tab area. The action row sits outside the scroll area and uses its own visual weight. |
+
 ---
 
 # Part B — Current implementation
 
 How Part A is realised in jArchi 1.12 / GraalVM JavaScript / SWT / Eclipse / Archi 5.9. Every section opens with `**Realises:** §A.X`. Where reality diverges from Part A, either Part A or the code is wrong — escalate.
 
-## B.1 Rule files (realisation of §A.12)
+## B.1 Rule files (realisation of §A.13)
 
-**Realises:** §A.12 (rules & precedence).
+**Realises:** §A.13 (rules & precedence).
 
-Concrete files that fill each scope from §A.12. Listed broadest → narrowest; narrower wins on conflict.
+Concrete files that fill each scope from §A.13. Listed broadest → narrowest; narrower wins on conflict.
 
 ### Global (user-level, all projects)
 
@@ -647,17 +798,14 @@ Concrete files that fill each scope from §A.12. Listed broadest → narrowest; 
 |---|---|
 | `~/.claude/rules.md` | Rule priority chain (project shared docs → `~/ai/shared/coding-standards.md` → `~/.claude/settings.md`). |
 | `~/.claude/settings.md` | Behaviour defaults: concise responses, edit existing files over creating new, do not narrate diffs. |
-| `~/ai/shared/coding-standards.md` | Cross-project coding defaults. Repo-level `coding-standards.md` overrides on conflict. |
+| `~/ai/shared/coding-standards.md` | Cross-project coding defaults. Repo-level standards override on conflict. |
 
 ### Repo-wide
 
 | File | Role |
 |---|---|
-| [`CLAUDE.md`](../../CLAUDE.md) | Project entry point. Fixed vocabulary. Pointers to other rule files. |
-| [`project.md`](../../project.md) | Runtime constraints (jArchi 1.12 / GraalVM JS / Archi 5.9), domain scope. |
-| [`architecture.md`](../../architecture.md) | Repo-wide module structure: `Scripts/<subsystem>/` organisation; entry-point vs library split. |
-| [`coding-standards.md`](../../coding-standards.md) | Naming, module/export conventions, file headers, console-log discipline. |
-| [`testing.md`](../../testing.md) | When/where/how to test. |
+| [`ai/rules.md`](../../ai/rules.md) | Tool-independent rule priority chain, layer model, source references. |
+| [`ai/jarchi-scripting/jarchi-script-development.md`](../../ai/jarchi-scripting/jarchi-script-development.md) | Repo patterns, coding standards, vocabulary, folder structure, runtime constraints, testing guide. |
 | [`readme.md`](../../readme.md) | User-facing intro. |
 
 ### Shared library (`Scripts/_lib/`)
@@ -674,7 +822,7 @@ Code, not documentation, but treated as fixed contract.
 
 | File | Role |
 |---|---|
-| [`Scripts/View/CLAUDE.md`](CLAUDE.md) | Subsystem rules: pipeline model, hard rules, SWT/jArchi platform rules, `layoutDialog` architecture, relation-direction encoding contract. (Display vocabulary lives in §A.2.1.) |
+| [`Scripts/View/CLAUDE.md`](CLAUDE.md) | Reference-only: pointers to ARCHITECTURE.md sections and `ai/jarchi-scripting/SKILL.md`. |
 | [`Scripts/View/README.md`](README.md) | User-facing: how to invoke the scripts, what each preset does. |
 | [`Scripts/View/ARCHITECTURE.md`](ARCHITECTURE.md) | **This file.** Part A is the design constraint; Part B tracks code reality. |
 
@@ -703,10 +851,10 @@ Library (.js — via require)
 │  generate_view.js   Orchestrates selection → engine → view │
 └──┬─────────────────────────────────────────────────────┘
    │
-   ├─ defs.js (SSOT)            ← styles, algorithms, DIAGRAM_TYPES, ENGINE_MAPPING
+   ├─ defs.js (SSOT)            ← styles, algorithms, DIAGRAM_TYPES, preset defaults
    ├─ selection_pipeline.js     ← selection → filter → expansion → typed object set
    ├─ preset_io.js              ← read/write preset JSON; session persistence
-   └─ engines/elk.js | dagre.js | dot.js   ← engine adapters
+   └─ engines/elk.js | dagre.js | graphviz.js   ← engine adapters
 
 gui/dialog_main.js
   ├─ defs.js
@@ -730,22 +878,22 @@ Reused from _lib/
 | `Scripts/View/_expand.ajs` | Read session; call `generate_view` with action `expand_view` |
 | `Scripts/View/_layout_only.ajs` | Read session; call `generate_view` with action `layout_only` |
 | `Scripts/View/presets/*.ajs` | Wrapper: load named preset → `generate_view` |
-| `Scripts/View/lib/defs.js` | SSOT (Part A.9 algorithms; A.4 closed enums; ENGINE_MAPPING for A.7 adapters) |
-| `Scripts/View/lib/generate_view.js` | Orchestrator (Part A.6 action semantics) |
+| `Scripts/View/lib/defs.js` | SSOT (Part A.10 algorithms; A.4 closed enums; preset defaults; `mapParams` generic utility) |
+| `Scripts/View/lib/generate_view.js` | Orchestrator (Part A.7 action semantics) |
 | `Scripts/View/lib/selection_pipeline.js` | Pipeline (Part A.5 contract) |
 | `Scripts/View/lib/preset_io.js` | Preset I/O + session passthrough |
-| `Scripts/View/lib/engines/elk.js` | ELK adapter (Part A.7) |
-| `Scripts/View/lib/engines/dagre.js` | Dagre adapter (Part A.7) |
-| `Scripts/View/lib/engines/dot.js` | Graphviz adapter (Part A.7) |
-| `Scripts/View/lib/gui/dialog_main.js` | SWT dialog (Part A.8) |
+| `Scripts/View/lib/engines/elk.js` | ELK adapter (Part A.8) |
+| `Scripts/View/lib/engines/dagre.js` | Dagre adapter (Part A.8) |
+| `Scripts/View/lib/engines/graphviz.js` | Graphviz adapter (Part A.8) |
+| `Scripts/View/lib/gui/dialog_main.js` | SWT dialog (Part A.9) |
 | `Scripts/View/lib/gui/dialog_presets.js` | Preset management sub-dialog |
 | `Scripts/View/user_parameter/*.json` | Saved named presets |
 | `Scripts/View/user_parameter/_session.json` | Last-used session (gitignored) |
-| `Scripts/View/test_visual_props.ajs` | Verifies bounds-set does not reset visual properties (validates A.10.2) |
+| `Scripts/View/test_visual_props.ajs` | Verifies bounds-set does not reset visual properties (validates A.11.2) |
 
 ## B.3 SSOT realisations
 
-**Realises:** §A.4 (data model) and §A.9 (algorithm capability matrix).
+**Realises:** §A.4 (data model) and §A.10 (algorithm capability matrix).
 
 ### Algorithms and styles
 
@@ -791,7 +939,7 @@ Realise §A.4.2 (Encoded relation type strings). UI controls round-trip through 
 
 ### Preset validation
 
-`validatePreset(raw)` deep-clones `DEFAULT_PRESET`, merges in raw values, validates option values against `algorithm.supportedOptions`, drops unknown top-level keys, normalises `relatedElements.layers`, and returns the result. Realises §A.10.5.
+`validatePreset(raw)` deep-clones `DEFAULT_PRESET`, merges in raw values, validates option values against `algorithm.supportedOptions`, drops unknown top-level keys, normalises `relatedElements.layers`, and returns the result. Realises §A.11.5.
 
 ## B.4 Selection pipeline implementation
 
@@ -830,6 +978,11 @@ Step 1  Selection.getSelection(uiSelection, "*")  ← uniform model-tree + canva
 
 Step 2  _applyFilter(modelCollection, filter)        ← element/relation types
         _applyDiagramFilter(diagramObjects, filter)  ← diagram types
+        SKIPPED for EXPAND_VIEW and LAYOUT_ONLY — the "Modify selected view"
+        group must include all elements already on the view so containers are
+        sized for their full visible content. Applying the filter would exclude
+        some element types, shrinking containers while the excluded elements
+        remain on the view at positions outside those bounds.
 
 Step 3  Related-elements expansion — SKIPPED for LAYOUT_ONLY (the action's
         contract is to re-layout what's there, not add to it).
@@ -861,7 +1014,7 @@ const other = isOutgoing ? rel.target : rel.source;
 
 ## B.5 `generate_view` implementation
 
-**Realises:** §A.6 (action semantics), §A.10.11 (action-agnostic writer).
+**Realises:** §A.7 (action semantics), §A.11.11 (action-agnostic writer).
 
 ### Public API
 
@@ -882,7 +1035,7 @@ _generateSingle(preset, uiSelection, actionId, viewNameOverride?):
        NEW_VIEW / ONE_EACH       → _getOrCreateView(folder, name)
   4. graph  = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects)
   5. result = engineAdapter.layout(graph)
-  6. _writeView(preset, result, objectSet, view, nestingRels)   ← single writer
+  6. _writeView(preset, result, objectSet, view, graph._parentRels)   ← single writer
 ```
 
 ### Key internal functions
@@ -895,23 +1048,30 @@ _generateSingle(preset, uiSelection, actionId, viewNameOverride?):
 - Nesting via `parentMap` built from `nestingRelationTypes`; compound nodes carry `parent`.
 - Edges from `routedRels`.
 
-**`_writeView(preset, result, objectSet, view, nestingRels)` — the only writer**
+**`_writeView(preset, result, objectSet, view, parentRels)` — the only writer**
 
-Action-agnostic. Realises §A.10.11. Single rule per object:
+Action-agnostic. Realises §A.11.11. Single rule per object:
 
 ```
 build existingVoByConcept     : conceptId → VisualElement
 build existingVoByVoId        : VO id     → VisualElement | DiagramObject
 build existingRelByConcept    : conceptId → VisualRelation
-sorted = _sortNodesParentFirst(result.nodes, nodeById)        // §A.10.10
+sorted = _sortNodesParentFirst(result.nodes, nodeById)        // §A.11.10
 
 For each rn in sorted:
   archiId = rn.id without _occ_ suffix
   existing = existingVoByConcept.get(archiId) || existingVoByVoId.get(archiId)
   IF existing:
-    reposition: existing.bounds = { x: rn.x - parentAbsOff.x, y: rn.y - parentAbsOff.y, w, h }
-                (parent-first sort guarantees parent's NEW bounds are in place)
-    visualIndex[rn.id] = existing
+    newParent = rn.parentId ? visualIndex[rn.parentId] : null
+    curParent = $(existing).parent().filter("element").first() || null
+    IF newParent.id ≠ curParent.id:                            // parent changed — re-parent
+      (newParent || view).add(existing, relX, relY)           // jArchi 1.10 move (no deletion)
+      existing.bounds = { x: relX, y: relY, w, h }
+      visualIndex[rn.id] = existing
+    ELSE:                                                      // same parent — reposition
+      existing.bounds = { x: rn.x - parentAbsOff.x, y: rn.y - parentAbsOff.y, w, h }
+                        (parent-first sort guarantees parent's NEW bounds are in place)
+      visualIndex[rn.id] = existing
   ELSE:
     el = $('#archiId').first()
     skip if not found or el.type in DIAGRAM_TYPES (phantom diagram-VO match)
@@ -924,14 +1084,14 @@ For each re in result.edges:
             ?? view.add(archiRel, visualIndex[re.sourceId], visualIndex[re.targetId])
   _applyEdgeStyle(connection, re, preset)   // delete-all + set bendpoints + label position
 
-For each nestingRel:
+For each parentRel:                                            // winning nesting relations only
   skip if already on view (existingRelByConcept has it)
   view.add(rel, srcV, tgtV)
 ```
 
 **`_sortNodesParentFirst(nodes, nodeById)`** — copy of nodes sorted by depth (root first, stable within depth). Engine-agnostic.
 
-**`_getParentAbsOffset(vo)`** — walks the VO's parent chain in the view tree, sums parent bounds.x/y. Under parent-first iteration the parent's NEW bounds have already been applied, so reading them yields the parent's *new* absolute position. The writer therefore needs no separate "planned position" lookup — `_getParentAbsOffset` is sufficient.
+**`_getParentAbsOffset(vo)`** — walks the VO's parent chain in the view tree, sums parent bounds.x/y. Used in the same-parent reposition branch; under parent-first iteration the parent's NEW bounds have already been applied.
 
 **`_applyEdgeStyle(connection, re, preset)`** — sets `textPosition` (label) and rewrites bendpoints (deleteAll + add). Style properties (colour, line width) are not touched.
 
@@ -954,11 +1114,11 @@ For each nestingRel:
 | DiagramObject | LAYOUT_ONLY / EXPAND_VIEW (existing) | Same as VisualElement — bounds-only. |
 | DiagramObject | NEW_VIEW | Not present (model selections contain no diagram objects). |
 
-> Tested: `Scripts/View/test_visual_props.ajs` confirmed jArchi does **not** reset visual properties when `vo.bounds` is set (12 OK · 0 CHANGED). This is what makes A.10.2 (appearance preservation) hold.
+> Tested: `Scripts/View/test_visual_props.ajs` confirmed jArchi does **not** reset visual properties when `vo.bounds` is set (12 OK · 0 CHANGED). This is what makes A.11.2 (appearance preservation) hold.
 
 ## B.6 Engine adapter implementations
 
-**Realises:** §A.7 (adapter contract).
+**Realises:** §A.8 (adapter contract).
 
 Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and implements `layout(graph) → result` matching A.7 shapes.
 
@@ -995,7 +1155,29 @@ Nesting: `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph + `parent` pro
 
 ## B.7 GUI dialog implementation
 
-**Realises:** §A.8 (GUI structure). The dialog mockups and structural decisions live in §A.8; this section covers implementation only — widget classes, SWT/GTK behaviours, JS storage shapes, event policy, tooltip strings.
+**Realises:** §A.9 (GUI structure). The dialog mockups, structural decisions, and tooltip strings live in §A.9; this section covers implementation only — widget classes, SWT/GTK behaviours, JS storage shapes, and event policy.
+
+### Preset row
+
+The preset row sits above the tab strip. Four controls:
+
+- **Combo** (`SWT.DROP_DOWN | SWT.READ_ONLY`) — lists named presets from `PresetIO.listPresets()`. `SWT.Selection` calls `_mergePreset` + `_syncToUI` immediately (no confirm step).
+- **Load…** button — opens `FileDialog(SWT.OPEN)` with `filterPath = PresetIO.presetDir()` and `filterExtensions = ["*.json"]`. On confirm: reads raw JSON via `PresetIO.readJSON(path)`, validates with `validatePreset`, applies via `_mergePreset` + `_syncToUI`.
+- **Save** button — calls `_saveUI`, then opens `FileDialog(SWT.SAVE)` with `filterPath = PresetIO.presetDir()` and `fileName = (ctx.config.name || "preset") + ".json"`. On confirm: derives preset name from the chosen filename, writes via `PresetIO.writeJSON(path, ctx.config)`, refreshes combo.
+- **Manage…** button — opens `PresetsDialog`; on close, refreshes combo.
+
+Raw `org.eclipse.swt.widgets.FileDialog` is used for both Load and Save — jArchi's `window.promptOpenFile` wrapper does not expose `filterPath` (initial directory).
+
+### Manage sub-dialog
+
+`Scripts/View/lib/gui/dialog_presets.js` — a `TitleAreaDialog` with Rename and Delete only. No Load button (loading is via the combo).
+
+Layout follows the TitleAreaDialog separator rule (see SKILL.md and §B.9 below):
+- `numColumns(1)` on `area`; 2-column layout in a wrapper composite inside `area`.
+- Column 1: `Text(SWT.SEARCH | SWT.ICON_CANCEL)` (row 1) + `ListWidget` (row 2).
+- Column 2: `btnCol` composite with `span(1, 2)` — Rename… and Delete buttons.
+
+`SWT.Modify` on the text field repopulates the list (case-insensitive substring match). `SWT.DefaultSelection` (Enter) focuses the list.
 
 ### Action row
 
@@ -1016,21 +1198,22 @@ Each block stored as:
 
 ```js
 {
-  container, body, titleLabel,
+  container,      // GroupWidget — setText("Step N") provides the native group title
+  body,           // CompositeWidget — hidden/shown on collapse; layoutData.exclude toggled
+  lblBlockCounts, // LabelWidget — count text only (no "Added:" prefix; prefix is a sibling label)
   btnUp, btnDown, btnCollapse, btnRemove,
   collapsed: boolean,
   relCheckGrid: { getEncoded, setEncoded, enable },
   typeSelector: { getSelected, setSelected, enable },
   depthSpinner,
-  tableRow: { container, lblName, lblElems, lblRels },
 }
 ```
 
-- `_addRelatedBlock(ctx, layerData?)` — append block + table row.
-- `_removeRelatedBlock(ctx, blockObj)` — dispose both; renumber survivors.
+- `_addRelatedBlock(ctx, layerData, opts?)` — append block; `opts.startCollapsed` collapses the block on creation (body hidden, `btnCollapse.setText("▸")`).
+- `_removeRelatedBlock(ctx, blockObj)` — dispose block; renumber survivors.
 - `_moveRelatedBlock(ctx, blockObj, ±1)` — swap in array + reorder SWT widgets via `moveBelow`.
-- `_toggleCollapseBlock(blockObj)` — sets `body.layoutData.exclude` + visibility.
-- `_renumberAndReorderRelBlocks(ctx)` — fixes titles, table-row order, up/down button enabled state.
+- `_toggleCollapseBlock(blockObj)` — toggles `body.layoutData.exclude` + visibility.
+- `_renumberAndReorderRelBlocks(ctx)` — updates group title text (`container.setText("Step N")`); updates up/down button enabled state.
 
 ### Live counter trigger policy
 
@@ -1039,28 +1222,56 @@ Each block stored as:
 
 ### GUI parameter tooltips
 
-| Parameter | Tooltip |
-|---|---|
-| Flow direction | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
-| Relation line style | How relation lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
-| Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
-| Level spacing | Distance between hierarchy levels (px). Used in layered, tree, and flow layouts. |
-| Element spacing | Minimum distance between elements (px). All layout types. |
-| Element width / Element height | Width / height of all elements in the view (px). |
-| Max width / Max height | Maximum view dimensions (px). 0 = unlimited. Graphviz scales output to fit when set. |
-| Aspect ratio | Width-to-height ratio of generated layout. 0 = free. |
-| Nesting relation types | Relations of these types are drawn as containment (parent-child boxes), not as lines. |
-| Inner spacing | Minimum distance between elements inside a container (px). |
-| Padding | Space between container border and contents (px). |
-| Sort containers | Sort containers alphabetically within the same level. Unchecked: algorithm determines order. |
-| Align same type | Resize leaf elements to match the tallest in their row, within same-type containers only. |
-| Show in every container | An element in multiple containers appears in each. Default: appears only in the first. |
-| Reverse relation types | Reverse direction before layout. Use to flip layout direction of specific relations. |
-| Label position | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
+See §A.9 (Tooltips) — style labels, algorithm radio buttons, and layout parameters. `defs.js` is the SSOT for tooltip copy.
+
+### layoutDialog state contract
+
+The dialog maintains a separation between configuration (model) and UI state (view):
+
+- **`layoutDialog.config`** — the live parameter object; source of truth between runs. Persisted to presets and session state.
+- **`layoutDialog.widgets`** — flat map of named widget references (buttons, spinners, checkboxes, text fields, list builders).
+- **`syncConfigToUI()`** — pushes `config` → widgets; called after `createDialogArea` and after preset apply.
+- **`saveInput()`** — reads widgets → `config`; called before run and before preset save.
+- **`updateActionControls(action)`** — enables/disables depth spinner and view name field based on the selected action (NEW_VIEW, ONE_EACH, EXPAND_VIEW, LAYOUT_ONLY).
+- **`updateAlgoControls(algo)`** — enables/disables direction/routing/ranker/weights controls based on the selected algorithm's supported options (see §B.8).
+- **`layoutDialog.widgets.algRadios`** — `Map<algorithmName, ButtonWidget>`. Built once in `_buildLayoutTab`; used by `updateAlgoControls`, `syncConfigToUI`, and `saveInput`. All radio buttons share the same SWT composite parent (auto-mutually-exclusive on click). Programmatic selection: `algRadios.forEach(r => r.setSelection(false))` then `algRadios.get(name).setSelection(true)` — SWT does not auto-deselect on programmatic calls.
+- **`_updateActionColors()`** — stored closure; sets white background + default foreground for the active action toggle, widget background + dark-grey foreground for inactive toggles. Must be called from all action toggle listeners AND from `syncConfigToUI`.
+
+### Relation filter widget shapes
+
+**`_relCheckGrid` row shape (per relation type in any direction-aware grid):**
+```js
+{
+  id: string,          // relation type ID (e.g., "serving-relationship")
+  chkIn: ButtonWidget, // ☐← incoming direction
+  chkOut: ButtonWidget // ☐→ outgoing direction
+}
+```
+
+- No master activation checkbox (`chk` does not exist). Presence in the encoded list is determined solely by direction selection.
+- `chkIn` and `chkOut` are independent controls. Both-unchecked is valid and means "follow all directions" (absent from encoded list → §A.4.2).
+- No `updateDirColors` closure. Direction state is reflected by the check state only; no colour change on toggle.
+- `getEncoded()` includes only rows where `chkIn.getSelection() || chkOut.getSelection()`.
+- `setEncoded(list)` sets each row's checkboxes from decoded `:in` / `:out` / both suffixes; rows absent from `list` are left unchecked (both false).
+
+**Checkbox grids (Reverse, Nesting):**
+```js
+// Stored at layoutDialog.widgets[name + "_checks"]
+// Example: layoutDialog.widgets.lstReversed_checks, layoutDialog.widgets.lstNested_checks
+[
+  { type: string, chk: ButtonWidget },
+  // ...
+]
+```
+
+- `createRelCheckGrid(name, container, cols, initialSelected)` builds the grid and stores the array at `widgets[name + "_checks"]`.
+- Each entry is a relation type with its checkbox widget.
 
 ## B.8 Engine parameter mappings
 
-**Realises:** §A.9 (algorithm capability matrix) — concrete realisation in each engine.
+**Realises:** §A.10 (algorithm capability matrix) — concrete realisation in each engine.
+
+Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values into engine-specific option objects. `defs.js` exports a generic `mapParams(algorithmName, params, mapping)` utility that iterates `algorithm.activeParams` and applies the relevant mapper functions — the caller supplies its own `PARAM_MAPPING`. No engine-specific option names, unit conversions, or flag values appear in `defs.js`.
 
 ### Algorithm × parameter compatibility
 
@@ -1096,7 +1307,7 @@ Each block stored as:
 | Element spacing | `elk.spacing.nodeNode` | direct (px) |
 | Padding | `elk.padding` | `"[top=N,left=N,bottom=N,right=N]"` |
 | Nesting | (pre-processing) | parent-child + `elk.hierarchyHandling: "INCLUDE_CHILDREN"` |
-| Sort containers (checkbox) | `elk.layered.sortLeavesOnly` | checked → `false`; unchecked → `true` |
+| Sort containers (checkbox) | (pre-processing only — `_sortChildren` in elk.js) | checked → containers first then leaves, all sorted by type then name; unchecked → no pre-sort, model order |
 | Align same type | (two-pass post-processing) | Resize leaves to match tallest same-type sibling |
 
 ### Dagre
@@ -1122,23 +1333,27 @@ Each block stored as:
 
 ## B.9 jArchi 1.12 / GraalVM platform notes
 
+See [`ai/jarchi-scripting/SKILL.md`](../../ai/jarchi-scripting/SKILL.md) — full jArchi / SWT / GTK platform rules and scripting patterns. Consult before making claims about jArchi or Archi behaviour.
+See [`ai/elkjs/SKILL.md`](../../ai/elkjs/SKILL.md) — ELK-specific API notes, layout option names, and engine quirks.
+
 Implementation-only quirks of the host platform. None of these correspond to a Part A concept; they exist because the host has rough edges.
 
 - `$(view).children()` does NOT return view-reference VOs → use `$(view).find(dt)` per `DIAGRAM_TYPES` key.
 - `$(view).find("diagram-model-reference")` finds them but `.type` returns `"archimate-diagram-model"` → alias both keys in `DIAGRAM_TYPES`.
 - `view.add(diagramObjProxy, x, y, w, h)` fails — 4-arg overload exists only for `ArchimateElementProxy`. Check `el.type in DIAGRAM_TYPES` before branching.
-- `vo.bounds = …` does NOT reset visual properties (colors, fonts). Verified by `Scripts/View/test_visual_props.ajs` (12 OK · 0 CHANGED). This is what makes A.10.2 hold.
+- `vo.bounds = …` does NOT reset visual properties (colors, fonts). Verified by `Scripts/View/test_visual_props.ajs` (12 OK · 0 CHANGED). This is what makes A.11.2 hold.
 - `vo.bounds` is **relative to immediate parent** — view for root VOs, parent VO for nested. Engine outputs absolute coords; convert via `parentId`.
 - `SWT.TOGGLE` `setSelection` programmatically does NOT fire a Selection event. Safe to set siblings without re-entry guards.
 - GTK `setBackground(null)` / `setForeground(null)` — set explicit `SWT.COLOR_WIDGET_BACKGROUND` for inactive, system default for active.
 - GTK rendering: `setBackground`/`setForeground` during `createDialogArea` may not render until first paint — use `display.asyncExec` in `create()` callback.
+- **`TitleAreaDialog.createDialogArea()`** adds a separator `Label` as the first child of the returned composite before returning it. Applying `numColumns > 1` directly to `area` shifts all subsequent widgets by one cell. Always use `numColumns(1)` on `area`; put multi-column layouts in a wrapper composite nested inside `area`. See SKILL.md (§ TitleAreaDialog — layout on `area`) for the correct/wrong pattern.
 - `Java.extend(JavaClass, methods)` — 2-arg form required; methods baked into subclass at definition time.
 - `Java.to(idxs, "int[]")` for explicit type to avoid GraalVM `setSelection(int[])` ambiguity.
 - No `+1` on width/height. `view.add()` and `vo.bounds` accept exact values.
 
 ## B.10 Realisation of design decisions
 
-**Realises:** §A.11 (design decisions) — where each decision lives in code.
+**Realises:** §A.12 (design decisions) — where each decision lives in code.
 
 | Part A decision | Realised in |
 |---|---|
@@ -1147,14 +1362,16 @@ Implementation-only quirks of the host platform. None of these correspond to a P
 | Action is a runtime parameter | `generate_view(preset, uiSelection, actionId)` — 3rd argument, never on `preset`. `validatePreset` would strip it. Dialog stores `ctx._actionId` separately. |
 | View name suffix stored separately | `preset.view.suffix` separate from `preset.view.name`. `VIEW_NAME_SEPARATOR` is added by `_resolveViewName` when building the final name. Suffix auto-updates on algorithm change in `_updateViewNameAlgorithm`. |
 | EXPAND_VIEW target from existing visuals | Pipeline returns `existingView` populated from the selected view; `_generateSingle` uses it directly, bypassing `_getOrCreateView`. |
-| Action-agnostic writer (§A.10.11) | One `_writeView` function. Per-object rule: exists → reposition (bounds only); else → create. Same rule for relations: existing → rewrite bendpoints; new → add. Deleted helpers: `_layoutOnlyView`, `_applyResultToView`, `_findParentNodeId`, `_computeExistingParentOffset`, `_layoutOnlySet`. |
+| Action-agnostic writer (§A.11.11) | One `_writeView` function. Per-object rule: exists → reposition (appearance preserved; parenthood re-derived from §A.6 — move via jArchi 1.10 API if parent changed); else → create. Same rule for relations: existing → rewrite bendpoints; new → add. Deleted helpers: `_layoutOnlyView`, `_applyResultToView`, `_findParentNodeId`, `_computeExistingParentOffset`, `_layoutOnlySet`. |
 | Folders and view nodes stripped before layout | `selection_pipeline.js` step 4 — excludes `type === "folder"` and `type === "archimate-diagram-model"`. |
 | Related-elements panel is multi-block + cumulative | `dialog_main.js::_addRelatedBlock` / `_updateFilteredCount` — block N+1's base = block N's pruned output. |
-| Per-relation direction toggles independent | `_relCheckGrid` — `←` and `→` are independent `SWT.TOGGLE` buttons (not radio). |
-| "Neither direction lit" forbidden | `_relCheckGrid` toggle handlers revert a click that would unlight both. |
+| Per-relation direction toggles independent | `_relCheckGrid` — `chkIn` (←) and `chkOut` (→) are independent direction checkboxes per relation type. No master activation checkbox. |
+| Empty direction selection = follow all (§A.4.2) | `getEncoded()` includes only types where `chkIn.getSelection() \|\| chkOut.getSelection()`. Absent from the list → unconstrained at runtime (§A.5 step 5: empty union → all types allowed). No listener reverts the both-unchecked state. |
+| Algorithm selection via radio table (§A.12, §A.14) | `_buildLayoutTab` — `algTableComp` 6-col composite inside `grpAlg`; style label per row (col 0), one radio per algorithm in 5 flex columns. `w.algRadios: Map<algName, ButtonWidget>`. `_syncToUI`: deselect all then `algRadios.get(name)?.setSelection(true)`. `_saveUI`: iterate algRadios to find selected; fallback `"Layered"`. |
+| Step auto-collapse on preset load (§A.14) | `_addRelatedBlock(ctx, layerData, opts)` — when `opts.startCollapsed`: `body.setVisible(false)`, `gd.exclude = true`, `btnCollapse.setText("▸")`, `blockObj.collapsed = true`. `_syncToUI` passes `{ startCollapsed: idx > 0 }` for preset layers array. |
 | Spinner recomputes on commit, not keystroke | Depth spinner binds `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
 | Coordinate conversion engine-agnostic via `parentId` | Engine adapters set `parentId` on result nodes; `_writeView` applies `(rn.x - parent.x, rn.y - parent.y)` for newly-added VOs, and reads the parent's current bounds via `_getParentAbsOffset` for repositioning existing VOs (parent-first iteration ensures parent's NEW bounds are in place). |
-| UI-only state partitioned (per A.10.6) | `_*`-prefixed keys (`_lastTabIndex`, …) preserved by `preset_io.readSession` after `validatePreset` strips unknowns. |
+| UI-only state partitioned (per A.11.6) | `_*`-prefixed keys (`_lastTabIndex`, …) preserved by `preset_io.readSession` after `validatePreset` strips unknowns. |
 | ELK Radial spanning-tree pre-processing | `engines/elk.js::_spanningTree` — BFS over the graph; cycle edges dropped; virtual edges `id: "__span_N"` join disconnected components; `_writeView` skips virtuals (`_archiRelId: null`). |
 | Cancel group `setText(" ")` | `_buildActionRow` — single space so GTK reserves title-bar height matching labelled siblings. |
 | Per-block element-type filter is block-scoped | `_expandLayer` applies `layer.elementTypes` after relation traversal; block's row count and feed-forward base both reflect the pruned set. |

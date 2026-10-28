@@ -8,7 +8,7 @@
  * Single shared import: the diagram-object type list from _lib/selection.js
  * (SSOT for what counts as a canvas diagram object).
  */
-console.log("defs.js");
+console.log("Loading defs.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
@@ -39,18 +39,19 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       "direction", "routing", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "nestingRelationTypes", "padding",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      routing:       ["Orthogonal", "Polyline", "Straight"],
+      routing:       ["Orthogonal", "Polyline", "Splines"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Tree: {
@@ -60,19 +61,19 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
-      "direction", "routing", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "direction", "labelPosition", "reverseRelationTypes",
+      "nestingRelationTypes", "padding",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
+      "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      routing:       ["Orthogonal", "Polyline", "Straight"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Force: {
@@ -81,8 +82,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
-      "reverseRelationTypes"],
+    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
@@ -94,8 +94,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // stress model has no notion of self-loop distance
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio", 
-      "reverseRelationTypes"],
+    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)",
@@ -108,9 +107,7 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
     activeParams:         [
-      "nestingRelationTypes", "innerSpacing", "padding", "showInEveryContainer",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
-      "reverseRelationTypes"
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
@@ -125,13 +122,14 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Pack: {
@@ -142,13 +140,14 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
       "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignSameType", "showInEveryContainer",
+      "sortContainers", "alignWidthSameType", "showInEveryContainer",
       "elementSpacing", "elementWidth", "elementHeight",
       "maxWidth", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
+    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
   },
 
   Dagre: {
@@ -156,14 +155,17 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "dagre",
     style:                "Flow",
     supportsNesting:      "partial",
-    supportsSelfLoops:    false,  // Dagre core silently drops self-loops
+    supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
-      "direction", "ranking", "labelPosition", "reverseRelationTypes",
+      "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
+      "nestingRelationTypes", "padding",
+      "sortContainers", "alignWidthSameType",
       "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
     ],
     supportedOptions: {
       direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
       ranking:       ["Balanced", "Uniform", "Top-aligned"],
+      acyclicer:     ["Default", "Greedy"],
       labelPosition: ["Source", "Middle", "Target"],
     },
     labelPositionDefault: "Middle",
@@ -188,7 +190,12 @@ const ALGORITHMS = Object.freeze({
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Structured process models and dependency flows with strong nesting support (Graphviz)",
+    tooltip: "Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   Neato: {
@@ -208,7 +215,12 @@ const ALGORITHMS = Object.freeze({
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Integration networks and application landscapes with partial nesting support (Graphviz)",
+    tooltip: "Spring-model layout for undirected networks with partial cluster nesting. No direction control (Graphviz neato)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   FDP: {
@@ -228,7 +240,12 @@ const ALGORITHMS = Object.freeze({
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Clustered integration networks with partial nesting support (Graphviz)",
+    tooltip: "Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   SFDP: {
@@ -240,14 +257,19 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "routing", "labelPosition",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "maxWidth", "maxHeight", "aspectRatio",
     ],
     supportedOptions: {
       routing:       ["Polyline", "Straight", "Spline (approximated)"],
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Large-scale integration networks and dependency maps without nesting support (Graphviz)",
+    tooltip: "Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   Twopi: {
@@ -258,14 +280,19 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       "labelPosition",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "layerSpacing", "elementWidth", "elementHeight",
       "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
     ],
     supportedOptions: {
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz)",
+    tooltip: "Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 
   Circo: {
@@ -277,24 +304,24 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       "labelPosition",
       "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "maxWidth", "maxHeight", "aspectRatio",
     ],
     supportedOptions: {
       labelPosition: ["Source", "Middle", "Target", "Natural"],
     },
     labelPositionDefault: "Natural",
-    tooltip: "Cyclic dependency and domain overviews with limited nesting support (Graphviz)",
+    tooltip: "Circular layout placing nodes on concentric circles. Best for ring topologies and cyclic dependency patterns (Graphviz circo)",
+    paramConflicts: {
+      aspectRatio: ["maxWidth", "maxHeight"],
+      maxWidth:    ["aspectRatio", "maxHeight"],
+      maxHeight:   ["aspectRatio", "maxWidth"],
+    },
   },
 });
 
 // Derived: algorithm name → engine name
 const ALGO_ENGINE = Object.freeze(
   Object.fromEntries(Object.entries(ALGORITHMS).map(([k, v]) => [k, v.engine]))
-);
-
-// Derived: set of Graphviz algorithm names
-const GV_ALGORITHMS = new Set(
-  Object.entries(ALGORITHMS).filter(([, v]) => v.engine === "Graphviz").map(([k]) => k)
 );
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -321,6 +348,8 @@ const ROUTING = Object.freeze({
     tooltip: "Draws relation lines as direct straight lines." },
   SPLINE:        { id: "Spline (approximated)", label: "Spline (approximated)",
     tooltip: "Graphviz B-splines converted to bendpoints. Only available with Graphviz algorithms." },
+  SPLINES:       { id: "Splines",              label: "Splines",
+    tooltip: "Smooth Bézier curve edges. Available with Layered and Tree algorithms." },
 });
 
 // ── Directions ────────────────────────────────────────────────────────────────
@@ -332,29 +361,31 @@ const DIRECTIONS = Object.freeze([
   { val: "Bottom → Top" },
 ]);
 
-// ELK direction values
-const ELK_DIRECTION = Object.freeze({
-  "Left → Right": "RIGHT",
-  "Right → Left": "LEFT",
-  "Top → Bottom": "DOWN",
-  "Bottom → Top": "UP",
-});
+// ── Ranking (Dagre only) ──────────────────────────────────────────────────────
+// Dialog display values and defaults only.
+// Engine-specific ranker identifiers live in engines/dagre.js.
 
-// Dagre / Graphviz rankdir values
-const RANKDIR = Object.freeze({
+const RANKING = Object.freeze([
+  { val: "Balanced",    default: true },
+  { val: "Uniform" },
+  { val: "Top-aligned" },
+]);
+
+// ── Acyclicer options (Dagre only) ────────────────────────────────────────────
+
+const ACYCLICER = Object.freeze([
+  { val: "Default", default: true },
+  { val: "Greedy" },
+]);
+
+// ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
+
+const DIRECTION_MAP = Object.freeze({
   "Left → Right": "LR",
   "Right → Left": "RL",
   "Top → Bottom": "TB",
   "Bottom → Top": "BT",
 });
-
-// ── Ranking (Dagre only) ──────────────────────────────────────────────────────
-
-const RANKING = Object.freeze([
-  { val: "Balanced",    dagreRanker: "network-simplex", default: true },
-  { val: "Uniform",     dagreRanker: "longest-path" },
-  { val: "Top-aligned", dagreRanker: "tight-tree" },
-]);
 
 // ── Label positions ───────────────────────────────────────────────────────────
 
@@ -433,10 +464,8 @@ const DIAGRAM_TYPES = Object.freeze(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GV_BIN_DEFAULT       = "dot";
 const GENERATED_VIEW_FOLDER = "/View/_Generated";
 const SESSION_FILENAME     = "_session.json";
-const PT2PX                = 96 / 72;   // Graphviz: points → pixels
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
 // Separator inserted between view name and suffix when building the final view name
@@ -452,12 +481,13 @@ const DEFAULT_PRESET = Object.freeze({
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
+    acyclicer:             "Default",
     reverseRelationTypes:  [],
     nestingRelationTypes:  [],
     innerSpacing:          20,
     padding:               20,
     sortContainers:        false,
-    alignSameType:         false,
+    alignWidthSameType:    false,
     showInEveryContainer:  false,
     layerSpacing:          180,
     elementSpacing:        40,
@@ -477,117 +507,16 @@ const DEFAULT_PRESET = Object.freeze({
   },
   view: {
     name:   "",
-    suffix: "",
+    suffix: "",  // DEPRECATED — no longer surfaced in dialog; honoured at generation for legacy presets only. See ARCHITECTURE.md §A.12.
     folder: "",
   },
 });
 
 // ── Engine parameter mapping (GUI param → engine param) ───────────────────────
-// Each entry is a function (guiValue, preset) → plain object of engine-specific params.
-// Adapters call mapParams(algorithm, preset.params) to get their engine options.
-
-const ENGINE_MAPPING = Object.freeze({
-  ELK: {
-    Layered: {
-      direction:    (v)    => ({ "elk.direction": ELK_DIRECTION[v] }),
-      routing:      (v)    => ({
-        "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL"
-                          : v === "Straight"  ? "POLYLINE"
-                          :                    "POLYLINE",
-        ...(v === "Straight" ? { "elk.layered.unnecessaryBendpoints": "true" } : {}),
-      }),
-      layerSpacing: (v)    => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) }),
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:      (v)    => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-      // nestingRelationTypes → handled as graph structure (parent-child), not an ELK option
-    },
-    Tree: {
-      direction:     (v)   => ({ "elk.direction": ELK_DIRECTION[v] }),
-      routing:       (v)   => ({
-        "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL" : "POLYLINE",
-      }),
-      layerSpacing:  (v)   => ({ "elk.mrtree.spacing.nodePlacementBetweenLayers": String(v) }),
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    Force:  { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
-    Stress: { elementSpacing: (v) => ({ "elk.spacing.nodeNode": String(v) }) },
-    Radial: {
-      layerSpacing:  (v)   => ({ "elk.radial.radius": String(v) }),
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    Grid: {
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-    Pack: {
-      elementSpacing:(v)   => ({ "elk.spacing.nodeNode": String(v) }),
-      padding:       (v)   => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` }),
-    },
-  },
-
-  Dagre: {
-    Dagre: {
-      direction:     (v)   => ({ rankdir: RANKDIR[v] }),
-      ranking:       (v)   => ({ ranker: RANKING.find(r => r.val === v)?.dagreRanker ?? "network-simplex" }),
-      layerSpacing:  (v)   => ({ ranksep: v }),
-      elementSpacing:(v)   => ({ nodesep: v }),
-    },
-  },
-
-  Graphviz: {
-    Dot: {
-      direction:     (v)   => ({ rankdir: RANKDIR[v] }),
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      layerSpacing:  (v)   => ({ ranksep: v / PT2PX / (96 / 72) }),  // px → inches
-      elementSpacing:(v)   => ({ nodesep: v / PT2PX / (96 / 72) }),
-      padding:       (v)   => ({ pad: v / PT2PX / (96 / 72) }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      maxHeight:     ()    => ({}),  // handled together with maxWidth
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    Neato: {
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      elementSpacing:(v)   => ({ sep: `+${v / 96}` }),
-      padding:       (v)   => ({ pad: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    FDP: {
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      elementSpacing:(v)   => ({ sep: `+${v / 96}` }),
-      padding:       (v)   => ({ pad: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    SFDP: {
-      routing:       (v)   => ({ splines: _gvSplines(v) }),
-      elementSpacing:(v)   => ({ sep: `+${v / 96}` }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    Twopi: {
-      layerSpacing:  (v)   => ({ ranksep: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-      aspectRatio:   (v)   => v > 0 ? { ratio: String(v) } : {},
-    },
-    Circo: {
-      elementSpacing:(v)   => ({ mindist: v / 96 }),
-      maxWidth:      (v, p) => v > 0 ? { size: `${v / 96},${p.maxHeight > 0 ? p.maxHeight / 96 : 999}` } : {},
-    },
-  },
-});
-
-function _gvSplines(v) {
-  switch (v) {
-    case "Orthogonal":          return "ortho";
-    case "Polyline":            return "polyline";
-    case "Straight":            return "line";
-    case "Spline (approximated)": return "spline";
-    default:                    return "polyline";
-  }
-}
+// Engine parameter mappings have moved to the engine adapters:
+//   ELK params    → Scripts/View/lib/engines/elk.js    (PARAM_MAPPING)
+//   Dagre params  → Scripts/View/lib/engines/dagre.js  (PARAM_MAPPING)
+//   Graphviz params → Scripts/View/lib/engines/graphviz.js  (PARAM_MAPPING)
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -608,26 +537,6 @@ function decodeRelType(encoded) {
   const type = encoded.substring(0, i);
   const dir  = encoded.substring(i + 1);
   return { type, inSel: dir === "in", outSel: dir === "out" };
-}
-
-/**
- * Map a preset's params to engine-specific options for a given algorithm.
- * Only active params with a mapping function are applied.
- * @param {string} algorithmName
- * @param {Object} params  preset.params
- * @returns {Object} engine option object
- */
-function mapParams(algorithmName, params) {
-  const alg  = ALGORITHMS[algorithmName];
-  if (!alg) return {};
-  const map  = (ENGINE_MAPPING[alg.engine] || {})[algorithmName] || {};
-  const out  = {};
-  for (const key of alg.activeParams) {
-    if (map[key] && params[key] !== undefined) {
-      Object.assign(out, map[key](params[key], params));
-    }
-  }
-  return out;
 }
 
 // ── Preset validation ─────────────────────────────────────────────────────────
@@ -720,16 +629,15 @@ function effectiveParams(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    STYLES, ALGORITHMS, ALGO_ENGINE, GV_ALGORITHMS,
+    STYLES, ALGORITHMS, ALGO_ENGINE,
     ACTION, ROUTING,
-    DIRECTIONS, ELK_DIRECTION, RANKDIR,
-    RANKING, LABEL_POSITIONS, AR_OPTIONS,
+    DIRECTIONS, DIRECTION_MAP,
+    RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, DIAGRAM_TYPES,
-    GV_BIN_DEFAULT, GENERATED_VIEW_FOLDER, SESSION_FILENAME,
-    PT2PX, SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME,
+    SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
     DEFAULT_PRESET,
-    ENGINE_MAPPING, mapParams,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };

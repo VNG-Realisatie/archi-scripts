@@ -4,7 +4,7 @@
  * Accepts a normalized LayoutGraph, runs Dagre layout, returns a LayoutResult.
  * Docs: https://github.com/dagrejs/dagre/wiki
  */
-console.log("engines/dagre.js");
+console.log("Loading engines/dagre.js");
 
 const REPO_ROOT = (() => {
   const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
@@ -12,7 +12,33 @@ const REPO_ROOT = (() => {
 })();
 
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { mapParams, RANKDIR, RANKING } = Defs;
+const { ALGORITHMS, DIRECTION_MAP } = Defs;
+const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { selfLoopResult, sortedNodes, equalizeLeafWidths, applyParams } = EngineUtils;
+
+// ── Engine-specific parameter mapping ────────────────────────────────────────
+
+// Dagre ranker identifiers mapped from GUI ranking labels.
+const RANKER = {
+  "Balanced":    "network-simplex",
+  "Uniform":     "longest-path",
+  "Top-aligned": "tight-tree",
+};
+
+const PARAM_MAPPING = {
+  Dagre: {
+    direction:      (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    ranking:        (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
+    acyclicer:      (v) => v === "Greedy" ? { acyclicer: "greedy" } : {},
+    layerSpacing:   (v) => ({ ranksep: v }),
+    elementSpacing: (v) => ({ nodesep: v }),
+    padding:        (v) => ({ marginx: v, marginy: v }),
+  },
+};
+
+// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 let _dagre = null;
 function _loadDagre() {
@@ -27,49 +53,31 @@ function _loadDagre() {
 }
 
 /**
- * Compute layout positions.
- * @param {LayoutGraph} graph
- * @returns {LayoutResult}
+ * Build and populate a dagre graphlib.Graph from nodes and edges.
+ * @param {Object}   dagre        loaded dagre module
+ * @param {Object}   engineOpts   mapped graph-level options
+ * @param {Object[]} nodes        LayoutGraph nodes (sorted / equalized)
+ * @param {Object[]} edges        edges to add (may include or exclude self-loops)
+ * @returns {Object}              populated graphlib.Graph
  */
-function layout(graph) {
-  const dagre = _loadDagre();
-
-  const engineOpts = mapParams("Dagre", graph.options);
-  const rankdir = RANKDIR[graph.options.direction] || "LR";
-  const ranker  = RANKING.find(r => r.val === graph.options.ranking)?.dagreRanker ?? "network-simplex";
-
+function _buildDagreGraph(dagre, engineOpts, nodes, edges) {
   const g = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
-    .setGraph({
-      rankdir,
-      nodesep: graph.options.elementSpacing || 40,
-      ranksep: graph.options.layerSpacing   || 180,
-      ranker,
-      marginx: 10,
-      marginy: 10,
-    })
+    .setGraph(Object.assign(
+      { rankdir: "LR", nodesep: 40, ranksep: 180, ranker: "network-simplex" },
+      engineOpts
+    ))
     .setDefaultNodeLabel(() => ({}))
     .setDefaultEdgeLabel(() => ({ minlen: 1, weight: 1 }));
 
-  // Add nodes
-  for (const node of graph.nodes) {
+  for (const node of nodes) {
     g.setNode(node.id, { label: node.id, width: node.width, height: node.height });
   }
-
-  // Set parent-child relationships
-  for (const node of graph.nodes) {
+  for (const node of nodes) {
     if (node.parent && g.hasNode(node.id) && g.hasNode(node.parent)) {
       g.setParent(node.id, node.parent);
     }
   }
-
-  // Add edges. Self-loops are not routed by Dagre core — collect them for
-  // pass-through to the LayoutResult; the writer synthesises bendpoints.
-  const selfLoops = [];
-  for (const edge of graph.edges) {
-    if (edge.source === edge.target) {
-      selfLoops.push(edge);
-      continue;
-    }
+  for (const edge of edges) {
     if (!g.hasNode(edge.source) || !g.hasNode(edge.target)) continue;
     if (!g.hasEdge(edge.source, edge.target, edge.id)) {
       g.setEdge({ v: edge.source, w: edge.target, name: edge.id }, {
@@ -78,13 +86,77 @@ function layout(graph) {
       });
     }
   }
+  return g;
+}
 
-  console.log("Calculating Dagre layout...");
-  dagre.layout(g);
+/**
+ * Compute layout positions.
+ * @param {LayoutGraph} graph
+ * @returns {LayoutResult}
+ */
+function layout(graph) {
+  const dagre = _loadDagre();
+
+  const parentMap = graph._parentMap || {};
+
+  // Pre-layout: sort nodes and equalize widths if requested
+  const nodes = graph.sortContainers ? sortedNodes(graph.nodes, parentMap) : graph.nodes;
+  if (graph.alignWidthSameType) equalizeLeafWidths(nodes, parentMap);
+
+  const engineOpts = applyParams("Dagre", graph.options, PARAM_MAPPING);
+
+  // Separate self-loops from regular edges
+  const selfLoops    = [];
+  const regularEdges = [];
+  for (const edge of graph.edges) {
+    (edge.source === edge.target ? selfLoops : regularEdges).push(edge);
+  }
+
+  // Build graph and run layout.
+  // dagre-cluster-fix may throw on self-loop edges during dagre.layout() — attempt routing,
+  // rebuild without self-loops and retry on error.
+  let g;
+  const selfLoopEdgeResults = [];
+
+  if (selfLoops.length === 0) {
+    g = _buildDagreGraph(dagre, engineOpts, nodes, regularEdges);
+    console.log("Calculating Dagre layout...");
+    dagre.layout(g);
+  } else {
+    g = _buildDagreGraph(dagre, engineOpts, nodes, [...regularEdges, ...selfLoops]);
+    console.log("Calculating Dagre layout (with self-loops)...");
+    try {
+      dagre.layout(g);
+      // Extract self-loop results — use routed points if dagre-cluster-fix routed them
+      for (const edge of selfLoops) {
+        const edgeData = g.edge({ v: edge.source, w: edge.target, name: edge.id });
+        const points   = edgeData && edgeData.points;
+        if (points && points.length > 2) {
+          const inner = points.slice(1, -1);
+          selfLoopEdgeResults.push({
+            id:         edge.id,
+            sourceId:   edge.source,
+            targetId:   edge.target,
+            bendpoints: inner.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
+            labelX:     0,
+            labelY:     0,
+            isStraight: false,
+          });
+        } else {
+          selfLoopEdgeResults.push(selfLoopResult(edge));
+        }
+      }
+    } catch (e) {
+      console.log("Dagre self-loop routing failed (" + e.message + "); retrying without self-loops.");
+      g = _buildDagreGraph(dagre, engineOpts, nodes, regularEdges);
+      dagre.layout(g);
+      for (const edge of selfLoops) selfLoopEdgeResults.push(selfLoopResult(edge));
+    }
+  }
 
   // Extract LayoutResult
   const resultNodes = [];
-  const resultEdges = [];
+  const resultEdges = [...selfLoopEdgeResults];
 
   for (const nodeId of g.nodes()) {
     const n = g.node(nodeId);
@@ -98,6 +170,8 @@ function layout(graph) {
   const labelPosition = graph.options.labelPosition || "Middle";
 
   for (const edgeObj of g.edges()) {
+    if (edgeObj.v === edgeObj.w) continue;  // self-loops already in selfLoopEdgeResults
+
     const edgeData = g.edge(edgeObj);
     const points   = edgeData.points || [];
 
@@ -131,19 +205,6 @@ function layout(graph) {
       bendpoints,
       labelX,
       labelY,
-      isStraight: false,
-    });
-  }
-
-  // Self-loops: pass-through with empty bendpoints. Writer synthesises.
-  for (const edge of selfLoops) {
-    resultEdges.push({
-      id:         edge.id,
-      sourceId:   edge.source,
-      targetId:   edge.target,
-      bendpoints: [],
-      labelX:     0,
-      labelY:     0,
       isStraight: false,
     });
   }
