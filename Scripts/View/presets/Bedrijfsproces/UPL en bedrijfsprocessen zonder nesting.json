@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 3,
+  "name": "Bedrijfsproces/UPL en bedrijfsprocessen zonder nesting",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 0,
+    "elementSpacing": 30,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 220,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 160,
+    "connectionLabelSpacing": true,
+    "nestingRules": [],
+    "reverseRules": []
+  },
+  "filter": {
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": "untilNothingNew",
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      },
+      {
+        "repeat": "untilNothingNew",
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-service"},
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-process"},
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-event"},
+          {"relation": "association-relationship", "added": "business-service"},
+          {"relation": "association-relationship", "added": "business-process"},
+          {"relation": "association-relationship", "added": "business-event"},
+          {"relation": "realization-relationship", "added": "business-service"},
+          {"relation": "realization-relationship", "added": "business-process"},
+          {"relation": "realization-relationship", "added": "business-event"},
+          {"direction": "incoming", "relation": "triggering-relationship", "added": "business-service"},
+          {"direction": "incoming", "relation": "triggering-relationship", "added": "business-process"},
+          {"direction": "incoming", "relation": "triggering-relationship", "added": "business-event"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "7 Volksgezondheid en Milieu",
+    "folder": "/Bedrijfsprocessen"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Selecteer taakveld of beleidsdomein en genereer layered view"
+}

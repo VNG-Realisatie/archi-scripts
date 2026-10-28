@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 3,
+  "name": "gemma/Referentiecomponent en technische architectuur",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Down",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "sortContainers": false,
+    "alignWidthSameType": true,
+    "snapColumnsToGrid": true,
+    "layerSpacing": 120,
+    "elementSpacing": 50,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 5000,
+    "aspectRatio": 0.75,
+    "viewSizeMode": "none",
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "application-component"}
+    ],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "incoming", "relation": "serving-relationship"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "incoming", "relation": "realization-relationship"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Gemeentelijke servicebuscomponent",
+    "folder": "/_Generated/Test"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#fff29b",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel2"
+    }
+  },
+  "description": "Referentiecomponenten en gebruik TA"
+}

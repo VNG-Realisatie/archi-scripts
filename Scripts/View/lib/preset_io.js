@@ -5,9 +5,9 @@
  * and manages the session file (_session.json).
  *
  * File layout:
- *   Scripts/View/user_parameter/<name>.json          — root presets
- *   Scripts/View/user_parameter/<folder>/<name>.json — foldered presets (name = "folder/name")
- *   Scripts/View/user_parameter/_session.json        — last-used session (excluded from git)
+ *   Scripts/View/presets/<name>.json          — root presets
+ *   Scripts/View/presets/<folder>/<name>.json — foldered presets (name = "folder/name")
+ *   Scripts/View/presets/_session.json        — last-used session (excluded from git)
  */
 console.log("Loading preset_io.js");
 
@@ -16,11 +16,12 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-const Defs = require(REPO_ROOT + "View/lib/defs");
+const Defs      = require(REPO_ROOT + "View/lib/defs");
+const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { validatePreset, SESSION_FILENAME } = Defs;
 
-const USER_PARAM_FOLDER    = "user_parameter";
-const DEFAULT_PRESET_NAME  = "Default";
+const USER_PARAM_FOLDER    = "presets";
+const DEFAULT_PRESET_NAME  = "_Default";   // "_" prefix: not listed in the dialog
 
 const VIEW_DIR = (() => {
   const p = __DIR__.replace(/\\/g, "/");
@@ -43,13 +44,14 @@ function readJSON(path) {
   return JSON.parse(content);
 }
 
+// Presets and the session file: rule lists one rule per line (rel_filter.stringifyPreset).
 function writeJSON(path, obj) {
   const File       = Java.type("java.io.File");
   const FileWriter = Java.type("java.io.FileWriter");
   try {
     new File(path).getParentFile().mkdirs();
     const writer = new FileWriter(path);
-    writer.write(JSON.stringify(obj, null, 2));
+    writer.write(RuleLists.stringifyPreset(obj));
     writer.close();
   } catch (e) {
     console.error("Failed to write file:", path, e);
@@ -71,60 +73,49 @@ function _presetPath(name) {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * List named preset files (excludes session file).
- * Scans root and one level of sub-directories.
- * @returns {string[]} sorted preset names — "name" or "folder/name"
+ * Walk the preset directory recursively.
+ * @returns {{ names: string[], folders: string[] }} preset names ("name", "folder/sub/name")
+ *          and the folders that hold at least one preset
  */
-function listPresets() {
-  const File  = Java.type("java.io.File");
-  const dir   = new File(presetDir());
-  const files = dir.listFiles();
-  const names = [];
-  if (files) {
+function _scanPresets() {
+  const File = Java.type("java.io.File");
+  const names = [], folders = new Set();
+  const walk = (dir, prefix) => {
+    const files = dir.listFiles();
+    if (!files) return;
     for (let i = 0; i < files.length; i++) {
-      const f    = files[i];
+      const f     = files[i];
       const fname = String(f.getName());
-      if (f.isFile() && fname.endsWith(".json") && fname !== SESSION_FILENAME) {
-        names.push(fname.replace(/\.json$/, ""));
-      } else if (f.isDirectory()) {
-        const sub = f.listFiles();
-        if (sub) {
-          for (let j = 0; j < sub.length; j++) {
-            const sf    = sub[j];
-            const sname = String(sf.getName());
-            if (sf.isFile() && sname.endsWith(".json")) {
-              names.push(fname + "/" + sname.replace(/\.json$/, ""));
-            }
-          }
-        }
+      if (f.isDirectory()) walk(f, prefix + fname + "/");
+      else if (fname.endsWith(".json") && !fname.startsWith("_")) {   // "_" prefix = not a selectable preset (e.g. _session.json)
+        names.push(prefix + fname.replace(/\.json$/, ""));
+        if (prefix) folders.add(prefix.slice(0, -1));
       }
     }
-  }
-  names.sort((a, b) => {
-    // Default always first, rest alphabetical
+  };
+  walk(new File(presetDir()), "");
+  return { names, folders: Array.from(folders) };
+}
+
+/**
+ * List named preset files in the preset directory and all its sub-directories
+ * (excludes the session file).
+ * @returns {string[]} sorted preset names — "name" or "folder/sub/name" ("_" files excluded)
+ */
+function listPresets() {
+  return _scanPresets().names.sort((a, b) => {
     if (a === DEFAULT_PRESET_NAME) return -1;
     if (b === DEFAULT_PRESET_NAME) return 1;
     return a.localeCompare(b);
   });
-  return names;
 }
 
 /**
- * List sub-directory names inside the preset directory.
- * @returns {string[]} sorted folder names
+ * List the preset folders ("folder" or "folder/sub") that hold at least one preset.
+ * @returns {string[]} sorted folder paths
  */
 function listFolders() {
-  const File  = Java.type("java.io.File");
-  const dir   = new File(presetDir());
-  const files = dir.listFiles();
-  const folders = [];
-  if (files) {
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].isDirectory()) folders.push(String(files[i].getName()));
-    }
-  }
-  folders.sort();
-  return folders;
+  return _scanPresets().folders.sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -134,6 +125,7 @@ function listFolders() {
  * @throws if file not found
  */
 function readPreset(name) {
+  if (name === DEFAULT_PRESET_NAME) ensureDefault();
   const path = _presetPath(name);
   const raw  = readJSON(path);
   if (!raw) throw `Preset not found: "${name}" (${path})`;
@@ -146,10 +138,14 @@ function readPreset(name) {
  * Write a preset to disk. Creates parent directories as needed.
  * @param {string} name    preset name — "name" or "folder/name" (without .json)
  * @param {Object} preset  preset object
+ * @param {{quiet?:boolean}} [opts]  quiet: no console line — for callers inside an SWT handler of
+ *                                   a modal dialog, where console output blocks until it closes
  */
-function writePreset(name, preset) {
-  writeJSON(_presetPath(name), preset);
-  console.log(`Preset saved: "${name}"`);
+function writePreset(name, preset, opts) {
+  // Dialog/session state (action, _lastTabIndex, …) is not part of a preset.
+  const clean = Object.fromEntries(Object.entries(preset).filter(([k]) => k !== "action" && !k.startsWith("_")));
+  writeJSON(_presetPath(name), clean);
+  if (!(opts && opts.quiet)) console.log(`Preset saved: "${name}"`);
 }
 
 /**
@@ -224,7 +220,6 @@ if (typeof module !== "undefined" && module.exports) {
     writePreset,
     deletePreset,
     movePreset,
-    ensureDefault,
     readSession,
     writeSession,
     readJSON,

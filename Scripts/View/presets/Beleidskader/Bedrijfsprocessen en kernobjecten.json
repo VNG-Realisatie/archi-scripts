@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 3,
+  "name": "Beleidskader/Bedrijfsprocessen en kernobjecten",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 60,
+    "elementSpacing": 30,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 160,
+    "connectionLabelSpacing": true,
+    "nestingRules": [
+      {"source": "business-process", "relation": "access-relationship", "everyContainer": true},
+      {"source": "business-process", "relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "target": "business-process", "everyContainer": true}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"}
+    ]
+  },
+  "filter": {
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "rules": [
+          {"added": "business-service"},
+          {"added": "driver"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"added": "business-process"},
+          {"added": "business-event"},
+          {"added": "business-actor"},
+          {"added": "business-object"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"relation": "access-relationship", "added": "business-event"},
+          {"relation": "access-relationship", "added": "business-object"},
+          {"relation": "access-relationship", "added": "business-process"},
+          {"relation": "aggregation-relationship", "added": "business-event"},
+          {"relation": "aggregation-relationship", "added": "business-object"},
+          {"relation": "aggregation-relationship", "added": "business-process"},
+          {"relation": "association-relationship", "added": "business-event"},
+          {"relation": "association-relationship", "added": "business-object"},
+          {"relation": "association-relationship", "added": "business-process"},
+          {"relation": "flow-relationship", "added": "business-event"},
+          {"relation": "flow-relationship", "added": "business-object"},
+          {"relation": "flow-relationship", "added": "business-process"},
+          {"relation": "realization-relationship", "added": "business-event"},
+          {"relation": "realization-relationship", "added": "business-object"},
+          {"relation": "realization-relationship", "added": "business-process"},
+          {"relation": "triggering-relationship", "added": "business-event"},
+          {"relation": "triggering-relationship", "added": "business-object"},
+          {"relation": "triggering-relationship", "added": "business-process"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "0 Bestuur, Politiek en Ondersteuning",
+    "folder": "/Beleidskader"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": true,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Selecteer een beleidskader en genereer het procesmodel"
+}

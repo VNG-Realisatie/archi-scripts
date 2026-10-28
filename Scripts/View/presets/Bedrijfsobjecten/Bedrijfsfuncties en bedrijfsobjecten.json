@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 3,
+  "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 20,
+    "sortContainers": false,
+    "alignWidthSameType": true,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 120,
+    "elementSpacing": 10,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 240,
+    "elementHeight": 30,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "nestingRules": [
+      {"relation": "access-relationship", "everyContainer": true},
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "business-function"}
+    ],
+    "relationRules": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 5,
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "outgoing", "relation": "access-relationship", "added": "business-object"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Klant- en keteninteractie",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [
+        {"color": "target", "relation": "access-relationship", "propertyOf": "relation", "property": "Confidence", "colorRange": "Greens"}
+      ],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 12,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "rootColor": "",
+      "lightenPerLevel": 25
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      }
+    ]
+  },
+  "description": "Selecteer bedrijfsfunctie bedrijfsfunctielagen en genereer startview"
+}

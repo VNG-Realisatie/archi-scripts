@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 3,
+  "name": "GEMMA/GGM/GGM data-object specialisaties",
+  "algorithm": "Dot",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight",
+    "routing": "Straight",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingRules": [
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 10,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 200,
+    "elementSpacing": 60,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "grouping"},
+      {"elementType": "data-object"}
+    ],
+    "diagramRules": [],
+    "relationRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": "untilNothingNew",
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"},
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "data-object"},
+          {"relation": "specialization-relationship", "added": "grouping"},
+          {"relation": "specialization-relationship", "added": "data-object"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Geo-Object",
+    "folder": "",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": ""
+}

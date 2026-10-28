@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 3,
+  "name": "motivation",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "padding": 20,
+    "sortContainers": true,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "nestingRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "constraint"},
+      {"elementType": "grouping"}
+    ],
+    "relationRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  },
+  "appearance": {
+    "nestingLevel": {
+      "rootFontBold": true,
+      "rootColor": ""
+    }
+  }
+}

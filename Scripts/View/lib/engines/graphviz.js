@@ -41,9 +41,8 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // Defined after _guiRoutingToGraphviz so that function can be referenced here.
 // Note: px → inches conversion uses / 96 (96 DPI screen).
 
-// maxWidth / maxHeight: NOT mapped to Graphviz 'size' here.
-// Graphviz 'size' scales node sizes (forbidden — see ARCHITECTURE.md §A.8).
-// Instead, maxWidth/maxHeight drive _applySpread() post-extraction (expand only).
+// maxWidth is not supported: Graphviz 'size' scales node sizes (forbidden — SPEC §8, no post-layout scaling),
+// and spreading positions afterwards can only widen, never narrow. View size = aspectRatio only.
 const _GV_PAD = (v) => ({ pad: (v / 96).toFixed(4) });
 
 const PARAM_MAPPING = {
@@ -52,7 +51,6 @@ const PARAM_MAPPING = {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
     layerSpacing:             (v) => ({ ranksep: (v / 96).toFixed(4) }),
     elementSpacing:           (v) => ({ nodesep: (v / 96).toFixed(4) }),
-    connectionElementSpacing: (v) => ({ sep:    (v / 96).toFixed(4) }),
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
@@ -138,7 +136,7 @@ function _buildDOT(graph) {
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
   const nodeH        = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
-  const clusterMargin = Math.round((opts.innerSpacing || 20) * 0.75);  // px → pt (96dpi → 72pt/inch)
+  const clusterMargin = Math.round((opts.padding ?? 20) * 0.75);  // container padding, px → pt (96dpi → 72pt/inch)
 
   const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
@@ -250,49 +248,12 @@ function _runDot(dotSource, engine, binPath) {
   catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
 }
 
-// ── Position spread ───────────────────────────────────────────────────────────
-// Expand node spacing so the layout meets a minimum width/height target.
-// Node sizes are NEVER changed — only center positions move outward from the
-// bounding-box center. Compress is forbidden (would cause overlaps).
-// Also normalises origin: shifts all coordinates so min(x)=0, min(y)=0.
-// See ARCHITECTURE.md §A.8 "Post-layout scaling is forbidden."
-function _applySpread(resultNodes, resultEdges, opts) {
+// ── Origin normalisation ──────────────────────────────────────────────────────
+// Shift all coordinates so no position is negative (min(x) >= 0, min(y) >= 0) and round them.
+// Node sizes and relative positions are unchanged. Graphviz has no max-width control: view
+// size is set by aspect ratio only (Graphviz 'size' would scale elements — SPEC §8).
+function _normalizeOrigin(resultNodes, resultEdges) {
   if (!resultNodes.length) return;
-
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const n of resultNodes) {
-    if (n.x           < x0) x0 = n.x;
-    if (n.y           < y0) y0 = n.y;
-    if (n.x + n.width > x1) x1 = n.x + n.width;
-    if (n.y + n.height> y1) y1 = n.y + n.height;
-  }
-  const natW = x1 - x0;
-  const natH = y1 - y0;
-
-  // Only expand width (never compress). 0 = no constraint.
-  const minW    = opts.maxWidth || 0;
-  const spreadX = (minW > 0 && natW > 0 && natW < minW) ? minW / natW : 1;
-
-  const needsMove = spreadX !== 1 || x0 !== 0 || y0 !== 0;
-  if (!needsMove) return;
-
-  if (spreadX !== 1)
-    console.log(`Position spread: ${spreadX.toFixed(3)}×X  (${Math.round(natW)} → ${minW} px width, element sizes unchanged)`);
-
-  const cx = (x0 + x1) / 2;
-  const cy = (y0 + y1) / 2;
-
-  // Spread node centers horizontally, keep sizes frozen
-  for (const n of resultNodes) {
-    n.x = cx + (n.x + n.width / 2 - cx) * spreadX - n.width / 2;
-  }
-  // Apply same spread to bendpoints and edge labels
-  for (const e of resultEdges) {
-    e.bendpoints = e.bendpoints.map(bp => ({ x: cx + (bp.x - cx) * spreadX, y: bp.y }));
-    e.labelX = cx + ((e.labelX || 0) - cx) * spreadX;
-  }
-
-  // Normalize origin: find new minimum and shift so min(x)=0, min(y)=0
   let nx0 = Infinity, ny0 = Infinity;
   for (const n of resultNodes) { if (n.x < nx0) nx0 = n.x; if (n.y < ny0) ny0 = n.y; }
   const shiftX = Math.min(nx0, 0);
@@ -304,7 +265,7 @@ function _applySpread(resultNodes, resultEdges, opts) {
   }
   for (const e of resultEdges) {
     e.bendpoints = e.bendpoints.map(bp => ({ x: Math.round(bp.x - shiftX), y: Math.round(bp.y - shiftY) }));
-    e.labelX = Math.round(e.labelX - shiftX);
+    e.labelX = Math.round((e.labelX || 0) - shiftX);
     e.labelY = Math.round(e.labelY - shiftY);
   }
 }
@@ -322,7 +283,7 @@ function _extractResult(graph, jsonOut) {
   // Derive cluster bounding boxes for engines that don't emit them (neato/fdp/sfdp)
   const childSet = new Set();
   for (const node of graph.nodes) { if (node.parent) childSet.add(node.id); }
-  const padding = graph.options.padding || 20;
+  const padding = graph.options.padding ?? 20;
   _deriveClusterBBs(graph.nodes, nodes, clusters, childSet, padding);
 
   const resultNodes = [];
@@ -340,9 +301,7 @@ function _extractResult(graph, jsonOut) {
   const resultEdges = [];
   _walkEdges(jsonOut, graph.edges, totalH, splines, skipBend, labelPos, resultEdges);
 
-  // Position spread: expand node spacing to meet maxWidth/maxHeight targets.
-  // Node sizes are NEVER changed — only positions move. See ARCHITECTURE.md §A.8.
-  _applySpread(resultNodes, resultEdges, graph.options);
+  _normalizeOrigin(resultNodes, resultEdges);
 
   let maxX = 0, maxY = 0;
   for (const n of resultNodes) { maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height); }

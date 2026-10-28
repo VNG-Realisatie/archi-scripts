@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 3,
+  "name": "regels",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "sortContainers": true,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 15,
+    "elementWidth": 350,
+    "elementHeight": 25,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "connectionSpacing": 20,
+    "nestingRules": [],
+    "reverseRules": [],
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "BAG",
+    "folder": "/_Generated"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "description": ""
+}

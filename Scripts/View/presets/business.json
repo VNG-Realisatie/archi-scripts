@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "name": "business",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "padding": 20,
+    "sortContainers": true,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "business-actor"},
+      {"elementType": "business-collaboration"},
+      {"elementType": "business-event"},
+      {"elementType": "business-function"},
+      {"elementType": "business-interaction"},
+      {"elementType": "business-interface"},
+      {"elementType": "business-object"},
+      {"elementType": "business-process"},
+      {"elementType": "business-role"},
+      {"elementType": "business-service"},
+      {"elementType": "contract"},
+      {"elementType": "product"},
+      {"elementType": "representation"}
+    ],
+    "relationRules": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "assignment-relationship"},
+      {"relation": "composition-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"},
+      {"relation": "realization-relationship"}
+    ],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  },
+  "appearance": {
+    "nestingLevel": {
+      "rootFontBold": true,
+      "rootColor": ""
+    }
+  }
+}

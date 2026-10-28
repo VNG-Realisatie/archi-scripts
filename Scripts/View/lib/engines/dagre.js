@@ -25,9 +25,9 @@ const RANKER = {
   "Top-aligned": "tight-tree",
 };
 
-const DEFAULT_DAGRE_PARAMS = {
-  acyclicer: "greedy",
-};
+// Engine defaults, applied before the GUI mapping (mapping wins; engineParams.Dagre wins over both).
+// acyclicer is not here: the GUI always sets it (Default = Dagre's DFS, Greedy = "greedy").
+const DEFAULT_DAGRE_PARAMS = {};
 
 const PARAM_MAPPING = {
   Dagre: {
@@ -110,10 +110,14 @@ function layout(graph) {
   // not support the two-pass container measurement.
   const nodes = sortedNodes(graph.nodes, parentMap, graph.sortContainers);
 
+  // engineParams values may be numeric strings ("50"); convert those, keep words ("greedy") as-is.
+  const _num = v => (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? Number(v) : v;
   const engineOpts = Object.assign(
+    {},
+    DEFAULT_DAGRE_PARAMS,
     applyParams("Dagre", graph.options, PARAM_MAPPING),
     Object.fromEntries(
-      Object.entries(Object.assign({}, DEFAULT_DAGRE_PARAMS, (graph.engineParams && graph.engineParams.Dagre) || {})).map(([k, v]) => [k, Number(v)])
+      Object.entries((graph.engineParams && graph.engineParams.Dagre) || {}).map(([k, v]) => [k, _num(v)])
     )
   );
 

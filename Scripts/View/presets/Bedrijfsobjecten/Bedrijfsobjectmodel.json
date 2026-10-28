@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 3,
+  "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingRules": [
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 20,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 0,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 240,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 2,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "grouping"}
+    ],
+    "diagramRules": [],
+    "relationRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"relation": "association-relationship", "added": "business-object"},
+          {"relation": "specialization-relationship", "added": "business-object"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Begraafplaatsen en crematoria",
+    "folder": "/Bedrijfsobjecten/Bedrijfsobjectmodellen",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [
+        {"color": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Greens"}
+      ],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 3
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 10,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": true,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {
+    "ELK": {
+      "elk.spacing.nodeSelfLoop": 20,
+      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
+      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
+      "org.eclipse.elk.portConstraints": "FIXED_SIDE"
+    },
+    "Dagre": {},
+    "Graphviz": {
+      "esep": "+8"
+    },
+    "layout": {}
+  },
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": []
+  },
+  "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel"
+}

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 3,
+  "name": "Technologie/technology",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingRules": [],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "grouping"},
+      {"elementType": "artifact"},
+      {"elementType": "communication-network"},
+      {"elementType": "device"},
+      {"elementType": "node"},
+      {"elementType": "path"},
+      {"elementType": "system-software"},
+      {"elementType": "technology-collaboration"},
+      {"elementType": "technology-event"},
+      {"elementType": "technology-function"},
+      {"elementType": "technology-interaction"},
+      {"elementType": "technology-interface"},
+      {"elementType": "technology-process"},
+      {"elementType": "technology-service"}
+    ],
+    "diagramRules": [],
+    "relationRules": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "",
+    "folder": "",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": ""
+}

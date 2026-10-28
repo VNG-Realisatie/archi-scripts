@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 3,
+  "name": "Test/test-preset",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 220,
+    "elementHeight": 80,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true,
+    "nestingRules": [],
+    "reverseRules": []
+  },
+  "filter": {
+    "elementRules": [],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": "untilNothingNew",
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "property": "wiki-gemma-model kernobject", "value": "rijbewijs"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Burgerzaken",
+    "folder": "/Test"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Testen van Connection spacing"
+}

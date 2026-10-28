@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 3,
+  "name": "Bedrijfsobjectmodel/Beleidsdomeinen",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": true,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 180,
+    "elementSpacing": 10,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.33,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "connectionSpacing": 25,
+    "nestingRules": [
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "reverseRules": [
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "grouping"}
+    ],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 2,
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "folder": "/_Generated/Beleidsdomeinen"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "description": "\n"
+}

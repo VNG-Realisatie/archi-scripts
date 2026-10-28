@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "name": "application",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "padding": 20,
+    "sortContainers": true,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "nestingRules": [],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "connectionsMode": "Crossing containers",
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "application-collaboration"},
+      {"elementType": "application-component"},
+      {"elementType": "application-event"},
+      {"elementType": "application-function"},
+      {"elementType": "application-interaction"},
+      {"elementType": "application-interface"},
+      {"elementType": "application-process"},
+      {"elementType": "application-service"},
+      {"elementType": "grouping"}
+    ],
+    "relationRules": [
+      {"relation": "access-relationship"},
+      {"relation": "aggregation-relationship"},
+      {"relation": "assignment-relationship"},
+      {"relation": "association-relationship"},
+      {"relation": "composition-relationship"},
+      {"relation": "influence-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"},
+      {"relation": "triggering-relationship"}
+    ],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  },
+  "appearance": {
+    "nestingLevel": {
+      "rootFontBold": true,
+      "rootColor": ""
+    }
+  }
+}

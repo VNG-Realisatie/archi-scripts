@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 3,
+  "name": "Beleidskader/Beleidskaders van een beleidsdomein",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "association-relationship"}
+    ],
+    "nestingRules": [
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "association-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 240,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 160,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [],
+    "diagramRules": [],
+    "relationRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
+        ]
+      },
+      {
+        "repeat": 1,
+        "rules": [
+          {"added": "driver"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Burgerzaken",
+    "folder": "/Beleidskaders",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Selecteer een beleidsdomein en nest de beleidskaders"
+}

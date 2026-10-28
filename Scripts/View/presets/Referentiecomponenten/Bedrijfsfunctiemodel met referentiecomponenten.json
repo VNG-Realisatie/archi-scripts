@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 3,
+  "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 20,
+    "sortContainers": false,
+    "alignWidthSameType": true,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 10,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1,
+    "viewSizeMode": "aspectRatio",
+    "labelSizing": false,
+    "nestingRules": [
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "everyContainer": true},
+      {"relation": "serving-relationship", "everyContainer": true}
+    ],
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementRules": [
+      {"elementType": "business-function"}
+    ],
+    "relationRules": [],
+    "diagramRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 4,
+        "rules": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
+      {
+        "repeat": 4,
+        "rules": [
+          {"direction": "incoming", "relation": "serving-relationship", "added": "application-service"}
+        ]
+      },
+      {
+        "repeat": 2,
+        "rules": [
+          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Klant- en keteninteractie",
+    "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "rootColor": "",
+      "lightenPerLevel": 30
+    },
+    "highlightRepeated": {
+      "enabled": true,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "Applicatiearchitectuur",
+        "enabled": true
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      }
+    ]
+  },
+  "description": "Toont ook applicatieservices, deze zijn weggelaten in GEMMA views bedrijfsfuncties met referentiecomponenten\n"
+}

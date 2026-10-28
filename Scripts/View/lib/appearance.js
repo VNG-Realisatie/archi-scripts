@@ -5,7 +5,7 @@
  * and line widths to VisualElements/VisualConnections based on preset.appearance.
  *
  * Rule precedence (later overrides earlier for the same VO):
- *   nestingLevel → highlightRepeated → styleByProperty → styleByRelatedProperty → styleByConnectedElement
+ *   nestingLevel → highlightRepeated → styleByProperty rules (in list order)
  *
  * Reset on disable: when a feature is disabled and the action is layout_only or
  * expand_view, the elements that feature would have styled are reset to Archi defaults
@@ -19,8 +19,9 @@ const REPO_ROOT = (() => {
 })();
 
 const Chroma = require("chroma-js");
-const Defs   = require(REPO_ROOT + "View/lib/defs");
-const { decodeRelType, COLOR_RANGES } = Defs;
+const Defs      = require(REPO_ROOT + "View/lib/defs");
+const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
+const { COLOR_RANGES } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
 const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
@@ -40,34 +41,23 @@ function applyAppearance(view, preset, actionId) {
   const nl   = app.nestingLevel;
   const hr   = app.highlightRepeated;
   const sbp  = app.styleByProperty;
-  const sbpe = sbp.element;
-  const sbpr = sbp.relation;
-  const sbrp = app.styleByRelatedProperty;
-  const sbce = app.styleByConnectedElement;
 
   const anyEnabled =
     nl.fontEnabled || nl.colorEnabled || hr.enabled ||
-    (sbpe.enabled && sbpe.property) ||
-    (sbpr.enabled && sbpr.property) ||
-    (sbrp.enabled && sbrp.property) ||
-    (sbce.enabled && sbce.property);
+    sbp.rules.some(r => r.on !== false && r.property);
 
   if (!anyEnabled && !isModify) return;
 
   console.log(`\nAppearance (${actionId || "?"})`);
-  const hasNestingTypes = preset.params.nestingRelationTypes.length > 0;
+  const hasNestingTypes = preset.params.nestingRules.length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
     console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  lighten=${nl.lightenPerLevel}%/level`);
   if (hr.enabled)
     console.log(`  highlightRepeated  range=${hr.colorRange}`);
-  if (sbpe.enabled && sbpe.property)
-    console.log(`  styleByProperty.element  prop="${sbpe.property}"  type="${sbpe.elementType||"any"}"  range=${sbpe.colorRange}`);
-  if (sbpr.enabled && sbpr.property)
-    console.log(`  styleByProperty.relation  prop="${sbpr.property}"  resize=${sbpr.resize}  range=${sbpr.colorRange}`);
-  if (sbrp.enabled && sbrp.property)
-    console.log(`  styleByRelatedProperty  prop="${sbrp.property}"  relTypes=[${sbrp.relTypes.join(",")}]  range=${sbrp.colorRange}`);
-  if (sbce.enabled && sbce.property)
-    console.log(`  styleByConnectedElement  prop="${sbce.property}"  relTypes=[${sbce.relTypes.join(",")}]  range=${sbce.colorRange}`);
+  sbp.rules.forEach((r, i) => {
+    if (r.on === false || !r.property) return;
+    console.log(`  styleByProperty rule ${i + 1}  color=${r.color}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
+  });
 
   const depths = _computeViewDepths(view);
   console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);
@@ -79,9 +69,7 @@ function applyAppearance(view, preset, actionId) {
 
   _applyNestingLevel(view, nl, depths, isModify, styledVoIds);
   _applyHighlightRepeated(view, hr, isModify, styledVoIds);
-  _applyStyleByProperty(view, sbpe, sbpr, isModify, styledVoIds);
-  _applyStyleByRelatedProperty(view, sbrp, isModify, styledVoIds);
-  _applyStyleByConnectedElement(view, sbce, isModify, styledVoIds);
+  _applyStyleRules(view, sbp, isModify, styledVoIds);
 }
 
 // ── Depth computation ─────────────────────────────────────────────────────────
@@ -91,7 +79,7 @@ function applyAppearance(view, preset, actionId) {
 // find() call, so reference equality cannot be used as a Map key.
 //
 // inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
-// chain from its depth-0 root ancestor (see "Type chain rule" in ARCHITECTURE.md).
+// chain from its depth-0 root ancestor (see "Type chain" in SPEC.md, Appearance tab).
 // rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
 function _computeViewDepths(view) {
   const depthById       = new Map();
@@ -261,287 +249,158 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
 
 // ── Style by property ─────────────────────────────────────────────────────────
 
-function _applyStyleByProperty(view, elemSettings, relSettings, isModify, styledVoIds) {
-  _applyStyleByPropertyElement(view, elemSettings, isModify, styledVoIds);
-  _applyStyleByPropertyRelation(view, relSettings, isModify);
-}
-
-function _applyStyleByPropertyElement(view, settings, isModify, styledVoIds) {
-  const vos = [];
-  $(view).find("element").each(vo => {
-    if (settings.elementType && vo.type !== settings.elementType) return;
-    vos.push(vo);
-  });
-
-  if (!settings.enabled || !settings.property) {
-    if (!settings.enabled && isModify) {
-      let n = 0;
-      vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } });
-      if (n > 0) console.log(`  styleByProperty.element: ${n} VOs reset`);
-    }
-    return;
-  }
-
-  console.log(`  styleByProperty.element: ${vos.length} VOs match type "${settings.elementType||"any"}"`);
-
-  const valueSet = new Set();
-  vos.forEach(vo => {
-    const val = vo.prop(settings.property);
-    if (val !== null && val !== undefined && val !== "") valueSet.add(String(val));
-  });
-  const uniqueValues = Array.from(valueSet).sort((a, b) => a.localeCompare(b));
-  console.log(`  styleByProperty.element: "${settings.property}" — ${uniqueValues.length} unique values: [${uniqueValues.join(", ")}]`);
-
-  if (uniqueValues.length === 0) return;
-
-  const colors   = _colorScale(settings.colorRange, uniqueValues.length);
-  const colorMap = {};
-  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
-
-  let n = 0;
-  vos.forEach(vo => {
-    const val = vo.prop(settings.property);
-    if (val !== null && val !== undefined && val !== "") { vo.fillColor = colorMap[String(val)]; styledVoIds.add(vo.id); n++; }
-  });
-  console.log(`  styleByProperty.element: ${n} VOs colored  range=${settings.colorRange}`);
-}
-
-function _applyStyleByPropertyRelation(view, settings, isModify) {
-  // Collect matching visual connections
-  const relFilters = (settings.relTypes || []).map(enc => decodeRelType(enc));
-  const vos = [];
-  $(view).find("relation").each(vc => {
-    if (!vc.type) return;
-    // If relTypes empty → match all; otherwise filter by type
-    if (relFilters.length > 0 && !relFilters.some(f => f.type === vc.type)) return;
-    vos.push(vc);
-  });
-
-  if (!settings.enabled || !settings.property) {
-    if (!settings.enabled && isModify && vos.length > 0) {
-      vos.forEach(vc => { vc.lineColor = null; vc.lineWidth = 1; });
-      console.log(`  styleByProperty.relation: ${vos.length} VOs reset`);
-    }
-    return;
-  }
-
-  console.log(`  styleByProperty.relation: ${vos.length} connections match`);
-
-  if (vos.length === 0) return;
-
-  const valueSet = new Set();
-  vos.forEach(vc => {
-    const val = vc.prop(settings.property);
-    if (val !== null && val !== undefined && val !== "") valueSet.add(String(val));
-  });
-  const uniqueValues = Array.from(valueSet).sort((a, b) => a.localeCompare(b));
-  if (uniqueValues.length === 0) return;
-
-  const colors   = _colorScale(settings.colorRange, uniqueValues.length);
-  const colorMap = {};
-  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
-
-  const fixedWidth = (settings.lineWidth > 0) ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
-
-  let n = 0;
-  vos.forEach(vc => {
-    const val = vc.prop(settings.property);
-    if (val !== null && val !== undefined && val !== "") {
-      vc.lineColor = colorMap[String(val)];
-      if (fixedWidth > 0) vc.lineWidth = fixedWidth;
-      n++;
-    }
-  });
-  console.log(`  styleByProperty.relation: ${n} connections colored  lineWidth=${fixedWidth || "no change"}  range=${settings.colorRange}`);
-}
-
-// ── Style by related property ─────────────────────────────────────────────────
-
-function _applyStyleByRelatedProperty(view, settings, isModify, styledVoIds) {
-  if (!settings.relTypes || settings.relTypes.length === 0) return;
-
-  const vosByConceptId = new Map();
-  $(view).find("element").each(vo => {
-    if (!vo.concept) return;
-    const id = vo.concept.id;
-    if (!vosByConceptId.has(id)) vosByConceptId.set(id, []);
-    vosByConceptId.get(id).push(vo);
-  });
-
-  const relFilters = settings.relTypes.map(enc => decodeRelType(enc));
-
-  if (!settings.enabled || !settings.property) {
-    if (!settings.enabled && isModify) {
-      let n = 0;
-      vosByConceptId.forEach((vos, conceptId) => {
-        const el = $(`#${conceptId}`).first();
-        if (!el) return;
-        let hasMatch = false;
-        try { $(el).rels().each(rel => { const isOut = rel.source && rel.source.id === conceptId; if (_matchesRelDir(rel.type, isOut, relFilters)) hasMatch = true; }); } catch (e) {}
-        if (hasMatch) { vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } }); }
-      });
-      if (n > 0) console.log(`  styleByRelatedProperty: ${n} VOs reset`);
-    }
-    return;
-  }
-
-  const elementPropValue = new Map();
-
-  vosByConceptId.forEach((_, conceptId) => {
-    const el = $(`#${conceptId}`).first();
-    if (!el) return;
+/**
+ * Which objects does a style rule reach, and which property values do they get?
+ * Pure over model objects, so the dialog's conflict check (predicted view contents) and the
+ * writer (objects on the generated view) share one implementation.
+ *
+ * Rule.color decides what is styled:
+ *   element    the element itself, by its own property (type = rule.source)
+ *   relation   the relation, by the property of rule.propertyOf (relation / source / target)
+ *   source     the source element of every relation matching the rule (model-wide relations),
+ *              by the property of rule.propertyOf (element = itself, relation, source, target)
+ *   target     the target element likewise
+ *
+ * @param {Object}   rule       normalised style rule (rel_filter kind "style")
+ * @param {Object[]} elements   element concepts in scope
+ * @param {Object[]} relations  relation concepts in scope (used by color = relation)
+ * @returns {Map<string,{kind:string, values:Set<string>}>}  object id → hit; values is empty
+ *          when the property is unset on the object(s)
+ */
+function computeRuleTargets(rule, elements, relations) {
+  const out = new Map();
+  const hit = (id, kind, obj) => {
+    let h = out.get(id);
+    if (!h) { h = { kind, values: new Set() }; out.set(id, h); }
+    if (!rule.property || !obj) return;
     try {
-      $(el).rels().each(rel => {
-        const isOut = rel.source && rel.source.id === conceptId;
-        if (!_matchesRelDir(rel.type, isOut, relFilters)) return;
-        const propVal = rel.prop(settings.property);
-        if (propVal !== null && propVal !== undefined && propVal !== "") {
-          elementPropValue.set(conceptId, String(propVal));
-        }
-      });
-    } catch (e) {
-      console.log(`  styleByRelatedProperty: error reading relations for ${conceptId}: ${e}`);
+      const v = obj.prop(rule.property);
+      if (v !== null && v !== undefined && v !== "") h.values.add(String(v));
+    } catch (e) {}
+  };
+  const matches = r => RuleLists.styleRuleMatchesRelation(rule, r.type, r.source && r.source.type, r.target && r.target.type);
+  // Whose property supplies the value: the relation, one of its ends, or (propertyOf "element")
+  // the styled element itself.
+  const readFrom = (r, el) => rule.propertyOf === "source" ? r.source
+                            : rule.propertyOf === "target" ? r.target
+                            : rule.propertyOf === "element" && el ? el : r;
+
+  if (rule.color === "element") {
+    for (const el of elements) {
+      if (rule.source && el.type !== rule.source) continue;
+      hit(el.id, "element", el);
     }
-  });
-
-  console.log(`  styleByRelatedProperty: ${elementPropValue.size} elements matched  prop="${settings.property}"`);
-  if (elementPropValue.size === 0) return;
-
-  const uniqueValues = Array.from(new Set(elementPropValue.values())).sort((a, b) => a.localeCompare(b));
-  const colors   = _colorScale(settings.colorRange, uniqueValues.length);
-  const colorMap = {};
-  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
-
-  let n = 0;
-  elementPropValue.forEach((val, conceptId) => {
-    const vos = vosByConceptId.get(conceptId);
-    if (vos) { vos.forEach(vo => { vo.fillColor = colorMap[val]; styledVoIds.add(vo.id); n++; }); }
-  });
-  console.log(`  styleByRelatedProperty: ${n} VOs colored  ${uniqueValues.length} unique values  range=${settings.colorRange}`);
-}
-
-// ── Style by connected element ────────────────────────────────────────────────
-
-function _applyStyleByConnectedElement(view, settings, isModify, styledVoIds) {
-  const relFilters   = (settings.relTypes || []).map(enc => decodeRelType(enc));
-  const targetType   = settings.elementType || "";  // "" = any
-  const conflictColor = settings.conflictColor || "#ff632a";
-
-  // Build a map: viewElement conceptId → visual element VOs
-  const vosByConceptId = new Map();
-  $(view).find("element").each(vo => {
-    if (!vo.concept) return;
-    const id = vo.concept.id;
-    if (!vosByConceptId.has(id)) vosByConceptId.set(id, []);
-    vosByConceptId.get(id).push(vo);
-  });
-
-  if (!settings.enabled || !settings.property) {
-    if (!settings.enabled && isModify) {
-      let n = 0;
-      vosByConceptId.forEach((vos, conceptId) => {
-        const el = $(`#${conceptId}`).first();
-        if (!el) return;
-        let hasMatch = false;
-        try {
-          $(el).rels().each(rel => {
-            const isOut = rel.source && rel.source.id === conceptId;
-            if (relFilters.length > 0 && !_matchesRelDir(rel.type, isOut, relFilters)) return;
-            const otherId = isOut ? (rel.target && rel.target.id) : (rel.source && rel.source.id);
-            if (!otherId || otherId === conceptId) return;
-            const other = $(`#${otherId}`).first();
-            if (!other) return;
-            if (targetType && other.type !== targetType) return;
-            hasMatch = true;
-          });
-        } catch (e) {}
-        if (hasMatch) { vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } }); }
-      });
-      if (n > 0) console.log(`  styleByConnectedElement: ${n} VOs reset`);
+  } else if (rule.color === "relation") {
+    for (const r of relations) {
+      if (!r.source || !r.target || !matches(r)) continue;
+      hit(r.id, "relation", readFrom(r, null));
     }
-    return;
-  }
-
-  // For each source concept, find connected target concepts via matching relations
-  const sourcePropValue = new Map(); // conceptId → propValue | "__conflict__"
-
-  vosByConceptId.forEach((_, conceptId) => {
-    const el = $(`#${conceptId}`).first();
-    if (!el) return;
-
-    const targets = new Set(); // unique target concept IDs whose property we'll read
-    try {
-      $(el).rels().each(rel => {
-        const isOut = rel.source && rel.source.id === conceptId;
-        if (relFilters.length > 0 && !_matchesRelDir(rel.type, isOut, relFilters)) return;
-        // The "other end" of the relation
-        const otherId = isOut
-          ? (rel.target && rel.target.id)
-          : (rel.source && rel.source.id);
-        if (!otherId || otherId === conceptId) return;
-        const other = $(`#${otherId}`).first();
-        if (!other) return;
-        if (targetType && other.type !== targetType) return;
-        targets.add(otherId);
-      });
-    } catch (e) {
-      console.log(`  styleByConnectedElement: error reading relations for ${conceptId}: ${e}`);
-    }
-
-    if (targets.size === 0) return;
-    if (targets.size > 1) {
-      sourcePropValue.set(conceptId, "__conflict__");
-      return;
-    }
-
-    // Exactly one target
-    const targetId = Array.from(targets)[0];
-    const target   = $(`#${targetId}`).first();
-    if (!target) return;
-    try {
-      const val = target.prop(settings.property);
-      if (val !== null && val !== undefined && val !== "") {
-        sourcePropValue.set(conceptId, String(val));
+  } else {
+    const wantSource = rule.color === "source";
+    for (const el of elements) {
+      try {
+        $(el).rels().each(r => {
+          if (!r.source || !r.target) return;
+          if ((r.source.id === el.id) !== wantSource) return;
+          if (!matches(r)) return;
+          hit(el.id, "element", readFrom(r, el));
+        });
+      } catch (e) {
+        console.log(`  styleByProperty: error reading relations for ${el.id}: ${e}`);
       }
-    } catch (e) { console.log(`  styleByConnectedElement: error reading property for ${targetId}: ${e}`); }
-  });
-
-  console.log(`  styleByConnectedElement: ${sourcePropValue.size} source elements matched  prop="${settings.property}"`);
-  if (sourcePropValue.size === 0) return;
-
-  // Build color scale from non-conflict values
-  const uniqueValues = Array.from(
-    new Set(Array.from(sourcePropValue.values()).filter(v => v !== "__conflict__"))
-  ).sort((a, b) => a.localeCompare(b));
-
-  const colors   = _colorScale(settings.colorRange, Math.max(1, uniqueValues.length));
-  const colorMap = {};
-  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
-
-  let n = 0, conflicts = 0;
-  sourcePropValue.forEach((val, conceptId) => {
-    const vos = vosByConceptId.get(conceptId);
-    if (!vos) return;
-    if (val === "__conflict__") {
-      vos.forEach(vo => { vo.fillColor = conflictColor; styledVoIds.add(vo.id); conflicts++; });
-    } else {
-      vos.forEach(vo => { vo.fillColor = colorMap[val]; styledVoIds.add(vo.id); n++; });
     }
+  }
+  return out;
+}
+
+function _applyStyleRules(view, settings, isModify, styledVoIds) {
+  const rules = settings.rules || [];
+  if (rules.length === 0) return;
+  const mixedColor = settings.mixedValuesColor || "#FF6B35";
+  const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
+
+  // The objects on the view, by model concept id.
+  const vosByElementId = new Map(), elementById = new Map();
+  $(view).find("element").each(vo => {
+    if (!vo.concept) return;
+    const id = vo.concept.id;
+    if (!vosByElementId.has(id)) { vosByElementId.set(id, []); elementById.set(id, vo.concept); }
+    vosByElementId.get(id).push(vo);
   });
-  console.log(`  styleByConnectedElement: ${n} VOs colored  ${conflicts} conflicts  range=${settings.colorRange}`);
+  const vcsByRelationId = new Map(), relationById = new Map();
+  $(view).find("relation").each(vc => {
+    if (!vc.concept || !vc.concept.id) return;
+    const id = vc.concept.id;
+    if (!vcsByRelationId.has(id)) { vcsByRelationId.set(id, []); relationById.set(id, vc.concept); }
+    vcsByRelationId.get(id).push(vc);
+  });
+  const elements  = Array.from(elementById.values());
+  const relations = Array.from(relationById.values());
+
+  const styledByRule = new Map();     // rule index → Set("element:id" | "relation:id") it colored
+  const styledVcIds  = new Set();
+  const inactive     = [];
+
+  rules.forEach((rule, i) => {
+    const targets = computeRuleTargets(rule, elements, relations);
+    if (rule.on === false) { inactive.push(targets); return; }
+    if (!rule.property) return;
+
+    // One value → its colour from the range; several different values → the mixed-values colour.
+    const unique = Array.from(new Set(
+      Array.from(targets.values()).filter(h => h.values.size === 1).map(h => Array.from(h.values)[0])
+    )).sort((a, b) => a.localeCompare(b));
+    const colors   = unique.length ? _colorScale(rule.colorRange, unique.length) : [];
+    const colorMap = {};
+    unique.forEach((val, k) => { colorMap[val] = colors[k]; });
+
+    const mine = new Set();
+    let colored = 0, mixed = 0;
+    targets.forEach((h, id) => {
+      if (h.values.size === 0) return;
+      const isMixed = h.values.size > 1;
+      const color   = isMixed ? mixedColor : colorMap[Array.from(h.values)[0]];
+      if (isMixed) mixed++;
+      if (h.kind === "relation") {
+        (vcsByRelationId.get(id) || []).forEach(vc => {
+          vc.lineColor = color;
+          if (fixedWidth > 0) vc.lineWidth = fixedWidth;
+          styledVcIds.add(vc.id);
+        });
+      } else {
+        (vosByElementId.get(id) || []).forEach(vo => { vo.fillColor = color; styledVoIds.add(vo.id); });
+      }
+      mine.add(`${h.kind}:${id}`);
+      colored++;
+    });
+    styledByRule.set(i, mine);
+    console.log(`  styleByProperty rule ${i + 1}: ${targets.size} matched  ${colored} colored  ${mixed} mixed values  ${unique.length} unique values`);
+  });
+
+  // Modify actions: a switched-off rule resets what it would have styled, unless another rule styled it.
+  if (isModify) {
+    let n = 0;
+    inactive.forEach(targets => targets.forEach((h, id) => {
+      if (h.kind === "relation") {
+        (vcsByRelationId.get(id) || []).forEach(vc => {
+          if (styledVcIds.has(vc.id)) return;
+          vc.lineColor = null; vc.lineWidth = 1; n++;
+        });
+      } else {
+        (vosByElementId.get(id) || []).forEach(vo => {
+          if (styledVoIds.has(vo.id)) return;
+          vo.fillColor = null; n++;
+        });
+      }
+    }));
+    if (n > 0) console.log(`  styleByProperty: ${n} objects reset (rules switched off)`);
+  }
+
+  RuleLists.detectRuleConflicts(styledByRule).forEach(c =>
+    console.log(`  ⚠ styleByProperty rule ${c.rule + 1} also styles ${c.count} objects of rule${c.with.length > 1 ? "s" : ""} ${c.with.map(j => j + 1).join(", ")}; the last rule wins`));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function _matchesRelDir(relType, isOut, relFilters) {
-  return relFilters.some(f => {
-    if (f.type !== relType) return false;
-    if (f.inSel && f.outSel) return true;
-    if (f.outSel && isOut)   return true;
-    if (f.inSel  && !isOut)  return true;
-    return false;
-  });
-}
 
 // Build a Chroma colour scale and return n evenly spaced hex strings.
 // Qualitative schemes (Pastel1, Set2, …) are discrete — no padding.
@@ -566,5 +425,5 @@ function _lightenHex(hex, factor) {
 // ── Module exports ────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { applyAppearance };
+  module.exports = { applyAppearance, computeRuleTargets };
 }
