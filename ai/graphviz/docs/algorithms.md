@@ -39,10 +39,10 @@ Spring-model layout. Nodes are virtual masses connected by springs; equilibrium 
 | Attribute | Default | Notes |
 |-----------|---------|-------|
 | `sep` | `+4` | Additive margin around nodes for overlap removal (pt) |
-| `esep` | — | Margin for edge routing; defaults to `sep / 0.8` |
+| `esep` | `+3` | Margin for edge routing (pt per side); must stay below `sep` or routing falls back to straight lines |
 | `len` | `1.0` | Preferred edge length (inches); per-edge attribute |
 | `splines` | `line` | Default is line; `spline`/`polyline`/`curved` need `overlap=false` |
-| `overlap` | — | `false` or `scale` or `prism` — set to avoid node overlap with splines |
+| `overlap` | `true` | Default keeps overlapping nodes (and ignores `sep`). `prism` removes them and keeps the shape; `vpsc` can stretch a layout into one long column |
 | `model` | `shortpath` | Distance model: `shortpath`, `circuit`, `subset`, `mds` |
 | `mode` | `major` | Solver: `major`, `KK`, `hier`, `ipsep` |
 | `start` | — | Random seed or fixed node for deterministic results |
@@ -100,12 +100,16 @@ Lays out nodes in concentric circles radiating from a root node. Not suitable fo
 
 | Attribute | Default | Notes |
 |-----------|---------|-------|
-| `ranksep` | `1.0` | Radial distance between concentric circles (inches) |
-| `root` | — | Node ID to use as center; auto-selected if omitted |
+| `ranksep` | `1.0` | Radial distance between concentric circles (inches), centre to centre; a colon-separated list sets each circle (see attributes.md) |
+| `root` | — | Graph attribute: node ID of the centre. Node attribute `root=true`: the centre of that node's connected component (works per component) |
+| `weight` | — | Edge: `weight=0` keeps the edge out of the spanning tree that sets the circles |
+| `overlap` / `sep` | — | Overlap removal with a margin. `vpsc` keeps the circles; `prism` re-spreads the layout and pulls the circles together |
 | `ratio` | — | Aspect ratio |
 | `size` | — | Max bounding box (inches) |
 
-**No equivalent for element spacing:** twopi does not support `nodesep` or `sep` in a meaningful way. Node angular separation is determined by the tree structure.
+**Centre:** without `root`, twopi picks a "most central" node — which can be a node at the edge, putting the hub on an outer circle.
+
+**Order on a circle** follows the input order of the nodes (edge order does not matter); twopi does no crossing reduction. Angular room per node follows its subtree size, so nodes on a crowded circle can touch even when the circumference fits them — overlap removal handles that.
 
 **Cluster support:** None.
 

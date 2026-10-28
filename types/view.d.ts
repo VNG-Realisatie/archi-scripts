@@ -9,6 +9,7 @@ type RuleKind = "element" | "diagram" | "relation" | "step" | "style";
 type RuleMode = "include" | "exclude";
 
 type ElementRule = {
+  on: boolean;
   mode: RuleMode;
   elementType: string;
   property: string;
@@ -16,6 +17,7 @@ type ElementRule = {
 };
 
 type DiagramRule = {
+  on: boolean;
   mode: RuleMode;
   diagramType: string;
 };
@@ -33,6 +35,7 @@ type RelationRule = {
 };
 
 type StepRule = {
+  on: boolean;
   mode: RuleMode;
   previous: string;
   direction: "either" | "outgoing" | "incoming";
@@ -121,6 +124,8 @@ type PresetParams = {
   padding: number;
   diagramPadding: number;
   sortContainers: boolean;
+  elementOrder: string;
+  cycleElementOrder: boolean;
   alignWidthSameType: boolean;
   snapColumnsToGrid: boolean;
   containerAlgorithm: string;
@@ -223,6 +228,12 @@ interface AlgorithmSpec {
   style: string;
   supportsNesting: "full" | "partial" | "cluster" | "none";
   supportsSelfLoops: boolean | "partial";
+  /**
+   * Connections are routed between the elements, with Distance to element on both sides of the
+   * line; the router gives up when elements are closer (Graphviz esep < sep). The dialog keeps
+   * Element distance ≥ 2 × Distance to element.
+   */
+  connectionsBetweenElements?: boolean;
   /** Param keys the dialog enables and effectiveParams keeps. */
   activeParams: readonly string[];
   /** Allowed values per select-type param. */
@@ -244,7 +255,7 @@ interface ObjectSet {
   relations: ArchiRelation[];
   /** Positional diagram objects (not diagram-model-connection). */
   diagramObjects: DiagramObject[];
-  /** diagram-model-connection objects: edges, not laid out. */
+  /** diagram-model-connection objects: laid out as edges between the objects they join. */
   diagramConnections: DiagramObject[];
   /** Element visuals already on the target view (Expand view / Layout only). */
   visualElements: VisualObject[];
@@ -252,6 +263,10 @@ interface ObjectSet {
   /** Target view for Expand view / Layout only. */
   existingView: ArchiView | null;
   visuals?: VisualDescription[];
+  /** Diagram-blocks: visual id → id of the diagram object with contents it sits in (Expand view / Layout only). */
+  diagramBlockOf?: Map<string, string>;
+  /** Elements that appear only inside a diagram-block: element id → its visual there. */
+  diagramBlockVisualOf?: Map<string, string>;
 }
 
 /** One expand-selection step's result (expandStepWithRelations). */

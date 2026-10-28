@@ -4,7 +4,7 @@
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
-    "nodePlacement": "Straight",
+    "nodePlacement": "Centred",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",

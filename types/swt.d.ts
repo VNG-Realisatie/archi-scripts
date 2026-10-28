@@ -26,8 +26,13 @@ declare namespace Swt {
     // event types
     readonly Selection: number; readonly DefaultSelection: number; readonly Modify: number;
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
+    readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number;
+    // GC
+    readonly ON: number;
     // system colours
-    readonly COLOR_DARK_GRAY: number; readonly COLOR_WIDGET_BACKGROUND: number;
+    readonly COLOR_DARK_GRAY: number; readonly COLOR_WIDGET_BACKGROUND: number; readonly COLOR_WHITE: number;
+    readonly COLOR_LIST_BACKGROUND: number; readonly COLOR_LIST_SELECTION: number;
+    readonly COLOR_WIDGET_NORMAL_SHADOW: number; readonly COLOR_WIDGET_DARK_SHADOW: number;
   }
 
   interface Point { x: number; y: number }
@@ -39,11 +44,18 @@ declare namespace Swt {
 
   interface GC {
     setBackground(color: Color): void;
+    setForeground(color: Color): void;
+    setAntialias(antialias: number): void;
+    setLineWidth(width: number): void;
     fillRectangle(x: number, y: number, width: number, height: number): void;
+    fillRoundRectangle(x: number, y: number, width: number, height: number, arcWidth: number, arcHeight: number): void;
+    drawRoundRectangle(x: number, y: number, width: number, height: number, arcWidth: number, arcHeight: number): void;
+    drawLine(x1: number, y1: number, x2: number, y2: number): void;
+    drawFocus(x: number, y: number, width: number, height: number): void;
   }
 
-  /** The listener argument; Paint events carry gc and display. */
-  interface Event { gc: GC; display: Display }
+  /** The listener argument; Paint events carry gc and display, mouse / key / traverse events the rest. */
+  interface Event { gc: GC; display: Display; button: number; character: string; doit: boolean }
 
   interface Display {
     getSystemColor(id: number): Color;
@@ -96,6 +108,7 @@ declare namespace Swt {
     moveAbove(control: Control | null): void;
     moveBelow(control: Control | null): void;
     redraw(): void;
+    isFocusControl(): boolean;
     addControlListener(listener: unknown): void;
   }
 

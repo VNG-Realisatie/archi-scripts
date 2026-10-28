@@ -127,6 +127,8 @@ Computes a spanning tree of the input and arranges nodes according to the parent
 | Padding | `elk.padding` | `20` |
 | Separate Components | `elk.separateConnectedComponents` | `true` |
 
+**Sibling order** follows the order of the edges, not of the children list (measured: reversing the edges reverses the siblings, reordering the nodes changes nothing).
+
 ---
 
 ### ELK Radial

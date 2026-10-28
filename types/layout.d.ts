@@ -19,9 +19,9 @@ interface LayoutNode {
 
 /** One relation to route, between two occurrences. */
 interface LayoutEdge {
-  /** Unique per edge: the relation id, or `<relation id>_N` for its extra connections. */
+  /** Unique per edge: the relation id, or `<relation id>_N` for its extra connections; a diagram connection's own id. */
   id: string;
-  /** The model relation id. */
+  /** The model relation id; for a diagram connection (a note's line) its own id. */
   conceptId: string;
   /** Occurrence ids; already swapped for reversed relation types. */
   source: string;
@@ -47,12 +47,22 @@ interface LayoutGraph {
   /** Element id → its occurrence ids. */
   _occurrenceMap: Record<string, string[]>;
   _nesting: NestingResolution;
+  /** Edges with an end inside a diagram-block: edge id → the visual at that end (layout direction). */
+  _diagramBlockEnds: Map<string, { source: string | null; target: string | null }>;
   _nestingStats: { candidates: number; applied: number; circularNestings: number; notNestedNestings: number };
 }
 
 interface Point {
   x: number;
   y: number;
+}
+
+/** An element's box on the canvas, absolute coordinates. */
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /** A placed node, absolute coordinates. */
@@ -76,7 +86,7 @@ interface LayoutResultEdge {
   /** Label position; 0,0 = no placement. */
   labelX: number;
   labelY: number;
-  /** ELK only: the connection's exit and entry points on the elements (absolute). */
+  /** ELK, Graphviz: the connection's exit and entry points on the elements (absolute). */
   srcPort?: Point;
   tgtPort?: Point;
 }
@@ -125,8 +135,8 @@ interface VisualPairing {
   removedVisualIds: string[];
   /** Occurrences that are managed after the run. */
   managedOccs: Set<string>;
-  /** User visuals the settings place nowhere. */
-  userInPlace: number;
+  /** User visuals the settings place nowhere: laid out at view root. */
+  userAtRoot: number;
 }
 
 interface NestingResolution extends VisualPairing {

@@ -115,8 +115,12 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   // The user's own visuals: g1 ⊃ c ⊃ k; a copy of c in g2 placed by hand (no record).
   const hand = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["vk", "k", "vc"], ["vc2", "c", "vg2"]]);
   const h = step(one, contents(hand));
-  eq([h.n.removedVisualIds, h.n.userInPlace, h.n.parentMap[h.n.occurrenceOf.get("vc2")]], [[], 1, "g2"],
-     "user content the settings place nowhere stays in its container, laid out");
+  eq([h.n.removedVisualIds, h.n.userAtRoot, h.n.parentMap[h.n.occurrenceOf.get("vc2")]], [[], 1, undefined],
+     "user content the settings place nowhere stays on the view, at view root: its container is not kept");
+  const flat = Defs.effectiveParams(Defs.validatePreset({ algorithm: "Circo", params: { nestingRules: AGG } }));
+  const hf = resolve(flat, elements, rels, hand);
+  eq([hf.userAtRoot, Object.keys(hf.parentMap)], [1, []],
+     "an algorithm that does not nest: no element keeps a container");
   const he = step(every, contents(hand));
   eq([h.n.removedVisualIds, he.n.visualOf.c_occ_1, he.next.records], [[], "vc2", ["k in c in g2"]],
      "user content fills a placement before a managed one is made");

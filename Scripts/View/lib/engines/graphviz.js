@@ -19,7 +19,7 @@ const REPO_ROOT = (() => {
 const Defs         = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP, CONTAINER_LABEL_CLEARANCE } = Defs;
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
 const { applyParams } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
@@ -46,6 +46,15 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // maxWidth is not supported: Graphviz 'size' scales node sizes (forbidden — SPEC §8, no post-layout scaling),
 // and spreading positions afterwards can only widen, never narrow. View size = aspectRatio only.
 const _GV_PAD = (/** @type {number} */ v) => ({ pad: (v / 96).toFixed(4) });
+// sep and esep are margins in points around each element (px → pt: × 72/96). Element distance is
+// shared by two elements, so each gets half; a connection has no margin of its own, so esep is the
+// whole Connection–element distance.
+const _GV_SEP  = (/** @type {number} */ v) => ({ sep:  `+${(v / 2 * 72 / 96).toFixed(2)}` });
+const _GV_ESEP = (/** @type {number} */ v) => ({ esep: `+${(v * 72 / 96).toFixed(2)}` });
+// Neato, FDP, SFDP: their own spacing leaves elements closer than sep, and then the router finds
+// elements touching within esep and draws every connection straight. prism removes overlap to sep
+// and keeps the layout's shape.
+const _GV_OVERLAP_SEP = (/** @type {number} */ v) => ({ overlap: "prism", ..._GV_SEP(v) });
 
 /** @type {ParamMapping} */
 const PARAM_MAPPING = {
@@ -59,34 +68,41 @@ const PARAM_MAPPING = {
   },
   Neato: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    elementSpacing:           _GV_OVERLAP_SEP,
+    connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   FDP: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    elementSpacing:           _GV_OVERLAP_SEP,
+    connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   SFDP: {
     routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    elementSpacing:           _GV_OVERLAP_SEP,
+    connectionElementSpacing: _GV_ESEP,
     diagramPadding:           _GV_PAD,
     aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
   Twopi: {
     layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    // twopi alone leaves elements on top of each other when a ring is too small for them; vpsc
+    // moves them apart (positions only), so the diameter follows the element size and distance
+    // while a larger Layer distance still widens the rings.
+    elementSpacing: (v) => ({ overlap: "vpsc", ..._GV_SEP(v) }),
     diagramPadding: _GV_PAD,
     aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
   },
+  // mindist alone leaves wide elements overlapping on the circle; prism removes that.
   Circo: {
-    elementSpacing: (v) => ({ mindist: (v / 96).toFixed(4) }),
-    diagramPadding: _GV_PAD,
-    aspectRatio:    (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+    circles:                  (v) => v === "Per cycle" ? {} : { oneblock: "true" },
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ mindist: (v / 96).toFixed(4), ..._GV_OVERLAP_SEP(v) }),
+    connectionElementSpacing: _GV_ESEP,
+    diagramPadding:           _GV_PAD,
   },
 };
 
@@ -106,7 +122,14 @@ function layout(graph) {
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
   console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
 
-  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId);
+  // circo removes overlap only in a graph of one part; with more parts (a note, an unconnected
+  // element) Graphviz itself removes it in a second run: neato -n1 keeps circo's positions, applies
+  // the same overlap and sep, and routes the connections again.
+  const secondRun = graph.algorithm === "Circo" && _partCount(graph) > 1;
+  if (secondRun) console.log("  More than one part: overlap removed and connections routed in a second run (neato -n1)");
+  const jsonOut = secondRun
+    ? _runDot(_runGraphviz(dotSource, ["-Kcirco", "-Tdot"]), ["-Kneato", "-n1"])
+    : _runDot(dotSource, ["-K" + alg.engineAlgorithmId]);
   const _rawBb  = String(jsonOut.bb || "—");
   const _bbParts = _rawBb.split(",").map(parseFloat);
   const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
@@ -120,8 +143,6 @@ function layout(graph) {
 
 /**
  * @typedef {{ x: number, y: number, w: number, h: number }} GvBox  a node or cluster box in px
- * @typedef {{ x: number, y: number, w?: number, h?: number, maxX?: number, maxY?: number }} GvCluster
- *   a cluster box, or (inside _deriveClusterBBs) an accumulator still being grown
  */
 
 /**
@@ -145,6 +166,14 @@ function _buildDOT(graph) {
     ? String(engineOpts.esep)
     : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
   delete engineOpts.esep;
+
+  // Twopi: a centre per connected part, and ring radii wide enough for the elements on them
+  const twopi = graph.algorithm === "Twopi" ? _twopiRings(graph, opts) : null;
+  if (twopi) engineOpts.ranksep = twopi.ranksep;
+  // Circo per cycle: per part the centre of the block tree (one circle has no block tree)
+  const circoRoots = graph.algorithm === "Circo" && !engineOpts.oneblock ? _circoRoots(graph) : null;
+  // FDP removes overlap within its clusters itself; prism there only spreads the layout out.
+  if (graph.algorithm === "FDP" && graph.nodes.some(n => n.parent)) delete engineOpts.overlap;
 
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
@@ -201,7 +230,8 @@ function _buildDOT(graph) {
         if (Math.abs(w - parseFloat(nodeW)) > 0.001 || Math.abs(h - parseFloat(nodeH)) > 0.001)
           szAttrs = ` width=${w.toFixed(4)} height=${h.toFixed(4)} fixedsize=true`;
       }
-      lines.push(`${indent}"${id}" [label="${label}"${szAttrs}]`);
+      const rootAttr = (twopi && twopi.roots.has(id)) || (circoRoots && circoRoots.has(id)) ? " root=true" : "";
+      lines.push(`${indent}"${id}" [label="${label}"${szAttrs}${rootAttr}]`);
     }
     visiting.delete(id);
   }
@@ -231,14 +261,195 @@ function _buildDOT(graph) {
   return lines.join("\n");
 }
 
+/**
+ * Centres for circo per cycle: per connected part an element of its largest cycle — the one with
+ * the most connections within that cycle, the first in input order on a tie. circo puts the
+ * root's cycle in the middle and the other cycles and elements around it, each element at the
+ * radius of the largest part hanging from the same element. Its own choice can be an element
+ * outside every cycle: then its few neighbours sit as far out as the whole cycle part, with
+ * connections across the view. A part without a cycle keeps circo's own choice.
+ * @param {LayoutGraph} graph
+ * @returns {Set<string>}  root element ids
+ */
+function _circoRoots(graph) {
+  /** @type {Map<string, Set<string>>} */
+  const adj = new Map(graph.nodes.map(n => [n.id, new Set()]));
+  for (const e of graph.edges) {
+    const a = adj.get(e.source), b = adj.get(e.target);
+    if (e.source === e.target || !a || !b) continue;
+    a.add(e.target);
+    b.add(e.source);
+  }
+  // Blocks (biconnected components, Tarjan): a cycle and every cycle sharing two elements with it.
+  /** @type {Map<string, number>} */
+  const index = new Map(), low = new Map(), partOf = new Map();
+  /** @type {[string, string][]} */
+  const stack = [];
+  /** @type {{ part: string, ids: Set<string>, edges: [string, string][] }[]} */
+  const blocks = [];
+  /** @type {(u: string, parent: string | null, part: string) => void} */
+  const visit = (u, parent, part) => {
+    index.set(u, index.size); low.set(u, index.get(u)); partOf.set(u, part);
+    for (const w of /** @type {Set<string>} */ (adj.get(u))) {
+      if (w === parent) continue;
+      if (!index.has(w)) {
+        stack.push([u, w]);
+        visit(w, u, part);
+        low.set(u, Math.min(/** @type {number} */ (low.get(u)), /** @type {number} */ (low.get(w))));
+        if (/** @type {number} */ (low.get(w)) >= /** @type {number} */ (index.get(u))) {
+          /** @type {[string, string][]} */
+          const edges = [];
+          let top;
+          do { top = /** @type {[string, string]} */ (stack.pop()); edges.push(top); } while (top[0] !== u || top[1] !== w);
+          blocks.push({ part, ids: new Set(edges.flat()), edges });
+        }
+      } else if (/** @type {number} */ (index.get(w)) < /** @type {number} */ (index.get(u))) {
+        stack.push([u, w]);
+        low.set(u, Math.min(/** @type {number} */ (low.get(u)), /** @type {number} */ (index.get(w))));
+      }
+    }
+  };
+  for (const n of graph.nodes) if (!index.has(n.id)) visit(n.id, null, n.id);
+
+  const order = new Map(graph.nodes.map((n, i) => [n.id, i]));
+  /** @type {Map<string, { part: string, ids: Set<string>, edges: [string, string][] }>} */
+  const largest = new Map();   // part → its largest cycle (first found on a tie)
+  for (const b of blocks) {
+    const cur = largest.get(b.part);
+    if (b.ids.size >= 3 && (!cur || b.ids.size > cur.ids.size)) largest.set(b.part, b);
+  }
+  /** @type {Set<string>} */
+  const roots = new Set();
+  for (const b of largest.values()) {
+    /** @type {Map<string, number>} */
+    const degree = new Map();
+    for (const [x, y] of b.edges) { degree.set(x, (degree.get(x) || 0) + 1); degree.set(y, (degree.get(y) || 0) + 1); }
+    const best = [...b.ids].sort((x, y) => /** @type {number} */ (degree.get(y)) - /** @type {number} */ (degree.get(x)) ||
+                                          /** @type {number} */ (order.get(x)) - /** @type {number} */ (order.get(y)))[0];
+    roots.add(best);
+  }
+  return roots;
+}
+
+/**
+ * Centres and ring radii for twopi.
+ * Centre: per connected part the element with the most connections (first in input order on a
+ * tie). twopi's own choice ("most central node") can be an element at the edge, which puts the hub
+ * on an outer ring with its connections running across the whole view.
+ * Rings: element k steps from its centre lies on ring k, its centre on the circle. Layer distance is
+ * the space between elements, as in Layered: a ring lies Layer distance plus the largest half
+ * diagonal of each of the two rings outside the previous one (ring 1: outside the centre element),
+ * so along the radius the space is at least Layer distance whatever the angle.
+ * A full ring (its elements side by side with Element distance between them fill the circumference)
+ * is that tight at Layer distance = element height, and grows and shrinks with Layer distance from
+ * there; below element height its elements overlap and vpsc pushes them apart, so Layer distance
+ * has a visible effect also on a full ring. twopi uses one list of radii for every part, so each
+ * ring takes the largest over the parts.
+ * @param {LayoutGraph} graph
+ * @param {EffectiveParams} opts
+ * @returns {{ roots: Set<string>, ranksep: string }}
+ */
+function _twopiRings(graph, opts) {
+  const layerGap = opts.layerSpacing   ?? 96;   // twopi default: 1 inch
+  const elemGap  = opts.elementSpacing ?? 0;
+  const fullRingOffset = layerGap - (opts.elementHeight || 60);   // a full ring's radius relative to tight
+
+  /** @type {Record<string, string[]>} */
+  const adj = {};
+  for (const n of graph.nodes) adj[n.id] = [];
+  for (const e of graph.edges) {
+    if (e.source === e.target || !adj[e.source] || !adj[e.target]) continue;
+    adj[e.source].push(e.target);
+    adj[e.target].push(e.source);
+  }
+  const widthOf = Object.fromEntries(graph.nodes.map(n => [n.id, n.width || opts.elementWidth || 140]));
+  const halfDiag = Object.fromEntries(graph.nodes.map(n =>
+    [n.id, Math.hypot(widthOf[n.id], n.height || opts.elementHeight || 60) / 2]));
+
+  /** @type {Set<string>} */
+  const roots = new Set();
+  /** @type {Set<string>} */
+  const seen  = new Set();
+  /** @type {number[]} */
+  const ringWidth = [];   // per ring: the largest sum of (width + Element distance) over the parts
+  /** @type {number[]} */
+  const ringReach = [];   // per ring: the largest half diagonal, ring 0 = the centres
+  for (const start of graph.nodes) {
+    if (seen.has(start.id)) continue;
+    // Collect the connected part, in input order
+    const part = [start.id];
+    seen.add(start.id);
+    for (let i = 0; i < part.length; i++) {
+      for (const v of adj[part[i]]) if (!seen.has(v)) { seen.add(v); part.push(v); }
+    }
+    const inPart = new Set(part);
+    const root = graph.nodes.filter(n => inPart.has(n.id))
+      .reduce((best, n) => adj[n.id].length > adj[best.id].length ? n : best).id;
+    roots.add(root);
+
+    // Ring per element: breadth-first distance from the root
+    /** @type {Record<string, number>} */
+    const ring = { [root]: 0 };
+    const queue = [root];
+    /** @type {number[]} */
+    const width = [];
+    for (let i = 0; i < queue.length; i++) {
+      const u = queue[i];
+      if (ring[u] > 0) width[ring[u]] = (width[ring[u]] || 0) + widthOf[u] + elemGap;
+      ringReach[ring[u]] = Math.max(ringReach[ring[u]] || 0, halfDiag[u]);
+      for (const v of adj[u]) if (ring[v] === undefined) { ring[v] = ring[u] + 1; queue.push(v); }
+    }
+    width.forEach((w, k) => { ringWidth[k] = Math.max(ringWidth[k] || 0, w); });
+  }
+
+  // twopi's ranksep list: radius of ring 1, then the step to each next ring
+  /** @type {number[]} */
+  const steps = [];
+  let radius = 0;
+  for (let k = 1; k < ringWidth.length; k++) {
+    const r = Math.max(radius + ringReach[k - 1] + layerGap + ringReach[k], ringWidth[k] / (2 * Math.PI) + fullRingOffset);
+    steps.push(r - radius);
+    radius = r;
+  }
+  if (!steps.length) steps.push(layerGap);
+  return { roots, ranksep: steps.map(s => (s / 96).toFixed(4)).join(":") };
+}
+
 // ── Dot binary execution ──────────────────────────────────────────────────────
 
 /**
  * @param {string} dotSource
- * @param {string} engine   Graphviz layout engine (-K)
+ * @param {string[]} args   engine options, e.g. ["-Kcirco"]
  * @returns {GraphvizJson}
  */
-function _runDot(dotSource, engine) {
+function _runDot(dotSource, args) {
+  const stdout = _runGraphviz(dotSource, ["-Tjson", ...args]);
+  try { return JSON.parse(stdout); }
+  catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
+}
+
+/**
+ * Unconnected parts of the layout graph (elements linked by connections or containment).
+ * @param {LayoutGraph} graph
+ * @returns {number}
+ */
+function _partCount(graph) {
+  /** @type {Map<string, string>} */
+  const up = new Map(graph.nodes.map(n => [n.id, n.id]));
+  const find = (/** @type {string} */ id) => { let r = id; while (up.get(r) !== r) r = /** @type {string} */ (up.get(r)); return r; };
+  const join = (/** @type {string} */ a, /** @type {string} */ b) => { if (up.has(a) && up.has(b)) up.set(find(a), find(b)); };
+  for (const e of graph.edges) join(e.source, e.target);
+  for (const n of graph.nodes) if (n.parent) join(n.id, n.parent);
+  return new Set(graph.nodes.map(n => find(n.id))).size;
+}
+
+/**
+ * Run the Graphviz binary on DOT source; returns its standard output.
+ * @param {string}   dotSource
+ * @param {string[]} args  e.g. ["-Tjson", "-Kcirco"]
+ * @returns {string}
+ */
+function _runGraphviz(dotSource, args) {
   const ProcessBuilder   = Java.type("java.lang.ProcessBuilder");
   const Arrays           = Java.type("java.util.Arrays");
   const Files            = Java.type("java.nio.file.Files");
@@ -249,7 +460,7 @@ function _runDot(dotSource, engine) {
   // stderr goes to a file: left unread in a pipe while stdout is read, a full pipe blocks dot.
   const errFile = Files.createTempFile("graphviz", ".err");
   try {
-    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, "-Tjson", "-K" + engine));
+    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, ...args));
     pb.redirectError(ProcessBuilder.Redirect.to(errFile.toFile()));
     let proc;
     try { proc = pb.start(); }
@@ -264,9 +475,7 @@ function _runDot(dotSource, engine) {
     const stdout = String(new JString(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
     const code = proc.waitFor();
     if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${String(Files.readString(errFile)).trim()}`);
-
-    try { return JSON.parse(stdout); }
-    catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
+    return stdout;
   } finally {
     Files.deleteIfExists(errFile);
   }
@@ -311,24 +520,19 @@ function _extractResult(graph, jsonOut) {
 
   /** @type {Record<string, GvBox>} */
   const nodes    = {};
-  /** @type {Record<string, GvCluster>} */
+  /** @type {Record<string, GvBox>} */
   const clusters = {};
   _walkJSON(jsonOut, nodes, clusters, totalH);
 
-  // Derive cluster bounding boxes for engines that don't emit them (neato/fdp/sfdp)
-  const childSet = new Set();
-  for (const node of graph.nodes) { if (node.parent) childSet.add(node.id); }
-  const padding = graph.options.padding ?? 20;
-  _deriveClusterBBs(graph.nodes, nodes, clusters, childSet, padding);
-
+  // Every engine that nests (dot, fdp) emits a box per cluster; neato, which does not, ignores
+  // clusters when placing elements and so does not nest.
   /** @type {LayoutResultNode[]} */
   const resultNodes = [];
   for (const node of graph.nodes) {
     const isContainer = graph.nodes.some(m => m.parent === node.id);
     const pos = (isContainer && clusters[node.id]) ? clusters[node.id] : nodes[node.id];
     if (!pos) continue;
-    // Casts: after _deriveClusterBBs every cluster is a full box.
-    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: /** @type {number} */ (pos.w), height: /** @type {number} */ (pos.h), parentId: node.parent || null });
+    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h, parentId: node.parent || null });
   }
 
   const splines  = _guiRoutingToGraphviz(graph.options.routing || "Polyline");
@@ -350,7 +554,7 @@ function _extractResult(graph, jsonOut) {
 /**
  * @param {GraphvizJson | undefined}  obj
  * @param {Record<string, GvBox>}     nodes     filled: node name → box
- * @param {Record<string, GvCluster>} clusters  filled: container id → box
+ * @param {Record<string, GvBox>} clusters  filled: container id → box
  * @param {number}                    totalH    graph height in points (y is flipped)
  */
 function _walkJSON(obj, nodes, clusters, totalH) {
@@ -404,10 +608,14 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
 
     /** @type {Point[]} */
     let bendpoints = [];
+    /** @type {{ start: Point, end: Point } | null} */
+    let ports = null;
     if (!skipBend && dotEdge.pos) {
-      bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines).map(p => ({
-        x: Math.round(p.x), y: Math.round(p.y),
-      }));
+      // Samples of a short curve round to the same pixel: keep one.
+      bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines)
+        .map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))
+        .filter((p, i, a) => i === 0 || p.x !== a[i - 1].x || p.y !== a[i - 1].y);
+      ports = _splineEnds(String(dotEdge.pos), totalH);
     }
 
     // Natural label position from Graphviz lp attribute
@@ -430,6 +638,8 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
       sourceId:   originalEdge.source,
       targetId:   originalEdge.target,
       bendpoints,
+      // Where the line leaves and enters the elements, so the writer's label points stay outside them.
+      ...(ports ? { srcPort: ports.start, tgtPort: ports.end } : {}),
       labelX,
       labelY,
       isStraight: skipBend,
@@ -452,39 +662,26 @@ function _parseXY(s) {
 }
 
 /**
- * @param {LayoutNode[]}              graphNodes
- * @param {Record<string, GvBox>}     nodes
- * @param {Record<string, GvCluster>} clusters  extended in place
- * @param {Set<string>}               childSet
- * @param {number}                    padding
+ * Ends of an edge on the element borders, in px: the arrow tips (s, e) when present, else the
+ * first and last point of the curve — Graphviz clips the curve at the borders.
+ * @param {string} posStr  Graphviz edge pos: [e,x,y] [s,x,y] x,y ...
+ * @param {number} totalH
+ * @returns {{ start: Point, end: Point } | null}
  */
-function _deriveClusterBBs(graphNodes, nodes, clusters, childSet, padding) {
-  /** @type {Record<string, string>} */
-  const parentOf = {};
-  for (const n of graphNodes) { if (n.parent) parentOf[n.id] = n.parent; }
-  for (const [childId, parentId] of Object.entries(parentOf)) {
-    if (clusters[parentId]) continue;
-    const childPos  = nodes[childId];
-    const parentPos = nodes[parentId];
-    for (const p of [childPos, parentPos]) {
-      if (!p) continue;
-      const acc = clusters[parentId] || { x: Infinity, y: Infinity, maxX: -Infinity, maxY: -Infinity };
-      acc.x    = Math.min(acc.x,    p.x);
-      acc.y    = Math.min(acc.y,    p.y);
-      acc.maxX = Math.max(acc.maxX || -Infinity, p.x + p.w);
-      acc.maxY = Math.max(acc.maxY || -Infinity, p.y + p.h);
-      clusters[parentId] = acc;
-    }
+function _splineEnds(posStr, totalH) {
+  /** @type {Point | null} */
+  let s = null, e = null;
+  /** @type {Point[]} */
+  const pts = [];
+  for (const tok of posStr.trim().split(/\s+/)) {
+    const p = tok.split(",");
+    const xy = p.length === 3 ? p.slice(1) : p;
+    const pt = { x: Math.round(parseFloat(xy[0]) * PT2PX), y: Math.round((totalH - parseFloat(xy[1])) * PT2PX) };
+    if (isNaN(pt.x) || isNaN(pt.y)) continue;
+    if (p[0] === "s") s = pt; else if (p[0] === "e") e = pt; else pts.push(pt);
   }
-  for (const [id, bb] of Object.entries(clusters)) {
-    if (bb.maxX !== undefined) {
-      clusters[id] = {
-        x: bb.x - padding, y: bb.y - (padding + CONTAINER_LABEL_CLEARANCE),
-        w: (bb.maxX - bb.x) + 2 * padding,
-        h: (/** @type {number} */ (bb.maxY) - bb.y) + 2 * padding + CONTAINER_LABEL_CLEARANCE,   // Cast: set with maxX
-      };
-    }
-  }
+  if (pts.length < 2) return null;
+  return { start: s || pts[0], end: e || pts[pts.length - 1] };
 }
 
 /**
@@ -564,7 +761,7 @@ function _guiRoutingToGraphviz(routing) {
 function _renderGraphvizAttrs(attrs) {
   return Object.entries(attrs)
     .filter(([, v]) => v !== null && v !== undefined && String(v) !== '')
-    .map(([k, v]) => { const s = String(v); return (/[,\s]/.test(s) || s.charAt(0) === '+') ? `${k}="${s}"` : `${k}=${s}`; })
+    .map(([k, v]) => { const s = String(v); return (/[,:\s]/.test(s) || s.charAt(0) === '+') ? `${k}="${s}"` : `${k}=${s}`; })
     .join(' ');
 }
 

@@ -31,13 +31,14 @@ const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const {
   ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER, PROP_ID, PROP_MANAGED_OCCURRENCE,
+  CONNECTION_END_ROOM, BENDPOINT_MIN_GAP,
   validatePreset, effectiveParams, connectionsModeLock,
 } = Defs;
 
 const JUNCTION_DIAMETER = 14;
 
 /** @type {typeof import("./engines/engine-utils")} */
-const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes } = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes, byTypeAndName } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 
 // ── Engine loaders (lazy) ─────────────────────────────────────────────────────
 // require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
@@ -251,7 +252,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // part of the nesting resolution, so every visual gets a node.
   console.log("\nLayout graph:");
   const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects,
-                                  objectSet.visuals, objectSet.visualRelations);
+                                  objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet);
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
@@ -297,12 +298,12 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Write — single function, action-agnostic.
   console.log("\nWrite:");
   // Cast: the in-place target (a missing one returned above) or the view just created — an ArchiMate view.
-  const writtenView = _writeView(preset, result, objectSet, /** @type {ArchimateView} */ (view), graph._nesting);
+  const writtenView = _writeView(preset, result, objectSet, /** @type {ArchimateView} */ (view), graph._nesting, graph._diagramBlockEnds);
   timer.lap("write");
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
   if (writtenView) {
-    Appearance.applyAppearance(writtenView, preset, actionId);
+    Appearance.applyAppearance(writtenView, preset, actionId, objectSet.diagramBlockOf);
     _applyViewProperties(writtenView, preset);
     timer.lap("appearance");
   }
@@ -364,6 +365,46 @@ function _generateOneEach(preset, uiSelection) {
 
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
+// Element order (defs ELEMENT_ORDER) → comparator; Selection has none: the order the elements came in.
+/** @type {Record<string, (a: LayoutNode, b: LayoutNode) => number>} */
+const ORDER_COMPARE = {
+  "Name △":          (a, b) => (a.label || "").localeCompare(b.label || ""),
+  "Type and name △": byTypeAndName,
+  "Name ▽":          (a, b) => (b.label || "").localeCompare(a.label || ""),
+};
+
+/**
+ * With a sorted order, put the relations in the order of their elements too: some engines take the
+ * order of siblings from the relations (ELK Tree). Selection keeps the order they came in.
+ * @param {LayoutNode[]} nodes  already in order (_orderRootLeaves)
+ * @param {LayoutEdge[]} edges  changed in place
+ * @param {string} [order]
+ */
+function _orderEdges(nodes, edges, order) {
+  if (!order || !ORDER_COMPARE[order]) return;
+  const rank = new Map(nodes.map((n, i) => [n.id, i]));
+  const at = (/** @type {string} */ id) => rank.get(id) ?? nodes.length;
+  edges.sort((a, b) => at(a.source) - at(b.source) || at(a.target) - at(b.target));
+}
+
+/**
+ * Put the elements outside containers in the chosen order (defs ELEMENT_ORDER), in place: they
+ * keep their slots in the list, only their order among themselves changes. Selection keeps the
+ * order they came in. A container's contents keep the container's own order (the engines).
+ * @param {LayoutNode[]} nodes
+ * @param {string} [order]
+ */
+function _orderRootLeaves(nodes, order) {
+  const compare = order ? ORDER_COMPARE[order] : undefined;
+  if (!compare) return;
+  const containers = new Set(nodes.map(n => n.parent).filter(Boolean));
+  /** @type {number[]} */
+  const slots = [];
+  nodes.forEach((n, i) => { if (!n.parent && !containers.has(n.id)) slots.push(i); });
+  const sorted = slots.map(i => nodes[i]).sort(compare);
+  slots.forEach((i, k) => { nodes[i] = sorted[k]; });
+}
+
 /**
  * @param {MaskedPreset}                     preset
  * @param {ArchiElement[]}                   elements
@@ -372,9 +413,11 @@ function _generateOneEach(preset, uiSelection) {
  * @param {DiagramObject[] | undefined}      diagramObjects
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
+ * @param {DiagramObject[] | undefined}      [diagramConnections]  connections of diagram objects (a note's line)
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string> }} [diagramBlocks]  contents of diagram-blocks (ObjectSet)
  * @returns {LayoutGraph}
  */
-function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, visuals, visualRelations) {
+function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, visuals, visualRelations, diagramConnections, diagramBlocks) {
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
@@ -433,50 +476,94 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(vo.id);
   }
 
+  _orderRootLeaves(nodes, params.elementOrder);
+
   // Edges from routed relations: each relation once (SPEC: Connections between occurrences).
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
+  // An end inside a diagram-block is laid out at the diagram-block; the visual at that end is kept for the writer.
   const removed = new Set(nesting.removedVisualIds);
-  /** @type {Map<string, [string, string][]>} */
-  /** @type {Map<string, [string, string][]>} */
-  const drawnByRel = new Map();   // relation id → [[source occ, target occ]] of its visual relations
+  const diagramBlockOf       = (diagramBlocks && diagramBlocks.diagramBlockOf)       || new Map();
+  const diagramBlockVisualOf = (diagramBlocks && diagramBlocks.diagramBlockVisualOf) || new Map();
+  /** The node a visual is laid out as: its occurrence, itself (a diagram object) or its diagram-block. */
+  /** @type {(v: { id: string } | null | undefined) => string | null} */
+  const end = v => {
+    const id = v && String(v.id);
+    if (!id || removed.has(id)) return null;
+    const diagramBlock = diagramBlockOf.get(id);
+    return nesting.occurrenceOf.get(id) || (nodeIds.has(id) ? id : null) || (diagramBlock && nodeIds.has(diagramBlock) ? diagramBlock : null);
+  };
+  /** @type {(v: { id: string } | null | undefined) => string | null} */
+  const inner = v => (v && diagramBlockOf.has(String(v.id)) ? String(v.id) : null);
+  /** @typedef {{ src: string, tgt: string, srcVisual: string | null, tgtVisual: string | null }} EdgeEnds */
+  /** @type {Map<string, EdgeEnds[]>} */
+  const drawnByRel = new Map();   // relation id → the ends of its visual relations
   for (const vr of (visualRelations || [])) {
     const relId = vr.concept && vr.concept.id;
-    const srcOcc = vr.source && nesting.occurrenceOf.get(String(vr.source.id));
-    const tgtOcc = vr.target && nesting.occurrenceOf.get(String(vr.target.id));
-    if (!relId || !srcOcc || !tgtOcc || removed.has(String(vr.source.id)) || removed.has(String(vr.target.id))) continue;
+    const src = end(vr.source), tgt = end(vr.target);
+    if (!relId || !src || !tgt) continue;
     let drawn = drawnByRel.get(relId);
     if (!drawn) { drawn = []; drawnByRel.set(relId, drawn); }
-    drawn.push([srcOcc, tgtOcc]);
+    drawn.push({ src, tgt, srcVisual: inner(vr.source), tgtVisual: inner(vr.target) });
   }
+  /** Occurrences of an element; for one only inside a diagram-block, that diagram-block (with the visual there). */
+  /** @type {(id: string) => { occs: string[], visual: string | null } | null} */
+  const placesOf = id => {
+    if (occurrenceMap[id]) return { occs: occurrenceMap[id], visual: null };
+    const v = diagramBlockVisualOf.get(id);
+    const diagramBlock = v && diagramBlockOf.get(v);
+    return diagramBlock && nodeIds.has(diagramBlock) ? { occs: [diagramBlock], visual: /** @type {string} */ (v) } : null;
+  };
   /** @type {LayoutEdge[]} */
   const edges = [];
+  /** @type {Map<string, { source: string | null, target: string | null }>} */
+  const diagramBlockEnds = new Map();
   /** @type {Set<string>} */
   const edgeIds = new Set();
   for (const rel of routedRels) {
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId || !occurrenceMap[srcId] || !occurrenceMap[tgtId]) continue;
+    const srcPlaces = srcId ? placesOf(srcId) : null, tgtPlaces = tgtId ? placesOf(tgtId) : null;
+    if (!srcPlaces || !tgtPlaces) continue;
     if (srcId === tgtId && !ALGORITHMS[preset.algorithm].supportsSelfLoops) continue;
     if (edgeIds.has(rel.id)) continue;
     edgeIds.add(rel.id);
 
     const isReversed = Pipeline.isReversed(rel, params);
-    const pairs = drawnByRel.get(rel.id)
-               || [_closestPair(occurrenceMap[srcId], occurrenceMap[tgtId], parentMap, srcId === tgtId)];
-    pairs.forEach(([srcOccId, tgtOccId], k) => {
+    const pairs = drawnByRel.get(rel.id) || [(() => {
+      const [src, tgt] = _closestPair(srcPlaces.occs, tgtPlaces.occs, parentMap, srcId === tgtId);
+      return { src, tgt, srcVisual: srcPlaces.visual, tgtVisual: tgtPlaces.visual };
+    })()];
+    pairs.forEach((p, k) => {
+      if (p.src === p.tgt && srcId !== tgtId) return;   // both ends inside one diagram-block: it moves as a whole
+      const id = k === 0 ? rel.id : `${rel.id}_${k}`;   // unique per edge for the layout engine
       // For reversed-typed relations, swap source/target so the layout
       // engine traverses the edge in the reversed direction. The model
       // relation is untouched; Archi draws using its intrinsic direction.
       edges.push({
-        id:        k === 0 ? rel.id : `${rel.id}_${k}`,   // unique per edge for the layout engine
+        id,
         conceptId: rel.id,   // plain model relation id — always used for $() lookup in _writeView
-        source: isReversed ? tgtOccId : srcOccId,
-        target: isReversed ? srcOccId : tgtOccId,
+        source: isReversed ? p.tgt : p.src,
+        target: isReversed ? p.src : p.tgt,
         label:  rel.name || "",
         weight: RELATION_WEIGHT_MAP[rel.type] || 1.0,
       });
+      if (p.srcVisual || p.tgtVisual) diagramBlockEnds.set(id, isReversed
+        ? { source: p.tgtVisual, target: p.srcVisual }
+        : { source: p.srcVisual, target: p.tgtVisual });
     });
   }
+
+  // Connections of diagram objects (a note's line to an element) are laid out like relations, so a
+  // note sits next to what it is about instead of loose beside the view.
+  for (const obj of (diagramConnections || [])) {
+    const dc = /** @type {VisualConnection} */ (/** @type {unknown} */ (obj));   // Cast: a diagram connection is a connection
+    const src = end(dc.source);
+    const tgt = end(dc.target);
+    if (!src || !tgt || src === tgt) continue;
+    edges.push({ id: String(dc.id), conceptId: String(dc.id), source: src, target: tgt, label: "", weight: 1.0 });
+  }
+
+  _orderEdges(nodes, edges, params.elementOrder);
 
   const engineParams = preset.engineParams || {};
   sizeLabelBasedNodes(nodes, params, engineParams);
@@ -494,6 +581,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,
     _nesting:       nesting,
+    _diagramBlockEnds:     diagramBlockEnds,
     _nestingStats: {
       candidates:        nestingRels.length,
       applied:           parentRels.length,
@@ -551,9 +639,10 @@ function _stripOccSuffix(id) {
  *   - Otherwise → create (default appearance).
  * Which visual an occurrence repositions comes from the pairing in the nesting resolution;
  * managed visuals left without an occurrence are removed, and the view's managed-occurrence
- * records are rewritten (SPEC: Managed extra occurrences).
+ * records are rewritten (SPEC: Managed occurrences).
  *
  * Same rule for visual relations: existing → rewrite bendpoints; new → add.
+ * A diagram-block (a diagram object with contents) is repositioned as one; what is inside it is left as it is.
  *
  * Parent-first iteration (SPEC §11) guarantees a child's parent VO is in place
  * (added or repositioned) before the child is processed.
@@ -562,9 +651,10 @@ function _stripOccSuffix(id) {
  * @param {ObjectSet}         objectSet
  * @param {ArchimateView}     view
  * @param {NestingResolution} nesting
+ * @param {LayoutGraph["_diagramBlockEnds"]} [diagramBlockEnds]  edges with an end inside a diagram-block → the visual there
  * @returns {ArchimateView}
  */
-function _writeView(preset, result, objectSet, view, nesting) {
+function _writeView(preset, result, objectSet, view, nesting, diagramBlockEnds) {
   const parentRels = nesting.parentRels;
   // Index result nodes once. Sort parent-first (engine output may be arbitrary order).
   /** @type {Record<string, LayoutResultNode>} */
@@ -630,7 +720,8 @@ function _writeView(preset, result, objectSet, view, nesting) {
       _kept++;
       // Derive desired parent from this run's nesting decisions (SPEC: Writer parenthood).
       const newParentVisual = rn.parentId ? visualIndex[rn.parentId] : null;
-      const currentParentVO = $(existing).parent().filter("element").first() || null;
+      // Any container counts — also a group or note: nothing stays in one the settings do not ask for.
+      const currentParentVO = _parentVisual(existing);
       const newParentId = newParentVisual ? String(newParentVisual.id) : null;
       const curParentId = currentParentVO ? String(currentParentVO.id) : null;
 
@@ -711,8 +802,14 @@ function _writeView(preset, result, objectSet, view, nesting) {
   };
 
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
+  /** @type {Map<string, VisualConnection>} */
+  const diagramConnById = new Map((objectSet.diagramConnections || []).map(dc =>
+    [String(dc.id), /** @type {VisualConnection} */ (/** @type {unknown} */ (dc))]));   // Cast: a diagram connection is a connection
   console.log(`  Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
   for (const re of result.edges) {
+    const dc = diagramConnById.get(re.id);
+    if (dc) { _applyEdgeStyle(dc, re, preset); continue; }   // a note's line: no relation behind it
+
     // re.id may be "relId_k" (k-th connection of one relation); re.conceptId is always the model id.
     const conceptId = re.conceptId || re.id;
     const archiRel  = /** @type {ArchiRelation | null} */ ($(`#${conceptId}`).first());   // Cast: a relation id
@@ -720,11 +817,13 @@ function _writeView(preset, result, objectSet, view, nesting) {
 
     // re.sourceId/targetId are in layout direction; reversed-typed relations swap them.
     // Un-reverse to obtain the model's source→target order for view.add().
-    const isRev         = Pipeline.isReversed(archiRel, preset.params);
-    const modelSrcOccId = isRev ? re.targetId : re.sourceId;
-    const modelTgtOccId = isRev ? re.sourceId : re.targetId;
-    const srcVisual = visualIndex[modelSrcOccId];
-    const tgtVisual = visualIndex[modelTgtOccId];
+    // An end inside a diagram-block was laid out at the diagram-block: the connection keeps its visual there.
+    const isRev     = Pipeline.isReversed(archiRel, preset.params);
+    const be        = diagramBlockEnds && diagramBlockEnds.get(re.id);
+    const layoutSrc = be && be.source ? visualById.get(be.source) : visualIndex[re.sourceId];
+    const layoutTgt = be && be.target ? visualById.get(be.target) : visualIndex[re.targetId];
+    const srcVisual = isRev ? layoutTgt : layoutSrc;
+    const tgtVisual = isRev ? layoutSrc : layoutTgt;
     if (!srcVisual || !tgtVisual) continue;
 
     let connection = _findVr(archiRel.id, srcVisual, tgtVisual);
@@ -761,9 +860,12 @@ function _writeView(preset, result, objectSet, view, nesting) {
   // Clear bendpoints on existing connections not matched above (e.g. edges dropped by ELK when
   // both endpoints lift to the same root container, or a nesting connection to another visual).
   // Without this, switching algorithms leaves stale routing on those connections.
+  const diagramBlockOf = objectSet.diagramBlockOf || new Map();
   existingRelsByConcept.forEach(vrList => {
     for (const vr of vrList) {
       if (_consumedVrIds.has(String(vr.id))) continue;
+      // A line inside one diagram-block moves with it: its bendpoints stay as they are.
+      if (vr.source && vr.target && diagramBlockOf.has(String(vr.source.id)) && diagramBlockOf.has(String(vr.target.id))) continue;
       try { vr.deleteAllBendpoints(); } catch (e) {}
     }
   });
@@ -774,8 +876,8 @@ function _writeView(preset, result, objectSet, view, nesting) {
     view.removeProp(PROP_MANAGED_OCCURRENCE);
     for (const r of records) view.prop(PROP_MANAGED_OCCURRENCE, r, true);
   } catch (e) { console.error(`Failed to write the managed-occurrence records: ${e}`); }
-  const inPlace = nesting.userInPlace ? ` · ${nesting.userInPlace} user content in its current container` : "";
-  console.log(`  Occurrences: ${_kept} kept · ${_created} created · ${_removed} managed removed · ${records.length} managed on view${inPlace}`);
+  const atRoot = nesting.userAtRoot ? ` · ${nesting.userAtRoot} user content the settings place nowhere, at view root` : "";
+  console.log(`  Occurrences: ${_kept} kept · ${_created} created · ${_removed} managed removed · ${records.length} managed on view${atRoot}`);
 
   // Log: count objects on the view. The total visual relation count via find("relation")
   // = connections + nestings. A mismatch vs the pipeline's "Total to view" usually
@@ -922,7 +1024,21 @@ function _applyEdgeStyle(connection, re, preset) {
   const srcCenter = _getAbsCenter(/** @type {VisualObject} */ (connection.source));
   const tgtCenter = _getAbsCenter(/** @type {VisualObject} */ (connection.target));
   const isReversed = !!connection.concept && Pipeline.isReversed(connection.concept, preset.params);
-  const balancedBps = _insertLabelMidpointBp(re.bendpoints, srcCenter, tgtCenter, re.labelX, re.labelY, re.srcPort, re.tgtPort);
+
+  // Room for the end symbols (not on orthogonal lines, whose corners are the route): bendpoints
+  // near an element or near each other go, and label points are added from END_ROOM outwards.
+  // The bendpoints run in layout direction: from the model target for a reversed relation.
+  let bps = re.bendpoints, srcPort = re.srcPort, tgtPort = re.tgtPort;
+  if (preset.params.routing !== "Orthogonal") {
+    const srcBox = _getAbsBox(/** @type {VisualObject} */ (connection.source));
+    const tgtBox = _getAbsBox(/** @type {VisualObject} */ (connection.target));
+    const [startBox, endBox] = isReversed ? [tgtBox, srcBox] : [srcBox, tgtBox];
+    bps = _clearEnds(bps, startBox, endBox);
+    if (bps.length === 0) return;   // a straight line: Archi draws it from border to border
+    srcPort = _roomPoint(startBox, bps[0]);
+    tgtPort = _roomPoint(endBox, bps[bps.length - 1]);
+  }
+  const balancedBps = _insertLabelMidpointBp(bps, srcCenter, tgtCenter, re.labelX, re.labelY, srcPort, tgtPort);
   const archiBps = balancedBps.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),
     startY: Math.round(bp.y - srcCenter.y),
@@ -932,6 +1048,65 @@ function _applyEdgeStyle(connection, re, preset) {
 
   const ordered = isReversed ? archiBps.reverse() : archiBps;
   ordered.forEach((bp, i) => { try { connection.addRelativeBendpoint(bp, i); } catch (e) {} });
+}
+
+/**
+ * Bendpoints with room for the end symbols: none within CONNECTION_END_ROOM of the element at either
+ * end, and none within BENDPOINT_MIN_GAP of the previous one.
+ * @param {Point[]} bps
+ * @param {Box}     startBox  element the line starts at (absolute)
+ * @param {Box}     endBox    element the line ends at
+ * @returns {Point[]}
+ */
+function _clearEnds(bps, startBox, endBox) {
+  /** @type {Point[]} */
+  const kept = [];
+  for (const p of bps) {
+    if (_boxDistance(p, startBox) < CONNECTION_END_ROOM || _boxDistance(p, endBox) < CONNECTION_END_ROOM) continue;
+    const q = kept[kept.length - 1];
+    if (q && Math.hypot(p.x - q.x, p.y - q.y) < BENDPOINT_MIN_GAP) continue;
+    kept.push(p);
+  }
+  return kept;
+}
+
+/**
+ * Distance from a point to a box; 0 inside.
+ * @param {Point} p
+ * @param {Box}   b
+ */
+function _boxDistance(p, b) {
+  const dx = Math.max(b.x - p.x, 0, p.x - (b.x + b.width));
+  const dy = Math.max(b.y - p.y, 0, p.y - (b.y + b.height));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * The point CONNECTION_END_ROOM along the line from where Archi lets it leave the box (towards the
+ * box centre's line to `toward`) — the end of the stretch kept free for the end symbol.
+ * @param {Box}   b
+ * @param {Point} toward  first bendpoint outside the box
+ * @returns {Point}
+ */
+function _roomPoint(b, toward) {
+  const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+  const dx = toward.x - cx, dy = toward.y - cy;
+  const t = Math.min(dx ? b.width / 2 / Math.abs(dx) : Infinity, dy ? b.height / 2 / Math.abs(dy) : Infinity);
+  const ax = cx + dx * t, ay = cy + dy * t;   // Archi's anchor on the border
+  const len = Math.hypot(toward.x - ax, toward.y - ay);
+  const k = len > 0 ? Math.min(1, CONNECTION_END_ROOM / len) : 0;
+  return { x: Math.round(ax + (toward.x - ax) * k), y: Math.round(ay + (toward.y - ay) * k) };
+}
+
+/**
+ * Absolute bounds of a visual (its own bounds plus every parent's offset).
+ * @param {VisualObject} visual
+ * @returns {Box}
+ */
+function _getAbsBox(visual) {
+  const off = _getParentAbsOffset(visual);
+  return { x: (visual.bounds.x || 0) + off.x, y: (visual.bounds.y || 0) + off.y,
+           width: visual.bounds.width || 0, height: visual.bounds.height || 0 };
 }
 
 /**
@@ -990,6 +1165,16 @@ function _sortNodesParentFirst(nodes, nodeById) {
 }
 
 /**
+ * The visual a visual sits in — an element, group or note — or null at view root.
+ * @param {VisualObject} vo
+ * @returns {VisualObject | null}
+ */
+function _parentVisual(vo) {
+  const p = $(vo).parent().first();
+  return p && p.view ? /** @type {VisualObject} */ (p) : null;   // a visual has a view; the view itself not
+}
+
+/**
  * Walk a visual object's parent chain in the view tree, summing parent bounds.x/y.
  * Returns the absolute (x, y) of the immediate parent in the view's frame, or
  * (0, 0) if the visual is at root. Under parent-first iteration, callers can rely
@@ -1000,11 +1185,9 @@ function _sortNodesParentFirst(nodes, nodeById) {
 function _getParentAbsOffset(vo) {
   let x = 0, y = 0;
   try {
-    let p = $(vo).parent().filter("element").first();
-    while (p) {
+    for (let p = _parentVisual(vo); p; p = _parentVisual(p)) {
       x += p.bounds.x || 0;
       y += p.bounds.y || 0;
-      p = $(p).parent().filter("element").first();
     }
   } catch (e) { console.error(`Parent offset traversal failed for VO ${vo && vo.id}: ${e}`); }
   return { x, y };
@@ -1063,11 +1246,9 @@ function _getAbsCenter(visual) {
   let x = (visual.bounds.x || 0) + (visual.bounds.width  || 0) / 2;
   let y = (visual.bounds.y || 0) + (visual.bounds.height || 0) / 2;
   try {
-    let p = $(visual).parent().filter("element").first();
-    while (p) {
+    for (let p = _parentVisual(visual); p; p = _parentVisual(p)) {
       x += p.bounds.x || 0;
       y += p.bounds.y || 0;
-      p = $(p).parent().filter("element").first();
     }
   } catch (e) { console.error(`Parent offset traversal failed for VO ${visual && visual.id}: ${e}`); }
   return { x: Math.round(x), y: Math.round(y) };

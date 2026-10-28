@@ -19,7 +19,8 @@ Direction of graph layout.
 - **dot:** Minimum distance between ranks (inches). Default `0.5`. Min `0.02`.
   - Keyword variant: `"1.0 equally"` — centers all ranks at equal intervals
 - **twopi:** Radial distance between concentric circles (inches). Default `1.0`.
-  - List variant: `"0.5 0.75 1.0"` — per-circle radii (first = inner radius, rest = increments)
+  - List variant: `"0.5:0.75:1.0"` (colon-separated, quote it in DOT) — first = radius of the inner circle, then the increase to each next circle; the last value repeats for further circles. One list serves every connected component.
+  - Radii are centre to centre: a node's centre lies on its circle.
 
 ### `nodesep` (dot only)
 - **Scope:** G
@@ -30,15 +31,16 @@ Direction of graph layout.
 - **Scope:** G
 - **Engines:** neato, fdp, sfdp, circo, twopi
 - Margin added around nodes during overlap removal. Default `+4` (points).
-- **`+w` prefix (additive):** adds `w` points to each side of the node bounding box.
+- **`+w` prefix (additive):** adds `w` points to each side of the node bounding box — so two nodes end up at least `2w` apart. Passing inches here (e.g. `+0.1`) silently gives almost no gap.
+- Only acts when overlap removal is on: neato's default `overlap=true` keeps overlaps and ignores `sep`.
 - **Without `+` (multiplicative):** node bounding box scales by `1 + w` in each dimension.
 - Point format: `"+w,h"` — different x/y margins.
 
 ### `esep`
 - **Scope:** G
 - **Engines:** all
-- Margin for edge routing (same format as `sep`). Default: derived as `sep × 0.8`.
-- In dot: used to keep edges away from nodes when routing.
+- Margin for edge routing (same format as `sep`; `+w` = points per side, i.e. the line-to-node clearance). Default `+3`.
+- Should be strictly less than `sep`. Otherwise `splines=true/polyline` gives up with only a stderr warning — *"some nodes with margin (…) touch - falling back to straight line edges"* — and draws straight lines.
 
 ### `mindist` (circo only)
 - **Scope:** G
@@ -60,7 +62,7 @@ Direction of graph layout.
 
 - **dot default:** `spline`
 - **All other engines default:** `line`
-- Using splines with neato/fdp/sfdp requires `overlap=false` or `overlap=prism`.
+- Using splines with neato/fdp/sfdp requires `overlap=false` or `overlap=prism`, and `esep` < `sep` (see `esep`).
 
 ### `compound` (dot only)
 - **Scope:** G

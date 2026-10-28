@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 3,
+  "name": "Test/AlgoTree",
+  "algorithm": "Tree",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight lines",
+    "routing": "Splines",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRules": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingRules": [
+      {"on": false, "relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Grid",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 160,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementRules": [],
+    "diagramRules": [],
+    "relationRules": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "rules": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Begraafplaatsen en crematoria",
+    "folder": "/Test",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "rules": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Selecteer een grouperend element en generate"
+}

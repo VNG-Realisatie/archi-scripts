@@ -61,7 +61,7 @@ one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else do
 | What | How |
 |---|---|
 | Types and API use (View/lib, three `_lib` modules) | `npm run typecheck` (`types/README.md`) |
-| View pipeline, nesting, layout graph, ELK / Dagre adapters | Node, no Archi: `node Scripts/View/tools/view_harness.js <model.archimate> "<view path>" [preset.json] --layout`; `nesting_test.js`, `rel_filter_test.js` in the same folder |
+| View pipeline, nesting, layout graph, ELK / Dagre adapters | Node, no Archi: `node Scripts/View/tools/view_harness.js <model.archimate> "<view path>" [preset.json] --layout`; `nesting_test.js`, `rel_filter_test.js` in the same folder; a reported view: `ai/view-testing.md` |
 | Writer, Graphviz (needs `ProcessBuilder`), dialogs, everything else | Run the script in Archi on a small test model; golden path plus empty selection, one element, deep nesting |
 | jArchi API assumptions | `Scripts/Develop/probeJArchiApi.ajs` in Archi |
 | A refactor or annotation changes no behaviour | `tools/same-code.js` (code), `tools/compare-layouts.js` (layout output) — `types/README.md` |

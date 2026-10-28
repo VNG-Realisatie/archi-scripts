@@ -19,16 +19,16 @@ const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PROP_ID = "Object ID";
-// View property recording one managed extra occurrence: "<element id> in <container id> [in …]".
+// View property recording one managed occurrence: "<element id> in <container id> [in …]".
 const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const STYLES = Object.freeze({
   Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models." },
-  Hierarchy: { algorithms: ["Tree", "Twopi"],                                tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
-  Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],      tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
-  Circular:  { algorithms: ["Radial", "Circo"],                              tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
+  Hierarchy: { algorithms: ["Tree", "Radial"],                               tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
+  Network:   { algorithms: ["Stress", "Neato", "FDP", "SFDP"],               tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
+  Circular:  { algorithms: ["Twopi", "Circo"],                               tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
   Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
 });
 
@@ -36,7 +36,7 @@ const STYLES = Object.freeze({
 // Shared groups spread into activeParams arrays; each algorithm shows only its unique additions.
 
 // Active in every algorithm — not algorithm-specific.
-const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding"]);
+const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding", "elementOrder", "cycleElementOrder"]);
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
@@ -55,6 +55,17 @@ const HIDDEN_PARAMS = Object.freeze(["diagramPadding"]);
 // Floor for connectionElementSpacing between layers (ELK Layered: edgeNodeBetweenLayers).
 const CONNECTION_END_CLEARANCE = 25;
 
+// Length (px) of an ArchiMate end symbol (arrowhead, dot, diamond). The writer keeps bendpoints of
+// non-orthogonal lines this far from their elements, and closer bendpoints at least
+// BENDPOINT_MIN_GAP apart: Archi takes the direction of an end symbol from the last few pixels of
+// the line, and zoomed out those round to another angle.
+const CONNECTION_END_ROOM = 12;
+const BENDPOINT_MIN_GAP   = 5;
+// Shortest connection (px) with room for both end symbols, so the relation type stays readable.
+// Floor for Element distance where connections run straight between elements
+// (connectionsBetweenElements).
+const MIN_CONNECTION_LENGTH = 20;
+
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
 // "Not used by …" hints, tooltips and the capability matrix in SPEC.md.
 const PARAM_LABELS = Object.freeze({
@@ -64,12 +75,15 @@ const PARAM_LABELS = Object.freeze({
   connectionsMode:          "Connections",
   padding:                  "Padding",
   sortContainers:           "Sort containers",
+  elementOrder:             "Order",
+  cycleElementOrder:        "Cycle",
   alignWidthSameType:       "Same width per level",
   snapColumnsToGrid:        "Snap columns to grid",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
   nodePlacement:            "Placement",
+  circles:                  "Circles",
   layerSpacing:             "Layer distance",
   elementWidth:             "Width",
   elementHeight:            "Height",
@@ -91,14 +105,20 @@ const PARAM_LABELS = Object.freeze({
 const PARAM_TOOLTIPS = Object.freeze({
   nestingRules:             ["Draw matching relations as nesting: the child inside its parent.",
                              "Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; " +
-                             "a rule with Every shows it in every parent."],
+                             "a rule with Every shows it in every parent. Only relations an Include rule picks are nested; Exclude rules take " +
+                             "relations out of those, so Exclude rules alone nest nothing."],
   reverseRules:             ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
-                             "Nesting: if the relation is also nested, the target becomes the parent."],
+                             "Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include rule picks are " +
+                             "reversed; Exclude rules take relations out of those, so Exclude rules alone reverse nothing."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
                              "Grid or Pack: Connections is locked to Between containers."],
   connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
                              "Crossing containers: the whole view is one layout; connections run straight to the element inside."],
   padding:                  ["Space between a container's border and its contents.", "px"],
+  elementOrder:             ["Order in which the elements outside containers go into the layout; another order gives the algorithm another starting point.",
+                             "Inside a container the container's own order holds."],
+  cycleElementOrder:        ["Each layout of an existing view takes the next order: Selection, Name △, Type and name △, Name ▽.",
+                             "A new view always starts with Selection."],
   sortContainers:           ["Order containers by type and name, as elements always are.",
                              "Grid and Pack keep this order; the other algorithms start from it."],
   alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
@@ -110,14 +130,17 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles."],
   ranking:                  ["How elements are assigned to layers.",
                              "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
-  nodePlacement:            ["Where elements sit within their layer.", ""],
-  layerSpacing:             ["Distance between layers along the flow; Radial and Twopi: between rings.",
-                             "px — with Reserve label space a gap widens to fit its labels."],
+  nodePlacement:            ["Where elements sit within their layer.",
+                             "Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side."],
+  circles:                  ["How the elements are divided over circles.", ""],
+  layerSpacing:             ["Space between the elements of successive layers along the flow; Tree: between levels; Twopi: between rings.",
+                             "px — Tree: at least Distance between elements; Twopi: a full ring is tight at element height and grows and shrinks with Layer distance; with Reserve label space a gap widens to fit its labels."],
   elementWidth:             ["Width of every element.", "px — not used with Use label width."],
   elementHeight:            ["Height of every element.", "px — not used with Use label width."],
   labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
   labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px — only with Use label width."],
-  elementSpacing:           ["Minimum distance between elements, also between unconnected groups.", "px"],
+  elementSpacing:           ["Minimum distance between elements, also between unconnected groups.",
+                             "px — Neato, FDP, SFDP, Circo: at least 2 × Distance to element + 2, so a connection fits between two elements, and at least the shortest connection that shows both end symbols; the other value follows."],
   routing:                  ["How connection lines are drawn.", ""],
   labelPosition:            ["Where the connection label sits.", ""],
   connectionLabelSpacing:   ["Keep connection labels clear of other labels, connections and elements.",
@@ -125,7 +148,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionSpacing:        ["Distance between parallel connections, and between connection points on one side of an element.",
                              "px — elements grow to fit their connections; 0 = no growth."],
   connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
-                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol.`],
+                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP, Circo: at most half of (Distance between elements − 2); the other value follows.`],
   aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
   maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
                              "px — element sizes are unchanged."],
@@ -162,8 +185,9 @@ const LAYOUT_GROUPS = Object.freeze({
   Reverse:     ["reverseRules"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
                 "sortContainers", "alignWidthSameType", "snapColumnsToGrid"],
-  Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "layerSpacing"],
-  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
+  Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
+  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing",
+                "elementOrder", "cycleElementOrder"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
   "View size": ["aspectRatio", "maxWidth"],
 });
@@ -172,7 +196,7 @@ const LAYOUT_GROUPS = Object.freeze({
 // Graphviz has aspectRatio only: it cannot narrow a layout without scaling elements.
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
-// Graphviz cluster-nesting controls — Dot, Neato, FDP. padding = cluster margin (graphviz.js).
+// Graphviz cluster-nesting controls — Dot, FDP. padding = cluster margin (graphviz.js).
 const PARAMS_GV_CLUSTER = Object.freeze(["nestingRules", "padding"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
@@ -209,7 +233,7 @@ const ALGORITHMS = Object.freeze({
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
-      nodePlacement:      ["Straight", "Compact"],
+      nodePlacement:      ["Centred", "Straight lines"],
       routing:            ["Orthogonal", "Polyline", "Splines"],
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Layered", "Grid", "Pack"],
@@ -228,30 +252,18 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "labelPosition", "reverseRules",
+      "direction", "routing", "labelPosition", "reverseRules", "layerSpacing",
       "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
+      routing:            ["Straight", "Splines"],   // elk.js _routeTreeEdges
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Grid", "Pack"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
     paramConflicts: CONFLICTS_VIEW,
-  },
-
-  Force: {
-    engine:               "ELK",
-    engineAlgorithmId:    "force",
-    style:                "Network",
-    supportsNesting:      "none",
-    supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
-    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
-    supportedOptions:     {},
-    labelPositionDefault: null,
-    tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
-    paramConflicts: CONFLICTS_VIEW,  // view-size mode "none" zeroes aspectRatio
   },
 
   Stress: {
@@ -270,13 +282,13 @@ const ALGORITHMS = Object.freeze({
   Radial: {
     engine:               "ELK",
     engineAlgorithmId:    "radial",
-    style:                "Circular",
+    style:                "Hierarchy",
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
-    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "layerSpacing", "elementSpacing", "aspectRatio"],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
-    tooltip: "Domain overviews and hub-and-spoke structures (ELK)",
+    tooltip: "Tree radiating from a central element: every depth on its own circle, each subtree in its own sector. Cycles are cut to a tree (ELK Radial)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -362,48 +374,9 @@ const ALGORITHMS = Object.freeze({
     engine:               "Graphviz",
     engineAlgorithmId:    "neato",
     style:                "Network",
-    supportsNesting:      "cluster",
+    supportsNesting:      "none",   // neato places elements ignoring clusters; mode=ipsep crashes (Graphviz 14.1)
     supportsSelfLoops:    true,   // Graphviz native
-    activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
-      "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRules",
-    ],
-    supportedOptions: {
-      routing:       ROUTING_GV_POLY,
-      labelPosition: LP_GV,
-    },
-    labelPositionDefault: "Natural",
-    tooltip: "Spring-model layout for undirected networks, with cluster nesting. No direction control (Graphviz neato)",
-    paramConflicts: CONFLICTS_VIEW,
-  },
-
-  FDP: {
-    engine:               "Graphviz",
-    engineAlgorithmId:    "fdp",
-    style:                "Network",
-    supportsNesting:      "cluster",
-    supportsSelfLoops:    true,   // Graphviz native
-    activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
-      "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRules",
-    ],
-    supportedOptions: {
-      routing:       ROUTING_GV_POLY,
-      labelPosition: LP_GV,
-    },
-    labelPositionDefault: "Natural",
-    tooltip: "Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp)",
-    paramConflicts: CONFLICTS_VIEW,
-  },
-
-  SFDP: {
-    engine:               "Graphviz",
-    engineAlgorithmId:    "sfdp",
-    style:                "Network",
-    supportsNesting:      "none",
-    supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
       "routing", "labelPosition",
@@ -414,25 +387,67 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp)",
+    tooltip: "Spring-model layout for undirected networks. No nesting (use FDP) and no direction control (Graphviz neato)",
+    paramConflicts: CONFLICTS_VIEW,
+  },
+
+  FDP: {
+    engine:               "Graphviz",
+    engineAlgorithmId:    "fdp",
+    style:                "Network",
+    supportsNesting:      "cluster",
+    supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
+    activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
+      "routing", "labelPosition",
+      "elementSpacing", "connectionElementSpacing", "reverseRules",
+    ],
+    supportedOptions: {
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
+    },
+    labelPositionDefault: "Natural",
+    tooltip: "Force-directed layout with cluster nesting; connections are routed around clusters (Graphviz fdp)",
+    paramConflicts: CONFLICTS_VIEW,
+  },
+
+  SFDP: {
+    engine:               "Graphviz",
+    engineAlgorithmId:    "sfdp",
+    style:                "Network",
+    supportsNesting:      "none",
+    supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
+    activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
+      "routing", "labelPosition",
+      "elementSpacing", "connectionElementSpacing",
+    ],
+    supportedOptions: {
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
+    },
+    labelPositionDefault: "Natural",
+    tooltip: "Force-directed layout like FDP, built up over coarser versions of the graph: only gains over FDP on large networks (100+ elements). No nesting (Graphviz sfdp)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
   Twopi: {
     engine:               "Graphviz",
     engineAlgorithmId:    "twopi",
-    style:                "Hierarchy",
+    style:                "Circular",
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
-      "labelPosition", "layerSpacing",
+      "labelPosition", "layerSpacing", "elementSpacing",
     ],
     supportedOptions: {
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi)",
+    tooltip: "Network on concentric circles by distance from a central element; every connection kept. No direction control or nesting (Graphviz twopi)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -442,15 +457,22 @@ const ALGORITHMS = Object.freeze({
     style:                "Circular",
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
+    connectionsBetweenElements: true,   // the dialog keeps Element distance ≥ 2 × Distance to element + 2
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, "aspectRatio",
-      "labelPosition", "elementSpacing",
+      // aspectRatio: a ratio stretches the circle into an ellipse
+      ...ALWAYS_ACTIVE_PARAMS,
+      "circles", "routing", "labelPosition",
+      "elementSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
+      routing:       ROUTING_GV_POLY,
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Circular layout: places connected groups of elements on circles. Best for rings and cyclic dependencies (Graphviz circo)",
+    tooltip: "Elements on circles, ordered so that few connections cross. Suited to cycles (life cycles, control loops, chains that return to their start): " +
+             "Per cycle shows each cycle as its own circle where cycles meet in one element or one relation; One circle gives an overview in which every element counts equally. " +
+             "The model should have many connections spread over its elements and no dominant hub (use Twopi or Radial), hierarchy (use Tree) or flow direction (use Layered). " +
+             "Up to about 40 elements. No direction control or nesting (Graphviz circo)",
     paramConflicts: CONFLICTS_VIEW,
   },
 });
@@ -477,7 +499,7 @@ const ACTION = Object.freeze({
 
 const ROUTING = Object.freeze({
   ORTHOGONAL:    { id: "Orthogonal",           label: "Orthogonal",
-    tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
+    tooltip: "Draws relation lines with right-angle bends." },
   POLYLINE:      { id: "Polyline",             label: "Polyline",
     tooltip: "Draws relation lines with diagonal bends." },
   STRAIGHT:      { id: "Straight",             label: "Straight",
@@ -485,7 +507,7 @@ const ROUTING = Object.freeze({
   SPLINE:        { id: "Spline (approximated)", label: "Spline (approximated)",
     tooltip: "Graphviz curves, approximated with bendpoints. Graphviz only." },
   SPLINES:       { id: "Splines",              label: "Splines",
-    tooltip: "Draws relation lines as smooth curves. Layered only." },
+    tooltip: "Draws relation lines as smooth curves." },
 });
 
 // ── Directions ────────────────────────────────────────────────────────────────
@@ -511,10 +533,21 @@ const RANKING = Object.freeze([
 // Engine-specific strategy identifiers live in engines/elk.js.
 
 const NODE_PLACEMENT = Object.freeze([
-  { val: "Straight", default: true,
-    tooltip: "Aligns elements so connections run as straight as possible (fewest bends)." },
-  { val: "Compact",
-    tooltip: "Shortest total connection length; usually a smaller view, with a few more bends." },
+  { val: "Centred", default: true,
+    tooltip: "Elements sit centred between the elements they connect to; shortest connections and usually the smallest view." },
+  { val: "Straight lines",
+    tooltip: "As many straight connections as possible; the layout leans to one side, so parents may sit at the edge of their children." },
+]);
+
+// ── Circles (Circo only) ──────────────────────────────────────────────────────
+// Engine identifiers (oneblock) live in engines/graphviz.js.
+
+const CIRCLES = Object.freeze([
+  { val: "One circle", default: true,
+    tooltip: "All elements on one circle; connections run across it. Also fits a model with a hub or without cycles." },
+  { val: "Per cycle",
+    tooltip: "Each cycle on its own circle, joined where cycles meet in one element or one relation; cycles joined by two or more relations share a circle. " +
+             "Elements outside a cycle hang off it, so a hub becomes a star." },
 ]);
 
 // ── Acyclicer options (Dagre only) ────────────────────────────────────────────
@@ -522,6 +555,17 @@ const NODE_PLACEMENT = Object.freeze([
 const ACYCLICER = Object.freeze([
   { val: "Default", default: true },
   { val: "Greedy" },
+]);
+
+// ── Element order (all algorithms) ────────────────────────────────────────────
+// Order of the elements outside containers as they go into the layout (generate_view.js);
+// inside a container the container's own order holds.
+
+const ELEMENT_ORDER = Object.freeze([
+  { val: "Selection", default: true },
+  { val: "Name △" },
+  { val: "Type and name △" },
+  { val: "Name ▽" },
 ]);
 
 // ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
@@ -667,7 +711,8 @@ const DEFAULT_PRESET = Object.freeze({
   algorithm: "Layered",
   params: {
     direction:             "Right",
-    nodePlacement:         "Straight",              // "Straight" | "Compact" (Layered only)
+    nodePlacement:         "Centred",               // "Centred" | "Straight lines" (Layered only)
+    circles:               "One circle",            // "One circle" | "Per cycle" (Circo only)
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
@@ -681,6 +726,8 @@ const DEFAULT_PRESET = Object.freeze({
     padding:               20,
     diagramPadding:        10,
     sortContainers:        false,
+    elementOrder:          "Selection",            // ELEMENT_ORDER: elements outside containers
+    cycleElementOrder:     false,                  // each layout of an existing view takes the next elementOrder
     alignWidthSameType:    false,
     snapColumnsToGrid:     false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
@@ -1022,7 +1069,7 @@ if (typeof module !== "undefined" && module.exports) {
     paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
+    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
@@ -1032,7 +1079,7 @@ if (typeof module !== "undefined" && module.exports) {
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS,
-    CONNECTION_END_CLEARANCE,
+    CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,
     validatePreset, effectiveParams, connectionsModeLock,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
   };

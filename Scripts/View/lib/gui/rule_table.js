@@ -30,9 +30,59 @@ const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
 const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
+const CanvasWidget      = Java.type("org.eclipse.swt.widgets.Canvas");
 const RowLayout         = Java.type("org.eclipse.swt.layout.RowLayout");
 const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
+
+const CHECK_SIZE = 16;
+
+/**
+ * A drawn checkbox. A disabled GTK checkbox keeps its blue tick and still looks active; this one
+ * turns grey when disabled. Mouse click and Space toggle it; Tab moves past it.
+ * @param {Swt.Composite} parent
+ * @param {boolean} value
+ * @param {(value: boolean) => void} onChange
+ * @returns {Required<RuleTableCell> & { canvas: Swt.Canvas }}
+ */
+function checkBox(parent, value, onChange) {
+  const canvas = new CanvasWidget(parent, SWT.NONE);
+  let checked = !!value;
+  const toggle = () => { if (!canvas.isEnabled()) return; checked = !checked; canvas.redraw(); onChange(checked); };
+  canvas.addListener(SWT.Paint, e => {
+    const gc = e.gc, d = canvas.getDisplay(), on = canvas.isEnabled();
+    const sys = (/** @type {number} */ c) => d.getSystemColor(c);
+    const a = canvas.getClientArea();
+    const x = Math.floor((a.width - CHECK_SIZE) / 2), y = Math.floor((a.height - CHECK_SIZE) / 2);
+    gc.setAntialias(SWT.ON);
+    if (checked) {
+      gc.setBackground(sys(on ? SWT.COLOR_LIST_SELECTION : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
+      gc.setForeground(sys(SWT.COLOR_WHITE));
+      gc.setLineWidth(2);
+      gc.drawLine(x + 4, y + 8, x + 7, y + 11);
+      gc.drawLine(x + 7, y + 11, x + 12, y + 5);
+    } else {
+      gc.setBackground(sys(on ? SWT.COLOR_LIST_BACKGROUND : SWT.COLOR_WIDGET_BACKGROUND));
+      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
+      gc.setForeground(sys(on ? SWT.COLOR_WIDGET_DARK_SHADOW : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+      gc.setLineWidth(1);
+      gc.drawRoundRectangle(x, y, CHECK_SIZE - 1, CHECK_SIZE - 1, 5, 5);
+    }
+    if (canvas.isFocusControl()) { gc.setLineWidth(1); gc.drawFocus(x - 1, y - 1, CHECK_SIZE + 2, CHECK_SIZE + 2); }
+  });
+  canvas.addListener(SWT.MouseUp, e => { if (e.button === 1) toggle(); });
+  canvas.addListener(SWT.KeyDown, e => { if (String(e.character) === " ") toggle(); });
+  canvas.addListener(SWT.Traverse, e => { e.doit = true; });
+  canvas.addListener(SWT.FocusIn,  () => canvas.redraw());
+  canvas.addListener(SWT.FocusOut, () => canvas.redraw());
+  return {
+    canvas,
+    set(v) { checked = !!v; canvas.redraw(); },
+    enable(on) { canvas.setEnabled(on); canvas.redraw(); },
+    setToolTipText(text) { canvas.setToolTipText(text); },
+  };
+}
 
 /**
  * Column definition:
@@ -40,7 +90,8 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
  *   header    heading; "\n" for two lines
  *   tooltip   heading + cell tooltip
  *   kind      choice  read-only combo; items: [{ value, label }]
- *             check   checkbox (boolean field; col.default false: unchecked when the rule has no value)
+ *             check   checkbox (boolean field; col.default false: unchecked when the rule has no value);
+ *                     drawn, so a disabled tick is grey (a GTK checkbox keeps its blue)
  *             prop    read-only combo of property names (opts.propItems(rule, key))
  *             value   read-only combo of property values (opts.valueItems(rule, key))
  *             count   read-only count label, set with setCounts; "(n)" or col.format(n)
@@ -49,6 +100,7 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
  *   width     width (px); cells keep it, nothing stretches with the dialog
  *   optional  true: shown only with Property condition (or when a rule has a property)
  *   enabled   (rule) => boolean; the cell is greyed when false
+ *             A rule that is off (on: false) greys its whole row except the "on" cell and ✕.
  *   onChange  (rule) => void; normalise related fields after this column changed
  *   count     (choice, prop) count key from setCounts shown after the selected item:
  *             "Aggregation (62)"; an empty property shows just "(n)"
@@ -236,12 +288,11 @@ function ruleTable(parent, opts) {
         return c;
       }
       case "check": {
-        const b = new ButtonWidget(grid, SWT.CHECK);
-        b.setSelection(rule[col.key] === undefined ? col.default !== false : !!rule[col.key]);
-        gd().align(SWT.CENTER, SWT.CENTER).applyTo(b);
-        b.setToolTipText(tip);
-        b.addListener(SWT.Selection, () => { rule[col.key] = b.getSelection(); refresh(); changed(); });
-        return b;
+        const box = checkBox(grid, rule[col.key] === undefined ? col.default !== false : !!rule[col.key],
+          v => { rule[col.key] = v; refresh(); changed(); });
+        gd().align(SWT.CENTER, SWT.CENTER).hint(CHECK_SIZE + 2, CHECK_SIZE + 2).applyTo(box.canvas);
+        box.setToolTipText(tip);
+        return box;
       }
       case "prop":
       case "value": {
@@ -341,7 +392,7 @@ function ruleTable(parent, opts) {
         if (!ctrl) continue;
         // The first cell of a row carries the row tooltip (e.g. a style rule as a sentence).
         if (first && opts.rowTooltip && ctrl.setToolTipText) { try { ctrl.setToolTipText(opts.rowTooltip(rule)); } catch (e) {} }
-        const on = enabled && (!col || !col.enabled || col.enabled(rule));
+        const on = enabled && (!col || ((!col.enabled || col.enabled(rule)) && (rule.on !== false || col.key === "on")));
         if (ctrl.enable) ctrl.enable(on); else { try { ctrl.setEnabled(on); } catch (e) {} }
         if (!col) continue;
         if (col.kind === "choice") {

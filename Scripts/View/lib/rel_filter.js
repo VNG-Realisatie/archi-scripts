@@ -6,17 +6,19 @@
  * rules are the exception: the later rule wins when two styles hit the same object).
  *
  * Rule kinds (field → meaning; "" = All):
- *   element   { mode, elementType, property, value }                      global element filter
- *   diagram   { mode, diagramType }                                       global diagram filter
+ *   element   { on, mode, elementType, property, value }                  global element filter
+ *   diagram   { on, mode, diagramType }                                   global diagram filter
  *   relation  { on, mode, source, relation, target,                       global relation filter, nesting, reverse
  *               propertyOf, property, value }
- *   step      { mode, previous, direction, relation, added,               expand-selection step
+ *   step      { on, mode, previous, direction, relation, added,           expand-selection step
  *               propertyOf, property, value }
  *   style     { on, color, source, relation, target, propertyOf,          Appearance › Style by property
  *               property, colorRange }
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
- * reverse, style) select nothing.
+ * reverse, style) select nothing. A rule that is off adds nothing and removes nothing, but an
+ * Include rule that is off still counts as an Include rule: a list whose Include rules are all
+ * off keeps nothing.
  *
  * This module is pure: no Archi, no Java. Type ids are validated against sets the caller passes
  * in (see defs.validatePreset), so it does not depend on defs.js.
@@ -34,12 +36,12 @@ const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
 /** @type {Readonly<{ [K in RuleKind]: RuleKindSpec<RuleByKind[K]> }>} */
 const KINDS = Object.freeze({
   element: {
-    defaults: { mode: "include", elementType: "", property: "", value: "" },
+    defaults: { on: true, mode: "include", elementType: "", property: "", value: "" },
     types:    { elementType: "elements" },
     enums:    { mode: MODES },
   },
   diagram: {
-    defaults: { mode: "include", diagramType: "" },
+    defaults: { on: true, mode: "include", diagramType: "" },
     types:    { diagramType: "diagrams" },
     enums:    { mode: MODES },
   },
@@ -50,7 +52,7 @@ const KINDS = Object.freeze({
     enums:    { mode: MODES, propertyOf: REL_PROP_OF },
   },
   step: {
-    defaults: { mode: "include", previous: "", direction: "either", relation: "", added: "",
+    defaults: { on: true, mode: "include", previous: "", direction: "either", relation: "", added: "",
                 propertyOf: "added", property: "", value: "" },
     types:    { previous: "elements", relation: "relations", added: "elements" },
     enums:    { mode: MODES, direction: DIRECTIONS, propertyOf: STEP_PROP_OF },
@@ -188,8 +190,9 @@ function _propOk(rule, obj) {
 }
 
 /**
- * Evaluate a rule list with a per-rule test. Exclude rules veto; with no active Include rule
- * the list keeps everything (filter lists) or nothing (feature lists).
+ * Evaluate a rule list with a per-rule test. Exclude rules veto; with no Include rule the list
+ * keeps everything (filter lists) or nothing (feature lists). Rules that are off never match,
+ * so Include rules that are all off keep nothing.
  * @template {{ on?: boolean, mode?: RuleMode }} R
  * @param {R[]}                rules
  * @param {(rule: R) => boolean} test
@@ -198,9 +201,10 @@ function _propOk(rule, obj) {
 function evalRules(rules, test, emptyMeansAll) {
   let hasInclude = false, included = false;
   for (const r of rules) {
+    if (r.mode !== "exclude") hasInclude = true;
     if (r.on === false) continue;
     if (r.mode === "exclude") { if (test(r)) return false; }
-    else { hasInclude = true; if (!included && test(r)) included = true; }
+    else if (!included && test(r)) included = true;
   }
   return hasInclude ? included : !!emptyMeansAll;
 }

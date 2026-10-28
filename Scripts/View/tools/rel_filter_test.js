@@ -90,10 +90,14 @@ eq(RF.matchElement(elRules, el("grouping", { Status: "Active" })), true, "elemen
 eq(RF.matchElement(elRules, el("grouping", { Status: "Closed" })), false, "element property miss");
 eq(RF.matchElement(elRules, el("business-service")), false, "element type miss");
 eq(RF.matchElement([], el("anything")), true, "empty element list keeps everything");
+eq(RF.matchElement(norm("element", [{ on: false }]), el("business-object")), false, "element Include rules all off keep nothing");
+eq(RF.matchElement(norm("element", [{}, { on: false, elementType: "grouping" }]), el("business-object")), true, "element rule off: others still apply");
+eq(RF.matchElement(norm("element", [{}, { on: false, mode: "exclude", elementType: "grouping" }]), el("grouping")), true, "element Exclude rule off removes nothing");
 
 // ── diagram filter ────────────────────────────────────────────────────────────
 eq(RF.matchDiagram(norm("diagram", [{ diagramType: "archimate-diagram-model" }]), "archimate-diagram-model"), true, "diagram include");
 eq(RF.matchDiagram(norm("diagram", [{ diagramType: "archimate-diagram-model" }]), "canvas"), false, "diagram miss");
+eq(RF.matchDiagram(norm("diagram", [{ on: false }]), "canvas"), false, "diagram Include rules all off keep nothing");
 
 // ── step matching ─────────────────────────────────────────────────────────────
 const cand = (relType, frontier, other, outgoing, relProps) => ({
@@ -124,6 +128,8 @@ const ex = step([{}, { mode: "exclude", relation: "association-relationship" }])
 eq(ex(cand("association-relationship", grp, bo, true)), false, "step exclude");
 eq(ex(cand("serving-relationship",     grp, bo, true)), true,  "step include-all with exclude");
 eq(RF.matchStep([], cand("serving-relationship", grp, bo, true)), true, "empty step list follows everything");
+eq(RF.matchStep(norm("step", [{ on: false, mode: "exclude" }]), cand("serving-relationship", grp, bo, true)), true, "step Exclude rule off removes nothing");
+eq(RF.matchStep(norm("step", [{ on: false }]), cand("serving-relationship", grp, bo, true)), false, "step Include rules all off follow nothing");
 
 // relation collection ignores Added type and property on Include rules, applies Exclude in full
 const relColl = raw => c => RF.matchStepRelation(norm("step", raw), c);
