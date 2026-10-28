@@ -1,31 +1,62 @@
 {
-  "includeElementType": [
-    "application-collaboration",
-    "application-component",
-    "application-event",
-    "application-function",
-    "application-interaction",
-    "application-interface",
-    "application-process",
-    "application-service",
-    "grouping"
-  ],
-  "includeRelationType": [
-    "access-relationship",
-    "aggregation-relationship",
-    "assignment-relationship",
-    "association-relationship",
-    "composition-relationship",
-    "influence-relationship",
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship",
-    "triggering-relationship"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": []
+  "name": "application",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "application-collaboration",
+      "application-component",
+      "application-event",
+      "application-function",
+      "application-interaction",
+      "application-interface",
+      "application-process",
+      "application-service",
+      "grouping"
+    ],
+    "relationTypes": [
+      "access-relationship",
+      "aggregation-relationship",
+      "assignment-relationship",
+      "association-relationship",
+      "composition-relationship",
+      "influence-relationship",
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship",
+      "triggering-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  }
 }

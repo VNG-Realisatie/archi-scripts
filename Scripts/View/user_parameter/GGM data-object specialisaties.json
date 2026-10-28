@@ -1,54 +1,63 @@
 {
-  "action": "Generate",
-  "graphDepth": 6,
-  "includeElementType": [
-    "grouping",
-    "data-object"
-  ],
-  "includeRelationType": [
-    "aggregation-relationship:in",
-    "specialization-relationship"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": [
-    "aggregation-relationship"
-  ],
-  "layoutCircular": true,
-  "ranker": "network-simplex",
-  "nodeWidth": 200,
-  "nodeHeight": 60,
-  "debug": false,
-  "excludeFromView": false,
-  "viewName": "Geo-Object",
-  "elkAlignment": "TOP_LEFT",
-  "nestingMultipleOccurrences": true,
-  "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedExpandToFill": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ],
-  "_lastTabIndex": 1,
-  "_lastPresetName": "GGM specialisaties.js",
-  "_windowBounds": {
-    "x": 2112,
-    "y": 488,
-    "width": 1007,
-    "height": 1300
+  "name": "GGM data-object specialisaties",
+  "algorithm": "Dot",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Straight",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignSameType": true,
+    "showInEveryContainer": true,
+    "layerSpacing": 200,
+    "elementSpacing": 60,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
   },
-  "nestedNodeSpacing": 10,
-  "nodePlacement": "BALANCED",
-  "nestedAlgorithm": "rectpacking",
-  "nodeSpacing": 60,
-  "sameTypeResize": true,
-  "sortLeavesOnly": true,
-  "layerSpacing": 200,
-  "edgeRouting": "STRAIGHT",
-  "algorithm": "dot",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "filter": {
+    "elementTypes": [
+      "grouping",
+      "data-object"
+    ],
+    "relationTypes": [
+      "aggregation-relationship:in",
+      "specialization-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 6,
+        "elementTypes": [
+          "grouping",
+          "data-object"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:in",
+          "specialization-relationship"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Geo-Object",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "new_view"
 }

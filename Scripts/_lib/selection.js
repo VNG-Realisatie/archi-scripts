@@ -1,25 +1,28 @@
 /**
- * Given a selection, create a collection of the contained (visual) objects for further processing
+ * Given a selection, create a collection of the contained (visual) objects for further processing.
  *
- * The selection can be one or more concepts, views or folders.
- * - getSelection() returns a collection of objects
- * - getVisualSelection() return a collection of visual objects
+ * The selection can be one or more concepts, views, folders, or canvas visual objects.
+ * - getSelection()       returns a collection of MODEL objects (concepts)
+ * - getVisualSelection() returns a collection of VISUAL objects (canvas placements)
  *
- * (c) 2021 Mark Backer
+ * Both functions walk the selection recursively via $(obj).children(), so containers
+ * (folders, views, canvas groupings) are expanded transparently.
  *
+ * (c) 2021-2026 Mark Backer
  */
 console.log("Loading selection.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common = require(REPO_ROOT + "_lib/Common");
 
-const _DIAGRAM_OBJECTS = [
+const DIAGRAM_OBJECT_TYPES = [
   "diagram-model-group",
   "diagram-model-connection",
   "diagram-model-note",
   "diagram-model-image",
+  "diagram-model-legend",
   "diagram-model-reference",
-  "archimate-diagram-model", // jArchi return this for a diagram-model-reference
+  "archimate-diagram-model", // jArchi returns this type for a diagram-model-reference VO
 ];
 
 /**
@@ -44,130 +47,111 @@ function applyToCollection(collection, pFunc, pArgs) {
  * @returns {array} - selected objects
  */
 function getSelectionArray(startSelection, selector) {
-  Common.debugStackPush(false);
-  Common.debug(`startSelection: ${startSelection}`);
-  let collection = getSelection(startSelection, selector);
-  Common.debug(`collection: ${collection}`);
-
-  // convert Archi collection to an array
-  let selectedList = [];
-  collection.each((o) => selectedList.push(o));
-
-  Common.debugStackPop();
-  return selectedList;
+  const collection = getSelection(startSelection, selector);
+  /** @type {any[]} */
+  const list = [];
+  collection.each((o) => list.push(o));
+  return list;
 }
 
 /**
- * return a collection of the in the selection contained objects
+ * Return a collection of the model objects in the selection.
+ * Containers (folders, views, canvas groupings) are recursively expanded.
  *
- * @param {object} startSelection - selection containing Archi objects
- * @param {string} selector - Archi selector for filtering the type of objects
- * @returns {object} - collection with selected objects
+ * @param {object} startSelection - selection containing Archi objects (model tree or canvas)
+ * @param {string} selector - Archi selector for filtering the type of objects (default "*")
+ * @returns {object} - collection of model concepts (ArchiElement/ArchiRelation/Folder/ArchimateView)
  */
 function getSelection(startSelection, selector = "*") {
-  Common.debugStackPush(false);
-  Common.debug(`startSelection: ${startSelection}`);
-
-  if (model == null || model.id == null) throw "Nothing selected. Select one or more objects in the model tree or a view";
-
-  if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
-  else console.log(`Selected ${startSelection.size()} objects, first selected object is ${startSelection.first()}`);
-
-  // create an empty collection
-  var selectedColl = $();
-  startSelection.each((obj) => _addObject(obj, selector, selectedColl));
-
-  console.log(
-    `Created a collection of ${selectedColl.size()} object${selectedColl.size() == 1 ? "" : "s"} of type "${selector}"`,
-  );
-  Common.debugStackPop();
-  return selectedColl;
-
-  /**
-   * private recursive function
-   *   add the selected object to a collection.
-   *   if the object is a container (model, view or folder), add all contained objects
-   */
-  function _addObject(obj, selector, coll) {
-    // console.log(`obj=${obj}, selector=${selector}`)
-    if ($(obj).is(selector)) {
-      let o = obj;
-      if ($(obj).is("concept")) o = Common.concept(obj);
-      // check for duplicates, than add element to the list
-      if (coll.filter((a) => a.id == o.id).size() == 0) {
-        coll.add(o);
-      }
-    }
-    $(obj)
-      .children()
-      .each((child) => _addObject(child, selector, coll));
-    return coll;
+  if (model == null || model.id == null) {
+    throw "Nothing selected. Select one or more objects in the model tree or a view";
   }
+  _logSelected(startSelection);
+
+  /** @type {any} */
+  const coll = _walkAndCollect(startSelection, (/** @type {any} */ o) => {
+    // Canvas visual objects: $(visualObj).is(selector) returns false in jArchi.
+    // Test against the .concept instead — that is the model object the caller wants.
+    // Diagram-model-* VOs have no concept; the VO itself is what callers want.
+    const test = o.view && o.concept ? o.concept : o;
+    if (!test) return null;
+    // "*" matches anything (incl. diagram-model-* VOs that fail $(vo).is("*")).
+    const matches = selector === "*" || $(test).is(selector);
+    if (!matches) return null;
+    return $(test).is("concept") ? Common.concept(test) : test;
+  });
+
+  console.log(`Collection: ${coll.size()} object${coll.size() === 1 ? "" : "s"} of type "${selector}"`);
+  return coll;
 }
 
 /**
- * return a collection of the in the selection contained visual objects
- *   selection must contain objects on a view
- *   if only one concept is selected, select on the view all concepts of this type
+ * Return a collection of the visual objects in the selection.
+ * Containers (folders, views, canvas groupings) are recursively expanded.
+ * If exactly one visual object matches, expands to all visual objects of its type on the same view.
  *
- * @param {object} startSelection - selection containing Archi objects
- * @param {string} selector - Archi selector for filtering the type of contained objects
- * @returns {object} - collection with selected objects
+ * @param {object} startSelection - selection containing Archi objects (must include canvas VOs)
+ * @param {string} selector - Archi selector OR "diagram" pseudo-selector for diagram-model-* types
+ * @returns {object} - collection of visual objects
  */
 function getVisualSelection(startSelection, selector = "*") {
-  // startSelection = $(startSelection);
-  if (model == null || model.id == null) throw "Nothing selected. Select views or one or more objects on a view";
-
-  if (startSelection.size() == 1) console.log(`Selected ${startSelection.first()}`);
-  else console.log(`Selected ${startSelection.size()} objects, first selected object is ${startSelection.first()}`);
+  if (model == null || model.id == null) {
+    throw "Nothing selected. Select views or one or more objects on a view";
+  }
+  _logSelected(startSelection);
   console.log(`Select "${selector}"`);
 
-  // create an empty collection
-  var selectedVisualColl = $();
-  // add selected and all contained objects to the collection
-  startSelection.each((obj) => _addVisualObject(obj, selector, selectedVisualColl));
+  /** @type {any} */
+  let coll = _walkAndCollect(startSelection, (/** @type {any} */ o) => {
+    if (!o.view) return null;
+    const matches = selector === "*"
+      // @ts-ignore — selector has a default of "*", TS narrowing can flag it as possibly null
+      || (selector === "diagram" ? DIAGRAM_OBJECT_TYPES.includes(o.type) : $(o).is(selector));
+    return matches ? o : null;
+  });
 
-  // if only one object is selected, select on the view all objects of this type
-  if (selectedVisualColl.size() == 1) {
-    let obj = selectedVisualColl.first();
-    // @ts-ignore
+  // Preserve existing behaviour: if exactly one VO selected, expand to all of its type on the view.
+  if (coll.size() === 1) {
+    const obj = coll.first();
     console.log(`One concept selected, apply to all concepts of type ${obj.type}`);
-    // @ts-ignore
-    selectedVisualColl = $(obj.view).find(obj.type);
+    // @ts-ignore — obj is a jArchi VisualObject with .view and .type
+    coll = $(obj.view).find(obj.type);
   }
-  return selectedVisualColl;
+  return coll;
+}
 
-  /**
-   * recursive function
-   *   add the selected visual object to a collection.
-   *   if the object is a container (group with embedded objects or a view), add all contained objects
-   *
-   * @param {object} obj - selected Archi object or -container
-   * @param {string} selector - type of objects to add to collection (see Archi doc)
-   * @param {object} coll - Archi collection of selected objects
-   * @returns
-   */
-  function _addVisualObject(obj, selector, coll) {
-    // visual objects must have a view
-    if (obj.view) {
-      let addFlag = false;
-      switch (selector) {
-        case "*":
-          addFlag = true;
-          break;
-        case "diagram":
-          if (_DIAGRAM_OBJECTS.includes(obj.type)) addFlag = true;
-          break;
-        default:
-          if ($(obj).is(selector)) addFlag = true;
-          break;
-      }
-      if (addFlag) coll.add(obj);
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Walk startSelection + all descendants via $(obj).children().
+ * For each visited obj, call decide(obj); add the returned value (if any) to the result.
+ * Dedup by .id via internal Set.
+ *
+ * @param {object}   startSelection - Archi collection to walk
+ * @param {Function} decide         - (obj) => object-to-add or null/undefined to skip
+ * @returns {object} Archi collection of unique results
+ */
+function _walkAndCollect(startSelection, decide) {
+  /** @type {any} */
+  const coll = $();
+  const seen = new Set();
+  function walk(/** @type {any} */ obj) {
+    const target = decide(obj);
+    if (target && target.id && !seen.has(target.id)) {
+      seen.add(target.id);
+      coll.add(target);
     }
-    $(obj)
-      .children()
-      .each((child) => _addVisualObject(child, selector, coll));
-    return coll;
+    $(obj).children().each(walk);
+  }
+  startSelection.each(walk);
+  return coll;
+}
+
+function _logSelected(/** @type {any} */ startSelection) {
+  if (startSelection.size() === 1) {
+    console.log(`Selected ${startSelection.first()}`);
+  } else {
+    console.log(`Selected ${startSelection.size()} objects, first is ${startSelection.first()}`);
   }
 }
 
@@ -177,5 +161,6 @@ if (typeof module !== "undefined" && module.exports) {
     getSelectionArray,
     getVisualSelection,
     applyToCollection,
+    DIAGRAM_OBJECT_TYPES,
   };
 }

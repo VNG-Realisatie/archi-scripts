@@ -1,23 +1,50 @@
 {
-  "action": "generate_single",
-  "graphDepth": 1,
-  "includeElementType": [],
-  "includeRelationType": [],
-  "layoutReversed": [
-    "association-relationship",
-    "realization-relationship",
-    "serving-relationship",
-    "specialization-relationship"
-  ],
-  "layoutNested": [],
-  "nodeWidth": 200,
-  "nodeHeight": 60,
-  "debug": false,
-  "nodePlacement": "NONE",
-  "nodeSpacing": 40,
-  "layerSpacing": 180,
-  "edgeRouting": "ORTHOGONAL",
-  "algorithm": "layered",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "name": "default_parameter",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "association-relationship",
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 1,
+        "elementTypes": [],
+        "relationTypes": [],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "new_view"
 }

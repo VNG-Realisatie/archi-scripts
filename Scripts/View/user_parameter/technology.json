@@ -1,25 +1,55 @@
 {
-  "includeElementType": [
-    "grouping",
-    "artifact",
-    "communication-network",
-    "device",
-    "node",
-    "path",
-    "system-software",
-    "technology-collaboration",
-    "technology-event",
-    "technology-function",
-    "technology-interaction",
-    "technology-interface",
-    "technology-process",
-    "technology-service"
-  ],
-  "includeRelationType": [],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship"
-  ],
-  "layoutNested": [],
-  "doc": "Filter technology layer"
+  "name": "technology",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship"
+    ],
+    "nestingRelationTypes": [],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "grouping",
+      "artifact",
+      "communication-network",
+      "device",
+      "node",
+      "path",
+      "system-software",
+      "technology-collaboration",
+      "technology-event",
+      "technology-function",
+      "technology-interaction",
+      "technology-interface",
+      "technology-process",
+      "technology-service"
+    ],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  }
 }

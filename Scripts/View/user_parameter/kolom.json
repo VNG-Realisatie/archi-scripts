@@ -1,6 +1,37 @@
 {
-  "nodeWidth": 120,
-  "nodeHeight": 60,
-  "nodeSpacing": 20,
-  "layerSpacing": 80
+  "name": "kolom",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [],
+    "nestingRelationTypes": [],
+    "innerSpacing": 20,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": false,
+    "showInEveryContainer": false,
+    "layerSpacing": 80,
+    "elementSpacing": 20,
+    "elementWidth": 120,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": []
+  },
+  "view": {
+    "name": "",
+    "suffix": "",
+    "folder": ""
+  }
 }

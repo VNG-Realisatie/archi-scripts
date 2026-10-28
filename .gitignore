@@ -7,6 +7,7 @@ package.json
 config.js
 archi-scripts.code-workspace
 .last_gui_run_params.json
+Scripts/View/user_parameter/_session.json
 settings.local.json
 
 # AI refactoring files

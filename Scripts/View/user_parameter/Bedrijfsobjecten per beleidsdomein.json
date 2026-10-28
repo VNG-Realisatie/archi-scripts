@@ -1,55 +1,64 @@
 {
-  "action": "Layout",
-  "graphDepth": 2,
-  "includeElementType": [
-    "business-object",
-    "grouping"
-  ],
-  "includeRelationType": [
-    "aggregation-relationship:out",
-    "association-relationship",
-    "specialization-relationship"
-  ],
-  "layoutReversed": [
-    "realization-relationship",
-    "serving-relationship"
-  ],
-  "layoutNested": [
-    "aggregation-relationship"
-  ],
-  "layoutCircular": true,
-  "ranker": "network-simplex",
-  "nodeWidth": 250,
-  "nodeHeight": 80,
-  "debug": false,
-  "excludeFromView": false,
-  "viewName": "Aanpak",
-  "elkAlignment": "TOP_LEFT",
-  "nestingMultipleOccurrences": false,
-  "dagreRanker": "network-simplex",
-  "useRelationWeights": false,
-  "elkNestedExpandToFill": true,
-  "elkExpandExcludeTypes": [
-    "business-object"
-  ],
-  "_lastTabIndex": 1,
-  "_lastPresetName": "Bedrijfsobjecten per beleidsdomein.js",
-  "_windowBounds": {
-    "x": 2033,
-    "y": 553,
-    "width": 1007,
-    "height": 1300
+  "name": "Bedrijfsobjecten per beleidsdomein",
+  "algorithm": "Dagre",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship"
+    ],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 30,
+    "padding": 20,
+    "sortContainers": true,
+    "alignSameType": true,
+    "showInEveryContainer": false,
+    "layerSpacing": 200,
+    "elementSpacing": 50,
+    "elementWidth": 250,
+    "elementHeight": 80,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
   },
-  "doc": "Selecteer 1 of meer beleidsdomeinen. Per beleidsdomein een view van de bedrijfsobjecten en relaties",
-  "nestedNodeSpacing": 30,
-  "nodePlacement": "BALANCED",
-  "nestedAlgorithm": "rectpacking",
-  "nodeSpacing": 50,
-  "sameTypeResize": true,
-  "sortLeavesOnly": false,
-  "layerSpacing": 200,
-  "edgeRouting": "ORTHOGONAL",
-  "algorithm": "dagre",
-  "layoutDirection": "RIGHT",
-  "padding": 20
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "grouping"
+    ],
+    "relationTypes": [
+      "aggregation-relationship:out",
+      "association-relationship",
+      "specialization-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "layers": [
+      {
+        "depth": 2,
+        "elementTypes": [
+          "business-object",
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out",
+          "association-relationship",
+          "specialization-relationship"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Aanpak",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "layout_only"
 }

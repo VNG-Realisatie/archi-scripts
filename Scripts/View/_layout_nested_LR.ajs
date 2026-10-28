@@ -1,52 +1,15 @@
 /**
- * Wrapper file for generating and/or layout a view
- *
- * The filename defines which parameter are used
- * Format of the filename:
- * - <user parameter filename>_<action>_<direction>.ajs
+ * Shortcut: re-layout using the "nested" preset, Left → Right direction.
  */
-
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
-const Common = require(REPO_ROOT + "_lib/Common");
-const View = require(REPO_ROOT + "View/include_view");
+const Common   = require(REPO_ROOT + "_lib/Common");
+const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
+const GenView  = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 
 Common.initConsoleLog(__FILE__, true);
-
-let param = {};
-param = View.get_default_parameter(__FILE__);
-
-param.action = View.ACTION.LAYOUT.id;
-param.layoutDirection = "RIGHT";
-param.layoutReversed = [
-  // "access-relationship",
-  // "aggregation-relationship",
-  // "assignment-relationship",
-  // "association-relationship",
-  // "composition-relationship",
-  // "flow-relationship",
-  // "influence-relationship",
-  "realization-relationship",
-  // "serving-relationship",
-  "specialization-relationship",
-  // "triggering-relationship",
-];
-param.layoutNested = [
-  // "access-relationship",
-  "aggregation-relationship",
-  // "assignment-relationship",
-  // "association-relationship",
-  // "composition-relationship",
-  // "flow-relationship",
-  // "influence-relationship",
-  // "realization-relationship",
-  // "serving-relationship",
-  "specialization-relationship",
-  // "triggering-relationship",
-];
-// param.nodeWidth = 140;
-// param.nodeHeight = 61;
-// param.nodeSpacing = 40;
-// param.layerSpacing = 20;
-
-View.generate_view(param);
+const preset              = PresetIO.readPreset("nested");
+preset.action             = ACTION.LAYOUT_ONLY.id;
+preset.params.direction   = "Left → Right";
+GenView.generate_view(preset, $(selection));
 Common.finishConsoleLog();
