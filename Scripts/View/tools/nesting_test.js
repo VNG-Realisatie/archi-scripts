@@ -68,6 +68,19 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   eq(tie.nested, ["t2:s1>x"], "one parent: same name → by id");
 }
 
+// ── by name: accents and case folded, code point as tie-break ────────────────
+{
+  const names = ["Zaakregistratie", "aanvraag", "Émile", "Eva", "e-Depot", "eva", "Ångström", "zebra"];
+  eq(names.slice().sort(Defs.compareNames),
+    ["aanvraag", "Ångström", "e-Depot", "Émile", "Eva", "eva", "Zaakregistratie", "zebra"], "by name: folded order");
+  const parents = names.map((n, i) => el("p" + i, n));
+  const x = el("x", "X");
+  const rels = parents.map((p, i) => rel("r" + i, p, x));
+  const s = run(params(AGG), [...parents, x], rels);
+  eq(placementOf(s, "X"), "X ⊂ [aanvraag]", "by name: first parent by folded name");
+  eq(run(params(AGG), [x, ...parents.slice().reverse()], rels.slice().reverse()), s, "by name: order-free");
+}
+
 // ── every container ──────────────────────────────────────────────────────────
 {
   const [g1, g2, c, k] = [el("g1", "G1"), el("g2", "G2"), el("c", "C"), el("k", "K", "business-object")];

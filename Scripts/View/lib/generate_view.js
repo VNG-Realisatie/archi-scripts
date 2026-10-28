@@ -32,7 +32,7 @@ const Appearance = require(REPO_ROOT + "View/lib/appearance");
 const {
   ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER, PROP_ID, PROP_MANAGED_OCCURRENCE,
   CONNECTION_END_ROOM, BENDPOINT_MIN_GAP,
-  validatePreset, effectiveParams, connectionsModeLock,
+  validatePreset, effectiveParams, connectionsModeLock, compareNames,
 } = Defs;
 
 const JUNCTION_DIAMETER = 14;
@@ -61,16 +61,14 @@ function _getAdapter(engine) {
  *
  * @param {PresetFile}      rawPreset   raw preset object (will be validated)
  * @param {ArchiCollection<ArchiObject>} uiSelection $(selection) from Archi UI
- * @param {string}          [actionId]  ACTION.*.id (runtime — not stored in preset files);
- *                                      falls back to rawPreset.action (set by CLI scripts), then NEW_VIEW
+ * @param {string}          [actionId]  ACTION.*.id (runtime — not stored in preset files); default NEW_VIEW
  * @returns {ArchimateView[]}
  */
 function generate_view(rawPreset, uiSelection, actionId) {
   Common.startCounter("generate_view");
   /** @type {MaskedPreset} */
   const preset = validatePreset(rawPreset);   // masked to the algorithm's params a few lines down
-  // CLI scripts set preset.action instead of passing actionId; validatePreset drops it, so read it here.
-  const action = actionId || rawPreset.action || ACTION.NEW_VIEW.id;
+  const action = actionId || ACTION.NEW_VIEW.id;
 
   // SPEC §11: capability masking. Replace preset.params with the effective subset
   // for runtime consumption. Inactive keys are silently dropped here; the raw
@@ -177,7 +175,7 @@ function _applyViewProperties(view, preset) {
   /** @type {string[]} */
   const lines = [];
   (vp.properties || []).forEach(p => {
-    // SPEC (Properties tab): disabled rows are ignored. An enabled row without a value clears the key.
+    // docs/reference/gui.md (Properties tab): disabled rows are ignored. An enabled row without a value clears the key.
     if (!p.key || p.key === PROP_ID || !p.enabled) return;
     if (p.value) {
       view.prop(p.key, p.value);
@@ -211,19 +209,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   timer.lap("selection");
   const { elements, diagramObjects, diagramConnections, existingView } = objectSet;
 
-  // LAYOUT_ONLY: keep only relations that already have a visual on the view.
-  // _findRelationsBetween returns all model relations between the elements, but
-  // LAYOUT_ONLY must not add missing relations — it only re-lays out what is there.
-  // Note: the dialog live counter shows all model relations in the selection
-  // (action-agnostic); this filter is the action-level step that narrows the set
-  // at generation time. The counter difference is by design, not an inaccuracy.
-  let relations = objectSet.relations;
-  if (actionId === ACTION.LAYOUT_ONLY.id) {
-    const onViewRelIds = new Set(
-      (objectSet.visualRelations || []).map(vr => vr.concept && vr.concept.id).filter(Boolean)
-    );
-    relations = relations.filter(r => onViewRelIds.has(r.id));
-  }
+  const relations = objectSet.relations;
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
   const split       = Pipeline.splitNestingRels(relations, preset.params);
@@ -368,9 +354,9 @@ function _generateOneEach(preset, uiSelection) {
 // Element order (defs ELEMENT_ORDER) → comparator; Selection has none: the order the elements came in.
 /** @type {Record<string, (a: LayoutNode, b: LayoutNode) => number>} */
 const ORDER_COMPARE = {
-  "Name △":          (a, b) => (a.label || "").localeCompare(b.label || ""),
+  "Name △":          (a, b) => compareNames(a.label || "", b.label || ""),
   "Type and name △": byTypeAndName,
-  "Name ▽":          (a, b) => (b.label || "").localeCompare(a.label || ""),
+  "Name ▽":          (a, b) => compareNames(b.label || "", a.label || ""),
 };
 
 /**
@@ -461,7 +447,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   }
 
   // Diagram-object nodes (root-level, sized from current canvas bounds).
-  // diagram-model-connection objects are edges, never nodes (SPEC appendix: Selection run order, 6).
+  // diagram-model-connection objects are edges, never nodes (docs/reference/selection-nesting.md: Selection run order, 6).
   for (const vo of diagramObjects) {
     if (vo.type === "diagram-model-connection") continue;
     if (nodeIds.has(vo.id)) continue;
@@ -478,7 +464,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
 
   _orderRootLeaves(nodes, params.elementOrder);
 
-  // Edges from routed relations: each relation once (SPEC: Connections between occurrences).
+  // Edges from routed relations: each relation once (docs/reference/selection-nesting.md: Connections between occurrences).
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
   // An end inside a diagram-block is laid out at the diagram-block; the visual at that end is kept for the writer.
   const removed = new Set(nesting.removedVisualIds);
@@ -639,7 +625,7 @@ function _stripOccSuffix(id) {
  *   - Otherwise → create (default appearance).
  * Which visual an occurrence repositions comes from the pairing in the nesting resolution;
  * managed visuals left without an occurrence are removed, and the view's managed-occurrence
- * records are rewritten (SPEC: Managed occurrences).
+ * records are rewritten (docs/reference/selection-nesting.md: Managed occurrences).
  *
  * Same rule for visual relations: existing → rewrite bendpoints; new → add.
  * A diagram-block (a diagram object with contents) is repositioned as one; what is inside it is left as it is.
@@ -718,7 +704,7 @@ function _writeView(preset, result, objectSet, view, nesting, diagramBlockEnds) 
 
     if (existing) {
       _kept++;
-      // Derive desired parent from this run's nesting decisions (SPEC: Writer parenthood).
+      // Derive desired parent from this run's nesting decisions (docs/reference/selection-nesting.md: Writer parenthood).
       const newParentVisual = rn.parentId ? visualIndex[rn.parentId] : null;
       // Any container counts — also a group or note: nothing stays in one the settings do not ask for.
       const currentParentVO = _parentVisual(existing);

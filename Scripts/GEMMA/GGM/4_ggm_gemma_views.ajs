@@ -42,7 +42,7 @@ try {
     console.log(`\nGenereer GGM data-objectmodellen`);
     console.log(`==============================`);
     
-    let preset = PresetIO.readPreset("gemma/ggm/GGM data-object specialisaties");
+    let preset = PresetIO.readPreset("GEMMA/GGM/GGM data-object specialisaties");
     preset.view.folder = GgmGemma.FOLDER_GGM_DATAOBJECT;
     preset.view.suffix = GgmGemma.VIEW_NAME_SUFFIX;
     styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id)));
@@ -51,7 +51,7 @@ try {
     console.log(`\nGenereer GEMMA bedrijfsobjectmodellen`);
     console.log(`=====================================`);
     
-    preset = PresetIO.readPreset("gemma/ggm/GGM bedrijfsobject specialisaties");
+    preset = PresetIO.readPreset("GEMMA/GGM/GGM bedrijfsobject specialisaties");
     preset.view.folder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
     preset.view.suffix = "";
     styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id)));

@@ -1,7 +1,7 @@
 /**
  * Run a preset from a shortcut script whose filename names it:
  *
- *   <preset>_<Action>_<Direction>.ajs     e.g. TAenIA_Layout_LR.ajs
+ *   <preset>_<Action>_<Direction>.ajs     e.g. TAenIA_Layout_LR.ajs, in shortcuts/ or a sub-folder
  *
  *   preset     preset name under presets/ (opts.folder is put in front: "GEMMA/TAenIA")
  *   Action     Generate | GenerateMultiple | Expand | Layout
@@ -84,7 +84,7 @@ function fromBase(selection, actionId, params = {}) {
   const preset = PresetIO.readPreset(name);
   Object.assign(preset.params, params);
   console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
-  return GenView.generate_view(Defs.validatePreset(preset), selection, actionId);  // validate the overrides too
+  return GenView.generate_view(preset, selection, actionId);   // generate_view validates the overrides too
 }
 
 if (typeof module !== "undefined" && module.exports) {

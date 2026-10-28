@@ -48,7 +48,7 @@ const {
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
   DIAGRAM_TYPES, DIAGRAM_TYPE_ID_TO_LABEL,
   COLOR_RANGES, PROP_ID,
-  DEFAULT_PRESET, validatePreset,
+  DEFAULT_PRESET, validatePreset, compareNames,
 } = Defs;
 
 // ── Dialog state ──────────────────────────────────────────────────────────────
@@ -174,6 +174,7 @@ const {
  * @property {ViewPropertyRow[]} vpRows
  * — Action area
  * @property {Swt.Label}     lblViewTotals
+ * @property {Swt.Label}     lblExpandTotals
  * @property {Swt.Text}      txtViewFolder
  * @property {Swt.Text}      txtViewName
  * @property {Swt.Button}    btnNewView
@@ -220,6 +221,7 @@ const {
  * @property {string}             [_actionId]  ACTION.*.id of the pressed action button
  * @property {{ elements: ArchiElement[], relations: ArchiRelation[] } | null} [predicted]  what the view will hold
  * @property {ArchiRelation[]}    [viewRelations]  relations of the predicted view
+ * @property {SelectionRead | null} [expandRead]  what Expand view works on (readSelection), null when it is disabled
  */
 
 /**
@@ -275,7 +277,7 @@ const DP = DEFAULT_PRESET.params;
 const _ALL = { value: "", label: "All" };
 const ELEMENT_ITEMS  = Object.freeze([_ALL, ...ELEMENT_TYPES.map((t, i) => ({ value: t, label: ELEMENT_TYPE_LABELS[i] }))]);
 const RELATION_ITEMS = Object.freeze([_ALL, ...RELATION_TYPE_IDS.map((t, i) => ({ value: t, label: RELATION_TYPE_LABELS[i] }))
-  .sort((a, b) => a.label.localeCompare(b.label))]);
+  .sort((a, b) => compareNames(a.label, b.label))]);
 const DIAGRAM_ITEMS  = Object.freeze([_ALL, ...Object.keys(DIAGRAM_TYPE_ID_TO_LABEL).map(k => ({ value: k, label: DIAGRAM_TYPE_ID_TO_LABEL[k] }))]);
 const MODE_ITEMS = Object.freeze([{ value: "include", label: "Include" }, { value: "exclude", label: "Exclude" }]);
 const DIRECTION_ITEMS = Object.freeze([
@@ -823,6 +825,9 @@ function open(uiSelection) {
       else if (o.type === "archimate-diagram-model") target.name = String(o.name || "");
     });
   } catch (e) {}
+  // Expand view's content is read once, here: the selection is read before the dialog opens, and
+  // the totals line composes from it on every change (Pipeline.composeObjectSet).
+  ctx.expandRead = target.onCanvas ? Pipeline.readSelection(uiSelection, ACTION.EXPAND_VIEW.id) : null;
 
   // GraalVM two-argument Java.extend: bake methods in at class definition time.
   /** @type {JFace.TitleAreaDialog} */
@@ -944,16 +949,17 @@ function _persistSession(ctx, params = {}) {
 /**
  * Format the on-screen "Output:" strip for the Generated view group. Multi-line,
  * grouped by element/relation/diagram, hide-zero subfields, skip empty sub-lines.
- * Uses the canonical vocabulary (ai/rules.md #11): containers · nested elements ·
+ * Uses the canonical vocabulary (AGENTS.md): containers · nested elements ·
  * standalones · extra occurrences for the element role split; nestings · connections
  * for the relation form split; diagram objects for canvas-only objects. "Relation"
  * never appears on view-side rows (model-side term only).
+ * @param {string}     title  e.g. "On the generated view:"
  * @param {ViewCounts} view
  */
-function _formatOutputLine(view) {
+function _formatOutputLine(title, view) {
   /** @type {(n: number, s: string, p: string) => string} */
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
-  const lines = ["On the generated view:"];
+  const lines = [title];
 
   // elements sub-line
   const elSub = [];
@@ -976,7 +982,7 @@ function _formatOutputLine(view) {
   // diagram sub-line
   if (view.diagramObjects > 0) lines.push(`  diagram:     ${plural(view.diagramObjects, "diagram object", "diagram objects")}`);
 
-  return lines.length === 1 ? "On the generated view: —" : lines.join("\n");
+  return lines.length === 1 ? `${title} —` : lines.join("\n");
 }
 
 /** @param {DialogContext} ctx */
@@ -1081,9 +1087,18 @@ function _updateFilteredCount(ctx) {
 
     // Update the on-screen Output line in the "Generated view" group (always visible,
     // multi-line, hide-zero per the canonical-vocabulary plan).
+    // Expand view: composed by the pipeline itself from what it read before the dialog opened.
+    const expandView = ctx.expandRead
+      ? Pipeline.composeObjectSet(ctx.expandRead, {
+          filter,
+          relatedElements: { steps: (ctx.relBlocks || []).map(b => ({ repeat: b.getRepeat(), rules: b.table.getRules() })) },
+          params: livePresetParams,
+        }, ACTION.EXPAND_VIEW.id).view
+      : null;
     if (w.lblViewTotals) {
       try {
-        w.lblViewTotals.setText(_formatOutputLine(view));
+        w.lblViewTotals.setText(_formatOutputLine("On the generated view:", view));
+        if (expandView) w.lblExpandTotals.setText(_formatOutputLine("On the expanded view:", expandView));
         if (ctx.area) ctx.area.layout(true, true);  // the line count may change
       } catch (e) {}
     }
@@ -1210,7 +1225,7 @@ function _propNames(objs) {
   for (const o of objs || []) {
     try { const ks = o.prop(); if (Array.isArray(ks)) ks.forEach(k => { if (k) names.add(String(k)); }); } catch (e) {}
   }
-  return Array.from(names).sort((a, b) => a.localeCompare(b));
+  return Array.from(names).sort(compareNames);
 }
 
 /**
@@ -1224,7 +1239,7 @@ function _propValues(objs, key) {
   for (const o of objs || []) {
     try { const v = o.prop(key); if (v !== null && v !== undefined && v !== "") vals.add(String(v)); } catch (e) {}
   }
-  return Array.from(vals).sort((a, b) => a.localeCompare(b));
+  return Array.from(vals).sort(compareNames);
 }
 
 /**
@@ -2700,16 +2715,29 @@ function _buildActionArea(area, ctx, dlg, target) {
   const targetViewName = target.name;
   const w = ctx.widgets;
 
-  // Always-visible totals: what the current settings put on a view. Multi-line; sub-lines for
-  // elements / relations / diagram objects (see _formatOutputLine).
-  const lblTotals = new LabelWidget(area, SWT.NONE);
+  // Always-visible totals: what the current settings put on a view, each above its action group:
+  // Create left, Expand view right (Layout only writes what is on the view: Current selection).
+  // Multi-line; sub-lines for elements / relations / diagram objects (see _formatOutputLine).
+  // Same columns as the action row below, so each line starts at its group.
+  const totalsRow = new CompositeWidget(area, SWT.NONE);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(totalsRow);
+  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(0, 2).spacing(8, 6).applyTo(totalsRow);
+  const lblTotals = new LabelWidget(totalsRow, SWT.NONE);
   lblTotals.setText("On the generated view: —");
   lblTotals.setToolTipText(
-    "What the current settings put on the view:\n" +
+    "What the current settings put on a new view:\n" +
     "containers, nested elements, standalones, extra occurrences (Show in every container),\n" +
     "nestings (box in box), connections (lines) and diagram objects.");
-  GridDataFactory.fillDefaults().grab(true, false).indent(6, 4).applyTo(lblTotals);
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).indent(6, 4).applyTo(lblTotals);
   w.lblViewTotals = lblTotals;
+  const lblExpand = new LabelWidget(totalsRow, SWT.NONE);
+  lblExpand.setText(target.onCanvas ? "On the expanded view: —" : "");
+  lblExpand.setToolTipText(
+    "What Expand view puts on the selected view:\n" +
+    "everything on it, plus the elements and relations the steps add from the selected elements.\n" +
+    "The filter does not apply.");
+  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.BEGINNING).indent(6, 4).applyTo(lblExpand);
+  w.lblExpandTotals = lblExpand;
 
   // 2 columns: Create | Modify, Cancel below Modify. Both groups have the same rows
   // (one field row, one button row), so fields and buttons line up.

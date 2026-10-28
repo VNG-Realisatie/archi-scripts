@@ -12,7 +12,7 @@ const REPO_ROOT = (() => {
 })();
 
 /** @type {typeof import("../defs")} */
-const { LABEL_SIZING_DEFAULTS } = require(REPO_ROOT + "View/lib/defs");
+const { LABEL_SIZING_DEFAULTS, compareNames } = require(REPO_ROOT + "View/lib/defs");
 
 // ── Self-loop pass-through ────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ function selfLoopResult(edge) {
 // ── Node sorting ──────────────────────────────────────────────────────────────
 
 /**
- * Comparator for nodes: by element type first, then by name.
+ * Comparator for nodes: by element type (code point) first, then by name (Defs.compareNames).
  * Works with both LayoutGraph nodes (elementType / label) and
  * ELK nodeMap items (_type / _name).
  * @param {{ elementType?: string, _type?: string, label?: string, _name?: string }} a
@@ -49,7 +49,8 @@ function byTypeAndName(a, b) {
   const tb = b.elementType || b._type || "";
   const na = a.label || a._name || "";
   const nb = b.label || b._name || "";
-  return ta.localeCompare(tb) || na.localeCompare(nb);
+  if (ta !== tb) return ta < tb ? -1 : 1;
+  return compareNames(na, nb);
 }
 
 /**

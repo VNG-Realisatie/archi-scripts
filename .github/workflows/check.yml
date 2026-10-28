@@ -1,4 +1,4 @@
-# Static type check and Node tests of the View subsystem (types/README.md, ai/repo-guide.md § Testing).
+# Static type check and Node tests of the View subsystem (types/README.md, Scripts/View/docs/ARCHITECTURE.md § Development and testing).
 name: check
 
 on:

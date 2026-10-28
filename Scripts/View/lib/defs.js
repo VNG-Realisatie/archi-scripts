@@ -67,7 +67,7 @@ const BENDPOINT_MIN_GAP   = 5;
 const MIN_CONNECTION_LENGTH = 20;
 
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
-// "Not used by …" hints, tooltips and the capability matrix in SPEC.md.
+// tooltips and the generated tables in docs/reference/.
 const PARAM_LABELS = Object.freeze({
   nestingRules:             "Nesting",
   reverseRules:             "Reverse",
@@ -798,6 +798,29 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMinHeight:   30,
 });
 
+// ── Name order ────────────────────────────────────────────────────────────────
+
+/**
+ * Key of a name for "by name": accents and case folded (NFD, combining marks dropped, lower case).
+ * @param {string} s
+ */
+function _nameKey(s) {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+/**
+ * The one "by name" comparison: folded key first, code-point order as tie-break. Plain JavaScript,
+ * so the order is the same on every machine — localeCompare follows the JVM's locale in Archi,
+ * and jArchi's GraalJS has no Intl to fix one.
+ * @param {string} a
+ * @param {string} b
+ */
+function compareNames(a, b) {
+  const ka = _nameKey(a), kb = _nameKey(b);
+  if (ka !== kb) return ka < kb ? -1 : 1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 // ── Step repeat ───────────────────────────────────────────────────────────────
 // A step's `repeat` is 1–5 (run the step that many times, each run starting from the
 // previous run's additions) or REPEAT_UNTIL_NOTHING_NEW (run until a run adds nothing,
@@ -969,7 +992,7 @@ function validatePreset(raw) {
     if (ra.styleByProperty && typeof ra.styleByProperty === "object") {
       const rs = ra.styleByProperty;
       pa.styleByProperty.rules = rules("style", rs.rules, "appearance.styleByProperty.rules");
-      if (typeof rs.mixedValuesColor === "string") pa.styleByProperty.mixedValuesColor = rs.mixedValuesColor;
+      if (typeof rs.mixedValuesColor === "string" && rs.mixedValuesColor.trim()) pa.styleByProperty.mixedValuesColor = rs.mixedValuesColor.trim();   // empty → default
       if (typeof rs.lineWidth === "number")        pa.styleByProperty.lineWidth = Math.max(0, Math.min(3, Math.round(rs.lineWidth)));
     }
 
@@ -1082,5 +1105,6 @@ if (typeof module !== "undefined" && module.exports) {
     CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,
     validatePreset, effectiveParams, connectionsModeLock,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
+    compareNames,
   };
 }

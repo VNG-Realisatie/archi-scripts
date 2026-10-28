@@ -286,6 +286,31 @@ interface StepCount {
   idx: number;
   elems: number;
   rels: number;
+  /** Runs that added elements. */
+  runs: number;
+  /** The run limit was reached while the last run still added elements. */
+  capped: boolean;
+}
+
+/** What readSelection read for an action; composeObjectSet works on it without reading again. */
+interface SelectionRead {
+  /** Model objects of the selection, views expanded. */
+  collection: ArchiCollection<ArchiObject>;
+  /** Diagram objects of the selection (Expand view: of the whole view). */
+  diagramObjects: DiagramObject[];
+  /** The target view and its visuals (Expand view / Layout only; empty otherwise). */
+  existing: { existingView: ArchiView | null; visualElements: VisualObject[]; visualRelations: VisualConnection[]; viewFromTree?: boolean };
+  /** Diagram-blocks: visual id → id of the diagram object with contents it sits in. */
+  diagramBlockOf: Map<string, string>;
+}
+
+/** composeObjectSet's result: the object set and the counts the console block shows. */
+interface ComposedObjectSet {
+  objectSet: ObjectSet;
+  filteredCounts: { elems: number; rels: number; diag: number };
+  filteredBaseRels: number;
+  stepCounts: StepCount[];
+  view: ViewCounts;
 }
 
 /** Predicted counts on the generated view (predictViewCounts); SPEC § Vocabulary. */

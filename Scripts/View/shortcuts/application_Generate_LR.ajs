@@ -1,0 +1,10 @@
+/**
+ * Wrapper: generate view using the "application" preset.
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common    = require(REPO_ROOT + "_lib/Common");
+const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
+
+Common.initConsoleLog(__FILE__, true);
+RunPreset.fromFilename(__FILE__, $(selection));
+Common.finishConsoleLog();

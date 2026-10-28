@@ -20,7 +20,7 @@ const REPO_ROOT = (() => {
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
-const { validatePreset, SESSION_FILENAME } = Defs;
+const { validatePreset, SESSION_FILENAME, compareNames } = Defs;
 
 const USER_PARAM_FOLDER    = "presets";
 const DEFAULT_PRESET_NAME  = "_Default";   // "_" prefix: not listed in the dialog
@@ -124,7 +124,7 @@ function listPresets() {
   return _scanPresets().names.sort((a, b) => {
     if (a === DEFAULT_PRESET_NAME) return -1;
     if (b === DEFAULT_PRESET_NAME) return 1;
-    return a.localeCompare(b);
+    return compareNames(a, b);
   });
 }
 
@@ -133,7 +133,7 @@ function listPresets() {
  * @returns {string[]} sorted folder paths
  */
 function listFolders() {
-  return _scanPresets().folders.sort((a, b) => a.localeCompare(b));
+  return _scanPresets().folders.sort(compareNames);
 }
 
 /**

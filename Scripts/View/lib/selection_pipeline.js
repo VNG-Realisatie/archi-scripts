@@ -5,7 +5,8 @@
  * The shape returned is uniform across actions; the caller (orchestrator)
  * decides per-VO whether to reposition or create based on existence.
  *
- * Pipeline (uniform for NEW_VIEW / ONE_EACH / EXPAND_VIEW / LAYOUT_ONLY):
+ * Pipeline (uniform for NEW_VIEW / ONE_EACH / EXPAND_VIEW / LAYOUT_ONLY). readSelection reads
+ * (1, 7); composeObjectSet does the rest without console output, so the dialog can predict with it:
  *   1. Selection.getSelection(uiSelection, "*") + _expandViews
  *   2. Filter (element/relation/diagram types)
  *   3. Related-elements expansion  (skipped for LAYOUT_ONLY only)
@@ -28,105 +29,142 @@ const Selection = require(REPO_ROOT + "_lib/selection");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
-const { ACTION } = Defs;
+const { ACTION, compareNames } = Defs;
 
 /**
+ * Build the object set for an action: read the selection, compose, log what was composed.
  * @param {ArchiCollection<ArchiObject>} uiSelection  $(selection) from Archi UI
  * @param {MaskedPreset}                 preset
  * @param {string}                       actionId     ACTION.*.id
  * @returns {ObjectSet}  visuals: visualElements described (chain, managed; describeVisuals)
  */
 function buildObjectSet(uiSelection, preset, actionId) {
-  const INDENT     = "  ";
+  const read = readSelection(uiSelection, actionId);
+  if (!read) {
+    return { elements: [], relations: [], diagramObjects: [], diagramConnections: [],
+             visualElements: [], visualRelations: [], existingView: null, visuals: [],
+             diagramBlockOf: new Map(), diagramBlockVisualOf: new Map() };
+  }
+  // The filter is skipped for the "Modify selected view" group — EXPAND_VIEW and LAYOUT_ONLY
+  // re-layout/expand all elements already on the view; applying the filter would exclude visible
+  // element types, causing containers to be sized for only the filtered subset while excluded
+  // elements remain at positions outside those bounds.
+  if (!_isModifyAction(actionId)) _logFilter(preset.filter);
+  else console.log("  Modify-selected-view action: element-type filter skipped");
 
-  // ── Step 1: model objects from selection (uniform for canvas + model-tree) ──
+  const composed = composeObjectSet(read, preset, actionId);
+  _logSteps(preset.relatedElements.steps, composed.stepCounts);
+  _logComposed(composed, _isModifyAction(actionId));
+  return composed.objectSet;
+}
+
+/**
+ * EXPAND_VIEW or LAYOUT_ONLY: the actions that change the selected view in place.
+ * @param {string} actionId
+ */
+function _isModifyAction(actionId) {
+  return actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
+}
+
+/**
+ * Read what an action works on from the selection (jArchi reads; logs what it read). The model
+ * objects of the selection (views expanded), its diagram objects, and for the Modify actions the
+ * target view's visuals and diagram-blocks. EXPAND_VIEW without objects selected on a view: null,
+ * the reason on the console.
+ * @param {ArchiCollection<ArchiObject>} uiSelection  $(selection) from Archi UI
+ * @param {string}                       actionId     ACTION.*.id
+ * @returns {SelectionRead | null}
+ */
+function readSelection(uiSelection, actionId) {
+  const INDENT = "  ";
+  const isExpand = actionId === ACTION.EXPAND_VIEW.id;
+
+  // Model objects from the selection (uniform for canvas + model tree).
   console.log("Current selection:");
   const raw = Selection.getSelection(uiSelection, "*", INDENT);
   const expanded = _expandViews(raw, INDENT);
-  let collection     = expanded.modelCollection;
-  let diagramObjects = expanded.diagramObjects;
 
-  const isModifyAction = actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id;
-  const isExpand       = actionId === ACTION.EXPAND_VIEW.id;
-
-  // ── Step 1 (continued): existing view contents — target identification + per-VO existence (EXPAND_VIEW + LAYOUT_ONLY).
+  // Existing view contents — target identification + per-VO existence (EXPAND_VIEW + LAYOUT_ONLY).
   const existing = _collectExistingVisuals(uiSelection, actionId, INDENT);
   // EXPAND_VIEW expands from elements selected on the view; a view picked in the model tree has no
   // such selection. The whole view is laid out, but only the steps' relations are added to it.
   if (isExpand && (existing.viewFromTree || !existing.existingView)) {
     console.error("Expand view: select one or more elements on the view (not the view in the model tree).");
-    return { elements: [], relations: [], diagramObjects: [], diagramConnections: [],
-             visualElements: [], visualRelations: [], existingView: null, visuals: [],
-             diagramBlockOf: new Map(), diagramBlockVisualOf: new Map() };
+    return null;
   }
+  // Diagram-blocks: a diagram object with contents (a legend, a frame) moves as one object with all it
+  // holds; its contents are not laid out.
+  const diagramBlockOf = _isModifyAction(actionId) ? _diagramBlockContents(existing.existingView) : new Map();
+  // EXPAND_VIEW lays out the whole view, so every diagram object on it.
+  const diagramObjects = isExpand
+    ? _expandViews($(/** @type {ArchiView} */ (existing.existingView))).diagramObjects   // Cast: checked above
+    : expanded.diagramObjects;
+  return { collection: expanded.modelCollection, diagramObjects, existing, diagramBlockOf };
+}
 
-  // ── Step 2: filter (skipped for the "Modify selected view" group — EXPAND_VIEW and
-  // LAYOUT_ONLY re-layout/expand all elements already on the view; applying the filter
-  // would exclude visible element types, causing containers to be sized for only the
-  // filtered subset while excluded elements remain at positions outside those bounds) ──
+/**
+ * Compose the object set from what readSelection read: filter, related-elements steps, the
+ * elements and relations to put on the view, and the predicted on-view counts. No console
+ * output, nothing read from the selection again: the dialog calls it on every change.
+ * @param {SelectionRead}                                              read
+ * @param {Pick<MaskedPreset, "filter" | "relatedElements" | "params">} preset
+ * @param {string}                                                     actionId  ACTION.*.id
+ * @returns {ComposedObjectSet}
+ */
+function composeObjectSet(read, preset, actionId) {
+  const isModifyAction = _isModifyAction(actionId);
+  const isExpand       = actionId === ACTION.EXPAND_VIEW.id;
+  const { existing, diagramBlockOf } = read;
+
+  // Filter (skipped for the Modify actions, see buildObjectSet).
+  let collection     = read.collection;
+  let diagramObjects = read.diagramObjects;
   if (!isModifyAction) {
-    _logFilter(preset.filter);
     collection     = _applyFilter(collection, preset.filter);
     diagramObjects = _applyDiagramFilter(diagramObjects, preset.filter);
-  } else {
-    console.log(`${INDENT}Modify-selected-view action: element-type filter skipped`);
   }
 
-  // Filtered base counts — use jArchi selector API (ai/rules.md #11).
-  const filteredElemCount = collection.filter("element").size();
-  const filteredRelCount  = collection.filter("relationship").size();
-  const filteredCounts    = { elems: filteredElemCount, rels: filteredRelCount, diag: diagramObjects.length };
+  // Filtered base counts — use jArchi selector API (ai/jarchi-scripting/SKILL.md, Filter by selector).
+  const filteredCounts = {
+    elems: collection.filter("element").size(),
+    rels:  collection.filter("relationship").size(),
+    diag:  diagramObjects.length,
+  };
 
-
-  // ── Step 3: related-elements expansion (chain semantics; skipped for LAYOUT_ONLY) ──
+  // Related-elements expansion (chain semantics; skipped for LAYOUT_ONLY).
   // Step 1's input is the filtered base. Step N (N≥2)'s input is step N-1's added
   // elements only — NOT the cumulative selection. An empty step terminates the chain.
-  // Cast: the model collection holds concepts (diagram objects were split off), so "element" selects model elements.
-  const filteredElements    = /** @type {ArchiCollection<ArchiElement>} */ (collection.filter("element"));  // jArchi collection
   /** @type {ArchiElement[]} */
   const filteredElementsArr = [];
-  filteredElements.each(o => filteredElementsArr.push(o));   // plain array for step expansion
+  // Cast: the model collection holds concepts (diagram objects were split off), so "element" selects model elements.
+  /** @type {ArchiCollection<ArchiElement>} */ (collection.filter("element")).each(o => filteredElementsArr.push(o));
 
   // Collect relations incrementally: base uses the global relation rules; each step uses its
   // own rules so that a step only adds relations it followed.
   // For modify actions the relation-type filter is also skipped — same rationale as the
   // element filter: EXPAND_VIEW / LAYOUT_ONLY must include ALL existing relations on the
   // view (e.g. both configured nesting types), not only those matching the filter.
-  // EXPAND_VIEW: the base relations are the ones drawn on the view — no missing relations between
-  // elements already on it are added.
-  const baseRelMatch = isModifyAction ? null : _globalRelationMatch(preset.filter);
+  // EXPAND_VIEW / LAYOUT_ONLY: the base relations are the ones drawn on the view — no missing
+  // relations between elements already on it are added.
   /** @type {Set<string>} */
   const allRelIds    = new Set();
-  const allRelations = isExpand
+  const allRelations = isModifyAction
     ? _viewRelations(existing.visualRelations, allRelIds)
-    : _findRelationsBetween(filteredElementsArr, baseRelMatch, allRelIds);
+    : _findRelationsBetween(filteredElementsArr, _globalRelationMatch(preset.filter), allRelIds);
   const filteredBaseRels = allRelations.length;
 
-  /** @type {ArchiElement[]} */
-  const addedElements = [];
-  /** @type {ArchiRelation[]} */
-  const addedRelations = [];
-  /** @type {StepCount[]} */
-  const stepCounts = [];
-  if (actionId !== ACTION.LAYOUT_ONLY.id &&
-      preset.relatedElements && Array.isArray(preset.relatedElements.steps)) {
-    const r = _expandRelatedElements(filteredElementsArr, preset.relatedElements.steps, allRelIds);
-    addedElements.push(...r.addedElements);
-    addedRelations.push(...r.addedRelations);
-    stepCounts.push(...r.stepCounts);
-  }
-  addedElements.forEach(o => collection.add(o));
-  addedRelations.forEach(r => allRelations.push(r));
+  const expansion = actionId !== ACTION.LAYOUT_ONLY.id && Array.isArray(preset.relatedElements.steps)
+    ? _expandRelatedElements(filteredElementsArr, preset.relatedElements.steps, allRelIds)
+    : { addedElements: [], addedRelations: [], stepCounts: [] };
+  expansion.addedRelations.forEach(r => allRelations.push(r));
 
-  // ── Step 4: elements are the filtered base plus step additions
-  // (EXPAND_VIEW: every element on the view plus step additions, so the whole view is laid out) ──
+  // Elements are the filtered base plus step additions
+  // (EXPAND_VIEW: every element on the view plus step additions, so the whole view is laid out).
   const viewElements = isExpand
-    ? _uniqueById([.../** @type {ArchiElement[]} */ (existing.visualElements.map(ve => ve.concept).filter(Boolean)), ...addedElements])   // Cast: nulls filtered
-    : [...filteredElementsArr, ...addedElements];
+    ? _uniqueById([.../** @type {ArchiElement[]} */ (existing.visualElements.map(ve => ve.concept).filter(Boolean)), ...expansion.addedElements])   // Cast: nulls filtered
+    : [...filteredElementsArr, ...expansion.addedElements];
 
-  // Diagram-blocks: a diagram object with contents (a legend, a frame) moves as one object with all it
-  // holds; its contents are not laid out. An element that appears only inside a diagram-block is not laid out.
-  const diagramBlockOf = isModifyAction ? _diagramBlockContents(existing.existingView) : new Map();
+  // An element that appears only inside a diagram-block is not laid out.
   /** @type {Map<string, string>} */
   const diagramBlockVisualOf = new Map();
   /** @type {Set<string>} */
@@ -138,13 +176,10 @@ function buildObjectSet(uiSelection, preset, actionId) {
     else if (!diagramBlockVisualOf.has(cid)) diagramBlockVisualOf.set(cid, String(ve.id));
   }
   for (const cid of outsideDiagramBlocks) diagramBlockVisualOf.delete(cid);
-  const elements = viewElements.filter(el => !diagramBlockVisualOf.has(el.id));
-  if (isExpand) diagramObjects = _expandViews($(/** @type {ArchiView} */ (existing.existingView))).diagramObjects;   // Cast: checked at the start
-
-  // ── Step 5: relations collected incrementally in step 3 above (base: global filter; per step: step's filter). ──
+  const elements  = viewElements.filter(el => !diagramBlockVisualOf.has(el.id));
   const relations = allRelations;
 
-  // ── Step 6: partition diagram-model-connection (edges) from positional diagram objects ──
+  // Partition diagram-model-connection (edges) from positional diagram objects.
   const diagramConnections = diagramObjects.filter(o => o.type === "diagram-model-connection");
   const diagramNodes       = diagramObjects.filter(o => o.type !== "diagram-model-connection" && !diagramBlockOf.has(String(o.id)));
 
@@ -152,8 +187,35 @@ function buildObjectSet(uiSelection, preset, actionId) {
   const visuals = _describeVisuals(existing.visualElements.filter(ve => !diagramBlockOf.has(String(ve.id))));
   const view = _predictViewCounts(elements, relations, diagramNodes.length, preset.params, visuals);
 
-  // ── Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
-  // Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (ai/rules.md #11). ──
+  return {
+    objectSet: {
+      elements,
+      relations,
+      diagramObjects:    diagramNodes,
+      diagramConnections,
+      visualElements:    existing.visualElements,
+      visualRelations:   existing.visualRelations,
+      existingView:      existing.existingView,
+      diagramBlockOf,
+      diagramBlockVisualOf,
+      visuals,
+    },
+    filteredCounts,
+    filteredBaseRels,
+    stepCounts: expansion.stepCounts,
+    view,
+  };
+}
+
+/**
+ * Grouped count log: filtered base → per-step adds (true deltas) → grouped totals.
+ * Filtered + Σ adds = Total, exactly, by construction. Canonical vocabulary (AGENTS.md).
+ * @param {ComposedObjectSet} composed
+ * @param {boolean}           isModifyAction
+ */
+function _logComposed(composed, isModifyAction) {
+  const { filteredCounts, filteredBaseRels, stepCounts, view } = composed;
+  const { diagramConnections, diagramBlockOf } = composed.objectSet;
   /** @type {CountRow[]} */
   const rows = [{
     label: isModifyAction ? "Unfiltered base:" : "Filtered base:",
@@ -186,28 +248,16 @@ function buildObjectSet(uiSelection, preset, actionId) {
   if (diagramConnections.length > 0) {
     console.log(`  Diagram-object edges (laid out with the connections): ${diagramConnections.length}`);
   }
-  if (diagramBlockOf.size > 0) {
+  if (diagramBlockOf && diagramBlockOf.size > 0) {
     console.log(`  Diagram-blocks: ${new Set(diagramBlockOf.values()).size} diagram objects with contents, moved as one with ${diagramBlockOf.size} objects inside`);
   }
-
-  return {
-    elements,
-    relations,
-    diagramObjects:    diagramNodes,
-    diagramConnections,
-    visualElements:    existing.visualElements,
-    visualRelations:   existing.visualRelations,
-    existingView:      existing.existingView,
-    diagramBlockOf,
-    diagramBlockVisualOf,
-    visuals,
-  };
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 /**
- * Run the related-elements expansion chain (preset.relatedElements.steps).
+ * Run the related-elements expansion chain (preset.relatedElements.steps). No console output:
+ * buildObjectSet logs the steps from the returned counts (_logSteps).
  * Caller guards on actionId and steps existence.
  * @param {ArchiElement[]} filteredElementsArr
  * @param {Step[]}         steps
@@ -226,24 +276,35 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds) {
   let stepIdx = 0;
   for (const step of steps) {
     stepIdx++;
-    const repeatStr = step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW ? "until nothing new" : `${Defs.repeatMaxRuns(step.repeat)}×`;
-    console.log(`Step ${stepIdx} rules:  repeat: ${repeatStr}`);
-    _logRules(step.rules, _describeStepRule, "    ");
     const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
       _expandStepWithRelations(stepInput, step, cumulativeElems, allRelIds);
-    if (step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW) {
-      console.log(capped
-        ? `Step ${stepIdx}: stopped at the maximum of ${Defs.REPEAT_MAX} runs — more elements may be reachable`
-        : `Step ${stepIdx}: nothing new after ${runs}×`);
-    }
     cumulativeElems = newCumul;
     added.forEach(o => addedElements.push(o));
     stepRels.forEach(r => addedRelations.push(r));
-    stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
+    stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length, runs, capped });
     // Chain advance: next step's input is THIS step's additions only.
     stepInput = added;
   }
   return { addedElements, addedRelations, stepCounts };
+}
+
+/**
+ * Log each step's rules and, for "until nothing new", how its runs ended.
+ * @param {Step[]}      steps
+ * @param {StepCount[]} stepCounts  one per step run (_expandRelatedElements)
+ */
+function _logSteps(steps, stepCounts) {
+  for (const sc of stepCounts) {
+    const step = steps[sc.idx - 1];
+    const repeatStr = step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW ? "until nothing new" : `${Defs.repeatMaxRuns(step.repeat)}×`;
+    console.log(`Step ${sc.idx} rules:  repeat: ${repeatStr}`);
+    _logRules(step.rules, _describeStepRule, "    ");
+    if (step.repeat === Defs.REPEAT_UNTIL_NOTHING_NEW) {
+      console.log(sc.capped
+        ? `Step ${sc.idx}: stopped at the maximum of ${Defs.REPEAT_MAX} runs — more elements may be reachable`
+        : `Step ${sc.idx}: nothing new after ${sc.runs}×`);
+    }
+  }
 }
 
 /**
@@ -269,7 +330,7 @@ function _expandRelatedElements(filteredElementsArr, steps, allRelIds) {
 function _logCountBlock(title, rows) {
   const RULE = "──────────────────────────────────────────────";
   // [key (== plural), singular, plural]. The key is the user-facing plural word —
-  // no abbreviations, per the canonical-vocabulary rule (ai/rules.md #11).
+  // no abbreviations, per the canonical-vocabulary rule (AGENTS.md).
   const FIELDS = [
     ["elements",         "element",          "elements"],
     ["relations",        "relation",         "relations"],
@@ -687,13 +748,13 @@ function _baseId(id) {
 }
 
 /**
- * Order elements by name, then id — plain code-point order, so it never depends on the locale.
+ * Order elements by name (Defs.compareNames), then id (code point).
  * @param {{ id: string, name?: string } | undefined} a
  * @param {{ id: string, name?: string } | undefined} b
  */
 function _byNameThenId(a, b) {
   const na = (a && a.name) || "", nb = (b && b.name) || "";
-  if (na !== nb) return na < nb ? -1 : 1;
+  if (na !== nb) return compareNames(na, nb);
   // Casts: callers compare elements that exist.
   return /** @type {{ id: string }} */ (a).id < /** @type {{ id: string }} */ (b).id ? -1 : /** @type {{ id: string }} */ (a).id > /** @type {{ id: string }} */ (b).id ? 1 : 0;
 }
@@ -714,8 +775,8 @@ function _placementKey(elementId, chain) {
  */
 
 /**
- * Classify the element visuals of one view as managed or user content (SPEC: Managed
- * occurrences, step 1). Pure — runs in Node.
+ * Classify the element visuals of one view as managed or user content
+ * (docs/reference/selection-nesting.md: Managed occurrences, step 1). Pure — runs in Node.
  *   1. A visual whose placement matches a record is managed; each record matches one visual,
  *      the first in view order.
  *   2. An element without user content: its first visual becomes user content.
@@ -799,7 +860,7 @@ function _describeVisuals(visualElements) {
 }
 
 /**
- * Pair occurrences with the visuals on the view (SPEC: Managed occurrences, step 3).
+ * Pair occurrences with the visuals on the view (docs/reference/selection-nesting.md: Managed occurrences, step 3).
  * Per element user content first, then managed visuals; each takes a free occurrence with its own
  * container chain, else one with the same direct container, else any. A user visual left over
  * becomes an extra occurrence at view root — only the settings nest; a managed one is removed.
@@ -870,7 +931,7 @@ function _pairVisuals(elements, occurrenceMap, parentMap, visuals) {
 }
 
 /**
- * Visual relations of the nested relations (SPEC: Writer parenthood): per binding the one
+ * Visual relations of the nested relations (docs/reference/selection-nesting.md: Writer parenthood): per binding the one
  * between its two paired visuals is kept; every other visual relation of a nested relation is
  * removed — what is shown as nesting is not also shown as a line. Pure — runs in Node.
  * @param {ParentRel[]}            parentRels  nesting bindings
@@ -975,7 +1036,7 @@ function _stronglyConnected(nodeIds, succ) {
  * Resolve nesting structure (parentMap, occurrenceMap, parentRels) from the nesting
  * candidates. Single source of truth — used by the writer's _buildLayoutGraph AND by
  * predictViewCounts, so dialog and pipeline counters agree with what the writer produces.
- * No step depends on relation, rule or element order (SPEC: Roles and parents).
+ * No step depends on relation, rule or element order (docs/reference/selection-nesting.md: Roles and parents).
  *
  *   1. Cycles: nesting relations inside one strongly connected component of the graph
  *      parent → child are all drawn as connections (circularNestingRels, cycles).
@@ -1174,7 +1235,7 @@ function _splitNestingRels(relations, params) {
  * elements + relations + the current preset.params. Used by both the pipeline log
  * and the dialog's live counter so what the user sees matches what gets written.
  *
- * Returned shape follows the canonical vocabulary (ai/rules.md #11):
+ * Returned shape follows the canonical vocabulary (AGENTS.md):
  *   elements         — unique model concepts (= containers + nestedElements + standalones)
  *   containers       — elements with ≥1 child
  *   nestedElements   — elements inside a container; not themselves a container
@@ -1330,6 +1391,8 @@ function getSeedElements(uiSelection) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     buildObjectSet,
+    readSelection,
+    composeObjectSet,
     getSeedElements,
     expandStepWithRelations:  _expandStepWithRelations,
     logCountBlock:            _logCountBlock,

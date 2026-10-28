@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Generate the SPEC.md appendix tables that mirror defs.js, so the docs cannot drift from the
- * registry. Each table sits between markers in SPEC.md:
+ * Generate the doc tables that mirror defs.js, so the docs cannot drift from the registry. Each table
+ * sits between markers in its file under docs/reference/ (DOCS below):
  *   <!-- generated:<name> -->  …  <!-- /generated:<name> -->
  *
  * Run from the repo root:
@@ -12,16 +12,23 @@ const fs   = require("fs");
 const path = require("path");
 
 const VIEW = path.join(__dirname, "..");
-const DOC  = path.join(VIEW, "docs", "SPEC.md");
 global.Java    = { type: () => ({}) };
 global.__DIR__ = path.join(VIEW, "lib") + "/";
 const _log = console.log; console.log = () => {};
 const Defs = require(path.join(VIEW, "lib", "defs.js"));
 console.log = _log;
 
-const { STYLES, ALGORITHMS, PARAM_LABELS, PARAM_TOOLTIPS, LAYOUT_GROUPS, HIDDEN_PARAMS } = Defs;
+const { STYLES, ALGORITHMS, PARAM_LABELS, PARAM_TOOLTIPS, LAYOUT_GROUPS, HIDDEN_PARAMS, DEFAULT_PRESET } = Defs;
 const ALGS = Object.keys(ALGORITHMS);
 const cell = t => String(t).replace(/\|/g, "\\|").replace(/\n/g, " ");
+const usedBy = k => cell(Defs.paramUsedBy(k).replace(/^Used by: /, ""));
+
+// Default value of a param as the preset file holds it; a rule list shows its relation types.
+const defaultOf = k => {
+  const v = DEFAULT_PRESET.params[k];
+  if (Array.isArray(v)) return v.length ? v.map(r => r.relation.replace(/-relationship$/, "")).join(", ") : "none";
+  return typeof v === "boolean" ? (v ? "on" : "off") : cell(v);
+};
 
 const tables = {
   styles: () => [
@@ -39,12 +46,18 @@ const tables = {
 
   "layout-params": () => Object.entries(LAYOUT_GROUPS).flatMap(([group, params]) => [
     `**${group}**`, "",
-    "| Field | Parameter | Tooltip | Used by |",
-    "|---|---|---|---|",
+    "| Field | Parameter | Default | Tooltip | Used by |",
+    "|---|---|---|---|---|",
     ...params.map(k => { const [what, detail] = PARAM_TOOLTIPS[k] || ["", ""];
-      return `| ${PARAM_LABELS[k]} | \`${k}\` | ${cell([what, detail].filter(Boolean).join(" — "))} | ${cell(Defs.paramUsedBy(k).replace(/^Used by: /, ""))} |`; }),
+      return `| ${PARAM_LABELS[k]} | \`${k}\` | ${defaultOf(k)} | ${cell([what, detail].filter(Boolean).join(" — "))} | ${usedBy(k)} |`; }),
     "",
   ]).slice(0, -1),
+
+  "preset-only": () => [
+    "| Parameter | Default | Used by |",
+    "|---|---|---|",
+    ...HIDDEN_PARAMS.map(k => `| \`${k}\` (${PARAM_LABELS[k]}) | ${defaultOf(k)} | ${usedBy(k)} |`),
+  ],
 
   "capability-matrix": () => {
     const rows = [...Object.values(LAYOUT_GROUPS).flat(), ...HIDDEN_PARAMS];
@@ -58,17 +71,27 @@ const tables = {
   },
 };
 
-let doc = fs.readFileSync(DOC, "utf8");
+// The file each table is written to.
+const DOCS = {
+  "reference/gui.md":     ["styles", "algorithms", "layout-params", "preset-only"],
+  "reference/engines.md": ["capability-matrix"],
+};
+
 const stale = [];
-for (const [name, make] of Object.entries(tables)) {
-  const open = `<!-- generated:${name} -->`, close = `<!-- /generated:${name} -->`;
-  const i = doc.indexOf(open), j = doc.indexOf(close);
-  if (i < 0 || j < 0) { console.log(`✗ markers for "${name}" not found in SPEC.md`); process.exitCode = 1; continue; }
-  const fresh = `${open}\n${make().join("\n")}\n${close}`;
-  if (doc.slice(i, j + close.length) !== fresh) { stale.push(name); doc = doc.slice(0, i) + fresh + doc.slice(j + close.length); }
+for (const [file, names] of Object.entries(DOCS)) {
+  const docPath = path.join(VIEW, "docs", file);
+  let doc = fs.readFileSync(docPath, "utf8");
+  const before = doc;
+  for (const name of names) {
+    const open = `<!-- generated:${name} -->`, close = `<!-- /generated:${name} -->`;
+    const i = doc.indexOf(open), j = doc.indexOf(close);
+    if (i < 0 || j < 0) { console.log(`✗ markers for "${name}" not found in ${file}`); process.exitCode = 1; continue; }
+    const fresh = `${open}\n${tables[name]().join("\n")}\n${close}`;
+    if (doc.slice(i, j + close.length) !== fresh) { stale.push(`${file}: ${name}`); doc = doc.slice(0, i) + fresh + doc.slice(j + close.length); }
+  }
+  if (process.argv.includes("--write") && doc !== before) fs.writeFileSync(docPath, doc, "utf8");
 }
 if (process.argv.includes("--write")) {
-  if (stale.length) fs.writeFileSync(DOC, doc, "utf8");
   console.log(stale.length ? `✓ rewrote: ${stale.join(", ")}` : "✓ tables already up to date");
 } else if (stale.length) {
   console.log(`✗ out of date: ${stale.join(", ")} — run with --write`); process.exitCode = 1;

@@ -30,6 +30,10 @@ const PT2PX = 96 / 72;
 // Graphviz binary, found on the PATH.
 const GRAPHVIZ_BIN = "dot";
 
+// Seconds one Graphviz run may take. dot can hang on a rare bug; it runs on Archi's UI thread,
+// so without a limit Archi freezes for good.
+const GRAPHVIZ_TIMEOUT_S = 60;
+
 // Derived: set of Graphviz algorithm names (used for engine validation guard).
 const GRAPHVIZ_ALGORITHMS = new Set(
   Object.entries(ALGORITHMS).filter(([, v]) => v.engine === "Graphviz").map(([k]) => k)
@@ -454,29 +458,34 @@ function _runGraphviz(dotSource, args) {
   const Arrays           = Java.type("java.util.Arrays");
   const Files            = Java.type("java.nio.file.Files");
   const StandardCharsets = Java.type("java.nio.charset.StandardCharsets");
-  const JString          = Java.type("java.lang.String");
-  const Writer           = Java.type("java.io.OutputStreamWriter");
+  const TimeUnit         = Java.type("java.util.concurrent.TimeUnit");
 
-  // stderr goes to a file: left unread in a pipe while stdout is read, a full pipe blocks dot.
+  // Input and both outputs go through files: no pipe can block, so the timed wait is the only wait.
+  const inFile  = Files.createTempFile("graphviz", ".gv");
+  const outFile = Files.createTempFile("graphviz", ".out");
   const errFile = Files.createTempFile("graphviz", ".err");
   try {
+    Files.writeString(inFile, dotSource, StandardCharsets.UTF_8);
     const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, ...args));
-    pb.redirectError(ProcessBuilder.Redirect.to(errFile.toFile()));
+    pb.redirectInput(inFile.toFile());
+    pb.redirectOutput(outFile.toFile());
+    pb.redirectError(errFile.toFile());
     let proc;
     try { proc = pb.start(); }
     catch (e) {
       throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
     }
 
-    const wr = new Writer(proc.getOutputStream(), StandardCharsets.UTF_8);
-    wr.write(dotSource);
-    wr.close();
-
-    const stdout = String(new JString(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
-    const code = proc.waitFor();
+    if (!proc.waitFor(GRAPHVIZ_TIMEOUT_S, TimeUnit.SECONDS)) {
+      proc.destroyForcibly().waitFor(5, TimeUnit.SECONDS);   // let go of the files before they are deleted
+      throw new Error(`Graphviz did not finish within ${GRAPHVIZ_TIMEOUT_S} s and was stopped.\nTry another algorithm or a smaller selection.`);
+    }
+    const code = proc.exitValue();
     if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${String(Files.readString(errFile)).trim()}`);
-    return stdout;
+    return String(Files.readString(outFile, StandardCharsets.UTF_8));
   } finally {
+    Files.deleteIfExists(inFile);
+    Files.deleteIfExists(outFile);
     Files.deleteIfExists(errFile);
   }
 }

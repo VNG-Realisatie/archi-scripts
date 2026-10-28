@@ -24,7 +24,7 @@ const Chroma = require("chroma-js");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
-const { COLOR_RANGES } = Defs;
+const { COLOR_RANGES, compareNames } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
 const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
@@ -117,7 +117,7 @@ function _onView(view, selector, keep) {
 // find() call, so reference equality cannot be used as a Map key.
 //
 // inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
-// chain from its depth-0 root ancestor (see "Type chain" in SPEC.md, Appearance tab).
+// chain from its depth-0 root ancestor (see "Type chain" in docs/reference/gui.md, Appearance tab).
 // rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
 /**
  * @param {ArchimateView} view
@@ -395,7 +395,7 @@ function computeRuleTargets(rule, elements, relations) {
 function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
   const rules = settings.rules || [];
   if (rules.length === 0) return;
-  const mixedColor = settings.mixedValuesColor || "#FF6B35";
+  const mixedColor = settings.mixedValuesColor;
   const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
 
   // The objects on the view, by model concept id.
@@ -446,7 +446,7 @@ function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
     // One value → its colour from the range; several different values → the mixed-values colour.
     const unique = Array.from(new Set(
       Array.from(targets.values()).filter(h => h.values.size === 1).map(h => Array.from(h.values)[0])
-    )).sort((a, b) => a.localeCompare(b));
+    )).sort(compareNames);
     const colors   = unique.length ? _colorScale(rule.colorRange, unique.length) : [];
     /** @type {Record<string, string>} */
     const colorMap = {};

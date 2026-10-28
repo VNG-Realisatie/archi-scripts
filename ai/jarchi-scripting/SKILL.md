@@ -5,10 +5,7 @@ description: Use when writing or changing jArchi scripts for Archi (.ajs files, 
 
 # jArchi scripting
 
-**Runtime.** jArchi 1.12 runs scripts in GraalJS (ECMAScript 2024) through JSR-223 with
-nashorn-compat. Modules: CommonJS `require` (preference "Enable CommonJS", jArchi ≥ 1.6). No
-Node APIs, no timers, no event loop — work synchronously; Java via `Java.type`. Java getters
-read as properties (`vo.fillColor`), Java lists are array-like.
+**Runtime.** jArchi 1.12 runs scripts in GraalJS (ECMAScript 2024) through JSR-223 with nashorn-compat. Modules: CommonJS `require` (preference "Enable CommonJS", jArchi ≥ 1.6). No Node APIs, no timers, no event loop — work synchronously; Java via `Java.type`. Java getters read as properties (`vo.fillColor`), Java lists are array-like.
 
 ## Pitfalls
 
@@ -30,6 +27,9 @@ read as properties (`vo.fillColor`), Java lists are array-like.
 16. **`exit()`** stops the script by throwing; Archi shows "Exited".
 17. **Undo and UI**: changes to a model open in Archi go on its undo stack; changes to a model only loaded by the script are not shown until `model.openInUI()` / `view.openInUI()`.
 18. **Java maps print as `{}`**: `JSON.stringify(vo.bounds)` / `view.viewpoint` gives `"{}"` though `bounds.x` reads fine — copy the fields first.
+19. **Filter by selector, not by type strings**: `collection.filter("element")` / `.filter("relationship")` (and `.size()`), never a loop that pushes objects after `.type` string checks. Convert to a plain array only where a caller needs array semantics.
+20. **A relation's direction is the model's**: Archi draws a connection from the model relation's source → target; a connection has no direction property of its own. Do not invent direction flags or mirror other model facts on visuals.
+21. **APIs that do not exist** (they appear in old docs and answers): `view.routerType`, `connection.absoluteBendpoints`, `model.createFolder`, `model.isAllowedRelationship` (that one is `$.model.isAllowedRelationship`). `vo.delete(x)`: `x` means delete children (pitfall 7).
 
 ## Where to look
 
@@ -38,7 +38,7 @@ read as properties (`vo.fillColor`), Java lists are array-like.
 | `jarchi.d.ts` | Any API question: members, signatures, constants, ArchiMate type names. Derived from the plugin source; `@remarks unverified` = not yet observed in Archi |
 | `graaljs-java.md` | `Java.type` / `Java.extend`, Java lists and maps, overloads, files, external processes |
 | `swt-gtk.md` | Building dialogs with SWT / JFace (GTK behaviour, fonts, layouts, `TitleAreaDialog`) |
-| [Plugin wiki](https://github.com/archimatetool/archi-scripting-plugin/wiki) | Examples and prose; where it disagrees with `jarchi.d.ts`, the plugin source decides |
+| [Plugin wiki](https://github.com/archimatetool/archi-scripting-plugin/wiki) | Examples and prose; Archi behaviour visible to scripts (how relations are drawn, visuals vs. concepts, view folders, console) and ArchiMate semantics as Archi understands them. Consult it before claiming how Archi behaves or designing a workaround for what Archi may already do. Where it disagrees with `jarchi.d.ts`, the plugin source decides |
 
 ## Version notes
 
