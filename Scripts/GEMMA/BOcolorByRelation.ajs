@@ -1,0 +1,110 @@
+// ============================================================
+// Color BusinessObjects op basis van AccessRelationship (Rol)
+// Correct jArchi type: "access-relationship"
+// ============================================================
+
+(function() {
+
+    var COLOR_PRIMARY   = "#b6f2a3";
+    var COLOR_SECONDARY = "#bce6f8";
+    var COLOR_UNKNOWN   = "#ffcccc";
+
+    var PROPERTY_NAME = "Rol";
+
+    function log(msg) {
+        console.log(msg);
+    }
+
+    function error(msg) {
+        console.log("ERROR: " + msg);
+    }
+
+    var view = $(selection).first();
+
+    if (!view || !$(view).is("archimate-diagram-model")) {
+        error("Selecteer een view");
+        return;
+    }
+
+    log("Start verwerking: " + view.name);
+
+    function processFunction(fnViewObj) {
+
+        if (!fnViewObj || !fnViewObj.concept) return;
+
+        var fn = fnViewObj.concept;
+
+        if (fn.type !== "business-function") return;
+
+        log("Function: " + fn.name);
+
+        $(fnViewObj).children().each(function(child) {
+
+            if (!child.concept) return;
+
+            var concept = child.concept;
+
+            // -----------------------------
+            // BusinessObject
+            // -----------------------------
+            if (concept.type === "business-object") {
+
+                log("  Object: " + concept.name);
+
+                var rels = $(concept).inRels()
+                    .filter("access-relationship");   // ✅ FIX
+
+                log("    access rels: " + rels.size());
+
+                var role = null;
+
+                rels.each(function(r) {
+
+                    if (r.source && r.source.id === fn.id) {
+                        role = r.prop(PROPERTY_NAME);
+                        log("    match met function");
+                    }
+                });
+
+                // fallback (als geen directe match)
+                if (!role && rels.size() > 0) {
+                    role = rels.first().prop(PROPERTY_NAME);
+                    log("    fallback gebruikt");
+                }
+
+                if (role) {
+                    role = role.trim().toUpperCase();
+                }
+
+                log("    rol: " + role);
+
+                // -----------------------------
+                // kleur toepassen
+                // -----------------------------
+                if (role === "PRIMARY") {
+                    child.fillColor = COLOR_PRIMARY;
+                } else if (role === "SECONDARY") {
+                    child.fillColor = COLOR_SECONDARY;
+                } else {
+                    child.fillColor = COLOR_UNKNOWN;
+                }
+            }
+
+            // -----------------------------
+            // Recursie
+            // -----------------------------
+            if (concept.type === "business-function") {
+                processFunction(child);
+            }
+        });
+    }
+
+    $(view).children()
+        .filter("business-function")
+        .each(function(fn) {
+            processFunction(fn);
+        });
+
+    log("Verwerking gereed");
+
+})();

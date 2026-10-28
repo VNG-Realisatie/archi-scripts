@@ -12,8 +12,8 @@ const View = require(REPO_ROOT + "View/include_view");
 Common.initConsoleLog(__FILE__, true);
 
 let param = View.get_default_parameter(__FILE__);
-param.action = View.LAYOUT
-param.graphDirection="TB"
+param.action = View.LAYOUT;
+param.elkDirection = "DOWN";
 
 View.generate_view(param);
 Common.finishConsoleLog();

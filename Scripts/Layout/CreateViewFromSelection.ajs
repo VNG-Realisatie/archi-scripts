@@ -1,0 +1,792 @@
+/**
+ * CreateViewFromSelection.ajs
+ *
+ * Creates a new ArchiMate view from the current selection,
+ * OR updates an existing generated view if one is selected.
+ *
+ * Identity:  The view carries a user property  "generated-by-script" = "CreateViewFromSelection"
+ *            and a JSON property "generation-criteria" storing the full criteria.
+ *
+ * Update mode (view with that property selected):
+ *   - Criteria are read from the JSON property (not parsed from doc text)
+ *   - The user chooses "Update Now" or "Modify Criteria"
+ *   - Update = diff: only add missing elements/relationships, remove those
+ *     no longer in scope — user-added content is left untouched.
+ *
+ * Documentation field is updated on every build but never used for logic.
+ */
+
+// -- SWT imports --------------------------------------------------------------
+var SWT               = Java.type("org.eclipse.swt.SWT");
+var Display           = Java.type("org.eclipse.swt.widgets.Display");
+var Shell             = Java.type("org.eclipse.swt.widgets.Shell");
+var Label             = Java.type("org.eclipse.swt.widgets.Label");
+var Button            = Java.type("org.eclipse.swt.widgets.Button");
+var Table             = Java.type("org.eclipse.swt.widgets.Table");
+var TableColumn       = Java.type("org.eclipse.swt.widgets.TableColumn");
+var TableItem         = Java.type("org.eclipse.swt.widgets.TableItem");
+var Composite         = Java.type("org.eclipse.swt.widgets.Composite");
+var Slider            = Java.type("org.eclipse.swt.widgets.Slider");
+var GridLayout        = Java.type("org.eclipse.swt.layout.GridLayout");
+var GridData          = Java.type("org.eclipse.swt.layout.GridData");
+var SelectionListener = Java.type("org.eclipse.swt.events.SelectionListener");
+
+// -- Constants ----------------------------------------------------------------
+var PROP_MARKER   = "generated-by-script";
+var PROP_MARKER_VALUE = "CreateViewFromSelection";
+var PROP_CRITERIA = "generation-criteria";
+
+// -- Generic SWT helpers ------------------------------------------------------
+
+function isElement(obj) {
+    if (!obj || !obj.type) { return false; }
+    var t = obj.type.toLowerCase();
+    return t !== "relation" &&
+           t.indexOf("relationship") === -1 &&
+           t !== "folder" &&
+           t !== "archimatemodel" &&
+           t.indexOf("view") === -1 &&
+           t.indexOf("diagram") === -1;
+}
+
+function formatType(t) {
+    return t.replace(/-/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
+
+function centreShell(shell, display) {
+    shell.pack();
+    var b = display.getPrimaryMonitor().getBounds();
+    var s = shell.getSize();
+    shell.setLocation(
+        Math.round(b.x + (b.width  - s.x) / 2),
+        Math.round(b.y + (b.height - s.y) / 2)
+    );
+}
+
+function buildCheckTable(parent, types, widthHint, heightHint, checkedSet) {
+    var table = new Table(parent, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL);
+    var gd = new GridData(GridData.FILL_BOTH);
+    gd.heightHint = Math.min(types.length * 22 + 10, heightHint || 300);
+    gd.widthHint  = widthHint || 260;
+    table.setLayoutData(gd);
+    types.forEach(function (type) {
+        var item = new TableItem(table, SWT.NONE);
+        item.setText(formatType(type));
+        item.setData(type);
+        item.setChecked(checkedSet ? (checkedSet[type] === true) : true);
+    });
+    return table;
+}
+
+function addSelectButtons(parent, table) {
+    var bar = new Composite(parent, SWT.NONE);
+    bar.setLayout(new GridLayout(2, true));
+    bar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+    var bAll = new Button(bar, SWT.PUSH);
+    bAll.setText("Select All");
+    bAll.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+    bAll.addSelectionListener(SelectionListener.widgetSelectedAdapter(function (e) {
+        var items = table.getItems();
+        for (var i = 0; i < items.length; i++) { items[i].setChecked(true); }
+    }));
+    var bNone = new Button(bar, SWT.PUSH);
+    bNone.setText("Deselect All");
+    bNone.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+    bNone.addSelectionListener(SelectionListener.widgetSelectedAdapter(function (e) {
+        var items = table.getItems();
+        for (var i = 0; i < items.length; i++) { items[i].setChecked(false); }
+    }));
+}
+
+function getChecked(table) {
+    var result = [];
+    var items = table.getItems();
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].getChecked()) { result.push(String(items[i].getData())); }
+    }
+    return result;
+}
+
+function addOkCancel(parent, shell, okLabel) {
+    var bar = new Composite(parent, SWT.NONE);
+    bar.setLayout(new GridLayout(2, true));
+    bar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+    var btnOK = new Button(bar, SWT.PUSH);
+    btnOK.setText(okLabel || "OK");
+    btnOK.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+    shell.setDefaultButton(btnOK);
+    var btnCancel = new Button(bar, SWT.PUSH);
+    btnCancel.setText("Cancel");
+    btnCancel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+    return { btnOK: btnOK, btnCancel: btnCancel };
+}
+
+function showDualFilterDialog(display, stepLabel, direction,
+                               relTypes, elemTypes,
+                               previousRelSet, previousElemSet) {
+    var result = null;
+    display.syncExec(new java.lang.Runnable({
+        run: function () {
+            var shell = new Shell(display, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+            shell.setText(stepLabel + " - " + direction + " Filters");
+            shell.setLayout(new GridLayout(2, true));
+
+            var relGroup = new Composite(shell, SWT.BORDER);
+            relGroup.setLayout(new GridLayout(1, false));
+            relGroup.setLayoutData(new GridData(GridData.FILL_BOTH));
+            new Label(relGroup, SWT.WRAP).setText("Relationship types to follow:");
+            var relTable = buildCheckTable(relGroup, relTypes, 240, 300, previousRelSet);
+            addSelectButtons(relGroup, relTable);
+
+            var elemGroup = new Composite(shell, SWT.BORDER);
+            elemGroup.setLayout(new GridLayout(1, false));
+            elemGroup.setLayoutData(new GridData(GridData.FILL_BOTH));
+            new Label(elemGroup, SWT.WRAP).setText("Target element types:");
+            var elemTable = buildCheckTable(elemGroup, elemTypes, 240, 300, previousElemSet);
+            addSelectButtons(elemGroup, elemTable);
+
+            var okBar = new Composite(shell, SWT.NONE);
+            okBar.setLayout(new GridLayout(2, true));
+            var okGD = new GridData(GridData.FILL_HORIZONTAL);
+            okGD.horizontalSpan = 2;
+            okBar.setLayoutData(okGD);
+            var btns = addOkCancel(okBar, shell, "Next >");
+            btns.btnOK.addSelectionListener(SelectionListener.widgetSelectedAdapter(function (e) {
+                result = { relTypes: getChecked(relTable), elemTypes: getChecked(elemTable) };
+                shell.close();
+            }));
+            btns.btnCancel.addSelectionListener(SelectionListener.widgetSelectedAdapter(function (e) {
+                result = null; shell.close();
+            }));
+            centreShell(shell, display);
+            shell.open();
+            while (!shell.isDisposed()) { if (!display.readAndDispatch()) { display.sleep(); } }
+        }
+    }));
+    return result;
+}
+
+// -- Criteria storage (user properties) --------------------------------------
+
+function saveCriteria(view, seedElements, outFilter, inFilter, outDepth, inDepth) {
+    var data = {
+        seedIds      : seedElements.map(function (e) { return e.id; }),
+        outRelTypes  : outFilter.relTypes,
+        outElemTypes : outFilter.elemTypes,
+        outDepth     : outDepth,
+        inRelTypes   : inFilter.relTypes,
+        inElemTypes  : inFilter.elemTypes,
+        inDepth      : inDepth
+    };
+    view.prop(PROP_MARKER,   PROP_MARKER_VALUE);
+    view.prop(PROP_CRITERIA, JSON.stringify(data));
+}
+
+function loadCriteria(view) {
+    if (view.prop(PROP_MARKER) !== PROP_MARKER_VALUE) { return null; }
+    var raw = view.prop(PROP_CRITERIA);
+    if (!raw) { return null; }
+    try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+// -- BFS + subset helpers -----------------------------------------------------
+
+function runBFS(seedElements, outRelTypeSet, outElemTypeSet, inRelTypeSet, inElemTypeSet) {
+    var outDepthMap = {}, inDepthMap = {}, allElemsSet = {}, allElemsDeep = [];
+
+    var outQueue = seedElements.slice();
+    seedElements.forEach(function (e) { outDepthMap[e.id] = 0; });
+    while (outQueue.length > 0) {
+        var cur = outQueue.shift();
+        if (!allElemsSet[cur.id]) { allElemsSet[cur.id] = true; allElemsDeep.push(cur); }
+        var d = outDepthMap[cur.id];
+        $(cur).outRels().each(function (rel) {
+            var target = rel.target;
+            if (target && isElement(target) &&
+                outRelTypeSet[rel.type] && outElemTypeSet[target.type] &&
+                outDepthMap[target.id] === undefined) {
+                outDepthMap[target.id] = d + 1; outQueue.push(target);
+            }
+        });
+    }
+
+    var inQueue = seedElements.slice();
+    seedElements.forEach(function (e) { if (inDepthMap[e.id] === undefined) inDepthMap[e.id] = 0; });
+    while (inQueue.length > 0) {
+        var cur = inQueue.shift();
+        if (!allElemsSet[cur.id]) { allElemsSet[cur.id] = true; allElemsDeep.push(cur); }
+        var d = inDepthMap[cur.id];
+        $(cur).inRels().each(function (rel) {
+            var source = rel.source;
+            if (source && isElement(source) &&
+                inRelTypeSet[rel.type] && inElemTypeSet[source.type] &&
+                inDepthMap[source.id] === undefined) {
+                inDepthMap[source.id] = d + 1; inQueue.push(source);
+            }
+        });
+    }
+
+    // All relationships between discovered elements
+    var allElemIds = {}, allRelsDeep = [], relSeen = {};
+    allElemsDeep.forEach(function (e) { allElemIds[e.id] = true; });
+    allElemsDeep.forEach(function (el) {
+        $(el).outRels().each(function (rel) {
+            if (!relSeen[rel.id] && allElemIds[rel.source.id] && allElemIds[rel.target.id]) {
+                relSeen[rel.id] = true; allRelsDeep.push(rel);
+            }
+        });
+    });
+
+    return { outDepthMap: outDepthMap, inDepthMap: inDepthMap,
+             allElemsDeep: allElemsDeep, allRelsDeep: allRelsDeep };
+}
+
+function subsetAtDepths(bfsResult, maxOut, maxIn) {
+    var outDepthMap = bfsResult.outDepthMap, inDepthMap = bfsResult.inDepthMap;
+    var kept = {}, elems = [], relIds = {}, rels = [];
+    bfsResult.allElemsDeep.forEach(function (e) {
+        var od = outDepthMap[e.id], id = inDepthMap[e.id];
+        if ((od !== undefined && od <= maxOut) || (id !== undefined && id <= maxIn)) {
+            kept[e.id] = true; elems.push(e);
+        }
+    });
+    bfsResult.allRelsDeep.forEach(function (r) {
+        if (!relIds[r.id] && kept[r.source.id] && kept[r.target.id]) {
+            relIds[r.id] = true; rels.push(r);
+        }
+    });
+    return { elements: elems, relationships: rels };
+}
+
+// -- Diff-based view update ---------------------------------------------------
+
+/**
+ * Update a view by diffing the new scope against what is currently on the view.
+ * - Elements/relationships in scope but missing from view -> added
+ * - Elements/relationships that were placed by the script (tracked via the
+ *   "script-placed-elements" property) but are no longer in scope -> removed
+ * - Anything the user added manually is left untouched
+ */
+function updateView(view, allElements, allRelationships) {
+
+    // Read the set of element ids that were placed by the script last time
+    var placedRaw      = view.prop("script-placed-elements")      || "";
+    var placedRelRaw   = view.prop("script-placed-relationships")  || "";
+    var prevPlacedElemIds = {};
+    var prevPlacedRelIds  = {};
+    if (placedRaw)    { placedRaw.split(",").forEach(function(id){ if(id) prevPlacedElemIds[id]=true; }); }
+    if (placedRelRaw) { placedRelRaw.split(",").forEach(function(id){ if(id) prevPlacedRelIds[id]=true; }); }
+
+    // Build new scope sets
+    var newElemIds = {}, newRelIds = {};
+    allElements.forEach(function(e){ newElemIds[e.id]=true; });
+    allRelationships.forEach(function(r){ newRelIds[r.id]=true; });
+
+    // Collect what is currently on the view
+    var existingElemNodes = {}; // concept id -> diagram node
+    var existingRelConns  = {}; // concept id -> diagram connection
+    $(view).children().each(function(child) {
+        var concept = child.concept;
+        if (!concept) { return; }
+        if (isElement(concept)) {
+            existingElemNodes[concept.id] = child;
+        } else {
+            existingRelConns[concept.id] = child;
+        }
+    });
+
+    // 1. Remove script-placed connections no longer in scope (connections first)
+    Object.keys(prevPlacedRelIds).forEach(function(id) {
+        if (!newRelIds[id] && existingRelConns[id]) {
+            existingRelConns[id].delete();
+            delete existingRelConns[id];
+        }
+    });
+
+    // 2. Remove script-placed nodes no longer in scope
+    Object.keys(prevPlacedElemIds).forEach(function(id) {
+        if (!newElemIds[id] && existingElemNodes[id]) {
+            existingElemNodes[id].delete();
+            delete existingElemNodes[id];
+        }
+    });
+
+    // 3. Add elements that are in scope but not yet on the view
+    //    Place new nodes in a staging row below whatever is already there
+    var lowestY = 0;
+    $(view).children().each(function(child) {
+        var b = child.bounds;
+        if (b) {
+            var bottom = b.y + b.height;
+            if (bottom > lowestY) { lowestY = bottom; }
+        }
+    });
+    var stagingY  = lowestY + 30;
+    var stagingX  = 20;
+    var NODE_W = 120, NODE_H = 55, CELL_W = 150;
+    var addedCount = 0;
+
+    var diagramNodes = {}; // concept id -> diagram node (existing + newly added)
+    // Seed with existing
+    Object.keys(existingElemNodes).forEach(function(id){ diagramNodes[id] = existingElemNodes[id]; });
+
+    var nowPlacedElemIds = {};
+    var nowPlacedRelIds  = {};
+
+    // Mark all previously-placed nodes that survived as still script-placed
+    Object.keys(prevPlacedElemIds).forEach(function(id){
+        if (existingElemNodes[id]) { nowPlacedElemIds[id] = true; }
+    });
+
+    allElements.forEach(function(element) {
+        if (!existingElemNodes[element.id]) {
+            var x = stagingX + (addedCount % 8) * CELL_W;
+            var y = stagingY + Math.floor(addedCount / 8) * 80;
+            var node = view.add(element, x, y, NODE_W, NODE_H);
+            diagramNodes[element.id] = node;
+            nowPlacedElemIds[element.id] = true;
+            addedCount++;
+        } else {
+            nowPlacedElemIds[element.id] = true;
+        }
+    });
+
+    // Mark surviving placed relationships
+    Object.keys(prevPlacedRelIds).forEach(function(id){
+        if (existingRelConns[id]) { nowPlacedRelIds[id] = true; }
+    });
+
+    // 4. Add relationships in scope but not yet on the view
+    allRelationships.forEach(function(rel) {
+        if (!existingRelConns[rel.id]) {
+            var srcNode = diagramNodes[rel.source.id];
+            var tgtNode = diagramNodes[rel.target.id];
+            if (srcNode && tgtNode) {
+                view.add(rel, srcNode, tgtNode);
+                nowPlacedRelIds[rel.id] = true;
+            }
+        } else {
+            nowPlacedRelIds[rel.id] = true;
+        }
+    });
+
+    // 5. Persist the updated tracking sets
+    view.prop("script-placed-elements",     Object.keys(nowPlacedElemIds).join(","));
+    view.prop("script-placed-relationships", Object.keys(nowPlacedRelIds).join(","));
+}
+
+// -- Documentation builder ---------------------------------------------------
+
+function buildDocumentation(viewName, seedElements, outFilter, inFilter,
+                             outDepth, inDepth, allElements, allRelationships) {
+    var lines = [
+        "=== Generated View Documentation ===",
+        "",
+        "Last updated : " + new Date().toLocaleString(),
+        "View name    : " + viewName,
+        "",
+        "--- Seed elements (" + seedElements.length + ") ---"
+    ];
+    seedElements.forEach(function(e) {
+        lines.push("  - " + e.name + " (" + formatType(e.type) + ")");
+    });
+    lines.push("");
+    lines.push("--- Outgoing traversal ---");
+    lines.push("  Max depth          : " + outDepth);
+    lines.push("  Relationship types : " + (outFilter.relTypes.length  > 0 ? outFilter.relTypes.map(formatType).join(", ")  : "(none)"));
+    lines.push("  Element types      : " + (outFilter.elemTypes.length > 0 ? outFilter.elemTypes.map(formatType).join(", ") : "(none)"));
+    lines.push("");
+    lines.push("--- Incoming traversal ---");
+    lines.push("  Max depth          : " + inDepth);
+    lines.push("  Relationship types : " + (inFilter.relTypes.length  > 0 ? inFilter.relTypes.map(formatType).join(", ")  : "(none)"));
+    lines.push("  Element types      : " + (inFilter.elemTypes.length > 0 ? inFilter.elemTypes.map(formatType).join(", ") : "(none)"));
+    lines.push("");
+    lines.push("--- Result ---");
+    lines.push("  Elements      : " + allElements.length);
+    lines.push("  Relationships : " + allRelationships.length);
+    lines.push("");
+    lines.push("Note: This view was created by the CreateViewFromSelection script.");
+    lines.push("User-added content is preserved on updates.");
+    return lines.join("\n");
+}
+
+// =============================================================================
+// MAIN
+// =============================================================================
+
+var display = Display.getCurrent() || Display.getDefault();
+
+// -- Detect mode --------------------------------------------------------------
+
+var selectedView   = null;
+var savedCriteria  = null;
+
+$(selection).each(function (sel) {
+    var t = sel.type ? sel.type.toLowerCase() : "";
+    if ((t.indexOf("diagram") !== -1 || t.indexOf("view") !== -1) && selectedView === null) {
+        var c = loadCriteria(sel);
+        if (c !== null) { selectedView = sel; savedCriteria = c; }
+    }
+});
+
+var updateMode = (selectedView !== null);
+
+// -- Resolve seeds ------------------------------------------------------------
+
+var seedElements = [];
+
+if (updateMode) {
+    // Resolve from saved ids
+    var seedIdSet = {};
+    savedCriteria.seedIds.forEach(function(id){ seedIdSet[id] = true; });
+    $("*").each(function(el) {
+        if (seedIdSet[el.id] && isElement(el)) { seedElements.push(el); }
+    });
+    if (seedElements.length === 0) {
+        window.alert("Could not resolve seed elements — they may have been deleted from the model.");
+        exit();
+    }
+} else {
+    $(selection).each(function (selected) {
+        var concept = selected.concept ? selected.concept : selected;
+        if (concept && concept.id !== undefined && isElement(concept)) { seedElements.push(concept); }
+    });
+    seedElements = seedElements.map(function(e){ return e.concept ? e.concept : e; });
+    if (seedElements.length === 0) {
+        window.alert("Please select at least one element (non-relationship) before running this script.");
+        exit();
+    }
+}
+
+// -- Pre-scan for available types ---------------------------------------------
+
+var preOutRelTypes = {}, preOutElemTypes = {}, preInRelTypes = {}, preInElemTypes = {};
+var preScanVisited = {}, preScanQueue = seedElements.slice();
+seedElements.forEach(function(e){ preScanVisited[e.id] = true; });
+
+while (preScanQueue.length > 0) {
+    var scanEl = preScanQueue.shift();
+    $(scanEl).outRels().each(function(rel) {
+        var t = rel.target;
+        if (t && isElement(t)) {
+            preOutRelTypes[rel.type] = true; preOutElemTypes[t.type] = true;
+            if (!preScanVisited[t.id]) { preScanVisited[t.id] = true; preScanQueue.push(t); }
+        }
+    });
+    $(scanEl).inRels().each(function(rel) {
+        var s = rel.source;
+        if (s && isElement(s)) {
+            preInRelTypes[rel.type] = true; preInElemTypes[s.type] = true;
+            if (!preScanVisited[s.id]) { preScanVisited[s.id] = true; preScanQueue.push(s); }
+        }
+    });
+}
+
+var allOutRelTypes  = Object.keys(preOutRelTypes).sort();
+var allOutElemTypes = Object.keys(preOutElemTypes).sort();
+var allInRelTypes   = Object.keys(preInRelTypes).sort();
+var allInElemTypes  = Object.keys(preInElemTypes).sort();
+
+// -- Update mode: show summary and ask what to do -----------------------------
+
+var runWizard = !updateMode; // true = show full wizard
+var outFilter, inFilter, chosenOutDepth, chosenInDepth;
+
+if (updateMode) {
+    var updateAction = null;
+    display.syncExec(new java.lang.Runnable({
+        run: function () {
+            var shell = new Shell(display, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+            shell.setText("Update Generated View");
+            shell.setLayout(new GridLayout(1, false));
+
+            var lbl = new Label(shell, SWT.WRAP);
+            var gd = new GridData(GridData.FILL_HORIZONTAL);
+            gd.widthHint = 480;
+            lbl.setLayoutData(gd);
+            lbl.setText(
+                "View: " + selectedView.name + "\n\n" +
+                "Current generation criteria:\n\n" +
+                "Seeds          : " + seedElements.map(function(e){ return e.name; }).join(", ") + "\n" +
+                "Outgoing depth : " + savedCriteria.outDepth + "\n" +
+                "  Rel types    : " + (savedCriteria.outRelTypes.length  > 0 ? savedCriteria.outRelTypes.map(formatType).join(", ")  : "(none)") + "\n" +
+                "  Elem types   : " + (savedCriteria.outElemTypes.length > 0 ? savedCriteria.outElemTypes.map(formatType).join(", ") : "(none)") + "\n" +
+                "Incoming depth : " + savedCriteria.inDepth + "\n" +
+                "  Rel types    : " + (savedCriteria.inRelTypes.length  > 0 ? savedCriteria.inRelTypes.map(formatType).join(", ")  : "(none)") + "\n" +
+                "  Elem types   : " + (savedCriteria.inElemTypes.length > 0 ? savedCriteria.inElemTypes.map(formatType).join(", ") : "(none)") + "\n\n" +
+                "Update Now: re-applies the same criteria (adds new elements,\n" +
+                "removes obsolete ones, keeps manual additions).\n" +
+                "Modify: change criteria before updating."
+            );
+
+            var bar = new Composite(shell, SWT.NONE);
+            bar.setLayout(new GridLayout(3, true));
+            bar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+            var btnUpdate = new Button(bar, SWT.PUSH);
+            btnUpdate.setText("Update Now");
+            btnUpdate.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+            shell.setDefaultButton(btnUpdate);
+
+            var btnModify = new Button(bar, SWT.PUSH);
+            btnModify.setText("Modify Criteria");
+            btnModify.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+            var btnCancel = new Button(bar, SWT.PUSH);
+            btnCancel.setText("Cancel");
+            btnCancel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+            btnUpdate.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){ updateAction = "update"; shell.close(); }));
+            btnModify.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){ updateAction = "modify"; shell.close(); }));
+            btnCancel.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){ updateAction = null;   shell.close(); }));
+
+            centreShell(shell, display);
+            shell.open();
+            while (!shell.isDisposed()) { if (!display.readAndDispatch()) { display.sleep(); } }
+        }
+    }));
+
+    if (updateAction === null) { window.alert("Script cancelled."); exit(); }
+
+    if (updateAction === "update") {
+        // Use saved criteria directly
+        outFilter      = { relTypes: savedCriteria.outRelTypes,  elemTypes: savedCriteria.outElemTypes };
+        inFilter       = { relTypes: savedCriteria.inRelTypes,   elemTypes: savedCriteria.inElemTypes  };
+        chosenOutDepth = savedCriteria.outDepth;
+        chosenInDepth  = savedCriteria.inDepth;
+        runWizard = false;
+    } else {
+        // "modify" — run wizard with previous values pre-filled
+        runWizard = true;
+    }
+}
+
+// -- Wizard -------------------------------------------------------------------
+
+if (runWizard) {
+    function toSet(arr) { var s = {}; (arr||[]).forEach(function(t){ s[t]=true; }); return s; }
+
+    var prevOutRel  = savedCriteria ? toSet(savedCriteria.outRelTypes)  : null;
+    var prevOutElem = savedCriteria ? toSet(savedCriteria.outElemTypes) : null;
+    var prevInRel   = savedCriteria ? toSet(savedCriteria.inRelTypes)   : null;
+    var prevInElem  = savedCriteria ? toSet(savedCriteria.inElemTypes)  : null;
+
+    var hasOut = allOutRelTypes.length > 0;
+    var hasIn  = allInRelTypes.length  > 0;
+
+    if (!hasOut && !hasIn) { window.alert("No connections found from the selected elements."); exit(); }
+
+    outFilter = { relTypes: allOutRelTypes.slice(), elemTypes: allOutElemTypes.slice() };
+    if (hasOut) {
+        var res = showDualFilterDialog(display, "Step 1 / 3", "Outgoing",
+                                       allOutRelTypes, allOutElemTypes, prevOutRel, prevOutElem);
+        if (res === null) { window.alert("Script cancelled."); exit(); }
+        outFilter = res;
+    }
+
+    inFilter = { relTypes: allInRelTypes.slice(), elemTypes: allInElemTypes.slice() };
+    if (hasIn) {
+        var res = showDualFilterDialog(display, "Step 2 / 3", "Incoming",
+                                       allInRelTypes, allInElemTypes, prevInRel, prevInElem);
+        if (res === null) { window.alert("Script cancelled."); exit(); }
+        inFilter = res;
+    }
+
+    if (outFilter.relTypes.length === 0 && outFilter.elemTypes.length === 0 &&
+        inFilter.relTypes.length  === 0 && inFilter.elemTypes.length  === 0) {
+        window.alert("No types selected — nothing to expand."); exit();
+    }
+
+    // BFS for depth counts
+    var outRelTypeSet = {}, outElemTypeSet = {}, inRelTypeSet = {}, inElemTypeSet = {};
+    outFilter.relTypes.forEach(function(t){ outRelTypeSet[t]=true; });
+    outFilter.elemTypes.forEach(function(t){ outElemTypeSet[t]=true; });
+    inFilter.relTypes.forEach(function(t){ inRelTypeSet[t]=true; });
+    inFilter.elemTypes.forEach(function(t){ inElemTypeSet[t]=true; });
+
+    var bfsResult   = runBFS(seedElements, outRelTypeSet, outElemTypeSet, inRelTypeSet, inElemTypeSet);
+    var maxOutDepth = 0, maxInDepth = 0;
+    Object.keys(bfsResult.outDepthMap).forEach(function(id){ if(bfsResult.outDepthMap[id]>maxOutDepth){ maxOutDepth=bfsResult.outDepthMap[id]; } });
+    Object.keys(bfsResult.inDepthMap).forEach(function(id){  if(bfsResult.inDepthMap[id]>maxInDepth){   maxInDepth=bfsResult.inDepthMap[id];   } });
+
+    var outCountAtDepth = [], inCountAtDepth = [];
+    for (var d = 0; d <= maxOutDepth; d++) { outCountAtDepth[d] = 0; }
+    for (var d = 0; d <= maxInDepth;  d++) { inCountAtDepth[d]  = 0; }
+    bfsResult.allElemsDeep.forEach(function(e) {
+        if (bfsResult.outDepthMap[e.id] !== undefined) { outCountAtDepth[bfsResult.outDepthMap[e.id]]++; }
+        if (bfsResult.inDepthMap[e.id]  !== undefined) { inCountAtDepth[bfsResult.inDepthMap[e.id]]++;  }
+    });
+
+    var defaultOutDepth = savedCriteria ? Math.min(savedCriteria.outDepth, maxOutDepth) : maxOutDepth;
+    var defaultInDepth  = savedCriteria ? Math.min(savedCriteria.inDepth,  maxInDepth)  : maxInDepth;
+    chosenOutDepth = defaultOutDepth;
+    chosenInDepth  = defaultInDepth;
+    var depthConfirmed = false;
+
+    display.syncExec(new java.lang.Runnable({
+        run: function () {
+            var shell = new Shell(display, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+            shell.setText("Step 3 / 3 - Choose Depth");
+            shell.setLayout(new GridLayout(2, false));
+
+            function makeDepthPanel(parent, title, maxDepth, countArr, defaultDepth) {
+                var grp = new Composite(parent, SWT.BORDER);
+                grp.setLayout(new GridLayout(1, false));
+                grp.setLayoutData(new GridData(GridData.FILL_BOTH));
+                new Label(grp, SWT.NONE).setText(title);
+                var sc = new Composite(grp, SWT.NONE);
+                sc.setLayout(new GridLayout(3, false));
+                sc.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+                new Label(sc, SWT.NONE).setText("Max:");
+                var slider = new Slider(sc, SWT.HORIZONTAL);
+                slider.setMinimum(0); slider.setMaximum(maxDepth + 1);
+                slider.setThumb(1); slider.setIncrement(1); slider.setPageIncrement(1);
+                slider.setSelection(defaultDepth);
+                slider.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+                var valLbl = new Label(sc, SWT.NONE);
+                valLbl.setText(String(defaultDepth));
+                var tbl = new Table(grp, SWT.BORDER | SWT.FULL_SELECTION);
+                tbl.setHeaderVisible(true);
+                var tblGD = new GridData(GridData.FILL_BOTH);
+                tblGD.heightHint = Math.min((maxDepth + 2) * 20 + 26, 260);
+                tblGD.widthHint  = 240;
+                tbl.setLayoutData(tblGD);
+                var c1 = new TableColumn(tbl, SWT.NONE); c1.setText("Depth");      c1.setWidth(70);
+                var c2 = new TableColumn(tbl, SWT.NONE); c2.setText("Elements");   c2.setWidth(80);
+                var c3 = new TableColumn(tbl, SWT.NONE); c3.setText("Cumulative"); c3.setWidth(80);
+                return { slider:slider, valLbl:valLbl, table:tbl, maxDepth:maxDepth, countArr:countArr };
+            }
+
+            var outPanel = makeDepthPanel(shell, "Outgoing depth", maxOutDepth, outCountAtDepth, defaultOutDepth);
+            var inPanel  = makeDepthPanel(shell, "Incoming depth", maxInDepth,  inCountAtDepth,  defaultInDepth);
+
+            var summaryLbl = new Label(shell, SWT.WRAP);
+            var sumGD = new GridData(GridData.FILL_HORIZONTAL);
+            sumGD.horizontalSpan = 2; sumGD.widthHint = 540;
+            summaryLbl.setLayoutData(sumGD);
+
+            function fillDepthTable(panel, maxD) {
+                panel.table.removeAll();
+                var cum = 0;
+                for (var d = 0; d <= panel.maxDepth; d++) {
+                    var row = new TableItem(panel.table, SWT.NONE);
+                    row.setText(0, d === 0 ? "0 (seeds)" : String(d));
+                    if (d <= maxD) {
+                        cum += panel.countArr[d];
+                        row.setText(1, String(panel.countArr[d]));
+                        row.setText(2, String(cum));
+                    } else { row.setText(1, "-"); row.setText(2, "-"); row.setGrayed(true); }
+                }
+            }
+
+            function refreshAll() {
+                var od = Math.min(outPanel.slider.getSelection(), maxOutDepth);
+                var id = Math.min(inPanel.slider.getSelection(),  maxInDepth);
+                outPanel.valLbl.setText(String(od));
+                inPanel.valLbl.setText(String(id));
+                fillDepthTable(outPanel, od);
+                fillDepthTable(inPanel,  id);
+                var sub = subsetAtDepths(bfsResult, od, id);
+                summaryLbl.setText("Total:  " + sub.elements.length + " elements,  " + sub.relationships.length + " relationships.");
+                shell.layout(true, true);
+            }
+
+            outPanel.slider.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){ refreshAll(); }));
+            inPanel.slider.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){ refreshAll(); }));
+            refreshAll();
+
+            var okBar = new Composite(shell, SWT.NONE);
+            okBar.setLayout(new GridLayout(2, true));
+            var okGD = new GridData(GridData.FILL_HORIZONTAL);
+            okGD.horizontalSpan = 2; okBar.setLayoutData(okGD);
+            var btns = addOkCancel(okBar, shell, "Next >");
+            btns.btnOK.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){
+                chosenOutDepth = Math.min(outPanel.slider.getSelection(), maxOutDepth);
+                chosenInDepth  = Math.min(inPanel.slider.getSelection(),  maxInDepth);
+                depthConfirmed = true; shell.close();
+            }));
+            btns.btnCancel.addSelectionListener(SelectionListener.widgetSelectedAdapter(function(e){
+                depthConfirmed = false; shell.close();
+            }));
+            centreShell(shell, display);
+            shell.open();
+            while (!shell.isDisposed()) { if (!display.readAndDispatch()) { display.sleep(); } }
+        }
+    }));
+
+    if (!depthConfirmed) { window.alert("Script cancelled."); exit(); }
+}
+
+// -- Final BFS + subset -------------------------------------------------------
+
+var outRelTypeSet = {}, outElemTypeSet = {}, inRelTypeSet = {}, inElemTypeSet = {};
+outFilter.relTypes.forEach(function(t){ outRelTypeSet[t]=true; });
+outFilter.elemTypes.forEach(function(t){ outElemTypeSet[t]=true; });
+inFilter.relTypes.forEach(function(t){ inRelTypeSet[t]=true; });
+inFilter.elemTypes.forEach(function(t){ inElemTypeSet[t]=true; });
+
+var finalBFS         = runBFS(seedElements, outRelTypeSet, outElemTypeSet, inRelTypeSet, inElemTypeSet);
+var finalSubset      = subsetAtDepths(finalBFS, chosenOutDepth, chosenInDepth);
+var allElements      = finalSubset.elements;
+var allRelationships = finalSubset.relationships;
+
+// -- View name ----------------------------------------------------------------
+
+var viewName;
+if (updateMode) {
+    viewName = selectedView.name;
+} else {
+    viewName = window.prompt("Name for the new view:", "Generated View - " + new Date().toLocaleString());
+    if (!viewName) { window.alert("Script cancelled."); exit(); }
+}
+
+// -- Create or update the view ------------------------------------------------
+
+var targetView;
+if (!updateMode) {
+    var targetFolder = null;
+    $("folder").each(function(f){ if (f.name === "Generated Views") { targetFolder = f; } });
+    if (!targetFolder) { targetFolder = model.createFolder("Generated Views", "diagrams"); }
+    targetView = model.createArchimateView(viewName, targetFolder);
+
+    // Initial placement (grid layout)
+    var COLS = Math.ceil(Math.sqrt(allElements.length)) || 1;
+    var CELL_W = 150, CELL_H = 70, PAD_X = 20, PAD_Y = 20, NODE_W = 120, NODE_H = 55;
+    var diagramNodes = {};
+    var placedElemIds = {}, placedRelIds = {};
+
+    allElements.forEach(function(element, index) {
+        var col  = index % COLS;
+        var row  = Math.floor(index / COLS);
+        var node = targetView.add(element, PAD_X + col * CELL_W, PAD_Y + row * CELL_H, NODE_W, NODE_H);
+        diagramNodes[element.id] = node;
+        placedElemIds[element.id] = true;
+    });
+    allRelationships.forEach(function(rel) {
+        var s = diagramNodes[rel.source.id], t = diagramNodes[rel.target.id];
+        if (s && t) { targetView.add(rel, s, t); placedRelIds[rel.id] = true; }
+    });
+
+    targetView.prop("script-placed-elements",      Object.keys(placedElemIds).join(","));
+    targetView.prop("script-placed-relationships",  Object.keys(placedRelIds).join(","));
+} else {
+    targetView = selectedView;
+    updateView(targetView, allElements, allRelationships);
+}
+
+// -- Save criteria + documentation --------------------------------------------
+
+saveCriteria(targetView, seedElements, outFilter, inFilter, chosenOutDepth, chosenInDepth);
+targetView.documentation = buildDocumentation(viewName, seedElements, outFilter, inFilter,
+                                               chosenOutDepth, chosenInDepth, allElements, allRelationships);
+
+// -- Open and report ----------------------------------------------------------
+
+targetView.openInUI();
+window.alert(
+    (updateMode ? "View updated" : "View created") + ": '" + viewName + "'\n" +
+    "  Outgoing depth: " + chosenOutDepth + "\n" +
+    "  Incoming depth: " + chosenInDepth  + "\n" +
+    "  Elements      : " + allElements.length + "\n" +
+    "  Relationships : " + allRelationships.length
+);

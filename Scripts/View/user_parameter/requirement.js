@@ -1,56 +1,26 @@
 /**
- * User defined parameter
- *
- * This definition is read by function get_user_parameter.
- * - defined attributes are inserted (or overwrite) the previous param
- *
+ * Saved from _GUI.ajs
  */
 
 module.exports = {
-  action: View.LAYOUT,
-  includeElementType: [],
-  includeRelationType: [],
-  layoutReversed: [
-    // "aggregation-relationship",
+  "action": "Layout",
+  "includeElementType": [],
+  "includeRelationType": [],
+  "layoutReversed": [
     "assignment-relationship",
-    "association-relationship",
-    // "composition-relationship",
-    // "realization-relationship",
-    // "serving-relationship",
-    // "specialization-relationship",
+    "association-relationship"
   ],
-
-  layoutNested: [
-    // "access-relationship",
+  "layoutNested": [
     "aggregation-relationship",
     "assignment-relationship",
     "association-relationship",
-    // "composition-relationship",
-    "realization-relationship",
-    // "serving-relationship"
-    // "specialization-relationship",
+    "realization-relationship"
   ],
-
-  // viewName: "gen-custom",
-
-  // graphDepth: 1,
-  graphDepth: 0, // layout selected elements and relations of these elements
-
-  // graphDirection: BottomTop, LeftRight, ... "TB", "BT", "LR", "RL"
-  // graphDirection: "LR",
-  graphDirection: "LR",
-
-  // graphAlign: UpLeft, DownRight "UL", "UR", "DL", "DR"
-  // graphAlign: "UL",
-
-  // ranker: "longest-path",
-  // ranker: "tight-tree",
-  ranker: "network-simplex", // default
-
-  nodeWidth: 200,
-  nodeHeight: 60,
-  hSep: 20,
-  vSep: 180,
-
-  debug: false,
+  "graphDepth": 0,
+  "elkDirection": "RIGHT",
+  "nodeWidth": 200,
+  "nodeHeight": 60,
+  "elkSpacingNodeNode": 20,
+  "elkLayerSpacing": 180,
+  "debug": false
 };

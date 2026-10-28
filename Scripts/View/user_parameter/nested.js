@@ -1,42 +1,21 @@
 /**
- * User defined parameter
- *
- * This definition is read by function get_user_parameter.
- * - defined attributes are inserted (or overwrite) the previous param
- * 
+ * Saved from _GUI.ajs
  */
 
 module.exports = {
-  action: View.LAYOUT,
-  layoutReversed: [
-    // "access-relationship",
-    // "aggregation-relationship",
-    // "assignment-relationship",
-    // "association-relationship",
-    // "composition-relationship",
-    // "flow-relationship",
-    // "influence-relationship",
+  "action": "Layout",
+  "layoutReversed": [
     "realization-relationship",
     "serving-relationship",
-    "specialization-relationship",
-    // "triggering-relationship",
+    "specialization-relationship"
   ],
-  layoutNested: [
-    // "access-relationship",
+  "layoutNested": [
     "aggregation-relationship",
-    // "assignment-relationship",
-    // "association-relationship",
-    // "composition-relationship",
-    // "flow-relationship",
     "influence-relationship",
-    // "realization-relationship",
-    // "serving-relationship",
-    "specialization-relationship",
-    // "triggering-relationship",
+    "specialization-relationship"
   ],
-  nodeWidth: 200,
-  nodeHeight: 60,
-  hSep: 40, // space between nodes
-  vSep: 20, // space between ranks 
-
+  "nodeWidth": 200,
+  "nodeHeight": 60,
+  "elkSpacingNodeNode": 40,
+  "elkLayerSpacing": 20
 };

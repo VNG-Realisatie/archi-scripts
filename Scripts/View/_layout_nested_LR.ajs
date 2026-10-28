@@ -16,7 +16,7 @@ let param = {};
 param = View.get_default_parameter(__FILE__);
 
 param.action = View.LAYOUT;
-param.graphDirection = "LR";
+param.elkDirection = "RIGHT";
 param.layoutReversed = [
   // "access-relationship",
   // "aggregation-relationship",
@@ -45,8 +45,8 @@ param.layoutNested = [
 ];
 // param.nodeWidth = 140;
 // param.nodeHeight = 61;
-// param.hSep = 40;
-// param.vSep = 20;
+// param.elkSpacingNodeNode = 40;
+// param.elkLayerSpacing = 20;
 
 View.generate_view(param);
 Common.finishConsoleLog();
