@@ -28,7 +28,6 @@
     "elementSpacing": 10,
     "connectionSpacing": 20,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 20,
     "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
@@ -36,7 +35,7 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "edgeLabelSpacing": true
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementTypes": [
@@ -51,7 +50,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 5,
+        "repeat": 5,
         "elementTypes": [
           "grouping"
         ],

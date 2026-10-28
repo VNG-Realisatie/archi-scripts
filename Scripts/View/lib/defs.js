@@ -35,7 +35,7 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
-  "nestingRelationTypes", "padding",
+  "nestingRelationTypes", "nestingContainerTypes", "padding",
   "sortContainers", "alignWidthSameType", "alignDebug",
   "showInEveryContainer", "containerAlgorithm",
 ]);
@@ -44,7 +44,7 @@ const PARAMS_ELK_NESTING = Object.freeze([
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
 // Graphviz cluster-nesting controls — Dot, Neato, FDP.
-const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "innerSpacing"]);
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "nestingContainerTypes", "innerSpacing"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
 const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
@@ -73,12 +73,13 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
-      "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
-      "edgeLabelSpacing",
+      "direction", "nodePlacement", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
+      "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
+      "connectionLabelSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
+      nodePlacement:      ["Straight", "Compact"],
       routing:            ["Orthogonal", "Polyline", "Splines"],
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Layered", "Grid", "Pack"],
@@ -98,7 +99,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "labelPosition", "reverseRelationTypes",
-      "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
+      "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
       direction:          DIRECTION_VALUES,
@@ -191,8 +192,8 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS,
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "sortContainers",
-      "layerSpacing", "elementSpacing", "connectionSpacing", "nodeSizeByEdgeCount",
+      "nestingRelationTypes", "nestingContainerTypes", "sortContainers",
+      "layerSpacing", "elementSpacing", "connectionSpacing",
     ],
     supportedOptions: {
       direction:     DIRECTION_VALUES,
@@ -213,7 +214,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "layerSpacing", "elementSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount", "reverseRelationTypes",
+      "layerSpacing", "elementSpacing", "connectionElementSpacing", "connectionSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
       direction:     DIRECTION_VALUES,
@@ -374,6 +375,16 @@ const RANKING = Object.freeze([
   { val: "Top-aligned" },
 ]);
 
+// ── Element placement within a layer (Layered only) ───────────────────────────
+// Engine-specific strategy identifiers live in engines/elk.js.
+
+const NODE_PLACEMENT = Object.freeze([
+  { val: "Straight", default: true,
+    tooltip: "Aligns elements so connections run as straight as possible (fewest bends)." },
+  { val: "Compact",
+    tooltip: "Shortest total connection length; usually a smaller view, with a few more bends." },
+]);
+
 // ── Acyclicer options (Dagre only) ────────────────────────────────────────────
 
 const ACYCLICER = Object.freeze([
@@ -518,12 +529,14 @@ const DEFAULT_PRESET = Object.freeze({
   algorithm: "Layered",
   params: {
     direction:             "Right",
+    nodePlacement:         "Straight",              // "Straight" | "Compact" (Layered only)
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
     acyclicer:             "Default",
     reverseRelationTypes:  [],
     nestingRelationTypes:  [],
+    nestingContainerTypes: [],                     // element types allowed as container; [] = any
     innerSpacing:          20,
     padding:               20,
     diagramPadding:        10,
@@ -533,12 +546,11 @@ const DEFAULT_PRESET = Object.freeze({
     snapColumnsToGrid:     false,
     showInEveryContainer:  false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
-    connectionsMode:       "Between containers",   // "Between containers" | "Crossing containers"
+    connectionsMode:       "Crossing containers",  // "Crossing containers" | "Between containers"
     layerSpacing:          180,
     elementSpacing:        40,
-    connectionSpacing:        20,
+    connectionSpacing:        25,              // also the port spacing on elements (ELK: portPort)
     connectionElementSpacing: 40,
-    nodeSizeByEdgeCount:      25,
     elementWidth:          140,
     elementHeight:         60,
     maxWidth:              0,
@@ -546,7 +558,7 @@ const DEFAULT_PRESET = Object.freeze({
     viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
     labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
     labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
-    edgeLabelSpacing:      false,  // treat edge labels as layout constraints in ELK Layered (prevents overlap)
+    connectionLabelSpacing:      false,  // reserve space for connection labels in ELK Layered (prevents overlap)
   },
   filter: {
     elementTypes:  [],
@@ -554,7 +566,7 @@ const DEFAULT_PRESET = Object.freeze({
     diagramTypes:  [],
   },
   relatedElements: {
-    steps: [],  // each: { depth, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
+    steps: [],  // each: { repeat, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
   },
   view: {
     name:   "",
@@ -602,10 +614,37 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMinHeight:   30,
 });
 
-// Forced layer spacing (px) used by ELK Layered when edgeLabelSpacing is on.
-// Overrides the user's Layer spacing spinner so ELK has enough room between
-// layers to route connections around their labels without manual tuning.
-const EDGE_LABEL_LAYER_SPACING = 20;
+// Minimum distance (px) between an element and the first / last bendpoint of a connection,
+// so the bend never falls inside the end decoration Archi draws there (diamond, arrowhead).
+// Floor for connectionElementSpacing between layers (ELK Layered: edgeNodeBetweenLayers).
+const CONNECTION_END_CLEARANCE = 25;
+
+// ── Step repeat ───────────────────────────────────────────────────────────────
+// A step's `repeat` is 1–5 (run the step that many times, each run starting from the
+// previous run's additions) or REPEAT_UNTIL_NOTHING_NEW (run until a run adds nothing,
+// capped at REPEAT_MAX so a broad filter cannot walk the whole model).
+const REPEAT_UNTIL_NOTHING_NEW = "untilNothingNew";
+const REPEAT_MAX               = 10;
+const REPEAT_OPTIONS = Object.freeze([
+  { value: 1, label: "1×" },
+  { value: 2, label: "2×" },
+  { value: 3, label: "3×" },
+  { value: 4, label: "4×" },
+  { value: 5, label: "5×" },
+  { value: REPEAT_UNTIL_NOTHING_NEW, label: "until nothing new" },
+]);
+
+/** Normalise a preset/GUI repeat value to a REPEAT_OPTIONS value; anything unknown → 1. */
+function normalizeRepeat(v) {
+  const opt = REPEAT_OPTIONS.find(o => o.value === v || String(o.value) === String(v));
+  return opt ? opt.value : 1;
+}
+
+/** Number of runs a repeat value allows (REPEAT_MAX for until-nothing-new). */
+function repeatMaxRuns(v) {
+  const r = normalizeRepeat(v);
+  return r === REPEAT_UNTIL_NOTHING_NEW ? REPEAT_MAX : r;
+}
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -682,7 +721,7 @@ function validatePreset(raw) {
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
   if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
     preset.relatedElements.steps = raw.relatedElements.steps.map(step => ({
-      depth:         Number(step.depth)         || 1,
+      repeat:        normalizeRepeat(step.repeat),
       elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
       relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
       diagramTypes:  Array.isArray(step.diagramTypes)  ? step.diagramTypes  : [],
@@ -810,7 +849,7 @@ if (typeof module !== "undefined" && module.exports) {
     STYLES, ALGORITHMS, ALGO_ENGINE,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
+    RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
@@ -820,8 +859,9 @@ if (typeof module !== "undefined" && module.exports) {
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS,
-    EDGE_LABEL_LAYER_SPACING,
+    CONNECTION_END_CLEARANCE,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
+    REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
   };
 }

@@ -1,0 +1,139 @@
+{
+  "name": "Bedrijfsproces/Taak",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
+    "showInEveryContainer": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 180,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": true,
+    "labelMaxLineWidth": 160,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementTypes": [],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "elementTypes": [],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
+      },
+      {
+        "repeat": 1,
+        "elementTypes": [],
+        "relationTypes": [
+          "aggregation-relationship:out",
+          "triggering-relationship"
+        ],
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
+      },
+      {
+        "repeat": 1,
+        "elementTypes": [],
+        "relationTypes": [
+          "triggering-relationship"
+        ],
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "view": {
+    "name": "Verzorgen burgerzaken",
+    "folder": "/_Generated"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "GEMMA type",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "_lastTabIndex": 0,
+  "description": "Selecteer een taak (bedrijfsproces) en genereer genest plaat met processen en gebeurtenissen",
+  "action": "new_view"
+}

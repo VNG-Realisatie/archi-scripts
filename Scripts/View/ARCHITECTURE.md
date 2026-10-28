@@ -93,7 +93,7 @@ Internal names must not appear in GUI labels or button text. Tooltips may use th
 | Element alignment | Node placement |
 | Level spacing | Layer spacing |
 | Element spacing | Node spacing |
-| Relation levels | Depth, hops |
+| Repeat | Runs, hops |
 | Layer ranking | Ranker |
 | Tight packing, Pack | rectpacking |
 | Preset | Parameter file, config file |
@@ -194,7 +194,7 @@ Three inputs:
   - *Algorithm* — which layout engine and algorithm to use.
   - *Layout parameters* — spacing, direction, routing style, view-size constraints, nesting and reversal flags.
   - *Filters* — element types, relation types (with per-direction toggles), diagram-object types to include.
-  - *Related-elements layers* — an ordered list of expansion steps, each specifying which relation types to follow, how many hops, and an element-type pruning filter.
+  - *Related-elements layers* — an ordered list of expansion steps, each specifying which relation types to follow, how often to repeat, and an element-type pruning filter.
   - *View naming* — folder and name used when creating new views.
 - **Action** — a runtime verb, never part of the preset:
   - `NEW_VIEW` — create a fresh view from the full selection.
@@ -265,10 +265,10 @@ Preset {
 
     reverseRelationTypes : RelTypeId[]  // Relations drawn reversed
     nestingRelationTypes : RelTypeId[]  // Relations drawn as nesting
+    nestingContainerTypes: ElementTypeId[] // Element types allowed as container; [] = any
 
     innerSpacing, padding, layerSpacing,    // Level spacing,
     elementSpacing,                         // Element spacing
-    nodeSizeByEdgeCount,                    // inflate hub nodes by edge count (0 = off)
     elementWidth, elementHeight : numbers   // element size
 
     maxWidth, maxHeight, aspectRatio        // View size constraints
@@ -284,7 +284,9 @@ Preset {
     containerAlgorithm : string     // Algorithm for children inside containers:
                                     // "Layered" | "Grid" | "Pack"
     connectionsMode    : string     // How cross-container connections are routed:
-                                    // "Between containers" | "Crossing containers"
+                                    // "Crossing containers" | "Between containers"
+    nodePlacement      : string     // Element placement within a layer (Layered):
+                                    // "Straight" | "Compact"
   }
 
   filter {
@@ -367,7 +369,10 @@ Preset {
 }
 
 Step {
-  depth          : int   ≥ 1            // Recurrence (hops within this step)
+  repeat         : 1..5 | "untilNothingNew"
+                                        // runs of this step; each run starts from the previous
+                                        // run's additions. "untilNothingNew" stops when a run adds
+                                        // nothing, capped at REPEAT_MAX (10) runs
   elementTypes   : ElTypeId[]           // prune this step's additions
   relationTypes  : EncodedRelTypeId[]   // direction-aware (see below)
   diagramTypes   : DgTypeId[]           // unused (diagram objects don't traverse)
@@ -477,7 +482,7 @@ The Selection tab decides *which* objects feed the layout: the counts group at t
   │  │ │  ──────────────────────────────────────────────────────────── │  │  │
   │  │ │  access ○← ○→  aggregation ○← ○→  assignment ○← ○→  …         │  │  │
   │  │ │  Filter element types:  [chip selector]                       │  │  │
-  │  │ │  Depth: [1  ▲▼]  Property: [          ▼]  Value: [          ▼] │  │  │
+  │  │ │  Repeat: [1×  ▼]  Property: [         ▼]  Value: [          ▼] │  │  │
   │  │ └───────────────────────────────────────────────────────────────┘  │  │
   │  │ ┌─ Step 2 ──────────────────────────────────────────────────────┐  │  │
   │  │ │  Added:  nothing                        [▲] [▼] [▸] [✕]       │  │  │
@@ -498,7 +503,7 @@ The **Current selection** group shows three summary lines and a per-block counte
 
 Only types with count > 0 are rendered on each line. Empty selection renders `Selected: nothing` (no First-object suffix).
 
-Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, depth control, property/value filter, and block ordering operation.
+Counts are driven by the same selection-pipeline functions the view-generation API uses ([Selection pipeline](#selection-pipeline)) — specifically `Pipeline.expandStep(stepInput, step)` per block — so the displayed counts match the post-confirm result exactly. Counts update on every change to a filter control, relation toggle, element-type filter, repeat control, property/value filter, and block ordering operation.
 
 Each refresh emits a grouped block to the Archi console (mirroring the pipeline's own block on action click) so the user can compare prediction to result:
 
@@ -521,7 +526,7 @@ The `Total to view` row is grouped into three sub-lines: **elements** (container
 
 The additive rule is exact: `Filtered.elements + Σ Step N.adds.elements = Total.elements` AND `Filtered.relations + Σ Step N.adds.relations = Total.relations`. Per-step `adds.relations` is the count of new relations found in that step's pass: relations of the step's type where at least one endpoint was in the cumulative set *before* this step (old×old, old→new, new→old — new×new excluded), minus any already counted in a prior pass. Not a count of raw-selection relations.
 
-The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, depth change, property/value filter change, block reorder) push the same values to that label and to the console.
+The on-screen "Generated view" group (folder/name fields, below the tabs) carries a multi-line `Output:` strip with the same grouped totals, **hide-zero**: subfields with value 0 are omitted, and a sub-line whose every subfield is 0 is skipped entirely. Live counter refreshes (every filter change, block edit, repeat change, property/value filter change, block reorder) push the same values to that label and to the console.
 
 #### Global filter
 
@@ -538,7 +543,7 @@ The Related-elements group (GUI title: **Expand selection**) opens with a one-li
 - **Header row**: `Added:` count label; reorder (▲ ▼); collapse/expand (▾/▸); remove (✕).
 - **Relation types**: per relation type, two independent direction checkboxes (same encoding as the global filter).
 - **Element-type filter** (block-scoped — prunes only what this block adds).
-- **Depth** (≥ 1; hops to follow) · **Property** / **Value** (optional property=value gate; blank = inactive). Only elements whose named property equals the chosen value are added. The Property combo is populated from elements reachable by this step's relation and element-type filters (dry-run without the gate); the Value combo cascades from the selected property.
+- **Repeat** (`1×`–`5×` or `until nothing new`, max 10 runs; the `Adds:` label then shows `(nothing new after N×)` or `(stopped at max 10×)`) · **Property** / **Value** (optional property=value gate; blank = inactive). Only elements whose named property equals the chosen value are added. The Property combo is populated from elements reachable by this step's relation and element-type filters (dry-run without the gate); the Value combo cascades from the selected property.
 
 Each step's additions feed the next step's input — chain ([Steps](#steps) section Step 3). An empty step terminates the chain.
 
@@ -555,24 +560,26 @@ The Layout tab decides *how* objects are positioned.
 │ │   Compact:  ○ Grid      ○ Pack                                        │ │
 │ │  Circular:  ○ Radial    ○ Twopi    ○ Circo                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Element size and spacing ────────────────────────────────────────────┐ │
-│ │  Width: [140 ▲▼]  ☑ Width by label length    Max width: [400 ▲▼]     │ │
-│ │  Height: [60 ▲▼]  Element spacing: [40 ▲▼]   Port spacing: [25 ▲▼]   │ │
-│ │  Layer spacing: [180 ▲▼]  ☑ Layer spacing by label width              │ │
+│ ┌─ Elements ────────────────────────────────────────────────────────────┐ │
+│ │  Size:     Width   [140]  ☐ By label        Max width [400]           │ │
+│ │            Height  [ 60]                                              │ │
+│ │  Spacing:  Element [ 40]  Layer  [180]                                │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
-│ ┌─ Direction ───────────────────────────────────────────────────────────┐ │
-│ │  Flow direction:  [Left → Right  ▼]                                   │ │
+│ ┌─ Flow ────────────────────────────────────────────────────────────────┐ │
+│ │  Order:    Direction [Right ▼]  Cycles [Greedy ▼]  Ranking [Balanced ▼] │
+│ │  Placement: Elements [Straight ▼]                                     │ │
 │ │  ── Reversed - draw these relation types in other direction ────────  │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Connections ─────────────────────────────────────────────────────────┐ │
-│ │  Routing: [Orthogonal ▼]  Label: [Middle ▼]  Cycle breaking: [Greedy ▼] │
-│ │  Layer ranking: [Balanced ▼]                                          │ │
-│ │  Connection spacing: [20 ▲▼]   Connection-element spacing: [40 ▲▼]   │ │
+│ │  Line:     Routing [Orthogonal ▼]  Label [Middle ▼]  ☐ Reserve label space │
+│ │  Spacing:  Between [ 25]  To element [ 40]                            │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting     ─────────────────────────────────────────────────────────┐ │
 │ │  Draw these relation types as containers                              │ │
 │ │  ○ access  ○ aggregation  ○ assignment  ○ association  …              │ │
+│ │  Container types: [Any element | Grouping only | Selected types ▼]    │ │
+│ │  (Selected types → element-type chip selector)                        │ │
 │ │  ── Inside container ───────────────────────────────────────────────  │ │
 │ │  Container layout: [Layered ▼]  Connections: [Between containers ▼]  │ │
 │ │  Inner spacing: [10 ▲▼]  Padding: [10 ▲▼]                             │ │
@@ -618,41 +625,41 @@ Algorithm radio button tooltips:
 | Twopi | Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz) |
 | Circo | Cyclic dependency and domain overviews with limited nesting support (Graphviz) |
 
-#### Element size and spacing
+Elements, Flow and Connections share one column grid: a row heading (*Size:*, *Spacing:*, …) followed by up to three label/control pairs; a checkbox takes a whole pair. Every column takes the width of its widest single-column cell across all three groups (`_formRow` / `_alignFormColumns` in `dialog_main.js`), so fields line up vertically between the groups. Field names are short; the row heading gives the context, the tooltip the full description.
 
-| Parameter | Description |
-|---|---|
-| Element width | Width of all elements (px). Disabled when "Width by label length" is on. |
-| Width by label length | Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only). |
-| Max width | Maximum label pixel width before wrapping to two lines (px). Active when "Width by label length" is on. |
-| Element height | Height of all elements (px). Disabled when "Width by label length" is on. |
-| Element spacing | Minimum distance between elements (px). |
-| Port spacing | Adds extra element size based on connections on the busiest side. 0 = disabled. |
-| Layer spacing | Distance between hierarchy levels (px). Disabled when "Layer spacing by label width" is on. |
-| Layer spacing by label width | Labels participate as ELK layout constraints; routing expands to prevent overlap. Forces layer spacing to 20 px. Layered only. |
+Parameters are active only for algorithms that support them (see [Algorithm capability matrix](#algorithm-capability-matrix)); unsupported parameters are greyed.
 
-#### Direction
+#### Elements
 
-Parameters in this group are active only for algorithms that support them (see [Algorithm capability matrix](#algorithm-capability-matrix)); unsupported parameters are greyed.
+| Row | Field | Parameter | Description |
+|---|---|---|---|
+| Size | Width | `elementWidth` | Width of all elements (px). Disabled when *By label* is on. |
+| (Size) | Height | `elementHeight` | Height of all elements (px). Disabled when *By label* is on. |
+| Size | By label | `labelSizing` | Derive element width and height from the label text; long labels wrap to 2 lines (Pack and Grid only). |
+| Size | Max width | `labelMaxLineWidth` | Maximum label width before wrapping to two lines (px). Active when *By label* is on. |
+| Spacing | Element | `elementSpacing` | Minimum distance between elements (px). |
+| Spacing | Layer | `layerSpacing` | Distance between layers (px). With *Reserve label space*, a gap holding a long label widens to label + 2 × *Between*. |
 
-| Parameter | Tooltip |
-|---|---|
-| Flow direction | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
+#### Flow
+
+| Row | Field | Parameter | Description |
+|---|---|---|---|
+| Order | Direction | `direction` | Direction of the main flow. Used in layered, tree, and directed flow algorithms. |
+| Order | Cycles | `acyclicer` | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
+| Order | Ranking | `ranking` | How elements are assigned to layers. Balanced: minimises edge lengths. Uniform: shallowest possible layer. Top-aligned: pulled to the deepest layer. |
+| Placement | Elements | `nodePlacement` | Where elements sit within their layer. Straight (`BRANDES_KOEPF`): aligned for straight connections, fewest bends. Compact (`NETWORK_SIMPLEX`): shortest total connection length, usually a smaller view, a few more bends; crossings are the same. Layered only. |
 
 **Reversed** — a checkbox per relation type. Checked types have their source/target swapped in the layout graph so the engine traverses them in the reversed direction — meaningful for ranking algorithms where direction drives hierarchy. See [Engine adapter contract](#engine-adapter-contract).
 
 #### Connections
 
-Parameters in this group are active only for algorithms that support them; unsupported parameters are greyed.
-
-| Parameter | Tooltip |
-|---|---|
-| Routing | How connection lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
-| Label | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
-| Cycle breaking | How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles. |
-| Layer ranking | Strategy for placing elements in the same level. Balanced: minimises crossing. Uniform: equal rank increments. Top-aligned: pulled to the top. |
-| Connection spacing | Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability. |
-| Connection-element spacing | Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements. |
+| Row | Field | Parameter | Description |
+|---|---|---|---|
+| Line | Routing | `routing` | How connection lines are drawn. Orthogonal: right-angle bends. Polyline: diagonal. Straight: direct line. Spline: smooth curve (Graphviz only, approximated). |
+| Line | Label | `labelPosition` | Source / Middle / Target. Natural (Graphviz only): Graphviz-computed position, avoids overlap. |
+| Line | Reserve label space | `connectionLabelSpacing` | Reserve space for each connection label so labels don't overlap other labels, connections or elements. A layer gap stays *Layer* wide and widens to label + 2 × *Between* where a label needs it (plus room for bends next to the label). Layered only. See [Edge label placement](#edge-label-placement-connectionlabelspacing-mode). |
+| Spacing | Between | `connectionSpacing` | Distance between parallel connections **and** between the connection points (ports) on one side of an element (px). One value for both, so parallel connections run straight into the element. Elements grow to fit their connections; 0 = no growth. ELK Layered: `spacing.edgeEdge`/`edgeEdgeBetweenLayers` + `spacing.portPort`/`portsSurrounding`, ports centred (`portAlignment CENTER`), leaves sized by ELK (`nodeSize.constraints [PORTS, MINIMUM_SIZE]`). |
+| Spacing | To element | `connectionElementSpacing` | Minimum distance between a connection and elements it passes near (px). Between an element and the first / last bend at least `CONNECTION_END_CLEARANCE` (25 px), so the bend stays clear of Archi's end symbol (diamond, arrowhead) — ELK Layered `edgeNodeBetweenLayers = max(value, 25)`. |
 
 #### Nesting
 
@@ -800,7 +807,7 @@ Output:
   relations:   11 nestings · 98 connections
 ```
 
-The structure matches the console's `Total to view:` row (same sub-lines: elements / relations / diagram). On-screen hides subfields whose value is 0 and skips a sub-line when all its subfields are 0; the console keeps everything visible for stable log columns. The strip refreshes on every dialog change (filter toggle, block edit, depth change, block reorder) so the user sees the predicted view contents in real time — without opening a console.
+The structure matches the console's `Total to view:` row (same sub-lines: elements / relations / diagram). On-screen hides subfields whose value is 0 and skips a sub-line when all its subfields are 0; the console keeps everything visible for stable log columns. The strip refreshes on every dialog change (filter toggle, block edit, repeat change, block reorder) so the user sees the predicted view contents in real time — without opening a console.
 
 | Action | Naming rule |
 |---|---|
@@ -973,7 +980,7 @@ Step 2  Apply the global Filter
 
 Step 3  Related-elements expansion (chain)
   For each ordered step in preset.relatedElements.steps:
-    hops   = _expandStepFrontiers(input, step)   (one array per depth hop)
+    hops   = _expandStepFrontiers(input, step)   (one array per run; stops early on an empty run)
     additions = hops.flat()
     final-selection = final-selection ∪ additions
     prevHopFrontier = step input (for hop 1); previous hop's elements (for hop 2+)
@@ -1025,7 +1032,7 @@ Step 6  Partition diagram objects
 - **Sets, not lists.** No duplicate concepts; no duplicate relations.
 - **Filter is non-destructive to nesting.** Filtering an element does not remove its descendants from the nesting structure of other elements that survive the filter.
 - **Dialog and pipeline share the per-step relation filter.** The dialog's live per-block `Adds:` counter is a faithful preview of what Step 5 will collect for that block — both call `expandStepFrontiers` and then `findRelationsBetween` per-hop identically, direction-aware, using the previous hop's frontier as the iteration collection so inter-hop relations (hop1→hop2, etc.) are included and intra-step cross-relations to earlier-step elements are excluded.
-- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all depth hops of new relations found in each hop's pass (direction-aware, between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
+- **Additive equation is exact** for both elements and relations: `Filtered + Σ Step N.adds = Total` (digit-for-digit, no caveat). Per-step `adds.rels` is the sum across all runs (hops) of new relations found in each hop's pass (direction-aware, between the hop's frontier and its triggering collection, new×new per-hop excluded), minus any already counted in a prior pass. Never a raw-selection rel count, never an orphan-counting shortcut.
 - **Element categories partition `elements`.** `elements = containers + nestedElements + standalones`, by construction. The element count always matches the source selection after expansion/filter/expand — adding `showInEveryContainer: true` does not inflate it. `extraOccurrences` (extra visual appearances under multiple containers) is a **separate** field, never folded into any of the element categories.
 - **Relation forms partition `relations` on the view.** Every relation in the object set is either a nesting or a connection, by construction: `relations = nestings + connections`. View-side count rows use **nestings** and **connections** — never "relations" (which is a model-layer word).
 - **Single nesting algorithm.** Pipeline (`predictViewCounts`) and writer (`_buildLayoutGraph`) both call `Pipeline.resolveNesting(elements, nestingRels, params)`. No duplicated logic, no drift between prediction and result.
@@ -1040,13 +1047,13 @@ When nesting is active, two additional parameters control how ELK lays out conta
 | Parameter | Values | Effect |
 |---|---|---|
 | `containerAlgorithm` | `"Layered"` (default), `"Grid"`, `"Pack"` | ELK algorithm used to arrange children **inside** each container. Maps to `layered`/`box`/`rectpacking`. |
-| `connectionsMode` | `"Between containers"` (default), `"Crossing containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; cross-container connections route to/from the container as an opaque box. `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. |
+| `connectionsMode` | `"Crossing containers"` (default), `"Between containers"` | `Between containers` → `SEPARATE_CHILDREN`: each container is laid out independently; with Layered root and container, cross-container connections pass the container border through a hierarchical port and continue to the element inside (otherwise they route to/from the container as an opaque box). `Crossing containers` → `INCLUDE_CHILDREN`: the root algorithm sees all nodes (nested and standalone) as one graph; connections route directly to the specific element inside the container. Default because crossing minimisation then spans all levels: with `SEPARATE_CHILDREN` the port order on each container border is fixed by its inner layout before the outer layout runs, which leaves crossings the outer layout cannot remove. |
 
 Valid combinations (all with root = algorithm selected by the user):
 
 | Root | Container | Connections | Cross-container edges | Container children |
 |---|---|---|---|---|
-| Layered | Layered | Between containers | Lifted to root, routed by Layered | Laid out with Layered |
+| Layered | Layered | Between containers | Routed by Layered via hierarchical ports on container borders | Laid out with Layered |
 | Layered | Grid | Between containers | Lifted to root, routed by Layered | Compactly packed |
 | Layered | Grid | Crossing containers | Root sees all, routes directly | Compactly packed |
 | Layered | Pack | Between containers | Lifted to root, routed by Layered | Packed with order |
@@ -1066,8 +1073,10 @@ Valid combinations (all with root = algorithm selected by the user):
 
 Every relation in the pipeline's output is assigned an initial role:
 
-- **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes`.
+- **Nesting** — if the relation's type is in `preset.params.nestingRelationTypes` **and** its parent (source; target for reversed types) has a type in `preset.params.nestingContainerTypes` (empty = any type).
 - **Routed** — otherwise.
+
+Both the writer and the dialog counters use `splitNestingRels` (selection_pipeline.js) for this split.
 
 The set in the preset is the only authority. Initial role assignment is total (no relation is left unassigned) and deterministic (same inputs → same roles).
 
@@ -1272,11 +1281,25 @@ LayoutResult {
 
 Element labels are intrinsic to nodes — the result carries no separate element-label coordinates. The writer places each node's `label` inside the node's bounds at its standard position.
 
-#### Edge label placement (`edgeLabelSpacing` mode)
+#### Edge label placement (`connectionLabelSpacing` mode)
 
-When `edgeLabelSpacing` is on (ELK Layered only), each edge in the input graph carries a `labels` entry with the label's pixel dimensions. ELK routes the edge to reserve clearance around the label and returns the computed label center in `result_edge.labels[0].{x, y}` (container-relative coordinates). The adapter reads this and stores the absolute center as `labelX / labelY` in the LayoutResult edge, overriding the default geometry-based computation.
+When `connectionLabelSpacing` is on (ELK Layered only), each edge in the input graph carries a `labels` entry with the label's estimated pixel dimensions — the same `_textWidth` estimate and tuning (`LABEL_SIZING_DEFAULTS` + preset `engineParams.layout`) as label-based node sizing; one line per `\n`, plus `labelHPadding` / `labelVPadding` as margin. Each label is `elk.edgeLabels.inline`: ELK centres it on the line (as Archi draws it) and reserves that box and returns the computed label center in `result_edge.labels[0].{x, y}` (container-relative coordinates). The adapter reads this and stores the absolute center as `labelX / labelY` in the LayoutResult edge, overriding the default geometry-based computation.
 
-Archi places a connection label at the **arc-length midpoint** of the bendpoint path (`textPosition = CENTER`). For L-shaped orthogonal edges where the vertical segment is taller than the horizontal, this midpoint falls in the vertical piece — away from where ELK reserved label space (typically a horizontal, flow-direction segment). The writer compensates by computing the arc distance `D` from source to the ELK label position, then injecting a perpendicular tab of arc-length `|L − 2D|` on a segment away from the label. This shifts the arc-midpoint to the ELK label position without moving the label itself. See `_applyEdgeStyle` in `generate_view.js`.
+**Layer gaps** (`_labelBox` in `elk.js`). ELK puts a label in its own label layer, with the layer spacing on both sides — the same setting as between two elements. So in this mode ELK's layer spacing is set to `connectionSpacing` (*Between*), and **every** connection gets a label box stretched in the flow direction to at least `layerSpacing − 2 × connectionSpacing`; connections without a label get an invisible box (placeholder text, 0 px thick — ELK ignores labels with empty text; `_collectEdgeResults` skips these boxes). Result per gap between two element layers:
+
+| | Width |
+|---|---|
+| no label | `layerSpacing` |
+| label of length W | `max(layerSpacing, W + 2 × connectionSpacing)` |
+| element → label | `max(connectionSpacing, (layerSpacing − W) / 2)` |
+
+ELK only bends connections in the narrow channels between an element layer and a label layer, never inside the label layer. A channel with bends grows to fit them (`edgeNodeBetweenLayers` on both sides, `edgeEdgeBetweenLayers` between bends), so a gap where connections both carry a label and bend is wider than the table by that routing room.
+
+Archi places a Middle connection label at the **middle point by index** of the drawn point list (source anchor, bendpoints, target anchor — draw2d `ConnectionLocator.MIDDLE`); for an even count, at the midpoint of the middle segment. The writer (`_insertLabelMidpointBp` in `generate_view.js`) snaps the ELK label centre onto the nearest path segment, makes it a bendpoint (or reuses the bendpoint it coincides with), and adds collinear bendpoints on the shorter side until the same number of bendpoints lies before and after it. The route is unchanged; the label lands exactly where ELK reserved its space.
+
+#### Jog straightening
+
+ELK's node placement cannot always put a long segment exactly in line with the port it leaves, and then routes a tiny jog (1–3 px) right after the port. `_straightenJogs` in `elk.js` removes every perpendicular jog shorter than `JOG_MAX` (5 px) between two parallel segments: the shorter of the two moves onto the longer one's line, shifting a path end along the element side by less than `JOG_MAX`. Real bends are kept. Orthogonal and polyline routing only.
 
 ### View-size constraints
 
@@ -1587,8 +1610,8 @@ Algorithmic structures used by the pipeline (and consumed by `_buildLayoutGraph`
 | `childIds` | the set of element ids that have a parent | nested elements (counted) |
 | `containerIds` | the set of element ids that are parents | containers (counted) |
 | `occurrenceMap` | element id → list of occurrence ids | occurrences |
-| `routedRels` | array of relations whose type is NOT in `nestingRelationTypes` | connections |
-| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` | nestings |
+| `routedRels` | array of relations not selected as nesting (type or container type rejected) | connections |
+| `nestingRels` | array of relations whose type IS in `nestingRelationTypes` and whose parent type is allowed | nestings |
 | `parentRels` | nesting bindings (`{rel, srcOccId, tgtOccId}`) that survived multi-parent resolution | applied nestings |
 
 ## Orchestrator — generate_view.js
@@ -1720,12 +1743,13 @@ Three adapters, one per engine. Each lives in `Scripts/View/lib/engines/` and im
 
 Nesting uses `elk.hierarchyHandling: "INCLUDE_CHILDREN"` on the graph plus `parent` on each node. Radial pre-processing: `_spanningTree` (BFS) removes cycles and joins disconnected components with virtual edges (`id: "__span_N"`, `_archiRelId: null` so the writer ignores them). Self-loops: algorithms with `supportsSelfLoops: false` (Tree, Force, Stress, Radial, Grid, Pack) have self-loops excluded from the layout graph in `_buildLayoutGraph` (`generate_view.js` — `srcId === tgtId && !supportsSelfLoops` → skipped) so they never reach ELK, and any existing self-loop VisualRelations are deleted from the target view before the relation loop — they are **not drawn**. Layered (`supportsSelfLoops: true`) includes self-loops in the ELK graph and uses the routed sections from ELK. Placement is controlled by `elk.layered.edgeRouting.selfLoopDistribution` (default `EQUALLY`) and `selfLoopOrdering` (default `SEQUENCED`). The writer falls back to `_synthesiseSelfLoopBendpoints` (NE-corner loop) only when ELK returns an empty section (no bendpoints).
 
-**Cross-hierarchy edge handling — `_liftCrossHierarchyEdges`.** `_classifyEdges` routes same-immediate-parent edges into their container's `edges[]` array; all other edges (cross-hierarchy and root-level) go into `rootEdges[]`. `_liftCrossHierarchyEdges` then processes `rootEdges` in two modes:
+**Cross-hierarchy edge handling — `_placeEdges`.** Every edge is stored in the `edges[]` of its lowest common ancestor container (LCA; `root` when the endpoints share no container). ELK's default edge coordinates (`elk.json.edgeCoords: CONTAINER`) are relative to that LCA, so `_collectEdgeResults` offsets each edge by the container it is stored in. Edges whose endpoints are not both direct children of the LCA cross container boundaries and are handled per mode:
 
-- **SEPARATE_CHILDREN** (`Between containers`): each nested endpoint ID is replaced with its topmost root-level ancestor ID. ELK routes between the opaque container boundaries. The original IDs are stored in `liftedEdgesMap`; `_collectEdgeResults` uses the map to restore them on the result edge so the writer can locate the correct visual relation.
-- **INCLUDE_CHILDREN** (`Crossing containers`): original nested element IDs are kept — `liftedEdgesMap` stays empty. ELK receives the actual element IDs and routes the full path, including the segment inside the container. `_collectEdgeResults` concatenates all `edge.sections` (not only `[0]`) because ELK may split a cross-hierarchy route into one section per hierarchy level.
+- **INCLUDE_CHILDREN** (`Crossing containers`): the original nested element IDs are kept and ELK routes the full path. `_collectEdgeResults` concatenates all `edge.sections` because ELK may split a cross-hierarchy route into one section per hierarchy level.
+- **SEPARATE_CHILDREN, root and container Layered** (`Between containers`): the edge is split into segments joined by a **hierarchical port** on every crossed container (`element → port(parent) → … → port(parent) → element`). Each segment lives in the container that owns it, and the label goes on the LCA segment. Because the inner segment is part of the container's own layout, the inner element reserves port space for the outside connection and the route reaches the container border at the right height; the outer layout connects to the port position the inner layout chose. `_collectEdgeResults` buffers the segments (`edgeMeta.segOf`) and joins them into one path. Junction points where the path runs straight through are dropped. A connection that ends on a container itself (not on an element inside it) also goes through a port on that container: once a container has hierarchical ports, ELK places the implicit port of a direct connection at the container's top-left corner, so Archi draws it into the corner. The explicit port has no inner segment; the inner layout puts it on the side that matches the outside connection's direction.
+- **SEPARATE_CHILDREN, other algorithms**: each nested endpoint is replaced by its ancestor that is a direct child of the LCA, so ELK routes between opaque container boxes (`edgeMeta` restores the original IDs).
 
-Both modes filter edges where `liftedSrc === liftedTgt` (both endpoints share the same topmost ancestor) — those edges are already owned by the shared container and must not appear as duplicates in root.
+Edges between a container and one of its own descendants cannot be laid out and are skipped (the writer draws them unrouted).
 
 **`engineParams` — hidden parameters block.** `DEFAULT_PRESET.engineParams` in `defs.js` is the SSOT for all defaults. A preset file only needs entries it wants to change; missing keys inherit from `DEFAULT_PRESET`. Resolved by `_mergeEngineParams` in `generate_view.js` (deep-merge per engine key) before any engine sees the graph.
 
@@ -1736,7 +1760,7 @@ The block has four sub-objects, one per engine plus a shared `layout` section:
 | `ELK` | `elk.js` — spread into root `layoutOptions` AND every node's `layoutOptions` (target:NODES options require per-node placement) | Full ELK option string, e.g. `"elk.spacing.edgeEdge": 10` |
 | `Dagre` | `dagre.js` — `Object.assign` into `g.setGraph()` after `PARAM_MAPPING`, values cast to numbers | Dagre graph property, e.g. `edgesep: 10` |
 | `Graphviz` | `graphviz.js` — overrides specific DOT attributes (currently `esep`) | DOT attribute value, e.g. `esep: "+8"` |
-| `layout` | `generate_view.js` — pre-layout, engine-agnostic (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`) | `nodeSizeByEdgeCount`; `labelChar*` / `labelLine*` / `labelH/VPadding` / `labelMin*` tuning keys |
+| `layout` | `generate_view.js` — pre-layout, engine-agnostic (`expandNodeSizesForEdgeDensity`, `sizeLabelBasedNodes`) | `labelChar*` / `labelLine*` / `labelH/VPadding` / `labelMin*` tuning keys |
 
 **ELK option resolution order within `engineParams.ELK`** (last writer wins):
 
@@ -1746,9 +1770,9 @@ The block has four sub-objects, one per engine plus a shared `layout` section:
 | 2 | `PARAM_MAPPING` GUI params → `rootEngineOpts` |
 | 3 (highest) | `engineParams.ELK` — spread last into `layoutOptions` and each node's `layoutOptions` |
 
-**`layout.nodeSizeByEdgeCount`** (default 0 = off): when > 0, `expandNodeSizesForEdgeDensity` inflates `node.height` (LR/RL direction) or `node.width` (TB/BT) to `maxSideEdgeCount × value` so hub nodes have space for their ports. Applies to all engines before the graph is handed off.
+**Edge-density sizing** (`params.connectionSpacing`, 0 = off): `expandNodeSizesForEdgeDensity` inflates `node.height` (LR/RL direction) or `node.width` (TB/BT) to `(maxSideEdgeCount + 1) × value` so hub nodes have space for their ports. Applies to all engines before the graph is handed off; ELK Layered additionally sizes leaves to their actual ports (see Connection spacing).
 
-**`layout` label-sizing keys** (driven by `params.labelSizing` GUI checkbox, active for Pack and Grid only): `sizeLabelBasedNodes` estimates each node's label pixel width (`label.length × labelCharWidth`), then sets `node.width`/`height` accordingly. `labelMaxLineWidth` (default 400) is a GUI-exposed `params` key (spinner "Label width:", active for Pack and Grid). Labels narrower than `labelMaxLineWidth − 2×labelHPadding` fit on one line; wider labels find the space nearest the midpoint and wrap to two lines (double height). Minimum sizes are clamped by `labelMinWidth` / `labelMinHeight`. Runs after `expandNodeSizesForEdgeDensity` so edge-density expansion still wins if it produces a larger value.
+**`layout` label-sizing keys** (driven by `params.labelSizing` GUI checkbox, active for Pack and Grid only): `sizeLabelBasedNodes` estimates each node's label pixel width (`label.length × labelCharWidth`), then sets `node.width`/`height` accordingly. `labelMaxLineWidth` (default 400) is a GUI-exposed `params` key (spinner "Label width:", active for Pack and Grid). Labels narrower than `labelMaxLineWidth − 2×labelHPadding` fit on one line; wider labels find the space nearest the midpoint and wrap to two lines (double height). Minimum sizes are clamped by `labelMinWidth` / `labelMinHeight`. Runs before `expandNodeSizesForEdgeDensity` so edge-density expansion still wins if it produces a larger value.
 
 **Pack `aspectRatio` fix**: Pack's `aspectRatio` GUI param was previously visible in the UI but missing from `elk.js` PARAM_MAPPING — it was never sent to ELK. Fixed by adding the standard `aspectRatio: (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {}` mapping to Pack's root PARAM_MAPPING block.
 
@@ -1808,7 +1832,7 @@ Ref: `lib/engines/graphviz.js`.
 
 ### Related-elements blocks
 
-Each block is stored as an object containing its SWT widget references: group container (title bar), body composite (hidden on collapse), count label, reorder/collapse/remove buttons, a `collapsed` boolean, and widget wrappers for the relation-check grid, element-type selector, and depth spinner.
+Each block is stored as an object containing its SWT widget references: group container (title bar), body composite (hidden on collapse), count label, reorder/collapse/remove buttons, a `collapsed` boolean, and widget wrappers for the relation-check grid, element-type selector, and repeat dropdown.
 
 Key functions: `_addRelatedBlock(ctx, stepData, opts?)` appends a step block; `opts.startCollapsed` collapses it on creation. `_removeRelatedBlock` disposes the block and renumbers survivors. `_moveRelatedBlock(ctx, blockObj, ±1)` swaps position in the array and reorders SWT widgets via `moveBelow`. `_toggleCollapseBlock` toggles `body.layoutData.exclude` + visibility.
 
@@ -1816,7 +1840,7 @@ Ref: `dialog_main.js::_addRelatedBlock`, `::_removeRelatedBlock`, `::_moveRelate
 
 ### Live counter policy
 
-Checkboxes, direction toggles, chip add/remove, block reorder/add/remove → fire on `SWT.Selection` (immediate). Depth spinner → `SWT.Selection` (arrow click) + `SWT.FocusOut`. Not `SWT.Modify` — per-keystroke recompute is wasteful.
+Checkboxes, direction toggles, repeat dropdown, chip add/remove, block reorder/add/remove → fire on `SWT.Selection` (immediate). Spinners → `SWT.Selection` (arrow click) + `SWT.FocusOut`. Not `SWT.Modify` — per-keystroke recompute is wasteful.
 
 ### Dialog state model
 
@@ -1826,7 +1850,7 @@ The dialog separates configuration (model) from UI state (view):
 - **`ctx.widgets`** — flat map of named widget references.
 - **`_syncToUI()`** — pushes `config` → widgets; called after `createDialogArea` and after preset apply.
 - **`_saveUI()`** — reads widgets → `config`; called before run and before preset save.
-- **`_updateActionControls(action)`** — enables/disables depth spinner and view name field based on the selected action.
+- **`_updateActionControls(action)`** — enables/disables the view name field based on the selected action.
 - **`_updateAlgoControls(algo)`** — enables/disables direction/routing/ranker controls based on `algorithm.supportedOptions`.
 - **`ctx.widgets.algRadios`** — `Map<algorithmName, ButtonWidget>`. All radio buttons share the same SWT composite parent (auto-mutually-exclusive on click).
 - **`_updateActionColors()`** — sets active/inactive visual state on the action toggle buttons; called from all action toggle listeners and from `_syncToUI`.
@@ -1922,7 +1946,7 @@ Each adapter owns a `PARAM_MAPPING` table that translates GUI parameter values i
 | Empty direction selection = follow all | `getEncoded()` includes only types where `chkIn.getSelection() \|\| chkOut.getSelection()`. Absent from the list → unconstrained at runtime ([Steps](#steps) step 5: empty union → all types allowed). |
 | Algorithm selection via radio table | `_buildLayoutTab` — `algTableComp` 6-col composite; `ctx.widgets.algRadios: Map<algName, ButtonWidget>`. `_syncToUI`: deselect all then `algRadios.get(name)?.setSelection(true)`. `_saveUI`: iterate algRadios to find selected; fallback `"Layered"`. |
 | Step auto-collapse on preset load | `_addRelatedBlock(ctx, stepData, opts)` — when `opts.startCollapsed`: body hidden, `gd.exclude = true`, `btnCollapse.setText("▸")`, `blockObj.collapsed = true`. `_syncToUI` passes `{ startCollapsed: idx > 0 }` for preset steps. |
-| Spinner recomputes on commit, not keystroke | Depth spinner binds `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
+| Spinner recomputes on commit, not keystroke | Spinners that drive live counts bind `SWT.Selection` + `SWT.FocusOut`, not `SWT.Modify`. |
 | Coordinate conversion engine-agnostic via `parentId` | Engine adapters set `parentId` on result nodes; `_writeView` applies parent-relative conversion using `_getParentAbsOffset` (parent-first iteration ensures parent's NEW bounds are in place). |
 | UI-only state partitioned | `_*`-prefixed keys (`_lastTabIndex`, …) preserved by `preset_io.readSession` after `validatePreset` strips unknowns. |
 | ELK Radial spanning-tree pre-processing | `engines/elk.js::_spanningTree` — BFS over the graph; cycle edges dropped; virtual edges `id: "__span_N"` join disconnected components; `_writeView` skips virtuals (`_archiRelId: null`). |

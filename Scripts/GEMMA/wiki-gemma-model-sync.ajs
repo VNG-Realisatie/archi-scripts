@@ -1,0 +1,86 @@
+/*
+ * wiki-gemma-model sync (jArchi)
+ *
+ * Draai dit script in Archi op het GEMMA-model, direct na "Import > Model into selected model" van
+ * export/gemma-archimate-model.archimate. Het maakt de import een volledige sync:
+ * - een object (element of relatie) met een oudere "wiki-gemma-model exportdatum" dan de nieuwste stond in een
+ *   eerdere export, maar niet meer in deze;
+ * - is het door de wiki gemaakt ("wiki-gemma-model herkomst" = nieuw), dan wordt het verwijderd (ook uit views);
+ * - is het een bestaand GEMMA-object ("herkomst" = gekoppeld), dan worden alleen de eigenschappen
+ *   "wiki-gemma-model ..." weggehaald; de GEMMA-inhoud blijft staan;
+ * - lege mappen onder een map "wiki-gemma-model" worden verwijderd.
+ * Het script toont eerst wat er gebeurt en voert pas uit na bevestiging. Een concept-export weigert het.
+ */
+var PREFIX = "wiki-gemma-model ";
+var DATUM = PREFIX + "exportdatum";
+var HERKOMST = PREFIX + "herkomst";
+var SOORT = PREFIX + "soort export";
+
+if (typeof model === "undefined" || !model) {
+    window.alert("Selecteer eerst het GEMMA-model in de modelboom.");
+    exit();
+}
+
+var objecten = [];
+$("concept").each(function (c) {
+    if (c.prop(DATUM)) objecten.push(c);
+});
+if (objecten.length === 0) {
+    window.alert("Geen objecten met '" + DATUM + "' in model '" + model.name + "'. Is de export geïmporteerd?");
+    exit();
+}
+
+var concept = objecten.filter(function (c) { return c.prop(SOORT) === "concept"; });
+if (concept.length > 0) {
+    window.alert(concept.length + " object(en) komen uit een concept-export. Die is alleen om te bekijken: " +
+        "importeer de concept-export niet in GEMMA. Er is niets gewijzigd.");
+    exit();
+}
+
+var nieuwste = objecten.map(function (c) { return c.prop(DATUM); }).sort().pop();
+var oud = objecten.filter(function (c) { return c.prop(DATUM) < nieuwste; });
+var verwijderen = oud.filter(function (c) { return c.prop(HERKOMST) === "nieuw"; });
+var opschonen = oud.filter(function (c) { return c.prop(HERKOMST) !== "nieuw"; });
+
+function regel(c) {
+    return "  - " + (c.name || "(" + c.type + ")") + " [" + c.type + ", " + c.id + "]";
+}
+
+console.clear();
+console.log("wiki-gemma-model sync op '" + model.name + "', nieuwste export: " + nieuwste);
+console.log("Verwijderen (" + verwijderen.length + "): door de wiki gemaakt, niet meer in de export");
+verwijderen.forEach(function (c) { console.log(regel(c)); });
+console.log("Opschonen (" + opschonen.length + "): GEMMA-object niet meer gekoppeld; alleen de wiki-eigenschappen gaan weg");
+opschonen.forEach(function (c) { console.log(regel(c)); });
+
+if (verwijderen.length + opschonen.length === 0) {
+    window.alert("Alles is in sync met de export van " + nieuwste + ". Er is niets gewijzigd.");
+    exit();
+}
+if (!window.confirm("Export " + nieuwste + ": " + verwijderen.length + " object(en) verwijderen en " +
+        opschonen.length + " GEMMA-object(en) opschonen? De lijst staat in de console.")) {
+    console.log("Afgebroken; er is niets gewijzigd.");
+    exit();
+}
+
+// Eerst relaties, dan elementen: een element verwijderen neemt zijn relaties mee.
+verwijderen.sort(function (a, b) {
+    return (a.type.indexOf("relationship") >= 0 ? 0 : 1) - (b.type.indexOf("relationship") >= 0 ? 0 : 1);
+}).forEach(function (c) {
+    if (c.model) c.delete();
+});
+opschonen.forEach(function (c) {
+    c.prop().forEach(function (sleutel) {
+        if (sleutel.indexOf(PREFIX) === 0) c.removeProp(sleutel);
+    });
+});
+
+function ruimOp(map) {
+    $(map).children("folder").each(function (kind) { ruimOp(kind); });
+    if ($(map).children().size() === 0) map.delete();
+}
+$("folder").filter(function (f) { return f.name === "wiki-gemma-model"; }).each(function (f) { ruimOp(f); });
+
+console.log("Klaar: " + verwijderen.length + " verwijderd, " + opschonen.length + " opgeschoond.");
+window.alert("Klaar: " + verwijderen.length + " verwijderd, " + opschonen.length + " opgeschoond. " +
+    "Controleer het resultaat en commit daarna met coArchi.");

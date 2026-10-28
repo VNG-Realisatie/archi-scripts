@@ -23,9 +23,8 @@
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 30,
-    "connectionSpacing": 20,
+    "connectionSpacing": 25,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 25,
     "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
@@ -43,7 +42,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "grouping"
         ],
@@ -53,7 +52,7 @@
         "diagramTypes": []
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "application-service"
         ],

@@ -1,6 +1,6 @@
 {
   "name": "nested",
-  "algorithm": "Pack",
+  "algorithm": "Layered",
   "params": {
     "direction": "Right",
     "routing": "Orthogonal",
@@ -8,7 +8,6 @@
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseRelationTypes": [
-      "realization-relationship",
       "serving-relationship",
       "specialization-relationship"
     ],
@@ -23,19 +22,20 @@
     "alignDebug": false,
     "snapColumnsToGrid": false,
     "showInEveryContainer": true,
-    "containerAlgorithm": "Pack",
+    "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
-    "layerSpacing": 20,
+    "layerSpacing": 180,
     "elementSpacing": 40,
-    "connectionSpacing": 20,
-    "connectionElementSpacing": 40,
-    "nodeSizeByEdgeCount": 25,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
     "viewSizeMode": "none",
-    "labelSizing": false
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementTypes": [],
@@ -46,7 +46,7 @@
     "steps": []
   },
   "view": {
-    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "name": "Activiteit",
     "folder": "/_Generated"
   },
   "appearance": {
@@ -75,7 +75,7 @@
       "enabled": false,
       "relTypes": [],
       "elementType": "",
-      "property": "",
+      "property": "GEMMA type",
       "colorRange": "Purples",
       "conflictColor": "#FF6B35"
     },
@@ -104,7 +104,7 @@
       }
     ]
   },
-  "_lastTabIndex": 2,
+  "_lastTabIndex": 1,
   "description": "",
   "action": "new_view"
 }

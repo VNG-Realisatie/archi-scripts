@@ -54,6 +54,7 @@ function _getAdapter(engine) {
  * @returns {ArchimateView[]}
  */
 function generate_view(rawPreset, uiSelection, actionId) {
+  Common.startCounter("generate_view");
   const preset = validatePreset(rawPreset);
   const action = actionId || ACTION.NEW_VIEW.id;
 
@@ -161,7 +162,9 @@ function _applyViewProperties(view, preset) {
 // ── Single view ───────────────────────────────────────────────────────────────
 
 function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
+  const timer = _phaseTimer();
   const objectSet = Pipeline.buildObjectSet(uiSelection, preset, actionId);
+  timer.lap("selection");
   const { elements, diagramObjects, diagramConnections, existingView } = objectSet;
 
   // LAYOUT_ONLY: keep only relations that already have a visual on the view.
@@ -179,13 +182,12 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
-  const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
-  const nestingRels  = [];
-  const routedRels   = [];
-  for (const rel of relations) {
-    if (nestingTypes.has(rel.type)) nestingRels.push(rel);
-    else                            routedRels.push(rel);
-  }
+  // Nesting candidates also require an allowed container (parent) type.
+  const split       = Pipeline.splitNestingRels(relations, preset.params);
+  const nestingRels = split.nestingRels;
+  const routedRels  = split.connectionRels;
+  if (split.containerTypeRejected > 0)
+    console.log(`  Container type: ${split.containerTypeRejected} nesting-type relations drawn as connection (parent type not in ${preset.params.nestingContainerTypes.join(", ")})`);
 
   // Determine the target view.
   //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, unless the preset names a
@@ -230,6 +232,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     const viewName = viewNameOverride || _resolveViewName(preset, elements);
     view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
+  timer.lap("view target");
 
   // Build concept→VOs map once; used by both _buildLayoutGraph (LAYOUT_ONLY cap) and _writeView (VO pairing).
   const existingVosByConcept = new Map();
@@ -249,6 +252,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Build LayoutGraph (uniform — no action branch).
   console.log("\nLayout graph:");
   const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, graphVosCap);
+  timer.lap("layout graph");
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
     return null;
@@ -271,6 +275,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   console.log("\nLayout:");
   const alg = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
+  timer.lap("layout");
   console.log(`  Layout result: ${result.nodes.length} elements · ${result.edges.length} connections`);
   if (result.nodes.length > 0) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -286,14 +291,32 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   // Write — single function, action-agnostic.
   console.log("\nWrite:");
   const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels, existingVosByConcept);
+  timer.lap("write");
 
   // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
   if (writtenView) {
     Appearance.applyAppearance(writtenView, preset, actionId);
     _applyViewProperties(writtenView, preset);
+    timer.lap("appearance");
   }
 
+  console.log(`\nTiming: ${timer.summary()}`);
   return writtenView;
+}
+
+// Phase durations of one view generation, logged as one summary line — shows where the time goes.
+function _phaseTimer() {
+  const laps = [];
+  const t0 = Date.now();
+  let t = t0;
+  return {
+    lap(name) { const now = Date.now(); laps.push(`${name} ${_fmtMs(now - t)}`); t = now; },
+    summary() { return `${laps.join(" · ")}  (total ${_fmtMs(t - t0)})`; },
+  };
+}
+
+function _fmtMs(ms) {
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
 // ── One view per element ──────────────────────────────────────────────────────
@@ -457,8 +480,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
   }
 
   const engineParams = preset.engineParams || {};
-  expandNodeSizesForEdgeDensity(nodes, edges, params);
   sizeLabelBasedNodes(nodes, params, engineParams);
+  expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
 
   return {
     algorithm:      preset.algorithm,
@@ -783,13 +806,16 @@ function _writeView(preset, result, objectSet, view, parentRels, existingVosByCo
  * self-loops is unreliable across engines, and Archi's default rendering
  * places the line inside the element. Synthesis is the single source of truth.
  */
-// Insert collinear bendpoints so that ELK's computed label position (lx, ly) ends up as
-// the middle bendpoint by index — which is where Archi renders the label for textPosition=1.
+// Insert collinear bendpoints so that the computed label position (lx, ly) ends up where Archi
+// renders the label for textPosition=1 (Middle). Archi (draw2d ConnectionLocator.MIDDLE) uses
+// the middle point of the drawn point list (source anchor, bendpoints, target anchor) by index;
+// for an even count it takes the midpoint of the middle segment. So the label sits exactly on a
+// bendpoint when the same number of bendpoints lies before and after it.
 //
-// Strategy: project (lx,ly) onto the nearest path segment, insert it there, then add
-// evenly-spaced collinear points on that same segment (before or after the label point)
-// until floor(totalBps / 2) == labelPointIndex.  All added points lie on existing path
-// segments and do not change the visual routing.
+// Strategy: project (lx,ly) onto the nearest path segment (or reuse the bendpoint it coincides
+// with), then add evenly-spaced collinear points next to it on the shorter side until both sides
+// hold the same number of bendpoints. All added points lie on existing path segments and do not
+// change the visual routing.
 // srcPort / tgtPort are the physical exit/entry points of the connection on the element
 // boundary (ELK section start/end).  Using these instead of element centres ensures
 // extra collinear points cannot fall inside source or target elements.
@@ -821,62 +847,40 @@ function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort, log) {
   const tSnap = segLen2 > 0.001
     ? Math.max(0, Math.min(1, ((lx - A.x)*segDx + (ly - A.y)*segDy) / segLen2))
     : 0;
-  const P = { x: Math.round(A.x + tSnap * segDx), y: Math.round(A.y + tSnap * segDy) };
   const N = bps.length;
 
-  // Guard: if P snaps to an existing path vertex (tSnap ≈ 0 or 1), inserting P would
-  // create a duplicate zero-length segment.  Instead, check whether the existing vertex
-  // is already the middle bendpoint; if so, return unchanged.
+  // P = label point; head / tail = bendpoints before / after it; prev / next = its path neighbours.
+  let P, head, tail, prev, next;
   const EPS = 0.01;
-  if (tSnap >= 1 - EPS) {
-    // P ≈ B = path[seg+1].  In bps terms that is bps[seg] (if seg < N).
-    if (seg < N && Math.floor(N / 2) === seg) {
-      if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  already mid bp[${seg}]  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+  if (tSnap > EPS && tSnap < 1 - EPS) {
+    // Inside the segment: P becomes a new bendpoint.
+    P = { x: Math.round(A.x + tSnap * segDx), y: Math.round(A.y + tSnap * segDy) };
+    head = bps.slice(0, seg); tail = bps.slice(seg); prev = A; next = B;
+  } else {
+    // On a segment end: reuse that vertex instead of inserting a duplicate.
+    const v = tSnap <= EPS ? seg : seg + 1;  // path index of the vertex
+    if (v === 0 || v === n - 1) {
+      if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  at port, skip  bps ${N}→${N}`);
       return bps;
     }
-    // Not already middle but we can't insert without duplicating — skip.
-    if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  at segment end, skip  dist=${Math.round(minD)}px  bps ${N}→${N}`);
-    return bps;
-  }
-  if (tSnap <= EPS) {
-    // P ≈ A = path[seg].  In bps terms that is bps[seg-1] (if seg > 0).
-    if (seg > 0 && Math.floor(N / 2) === seg - 1) {
-      if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  already mid bp[${seg-1}]  dist=${Math.round(minD)}px  bps ${N}→${N}`);
-      return bps;
-    }
-    if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  at segment start, skip  dist=${Math.round(minD)}px  bps ${N}→${N}`);
-    return bps;
+    P = path[v];
+    head = bps.slice(0, v - 1); tail = bps.slice(v); prev = path[v - 1]; next = path[v + 1];
   }
 
-  // Determine how many collinear points to add before P (b) or after P (a)
-  // so that P lands at floor(finalLength / 2).
-  // Adding b before: finalLength = N+1+b, P index = seg+b → want seg+b = floor((N+1+b)/2)
-  let b = 0, found = false;
-  for (b = 0; b <= 6; b++) {
-    const mid = Math.floor((N + 1 + b) / 2);
-    if (seg + b === mid)   { found = true; break; }
-    if (seg + b > mid)     { b = 0; break; }  // overshot → use 'a' instead
-  }
-  let a = 0;
-  if (!found) {
-    for (a = 0; a <= 6; a++) {
-      if (seg === Math.floor((N + 1 + a) / 2)) break;
-    }
-  }
-
-  // Build evenly-spaced extra points on the segment (between A and P, or P and B).
-  // A is pathSrc or a bendpoint — guaranteed to be outside elements.
+  // Balance: equal bendpoint counts on both sides of P.
+  const diff = tail.length - head.length;
+  const b = Math.max(0, diff), a = Math.max(0, -diff);
   const befPts = Array.from({ length: b }, (_, i) => ({
-    x: Math.round(A.x + (P.x - A.x) * (i + 1) / (b + 1)),
-    y: Math.round(A.y + (P.y - A.y) * (i + 1) / (b + 1)),
+    x: Math.round(prev.x + (P.x - prev.x) * (i + 1) / (b + 1)),
+    y: Math.round(prev.y + (P.y - prev.y) * (i + 1) / (b + 1)),
   }));
   const aftPts = Array.from({ length: a }, (_, i) => ({
-    x: Math.round(P.x + (B.x - P.x) * (i + 1) / (a + 1)),
-    y: Math.round(P.y + (B.y - P.y) * (i + 1) / (a + 1)),
+    x: Math.round(P.x + (next.x - P.x) * (i + 1) / (a + 1)),
+    y: Math.round(P.y + (next.y - P.y) * (i + 1) / (a + 1)),
   }));
 
-  const result = [...bps.slice(0, seg), ...befPts, P, ...aftPts, ...bps.slice(seg)];
-  if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  snap=(${P.x},${P.y})  dist=${Math.round(minD)}px  added before=${b} after=${a}  bps ${N}→${result.length}  mid@${Math.floor(result.length/2)}`);
+  const result = [...head, ...befPts, P, ...aftPts, ...tail];
+  if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  snap=(${P.x},${P.y})  dist=${Math.round(minD)}px  added before=${b} after=${a}  bps ${N}→${result.length}  mid@${head.length + b}`);
   return result;
 }
 

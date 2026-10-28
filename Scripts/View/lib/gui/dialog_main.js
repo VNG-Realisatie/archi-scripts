@@ -28,7 +28,7 @@ const Pipeline  = require(REPO_ROOT + "View/lib/selection_pipeline");
 const Chroma    = require("chroma-js");
 
 const {
-  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
+  STYLES, ALGORITHMS, ACTION, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
   RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS,
   ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
   DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
@@ -71,10 +71,14 @@ const ROUTING_TOOLTIPS        = Object.fromEntries(Object.values(ROUTING).map(r 
 const LABEL_POS_ALL           = LABEL_POSITIONS.map(lp => lp.val);
 const LABEL_POS_TOOLTIPS      = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp.val, lp.tooltip]));
 const RANKING_LABELS          = RANKING.map(r => r.val);
+const NODE_PLACEMENT_LABELS   = NODE_PLACEMENT.map(n => n.val);
+const NODE_PLACEMENT_TOOLTIPS = Object.fromEntries(NODE_PLACEMENT.map(n => [n.val, n.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
+// Container-type modes in the Nesting group; index order matches _getNestContainerTypes.
+const NEST_CONTAINER_MODE_LABELS = ["Any element", "Grouping only", "Selected types"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -694,10 +698,10 @@ function _updateFilteredCount(ctx) {
   const _setFilteredError = () => {
     try { w.lblFilteredCount.setText("—"); } catch (x) {}
   };
-  const _setRel = (b, eCount, rCount) => {
+  const _setRel = (b, eCount, rCount, suffix) => {
     if (!b || !b.lblBlockCounts) return;
     const cnt = { elems: eCount, rels: rCount, diagrams: 0, views: 0, folders: 0 };
-    try { b.lblBlockCounts.setText(_formatCountsBody(cnt)); } catch (x) {}
+    try { b.lblBlockCounts.setText(_formatCountsBody(cnt) + (suffix || "")); } catch (x) {}
   };
 
   const objects = ctx.rawModelObjects;
@@ -740,7 +744,7 @@ function _updateFilteredCount(ctx) {
 
     const globalRelIds = _relLabelsToIds(Array.from(relLabels));
     const steps = (ctx.relBlocks || []).map(b => ({
-      depth:         b.depthSpinner.getSelection(),
+      repeat:        b.getRepeat(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
@@ -780,11 +784,13 @@ function _updateFilteredCount(ctx) {
       );
       if (b.refreshPropCombo) b.refreshPropCombo(candidates);
 
-      const { added, rels: stepRels, cumulative: newCumul } =
+      const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
         Pipeline.expandStepWithRelations(stepInput, step, cumulative, seenRelIds);
       cumulative = newCumul;
       stepRels.forEach(r => finalRels.push(r));
-      _setRel(b, added.length, stepRels.length);
+      const runInfo = step.repeat !== Defs.REPEAT_UNTIL_NOTHING_NEW ? ""
+        : capped ? `  (stopped at max ${Defs.REPEAT_MAX}×)` : `  (nothing new after ${runs}×)`;
+      _setRel(b, added.length, stepRels.length, runInfo);
       stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length });
       stepInput = added;                                                       // chain advance
     }
@@ -793,6 +799,7 @@ function _updateFilteredCount(ctx) {
     // The on-screen Output row + console block must reflect what the writer will produce.
     const livePresetParams = {
       nestingRelationTypes: w.lstNestingTypes ? _relLabelsToIds(_listGetSelected(w.lstNestingTypes)) : [],
+      nestingContainerTypes: _getNestContainerTypes(w),
       reverseRelationTypes: w.lstReverseTypes ? _relLabelsToIds(_listGetSelected(w.lstReverseTypes)) : [],
       showInEveryContainer:           !!(w.chkShowInEvery     && w.chkShowInEvery.getSelection()),
     };
@@ -908,7 +915,7 @@ function _buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   // ── Related elements ─────────────────────────────────────────────────────────
   // Dynamic multi-block UI. Each block is an independent expansion step with its
   // own relation types (each with two direction checkboxes), element filter, and
-  // relation-levels (depth) control.
+  // repeat control.
   const grpRel = _group(page, "Expand selection", 1);
 
   // Header row: explanation text (grabs width) | [+ Add related…] button on the right.
@@ -1044,7 +1051,7 @@ function _relCheckGrid(parent, numCols, onChange) {
 }
 
 // Append a new block to the Related elements group.
-// stepData (optional): { depth, elementTypes, relationTypes } from a preset to restore.
+// stepData (optional): { repeat, elementTypes, relationTypes } from a preset to restore.
 // opts.startCollapsed (optional boolean): if true, build the block in collapsed state.
 function _addRelatedBlock(ctx, stepData, opts) {
   const w = ctx.widgets;
@@ -1109,34 +1116,40 @@ function _addRelatedBlock(ctx, stepData, opts) {
   _lbl(body, "Filter added element types:");
   const typeSelector = _typeSelector(body, ELEMENT_TYPES, 90, onChange);
 
-  const depthRow = new CompositeWidget(body, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 2).spacing(4, 0).applyTo(depthRow);
-  const lblDepth = new LabelWidget(depthRow, SWT.NONE);
-  lblDepth.setText("Depth:");
-  lblDepth.setToolTipText("The depth controls how many times the expansion is repeated.");
-  GridDataFactory.swtDefaults().applyTo(lblDepth);
-  const depthSpinner = new SpinnerWidget(depthRow, SWT.BORDER);
-  depthSpinner.setValues(1, 1, 5, 0, 1, 1);
-  depthSpinner.setToolTipText("The depth controls how many times the expansion is repeated.");
-  GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(depthSpinner);
-  // Recompute on arrow click (Selection) and on focus-out (after keyboard edit) —
-  // not on Modify, which fires per keystroke.
-  depthSpinner.addListener(SWT.Selection, onChange);
-  depthSpinner.addListener(SWT.FocusOut, onChange);
+  const repeatRow = new CompositeWidget(body, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 2).spacing(4, 0).applyTo(repeatRow);
+  const repeatTip =
+    "How many times this step runs. Each run starts from the previous run's additions. " +
+    `"until nothing new" runs until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`;
+  const lblRepeat = new LabelWidget(repeatRow, SWT.NONE);
+  lblRepeat.setText("Repeat:");
+  lblRepeat.setToolTipText(repeatTip);
+  GridDataFactory.swtDefaults().applyTo(lblRepeat);
+  const cmbRepeat = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  Defs.REPEAT_OPTIONS.forEach(o => cmbRepeat.add(o.label));
+  cmbRepeat.select(0);
+  cmbRepeat.setToolTipText(repeatTip);
+  GridDataFactory.swtDefaults().applyTo(cmbRepeat);
+  cmbRepeat.addListener(SWT.Selection, onChange);
+  const getRepeat = () => Defs.REPEAT_OPTIONS[Math.max(0, cmbRepeat.getSelectionIndex())].value;
+  const setRepeat = (v) => {
+    const r = Defs.normalizeRepeat(v);
+    cmbRepeat.select(Math.max(0, Defs.REPEAT_OPTIONS.findIndex(o => o.value === r)));
+  };
 
-  const lblProp = new LabelWidget(depthRow, SWT.NONE);
+  const lblProp = new LabelWidget(repeatRow, SWT.NONE);
   lblProp.setText("Property:");
   lblProp.setToolTipText("Only add elements that have this property set to the chosen value.");
   GridDataFactory.swtDefaults().applyTo(lblProp);
-  const cmbProp = new ComboWidget(depthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  const cmbProp = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
   cmbProp.setToolTipText("Choose a property to filter on. Leave blank to add all elements regardless of properties.");
   GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbProp);
 
-  const lblVal = new LabelWidget(depthRow, SWT.NONE);
+  const lblVal = new LabelWidget(repeatRow, SWT.NONE);
   lblVal.setText("Value:");
   lblVal.setToolTipText("Only add elements whose selected property have this value.");
   GridDataFactory.swtDefaults().applyTo(lblVal);
-  const cmbVal = new ComboWidget(depthRow, SWT.READ_ONLY | SWT.DROP_DOWN);
+  const cmbVal = new ComboWidget(repeatRow, SWT.READ_ONLY | SWT.DROP_DOWN);
   cmbVal.setToolTipText("Choose the required property value. Only active when a property is also selected.");
   GridDataFactory.swtDefaults().hint(130, SWT.DEFAULT).applyTo(cmbVal);
 
@@ -1182,7 +1195,7 @@ function _addRelatedBlock(ctx, stepData, opts) {
     container: block, body, lblBlockCounts,
     btnUp, btnDown, btnCollapse, btnRemove,
     collapsed: false,
-    relCheckGrid, typeSelector, depthSpinner,
+    relCheckGrid, typeSelector, cmbRepeat, getRepeat,
     propFilterKey: cmbProp, propFilterValue: cmbVal,
     refreshPropCombo,
   };
@@ -1198,7 +1211,7 @@ function _addRelatedBlock(ctx, stepData, opts) {
   if (stepData) {
     relCheckGrid.setEncoded(stepData.relationTypes || []);
     typeSelector.setSelected(stepData.elementTypes || []);
-    depthSpinner.setSelection(Number(stepData.depth) || 1);
+    setRepeat(stepData.repeat);
     if (stepData.propFilter && stepData.propFilter.key) {
       const pf = stepData.propFilter;
       const pitems = Array.from({ length: cmbProp.getItemCount() }, (_, i) => cmbProp.getItem(i));
@@ -1285,8 +1298,10 @@ function _renumberAndReorderRelBlocks(ctx) {
 // ── Layout tab ────────────────────────────────────────────────────────────────
 
 function _buildLayoutTab(tabFolder, ctx) {
-  const { page, finish } = _scrolledTab(tabFolder, "Layout");
+  const { page, scrolled, finish } = _scrolledTab(tabFolder, "Layout");
   const w = ctx.widgets;
+  ctx.layoutScrolled = scrolled;
+  ctx.layoutPage     = page;
 
   // ── Algorithm ─────────────────────────────────────────────────────────────────
   // Algorithm selection uses a 5-row × 6-col table: [Style label:] [○ Algo] [○ Algo] …
@@ -1331,31 +1346,28 @@ function _buildLayoutTab(tabFolder, ctx) {
 
   w.algRadios = algRadios;
 
-  // ── Element size and spacing ───────────────────────────────────────────────────
-  const grpSize = _group(page, "Element size and spacing", 6);
+  // Elements / Flow / Connections share one column grid (heading | label control | …) so their
+  // fields line up across the three boxes — see _formRow / _alignFormColumns.
+  const formRows = [];
 
-  // Row 1: Width [2] | Width by label length [2] | Max width [2]
-  _addSpinnerRow(grpSize, "Width:",     "spinElementWidth",     140, 10, 1000, 10, w, "Width of all elements (px).");
-  _addCheck(grpSize, "Width by label length",
-    "Derive node width from label text; long labels wrap to 2 lines. Width and Height spinners are disabled when active (Pack and Grid only).",
+  // ── Elements ──────────────────────────────────────────────────────────────────
+  const grpSize = _group(page, "Elements", 1);
+
+  let row = _formRow(grpSize, "Size:", formRows);
+  _addSpinnerRow(row, "Width",     "spinElementWidth",      140, 10, 1000, 10, w, "Width of all elements (px).");
+  _addCheck(row, "By label",
+    "Derive element width (and height) from the label text; long labels wrap to 2 lines.\nWidth and Height are disabled when active (Pack and Grid only).",
     2, w, "chkLabelSizing");
-  _addSpinnerRow(grpSize, "Max width:", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label pixel width before wrapping to two lines (px).");
+  _addSpinnerRow(row, "Max width", "spinLabelMaxLineWidth", 400, 60, 2000, 20, w, "Maximum label width before wrapping to two lines (px). Active with By label.");
   if (w.chkLabelSizing) w.chkLabelSizing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
 
-  // Row 2: Height [2] | Element spacing [2] | Port spacing [2]
-  _addSpinnerRow(grpSize, "Height:",          "spinElementHeight",       60, 10,  500, 10, w, "Height of all elements (px).");
-  _addSpinnerRow(grpSize, "Element spacing:", "spinElementSpacing",      40,  0,  500,  5, w, "Minimum distance between elements (px).");
-  _addSpinnerRow(grpSize, "Port spacing:",    "spinNodeSizeByEdgeCount", 25,  0,  200,  5, w,
-    "Adds extra element size based on the number of connections on the busiest side.\n" +
-    "Use this to prevent ports from overlapping on highly connected elements.\n0 = disabled.");
+  row = _formRow(grpSize, "", formRows);
+  _addSpinnerRow(row, "Height",    "spinElementHeight",      60, 10,  500, 10, w, "Height of all elements (px).");
 
-  // Row 3: Layer spacing [2] | Layer spacing by label width [4]
-  _addSpinnerRow(grpSize, "Layer spacing:", "spinLayerSpacing", 180, 0, 2000, 20, w, "Distance between hierarchy levels (px). Active in layered, tree, and flow layouts.");
-  _addCheck(grpSize, "Layer spacing by label width",
-    "When on: labels participate as layout constraints. ELK expands routing paths to prevent overlap.\n" +
-    "When off: labels are drawn as overlays; faster but may overlap in dense graphs. Layered only.",
-    4, w, "chkEdgeLabelSpacing");
-  if (w.chkEdgeLabelSpacing) w.chkEdgeLabelSpacing.addListener(SWT.Selection, () => _updateAlgorithmControls(ctx));
+  row = _formRow(grpSize, "Spacing:", formRows);
+  _addSpinnerRow(row, "Element", "spinElementSpacing", 40, 0,  500,  5, w, "Minimum distance between elements (px).");
+  _addSpinnerRow(row, "Layer",   "spinLayerSpacing",  180, 0, 2000, 20, w, "Distance between layers (px). Active in layered, tree, and flow layouts.\n" +
+    "With Reserve label space, a layer gap holding a long label widens to label + 2 × Between.");
 
   // Changes to nesting-type / reverse-type / showInEveryContainer alter the on-view
   // role split (nestings vs connections, containers vs nested elements, occurrence
@@ -1363,16 +1375,21 @@ function _buildLayoutTab(tabFolder, ctx) {
   const onParamsChange = () => {
     _updateFilteredCount(ctx);
     _updateNestingLevelState(ctx);  // keep nesting level group enabled/disabled in sync
+    _updateNestContainerBox(ctx);   // container types only apply when a nesting type is checked
   };
 
-  // ── Direction ─────────────────────────────────────────────────────────────────
-  const grpDir = _group(page, "Direction", 1);
+  // ── Flow ──────────────────────────────────────────────────────────────────────
+  const grpDir = _group(page, "Flow", 1);
 
-  const dirComp = new CompositeWidget(grpDir, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(8, 3).applyTo(dirComp);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(dirComp);
-  _addCombo(dirComp, "Flow direction:", DIRECTION_LABELS, 0, 120, "cmbDirection", w, "Direction of the main flow. Active in layered, tree, and directed-flow algorithms.");
-  new LabelWidget(dirComp, SWT.NONE); new LabelWidget(dirComp, SWT.NONE);
+  row = _formRow(grpDir, "Order:", formRows);
+  _addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w, "Direction of the main flow. Active in layered, tree, and directed-flow algorithms.");
+  _addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
+  _addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w, "How elements are assigned to layers. Balanced minimises edge lengths; Uniform places elements at the shallowest possible layer; Top-aligned pulls them to the deepest layer.");
+
+  row = _formRow(grpDir, "Placement:", formRows);
+  _addCombo(row, "Elements", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
+  w.cmbNodePlacement.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS));
+  _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
 
   _groupSep(grpDir, 1, "Reversed - draw these relation types in other direction");
   w.lstReverseTypes = _checkboxGrid(grpDir, RELATION_TYPE_LABELS, 4, onParamsChange);
@@ -1380,28 +1397,26 @@ function _buildLayoutTab(tabFolder, ctx) {
   // ── Connections ───────────────────────────────────────────────────────────────
   const grpRout = _group(page, "Connections", 1);
 
-  const routComp = new CompositeWidget(grpRout, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(8, 3).applyTo(routComp);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(routComp);
-
-  _addCombo(routComp, "Routing:",        ROUTING_ALL,      0, 160, "cmbRouting",       w);
+  row = _formRow(grpRout, "Line:", formRows);
+  _addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
   w.cmbRouting.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS));
   _comboTooltipSync(w.cmbRouting, ROUTING_TOOLTIPS);
-  _addCombo(routComp, "Label:",          LABEL_POS_ALL,    1,  90, "cmbLabelPosition", w);
+  _addCombo(row, "Label",   LABEL_POS_ALL, 1, SWT.DEFAULT, "cmbLabelPosition", w);
   w.cmbLabelPosition.addListener(SWT.Selection, () => _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS));
   _comboTooltipSync(w.cmbLabelPosition, LABEL_POS_TOOLTIPS);
-  _addCombo(routComp, "Cycle breaking:", ACYCLICER_LABELS, 0,  90, "cmbAcyclicer",     w, "How relation cycles are broken before layout. Greedy reverses the fewest edges; Default uses DFS-based removal. Has no effect when the diagram contains no cycles.");
+  _addCheck(row, "Reserve label space",
+    "Reserve space for each connection label, so labels don't overlap other labels, connections or elements.\n" +
+    "A layer gap stays Layer wide, and widens where a label needs label + 2 × Between. Layered only.",
+    2, w, "chkConnectionLabelSpacing");
 
-  _addCombo(routComp, "Layer ranking:",  RANKING_LABELS,   0, 110, "cmbRanking",       w, "How nodes are assigned to rank layers. Balanced minimises edge lengths; Uniform places nodes at the shallowest possible rank; Top-aligned pulls nodes to the deepest rank.");
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  new LabelWidget(routComp, SWT.NONE); new LabelWidget(routComp, SWT.NONE);
-  // Sub-composite keeps the long "Connection-element spacing:" label out of
-  // routComp's shared column pool, preventing it from widening the whole block.
-  const spacingComp = new CompositeWidget(routComp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(8, 3).applyTo(spacingComp);
-  GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(spacingComp);
-  _addSpinnerRow(spacingComp, "Connection spacing:",         "spinConnectionSpacing",        20, 0, 200, 5, w, "Minimum distance between parallel connections (px). Increase to spread connections apart for better label readability.");
-  _addSpinnerRow(spacingComp, "Connection-element spacing:", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px). Increase to visually separate connections from unrelated elements.");
+  row = _formRow(grpRout, "Spacing:", formRows);
+  _addSpinnerRow(row, "Between",    "spinConnectionSpacing",        25, 0, 200, 5, w,
+    "Distance between parallel connections, and between the connection points on one side of an element (px).\n" +
+    "Elements grow to fit their connections. One value for both keeps parallel connections straight into the element.\n0 = no element growth.");
+  _addSpinnerRow(row, "To element", "spinConnectionElementSpacing", 40, 0, 200, 5, w, "Minimum distance between a connection and elements it passes near (px).\n" +
+    "Between an element and the first / last bend at least 25, to keep the bend clear of the end symbol.");
+
+  _alignFormColumns(formRows);
 
   // ── Nesting structure ─────────────────────────────────────────────────────────
   const grpNest = _group(page, "Nesting", 1);
@@ -1411,6 +1426,20 @@ function _buildLayoutTab(tabFolder, ctx) {
   GridDataFactory.fillDefaults().applyTo(_nestLbl);
 
   w.lstNestingTypes = _checkboxGrid(grpNest, RELATION_TYPE_LABELS, 4, onParamsChange);
+
+  // Container types: which element types may be a parent. Mode is derived from the
+  // stored array ([] → Any, ["grouping"] → Grouping only, else Selected types).
+  const ctrTypeRow = new CompositeWidget(grpNest, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).margins(0, 0).spacing(6, 0).applyTo(ctrTypeRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(ctrTypeRow);
+  _addCombo(ctrTypeRow, "Container types:", NEST_CONTAINER_MODE_LABELS, 0, 160, "cmbNestContainerMode", w,
+    "Element types that may become a container. A nesting-type relation whose parent has another type is drawn as a connection.");
+  w.nestContainerBox = new CompositeWidget(grpNest, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).applyTo(w.nestContainerBox);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(w.nestContainerBox);
+  w.lstNestContainerTypes = _typeSelector(w.nestContainerBox, ELEMENT_TYPES, 80, onParamsChange);
+  w.cmbNestContainerMode.addListener(SWT.Selection, () => { _updateNestContainerBox(ctx); onParamsChange(); });
+  _updateNestContainerBox(ctx);  // start hidden ("Any element")
 
   const ctrComp = new CompositeWidget(grpNest, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 0).spacing(6, 4).applyTo(ctrComp);
@@ -1484,7 +1513,7 @@ function _buildLayoutTab(tabFolder, ctx) {
   w.radioViewSizeMaxWidth.setToolTipText("Spread layout outward to reach the target width. No compression if already larger.");
   const _spMaxWidth = new SpinnerWidget(hintRow, SWT.BORDER);
   _spMaxWidth.setValues(0, 0, 99999, 0, 100, 500);
-  GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(_spMaxWidth);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(_spMaxWidth);
   _spMaxWidth.setToolTipText("Target view width (px).");
   w.spinMaxWidth = _spMaxWidth;
 
@@ -1921,7 +1950,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
 
   const nestRootFontSp = new SpinnerWidget(nestFontRow, SWT.BORDER);
   nestRootFontSp.setValues(14, 8, 24, 0, 1, 2);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestRootFontSp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestRootFontSp);
   nestRootFontSp.setToolTipText("Font size for root containers (depth 0)");
   nestRootFontSp.addListener(SWT.Selection, onChange);
   w.spinNestRootFontSize = nestRootFontSp;
@@ -1938,7 +1967,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   w.lblNestDecrease = lblNestDecrease;
   const nestFontDecreaseSp = new SpinnerWidget(nestFontRow, SWT.BORDER);
   nestFontDecreaseSp.setValues(2, 1, 6, 0, 1, 1);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestFontDecreaseSp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestFontDecreaseSp);
   nestFontDecreaseSp.setToolTipText("Reduce font size by this many points per nesting level");
   nestFontDecreaseSp.addListener(SWT.Selection, onChange);
   w.spinNestFontDecrease = nestFontDecreaseSp;
@@ -1980,7 +2009,7 @@ function _buildAppearanceTab(tabFolder, ctx) {
   w.lblNestLighten = lblNestLighten;
   const nestLightenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
   nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
-  GridDataFactory.swtDefaults().hint(40, SWT.DEFAULT).applyTo(nestLightenSp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestLightenSp);
   nestLightenSp.setToolTipText("Percentage to lighten fill color per level toward root");
   nestLightenSp.addListener(SWT.Selection, onChange);
   w.spinNestLighten = nestLightenSp;
@@ -2024,6 +2053,48 @@ function _buildAppearanceTab(tabFolder, ctx) {
   _updateNestingLevelState(ctx);
   _updateAppearancePropStates(ctx);
   finish();
+}
+
+// Container types for nesting: [] = any element type, ["grouping"] = Grouping only,
+// otherwise the types chosen in the selector (none chosen = any).
+function _getNestContainerTypes(w) {
+  if (!w.cmbNestContainerMode) return [];
+  switch (w.cmbNestContainerMode.getSelectionIndex()) {
+    case 1:  return ["grouping"];
+    case 2:  return w.lstNestContainerTypes ? w.lstNestContainerTypes.getSelected() : [];
+    default: return [];
+  }
+}
+
+function _setNestContainerTypes(ctx, types) {
+  const w = ctx.widgets;
+  if (!w.cmbNestContainerMode) return;
+  const mode = types.length === 0 ? 0 : (types.length === 1 && types[0] === "grouping") ? 1 : 2;
+  w.cmbNestContainerMode.select(mode);
+  if (w.lstNestContainerTypes) w.lstNestContainerTypes.setSelected(mode === 2 ? types : []);
+  _updateNestContainerBox(ctx);
+}
+
+// Show the type selector only in "Selected types" mode; enable the controls only when
+// the algorithm supports nesting and at least one nesting relation type is checked.
+function _updateNestContainerBox(ctx) {
+  const w = ctx.widgets;
+  if (!w.cmbNestContainerMode || !w.nestContainerBox) return;
+  let algName = "Layered";
+  for (const [name, r] of (w.algRadios || new Map())) { if (r.getSelection()) { algName = name; break; } }
+  const alg = ALGORITHMS[algName] || ALGORITHMS.Layered;
+  const on  = (alg.activeParams || []).includes("nestingContainerTypes")
+    && !!w.lstNestingTypes && _listGetSelected(w.lstNestingTypes).length > 0;
+  _enable(w.cmbNestContainerMode,  on);
+  _enable(w.lstNestContainerTypes, on);
+
+  const show = w.cmbNestContainerMode.getSelectionIndex() === 2;
+  const gd   = w.nestContainerBox.getLayoutData();
+  if (gd && gd.exclude === !show) return;  // no visibility change — skip relayout
+  try { w.nestContainerBox.setVisible(show); } catch (e) {}
+  if (gd) { gd.exclude = !show; w.nestContainerBox.setLayoutData(gd); }
+  try { (ctx.layoutPage || w.nestContainerBox.getParent()).layout(true, true); } catch (e) {}
+  _resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
 }
 
 // Enable/disable the "Style by nesting level" controls based on whether any nesting
@@ -2196,6 +2267,56 @@ function _groupSep(parent, span, label) {
   const lbl = new LabelWidget(parent, SWT.NONE);
   lbl.setText(label);
   GridDataFactory.fillDefaults().span(span, 1).applyTo(lbl);
+}
+
+// Aligned form row: heading | label control | label control | label control (FORM_COLS cells).
+// Rows registered in `rows` are aligned by _alignFormColumns, also across different groups.
+// A checkbox takes a whole label/control pair (span 2).
+const SPINNER_WIDTH = 65;  // every number spinner — fits 4 digits
+const FORM_COLS   = 7;  // heading + 3 label/control pairs
+const FORM_HSPACE = 8;  // horizontal spacing between cells
+function _formRow(parent, heading, rows) {
+  const row = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(FORM_COLS).margins(0, 0).spacing(FORM_HSPACE, 3).applyTo(row);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
+  new LabelWidget(row, SWT.NONE).setText(heading);
+  rows.push(row);
+  return row;
+}
+
+// Line up the columns of all rows (also across groups). A column is as wide as its widest
+// single-column cell. Cells with their own width hint (spinners: SPINNER_WIDTH) keep it; so do spanning cells
+// (checkboxes) at their natural width — the remaining column space becomes the indent of the
+// next cell, so the following cells still line up. All cells are vertically centred.
+function _alignFormColumns(rows) {
+  const cells = row => {
+    let col = 0;
+    return Array.from(row.getChildren()).map(c => {
+      const gd = c.getLayoutData();
+      const span = (gd && gd.horizontalSpan) || 1;
+      const hint = gd && gd.widthHint > 0 ? gd.widthHint : -1;
+      const cell = { c, col, span, hint, natural: c.computeSize(SWT.DEFAULT, SWT.DEFAULT).x };
+      col += span;
+      return cell;
+    });
+  };
+  const widths = [];
+  for (const row of rows)
+    for (const { col, span, hint, natural } of cells(row))
+      if (span === 1 && hint <= 0) widths[col] = Math.max(widths[col] || 0, natural);
+  for (const row of rows)
+    for (const { col, span, hint } of cells(row))
+      if (span === 1 && hint > 0) widths[col] = Math.max(widths[col] || 0, hint);
+  for (const row of rows) {
+    let indent = 0;
+    for (const { c, col, span, hint, natural } of cells(row)) {
+      let slot = -FORM_HSPACE;
+      for (let i = col; i < col + span; i++) slot += (widths[i] || 0) + FORM_HSPACE;
+      const own = span > 1 ? natural : hint > 0 ? hint : slot;
+      GridDataFactory.swtDefaults().span(span, 1).indent(indent, 0).hint(own, SWT.DEFAULT).applyTo(c);
+      indent = Math.max(0, slot - own);
+    }
+  }
 }
 
 // Label + read-only combo + items + selection + width hint + widget registration.
@@ -2417,9 +2538,12 @@ function _syncToUI(ctx) {
   _comboSelect(w.cmbLabelPosition,LABEL_POS_ALL,    p.labelPosition || algDef.labelPositionDefault || DP.labelPosition);
   _comboSelect(w.cmbRanking,      RANKING_LABELS,   p.ranking       || DP.ranking);
   _comboSelect(w.cmbAcyclicer,    ACYCLICER_LABELS, p.acyclicer     || DP.acyclicer);
+  _comboSelect(w.cmbNodePlacement, NODE_PLACEMENT_LABELS, p.nodePlacement || DP.nodePlacement);
+  _comboTooltipSync(w.cmbNodePlacement, NODE_PLACEMENT_TOOLTIPS);
 
   // Nesting / reverse multi-select lists
   if (w.lstNestingTypes) _listSelectLabels(w.lstNestingTypes, _relIdsToLabels(p.nestingRelationTypes || []));
+  _setNestContainerTypes(ctx, p.nestingContainerTypes || []);
   if (w.lstReverseTypes) _listSelectLabels(w.lstReverseTypes, _relIdsToLabels(p.reverseRelationTypes || []));
 
   // Container appearance
@@ -2430,7 +2554,7 @@ function _syncToUI(ctx) {
   _chkSet(w.chkSnapColumns, !!(p.snapColumnsToGrid));
   _chkSet(w.chkShowInEvery,  !!(p.showInEveryContainer));
   _chkSet(w.chkLabelSizing,  !!(p.labelSizing));
-  if (w.chkEdgeLabelSpacing) w.chkEdgeLabelSpacing.setSelection(!!p.edgeLabelSpacing);
+  if (w.chkConnectionLabelSpacing) w.chkConnectionLabelSpacing.setSelection(!!p.connectionLabelSpacing);
   if (w.cmbContainerAlgorithm) {
     const idx = CONTAINER_ALGO_LABELS.indexOf(p.containerAlgorithm || "Layered");
     w.cmbContainerAlgorithm.select(idx >= 0 ? idx : 0);
@@ -2448,7 +2572,6 @@ function _syncToUI(ctx) {
   _spinSet(w.spinDiagramPadding,           p.diagramPadding           !== undefined ? p.diagramPadding           : DP.diagramPadding);
   _spinSet(w.spinConnectionSpacing,        p.connectionSpacing        !== undefined ? p.connectionSpacing        : DP.connectionSpacing);
   _spinSet(w.spinConnectionElementSpacing, p.connectionElementSpacing !== undefined ? p.connectionElementSpacing : DP.connectionElementSpacing);
-  _spinSet(w.spinNodeSizeByEdgeCount,  p.nodeSizeByEdgeCount  !== undefined ? p.nodeSizeByEdgeCount  : DP.nodeSizeByEdgeCount);
   _spinSet(w.spinLabelMaxLineWidth,    p.labelMaxLineWidth    !== undefined ? p.labelMaxLineWidth    : DP.labelMaxLineWidth);
   _spinSet(w.spinMaxWidth,       p.maxWidth       !== undefined ? p.maxWidth       : DP.maxWidth);
 
@@ -2644,9 +2767,11 @@ function _saveUI(ctx) {
   if (w.cmbLabelPosition) c.params.labelPosition = LABEL_POS_ALL[w.cmbLabelPosition.getSelectionIndex()]  || "Middle";
   if (w.cmbRanking)       c.params.ranking       = RANKING_LABELS[w.cmbRanking.getSelectionIndex()]        || "Balanced";
   if (w.cmbAcyclicer)     c.params.acyclicer     = ACYCLICER_LABELS[w.cmbAcyclicer.getSelectionIndex()]   || "Default";
+  if (w.cmbNodePlacement) c.params.nodePlacement = NODE_PLACEMENT_LABELS[w.cmbNodePlacement.getSelectionIndex()] || "Straight";
 
   // Nesting / reverse
   if (w.lstNestingTypes)  c.params.nestingRelationTypes = _relLabelsToIds(_listGetSelected(w.lstNestingTypes));
+  if (w.cmbNestContainerMode) c.params.nestingContainerTypes = _getNestContainerTypes(w);
   if (w.lstReverseTypes)  c.params.reverseRelationTypes = _relLabelsToIds(_listGetSelected(w.lstReverseTypes));
 
   // Container
@@ -2657,7 +2782,7 @@ function _saveUI(ctx) {
   if (w.chkSnapColumns) c.params.snapColumnsToGrid = w.chkSnapColumns.getSelection();
   if (w.chkShowInEvery)          c.params.showInEveryContainer = w.chkShowInEvery.getSelection();
   if (w.chkLabelSizing)          c.params.labelSizing          = w.chkLabelSizing.getSelection();
-  if (w.chkEdgeLabelSpacing)     c.params.edgeLabelSpacing     = w.chkEdgeLabelSpacing.getSelection();
+  if (w.chkConnectionLabelSpacing)     c.params.connectionLabelSpacing     = w.chkConnectionLabelSpacing.getSelection();
   if (w.cmbContainerAlgorithm)   c.params.containerAlgorithm   = w.cmbContainerAlgorithm.getText();
   if (w.cmbConnectionsMode)      c.params.connectionsMode      = w.cmbConnectionsMode.getText();
 
@@ -2669,7 +2794,6 @@ function _saveUI(ctx) {
   if (w.spinDiagramPadding)           c.params.diagramPadding           = w.spinDiagramPadding.getSelection();
   if (w.spinConnectionSpacing)        c.params.connectionSpacing        = w.spinConnectionSpacing.getSelection();
   if (w.spinConnectionElementSpacing) c.params.connectionElementSpacing = w.spinConnectionElementSpacing.getSelection();
-  if (w.spinNodeSizeByEdgeCount)  c.params.nodeSizeByEdgeCount  = w.spinNodeSizeByEdgeCount.getSelection();
   if (w.spinLabelMaxLineWidth)    c.params.labelMaxLineWidth    = w.spinLabelMaxLineWidth.getSelection();
   if (w.spinMaxWidth)       c.params.maxWidth       = w.spinMaxWidth.getSelection();
   const arIdx = w.cmbAspectRatio ? w.cmbAspectRatio.getSelectionIndex() : 0;
@@ -2684,7 +2808,7 @@ function _saveUI(ctx) {
   // Related elements — round-trip the dynamic step-block array.
   c.relatedElements = {
     steps: (ctx.relBlocks || []).map(b => ({
-      depth:         b.depthSpinner.getSelection(),
+      repeat:        b.getRepeat(),
       elementTypes:  b.typeSelector.getSelected(),
       relationTypes: b.relCheckGrid.getEncoded(),
       diagramTypes:  [],
@@ -2791,7 +2915,9 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.cmbLabelPosition,   active.has("labelPosition"));
   _enable(w.cmbRanking,         active.has("ranking"));
   _enable(w.cmbAcyclicer,       active.has("acyclicer"));
+  _enable(w.cmbNodePlacement,   active.has("nodePlacement"));
   _enable(w.lstNestingTypes,    active.has("nestingRelationTypes"));
+  _updateNestContainerBox(ctx);
   _enable(w.lstReverseTypes,    active.has("reverseRelationTypes"));
   _enable(w.spinInnerSpacing,   active.has("innerSpacing"));
   _enable(w.spinPadding,        active.has("padding"));
@@ -2800,7 +2926,7 @@ function _updateAlgorithmControls(ctx) {
   _enable(w.chkSnapColumns, active.has("snapColumnsToGrid"));
   _enable(w.chkShowInEvery,          active.has("showInEveryContainer"));
   _enable(w.chkLabelSizing,          active.has("labelSizing"));
-  _enable(w.chkEdgeLabelSpacing,     active.has("edgeLabelSpacing"));
+  _enable(w.chkConnectionLabelSpacing,     active.has("connectionLabelSpacing"));
   const _labelSizingOn = active.has("labelSizing") && w.chkLabelSizing && w.chkLabelSizing.getSelection();
   _enable(w.spinElementWidth,  !_labelSizingOn);
   _enable(w.spinElementHeight, !_labelSizingOn);
@@ -2839,12 +2965,10 @@ function _updateAlgorithmControls(ctx) {
       }
     }
   }
-  const _edgeLblSpacingOn = active.has("edgeLabelSpacing") && w.chkEdgeLabelSpacing && w.chkEdgeLabelSpacing.getSelection();
-  _enable(w.spinLayerSpacing, active.has("layerSpacing") && !_edgeLblSpacingOn);
+  _enable(w.spinLayerSpacing,             active.has("layerSpacing"));
   _enable(w.spinDiagramPadding,           active.has("diagramPadding"));
   _enable(w.spinConnectionSpacing,        active.has("connectionSpacing"));
   _enable(w.spinConnectionElementSpacing, active.has("connectionElementSpacing"));
-  _enable(w.spinNodeSizeByEdgeCount,    active.has("nodeSizeByEdgeCount"));
   _enable(w.spinLabelMaxLineWidth,      _labelSizingOn);
 
   // View size radios: enable/disable each option based on algorithm support.
@@ -2959,7 +3083,7 @@ function _addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) 
   new LabelWidget(parent, SWT.NONE).setText(label);
   const sp = new SpinnerWidget(parent, SWT.BORDER);
   sp.setValues(defVal, min, max, 0, step, step * 5);
-  GridDataFactory.swtDefaults().hint(65, SWT.DEFAULT).applyTo(sp);
+  GridDataFactory.swtDefaults().hint(SPINNER_WIDTH, SWT.DEFAULT).applyTo(sp);
   if (tooltip) sp.setToolTipText(tooltip);
   w[key] = sp;
 }

@@ -27,9 +27,8 @@
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 20,
-    "connectionSpacing": 20,
+    "connectionSpacing": 25,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 25,
     "elementWidth": 300,
     "elementHeight": 60,
     "maxWidth": 0,
@@ -47,7 +46,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "grouping"
         ],
@@ -61,7 +60,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "application-service"
         ],
@@ -75,7 +74,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "application-component"
         ],

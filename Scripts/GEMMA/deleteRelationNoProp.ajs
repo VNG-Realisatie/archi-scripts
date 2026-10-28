@@ -1,0 +1,22 @@
+
+console.clear();
+
+var relations = $("relationship").filter(function (r) {
+    return r.prop().length === 0;
+});
+
+console.log("Relaties zonder properties: " + relations.length);
+
+relations.each(function (r) {
+    console.log(r.type + " | " + r.source.name + " -> " + r.target.name + " | " + r.id);
+});
+
+if (relations.length > 0 &&
+    window.confirm("Verwijder " + relations.length + " relaties zonder properties?")) {
+    relations.each(function (r) {
+        r.delete();
+    });
+    console.log("Verwijderd: " + relations.length + " relaties.");
+} else {
+    console.log("Geen relaties verwijderd.");
+}

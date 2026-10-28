@@ -28,9 +28,8 @@
     "connectionsMode": "Crossing containers",
     "layerSpacing": 120,
     "elementSpacing": 10,
-    "connectionSpacing": 20,
+    "connectionSpacing": 25,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 25,
     "elementWidth": 240,
     "elementHeight": 30,
     "maxWidth": 0,
@@ -50,7 +49,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 5,
+        "repeat": 5,
         "elementTypes": [
           "business-function"
         ],
@@ -64,7 +63,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "business-object"
         ],

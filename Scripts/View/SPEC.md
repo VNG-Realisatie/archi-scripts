@@ -199,8 +199,14 @@ everything; for a relation type, "neither direction selected" means *follow all 
 ordered list of expansion steps. **Each step expands outward from the previous step's
 additions only** — not from the whole accumulated set — so a sequence reads as "from these,
 reach those; from *those*, reach the next". A step specifies which relation types to follow
-(direction-aware), how many hops, and an element-type filter that prunes only what that step
-adds. An **empty step ends the chain**: every later step then adds nothing.
+(direction-aware), how often it repeats, and an element-type filter that prunes only what that
+step adds. **Repeat** runs the step 1–5 times or *until nothing new* (at most 10 runs); each run
+starts from the previous run's additions. An **empty step ends the chain**: every later step
+then adds nothing.
+
+**A wider filter never yields less.** Ticking an extra relation type or direction in a step can
+only keep or grow what that step adds — there are no hidden exceptions that skip elements the
+filter allows.
 
 **Modify actions are conservative.** `LAYOUT_ONLY` ignores the steps entirely and never adds
 a missing relation — it only re-lays-out what is already on the view. `EXPAND_VIEW` expands
@@ -243,6 +249,9 @@ those relations are drawn: instead of lines, the child element is drawn **inside
 box (box-in-box). This makes the view express **hierarchy and ownership directly**, and —
 because containment removes the line — it makes **double relations and unexpected structure**
 easy to spot. Nesting unlocks further controls:
+- **Container types** — restrict which element types may become a container (e.g. *Grouping
+  only*). A nesting-type relation from a parent of another type is drawn as a connection; its
+  child stays where its other nestings put it, or at view root.
 - **Container inner layout** — the algorithm used to arrange children *inside* each container.
 - **Connections between vs. crossing containers** — whether cross-container lines route to the
   container as an opaque box, or to the specific inner element.
@@ -496,7 +505,7 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 |---|---|---|---|
 | Relation line | edge | Element spacing | node spacing |
 | Relation line style | edge routing | Level spacing | layer spacing |
-| View / Diagram | graph | Relation levels | depth / hops |
+| View / Diagram | graph | Repeat | runs / hops |
 | Layout style | algorithm / engine | Layer ranking | ranker |
 | Level | rank / layer | Tight packing / Pack | rectpacking |
 | Flow direction | direction | Preset | parameter / config file |
@@ -532,8 +541,9 @@ Internal names never appear in UI labels; tooltips may use them parenthetically.
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layout tab groups: *Algorithm* (style-grouped radio table), *Element size and spacing*,
-*Direction* (+ reversed types), *Connections* (routing / label / ranking), *Nesting* (nesting
+Layout tab groups: *Algorithm* (style-grouped radio table), *Elements* (size, spacing),
+*Flow* (direction, cycles, ranking + reversed types), *Connections* (routing, label, label space,
+spacing), *Nesting* (nesting
 types + container inner layout, between/crossing, inner spacing, padding, sort, align width,
 snap columns, show in every container), *View dimensions* (none / width / height / aspect).
 Appearance tab groups: *Style by property*, *Style by related property*, *Style by connected
@@ -552,10 +562,12 @@ Preset {
     direction, routing, labelPosition, ranking      // gated by algorithm
     reverseRelationTypes : RelTypeId[]               // drawn reversed
     nestingRelationTypes : RelTypeId[]               // drawn as nesting
+    nestingContainerTypes: ElementTypeId[]           // allowed parent types; [] = any
     containerAlgorithm   : "Layered"|"Grid"|"Pack"   // inside containers
-    connectionsMode      : "Between containers"|"Crossing containers"
+    connectionsMode      : "Crossing containers"|"Between containers"
+    nodePlacement        : "Straight"|"Compact"       // within a layer (Layered)
     innerSpacing, padding, layerSpacing, elementSpacing,
-    elementWidth, elementHeight, nodeSizeByEdgeCount : number
+    elementWidth, elementHeight : number
     maxWidth, maxHeight, aspectRatio : number        // 0 = unconstrained
     viewSizeMode : "none"|"maxWidth"|"maxHeight"|"aspectRatio"
     sortContainers, alignWidthSameType, snapColumnsToGrid,
@@ -574,7 +586,7 @@ Preset {
   }
   engineParams : { ELK?{…}, Dagre?{…}, Graphviz?{…}, layout?{…} }  // ✦ typed overrides
 }
-Step { depth:int≥1, elementTypes:ElTypeId[], relationTypes:EncRelTypeId[] }
+Step { repeat:1..5|"untilNothingNew", elementTypes:ElTypeId[], relationTypes:EncRelTypeId[] }
 ```
 
 **Encoded relation-type strings.** `"type"` = both directions; `"type:in"` = incoming only;

@@ -1,0 +1,22 @@
+
+console.clear();
+
+var elements = $("element").filter(function (e) {
+    return e.prop().length === 0;
+});
+
+console.log("Elementen zonder properties: " + elements.length);
+
+elements.each(function (e) {
+    console.log(e.name + " | " + e.type + " | " + e.id);
+});
+
+if (elements.length > 0 &&
+    window.confirm("Verwijder " + elements.length + " elementen zonder properties?")) {
+    elements.each(function (e) {
+        e.delete();
+    });
+    console.log("Verwijderd: " + elements.length + " elementen.");
+} else {
+    console.log("Geen elementen verwijderd.");
+}

@@ -21,22 +21,21 @@
     "alignWidthSameType": false,
     "alignDebug": true,
     "snapColumnsToGrid": false,
-    "showInEveryContainer": false,
+    "showInEveryContainer": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 0,
     "elementSpacing": 20,
-    "connectionSpacing": 20,
+    "connectionSpacing": 25,
     "connectionElementSpacing": 20,
-    "nodeSizeByEdgeCount": 25,
     "elementWidth": 240,
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 2,
     "viewSizeMode": "none",
-    "labelSizing": true,
-    "labelMaxLineWidth": 300,
-    "edgeLabelSpacing": true
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementTypes": [
@@ -48,7 +47,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "business-object"
         ],
@@ -62,7 +61,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "business-object"
         ],
@@ -77,7 +76,7 @@
         }
       },
       {
-        "depth": 1,
+        "repeat": 1,
         "elementTypes": [
           "grouping"
         ],
@@ -93,7 +92,7 @@
     ]
   },
   "view": {
-    "name": "Inkomsten",
+    "name": "Archief",
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen"
   },
   "appearance": {
@@ -109,7 +108,7 @@
         "relTypes": [
           "specialization-relationship"
         ],
-        "property": "Toelichting",
+        "property": "GGM-uml-type",
         "colorRange": "Greens",
         "lineWidth": 3
       }
@@ -138,7 +137,7 @@
       "lightenPerLevel": 15
     },
     "highlightRepeated": {
-      "enabled": false,
+      "enabled": true,
       "colorRange": "Pastel1"
     }
   },
@@ -147,20 +146,13 @@
       "elk.spacing.nodeSelfLoop": 20,
       "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
       "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
-      "elk.spacing.edgeEdge": 15,
-      "elk.spacing.edgeNode": 15,
-      "elk.layered.spacing.edgeNodeBetweenLayers": 40,
       "org.eclipse.elk.portConstraints": "FIXED_SIDE"
     },
-    "Dagre": {
-      "edgesep": 30
-    },
+    "Dagre": {},
     "Graphviz": {
       "esep": "+8"
     },
-    "layout": {
-      "nodeSizeByEdgeCount": 25
-    }
+    "layout": {}
   },
   "viewProperties": {
     "addObjectId": true,
@@ -172,7 +164,7 @@
       }
     ]
   },
-  "_lastTabIndex": 1,
+  "_lastTabIndex": 2,
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel",
   "action": "new_view"
 }

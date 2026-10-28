@@ -41,7 +41,7 @@
   "relatedElements": {
     "steps": [
       {
-        "depth": 6,
+        "repeat": "untilNothingNew",
         "elementTypes": [
           "grouping",
           "business-object"
