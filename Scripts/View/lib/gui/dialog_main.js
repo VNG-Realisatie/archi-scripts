@@ -1105,35 +1105,31 @@ function _syncToUI(ctx) {
   const nl   = app.nestingLevel;
   const hr   = app.highlightRepeated;
 
+  // Palette: a name that is not in _palettes.json shows as None.
+  if (w.cmbPalette) {
+    const idx = ctx.palettes.findIndex(p => p.name === app.palette);
+    if (app.palette && idx < 0) console.error(`Appearance: palette "${app.palette}" is not in _palettes.json; None is shown. Choose a palette.`);
+    w.cmbPalette.select(idx + 1);
+  }
+
   // Style by property — conditions, mixed-values colour, line width
   if (w.tblStyleConditions) w.tblStyleConditions.setConditions(sbp.conditions);
-  if (w.txtMixedColor) {
-    const hex = sbp.mixedValuesColor || DA.styleByProperty.mixedValuesColor;
-    w.txtMixedColor.setText(hex);
-    try { if (w.mixedSwatchSet) w.mixedSwatchSet(hex); } catch (e) {}
-  }
+  if (w.pickMixedColor) w.pickMixedColor.set(sbp.mixedValuesColor || DA.styleByProperty.mixedValuesColor);
   if (w.cmbStyleLineWidth) w.cmbStyleLineWidth.select(Math.max(0, Math.min(3, sbp.lineWidth || 0)));
 
   // Feature 4 — Style by nesting level
+  if (w.tblNestingStyleConditions) w.tblNestingStyleConditions.setConditions(nl.conditions);
   if (w.chkNestFont)        w.chkNestFont.setSelection(!!(nl.fontEnabled));
   if (w.spinNestRootFontSize) w.spinNestRootFontSize.setSelection(nl.rootFontSize !== undefined ? nl.rootFontSize : DA.nestingLevel.rootFontSize);
   if (w.chkNestRootBold)    w.chkNestRootBold.setSelection(nl.rootFontBold !== undefined ? nl.rootFontBold : DA.nestingLevel.rootFontBold);
   if (w.spinNestFontDecrease) w.spinNestFontDecrease.setSelection(nl.fontDecreasePerLevel !== undefined ? nl.fontDecreasePerLevel : DA.nestingLevel.fontDecreasePerLevel);
   if (w.chkNestColor)       w.chkNestColor.setSelection(!!(nl.colorEnabled));
-  if (w.txtRootColor) {
-    const hex = nl.rootColor || "";
-    w.txtRootColor.setText(hex);
-    try { if (w.nestRootSwatchSet) w.nestRootSwatchSet(hex); } catch (e) {}
-  }
+  if (w.spinNestDarken)     w.spinNestDarken.setSelection(nl.darkenStart);
   if (w.spinNestLighten)     w.spinNestLighten.setSelection(nl.lightenPerLevel !== undefined ? nl.lightenPerLevel : DA.nestingLevel.lightenPerLevel);
 
   // Feature 5 — Highlight repeated elements
   if (w.chkHighlightRep)       w.chkHighlightRep.setSelection(!!(hr.enabled));
-  if (w.cmbHighlightRepRange) {
-    const idx = COLOR_RANGES.indexOf(hr.colorRange || DA.highlightRepeated.colorRange);
-    w.cmbHighlightRepRange.select(idx >= 0 ? idx : COLOR_RANGES.indexOf("Pastel1"));
-    try { if (w.cmbHighlightRepRangeCanvas) w.cmbHighlightRepRangeCanvas.redraw(); } catch (e) {}
-  }
+  if (w.pickHighlightRepRange) w.pickHighlightRepRange.set(COLOR_RANGES.includes(hr.colorRange) ? hr.colorRange : DA.highlightRepeated.colorRange);
 
   TabAppearance.updateNestingLevelState(ctx);
   TabAppearance.updateAppearancePropStates(ctx);
@@ -1196,28 +1192,28 @@ function _saveUI(ctx) {
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
 
   // Appearance
-  /** @type {(cmb: Swt.Combo, def: string) => string} */
-  const _cmbVal = (cmb, def) => cmb && cmb.getSelectionIndex() >= 0 ? cmb.getItem(cmb.getSelectionIndex()) : def;
+  if (w.cmbPalette) c.appearance.palette = w.cmbPalette.getSelectionIndex() > 0 ? ctx.palettes[w.cmbPalette.getSelectionIndex() - 1].name : "";
 
   // Style by property
   c.appearance.styleByProperty = {
     conditions:            w.tblStyleConditions ? w.tblStyleConditions.getConditions() : [],
-    mixedValuesColor: w.txtMixedColor ? w.txtMixedColor.getText().trim() : DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor,
+    mixedValuesColor: w.pickMixedColor ? w.pickMixedColor.get() : DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor,
     lineWidth:        w.cmbStyleLineWidth ? Math.max(0, w.cmbStyleLineWidth.getSelectionIndex()) : 0,
   };
 
   // Feature 4 — Style by nesting level
+  if (w.tblNestingStyleConditions) c.appearance.nestingLevel.conditions = w.tblNestingStyleConditions.getConditions();
   c.appearance.nestingLevel.fontEnabled         = !!(w.chkNestFont  && w.chkNestFont.getSelection());
   c.appearance.nestingLevel.rootFontSize        = w.spinNestRootFontSize ? w.spinNestRootFontSize.getSelection() : 14;
   c.appearance.nestingLevel.rootFontBold        = !!(w.chkNestRootBold && w.chkNestRootBold.getSelection());
   c.appearance.nestingLevel.fontDecreasePerLevel = w.spinNestFontDecrease ? w.spinNestFontDecrease.getSelection() : 2;
   c.appearance.nestingLevel.colorEnabled        = !!(w.chkNestColor && w.chkNestColor.getSelection());
-  c.appearance.nestingLevel.rootColor           = w.txtRootColor ? w.txtRootColor.getText().trim() : "";
+  c.appearance.nestingLevel.darkenStart         = w.spinNestDarken ? w.spinNestDarken.getSelection() : DEFAULT_PRESET.appearance.nestingLevel.darkenStart;
   c.appearance.nestingLevel.lightenPerLevel      = w.spinNestLighten ? w.spinNestLighten.getSelection() : 15;
 
   // Feature 5 — Highlight repeated elements
   c.appearance.highlightRepeated.enabled    = !!(w.chkHighlightRep && w.chkHighlightRep.getSelection());
-  c.appearance.highlightRepeated.colorRange = _cmbVal(w.cmbHighlightRepRange, "Pastel1");
+  c.appearance.highlightRepeated.colorRange = w.pickHighlightRepRange ? w.pickHighlightRepRange.get() : DEFAULT_PRESET.appearance.highlightRepeated.colorRange;
 
   // View properties
   if (w.vpAddObjectId) c.viewProperties.addObjectId = w.vpAddObjectId.getSelection();

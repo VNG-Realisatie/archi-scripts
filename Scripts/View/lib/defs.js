@@ -707,7 +707,7 @@ const COLOR_RANGES = Object.freeze([
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 4,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; older presets are migrated offline
+  schemaVersion: 5,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -761,6 +761,7 @@ const DEFAULT_PRESET = Object.freeze({
     suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
   },
   appearance: {
+    palette: "",   // palette name in presets/_palettes.json; "" = none
     // Style conditions (kind "style"); a later condition wins where two conditions style the same object.
     styleByProperty: {
       conditions:       [],
@@ -768,12 +769,14 @@ const DEFAULT_PRESET = Object.freeze({
       lineWidth:        0,           // 0 = no change; 1..3 for relations styled by a Color = Relation condition
     },
     nestingLevel: {
+      // Nesting style conditions (kind "nestingStyle"): the nesting steps styling follows from each root container.
+      conditions:         [{ child: "same" }],
       fontEnabled:        false,
       rootFontSize:       14,
       rootFontBold:       false,
       fontDecreasePerLevel: 2,
       colorEnabled:       false,
-      rootColor:          "#2B5796",
+      darkenStart:        1,     // steps darker than its colour a segment starts (chroma darken)
       lightenPerLevel:     15,
     },
     highlightRepeated: { enabled: false, colorRange: "Pastel1" },
@@ -942,6 +945,7 @@ function validatePreset(raw) {
   // DEFAULT_PRESET holds its condition lists in file form; defaults a preset leaves in place get the full shape too.
   preset.params.nestingConditions = conditions("relation", preset.params.nestingConditions, "params.nestingConditions");
   preset.params.reverseConditions = conditions("relation", preset.params.reverseConditions, "params.reverseConditions");
+  preset.appearance.nestingLevel.conditions = conditions("nestingStyle", preset.appearance.nestingLevel.conditions, "appearance.nestingLevel.conditions");
 
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
@@ -1008,14 +1012,17 @@ function validatePreset(raw) {
       if (typeof rs.lineWidth === "number")        pa.styleByProperty.lineWidth = Math.max(0, Math.min(3, Math.round(rs.lineWidth)));
     }
 
+    if (typeof ra.palette === "string") pa.palette = ra.palette;
+
     if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
       const rn = ra.nestingLevel;
+      if (Array.isArray(rn.conditions)) pa.nestingLevel.conditions = conditions("nestingStyle", rn.conditions, "appearance.nestingLevel.conditions");
       if (typeof rn.fontEnabled          === "boolean") pa.nestingLevel.fontEnabled          = rn.fontEnabled;
       if (typeof rn.rootFontSize         === "number")  pa.nestingLevel.rootFontSize         = rn.rootFontSize;
       if (typeof rn.rootFontBold         === "boolean") pa.nestingLevel.rootFontBold         = rn.rootFontBold;
       if (typeof rn.fontDecreasePerLevel === "number")  pa.nestingLevel.fontDecreasePerLevel = rn.fontDecreasePerLevel;
       if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
-      if (typeof rn.rootColor            === "string")  pa.nestingLevel.rootColor            = rn.rootColor;
+      if (typeof rn.darkenStart          === "number")  pa.nestingLevel.darkenStart          = Math.max(0, Math.min(3, Math.round(rn.darkenStart)));
       if (typeof rn.lightenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.lightenPerLevel;
       else if (typeof rn.darkenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.darkenPerLevel; // migration
     }

@@ -8,7 +8,8 @@ A preset is a value: it validates against this schema and round-trips losslessly
 
 ```
 Preset {
-  schemaVersion : 4                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions
+  schemaVersion : 5                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
+                                     // 5 = nesting style conditions, palette
   name, description : string         // description: shown under the preset combo
   algorithm     : enum               // Algorithm
   params {                           // one key per layout option: the Parameter column of the
@@ -28,17 +29,19 @@ Preset {
   }
   appearance {
     enabled : boolean                // Apply styling: master on/off (not built yet: ARCHITECTURE § Known gaps)
+    palette : string                 // name of a palette in presets/_palettes.json; "" = none
     styleByProperty {
       conditions : StyleCondition[]  // in order; the later condition wins on one object
       mixedValuesColor : hex         // fill for an object with several values
       lineWidth : 0..3               // 0 = no change; 1 Normal, 2 Medium, 3 Heavy
     }
     nestingLevel {
+      conditions : NestingStyleCondition[]   // nesting steps followed from each root; default [{ child: "same" }]
       fontEnabled, rootFontBold : boolean
       rootFontSize, fontDecreasePerLevel : number (pt)
       colorEnabled : boolean
-      rootColor : hex                // fill of root containers (darkest)
-      lightenPerLevel : number (%, 0–50)
+      darkenStart : 0..3             // levels darker a segment starts than its colour
+      lightenPerLevel : number (%, 5–40)
     }
     highlightRepeated { enabled : boolean, colorRange : scheme name }
   }
@@ -110,6 +113,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all |
 | style    | on, color (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange | `appearance.styleByProperty.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, `""` = Default) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.
@@ -126,3 +130,15 @@ One condition model for every list. A list keeps what matches **any active Inclu
 **Validation.** Each condition is normalised. An unknown key, enum value or type id skips the condition with a warning, so a typo never widens a list to All. A preset with another `schemaVersion` is refused with a message.
 
 **File form.** Fields at their default are omitted, a pass-all list is written as `[]`, and every condition sits on one line, so a diff shows one changed condition as one changed line.
+
+**Nesting style conditions.** No Mode column: every condition is an Include condition. `child` is always written, so the default condition reads `{"child": "same"}`. Matching and colours: [gui.md § Appearance tab](gui.md#appearance-tab).
+
+## Palettes
+
+`presets/_palettes.json` holds the palettes every preset can pick from (`appearance.palette`). A palette is a name and a list of named colours; names are unique within the file and within a palette.
+
+```
+{ "palettes": [ { "name": "GEMMA", "colors": [ { "name": "Bedrijf gedrag", "hex": "#ffffcc" }, … ] } ] }
+```
+
+The file is read when the dialog builds its Appearance tab and at a run that uses a palette colour. An unusable file is reported in the console, naming what is wrong, and the run uses Default. Without the file there are no palettes. The GEMMA palette holds the default fill colours of the GEMMA Archi preferences, one per group of element types.

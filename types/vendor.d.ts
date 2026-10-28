@@ -142,6 +142,8 @@ interface ElkSyncModule {
 declare module "chroma-js" {
   interface ChromaColor {
     hex(mode?: "auto" | "rgb" | "rgba" | "argb"): string;
+    get(channel: string): number;
+    set(channel: string, value: number | string): ChromaColor;
   }
   interface ChromaScale {
     (value: number): ChromaColor;
@@ -150,6 +152,7 @@ declare module "chroma-js" {
     domain(domain: number[]): ChromaScale;
   }
   interface ChromaStatic {
+    (color: string): ChromaColor;
     scale(colors?: string | string[]): ChromaScale;
     mix(color1: string, color2: string, ratio?: number, mode?: string): ChromaColor;
   }

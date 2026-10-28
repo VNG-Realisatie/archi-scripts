@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "grouping",
   "algorithm": "Layered",
   "params": {
@@ -38,9 +38,13 @@
     "folder": ""
   },
   "appearance": {
+    "palette": "",
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "rootFontBold": true,
-      "rootColor": ""
+      "darkenStart": 0
     }
   }
 }

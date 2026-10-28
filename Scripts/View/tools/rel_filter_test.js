@@ -144,5 +144,49 @@ eq(RF.detectConditionConflicts(new Map([[0, new Set(["a", "b"])], [1, new Set(["
    [{ condition: 0, with: [1], count: 1 }, { condition: 1, with: [0], count: 1 }], "style condition conflicts");
 eq(RF.detectConditionConflicts(new Map([[0, new Set(["a"])], [1, new Set(["b"])]])), [], "no conflicts");
 
+// ── nesting style conditions ──────────────────────────────────────────────────
+eq(norm("nestingStyle", [{}]), [{ on: true, parent: "", direction: "either", relation: "", child: "same", color: "" }], "nesting style: defaults");
+eq(norm("nestingStyle", [{ child: "grouping", color: "Bedrijf gedrag" }])[0].child, "grouping", "nesting style: child type");
+eq(norm("nestingStyle", [{ parent: "same" }]), [], "nesting style: same only for child");
+eq(RF.serializeCondition("nestingStyle", norm("nestingStyle", [{}])[0]), { child: "same" }, "nesting style: child always written");
+const nsm = (raw, pt, ct, rels) => RF.nestingStyleConditionMatches(norm("nestingStyle", [raw])[0], pt, ct, rels);
+const agg = [{ type: "aggregation-relationship", outgoing: true }];
+eq(nsm({}, "grouping", "grouping", []), true, "nesting style: same type, no relation needed");
+eq(nsm({}, "grouping", "business-object", agg), false, "nesting style: same type rejects another type");
+eq(nsm({ child: "" }, "grouping", "business-object", []), true, "nesting style: child All");
+eq(nsm({ child: "", relation: "aggregation-relationship" }, "grouping", "business-object", []), false, "nesting style: relation needed");
+eq(nsm({ child: "", direction: "outgoing" }, "grouping", "business-object", agg), true, "nesting style: outgoing");
+eq(nsm({ child: "", direction: "incoming" }, "grouping", "business-object", agg), false, "nesting style: incoming rejects outgoing");
+
+// ── nesting style chains (appearance.followNestingChains) ─────────────────────
+global.Java = { type: () => ({}) };
+const Appearance = require("../lib/appearance");
+const node = (id, parentId, type, depth, isContainer, rels) => ({ id, parentId, type, depth, isContainer, rels: rels || [] });
+// grouping › grouping › function › function › service › component; a second root without a matching condition
+const chainNodes = [
+  node("g0", null, "grouping", 0, true), node("g1", "g0", "grouping", 1, true, agg),
+  node("f1", "g1", "business-function", 2, true, agg), node("f2", "f1", "business-function", 3, true, agg),
+  node("s1", "f2", "application-service", 4, true, [{ type: "serving-relationship", outgoing: false }]),
+  node("c1", "s1", "application-component", 5, false, [{ type: "realization-relationship", outgoing: false }]),
+  node("o0", null, "business-object", 0, true), node("o1", "o0", "business-object", 1, false),
+];
+const NS = raw => raw.map(r => Object.assign(RF.defaultCondition("nestingStyle"), r));
+const chains = rules => {
+  const { styles, conflicts } = Appearance.followNestingChains(chainNodes, NS(rules));
+  const out = {}; styles.forEach((v, k) => { out[k] = `${v.depth}/${v.segmentDepth}/${v.color}`; });
+  return { out, conflicts };
+};
+eq(chains([{ parent: "grouping", color: "Grijs" }]).out, { g0: "0/0/Grijs", g1: "1/1/Grijs" }, "chains: same-type chain stops at another type");
+eq(chains([{}]).out, { g0: "0/0/", o0: "0/0/", g1: "1/1/", o1: "1/1/" }, "chains: default condition = same-type chain from every root");
+// the user's case: the colour of a condition belongs to its parent type
+eq(chains([
+  { parent: "grouping" },
+  { parent: "grouping", child: "business-function", relation: "aggregation-relationship", color: "Oranje" },
+  { parent: "business-function", child: "business-function", color: "Geel" },
+  { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship" },
+]).out, { g0: "0/0/Oranje", g1: "1/1/Oranje", f1: "2/0/Geel", f2: "3/1/Geel", s1: "4/0/" },
+   "chains: colour per parent type; unmatched step (component) stops");
+eq(chains([{ parent: "grouping", color: "A" }, { parent: "grouping", child: "", color: "B" }]),
+   { out: { g0: "0/0/B", g1: "1/1/B", f1: "2/0/" }, conflicts: ["grouping"] }, "chains: last colour of a parent type wins, conflict reported");
 console.log(failed ? `\n${failed} FAILED` : "all rel_filter tests passed");
 process.exit(failed ? 1 : 0);

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "Referentiecomponenten/Applicatieservices en referentiecomponenten",
   "algorithm": "Pack",
   "params": {
@@ -69,19 +69,23 @@
     "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten"
   },
   "appearance": {
+    "palette": "",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "fontEnabled": true,
       "rootFontSize": 12,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "rootColor": "#eff0f1",
-      "lightenPerLevel": 20
+      "lightenPerLevel": 20,
+      "darkenStart": 0
     },
     "highlightRepeated": {
       "enabled": true,

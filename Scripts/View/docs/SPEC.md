@@ -69,6 +69,10 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **Session**: the last-used configuration, restored when the UI opens.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
 
+**Appearance**
+- **palette**: a named list of named colours, shared by the presets; a preset picks one.
+- **segment**: a run of nested elements of one type inside a chain of *Style by nesting level*; a nesting step to another type starts the next segment.
+
 **Counter rule.** *Relations* is a model word. Selection counters (filtered base, step adds) use it; on the view, count **nestings** and **connections**, never "relations". Internal data-structure names (`parentMap`, `childIds`, `occurrenceMap`, …) are code-only and never surface in the UI or logs. GUI labels for internal terms: [display-label map](reference/gui.md#display-label-map).
 
 ---
@@ -349,7 +353,7 @@ A **post-write styling pass** that sets fill colours, fonts and line widths. It 
 
 Three groups, applied in this order; on the same object the later wins: **nesting level → highlight repeated → style by property**.
 - **Style by property**: style conditions, applied in order. A condition says what gets the colour (an element by its own property, a relation, or the source / target element of a matching relation), whose property gives the value, and a colour scale. Several different values on one object give a *mixed values* colour; styled relations may take a fixed line width. When two conditions style one object the dialog flags it, and the last wins.
-- **Style by nesting level**: varies container font size and fill colour by nesting depth. It applies only along an unbroken **same-type chain** from each root container: a container of another type breaks the chain for itself and its descendants. It is active only when nesting conditions are configured.
+- **Style by nesting level**: varies container font size and fill colour by nesting depth. Its conditions name the nesting steps (parent type, relation and direction, child type) it follows from each root container; a step no condition matches stops it for that element and everything inside. The font shrinks with the depth from the root. The fill comes per parent type: the colour its condition picks from the preset's palette, or the type's default fill; each **segment** starts a set number of levels darker and lightens per level, with hue and saturation kept. A new preset follows the same-type chain from every root. It is active only when nesting conditions are configured.
 - **Highlight repeated**: gives each element that appears more than once on the view its own colour. It needs a nesting condition set to *every container*.
 
 Detail: [Appearance tab](reference/gui.md#appearance-tab).

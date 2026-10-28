@@ -24,18 +24,26 @@ const Chroma = require("chroma-js");
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
+/** @type {typeof import("./palettes")} */
+const Palettes  = require(REPO_ROOT + "View/lib/palettes");
 const { COLOR_RANGES, compareNames } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
 const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
 
 /**
- * @typedef {object} ViewDepths
- * @property {Map<string, number>}         depthById
- * @property {Map<string, boolean>}        isContainerById
- * @property {Map<string, boolean>}        inSameTypeChainById
- * @property {Map<string, string | null | undefined>}  rootIdById  undefined: parent not on the view
- * @property {number}                      maxContainerDepth
+ * @typedef {object} NestingNode  an element visual, for followNestingChains
+ * @property {string}        id
+ * @property {string | null} parentId     parent element visual; null = a root
+ * @property {string}        type         element type
+ * @property {{ type: string, outgoing: boolean }[]} rels  model relations between parent and element; outgoing = the parent is the source
+ * @property {number}        depth
+ * @property {boolean}       isContainer
+ *
+ * @typedef {object} NestingStyle  how followNestingChains styles a visual
+ * @property {number} depth          from the root: font size
+ * @property {number} segmentDepth   from the segment start: lightening
+ * @property {string} color          the segment's colour name; "" = Default
  *
  * @typedef {{ kind: "element" | "relation", values: Set<string> }} ConditionTarget
  */
@@ -73,7 +81,7 @@ function applyAppearance(view, preset, actionId, diagramBlockOf) {
   // params is the algorithm's effective subset: nestingConditions is absent when the algorithm does not nest.
   const hasNestingTypes = (preset.params.nestingConditions || []).length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
-    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  lighten=${nl.lightenPerLevel}%/level`);
+    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  colorList=${app.palette || "none"}  darkenStart=${nl.darkenStart}  lighten=${nl.lightenPerLevel}%/level  conditions=${nl.conditions.filter(r => r.on !== false).length}`);
   if (hr.enabled)
     console.log(`  highlightRepeated  range=${hr.colorRange}`);
   sbp.conditions.forEach((r, i) => {
@@ -81,18 +89,35 @@ function applyAppearance(view, preset, actionId, diagramBlockOf) {
     console.log(`  styleByProperty condition ${i + 1}  color=${r.color}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
   });
 
-  const depths = _computeViewDepths(view, keep);
-  console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);
-
   // VOs colored by an active feature are protected from being cleared by later disabled-feature
   // resets (which would otherwise overwrite earlier colors). Built incrementally: each active
   // feature adds its styled VO ids so subsequent resets can skip them.
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, depths, isModify, styledVoIds, keep);
+  _applyNestingLevel(view, nl, _colorLookup(app.palette, nl), isModify, styledVoIds, keep);
   _applyHighlightRepeated(view, hr, isModify, styledVoIds, keep);
   _applyStyleConditions(view, sbp, isModify, styledVoIds, keep);
+}
+
+/**
+ * Hex of a colour name in the chosen palette. The file is read only when a nesting style
+ * condition names a colour; an unreadable file or unknown list is reported, and Default is used.
+ * @param {string} paletteName
+ * @param {Preset["appearance"]["nestingLevel"]} nl
+ * @returns {(colorName: string) => string | null}
+ */
+function _colorLookup(paletteName, nl) {
+  if (!nl.colorEnabled || !nl.conditions.some(r => r.on !== false && r.color)) return () => null;
+  /** @type {Palette[]} */
+  let palettes = [];
+  try { palettes = Palettes.readPalettes(); }
+  catch (e) { console.error(`Appearance: ${e} Nesting style colours use Default.`); return () => null; }
+  if (!palettes.some(p => p.name === paletteName)) {
+    console.error(`Appearance: palette "${paletteName}" is not in ${Palettes.PALETTES_FILE}; nesting style colours use Default. Choose a palette on the Appearance tab.`);
+    return () => null;
+  }
+  return name => Palettes.colorHex(palettes, paletteName, name);
 }
 
 /**
@@ -110,78 +135,78 @@ function _onView(view, selector, keep) {
   return out;
 }
 
-// ── Depth computation ─────────────────────────────────────────────────────────
+// ── Style by nesting level ────────────────────────────────────────────────────
 
-// Returns { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth }.
-// All maps are keyed by VO id (string) — jArchi creates new proxy objects on each
-// find() call, so reference equality cannot be used as a Map key.
-//
-// inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
-// chain from its depth-0 root ancestor (see "Type chain" in docs/reference/gui.md, Appearance tab).
-// rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
 /**
- * @param {ArchimateView} view
- * @param {Map<string, string>} keep  visuals inside a diagram-block: left out
- * @returns {ViewDepths}
+ * Follow the nesting style conditions from every root container (pure). A root container is styled
+ * when a condition names its type as parent; a nested element when a condition matches the step from
+ * its styled parent — the last matching condition wins. A step to the same type continues the
+ * parent's segment one level deeper; a step to another type starts a segment. A segment takes the
+ * colour of its type: the colour of the last condition with a colour whose parent is that type.
+ * An unmatched step stops the chain for the element and everything inside it.
+ * @param {NestingNode[]}           nodes       every element visual; order = view order (determinism)
+ * @param {NestingStyleCondition[]} conditions
+ * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: types whose conditions give different colours
  */
-function _computeViewDepths(view, keep) {
-  /** @type {Map<string, number>} */
-  const depthById       = new Map();
-  /** @type {Map<string, boolean>} */
-  const isContainerById = new Map();
-  /** @type {Map<string, string | null>} */
-  const parentIdById    = new Map();  // voId → parent voId | null
-  /** @type {Map<string, string | null>} */
-  const elementTypeById = new Map();  // voId → vo.concept.type | null
-  let maxContainerDepth = 0;
-
-  _onView(view, "element", keep).forEach(vo => {
-    if (!vo.id) return;
-    const depth = _voDepth(vo);
-    depthById.set(vo.id, depth);
-    const isContainer = $(vo).children("element").length > 0;
-    isContainerById.set(vo.id, isContainer);
-    if (isContainer && depth > maxContainerDepth) maxContainerDepth = depth;
-    const parentVo = $(vo).parent().filter("element").first();
-    parentIdById.set(vo.id, parentVo ? String(parentVo.id) : null);
-    elementTypeById.set(vo.id, (vo.concept && vo.concept.type) || null);
-  });
-
-  // Compute inSameTypeChainById and rootIdById top-down (shallowest first).
-  // A VO is in the chain iff its element type equals that of its depth-0 root
-  // ancestor AND every ancestor between them is also in the chain.
-  // Stops propagating as soon as a type mismatch is encountered ("stop the tree").
-  /** @type {Map<string, boolean>} */
-  const inSameTypeChainById = new Map();
-  /** @type {Map<string, string | null | undefined>} */
-  const rootIdById          = new Map();  // voId → depth-0 root VO id | null
-  const byDepth = [...depthById.entries()].sort((a, b) => a[1] - b[1]);
-  for (const [voId, depth] of byDepth) {
-    if (!isContainerById.get(voId)) {
-      // Leaf: in chain only if its parent container is in the chain and types match.
-      // Depth-0 leaves (no parent container) never start a chain.
-      const parentId = parentIdById.get(voId);
-      if (!parentId) { inSameTypeChainById.set(voId, false); rootIdById.set(voId, null); continue; }
-      const parentInChain = inSameTypeChainById.get(parentId) === true;
-      const voType        = elementTypeById.get(voId);
-      const parentType    = elementTypeById.get(parentId);
-      const inChain = parentInChain && !!(voType && voType === parentType);
-      inSameTypeChainById.set(voId, inChain);
-      rootIdById.set(voId, inChain ? rootIdById.get(parentId) : null);
+function followNestingChains(nodes, conditions) {
+  const active = conditions.filter(r => r.on !== false);
+  const byId   = new Map(nodes.map(n => [n.id, n]));
+  /** @type {Map<string, NestingStyle>} */
+  const styles = new Map();
+  // Stable sort: parents before children, view order within a depth.
+  for (const n of nodes.slice().sort((a, b) => a.depth - b.depth)) {
+    if (!n.parentId) {
+      if (!n.isContainer || !active.some(r => !r.parent || r.parent === n.type)) continue;
+      styles.set(n.id, { depth: 0, segmentDepth: 0, color: _typeColor(active, n.type) });
       continue;
     }
-    if (depth === 0)   { inSameTypeChainById.set(voId, true); rootIdById.set(voId, voId); continue; }
-    const parentId      = parentIdById.get(voId);
-    if (!parentId)      { inSameTypeChainById.set(voId, true); rootIdById.set(voId, voId); continue; }
-    const parentInChain = inSameTypeChainById.get(parentId) === true;
-    const voType        = elementTypeById.get(voId);
-    const parentType    = elementTypeById.get(parentId);
-    const inChain = parentInChain && !!(voType && voType === parentType);
-    inSameTypeChainById.set(voId, inChain);
-    rootIdById.set(voId, inChain ? rootIdById.get(parentId) : null);
+    const ps = styles.get(n.parentId);
+    const parent = byId.get(n.parentId);
+    if (!ps || !parent) continue;
+    if (!active.some(r => ConditionLists.nestingStyleConditionMatches(r, parent.type, n.type, n.rels))) continue;
+    styles.set(n.id, n.type === parent.type
+      ? { depth: n.depth, segmentDepth: ps.segmentDepth + 1, color: ps.color }
+      : { depth: n.depth, segmentDepth: 0, color: _typeColor(active, n.type) });
   }
+  const types = new Set(nodes.filter(n => styles.has(n.id)).map(n => n.type));
+  const conflicts = [...types].filter(t => new Set(active.filter(r => r.color && r.parent === t).map(r => r.color)).size > 1);
+  return { styles, conflicts };
+}
 
-  return { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth };
+/**
+ * The colour of a type: the last condition with a colour whose parent is the type, else the last
+ * with parent All; "" = Default.
+ * @param {NestingStyleCondition[]} active
+ * @param {string} type
+ */
+function _typeColor(active, type) {
+  const own = active.filter(r => r.color && r.parent === type);
+  const any = active.filter(r => r.color && !r.parent);
+  const list = own.length ? own : any;
+  return list.length ? list[list.length - 1].color : "";
+}
+
+/**
+ * A visual as followNestingChains sees it: its parent element visual and the model relations
+ * between the two elements.
+ * @param {VisualObject} vo
+ * @param {Map<string, string>} keep  visuals inside a diagram-block: not a parent
+ * @returns {NestingNode}
+ */
+function _nestingNode(vo, keep) {
+  const parentVo = $(vo).parent().filter("element").first();
+  const parentId = parentVo && !keep.has(String(parentVo.id)) ? String(parentVo.id) : null;
+  /** @type {{ type: string, outgoing: boolean }[]} */
+  const rels = [];
+  if (parentVo && parentVo.concept && vo.concept) {
+    const childId = vo.concept.id;
+    $(parentVo.concept).outRels().each(r => { if (r.target.id === childId) rels.push({ type: r.type, outgoing: true }); });
+    $(parentVo.concept).inRels().each(r => { if (r.source.id === childId) rels.push({ type: r.type, outgoing: false }); });
+  }
+  return {
+    id: String(vo.id), parentId, type: (vo.concept && vo.concept.type) || "", rels,
+    depth: _voDepth(vo), isContainer: $(vo).children("element").length > 0,
+  };
 }
 
 /** @param {VisualObject} vo */
@@ -192,64 +217,40 @@ function _voDepth(vo) {
   return depth;
 }
 
-// ── Style by nesting level ────────────────────────────────────────────────────
-
 /**
  * @param {ArchimateView}                          view
  * @param {Preset["appearance"]["nestingLevel"]}   settings
- * @param {ViewDepths}                             depths
+ * @param {(colorName: string) => string | null}   colorOf  hex of a colour of the chosen palette
  * @param {boolean}                                isModify
  * @param {Set<string>}                            styledVoIds
  * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
  */
-function _applyNestingLevel(view, settings, depths, isModify, styledVoIds, keep) {
-  const { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth } = depths;
+function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep) {
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
+  const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
+  const nodes = vos.map(vo => _nestingNode(vo, keep));
+  const { styles, conflicts } = followNestingChains(nodes, settings.conditions);
+  if (conflicts.length > 0)
+    console.log(`  nestingLevel: conditions with parent ${conflicts.join(", ")} give different colours; the last condition wins.`);
+  /** @type {Set<string>} */
+  const unknownColors = new Set();
 
-  const rootFontSize       = settings.rootFontSize        !== undefined ? settings.rootFontSize        : 14;
-  const rootFontBold       = settings.rootFontBold        !== undefined ? settings.rootFontBold        : true;
-  const fontDecPerLevel    = settings.fontDecreasePerLevel !== undefined ? settings.fontDecreasePerLevel : 2;
-  const lightenPerLevel     = settings.lightenPerLevel       !== undefined ? settings.lightenPerLevel       : 15;
-  const fallbackColor      = settings.rootColor || null;
-
-  // Snapshot fill colors of depth-0 chain roots before any modification so that
-  // each chain's gradient is anchored to the root container's existing fill color.
-  /** @type {Map<string, string | null>} */
-  const chainRootFillById = new Map();  // rootVoId → fill color string | null
-  _onView(view, "element", keep).forEach(vo => {
-    if (!vo.id) return;
-    if (depthById.get(vo.id) === 0 && inSameTypeChainById.get(vo.id) === true)
-      chainRootFillById.set(vo.id, vo.fillColor || null);
-  });
-
-  // Returns the gradient anchor color for a VO: its chain root's current fill, or fallbackColor.
-  // Returns null when neither is available — those VOs are skipped.
-  const anchorColor = (/** @type {string} */ voId) => {
-    const rootId = rootIdById ? rootIdById.get(voId) : null;
-    return (rootId ? chainRootFillById.get(rootId) : null) || fallbackColor;
-  };
-
-  _onView(view, "element", keep).forEach(vo => {
-    if (!vo.id) return;
-    const depth       = depthById.get(vo.id);
-    const isContainer = isContainerById.get(vo.id);
-    const inChain     = inSameTypeChainById.get(vo.id) === true;
-    if (depth === undefined) return;
+  vos.forEach((vo, i) => {
+    const st = styles.get(nodes[i].id);
+    if (!st) return;
+    const isContainer = nodes[i].isContainer;
 
     // Font: root gets rootFontSize (+ bold if rootFontBold), each deeper level decreases
-    // by fontDecPerLevel pt, clamped at DEFAULT_FONT_SIZE.
-    // Only containers in the same-type chain from their root ancestor are affected.
-    if (settings.fontEnabled && isContainer && inChain) {
-      const size = Math.max(DEFAULT_FONT_SIZE, rootFontSize - depth * fontDecPerLevel);
-      if (size > DEFAULT_FONT_SIZE || (depth === 0 && rootFontBold)) {
+    // by fontDecreasePerLevel pt from the root, clamped at DEFAULT_FONT_SIZE. Containers only.
+    const size = Math.max(DEFAULT_FONT_SIZE, settings.rootFontSize - st.depth * settings.fontDecreasePerLevel);
+    const bold = st.depth === 0 && settings.rootFontBold;
+    if (isContainer && (size > DEFAULT_FONT_SIZE || bold)) {
+      if (settings.fontEnabled) {
         vo.fontName  = DEFAULT_FONT_NAME;
         vo.fontSize  = size;
-        vo.fontStyle = (depth === 0 && rootFontBold) ? "bold" : DEFAULT_FONT_STYLE;
+        vo.fontStyle = bold ? "bold" : DEFAULT_FONT_STYLE;
         fontSet++;
-      }
-    } else if (!settings.fontEnabled && isModify && isContainer && inChain) {
-      const wouldHaveSize = Math.max(DEFAULT_FONT_SIZE, rootFontSize - depth * fontDecPerLevel);
-      if (wouldHaveSize > DEFAULT_FONT_SIZE || (depth === 0 && rootFontBold)) {
+      } else if (isModify) {
         vo.fontName  = DEFAULT_FONT_NAME;
         vo.fontSize  = DEFAULT_FONT_SIZE;
         vo.fontStyle = DEFAULT_FONT_STYLE;
@@ -257,24 +258,23 @@ function _applyNestingLevel(view, settings, depths, isModify, styledVoIds, keep)
       }
     }
 
-    // Color: each chain uses its depth-0 root container's current fill color as the
-    // gradient anchor (darkest). Deeper elements are lightened by depth × lightenPerLevel%.
-    // Falls back to settings.rootColor when the root has no fill set.
-    // Containers and same-type leaves in the chain are affected.
-    if (settings.colorEnabled && inChain) {
-      const anchor = anchorColor(vo.id);
-      if (anchor) {
-        const lightenFactor = depth * (lightenPerLevel / 100);
-        vo.fillColor = _lightenHex(anchor, lightenFactor);
-        styledVoIds.add(vo.id);
-        colorSet++;
-      }
-    } else if (!settings.colorEnabled && isModify && inChain) {
+    // Colour: the segment's colour (its condition's colour, or Default = the element type's default
+    // fill), shaded by segmentDepth − darkenStart levels: darkenStart levels darker at the segment start.
+    if (settings.colorEnabled) {
+      let start = st.color ? colorOf(st.color) : null;
+      if (st.color && !start) unknownColors.add(st.color);
+      vo.fillColor = null;                       // reading it back gives the type's default fill
+      if (!start) start = vo.fillColor;
+      vo.fillColor = _shadeHex(start, st.segmentDepth - settings.darkenStart, settings.lightenPerLevel / 100);
+      styledVoIds.add(vo.id);
+      colorSet++;
+    } else if (isModify) {
       vo.fillColor = null;
       colorReset++;
     }
   });
 
+  unknownColors.forEach(c => console.error(`Appearance: colour "${c}" is not in the chosen palette; Default used. Choose a colour of the palette in the nesting style condition.`));
   if (settings.fontEnabled  || fontReset  > 0) console.log(`  nestingLevel font:  ${fontSet} set  ${fontReset} reset`);
   if (settings.colorEnabled || colorReset > 0) console.log(`  nestingLevel color: ${colorSet} set  ${colorReset} reset`);
 }
@@ -501,18 +501,40 @@ function _colorScale(rangeName, n) {
   }
 }
 
-// Blend hex colour toward white by factor (0 = unchanged, 1 = white).
+// Darker yellow turns ochre, not lemon (HSL) or olive (Lab): per darker level the hue of a yellow
+// moves this many degrees toward orange, as in the GEMMA KK01 views (#fff29b → #fff8b7 → #ffffcc).
+const YELLOW_HUES       = [40, 80];   // HSL hue range that shifts; the shift stops at its lower end
+const OCHRE_DEG_PER_LEVEL = 4;
+// A darker level never goes below the lighter of: the exact inverse of a lighter level, and closing the same
+// fraction of the distance to this HSL lightness. Light colours follow the inverse (KK01); a middle
+// colour such as orange #f9c268 stays light (#f8bd5a, #f8b951) instead of turning brown.
+const DARKEN_FLOOR = 0.6;
+
 /**
- * @param {string | null} hex
- * @param {number}        factor
+ * Shade a colour by nesting levels in HSL lightness, saturation kept: each level up closes `step`
+ * of the distance to white, each level down (levels < 0) is the exact inverse, bounded by
+ * DARKEN_FLOOR, and a darker yellow also shifts toward ochre. So the colour itself sits at level 0; yellow #ffffcc goes
+ * #fff197 → #fffab6 → #ffffcc → #ffffdb at 30 %.
+ * @param {string} hex
+ * @param {number} levels  > 0 lighter, < 0 darker
+ * @param {number} step    0..1, fraction of the distance to white per level
  * @returns {string}
  */
-function _lightenHex(hex, factor) {
-  return Chroma.mix(hex || "#000000", "#ffffff", Math.max(0, Math.min(1, factor)), "rgb").hex();
+function _shadeHex(hex, levels, step) {
+  const l = Chroma(hex).get("hsl.l");
+  const keep = 1 - Math.max(0, Math.min(0.95, step));
+  let shaded = 1 - (1 - l) * Math.pow(keep, levels);
+  if (levels < 0 && l > DARKEN_FLOOR) shaded = Math.max(shaded, DARKEN_FLOOR + (l - DARKEN_FLOOR) * Math.pow(keep, -levels));
+  else if (levels < 0) shaded = l;
+  let c = Chroma(hex).set("hsl.l", Math.max(0, Math.min(1, shaded)));
+  const hue = Chroma(hex).get("hsl.h");
+  if (levels < 0 && hue >= YELLOW_HUES[0] && hue <= YELLOW_HUES[1])
+    c = c.set("hsl.h", Math.max(YELLOW_HUES[0], hue + OCHRE_DEG_PER_LEVEL * levels));
+  return c.hex();
 }
 
 // ── Module exports ────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { applyAppearance, computeConditionTargets };
+  module.exports = { applyAppearance, computeConditionTargets, followNestingChains };
 }

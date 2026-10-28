@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "GEMMA/GGM/GGM data-object specialisaties",
   "algorithm": "Dot",
   "params": {
@@ -67,19 +67,23 @@
     "suffix": ""
   },
   "appearance": {
+    "palette": "",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "fontEnabled": false,
       "rootFontSize": 14,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
-      "rootColor": "",
-      "lightenPerLevel": 15
+      "lightenPerLevel": 15,
+      "darkenStart": 0
     },
     "highlightRepeated": {
       "enabled": false,

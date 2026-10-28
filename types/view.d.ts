@@ -5,7 +5,7 @@
 
 // ── Condition lists (Scripts/View/lib/rel_filter.js) ──────────────────────────────────────────────────
 
-type ConditionKind = "element" | "diagram" | "relation" | "step" | "style";
+type ConditionKind = "element" | "diagram" | "relation" | "step" | "style" | "nestingStyle";
 type ConditionMode = "include" | "exclude";
 
 type ElementCondition = {
@@ -57,14 +57,56 @@ type StyleCondition = {
   colorRange: string;
 };
 
+type NestingStyleCondition = {
+  on: boolean;
+  parent: string;
+  direction: "either" | "outgoing" | "incoming";
+  relation: string;
+  /** A type id, "" = All, "same" = the parent's type. */
+  child: string;
+  /** A colour name of the chosen palette; "" = Default (the element type's default fill). */
+  color: string;
+};
+
 interface ConditionByKind {
   element: ElementCondition;
   diagram: DiagramCondition;
   relation: RelationCondition;
   step: StepCondition;
   style: StyleCondition;
+  nestingStyle: NestingStyleCondition;
 }
 type AnyCondition = ConditionByKind[ConditionKind];
+
+/** A palette: a named list of named colours (presets/_palettes.json, Scripts/View/lib/palettes.js). */
+interface Palette {
+  name: string;
+  colors: { name: string; hex: string }[];
+}
+
+/** One choice of a colour picker (gui/widgets.js colorPicker). colors: one hex = a swatch, several = a gradient, none = an empty frame. */
+interface ColorPickerItem { value: string; label: string; colors: readonly string[] }
+interface ColorPickerOptions {
+  items: () => readonly ColorPickerItem[];
+  /** The item shown for a value that is not among the items. */
+  missing: (value: string) => ColorPickerItem;
+  value: string;
+  onChange: (value: string) => void;
+  tooltip?: string;
+  /** End the menu with "Other…": the system colour dialog, chosen as a hex value. */
+  other?: boolean;
+  /** px; default 16. */
+  swatchWidth?: number;
+  /** Button width hint (px), so the layout does not shift with the chosen label. */
+  width?: number;
+}
+/** The controller colorPicker returns; also a condition-table cell. */
+interface ColorPicker extends ConditionTableCell {
+  button: Swt.Button;
+  get(): string;
+  set(value: string): void;
+  refresh(): void;
+}
 
 /** Type ids a condition may name, per field group (built by defs.validatePreset). */
 interface ValidTypeSets {
@@ -79,6 +121,8 @@ interface ConditionKindSpec<R> {
   defaults: R;
   types: Record<string, Exclude<keyof ValidTypeSets, "colorRanges">>;
   enums: Record<string, readonly string[]>;
+  /** Extra values a type field accepts besides type ids (nestingStyle child: "same"). */
+  specials?: Record<string, readonly string[]>;
 }
 
 /** Step candidate: one relation seen from one element of the previous step. */
@@ -200,14 +244,17 @@ type Preset = {
   relatedElements: { steps: Step[] };
   view: { name: string; folder: string; suffix: string };
   appearance: {
+    /** Name of a palette in presets/_palettes.json; "" = none. */
+    palette: string;
     styleByProperty: { conditions: StyleCondition[]; mixedValuesColor: string; lineWidth: number };
     nestingLevel: {
+      conditions: NestingStyleCondition[];
       fontEnabled: boolean;
       rootFontSize: number;
       rootFontBold: boolean;
       fontDecreasePerLevel: number;
       colorEnabled: boolean;
-      rootColor: string;
+      darkenStart: number;
       lightenPerLevel: number;
     };
     highlightRepeated: { enabled: boolean; colorRange: string };
@@ -752,14 +799,15 @@ type DialogWidgets = {
   cmbAspectRatio: Swt.Combo;
   spinMaxWidth: Swt.Spinner;
   // Appearance tab
+  cmbPalette: Swt.Combo;
+  tblNestingStyleConditions: ConditionTable<"nestingStyle">;
   tblStyleConditions: ConditionTable<"style">;
   lblStyleConflicts: Swt.Label;
-  txtMixedColor: Swt.Text;
-  mixedSwatch: Swt.Canvas;
-  mixedSwatchSet: (hex: string) => void;
+  pickMixedColor: ColorPicker;
   cmbStyleLineWidth: Swt.Combo;
   lblNestingInfo: Swt.Label;
   nestDescLbl: Swt.Label;
+  nestColorDescLbl: Swt.Label;
   chkNestFont: Swt.Button;
   spinNestRootFontSize: Swt.Spinner;
   chkNestRootBold: Swt.Button;
@@ -768,16 +816,15 @@ type DialogWidgets = {
   lblNestFontPt: Swt.Label;
   nestMidSep: Swt.Label;
   chkNestColor: Swt.Button;
-  txtRootColor: Swt.Text;
-  nestRootSwatch: Swt.Canvas;
-  nestRootSwatchSet: (hex: string) => void;
+  lblNestDarken: Swt.Label;
+  spinNestDarken: Swt.Spinner;
+  lblNestDarkenSteps: Swt.Label;
   lblNestLighten: Swt.Label;
   spinNestLighten: Swt.Spinner;
   lblNestLightenPct: Swt.Label;
   chkHighlightRep: Swt.Button;
   lblHighlightRepRange: Swt.Label;
-  cmbHighlightRepRange: Swt.Combo;
-  cmbHighlightRepRangeCanvas: Swt.Canvas;
+  pickHighlightRepRange: ColorPicker;
   // Properties tab
   vpAddObjectId: Swt.Button;
   vpRows: ViewPropertyRow[];
@@ -825,6 +872,7 @@ interface DialogContext {
   layoutPage: Swt.Composite;
   appearanceScrolled: Swt.ScrolledComposite;
   appearancePage: Swt.Composite;
+  palettes: Palette[]; // palettes (presets/_palettes.json), read when the Appearance tab is built
   _ready?: boolean; // the modified indicator is on
   modified?: boolean;
   _actionId?: string; // ACTION.*.id of the pressed action button

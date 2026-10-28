@@ -14,6 +14,8 @@
  *               propertyOf, property, value }
  *   style     { on, color, source, relation, target, propertyOf,          Appearance › Style by property
  *               property, colorRange }
+ *   nestingStyle { on, parent, direction, relation, child, color }        Appearance › Style by nesting level
+ *               (child "same" = the parent's type; color: a colour name of the palette, "" = Default)
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
  * reverse, style) select nothing. A condition that is off adds nothing and removes nothing, but an
@@ -31,6 +33,7 @@ const STEP_PROP_OF  = Object.freeze(["added", "relation", "previous"]);
 const STYLE_COLOR   = Object.freeze(["element", "relation", "source", "target"]);
 const STYLE_PROP_OF = Object.freeze(["element", "relation", "source", "target"]);
 const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
+const SAME_TYPE     = "same";   // nestingStyle child: the same type as the parent
 
 // kind → { defaults, types: field → valid-set name, enums: field → allowed values }
 /** @type {Readonly<{ [K in ConditionKind]: ConditionKindSpec<ConditionByKind[K]> }>} */
@@ -62,6 +65,12 @@ const KINDS = Object.freeze({
                 propertyOf: "element", property: "", colorRange: "Blues" },
     types:    { source: "elements", relation: "relations", target: "elements" },
     enums:    { color: STYLE_COLOR, propertyOf: STYLE_PROP_OF },
+  },
+  nestingStyle: {
+    defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE, color: "" },
+    types:    { parent: "elements", relation: "relations", child: "elements" },
+    enums:    { direction: DIRECTIONS },
+    specials: { child: [SAME_TYPE] },
   },
 });
 
@@ -102,7 +111,8 @@ function normalizeCondition(kind, raw, valid, where) {
       out[key] = val;
     } else if (key in K.types) {
       const s = String(val);
-      if (s !== "" && !valid[K.types[key]].has(s)) return bad(`unknown ${key} "${s}"`);
+      const special = K.specials && K.specials[key] && K.specials[key].includes(s);
+      if (s !== "" && !special && !valid[K.types[key]].has(s)) return bad(`unknown ${key} "${s}"`);
       out[key] = s;
     } else if (K.enums[key]) {
       if (!K.enums[key].includes(val)) return bad(`${key} must be one of ${K.enums[key].join(", ")}`);
@@ -149,6 +159,8 @@ function serializeCondition(kind, condition) {
   }
   // A style condition with only defaults would serialise to {}; colour range is always informative.
   if (kind === "style" && out.colorRange === undefined) out.colorRange = condition.colorRange || d.colorRange;
+  // Likewise the child of a nesting style condition: the default row reads "child: same", not {}.
+  if (kind === "nestingStyle" && out.child === undefined) out.child = condition.child || d.child;
   return out;
 }
 
@@ -368,6 +380,25 @@ function detectConditionConflicts(styled) {
   return out;
 }
 
+// ── Nesting style conditions ──────────────────────────────────────────────────
+
+/**
+ * One nesting style condition against a nesting step parent → child. `rels` are the model relations
+ * between the two elements, each with `outgoing` = the parent is its source. Relation All with
+ * direction Either needs no relation (a nesting drawn by hand); otherwise a relation must match.
+ * @param {NestingStyleCondition} r
+ * @param {string} parentType
+ * @param {string} childType
+ * @param {{ type: string, outgoing: boolean }[]} rels
+ */
+function nestingStyleConditionMatches(r, parentType, childType, rels) {
+  if (!_typeOk(r.parent, parentType)) return false;
+  if (r.child === SAME_TYPE ? childType !== parentType : !_typeOk(r.child, childType)) return false;
+  if (!r.relation && r.direction === "either") return true;
+  return rels.some(x => _typeOk(r.relation, x.type) &&
+    (r.direction === "either" || (r.direction === "outgoing") === x.outgoing));
+}
+
 // ── Preset files ────────────────────────────────────────────────────────────────
 
 // Where condition lists live in a preset: [path, kind, filter list (empty = all)].
@@ -379,6 +410,7 @@ const PRESET_CONDITION_LISTS = Object.freeze([
   [["filter", "diagramConditions"],                 "diagram",  true],
   [["filter", "relationConditions"],                "relation", true],
   [["appearance", "styleByProperty", "conditions"], "style",    false],
+  [["appearance", "nestingLevel", "conditions"],    "nestingStyle", false],
 ]);
 const INLINE_KEYS = new Set(["nestingConditions", "reverseConditions", "elementConditions", "diagramConditions", "relationConditions", "conditions"]);
 
@@ -451,7 +483,7 @@ if (typeof module !== "undefined" && module.exports) {
     MODES, DIRECTIONS, STEP_PROP_OF, STYLE_COLOR, STYLE_PROP_OF, REL_PROP_OF, KINDS,
     defaultCondition, normalizeCondition, normalizeConditions, serializeCondition, isPassAll,
     evalConditions, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
-    styleConditionMatchesRelation, detectConditionConflicts,
+    styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, nestingStyleConditionMatches,
     compactPreset, stringifyPreset,
   };
 }

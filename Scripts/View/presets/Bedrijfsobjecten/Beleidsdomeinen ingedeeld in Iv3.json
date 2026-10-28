@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "Bedrijfsobjecten/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Pack",
   "params": {
@@ -60,19 +60,23 @@
     "folder": "/_Generated/Domeinen"
   },
   "appearance": {
+    "palette": "",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "fontEnabled": true,
       "rootFontSize": 12,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "rootColor": "#2B5796",
-      "lightenPerLevel": 35
+      "lightenPerLevel": 35,
+      "darkenStart": 0
     },
     "highlightRepeated": {
       "enabled": false,

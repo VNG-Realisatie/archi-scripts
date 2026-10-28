@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "Bedrijfsobjecten/Bedrijfsobjecten per domein",
   "algorithm": "Pack",
   "params": {
@@ -58,19 +58,23 @@
     "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjecten per domein"
   },
   "appearance": {
+    "palette": "",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "fontEnabled": true,
       "rootFontSize": 12,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "rootColor": "#f6ffce",
-      "lightenPerLevel": 25
+      "lightenPerLevel": 25,
+      "darkenStart": 0
     },
     "highlightRepeated": {
       "enabled": true,

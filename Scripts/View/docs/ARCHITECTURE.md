@@ -88,6 +88,7 @@ Shared (Layers 1–2) ───────────────────�
   defs.js        SSOT: algorithm registry, params, labels, tooltips, defaults; preset validation
   rel_filter.js  the condition model of every condition list (pure)
   preset_io.js   preset and session files
+  palettes.js    the palettes file (named colours)
   _lib/*         repo-wide helpers: selection, logging, folders
 ```
 
@@ -96,7 +97,7 @@ Shared (Layers 1–2) ───────────────────�
 | `View/_*.ajs`, `shortcuts/**/<preset>_<Action>_<Dir>.ajs` | 1 | Entry scripts: base or named preset + fixed overrides → API | `run_preset` |
 | `lib/run_preset.js` | 1 | Preset, action and direction from the file name, or the base preset `all` | `preset_io`, `generate_view`, `defs` |
 | `lib/gui/dialog_main.js` | 1 | Generate View dialog: opening, preset row, Properties tab, action area, settings ↔ widgets sync, putting the counts on the widgets | the gui modules, `preset_io`, `generate_view`, `selection_read`, `defs` |
-| `lib/gui/tab_selection.js`, `tab_layout.js`, `tab_appearance.js` | 1 | One tab each: Selection (filters, step blocks), Layout (algorithm, nesting, containers, flow, elements, connections, view size; the param → widget table `PARAM_WIDGETS`; controls that follow the algorithm), Appearance | `widgets`, `condition_table`, `counts`, `defs`, `appearance`, `rel_filter` |
+| `lib/gui/tab_selection.js`, `tab_layout.js`, `tab_appearance.js` | 1 | One tab each: Selection (filters, step blocks), Layout (algorithm, nesting, containers, flow, elements, connections, view size; the param → widget table `PARAM_WIDGETS`; controls that follow the algorithm), Appearance | `widgets`, `condition_table`, `counts`, `defs`, `appearance`, `rel_filter`, `palettes` |
 | `lib/gui/widgets.js` | 1 | SWT helpers without dialog state: tab pages, groups, form rows, combos, checks, spinners, colour pickers | `defs` |
 | `lib/gui/condition_table.js` | 1 | The widget for every condition list, and the column sets of the dialog's condition tables | `rel_filter`, `widgets`, `defs` |
 | `lib/gui/counts.js` | 1 | Everything the dialog's counters show: per-condition counts, what each step adds, the predicted view, the totals, the saved-preset compare. No widgets; Node loads it | `defs`, `selection_pipeline`, `nesting`, `rel_filter` |
@@ -109,12 +110,13 @@ Shared (Layers 1–2) ───────────────────�
 | `lib/selection_read.js` | 2 | Archi reads of the selection and the target view (its visuals and their positions) into a `Snapshot`; the relations index; the seed elements. The only selection code that uses `$` | `_lib/selection`, `defs`, `nesting` |
 | `lib/selection_pipeline.js` | 2 | Snapshot → object set: filter, related-elements steps, relation collection, predicted counts. Pure. Shared by API and dialog | `defs`, `rel_filter`, `nesting`, `selection_read` |
 | `lib/nesting.js` | 2 | Nesting split and resolution; pairing with the visuals; managed-occurrence records; predicted counts. Pure | `defs`, `rel_filter` |
-| `lib/appearance.js` | 2 | Post-write styling pass | `defs`, `rel_filter`, chroma-js |
+| `lib/appearance.js` | 2 | Post-write styling pass | `defs`, `rel_filter`, `palettes`, chroma-js |
 | `lib/engines/elk.js`, `dagre.js`, `graphviz.js` | 3 | One adapter per engine: layout graph → layout result | `defs`, `engine-utils`, engine library |
 | `lib/engines/engine-utils.js` | 3 | Engine-independent sizing and ordering | `defs` |
 | `lib/defs.js` | shared | SSOT: algorithms, params, labels, tooltips, defaults, enums; preset validation; effective params | `_lib/selection`, `rel_filter` |
 | `lib/rel_filter.js` | shared | Condition model: normalise, match, file form | — |
 | `lib/preset_io.js` | shared | Preset and session files | `defs`, `rel_filter` |
+| `lib/palettes.js` | shared | The palettes file: read, validate, colour lookup | — |
 | `tools/`, `test/` | — | Checks, generators, migrations, harness; Archi test scripts | — |
 
 ### Subjects and layers
@@ -130,7 +132,7 @@ The sections below describe the implementation per functional subject, grouped b
 | [Nesting](#nesting) | 2 | `nesting.js` (`splitNestingRels`, `resolveNesting`); `layout_graph.js` (`buildLayoutGraph`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#nesting-reference) |
 | [Managed occurrences](#managed-occurrences) | 2 | `selection_read.js` (`describeVisuals`), `nesting.js` (`classifyVisuals`, `managedRecords`); the writer | [SPEC § 7](SPEC.md#7-layout-options), [§ 12](SPEC.md#12-resilience--error-model) | [selection-nesting.md](reference/selection-nesting.md#managed-occurrences) |
 | [Writer](#writer) | 2 | `write_plan.js` (`planWrite`), `view_writer.js` (`applyWritePlan`); `nesting.js` (`nestingConnections`) | [SPEC § 5](SPEC.md#5-actions), [§ 11](SPEC.md#11-rules--invariants) | [selection-nesting.md](reference/selection-nesting.md#writer-parenthood) |
-| [Appearance](#appearance) | 2 | `appearance.js` (`applyAppearance`, `computeConditionTargets`) | [SPEC § 10](SPEC.md#10-colouring--appearance) | [gui.md](reference/gui.md#appearance-tab) |
+| [Appearance](#appearance) | 2 | `appearance.js` (`applyAppearance`, `computeConditionTargets`, `followNestingChains`), `palettes.js` | [SPEC § 10](SPEC.md#10-colouring--appearance) | [gui.md](reference/gui.md#appearance-tab) |
 | [Engines](#layer-3--engine-adapters) | 3 | `engines/elk.js`, `dagre.js`, `graphviz.js` (`layout`), `engine-utils.js` | [SPEC § 7](SPEC.md#7-layout-options), [§ 8](SPEC.md#8-engine-contract) | [engines.md](reference/engines.md) |
 | [Sizing](#sizing) | 3 | `engines/elk.js`, `engine-utils.js` (`alignWidthsByLevel`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#sizing-refinements) |
 | [SSOT and presets](#ssot-and-presets) | shared | `defs.js` (`validatePreset`, `effectiveParams`), `rel_filter.js`, `preset_io.js` | [SPEC § 3](SPEC.md#3-architecture), [§ 14](SPEC.md#14-development-rules) | [presets.md](reference/presets.md) |
@@ -378,6 +380,12 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - A separate pass that reads only the written view and the model, so it behaves the same for every action.
 - Objects inside a diagram-block are skipped and keep their appearance; on a Create action, their copies.
 - Style by property shares its target computation with the dialog's ⚠ check.
+- Style by nesting level splits in two: `followNestingChains` is pure (visuals as id, parent, type, depth and the model relations to the parent → depth, segment depth and colour name per styled visual) and tested in Node; `_applyNestingLevel` reads the view and writes font and fill.
+- *Default* is the element type's default fill, read back after `fillColor = null`, not the current fill: a rerun with Layout only would otherwise shade a fill that an earlier run set.
+- Shading works in HSL lightness (chroma-js), so a darker level keeps hue and saturation; Lab darkening turned light yellow brown. One level darker is the inverse of one level lighter, bounded by closing the same fraction toward lightness 0.6, so middle colours such as orange stay light. Darker yellows (hue 40–80) shift 4° per level toward orange, matching the GEMMA KK01 views (#fff29b → #fff8b7 → #ffffcc).
+- The dialog has no ⚠ for nesting style conditions that give one type different colours: its predicted view has no nesting tree. The run logs the types instead.
+- Palettes live in one file (`presets/_palettes.json`, `palettes.js`) that a preset names, so a colour is defined once for every preset. The run reads it only when a nesting style condition names a colour.
+- Every colour choice in the dialog is the colour picker (`widgets.js`): a button and a menu with swatch images, since an SWT Combo shows text only on GTK ([dialog-style.md](reference/dialog-style.md#colour-choices)).
 
 ## Layer 3 — Engine adapters
 
@@ -509,7 +517,7 @@ DEFAULT_PRESET (defs.js)                      code defaults
 - **One registry per algorithm** in `defs.js`: engine, style, nesting and self-loop capability, active params, allowed values. Dialog enabling, validation and the generated tables derive from it; `tools/check_registry.js` checks registry ↔ defaults ↔ dialog widgets.
 - **Effective params.** Inactive params are dropped and locks applied (connections mode) before the pipeline, adapter or writer sees the preset.
 - **File form.** Plain JSON, one condition per line, defaults omitted, so a changed condition is one changed line in a diff.
-- **The schema version gates loading.** A different `schemaVersion` is refused with a message. A shape change ships with a one-shot, idempotent Node migration in `tools/` that rewrites every preset, `_session.json` included; there is no conversion at load time. Version 3 replaced `params.showInEveryContainer` with `everyContainer` per nesting condition. Version 4 renamed the *rule* keys to *condition* (`tools/migrate_presets_conditions.js`). Only the latest migration is kept: an older one stamps the current version on its own output, so at version 4 it would write the old keys, which loading strips silently; the migrations to versions 2 and 3 run from commit `61c9c52` ([README](../README.md#presets)).
+- **The schema version gates loading.** A different `schemaVersion` is refused with a message. A shape change ships with a one-shot, idempotent Node migration in `tools/` that rewrites every preset, `_session.json` included; there is no conversion at load time. Version 3 replaced `params.showInEveryContainer` with `everyContainer` per nesting condition. Version 4 renamed the *rule* keys to *condition*. Version 5 added the nesting style conditions and the palette and dropped `rootColor`, which was never used because jArchi always reads an effective fill (`tools/migrate_presets_nesting_style.js`: the default condition and `darkenStart: 0`, so existing presets keep their colours). Only the latest migration is kept: an older one stamps the current version on its own output, which loading then strips or refuses; the migrations to versions 2 and 3 run from commit `61c9c52`, the one to version 4 from `deb432c` ([README](../README.md#presets)).
 
 ## Cross-cutting concepts
 
@@ -587,6 +595,7 @@ Sources of order: the selection (Order *as selected*), ids (relations are taken 
 |---|---|---|
 | Presets | `presets/**/*.json` | Folders allowed. `_Default` = the code defaults, hidden. `all` = base preset of `View/_*.ajs`. |
 | Session | `presets/_session.json` | Last settings plus UI state (`_`-prefixed keys); git-ignored |
+| Palettes | `presets/_palettes.json` | Named colours the presets pick from (`appearance.palette`); tracked |
 | View properties | the generated view | From the Properties tab; optional object-id property |
 | Managed-occurrence records | view property `Managed occurrence` | Rewritten by every run; not for editing |
 
@@ -692,7 +701,7 @@ Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` o
    - The Appearance and Properties tabs lay out their rows on their own, without the tab's heading column (Look 6).
    - The opening explanations of *Expand selection* and the Appearance groups are black, not grey; two have a fixed width instead of wrapping at the group width (Look 9).
    - Group margins differ: the Layout tab uses wider inner margins than the other tabs (Look 8).
-   - Style by nesting level: the root-size spinner and the root-colour field have no label (Look 4). Its info line says "nesting types" instead of *Nesting condition* (SPEC rule 16).
+   - Style by nesting level: the root-size spinner has no label (Look 4). Its info line says "nesting types" instead of *Nesting condition* (SPEC rule 16).
    - The preset row, the totals line and the action area have not been checked against the principles yet.
 7. Testing:
    - SPEC § 13 acceptance is not automated: the count promise (predicted = written) is checked only in Archi, and no scale budget is defined.

@@ -15,7 +15,7 @@
  * shows the default condition switched off, as an example to switch on; untouched, it is handed back
  * as [].
  *
- * Also here: the column sets of the dialog's condition tables (filter, step, nesting, reverse, style).
+ * Also here: the column sets of the dialog's condition tables (filter, step, nesting, reverse, style, nesting style).
  */
 console.log("Loading condition_table.js");
 
@@ -632,14 +632,43 @@ const STYLE_CONDITION_COLUMNS = Object.freeze([
   { key: "property", header: "Property", kind: "prop", width: 140, count: "count",
     tooltip: "The property whose values give the colors.\n(n): objects on the view this condition colors " +
              "(no property chosen yet: objects it reaches)." },
-  { key: "colorRange", header: "Range", kind: "custom", cells: 2, create: (p, v, on) => Widgets.rangeCell(p, v, on),
+  { key: "colorRange", header: "Range", kind: "custom", create: (p, v, on) => Widgets.colorRangePicker(p, v || "Blues", on),
     tooltip: "Colors from low to high value of the property." },
   { key: "warn", kind: "warn" },
 ]);
 
+const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "= Parent" }, ...ELEMENT_ITEMS]);
+
+/**
+ * Columns of the nesting style table; the colour cell lists the colours of the chosen palette.
+ * @param {() => readonly { name: string, hex: string }[]} colors
+ * @returns {readonly ConditionTableColumn<NestingStyleCondition>[]}
+ */
+function nestingStyleConditionColumns(colors) {
+  return Object.freeze([
+    _onCol,
+    _typeCol("parent", "Parent type", "Type of the container. A root container is styled when a condition names its type here. All = any type.", 150),
+    { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
+      tooltip: "Outgoing: the relation starts at the parent.\nIncoming: the relation ends at the parent.\n" +
+               "Either: both (default). Either with relation All also matches a nesting without a relation." },
+    _relCol("relation", "Relation type", "The model relation between parent and child. All = any type."),
+    { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 150,
+      tooltip: "Type of the nested element. = Parent: the parent's type (the chain continues one level deeper). " +
+               "Another type starts again from that type's color. All = any type." },
+    { key: "color", header: "Color", kind: "custom",
+      create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) => Widgets.colorPicker(p, {
+        items: () => [{ value: "", label: "Default", colors: [] }, ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
+        missing: x => ({ value: x, label: x + " (not in list)", colors: [] }),
+        value: v, onChange: on, width: 190 }),
+      tooltip: "Color of the parent type: a color of the palette, or Default (the element type's default fill). " +
+               "Elements of that type take it, lighter per nesting level; where conditions with the same parent type " +
+               "give different colors, the last one wins." },
+  ]);
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    conditionTable,
+    conditionTable, nestingStyleConditionColumns,
     ELEMENT_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS, FILTER_RELATION_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS, STYLE_CONDITION_COLUMNS,
   };
 }

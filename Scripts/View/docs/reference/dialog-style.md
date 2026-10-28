@@ -16,6 +16,10 @@ How dialogs in this repo realise the look-and-feel principles in [`Scripts/View/
 | Off is grey, the label too | Keep the label with its control (`control.setData("label", lbl)`) and enable both in one helper. A checkbox that must look disabled is drawn on a Canvas: a disabled GTK checkbox keeps its blue tick. |
 | Never cut off | Widen the shell when a table outgrows the tab (only wider, within the monitor, never back) and give the tab a horizontal scrollbar as the fallback. Do not resize on every change, and keep the default layout narrow enough to fit without it. |
 
+## Colour choices
+
+Every colour or colour range is chosen with the colour picker (`Widgets.colorPicker`, `colorRangePicker`): a push button with the chosen item's swatch image (16 px; a range: a 60 px gradient strip) and name, followed by ▾, and a pop-up `Menu` whose items carry their own swatch image, the current one ticked. An SWT `Combo` shows text only on GTK, so no combo for colours. The button has a fixed width hint, so the layout does not shift with the chosen name. A disabled picker shows an empty swatch frame (off is grey). The swatch images are disposed with the menu or the button. A free colour comes from *Other…*: the system `ColorDialog`, parented on the dialog's shell.
+
 ## Buttons
 
 Add / Remove buttons are equally wide (95 px), so both "Add >" and "< Remove" fit.

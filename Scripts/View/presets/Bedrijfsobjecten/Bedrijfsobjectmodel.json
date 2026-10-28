@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -72,6 +72,7 @@
     "suffix": ""
   },
   "appearance": {
+    "palette": "",
     "styleByProperty": {
       "conditions": [
         {"color": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Greens"}
@@ -80,13 +81,16 @@
       "lineWidth": 3
     },
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "fontEnabled": true,
       "rootFontSize": 10,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
-      "rootColor": "#2B5796",
-      "lightenPerLevel": 15
+      "lightenPerLevel": 15,
+      "darkenStart": 0
     },
     "highlightRepeated": {
       "enabled": true,

@@ -26,7 +26,7 @@ declare namespace Swt {
     // event types
     readonly Selection: number; readonly DefaultSelection: number; readonly Modify: number;
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
-    readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number;
+    readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number; readonly Dispose: number;
     // GC
     readonly ON: number;
     // system colours
@@ -39,6 +39,7 @@ declare namespace Swt {
   interface Rectangle { x: number; y: number; width: number; height: number }
   interface RGB { red: number; green: number; blue: number }
   interface Color { getRGB(): RGB; dispose(): void }
+  interface Image { dispose(): void }
   interface Font {}
   interface Monitor { getClientArea(): Rectangle }
 
@@ -52,6 +53,8 @@ declare namespace Swt {
     drawRoundRectangle(x: number, y: number, width: number, height: number, arcWidth: number, arcHeight: number): void;
     drawLine(x1: number, y1: number, x2: number, y2: number): void;
     drawFocus(x: number, y: number, width: number, height: number): void;
+    drawRectangle(x: number, y: number, width: number, height: number): void;
+    dispose(): void;
   }
 
   /** The listener argument; Paint events carry gc and display, mouse / key / traverse events the rest. */
@@ -110,6 +113,8 @@ declare namespace Swt {
     redraw(): void;
     isFocusControl(): boolean;
     addControlListener(listener: unknown): void;
+    getBounds(): Rectangle;
+    toDisplay(x: number, y: number): Point;
   }
 
   interface Scrollable extends Control {
@@ -137,6 +142,7 @@ declare namespace Swt {
 
   interface Button extends Control {
     setText(text: string): void;
+    setImage(image: Swt.Image | null): void;
     getSelection(): boolean;
     setSelection(selected: boolean): void;
   }
@@ -145,6 +151,19 @@ declare namespace Swt {
     getText(): string;
     setText(text: string): void;
     selectAll(): void;
+  }
+
+  interface Menu extends Widget {
+    setLocation(location: Point): void;
+    setVisible(visible: boolean): void;
+  }
+  interface MenuItem extends Widget {
+    setText(text: string): void;
+    setImage(image: Image): void;
+  }
+  interface ColorDialog {
+    setRGB(rgb: RGB): void;
+    open(): RGB | null;
   }
 
   interface Combo extends Composite {
@@ -242,6 +261,12 @@ interface JavaInterop {
   type(className: "org.eclipse.swt.widgets.Display"): { getCurrent(): Swt.Display };
   type(className: "org.eclipse.swt.graphics.Color"): new (display: Swt.Display, red: number, green: number, blue: number) => Swt.Color;
   type(className: "org.eclipse.swt.graphics.Point"): new (x: number, y: number) => Swt.Point;
+  type(className: "org.eclipse.swt.graphics.Image"): new (display: Swt.Display, width: number, height: number) => Swt.Image;
+  type(className: "org.eclipse.swt.graphics.GC"): new (image: Swt.Image) => Swt.GC;
+  type(className: "org.eclipse.swt.graphics.RGB"): new (red: number, green: number, blue: number) => Swt.RGB;
+  type(className: "org.eclipse.swt.widgets.Menu"): new (parent: Swt.Control) => Swt.Menu;
+  type(className: "org.eclipse.swt.widgets.MenuItem"): new (parent: Swt.Menu, style: number) => Swt.MenuItem;
+  type(className: "org.eclipse.swt.widgets.ColorDialog"): new (parent: Swt.Shell) => Swt.ColorDialog;
   type(className: "org.eclipse.swt.layout.RowLayout"): new (type: number) => Swt.RowLayout;
   type(className: "org.eclipse.swt.events.ControlListener"): { controlResizedAdapter(fn: (e: Swt.Event) => void): unknown };
   type(className: "org.eclipse.jface.layout.GridDataFactory"): JFace.GridDataFactoryClass;

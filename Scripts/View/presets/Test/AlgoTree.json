@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "Test/AlgoTree",
   "algorithm": "Tree",
   "params": {
@@ -56,19 +56,23 @@
     "suffix": ""
   },
   "appearance": {
+    "palette": "",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
     "nestingLevel": {
+      "conditions": [
+        {"child": "same"}
+      ],
       "fontEnabled": false,
       "rootFontSize": 14,
       "rootFontBold": false,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
-      "rootColor": "#2B5796",
-      "lightenPerLevel": 15
+      "lightenPerLevel": 15,
+      "darkenStart": 0
     },
     "highlightRepeated": {
       "enabled": false,

@@ -39,7 +39,9 @@ Hover over any setting for what it does and which algorithms use it. Settings th
 
 A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog; `_Default.json` holds the code defaults.
 
-Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 3 preset up to date with `node Scripts/View/tools/migrate_presets_conditions.js` (`--dry-run` first). An older preset: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then come back and run `migrate_presets_conditions.js`.
+Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 4 preset up to date with `node Scripts/View/tools/migrate_presets_nesting_style.js` (`--dry-run` first). A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
+
+**Palettes** — `presets/_palettes.json` holds named colours (the GEMMA palette: the GEMMA default fill colours); pick a palette at the top of the Appearance tab and its colours in *Style by nesting level*. Add a palette or colour by editing the file.
 
 ## Shortcut scripts
 

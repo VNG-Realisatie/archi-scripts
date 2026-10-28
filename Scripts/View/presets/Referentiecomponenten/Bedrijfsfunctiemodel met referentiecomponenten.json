@@ -1,16 +1,29 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Pack",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "everyContainer": true},
+      {"relation": "serving-relationship", "everyContainer": true}
+    ],
     "padding": 20,
     "diagramPadding": 20,
     "sortContainers": false,
+    "elementOrder": "Selection",
+    "cycleElementOrder": false,
     "alignWidthSameType": true,
     "snapColumnsToGrid": false,
     "containerAlgorithm": "Pack",
@@ -25,26 +38,22 @@
     "aspectRatio": 1,
     "viewSizeMode": "aspectRatio",
     "labelSizing": false,
-    "nestingConditions": [
-      {"relation": "aggregation-relationship", "everyContainer": true},
-      {"relation": "realization-relationship", "everyContainer": true},
-      {"relation": "serving-relationship", "everyContainer": true}
-    ],
-    "reverseConditions": [
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"}
-    ],
+    "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementConditions": [
-      {"elementType": "business-function"}
-    ],
-    "relationConditions": [],
-    "diagramConditions": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
+      {
+        "repeat": 2,
+        "conditions": [
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+        ]
+      },
       {
         "repeat": 4,
         "conditions": [
@@ -66,22 +75,31 @@
     ]
   },
   "view": {
-    "name": "Klant- en keteninteractie",
-    "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten"
+    "name": "Ondersteuning",
+    "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
+    "suffix": ""
   },
   "appearance": {
+    "palette": "GEMMA",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
     "nestingLevel": {
+      "conditions": [
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Strategie"},
+        {"parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag"},
+        {"on": false, "parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same"},
+        {"on": false, "parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"},
+        {"on": false, "parent": "application-service", "direction": "incoming", "relation": "realization-relationship", "child": "application-component", "color": "Applicatie actief"}
+      ],
       "fontEnabled": true,
       "rootFontSize": 14,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "rootColor": "",
+      "darkenStart": 2,
       "lightenPerLevel": 30
     },
     "highlightRepeated": {
@@ -99,6 +117,41 @@
         "enabled": true
       },
       {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA URL",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Managed occurrence",
+        "value": "",
+        "enabled": false
+      },
+      {
         "key": "Model",
         "value": "",
         "enabled": true
@@ -107,6 +160,51 @@
         "key": "Publiceren",
         "value": "GEMMA Online en redactie",
         "enabled": true
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "drivingView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "generate_view_param",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "includeTableOfView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "organisation",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "path",
+        "value": "",
+        "enabled": false
       }
     ]
   },

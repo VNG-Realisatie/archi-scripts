@@ -312,28 +312,35 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 ```
 ┌─[Selection]──[Layout]──[Appearance]──────────────────────────────────────────┐
+│ Palette: [GEMMA ▼]                                                           │
 │ ┌─ Style by property ─────────────────────────────────────────────────────┐  │
 │ │ Color elements or relations by property values. Each condition says what  │  │
 │ │ gets the color and whose property gives the value.                        │  │
-│ │ On│Color          │Source  │Relation   │Target │Property of│Property│Range │  │
-│ │ ☑ │Element (own…) │App Comp│ —         │ —     │ —         │Status  │Blues▓│✕ │
-│ │ ☑ │Relation       │All     │Flow       │All    │Relation   │Volume  │Reds ▓│✕ │
-│ │ ☑ │Source element │All     │Serving    │All    │Relation   │Priority│OrRd▓⚠│✕ │
+│ │ On│Color          │Source  │Relation   │Target │Property of│Property│Range        │  │
+│ │ ☑ │Element (own…) │App Comp│ —         │ —     │ —         │Status  │[▓▓ Blues ▾] │✕ │
+│ │ ☑ │Relation       │All     │Flow       │All    │Relation   │Volume  │[▓▓ Reds ▾]  │✕ │
+│ │ ☑ │Source element │All     │Serving    │All    │Relation   │Priority│[▓▓ OrRd ▾] ⚠│✕ │
 │ │ [+ Add condition]                                                         │  │
 │ │ ⚠ Conditions 3, 4 style the same objects. The last condition wins. …     │  │
-│ │ Mixed values color: [#FF6B35 ▪]   Line width of styled relations: [▼]     │  │
+│ │ Mixed values color: [■ #FF6B35 ▾]   Line width of styled relations: [▼]   │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
-│ │  Adjust font size and color based on nesting level. Containers at the   │  │
-│ │  same level look the same.                                              │  │
+│ │  Root containers get the largest font, each nesting level a smaller one. │  │
 │ │  ☑ Change font size with nesting level [14 ▲▼]  ☑ Bold                  │  │
 │ │    Decrease/level: [2 ▲▼] pt                                            │  │
 │ │  ─────────────────────────────────────────────────────────────────      │  │
-│ │  ☑ Change color by nesting level [#2B5796] ▪  Lighten/level: [15 ▲▼] %  │  │
+│ │  Color per parent type, lighter per level; a step no condition matches  │  │
+│ │  stops.                                                                 │  │
+│ │  On│Parent type  │Direction│Relation type│Child type   │Color           │  │
+│ │  ☑ │Grouping     │Outgoing │Aggregation  │Bus. function│[■ Strategie ▾] │✕ │
+│ │  ☑ │Bus. function│Outgoing │Aggregation  │= Parent     │[■ Bedrijf ge…▾]│✕ │
+│ │  [+ Add condition]                                                      │  │
+│ │  ☑ Change color by nesting level  Darken start: [2 ▲▼] steps            │  │
+│ │    Lighten/level: [30 ▲▼] %                                             │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Highlight repeated elements ───────────────────────────────────────────┐  │
 │ │  Elements that have multiple occurrences get the same color.            │  │
-│ │  ☑ Enable  Color range: [Pastel1 ▼] [====]                              │  │
+│ │  ☑ Enable  Color range: [▓▓ Pastel1 ▾]                                  │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -348,14 +355,17 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - The row tooltip reads the condition as a sentence.
 - **Reset on Expand view / Layout only**, when there is at least one style condition (on or off): first every element's fill, and every relation's line colour and width, is reset on the view. Then the active conditions colour again, so a changed condition never leaves colours of an earlier run behind. Colours set in the same pass by nesting level or highlight repeated are kept; colours set by hand on the view are lost. Without style conditions, nothing is reset.
 
-**Style by nesting level.** Active only when a Nesting condition is on; otherwise an informational label replaces the controls. Two rows, font and colour; the spinner after the font switch is the root size, and the field after the colour switch the root colour.
-- **Font.** Root containers (depth 0) get the root size, bold if set. Each deeper level gets the root size minus depth × decrease, never below the tool's default (9 pt). Containers only.
-- **Colour.** Each chain uses its root container's current fill as the darkest anchor, or the root colour when the container has no fill; with neither, the chain is skipped. Each level inward is lightened by *Lighten/level* % toward white. Leaves of the chain's type are coloured at their own depth too.
-- **Type chain.** Each root container defines its chain's type. Styling applies only to objects of the root's type whose whole ancestor chain back to the root has that type: font to containers, colour to containers and leaves. A container of another type breaks the chain: neither it nor any descendant is styled.
+**Palette.** One combo at the top of the tab: *None* or a palette from `presets/_palettes.json` ([presets.md](presets.md#palettes)). The colour pickers of the tab offer its colours; a palette the file does not hold shows as *None*, and the console says so.
+
+**Style by nesting level.** Active only when a Nesting condition is on; otherwise an informational label replaces the controls. From top to bottom: the font row, a line, the nesting style conditions ([condition lists](presets.md#condition-lists)) and the colour row.
+- **Chain.** From each root container, a nesting step parent → child is followed when an active condition matches its parent type, child type (*= Parent*: the parent's type) and a model relation between the two of the condition's type and direction (seen from the parent). Relation *All* with direction *Either* needs no relation. A root container is styled when a condition names its type as parent. A step no condition matches stops the chain: neither the child nor anything inside it is styled.
+- **Font.** Root containers get the root size, bold if set. Each deeper level gets the root size minus depth × decrease, never below the tool's default (9 pt). Containers only.
+- **Colour.** A condition's colour is the colour of its parent type: elements of that type take the colour of the last such condition with a colour (a condition with parent *All* applies to every type that has none), else *Default*, the type's default fill. A run of same-type steps is a segment: it starts *Darken start* levels darker than its colour and each level inward is lighter by *Lighten/level* %. Levels shift HSL lightness only, so hue and saturation stay: a level lighter closes the percentage of the distance to white, a level darker is its inverse, never darker than closing that percentage toward lightness 0.6, and a darker yellow turns towards ochre. Containers and leaves reached by the chain are coloured. When conditions with the same parent type give different colours, the last wins and the console names the types.
+- **Default condition.** A new preset holds one condition, Parent *All*, Child *= Parent*, Color *Default*: the same-type chain from every root container.
 
 **Highlight repeated elements.** Gives each element that appears more than once on the view its own fill colour from the range. It needs a nesting condition with *Every*. Enable and range are on one row.
 
-**Colour ranges.** Every range combo offers the same set of ColorBrewer schemes, with a gradient preview strip that repaints on change.
+**Colour pickers.** Every colour or colour range is chosen with a colour picker: a button with the chosen item's swatch or gradient strip and its name, and a menu that shows every item with its own swatch, the current one ticked. Colour ranges offer the same set of ColorBrewer schemes. *Mixed values color* offers the palette's colours and *Other…*, the system colour dialog; its value is a hex colour. A disabled picker shows an empty swatch.
 
 ### Properties tab
 
