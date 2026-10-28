@@ -1,8 +1,4 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "includeElementType": [
     "constraint",
     "grouping"
@@ -19,4 +15,4 @@ module.exports = {
     "aggregation-relationship",
     "specialization-relationship"
   ]
-};
+}

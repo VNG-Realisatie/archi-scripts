@@ -1,0 +1,7 @@
+{
+  "nodeWidth": 350,
+  "nodeHeight": 25,
+  "doc": "Brede en lage elementen voor goede leesbaarheid. Werkt goed in tree",
+  "nodeSpacing": 15,
+  "layerSpacing": 180
+}

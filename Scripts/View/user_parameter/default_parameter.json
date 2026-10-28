@@ -1,0 +1,23 @@
+{
+  "action": "generate_single",
+  "graphDepth": 1,
+  "includeElementType": [],
+  "includeRelationType": [],
+  "layoutReversed": [
+    "association-relationship",
+    "realization-relationship",
+    "serving-relationship",
+    "specialization-relationship"
+  ],
+  "layoutNested": [],
+  "nodeWidth": 200,
+  "nodeHeight": 60,
+  "debug": false,
+  "nodePlacement": "NONE",
+  "nodeSpacing": 40,
+  "layerSpacing": 180,
+  "edgeRouting": "ORTHOGONAL",
+  "algorithm": "layered",
+  "layoutDirection": "RIGHT",
+  "padding": 20
+}

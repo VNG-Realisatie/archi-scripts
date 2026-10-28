@@ -1,8 +1,4 @@
-/**
- * Saved from _GUI.ajs
- */
-
-module.exports = {
+{
   "doc": "Gebruik als template voor het met een editor maken van een preset. \nBevat alle ArchiMate-concepttypen, uncomment wat je nodig hebt",
   "includeElementType": [],
   "includeRelationType": [],
@@ -15,4 +11,4 @@ module.exports = {
   "layoutNested": [
     "aggregation-relationship"
   ]
-};
+}

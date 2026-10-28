@@ -7,10 +7,6 @@ const Common = require(REPO_ROOT + "_lib/Common");
 Common.initConsoleLog(__FILE__, true);
 
 const View = require(REPO_ROOT + "View/include_view");
-const File = Java.type("java.io.File");
-const FileWriter = Java.type("java.io.FileWriter");
-const FileReader = Java.type("java.io.FileReader");
-const BufferedReader = Java.type("java.io.BufferedReader");
 
 // Capture selection before opening the SWT dialog causes focus loss
 const initialSelection = $(selection);
@@ -40,113 +36,28 @@ const IMessageProvider = Java.type("org.eclipse.jface.dialogs.IMessageProvider")
 const SWTFont = Java.type("org.eclipse.swt.graphics.Font");
 const SWTFontData = Java.type("org.eclipse.swt.graphics.FontData");
 
-// Helper to list parameter files
-function getPresetFiles() {
-  var dir = new File(__DIR__ + "user_parameter");
-  var files = dir.listFiles();
-  var names = [];
-  if (files) {
-    for (var i = 0; i < files.length; i++) {
-      if (files[i].isFile() && files[i].getName().endsWith(".js")) {
-        names.push(files[i].getName());
-      }
-    }
-  }
-  names.sort();
-  return names;
+// Pixel constant for Add/Remove list builder buttons — used in createListBuilder
+// before createDialogArea is called, so defined at module scope.
+const BTN_W_ADDREM = 95;
+
+// Encode/decode the :in / :out direction suffix on relation type strings.
+// Used by both saveInput and syncConfigToUI so the encoding lives in one place.
+function _encodeRelType(type, inOn, outOn) {
+  if (inOn && !outOn) return type + ":in";
+  if (!inOn && outOn) return type + ":out";
+  return type; // neither or both = both directions
+}
+function _decodeRelType(entry) {
+  if (entry.endsWith(":in"))  return { type: entry.slice(0, -3), inOn: true,  outOn: false };
+  if (entry.endsWith(":out")) return { type: entry.slice(0, -4), inOn: false, outOn: true  };
+  return { type: entry, inOn: true, outOn: true };
 }
 
-// Interacting with File system natively to avoid Node.js limitations
-function writeJSON(path, obj) {
-  try {
-    var writer = new FileWriter(path);
-    writer.write(JSON.stringify(obj, null, 2));
-    writer.close();
-  } catch (e) {
-    console.error("Failed to write state:", e);
-  }
-}
-
-function readJSON(path) {
-  try {
-    var reader = new BufferedReader(new FileReader(path));
-    var line = "";
-    var content = "";
-    while ((line = reader.readLine()) != null) content += line;
-    reader.close();
-    return JSON.parse(content);
-  } catch (e) {
-    return null;
-  }
-}
-
-function writePreset(filename, obj) {
-  if (!filename.endsWith(".js")) filename += ".js";
-  var path = __DIR__ + "user_parameter/" + filename;
-  var writer = new FileWriter(path);
-  writer.write("/**\n * Saved from _GUI.ajs\n */\n\nmodule.exports = " + JSON.stringify(obj, null, 2) + ";\n");
-  writer.close();
-}
-
-function readPresetObj(filename) {
-  var path = __DIR__ + "user_parameter/" + filename;
-  try {
-    var reader = new BufferedReader(new FileReader(path));
-    var line, content = "";
-    while ((line = reader.readLine()) != null) content += line + "\n";
-    reader.close();
-    var idx = content.indexOf("module.exports = ");
-    if (idx >= 0) {
-      var jsonStr = content.substring(idx + "module.exports = ".length).replace(/;\s*[\n\r]*$/, "").trim();
-      try { return JSON.parse(jsonStr); } catch(ignored) {}
-    }
-  } catch(e) {}
-  try { return require(path); } catch(e) { return null; }
-}
-
-// Determine defaults
+// Determine defaults: last run → user default preset → engine defaults
 const LAST_RUN_FILE = __DIR__ + ".last_gui_run_params.json";
-let defaultParams = readJSON(LAST_RUN_FILE);
-
-if (!defaultParams) {
-  try {
-    defaultParams = require(__DIR__ + "user_parameter/default_parameter.js");
-  } catch (e) {
-    defaultParams = {
-      action: View.GENERATE_SINGLE,
-      graphDepth: 1,
-      includeElementType: [],
-      includeRelationType: [],
-      excludeFromView: false,
-      layoutReversed: [],
-      layoutNested: [],
-      nestingMultipleOccurrences: false,
-      viewName: "",
-      viewNameSuffix: "",
-      viewFolder: "",
-      elkAlgorithm:       View.DEFAULT_ELK_ALGORITHM,
-      elkDirection:       View.DEFAULT_ELK_DIRECTION,
-      elkSpacingNodeNode: View.DEFAULT_ELK_SPACING,
-      elkLayerSpacing:    View.DEFAULT_ELK_LAYER_SEP,
-      elkEdgeRouting:     View.DEFAULT_ELK_EDGE_ROUTING,
-      elkPadding:         View.DEFAULT_ELK_PADDING,
-      elkNestedAlgorithm: "",
-      elkNestedSpacingNodeNode: 40,
-      elkSameTypeResize: false,
-      dagreRanker:        "network-simplex",
-      useRelationWeights: false,
-      graphvizEngine:  "dot",
-      graphvizSplines: "ORTHOGONAL",
-      graphvizBin:     "dot",
-      viewMaxWidth:    0,
-      viewMaxHeight:   0,
-      viewAspectRatio: 0,
-      nodeWidth:  200,
-      nodeHeight: 60,
-      debug: false,
-    };
-  }
-}
+let defaultParams = View.readJSON(LAST_RUN_FILE)
+  || View.readJSON(__DIR__ + View.USER_PARAM_FOLDER + "/default_parameter.json")
+  || Object.assign({}, View.DEFAULT_PRESET);
 
 const ConfigDialog = Java.extend(TitleAreaDialog);
 
@@ -219,11 +130,11 @@ let layoutDialog = {
 
     let btnAdd = new ButtonWidget(btnComp, SWT.PUSH);
     btnAdd.setText("Add >");
-    GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnAdd);
+    GridDataFactory.fillDefaults().hint(BTN_W_ADDREM, SWT.DEFAULT).applyTo(btnAdd);
 
     let btnRemove = new ButtonWidget(btnComp, SWT.PUSH);
     btnRemove.setText("< Remove");
-    GridDataFactory.fillDefaults().hint(95, SWT.DEFAULT).applyTo(btnRemove);
+    GridDataFactory.fillDefaults().hint(BTN_W_ADDREM, SWT.DEFAULT).applyTo(btnRemove);
 
     // Right: Selected
     let rightComp = new CompositeWidget(mainComp, SWT.NONE);
@@ -292,20 +203,17 @@ let layoutDialog = {
       viewName:               "View Name",
       viewNameSuffix:         "View Suffix",
       viewFolder:             "View Folder",
-      elkAlgorithm:           "Algorithm",
+      algorithm:           "Algorithm",
       dagreRanker:            "Layer ranking",
-      elkDirection:           "Flow direction",
-      elkEdgeRouting:         "Relation line style",
-      elkSpacingNodeNode:     "Element spacing",
-      elkLayerSpacing:        "Level spacing",
-      elkPadding:             "Padding",
-      elkNestedAlgorithm:         "Tight packing",
-      elkNestedSpacingNodeNode:   "Inner spacing",
-      elkSameTypeResize:          "Align same-type elements",
+      layoutDirection:           "Flow direction",
+      edgeRouting:         "Relation line style",
+      nodeSpacing:     "Element spacing",
+      layerSpacing:        "Level spacing",
+      padding:             "Padding",
+      nestedAlgorithm:         "Tight packing",
+      nestedNodeSpacing:   "Inner spacing",
+      sameTypeResize:          "Align same-type elements",
       useRelationWeights:     "Relation weights",
-      graphvizEngine:         "Graphviz engine",
-      graphvizSplines:        "Graphviz edge routing",
-      graphvizBin:            "Graphviz binary",
       viewMaxWidth:           "View max width",
       viewMaxHeight:          "View max height",
       viewAspectRatio:        "View aspect ratio",
@@ -430,10 +338,10 @@ let layoutDialog = {
 
         function refreshTbl() {
           tbl.removeAll();
-          getPresetFiles().forEach(function (f) {
+          View.getPresetFiles(__DIR__).forEach(function (f) {
             let row = new TableItemWidget(tbl, SWT.NONE);
             row.setText(0, f);
-            let obj = readPresetObj(f);
+            let obj = View.readPreset(__DIR__,f);
             row.setText(1, obj && obj.doc ? obj.doc : "");
           });
         }
@@ -460,8 +368,8 @@ let layoutDialog = {
             let newDoc = txtEd.getText().trim();
             item.setText(1, newDoc);
             txtEd.dispose();
-            let obj = readPresetObj(String(item.getText(0)));
-            if (obj) { if (newDoc) obj.doc = newDoc; else delete obj.doc; writePreset(String(item.getText(0)), obj); }
+            let obj = View.readPreset(__DIR__,String(item.getText(0)));
+            if (obj) { if (newDoc) obj.doc = newDoc; else delete obj.doc; View.writePreset(__DIR__, String(item.getText(0)), obj); }
           }
           txtEd.addListener(SWT.FocusOut, function () { commit(); });
           txtEd.addListener(SWT.Traverse, function (ev) {
@@ -487,9 +395,9 @@ let layoutDialog = {
           let sel = tbl.getSelection();
           if (!sel.length) return;
           let fname = String(sel[0].getText(0));
-          if (fname === "default_parameter.js") { window.alert("'default_parameter.js' is the built-in default and cannot be deleted."); return; }
+          if (fname === "default_parameter.json") { window.alert("'default_parameter.json' is the built-in default and cannot be deleted."); return; }
           if (window.confirm("Delete preset '" + fname + "'? This cannot be undone.")) {
-            let jf = new java.io.File(__DIR__ + "user_parameter/" + fname);
+            let jf = new (Java.type("java.io.File"))(__DIR__ + View.USER_PARAM_FOLDER + "/" + fname);
             if (jf.exists()) { jf.delete(); tbl.remove(tbl.getSelectionIndex()); }
           }
         });
@@ -530,7 +438,7 @@ let layoutDialog = {
         new LabelWidget(comp, SWT.NONE).setText("Name:");
         _cmb = new ComboWidget(comp, SWT.DROP_DOWN);
         GridDataFactory.fillDefaults().grab(true, false).applyTo(_cmb);
-        getPresetFiles().forEach(function (f) {
+        View.getPresetFiles(__DIR__).forEach(function (f) {
           _cmb.add(f.endsWith(".js") ? f.slice(0, -3) : f);
         });
         if (initialName) {
@@ -568,7 +476,7 @@ let layoutDialog = {
 
   updateFromPreset: function (presetName) {
     try {
-      let newCfg = require(__DIR__ + "user_parameter/" + presetName);
+      let newCfg = View.readPreset(__DIR__,presetName);
 
       if (this.promptPresetReview(presetName, newCfg)) {
         Object.keys(newCfg).forEach((k) => {
@@ -621,39 +529,34 @@ let layoutDialog = {
     setBuilder(this.widgets.lstElemTypes, this.config.includeElementType);
     // Sync relation filter fixed grid [Option C]
     (this.widgets._relTypeRows || []).forEach(row => {
-      let dir = null;
-      (this.config.includeRelationType || []).forEach(entry => {
-        let ci = entry.indexOf(":");
-        if ((ci >= 0 ? entry.substring(0, ci) : entry) === row.type)
-          dir = ci >= 0 ? entry.substring(ci + 1) : "both";
-      });
-      let on = dir !== null;
+      let match = (this.config.includeRelationType || []).map(_decodeRelType).find(d => d.type === row.type);
+      let on = !!match;
       row.chk.setSelection(on);
-      row.rdoIn.setSelection(on && dir !== "out");   // both or in-only
-      row.rdoOut.setSelection(on && dir !== "in");   // both or out-only
+      row.rdoIn.setSelection(on && match.inOn);
+      row.rdoOut.setSelection(on && match.outOn);
       row.rdoIn.setEnabled(on); row.rdoOut.setEnabled(on);
       if (row.updateDirColors) row.updateDirColors();
     });
 
     if (this.widgets.grpAlgorithm) {
-      let _algoForRadio = (this.config.elkAlgorithm === "graphviz")
-        ? (this.config.graphvizEngine || "dot")
-        : (this.config.elkAlgorithm   || View.DEFAULT_ELK_ALGORITHM);
+      let _algoForRadio = this.config.algorithm || View.DEFAULT_PRESET.algorithm;
       setRadio(this.widgets.grpAlgorithm, _algoForRadio);
       this.updateAlgoControls(_algoForRadio);
     }
     // Direction combo
     if (this.widgets.cmbDir && layoutDialog._dirOpts) {
-      let _dv = this.config.elkDirection || View.DEFAULT_ELK_DIRECTION;
+      let _dv = this.config.layoutDirection || View.DEFAULT_PRESET.layoutDirection;
       let _di = layoutDialog._dirOpts.findIndex(function(o) { return o.val === _dv; });
       this.widgets.cmbDir.select(_di >= 0 ? _di : 1);
     }
     if (this.widgets.grpEdgeRouting) {
-      let _isGv = (this.config.elkAlgorithm === "graphviz");
-      let _routingVal = _isGv
-        ? (this.config.graphvizSplines || "ORTHOGONAL")
-        : (this.config.elkEdgeRouting  || View.DEFAULT_ELK_EDGE_ROUTING);
+      let _routingVal = this.config.edgeRouting || View.DEFAULT_PRESET.edgeRouting;
       setRadio(this.widgets.grpEdgeRouting, _routingVal);
+    }
+    if (this.widgets.cmbLabelPos && layoutDialog._labelPosOpts) {
+      var _lv = this.config.labelPosition || View.DEFAULT_PRESET.labelPosition;
+      var _li = layoutDialog._labelPosOpts.findIndex(function(o) { return o.val === _lv; });
+      this.widgets.cmbLabelPos.select(_li >= 0 ? _li : 2); // fallback: Middle
     }
     // Ranking combo
     if (this.widgets.cmbRanker && layoutDialog._rankerOpts) {
@@ -662,10 +565,10 @@ let layoutDialog = {
       this.widgets.cmbRanker.select(_ri >= 0 ? _ri : 0);
     }
 
-    if (this.config.nodeWidth)          this.widgets.spinWidth.setSelection(this.config.nodeWidth);
-    if (this.config.nodeHeight)         this.widgets.spinHeight.setSelection(this.config.nodeHeight);
-    if (this.config.elkSpacingNodeNode) this.widgets.spinNodeSep.setSelection(this.config.elkSpacingNodeNode);
-    if (this.config.elkLayerSpacing)    this.widgets.spinLayerSep.setSelection(this.config.elkLayerSpacing);
+    if (this.config.nodeWidth   && this.widgets.spinWidth)    this.widgets.spinWidth.setSelection(this.config.nodeWidth);
+    if (this.config.nodeHeight  && this.widgets.spinHeight)   this.widgets.spinHeight.setSelection(this.config.nodeHeight);
+    if (this.config.nodeSpacing && this.widgets.spinNodeSep)  this.widgets.spinNodeSep.setSelection(this.config.nodeSpacing);
+    if (this.config.layerSpacing && this.widgets.spinLayerSep) this.widgets.spinLayerSep.setSelection(this.config.layerSpacing);
     if (this.widgets.spinViewMaxWidth)    this.widgets.spinViewMaxWidth.setSelection(this.config.viewMaxWidth    || 0);
     if (this.widgets.spinViewMaxHeight)   this.widgets.spinViewMaxHeight.setSelection(this.config.viewMaxHeight   || 0);
     if (this.widgets.cmbViewAspectRatio && layoutDialog._arOptions) {
@@ -677,7 +580,7 @@ let layoutDialog = {
       }
       this.widgets.cmbViewAspectRatio.select(_best);
     }
-    if (this.config.elkPadding !== undefined) this.widgets.spinPadding.setSelection(this.config.elkPadding);
+    if (this.config.padding !== undefined) this.widgets.spinPadding.setSelection(this.config.padding);
 
     (this.widgets.lstReversed_checks || []).forEach(r => r.chk.setSelection((this.config.layoutReversed || []).indexOf(r.type) >= 0));
     (this.widgets.lstNested_checks   || []).forEach(r => r.chk.setSelection((this.config.layoutNested   || []).indexOf(r.type) >= 0));
@@ -686,12 +589,14 @@ let layoutDialog = {
     if (this.widgets.chkUseWeights)        this.widgets.chkUseWeights.setSelection(!!this.config.useRelationWeights);
     if (this.widgets.chkMultiOcc)          this.widgets.chkMultiOcc.setSelection(!!this.config.nestingMultipleOccurrences);
     if (this.widgets.chkNestedPack)
-      this.widgets.chkNestedPack.setSelection(this.config.elkNestedAlgorithm === "rectpacking");
+      this.widgets.chkNestedPack.setSelection(this.config.nestedAlgorithm === View.ALGO.ELK_RECTPACKING.id);
     if (this.widgets.spinNestedSpacing)
-      this.widgets.spinNestedSpacing.setSelection(this.config.elkNestedSpacingNodeNode !== undefined ? this.config.elkNestedSpacingNodeNode : 40);
+      this.widgets.spinNestedSpacing.setSelection(this.config.nestedNodeSpacing !== undefined ? this.config.nestedNodeSpacing : View.DEFAULT_PRESET.nodeSpacing);
+    if (this.widgets.spinNestedAR)
+      this.widgets.spinNestedAR.setSelection(Math.round((this.config.nestedAspectRatio || 0) * 10));
     if (this.widgets.chkSameTypeResize)
-      this.widgets.chkSameTypeResize.setSelection(!!this.config.elkSameTypeResize);
-    if (this.widgets.chkSortContainers) this.widgets.chkSortContainers.setSelection(!this.config.elkSortLeavesOnly);
+      this.widgets.chkSameTypeResize.setSelection(!!this.config.sameTypeResize);
+    if (this.widgets.chkSortContainers) this.widgets.chkSortContainers.setSelection(!this.config.sortLeavesOnly);
     if (this.widgets.chkExcludeFromView)   this.widgets.chkExcludeFromView.setSelection(!!this.config.excludeFromView);
 
     if (initialSelection && initialSelection.length > 0) {
@@ -740,26 +645,16 @@ let layoutDialog = {
     this.config.includeElementType  = toJsArray(this.widgets.lstElemTypes);
     this.config.includeRelationType = (this.widgets._relTypeRows || [])
       .filter(r => r.chk.getSelection())
-      .map(r => {
-        let inOn = r.rdoIn.getSelection(), outOn = r.rdoOut.getSelection();
-        if (inOn && !outOn) return r.type + ":in";
-        if (outOn && !inOn) return r.type + ":out";
-        return r.type; // neither or both = both directions
-      });
+      .map(r => _encodeRelType(r.type, r.rdoIn.getSelection(), r.rdoOut.getSelection()));
 
-    var GV_ENGINES = ["dot", "neato", "fdp", "sfdp", "twopi", "circo"];
     var _algoVal = getRadioVal(this.widgets.grpAlgorithm);
-    if (GV_ENGINES.indexOf(_algoVal) >= 0) {
-      this.config.elkAlgorithm   = "graphviz";
-      this.config.graphvizEngine = _algoVal;
-    } else {
-      this.config.elkAlgorithm = _algoVal;
-    }
-    this.config.elkDirection = (function() {
+    this.config.algorithm = _algoVal;  // store engine name directly (dot, fdp, layered, etc.)
+
+    this.config.layoutDirection = (function() {
       var opts = layoutDialog._dirOpts, cmb = layoutDialog.widgets.cmbDir;
-      if (!opts || !cmb) return View.DEFAULT_ELK_DIRECTION;
+      if (!opts || !cmb) return View.DEFAULT_PRESET.layoutDirection;
       var i = cmb.getSelectionIndex();
-      return (i >= 0 && i < opts.length) ? opts[i].val : View.DEFAULT_ELK_DIRECTION;
+      return (i >= 0 && i < opts.length) ? opts[i].val : View.DEFAULT_PRESET.layoutDirection;
     })();
     this.config.dagreRanker = (function() {
       var opts = layoutDialog._rankerOpts, cmb = layoutDialog.widgets.cmbRanker;
@@ -768,20 +663,20 @@ let layoutDialog = {
       return (i >= 0 && i < opts.length) ? opts[i].val : "network-simplex";
     })();
 
-    var _rv = getRadioVal(this.widgets.grpEdgeRouting);
-    if (this.config.elkAlgorithm === "graphviz") {
-      this.config.graphvizSplines = _rv || "ORTHOGONAL";
-      if (_rv !== "CURVED" && _rv !== "SPLINE") this.config.elkEdgeRouting = _rv;
-    } else {
-      this.config.elkEdgeRouting = _rv;
+    this.config.edgeRouting = getRadioVal(this.widgets.grpEdgeRouting);
+    if (this.widgets.cmbLabelPos && layoutDialog._labelPosOpts) {
+      var _li = this.widgets.cmbLabelPos.getSelectionIndex();
+      this.config.labelPosition = (_li >= 0 && layoutDialog._labelPosOpts[_li])
+        ? layoutDialog._labelPosOpts[_li].val
+        : View.DEFAULT_PRESET.labelPosition;
     }
     this.config.useRelationWeights  = this.widgets.chkUseWeights ? this.widgets.chkUseWeights.getSelection() : false;
 
     this.config.nodeWidth           = this.widgets.spinWidth.getSelection();
     this.config.nodeHeight          = this.widgets.spinHeight.getSelection();
-    this.config.elkSpacingNodeNode  = this.widgets.spinNodeSep.getSelection();
-    this.config.elkLayerSpacing     = this.widgets.spinLayerSep.getSelection();
-    this.config.elkPadding          = this.widgets.spinPadding.getSelection();
+    this.config.nodeSpacing  = this.widgets.spinNodeSep.getSelection();
+    this.config.layerSpacing     = this.widgets.spinLayerSep.getSelection();
+    this.config.padding          = this.widgets.spinPadding.getSelection();
     this.config.viewMaxWidth        = this.widgets.spinViewMaxWidth    ? this.widgets.spinViewMaxWidth.getSelection()    : 0;
     this.config.viewMaxHeight       = this.widgets.spinViewMaxHeight   ? this.widgets.spinViewMaxHeight.getSelection()   : 0;
     this.config.viewAspectRatio = (function() {
@@ -794,21 +689,34 @@ let layoutDialog = {
     this.config.layoutReversed = (this.widgets.lstReversed_checks || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.layoutNested   = (this.widgets.lstNested_checks   || []).filter(r => r.chk.getSelection()).map(r => r.type);
     this.config.nestingMultipleOccurrences = this.widgets.chkMultiOcc.getSelection();
-    this.config.elkNestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? "rectpacking" : "";
-    this.config.elkNestedSpacingNodeNode = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : 40;
-    this.config.elkSameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
-    this.config.elkSortLeavesOnly        = !(this.widgets.chkSortContainers && this.widgets.chkSortContainers.getSelection());
+    this.config.nestedAlgorithm       = (this.widgets.chkNestedPack && this.widgets.chkNestedPack.getSelection()) ? View.ALGO.ELK_RECTPACKING.id : "";
+    this.config.nestedNodeSpacing  = this.widgets.spinNestedSpacing ? this.widgets.spinNestedSpacing.getSelection() : View.DEFAULT_PRESET.nodeSpacing;
+    this.config.nestedAspectRatio  = this.widgets.spinNestedAR ? this.widgets.spinNestedAR.getSelection() / 10.0 : 0;
+    this.config.sameTypeResize        = !!(this.widgets.chkSameTypeResize && this.widgets.chkSameTypeResize.getSelection());
+    this.config.sortLeavesOnly        = !(this.widgets.chkSortContainers && this.widgets.chkSortContainers.getSelection());
 
     this.config.viewName       = String(this.widgets.txtViewName.getText()).trim();
     this.config.viewNameSuffix = undefined;
     this.config.viewFolder     = undefined;
 
     this.config.debug = this.widgets.chkDebug.getSelection();
+
+    // Zero out view-size params not supported by the current algorithm.
+    // Must run AFTER all widget reads so disabled-but-stale widget values don't persist.
+    var _caps = layoutDialog._currentCaps || {};
+    if (!_caps.maxW) this.config.viewMaxWidth   = 0;
+    if (!_caps.maxH) this.config.viewMaxHeight  = 0;
+    if (!_caps.ar)   this.config.viewAspectRatio = 0;
+
+    if (this.config.debug) {
+      var _dbg = Object.keys(this.config).map(function(k) { return k + "=" + JSON.stringify(layoutDialog.config[k]); }).join(", ");
+      console.log("saveInput: " + _dbg);
+    }
   },
 
   updateActionControls: function (action) {
-    const depthApplies = (action !== View.LAYOUT);
-    const nameApplies  = (action === View.GENERATE_SINGLE);
+    const depthApplies = (action !== View.ACTION.LAYOUT.id);
+    const nameApplies  = (action === View.ACTION.GENERATE_SINGLE.id);
     if (this.widgets.spinDepth)       this.widgets.spinDepth.setEnabled(depthApplies);
     if (this.widgets.spinDepth_lbl)   this.widgets.spinDepth_lbl.setEnabled(depthApplies);
     if (this.widgets.txtViewName)     this.widgets.txtViewName.setEnabled(nameApplies);
@@ -817,26 +725,8 @@ let layoutDialog = {
 
   updateAlgoControls: function (algo) {
     if (!this.widgets.grpAlgorithm) return;
-    var CAPS = {
-      //                          dir     routing layerSep ranker  weights maxW    maxH    ar      packRow nesting
-      layered:     { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: false, maxH: false, ar: false, packRow: false, nesting: true  },
-      mrtree:      { dir: true,  routing: true,  layerSep: true, ranker: false, weights: false, maxW: false, maxH: false, ar: false, packRow: false, nesting: true  },
-      force:       { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  maxW: false, maxH: false, ar: true,  packRow: false, nesting: false },
-      box:         { dir: false, routing: false, layerSep: false, ranker: false, weights: false, maxW: false, maxH: false, ar: false, packRow: false, nesting: true  },
-      stress:      { dir: false, routing: false, layerSep: false, ranker: false, weights: true,  maxW: false, maxH: false, ar: true,  packRow: false, nesting: true  },
-      radial:      { dir: false, routing: false, layerSep: true,  ranker: false, weights: true,  maxW: false, maxH: false, ar: true,  packRow: false, nesting: true  },
-      dagre:       { dir: true,  routing: false, layerSep: true,  ranker: true,  weights: false, maxW: false, maxH: false, ar: false, packRow: false, nesting: true  },
-      rectpacking: { dir: false, routing: false, layerSep: false, ranker: false, weights: false, maxW: true,  maxH: false, ar: true,  packRow: true,  nesting: true  },
-      graphviz:    { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-      dot:         { dir: true,  routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-      neato:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-      fdp:         { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-      sfdp:        { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: false },
-      twopi:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-      circo:       { dir: false, routing: true,  layerSep: true,  ranker: false, weights: false, maxW: true,  maxH: true,  ar: true,  packRow: false, nesting: true  },
-    };
-    var GV_ENGINES = ["graphviz", "dot", "neato", "fdp", "sfdp", "twopi", "circo"];
-    var c = CAPS[algo] || CAPS['layered'];
+    var c = View.CAPABILITIES[algo] || View.CAPABILITIES[View.ALGO.ELK_LAYERED.id];
+    layoutDialog._currentCaps = c;
     function setRowEnabled(comp, enabled) {
       var ch = comp.getChildren();
       for (var i = 0; i < ch.length; i++) ch[i].setEnabled(enabled);
@@ -845,6 +735,8 @@ let layoutDialog = {
     if (this.widgets.cmbDir)     this.widgets.cmbDir.setEnabled(c.dir);
     if (this.widgets.cmbDir_lbl) this.widgets.cmbDir_lbl.setEnabled(c.dir);
     setRowEnabled(this.widgets.grpEdgeRouting, c.routing);
+    if (this.widgets.cmbLabelPos)     this.widgets.cmbLabelPos.setEnabled(!!c.labelPos);
+    if (this.widgets.cmbLabelPos_lbl) this.widgets.cmbLabelPos_lbl.setEnabled(!!c.labelPos);
     // Ranking: cmbRanker is a standalone ComboWidget in the Flow row
     if (this.widgets.cmbRanker)     this.widgets.cmbRanker.setEnabled(c.ranker);
     if (this.widgets.cmbRanker_lbl) this.widgets.cmbRanker_lbl.setEnabled(c.ranker);
@@ -853,7 +745,6 @@ let layoutDialog = {
     if (this.widgets.spinLayerSep)     this.widgets.spinLayerSep.setEnabled(c.layerSep);
     if (this.widgets.spinLayerSep_lbl) this.widgets.spinLayerSep_lbl.setEnabled(c.layerSep);
 
-    var isGv = GV_ENGINES.indexOf(algo) >= 0;
     // View size: each control enabled only for algorithms that natively support it
     function enW(key, on) {
       if (layoutDialog.widgets[key])           layoutDialog.widgets[key].setEnabled(on);
@@ -870,12 +761,12 @@ let layoutDialog = {
     // Draw related closer label (col 8) — enable/disable with the checkbox
     if (this.widgets.chkUseWeights_lbl) this.widgets.chkUseWeights_lbl.setEnabled(c.weights);
 
-    // Curved/Spline routing options — only meaningful for Graphviz
+    // Curved/Spline routing options — only meaningful for engines with curvedSplines capability
     if (this.widgets.grpEdgeRouting) {
       var ch = this.widgets.grpEdgeRouting.getChildren();
       for (var i = 0; i < ch.length; i++) {
         var v = ch[i].getData ? String(ch[i].getData("val") || "") : "";
-        if (v === "CURVED" || v === "SPLINE") ch[i].setEnabled(isGv);
+        if (v === View.ROUTING.CURVED.id || v === View.ROUTING.SPLINE.id) ch[i].setEnabled(!!c.curvedSplines);
       }
     }
   },
@@ -917,6 +808,13 @@ let layoutDialog = {
     createDialogArea: function (parent) {
       let area = Java.super(layoutDialog.dialog).createDialogArea(parent);
 
+      // Pixel constants — change once here, applies everywhere in this dialog.
+      const LBL_W_ALGO = 115; // label column in the algorithm grid (Flow/Hierarchy/… rows)
+      const LBL_W_STD  = 90;  // category label in Size and spacing group
+      const TOGGLE_W   = 28;  // direction arrow toggle button width
+      const TOGGLE_H   = 20;  // direction arrow toggle button height
+      const SPIN_W     = 55;  // standard spinner hint width
+
       let container = new CompositeWidget(area, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, true).applyTo(container);
       GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).applyTo(container);
@@ -949,12 +847,9 @@ let layoutDialog = {
       layoutDialog.widgets.grpActionControls = btnGroup;
 
       (function() {
-        let actions = [
-          { label: "New view",      val: View.GENERATE_SINGLE,   tip: "Creates or updates a single view from the selected elements and their relations. Use 'View name' to set the view title." },
-          { label: "One view each", val: View.GENERATE_MULTIPLE, tip: "Creates one view per selected element. Each view is named after its element." },
-          { label: "Expand view",   val: View.EXPAND_HERE,        tip: "Adds elements related to the current selection to the open view. Existing elements are kept in place." },
-          { label: "Re-layout",     val: View.LAYOUT,             tip: "Re-lays out all elements on the selected view. No elements or relations are added or removed." },
-        ];
+        let actions = Object.values(View.ACTION).map(function(a) {
+          return { label: a.label, val: a.id, tip: a.tooltip };
+        });
         layoutDialog._updateGenerateLabel = function(actionVal) {
           let IDC = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
           let okBtn = layoutDialog.dialog.getButton(IDC.OK_ID);
@@ -1044,12 +939,12 @@ let layoutDialog = {
           ? cmbPreset.getItem(cmbPreset.getSelectionIndex())
           : (layoutDialog._lastPresetName || (defaultParams && defaultParams._lastPresetName) || null);
         cmbPreset.removeAll();
-        getPresetFiles().forEach(function(f) { cmbPreset.add(f); });
+        View.getPresetFiles(__DIR__).forEach(function(f) { cmbPreset.add(f); });
         if (prevSel) {
           let i = cmbPreset.indexOf(prevSel);
           if (i >= 0) {
             cmbPreset.select(i);
-            let obj = readPresetObj(prevSel);
+            let obj = View.readPreset(__DIR__,prevSel);
             cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
           }
         }
@@ -1062,7 +957,7 @@ let layoutDialog = {
         if (idx >= 0) {
           let fname = cmbPreset.getItem(idx);
           layoutDialog._lastPresetName = fname;
-          let obj = readPresetObj(fname);
+          let obj = View.readPreset(__DIR__,fname);
           cmbPreset.setToolTipText(obj && obj.doc ? obj.doc : "");
         }
       });
@@ -1085,7 +980,7 @@ let layoutDialog = {
         let initialName = idx >= 0 ? cmbPreset.getItem(idx) : "";
         let initialDoc  = "";
         if (initialName) {
-          let obj = readPresetObj(initialName);
+          let obj = View.readPreset(__DIR__,initialName);
           if (obj && obj.doc) initialDoc = obj.doc;
         }
         let res = layoutDialog.openSavePresetDialog(layoutDialog.dialog.getShell(), initialName, initialDoc);
@@ -1093,7 +988,7 @@ let layoutDialog = {
           layoutDialog.saveInput();
           let saveObj = JSON.parse(JSON.stringify(layoutDialog.config));
           if (res.doc) saveObj.doc = res.doc; else delete saveObj.doc;
-          writePreset(res.name, saveObj);
+          View.writePreset(__DIR__, res.name, saveObj);
           refreshPresetCombo();
           let fname = res.name.endsWith(".js") ? res.name : res.name + ".js";
           let si = cmbPreset.indexOf(fname);
@@ -1118,16 +1013,14 @@ let layoutDialog = {
       setBoldFont(tabFolder);
       layoutDialog.widgets.tabFolder = tabFolder;
 
-      function createRadios(parentGrp, options, colWidth, indent) {
+      function createRadios(parentGrp, options, colWidth) {
         options.forEach((opt) => {
           let r = new ButtonWidget(parentGrp, SWT.RADIO);
           r.setText(opt.label + "   ");
           r.setData("val", opt.val);
           if (opt.tooltip) r.setToolTipText(opt.tooltip);
           let gd = GridDataFactory.fillDefaults();
-          if (colWidth) gd = gd.hint(colWidth, SWT.DEFAULT);
-          if (indent)   gd = gd.indent(indent, 0);
-          if (colWidth || indent) gd.applyTo(r);
+          if (colWidth) gd = gd.hint(colWidth, SWT.DEFAULT).applyTo(r);
         });
       }
 
@@ -1144,12 +1037,12 @@ let layoutDialog = {
         GridDataFactory.fillDefaults().grab(true, false).span(spanCols || 2, 1).applyTo(comp);
         GridLayoutFactory.swtDefaults().numColumns(cols).margins(0, 2).spacing(6, 2).applyTo(comp);
         let checks = [];
-        View.RELATION_NAMES.forEach(function(type) {
+        Object.values(View.RELATION_TYPES).forEach(function(rel) {
           let chk = new ButtonWidget(comp, SWT.CHECK);
-          chk.setText(shortRelName(type) + "  ");
-          chk.setToolTipText(type);
-          chk.setSelection((initialSelected || []).indexOf(type) >= 0);
-          checks.push({ type: type, chk: chk });
+          chk.setText(rel.label + "  ");
+          chk.setToolTipText(rel.id);
+          chk.setSelection((initialSelected || []).indexOf(rel.id) >= 0);
+          checks.push({ type: rel.id, chk: chk });
         });
         layoutDialog.widgets[name + "_checks"] = checks;
       }
@@ -1173,7 +1066,7 @@ let layoutDialog = {
       lblElemDesc.setText("Include only elements of these types. Leave the list empty to include all types.");
       GridDataFactory.fillDefaults().span(2, 1).applyTo(lblElemDesc);
       layoutDialog.createListBuilder("lstElemTypes", grpElemFilter, null, null,
-        View.ELEMENT_NAMES, layoutDialog.config.includeElementType);
+        View.ELEMENT_TYPES, layoutDialog.config.includeElementType);
 
       // Group: Relation filter
       let grpRelFilter = new GroupWidget(genContainer, SWT.NONE);
@@ -1192,7 +1085,8 @@ let layoutDialog = {
         GridLayoutFactory.swtDefaults().numColumns(3).margins(0, 2).spacing(16, 2).applyTo(outerComp);
 
         let rows = [];
-        View.RELATION_NAMES.forEach(function(type) {
+        Object.values(View.RELATION_TYPES).forEach(function(rel) {
+          let type = rel.id;
           let rowComp = new CompositeWidget(outerComp, SWT.NONE);
           GridDataFactory.fillDefaults().grab(true, false).applyTo(rowComp);
           GridLayoutFactory.swtDefaults().numColumns(4).margins(2, 1).spacing(1, 0).applyTo(rowComp);
@@ -1201,7 +1095,7 @@ let layoutDialog = {
           chk.setToolTipText(type);
 
           let lbl = new LabelWidget(rowComp, SWT.NONE);
-          lbl.setText(" " + shortRelName(type));
+          lbl.setText(" " + rel.label);
           lbl.setToolTipText(type);
           GridDataFactory.fillDefaults().grab(true, false).applyTo(lbl);
 
@@ -1209,13 +1103,13 @@ let layoutDialog = {
           tglIn.setText("←");
           tglIn.setToolTipText("Follow this relation type only when it arrives at the selected element (incoming). Leave both arrows active to follow both directions.");
           tglIn.setEnabled(false);
-          GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglIn);
+          GridDataFactory.swtDefaults().hint(TOGGLE_W, TOGGLE_H).applyTo(tglIn);
 
           let tglOut = new ButtonWidget(rowComp, SWT.TOGGLE | SWT.FLAT);
           tglOut.setText("→");
           tglOut.setToolTipText("Follow this relation type only when it leaves the selected element (outgoing). Leave both arrows active to follow both directions.");
           tglOut.setEnabled(false);
-          GridDataFactory.swtDefaults().hint(28, 20).applyTo(tglOut);
+          GridDataFactory.swtDefaults().hint(TOGGLE_W, TOGGLE_H).applyTo(tglOut);
 
           function updateDirColors() {
             let inSel  = tglIn.getSelection();
@@ -1277,14 +1171,14 @@ let layoutDialog = {
       tabLayout.setControl(scrolled2);
 
       // Group: Algorithm — algorithm list left, description + options right
-      let grpELK = new GroupWidget(layoutContainer, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpELK);
-      grpELK.setText("Algorithm"); setBoldFont(grpELK);
-      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(4, 4).applyTo(grpELK);
+      let grpAlgorithm = new GroupWidget(layoutContainer, SWT.NONE);
+      GridDataFactory.fillDefaults().grab(true, false).applyTo(grpAlgorithm);
+      grpAlgorithm.setText("Algorithm"); setBoldFont(grpAlgorithm);
+      GridLayoutFactory.swtDefaults().numColumns(1).margins(10, 10).spacing(4, 4).applyTo(grpAlgorithm);
 
       // Algorithm selection — 8 columns: [group label 115px] [algo…] [→grab] [right-param]
       // Col 7 is always an elastic grab-filler that pins col 8 to the right sideline.
-      let compAlgo = new CompositeWidget(grpELK, SWT.NONE);
+      let compAlgo = new CompositeWidget(grpAlgorithm, SWT.NONE);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(compAlgo);
       GridLayoutFactory.swtDefaults().numColumns(8).margins(0, 0).spacing(8, 5).applyTo(compAlgo);
       layoutDialog.widgets.grpAlgorithm = compAlgo;
@@ -1299,124 +1193,97 @@ let layoutDialog = {
         return lbl;
       }
 
-      // ── Row 1: Flow ──────────────────────────────────────────────────────────
-      let lblFlow = new LabelWidget(compAlgo, SWT.NONE);
-      lblFlow.setText("Flow:");
-      lblFlow.setToolTipText("Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblFlow);
-      createRadios(compAlgo, [
-        { label: "Layered", val: "layered", tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)" },
-        { label: "Dagre",   val: "dagre",   tooltip: "Fast process and application flows with limited nesting support (Dagre)" },
-        { label: "Dot",     val: "dot",     tooltip: "Structured process models and dependency flows with strong nesting support (Graphviz)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 5-6 fillers
-      _grabLabel("Ranking:", "cmbRanker_lbl"); // col 7: right-aligned label
-      let _RANKER_OPTS = [
-        { label: "Balanced",    val: "network-simplex" },
-        { label: "Uniform",     val: "tight-tree"      },
-        { label: "Top-aligned", val: "longest-path"    },
-      ];
-      let cmbRanker = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
-      GridDataFactory.swtDefaults().applyTo(cmbRanker); // col 8
-      _RANKER_OPTS.forEach(function(o) { cmbRanker.add(o.label); });
-      cmbRanker.select(0);
-      cmbRanker.setToolTipText("Row arrangement strategy for the Dagre algorithm. Only active when Dagre is selected.");
-      layoutDialog.widgets.cmbRanker = cmbRanker;
-      layoutDialog._rankerOpts = _RANKER_OPTS;
-
-      // ── Row 2: Hierarchy ─────────────────────────────────────────────────────
-      let lblHierarchy = new LabelWidget(compAlgo, SWT.NONE);
-      lblHierarchy.setText("Hierarchy:");
-      lblHierarchy.setToolTipText("Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblHierarchy);
-      createRadios(compAlgo, [
-        { label: "Tree", val: "mrtree", tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 3-4
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 5-6
-      _grabLabel("Direction:", "cmbDir_lbl"); // col 7: right-aligned label, stored
-      let _DIR_OPTS = [
-        { label: "Right", val: "RIGHT" },
-        { label: "Down",  val: "DOWN"  },
-        { label: "Up",    val: "UP"    },
-        { label: "Left",  val: "LEFT"  },
-      ];
-      let cmbDir = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
-      GridDataFactory.swtDefaults().applyTo(cmbDir); // col 8
-      _DIR_OPTS.forEach(function(o) { cmbDir.add(o.label); });
-      cmbDir.select(1); // Down default
-      cmbDir.setToolTipText("Flow direction for layered and tree algorithms.");
-      layoutDialog.widgets.cmbDir = cmbDir;
-      layoutDialog.widgets.grpDir = null; // no longer a composite; see updateAlgoControls
-      layoutDialog._dirOpts = _DIR_OPTS;
-
-      // ── Row 3: Network ───────────────────────────────────────────────────────
-      let lblNetwork = new LabelWidget(compAlgo, SWT.NONE);
-      lblNetwork.setText("Network:");
-      lblNetwork.setToolTipText("Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblNetwork);
-      createRadios(compAlgo, [
-        { label: "Force",  val: "force",  tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)" },
-        { label: "Stress", val: "stress", tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)" },
-        { label: "Neato",  val: "neato",  tooltip: "Integration networks and application landscapes with partial nesting support (Graphviz)" },
-        { label: "FDP",    val: "fdp",    tooltip: "Clustered integration networks with partial nesting support (Graphviz)" },
-        { label: "SFDP",   val: "sfdp",   tooltip: "Large-scale integration networks and dependency maps without nesting support (Graphviz)" },
-      ]);
-      // col 7: checkbox square only, grab + right-aligned (mirrors Ranking/Direction label position)
-      let chkWeights = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
-      chkWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
-      GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkWeights);
-      layoutDialog.widgets.chkUseWeights = chkWeights;
-      // col 8: text label (click toggles checkbox)
-      let lblWeights = new LabelWidget(compAlgo, SWT.NONE);
-      lblWeights.setText("Draw related closer");
-      lblWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
-      lblWeights.addListener(SWT.MouseUp, function() { chkWeights.setSelection(!chkWeights.getSelection()); });
-      layoutDialog.widgets.chkUseWeights_lbl = lblWeights;
-
-      // ── Row 4: Circular ──────────────────────────────────────────────────────
-      let lblCircular = new LabelWidget(compAlgo, SWT.NONE);
-      lblCircular.setText("Circular:");
-      lblCircular.setToolTipText("Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblCircular);
-      createRadios(compAlgo, [
-        { label: "Radial", val: "radial", tooltip: "Domain overviews and hub-and-spoke structures with strong nesting support (ELK)" },
-        { label: "Twopi",  val: "twopi",  tooltip: "Radial hierarchies like organisation charts and capability maps with limited nesting support (Graphviz)" },
-        { label: "Circo",  val: "circo",  tooltip: "Cyclic dependency and domain overviews with limited nesting support (Graphviz)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 5-6
-      _grabLabel("", null); new LabelWidget(compAlgo, SWT.NONE); // col 7 grab, col 8 filler
-
-      // ── Row 5: Compact ───────────────────────────────────────────────────────
-      let lblCompact = new LabelWidget(compAlgo, SWT.NONE);
-      lblCompact.setText("Compact:");
-      lblCompact.setToolTipText("Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries.");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblCompact);
-      createRadios(compAlgo, [
-        { label: "Grid", val: "box",         tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)" },
-        { label: "Pack", val: "rectpacking", tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)" },
-      ]);
-      new LabelWidget(compAlgo, SWT.NONE); new LabelWidget(compAlgo, SWT.NONE); // cols 4-5
-      new LabelWidget(compAlgo, SWT.NONE); // col 6
-      // col 7: Pack tightly checkbox square, grab + right-aligned
-      let chkNestedPack = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
-      chkNestedPack.setToolTipText("Packs elements inside each container into the smallest rectangle, eliminating gaps. Best when all relations are nesting and no relation lines are visible.");
-      GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkNestedPack);
-      layoutDialog.widgets.chkNestedPack = chkNestedPack;
-      // col 8: text label (click toggles checkbox)
-      let lblNestedPack = new LabelWidget(compAlgo, SWT.NONE);
-      lblNestedPack.setText("Pack tightly");
-      lblNestedPack.setToolTipText("Packs elements inside each container into the smallest rectangle, eliminating gaps. Best when all relations are nesting and no relation lines are visible.");
-      lblNestedPack.addListener(SWT.MouseUp, function() { chkNestedPack.setSelection(!chkNestedPack.getSelection()); });
-      layoutDialog.widgets.chkNestedPack_lbl = lblNestedPack;
-
+      // ── Algorithm rows: derived from View.ALGO (grouped by .group, in insertion order) ──
+      // Layout: 8 columns. Col 1 = group label. Cols 2–6 = radio buttons + fillers (5 slots).
+      // Cols 7–8 = per-group controls (Ranking, Direction, Weights, Pack tightly).
       (function() {
-        layoutDialog._packRowWidgets = [chkNestedPack, lblNestedPack];
-        layoutDialog._setPackRowEnabled = function(on) {
-          (layoutDialog._packRowWidgets || []).forEach(function(w) { w.setEnabled(on); });
-          // NOTE: do NOT reset chkNestedPack.setSelection — preserve state on deactivation
-        };
+        const _ag = {}, _go = [];
+        Object.values(View.ALGO).forEach(function(a) {
+          if (!_ag[a.group]) { _ag[a.group] = []; _go.push(a.group); }
+          _ag[a.group].push(a);
+        });
+
+        _go.forEach(function(grp) {
+          let lbl = new LabelWidget(compAlgo, SWT.NONE);
+          lbl.setText(grp + ":");
+          lbl.setToolTipText(View.ALGO_GROUP_TOOLTIPS[grp] || "");
+          GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lbl);
+
+          let _algos = _ag[grp];
+          createRadios(compAlgo, _algos.map(function(a) { return { label: a.label, val: a.id, tooltip: a.tooltip }; }));
+          for (let i = _algos.length; i < 5; i++) new LabelWidget(compAlgo, SWT.NONE);
+
+          if (grp === "Flow") {
+            _grabLabel("Ranking:", "cmbRanker_lbl");
+            let cmbRanker = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
+            GridDataFactory.swtDefaults().applyTo(cmbRanker);
+            View.RANKERS.forEach(function(o) { cmbRanker.add(o.label); });
+            cmbRanker.select(View.RANKERS.findIndex(function(o) { return o.default; }));
+            cmbRanker.setToolTipText(View.RANKERS_TOOLTIP);
+            layoutDialog.widgets.cmbRanker = cmbRanker;
+            layoutDialog._rankerOpts = View.RANKERS;
+
+          } else if (grp === "Hierarchy") {
+            _grabLabel("Direction:", "cmbDir_lbl");
+            let cmbDir = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
+            GridDataFactory.swtDefaults().applyTo(cmbDir);
+            View.DIRECTIONS.forEach(function(o) { cmbDir.add(o.label); });
+            cmbDir.select(View.DIRECTIONS.findIndex(function(o) { return o.default; }));
+            cmbDir.setToolTipText(View.DIRECTIONS_TOOLTIP);
+            layoutDialog.widgets.cmbDir = cmbDir;
+            layoutDialog.widgets.grpDir = null; // no longer a composite; see updateAlgoControls
+            layoutDialog._dirOpts = View.DIRECTIONS;
+
+          } else if (grp === "Network") {
+            let chkWeights = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
+            chkWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
+            GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkWeights);
+            layoutDialog.widgets.chkUseWeights = chkWeights;
+            let lblWeights = new LabelWidget(compAlgo, SWT.NONE);
+            lblWeights.setText("Draw related closer");
+            lblWeights.setToolTipText("Pulls strongly related elements closer together. Composition and Aggregation pull the hardest; Influence the least.");
+            lblWeights.addListener(SWT.MouseUp, function() { chkWeights.setSelection(!chkWeights.getSelection()); });
+            layoutDialog.widgets.chkUseWeights_lbl = lblWeights;
+
+          } else if (grp === "Circular") {
+            _grabLabel("", null); new LabelWidget(compAlgo, SWT.NONE);
+
+          } else if (grp === "Compact") {
+            let chkNestedPack = new ButtonWidget(compAlgo, SWT.CHECK | SWT.FLAT);
+            chkNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
+            GridDataFactory.fillDefaults().grab(true, false).align(SWT.RIGHT, SWT.CENTER).applyTo(chkNestedPack);
+            layoutDialog.widgets.chkNestedPack = chkNestedPack;
+            let lblNestedPack = new LabelWidget(compAlgo, SWT.NONE);
+            lblNestedPack.setText("Pack tightly");
+            lblNestedPack.setToolTipText("Use rectpacking inside containers instead of box (default). Rectpacking minimizes area but may ignore width constraints. Best when no relation lines are visible and tight packing matters more than column control.");
+            lblNestedPack.addListener(SWT.MouseUp, function() { chkNestedPack.setSelection(!chkNestedPack.getSelection()); });
+            layoutDialog.widgets.chkNestedPack_lbl = lblNestedPack;
+            layoutDialog._packRowWidgets = [chkNestedPack, lblNestedPack];
+            layoutDialog._setPackRowEnabled = function(on) {
+              (layoutDialog._packRowWidgets || []).forEach(function(w) { w.setEnabled(on); });
+              // NOTE: do NOT reset chkNestedPack.setSelection — preserve state on deactivation
+            };
+          }
+        });
       })();
+
+      // ── Row 6: Relation lines (cols 1-6) + Labels position (cols 7-8) ─────────
+      let cRouting = new CompositeWidget(compAlgo, SWT.NONE);
+      GridDataFactory.fillDefaults().span(6, 1).grab(true, false).applyTo(cRouting);
+      GridLayoutFactory.swtDefaults().numColumns(6).margins(0, 0).spacing(8, 0).applyTo(cRouting);
+      let lblRouting = new LabelWidget(cRouting, SWT.NONE);
+      lblRouting.setText("Relation lines:");
+      GridDataFactory.fillDefaults().hint(LBL_W_ALGO, SWT.DEFAULT).applyTo(lblRouting);
+      layoutDialog.widgets.grpEdgeRouting = cRouting;
+      createRadios(cRouting, Object.values(View.ROUTING).map(function(r) { return { label: r.label, val: r.id, tooltip: r.tooltip }; }));
+      _grabLabel("Labels:", "cmbLabelPos_lbl"); // col 7 of compAlgo
+      layoutDialog._labelPosOpts = View.LABEL_POSITIONS;
+      let cmbLabelPos = new ComboWidget(compAlgo, SWT.DROP_DOWN | SWT.READ_ONLY);
+      GridDataFactory.swtDefaults().applyTo(cmbLabelPos); // col 8 of compAlgo
+      View.LABEL_POSITIONS.forEach(function(o) { cmbLabelPos.add(o.label); });
+      cmbLabelPos.select(View.LABEL_POSITIONS.findIndex(function(o) { return o.default; }));
+      cmbLabelPos.setToolTipText(View.LABEL_POSITIONS_TOOLTIP);
+      layoutDialog.widgets.cmbLabelPos = cmbLabelPos;
 
       // Wire all radio buttons in compAlgo to updateAlgoControls
       let algoChildren = compAlgo.getChildren();
@@ -1428,25 +1295,6 @@ let layoutDialog = {
         }
       }
 
-      // Half-line spacer between algo section and relation lines
-      let sepAlgoParams = new LabelWidget(grpELK, SWT.NONE);
-      GridDataFactory.swtDefaults().hint(SWT.DEFAULT, 4).applyTo(sepAlgoParams);
-
-      let cRouting = new CompositeWidget(grpELK, SWT.NONE);
-      GridDataFactory.fillDefaults().grab(true, false).applyTo(cRouting);
-      GridLayoutFactory.swtDefaults().numColumns(6).margins(0, 0).spacing(8, 0).applyTo(cRouting);
-      let lblRouting = new LabelWidget(cRouting, SWT.NONE);
-      lblRouting.setText("Relation lines:");
-      GridDataFactory.fillDefaults().hint(115, SWT.DEFAULT).applyTo(lblRouting);
-      layoutDialog.widgets.grpEdgeRouting = cRouting;
-      createRadios(cRouting, [
-        { label: "Orthogonal", val: "ORTHOGONAL", tooltip: "Draws relation lines with right-angle bends. Best results with Layered layout." },
-        { label: "Polyline",   val: "POLYLINE",   tooltip: "Draws relation lines with diagonal bends. Works with all algorithms." },
-        { label: "Straight",   val: "STRAIGHT",   tooltip: "Draws relation lines as straight lines." },
-        { label: "Curved",     val: "CURVED",     tooltip: "Smooth curves (Graphviz only). Note: may fall back to straight lines with the Dot engine — use Spline instead for reliable curves." },
-        { label: "Spline",     val: "SPLINE",     tooltip: "Graphviz B-splines — the classic curved Graphviz look. Most reliable curved option with the Dot engine (Graphviz only)." },
-      ]);
-
       // Group: Size and spacing — 7 columns
       // [cat 90px] [label] [spin] [label] [spin] [label] [spin/combo]
       let grpSpacing = new GroupWidget(layoutContainer, SWT.NONE);
@@ -1457,17 +1305,17 @@ let layoutDialog = {
       // Row 1 — Width · Height · Spacing (all on one row)
       let _lblCatElem = new LabelWidget(grpSpacing, SWT.NONE);
       _lblCatElem.setText("Element");
-      GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(_lblCatElem);
-      layoutDialog.createWidget("spinWidth",   SpinnerWidget, grpSpacing, "Width:",   "Width of elements in the view (px). Applies to all layout types.",           function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      GridDataFactory.swtDefaults().hint(LBL_W_STD, SWT.DEFAULT).applyTo(_lblCatElem);
+      layoutDialog.createWidget("spinWidth",   SpinnerWidget, grpSpacing, "Width:",   "Width of elements in the view (px). Applies to all layout types.",           function (w) { w.setValues(200, 10, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinWidth_lbl);
-      layoutDialog.createWidget("spinHeight",  SpinnerWidget, grpSpacing, "Height:",  "Height of elements in the view (px). Applies to all layout types.",          function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinHeight",  SpinnerWidget, grpSpacing, "Height:",  "Height of elements in the view (px). Applies to all layout types.",          function (w) { w.setValues(60,  10, 400, 0, 10, 20); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinHeight_lbl);
-      layoutDialog.createWidget("spinNodeSep", SpinnerWidget, grpSpacing, "Spacing:", "Minimum distance between elements (px). Applies to all layout types, including non-hierarchical layouts.",           function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinNodeSep", SpinnerWidget, grpSpacing, "Spacing:", "Minimum distance between elements (px). Applies to all layout types, including non-hierarchical layouts.",           function (w) { w.setValues(40,  0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinNodeSep_lbl);
 
       // Row 2 — Level spacing (left-aligned, rest empty)
       new LabelWidget(grpSpacing, SWT.NONE); // col 1 empty
-      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:", "Distance between hierarchy levels where applicable (px). Used in hierarchical and layered layouts, otherwise approximated.",         function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(w); });
+      layoutDialog.createWidget("spinLayerSep", SpinnerWidget, grpSpacing, "Level spacing:", "Distance between hierarchy levels where applicable (px). Used in hierarchical and layered layouts, otherwise approximated.",         function (w) { w.setValues(180, 0, 600, 0, 10, 50); GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(w); });
       GridDataFactory.swtDefaults().indent(8, 0).applyTo(layoutDialog.widgets.spinLayerSep_lbl);
       new LabelWidget(grpSpacing, SWT.NONE); new LabelWidget(grpSpacing, SWT.NONE); // cols 4-5
       new LabelWidget(grpSpacing, SWT.NONE); new LabelWidget(grpSpacing, SWT.NONE); // cols 6-7
@@ -1475,7 +1323,7 @@ let layoutDialog = {
       // Row 3 — View size constraints
       let _lblVS = new LabelWidget(grpSpacing, SWT.NONE);
       _lblVS.setText("View size");
-      GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(_lblVS);
+      GridDataFactory.swtDefaults().hint(LBL_W_STD, SWT.DEFAULT).applyTo(_lblVS);
       layoutDialog.widgets.spinViewSizeLbl = _lblVS;
 
       let _lbl1 = new LabelWidget(grpSpacing, SWT.NONE);
@@ -1485,7 +1333,7 @@ let layoutDialog = {
       let spinViewMaxW = new SpinnerWidget(grpSpacing, SWT.BORDER);
       spinViewMaxW.setValues(0, 0, 9999, 0, 100, 1000);
       spinViewMaxW.setToolTipText("Maximum width of the view (px). Graphviz scales layout when supported. 0 = unlimited.");
-      GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(spinViewMaxW);
+      GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(spinViewMaxW);
       layoutDialog.widgets.spinViewMaxWidth = spinViewMaxW;
 
       let _lbl2 = new LabelWidget(grpSpacing, SWT.NONE);
@@ -1495,7 +1343,7 @@ let layoutDialog = {
       let spinViewMaxH = new SpinnerWidget(grpSpacing, SWT.BORDER);
       spinViewMaxH.setValues(0, 0, 9999, 0, 100, 1000);
       spinViewMaxH.setToolTipText("Maximum height of the view (px). Graphviz only. 0 = unlimited.");
-      GridDataFactory.swtDefaults().hint(55, SWT.DEFAULT).applyTo(spinViewMaxH);
+      GridDataFactory.swtDefaults().hint(SPIN_W, SWT.DEFAULT).applyTo(spinViewMaxH);
       layoutDialog.widgets.spinViewMaxHeight = spinViewMaxH;
 
       // Col 6-7: Aspect label + combo (no sub-composite — same pattern as all other fields)
@@ -1506,24 +1354,10 @@ let layoutDialog = {
       let cmbViewAR = new ComboWidget(grpSpacing, SWT.DROP_DOWN | SWT.READ_ONLY);
       GridDataFactory.fillDefaults().grab(true, false).applyTo(cmbViewAR);
       cmbViewAR.setToolTipText("Desired width÷height ratio. Graphviz and Pack (ELK) use this to shape the layout. Leave blank for no constraint.");
-      let _AR_OPTIONS = [
-        { label: "",                val: 0.00 },
-        { label: "3:1  landscape",  val: 3.00 },
-        { label: "2:1  wide",       val: 2.00 },
-        { label: "16:9  widescreen",val: 1.78 },
-        { label: "4:3  classic",    val: 1.33 },
-        { label: "5:4",             val: 1.25 },
-        { label: "1:1  square",     val: 1.00 },
-        { label: "4:5",             val: 0.80 },
-        { label: "3:4  portrait",   val: 0.75 },
-        { label: "9:16  portrait",  val: 0.56 },
-        { label: "1:2  tall",       val: 0.50 },
-        { label: "1:3  very tall",  val: 0.33 },
-      ];
-      _AR_OPTIONS.forEach(function(o) { cmbViewAR.add(o.label); });
+      View.AR_OPTIONS.forEach(function(o) { cmbViewAR.add(o.label); });
       cmbViewAR.select(0);
       layoutDialog.widgets.cmbViewAspectRatio = cmbViewAR;
-      layoutDialog._arOptions = _AR_OPTIONS;
+      layoutDialog._arOptions = View.AR_OPTIONS;
 
       (function() {
         cmbViewAR.addListener(SWT.Selection, function() {
@@ -1563,6 +1397,7 @@ let layoutDialog = {
 
       (function() {
         var _NESTING_BELOW_SEP = ["spinPadding", "spinPadding_lbl", "spinNestedSpacing", "_lblNestedSpacing",
+                                   "spinNestedAR", "_lblNestedAR",
                                    "chkSameTypeResize", "chkMultiOcc", "chkSortContainers"];
         function updateNestingControls() {
           if (!layoutDialog._nestingSupported) return;
@@ -1596,7 +1431,7 @@ let layoutDialog = {
       // Row A — Container: [Padding: spinner] [Inner spacing: spinner]
       let _lblCatContainer = new LabelWidget(grpNested, SWT.NONE);
       _lblCatContainer.setText("Container:");
-      GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(_lblCatContainer);
+      GridDataFactory.swtDefaults().hint(LBL_W_STD, SWT.DEFAULT).applyTo(_lblCatContainer);
       layoutDialog.createWidget("spinPadding", SpinnerWidget, grpNested,
         "Padding:", "Space between container border and contained elements (px).",
         function (w) {
@@ -1615,6 +1450,19 @@ let layoutDialog = {
       spinNestedSpacing.setToolTipText("Space between elements inside containers (px). Applies to all ELK-based layouts.");
       GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinNestedSpacing);
       layoutDialog.widgets.spinNestedSpacing = spinNestedSpacing;
+
+      // Aspect ratio override (box algorithm, 0 = auto-computed from child count)
+      let _lblNestedAR = new LabelWidget(grpNested, SWT.NONE);
+      _lblNestedAR.setText("Width ratio (w/h):");
+      _lblNestedAR.setToolTipText("Target width-to-height ratio inside containers (box algorithm). 0 = auto-computed from element count and viewMaxWidth. Higher = wider containers.");
+      GridDataFactory.swtDefaults().indent(8, 0).applyTo(_lblNestedAR);
+      layoutDialog.widgets._lblNestedAR = _lblNestedAR;
+      let spinNestedAR = new SpinnerWidget(grpNested, SWT.BORDER);
+      // Stored as ×10 integer: 0=auto, 5=0.5, 13=1.3, 25=2.5, 50=5.0
+      spinNestedAR.setValues(0, 0, 50, 1, 1, 10);
+      spinNestedAR.setToolTipText("Target width-to-height ratio inside containers (box algorithm). 0 = auto-computed from element count and viewMaxWidth. Higher = wider containers.");
+      GridDataFactory.swtDefaults().hint(50, SWT.DEFAULT).applyTo(spinNestedAR);
+      layoutDialog.widgets.spinNestedAR = spinNestedAR;
 
       // Row B — Align same-type
       let chkSameTypeResize = new ButtonWidget(grpNested, SWT.CHECK);
@@ -1689,7 +1537,7 @@ let _saveObj = Object.assign({}, layoutDialog.config);
 _saveObj._lastTabIndex   = layoutDialog._lastTabIndex   !== undefined ? layoutDialog._lastTabIndex   : 0;
 _saveObj._lastPresetName = layoutDialog._lastPresetName !== undefined ? layoutDialog._lastPresetName : null;
 _saveObj._windowBounds   = layoutDialog._windowBounds   || null;
-writeJSON(LAST_RUN_FILE, _saveObj);
+View.writeJSON(LAST_RUN_FILE, _saveObj);
 
 View.generate_view(layoutDialog.config, initialSelection);
 Common.finishConsoleLog();

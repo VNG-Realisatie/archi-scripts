@@ -1,0 +1,15 @@
+{
+  "includeElementType": [
+    "grouping"
+  ],
+  "includeRelationType": [
+    "aggregation-relationship"
+  ],
+  "layoutReversed": [],
+  "layoutNested": [],
+  "excludeFromView": false,
+  "nodeWidth": 270,
+  "nodeHeight": 25,
+  "nodeSpacing": 15,
+  "layerSpacing": 180
+}
