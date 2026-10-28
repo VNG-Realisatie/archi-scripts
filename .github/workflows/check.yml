@@ -1,0 +1,20 @@
+# Static type check and Node tests of the View subsystem (types/README.md, ai/repo-guide.md § Testing).
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node Scripts/View/tools/rel_filter_test.js
+      - run: node Scripts/View/tools/nesting_test.js

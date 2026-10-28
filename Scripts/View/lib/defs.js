@@ -11,7 +11,9 @@
 console.log("Loading defs.js");
 
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+/** @type {typeof import("../../_lib/selection")} */
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
+/** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -85,6 +87,7 @@ const PARAM_LABELS = Object.freeze({
 });
 // Tooltip per layout param: [what it does, unit / detail]. The dialog adds a third line
 // "Used by: …" computed from activeParams, so tooltips never contradict the registry.
+/** @type {Readonly<Record<string, string[]>>} */
 const PARAM_TOOLTIPS = Object.freeze({
   nestingRules:             ["Draw matching relations as nesting: the child inside its parent.",
                              "Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; " +
@@ -145,6 +148,9 @@ function paramUsedBy(key) {
 /**
  * Full tooltip for a layout param: what it does, an optional extra line (e.g. the selected
  * option's explanation), unit / detail, and "Used by".
+ * @param {string} key
+ * @param {string} [extra]
+ * @returns {string}
  */
 function paramTooltip(key, extra) {
   const [what, detail] = PARAM_TOOLTIPS[key] || ["", ""];
@@ -187,6 +193,7 @@ const CONFLICTS_VIEW = Object.freeze({ aspectRatio: ["maxWidth"], maxWidth: ["as
 // engineAlgorithmId: engine-internal identifier
 // labelPositionDefault: default for the labelPosition param
 
+/** @type {Readonly<Record<string, AlgorithmSpec>>} */
 const ALGORITHMS = Object.freeze({
   Layered: {
     engine:               "ELK",
@@ -519,6 +526,7 @@ const ACYCLICER = Object.freeze([
 
 // ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
 
+/** @type {Readonly<Record<string, string>>} */
 const DIRECTION_MAP = Object.freeze({
   "Right": "LR",
   "Left":  "RL",
@@ -553,6 +561,7 @@ const AR_OPTIONS = Object.freeze([
 
 // ── Relation types ────────────────────────────────────────────────────────────
 
+/** @type {Readonly<Record<string, { id: ArchimateRelationType, label: string, weight: number }>>} */
 const RELATION_TYPES = Object.freeze({
   COMPOSITION:    { id: "composition-relationship",    label: "Composition",    weight: 3.0 },
   AGGREGATION:    { id: "aggregation-relationship",    label: "Aggregation",    weight: 2.5 },
@@ -574,6 +583,7 @@ const RELATION_WEIGHT_MAP  = Object.freeze(Object.fromEntries(Object.values(RELA
 
 // ── Element types ─────────────────────────────────────────────────────────────
 
+/** @type {readonly ArchimateElementType[]} */
 const ELEMENT_TYPES = Object.freeze([
   "application-collaboration", "application-component", "application-event",
   "application-function", "application-interaction", "application-interface",
@@ -584,12 +594,12 @@ const ELEMENT_TYPES = Object.freeze([
   "capability", "communication-network", "constraint", "contract",
   "course-of-action", "data-object", "deliverable", "device",
   "distribution-network", "driver", "equipment", "facility", "gap", "goal",
-  "grouping", "implementation-even", "junction", "location", "material",
+  "grouping", "implementation-event", "junction", "location", "material",
   "meaning", "node", "outcome", "path", "plateau", "principle", "product",
   "representation", "requirement", "resource", "stakeholder", "system-software",
   "technology-collaboration", "technology-event", "technology-function",
   "technology-interaction", "technology-interface", "technology-process",
-  "technology-service", "value", "work-package",
+  "technology-service", "value", "value-stream", "work-package",
 ]);
 
 // "business-actor" → "Business Actor"
@@ -747,6 +757,7 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
 // capped at REPEAT_MAX so a broad filter cannot walk the whole model).
 const REPEAT_UNTIL_NOTHING_NEW = "untilNothingNew";
 const REPEAT_MAX               = 10;
+/** @type {readonly { value: StepRepeat, label: string }[]} */
 const REPEAT_OPTIONS = Object.freeze([
   { value: 1, label: "1×" },
   { value: 2, label: "2×" },
@@ -756,13 +767,21 @@ const REPEAT_OPTIONS = Object.freeze([
   { value: REPEAT_UNTIL_NOTHING_NEW, label: "until nothing new" },
 ]);
 
-/** Normalise a preset/GUI repeat value to a REPEAT_OPTIONS value; anything unknown → 1. */
+/**
+ * Normalise a preset/GUI repeat value to a REPEAT_OPTIONS value; anything unknown → 1.
+ * @param {unknown} v
+ * @returns {StepRepeat}
+ */
 function normalizeRepeat(v) {
   const opt = REPEAT_OPTIONS.find(o => o.value === v || String(o.value) === String(v));
   return opt ? opt.value : 1;
 }
 
-/** Number of runs a repeat value allows (REPEAT_MAX for until-nothing-new). */
+/**
+ * Number of runs a repeat value allows (REPEAT_MAX for until-nothing-new).
+ * @param {unknown} v
+ * @returns {number}
+ */
 function repeatMaxRuns(v) {
   const r = normalizeRepeat(v);
   return r === REPEAT_UNTIL_NOTHING_NEW ? REPEAT_MAX : r;
@@ -770,7 +789,10 @@ function repeatMaxRuns(v) {
 
 // ── Preset validation ─────────────────────────────────────────────────────────
 
-/** Valid ids for rule normalisation (rel_filter.normalizeRules). */
+/**
+ * Valid ids for rule normalisation (rel_filter.normalizeRules).
+ * @returns {ValidTypeSets}
+ */
 function _ruleValidity() {
   return {
     elements:    new Set(ELEMENT_TYPES),
@@ -783,10 +805,12 @@ function _ruleValidity() {
 /**
  * Keys of the pre-rule-list preset format found in `raw`. Presets are migrated offline
  * (tools/migrate_presets_relrows.js); loading one unmigrated would silently drop its filters.
+ * @param {PresetFile} raw
+ * @returns {string[]}
  */
 function _legacyKeys(raw) {
   const found = [];
-  const has = (o, k) => o && typeof o === "object" && k in o;
+  const has = (/** @type {unknown} */ o, /** @type {string} */ k) => o && typeof o === "object" && k in o;
   for (const k of ["nestingRelationTypes", "reverseRelationTypes", "nestingContainerTypes"])
     if (has(raw.params, k)) found.push(`params.${k}`);
   for (const k of ["elementTypes", "relationTypes", "diagramTypes"])
@@ -809,8 +833,8 @@ function _legacyKeys(raw) {
  * - Validates option values against supportedOptions
  * - Replaces unsupported option values (labelPosition: algorithm default; others: first option)
  * Throws a descriptive string if validation fails.
- * @param {Object} raw  raw preset object (from JSON)
- * @returns {Object}    normalised preset
+ * @param {PresetFile} raw  raw preset object (from JSON)
+ * @returns {Preset}        normalised preset
  */
 function validatePreset(raw) {
   if (raw.schemaVersion !== undefined && raw.schemaVersion !== DEFAULT_PRESET.schemaVersion)
@@ -819,6 +843,7 @@ function validatePreset(raw) {
   if (legacy.length)
     throw `Preset uses the old filter format (${legacy.join(", ")}). Run: node Scripts/View/tools/migrate_presets_relrows.js`;
 
+  /** @type {Preset} */
   const preset = JSON.parse(JSON.stringify(DEFAULT_PRESET));  // deep clone defaults
 
   // top-level
@@ -829,7 +854,12 @@ function validatePreset(raw) {
   if (!alg) throw `Unknown algorithm: "${preset.algorithm}". Valid algorithms: ${Object.keys(ALGORITHMS).join(", ")}`;
 
   const valid = _ruleValidity();
+  /** @type {<K extends RuleKind>(kind: K, list: unknown, where: string) => RuleByKind[K][]} */
   const rules = (kind, list, where) => RuleLists.normalizeRules(kind, list, valid, where);
+
+  // DEFAULT_PRESET holds its rule lists in file form; defaults a preset leaves in place get the full shape too.
+  preset.params.nestingRules = rules("relation", preset.params.nestingRules, "params.nestingRules");
+  preset.params.reverseRules = rules("relation", preset.params.reverseRules, "params.reverseRules");
 
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
@@ -840,6 +870,7 @@ function validatePreset(raw) {
         continue;
       }
       // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.
+      /** @type {Record<string, string>} */
       const _DIR_MIGRATE = { "Left → Right": "Right", "Right → Left": "Left", "Top → Bottom": "Down", "Bottom → Top": "Up" };
       const val = (key === "direction" && _DIR_MIGRATE[rawVal]) ? _DIR_MIGRATE[rawVal] : rawVal;
       const opts = alg.supportedOptions[key];
@@ -847,7 +878,7 @@ function validatePreset(raw) {
         console.log(`Warning: param "${key}" value "${val}" not supported by ${preset.algorithm}. Using default.`);
         continue;
       }
-      preset.params[key] = val;
+      /** @type {Record<string, unknown>} */ (preset.params)[key] = val;   // Cast: key is a DEFAULT_PRESET.params key
     }
   }
 
@@ -855,8 +886,10 @@ function validatePreset(raw) {
   // DEFAULT_PRESET default (e.g. containerAlgorithm "Layered" is not an option for Tree).
   // labelPosition falls back to the algorithm's own default, the others to their first option.
   for (const [key, opts] of Object.entries(alg.supportedOptions)) {
-    if (opts.includes(preset.params[key])) continue;
-    preset.params[key] = (key === "labelPosition" && alg.labelPositionDefault) ? alg.labelPositionDefault : opts[0];
+    // Casts: dynamic key into preset.params.
+    const params = /** @type {Record<string, unknown>} */ (preset.params);
+    if (opts.includes(/** @type {string} */ (params[key]))) continue;
+    params[key] = (key === "labelPosition" && alg.labelPositionDefault) ? alg.labelPositionDefault : opts[0];
   }
 
   // filter
@@ -868,7 +901,7 @@ function validatePreset(raw) {
 
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
   if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
-    preset.relatedElements.steps = raw.relatedElements.steps.map((step, i) => ({
+    preset.relatedElements.steps = raw.relatedElements.steps.map((/** @type {PresetFile} */ step, /** @type {number} */ i) => ({
       repeat: normalizeRepeat(step.repeat),
       rules:  rules("step", step.rules, `relatedElements.steps[${i}].rules`),
     }));
@@ -922,8 +955,8 @@ function validatePreset(raw) {
     if (typeof rv.addObjectId === "boolean") preset.viewProperties.addObjectId = rv.addObjectId;
     if (Array.isArray(rv.properties)) {
       preset.viewProperties.properties = rv.properties
-        .filter(p => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE)
-        .map(p => ({
+        .filter((/** @type {PresetFile} */ p) => p && typeof p.key === "string" && p.key !== PROP_ID && p.key !== PROP_MANAGED_OCCURRENCE)
+        .map((/** @type {PresetFile} */ p) => ({
           key:     String(p.key),
           value:   p.value !== undefined ? String(p.value) : "",
           enabled: typeof p.enabled === "boolean" ? p.enabled : false,
@@ -943,14 +976,16 @@ function validatePreset(raw) {
  *     stack in one column and aspect ratio / max width have no effect.
  * "Between containers" is then used and the choice is locked in the dialog.
  * @param {string} algorithm  root algorithm name
- * @param {Object} params     raw preset params (with viewSizeMode)
+ * @param {Partial<PresetParams> | null | undefined} params  raw preset params (with viewSizeMode)
  * @returns {string|null}     reason, for log and tooltip
  */
 function connectionsModeLock(algorithm, params) {
+  /** @type {Partial<PresetParams>} */
   const p = params || {};
   if (p.containerAlgorithm && p.containerAlgorithm !== algorithm) return `container layout ${p.containerAlgorithm}`;
-  if (p.viewSizeMode === "aspectRatio" && p.aspectRatio > 0) return "view size aspect ratio";
-  if (p.viewSizeMode === "maxWidth"    && p.maxWidth    > 0) return "view size max width";
+  // Casts: an absent value compares as undefined > 0, i.e. false, which is intended.
+  if (p.viewSizeMode === "aspectRatio" && (p.aspectRatio || 0) > 0) return "view size aspect ratio";
+  if (p.viewSizeMode === "maxWidth"    && (p.maxWidth || 0)    > 0) return "view size max width";
   return null;
 }
 
@@ -960,8 +995,8 @@ function connectionsModeLock(algorithm, params) {
  * `|| default` degrade cleanly. The raw `preset.params` is never mutated —
  * it stays intact for UI restoration on algorithm switch (SPEC §11, capability masking).
  *
- * @param {Object} preset  validated preset
- * @returns {Object}       masked params subset
+ * @param {Preset} preset  validated preset
+ * @returns {EffectiveParams} masked params subset
  */
 function effectiveParams(preset) {
   const alg = ALGORITHMS[preset.algorithm];
@@ -969,15 +1004,16 @@ function effectiveParams(preset) {
   const active       = new Set(alg.activeParams || []);
   const viewSizeMode = (preset.params && preset.params.viewSizeMode) || "none";
   const conflictKeys = new Set(Object.keys(alg.paramConflicts || {}));
+  /** @type {Record<string, unknown>} */
   const out = {};
   for (const key of Object.keys(preset.params || {})) {
     if (key === "viewSizeMode") continue;
     if (!active.has(key))       continue;
-    out[key] = (conflictKeys.has(key) && key !== viewSizeMode) ? 0 : preset.params[key];
+    out[key] = (conflictKeys.has(key) && key !== viewSizeMode) ? 0 : /** @type {Record<string, unknown>} */ (preset.params)[key];
   }
   if (out.connectionsMode === "Crossing containers" && connectionsModeLock(preset.algorithm, preset.params))
     out.connectionsMode = "Between containers";
-  return out;
+  return /** @type {EffectiveParams} */ (out);   // Cast: a subset of preset.params, as built above
 }
 
 if (typeof module !== "undefined" && module.exports) {

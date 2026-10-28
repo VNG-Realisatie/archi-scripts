@@ -1,0 +1,11 @@
+{
+  "name": "archi-scripts-dev",
+  "private": true,
+  "description": "Development tooling only. The scripts in Scripts/ run in Archi without npm.",
+  "scripts": {
+    "typecheck": "tsc -p jsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

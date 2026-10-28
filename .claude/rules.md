@@ -1,3 +1,3 @@
 # Claude adapter — archi-scripts
 
-See `ai/rules.md` — canonical rule priority chain, layer model, and source references.
+See `ai/rules.md` — layers, source references, and hard rules.

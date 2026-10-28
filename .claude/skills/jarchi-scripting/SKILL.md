@@ -1,6 +1,6 @@
 ---
 name: jarchi-scripting
-description: This skill should be used when the user asks to "write a JArchi script", "create an Archi script", "build an .ajs script", "add a dialog to a script", "use SWT widgets", "create a JFace dialog", "use Eclipse UI in JArchi", "extend a Java class in JavaScript", "use Java.type()", "work with ArchiMate elements", "use the jArchi API", "create a library module", "use GraalJS", mentions JArchi, Archi scripting, ArchiMate modeling scripts, SWT/JFace UI, or GraalVM JavaScript for Archi.
+description: Use when writing or changing jArchi scripts for Archi (.ajs files, CommonJS modules run by jArchi), using the jArchi API ($, collections, model, views, visual objects), GraalJS / Java interop (Java.type, Java.extend), or SWT / JFace dialogs in jArchi.
 ---
 
 See `ai/jarchi-scripting/SKILL.md` for the full skill definition and reference documentation.

@@ -1,0 +1,98 @@
+/*
+ * Probe the jArchi API assumptions behind ai/jarchi-scripting/jarchi.d.ts.
+ *
+ * Read-only: the model is not changed. Select a model with at least two elements and one
+ * relation; select a view (or something on it) to also probe visuals. Copy the console output
+ * back into the typings (@remarks unverified → verified) and ai/jarchi-scripting docs.
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+
+console.show();
+console.clear();
+console.log(`jArchi ${$.process.release.jArchiVersion} · Archi ${$.process.release.archiVersion} · ${$.process.engine}\n`);
+if (!model.isSet()) {
+  console.error("No model selected: select the model (or a view in it) in the Models tree and run again.");
+  exit();
+}
+if ($("element").size() < 2) {
+  console.error("The selected model needs at least two elements (and preferably a relation and a view).");
+  exit();
+}
+
+const results = [];
+function probe(name, fn) {
+  let out;
+  try { out = fn(); } catch (e) { out = `throws: ${e}`; }
+  results.push(`${name.padEnd(46)} ${out}`);
+}
+
+// ── Console ──────────────────────────────────────────────────────────────────
+probe("typeof console.warn", () => typeof console.warn);
+probe("console.error with 3 arguments", () => { console.error("probe:", "two", "three"); return "ok"; });
+
+// ── Collections ──────────────────────────────────────────────────────────────
+const elements = $("element");
+const first = elements.first(), second = elements.get(1);
+probe("$(\"element\").size()", () => elements.size());
+probe("collection.length", () => `${elements.length} (size ${elements.size()})`);
+probe("collection[0] is first()", () => elements[0] === undefined ? "undefined" : String(elements[0].id === first.id));
+probe("Array.isArray(collection)", () => Array.isArray(elements));
+probe("for…of over a collection", () => { let n = 0; for (const o of elements) n++; return `${n} items`; });
+probe("[...collection].length", () => [...elements].length);
+probe("collection.map exists", () => typeof elements.map);
+probe("collection.forEach exists", () => typeof elements.forEach);
+probe("each(): callback arguments", () => { let n = -1; elements.first() && $(first).each(function () { n = arguments.length; }); return n; });
+probe("each(): return false stops?", () => { let n = 0; elements.each(() => { n++; return false; }); return `${n} of ${elements.size()} visited`; });
+probe("filter(fn)", () => elements.filter(o => o.id === first.id).size());
+probe("first() on an empty collection", () => String($(".no such name 9f3c").first()));
+probe("$() (no argument)", () => `size ${$().size()}`);
+probe("add(collection) changes the receiver?", () => {
+  const a = $(first), before = a.size(), b = a.add($(second));
+  return `receiver ${before} → ${a.size()}, returns receiver: ${a === b}`;
+});
+probe("add(collection) de-duplicates?", () => { const a = $(first); a.add($(first)); return `size ${a.size()}`; });
+probe("add(proxy) (ArrayList.add)", () => { const a = $(first); const r = a.add(second); return `returns ${r}, size ${a.size()}`; });
+probe("$(\"#id\") of an element", () => $(`#${first.id}`).first().type);
+
+// ── Proxies ──────────────────────────────────────────────────────────────────
+probe("typeof element.type", () => typeof first.type);
+probe("element.type as object key", () => { const o = {}; o[first.type] = 1; return Object.keys(o)[0] === String(first.type); });
+probe("element.view (missing member)", () => String(first.view));
+probe("element.bounds (missing member)", () => String(first.bounds));
+probe("prop() without key", () => { const p = first.prop(); return `isArray ${Array.isArray(p)}, length ${p.length}`; });
+probe("prop(absent key, true)", () => String(first.prop("probe absent key 9f3c", true)));
+probe("prop(key, true): spread / isArray", () => {
+  const key = first.prop()[0];
+  if (key === undefined) return "skipped: first element has no properties";
+  const v = first.prop(key, true);
+  return `isArray ${Array.isArray(v)}, spread ${[...v].length}, [0] ${v[0]}`;
+});
+const rel = $("relation").first();
+probe("relation.source.type", () => rel ? rel.source.type : "skipped: no relation");
+
+// ── Views and visuals ────────────────────────────────────────────────────────
+const sel = $(selection).first();
+const view = sel && (sel.view || (sel.type === "archimate-diagram-model" ? sel : null)) || $("view").first();
+if (view) {
+  probe("view.viewpoint", () => JSON.stringify(view.viewpoint));
+  probe("view.connectionRouter", () => view.connectionRouter);
+  const vo = $(view).find("element").first();
+  probe("$(view).find(\"element\") yields visuals", () => vo ? `${vo.type}, has bounds ${!!vo.bounds}` : "skipped: empty view");
+  probe("vo.bounds", () => vo ? JSON.stringify(vo.bounds) : "skipped");
+  probe("vo.bounds.x typeof", () => vo ? typeof vo.bounds.x : "skipped");
+  probe("$(view).children() vs find()", () => `${$(view).children().size()} children, ${$(view).find().size()} descendants`);
+  const vc = $(view).find("relation").first();
+  probe("connection.bounds (missing member)", () => vc ? String(vc.bounds) : "skipped: no connection");
+  probe("connection.source is a visual", () => vc ? `${vc.source.type}, has view ${!!vc.source.view}` : "skipped");
+  probe("diagram-model-reference reports type", () => { const r = $(view).find("diagram-model-reference").first(); return r ? r.type : "skipped: none"; });
+} else {
+  results.push("views: skipped (no view in the model)");
+}
+
+// ── Script environment ───────────────────────────────────────────────────────
+probe("__DIR__ ends with a separator", () => /[\\/]$/.test(__DIR__));
+probe("__SCRIPTS_DIR__", () => __SCRIPTS_DIR__);
+probe("relative require inside a module", () => require(REPO_ROOT + "Develop/_probe_require_a.js").viaRelative);
+
+console.log(results.join("\n"));
+console.log("\nProbe finished.");

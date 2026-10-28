@@ -16,7 +16,9 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("./rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { validatePreset, SESSION_FILENAME } = Defs;
 
@@ -30,6 +32,10 @@ const VIEW_DIR = (() => {
 
 // ── Low-level JSON I/O ────────────────────────────────────────────────────────
 
+/**
+ * @param {string} path
+ * @returns {PresetFile | null} parsed JSON, or null when the file does not exist
+ */
 function readJSON(path) {
   const File           = Java.type("java.io.File");
   const BufferedReader = Java.type("java.io.BufferedReader");
@@ -45,6 +51,10 @@ function readJSON(path) {
 }
 
 // Presets and the session file: rule lists one rule per line (rel_filter.stringifyPreset).
+/**
+ * @param {string} path
+ * @param {object} obj
+ */
 function writeJSON(path, obj) {
   const File       = Java.type("java.io.File");
   const FileWriter = Java.type("java.io.FileWriter");
@@ -54,7 +64,7 @@ function writeJSON(path, obj) {
     writer.write(RuleLists.stringifyPreset(obj));
     writer.close();
   } catch (e) {
-    console.error("Failed to write file:", path, e);
+    console.error(`Failed to write file: ${path} ${e}`);
   }
 }
 
@@ -65,6 +75,10 @@ function presetDir() {
 }
 
 // name can be "presetName" or "folder/presetName"
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function _presetPath(name) {
   if (!name.endsWith(".json")) name += ".json";
   return presetDir() + name;
@@ -79,7 +93,11 @@ function _presetPath(name) {
  */
 function _scanPresets() {
   const File = Java.type("java.io.File");
-  const names = [], folders = new Set();
+  /** @type {string[]} */
+  const names = [];
+  /** @type {Set<string>} */
+  const folders = new Set();
+  /** @type {(dir: any, prefix: string) => void}  dir: a java.io.File */
   const walk = (dir, prefix) => {
     const files = dir.listFiles();
     if (!files) return;
@@ -121,7 +139,7 @@ function listFolders() {
 /**
  * Read and validate a named preset. Preserves description field.
  * @param {string} name  preset name — "name" or "folder/name" (without .json)
- * @returns {Object} validated preset, with description preserved
+ * @returns {Preset} validated preset, with description preserved
  * @throws if file not found
  */
 function readPreset(name) {
@@ -137,7 +155,7 @@ function readPreset(name) {
 /**
  * Write a preset to disk. Creates parent directories as needed.
  * @param {string} name    preset name — "name" or "folder/name" (without .json)
- * @param {Object} preset  preset object
+ * @param {object} preset  preset object (dialog fields starting with "_" are dropped)
  * @param {{quiet?:boolean}} [opts]  quiet: no console line — for callers inside an SWT handler of
  *                                   a modal dialog, where console output blocks until it closes
  */
@@ -185,7 +203,7 @@ function ensureDefault() {
 
 /**
  * Read the session file. Returns validated DEFAULT_PRESET if no session exists.
- * @returns {Object} validated preset with UI-only fields preserved
+ * @returns {Preset} validated preset with UI-only fields ("_…") preserved
  */
 function readSession() {
   const path = presetDir() + SESSION_FILENAME;
@@ -193,7 +211,7 @@ function readSession() {
   if (!raw) return JSON.parse(JSON.stringify(Defs.DEFAULT_PRESET));
   try {
     const validated = validatePreset(raw);
-    Object.keys(raw).forEach(k => { if (k.startsWith("_")) validated[k] = raw[k]; });
+    Object.keys(raw).forEach(k => { if (k.startsWith("_")) /** @type {Record<string, unknown>} */ (validated)[k] = raw[k]; });   // Cast: UI-only fields
     if (raw.description !== undefined) validated.description = raw.description;
     return validated;
   } catch (e) {
@@ -204,7 +222,7 @@ function readSession() {
 
 /**
  * Write the current configuration as the session file.
- * @param {Object} preset  current configuration
+ * @param {object} preset  current configuration
  */
 function writeSession(preset) {
   writeJSON(presetDir() + SESSION_FILENAME, preset);

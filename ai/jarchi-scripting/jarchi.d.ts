@@ -1,0 +1,591 @@
+/**
+ * jArchi scripting API — type declarations for static checking of jArchi scripts (JSDoc + tsc --noEmit).
+ *
+ * Source: archi-scripting-plugin source (com.archimatetool.script, April 2026, jArchi 1.12):
+ *   dom/model/*Proxy.java, dom/model/EObjectProxyCollection.java, dom/ui/Console.java, js/init.js,
+ *   RunArchiScript.java, JSProvider.java, plugin.xml. Wiki: github.com/archimatetool/archi-scripting-plugin/wiki
+ *
+ * Runtime model (JSProvider.java): GraalJS via JSR-223 with nashorn-compat and ECMAScript "latest";
+ * Java getters/setters read and write as JS properties (getName() → .name); CommonJS `require` when the
+ * preference is on, with the scripts folder as require-cwd.
+ *
+ * Tags: `@since` = first jArchi version. `@remarks unverified` = taken from source or wiki, not yet
+ * observed in a running Archi; check before relying on edge-case behaviour. Members without it were
+ * either read from the source or observed with Scripts/Develop/probeJArchiApi.ajs (jArchi 1.12.0,
+ * Archi 5.10, 2026-10-22).
+ *
+ * Java maps (vo.bounds, view.viewpoint, image) read field by field (`bounds.x`), but
+ * JSON.stringify gives "{}" for them: copy the fields into a JS object first.
+ */
+
+// ── ArchiMate type names (Archi com.archimatetool.model/model/archimate.ecore, kebab-case) ─────────
+
+/** Concrete ArchiMate element types, as `element.type` reports them. */
+type ArchimateElementType =
+  "application-collaboration" | "application-component" | "application-event" |
+  "application-function" | "application-interaction" | "application-interface" |
+  "application-process" | "application-service" | "artifact" | "assessment" | "business-actor" |
+  "business-collaboration" | "business-event" | "business-function" | "business-interaction" |
+  "business-interface" | "business-object" | "business-process" | "business-role" |
+  "business-service" | "capability" | "communication-network" | "constraint" | "contract" |
+  "course-of-action" | "data-object" | "deliverable" | "device" | "distribution-network" |
+  "driver" | "equipment" | "facility" | "gap" | "goal" | "grouping" | "implementation-event" |
+  "junction" | "location" | "material" | "meaning" | "node" | "outcome" | "path" | "plateau" |
+  "principle" | "product" | "representation" | "requirement" | "resource" | "stakeholder" |
+  "system-software" | "technology-collaboration" | "technology-event" | "technology-function" |
+  "technology-interaction" | "technology-interface" | "technology-process" | "technology-service"
+  | "value" | "value-stream" | "work-package";
+
+/** ArchiMate relationship types, as `relation.type` reports them. */
+type ArchimateRelationType =
+  "access-relationship" | "aggregation-relationship" | "assignment-relationship" |
+  "association-relationship" | "composition-relationship" | "flow-relationship" |
+  "influence-relationship" | "realization-relationship" | "serving-relationship" |
+  "specialization-relationship" | "triggering-relationship";
+
+/** Diagram object types for createObject / selectors. "diagram-model-legend" @since 1.12. */
+type DiagramObjectTypeName =
+  "diagram-model-note" | "diagram-model-group" | "diagram-model-image" | "diagram-model-reference" |
+  "diagram-model-legend" | "sketch-model-sticky" | "sketch-model-actor" | "canvas-model-block" |
+  "canvas-model-sticky" | "canvas-model-image";
+
+/** View types: ArchiMate, sketch, canvas. A view reference visual also reports "archimate-diagram-model". */
+type ViewTypeName = "archimate-diagram-model" | "sketch-model" | "canvas-model";
+
+// ── Proxies ──────────────────────────────────────────────────────────────────────────────────────
+
+/** Common base of every model object (EObjectProxy). */
+interface ArchiProxy {
+  readonly id: string;
+  name: string;
+  documentation: string;
+  /** Kebab-case type, e.g. "business-actor", "diagram-model-note", "archimate-diagram-model". */
+  readonly type: string;
+  readonly model: ArchiModel;
+  labelExpression: string;
+  readonly labelValue: string;
+  /** All property keys. */
+  prop(): string[];
+  /** First value of the property, or null when absent. */
+  prop(key: string): string | null;
+  /**
+   * true: all values (a java.util.List — a JS array to GraalJS: isArray, spread, index), or null
+   * when the property is absent. false: the first value, or null.
+   */
+  prop(key: string, allowDuplicate: true): string[] | null;
+  prop(key: string, allowDuplicate: false): string | null;
+  /** Set (or add, with allowDuplicate) a property. */
+  prop(key: string, value: string, allowDuplicate?: boolean): this;
+  removeProp(key: string, value?: string): this;
+  delete(): void;
+}
+
+/** An ArchiMate concept: element or relationship (ArchimateConceptProxy). */
+interface ArchiConcept extends ArchiProxy {
+  specialization: string;
+  readonly concept: this;
+  /** Not a visual. (A member a proxy lacks reads as undefined, so `o.view` tells visuals apart.) */
+  readonly view?: undefined;
+}
+
+interface ArchiElement extends ArchiConcept {
+  /** Setting the type converts the element (diagram references follow). */
+  type: string;
+  /** "and" | "or" — junctions only. */
+  junctionType: string;
+  merge(other: ArchiElement): this;
+  /** @since 1.8 */
+  duplicate(folder?: Folder): ArchiElement;
+}
+
+interface ArchiRelation extends ArchiConcept {
+  type: string;
+  /** A relationship can connect to another relationship, so the ends are concepts. */
+  source: ArchiElement | ArchiRelation;
+  target: ArchiElement | ArchiRelation;
+  /** access-relationship only: "write" | "read" | "access" | "readwrite". */
+  accessType: string;
+  /** influence-relationship only. */
+  influenceStrength: string;
+  /** association-relationship only. */
+  associationDirected: boolean;
+  merge(other: ArchiRelation): this;
+  /** @since 1.8 */
+  duplicate(folder?: Folder): ArchiRelation;
+}
+
+interface Folder extends ArchiProxy {
+  readonly view?: undefined;
+  readonly concept?: undefined;
+  createFolder(name: string): Folder;
+  add(child: ArchiConcept | ArchiView | Folder): this;
+}
+
+/** Bounds of a visual object; width/height -1 means "default size" (since 1.10). */
+interface Bounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Shared by visual objects and connections on a view (DiagramModelComponentProxy). */
+interface DiagramComponent extends ArchiProxy {
+  readonly view: ArchiView;
+  /** The model concept drawn by this visual; null for notes, groups and other diagram objects. */
+  readonly concept: ArchiConcept | null;
+  specialization: string;
+  /** null = Archi default. */
+  fontColor: string | null;
+  fontName: string;
+  fontSize: number;
+  fontStyle: string;
+  /** null = Archi default. */
+  lineColor: string | null;
+  lineWidth: number;
+}
+
+/** A box on a view: element, note, group, view reference, … (DiagramModelObjectProxy). */
+interface VisualObject extends DiagramComponent {
+  readonly concept: ArchiElement | null;
+  /** Reading returns a fresh copy; write a whole or partial object to change it. */
+  get bounds(): Bounds;
+  set bounds(value: Partial<Bounds>);
+  /** Create a child visual for an element; x/y relative to this object. */
+  add(element: ArchiElement, x: number, y: number, width: number, height: number): VisualObject;
+  /** Move an existing visual into this object, keeping its children and connections. @since 1.10 */
+  add(visual: VisualObject, x: number, y: number): VisualObject;
+  createObject(type: string, x: number, y: number, width: number, height: number): VisualObject;
+  createViewReference(view: ArchiView, x: number, y: number, width: number, height: number): VisualObject;
+  /** Z-order position among siblings. @since 1.7 */
+  index: number;
+  bringToFront(): this;
+  bringForward(): this;
+  sendToBack(): this;
+  sendBackward(): this;
+  /** Reads the effective colour (the user's default when unset, since 1.11); assign null to reset. */
+  get fillColor(): string;
+  set fillColor(value: string | null);
+  /** @since 1.5 */
+  iconColor: string;
+  opacity: number;
+  outlineOpacity: number;
+  gradient: number;
+  figureType: number;
+  textAlignment: number;
+  textPosition: number;
+  showIcon: number;
+  imageSource: number;
+  imagePosition: number;
+  /** @since 1.6 */
+  deriveLineColor: boolean;
+  /** @since 1.8 */
+  lineStyle: number;
+  /** Notes only. */
+  text: string;
+  /** Notes and groups only (BORDER constants). */
+  borderType: number;
+  /** View references only. */
+  readonly refView: ArchiView;
+  /**
+   * Legends only (diagram-model-legend): showElements, showRelations, showSpecializationElements,
+   * showSpecializationRelations, rows (1–100), offset (−200…200), color (0 none, 1 core, 2 user),
+   * sort (0 name, 1 category). @since 1.12
+   */
+  options: Record<string, unknown>;
+  /**
+   * Delete this visual. Default true: children and attached connections go too.
+   * false: children are re-parented to this object's parent. @since 1.8 (argument)
+   */
+  delete(deleteChildren?: boolean): void;
+}
+
+/** Relative bendpoint: start offsets from the source centre, end offsets from the target centre. */
+interface Bendpoint {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+/** A line on a view (DiagramModelConnectionProxy). */
+interface VisualConnection extends DiagramComponent {
+  readonly concept: ArchiRelation | null;
+  /** A connection has no bounds (reads as undefined), which tells it apart from a VisualObject. */
+  readonly bounds?: undefined;
+  readonly source: VisualObject | VisualConnection;
+  readonly target: VisualObject | VisualConnection;
+  labelVisible: boolean;
+  /** CONNECTION_TEXT_POSITION constants. */
+  textPosition: number;
+  textAlignment: number;
+  /** CONNECTION_STYLE bit flags. */
+  style: number;
+  readonly relativeBendpoints: Bendpoint[];
+  addRelativeBendpoint(bendpoint: Bendpoint, index: number): this;
+  /** @since 1.1 */
+  setRelativeBendpoint(bendpoint: Bendpoint, index: number): this;
+  deleteBendpoint(index: number): this;
+  deleteAllBendpoints(): this;
+}
+
+/** Any view: ArchiMate, sketch or canvas (DiagramModelProxy). */
+interface ArchiView extends ArchiProxy {
+  readonly view?: undefined;
+  readonly concept?: undefined;
+  /** Move an existing visual to the top level of this view. @since 1.10 */
+  add(visual: VisualObject, x: number, y: number): VisualObject;
+  createObject(type: string, x: number, y: number, width: number, height: number, autoNest?: boolean): VisualObject;
+  createViewReference(view: ArchiView, x: number, y: number, width: number, height: number, autoNest?: boolean): VisualObject;
+  createConnection(source: DiagramComponent, target: DiagramComponent): VisualConnection;
+  /** CONNECTION_ROUTER: 0 = bendpoint (manual), 1 = manhattan. */
+  connectionRouter: number;
+  /** @since 1.5 */
+  openInUI(): this;
+  /** @since 1.8 */
+  duplicate(folder?: Folder): ArchiView;
+}
+
+interface ArchimateView extends ArchiView {
+  add(element: ArchiElement, x: number, y: number, width: number, height: number, autoNest?: boolean): VisualObject;
+  add(relation: ArchiRelation, source: DiagramComponent, target: DiagramComponent): VisualConnection;
+  add(visual: VisualObject, x: number, y: number): VisualObject;
+  /** Reads as { id, name }; assign a viewpoint id string to change it. */
+  get viewpoint(): { id: string; name: string };
+  set viewpoint(id: string);
+  isAllowedConceptForViewpoint(conceptType: string): boolean;
+}
+
+/** A specialization (profile) of a concept type (ProfileProxy). @since 1.2 */
+interface Specialization {
+  name: string;
+  /** The concept type it specialises, e.g. "business-actor". */
+  type: string;
+  image: { [key: string]: unknown } | null;
+  delete(): void;
+}
+
+/** A loaded model (ArchimateModelProxy). */
+interface ArchiModel extends ArchiProxy {
+  readonly view?: undefined;
+  readonly concept?: undefined;
+  purpose: string;
+  readonly specializations: Specialization[];
+  createElement(type: string, name: string, folder?: Folder): ArchiElement;
+  createRelationship(type: string, name: string, source: ArchiConcept, target: ArchiConcept, folder?: Folder): ArchiRelation;
+  createArchimateView(name: string, folder?: Folder): ArchimateView;
+  createSketchView(name: string, folder?: Folder): ArchiView;
+  createCanvasView(name: string, folder?: Folder): ArchiView;
+  createSpecialization(name: string, conceptType: string, image?: { [key: string]: unknown }): Specialization;
+  findSpecialization(name: string, conceptType: string): Specialization | null;
+  createImage(filePath: string): { [key: string]: unknown };
+  getPath(): string | null;
+  save(path?: string): this;
+  copy(): ArchiModel;
+  openInUI(): this;
+  setAsCurrent(): this;
+  /** @since 1.5 */
+  merge(source: string | ArchiModel, update: boolean, updateAll: boolean, messages?: unknown[]): this;
+  find(selector?: string | ArchiProxy): ArchiCollection<ArchiObject>;
+}
+
+/** The global `model`: the current model, or an unset placeholder. */
+interface CurrentModel extends ArchiModel {
+  /** False when no model is selected; any other access then throws. @since 1.9 */
+  isSet(): boolean;
+}
+
+/** Every proxy kind a collection can hold. */
+type ArchiObject = ArchiElement | ArchiRelation | Folder | ArchiView | ArchimateView | VisualObject | VisualConnection | ArchiModel;
+
+// ── Collections ──────────────────────────────────────────────────────────────────────────────────
+//
+// A collection is a java.util.ArrayList of proxies (EObjectProxyCollection). GraalJS treats it as a JS
+// array (probe: Array.isArray true; length, [i], for…of, spread, map work), but jArchi's own methods
+// win where names clash: filter(selector | fn), find(selector), add(…). Traversals keep their side:
+// on a view, "element"/"relation" select visuals; in the model they select concepts.
+
+type OnView = DiagramComponent | ArchiView;
+type ElementsOf<T> = T extends OnView ? VisualObject : ArchiElement;
+type RelationsOf<T> = T extends OnView ? VisualConnection : ArchiRelation;
+type DescendantsOf<T> = T extends OnView ? VisualObject | VisualConnection : ArchiObject;
+type ParentsOf<T> = T extends OnView ? VisualObject | ArchiView : Folder | ArchiModel;
+type EndsOf<T> = T extends OnView ? VisualObject | VisualConnection : ArchiElement | ArchiRelation;
+type ElementSelector = "element";
+type RelationSelector = "relation" | "relationship";
+/** "folder", "folder.Name" */
+type FolderSelector = "folder" | `folder.${string}`;
+/** "view", "view.Name" */
+type ViewSelector = "view" | `view.${string}`;
+
+interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
+  /** Number of objects (ArrayList.size). */
+  size(): number;
+  /** Same as size() (GraalJS list access). */
+  readonly length: number;
+  /** Indexed access, like get(i). */
+  readonly [index: number]: T;
+  /** for…of and spread work. */
+  [Symbol.iterator](): Iterator<T>;
+  /** Array.prototype.map on the list (GraalJS gives host lists the array prototype). */
+  map<U>(fn: (object: T, index: number) => U): U[];
+  /** Java's Iterable.forEach (a JS function is accepted); jArchi's each() does the same and returns the collection. */
+  forEach(fn: (object: T) => void): void;
+  /** Array.prototype methods on the list. @remarks unverified (map observed) */
+  some(fn: (object: T, index: number) => boolean): boolean;
+  every(fn: (object: T, index: number) => boolean): boolean;
+  reduce<U>(fn: (acc: U, object: T, index: number) => U, initial: U): U;
+  /** nth object (ArrayList.get); throws when out of range. */
+  get(index: number): T;
+  isEmpty(): boolean;
+  /** First object, or null when the collection is empty. */
+  first(): T | null;
+  /**
+   * Call `fn` for every object. The return value is ignored (java Consumer): `return false`
+   * does NOT stop the iteration — use a plain loop over size()/get() to break early.
+   */
+  each(fn: (object: T) => void): this;
+  is(selector: string): boolean;
+  clone(): ArchiCollection<T>;
+
+  /** Descendants (recursive). */
+  find(): ArchiCollection<DescendantsOf<T>>;
+  find(selector: ElementSelector): ArchiCollection<ElementsOf<T>>;
+  find(selector: RelationSelector): ArchiCollection<RelationsOf<T>>;
+  find(selector: string): ArchiCollection<DescendantsOf<T>>;
+  /** Direct children. */
+  children(): ArchiCollection<DescendantsOf<T>>;
+  children(selector: ElementSelector): ArchiCollection<ElementsOf<T>>;
+  children(selector: ViewSelector): ArchiCollection<ArchimateView>;
+  children(selector: FolderSelector): ArchiCollection<Folder>;
+  children(selector: string): ArchiCollection<DescendantsOf<T>>;
+  parent(): ArchiCollection<ParentsOf<T>>;
+  parent(selector: FolderSelector): ArchiCollection<Folder>;
+  parent(selector: string): ArchiCollection<ParentsOf<T>>;
+  /** All ancestors. @since 1.7 */
+  parents(selector?: string): ArchiCollection<ParentsOf<T>>;
+
+  rels(selector?: string): ArchiCollection<RelationsOf<T>>;
+  inRels(selector?: string): ArchiCollection<RelationsOf<T>>;
+  outRels(selector?: string): ArchiCollection<RelationsOf<T>>;
+  ends(selector?: string): ArchiCollection<EndsOf<T>>;
+  sourceEnds(selector?: string): ArchiCollection<EndsOf<T>>;
+  targetEnds(selector?: string): ArchiCollection<EndsOf<T>>;
+  /** Views in which the concepts appear. */
+  viewRefs(selector?: string): ArchiCollection<ArchimateView>;
+  /** Visuals that reference the concepts. */
+  objectRefs(selector?: string): ArchiCollection<VisualObject | VisualConnection>;
+
+  filter(selector: ElementSelector): ArchiCollection<Extract<T, ArchiElement | VisualObject>>;
+  filter(selector: RelationSelector): ArchiCollection<Extract<T, ArchiRelation | VisualConnection>>;
+  filter(selector: FolderSelector): ArchiCollection<Extract<T, Folder>>;
+  filter(selector: ViewSelector): ArchiCollection<Extract<T, ArchiView>>;
+  filter(selector: string): ArchiCollection<T>;
+  /** Keep the objects for which `predicate` returns true (java Predicate). */
+  filter(predicate: (object: T) => boolean): ArchiCollection<T>;
+  not(selector: string | ArchiCollection<ArchiProxy>): ArchiCollection<T>;
+  has(selector: string): ArchiCollection<T>;
+  /**
+   * Append the objects of `other` to THIS collection and return it (it mutates, despite the
+   * source comment "create a new collection"); objects already present are not de-duplicated.
+   */
+  add<U extends ArchiProxy>(other: ArchiCollection<U>): ArchiCollection<T | U>;
+  /** Append model.find(selector) of the first object's model to this collection (mutates). */
+  add(selector: string): ArchiCollection<T | ArchiObject>;
+  /** java.util.ArrayList.add: append one object in place; returns true. */
+  add(object: T): boolean;
+
+  /**
+   * Read (first object) or set (all objects) an attribute by name: access-type, association-directed,
+   * borderType, bounds, connectionRouter, deriveLineColor, figureType, fillColor, fontColor, fontName,
+   * fontSize, fontStyle, gradient, iconColor, id (read), image, imagePosition, imageSource, index,
+   * influence-strength, junction-type, label-expression, label-value (read), labelVisible, lineColor,
+   * lineStyle, lineWidth, name, opacity, outlineOpacity, purpose, relativeBendpoints (read), showIcon,
+   * source, specialization, style, target, text, textAlignment, textPosition, type (read), view (read),
+   * viewpoint. Prefer the typed properties on the objects.
+   */
+  attr(name: string): unknown;
+  attr(name: string, value: unknown): this;
+  prop(): string[];
+  prop(key: string): string | null;
+  prop(key: string, allowDuplicate: true): string[] | null;
+  prop(key: string, allowDuplicate: false): string | null;
+  prop(key: string, value: string, allowDuplicate?: boolean): this;
+  removeProp(key: string, value?: string): this;
+  /** Delete every object in the collection. */
+  delete(): this;
+}
+
+// ── $ / jArchi ───────────────────────────────────────────────────────────────────────────────────
+
+interface JArchiStatic {
+  /** Empty collection (model.find("")). */
+  <T extends ArchiProxy = ArchiObject>(): ArchiCollection<T>;
+  /** `$(selection)` returns the selection itself. */
+  <T extends ArchiProxy>(collection: ArchiCollection<T>): ArchiCollection<T>;
+  <T extends ArchiProxy>(object: T): ArchiCollection<T>;
+  /** Model concepts and folders by kind (model.find). */
+  (selector: ElementSelector | `element.${string}`): ArchiCollection<ArchiElement>;
+  (selector: RelationSelector | `relation.${string}` | `relationship.${string}`): ArchiCollection<ArchiRelation>;
+  (selector: FolderSelector): ArchiCollection<Folder>;
+  (selector: ViewSelector): ArchiCollection<ArchimateView>;
+  /**
+   * model.find(selector): a type ("business-actor"), ".Name", "#id", "*", …
+   * "#id" and "*" search every object in the model, visuals included; other selectors return
+   * only concepts, views and folders.
+   */
+  (selector: string): ArchiCollection<ArchiObject>;
+  /** Models in Archi (dom/model/Model.java) — not the current-model global `model`. */
+  readonly model: {
+    /** Create a new, empty model. */
+    create(name: string): ArchiModel;
+    /** Load a model file (not opened in the Models tree; call openInUI()). */
+    load(path: string): ArchiModel;
+    /** @since 0.7 */
+    isModelLoaded(model: ArchiModel): boolean;
+    /** @since 0.7 */
+    getLoadedModels(): ArchiModel[];
+    /** Is this relationship type allowed between these concept types (ArchiMate rules)? */
+    isAllowedRelationship(relationType: string, sourceType: string, targetType: string): boolean;
+    /** format: "PNG" | "BMP" | "JPG" | "GIF" | "SVG". @since 1.2 */
+    renderViewAsBase64(view: ArchiView, format: string, options?: object): string;
+    renderViewToFile(view: ArchiView, path: string, format: string, options?: object): void;
+    renderViewAsSVGString(view: ArchiView, setViewBoxOrOptions: boolean | object): string;
+    /** options: setViewBox, textAsShapes, embedFonts, textOffsetWorkaround. @since 1.7 (options) */
+    renderViewToSVG(view: ArchiView, path: string, setViewBoxOrOptions: boolean | object): void;
+    renderViewToPDF(view: ArchiView, path: string, options?: object): void;
+  };
+  readonly fs: {
+    /** Write a text file (default UTF-8). */
+    writeFile(path: string, text: string, encoding?: string): void;
+  };
+  readonly process: {
+    /** Java class name of the script engine. */
+    readonly engine: string;
+    readonly argv: string[];
+    readonly platform: string;
+    readonly release: {
+      readonly archiName: string;
+      readonly archiVersion: string;
+      readonly jArchiName: string;
+      readonly jArchiVersion: string;
+    };
+  };
+  readonly child_process: { exec(...args: string[]): void };
+}
+
+declare var $: JArchiStatic;
+declare var jArchi: JArchiStatic;
+/** Current model (check `model.isSet()` first). */
+declare var model: CurrentModel;
+/** Objects selected in the model tree or on a view when the script started. */
+declare var selection: ArchiCollection<ArchiObject>;
+
+// ── Console and dialogs ──────────────────────────────────────────────────────────────────────────
+
+/** jArchi Script Console (dom/ui/Console.java). Not the browser/Node console: there is no warn/info/debug. */
+interface JArchiConsole {
+  show(): void;
+  hide(): void;
+  setText(text: string): void;
+  log(...objects: unknown[]): void;
+  print(object: unknown): void;
+  println(object: unknown): void;
+  /** Writes in red. */
+  error(error: unknown): void;
+  clear(): void;
+  setTextColor(red: number, green: number, blue: number): void;
+  setDefaultTextColor(): void;
+}
+declare var console: JArchiConsole;
+
+interface FileDialogOptions {
+  title?: string;
+  filterExtensions?: string[];
+  fileName?: string;
+}
+/** Simple JFace dialogs on Archi's main window (js/init.js). */
+declare var window: {
+  alert(message: string): void;
+  confirm(message: string): boolean;
+  /** Entered text, or null when cancelled. */
+  prompt(message: string, defaultText?: string): string | null;
+  promptOpenFile(options?: FileDialogOptions): string | null;
+  promptOpenDirectory(options?: { title?: string; filterPath?: string }): string | null;
+  promptSaveFile(options?: FileDialogOptions): string | null;
+  /** @since 1.4 */
+  promptSelection(title: string, choices: string[]): string | null;
+};
+
+/** Stop the script (throws "__EXIT__", shown as "Exited"). */
+declare function exit(): never;
+/** @since 1.8 — alias of exit(). */
+declare function quit(): never;
+/** Run another script file in the global scope. */
+declare function load(source: string | { name: string; script: string }): unknown;
+
+// ── Script environment ───────────────────────────────────────────────────────────────────────────
+
+/** Directory of the running script file, with a trailing separator (nashorn-compat). */
+declare var __DIR__: string;
+/** Path of the running script file (nashorn-compat). */
+declare var __FILE__: string;
+declare var __LINE__: number;
+/** User scripts folder from the jArchi preferences, with a trailing separator. */
+declare var __SCRIPTS_DIR__: string;
+
+/**
+ * Java interop (GraalJS). Results are Java objects whose shape tsc cannot know, hence `any`:
+ * annotate the variable that receives a Java value when you need checking. An interface, so a
+ * typings file can add `type()` overloads per class name (types/swt.d.ts does for SWT / JFace).
+ */
+interface JavaInterop {
+  type(className: string): any;
+  from(javaArray: any): any[];
+  to(jsArray: unknown[], javaType?: string | object): any;
+  extend(...types: any[]): any;
+  /** The superclass methods of an object made with Java.extend, e.g. Java.super(dlg).okPressed(). */
+  super(object: unknown): any;
+  isJavaObject(value: unknown): boolean;
+  isType(value: unknown): boolean;
+  typeName(value: unknown): string | undefined;
+}
+declare var Java: JavaInterop;
+/** Nashorn-compat package roots, e.g. Packages.java.io.File or java.io.File (prefer Java.type). */
+declare var Packages: any;
+declare var java: any;
+declare var javax: any;
+/** Archi's main SWT Shell (org.eclipse.swt.widgets.Shell). */
+declare var shell: any;
+declare var workbench: any;
+declare var workbenchwindow: any;
+
+// CommonJS (GraalJS commonjs-require, enabled in the jArchi preferences)
+declare function require(id: string): any;
+declare var module: { exports: any; id: string; filename: string; loaded: boolean };
+declare var exports: any;
+declare var __filename: string;
+declare var __dirname: string;
+
+// ── Constants (js/init.js) ───────────────────────────────────────────────────────────────────────
+
+declare const TEXT_ALIGNMENT: { readonly LEFT: 1; readonly CENTER: 2; readonly RIGHT: 4 };
+declare const TEXT_POSITION: { readonly TOP: 0; readonly CENTER: 1; readonly BOTTOM: 2 };
+declare const CONNECTION_TEXT_POSITION: { readonly SOURCE: 0; readonly MIDDLE: 1; readonly TARGET: 2 };
+declare const CONNECTION_STYLE: {
+  readonly LINE_SOLID: 0; readonly ARROW_FILL_TARGET: 1; readonly LINE_DASHED: 2; readonly LINE_DOTTED: 4;
+  readonly ARROW_NONE: 0; readonly ARROW_FILL_SOURCE: 8; readonly ARROW_HOLLOW_TARGET: 16;
+  readonly ARROW_HOLLOW_SOURCE: 32; readonly ARROW_LINE_TARGET: 64; readonly ARROW_LINE_SOURCE: 128;
+};
+/** @since 1.8 */
+declare const LINE_STYLE: { readonly SOLID: 0; readonly DASHED: 1; readonly DOTTED: 2; readonly NONE: 3 };
+declare const BORDER: { readonly TABBED: 0; readonly DOGEAR: 0; readonly RECTANGLE: 1; readonly NONE: 2 };
+declare const GRADIENT: { readonly NONE: -1; readonly TOP: 0; readonly LEFT: 1; readonly RIGHT: 2; readonly BOTTOM: 3 };
+declare const SHOW_ICON: { readonly IF_NO_IMAGE: 0; readonly ALWAYS: 1; readonly NEVER: 2 };
+declare const IMAGE_SOURCE: { readonly SPECIALIZATION: 0; readonly CUSTOM: 1 };
+declare const IMAGE_POSITION: {
+  readonly TOP_LEFT: 0; readonly TOP_CENTER: 1; readonly TOP_RIGHT: 2;
+  readonly MIDDLE_LEFT: 3; readonly MIDDLE_CENTER: 4; readonly MIDDLE_RIGHT: 5;
+  readonly BOTTOM_LEFT: 6; readonly BOTTOM_CENTER: 7; readonly BOTTOM_RIGHT: 8; readonly FILL: 9;
+};
+declare const CONNECTION_ROUTER: { readonly BENDPOINT: 0; readonly MANHATTAN: 1 };

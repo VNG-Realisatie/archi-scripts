@@ -11,9 +11,9 @@ console.log("Loading archi_folders.js");
  * How to call
  *     let folder = printFolderPath(object);
  *
- * @param {Archi object} child
- * @param {string} childFolderName, builds up recursively
- * @returns string with path
+ * @param {ArchiObject} child
+ * @param {string} [childFolderName]  builds up recursively
+ * @returns {string} path
  */
 function printFolderPath(child, childFolderName = "") {
   let parent = $(child).parent("folder").first();
@@ -26,9 +26,9 @@ function printFolderPath(child, childFolderName = "") {
 /**
  * delete empty folders by recursing over the folder tree
  *
- * @param {object} folderObj - current folder to traverse. For root folder, use $(model).first()
- * @param {integer} level - current level of recursion
- * @param {string} folderPath - path of traversed parent folders
+ * @param {Folder | ArchiModel} folderObj - current folder to traverse. For root folder, use $(model).first()
+ * @param {number} [level] - current level of recursion
+ * @param {string} [folderPath] - path of traversed parent folders
  */
 function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
   // stop if folder has no subfolders
@@ -52,7 +52,7 @@ function deleteEmptyFolders(folderObj, level = 0, folderPath = "") {
  * @param {string} path
  *    Example "/Application/sub/sub"
  *    Start with 'layer' folders, like Business, Other, Relations, ..
- * @returns
+ * @returns {Folder | null | undefined} the last folder of the path; undefined for an empty path
  */
 function getFolderPath(path) {
   const EMPTY_LABEL = "";

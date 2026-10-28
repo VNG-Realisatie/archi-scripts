@@ -218,7 +218,9 @@ type → direction (outgoing / incoming / either) → added relation type → ad
 plus an optional property value; it shows what it reaches. Followed relations are drawn; the
 added type and property only decide which elements join. **Repeat** runs the step 1–5 times or
 *until nothing new* (at most 10 runs), each run from the previous run's additions. An **empty
-step ends the chain**.
+step ends the chain**. A step adds elements only: a relation whose other end is a relation
+(ArchiMate allows a relation on a relation) is not followed. Following relations on relations is
+not supported yet.
 
 **A wider filter never yields less.** An extra Include rule can only keep or grow what a step
 adds; an extra Exclude rule can only shrink it — there are no hidden exceptions. A rule that
@@ -914,9 +916,11 @@ values are sorted and mapped to evenly spaced colours of the rule's colour range
 several different values gets the *mixed values* colour. Relations coloured by a *Color =
 Relation* rule take the fixed line width when one is chosen. Where two rules style the same
 object the later wins, and the dialog marks both with ⚠ (computed on the predicted view). The
-row tooltip reads the rule as a sentence. On Expand view / Layout only, a rule that is **off**
-resets what it would style (fill, or line colour and width) unless another rule styled it;
-colours set by hand elsewhere are left alone.
+row tooltip reads the rule as a sentence. On Expand view / Layout only with at least one style
+rule (on or off), every element's fill and every relation's line colour and width on the view is
+**reset first** and the active rules colour again, so a changed rule never leaves colours of an
+earlier run behind. Objects coloured in the same pass by nesting level or highlight repeated are
+kept; colours set by hand on the view are lost. Without style rules nothing is reset.
 
 **Style by nesting level.** Active only when a Nesting rule is on; otherwise an informational
 label replaces the controls. Two compact rows, one for font, one for colour.
@@ -956,8 +960,9 @@ gradient preview strip that repaints on change.
 
 - One row per property key found on any view of the model (except *Object ID*): a checkbox, the
   key, and an editable combo of all values found for that key. Nothing is pre-selected.
-- After layout and styling, every enabled row's value is written to the generated view;
-  disabled rows are ignored. The preset keeps every configured row, enabled or not.
+- After layout and styling, every enabled row's value is written to the generated view; an
+  enabled row without a value removes that key from the view. Disabled rows are ignored — they
+  never touch the view. The preset keeps every configured row, enabled or not.
 - **Object ID.** When checked and the view has no *Object ID* property, a new unique id is
   written; an existing one is never overwritten. *One view each* gives each view its own id.
 
@@ -1111,7 +1116,7 @@ same model → same set; it reads only, never edits a view; sets, not lists (no 
    element never changes the nesting between the elements that remain.
 3. **Steps, as a chain.** Step 1 starts from the filtered base; each later step from the previous
    step's additions only; an empty step ends the chain. Within a step, each run starts from the
-   previous run's additions.
+   previous run's additions. A relation whose other end is a relation is not followed.
 4. **Elements only** — relations, folders and views leave the element set.
 5. **Relations**, collected in two passes with no relation counted twice:
    - *base* — relations between filtered-base elements that the relation rules keep;
@@ -1252,9 +1257,10 @@ is laid out in its current container. A nesting's visual relation between the tw
 visuals is kept, otherwise added; every other line of a relation drawn as nesting is removed.
 
 **Preserved vs re-derived** on Modify actions: appearance (colours, fonts, line styles, sizes
-set by hand) is never touched by the writer; parenthood is re-derived; bendpoints of existing
-connections are rewritten from the layout result (their style untouched). The Create group
-never modifies the view the selection came from.
+set by hand) is never touched by the writer (the styling pass may reset colours,
+[§10](#10-colouring--appearance)); parenthood is re-derived; bendpoints of existing connections
+are rewritten from the layout result (their style untouched). The Create group never modifies
+the view the selection came from.
 
 ### Sizing refinements
 

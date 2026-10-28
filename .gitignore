@@ -2,6 +2,10 @@
 # node_modules/*
 package-lock.json
 package.json
+# development tooling at the repo root (typecheck); runtime stays npm-free
+!/package.json
+!/package-lock.json
+/node_modules/
 
 # local config file with user-specific settings, e.g. file paths
 config.js

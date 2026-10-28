@@ -12,7 +12,9 @@ const OBJECT_TYPE_RELATION = "relation";
 const OBJECT_TYPE_ELEMENT = "element";
 const OBJECT_TYPE_VIEW = "view";
 
+/** @type {string | undefined} */
 var _commonScriptName;
+/** @type {Record<string, number>} */
 var _startCounter = {};
 
 // default console logging is on. Override in calling function with push() and pop()
@@ -31,8 +33,8 @@ const MIN_JARCHI_VERSION_COMMONJS = "1.3";
  * initConsoleLog and finishconsole
  *   first and last call in an Archi script
  *
- * @param pFile : string __FILE__ as current script
- * @param pClear : boolean for clear console
+ * @param {string}  pFile   __FILE__ of the current script
+ * @param {boolean} pClear  clear the console first
  */
 function initConsoleLog(pFile, pClear) {
   startCounter("initConsoleLog");
@@ -69,11 +71,16 @@ function finishConsoleLog() {
 /**
  * startCounter and endCounter
  *   measure runtime for a block of code
+ * @param {string} label
  */
 function startCounter(label) {
   _startCounter[label] = Date.now();
 }
 
+/**
+ * @param {string} label
+ * @returns {string} elapsed time since startCounter(label), e.g. "2m5s", "12s", "340ms"
+ */
 function endCounter(label) {
   let _endCounter = Date.now();
   let milliSeconds = parseInt(String(_endCounter - _startCounter[label]));
@@ -116,7 +123,7 @@ function check_JS_Engine(required_engine) {
       check = true;
     }
   } catch (error) {
-    if (error.message == "$ is not defined") {
+    if (/** @type {{ message?: string }} */ (error).message == "$ is not defined") {
       console.log("Run this script in Archi");
     } else {
       console.log("error: " + error);
@@ -172,12 +179,13 @@ function check_CommonJS_Support() {
 /**
  * info()
  *   show informational message if global infoStack is set
- * @param msg string information message
+ * @param {string} msg  information message
  */
 function info(msg) {
   _logMessage(infoStack, "Info", msg);
 }
 
+/** @param {boolean} debugSwitch */
 function debugStackPush(debugSwitch) {
   debugStack.push(debugSwitch);
 }
@@ -189,7 +197,7 @@ function debugStackPop() {
 /**
  * debug()
  *   show debug message if global debugStack is set
- * @param msg string information message
+ * @param {string} msg  information message
  */
 function debug(msg) {
   _logMessage(debugStack, "Debug", msg);
@@ -198,7 +206,9 @@ function debug(msg) {
 /**
  * logMessage()
  *   show message with prefix
- * @param msg string information message
+ * @param {boolean[]} logSwitch  info or debug stack; the top entry switches logging
+ * @param {string}    logType    "Info" | "Debug"
+ * @param {string}    msg        information message
  */
 function _logMessage(logSwitch, logType, msg) {
   if (logSwitch[logSwitch.length - 1]) {
@@ -221,7 +231,7 @@ function _logMessage(logSwitch, logType, msg) {
 function _getFuncName() {
   const STACK_LEVEL_START = 4; // archi > calling function > debug > logMessage
 
-  let stack = new Error().stack;
+  let stack = /** @type {string} */ (new Error().stack);   // Cast: always set in GraalJS and Node
   // console.log(`stack:\n${stack}\n\n`)
 
   //  let regExpString = `Error((?:\\n\\s*at )(?<functionName>[a-zA-Z0-9_.<>]+) (?<sourceFileName>\\([a-zA-Z0-9:. _/\\[\\]\\-\\\\]+\\))){${STACK_LEVEL_START}}`;
@@ -229,7 +239,9 @@ function _getFuncName() {
   regExpString += `{${STACK_LEVEL_START}}`;
 
   let funcName = stack.match(regExpString);
-  if (funcName[2] == "<program>") {
+  // No match when the stack is shallower than expected or a path has characters outside the
+  // pattern (e.g. "&", "'", non-ASCII): log without a function name instead of throwing.
+  if (!funcName || funcName[2] == "<program>") {
     return "";
   } else {
     return `${funcName[2]}()`;
@@ -251,37 +263,18 @@ function generateUUID() {
   });
 }
 
-/**
- * @returns UUID
- * https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
- * Note: The use of any UUID generator that relies on Math.random() is strongly discouraged
- *
- * Test: console.log(uuidv4());
- *
- * Not used yet. How to load module crypto?
- *
- */
-// function uuidv4() {
-//   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
-//     (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
-//   );
-// }
-// ChatGPT improved version
-function uuidv4() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16; // Generate random number between 0-15
-    const v = c === "x" ? r : (r & 0x3) | 0x8; // For 'y', ensure the variant is 10xx
-    return v.toString(16);
-  });
-}
-
-/**
- * returns formatted string with relation info
- */
+// returns formatted string with relation info
 const FORMAT_WITH_TYPES = true;
 const FORMAT_NO_TYPES = false;
 const FORMAT_REVERSED = true;
 const FORMAT_NOT_REVERSED = false;
+/**
+ * Formatted string with relation info.
+ * @param {ArchiRelation} rel
+ * @param {boolean} [withTypes]  print the ends as objects (with their type) instead of names
+ * @param {boolean} [reversed]   print target → source
+ * @returns {string}
+ */
 function formatRelation(rel, withTypes = FORMAT_NO_TYPES, reversed = FORMAT_NOT_REVERSED) {
   let relLeft = withTypes ? rel.source : rel.source.name;
   let relLabel = rel.name ? rel.name : "[geen label]";
@@ -313,6 +306,9 @@ function getFormattedDateTime() {
 
 /**
  * return a concept for a visual concept or concept
+ * (a visual without a concept, such as a note or group, is returned as is)
+ * @param {ArchiObject} o
+ * @returns {ArchiObject}
  */
 function concept(o) {
   return o.concept ? o.concept : o;
@@ -320,8 +316,8 @@ function concept(o) {
 
 /**
  * Log a list of objects in columns.
- * @param {Array} data - The data to log
- * @param {Array} headers - The headers for the columns
+ * @param {Record<string, string | number | boolean | null | undefined>[]} data - The data to log
+ * @param {string[]} headers - The headers for the columns
  */
 function logInColumns(data, headers) {
   const columnWidths = headers.map((header) =>
@@ -350,7 +346,6 @@ if (typeof module !== "undefined" && module.exports) {
     debugStackPush,
     debugStackPop,
     generateUUID,
-    uuidv4,
     formatRelation,
     getFormattedDateTime,
     concept,

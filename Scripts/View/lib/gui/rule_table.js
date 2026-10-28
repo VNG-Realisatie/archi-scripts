@@ -22,6 +22,7 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../rel_filter")} */
 const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
@@ -52,20 +53,27 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
  *   count     (choice, prop) count key from setCounts shown after the selected item:
  *             "Aggregation (62)"; an empty property shows just "(n)"
  *
- * @param {Composite} parent
- * @param {{kind:string, columns:Object[], filterList?:boolean, propCondition?:boolean,
- *          onChange?:Function, onLayout?:Function, propItems?:Function, valueItems?:Function,
- *          rowTooltip?:Function, emptyText?:string, footer?:Function, addTooltip?:string,
- *          placeholder?:boolean}} opts
+ * Types: RuleTableColumn, RuleTableOptions, RuleTable (types/view.d.ts).
+ *
+ * @template {RuleKind} K
+ * @param {Swt.Composite} parent
+ * @param {RuleTableOptions<K>} opts
+ * @returns {RuleTable<K>}
  */
 function ruleTable(parent, opts) {
   const kind = opts.kind;
   const cols = opts.columns;
+  // Rules are read and written by column key, hence the Record view of the rule shape.
+  /** @type {(RuleByKind[K] & Record<string, any>)[]} */
   let rules    = [];
+  /** @type {RuleTableCounts[]} */
   let counts   = [];
+  /** @type {Map<number, string>} */
   let warnings = new Map();
   let propOn   = false;
   let enabled  = true;
+  // ctrl: the SWT control or custom cell of the column; its type follows col.kind.
+  /** @type {Map<string, { col: RuleTableColumn<RuleByKind[K]> | null, ctrl: any, first?: boolean }>[]} */
   let rows     = [];   // per rule: Map key → { col, ctrl, first }
   let optionalShown = false;  // optional columns are in the current grid
 
@@ -74,7 +82,8 @@ function ruleTable(parent, opts) {
   GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
   outer.setData("fitWidth", true);   // the dialog widens rather than cut a rule off (_resizeScrolled)
 
-  let grid = null;
+  // Set by rebuild() before any cell is built.
+  let grid = /** @type {Swt.Composite} */ (/** @type {unknown} */ (null));
 
   const footer = new CompositeWidget(outer, SWT.NONE);
   const rl = new RowLayout(SWT.HORIZONTAL);
@@ -92,18 +101,22 @@ function ruleTable(parent, opts) {
     changed();
   });
 
+  /** @type {Swt.Button | null} */
   let chkProp = null;
   if (opts.propCondition) {
     chkProp = new ButtonWidget(footer, SWT.CHECK);
     chkProp.setText("Property condition");
     chkProp.setToolTipText("Show columns to match by a property value. Always on when a rule uses it.");
-    chkProp.addListener(SWT.Selection, () => { propOn = chkProp.getSelection(); rebuild(); });
+    // Cast: assigned just above; tsc does not keep the narrowing inside the listener.
+    chkProp.addListener(SWT.Selection, () => { propOn = /** @type {Swt.Button} */ (chkProp).getSelection(); rebuild(); });
   }
   if (opts.footer) opts.footer(footer);
 
   const changed = () => { if (opts.onChange) opts.onChange(); };
   // The placeholder rule: the default rule, switched off.
+  /** @returns {RuleByKind[K] & Record<string, any>} */
   const placeholderRule = () => Object.assign(RuleLists.defaultRule(kind), { on: false });
+  /** @param {Record<string, any>} r */
   const isPlaceholder = r => {
     const p = placeholderRule();
     return Object.keys(p).every(k => r[k] === p[k]);
@@ -119,6 +132,11 @@ function ruleTable(parent, opts) {
     return cols.filter(c => !c.optional || showOptional);
   };
 
+  /**
+   * @param {Swt.Combo} combo
+   * @param {string[]} labels
+   * @param {string} selectedLabel
+   */
   const comboItems = (combo, labels, selectedLabel) => {
     combo.removeAll();
     labels.forEach(l => combo.add(String(l)));
@@ -126,11 +144,20 @@ function ruleTable(parent, opts) {
     if (idx < 0 && selectedLabel) { combo.add(String(selectedLabel)); idx = combo.getItemCount() - 1; }
     combo.select(Math.max(0, idx));
   };
+  /**
+   * @param {RuleTableChoiceColumn<RuleByKind[K]>} col
+   * @param {unknown} value
+   */
   const choiceLabel = (col, value) => {
     const it = col.items.find(i => i.value === value);
     return it ? it.label : String(value);
   };
   // Item labels of a choice combo for row i; with col.count the selected item carries the count.
+  /**
+   * @param {RuleTableChoiceColumn<RuleByKind[K]>} col
+   * @param {Record<string, any>} rule
+   * @param {number} i
+   */
   const choiceItems = (col, rule, i) => {
     const labels = col.items.map(it => it.label);
     let selected = choiceLabel(col, rule[col.key]);
@@ -142,17 +169,32 @@ function ruleTable(parent, opts) {
     }
     return { labels, selected };
   };
+  /**
+   * @param {RuleTablePlainColumn<RuleByKind[K]>} col
+   * @param {RuleTableCounts | undefined} c
+   */
   const countText = (col, c) => {
     const n = c ? c[col.key] : null;
     if (n === null || n === undefined) return "";
     return col.format ? col.format(n) : `(${n})`;
   };
+  /**
+   * @param {RuleTablePlainColumn<RuleByKind[K]>} col
+   * @param {RuleByKind[K]} rule
+   */
   const listItems = (col, rule) => {
     const fn = col.kind === "prop" ? opts.propItems : opts.valueItems;
     return [""].concat((fn ? fn(rule, col.key) : []) || []);
   };
-  // Fill a property / value combo. The plain names stay on the control (_names) so a decorated
-  // label ("Status (14)") never ends up in the rule.
+  // Fill a property / value combo. The plain names stay on the control (data "names", as JSON:
+  // a JS property on a Java object is dropped) so a decorated label ("Status (14)") never ends
+  // up in the rule.
+  /**
+   * @param {Swt.Combo} c
+   * @param {RuleTablePlainColumn<RuleByKind[K]>} col
+   * @param {RuleByKind[K] & Record<string, any>} rule
+   * @param {number} i
+   */
   const fillList = (c, col, rule, i) => {
     const names = listItems(col, rule);
     const value = rule[col.key] || "";
@@ -161,13 +203,19 @@ function ruleTable(parent, opts) {
     const n = col.count && counts[i] ? counts[i][col.count] : undefined;
     const idx = names.indexOf(value);
     if (n !== undefined && n !== null) labels[idx] = value ? `${value} (${n})` : `(${n})`;
-    c._names = names;
+    c.setData("names", JSON.stringify(names));
     if (String(c.getText()) === labels[idx] && c.getItemCount() === labels.length) return;
     c.removeAll();
     labels.forEach(l => c.add(String(l)));
     c.select(Math.max(0, idx));
   };
 
+  /**
+   * @param {RuleTableColumn<RuleByKind[K]>} col
+   * @param {RuleByKind[K] & Record<string, any>} rule
+   * @param {number} i
+   * @returns {any} the column's SWT control or custom cell
+   */
   function buildCell(col, rule, i) {
     const tip = col.tooltip || "";
     const span = col.cells || 1;
@@ -203,7 +251,8 @@ function ruleTable(parent, opts) {
         c.setToolTipText(tip);
         c.addListener(SWT.Selection, () => {
           const k = c.getSelectionIndex();
-          rule[col.key] = k > 0 && c._names ? String(c._names[k]) : "";
+          const names = c.getData("names");
+          rule[col.key] = k > 0 && names ? String(JSON.parse(String(names))[k]) : "";
           if (col.kind === "prop" && !rule.property) rule.value = "";
           if (col.onChange) col.onChange(rule);
           refresh(); changed();
@@ -252,6 +301,7 @@ function ruleTable(parent, opts) {
     new LabelWidget(grid, SWT.NONE);  // header of the ✕ column
 
     rows = rules.map((rule, i) => {
+      /** @type {Map<string, { col: RuleTableColumn<RuleByKind[K]> | null, ctrl: any, first?: boolean }>} */
       const cells = new Map();
       vc.forEach((col, ci) => {
         const ctrl = buildCell(col, rule, i);

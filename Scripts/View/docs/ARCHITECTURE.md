@@ -192,7 +192,7 @@ Realises SPEC §7 and its [managed extra occurrences](SPEC.md#managed-extra-occu
 ### Dagre and Graphviz adapters
 
 - **Dagre:** `dagre-cluster-fix` for compound graphs; straight and polyline routing only; Dagre itself drops self-loops.
-- **Graphviz:** runs the `dot` binary as a process (`-K<engine> -Tjson`); clusters for nesting. No max width — Graphviz `size` scales nodes. Aspect ratio is passed as `ratio`.
+- **Graphviz:** runs the `dot` binary from the PATH as a process (`-K<engine> -Tjson`; stderr goes to a temp file so a full pipe cannot block it); clusters for nesting. No max width — Graphviz `size` scales nodes. Aspect ratio is passed as `ratio`.
 
 ### Appearance
 
@@ -219,7 +219,7 @@ Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its pr
 
 ## B.5 Platform constraints
 
-View-specific jArchi behaviour; general jArchi / SWT / GTK rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md).
+View-specific jArchi behaviour; general jArchi rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md), SWT / GTK in [`swt-gtk.md`](../../../ai/jarchi-scripting/swt-gtk.md) and the repo's dialog style in [`ai/dialog-style.md`](../../../ai/dialog-style.md).
 
 - `$(view).children()` misses view references — find them per diagram type.
 - A view reference reports type `"archimate-diagram-model"` instead of `"diagram-model-reference"`; both are in `DIAGRAM_TYPES`.

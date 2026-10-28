@@ -13,10 +13,48 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONTAINER_LABEL_CLEARANCE, CONNECTION_END_CLEARANCE } = Defs;
+/** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
+
+/**
+ * ELK graph objects as this adapter builds them. ELK ignores the `_` fields and returns them
+ * unchanged on the laid-out graph.
+ * @typedef {object} ElkWorkNode
+ * @property {string}           id
+ * @property {string}           _name
+ * @property {string}           _type
+ * @property {number}           [width]      absent on containers: ELK sizes them
+ * @property {number}           [height]
+ * @property {number}           [x]          set by ELK
+ * @property {number}           [y]
+ * @property {number}           [_minWidth]  alignWidthSameType pass 2: container width floor
+ * @property {ElkWorkNode[]}    children
+ * @property {ElkWorkEdge[]}    edges
+ * @property {ElkPort[]}        [ports]
+ * @property {ElkLayoutOptions} [layoutOptions]
+ *
+ * @typedef {object} ElkWorkEdge
+ * @property {string}           id
+ * @property {string | null}    _archiRelId  model relation id (null for a spanning-tree helper edge)
+ * @property {string}           _relName
+ * @property {string[]}         sources
+ * @property {string[]}         targets
+ * @property {Record<string, unknown>} [properties]
+ * @property {ElkWorkLabel[]}   [labels]
+ * @property {ElkEdgeSection[]} [sections]   set by ELK
+ * @property {boolean}          [_isStraight]
+ *
+ * @typedef {ElkLabel & { id: string }} ElkWorkLabel
+ * @typedef {{ id: string, layoutOptions: ElkLayoutOptions, children: ElkWorkNode[], edges: ElkWorkEdge[], width?: number, height?: number }} ElkRoot
+ * @typedef {{ origSrcId: string, origTgtId: string, segOf?: string, segIdx?: number, segCount?: number }} ElkEdgeMeta
+ * @typedef {{ startPoint: Point, endPoint: Point, bendPoints: Point[] }} AbsSection
+ * @typedef {{ edge: ElkWorkEdge, sections: AbsSection[], label: Point | null, segCount?: number }} CollectedEdge
+ * @typedef {(msg: string) => void} Logger
+ */
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 // Maps GUI param names to ELK layout option keys/values.
@@ -33,6 +71,7 @@ const { selfLoopResult, byTypeAndName, alignWidthsByLevel } = EngineUtils;
 //                           aligned by nesting level via engine-utils.alignWidthsByLevel
 //                           (leaves get exact width, containers a MINIMUM_SIZE floor)
 
+/** @type {Record<string, string>} */
 const ELK_DIRECTION = {
   "Right": "RIGHT",
   "Left":  "LEFT",
@@ -42,6 +81,7 @@ const ELK_DIRECTION = {
 
 const MIN_NODE_SIZE = 8;  // fallback for degenerate ELK output (zero/undefined dimension) — see _collectNodePositions
 
+/** @type {Record<string, string | number>} */
 const DEFAULT_ELK_PARAMS = {
   "elk.layered.cycleBreaking.strategy":           "GREEDY",
   "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
@@ -65,7 +105,7 @@ const DEFAULT_ELK_PARAMS = {
 };
 
 // Shared aspect-ratio mapping reused wherever both root and container scopes carry the same fn.
-const _AR = (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {};
+const _AR = (/** @type {number} */ v) => v > 0 ? { "elk.aspectRatio": String(v) } : {};
 // Pack: rectpacking's width approximation loops forever on mixed box sizes at high ratios
 // (elkjs 0.11.1 and 0.12.0, both optimization goals; e.g. one 3000–3660 px wide box among
 // twenty 220 px boxes hangs from ratio 4, never at ≤ 3 in any probe) — a hang that freezes
@@ -73,45 +113,45 @@ const _AR = (v) => v > 0 ? { "elk.aspectRatio": String(v) } : {};
 // ASPECT_RATIO_DRIVEN: row width chosen to match the ratio (default MAX_SCALE_DRIVEN
 // maximises scale in a viewport of that ratio).
 const PACK_ASPECT_RATIO_MAX = 3;
-const _AR_PACK = (v) => v > 0 ? {
+const _AR_PACK = (/** @type {number} */ v) => v > 0 ? {
   "elk.aspectRatio": String(Math.min(v, PACK_ASPECT_RATIO_MAX)),
   "elk.rectpacking.widthApproximation.optimizationGoal": "ASPECT_RATIO_DRIVEN",
 } : {};
 
 // Shared routing fn used in both root and container scopes for Layered.
 // CONSERVATIVE spline mode inlined here — no separate post-mapping special case needed.
-const _LAYERED_ROUTING = (v) => ({
+const _LAYERED_ROUTING = (/** @type {string} */ v) => ({
   "elk.edgeRouting": v === "Orthogonal" ? "ORTHOGONAL" : v === "Splines" ? "SPLINES" : "POLYLINE",
   ...(v === "Splines" ? { "elk.layered.edgeRouting.splines.mode": "CONSERVATIVE" } : {}),
 });
 
 // Shared param-mapping functions — referenced in multiple algorithm root/container scopes.
-const _DIRECTION     = (v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" });
+const _DIRECTION     = (/** @type {string} */ v) => ({ "elk.direction": ELK_DIRECTION[v] ?? "RIGHT" });
 // Element spacing is the minimum distance between elements — also between unconnected groups,
 // which layered / mrtree / force lay out separately and pack with spacing.componentComponent.
-const _ELEM_SPACING  = (v) => ({ "elk.spacing.nodeNode": String(v), "elk.spacing.componentComponent": String(v) });
+const _ELEM_SPACING  = (/** @type {number} */ v) => ({ "elk.spacing.nodeNode": String(v), "elk.spacing.componentComponent": String(v) });
 // Straight: BRANDES_KOEPF — aligns nodes for straight connections (fewest bends).
 // Compact:  NETWORK_SIMPLEX — minimises total connection length; measured on nested views:
 //           up to ~30% shorter connections and a smaller view, a few more bends, same crossings.
-const _NODE_PLACEMENT = (v) => ({ "elk.layered.nodePlacement.strategy": v === "Compact" ? "NETWORK_SIMPLEX" : "BRANDES_KOEPF" });
-const _LAYER_SPACING = (v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) });
-const _PAD_DIAGRAM   = (v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` });
-const _PAD_CONTAINER = (v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` });
+const _NODE_PLACEMENT = (/** @type {string} */ v) => ({ "elk.layered.nodePlacement.strategy": v === "Compact" ? "NETWORK_SIMPLEX" : "BRANDES_KOEPF" });
+const _LAYER_SPACING = (/** @type {number} */ v) => ({ "elk.layered.spacing.nodeNodeBetweenLayers": String(v) });
+const _PAD_DIAGRAM   = (/** @type {number} */ v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` });
+const _PAD_CONTAINER = (/** @type {number} */ v) => ({ "elk.padding": `[top=${v + CONTAINER_LABEL_CLEARANCE},left=${v},bottom=${v},right=${v}]` });
 
 // edgeEdge + edgeEdgeBetweenLayers: within-layer and between-layer channels both need spacing.
-const _LAYERED_CONN_SPACING      = (v) => ({
+const _LAYERED_CONN_SPACING      = (/** @type {number} */ v) => ({
   "elk.spacing.edgeEdge":                      String(v),
   "elk.layered.spacing.edgeEdgeBetweenLayers": String(v),
 });
 // edgeNodeBetweenLayers is also the distance from an element to the first / last bendpoint:
 // floored at CONNECTION_END_CLEARANCE so the bend stays clear of Archi's end decoration.
-const _LAYERED_CONN_ELEM_SPACING = (v) => ({
+const _LAYERED_CONN_ELEM_SPACING = (/** @type {number} */ v) => ({
   "elk.spacing.edgeNode":                      String(v),
   "elk.layered.spacing.edgeNodeBetweenLayers": String(Math.max(v, CONNECTION_END_CLEARANCE)),
   "elk.spacing.nodeSelfLoop":                  String(v),
 });
 // Label placement only; "elk.edgeLabels.inline" is a per-label option, set on each label in layout().
-const _CONN_LABEL_SPACING = (v) => v ? {
+const _CONN_LABEL_SPACING = (/** @type {boolean} */ v) => v ? {
   // "elk.layered.edgeLabels.centerLabelPlacementStrategy": "MEDIAN_LAYER",
   "elk.layered.edgeLabels.centerLabelPlacementStrategy": "CENTER",
 } : {};
@@ -131,10 +171,11 @@ const _TREE_BASE = {
   direction:                _DIRECTION,
   elementSpacing:           _ELEM_SPACING,
   // mrtree does not use layered between-layer spacing options; within-layer only.
-  connectionSpacing:        (v) => ({ "elk.spacing.edgeEdge": String(v) }),
-  connectionElementSpacing: (v) => ({ "elk.spacing.edgeNode": String(v) }),
+  connectionSpacing:        (/** @type {number} */ v) => ({ "elk.spacing.edgeEdge": String(v) }),
+  connectionElementSpacing: (/** @type {number} */ v) => ({ "elk.spacing.edgeNode": String(v) }),
 };
 
+/** @type {Record<string, { root: Record<string, ParamMapper>, container: Record<string, ParamMapper> }>} */
 const PARAM_MAPPING = {
   Layered: {
     root:      { ..._LAYERED_BASE, aspectRatio: _AR, diagramPadding: _PAD_DIAGRAM },
@@ -157,7 +198,7 @@ const PARAM_MAPPING = {
   },
 
   Radial: {
-    root:      { layerSpacing: (v) => ({ "elk.radial.radius": String(v) }), elementSpacing: _ELEM_SPACING, diagramPadding: _PAD_DIAGRAM },
+    root:      { layerSpacing: (/** @type {number} */ v) => ({ "elk.radial.radius": String(v) }), elementSpacing: _ELEM_SPACING, diagramPadding: _PAD_DIAGRAM },
     container: {                                                              elementSpacing: _ELEM_SPACING, padding: _PAD_CONTAINER },
   },
 
@@ -211,17 +252,19 @@ const PARAM_MAPPING = {
 
 /**
  * Map GUI params to ELK layout options for a given scope.
- * @param {string} algName   algorithm name (key in PARAM_MAPPING)
- * @param {Object} opts      graph.options
- * @param {string} scope     "root" | "container"
- * @returns {Object}         ELK layout options object
+ * @param {string}                  algName   algorithm name (key in PARAM_MAPPING)
+ * @param {EffectiveParams}         opts      graph.options
+ * @param {"root" | "container"}    scope
+ * @returns {Record<string, string>}          ELK layout options object
  */
 function _mapParamsScoped(algName, opts, scope) {
   const entry = PARAM_MAPPING[algName];
   if (!entry || !entry[scope]) return {};
+  /** @type {Record<string, string>} */
   const result = {};
   for (const [key, fn] of Object.entries(entry[scope])) {
-    if (opts[key] !== undefined) Object.assign(result, fn(opts[key], opts));
+    const value = /** @type {Record<string, unknown>} */ (opts)[key];   // Cast: key comes from the mapping, whose keys are param names.
+    if (value !== undefined) Object.assign(result, fn(value, opts));
   }
   return result;
 }
@@ -229,7 +272,9 @@ function _mapParamsScoped(algName, opts, scope) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+/** @type {ElkSyncModule | null} */
 let _elk = null;
+/** @returns {ElkSyncModule} */
 function _loadELK() {
   if (_elk) return _elk;
   try {
@@ -239,7 +284,7 @@ function _loadELK() {
   } catch (e) {
     throw new Error("ELK module not loaded. Enable CommonJS in Archi Preferences > Scripting and use GraalVM.");
   }
-  return _elk;
+  return /** @type {ElkSyncModule} */ (_elk);   // Cast: set by the require above
 }
 
 /**
@@ -271,37 +316,41 @@ const VIEW_SIZE_MAX_RUNS  = 10;    // measuring ELK runs per search, before the 
 
 /**
  * Search the elk.aspectRatio that meets the active view-size target.
+ * @param {LayoutGraph} graph
  * @returns {number|null}  ratio for the final run; null = no target (or natural layout fits)
  */
 function _fitViewSize(graph) {
   const o = graph.options;
-  const target = o.aspectRatio > 0 ? "aspectRatio" : o.maxWidth > 0 ? "maxWidth" : null;
+  /** @typedef {{ width: number, height: number, k: number }} ViewSizeRun */
+  const target = (o.aspectRatio || 0) > 0 ? "aspectRatio" : (o.maxWidth || 0) > 0 ? "maxWidth" : null;
   if (!target) return null;
-  const log = msg => console.log("  " + msg);
+  // Cast: the target is set only when its param is > 0.
+  const goal = /** @type {number} */ (target === "aspectRatio" ? o.aspectRatio : o.maxWidth);
+  const log = (/** @type {string} */ msg) => console.log("  " + msg);
   const t0 = Date.now();
   const kMax = ALGORITHMS[graph.algorithm].engineAlgorithmId === "rectpacking" ? PACK_ASPECT_RATIO_MAX : VIEW_SIZE_K_MAX;
   let runs = 0;
-  const measure = k => {
+  const measure = (/** @type {number} */ k) => {
     runs++;
-    const m = _layoutOnce(Object.assign({}, graph, { options: Object.assign({}, o, { aspectRatio: k }) }), true);
+    const m = /** @type {ViewSizeRun} */ (_layoutOnce(Object.assign({}, graph, { options: Object.assign({}, o, { aspectRatio: k }) }), true));   // Cast: k is added below
     m.k = k;
     return m;
   };
-  const size = m => `${m.width}×${m.height} px`;
-  const done = msg => log(`View size: ${msg}  (${runs} layout runs, ${Date.now() - t0} ms)`);
+  const size = (/** @type {ViewSizeRun} */ m) => `${m.width}×${m.height} px`;
+  const done = (/** @type {string} */ msg) => log(`View size: ${msg}  (${runs} layout runs, ${Date.now() - t0} ms)`);
 
   if (target === "maxWidth") {
     const natural = measure(0);
-    if (natural.width <= o.maxWidth) { done(`max width ${o.maxWidth} px — natural layout fits (${size(natural)})`); return null; }
+    if (natural.width <= goal) { done(`max width ${o.maxWidth} px — natural layout fits (${size(natural)})`); return null; }
     let lo = VIEW_SIZE_K_MIN, hi = kMax;
     let best = measure(lo);
-    if (best.width > o.maxWidth) {
+    if (best.width > goal) {
       done(`⚠ max width ${o.maxWidth} px not reachable — narrowest layout ${size(best)} (connection chains or the widest container set the minimum)`);
       return lo;
     }
     while (runs < VIEW_SIZE_MAX_RUNS && hi / lo > 1.02) {
       const k = Math.sqrt(lo * hi), m = measure(k);
-      if (m.width <= o.maxWidth) { lo = k; if (m.width > best.width) best = m; }
+      if (m.width <= goal) { lo = k; if (m.width > best.width) best = m; }
       else hi = k;
     }
     done(`max width ${o.maxWidth} px → ${size(best)}  (natural ${size(natural)}, elk.aspectRatio ${best.k.toFixed(2)})`);
@@ -309,9 +358,8 @@ function _fitViewSize(graph) {
   }
 
   // aspectRatio: bisection on k; the view ratio grows with k (in steps — row counts are integers).
-  const goal = o.aspectRatio;
-  const ratio = m => m.width / m.height;
-  const err   = m => Math.abs(Math.log(ratio(m) / goal));
+  const ratio = (/** @type {ViewSizeRun} */ m) => m.width / m.height;
+  const err   = (/** @type {ViewSizeRun} */ m) => Math.abs(Math.log(ratio(m) / goal));
   let best = measure(goal);
   const report = () => done(`aspect ratio ${goal} → ${ratio(best).toFixed(2)}, ${size(best)}  (elk.aspectRatio ${best.k.toFixed(2)})`);
   if (err(best) <= VIEW_SIZE_TOLERANCE) { report(); return best.k; }
@@ -335,6 +383,18 @@ function _fitViewSize(graph) {
   return best.k;
 }
 
+/**
+ * @overload
+ * @param {LayoutGraph} graph
+ * @param {true} measureOnly
+ * @returns {{ width: number, height: number }}
+ */
+/**
+ * @overload
+ * @param {LayoutGraph} graph
+ * @param {false} [measureOnly]
+ * @returns {LayoutResult}
+ */
 /**
  * One ELK layout run.
  * @param {LayoutGraph} graph
@@ -363,8 +423,11 @@ function _layoutOnce(graph, measureOnly) {
   const layoutOptions = Object.assign({ "elk.algorithm": alg.engineAlgorithmId }, rootEngineOpts, elkEngineParams);
 
   // Build ELK-internal data structures
+  /** @type {Record<string, ElkWorkNode>} */
   const nodeMap     = {};
+  /** @type {Record<string, string>} */
   const parentMap   = {};
+  /** @type {Record<string, string[]>} */
   const occurrenceMap = {};
 
   for (const node of graph.nodes) {
@@ -385,8 +448,11 @@ function _layoutOnce(graph, measureOnly) {
 
   // Connection-label sizing uses the same text estimate and tuning as label-based node sizing
   // (defaults + preset engineParams.layout).
+  /** @type {LabelSizing} */
   const lp = Object.assign({}, Defs.LABEL_SIZING_DEFAULTS, graph.engineParams && graph.engineParams.layout);
+  /** @type {ElkWorkEdge[]} */
   const edgeList = [];
+  /** @type {LayoutEdge[]} */
   const selfLoops = [];
   for (const edge of graph.edges) {
     if (!nodeMap[edge.source] || !nodeMap[edge.target]) continue;
@@ -395,6 +461,7 @@ function _layoutOnce(graph, measureOnly) {
       selfLoops.push(edge);
       continue;
     }
+    /** @type {ElkWorkEdge} */
     const entry = {
       id:          edge.id,
       _archiRelId: edge.conceptId || edge.id,
@@ -408,6 +475,7 @@ function _layoutOnce(graph, measureOnly) {
   }
 
   // All layout-step output is indented under the "Layout:" header logged by the orchestrator.
+  /** @type {Logger} */
   const log      = measureOnly ? () => {} : msg => console.log("  " + msg);
 
   // ── ELK config log (permanent) ────────────────────────────────────────────────
@@ -431,9 +499,15 @@ function _layoutOnce(graph, measureOnly) {
   // pass 1 renders every box at its natural width → compute a per-level target width
   // (engine-utils.alignWidthsByLevel) → pass 2 with leaves set to that width and
   // containers floored by it (MINIMUM_SIZE), so same-level boxes line up.
-  let alignTargets = null, alignContainerIds = null, alignPass1Widths = null;
+  /** @type {Record<string, number> | null} */
+  let alignTargets = null;
+  /** @type {Set<string> | null} */
+  let alignContainerIds = null;
+  /** @type {Record<string, number> | null} */
+  let alignPass1Widths = null;
   if (graph.alignWidthSameType && Object.values(parentMap).length > 0) {
     const containerIds = new Set(Object.values(parentMap));
+    /** @type {Record<string, { width?: number, height?: number }>} */
     const origSizes = {};
     for (const id of Object.keys(nodeMap)) {
       if (!containerIds.has(id))  // leaf nodes only — containers are auto-sized by ELK in both passes
@@ -480,17 +554,19 @@ function _layoutOnce(graph, measureOnly) {
     for (const id of Object.keys(alignTargets)) {
       const tgt = alignTargets[id]; if (!(tgt > 0)) continue;
       const fin = finalWidths[id] || 0;
-      const isC = alignContainerIds.has(id);
+      const isC = /** @type {Set<string>} */ (alignContainerIds).has(id);   // Casts: set together with alignTargets
       const bad = isC ? fin + 0.5 < tgt : Math.abs(fin - tgt) > 0.5;  // leaf must equal; container must be ≥
       if (!bad) continue;
       const flag = bad ? "  ⚠ MISMATCH" : "";
       const name = (nodeMap[id] && nodeMap[id]._name) || id;
-      log(`    ${isC ? "container" : "leaf     "} pass1=${alignPass1Widths[id] || 0} target=${tgt} final=${Math.round(fin)}${flag}  "${name}"`);
+      log(`    ${isC ? "container" : "leaf     "} pass1=${/** @type {Record<string, number>} */ (alignPass1Widths)[id] || 0} target=${tgt} final=${Math.round(fin)}${flag}  "${name}"`);
     }
   }
 
   // Extract LayoutResult
+  /** @type {LayoutResultNode[]} */
   const resultNodes = [];
+  /** @type {LayoutResultEdge[]} */
   const resultEdges = [];
 
   // Flatten nodes with absolute positions
@@ -500,6 +576,7 @@ function _layoutOnce(graph, measureOnly) {
   // leaves). Aligns leaf columns top-to-bottom across the view. Gated on its own toggle.
   const _hasContainers = Object.keys(parentMap).length > 0;
   if (graph.snapColumnsToGrid && _hasContainers) {
+    /** @type {Record<string, string>} */
     const nameById = {};
     for (const id of Object.keys(nodeMap)) nameById[id] = nodeMap[id]._name || id;
     _snapColumnsToGrid(resultNodes, graph.options, nameById, log);
@@ -543,6 +620,12 @@ function _layoutOnce(graph, measureOnly) {
  * inline: ELK centres the label on the line and reserves that box — where Archi draws it.
  */
 const GAP_LABEL_SUFFIX = "_gap";
+/**
+ * @param {LayoutEdge}      edge
+ * @param {LabelSizing}     lp
+ * @param {EffectiveParams} opts
+ * @returns {ElkWorkLabel}
+ */
 function _labelBox(edge, lp, opts) {
   const flowIsX  = opts.direction !== "Up" && opts.direction !== "Down";
   const minFlow  = Math.max(0, (opts.layerSpacing || 0) - 2 * (opts.connectionSpacing || 0));
@@ -564,6 +647,14 @@ function _labelBox(edge, lp, opts) {
 
 // ── Graph building ────────────────────────────────────────────────────────────
 
+/**
+ * @param {ElkLayoutOptions}            layoutOptions  root options (extended in place)
+ * @param {Record<string, ElkWorkNode>} nodeMap
+ * @param {ElkWorkEdge[]}               edgeList
+ * @param {Record<string, string>}      parentMap
+ * @param {LayoutGraph}                 graph
+ * @returns {{ elkGraph: ElkRoot, edgeMeta: Record<string, ElkEdgeMeta> }}
+ */
 function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   _attachChildren(nodeMap, parentMap);
   _sortNodeChildren(nodeMap, graph.sortContainers);
@@ -603,7 +694,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
     };
     // alignWidthSameType pass 2: floor the container width to its per-level target
     // (computed in layout()). MINIMUM_SIZE keeps it from shrinking below content.
-    if (node._minWidth > 0) {
+    if (/** @type {number} */ (node._minWidth) > 0) {   // Cast: absent compares as false
       node.layoutOptions["elk.nodeSize.constraints"] = "[MINIMUM_SIZE]";
       node.layoutOptions["elk.nodeSize.minimum"]     = `(${node._minWidth}, 0)`;
     }
@@ -627,7 +718,7 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   // ports (+ one spacing margin at both ends) fit — never shrinking below the given size.
   // Without it, ports beyond the side make Archi's orthogonal anchor fall back to a corner.
   const portSpacing = graph.options.connectionSpacing;
-  if (portSpacing > 0 && ALGORITHMS[graph.algorithm].engineAlgorithmId === "layered") {
+  if (portSpacing !== undefined && portSpacing > 0 && ALGORITHMS[graph.algorithm].engineAlgorithmId === "layered") {
     const parentOpts = {
       "elk.spacing.portPort":         String(portSpacing),
       "elk.spacing.portsSurrounding": `[top=${portSpacing},left=${portSpacing},bottom=${portSpacing},right=${portSpacing}]`,
@@ -669,12 +760,18 @@ function _buildELKGraph(layoutOptions, nodeMap, edgeList, parentMap, graph) {
   return { elkGraph, edgeMeta };
 }
 
+/**
+ * @param {Record<string, ElkWorkNode>} nodeMap
+ * @param {ElkWorkEdge[]}               edgeList
+ * @returns {ElkWorkEdge[]}
+ */
 function _spanningTree(nodeMap, edgeList) {
   // BFS spanning tree — removes cycles so ELK Radial's c2c traversal terminates.
   // Disconnected components are connected to the first root via virtual edges.
   const nodeIds = Object.keys(nodeMap);
   if (!nodeIds.length) return edgeList;
 
+  /** @type {Record<string, { id: string, edge: ElkWorkEdge }[]>} */
   const adj = {};
   for (const edge of edgeList) {
     const s = edge.sources[0], t = edge.targets[0];
@@ -683,8 +780,11 @@ function _spanningTree(nodeMap, edgeList) {
     (adj[t] = adj[t] || []).push({ id: s, edge });
   }
 
+  /** @type {Set<string>} */
   const visited = new Set();
+  /** @type {ElkWorkEdge[]} */
   const treeEdges = [];
+  /** @type {string[]} */
   const componentRoots = [];
 
   for (const startId of nodeIds) {
@@ -693,7 +793,7 @@ function _spanningTree(nodeMap, edgeList) {
     visited.add(startId);
     const queue = [startId];
     while (queue.length) {
-      const cur = queue.shift();
+      const cur = /** @type {string} */ (queue.shift());   // Cast: the queue is not empty
       for (const { id: nbId, edge } of (adj[cur] || [])) {
         if (!visited.has(nbId)) {
           visited.add(nbId);
@@ -713,6 +813,10 @@ function _spanningTree(nodeMap, edgeList) {
   return treeEdges;
 }
 
+/**
+ * @param {Record<string, ElkWorkNode>} nodeMap
+ * @param {Record<string, string>}      parentMap
+ */
 function _attachChildren(nodeMap, parentMap) {
   for (const [childId, parentId] of Object.entries(parentMap)) {
     const parent = nodeMap[parentId];
@@ -726,6 +830,10 @@ function _attachChildren(nodeMap, parentMap) {
 // Leaves are ALWAYS sorted by type+name; sortContainers only controls whether containers
 // are also sorted (off = containers keep their original order). Containers are grouped
 // before leaves in both cases.
+/**
+ * @param {Record<string, ElkWorkNode>} nodeMap
+ * @param {boolean}                     sortContainers
+ */
 function _sortNodeChildren(nodeMap, sortContainers) {
   for (const node of Object.values(nodeMap)) {
     if (node.children.length > 1) {
@@ -737,6 +845,12 @@ function _sortNodeChildren(nodeMap, sortContainers) {
   }
 }
 
+/**
+ * @param {Record<string, ElkWorkNode>} nodeMap
+ * @param {Record<string, string>}      parentMap
+ * @param {boolean}                     sortContainers
+ * @returns {ElkWorkNode[]}
+ */
 function _collectRootChildren(nodeMap, parentMap, sortContainers) {
   const roots = Object.keys(nodeMap)
     .filter(id => parentMap[id] === undefined)
@@ -764,18 +878,24 @@ function _collectRootChildren(nodeMap, parentMap, sortContainers) {
  * Edges between a container and one of its own descendants cannot be laid out and are dropped
  * (the writer draws them unrouted).
  *
- * @returns {{ rootEdges: Object[], edgeMeta: Object }}  edgeMeta per ELK edge id:
+ * @returns {{ rootEdges: ElkWorkEdge[], edgeMeta: Record<string, ElkEdgeMeta> }}  edgeMeta per ELK edge id:
  *   lifted  { origSrcId, origTgtId }
  *   segment { segOf, segIdx, segCount, origSrcId, origTgtId }
+ * @param {ElkWorkEdge[]}               edgeList
+ * @param {Record<string, string>}      parentMap
+ * @param {Record<string, ElkWorkNode>} nodeMap
+ * @param {"include" | "ports" | "lift"} mode
  */
 function _placeEdges(edgeList, parentMap, nodeMap, mode) {
   const ROOT = "root";
+  /** @type {ElkWorkEdge[]} */
   const rootEdges = [];
+  /** @type {Record<string, ElkEdgeMeta>} */
   const edgeMeta  = {};
   for (const node of Object.values(nodeMap)) { node.edges = []; delete node.ports; }
-  const addTo = (ctrId, e) => (ctrId === ROOT ? rootEdges : nodeMap[ctrId].edges).push(e);
+  const addTo = (/** @type {string} */ ctrId, /** @type {ElkWorkEdge} */ e) => (ctrId === ROOT ? rootEdges : nodeMap[ctrId].edges).push(e);
   // Ancestor chain of a node, nearest first, ending in ROOT.
-  const ancestors = id => {
+  const ancestors = (/** @type {string} */ id) => {
     const out = []; let p = parentMap[id];
     while (p !== undefined) { out.push(p); p = parentMap[p]; }
     out.push(ROOT);
@@ -786,13 +906,13 @@ function _placeEdges(edgeList, parentMap, nodeMap, mode) {
     const srcId = edge.sources[0], tgtId = edge.targets[0];
     const srcAnc = ancestors(srcId), tgtAnc = ancestors(tgtId);
     if (srcAnc.includes(tgtId) || tgtAnc.includes(srcId)) continue;  // container ↔ own descendant
-    const lca = srcAnc.find(a => tgtAnc.includes(a));
+    const lca = /** @type {string} */ (srcAnc.find(a => tgtAnc.includes(a)));   // Cast: both chains end in ROOT
     // Containers crossed below the LCA, nearest the endpoint first.
     const srcChain = srcAnc.slice(0, srcAnc.indexOf(lca));
     const tgtChain = tgtAnc.slice(0, tgtAnc.indexOf(lca));
     // ports: a connection ending on a container itself also gets a port on it — once a container
     // has hierarchical ports, ELK puts the implicit port of a direct connection in its top-left corner.
-    const isCtr  = id => mode === "ports" && srcId !== tgtId && nodeMap[id].children.length > 0;
+    const isCtr  = (/** @type {string} */ id) => mode === "ports" && srcId !== tgtId && nodeMap[id].children.length > 0;
     const ctrEnd = isCtr(srcId) || isCtr(tgtId);
 
     if (mode === "include" || (srcChain.length === 0 && tgtChain.length === 0 && !ctrEnd)) {
@@ -810,18 +930,21 @@ function _placeEdges(edgeList, parentMap, nodeMap, mode) {
 
     // ports: endpoint → port(src parent) → … → port(tgt parent) → endpoint.
     // Each segment lives in the container that owns it; the label goes on the LCA segment.
-    const portOf = ctrId => {
+    const portOf = (/** @type {string} */ ctrId) => {
       const port = { id: `${edge.id}__p_${ctrId}` };
       (nodeMap[ctrId].ports = nodeMap[ctrId].ports || []).push(port);
       return port.id;
     };
-    const stops = [isCtr(srcId) ? portOf(srcId) : srcId], owners = [];
+    const stops = [isCtr(srcId) ? portOf(srcId) : srcId];
+    /** @type {string[]} */
+    const owners = [];
     for (const c of srcChain)                 { stops.push(portOf(c)); owners.push(c); }
     owners.push(lca);
     for (const c of tgtChain.slice().reverse()) { stops.push(portOf(c)); owners.push(c); }
     stops.push(isCtr(tgtId) ? portOf(tgtId) : tgtId);
     const segCount = stops.length - 1;
     for (let i = 0; i < segCount; i++) {
+      /** @type {ElkWorkEdge} */
       const seg = {
         id:          `${edge.id}__seg${i}`,
         _archiRelId: edge._archiRelId,
@@ -852,7 +975,7 @@ function _placeEdges(edgeList, parentMap, nodeMap, mode) {
  * Giving it control points (which can be at the element boundary) produces a
  * visible segment inside the element. Sampling the actual curve avoids this.
  *
- * @param {object} section  ELK edge section
+ * @param {{ startPoint?: Point, endPoint?: Point, bendPoints?: Point[] }} section  ELK edge section
  * @param {number} offsetX  absolute x of the container node
  * @param {number} offsetY  absolute y of the container node
  * @param {number} nSamples total sample count spread across all segments
@@ -867,7 +990,7 @@ function _sampleSplineSection(section, offsetX, offsetY, nSamples) {
 
   const sp  = section.startPoint || { x: 0, y: 0 };
   const ep  = section.endPoint   || { x: 0, y: 0 };
-  const abs = p => ({ x: offsetX + p.x, y: offsetY + p.y });
+  const abs = (/** @type {Point} */ p) => ({ x: offsetX + p.x, y: offsetY + p.y });
 
   // ELK CONSERVATIVE mode uses a clamped-endpoint B-spline representation for
   // multi-layer edges: it prepends one or more copies of startPoint and appends
@@ -899,6 +1022,7 @@ function _sampleSplineSection(section, offsetX, offsetY, nSamples) {
   // Build cubic Bézier segments.
   // Each group of 3 from pts: (ctrl_a, ctrl_b, knot) defines one segment.
   // The final group has only (ctrl_a, ctrl_b); the anchor is end.
+  /** @type {[Point, Point, Point, Point][]} */
   const segments = [];
   let p0 = start;
   for (let i = 0; i < n; i += 3) {
@@ -910,6 +1034,7 @@ function _sampleSplineSection(section, offsetX, offsetY, nSamples) {
   }
   if (segments.length === 0) return [];
 
+  /** @type {Point[]} */
   const result = [];
   const sps    = Math.max(1, Math.round(nSamples / segments.length));
 
@@ -927,6 +1052,13 @@ function _sampleSplineSection(section, offsetX, offsetY, nSamples) {
   return result;
 }
 
+/**
+ * @param {ElkWorkNode | ElkRoot} elkNode
+ * @param {number}                offsetX
+ * @param {number}                offsetY
+ * @param {LayoutResultNode[]}    resultNodes  filled
+ * @param {string}                [parentId]
+ */
 function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId) {
   for (const child of (elkNode.children || [])) {
     const absX = offsetX + (child.x || 0);
@@ -935,9 +1067,10 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
     // whiteSpaceElimination) can occasionally emit a node with a zero/undefined dimension.
     // A non-positive width/height crashes the writer's setBounds ("Width or height cannot be
     // zero or less"). Clamp to a minimum and warn with the node id so the cause stays visible.
-    let w = child.width, h = child.height;
+    // Casts: either may be undefined; the !(w > 0) guard below handles that.
+    let w = /** @type {number} */ (child.width), h = /** @type {number} */ (child.height);
     if (!(w > 0) || !(h > 0)) {
-      console.warn(`  ⚠ [elk] node "${child.id}" has non-positive size (w=${w}, h=${h}); clamping to ${MIN_NODE_SIZE}px`);
+      console.log(`  ⚠ [elk] node "${child.id}" has non-positive size (w=${w}, h=${h}); clamping to ${MIN_NODE_SIZE}px`);
       if (!(w > 0)) w = MIN_NODE_SIZE;
       if (!(h > 0)) h = MIN_NODE_SIZE;
     }
@@ -958,13 +1091,22 @@ function _collectNodePositions(elkNode, offsetX, offsetY, resultNodes, parentId)
  * Edge sections are relative to the container whose edges[] holds the edge (see _placeEdges).
  * Hierarchical-port segments (edgeMeta.segOf) are buffered and joined into one path, in
  * segment order, once all segments of the relation are collected.
+ * @param {ElkRoot}                     layouted
+ * @param {Record<string, ElkEdgeMeta>} edgeMeta
+ * @param {LayoutResultNode[]}          resultNodes
+ * @param {LayoutResultEdge[]}          resultEdges  filled
+ * @param {string}                      labelPosition
+ * @param {boolean}                     isSplines
+ * @param {Logger}                      log
  */
 function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, labelPosition, isSplines, log) {
+  /** @type {Record<string, LayoutResultNode>} */
   const byId = {};
   for (const n of resultNodes) byId[n.id] = n;
+  /** @type {Record<string, { meta: ElkEdgeMeta, recs: CollectedEdge[] }>} */
   const segGroups = {};
 
-  (function walk(elkNode) {
+  (function walk(/** @type {ElkWorkNode | ElkRoot} */ elkNode) {
     const containerNodeId = elkNode.id === "root" ? null : elkNode.id;
     const containerNode   = containerNodeId ? byId[containerNodeId] : null;
     const offsetX = containerNode ? containerNode.x : 0;
@@ -973,10 +1115,11 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
     if (containerNodeId && !containerNode)
       log(`⚠ [edge-collect] container "${containerNodeId}" not in resultNodes — offset forced to (0,0)`);
 
-    const abs = p => ({ x: offsetX + ((p && p.x) || 0), y: offsetY + ((p && p.y) || 0) });
+    const abs = (/** @type {Point | undefined} */ p) => ({ x: offsetX + ((p && p.x) || 0), y: offsetY + ((p && p.y) || 0) });
     for (const edge of (elkNode.edges || [])) {
       if (!edge.sections || edge.sections.length === 0) continue;
       const lbl = edge.labels && edge.labels.find(l => !l.id.endsWith(GAP_LABEL_SUFFIX));
+      /** @type {CollectedEdge} */
       const rec = {
         edge,
         sections: edge.sections.map(s => ({
@@ -985,13 +1128,13 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
           bendPoints: (s.bendPoints || []).map(abs),
         })),
         label: lbl && lbl.x !== undefined
-          ? { x: offsetX + lbl.x + (lbl.width || 0) / 2, y: offsetY + lbl.y + (lbl.height || 0) / 2 }
+          ? { x: offsetX + lbl.x + (lbl.width || 0) / 2, y: offsetY + /** @type {number} */ (lbl.y) + (lbl.height || 0) / 2 }   // Cast: y is set with x
           : null,
       };
       const meta = edgeMeta && edgeMeta[edge.id];
       if (meta && meta.segOf !== undefined) {
         const grp = segGroups[meta.segOf] = segGroups[meta.segOf] || { meta, recs: [] };
-        grp.recs[meta.segIdx] = rec;
+        grp.recs[/** @type {number} */ (meta.segIdx)] = rec;   // Cast: segment meta has segIdx
         continue;
       }
       _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines);
@@ -1002,11 +1145,11 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
   for (const [relId, { meta, recs }] of Object.entries(segGroups)) {
     const complete = recs.filter(Boolean).length === meta.segCount;
     if (!complete) {
-      console.warn(`  ⚠ [elk] relation "${relId}": ${recs.filter(Boolean).length}/${meta.segCount} port segments routed — left unrouted`);
+      console.log(`  ⚠ [elk] relation "${relId}": ${recs.filter(Boolean).length}/${meta.segCount} port segments routed — left unrouted`);
       continue;
     }
     const label = (recs.find(r => r.label) || {}).label || null;
-    const joined = { edge: recs[0].edge, sections: [].concat(...recs.map(r => r.sections)), label, segCount: meta.segCount };
+    const joined = { edge: recs[0].edge, sections: recs.flatMap(r => r.sections), label, segCount: meta.segCount };
     _emitEdgeResult(joined, meta, resultEdges, labelPosition, isSplines);
   }
 }
@@ -1017,23 +1160,32 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
  * The shorter of the two parallel segments moves onto the longer one's line (shifting a path end
  * along the element side by < JOG_MAX), so the jog disappears. Then duplicate and collinear
  * interior points are dropped; the two path ends are always kept.
- * @param {{x:number,y:number}[]} path  [start, ...bendpoints, end] (absolute)
- * @returns {{x:number,y:number}[]}
  */
 const JOG_MAX = 5;  // px
+/**
+ * @param {Point[]} path  [start, ...bendpoints, end] (absolute)
+ * @returns {Point[]}
+ */
 function _straightenJogs(path) {
   const p = path.map(q => ({ x: q.x, y: q.y }));
+  /** @typedef {(u: Point, v: Point) => boolean} PointTest */
+  /** @type {(u: Point, v: Point) => number} */
   const len  = (u, v) => Math.abs(u.x - v.x) + Math.abs(u.y - v.y);
+  /** @type {PointTest} */
   const horz = (u, v) => Math.abs(u.y - v.y) < 0.5 && Math.abs(u.x - v.x) >= 0.5;
+  /** @type {PointTest} */
   const vert = (u, v) => Math.abs(u.x - v.x) < 0.5 && Math.abs(u.y - v.y) >= 0.5;
+  /** @type {[PointTest, PointTest, "x" | "y"][]} */
+  const axes = [[horz, vert, "y"], [vert, horz, "x"]];
   for (let i = 1; i + 2 < p.length; i++) {
     const a = p[i - 1], b = p[i], c = p[i + 1], d = p[i + 2];
-    for (const [par, perp, k] of [[horz, vert, "y"], [vert, horz, "x"]]) {
+    for (const [par, perp, k] of axes) {
       if (!(par(a, b) && perp(b, c) && par(c, d) && len(b, c) < JOG_MAX)) continue;
       if (len(a, b) <= len(c, d)) a[k] = b[k] = c[k];
       else                        c[k] = d[k] = b[k];
     }
   }
+  /** @type {Point[]} */
   const out = [];
   p.forEach((q, i) => {
     const prev = out[out.length - 1];
@@ -1051,19 +1203,24 @@ function _straightenJogs(path) {
 
 /**
  * Turn one collected edge (absolute sections) into a LayoutResult edge.
- * @param {Object} rec     { edge, sections, label, segCount? }
- * @param {Object} meta    edgeMeta entry (lifted or segment) — restores the original endpoints
+ * @param {CollectedEdge}            rec
+ * @param {ElkEdgeMeta | undefined}  meta    edgeMeta entry (lifted or segment) — restores the original endpoints
+ * @param {LayoutResultEdge[]}       resultEdges  filled
+ * @param {string}                   labelPosition
+ * @param {boolean}                  isSplines
  */
 function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
   const { edge, sections } = rec;
   const originalId = edge._archiRelId || edge.id;
   const first = sections[0], last = sections[sections.length - 1];
-  const rnd = p => ({ x: Math.round(p.x), y: Math.round(p.y) });
+  const rnd = (/** @type {Point} */ p) => ({ x: Math.round(p.x), y: Math.round(p.y) });
 
   // Collect bendpoints from ALL sections. INCLUDE_CHILDREN may produce one section per hierarchy
   // level crossing, and hierarchical-port segments are joined here as consecutive sections.
   // Junctions between sections become bendpoints, except where the path runs straight through.
+  /** @type {Point[]} */
   let bps = [];
+  /** @type {Set<number>} */
   const junctions = new Set();
   for (let si = 0; si < sections.length; si++) {
     const sec = sections[si];
@@ -1076,6 +1233,7 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
     else           bps.push(...sec.bendPoints.map(rnd));
   }
   if (junctions.size) {
+    /** @type {Point[]} */
     const kept = [];
     for (let i = 0; i < bps.length; i++) {
       const a = kept.length ? kept[kept.length - 1] : rnd(first.startPoint);
@@ -1116,6 +1274,7 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
 
   resultEdges.push({
     id:            originalId,
+    conceptId:     originalId,
     sourceId:      meta ? meta.origSrcId : edge.sources[0],
     targetId:      meta ? meta.origTgtId : edge.targets[0],
     bendpoints:    bps,
@@ -1127,6 +1286,15 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
   });
 }
 
+/**
+ * @param {{ startPoint?: Point, endPoint?: Point }} section
+ * @param {Point[]} bendpoints
+ * @param {number}  offsetX
+ * @param {number}  offsetY
+ * @param {string}  labelPosition
+ * @param {string}  relName
+ * @returns {{ labelX: number, labelY: number }}
+ */
 function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition, relName) {
   const startX = offsetX + (section.startPoint ? section.startPoint.x : 0);
   const startY = offsetY + (section.startPoint ? section.startPoint.y : 0);
@@ -1150,13 +1318,17 @@ function _computeLabelPoint(section, bendpoints, offsetX, offsetY, labelPosition
 /**
  * Collect rendered widths of every box (containers and leaves) from pass-1 ELK output.
  * Feeds alignWidthsByLevel, which derives per-level target widths for pass 2.
- * @returns {Object}  { id: renderedWidth }
+ * @param {ElkWorkNode | ElkRoot} layouted
+ * @returns {Record<string, number>}  { id: renderedWidth }
  */
 function _collectRenderedWidths(layouted) {
+  /** @type {Record<string, number>} */
   const widths = {};
+  /** @param {ElkWorkNode | ElkRoot} node */
   function walk(node) {
     for (const child of (node.children || [])) {
-      if (child.width > 0) widths[child.id] = child.width;
+      const cw = /** @type {number} */ (child.width);   // Cast: absent compares as false
+      if (cw > 0) widths[child.id] = cw;
       walk(child);
     }
   }
@@ -1168,6 +1340,9 @@ function _collectRenderedWidths(layouted) {
  * Reset node state between pass 1 and pass 2.
  * Leaf nodes restore their original sizes; containers get no explicit size so ELK auto-sizes them.
  * Caller then applies per-level target widths (via alignWidthsByLevel).
+ * @param {Record<string, ElkWorkNode>}                            nodeMap
+ * @param {Record<string, { width?: number, height?: number }>}   origSizes
+ * @param {Set<string>}                                            containerIds
  */
 function _resetNodesForPass2(nodeMap, origSizes, containerIds) {
   for (const [id, node] of Object.entries(nodeMap)) {
@@ -1204,14 +1379,17 @@ function _resetNodesForPass2(nodeMap, origSizes, containerIds) {
  *      containers that overlap; widen each offending boundary by the overlap; repeat until
  *      no container overlaps (or a few iterations).
  *
- * @param {Object[]} resultNodes  flattened nodes { id, x, y, width, height, parentId }
- * @param {Object}   options      graph.options (spacing, padding)
- * @param {Object}   nameById     { id: displayName }
- * @param {Function} log          logger
+ * @param {LayoutResultNode[]}     resultNodes  flattened nodes { id, x, y, width, height, parentId }
+ * @param {EffectiveParams}        options      graph.options (spacing, padding)
+ * @param {Record<string, string>} nameById     { id: displayName }
+ * @param {Logger}                 log          logger
  */
 function _snapColumnsToGrid(resultNodes, options, nameById, log) {
+  /** @type {Record<string, LayoutResultNode>} */
   const byId = {};
+  /** @type {Record<string, LayoutResultNode[]>} */
   const childrenByParent = {};
+  /** @type {Set<string>} */
   const containerIds = new Set();
   for (const n of resultNodes) {
     byId[n.id] = n;
@@ -1220,9 +1398,9 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
       containerIds.add(n.parentId);
     }
   }
-  const isContainer = id => containerIds.has(id);
-  const centerOf = n => n.x + (n.width || 0) / 2;
-  const rightOf  = n => n.x + (n.width || 0);
+  const isContainer = (/** @type {string} */ id) => containerIds.has(id);
+  const centerOf = (/** @type {LayoutResultNode} */ n) => n.x + (n.width || 0) / 2;
+  const rightOf  = (/** @type {LayoutResultNode} */ n) => n.x + (n.width || 0);
   const spacing = options.elementSpacing || 0;
   const pad = options.padding || 0;
 
@@ -1230,13 +1408,14 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   if (leaves.length < 2) { log("[colSnap] skipped (no columns)"); return; }
 
   // Container-ancestor set per leaf, and symmetric-difference count between two leaves.
+  /** @type {Record<string, Set<string>>} */
   const anc = {};
   for (const lf of leaves) {
     const s = new Set(); let p = lf.parentId;
     while (p != null) { s.add(p); p = byId[p] ? byId[p].parentId : null; }
     anc[lf.id] = s;
   }
-  const symDiff = (a, b) => {
+  const symDiff = (/** @type {string} */ a, /** @type {string} */ b) => {
     let d = 0;
     for (const x of anc[a]) if (!anc[b].has(x)) d++;
     for (const x of anc[b]) if (!anc[a].has(x)) d++;
@@ -1245,7 +1424,9 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
 
   // 1. Detect columns (consecutive-centre compare; split on >½-leaf gap).
   const sorted = leaves.slice().sort((a, b) => centerOf(a) - centerOf(b));
+  /** @type {{ members: LayoutResultNode[], w: number }[]} */
   const cols = [];
+  /** @type {LayoutResultNode | null} */
   let prev = null;
   for (const lf of sorted) {
     const thr = prev ? Math.min(lf.width || 0, prev.width || 0) / 2 : 0;
@@ -1257,14 +1438,18 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
     prev = lf;
   }
   if (cols.length < 2) { log("[colSnap] 1 column — nothing to align"); return; }
+  /** @type {Record<string, number>} */
   const colOf = {};
   cols.forEach((c, i) => c.members.forEach(m => { colOf[m.id] = i; }));
 
   // 3. Initial gap per boundary = max row need − slack (2·padding), floored at spacing.
   //    Tight first; the loop below widens only the boundaries that actually collide.
-  const yOver = (a, b) => a.y < b.y + (b.height || 0) && b.y < a.y + (a.height || 0);
+  const yOver = (/** @type {LayoutResultNode} */ a, /** @type {LayoutResultNode} */ b) => a.y < b.y + (b.height || 0) && b.y < a.y + (a.height || 0);
   const slack = 2 * pad;
-  const gap = [], rawGap = [];
+  /** @type {number[]} */
+  const gap = [];
+  /** @type {number[]} */
+  const rawGap = [];
   for (let k = 0; k < cols.length - 1; k++) {
     let need = spacing;
     for (const a of cols[k].members) for (const b of cols[k + 1].members) {
@@ -1277,13 +1462,13 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   }
 
   const origin = Math.min(...cols[0].members.map(m => m.x));
-  const nm = id => nameById[id] || id;
+  const nm = (/** @type {string} */ id) => nameById[id] || id;
   const ROOT = "__root__";
   const parents = [...new Set(resultNodes.map(n => (n.parentId == null ? ROOT : n.parentId)))];
-  const depthOf = id => { let d = 0, p = byId[id] ? byId[id].parentId : null; while (p != null) { d++; p = byId[p] ? byId[p].parentId : null; } return d; };
+  const depthOf = (/** @type {string} */ id) => { let d = 0, p = byId[id] ? byId[id].parentId : null; while (p != null) { d++; p = byId[p] ? byId[p].parentId : null; } return d; };
   const containersByDepth = [...containerIds].sort((a, b) => depthOf(b) - depthOf(a));
   // Rightmost leaf-column index within a container's subtree (the boundary to its right).
-  const rightCol = cid => { let hi = -1; (function w(id){ for (const c of (childrenByParent[id] || [])) { if (!isContainer(c.id)) hi = Math.max(hi, colOf[c.id]); else w(c.id); } })(cid); return hi; };
+  const rightCol = (/** @type {string} */ cid) => { let hi = -1; (function w(/** @type {string} */ id){ for (const c of (childrenByParent[id] || [])) { if (!isContainer(c.id)) hi = Math.max(hi, colOf[c.id]); else w(c.id); } })(cid); return hi; };
 
   // Position every leaf on the column grid defined by `gap`, then re-wrap containers.
   function applyGrid() {
@@ -1299,7 +1484,10 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   }
   // Find adjacent sibling containers that overlap; return { boundaryIndex: maxNeededWiden }.
   function findOverlaps() {
-    const widen = {}; const list = [];
+    /** @type {Record<string, number>} */
+    const widen = {};
+    /** @type {string[]} */
+    const list = [];
     for (const pid of parents) {
       const sibs = (pid === ROOT ? resultNodes.filter(n => n.parentId == null) : (childrenByParent[pid] || []))
                      .filter(k => isContainer(k.id)).sort((a, b) => a.x - b.x);
@@ -1319,7 +1507,9 @@ function _snapColumnsToGrid(resultNodes, options, nameById, log) {
   }
 
   // 4. Iterate: lay out tight, find collisions, widen exactly those boundaries, repeat.
-  let iters = 0, lastList = [];
+  let iters = 0;
+  /** @type {string[]} */
+  let lastList = [];
   for (; iters < 8; iters++) {
     applyGrid();
     const { widen, list } = findOverlaps();

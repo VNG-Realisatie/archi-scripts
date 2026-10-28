@@ -15,7 +15,9 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("../defs")} */
 const Defs         = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("./engine-utils")} */
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP, CONTAINER_LABEL_CLEARANCE } = Defs;
 const { applyParams } = EngineUtils;
@@ -25,8 +27,8 @@ const PT2PX = 96 / 72;
 
 // DIRECTION_MAP imported from defs.js — shared with dagre.js.
 
-// Default Graphviz binary name (dot). Can be overridden per-layout via graph.options.graphvizBin.
-const GRAPHVIZ_BIN_DEFAULT = "dot";
+// Graphviz binary, found on the PATH.
+const GRAPHVIZ_BIN = "dot";
 
 // Derived: set of Graphviz algorithm names (used for engine validation guard).
 const GRAPHVIZ_ALGORITHMS = new Set(
@@ -43,8 +45,9 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 
 // maxWidth is not supported: Graphviz 'size' scales node sizes (forbidden — SPEC §8, no post-layout scaling),
 // and spreading positions afterwards can only widen, never narrow. View size = aspectRatio only.
-const _GV_PAD = (v) => ({ pad: (v / 96).toFixed(4) });
+const _GV_PAD = (/** @type {number} */ v) => ({ pad: (v / 96).toFixed(4) });
 
+/** @type {ParamMapping} */
 const PARAM_MAPPING = {
   Dot: {
     direction:                (v) => ({ rankdir: DIRECTION_MAP[v] }),
@@ -103,7 +106,7 @@ function layout(graph) {
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
   console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
 
-  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId, graph.options.graphvizBin || GRAPHVIZ_BIN_DEFAULT);
+  const jsonOut = _runDot(dotSource, alg.engineAlgorithmId);
   const _rawBb  = String(jsonOut.bb || "—");
   const _bbParts = _rawBb.split(",").map(parseFloat);
   const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
@@ -115,6 +118,16 @@ function layout(graph) {
 
 // ── DOT source builder ────────────────────────────────────────────────────────
 
+/**
+ * @typedef {{ x: number, y: number, w: number, h: number }} GvBox  a node or cluster box in px
+ * @typedef {{ x: number, y: number, w?: number, h?: number, maxX?: number, maxY?: number }} GvCluster
+ *   a cluster box, or (inside _deriveClusterBBs) an accumulator still being grown
+ */
+
+/**
+ * @param {LayoutGraph} graph
+ * @returns {string} DOT source
+ */
 function _buildDOT(graph) {
   const PX_TO_IN = 1 / 96;
   const opts     = graph.options;
@@ -143,7 +156,9 @@ function _buildDOT(graph) {
   const graphAttrs = `${gAttrStr} compound=true margin=0 esep="${esep}"`;
 
   // Build nodeId → children map from parent references
+  /** @type {Record<string, string[]>} */
   const childrenOf = {};
+  /** @type {Set<string>} */
   const childSet   = new Set();
   for (const node of graph.nodes) {
     if (node.parent) {
@@ -159,6 +174,11 @@ function _buildDOT(graph) {
     `  node [shape=rectangle width=${nodeW} height=${nodeH} fixedsize=true label=""]`,
   ];
 
+  /**
+   * @param {string}      id
+   * @param {string}      indent
+   * @param {Set<string>} [visiting]
+   */
   function writeNode(id, indent, visiting) {
     if (!visiting) visiting = new Set();
     if (visiting.has(id)) return;
@@ -213,45 +233,53 @@ function _buildDOT(graph) {
 
 // ── Dot binary execution ──────────────────────────────────────────────────────
 
-function _runDot(dotSource, engine, binPath) {
-  const ProcessBuilder = Java.type("java.lang.ProcessBuilder");
-  const Arrays         = Java.type("java.util.Arrays");
-  const bin = (binPath && binPath.trim()) ? binPath.trim() : GRAPHVIZ_BIN_DEFAULT;
+/**
+ * @param {string} dotSource
+ * @param {string} engine   Graphviz layout engine (-K)
+ * @returns {GraphvizJson}
+ */
+function _runDot(dotSource, engine) {
+  const ProcessBuilder   = Java.type("java.lang.ProcessBuilder");
+  const Arrays           = Java.type("java.util.Arrays");
+  const Files            = Java.type("java.nio.file.Files");
+  const StandardCharsets = Java.type("java.nio.charset.StandardCharsets");
+  const JString          = Java.type("java.lang.String");
+  const Writer           = Java.type("java.io.OutputStreamWriter");
 
-  let proc;
+  // stderr goes to a file: left unread in a pipe while stdout is read, a full pipe blocks dot.
+  const errFile = Files.createTempFile("graphviz", ".err");
   try {
-    const pb = new ProcessBuilder(Arrays.asList(bin, "-Tjson", "-K" + engine));
-    pb.redirectErrorStream(false);
-    proc = pb.start();
-  } catch (e) {
-    throw new Error(`Graphviz not found at '${bin}'.\nInstall Graphviz (graphviz.org) and ensure 'dot' is on the system PATH.`);
+    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, "-Tjson", "-K" + engine));
+    pb.redirectError(ProcessBuilder.Redirect.to(errFile.toFile()));
+    let proc;
+    try { proc = pb.start(); }
+    catch (e) {
+      throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
+    }
+
+    const wr = new Writer(proc.getOutputStream(), StandardCharsets.UTF_8);
+    wr.write(dotSource);
+    wr.close();
+
+    const stdout = String(new JString(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+    const code = proc.waitFor();
+    if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${String(Files.readString(errFile)).trim()}`);
+
+    try { return JSON.parse(stdout); }
+    catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
+  } finally {
+    Files.deleteIfExists(errFile);
   }
-
-  const wr = new java.io.OutputStreamWriter(proc.getOutputStream(), "UTF-8");
-  wr.write(dotSource);
-  wr.close();
-
-  let line, stdout = "";
-  const br = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream(), "UTF-8"));
-  while ((line = br.readLine()) !== null) stdout += line + "\n";
-  br.close();
-
-  let eline, stderr = "";
-  const er = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getErrorStream(), "UTF-8"));
-  while ((eline = er.readLine()) !== null) stderr += eline + "\n";
-  er.close();
-
-  const code = proc.waitFor();
-  if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${stderr.trim()}`);
-
-  try { return JSON.parse(stdout); }
-  catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
 }
 
 // ── Origin normalisation ──────────────────────────────────────────────────────
 // Shift all coordinates so no position is negative (min(x) >= 0, min(y) >= 0) and round them.
 // Node sizes and relative positions are unchanged. Graphviz has no max-width control: view
 // size is set by aspect ratio only (Graphviz 'size' would scale elements — SPEC §8).
+/**
+ * @param {LayoutResultNode[]} resultNodes
+ * @param {LayoutResultEdge[]} resultEdges
+ */
 function _normalizeOrigin(resultNodes, resultEdges) {
   if (!resultNodes.length) return;
   let nx0 = Infinity, ny0 = Infinity;
@@ -272,11 +300,18 @@ function _normalizeOrigin(resultNodes, resultEdges) {
 
 // ── Result extraction ─────────────────────────────────────────────────────────
 
+/**
+ * @param {LayoutGraph}  graph
+ * @param {GraphvizJson} jsonOut
+ * @returns {LayoutResult}
+ */
 function _extractResult(graph, jsonOut) {
   const bb     = _parseBb(String(jsonOut.bb || "0,0,0,0"));
   const totalH = bb.ury;
 
+  /** @type {Record<string, GvBox>} */
   const nodes    = {};
+  /** @type {Record<string, GvCluster>} */
   const clusters = {};
   _walkJSON(jsonOut, nodes, clusters, totalH);
 
@@ -286,18 +321,21 @@ function _extractResult(graph, jsonOut) {
   const padding = graph.options.padding ?? 20;
   _deriveClusterBBs(graph.nodes, nodes, clusters, childSet, padding);
 
+  /** @type {LayoutResultNode[]} */
   const resultNodes = [];
   for (const node of graph.nodes) {
     const isContainer = graph.nodes.some(m => m.parent === node.id);
     const pos = (isContainer && clusters[node.id]) ? clusters[node.id] : nodes[node.id];
     if (!pos) continue;
-    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h, parentId: node.parent || null });
+    // Casts: after _deriveClusterBBs every cluster is a full box.
+    resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: /** @type {number} */ (pos.w), height: /** @type {number} */ (pos.h), parentId: node.parent || null });
   }
 
   const splines  = _guiRoutingToGraphviz(graph.options.routing || "Polyline");
   const skipBend = splines === "line";
   const labelPos = graph.options.labelPosition || "Natural";
 
+  /** @type {LayoutResultEdge[]} */
   const resultEdges = [];
   _walkEdges(jsonOut, graph.edges, totalH, splines, skipBend, labelPos, resultEdges);
 
@@ -309,6 +347,12 @@ function _extractResult(graph, jsonOut) {
   return { nodes: resultNodes, edges: resultEdges, viewWidth: maxX + 20, viewHeight: maxY + 20 };
 }
 
+/**
+ * @param {GraphvizJson | undefined}  obj
+ * @param {Record<string, GvBox>}     nodes     filled: node name → box
+ * @param {Record<string, GvCluster>} clusters  filled: container id → box
+ * @param {number}                    totalH    graph height in points (y is flipped)
+ */
 function _walkJSON(obj, nodes, clusters, totalH) {
   if (!obj || typeof obj !== "object") return;
   const name = String(obj.name || "");
@@ -340,6 +384,15 @@ function _walkJSON(obj, nodes, clusters, totalH) {
   }
 }
 
+/**
+ * @param {GraphvizJson}       jsonOut
+ * @param {LayoutEdge[]}       graphEdges
+ * @param {number}             totalH
+ * @param {string}             splines      Graphviz splines value
+ * @param {boolean}            skipBend     straight lines: no bendpoints
+ * @param {string}             labelPos     labelPosition param
+ * @param {LayoutResultEdge[]} resultEdges  filled
+ */
 function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, resultEdges) {
   if (!jsonOut.edges) return;
   for (const dotEdge of jsonOut.edges) {
@@ -349,6 +402,7 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
     const originalEdge = graphEdges.find(e => e.id === eid);
     if (!originalEdge) continue;
 
+    /** @type {Point[]} */
     let bendpoints = [];
     if (!skipBend && dotEdge.pos) {
       bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines).map(p => ({
@@ -385,17 +439,27 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
 
 // ── Coordinate helpers ────────────────────────────────────────────────────────
 
+/** @param {string} s */
 function _parseBb(s) {
   const p = s.split(",").map(parseFloat);
   return { llx: p[0], lly: p[1], urx: p[2], ury: p[3] };
 }
 
+/** @param {string} s */
 function _parseXY(s) {
   const p = s.split(",");
   return { x: parseFloat(p[0]), y: parseFloat(p[1]) };
 }
 
+/**
+ * @param {LayoutNode[]}              graphNodes
+ * @param {Record<string, GvBox>}     nodes
+ * @param {Record<string, GvCluster>} clusters  extended in place
+ * @param {Set<string>}               childSet
+ * @param {number}                    padding
+ */
 function _deriveClusterBBs(graphNodes, nodes, clusters, childSet, padding) {
+  /** @type {Record<string, string>} */
   const parentOf = {};
   for (const n of graphNodes) { if (n.parent) parentOf[n.id] = n.parent; }
   for (const [childId, parentId] of Object.entries(parentOf)) {
@@ -417,12 +481,18 @@ function _deriveClusterBBs(graphNodes, nodes, clusters, childSet, padding) {
       clusters[id] = {
         x: bb.x - padding, y: bb.y - (padding + CONTAINER_LABEL_CLEARANCE),
         w: (bb.maxX - bb.x) + 2 * padding,
-        h: (bb.maxY - bb.y) + 2 * padding + CONTAINER_LABEL_CLEARANCE,
+        h: (/** @type {number} */ (bb.maxY) - bb.y) + 2 * padding + CONTAINER_LABEL_CLEARANCE,   // Cast: set with maxX
       };
     }
   }
 }
 
+/**
+ * @param {string} posStr      Graphviz edge pos
+ * @param {number} totalH
+ * @param {string} splineType  Graphviz splines value
+ * @returns {Point[]}
+ */
 function _flattenSpline(posStr, totalH, splineType) {
   let s = posStr.trim();
   if (s.startsWith("e,")) s = s.substring(s.indexOf(" ") + 1);
@@ -471,6 +541,10 @@ function _flattenSpline(posStr, totalH, splineType) {
   return bps;
 }
 
+/**
+ * @param {string} routing  routing param
+ * @returns {string}        Graphviz splines value
+ */
 function _guiRoutingToGraphviz(routing) {
   switch (routing) {
     case "Orthogonal":          return "ortho";
@@ -484,6 +558,8 @@ function _guiRoutingToGraphviz(routing) {
 /**
  * Render a {key: value} object as a DOT graph attribute string.
  * Values containing commas or spaces are double-quoted; others are unquoted.
+ * @param {Record<string, unknown>} attrs
+ * @returns {string}
  */
 function _renderGraphvizAttrs(attrs) {
   return Object.entries(attrs)
