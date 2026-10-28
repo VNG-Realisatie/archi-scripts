@@ -1,0 +1,63 @@
+{
+  "name": "GGM bedrijfsobject specialisaties",
+  "algorithm": "Dot",
+  "params": {
+    "direction": "Left → Right",
+    "routing": "Straight",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "sortContainers": false,
+    "alignSameType": true,
+    "showInEveryContainer": true,
+    "layerSpacing": 200,
+    "elementSpacing": 60,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "maxHeight": 0,
+    "aspectRatio": 0
+  },
+  "filter": {
+    "elementTypes": [
+      "grouping",
+      "business-object"
+    ],
+    "relationTypes": [
+      "aggregation-relationship:in",
+      "specialization-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "depth": 6,
+        "elementTypes": [
+          "grouping",
+          "business-object"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:in",
+          "specialization-relationship"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Geo-Object",
+    "suffix": "",
+    "folder": ""
+  },
+  "action": "new_view"
+}

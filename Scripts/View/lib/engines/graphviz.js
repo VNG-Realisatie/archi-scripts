@@ -17,7 +17,7 @@ const REPO_ROOT = (() => {
 
 const Defs         = require(REPO_ROOT + "View/lib/defs");
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
+const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP, CONTAINER_LABEL_CLEARANCE } = Defs;
 const { applyParams } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
@@ -36,6 +36,61 @@ const GRAPHVIZ_ALGORITHMS = new Set(
 const GRAPHVIZ_EDGE_CLEARANCE_ORTHO  = '+24';
 const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 
+// ── Engine-specific parameter mapping ────────────────────────────────────────
+// Maps GUI param names to Graphviz graph attribute key/value pairs.
+// Defined after _guiRoutingToGraphviz so that function can be referenced here.
+// Note: px → inches conversion uses / 96 (96 DPI screen).
+
+// maxWidth / maxHeight: NOT mapped to Graphviz 'size' here.
+// Graphviz 'size' scales node sizes (forbidden — see ARCHITECTURE.md §A.8).
+// Instead, maxWidth/maxHeight drive _applySpread() post-extraction (expand only).
+const _GV_PAD = (v) => ({ pad: (v / 96).toFixed(4) });
+
+const PARAM_MAPPING = {
+  Dot: {
+    direction:                (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    layerSpacing:             (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    elementSpacing:           (v) => ({ nodesep: (v / 96).toFixed(4) }),
+    connectionElementSpacing: (v) => ({ sep:    (v / 96).toFixed(4) }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Neato: {
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  FDP: {
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  SFDP: {
+    routing:                  (v) => ({ splines: _guiRoutingToGraphviz(v) }),
+    elementSpacing:           (v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
+    connectionElementSpacing: (v) => ({ esep: `+${(v / 96).toFixed(4)}` }),
+    diagramPadding:           _GV_PAD,
+    aspectRatio:              (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Twopi: {
+    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
+    diagramPadding: _GV_PAD,
+    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+  Circo: {
+    elementSpacing: (v) => ({ mindist: (v / 96).toFixed(4) }),
+    diagramPadding: _GV_PAD,
+    aspectRatio:    (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
+  },
+};
+
+// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
+
 /**
  * Compute layout positions.
  * @param {LayoutGraph} graph
@@ -46,9 +101,17 @@ function layout(graph) {
   if (!alg || alg.engine !== "Graphviz") throw `Graphviz adapter: unknown algorithm "${graph.algorithm}"`;
 
   const dotSource = _buildDOT(graph);
+  const _graphLine = dotSource.split("\n").find(l => l.trim().startsWith("graph [")) || "";
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
+  console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
 
   const jsonOut = _runDot(dotSource, alg.engineAlgorithmId, graph.options.graphvizBin || GRAPHVIZ_BIN_DEFAULT);
+  const _rawBb  = String(jsonOut.bb || "—");
+  const _bbParts = _rawBb.split(",").map(parseFloat);
+  const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
+  const _bbHpx  = _bbParts.length === 4 ? Math.round((_bbParts[3] - _bbParts[1]) * (96 / 72)) : "?";
+  console.log(`  Graphviz bb: ${_rawBb}  →  ${_bbWpx} × ${_bbHpx} px`);
+
   return _extractResult(graph, jsonOut);
 }
 
@@ -61,13 +124,23 @@ function _buildDOT(graph) {
   // Map GUI params to Graphviz graph attributes
   const engineOpts = applyParams(graph.algorithm, opts, PARAM_MAPPING);
   const splines    = engineOpts.splines || "polyline";
-  const esep       = splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED;
-  const gAttrStr   = _renderGraphvizAttrs(engineOpts);
+  const gvEP       = graph.engineParams && graph.engineParams.Graphviz;
+  // esep priority: engineParams.Graphviz.esep > connectionElementSpacing mapping > routing-based default.
+  // engineOpts.esep (from connectionElementSpacing) must be extracted and deleted before _renderGraphvizAttrs
+  // to avoid duplication — esep is placed explicitly in graphAttrs below.
+  const esep       = (gvEP && gvEP.esep != null)
+    ? String(gvEP.esep)
+    : (engineOpts.esep != null)
+    ? String(engineOpts.esep)
+    : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
+  delete engineOpts.esep;
 
   // Node dimensions — not graph-level attributes; kept inline
   const nodeW        = ((opts.elementWidth  || 140) * PX_TO_IN).toFixed(4);
   const nodeH        = ((opts.elementHeight || 60)  * PX_TO_IN).toFixed(4);
   const clusterMargin = Math.round((opts.innerSpacing || 20) * 0.75);  // px → pt (96dpi → 72pt/inch)
+
+  const gAttrStr   = _renderGraphvizAttrs(engineOpts);
 
   const graphAttrs = `${gAttrStr} compound=true margin=0 esep="${esep}"`;
 
@@ -102,7 +175,15 @@ function _buildDOT(graph) {
       children.forEach(cid => writeNode(cid, indent + "  ", visiting));
       lines.push(`${indent}}`);
     } else {
-      lines.push(`${indent}"${id}" [label="${label}"]`);
+      // Per-node size override: add width/height when they differ from the global default
+      // (e.g. when expandNodeSizesForEdgeDensity inflated a hub node).
+      let szAttrs = "";
+      if (node) {
+        const w = (node.width  * PX_TO_IN), h = (node.height * PX_TO_IN);
+        if (Math.abs(w - parseFloat(nodeW)) > 0.001 || Math.abs(h - parseFloat(nodeH)) > 0.001)
+          szAttrs = ` width=${w.toFixed(4)} height=${h.toFixed(4)} fixedsize=true`;
+      }
+      lines.push(`${indent}"${id}" [label="${label}"${szAttrs}]`);
     }
     visiting.delete(id);
   }
@@ -169,12 +250,70 @@ function _runDot(dotSource, engine, binPath) {
   catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
 }
 
+// ── Position spread ───────────────────────────────────────────────────────────
+// Expand node spacing so the layout meets a minimum width/height target.
+// Node sizes are NEVER changed — only center positions move outward from the
+// bounding-box center. Compress is forbidden (would cause overlaps).
+// Also normalises origin: shifts all coordinates so min(x)=0, min(y)=0.
+// See ARCHITECTURE.md §A.8 "Post-layout scaling is forbidden."
+function _applySpread(resultNodes, resultEdges, opts) {
+  if (!resultNodes.length) return;
+
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of resultNodes) {
+    if (n.x           < x0) x0 = n.x;
+    if (n.y           < y0) y0 = n.y;
+    if (n.x + n.width > x1) x1 = n.x + n.width;
+    if (n.y + n.height> y1) y1 = n.y + n.height;
+  }
+  const natW = x1 - x0;
+  const natH = y1 - y0;
+
+  // Only expand width (never compress). 0 = no constraint.
+  const minW    = opts.maxWidth || 0;
+  const spreadX = (minW > 0 && natW > 0 && natW < minW) ? minW / natW : 1;
+
+  const needsMove = spreadX !== 1 || x0 !== 0 || y0 !== 0;
+  if (!needsMove) return;
+
+  if (spreadX !== 1)
+    console.log(`Position spread: ${spreadX.toFixed(3)}×X  (${Math.round(natW)} → ${minW} px width, element sizes unchanged)`);
+
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+
+  // Spread node centers horizontally, keep sizes frozen
+  for (const n of resultNodes) {
+    n.x = cx + (n.x + n.width / 2 - cx) * spreadX - n.width / 2;
+  }
+  // Apply same spread to bendpoints and edge labels
+  for (const e of resultEdges) {
+    e.bendpoints = e.bendpoints.map(bp => ({ x: cx + (bp.x - cx) * spreadX, y: bp.y }));
+    e.labelX = cx + ((e.labelX || 0) - cx) * spreadX;
+  }
+
+  // Normalize origin: find new minimum and shift so min(x)=0, min(y)=0
+  let nx0 = Infinity, ny0 = Infinity;
+  for (const n of resultNodes) { if (n.x < nx0) nx0 = n.x; if (n.y < ny0) ny0 = n.y; }
+  const shiftX = Math.min(nx0, 0);
+  const shiftY = Math.min(ny0, 0);
+
+  for (const n of resultNodes) {
+    n.x = Math.round(n.x - shiftX);
+    n.y = Math.round(n.y - shiftY);
+  }
+  for (const e of resultEdges) {
+    e.bendpoints = e.bendpoints.map(bp => ({ x: Math.round(bp.x - shiftX), y: Math.round(bp.y - shiftY) }));
+    e.labelX = Math.round(e.labelX - shiftX);
+    e.labelY = Math.round(e.labelY - shiftY);
+  }
+}
+
 // ── Result extraction ─────────────────────────────────────────────────────────
 
 function _extractResult(graph, jsonOut) {
   const bb     = _parseBb(String(jsonOut.bb || "0,0,0,0"));
   const totalH = bb.ury;
-  const totalW = bb.urx * PT2PX;
 
   const nodes    = {};
   const clusters = {};
@@ -186,12 +325,7 @@ function _extractResult(graph, jsonOut) {
   const padding = graph.options.padding || 20;
   _deriveClusterBBs(graph.nodes, nodes, clusters, childSet, padding);
 
-  // maxWidth/maxHeight are handled natively via Graphviz 'size' attribute in PARAM_MAPPING.
-  const scale = 1;
-
   const resultNodes = [];
-  const containerIds = new Set(graph.nodes.filter(n => childSet.has(n.id) || (graph.nodes.some(m => m.parent === n.id))).map(n => n.id));
-
   for (const node of graph.nodes) {
     const isContainer = graph.nodes.some(m => m.parent === node.id);
     const pos = (isContainer && clusters[node.id]) ? clusters[node.id] : nodes[node.id];
@@ -199,12 +333,16 @@ function _extractResult(graph, jsonOut) {
     resultNodes.push({ id: node.id, x: pos.x, y: pos.y, width: pos.w, height: pos.h, parentId: node.parent || null });
   }
 
-  const splines      = _guiRoutingToGraphviz(graph.options.routing || "Polyline");
-  const skipBend     = splines === "line";
-  const labelPos     = graph.options.labelPosition || "Natural";
+  const splines  = _guiRoutingToGraphviz(graph.options.routing || "Polyline");
+  const skipBend = splines === "line";
+  const labelPos = graph.options.labelPosition || "Natural";
 
-  const resultEdges  = [];
-  _walkEdges(jsonOut, graph.edges, totalH, splines, skipBend, labelPos, resultEdges, scale);
+  const resultEdges = [];
+  _walkEdges(jsonOut, graph.edges, totalH, splines, skipBend, labelPos, resultEdges);
+
+  // Position spread: expand node spacing to meet maxWidth/maxHeight targets.
+  // Node sizes are NEVER changed — only positions move. See ARCHITECTURE.md §A.8.
+  _applySpread(resultNodes, resultEdges, graph.options);
 
   let maxX = 0, maxY = 0;
   for (const n of resultNodes) { maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height); }
@@ -243,7 +381,7 @@ function _walkJSON(obj, nodes, clusters, totalH) {
   }
 }
 
-function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, resultEdges, scale) {
+function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, resultEdges) {
   if (!jsonOut.edges) return;
   for (const dotEdge of jsonOut.edges) {
     const eid = String((dotEdge.attrs && dotEdge.attrs.eid) || dotEdge.eid || "");
@@ -252,13 +390,10 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
     const originalEdge = graphEdges.find(e => e.id === eid);
     if (!originalEdge) continue;
 
-    const headId = String(dotEdge.head || "");
-    const tailId = String(dotEdge.tail || "");
-
     let bendpoints = [];
     if (!skipBend && dotEdge.pos) {
       bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines).map(p => ({
-        x: Math.round(p.x * scale), y: Math.round(p.y * scale),
+        x: Math.round(p.x), y: Math.round(p.y),
       }));
     }
 
@@ -266,8 +401,8 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
     let labelX = 0, labelY = 0;
     if (labelPos === "Natural" && dotEdge.lp) {
       const lp = _parseXY(String(dotEdge.lp));
-      labelX = Math.round(lp.x * PT2PX * scale);
-      labelY = Math.round((totalH - lp.y) * PT2PX * scale);
+      labelX = Math.round(lp.x * PT2PX);
+      labelY = Math.round((totalH - lp.y) * PT2PX);
     } else if (bendpoints.length > 0) {
       const pos  = labelPos === "Source" ? 0
                  : labelPos === "Target" ? bendpoints.length - 1
@@ -278,6 +413,7 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
 
     resultEdges.push({
       id:         eid,
+      conceptId:  originalEdge.conceptId,
       sourceId:   originalEdge.source,
       targetId:   originalEdge.target,
       bendpoints,
@@ -320,9 +456,9 @@ function _deriveClusterBBs(graphNodes, nodes, clusters, childSet, padding) {
   for (const [id, bb] of Object.entries(clusters)) {
     if (bb.maxX !== undefined) {
       clusters[id] = {
-        x: bb.x - padding, y: bb.y - padding,
+        x: bb.x - padding, y: bb.y - (padding + CONTAINER_LABEL_CLEARANCE),
         w: (bb.maxX - bb.x) + 2 * padding,
-        h: (bb.maxY - bb.y) + 2 * padding,
+        h: (bb.maxY - bb.y) + 2 * padding + CONTAINER_LABEL_CLEARANCE,
       };
     }
   }
@@ -340,7 +476,11 @@ function _flattenSpline(posStr, totalH, splineType) {
       if (!isNaN(x) && !isNaN(y)) pts.push({ x: x * PT2PX, y: (totalH - y) * PT2PX });
     }
   }
-  if (pts.length < 4) return [];
+  if (pts.length < 2) return [];
+  if (pts.length < 4) {
+    const f = pts[0], l = pts[pts.length - 1];
+    return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
+  }
 
   const useBezier = splineType === "spline" || splineType === "curved";
   const bps = [];
@@ -364,6 +504,11 @@ function _flattenSpline(posStr, totalH, splineType) {
     // Ortho / polyline: segment endpoints are corners; skip first and last boundaries
     for (let i = 3; i < pts.length - 1; i += 3) bps.push(pts[i]);
   }
+  // Ortho/polyline straight segment: 4-point path with no interior bends.
+  if (bps.length === 0) {
+    const f = pts[0], l = pts[pts.length - 1];
+    return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
+  }
   return bps;
 }
 
@@ -376,61 +521,6 @@ function _guiRoutingToGraphviz(routing) {
     default:                    return "polyline";
   }
 }
-
-// ── Engine-specific parameter mapping ────────────────────────────────────────
-// Maps GUI param names to Graphviz graph attribute key/value pairs.
-// Defined after _guiRoutingToGraphviz so that function can be referenced here.
-// Note: px → inches conversion uses / 96 (96 DPI screen).
-
-const PARAM_MAPPING = {
-  Dot: {
-    direction:     (v) => ({ rankdir: DIRECTION_MAP[v] }),
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
-    elementSpacing:(v) => ({ nodesep: (v / 96).toFixed(4) }),
-    padding:       (v) => ({ pad:    (v / 96).toFixed(4) }),
-    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
-    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  Neato: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
-    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
-    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  FDP: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    padding:       (v) => ({ pad: (v / 96).toFixed(4) }),
-    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
-    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  SFDP: {
-    routing:       (v) => ({ splines: _guiRoutingToGraphviz(v) }),
-    elementSpacing:(v) => ({ sep: `+${(v / 96).toFixed(4)}` }),
-    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
-    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  Twopi: {
-    layerSpacing:  (v) => ({ ranksep: (v / 96).toFixed(4) }),
-    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
-    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-  Circo: {
-    elementSpacing:(v) => ({ mindist: (v / 96).toFixed(4) }),
-    maxWidth:      (v) => v > 0 ? { size: `${(v/96).toFixed(3)},999` } : {},
-    maxHeight:     (v) => v > 0 ? { size: `999,${(v/96).toFixed(3)}` } : {},
-    aspectRatio:   (v) => v > 0 ? { ratio: (1/v).toFixed(4) } : {},
-  },
-};
-
-// _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
 
 /**
  * Render a {key: value} object as a DOT graph attribute string.

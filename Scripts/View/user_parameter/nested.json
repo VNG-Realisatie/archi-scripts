@@ -1,33 +1,41 @@
 {
   "name": "nested",
-  "algorithm": "Layered",
+  "algorithm": "Pack",
   "params": {
-    "direction": "Left → Right",
+    "direction": "Right",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
+    "acyclicer": "Default",
     "reverseRelationTypes": [
       "realization-relationship",
       "serving-relationship",
       "specialization-relationship"
     ],
     "nestingRelationTypes": [
-      "aggregation-relationship",
-      "influence-relationship",
-      "specialization-relationship"
+      "aggregation-relationship"
     ],
-    "innerSpacing": 20,
+    "innerSpacing": 10,
     "padding": 20,
+    "diagramPadding": 20,
     "sortContainers": true,
-    "alignSameType": false,
-    "showInEveryContainer": false,
+    "alignWidthSameType": true,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
     "layerSpacing": 20,
     "elementSpacing": 40,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 40,
+    "nodeSizeByEdgeCount": 25,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 0,
-    "aspectRatio": 0
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [],
@@ -35,12 +43,68 @@
     "diagramTypes": []
   },
   "relatedElements": {
-    "layers": []
+    "steps": []
   },
   "view": {
-    "name": "",
-    "suffix": "",
-    "folder": ""
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "folder": "/_Generated"
   },
-  "action": "layout_only"
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 10,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "rootColor": "",
+      "lightenPerLevel": 35
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      }
+    ]
+  },
+  "_lastTabIndex": 2,
+  "description": "",
+  "action": "new_view"
 }

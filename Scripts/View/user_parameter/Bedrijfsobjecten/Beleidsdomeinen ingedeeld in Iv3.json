@@ -1,0 +1,131 @@
+{
+  "name": "Bedrijfsobjecten/Beleidsdomeinen ingedeeld in Iv3",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship"
+    ],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "diagramPadding": 20,
+    "sortContainers": true,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": true,
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 180,
+    "elementSpacing": 10,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
+    "nodeSizeByEdgeCount": 20,
+    "elementWidth": 240,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "edgeLabelSpacing": true
+  },
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "grouping"
+    ],
+    "relationTypes": [
+      "aggregation-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "depth": 5,
+        "elementTypes": [
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": [],
+        "propFilter": {
+          "key": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "view": {
+    "name": "GEMMA domeinen",
+    "folder": "/_Generated/Domeinen"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "GEMMA type",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": true,
+      "rootFontSize": 12,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 35
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      }
+    ]
+  },
+  "_lastTabIndex": 0,
+  "description": "Preset met startconfiguratie\n",
+  "action": "new_view"
+}

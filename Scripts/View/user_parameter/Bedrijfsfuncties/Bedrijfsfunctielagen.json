@@ -1,0 +1,120 @@
+{
+  "name": "Bedrijfsfuncties/Bedrijfsfunctielagen",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [
+      "realization-relationship",
+      "serving-relationship",
+      "specialization-relationship"
+    ],
+    "nestingRelationTypes": [
+      "access-relationship",
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 10,
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 180,
+    "elementSpacing": 10,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
+    "nodeSizeByEdgeCount": 25,
+    "elementWidth": 240,
+    "elementHeight": 30,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false
+  },
+  "filter": {
+    "elementTypes": [
+      "business-object",
+      "business-function"
+    ],
+    "relationTypes": [
+      "access-relationship",
+      "aggregation-relationship"
+    ],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "depth": 1,
+        "elementTypes": [
+          "business-object",
+          "business-function"
+        ],
+        "relationTypes": [
+          "access-relationship:out",
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Bedrijfsfunctie lagen",
+    "folder": "/_Generated"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "_lastTabIndex": 0,
+  "description": "Selecteer bedrijfsfunctie bedrijfsfunctielagen en genereer startview",
+  "action": "new_view"
+}

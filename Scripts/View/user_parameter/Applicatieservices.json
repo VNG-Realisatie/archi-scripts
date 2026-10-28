@@ -1,0 +1,119 @@
+{
+  "name": "Applicatieservices",
+  "algorithm": "Pack",
+  "params": {
+    "direction": "Right",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseRelationTypes": [],
+    "nestingRelationTypes": [
+      "aggregation-relationship"
+    ],
+    "innerSpacing": 20,
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": true,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
+    "showInEveryContainer": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
+    "nodeSizeByEdgeCount": 25,
+    "elementWidth": 240,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false
+  },
+  "filter": {
+    "elementTypes": [
+      "grouping"
+    ],
+    "relationTypes": [],
+    "diagramTypes": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "depth": 1,
+        "elementTypes": [
+          "grouping"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      },
+      {
+        "depth": 1,
+        "elementTypes": [
+          "application-service"
+        ],
+        "relationTypes": [
+          "aggregation-relationship:out"
+        ],
+        "diagramTypes": []
+      }
+    ]
+  },
+  "view": {
+    "name": "Sociaal domein",
+    "folder": "/_Generated/Applicatieservices"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": true,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "_lastTabIndex": 0,
+  "description": "Selecteer een GEMMA domein en genereer het applicatieservicesmodel",
+  "action": "new_view"
+}

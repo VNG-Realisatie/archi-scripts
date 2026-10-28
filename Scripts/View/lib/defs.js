@@ -13,19 +13,53 @@ console.log("Loading defs.js");
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PROP_ID = "Object ID";
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const STYLES = Object.freeze({
   Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models." },
   Hierarchy: { algorithms: ["Tree", "Twopi"],                                tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
-  Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],     tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
+  Network:   { algorithms: ["Force", "Stress", "Neato", "FDP", "SFDP"],      tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
   Circular:  { algorithms: ["Radial", "Circo"],                              tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
   Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
 });
 
+// ── Algorithm param groups ────────────────────────────────────────────────────
+// Shared groups spread into activeParams arrays; each algorithm shows only its unique additions.
+
+// Active in every algorithm — not algorithm-specific.
+const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding"]);
+
+// ELK full-nesting controls — Layered, Tree, Grid, Pack.
+const PARAMS_ELK_NESTING = Object.freeze([
+  "nestingRelationTypes", "padding",
+  "sortContainers", "alignWidthSameType", "alignDebug",
+  "showInEveryContainer", "containerAlgorithm",
+]);
+
+// View-size params — maxWidth + aspectRatio, all algorithms that support it (Pack excluded — no maxWidth).
+const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
+
+// Graphviz cluster-nesting controls — Dot, Neato, FDP.
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingRelationTypes", "innerSpacing"]);
+
+// Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
+const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
+const LP_ELK           = Object.freeze(["Source", "Middle", "Target"]);
+const LP_GV            = Object.freeze(["Source", "Middle", "Target", "Natural"]);
+const ROUTING_GV_POLY  = Object.freeze(["Polyline", "Straight", "Spline (approximated)"]);
+
+// View-size paramConflicts — aspectRatio and maxWidth are mutually exclusive.
+// Single constant covers all algorithms (maxHeight removed).
+const CONFLICTS_VIEW = Object.freeze({ aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] });
+
 // ── Algorithms ────────────────────────────────────────────────────────────────
 // supportsNesting: "full" | "partial" | "cluster" | "none"
-// activeParams: GUI param keys active for this algorithm (others greyed out)
+// activeParams: GUI param keys active for this algorithm (others greyed out).
+//   Spreads ALWAYS_ACTIVE_PARAMS and shared group constants; remaining entries are algorithm-specific.
 // supportedOptions: allowed values per select-type param (undefined = free value)
 // engineAlgorithmId: engine-internal identifier
 // labelPositionDefault: default for the labelPosition param
@@ -38,20 +72,21 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
-      "direction", "routing", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "showInEveryContainer",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
+      "direction", "routing", "labelPosition", "reverseRelationTypes", "connectionsMode",
+      "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
+      "edgeLabelSpacing",
     ],
     supportedOptions: {
-      direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      routing:       ["Orthogonal", "Polyline", "Splines"],
-      labelPosition: ["Source", "Middle", "Target"],
+      direction:          DIRECTION_VALUES,
+      routing:            ["Orthogonal", "Polyline", "Splines"],
+      labelPosition:      LP_ELK,
+      containerAlgorithm: ["Layered", "Grid", "Pack"],
+      connectionsMode:    ["Between containers", "Crossing containers"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Tree: {
@@ -61,19 +96,18 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "direction", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType", "showInEveryContainer",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio",
+      "elementSpacing", "connectionSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount",
     ],
     supportedOptions: {
-      direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
-      labelPosition: ["Source", "Middle", "Target"],
+      direction:          DIRECTION_VALUES,
+      labelPosition:      LP_ELK,
+      containerAlgorithm: ["Grid", "Pack"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Force: {
@@ -82,7 +116,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // physics-based; self-loops collapse to a point
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Application landscapes and integration networks emphasising emergent connectivity without nesting (ELK)",
@@ -94,7 +128,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Network",
     supportsNesting:      "none",
     supportsSelfLoops:    false,  // stress model has no notion of self-loop distance
-    activeParams:         ["elementSpacing", "elementWidth", "elementHeight", "aspectRatio"],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Dependency maps and impact analysis emphasising relational distance (ELK)",
@@ -106,9 +140,7 @@ const ALGORITHMS = Object.freeze({
     style:                "Circular",
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
-    activeParams:         [
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight", "aspectRatio",
-    ],
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "layerSpacing", "elementSpacing", "aspectRatio"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Domain overviews and hub-and-spoke structures (ELK)",
@@ -121,15 +153,14 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignWidthSameType", "showInEveryContainer",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
+      "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
+      "elementSpacing", "reverseRelationTypes",
     ],
-    supportedOptions:     {},
+    supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
     tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Pack: {
@@ -139,15 +170,16 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "sortContainers", "alignWidthSameType", "showInEveryContainer",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "aspectRatio", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING,
+      "innerSpacing", "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
+      "elementSpacing", "aspectRatio", "reverseRelationTypes",
     ],
-    supportedOptions:     {},
+    supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
     tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
-    paramConflicts: { aspectRatio: ["maxWidth"], maxWidth: ["aspectRatio"] },
+    // maxWidth intentionally absent: nested rectpacking is bottom-up and ignores a target
+    // narrower than its container boxes. Aspect ratio is the only view-size lever.
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Dagre: {
@@ -157,16 +189,16 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "partial",
     supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS,
       "direction", "ranking", "acyclicer", "labelPosition", "reverseRelationTypes",
-      "nestingRelationTypes", "padding",
-      "sortContainers", "alignWidthSameType",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
+      "nestingRelationTypes", "sortContainers",
+      "layerSpacing", "elementSpacing", "connectionSpacing", "nodeSizeByEdgeCount",
     ],
     supportedOptions: {
-      direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
+      direction:     DIRECTION_VALUES,
       ranking:       ["Balanced", "Uniform", "Top-aligned"],
       acyclicer:     ["Default", "Greedy"],
-      labelPosition: ["Source", "Middle", "Target"],
+      labelPosition: LP_ELK,
     },
     labelPositionDefault: "Middle",
     tooltip: "Fast process and application flows with limited nesting support (Dagre)",
@@ -179,23 +211,18 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz routes self-loops natively across all algorithms
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "layerSpacing", "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "layerSpacing", "elementSpacing", "connectionElementSpacing", "nodeSizeByEdgeCount", "reverseRelationTypes",
     ],
     supportedOptions: {
-      direction:     ["Left → Right", "Right → Left", "Top → Bottom", "Bottom → Top"],
+      direction:     DIRECTION_VALUES,
       routing:       ["Orthogonal", "Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Neato: {
@@ -205,22 +232,17 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
-      routing:       ["Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Spring-model layout for undirected networks with partial cluster nesting. No direction control (Graphviz neato)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   FDP: {
@@ -230,22 +252,17 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "cluster",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE, ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "nestingRelationTypes", "innerSpacing", "padding",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      "elementSpacing", "connectionElementSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
-      routing:       ["Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Force-directed layout with better cluster support than Neato. Unique compound edge routing around clusters (Graphviz fdp)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   SFDP: {
@@ -255,21 +272,17 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
       "routing", "labelPosition",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      "elementSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
-      routing:       ["Polyline", "Straight", "Spline (approximated)"],
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      routing:       ROUTING_GV_POLY,
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Scalable force-directed layout for large undirected graphs (100+ nodes). No nesting (Graphviz sfdp)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Twopi: {
@@ -279,20 +292,15 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      "labelPosition",
-      "layerSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio", "reverseRelationTypes",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
+      "labelPosition", "layerSpacing", "reverseRelationTypes",
     ],
     supportedOptions: {
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Radial layout radiating outward from a central root node. No direction control or nesting (Graphviz twopi)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 
   Circo: {
@@ -302,20 +310,15 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "none",
     supportsSelfLoops:    true,   // Graphviz native
     activeParams:         [
-      "labelPosition",
-      "elementSpacing", "elementWidth", "elementHeight",
-      "maxWidth", "maxHeight", "aspectRatio",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_VIEW_SIZE,
+      "labelPosition", "elementSpacing",
     ],
     supportedOptions: {
-      labelPosition: ["Source", "Middle", "Target", "Natural"],
+      labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
     tooltip: "Circular layout placing nodes on concentric circles. Best for ring topologies and cyclic dependency patterns (Graphviz circo)",
-    paramConflicts: {
-      aspectRatio: ["maxWidth", "maxHeight"],
-      maxWidth:    ["aspectRatio", "maxHeight"],
-      maxHeight:   ["aspectRatio", "maxWidth"],
-    },
+    paramConflicts: CONFLICTS_VIEW,
   },
 });
 
@@ -355,10 +358,10 @@ const ROUTING = Object.freeze({
 // ── Directions ────────────────────────────────────────────────────────────────
 
 const DIRECTIONS = Object.freeze([
-  { val: "Left → Right", default: true },
-  { val: "Right → Left" },
-  { val: "Top → Bottom" },
-  { val: "Bottom → Top" },
+  { val: "Right", default: true },
+  { val: "Left" },
+  { val: "Down" },
+  { val: "Up" },
 ]);
 
 // ── Ranking (Dagre only) ──────────────────────────────────────────────────────
@@ -381,10 +384,10 @@ const ACYCLICER = Object.freeze([
 // ── Direction map (shared by Graphviz and Dagre engines) ──────────────────────
 
 const DIRECTION_MAP = Object.freeze({
-  "Left → Right": "LR",
-  "Right → Left": "RL",
-  "Top → Bottom": "TB",
-  "Bottom → Top": "BT",
+  "Right": "LR",
+  "Left":  "RL",
+  "Down":  "TB",
+  "Up":    "BT",
 });
 
 // ── Label positions ───────────────────────────────────────────────────────────
@@ -427,8 +430,9 @@ const RELATION_TYPES = Object.freeze({
 });
 
 // Derived
-const RELATION_TYPE_IDS   = Object.freeze(Object.values(RELATION_TYPES).map(v => v.id));
-const RELATION_WEIGHT_MAP = Object.freeze(Object.fromEntries(Object.values(RELATION_TYPES).map(v => [v.id, v.weight])));
+const RELATION_TYPE_IDS    = Object.freeze(Object.values(RELATION_TYPES).map(v => v.id));
+const RELATION_TYPE_LABELS = Object.freeze(Object.values(RELATION_TYPES).map(v => v.label));
+const RELATION_WEIGHT_MAP  = Object.freeze(Object.fromEntries(Object.values(RELATION_TYPES).map(v => [v.id, v.weight])));
 
 // ── Element types ─────────────────────────────────────────────────────────────
 
@@ -450,6 +454,11 @@ const ELEMENT_TYPES = Object.freeze([
   "technology-service", "value", "work-package",
 ]);
 
+// "business-actor" → "Business Actor"
+const ELEMENT_TYPE_LABELS = Object.freeze(
+  ELEMENT_TYPES.map(t => t.split("-").map(s => s ? s[0].toUpperCase() + s.slice(1) : s).join(" "))
+);
+
 // Set-like frozen object: keys are the jArchi .type strings for visual diagram objects
 // placed on a view canvas. Source list lives in _lib/selection.js (SSOT).
 // Use `type in DIAGRAM_TYPES` to test membership and `Object.keys(DIAGRAM_TYPES)` to iterate.
@@ -462,22 +471,53 @@ const DIAGRAM_TYPES = Object.freeze(
   Object.fromEntries(DIAGRAM_OBJECT_TYPES.map(t => [t, true]))
 );
 
+// Display labels for diagram object types. Excludes "archimate-diagram-model" (internal alias);
+// strips the "diagram-model-" prefix.
+const DIAGRAM_TYPE_LABELS = Object.freeze(
+  Object.keys(DIAGRAM_TYPES)
+    .filter(k => k !== "archimate-diagram-model")
+    .map(k => k.replace("diagram-model-", ""))
+);
+
+// Bidirectional maps between jArchi type IDs and display labels (excludes internal alias).
+const DIAGRAM_TYPE_ID_TO_LABEL = Object.freeze(
+  Object.fromEntries(
+    Object.keys(DIAGRAM_TYPES)
+      .filter(k => k !== "archimate-diagram-model")
+      .map(k => [k, k.replace("diagram-model-", "")])
+  )
+);
+const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
+  Object.fromEntries(Object.entries(DIAGRAM_TYPE_ID_TO_LABEL).map(([k, v]) => [v, k]))
+);
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GENERATED_VIEW_FOLDER = "/View/_Generated";
+const GENERATED_VIEW_FOLDER = "/Views/_Generated";
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
-// Separator inserted between view name and suffix when building the final view name
-const VIEW_NAME_SEPARATOR = " — ";
+// Extra top padding inside container nodes so the container label is not covered by children.
+const CONTAINER_LABEL_CLEARANCE = 30;
 
+// ColorBrewer scheme names supported by Chroma.js.
+// Qualitative schemes (discrete, pastel) come first; sequential/diverging follow.
+// appearance.js uses these for colour interpolation; the UI uses them for combo box population.
+const COLOR_RANGES = Object.freeze([
+  // Qualitative — distinct pastel tones, no gradient:
+  "Pastel1", "Pastel2", "Set2", "Set3",
+  // Sequential — light end kept, dark end trimmed in _colorScale:
+  "Blues", "Greens", "Oranges", "Purples", "Reds", "Greys",
+  // Diverging — light centre; both dark ends trimmed:
+  "RdYlBu", "RdYlGn", "Spectral", "OrRd", "PuBu",
+]);
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
   name:      "",
   algorithm: "Layered",
   params: {
-    direction:             "Left → Right",
+    direction:             "Right",
     routing:               "Orthogonal",
     labelPosition:         "Middle",
     ranking:               "Balanced",
@@ -486,16 +526,27 @@ const DEFAULT_PRESET = Object.freeze({
     nestingRelationTypes:  [],
     innerSpacing:          20,
     padding:               20,
+    diagramPadding:        10,
     sortContainers:        false,
     alignWidthSameType:    false,
+    alignDebug:            false,
+    snapColumnsToGrid:     false,
     showInEveryContainer:  false,
+    containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
+    connectionsMode:       "Between containers",   // "Between containers" | "Crossing containers"
     layerSpacing:          180,
     elementSpacing:        40,
+    connectionSpacing:        20,
+    connectionElementSpacing: 40,
+    nodeSizeByEdgeCount:      25,
     elementWidth:          140,
     elementHeight:         60,
     maxWidth:              0,
-    maxHeight:             0,
     aspectRatio:           0,
+    viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
+    labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
+    labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
+    edgeLabelSpacing:      false,  // treat edge labels as layout constraints in ELK Layered (prevents overlap)
   },
   filter: {
     elementTypes:  [],
@@ -503,20 +554,58 @@ const DEFAULT_PRESET = Object.freeze({
     diagramTypes:  [],
   },
   relatedElements: {
-    layers: [],  // each: { depth: 1, elementTypes: [], relationTypes: [], diagramTypes: [] }
+    steps: [],  // each: { depth, elementTypes, relationTypes, diagramTypes, propFilter: { key, value } }
   },
   view: {
     name:   "",
-    suffix: "",  // DEPRECATED — no longer surfaced in dialog; honoured at generation for legacy presets only. See ARCHITECTURE.md §A.12.
     folder: "",
+  },
+  appearance: {
+    styleByProperty: {
+      element:  { enabled: false, elementType: "", property: "", colorRange: "Blues" },
+      relation: { enabled: false, relTypes: [], property: "", colorRange: "Reds", lineWidth: 0 },
+    },
+    styleByRelatedProperty: { enabled: false, relTypes: [], property: "", colorRange: "OrRd" },
+    styleByConnectedElement: {
+      enabled: false, relTypes: [], elementType: "", property: "",
+      colorRange: "Purples", conflictColor: "#FF6B35",
+    },
+    nestingLevel: {
+      fontEnabled:        false,
+      rootFontSize:       14,
+      rootFontBold:       true,
+      fontDecreasePerLevel: 2,
+      colorEnabled:       false,
+      rootColor:          "",
+      lightenPerLevel:     15,
+    },
+    highlightRepeated: { enabled: false, colorRange: "Pastel1" },
+  },
+  engineParams: {},  // overrides only — defaults live in each adapter (elk.js, dagre.js, graphviz.js) and engine-utils.js
+  viewProperties: {
+    addObjectId: false,
+    properties:  [],  // [{ key, value, enabled }] — enabled rows are written to the view on generation
   },
 });
 
-// ── Engine parameter mapping (GUI param → engine param) ───────────────────────
-// Engine parameter mappings have moved to the engine adapters:
-//   ELK params    → Scripts/View/lib/engines/elk.js    (PARAM_MAPPING)
-//   Dagre params  → Scripts/View/lib/engines/dagre.js  (PARAM_MAPPING)
-//   Graphviz params → Scripts/View/lib/engines/graphviz.js  (PARAM_MAPPING)
+// ── Label-based node sizing defaults ─────────────────────────────────────────
+// Fallback tuning values for sizeLabelBasedNodes (engine-utils.js).
+// labelMaxLineWidth is also a GUI-exposed params key (DEFAULT_PRESET.params) and
+// takes priority when set; the remaining keys are engineParams.layout-only.
+const LABEL_SIZING_DEFAULTS = Object.freeze({
+  labelCharWidth:    8,
+  labelLineHeight:  24,
+  labelHPadding:    16,
+  labelVPadding:     8,
+  labelMaxLineWidth: 400,
+  labelMinWidth:    60,
+  labelMinHeight:   30,
+});
+
+// Forced layer spacing (px) used by ELK Layered when edgeLabelSpacing is on.
+// Overrides the user's Layer spacing spinner so ELK has enough room between
+// layers to route connections around their labels without manual tuning.
+const EDGE_LABEL_LAYER_SPACING = 20;
 
 // ── Relation-direction encoding ───────────────────────────────────────────────
 // Encoded forms (per Phase 2 / Scripts/View/CLAUDE.md):
@@ -563,8 +652,11 @@ function validatePreset(raw) {
 
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
-    for (const [key, val] of Object.entries(raw.params)) {
+    for (const [key, rawVal] of Object.entries(raw.params)) {
       if (!(key in DEFAULT_PRESET.params)) continue;  // unknown key ignored
+      // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.
+      const _DIR_MIGRATE = { "Left → Right": "Right", "Right → Left": "Left", "Top → Bottom": "Down", "Bottom → Top": "Up" };
+      const val = (key === "direction" && _DIR_MIGRATE[rawVal]) ? _DIR_MIGRATE[rawVal] : rawVal;
       const opts = alg.supportedOptions[key];
       if (opts && !opts.includes(val)) {
         console.log(`Warning: param "${key}" value "${val}" not supported by ${preset.algorithm}. Using default.`);
@@ -587,21 +679,103 @@ function validatePreset(raw) {
     if (Array.isArray(raw.filter.diagramTypes))  preset.filter.diagramTypes  = raw.filter.diagramTypes;
   }
 
-  // relatedElements
-  if (raw.relatedElements && Array.isArray(raw.relatedElements.layers)) {
-    preset.relatedElements.layers = raw.relatedElements.layers.map(layer => ({
-      depth:         Number(layer.depth)         || 1,
-      elementTypes:  Array.isArray(layer.elementTypes)  ? layer.elementTypes  : [],
-      relationTypes: Array.isArray(layer.relationTypes) ? layer.relationTypes : [],
-      diagramTypes:  Array.isArray(layer.diagramTypes)  ? layer.diagramTypes  : [],
+  // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
+  if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
+    preset.relatedElements.steps = raw.relatedElements.steps.map(step => ({
+      depth:         Number(step.depth)         || 1,
+      elementTypes:  Array.isArray(step.elementTypes)  ? step.elementTypes  : [],
+      relationTypes: Array.isArray(step.relationTypes) ? step.relationTypes : [],
+      diagramTypes:  Array.isArray(step.diagramTypes)  ? step.diagramTypes  : [],
+      propFilter:    (step.propFilter && typeof step.propFilter === "object")
+                       ? { key: String(step.propFilter.key || ""), value: String(step.propFilter.value || "") }
+                       : { key: "", value: "" },
     }));
   }
 
   // view
   if (raw.view && typeof raw.view === "object") {
     if (raw.view.name   !== undefined) preset.view.name   = String(raw.view.name);
-    if (raw.view.suffix !== undefined) preset.view.suffix = String(raw.view.suffix);
     if (raw.view.folder !== undefined) preset.view.folder = String(raw.view.folder);
+  }
+
+  // appearance
+  if (raw.appearance && typeof raw.appearance === "object") {
+    const ra = raw.appearance;
+    const pa = preset.appearance;
+
+    if (ra.styleByProperty && typeof ra.styleByProperty === "object") {
+      if (ra.styleByProperty.element && typeof ra.styleByProperty.element === "object") {
+        const re = ra.styleByProperty.element;
+        if (typeof re.enabled    === "boolean") pa.styleByProperty.element.enabled    = re.enabled;
+        if (typeof re.elementType === "string") pa.styleByProperty.element.elementType = re.elementType;
+        if (typeof re.property   === "string")  pa.styleByProperty.element.property   = re.property;
+        if (typeof re.colorRange === "string")  pa.styleByProperty.element.colorRange  = re.colorRange;
+      }
+      if (ra.styleByProperty.relation && typeof ra.styleByProperty.relation === "object") {
+        const rr = ra.styleByProperty.relation;
+        if (typeof rr.enabled    === "boolean") pa.styleByProperty.relation.enabled   = rr.enabled;
+        if (Array.isArray(rr.relTypes))         pa.styleByProperty.relation.relTypes  = rr.relTypes;
+        if (typeof rr.property   === "string")  pa.styleByProperty.relation.property  = rr.property;
+        if (typeof rr.colorRange === "string")  pa.styleByProperty.relation.colorRange = rr.colorRange;
+        if (typeof rr.lineWidth  === "number")  pa.styleByProperty.relation.lineWidth  = Math.max(0, Math.min(3, Math.round(rr.lineWidth)));
+        if (typeof rr.resize     === "boolean") pa.styleByProperty.relation.lineWidth  = rr.resize ? 1 : 0; // back-compat: old boolean → 0 or 1
+      }
+    }
+
+    if (ra.styleByRelatedProperty && typeof ra.styleByRelatedProperty === "object") {
+      const rp = ra.styleByRelatedProperty;
+      if (typeof rp.enabled    === "boolean") pa.styleByRelatedProperty.enabled    = rp.enabled;
+      if (Array.isArray(rp.relTypes))         pa.styleByRelatedProperty.relTypes   = rp.relTypes;
+      if (typeof rp.property   === "string")  pa.styleByRelatedProperty.property   = rp.property;
+      if (typeof rp.colorRange === "string")  pa.styleByRelatedProperty.colorRange = rp.colorRange;
+    }
+
+    if (ra.styleByConnectedElement && typeof ra.styleByConnectedElement === "object") {
+      const rc = ra.styleByConnectedElement;
+      if (typeof rc.enabled      === "boolean") pa.styleByConnectedElement.enabled      = rc.enabled;
+      if (Array.isArray(rc.relTypes))           pa.styleByConnectedElement.relTypes      = rc.relTypes;
+      if (typeof rc.elementType  === "string")  pa.styleByConnectedElement.elementType   = rc.elementType;
+      if (typeof rc.property     === "string")  pa.styleByConnectedElement.property      = rc.property;
+      if (typeof rc.colorRange   === "string")  pa.styleByConnectedElement.colorRange    = rc.colorRange;
+      if (typeof rc.conflictColor === "string") pa.styleByConnectedElement.conflictColor = rc.conflictColor;
+    }
+
+    if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
+      const rn = ra.nestingLevel;
+      if (typeof rn.fontEnabled          === "boolean") pa.nestingLevel.fontEnabled          = rn.fontEnabled;
+      if (typeof rn.rootFontSize         === "number")  pa.nestingLevel.rootFontSize         = rn.rootFontSize;
+      if (typeof rn.rootFontBold         === "boolean") pa.nestingLevel.rootFontBold         = rn.rootFontBold;
+      if (typeof rn.fontDecreasePerLevel === "number")  pa.nestingLevel.fontDecreasePerLevel = rn.fontDecreasePerLevel;
+      if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
+      if (typeof rn.rootColor            === "string")  pa.nestingLevel.rootColor            = rn.rootColor;
+      if (typeof rn.lightenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.lightenPerLevel;
+      else if (typeof rn.darkenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.darkenPerLevel; // migration
+    }
+
+    if (ra.highlightRepeated && typeof ra.highlightRepeated === "object") {
+      const rh = ra.highlightRepeated;
+      if (typeof rh.enabled    === "boolean") pa.highlightRepeated.enabled    = rh.enabled;
+      if (typeof rh.colorRange === "string")  pa.highlightRepeated.colorRange = rh.colorRange;
+    }
+  }
+
+  // engineParams: pass overrides through as-is; adapters/utils merge with their own defaults.
+  if (raw.engineParams && typeof raw.engineParams === "object")
+    preset.engineParams = raw.engineParams;
+
+  // viewProperties
+  if (raw.viewProperties && typeof raw.viewProperties === "object") {
+    const rv = raw.viewProperties;
+    if (typeof rv.addObjectId === "boolean") preset.viewProperties.addObjectId = rv.addObjectId;
+    if (Array.isArray(rv.properties)) {
+      preset.viewProperties.properties = rv.properties
+        .filter(p => p && typeof p.key === "string" && p.key !== PROP_ID)
+        .map(p => ({
+          key:     String(p.key),
+          value:   p.value !== undefined ? String(p.value) : "",
+          enabled: typeof p.enabled === "boolean" ? p.enabled : false,
+        }));
+    }
   }
 
   return preset;
@@ -619,10 +793,14 @@ function validatePreset(raw) {
 function effectiveParams(preset) {
   const alg = ALGORITHMS[preset.algorithm];
   if (!alg) return {};
-  const active = new Set(alg.activeParams || []);
+  const active       = new Set(alg.activeParams || []);
+  const viewSizeMode = (preset.params && preset.params.viewSizeMode) || "none";
+  const conflictKeys = new Set(Object.keys(alg.paramConflicts || {}));
   const out = {};
-  for (const key of Object.keys(preset.params)) {
-    if (active.has(key)) out[key] = preset.params[key];
+  for (const key of Object.keys(preset.params || {})) {
+    if (key === "viewSizeMode") continue;
+    if (!active.has(key))       continue;
+    out[key] = (conflictKeys.has(key) && key !== viewSizeMode) ? 0 : preset.params[key];
   }
   return out;
 }
@@ -633,11 +811,16 @@ if (typeof module !== "undefined" && module.exports) {
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
     RANKING, ACYCLICER, LABEL_POSITIONS, AR_OPTIONS,
-    RELATION_TYPES, RELATION_TYPE_IDS, RELATION_WEIGHT_MAP,
-    ELEMENT_TYPES, DIAGRAM_TYPES,
-    GENERATED_VIEW_FOLDER, SESSION_FILENAME,
-    SPLINE_SAMPLE_POINTS, VIEW_NAME_SEPARATOR,
+    RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
+    ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
+    DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
+    PROP_ID,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
+    SPLINE_SAMPLE_POINTS,
+    CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
+    LABEL_SIZING_DEFAULTS,
+    EDGE_LABEL_LAYER_SPACING,
     validatePreset, effectiveParams,
     encodeRelType, decodeRelType,
   };

@@ -1,0 +1,570 @@
+/**
+ * Appearance pass — post-write visual styling for generated views.
+ *
+ * Called from generate_view.js after _writeView. Applies fill colours, fonts,
+ * and line widths to VisualElements/VisualConnections based on preset.appearance.
+ *
+ * Rule precedence (later overrides earlier for the same VO):
+ *   nestingLevel → highlightRepeated → styleByProperty → styleByRelatedProperty → styleByConnectedElement
+ *
+ * Reset on disable: when a feature is disabled and the action is layout_only or
+ * expand_view, the elements that feature would have styled are reset to Archi defaults
+ * (fillColor = null, font = Segoe UI 9 normal, lineWidth = 1).
+ */
+console.log("Loading appearance.js");
+
+const REPO_ROOT = (() => {
+  const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/");
+  return p.substring(0, i === -1 ? p.length : i + 9);
+})();
+
+const Chroma = require("chroma-js");
+const Defs   = require(REPO_ROOT + "View/lib/defs");
+const { decodeRelType, COLOR_RANGES } = Defs;
+
+// Qualitative schemes are discrete colour sets; padding is meaningless on them.
+const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
+
+// Archi default font — used when resetting.
+const DEFAULT_FONT_NAME  = "Segoe UI";
+const DEFAULT_FONT_SIZE  = 9;
+const DEFAULT_FONT_STYLE = "normal";
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+// actionId: "new_view" | "one_each" | "expand_view" | "layout_only"
+// Reset-on-disable applies only when actionId is "layout_only" or "expand_view".
+function applyAppearance(view, preset, actionId) {
+  const app  = preset.appearance;
+  const isModify = actionId === "layout_only" || actionId === "expand_view";
+  const nl   = app.nestingLevel;
+  const hr   = app.highlightRepeated;
+  const sbp  = app.styleByProperty;
+  const sbpe = sbp.element;
+  const sbpr = sbp.relation;
+  const sbrp = app.styleByRelatedProperty;
+  const sbce = app.styleByConnectedElement;
+
+  const anyEnabled =
+    nl.fontEnabled || nl.colorEnabled || hr.enabled ||
+    (sbpe.enabled && sbpe.property) ||
+    (sbpr.enabled && sbpr.property) ||
+    (sbrp.enabled && sbrp.property) ||
+    (sbce.enabled && sbce.property);
+
+  if (!anyEnabled && !isModify) return;
+
+  console.log(`\nAppearance (${actionId || "?"})`);
+  const hasNestingTypes = preset.params.nestingRelationTypes.length > 0;
+  if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
+    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  lighten=${nl.lightenPerLevel}%/level`);
+  if (hr.enabled)
+    console.log(`  highlightRepeated  range=${hr.colorRange}`);
+  if (sbpe.enabled && sbpe.property)
+    console.log(`  styleByProperty.element  prop="${sbpe.property}"  type="${sbpe.elementType||"any"}"  range=${sbpe.colorRange}`);
+  if (sbpr.enabled && sbpr.property)
+    console.log(`  styleByProperty.relation  prop="${sbpr.property}"  resize=${sbpr.resize}  range=${sbpr.colorRange}`);
+  if (sbrp.enabled && sbrp.property)
+    console.log(`  styleByRelatedProperty  prop="${sbrp.property}"  relTypes=[${sbrp.relTypes.join(",")}]  range=${sbrp.colorRange}`);
+  if (sbce.enabled && sbce.property)
+    console.log(`  styleByConnectedElement  prop="${sbce.property}"  relTypes=[${sbce.relTypes.join(",")}]  range=${sbce.colorRange}`);
+
+  const depths = _computeViewDepths(view);
+  console.log(`  view: ${depths.depthById.size} VOs  maxContainerDepth=${depths.maxContainerDepth}`);
+
+  // VOs colored by an active feature are protected from being cleared by later disabled-feature
+  // resets (which would otherwise overwrite earlier colors). Built incrementally: each active
+  // feature adds its styled VO ids so subsequent resets can skip them.
+  const styledVoIds = new Set();
+
+  _applyNestingLevel(view, nl, depths, isModify, styledVoIds);
+  _applyHighlightRepeated(view, hr, isModify, styledVoIds);
+  _applyStyleByProperty(view, sbpe, sbpr, isModify, styledVoIds);
+  _applyStyleByRelatedProperty(view, sbrp, isModify, styledVoIds);
+  _applyStyleByConnectedElement(view, sbce, isModify, styledVoIds);
+}
+
+// ── Depth computation ─────────────────────────────────────────────────────────
+
+// Returns { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth }.
+// All maps are keyed by VO id (string) — jArchi creates new proxy objects on each
+// find() call, so reference equality cannot be used as a Map key.
+//
+// inSameTypeChainById — true when a VO (container or leaf) is in an unbroken same-element-type
+// chain from its depth-0 root ancestor (see "Type chain rule" in ARCHITECTURE.md).
+// rootIdById — maps each in-chain VO to the VO id of its depth-0 chain root (null if not in chain).
+function _computeViewDepths(view) {
+  const depthById       = new Map();
+  const isContainerById = new Map();
+  const parentIdById    = new Map();  // voId → parent voId | null
+  const elementTypeById = new Map();  // voId → vo.concept.type | null
+  let maxContainerDepth = 0;
+
+  $(view).find("element").each(vo => {
+    if (!vo.id) return;
+    const depth = _voDepth(vo);
+    depthById.set(vo.id, depth);
+    const isContainer = $(vo).children("element").length > 0;
+    isContainerById.set(vo.id, isContainer);
+    if (isContainer && depth > maxContainerDepth) maxContainerDepth = depth;
+    const parentVo = $(vo).parent().filter("element").first();
+    parentIdById.set(vo.id, parentVo ? String(parentVo.id) : null);
+    elementTypeById.set(vo.id, (vo.concept && vo.concept.type) || null);
+  });
+
+  // Compute inSameTypeChainById and rootIdById top-down (shallowest first).
+  // A VO is in the chain iff its element type equals that of its depth-0 root
+  // ancestor AND every ancestor between them is also in the chain.
+  // Stops propagating as soon as a type mismatch is encountered ("stop the tree").
+  const inSameTypeChainById = new Map();
+  const rootIdById          = new Map();  // voId → depth-0 root VO id | null
+  const byDepth = [...depthById.entries()].sort((a, b) => a[1] - b[1]);
+  for (const [voId, depth] of byDepth) {
+    if (!isContainerById.get(voId)) {
+      // Leaf: in chain only if its parent container is in the chain and types match.
+      // Depth-0 leaves (no parent container) never start a chain.
+      const parentId = parentIdById.get(voId);
+      if (!parentId) { inSameTypeChainById.set(voId, false); rootIdById.set(voId, null); continue; }
+      const parentInChain = inSameTypeChainById.get(parentId) === true;
+      const voType        = elementTypeById.get(voId);
+      const parentType    = elementTypeById.get(parentId);
+      const inChain = parentInChain && !!(voType && voType === parentType);
+      inSameTypeChainById.set(voId, inChain);
+      rootIdById.set(voId, inChain ? rootIdById.get(parentId) : null);
+      continue;
+    }
+    if (depth === 0)   { inSameTypeChainById.set(voId, true); rootIdById.set(voId, voId); continue; }
+    const parentId      = parentIdById.get(voId);
+    if (!parentId)      { inSameTypeChainById.set(voId, true); rootIdById.set(voId, voId); continue; }
+    const parentInChain = inSameTypeChainById.get(parentId) === true;
+    const voType        = elementTypeById.get(voId);
+    const parentType    = elementTypeById.get(parentId);
+    const inChain = parentInChain && !!(voType && voType === parentType);
+    inSameTypeChainById.set(voId, inChain);
+    rootIdById.set(voId, inChain ? rootIdById.get(parentId) : null);
+  }
+
+  return { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth };
+}
+
+function _voDepth(vo) {
+  let depth = 0;
+  let p = $(vo).parent().filter("element").first();
+  while (p) { depth++; p = $(p).parent().filter("element").first(); }
+  return depth;
+}
+
+// ── Style by nesting level ────────────────────────────────────────────────────
+
+function _applyNestingLevel(view, settings, depths, isModify, styledVoIds) {
+  const { depthById, isContainerById, inSameTypeChainById, rootIdById, maxContainerDepth } = depths;
+  let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
+
+  const rootFontSize       = settings.rootFontSize        !== undefined ? settings.rootFontSize        : 14;
+  const rootFontBold       = settings.rootFontBold        !== undefined ? settings.rootFontBold        : true;
+  const fontDecPerLevel    = settings.fontDecreasePerLevel !== undefined ? settings.fontDecreasePerLevel : 2;
+  const lightenPerLevel     = settings.lightenPerLevel       !== undefined ? settings.lightenPerLevel       : 15;
+  const fallbackColor      = settings.rootColor || null;
+
+  // Snapshot fill colors of depth-0 chain roots before any modification so that
+  // each chain's gradient is anchored to the root container's existing fill color.
+  const chainRootFillById = new Map();  // rootVoId → fill color string | null
+  $(view).find("element").each(vo => {
+    if (!vo.id) return;
+    if (depthById.get(vo.id) === 0 && inSameTypeChainById.get(vo.id) === true)
+      chainRootFillById.set(vo.id, vo.fillColor || null);
+  });
+
+  // Returns the gradient anchor color for a VO: its chain root's current fill, or fallbackColor.
+  // Returns null when neither is available — those VOs are skipped.
+  const anchorColor = voId => {
+    const rootId = rootIdById ? rootIdById.get(voId) : null;
+    return (rootId ? chainRootFillById.get(rootId) : null) || fallbackColor;
+  };
+
+  $(view).find("element").each(vo => {
+    if (!vo.id) return;
+    const depth       = depthById.get(vo.id);
+    const isContainer = isContainerById.get(vo.id);
+    const inChain     = inSameTypeChainById.get(vo.id) === true;
+    if (depth === undefined) return;
+
+    // Font: root gets rootFontSize (+ bold if rootFontBold), each deeper level decreases
+    // by fontDecPerLevel pt, clamped at DEFAULT_FONT_SIZE.
+    // Only containers in the same-type chain from their root ancestor are affected.
+    if (settings.fontEnabled && isContainer && inChain) {
+      const size = Math.max(DEFAULT_FONT_SIZE, rootFontSize - depth * fontDecPerLevel);
+      if (size > DEFAULT_FONT_SIZE || (depth === 0 && rootFontBold)) {
+        vo.fontName  = DEFAULT_FONT_NAME;
+        vo.fontSize  = size;
+        vo.fontStyle = (depth === 0 && rootFontBold) ? "bold" : DEFAULT_FONT_STYLE;
+        fontSet++;
+      }
+    } else if (!settings.fontEnabled && isModify && isContainer && inChain) {
+      const wouldHaveSize = Math.max(DEFAULT_FONT_SIZE, rootFontSize - depth * fontDecPerLevel);
+      if (wouldHaveSize > DEFAULT_FONT_SIZE || (depth === 0 && rootFontBold)) {
+        vo.fontName  = DEFAULT_FONT_NAME;
+        vo.fontSize  = DEFAULT_FONT_SIZE;
+        vo.fontStyle = DEFAULT_FONT_STYLE;
+        fontReset++;
+      }
+    }
+
+    // Color: each chain uses its depth-0 root container's current fill color as the
+    // gradient anchor (darkest). Deeper elements are lightened by depth × lightenPerLevel%.
+    // Falls back to settings.rootColor when the root has no fill set.
+    // Containers and same-type leaves in the chain are affected.
+    if (settings.colorEnabled && inChain) {
+      const anchor = anchorColor(vo.id);
+      if (anchor) {
+        const lightenFactor = depth * (lightenPerLevel / 100);
+        vo.fillColor = _lightenHex(anchor, lightenFactor);
+        styledVoIds.add(vo.id);
+        colorSet++;
+      }
+    } else if (!settings.colorEnabled && isModify && inChain) {
+      vo.fillColor = null;
+      colorReset++;
+    }
+  });
+
+  if (settings.fontEnabled  || fontReset  > 0) console.log(`  nestingLevel font:  ${fontSet} set  ${fontReset} reset`);
+  if (settings.colorEnabled || colorReset > 0) console.log(`  nestingLevel color: ${colorSet} set  ${colorReset} reset`);
+}
+
+// ── Highlight repeated elements ───────────────────────────────────────────────
+
+function _applyHighlightRepeated(view, settings, isModify, styledVoIds) {
+  const byConceptId = new Map();
+  $(view).find("element").each(vo => {
+    if (!vo.concept) return;
+    const id = vo.concept.id;
+    if (!byConceptId.has(id)) byConceptId.set(id, []);
+    byConceptId.get(id).push(vo);
+  });
+
+  const multiIds = [];
+  byConceptId.forEach((vos, id) => { if (vos.length > 1) multiIds.push(id); });
+
+  if (settings.enabled) {
+    if (multiIds.length === 0) { console.log(`  highlightRepeated: 0 multi-occurrence elements`); return; }
+    const colors = _colorScale(settings.colorRange, multiIds.length);
+    let n = 0;
+    multiIds.forEach((id, i) => { byConceptId.get(id).forEach(vo => { vo.fillColor = colors[i]; styledVoIds.add(vo.id); n++; }); });
+    console.log(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
+  } else if (isModify && settings.colorRange && multiIds.length > 0) {
+    let n = 0;
+    multiIds.forEach(id => { byConceptId.get(id).forEach(vo => { vo.fillColor = null; n++; }); });
+    console.log(`  highlightRepeated: ${n} VOs reset`);
+  }
+}
+
+// ── Style by property ─────────────────────────────────────────────────────────
+
+function _applyStyleByProperty(view, elemSettings, relSettings, isModify, styledVoIds) {
+  _applyStyleByPropertyElement(view, elemSettings, isModify, styledVoIds);
+  _applyStyleByPropertyRelation(view, relSettings, isModify);
+}
+
+function _applyStyleByPropertyElement(view, settings, isModify, styledVoIds) {
+  const vos = [];
+  $(view).find("element").each(vo => {
+    if (settings.elementType && vo.type !== settings.elementType) return;
+    vos.push(vo);
+  });
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify) {
+      let n = 0;
+      vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } });
+      if (n > 0) console.log(`  styleByProperty.element: ${n} VOs reset`);
+    }
+    return;
+  }
+
+  console.log(`  styleByProperty.element: ${vos.length} VOs match type "${settings.elementType||"any"}"`);
+
+  const valueSet = new Set();
+  vos.forEach(vo => {
+    const val = vo.prop(settings.property);
+    if (val !== null && val !== undefined && val !== "") valueSet.add(String(val));
+  });
+  const uniqueValues = Array.from(valueSet).sort((a, b) => a.localeCompare(b));
+  console.log(`  styleByProperty.element: "${settings.property}" — ${uniqueValues.length} unique values: [${uniqueValues.join(", ")}]`);
+
+  if (uniqueValues.length === 0) return;
+
+  const colors   = _colorScale(settings.colorRange, uniqueValues.length);
+  const colorMap = {};
+  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
+
+  let n = 0;
+  vos.forEach(vo => {
+    const val = vo.prop(settings.property);
+    if (val !== null && val !== undefined && val !== "") { vo.fillColor = colorMap[String(val)]; styledVoIds.add(vo.id); n++; }
+  });
+  console.log(`  styleByProperty.element: ${n} VOs colored  range=${settings.colorRange}`);
+}
+
+function _applyStyleByPropertyRelation(view, settings, isModify) {
+  // Collect matching visual connections
+  const relFilters = (settings.relTypes || []).map(enc => decodeRelType(enc));
+  const vos = [];
+  $(view).find("relation").each(vc => {
+    if (!vc.type) return;
+    // If relTypes empty → match all; otherwise filter by type
+    if (relFilters.length > 0 && !relFilters.some(f => f.type === vc.type)) return;
+    vos.push(vc);
+  });
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify && vos.length > 0) {
+      vos.forEach(vc => { vc.lineColor = null; vc.lineWidth = 1; });
+      console.log(`  styleByProperty.relation: ${vos.length} VOs reset`);
+    }
+    return;
+  }
+
+  console.log(`  styleByProperty.relation: ${vos.length} connections match`);
+
+  if (vos.length === 0) return;
+
+  const valueSet = new Set();
+  vos.forEach(vc => {
+    const val = vc.prop(settings.property);
+    if (val !== null && val !== undefined && val !== "") valueSet.add(String(val));
+  });
+  const uniqueValues = Array.from(valueSet).sort((a, b) => a.localeCompare(b));
+  if (uniqueValues.length === 0) return;
+
+  const colors   = _colorScale(settings.colorRange, uniqueValues.length);
+  const colorMap = {};
+  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
+
+  const fixedWidth = (settings.lineWidth > 0) ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
+
+  let n = 0;
+  vos.forEach(vc => {
+    const val = vc.prop(settings.property);
+    if (val !== null && val !== undefined && val !== "") {
+      vc.lineColor = colorMap[String(val)];
+      if (fixedWidth > 0) vc.lineWidth = fixedWidth;
+      n++;
+    }
+  });
+  console.log(`  styleByProperty.relation: ${n} connections colored  lineWidth=${fixedWidth || "no change"}  range=${settings.colorRange}`);
+}
+
+// ── Style by related property ─────────────────────────────────────────────────
+
+function _applyStyleByRelatedProperty(view, settings, isModify, styledVoIds) {
+  if (!settings.relTypes || settings.relTypes.length === 0) return;
+
+  const vosByConceptId = new Map();
+  $(view).find("element").each(vo => {
+    if (!vo.concept) return;
+    const id = vo.concept.id;
+    if (!vosByConceptId.has(id)) vosByConceptId.set(id, []);
+    vosByConceptId.get(id).push(vo);
+  });
+
+  const relFilters = settings.relTypes.map(enc => decodeRelType(enc));
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify) {
+      let n = 0;
+      vosByConceptId.forEach((vos, conceptId) => {
+        const el = $(`#${conceptId}`).first();
+        if (!el) return;
+        let hasMatch = false;
+        try { $(el).rels().each(rel => { const isOut = rel.source && rel.source.id === conceptId; if (_matchesRelDir(rel.type, isOut, relFilters)) hasMatch = true; }); } catch (e) {}
+        if (hasMatch) { vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } }); }
+      });
+      if (n > 0) console.log(`  styleByRelatedProperty: ${n} VOs reset`);
+    }
+    return;
+  }
+
+  const elementPropValue = new Map();
+
+  vosByConceptId.forEach((_, conceptId) => {
+    const el = $(`#${conceptId}`).first();
+    if (!el) return;
+    try {
+      $(el).rels().each(rel => {
+        const isOut = rel.source && rel.source.id === conceptId;
+        if (!_matchesRelDir(rel.type, isOut, relFilters)) return;
+        const propVal = rel.prop(settings.property);
+        if (propVal !== null && propVal !== undefined && propVal !== "") {
+          elementPropValue.set(conceptId, String(propVal));
+        }
+      });
+    } catch (e) {
+      console.log(`  styleByRelatedProperty: error reading relations for ${conceptId}: ${e}`);
+    }
+  });
+
+  console.log(`  styleByRelatedProperty: ${elementPropValue.size} elements matched  prop="${settings.property}"`);
+  if (elementPropValue.size === 0) return;
+
+  const uniqueValues = Array.from(new Set(elementPropValue.values())).sort((a, b) => a.localeCompare(b));
+  const colors   = _colorScale(settings.colorRange, uniqueValues.length);
+  const colorMap = {};
+  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
+
+  let n = 0;
+  elementPropValue.forEach((val, conceptId) => {
+    const vos = vosByConceptId.get(conceptId);
+    if (vos) { vos.forEach(vo => { vo.fillColor = colorMap[val]; styledVoIds.add(vo.id); n++; }); }
+  });
+  console.log(`  styleByRelatedProperty: ${n} VOs colored  ${uniqueValues.length} unique values  range=${settings.colorRange}`);
+}
+
+// ── Style by connected element ────────────────────────────────────────────────
+
+function _applyStyleByConnectedElement(view, settings, isModify, styledVoIds) {
+  const relFilters   = (settings.relTypes || []).map(enc => decodeRelType(enc));
+  const targetType   = settings.elementType || "";  // "" = any
+  const conflictColor = settings.conflictColor || "#ff632a";
+
+  // Build a map: viewElement conceptId → visual element VOs
+  const vosByConceptId = new Map();
+  $(view).find("element").each(vo => {
+    if (!vo.concept) return;
+    const id = vo.concept.id;
+    if (!vosByConceptId.has(id)) vosByConceptId.set(id, []);
+    vosByConceptId.get(id).push(vo);
+  });
+
+  if (!settings.enabled || !settings.property) {
+    if (!settings.enabled && isModify) {
+      let n = 0;
+      vosByConceptId.forEach((vos, conceptId) => {
+        const el = $(`#${conceptId}`).first();
+        if (!el) return;
+        let hasMatch = false;
+        try {
+          $(el).rels().each(rel => {
+            const isOut = rel.source && rel.source.id === conceptId;
+            if (relFilters.length > 0 && !_matchesRelDir(rel.type, isOut, relFilters)) return;
+            const otherId = isOut ? (rel.target && rel.target.id) : (rel.source && rel.source.id);
+            if (!otherId || otherId === conceptId) return;
+            const other = $(`#${otherId}`).first();
+            if (!other) return;
+            if (targetType && other.type !== targetType) return;
+            hasMatch = true;
+          });
+        } catch (e) {}
+        if (hasMatch) { vos.forEach(vo => { if (!styledVoIds.has(vo.id)) { vo.fillColor = null; n++; } }); }
+      });
+      if (n > 0) console.log(`  styleByConnectedElement: ${n} VOs reset`);
+    }
+    return;
+  }
+
+  // For each source concept, find connected target concepts via matching relations
+  const sourcePropValue = new Map(); // conceptId → propValue | "__conflict__"
+
+  vosByConceptId.forEach((_, conceptId) => {
+    const el = $(`#${conceptId}`).first();
+    if (!el) return;
+
+    const targets = new Set(); // unique target concept IDs whose property we'll read
+    try {
+      $(el).rels().each(rel => {
+        const isOut = rel.source && rel.source.id === conceptId;
+        if (relFilters.length > 0 && !_matchesRelDir(rel.type, isOut, relFilters)) return;
+        // The "other end" of the relation
+        const otherId = isOut
+          ? (rel.target && rel.target.id)
+          : (rel.source && rel.source.id);
+        if (!otherId || otherId === conceptId) return;
+        const other = $(`#${otherId}`).first();
+        if (!other) return;
+        if (targetType && other.type !== targetType) return;
+        targets.add(otherId);
+      });
+    } catch (e) {
+      console.log(`  styleByConnectedElement: error reading relations for ${conceptId}: ${e}`);
+    }
+
+    if (targets.size === 0) return;
+    if (targets.size > 1) {
+      sourcePropValue.set(conceptId, "__conflict__");
+      return;
+    }
+
+    // Exactly one target
+    const targetId = Array.from(targets)[0];
+    const target   = $(`#${targetId}`).first();
+    if (!target) return;
+    try {
+      const val = target.prop(settings.property);
+      if (val !== null && val !== undefined && val !== "") {
+        sourcePropValue.set(conceptId, String(val));
+      }
+    } catch (e) { console.log(`  styleByConnectedElement: error reading property for ${targetId}: ${e}`); }
+  });
+
+  console.log(`  styleByConnectedElement: ${sourcePropValue.size} source elements matched  prop="${settings.property}"`);
+  if (sourcePropValue.size === 0) return;
+
+  // Build color scale from non-conflict values
+  const uniqueValues = Array.from(
+    new Set(Array.from(sourcePropValue.values()).filter(v => v !== "__conflict__"))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const colors   = _colorScale(settings.colorRange, Math.max(1, uniqueValues.length));
+  const colorMap = {};
+  uniqueValues.forEach((val, i) => { colorMap[val] = colors[i]; });
+
+  let n = 0, conflicts = 0;
+  sourcePropValue.forEach((val, conceptId) => {
+    const vos = vosByConceptId.get(conceptId);
+    if (!vos) return;
+    if (val === "__conflict__") {
+      vos.forEach(vo => { vo.fillColor = conflictColor; styledVoIds.add(vo.id); conflicts++; });
+    } else {
+      vos.forEach(vo => { vo.fillColor = colorMap[val]; styledVoIds.add(vo.id); n++; });
+    }
+  });
+  console.log(`  styleByConnectedElement: ${n} VOs colored  ${conflicts} conflicts  range=${settings.colorRange}`);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function _matchesRelDir(relType, isOut, relFilters) {
+  return relFilters.some(f => {
+    if (f.type !== relType) return false;
+    if (f.inSel && f.outSel) return true;
+    if (f.outSel && isOut)   return true;
+    if (f.inSel  && !isOut)  return true;
+    return false;
+  });
+}
+
+// Build a Chroma colour scale and return n evenly spaced hex strings.
+// Qualitative schemes (Pastel1, Set2, …) are discrete — no padding.
+// Sequential/diverging schemes trim their dark end with padding([0.1, 0.4])
+// to keep colours in the light-to-medium range readable on light backgrounds.
+function _colorScale(rangeName, n) {
+  try {
+    const scale = Chroma.scale(rangeName);
+    if (QUALITATIVE_COLOR_RANGES.has(rangeName)) return scale.colors(n);
+    return scale.padding([0.1, 0.4]).colors(n);
+  } catch (e) {
+    console.log(`appearance: unknown colour range "${rangeName}", falling back to Pastel1`);
+    return Chroma.scale("Pastel1").colors(n);
+  }
+}
+
+// Blend hex colour toward white by factor (0 = unchanged, 1 = white).
+function _lightenHex(hex, factor) {
+  return Chroma.mix(hex || "#000000", "#ffffff", Math.max(0, Math.min(1, factor)), "rgb").hex();
+}
+
+// ── Module exports ────────────────────────────────────────────────────────────
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { applyAppearance };
+}

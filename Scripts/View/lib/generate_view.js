@@ -20,23 +20,26 @@ const REPO_ROOT = (() => {
 const Common       = require(REPO_ROOT + "_lib/Common");
 const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
-const Defs     = require(REPO_ROOT + "View/lib/defs");
-const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Defs       = require(REPO_ROOT + "View/lib/defs");
+const Pipeline   = require(REPO_ROOT + "View/lib/selection_pipeline");
+const Appearance = require(REPO_ROOT + "View/lib/appearance");
 
 const {
-  ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER,
+  ACTION, ALGORITHMS, RELATION_WEIGHT_MAP, GENERATED_VIEW_FOLDER, PROP_ID,
   validatePreset, effectiveParams,
 } = Defs;
 
 const JUNCTION_DIAMETER = 14;
 
-// ── Engine loaders (lazy) ─────────────────────────────────────────────────────
+const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 
-let _elkAdapter = null, _dagreAdapter = null, _graphvizAdapter = null;
+// ── Engine loaders (lazy) ─────────────────────────────────────────────────────
+// require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
+
 function _getAdapter(engine) {
-  if (engine === "ELK")      { if (!_elkAdapter)       _elkAdapter       = require(REPO_ROOT + "View/lib/engines/elk");       return _elkAdapter; }
-  if (engine === "Dagre")    { if (!_dagreAdapter)     _dagreAdapter     = require(REPO_ROOT + "View/lib/engines/dagre");     return _dagreAdapter; }
-  if (engine === "Graphviz") { if (!_graphvizAdapter)  _graphvizAdapter  = require(REPO_ROOT + "View/lib/engines/graphviz");  return _graphvizAdapter; }
+  if (engine === "ELK")      return require(REPO_ROOT + "View/lib/engines/elk");
+  if (engine === "Dagre")    return require(REPO_ROOT + "View/lib/engines/dagre");
+  if (engine === "Graphviz") return require(REPO_ROOT + "View/lib/engines/graphviz");
   throw `Unknown engine: "${engine}"`;
 }
 
@@ -65,11 +68,29 @@ function generate_view(rawPreset, uiSelection, actionId) {
     && !(Array.isArray(_rawParams[k]) && _rawParams[k].length === 0));
   if (_dropped.length) console.log(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
 
-  const timer = Common.startCounter ? Common.startCounter() : null;
-
   console.log(`\n=== generate_view ===`);
-  console.log(`Algorithm: ${preset.algorithm}  Action: ${action}`);
+  console.log(`Action: ${action}`);
+  console.log(`Algorithm: ${preset.algorithm}`);
+  {
+    const p = preset.params;
+    const parts = [
+      p.direction        && `dir=${p.direction}`,
+      p.routing          && `routing=${p.routing}`,
+      p.labelPosition    && `label=${p.labelPosition}`,
+      `spacing=el:${p.elementSpacing ?? "—"} layer:${p.layerSpacing ?? "—"}`,
+      `size=${p.elementWidth ?? "—"}×${p.elementHeight ?? "—"}`,
+      (p.nestingRelationTypes && p.nestingRelationTypes.length) && `nesting=${p.nestingRelationTypes.length}types containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode || "Between containers"}`,
+    ].filter(Boolean);
+    console.log(`Params: ${parts.join("  ")}`);
+  }
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
+  {
+    const vsMode = _rawParams.viewSizeMode || "none";
+    const vsVal  = vsMode === "maxWidth"    ? `maxWidth=${_rawParams.maxWidth}`
+                 : vsMode === "aspectRatio" ? `aspectRatio=${_rawParams.aspectRatio}`
+                 : "none";
+    console.log(`View size requested: ${vsVal}`);
+  }
 
   const views = [];
   try {
@@ -82,16 +103,80 @@ function generate_view(rawPreset, uiSelection, actionId) {
   } catch (error) {
     console.error(`generate_view error: ${typeof error.stack === "undefined" ? error : error.stack}`);
   }
-  if (timer) Common.endCounter(timer, "generate_view");
+  console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
+
+  // Open the generated view(s) in Archi's UI.
+  //   NEW_VIEW / EXPAND_VIEW / LAYOUT_ONLY → exactly one view in `views`; open it.
+  //   ONE_EACH                              → potentially many views; open only the first
+  //                                           so the user isn't flooded with N tabs.
+  if (views.length > 0) _openView(views[0]);
   return views;
+}
+
+/**
+ * Open a view in Archi's editor tab. The jArchi proxy's openInUI() does not work
+ * reliably for views that were just created in the same script run, so we reach
+ * past the proxy via reflection and call EditorManager.openDiagramEditor on the
+ * underlying EMF model object directly.
+ */
+function _openView(view) {
+  try {
+    const ProxyClass = Packages.com.archimatetool.script.dom.model.ArchimateDiagramModelProxy.class;
+    const method     = ProxyClass.getDeclaredMethod("getEObject");
+    method.setAccessible(true);
+    const eObject = method.invoke(view);
+    // 2-arg form with bringToTop=true matches DiagramModelProxy.openInUI()'s final call,
+    // so the newly generated view becomes the focused editor tab.
+    Packages.com.archimatetool.editor.ui.services.EditorManager.openDiagramEditor(eObject, true);
+  } catch (e) {
+    console.error(`Failed to open "${view && view.name}" in the UI — open it manually. (${e})`);
+  }
+}
+
+// ── View properties ───────────────────────────────────────────────────────────
+
+function _applyViewProperties(view, preset) {
+  const vp = preset.viewProperties;
+  if (!vp) return;
+
+  console.log("\nProperties:");
+  (vp.properties || []).forEach(p => {
+    if (!p.key || p.key === PROP_ID) return;
+    if (p.enabled && p.value) {
+      view.prop(p.key, p.value);
+      console.log(`  prop set:     ${p.key} = "${p.value}"`);
+    } else {
+      view.removeProp(p.key);
+      console.log(`  prop removed: ${p.key}`);
+    }
+  });
+
+  if (vp.addObjectId && !view.prop(PROP_ID)) {
+    const id = Common.generateUUID();
+    view.prop(PROP_ID, id);
+    console.log(`  prop set:     ${PROP_ID} = "${id}" (new)`);
+  }
 }
 
 // ── Single view ───────────────────────────────────────────────────────────────
 
 function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   const objectSet = Pipeline.buildObjectSet(uiSelection, preset, actionId);
-  const { elements, relations, diagramObjects, diagramConnections, existingView } = objectSet;
-  console.log(`Object set: ${elements.length} elements, ${relations.length} relations, ${diagramObjects.length} diagram objects, ${diagramConnections.length} diagram connections`);
+  const { elements, diagramObjects, diagramConnections, existingView } = objectSet;
+
+  // LAYOUT_ONLY: keep only relations that already have a visual on the view.
+  // _findRelationsBetween returns all model relations between the elements, but
+  // LAYOUT_ONLY must not add missing relations — it only re-lays out what is there.
+  // Note: the dialog live counter shows all model relations in the selection
+  // (action-agnostic); this filter is the action-level step that narrows the set
+  // at generation time. The counter difference is by design, not an inaccuracy.
+  let relations = objectSet.relations;
+  if (actionId === ACTION.LAYOUT_ONLY.id) {
+    const onViewRelIds = new Set(
+      (objectSet.visualRelations || []).map(vr => vr.concept && vr.concept.id).filter(Boolean)
+    );
+    relations = relations.filter(r => onViewRelIds.has(r.id));
+  }
 
   // Assign each relation a role: nesting (drawn as containment) vs routed (drawn as line).
   const nestingTypes = new Set(preset.params.nestingRelationTypes || []);
@@ -103,8 +188,10 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
   }
 
   // Determine the target view.
-  //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view.
+  //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, unless the preset names a
+  //                               specific location — then copy the view there and use the copy.
   //   NEW_VIEW                  → a new view (created or overwritten by name).
+  console.log("\nView target:");
   let view;
   if (actionId === ACTION.EXPAND_VIEW.id || actionId === ACTION.LAYOUT_ONLY.id) {
     view = existingView;
@@ -112,112 +199,158 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
       console.error(`${actionId}: no existing view in selection`);
       return null;
     }
+
+    // If the preset names an explicit target view, the location is never ignored.
+    // Check whether the existing view already lives there; if not, copy it.
+    if (preset.view.name) {
+      const targetName   = preset.view.name;
+      const targetFolder = _resolveFolder(preset.view.folder);
+      const viewAtTarget = $(targetFolder).children("view").filter(`.${targetName}`).first();
+      const sameView     = viewAtTarget && String(viewAtTarget.id) === String(view.id);
+      if (!sameView) {
+        // Remove the stale view at the target location (if any) before copying.
+        if (viewAtTarget) {
+          try { $(viewAtTarget).find().each(o => o.delete()); viewAtTarget.delete(); } catch (e) { console.error(`Failed to remove stale view "${viewAtTarget.name}" before copy: ${e}`); }
+        }
+        const copy = view.duplicate(targetFolder);
+        copy.name  = targetName;
+        // Re-collect VOs from the copy: the duplicate has its own new VO ids.
+        const reCollected = _collectVisualsFrom(copy);
+        objectSet.visualElements  = reCollected.visualElements;
+        objectSet.visualRelations = reCollected.visualRelations;
+        view = copy;
+        console.log(`  Copied "${existingView.name}" → "${copy.name}"`);
+      } else {
+        console.log(`  Using: "${view.name}"`);
+      }
+    } else {
+      console.log(`  Using: "${view.name}"`);
+    }
   } else {
     const viewName = viewNameOverride || _resolveViewName(preset, elements);
     view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
   }
 
+  // Build concept→VOs map once; used by both _buildLayoutGraph (LAYOUT_ONLY cap) and _writeView (VO pairing).
+  const existingVosByConcept = new Map();
+  for (const ve of (objectSet.visualElements || [])) {
+    if (ve.concept && ve.concept.id) {
+      const list = existingVosByConcept.get(ve.concept.id);
+      if (list) list.push(ve);
+      else existingVosByConcept.set(ve.concept.id, [ve]);
+    }
+  }
+
+  // _buildLayoutGraph caps extra-occurrence nodes for LAYOUT_ONLY only (EXPAND_VIEW allows new VOs).
+  // Without the cap, BFS-propagated _occ_N nodes have no matching VO → _writeView creates new VOs,
+  // and their nesting VRs render as connection lines because the parent is not yet in position.
+  const graphVosCap = actionId === ACTION.LAYOUT_ONLY.id ? existingVosByConcept : null;
+
   // Build LayoutGraph (uniform — no action branch).
-  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects);
+  console.log("\nLayout graph:");
+  const graph = _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, graphVosCap);
   if (graph.nodes.length === 0) {
-    console.log("No elements to place — view not generated.");
+    console.log("  No elements to place — view not generated.");
     return null;
   }
 
+  // Relation role split. Nesting relations that could not be applied as containment
+  // (multi-parent conflict) are reclassified as connections in _buildLayoutGraph, so
+  // routedRels.length here reflects the final drawn-connection count.
+  const ns = graph._nestingStats;
+  console.log(`  Relation roles: ${nestingRels.length} nestings · ${routedRels.length} connections`);
+  if (ns.candidates > 0) {
+    const notes = [];
+    if (ns.notNestedNestings > 0) notes.push(`${ns.notNestedNestings} drawn as connection`);
+    if (ns.circularNestings  > 0) notes.push(`${ns.circularNestings} circular`);
+    const suffix = notes.length > 0 ? ` (${notes.join(", ")})` : "";
+    console.log(`  Nestings applied: ${ns.applied}/${ns.candidates}${suffix}`);
+  }
+
   // Run engine.
+  console.log("\nLayout:");
   const alg = ALGORITHMS[preset.algorithm];
   const result = _getAdapter(alg.engine).layout(graph);
-  console.log(`Layout result: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+  console.log(`  Layout result: ${result.nodes.length} elements · ${result.edges.length} connections`);
+  if (result.nodes.length > 0) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of result.nodes) {
+      if (n.x           < x0) x0 = n.x;
+      if (n.y           < y0) y0 = n.y;
+      if (n.x + n.width > x1) x1 = n.x + n.width;
+      if (n.y + n.height> y1) y1 = n.y + n.height;
+    }
+    console.log(`  View size generated: ${Math.round(x1 - x0)} × ${Math.round(y1 - y0)} px`);
+  }
 
   // Write — single function, action-agnostic.
-  return _writeView(preset, result, objectSet, view, graph._parentRels);
+  console.log("\nWrite:");
+  const writtenView = _writeView(preset, result, objectSet, view, graph._parentRels, existingVosByConcept);
+
+  // Appearance pass — post-write styling (colours, fonts). No-op when all features disabled.
+  if (writtenView) {
+    Appearance.applyAppearance(writtenView, preset, actionId);
+    _applyViewProperties(writtenView, preset);
+  }
+
+  return writtenView;
 }
 
 // ── One view per element ──────────────────────────────────────────────────────
 
 function _generateOneEach(preset, uiSelection) {
-  const { elements } = Pipeline.buildObjectSet(uiSelection, preset, ACTION.NEW_VIEW.id);
-  if (elements.length === 0) { console.log("No elements selected."); return []; }
-  if (elements.length > 20) {
-    const cont = window.confirm(`This will generate ${elements.length} views. Continue?`);
+  // Seeds = raw model elements from the Archi selection, before preset filter and expansion.
+  // Each seed gets its own full pipeline run (filter + expansion + layout + write).
+  const seeds = Pipeline.getSeedElements(uiSelection);
+  if (seeds.length === 0) { console.log("No elements selected."); return []; }
+  if (seeds.length > 20) {
+    const cont = window.confirm(`This will generate ${seeds.length} views. Continue?`);
     if (!cont) return [];
   }
 
-  const types = new Set(elements.map(e => e.type));
+  const types = new Set(seeds.map(e => e.type));
   if (types.size > 1) {
     console.log(`Warning: ${types.size} element types selected for One view each. Consider filtering to one type.`);
   }
 
   const views = [];
-  for (const element of elements) {
+  for (const element of seeds) {
     console.log(`\nGenerating view for: ${element.name}`);
-    // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
-    const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
-    const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + suffix);
+    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name);
     if (view) views.push(view);
   }
   return views;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 // ── LayoutGraph builder ───────────────────────────────────────────────────────
 
-function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects) {
+function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, existingVosByConcept) {
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
-  const reverseTypes = new Set(preset.params.reverseRelationTypes || []);
+  const reverseTypes = new Set(params.reverseRelationTypes || []);
 
-  // occurrenceMap: archiId → [nodeIds]   (supports showInEveryContainer)
-  const occurrenceMap = {};
-  for (const el of elements) occurrenceMap[el.id] = [el.id];
+  // Nesting structure shared with the pipeline's predictViewCounts so dialog/console
+  // counts agree with the writer's actual output. Single source of truth.
+  const nesting = Pipeline.resolveNesting(elements, nestingRels, params);
+  const parentMap    = nesting.parentMap;
+  const occurrenceMap = nesting.occurrenceMap;
+  const parentRels   = nesting.parentRels;
+  const skippedCircularNestingRels = nesting.skippedCircularNestingRels || [];
+  const notNestedNestingRels       = nesting.notNestedNestingRels       || [];
 
-  // parentMap from nesting relations.
-  const parentMap = {};
-  const parentRels = [];
-
-  function _wouldCreateCycle(map, childId, parentId) {
-    let cur = parentId;
-    while (cur) {
-      if (cur === childId) return true;
-      cur = map[cur];
-    }
-    return false;
+  // Log each circular nesting so users can investigate the problematic relations.
+  for (const r of skippedCircularNestingRels) {
+    const src = (r.source && r.source.name) || (r.source && r.source.id) || "?";
+    const tgt = (r.target && r.target.name) || (r.target && r.target.id) || "?";
+    console.log(`  Circular nesting skipped: "${src}" → "${tgt}" (${r.type})`);
   }
 
-  for (const rel of nestingRels) {
-    const srcId = rel.source && rel.source.id;
-    const tgtId = rel.target && rel.target.id;
-    if (!srcId || !tgtId) continue;
-    const [parentId, childId] = reverseTypes.has(rel.type) ? [tgtId, srcId] : [srcId, tgtId];
-
-    if (!params.showInEveryContainer) {
-      if (parentMap[childId] === undefined) {
-        if (_wouldCreateCycle(parentMap, childId, parentId)) {
-          console.log(`Nesting skipped (cycle): ${srcId} → ${tgtId} (${rel.type})`);
-        } else {
-          parentMap[childId] = parentId;
-          parentRels.push(rel);
-        }
-      }
-    } else {
-      const occs = occurrenceMap[childId] || [childId];
-      const unassigned = occs.find(id => parentMap[id] === undefined);
-      if (unassigned && !_wouldCreateCycle(parentMap, unassigned, parentId)) {
-        parentMap[unassigned] = parentId;
-      } else {
-        const alreadyHere = occs.find(id => parentMap[id] === parentId);
-        if (!alreadyHere) {
-          const occId = `${childId}_occ_${occs.length}`;
-          if (!_wouldCreateCycle(parentMap, occId, parentId)) {
-            occurrenceMap[childId] = [...occs, occId];
-            parentMap[occId] = parentId;
-          }
-        }
-      }
-      parentRels.push(rel);
-    }
-  }
+  // Nesting relations not applied as containment (multi-parent) are drawn as
+  // connections so the model relation stays visible in the view.
+  for (const r of notNestedNestingRels) routedRels.push(r);
 
   // Nodes from elements.
   const nodes = [];
@@ -235,11 +368,17 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(el.id);
 
     const occs = occurrenceMap[el.id] || [];
+    // Cap: for LAYOUT_ONLY, only add as many extra occurrence nodes as there are VOs on the
+    // view. Excess nodes have no VO to pair with, so _writeView would create new VOs whose
+    // nesting VRs render as connection lines when the parent isn't positioned yet.
+    const voCount = existingVosByConcept ? (existingVosByConcept.get(el.id) || []).length : Infinity;
+    let addedOccs = 1;  // primary already pushed
     for (const occId of occs) {
-      if (occId !== el.id) {
-        nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
-        nodeIds.add(occId);
-      }
+      if (occId === el.id) continue;
+      if (addedOccs >= voCount) break;
+      nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
+      nodeIds.add(occId);
+      addedOccs++;
     }
   }
 
@@ -259,6 +398,30 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     nodeIds.add(vo.id);
   }
 
+  // Extra-occurrence augmentation for LAYOUT_ONLY.
+  // Handles manually placed repeated elements at view root that _resolveNesting doesn't
+  // know about (no nesting relation drove the repeat). Only root-level VOs are safe to
+  // augment: container-level repeats require occurrence-level parent mapping that isn't
+  // available here, so they are left in-place (not repositioned).
+  if (existingVosByConcept) {
+    for (const [conceptId, vos] of existingVosByConcept) {
+      const currentOccs = occurrenceMap[conceptId];
+      if (!currentOccs || vos.length <= currentOccs.length) continue;
+      const baseNode = nodes.find(n => n.id === currentOccs[0]);
+      if (!baseNode) continue;
+      for (let i = currentOccs.length; i < vos.length; i++) {
+        const occId = `${conceptId}_occ_${i}`;
+        if (nodeIds.has(occId)) continue;
+        const parentConceptId = _currentParentConceptId(vos[i]);
+        if (parentConceptId) continue;  // skip: container-level repeats need occurrence-level pairing
+        occurrenceMap[conceptId] = [...occurrenceMap[conceptId], occId];
+        parentMap[occId] = null;
+        nodes.push({ ...baseNode, id: occId, parent: null });
+        nodeIds.add(occId);
+      }
+    }
+  }
+
   // Edges from routed relations.
   const edges = [];
   const edgeIds = new Set();
@@ -266,6 +429,7 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     const srcId = rel.source && rel.source.id;
     const tgtId = rel.target && rel.target.id;
     if (!srcId || !tgtId || !nodeIds.has(srcId) || !nodeIds.has(tgtId)) continue;
+    if (srcId === tgtId && !ALGORITHMS[preset.algorithm].supportsSelfLoops) continue;
     if (edgeIds.has(rel.id)) continue;
     edgeIds.add(rel.id);
 
@@ -281,7 +445,8 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
         // engine traverses the edge in the reversed direction. The model
         // relation is untouched; Archi draws using its intrinsic direction.
         edges.push({
-          id:     edgeId,
+          id:        edgeId,   // occurrence-unique id for the layout engine
+          conceptId: rel.id,   // plain model relation id — always used for $() lookup in _writeView
           source: isReversed ? tgtOccId : srcOccId,
           target: isReversed ? srcOccId : tgtOccId,
           label:  rel.name || "",
@@ -291,19 +456,70 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
     });
   }
 
+  const engineParams = preset.engineParams || {};
+  expandNodeSizesForEdgeDensity(nodes, edges, params);
+  sizeLabelBasedNodes(nodes, params, engineParams);
+
   return {
     algorithm:      preset.algorithm,
     nodes, edges,
     options:        params,
+    engineParams,
     alignWidthSameType: params.alignWidthSameType || false,
+    snapColumnsToGrid: params.snapColumnsToGrid || false,
     sortContainers: params.sortContainers || false,
     _parentMap:     parentMap,
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,
+    _nestingStats: {
+      candidates:        nestingRels.length,
+      applied:           parentRels.length,
+      circularNestings:  skippedCircularNestingRels.length,
+      notNestedNestings: notNestedNestingRels.length,
+    },
   };
 }
 
 // ── View writer ───────────────────────────────────────────────────────────────
+
+// Strip the synthetic occurrence suffix added by Pipeline.resolveNesting
+// ("conceptId_occ_N") to recover the underlying model concept id.
+function _stripOccSuffix(id) {
+  const i = id.lastIndexOf("_occ_");
+  return i >= 0 ? id.substring(0, i) : id;
+}
+
+// Concept id of a VisualElement's current parent VO, or null at view root.
+function _currentParentConceptId(ve) {
+  const p = $(ve).parent().filter("element").first();
+  if (!p) return null;
+  return (p.concept && p.concept.id) || p.id || null;
+}
+
+// Pick the existing VO that this result node should reposition, or null if
+// it must be created fresh. Under multi-occurrence (K VOs for one concept),
+// pair by (concept, new-parent concept); tie-break by VisualSet capture order.
+// Bound VOs are recorded in consumedVoIds so each VO is written at most once.
+// DiagramObjects (no concept) fall through to lookup by VO id.
+function _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds) {
+  const candidates = existingVosByConcept.get(archiId);
+  if (!candidates || candidates.length === 0) {
+    return existingVoByVoId.get(archiId) || null;
+  }
+  const available = candidates.filter(ve => !consumedVoIds.has(ve.id));
+  if (available.length === 0) return null;
+
+  const newParentRn = rn.parentId ? nodeById[rn.parentId] : null;
+  const newParentArchiId = newParentRn ? _stripOccSuffix(newParentRn.id) : null;
+
+  let pick = null;
+  for (const ve of available) {
+    if (_currentParentConceptId(ve) === newParentArchiId) { pick = ve; break; }
+  }
+  if (!pick) pick = available[0];
+  consumedVoIds.add(pick.id);
+  return pick;
+}
 
 /**
  * Apply a layout result to a target view. Action-agnostic.
@@ -317,33 +533,72 @@ function _buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObj
  * Parent-first iteration (§A.11.10) guarantees a child's parent VO is in place
  * (added or repositioned) before the child is processed.
  */
-function _writeView(preset, result, objectSet, view, parentRels) {
+function _writeView(preset, result, objectSet, view, parentRels, existingVosByConcept) {
   // Index result nodes once. Sort parent-first (engine output may be arbitrary order).
   const nodeById = Object.create(null);
   result.nodes.forEach(n => { nodeById[n.id] = n; });
   const sortedNodes = _sortNodesParentFirst(result.nodes, nodeById);
 
-  // Existence maps from the pipeline output.
-  const existingVoByConcept = new Map();   // conceptId → VisualElement
-  const existingVoByVoId    = new Map();   // VO id     → DiagramObject (or VisualElement)
-  const existingRelByConcept = new Map();  // conceptId → VisualRelation
+  // existingVosByConcept (conceptId → VisualElement[]) is built once in _generateSingle and passed in.
+  const existingVoByVoId      = new Map();  // VO id → DiagramObject (or VisualElement)
+  const existingRelsByConcept = new Map();  // conceptId → VisualRelation[]
+  const _consumedVrIds        = new Set();  // VR ids already matched to a result edge
 
-  (objectSet.visualElements || []).forEach(ve => {
-    if (ve.concept && ve.concept.id) existingVoByConcept.set(ve.concept.id, ve);
-    existingVoByVoId.set(ve.id, ve);
+  (objectSet.visualElements || []).forEach(ve => existingVoByVoId.set(ve.id, ve));
+  // Diagram objects: only register VOs that currently live on the target view.
+  // Guards against referencing deleted VOs when the view was just overwritten (NEW_VIEW).
+  const _voIdsOnView = new Set();
+  try { $(view).find().each(o => { if (o && o.id) _voIdsOnView.add(String(o.id)); }); } catch(e) { console.error(`Failed to index existing VOs on view "${view.name}": ${e}`); }
+  (objectSet.diagramObjects || []).forEach(dvo => {
+    if (dvo && dvo.id && _voIdsOnView.has(String(dvo.id))) existingVoByVoId.set(dvo.id, dvo);
   });
-  (objectSet.diagramObjects || []).forEach(dvo => { existingVoByVoId.set(dvo.id, dvo); });
   (objectSet.visualRelations || []).forEach(vr => {
-    if (vr.concept && vr.concept.id) existingRelByConcept.set(vr.concept.id, vr);
+    if (!vr.concept || !vr.concept.id) return;
+    const list = existingRelsByConcept.get(vr.concept.id) || [];
+    list.push(vr);
+    existingRelsByConcept.set(vr.concept.id, list);
   });
+
+  // Remove existing self-loop connections for algorithms that don't route them.
+  if (!ALGORITHMS[preset.algorithm].supportsSelfLoops) {
+    existingRelsByConcept.forEach((vrList, conceptId) => {
+      vrList.forEach(vr => {
+        const c = vr.concept;
+        if (c && c.source && c.target && c.source.id === c.target.id) {
+          try { vr.delete(); } catch (e) {}
+        }
+      });
+      existingRelsByConcept.set(conceptId, vrList.filter(vr => {
+        const c = vr.concept;
+        return !(c && c.source && c.target && c.source.id === c.target.id);
+      }));
+    });
+  }
 
   const visualIndex = {};  // result-node id → VisualObject (existing or freshly added)
+  const consumedVoIds = new Set();  // VO ids already bound to a result node
 
   // ── Nodes: reposition existing, add new ──
-  console.log(`Writing ${sortedNodes.length} nodes...`);
+  {
+    const containerNodeIds = new Set();
+    sortedNodes.forEach(n => { if (n.parent) containerNodeIds.add(n.parent); });
+    const extraOccurrenceNodes = sortedNodes.filter(n => n.id.includes("_occ_"));
+    let nodeLogLine = `  Writing ${sortedNodes.length} nodes`;
+    if (extraOccurrenceNodes.length > 0) {
+      const xContainers = extraOccurrenceNodes.filter(n => containerNodeIds.has(n.id)).length;
+      const xElements   = extraOccurrenceNodes.length - xContainers;
+      const parts = [];
+      if (xContainers > 0) parts.push(`${xContainers} container${xContainers !== 1 ? "s" : ""}`);
+      if (xElements   > 0) parts.push(`${xElements} element${xElements !== 1 ? "s" : ""}`);
+      nodeLogLine += ` (${extraOccurrenceNodes.length} extra multiple occurrence${extraOccurrenceNodes.length !== 1 ? "s" : ""}: ${parts.join(" · ")})`;
+    }
+    console.log(nodeLogLine + "...");
+  }
+  const _dbgW = preset.params.alignDebug;
+  if (_dbgW) console.log(`  [write-nodes] node | path | result-abs | parent-offset | written-rel(bounds)`);
   for (const rn of sortedNodes) {
-    const archiId = rn.id.includes("_occ_") ? rn.id.substring(0, rn.id.lastIndexOf("_occ_")) : rn.id;
-    const existing = existingVoByConcept.get(archiId) || existingVoByVoId.get(archiId);
+    const archiId = _stripOccSuffix(rn.id);
+    const existing = _pickExistingVo(rn, archiId, nodeById, existingVosByConcept, existingVoByVoId, consumedVoIds);
 
     if (existing) {
       // Derive desired parent from this run's nesting decisions (§A.6.6, §A.11.9).
@@ -353,23 +608,46 @@ function _writeView(preset, result, objectSet, view, parentRels) {
       const curParentId = currentParentVO ? String(currentParentVO.id) : null;
 
       if (newParentId !== curParentId) {
-        // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
-        const target = newParentVisual || view;
+        const newParentConceptId = newParentVisual && newParentVisual.concept ? newParentVisual.concept.id : null;
+        const curParentConceptId = currentParentVO && currentParentVO.concept ? currentParentVO.concept.id : null;
+        // When the parent CONCEPT is unchanged but a different VO of that concept was picked,
+        // do NOT move the child to the new VO: the existing nesting VR's endpoint still points
+        // to the old VO, and moving the child would make Archi render it as a connection line.
+        const sameParentConcept = newParentConceptId !== null && newParentConceptId === curParentConceptId;
         const parentRn = newParentVisual ? nodeById[rn.parentId] : null;
         const relX = parentRn ? rn.x - parentRn.x : rn.x;
         const relY = parentRn ? rn.y - parentRn.y : rn.y;
-        try {
-          target.add(existing, relX, relY);
-          existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+        if (sameParentConcept) {
+          // Stay in current parent VO — update bounds only. Must NOT call add() here:
+          // jArchi throws "Target already contains object" when the element is already
+          // in that VO. visualIndex is set unconditionally so children can find this
+          // node as their parent even if the bounds update fails.
+          if (_dbgW) console.log(`    ${_dbgName(rn)} | same-parent-concept | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
+          try {
+            existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+          } catch (e) { console.error(`Failed to update bounds for ${archiId}: ${e}`); }
           visualIndex[rn.id] = existing;
-        } catch (e) {
-          console.error(`Failed to re-parent element ${archiId}: ${e}`);
+        } else {
+          // jArchi 1.10 move API: parent.add(existingVO, x, y) moves without deletion.
+          const target = newParentVisual || view;
+          if (_dbgW) console.log(`    ${_dbgName(rn)} | re-parent | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
+          try {
+            target.add(existing, relX, relY);
+            existing.bounds = { x: relX, y: relY, width: rn.width, height: rn.height };
+            visualIndex[rn.id] = existing;
+          } catch (e) { console.error(`Failed to re-parent element ${archiId}: ${e}`); }
         }
         continue;
       }
 
       // Same parent — reposition within current container.
       const off = _getParentAbsOffset(existing);
+      if (_dbgW) {
+        const parentRn = rn.parentId ? nodeById[rn.parentId] : null;
+        const parentRnStr = parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—";
+        const mismatch = (parentRn && (Math.round(parentRn.x) !== Math.round(off.x) || Math.round(parentRn.y) !== Math.round(off.y))) ? "  ⚠ OFFSET≠parentRn" : "";
+        console.log(`    ${_dbgName(rn)} | same-parent | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | off=(${Math.round(off.x)},${Math.round(off.y)}) parentRn=${parentRnStr} | rel=(${Math.round(rn.x - off.x)},${Math.round(rn.y - off.y)}) ${Math.round(rn.width)}×${Math.round(rn.height)}${mismatch}`);
+      }
       existing.bounds = {
         x: rn.x - off.x,
         y: rn.y - off.y,
@@ -390,6 +668,7 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     const parentRn = parentVisual ? nodeById[rn.parentId] : null;
     const relX = parentRn ? rn.x - parentRn.x : rn.x;
     const relY = parentRn ? rn.y - parentRn.y : rn.y;
+    if (_dbgW) console.log(`    ${_dbgName(rn)} | create | abs=(${Math.round(rn.x)},${Math.round(rn.y)}) | parentRn=${parentRn ? `(${Math.round(parentRn.x)},${Math.round(parentRn.y)})` : "—"} | rel=(${Math.round(relX)},${Math.round(relY)}) ${Math.round(rn.width)}×${Math.round(rn.height)}`);
     try {
       visualIndex[rn.id] = target.add(el, relX, relY, rn.width, rn.height);
     } catch (e) {
@@ -397,46 +676,101 @@ function _writeView(preset, result, objectSet, view, parentRels) {
     }
   }
 
+  // Concept over-supply: more existing VOs than result nodes for a concept
+  // (e.g. user toggled showInEveryContainer off, or EXPAND_VIEW added a
+  // narrower nesting). Surplus VOs are left in place — deletion is forbidden
+  // outside the explicit name-overwrite path (Invariant 4).
+  let unpaired = 0;
+  existingVosByConcept.forEach(list => {
+    for (const ve of list) if (!consumedVoIds.has(ve.id)) unpaired++;
+  });
+  if (unpaired > 0) {
+    console.log(`  Unpaired VOs: ${unpaired} (concept over-supply — kept in place)`);
+  }
+
   // ── Edges: reposition existing relations (rewrite bendpoints), add new ──
-  console.log(`Writing ${result.edges.length} relations...`);
+  console.log(`  Writing ${result.edges.length} connections · ${(parentRels || []).length} nestings...`);
+  const _processedRelIds = new Set();
+  const _reverseTypes    = new Set(preset.params.reverseRelationTypes || []);
   for (const re of result.edges) {
-    const archiRel = $(`#${re.id}`).first();
+    // re.id may be occurrence-unique ("relId_0_1"); re.conceptId is always the model id.
+    const conceptId = re.conceptId || re.id;
+    const archiRel  = $(`#${conceptId}`).first();
     if (!archiRel || !archiRel.id) continue;
 
-    let connection = existingRelByConcept.get(archiRel.id);
-    if (!connection) {
-      // Always look up visuals via the model relation's own source/target —
-      // re.sourceId/targetId may be in layout direction (swapped) for
-      // reversed-typed relations.
-      const srcVisual = visualIndex[archiRel.source && archiRel.source.id];
-      const tgtVisual = visualIndex[archiRel.target && archiRel.target.id];
-      if (!srcVisual || !tgtVisual) continue;
+    // re.sourceId/targetId are in layout direction; reversed-typed relations swap them.
+    // Un-reverse to obtain the model's source→target order for view.add().
+    const isRev         = _reverseTypes.has(archiRel.type);
+    const modelSrcOccId = isRev ? re.targetId : re.sourceId;
+    const modelTgtOccId = isRev ? re.sourceId : re.targetId;
+    const srcVisual = visualIndex[modelSrcOccId]
+                   || visualIndex[archiRel.source && archiRel.source.id];
+    const tgtVisual = visualIndex[modelTgtOccId]
+                   || visualIndex[archiRel.target && archiRel.target.id];
+    if (!srcVisual || !tgtVisual) continue;
+
+    // Pick an existing visual relation that connects these two specific VOs (handles both
+    // single- and multi-occurrence cases). Consumed VRs are not reused for a second edge.
+    const _vrCandidates = (existingRelsByConcept.get(archiRel.id) || [])
+      .filter(vr => !_consumedVrIds.has(vr.id));
+    let connection = _vrCandidates.find(vr =>
+      vr.source && vr.target &&
+      String(vr.source.id) === String(srcVisual.id) &&
+      String(vr.target.id) === String(tgtVisual.id)
+    ) || _vrCandidates[0] || null;
+    if (connection) {
+      _consumedVrIds.add(connection.id);
+    } else {
       try { connection = view.add(archiRel, srcVisual, tgtVisual); }
-      catch (e) { console.error(`Failed to add relation ${re.id}: ${e}`); continue; }
+      catch (e) { console.error(`Failed to add relation ${conceptId}: ${e}`); continue; }
     }
     _applyEdgeStyle(connection, re, preset);
+    _processedRelIds.add(archiRel.id);
   }
+
+  // Clear bendpoints on existing routed connections that the engine did not include
+  // in result.edges (e.g. edges dropped by ELK when both endpoints lift to the same
+  // root container). Without this, switching algorithms leaves stale routing on those
+  // connections. Nesting relations are skipped — they have no bendpoints to clear.
+  const _nestingRelIds = new Set((parentRels || []).map(b => b.rel && b.rel.id).filter(Boolean));
+  existingRelsByConcept.forEach((vrList, conceptId) => {
+    if (_processedRelIds.has(conceptId)) return;
+    if (_nestingRelIds.has(conceptId)) return;
+    for (const vr of vrList) {
+      try { vr.deleteAllBendpoints(); } catch (e) {}
+    }
+  });
 
   // ── Nesting connections (parent-child boxes): existing → skip, new → add ──
-  for (const rel of (parentRels || [])) {
-    if (existingRelByConcept.has(rel.id)) continue;
-    const srcV = visualIndex[rel.source && rel.source.id];
-    const tgtV = visualIndex[rel.target && rel.target.id];
-    if (srcV && tgtV) {
-      try { view.add(rel, srcV, tgtV); } catch (e) {}
+  let _nestCreated = 0, _nestSkipped = 0;
+  for (const binding of (parentRels || [])) {
+    const { rel, srcOccId, tgtOccId } = binding;
+
+    // Containment: skip if already on view (LAYOUT_ONLY preserves existing).
+    if (!existingRelsByConcept.has(rel.id)) {
+      const srcV = visualIndex[srcOccId];
+      const tgtV = visualIndex[tgtOccId];
+      if (srcV && tgtV) {
+        try { view.add(rel, srcV, tgtV); _nestCreated++; } catch (e) { console.error(`Failed to add nesting rel ${rel.id}: ${e}`); }
+      }
+    } else {
+      _nestSkipped++;
     }
   }
+  console.log(`  Nestings: ${_nestCreated} created · ${_nestSkipped} existing`);
 
-  // Log: count objects on the view.
+  // Log: count objects on the view. The total visual relation count via find("relation")
+  // = connections + nestings. A mismatch vs the pipeline's "Total to view" usually
+  // means nesting candidates were dropped by Archi's one-parent-per-child rule (see
+  // "Nestings applied" line above).
   try {
     let _vEl = 0, _vRel = 0, _vDiag = 0;
     $(view).find("element").each(() => _vEl++);
     $(view).find("relation").each(() => _vRel++);
     Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { try { $(view).find(dt).each(() => _vDiag++); } catch(e) {} });
-    console.log(`Objects on view: ${_vEl} elements · ${_vRel} relations · ${_vDiag} diagram objects`);
+    console.log(`  Objects on view: ${_vEl} elements · ${result.edges.length} connections · ${_vRel - result.edges.length} nestings · ${_vDiag} diagram objects`);
   } catch (e) {}
-  console.log(`\nView "${view.name}" written`);
-  try { $(view).openInUI(); } catch (e) {}
+  console.log(`View "${view.name}" written`);
   return view;
 }
 
@@ -449,6 +783,103 @@ function _writeView(preset, result, objectSet, view, parentRels) {
  * self-loops is unreliable across engines, and Archi's default rendering
  * places the line inside the element. Synthesis is the single source of truth.
  */
+// Insert collinear bendpoints so that ELK's computed label position (lx, ly) ends up as
+// the middle bendpoint by index — which is where Archi renders the label for textPosition=1.
+//
+// Strategy: project (lx,ly) onto the nearest path segment, insert it there, then add
+// evenly-spaced collinear points on that same segment (before or after the label point)
+// until floor(totalBps / 2) == labelPointIndex.  All added points lie on existing path
+// segments and do not change the visual routing.
+// srcPort / tgtPort are the physical exit/entry points of the connection on the element
+// boundary (ELK section start/end).  Using these instead of element centres ensures
+// extra collinear points cannot fall inside source or target elements.
+function _insertLabelMidpointBp(bps, src, tgt, lx, ly, srcPort, tgtPort, log) {
+  if (!lx && !ly) return bps;
+
+  // Build path using ports as endpoints (they are on element boundaries, not inside).
+  const pathSrc = srcPort || src;
+  const pathTgt = tgtPort || tgt;
+  const path = [pathSrc, ...bps, pathTgt];
+  const n    = path.length;
+  if (n < 2) return bps;
+
+  // Find the segment nearest to (lx, ly)
+  let seg = 0, minD = Infinity;
+  for (let i = 0; i < n - 1; i++) {
+    const dx = path[i+1].x - path[i].x, dy = path[i+1].y - path[i].y;
+    const len2 = dx*dx + dy*dy;
+    if (len2 < 0.001) continue;
+    const t  = Math.max(0, Math.min(1, ((lx - path[i].x)*dx + (ly - path[i].y)*dy) / len2));
+    const d  = Math.hypot(lx - (path[i].x + t*dx), ly - (path[i].y + t*dy));
+    if (d < minD) { minD = d; seg = i; }
+  }
+
+  const A = path[seg], B = path[seg + 1];
+  // Snap (lx, ly) onto the segment so all interpolated points stay on the segment line.
+  const segDx = B.x - A.x, segDy = B.y - A.y;
+  const segLen2 = segDx*segDx + segDy*segDy;
+  const tSnap = segLen2 > 0.001
+    ? Math.max(0, Math.min(1, ((lx - A.x)*segDx + (ly - A.y)*segDy) / segLen2))
+    : 0;
+  const P = { x: Math.round(A.x + tSnap * segDx), y: Math.round(A.y + tSnap * segDy) };
+  const N = bps.length;
+
+  // Guard: if P snaps to an existing path vertex (tSnap ≈ 0 or 1), inserting P would
+  // create a duplicate zero-length segment.  Instead, check whether the existing vertex
+  // is already the middle bendpoint; if so, return unchanged.
+  const EPS = 0.01;
+  if (tSnap >= 1 - EPS) {
+    // P ≈ B = path[seg+1].  In bps terms that is bps[seg] (if seg < N).
+    if (seg < N && Math.floor(N / 2) === seg) {
+      if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  already mid bp[${seg}]  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+      return bps;
+    }
+    // Not already middle but we can't insert without duplicating — skip.
+    if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  at segment end, skip  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+    return bps;
+  }
+  if (tSnap <= EPS) {
+    // P ≈ A = path[seg].  In bps terms that is bps[seg-1] (if seg > 0).
+    if (seg > 0 && Math.floor(N / 2) === seg - 1) {
+      if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  already mid bp[${seg-1}]  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+      return bps;
+    }
+    if (log) log(`  [lbl-bp] seg=${seg}  snap=(${P.x},${P.y})  at segment start, skip  dist=${Math.round(minD)}px  bps ${N}→${N}`);
+    return bps;
+  }
+
+  // Determine how many collinear points to add before P (b) or after P (a)
+  // so that P lands at floor(finalLength / 2).
+  // Adding b before: finalLength = N+1+b, P index = seg+b → want seg+b = floor((N+1+b)/2)
+  let b = 0, found = false;
+  for (b = 0; b <= 6; b++) {
+    const mid = Math.floor((N + 1 + b) / 2);
+    if (seg + b === mid)   { found = true; break; }
+    if (seg + b > mid)     { b = 0; break; }  // overshot → use 'a' instead
+  }
+  let a = 0;
+  if (!found) {
+    for (a = 0; a <= 6; a++) {
+      if (seg === Math.floor((N + 1 + a) / 2)) break;
+    }
+  }
+
+  // Build evenly-spaced extra points on the segment (between A and P, or P and B).
+  // A is pathSrc or a bendpoint — guaranteed to be outside elements.
+  const befPts = Array.from({ length: b }, (_, i) => ({
+    x: Math.round(A.x + (P.x - A.x) * (i + 1) / (b + 1)),
+    y: Math.round(A.y + (P.y - A.y) * (i + 1) / (b + 1)),
+  }));
+  const aftPts = Array.from({ length: a }, (_, i) => ({
+    x: Math.round(P.x + (B.x - P.x) * (i + 1) / (a + 1)),
+    y: Math.round(P.y + (B.y - P.y) * (i + 1) / (a + 1)),
+  }));
+
+  const result = [...bps.slice(0, seg), ...befPts, P, ...aftPts, ...bps.slice(seg)];
+  if (log) log(`  [lbl-bp] seg=${seg}  lbl=(${lx},${ly})  snap=(${P.x},${P.y})  dist=${Math.round(minD)}px  added before=${b} after=${a}  bps ${N}→${result.length}  mid@${Math.floor(result.length/2)}`);
+  return result;
+}
+
 function _applyEdgeStyle(connection, re, preset) {
   const lpMap = { Source: 0, Middle: 1, Target: 2, Natural: 1 };
   const lp = lpMap[preset.params.labelPosition];
@@ -456,27 +887,47 @@ function _applyEdgeStyle(connection, re, preset) {
     try { connection.textPosition = lp; } catch (e) {}
   }
 
-  try { connection.deleteAllBendpoints(); } catch (e) {}
+  try { connection.deleteAllBendpoints(); } catch (e) { console.error(`Failed to clear bendpoints on ${connection && connection.id}: ${e}`); }
 
-  // Self-loop: always synthesise (NE-corner loop). Skip engine bendpoints.
+  const _dbg = preset.params.alignDebug;
+
+  // Self-loop: use engine bendpoints when the engine routed the connection
+  // (Graphviz native, ELK Layered, Dagre partial). Synthesise a NE-corner loop only
+  // when the engine provided none.
+  // When bendpoints exist, fall through — source === target so srcCenter === tgtCenter,
+  // making startX/Y = endX/Y in the relative-bendpoint formula below.
   if (connection.source && connection.target
-      && connection.source.id === connection.target.id) {
+      && connection.source.id === connection.target.id
+      && (!re.bendpoints || re.bendpoints.length === 0)) {
     _synthesiseSelfLoopBendpoints(connection);
     return;
   }
 
-  if (re.isStraight || !re.bendpoints || re.bendpoints.length === 0) return;
+  if (re.isStraight || !re.bendpoints || re.bendpoints.length === 0) {
+    if (_dbg) console.log(`    [edge-bp] ${re.id}  bps=0${re.isStraight ? " (isStraight)" : ""}  → straight line`);
+    return;
+  }
 
   const srcCenter = _getAbsCenter(connection.source);
   const tgtCenter = _getAbsCenter(connection.target);
   const relType = connection.concept && connection.concept.type;
   const isReversed = (preset.params.reverseRelationTypes || []).includes(relType);
-  const archiBps = re.bendpoints.map(bp => ({
+  const balancedBps = _insertLabelMidpointBp(re.bendpoints, srcCenter, tgtCenter, re.labelX, re.labelY, re.srcPort, re.tgtPort, _dbg ? console.log : null);
+  const archiBps = balancedBps.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),
     startY: Math.round(bp.y - srcCenter.y),
     endX:   Math.round(bp.x - tgtCenter.x),
     endY:   Math.round(bp.y - tgtCenter.y),
   }));
+
+  if (_dbg) {
+    console.log(`    [edge-bp] ${re.id}  src=(${srcCenter.x},${srcCenter.y}) tgt=(${tgtCenter.x},${tgtCenter.y})  bps=${re.bendpoints.length}→${balancedBps.length}${isReversed ? "  reversed" : ""}${re.labelX ? `  lbl=(${re.labelX},${re.labelY})` : ""}`);
+    balancedBps.forEach((bp, i) => {
+      const r = archiBps[i];
+      console.log(`      bp[${i}] abs=(${bp.x},${bp.y})  → start=(${r.startX},${r.startY}) end=(${r.endX},${r.endY})`);
+    });
+  }
+
   const ordered = isReversed ? archiBps.reverse() : archiBps;
   ordered.forEach((bp, i) => { try { connection.addRelativeBendpoint(bp, i); } catch (e) {} });
 }
@@ -533,6 +984,12 @@ function _sortNodesParentFirst(nodes, nodeById) {
  * (0, 0) if the visual is at root. Under parent-first iteration, callers can rely
  * on parents having been repositioned before children read this.
  */
+// Compact node label for write-path debug lines: short id + parent marker.
+function _dbgName(rn) {
+  const tag = rn.parentId ? `child-of[${String(rn.parentId).substring(0, 8)}]` : "root";
+  return `[${String(rn.id).substring(0, 8)}] ${tag}`;
+}
+
 function _getParentAbsOffset(vo) {
   let x = 0, y = 0;
   try {
@@ -542,49 +999,73 @@ function _getParentAbsOffset(vo) {
       y += p.bounds.y || 0;
       p = $(p).parent().filter("element").first();
     }
-  } catch (e) {}
+  } catch (e) { console.error(`Parent offset traversal failed for VO ${vo && vo.id}: ${e}`); }
   return { x, y };
 }
 
 
 function _resolveViewName(preset, elements) {
-  // DEPRECATED — suffix is back-compat for legacy presets; the dialog no longer sets it. See ARCHITECTURE.md §A.12.
-  const sep    = Defs.VIEW_NAME_SEPARATOR || " — ";
-  const suffix = preset.view.suffix ? sep + preset.view.suffix : "";
-  if (preset.view.name) return preset.view.name + suffix;
+  if (preset.view.name) return preset.view.name;
   const first = elements[0];
-  const base  = first ? first.name : "Generated";
-  return base + suffix;
+  return first ? first.name : "Generated";
+}
+
+/**
+ * Collect visual elements and visual relations directly from a view object.
+ * Used after view.duplicate() to rebuild the VO index from the copy's own VOs.
+ */
+function _collectVisualsFrom(view) {
+  const visualElements = [], visualRelations = [];
+  const seenEl = new Set(), seenRel = new Set();
+  try {
+    $(view).find("element").each(ve => {
+      if (!ve || !ve.id || seenEl.has(ve.id)) return;
+      if (ve.type && ve.type in Defs.DIAGRAM_TYPES) return;
+      seenEl.add(ve.id); visualElements.push(ve);
+    });
+  } catch (e) { console.error(`Failed to collect visual elements from view "${view && view.name}": ${e}`); }
+  try {
+    $(view).find("relation").each(vr => {
+      if (!vr || !vr.id || seenRel.has(vr.id)) return;
+      seenRel.add(vr.id); visualRelations.push(vr);
+    });
+  } catch (e) { console.error(`Failed to collect visual relations from view "${view && view.name}": ${e}`); }
+  return { visualElements, visualRelations };
 }
 
 function _resolveFolder(viewFolder) {
   const path = viewFolder ? "/Views" + viewFolder : "/Views" + GENERATED_VIEW_FOLDER;
   try { return ArchiFolders.getFolderPath(path); }
-  catch (e) { return ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER); }
+  catch (e) {
+    console.log(`Folder "${path}" not found — using default. (${e})`);
+    return ArchiFolders.getFolderPath("/Views" + GENERATED_VIEW_FOLDER);
+  }
 }
 
 function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
-    console.log(`Overwriting view: "${viewName}"`);
-    $(existing).find().each(o => o.delete());
+    console.log(`  Overwriting view: "${viewName}"`);
+    try { $(existing).find().each(o => o.delete()); } catch (e) { console.error(`Failed to clear view "${viewName}" before overwrite: ${e}`); }
     return existing;
   }
   const v = model.createArchimateView(viewName);
   folder.add(v);
-  console.log(`Created view: "${viewName}"`);
+  console.log(`  Created view: "${viewName}"`);
   return v;
 }
 
 function _getAbsCenter(visual) {
   let x = (visual.bounds.x || 0) + (visual.bounds.width  || 0) / 2;
   let y = (visual.bounds.y || 0) + (visual.bounds.height || 0) / 2;
-  let p = $(visual).parent().filter("element").first();
-  while (p) {
-    x += p.bounds.x || 0;
-    y += p.bounds.y || 0;
-    p = $(p).parent().filter("element").first();
-  }
+  try {
+    let p = $(visual).parent().filter("element").first();
+    while (p) {
+      x += p.bounds.x || 0;
+      y += p.bounds.y || 0;
+      p = $(p).parent().filter("element").first();
+    }
+  } catch (e) { console.error(`Parent offset traversal failed for VO ${visual && visual.id}: ${e}`); }
   return { x: Math.round(x), y: Math.round(y) };
 }
 

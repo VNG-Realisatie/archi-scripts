@@ -6,27 +6,32 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
+    "acyclicer": "Default",
     "reverseRelationTypes": [
-      "association-relationship",
       "realization-relationship",
       "serving-relationship",
       "specialization-relationship"
     ],
-    "nestingRelationTypes": [
-      "aggregation-relationship"
-    ],
-    "innerSpacing": 20,
+    "nestingRelationTypes": [],
+    "innerSpacing": 10,
     "padding": 20,
-    "sortContainers": true,
-    "alignSameType": false,
+    "sortContainers": false,
+    "alignWidthSameType": false,
+    "alignDebug": false,
+    "snapColumnsToGrid": false,
     "showInEveryContainer": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
+    "nodeSizeByEdgeCount": 25,
     "elementWidth": 140,
     "elementHeight": 60,
     "maxWidth": 0,
-    "maxHeight": 0,
-    "aspectRatio": 0
+    "maxHeight": 1000,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false
   },
   "filter": {
     "elementTypes": [],
@@ -34,11 +39,58 @@
     "diagramTypes": []
   },
   "relatedElements": {
-    "layers": []
+    "steps": []
   },
   "view": {
     "name": "",
-    "suffix": "",
-    "folder": ""
-  }
+    "folder": "/_Generated"
+  },
+  "appearance": {
+    "styleByProperty": {
+      "element": {
+        "enabled": false,
+        "elementType": "",
+        "property": "Vertrouwelijkheid",
+        "colorRange": "Blues"
+      },
+      "relation": {
+        "enabled": false,
+        "relTypes": [],
+        "property": "GGM-guid",
+        "colorRange": "Reds",
+        "lineWidth": 0
+      }
+    },
+    "styleByRelatedProperty": {
+      "enabled": false,
+      "relTypes": [],
+      "property": "GGM-guid",
+      "colorRange": "OrRd"
+    },
+    "styleByConnectedElement": {
+      "enabled": false,
+      "relTypes": [],
+      "elementType": "",
+      "property": "",
+      "colorRange": "Purples",
+      "conflictColor": "#FF6B35"
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "_lastTabIndex": 0,
+  "description": "Selecteer referentiecomponenten en zie gebruikt technische architectuur",
+  "action": "new_view"
 }

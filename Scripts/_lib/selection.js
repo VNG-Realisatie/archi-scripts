@@ -62,11 +62,11 @@ function getSelectionArray(startSelection, selector) {
  * @param {string} selector - Archi selector for filtering the type of objects (default "*")
  * @returns {object} - collection of model concepts (ArchiElement/ArchiRelation/Folder/ArchimateView)
  */
-function getSelection(startSelection, selector = "*") {
+function getSelection(startSelection, selector = "*", logPrefix = "") {
   if (model == null || model.id == null) {
     throw "Nothing selected. Select one or more objects in the model tree or a view";
   }
-  _logSelected(startSelection);
+  _logSelected(startSelection, logPrefix);
 
   const coll = _walkAndCollect(startSelection, (o) => {
     // Canvas visual objects: $(visualObj).is(selector) returns false in jArchi.
@@ -80,7 +80,7 @@ function getSelection(startSelection, selector = "*") {
     return $(test).is("concept") ? Common.concept(test) : test;
   });
 
-  console.log(`Collection: ${coll.size()} object${coll.size() === 1 ? "" : "s"} of type "${selector}"`);
+  console.log(`${logPrefix}Collection: ${coll.size()} object${coll.size() === 1 ? "" : "s"} of type "${selector}"`);
   return coll;
 }
 
@@ -143,11 +143,11 @@ function _walkAndCollect(startSelection, decide) {
   return coll;
 }
 
-function _logSelected(startSelection) {
+function _logSelected(startSelection, logPrefix = "") {
   if (startSelection.size() === 1) {
-    console.log(`Selected ${startSelection.first()}`);
+    console.log(`${logPrefix}Selected ${startSelection.first()}`);
   } else {
-    console.log(`Selected ${startSelection.size()} objects, first is ${startSelection.first()}`);
+    console.log(`${logPrefix}Selected ${startSelection.size()} objects, first is ${startSelection.first()}`);
   }
 }
 

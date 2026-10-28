@@ -150,6 +150,41 @@ If you want different `elk.direction` values for different hierarchy levels, you
 
 By default (`elk.separateConnectedComponents: true`), disconnected components are laid out independently and then packed together using `elk.box`. Control spacing between them with `elk.spacing.componentComponent`.
 
+## Packing Algorithms and Edge Routing
+
+### Edges vanish when using rectpacking or box
+
+`org.eclipse.elk.rectpacking` and `org.eclipse.elk.box` are packing-only algorithms — they position nodes without routing edges. After layout, ELK returns the edges in the output **without `sections`** (the routing data: `startPoint`, `endPoint`, `bendPoints`). Any code that requires `edge.sections[0]` to write connections will find nothing.
+
+**Fix:** Switch to the `layered` algorithm when connections must be routed. For graphs that mix containers (nesting) with connections to/from standalone nodes, use the hybrid pattern:
+
+```json
+// Root node
+{
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.edgeRouting": "ORTHOGONAL",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+  }
+}
+
+// Container nodes
+{
+  "layoutOptions": {
+    "elk.algorithm": "box"
+  }
+}
+```
+
+**Why this combination works:**
+- `INCLUDE_CHILDREN` on the root tells the `layered` algorithm to treat the entire graph — including children of containers — as one combined layout. This enables proper edge routing between nested and non-nested nodes.
+- `elk.algorithm: "box"` on each container controls how its children are arranged internally (compact row packing). Since INCLUDE_CHILDREN puts the root in charge of cross-container edges, the container algorithm never sees those edges — the box "no edges" constraint is not violated.
+- `elk.algorithm: "rectpacking"` can be used on containers instead of `box`; both are equivalent here since neither handles cross-container edges.
+
+**When to use each:**
+- Pure nesting (no connections) → keep `rectpacking`/`box` at root for compact packing without edge routing overhead.
+- Nesting + connections → hybrid pattern above.
+
 ## Coordinate System Confusion
 
 ### Edge coordinates reference the container, not the source node

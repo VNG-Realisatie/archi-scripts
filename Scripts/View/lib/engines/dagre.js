@@ -14,7 +14,7 @@ const REPO_ROOT = (() => {
 const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, DIRECTION_MAP } = Defs;
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, equalizeLeafWidths, applyParams } = EngineUtils;
+const { selfLoopResult, sortedNodes, applyParams } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 
@@ -25,14 +25,19 @@ const RANKER = {
   "Top-aligned": "tight-tree",
 };
 
+const DEFAULT_DAGRE_PARAMS = {
+  acyclicer: "greedy",
+};
+
 const PARAM_MAPPING = {
   Dagre: {
-    direction:      (v) => ({ rankdir: DIRECTION_MAP[v] }),
-    ranking:        (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
-    acyclicer:      (v) => v === "Greedy" ? { acyclicer: "greedy" } : {},
-    layerSpacing:   (v) => ({ ranksep: v }),
-    elementSpacing: (v) => ({ nodesep: v }),
-    padding:        (v) => ({ marginx: v, marginy: v }),
+    direction:         (v) => ({ rankdir: DIRECTION_MAP[v] }),
+    ranking:           (v) => ({ ranker: RANKER[v] ?? "network-simplex" }),
+    acyclicer:         (v) => v === "Greedy" ? { acyclicer: "greedy" } : {},
+    layerSpacing:      (v) => ({ ranksep: v }),
+    elementSpacing:    (v) => ({ nodesep: v }),
+    connectionSpacing: (v) => ({ edgesep: v }),
+    diagramPadding:    (v) => ({ marginx: v, marginy: v }),
   },
 };
 
@@ -81,8 +86,9 @@ function _buildDagreGraph(dagre, engineOpts, nodes, edges) {
     if (!g.hasNode(edge.source) || !g.hasNode(edge.target)) continue;
     if (!g.hasEdge(edge.source, edge.target, edge.id)) {
       g.setEdge({ v: edge.source, w: edge.target, name: edge.id }, {
-        id:    edge.id,
-        label: edge.label || "",
+        id:        edge.id,
+        conceptId: edge.conceptId,
+        label:     edge.label || "",
       });
     }
   }
@@ -99,11 +105,17 @@ function layout(graph) {
 
   const parentMap = graph._parentMap || {};
 
-  // Pre-layout: sort nodes and equalize widths if requested
-  const nodes = graph.sortContainers ? sortedNodes(graph.nodes, parentMap) : graph.nodes;
-  if (graph.alignWidthSameType) equalizeLeafWidths(nodes, parentMap);
+  // Pre-layout: leaves are always sorted; sortContainers also sorts containers.
+  // alignWidthSameType is ELK-only (see capability matrix); Dagre's partial nesting does
+  // not support the two-pass container measurement.
+  const nodes = sortedNodes(graph.nodes, parentMap, graph.sortContainers);
 
-  const engineOpts = applyParams("Dagre", graph.options, PARAM_MAPPING);
+  const engineOpts = Object.assign(
+    applyParams("Dagre", graph.options, PARAM_MAPPING),
+    Object.fromEntries(
+      Object.entries(Object.assign({}, DEFAULT_DAGRE_PARAMS, (graph.engineParams && graph.engineParams.Dagre) || {})).map(([k, v]) => [k, Number(v)])
+    )
+  );
 
   // Separate self-loops from regular edges
   const selfLoops    = [];
@@ -200,6 +212,7 @@ function layout(graph) {
 
     resultEdges.push({
       id:         edgeData.id || edgeObj.name,
+      conceptId:  edgeData.conceptId,
       sourceId:   edgeObj.v,
       targetId:   edgeObj.w,
       bendpoints,
