@@ -49,8 +49,8 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 <!-- generated:capability-matrix -->
 | Parameter | Layered | Tree | Stress | Radial | Grid | Pack | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Nesting `nestingRules` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
-| Reverse `reverseRules` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
+| Nesting `nestingConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
+| Reverse `reverseConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
 | Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
 | Padding `padding` | ✓ | ✓ | — | — | ✓ | ✓ | — | ✓ | — | ✓ | — | — | — |
@@ -75,7 +75,7 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
 | Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | ✓ | — | — | — | — | — | — |
 | Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | ✓ |
-| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | — |
 | Max width `maxWidth` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
 | Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Self-loops** (capability) | ✓ | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -91,7 +91,8 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 | Engine | Max width | Aspect ratio |
 |---|---|---|
 | ELK Layered, Tree, Grid, Pack | Upper bound, met by re-arranging (more rows). When unreachable (connection chains or the widest container set the width), the narrowest layout is used and reported | Met approximately by re-arranging |
-| ELK Stress, Radial | Not supported | Met approximately by re-arranging |
+| ELK Stress | Not supported | Met approximately by re-arranging |
+| ELK Radial | Not supported | Not supported: the engine has no such option |
 | Graphviz | Not supported: it can only widen a layout without scaling | Passed as a ratio hint; not for Circo (circles would become ellipses) |
 | Dagre | Not supported | Not supported |
 

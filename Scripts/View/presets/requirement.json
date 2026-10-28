@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "requirement",
   "algorithm": "Layered",
   "params": {
@@ -15,13 +15,13 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship"},
       {"relation": "assignment-relationship"},
       {"relation": "association-relationship"},
       {"relation": "realization-relationship"}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "assignment-relationship"},
       {"relation": "association-relationship"}
     ],
@@ -29,9 +29,9 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementConditions": [],
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

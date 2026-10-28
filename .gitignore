@@ -15,8 +15,8 @@ Scripts/View/presets/_session.json
 
 # test files
 Scripts/_test
-Scripts/View/test
-Scripts/View/presets/Test
+# Scripts/View/test
+# Scripts/View/presets/Test
 Scripts/View/presets/GEMMA/*
 !Scripts/View/presets/GEMMA/GGM
 Scripts/View/shortcuts/GEMMA
@@ -25,3 +25,6 @@ Scripts/View/shortcuts/GEMMA
 .cursorrules
 REFACTORING_GUIDE.md
 SETUP_NODE_MODULES.md
+
+# Archi backup next to each saved model
+*.bak

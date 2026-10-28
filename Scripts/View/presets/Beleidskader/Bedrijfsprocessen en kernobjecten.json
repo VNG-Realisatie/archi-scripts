@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Beleidskader/Bedrijfsprocessen en kernobjecten",
   "algorithm": "Layered",
   "params": {
@@ -27,32 +27,32 @@
     "labelSizing": false,
     "labelMaxLineWidth": 160,
     "connectionLabelSpacing": true,
-    "nestingRules": [
+    "nestingConditions": [
       {"source": "business-process", "relation": "access-relationship", "everyContainer": true},
       {"source": "business-process", "relation": "aggregation-relationship", "everyContainer": true},
       {"relation": "realization-relationship", "target": "business-process", "everyContainer": true}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"}
     ]
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementConditions": [],
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"added": "business-service"},
           {"added": "driver"}
         ]
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"added": "business-process"},
           {"added": "business-event"},
           {"added": "business-actor"},
@@ -61,7 +61,7 @@
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"relation": "access-relationship", "added": "business-event"},
           {"relation": "access-relationship", "added": "business-object"},
           {"relation": "access-relationship", "added": "business-process"},
@@ -90,7 +90,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

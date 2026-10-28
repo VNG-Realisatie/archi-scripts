@@ -1,6 +1,6 @@
 # Dialog style — archi-scripts
 
-How dialogs in this repo realise the look-and-feel principles in [`Scripts/View/docs/reference/gui.md` § Look and feel](../Scripts/View/docs/reference/gui.md#look-and-feel). Those principles hold for every dialog in the repo; this file holds only the SWT realisation and the numbers. Reference implementation: the Layout tab of `Scripts/View/lib/gui/dialog_main.js` (`_group`, `_formRow` / `_alignFormColumns`, `_noteLabel` / `_wrapToParent`, `_resizeScrolled`). SWT/GTK mechanics: `ai/jarchi-scripting/swt-gtk.md`.
+How dialogs in this repo realise the look-and-feel principles in [`Scripts/View/docs/reference/gui.md` § Look and feel](gui.md#look-and-feel). Those principles hold for every dialog in the repo; this file holds only the SWT realisation and the numbers. Reference implementation: the Layout tab of `Scripts/View/lib/gui/dialog_main.js` (`_group`, `_formRow` / `_alignFormColumns`, `_noteLabel` / `_wrapToParent`, `_resizeScrolled`). SWT/GTK mechanics: `../../../../ai/jarchi-scripting/swt-gtk.md`.
 
 ## Realisation per principle
 

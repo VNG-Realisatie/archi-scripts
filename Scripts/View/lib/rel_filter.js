@@ -1,11 +1,11 @@
 /**
- * Rule lists — one filter model for the whole View subsystem.
+ * Condition lists — one filter model for the whole View subsystem.
  *
- * A rule list is an array of rules. Rules combine as: a match with any active Include rule is
- * kept, unless an active Exclude rule also matches. Order has no meaning (Appearance style
- * rules are the exception: the later rule wins when two styles hit the same object).
+ * A condition list is an array of conditions. Conditions combine as: a match with any active Include condition is
+ * kept, unless an active Exclude condition also matches. Order has no meaning (Appearance style
+ * conditions are the exception: the later condition wins when two styles hit the same object).
  *
- * Rule kinds (field → meaning; "" = All):
+ * Condition kinds (field → meaning; "" = All):
  *   element   { on, mode, elementType, property, value }                  global element filter
  *   diagram   { on, mode, diagramType }                                   global diagram filter
  *   relation  { on, mode, source, relation, target,                       global relation filter, nesting, reverse
@@ -16,8 +16,8 @@
  *               property, colorRange }
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
- * reverse, style) select nothing. A rule that is off adds nothing and removes nothing, but an
- * Include rule that is off still counts as an Include rule: a list whose Include rules are all
+ * reverse, style) select nothing. A condition that is off adds nothing and removes nothing, but an
+ * Include condition that is off still counts as an Include condition: a list whose Include conditions are all
  * off keeps nothing.
  *
  * This module is pure: no Archi, no Java. Type ids are validated against sets the caller passes
@@ -33,7 +33,7 @@ const STYLE_PROP_OF = Object.freeze(["element", "relation", "source", "target"])
 const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
 
 // kind → { defaults, types: field → valid-set name, enums: field → allowed values }
-/** @type {Readonly<{ [K in RuleKind]: RuleKindSpec<RuleByKind[K]> }>} */
+/** @type {Readonly<{ [K in ConditionKind]: ConditionKindSpec<ConditionByKind[K]> }>} */
 const KINDS = Object.freeze({
   element: {
     defaults: { on: true, mode: "include", elementType: "", property: "", value: "" },
@@ -68,29 +68,29 @@ const KINDS = Object.freeze({
 // ── Normalise / serialise ─────────────────────────────────────────────────────
 
 /**
- * The default (empty) rule of a kind: matches everything.
- * @template {RuleKind} K
+ * The default (empty) condition of a kind: matches everything.
+ * @template {ConditionKind} K
  * @param {K} kind
- * @returns {RuleByKind[K]}
+ * @returns {ConditionByKind[K]}
  */
-function defaultRule(kind) {
+function defaultCondition(kind) {
   return Object.assign({}, KINDS[kind].defaults);
 }
 
 /**
- * Normalise one raw rule. Returns the full rule, or null (with a console warning) when the rule
- * is unusable. An unknown key, enum value or type id rejects the rule: a typo must never widen
+ * Normalise one raw condition. Returns the full condition, or null (with a console warning) when the condition
+ * is unusable. An unknown key, enum value or type id rejects the condition: a typo must never widen
  * the filter to "All".
- * @template {RuleKind} K
+ * @template {ConditionKind} K
  * @param {K}             kind
  * @param {unknown}       raw
  * @param {ValidTypeSets} valid
- * @param {string}        where  e.g. "filter.relationRules[2]", for the warning
- * @returns {RuleByKind[K] | null}
+ * @param {string}        where  e.g. "filter.relationConditions[2]", for the warning
+ * @returns {ConditionByKind[K] | null}
  */
-function normalizeRule(kind, raw, valid, where) {
+function normalizeCondition(kind, raw, valid, where) {
   const K = KINDS[kind];
-  const bad = (/** @type {string} */ msg) => { console.log(`Warning: ${where}: ${msg}; rule skipped.`); return null; };
+  const bad = (/** @type {string} */ msg) => { console.log(`Warning: ${where}: ${msg}; condition skipped.`); return null; };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return bad("not an object");
 
   /** @type {Record<string, unknown>} */
@@ -115,53 +115,53 @@ function normalizeRule(kind, raw, valid, where) {
     }
   }
   // Cast: every key was checked against the kind's defaults above.
-  return /** @type {RuleByKind[K]} */ (out);
+  return /** @type {ConditionByKind[K]} */ (out);
 }
 
 /**
- * Normalise a raw list; unusable rules are dropped with a warning. A non-array gives [].
- * @template {RuleKind} K
+ * Normalise a raw list; unusable conditions are dropped with a warning. A non-array gives [].
+ * @template {ConditionKind} K
  * @param {K}             kind
  * @param {unknown}       raw
  * @param {ValidTypeSets} valid
  * @param {string}        where
- * @returns {RuleByKind[K][]}
+ * @returns {ConditionByKind[K][]}
  */
-function normalizeRules(kind, raw, valid, where) {
+function normalizeConditions(kind, raw, valid, where) {
   if (!Array.isArray(raw)) return [];
   // Cast: filter(Boolean) drops the nulls, which tsc cannot see.
-  return /** @type {RuleByKind[K][]} */ (raw.map((r, i) => normalizeRule(kind, r, valid, `${where}[${i}]`)).filter(Boolean));
+  return /** @type {ConditionByKind[K][]} */ (raw.map((r, i) => normalizeCondition(kind, r, valid, `${where}[${i}]`)).filter(Boolean));
 }
 
 /**
- * A rule as written to a preset file: keys equal to the default are omitted.
- * @param {RuleKind}                kind
- * @param {Record<string, unknown>} rule
+ * A condition as written to a preset file: keys equal to the default are omitted.
+ * @param {ConditionKind}                kind
+ * @param {Record<string, unknown>} condition
  * @returns {Record<string, unknown>}
  */
-function serializeRule(kind, rule) {
+function serializeCondition(kind, condition) {
   /** @type {Record<string, unknown>} */
   const d = KINDS[kind].defaults;
   /** @type {Record<string, unknown>} */
   const out = {};
   for (const key of Object.keys(d)) {
-    if (rule[key] !== undefined && rule[key] !== d[key]) out[key] = rule[key];
+    if (condition[key] !== undefined && condition[key] !== d[key]) out[key] = condition[key];
   }
-  // A style rule with only defaults would serialise to {}; colour range is always informative.
-  if (kind === "style" && out.colorRange === undefined) out.colorRange = rule.colorRange || d.colorRange;
+  // A style condition with only defaults would serialise to {}; colour range is always informative.
+  if (kind === "style" && out.colorRange === undefined) out.colorRange = condition.colorRange || d.colorRange;
   return out;
 }
 
 /**
- * True when a filter list is just the default rule (or empty): it filters nothing.
- * @param {RuleKind}                            kind
- * @param {Record<string, unknown>[] | null | undefined} rules
+ * True when a filter list is just the default condition (or empty): it filters nothing.
+ * @param {ConditionKind}                            kind
+ * @param {Record<string, unknown>[] | null | undefined} conditions
  */
-function isPassAll(kind, rules) {
-  if (!rules || rules.length === 0) return true;
+function isPassAll(kind, conditions) {
+  if (!conditions || conditions.length === 0) return true;
   /** @type {Record<string, unknown>} */
   const d = KINDS[kind].defaults;
-  return rules.length === 1 && Object.keys(d).every(k => rules[0][k] === d[k]);
+  return conditions.length === 1 && Object.keys(d).every(k => conditions[0][k] === d[k]);
 }
 
 // ── Matching ──────────────────────────────────────────────────────────────────
@@ -181,26 +181,26 @@ function _propOf(obj, key) {
 }
 
 /**
- * @param {{ property: string, value?: string }} rule
+ * @param {{ property: string, value?: string }} condition
  * @param {PropertySource | null | undefined}    obj
  */
-function _propOk(rule, obj) {
-  if (!rule.property) return true;
-  return _propOf(obj, rule.property) === String(rule.value || "");
+function _propOk(condition, obj) {
+  if (!condition.property) return true;
+  return _propOf(obj, condition.property) === String(condition.value || "");
 }
 
 /**
- * Evaluate a rule list with a per-rule test. Exclude rules veto; with no Include rule the list
- * keeps everything (filter lists) or nothing (feature lists). Rules that are off never match,
- * so Include rules that are all off keep nothing.
- * @template {{ on?: boolean, mode?: RuleMode }} R
- * @param {R[]}                rules
- * @param {(rule: R) => boolean} test
+ * Evaluate a condition list with a per-condition test. Exclude conditions veto; with no Include condition the list
+ * keeps everything (filter lists) or nothing (feature lists). Conditions that are off never match,
+ * so Include conditions that are all off keep nothing.
+ * @template {{ on?: boolean, mode?: ConditionMode }} R
+ * @param {R[]}                conditions
+ * @param {(condition: R) => boolean} test
  * @param {boolean}            emptyMeansAll
  */
-function evalRules(rules, test, emptyMeansAll) {
+function evalConditions(conditions, test, emptyMeansAll) {
   let hasInclude = false, included = false;
-  for (const r of rules) {
+  for (const r of conditions) {
     if (r.mode !== "exclude") hasInclude = true;
     if (r.on === false) continue;
     if (r.mode === "exclude") { if (test(r)) return false; }
@@ -211,83 +211,83 @@ function evalRules(rules, test, emptyMeansAll) {
 
 /**
  * Global element filter: does this element pass? Empty list keeps everything.
- * @param {ElementRule[]} rules
+ * @param {ElementCondition[]} conditions
  * @param {ArchiElement}  el
  */
-function matchElement(rules, el) {
-  return evalRules(rules, r => _typeOk(r.elementType, el.type) && _propOk(r, el), true);
+function matchElement(conditions, el) {
+  return evalConditions(conditions, r => _typeOk(r.elementType, el.type) && _propOk(r, el), true);
 }
 
 /**
  * Global diagram filter: does this diagram object type pass? Empty list keeps everything.
- * @param {DiagramRule[]} rules
+ * @param {DiagramCondition[]} conditions
  * @param {string}        type
  */
-function matchDiagram(rules, type) {
-  return evalRules(rules, r => _typeOk(r.diagramType, type), true);
+function matchDiagram(conditions, type) {
+  return evalConditions(conditions, r => _typeOk(r.diagramType, type), true);
 }
 
 /**
- * Does the relation match a nesting rule with everyContainer? Exclude rules still veto, so an
- * excluded relation is never "every container". Rule order has no meaning.
- * @param {RelationRule[]} rules
+ * Does the relation match a nesting condition with everyContainer? Exclude conditions still veto, so an
+ * excluded relation is never "every container". Condition order has no meaning.
+ * @param {RelationCondition[]} conditions
  * @param {string} relType
  * @param {string} srcType
  * @param {string} tgtType
  * @param {ArchiRelation} [rel]
  */
-function matchEveryContainer(rules, relType, srcType, tgtType, rel) {
-  const every = rules.filter(r => r.mode === "exclude" || r.everyContainer === true);
+function matchEveryContainer(conditions, relType, srcType, tgtType, rel) {
+  const every = conditions.filter(r => r.mode === "exclude" || r.everyContainer === true);
   return matchRelation(every, relType, srcType, tgtType, false, rel);
 }
 
 /**
- * The object a relation rule's property is read from: the relation, its source or its target.
+ * The object a relation condition's property is read from: the relation, its source or its target.
  * @overload
- * @param {{ propertyOf: string }} rule
+ * @param {{ propertyOf: string }} condition
  * @param {ArchiRelation} rel
  * @returns {ArchiConcept}
  */
 /**
  * @overload
- * @param {{ propertyOf: string }} rule
+ * @param {{ propertyOf: string }} condition
  * @param {ArchiRelation | null} [rel]
  * @returns {ArchiConcept | undefined}
  */
 /**
- * @param {{ propertyOf: string }}     rule
+ * @param {{ propertyOf: string }}     condition
  * @param {ArchiRelation | null} [rel]
  */
-function relationPropObject(rule, rel) {
+function relationPropObject(condition, rel) {
   if (!rel) return undefined;
-  return rule.propertyOf === "source" ? rel.source : rule.propertyOf === "target" ? rel.target : rel;
+  return condition.propertyOf === "source" ? rel.source : condition.propertyOf === "target" ? rel.target : rel;
 }
 
 /**
- * Source / relation / target match, plus the property condition when `rel` (the relation
- * object) is given — without it a rule with a property never matches. Filter lists pass
+ * Source / relation / target match, plus the property and value when `rel` (the relation
+ * object) is given — without it a condition with a property never matches. Filter lists pass
  * emptyMeansAll=true (global relation filter); feature lists (nesting, reverse) pass false.
- * @param {RelationRule[]} rules
+ * @param {RelationCondition[]} conditions
  * @param {string}  relType
  * @param {string}  srcType
  * @param {string}  tgtType
  * @param {boolean} emptyMeansAll
  * @param {ArchiRelation} [rel]
  */
-function matchRelation(rules, relType, srcType, tgtType, emptyMeansAll, rel) {
-  return evalRules(rules, r =>
+function matchRelation(conditions, relType, srcType, tgtType, emptyMeansAll, rel) {
+  return evalConditions(conditions, r =>
     _typeOk(r.relation, relType) && _typeOk(r.source, srcType) && _typeOk(r.target, tgtType) &&
     _propOk(r, relationPropObject(r, rel)),
     emptyMeansAll);
 }
 
 /**
- * One step rule against a step candidate (StepCandidate: one relation seen from one element of
+ * One step condition against a step candidate (StepCandidate: one relation seen from one element of
  * the previous step).
- * @param {StepRule}      r
+ * @param {StepCondition}      r
  * @param {StepCandidate} c
  */
-function _stepRuleMatches(r, c) {
+function _stepConditionMatches(r, c) {
   if (r.direction === "outgoing" && !c.outgoing) return false;
   if (r.direction === "incoming" &&  c.outgoing) return false;
   if (!_typeOk(r.relation, c.rel.type))      return false;
@@ -299,20 +299,20 @@ function _stepRuleMatches(r, c) {
 }
 
 /**
- * Does a step's rule list let this candidate through? Empty list follows everything.
- * @param {StepRule[]}    rules
+ * Does a step's condition list let this candidate through? Empty list follows everything.
+ * @param {StepCondition[]}    conditions
  * @param {StepCandidate} cand
  */
-function matchStep(rules, cand) {
-  return evalRules(rules, r => _stepRuleMatches(r, cand), true);
+function matchStep(conditions, cand) {
+  return evalConditions(conditions, r => _stepConditionMatches(r, cand), true);
 }
 
 /**
- * One step rule, relation level: relation type, direction and previous-step type.
- * @param {StepRule}      r
+ * One step condition, relation level: relation type, direction and previous-step type.
+ * @param {StepCondition}      r
  * @param {StepCandidate} c
  */
-function _stepRuleMatchesRelation(r, c) {
+function _stepConditionMatchesRelation(r, c) {
   if (r.direction === "outgoing" && !c.outgoing) return false;
   if (r.direction === "incoming" &&  c.outgoing) return false;
   return _typeOk(r.relation, c.rel.type) && _typeOk(r.previous, c.frontier.type);
@@ -320,38 +320,38 @@ function _stepRuleMatchesRelation(r, c) {
 
 /**
  * Relation collection for a step: which relations between the step's elements are drawn.
- * An Include rule matches on relation type, direction and previous-step type only, so a
+ * An Include condition matches on relation type, direction and previous-step type only, so a
  * relation to an element that was already selected is kept whatever its type (the Added
- * element type and the property condition only decide which elements the step adds). An
- * Exclude rule matches in full. Empty list keeps everything.
- * @param {StepRule[]}    rules
+ * element type and the property only decide which elements the step adds). An
+ * Exclude condition matches in full. Empty list keeps everything.
+ * @param {StepCondition[]}    conditions
  * @param {StepCandidate} cand
  */
-function matchStepRelation(rules, cand) {
-  return evalRules(rules, r => r.mode === "exclude" ? _stepRuleMatches(r, cand) : _stepRuleMatchesRelation(r, cand), true);
+function matchStepRelation(conditions, cand) {
+  return evalConditions(conditions, r => r.mode === "exclude" ? _stepConditionMatches(r, cand) : _stepConditionMatchesRelation(r, cand), true);
 }
 
-// ── Style rules ───────────────────────────────────────────────────────────────
+// ── Style conditions ───────────────────────────────────────────────────────────────
 
 /**
- * Does a style rule's relation pattern match this relation? (types only; the property comes later)
+ * Does a style condition's relation pattern match this relation? (types only; the property comes later)
  * @param {{ relation: string, source: string, target: string }} r
  * @param {string} relType
  * @param {string} srcType
  * @param {string} tgtType
  */
-function styleRuleMatchesRelation(r, relType, srcType, tgtType) {
+function styleConditionMatchesRelation(r, relType, srcType, tgtType) {
   return _typeOk(r.relation, relType) && _typeOk(r.source, srcType) && _typeOk(r.target, tgtType);
 }
 
 /**
- * Rules that style the same object. `styled` maps rule index → Set of object ids the rule styles.
- * Returns one entry per rule index that overlaps another: { rule, with: [indexes], count }.
+ * Conditions that style the same object. `styled` maps condition index → Set of object ids the condition styles.
+ * Returns one entry per condition index that overlaps another: { condition, with: [indexes], count }.
  * Pure helper behind the ⚠ column and the console warning.
  * @param {Map<number, Set<string>>} styled
- * @returns {{ rule: number, with: number[], count: number }[]}
+ * @returns {{ condition: number, with: number[], count: number }[]}
  */
-function detectRuleConflicts(styled) {
+function detectConditionConflicts(styled) {
   const idx = Array.from(styled.keys());
   const out = [];
   for (const i of idx) {
@@ -363,51 +363,51 @@ function detectRuleConflicts(styled) {
       for (const id of /** @type {Set<string>} */ (styled.get(i))) if (/** @type {Set<string>} */ (styled.get(j)).has(id)) { overlap.add(id); hit = true; }
       if (hit) others.push(j);
     }
-    if (others.length) out.push({ rule: i, with: others, count: overlap.size });
+    if (others.length) out.push({ condition: i, with: others, count: overlap.size });
   }
   return out;
 }
 
 // ── Preset files ────────────────────────────────────────────────────────────────
 
-// Where rule lists live in a preset: [path, kind, filter list (empty = all)].
-/** @type {ReadonlyArray<[string[], RuleKind, boolean]>} */
-const PRESET_RULE_LISTS = Object.freeze([
-  [["params", "nestingRules"],                 "relation", false],
-  [["params", "reverseRules"],                 "relation", false],
-  [["filter", "elementRules"],                 "element",  true],
-  [["filter", "diagramRules"],                 "diagram",  true],
-  [["filter", "relationRules"],                "relation", true],
-  [["appearance", "styleByProperty", "rules"], "style",    false],
+// Where condition lists live in a preset: [path, kind, filter list (empty = all)].
+/** @type {ReadonlyArray<[string[], ConditionKind, boolean]>} */
+const PRESET_CONDITION_LISTS = Object.freeze([
+  [["params", "nestingConditions"],                 "relation", false],
+  [["params", "reverseConditions"],                 "relation", false],
+  [["filter", "elementConditions"],                 "element",  true],
+  [["filter", "diagramConditions"],                 "diagram",  true],
+  [["filter", "relationConditions"],                "relation", true],
+  [["appearance", "styleByProperty", "conditions"], "style",    false],
 ]);
-const INLINE_KEYS = new Set(["nestingRules", "reverseRules", "elementRules", "diagramRules", "relationRules", "rules"]);
+const INLINE_KEYS = new Set(["nestingConditions", "reverseConditions", "elementConditions", "diagramConditions", "relationConditions", "conditions"]);
 
 /**
- * @param {RuleKind} kind
+ * @param {ConditionKind} kind
  * @param {unknown}  list
  * @param {boolean}  isFilter
  */
 function _compactList(kind, list, isFilter) {
   if (!Array.isArray(list)) return list;
   if (isFilter && isPassAll(kind, list)) return [];
-  return list.map(r => serializeRule(kind, r));
+  return list.map(r => serializeCondition(kind, r));
 }
 
 /**
- * Deep copy of a preset with every rule list in file form (defaults omitted, pass-all filters → []).
+ * Deep copy of a preset with every condition list in file form (defaults omitted, pass-all filters → []).
  * @param {object} preset
  * @returns {object}
  */
 function compactPreset(preset) {
   const c = JSON.parse(JSON.stringify(preset));
-  for (const [pathKeys, kind, isFilter] of PRESET_RULE_LISTS) {
+  for (const [pathKeys, kind, isFilter] of PRESET_CONDITION_LISTS) {
     let o = c;
     for (const k of pathKeys.slice(0, -1)) o = o && o[k];
     const last = pathKeys[pathKeys.length - 1];
     if (o && last in o) o[last] = _compactList(kind, o[last], isFilter);
   }
   const steps = c.relatedElements && c.relatedElements.steps;
-  if (Array.isArray(steps)) steps.forEach((/** @type {{ rules?: unknown }} */ st) => { if (st && "rules" in st) st.rules = _compactList("step", st.rules, true); });
+  if (Array.isArray(steps)) steps.forEach((/** @type {{ conditions?: unknown }} */ st) => { if (st && "conditions" in st) st.conditions = _compactList("step", st.conditions, true); });
   return c;
 }
 
@@ -418,8 +418,8 @@ function _inline(obj) {
 }
 
 /**
- * Preset JSON as written to presets/: two-space indent, every rule on one line, so a
- * step with 18 rules stays 18 lines and a git diff shows one changed rule as one line.
+ * Preset JSON as written to presets/: two-space indent, every condition on one line, so a
+ * step with 18 conditions stays 18 lines and a git diff shows one changed condition as one line.
  * @param {object} preset
  * @returns {string}
  */
@@ -449,9 +449,9 @@ function stringifyPreset(preset) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     MODES, DIRECTIONS, STEP_PROP_OF, STYLE_COLOR, STYLE_PROP_OF, REL_PROP_OF, KINDS,
-    defaultRule, normalizeRule, normalizeRules, serializeRule, isPassAll,
-    evalRules, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
-    styleRuleMatchesRelation, detectRuleConflicts,
+    defaultCondition, normalizeCondition, normalizeConditions, serializeCondition, isPassAll,
+    evalConditions, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
+    styleConditionMatchesRelation, detectConditionConflicts,
     compactPreset, stringifyPreset,
   };
 }

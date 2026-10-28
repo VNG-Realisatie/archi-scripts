@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsobjectmodel/Beleidsdomeinen",
   "algorithm": "Pack",
   "params": {
@@ -23,27 +23,27 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "connectionSpacing": 25,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
     ],
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "grouping"}
     ],
-    "relationRules": [],
-    "diagramRules": []
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 2,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       }
@@ -55,7 +55,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

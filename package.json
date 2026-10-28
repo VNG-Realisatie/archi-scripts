@@ -3,7 +3,7 @@
   "private": true,
   "description": "Development tooling only. The scripts in Scripts/ run in Archi without npm.",
   "scripts": {
-    "typecheck": "tsc -p jsconfig.json"
+    "typecheck": "tsc -p jsconfig.json && tsc -p jsconfig.pure.json"
   },
   "devDependencies": {
     "typescript": "6.0.3"

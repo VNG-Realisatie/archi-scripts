@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsproces/UPL en bedrijfsprocessen",
   "algorithm": "Layered",
   "params": {
@@ -27,27 +27,27 @@
     "labelSizing": false,
     "labelMaxLineWidth": 160,
     "connectionLabelSpacing": true,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship"}
     ],
-    "reverseRules": []
+    "reverseConditions": []
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementConditions": [],
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": "untilNothingNew",
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "repeat": "untilNothingNew",
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-service"},
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-process"},
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-event"},
@@ -64,7 +64,7 @@
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       }
@@ -76,7 +76,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "kolom",
   "algorithm": "Layered",
   "params": {
@@ -15,15 +15,15 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "nestingRules": [],
-    "reverseRules": [],
+    "nestingConditions": [],
+    "reverseConditions": [],
     "connectionsMode": "Crossing containers",
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementConditions": [],
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

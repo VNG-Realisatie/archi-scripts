@@ -20,7 +20,7 @@ const Defs         = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
-const { applyParams } = EngineUtils;
+const { applyParams, dialogKeys, settingProblem, cubicPoint } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
 const PT2PX = 96 / 72;
@@ -41,6 +41,15 @@ const GRAPHVIZ_ALGORITHMS = new Set(
 
 const GRAPHVIZ_EDGE_CLEARANCE_ORTHO  = '+24';
 const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
+// Settings outside the dialog (engineParams.Graphviz): the only Graphviz attribute the adapter reads,
+// with the algorithms that use it (dot ignores esep). Distance to element sets it where the
+// algorithm offers that option; engineParams.Graphviz wins over it.
+/** @type {Record<string, { default: string, effect: string, usedBy: string[] }>} */
+const ENGINE_PARAMS = {
+  esep: { default: `${GRAPHVIZ_EDGE_CLEARANCE_ORTHO} with Orthogonal routing, otherwise ${GRAPHVIZ_EDGE_CLEARANCE_CURVED}`,
+          effect: "Distance between a connection and an element (pt, +w = per side)",
+          usedBy: ["Neato", "FDP", "SFDP", "Twopi", "Circo"] },
+};
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 // Maps GUI param names to Graphviz graph attribute key/value pairs.
@@ -113,11 +122,45 @@ const PARAM_MAPPING = {
 // _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
 
 /**
+ * esep without Distance to element and engineParams: room for the router by routing.
+ * @param {unknown} splines  Graphviz splines value
+ */
+function _defaultEsep(splines) {
+  return splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED;
+}
+
+/**
+ * Graphviz attributes the dialog sets, each with its param.
+ * @param {string}          algorithm
+ * @param {EffectiveParams} params
+ * @returns {Record<string, string>}
+ */
+function dialogSettings(algorithm, params) {
+  return dialogKeys(algorithm, params, PARAM_MAPPING);
+}
+
+/**
+ * Settings outside the dialog: one finding per engineParams.Graphviz key.
+ * @param {MaskedPreset} preset
+ * @returns {SettingFinding[]}
+ */
+function checkEngineParams(preset) {
+  const current = applyParams(preset.algorithm, preset.params, PARAM_MAPPING);
+  const defaults = { esep: _defaultEsep(current.splines || "polyline") };
+  const dialog   = dialogSettings(preset.algorithm, preset.params);
+  return Object.entries(preset.engineParams.Graphviz || {}).map(([key, value]) =>
+    key in ENGINE_PARAMS && !ENGINE_PARAMS[key].usedBy.includes(preset.algorithm)
+      ? { key, value, problem: `not used by ${preset.algorithm} — remove` }
+      : { key, value, ...settingProblem(key, value, defaults, dialog, current) });
+}
+
+/**
  * Compute layout positions.
  * @param {LayoutGraph} graph
+ * @param {ProcessRunner} runProcess  starts the dot binary (Java in Archi, child_process in Node)
  * @returns {LayoutResult}
  */
-function layout(graph) {
+function layout(graph, runProcess) {
   const alg = ALGORITHMS[graph.algorithm];
   if (!alg || alg.engine !== "Graphviz") throw `Graphviz adapter: unknown algorithm "${graph.algorithm}"`;
 
@@ -132,8 +175,8 @@ function layout(graph) {
   const secondRun = graph.algorithm === "Circo" && _partCount(graph) > 1;
   if (secondRun) console.log("  More than one part: overlap removed and connections routed in a second run (neato -n1)");
   const jsonOut = secondRun
-    ? _runDot(_runGraphviz(dotSource, ["-Kcirco", "-Tdot"]), ["-Kneato", "-n1"])
-    : _runDot(dotSource, ["-K" + alg.engineAlgorithmId]);
+    ? _runDot(runProcess, _runGraphviz(runProcess, dotSource, ["-Kcirco", "-Tdot"]), ["-Kneato", "-n1"])
+    : _runDot(runProcess, dotSource, ["-K" + alg.engineAlgorithmId]);
   const _rawBb  = String(jsonOut.bb || "—");
   const _bbParts = _rawBb.split(",").map(parseFloat);
   const _bbWpx  = _bbParts.length === 4 ? Math.round((_bbParts[2] - _bbParts[0]) * (96 / 72)) : "?";
@@ -168,7 +211,7 @@ function _buildDOT(graph) {
     ? String(gvEP.esep)
     : (engineOpts.esep != null)
     ? String(engineOpts.esep)
-    : (splines === "ortho" ? GRAPHVIZ_EDGE_CLEARANCE_ORTHO : GRAPHVIZ_EDGE_CLEARANCE_CURVED);
+    : _defaultEsep(splines);
   delete engineOpts.esep;
 
   // Twopi: a centre per connected part, and ring radii wide enough for the elements on them
@@ -422,12 +465,13 @@ function _twopiRings(graph, opts) {
 // ── Dot binary execution ──────────────────────────────────────────────────────
 
 /**
+ * @param {ProcessRunner} runProcess
  * @param {string} dotSource
  * @param {string[]} args   engine options, e.g. ["-Kcirco"]
  * @returns {GraphvizJson}
  */
-function _runDot(dotSource, args) {
-  const stdout = _runGraphviz(dotSource, ["-Tjson", ...args]);
+function _runDot(runProcess, dotSource, args) {
+  const stdout = _runGraphviz(runProcess, dotSource, ["-Tjson", ...args]);
   try { return JSON.parse(stdout); }
   catch (e) { throw new Error("Failed to parse Graphviz JSON output: " + e); }
 }
@@ -449,45 +493,21 @@ function _partCount(graph) {
 
 /**
  * Run the Graphviz binary on DOT source; returns its standard output.
+ * @param {ProcessRunner} runProcess
  * @param {string}   dotSource
  * @param {string[]} args  e.g. ["-Tjson", "-Kcirco"]
  * @returns {string}
  */
-function _runGraphviz(dotSource, args) {
-  const ProcessBuilder   = Java.type("java.lang.ProcessBuilder");
-  const Arrays           = Java.type("java.util.Arrays");
-  const Files            = Java.type("java.nio.file.Files");
-  const StandardCharsets = Java.type("java.nio.charset.StandardCharsets");
-  const TimeUnit         = Java.type("java.util.concurrent.TimeUnit");
-
-  // Input and both outputs go through files: no pipe can block, so the timed wait is the only wait.
-  const inFile  = Files.createTempFile("graphviz", ".gv");
-  const outFile = Files.createTempFile("graphviz", ".out");
-  const errFile = Files.createTempFile("graphviz", ".err");
-  try {
-    Files.writeString(inFile, dotSource, StandardCharsets.UTF_8);
-    const pb = new ProcessBuilder(Arrays.asList(GRAPHVIZ_BIN, ...args));
-    pb.redirectInput(inFile.toFile());
-    pb.redirectOutput(outFile.toFile());
-    pb.redirectError(errFile.toFile());
-    let proc;
-    try { proc = pb.start(); }
-    catch (e) {
-      throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
-    }
-
-    if (!proc.waitFor(GRAPHVIZ_TIMEOUT_S, TimeUnit.SECONDS)) {
-      proc.destroyForcibly().waitFor(5, TimeUnit.SECONDS);   // let go of the files before they are deleted
-      throw new Error(`Graphviz did not finish within ${GRAPHVIZ_TIMEOUT_S} s and was stopped.\nTry another algorithm or a smaller selection.`);
-    }
-    const code = proc.exitValue();
-    if (code !== 0) throw new Error(`Graphviz exited with code ${code}.\n${String(Files.readString(errFile)).trim()}`);
-    return String(Files.readString(outFile, StandardCharsets.UTF_8));
-  } finally {
-    Files.deleteIfExists(inFile);
-    Files.deleteIfExists(outFile);
-    Files.deleteIfExists(errFile);
+function _runGraphviz(runProcess, dotSource, args) {
+  const out = runProcess(GRAPHVIZ_BIN, args, dotSource, GRAPHVIZ_TIMEOUT_S);
+  if (out.state === "not-found") {
+    throw new Error(`Graphviz '${GRAPHVIZ_BIN}' not found on the PATH.\nInstall Graphviz (graphviz.org) and ensure '${GRAPHVIZ_BIN}' is on the system PATH.`);
   }
+  if (out.state === "timeout") {
+    throw new Error(`Graphviz did not finish within ${GRAPHVIZ_TIMEOUT_S} s and was stopped.\nTry another algorithm or a smaller selection.`);
+  }
+  if (out.exitCode !== 0) throw new Error(`Graphviz exited with code ${out.exitCode}.\n${out.stderr.trim()}`);
+  return out.stdout;
 }
 
 // ── Origin normalisation ──────────────────────────────────────────────────────
@@ -726,12 +746,8 @@ function _flattenSpline(posStr, totalH, splineType) {
       const P0 = pts[seg*3], P1 = pts[seg*3+1], P2 = pts[seg*3+2], P3 = pts[seg*3+3];
       const n = SPLINE_SAMPLE_POINTS;
       for (let k = 1; k < n; k++) {
-        const t = k / n;
-        const m = 1 - t;
-        bps.push({
-          x: Math.round(m*m*m*P0.x + 3*m*m*t*P1.x + 3*m*t*t*P2.x + t*t*t*P3.x),
-          y: Math.round(m*m*m*P0.y + 3*m*m*t*P1.y + 3*m*t*t*P2.y + t*t*t*P3.y),
-        });
+        const p = cubicPoint(P0, P1, P2, P3, k / n);
+        bps.push({ x: Math.round(p.x), y: Math.round(p.y) });
       }
       if (seg < numSegs - 1) bps.push({ x: Math.round(P3.x), y: Math.round(P3.y) });
     }
@@ -777,5 +793,5 @@ function _renderGraphvizAttrs(attrs) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { layout };
+  module.exports = { layout, checkEngineParams, dialogSettings, ENGINE_PARAMS };
 }

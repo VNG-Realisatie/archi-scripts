@@ -38,7 +38,7 @@ Direction of graph layout.
 
 ### `esep`
 - **Scope:** G
-- **Engines:** all
+- **Engines:** neato, fdp, sfdp, osage, circo, twopi (not dot)
 - Margin for edge routing (same format as `sep`; `+w` = points per side, i.e. the line-to-node clearance). Default `+3`.
 - Should be strictly less than `sep`. Otherwise `splines=true/polyline` gives up with only a stderr warning — *"some nodes with margin (…) touch - falling back to straight line edges"* — and draws straight lines.
 

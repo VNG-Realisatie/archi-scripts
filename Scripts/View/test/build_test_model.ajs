@@ -1,0 +1,300 @@
+/**
+ * Build the View test model and save it as Scripts/View/test/model/view-test.archimate.
+ *
+ * Creates a new model with three views in Views/Test:
+ *   1 Nesting   composition and aggregation chains, an element with two parents (aggregation with every
+ *               container), a nesting cycle, a reversed type (realization), a self-loop, relations between
+ *               elements in different containers, a note with a connection and a group with a note
+ *   2 Edited    NEW_VIEW with presets/Test/baseline/baseline.json on view 1, then edited by hand: a visual moved into
+ *               another container, a user connection, an element added, a note with a connection and a
+ *               diagram-block (a group holding a note and an element). NEW_VIEW does not copy diagram objects,
+ *               so view 2 gets its own for the Modify actions.
+ *   3 Network   20 elements in two unconnected parts, no nesting relations, mixed relation types with labels
+ *
+ * Views 1 and 3 are closed: no relation leaves them, so the step in baseline.json (all neighbours) adds nothing
+ * to a NEW_VIEW of them. The elements added to view 2 have no relation to view 1.
+ *
+ * Run in Archi (no selection needed); close the test model first if it is open. To change the test data, edit
+ * this script, rerun it, run run_baseline.ajs on the new model (a rebuild has no Baseline views) and commit
+ * both. Procedure: skill view-baseline (ai/view-baseline/SKILL.md).
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common       = require(REPO_ROOT + "_lib/Common");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
+const PresetIO     = require(REPO_ROOT + "View/lib/preset_io");
+const GenView      = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION }   = require(REPO_ROOT + "View/lib/defs");
+
+const MODEL_NAME  = "View test";
+const MODEL_PATH  = REPO_ROOT + "View/test/model/view-test.archimate";
+const VIEW_FOLDER = "/Test";   // under /Views, as preset view.folder
+const VIEW_NESTING = "1 Nesting";
+const VIEW_EDITED  = "2 Edited";
+const VIEW_NETWORK = "3 Network";
+const PRESET       = "Test/baseline/baseline";
+const PROP_DOMAIN  = "domain";   // styled by the style condition in baseline.json
+
+// [key, type, name, domain]
+const NESTING_ELEMENTS = [
+  ["suite",    "application-component", "App suite",      "Apps"],
+  ["moduleA",  "application-component", "Module A",       "Apps"],
+  ["compA1",   "application-component", "Component A1",   "Apps"],
+  ["domain1",  "grouping",              "Domain 1",       ""],
+  ["domain2",  "grouping",              "Domain 2",       ""],
+  ["dataX",    "data-object",           "Data X",         "Data"],
+  ["dataY",    "data-object",           "Data Y",         "Data"],
+  ["capP",     "capability",            "Capability P",   "Strategy"],
+  ["capQ",     "capability",            "Capability Q",   "Strategy"],
+  ["compB",    "application-component", "Component B",    "Apps"],
+  ["serviceB", "application-service",   "Service B",      "Apps"],
+  ["handle",   "business-process",      "Handle request", "Business"],
+];
+// [type, name, source, target, accessType]
+const NESTING_RELATIONS = [
+  ["composition-relationship", "",         "suite",    "moduleA"],
+  ["composition-relationship", "",         "moduleA",  "compA1"],
+  ["aggregation-relationship", "",         "domain1",  "dataX"],
+  ["aggregation-relationship", "",         "domain2",  "dataX"],     // second parent: two occurrences
+  ["aggregation-relationship", "",         "domain1",  "dataY"],
+  ["composition-relationship", "",         "capP",     "capQ"],
+  ["composition-relationship", "",         "capQ",     "capP"],      // nesting cycle
+  ["realization-relationship", "realizes", "compB",    "serviceB"],  // reversed: Service B holds Component B
+  ["serving-relationship",     "serves",   "serviceB", "handle"],
+  ["flow-relationship",        "retry",    "handle",   "handle"],    // self-loop
+  ["access-relationship",      "writes",   "compA1",   "dataY", "write"],   // between containers
+  ["access-relationship",      "reads",    "moduleA",  "dataX", "read"],    // to an element with two occurrences
+];
+
+const NETWORK_ELEMENTS = [
+  // Part 1: business
+  ["citizen",     "business-actor",        "Citizen",              "Business"],
+  ["applicant",   "business-role",         "Applicant",            "Business"],
+  ["received",    "business-event",        "Application received", "Business"],
+  ["apply",       "business-process",      "Apply",                "Business"],
+  ["assess",      "business-process",      "Assess",               "Business"],
+  ["decide",      "business-process",      "Decide",               "Business"],
+  ["notify",      "business-process",      "Notify",               "Business"],
+  ["application", "business-object",       "Application",          "Business"],
+  ["decision",    "business-object",       "Decision",             "Business"],
+  ["permit",      "business-service",      "Permit service",       "Business"],
+  ["portal",      "business-interface",    "Portal",               "Business"],
+  // Part 2: technology, not connected to part 1
+  ["host",        "device",                "Host",                 "Technology"],
+  ["lan",         "communication-network", "LAN",                  "Technology"],
+  ["os",          "system-software",       "Operating system",     "Technology"],
+  ["dbms",        "system-software",       "Database server",      "Technology"],
+  ["hosting",     "technology-service",    "Hosting",              "Technology"],
+  ["deployReq",   "technology-event",      "Deploy requested",     "Technology"],
+  ["deploy",      "technology-process",    "Deploy",               "Technology"],
+  ["restart",     "technology-process",    "Restart",              "Technology"],
+  ["war",         "artifact",              "Web archive",          "Technology"],
+];
+const NETWORK_RELATIONS = [
+  ["assignment-relationship", "plays",        "citizen",   "applicant"],
+  ["assignment-relationship", "performs",     "applicant", "apply"],
+  ["triggering-relationship", "starts",       "received",  "apply"],
+  ["triggering-relationship", "then",         "apply",     "assess"],
+  ["triggering-relationship", "then",         "assess",    "decide"],
+  ["flow-relationship",       "outcome",      "decide",    "notify"],
+  ["access-relationship",     "writes",       "apply",     "application", "write"],
+  ["access-relationship",     "reads",        "assess",    "application", "read"],
+  ["access-relationship",     "writes",       "decide",    "decision",    "write"],
+  ["access-relationship",     "reads",        "notify",    "decision",    "read"],
+  ["serving-relationship",    "used by",      "permit",    "citizen"],
+  ["assignment-relationship", "offers",       "portal",    "permit"],
+  ["serving-relationship",    "used by",      "portal",    "applicant"],
+  ["association-relationship", "connected to", "host",     "lan"],
+  ["association-relationship", "",            "host",      "os"],
+  ["serving-relationship",    "runs",         "os",        "dbms"],
+  ["serving-relationship",    "hosts",        "hosting",   "os"],
+  ["serving-relationship",    "used by",      "hosting",   "deploy"],
+  ["triggering-relationship", "starts",       "deployReq", "deploy"],
+  ["triggering-relationship", "then",         "deploy",    "restart"],
+  ["access-relationship",     "reads",        "deploy",    "war",         "read"],
+];
+
+// Added to the model after view 2 is generated, so that NEW_VIEW does not see them.
+const EDIT_ELEMENTS = [
+  ["added",   "application-component", "Added component",   "Apps"],
+  ["reached", "application-component", "Reached component", "Apps"],   // on no view: EXPAND_VIEW from Added component reaches it
+  ["inBlock", "data-object",           "Data in block",     "Data"],
+];
+const EDIT_RELATIONS = [
+  ["flow-relationship",        "calls",     "added", "reached"],
+  ["association-relationship", "uses",      "added", "inBlock"],     // to an element inside a diagram-block
+  ["association-relationship", "user line", "compB", "dataY"],       // the user connection
+];
+
+const GRID = { x: 20, y: 20, dx: 200, dy: 100, columns: 4, width: 160, height: 60 };
+
+Common.initConsoleLog(__FILE__, true);
+try {
+  _checkNotLoaded(MODEL_PATH);
+  const testModel = $.model.create(MODEL_NAME);
+  testModel.setAsCurrent();   // generate_view and archi_folders work on the current model
+  testModel.openInUI();       // generate_view opens the views it writes
+  const folder = /** @type {Folder} */ (ArchiFolders.getFolderPath("/Views" + VIEW_FOLDER));
+
+  const els = Object.assign(_createElements(NESTING_ELEMENTS), _createElements(NETWORK_ELEMENTS));
+  const nestingRels = _createRelations(NESTING_RELATIONS, els);
+  const networkRels = _createRelations(NETWORK_RELATIONS, els);
+
+  const view1 = _flatView(VIEW_NESTING, folder, NESTING_ELEMENTS.map(d => els[d[0]]), nestingRels);
+  _addNesting1DiagramObjects(view1, els);
+  _flatView(VIEW_NETWORK, folder, NETWORK_ELEMENTS.map(d => els[d[0]]), networkRels);
+
+  const view2 = _generateEdited(view1);
+  Object.assign(els, _createElements(EDIT_ELEMENTS));
+  const editRels = _createRelations(EDIT_RELATIONS, els);
+  _editView2(view2, els, editRels);
+
+  new (Java.type("java.io.File"))(MODEL_PATH).getParentFile().mkdirs();
+  testModel.save(MODEL_PATH);
+  console.log(`\nTest model saved: ${MODEL_PATH}`);
+} catch (error) {
+  console.error(`> ${typeof /** @type {Error} */ (error).stack === "undefined" ? error : /** @type {Error} */ (error).stack}`);
+}
+Common.finishConsoleLog();
+
+/**
+ * Saving over the file of a model that is open would give two models with one file.
+ * @param {string} path
+ */
+function _checkNotLoaded(path) {
+  const File = Java.type("java.io.File");
+  const target = String(new File(path).getCanonicalPath());
+  for (const m of $.model.getLoadedModels()) {
+    const p = m.getPath();
+    if (p && String(new File(p).getCanonicalPath()) === target) throw `Close the model "${m.name}" (${p}) first: this script saves a new model there.`;
+  }
+}
+
+/**
+ * @param {string[][]} defs  [key, type, name, domain]
+ * @returns {Record<string, ArchiElement>}
+ */
+function _createElements(defs) {
+  /** @type {Record<string, ArchiElement>} */
+  const out = {};
+  for (const [key, type, name, domain] of defs) {
+    out[key] = model.createElement(type, name);
+    if (domain) out[key].prop(PROP_DOMAIN, domain);
+  }
+  return out;
+}
+
+/**
+ * @param {string[][]} defs  [type, name, source key, target key, accessType]
+ * @param {Record<string, ArchiElement>} els
+ * @returns {ArchiRelation[]}
+ */
+function _createRelations(defs, els) {
+  return defs.map(([type, name, s, t, accessType]) => {
+    const source = els[s], target = els[t];
+    if (!$.model.isAllowedRelationship(type, source.type, target.type))
+      throw `Not allowed in ArchiMate: ${type} from ${source.type} "${source.name}" to ${target.type} "${target.name}"`;
+    const rel = model.createRelationship(type, name, source, target);
+    if (accessType) rel.accessType = accessType;
+    return rel;
+  });
+}
+
+/**
+ * A view with the elements in a grid at view root and every relation drawn.
+ * @param {string} name
+ * @param {Folder} folder
+ * @param {ArchiElement[]} elements
+ * @param {ArchiRelation[]} relations
+ * @returns {ArchimateView}
+ */
+function _flatView(name, folder, elements, relations) {
+  const view = model.createArchimateView(name, folder);
+  /** @type {Record<string, VisualObject>} */
+  const visualOf = {};
+  elements.forEach((el, i) => {
+    const x = GRID.x + (i % GRID.columns) * GRID.dx, y = GRID.y + Math.floor(i / GRID.columns) * GRID.dy;
+    visualOf[el.id] = view.add(el, x, y, GRID.width, GRID.height);
+  });
+  for (const rel of relations) view.add(rel, visualOf[rel.source.id], visualOf[rel.target.id]);
+  console.log(`View "${name}": ${elements.length} elements · ${relations.length} relations`);
+  return view;
+}
+
+/**
+ * View 1's diagram objects, below the grid: a note connected to an element, a group holding a note.
+ * @param {ArchimateView} view
+ * @param {Record<string, ArchiElement>} els
+ */
+function _addNesting1DiagramObjects(view, els) {
+  const y = GRID.y + Math.ceil(NESTING_ELEMENTS.length / GRID.columns) * GRID.dy;
+  const note = view.createObject("diagram-model-note", GRID.x, y, 185, 55);
+  note.text = "Note on Handle request";
+  view.createConnection(note, _visualOf(view, els.handle));
+  const group = view.createObject("diagram-model-group", GRID.x + 2 * GRID.dx, y, 240, 120);
+  group.name = "Frame";
+  group.createObject("diagram-model-note", 10, 30, 185, 55).text = "Frame title";
+}
+
+/**
+ * View 2 before the hand edits: NEW_VIEW with the baseline preset on view 1.
+ * @param {ArchimateView} view1
+ * @returns {ArchimateView}
+ */
+function _generateEdited(view1) {
+  const preset = PresetIO.readPreset(PRESET);
+  preset.view.name   = VIEW_EDITED;
+  preset.view.folder = VIEW_FOLDER;
+  const views = GenView.generate_view(preset, $(view1), ACTION.NEW_VIEW.id);
+  if (views.length !== 1) throw `NEW_VIEW on "${view1.name}" wrote ${views.length} views, expected 1 (see the log above)`;
+  return views[0];
+}
+
+/**
+ * The hand edits on view 2 (see the header).
+ * @param {ArchimateView} view
+ * @param {Record<string, ArchiElement>} els
+ * @param {ArchiRelation[]} editRels  EDIT_RELATIONS, in order; the first ("calls") is in the model only
+ */
+function _editView2(view, els, editRels) {
+  const [, uses, userLine] = editRels;
+  // A visual moved into another container: Component A1 from Module A into Domain 2.
+  _visualOf(view, els.domain2).add(_visualOf(view, els.compA1), 20, 30);
+  // A user connection between two elements already on the view.
+  view.add(userLine, _visualOf(view, els.compB), _visualOf(view, els.dataY));
+  // An element added at view root, right of the generated layout.
+  const right = _rightEdge(view) + 60;
+  const added = view.add(els.added, right, 20, GRID.width, GRID.height);
+  // A note connected to an element.
+  const note = view.createObject("diagram-model-note", right, 120, 185, 55);
+  note.text = "Remark";
+  view.createConnection(note, _visualOf(view, els.handle));
+  // A diagram-block: a group with a note and an element, connected from outside.
+  const group = view.createObject("diagram-model-group", right, 220, 240, 180);
+  group.name = "Block";
+  group.createObject("diagram-model-note", 10, 30, 185, 40).text = "Block title";
+  const inBlock = group.add(els.inBlock, 10, 90, GRID.width, GRID.height);
+  view.add(uses, added, inBlock);
+  console.log(`View "${view.name}": edited by hand`);
+}
+
+/**
+ * The one visual of an element on a view.
+ * @param {ArchimateView} view
+ * @param {ArchiElement} el
+ * @returns {VisualObject}
+ */
+function _visualOf(view, el) {
+  const found = $(view).find("element").filter(v => !!v.concept && v.concept.id === el.id);
+  if (found.size() !== 1) throw `"${el.name}" has ${found.size()} visuals on view "${view.name}", expected 1`;
+  return /** @type {VisualObject} */ (found.first());
+}
+
+/**
+ * Right edge of the visuals at view root.
+ * @param {ArchimateView} view
+ */
+function _rightEdge(view) {
+  let x = 0;
+  $(view).children().each(o => { if (o.bounds) x = Math.max(x, o.bounds.x + o.bounds.width); });
+  return x;
+}

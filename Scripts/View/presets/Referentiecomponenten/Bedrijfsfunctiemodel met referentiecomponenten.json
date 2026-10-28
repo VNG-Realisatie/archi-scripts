@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Pack",
   "params": {
@@ -25,41 +25,41 @@
     "aspectRatio": 1,
     "viewSizeMode": "aspectRatio",
     "labelSizing": false,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true},
       {"relation": "realization-relationship", "everyContainer": true},
       {"relation": "serving-relationship", "everyContainer": true}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ],
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "business-function"}
     ],
-    "relationRules": [],
-    "diagramRules": []
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 4,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
         ]
       },
       {
         "repeat": 4,
-        "rules": [
+        "conditions": [
           {"direction": "incoming", "relation": "serving-relationship", "added": "application-service"}
         ]
       },
       {
         "repeat": 2,
-        "rules": [
+        "conditions": [
           {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
         ]
       }
@@ -71,7 +71,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Test/test-preset",
   "algorithm": "Layered",
   "params": {
@@ -27,19 +27,19 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": true,
-    "nestingRules": [],
-    "reverseRules": []
+    "nestingConditions": [],
+    "reverseConditions": []
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementConditions": [],
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": "untilNothingNew",
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "property": "wiki-gemma-model kernobject", "value": "rijbewijs"}
         ]
       }
@@ -51,7 +51,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

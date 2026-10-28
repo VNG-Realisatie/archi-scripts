@@ -76,7 +76,7 @@ function fromFilename(file, selection, opts = {}) {
  * Run the base preset on the selection, with some params overridden.
  * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
  * @param {string}                       actionId   ACTION.*.id
- * @param {Partial<PresetParams>}        [params]   params that replace the preset's, e.g. { direction: "Down", nestingRules: [] }
+ * @param {Partial<PresetParams>}        [params]   params that replace the preset's, e.g. { direction: "Down", nestingConditions: [] }
  * @returns {ArchimateView[]} generated / changed views
  */
 function fromBase(selection, actionId, params = {}) {

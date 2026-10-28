@@ -16,7 +16,7 @@ const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, DIRECTION_MAP } = Defs;
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, applyParams } = EngineUtils;
+const { selfLoopResult, sortedNodes, applyParams, dialogKeys, settingProblem, labelPoint } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 
@@ -28,9 +28,20 @@ const RANKER = {
   "Top-aligned": "tight-tree",
 };
 
-// Engine defaults, applied before the GUI mapping (mapping wins; engineParams.Dagre wins over both).
-// acyclicer is not here: the GUI always sets it (Default = Dagre's DFS, Greedy = "greedy").
-const DEFAULT_DAGRE_PARAMS = {};
+// Settings outside the dialog (engineParams.Dagre): the graph options dagre reads, with dagre's own
+// default. The dialog sets all but align (acyclicer only for Greedy); engineParams.Dagre wins over it.
+/** @type {Record<string, { default: string | number | undefined, effect: string }>} */
+const ENGINE_PARAMS = {
+  rankdir:   { default: "tb",              effect: "Direction of the layers: tb, bt, lr, rl" },
+  ranker:    { default: "network-simplex", effect: "Layer assignment: network-simplex, tight-tree, longest-path" },
+  acyclicer: { default: undefined,         effect: "Cycle breaking: unset = depth-first, greedy" },
+  ranksep:   { default: 50,                effect: "Distance between layers (px)" },
+  nodesep:   { default: 50,                effect: "Distance between elements in one layer (px)" },
+  edgesep:   { default: 20,                effect: "Distance between connections in one layer (px)" },
+  marginx:   { default: 0,                 effect: "Margin left and right of the view (px)" },
+  marginy:   { default: 0,                 effect: "Margin above and below the view (px)" },
+  align:     { default: undefined,         effect: "Alignment in a layer: UL, UR, DL, DR; unset = centred" },
+};
 
 /** @type {ParamMapping} */
 const PARAM_MAPPING = {
@@ -46,6 +57,34 @@ const PARAM_MAPPING = {
 };
 
 // _applyParams — provided by engine-utils.js as applyParams(algName, opts, mapping)
+
+// engineParams values may be numeric strings ("50"); convert those, keep words ("greedy") as-is.
+const _num = (/** @type {unknown} */ v) => (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? Number(v) : v;
+
+/**
+ * Dagre keys the dialog sets, each with its param.
+ * @param {string}          algorithm
+ * @param {EffectiveParams} params
+ * @returns {Record<string, string>}
+ */
+function dialogSettings(algorithm, params) {
+  return dialogKeys(algorithm, params, PARAM_MAPPING);
+}
+
+/**
+ * Settings outside the dialog: one finding per engineParams.Dagre key.
+ * @param {MaskedPreset} preset
+ * @returns {SettingFinding[]}
+ */
+function checkEngineParams(preset) {
+  /** @type {Record<string, unknown>} */
+  const defaults = {};
+  for (const [key, s] of Object.entries(ENGINE_PARAMS)) defaults[key] = s.default;
+  const dialog  = dialogSettings(preset.algorithm, preset.params);
+  const current = applyParams("Dagre", preset.params, PARAM_MAPPING);
+  return Object.entries(preset.engineParams.Dagre || {}).map(([key, value]) =>
+    ({ key, value, ...settingProblem(key, _num(value), defaults, dialog, current) }));
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -73,10 +112,7 @@ function _loadDagre() {
  */
 function _buildDagreGraph(dagre, engineOpts, nodes, edges) {
   const g = new dagre.graphlib.Graph({ directed: true, compound: true, multigraph: true })
-    .setGraph(Object.assign(
-      { rankdir: "LR", nodesep: 40, ranksep: 180, ranker: "network-simplex" },
-      engineOpts
-    ))
+    .setGraph(engineOpts)
     .setDefaultNodeLabel(() => ({}))
     .setDefaultEdgeLabel(() => ({ minlen: 1, weight: 1 }));
 
@@ -116,11 +152,8 @@ function layout(graph) {
   // not support the two-pass container measurement.
   const nodes = sortedNodes(graph.nodes, parentMap, graph.sortContainers);
 
-  // engineParams values may be numeric strings ("50"); convert those, keep words ("greedy") as-is.
-  const _num = (/** @type {unknown} */ v) => (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? Number(v) : v;
   const engineOpts = Object.assign(
     {},
-    DEFAULT_DAGRE_PARAMS,
     applyParams("Dagre", graph.options, PARAM_MAPPING),
     Object.fromEntries(
       Object.entries((graph.engineParams && graph.engineParams.Dagre) || {}).map(([k, v]) => [k, _num(v)])
@@ -208,23 +241,7 @@ function layout(graph) {
 
     const bendpoints = innerPoints.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
 
-    // Label position
-    let labelX = 0, labelY = 0;
-    if (labelPosition === "Source" && points.length > 0) {
-      labelX = Math.round(points[0].x);
-      labelY = Math.round(points[0].y);
-    } else if (labelPosition === "Target" && points.length > 0) {
-      const last = points[points.length - 1];
-      labelX = Math.round(last.x);
-      labelY = Math.round(last.y);
-    } else if (bendpoints.length > 0) {
-      const mid = bendpoints[Math.floor(bendpoints.length / 2)];
-      labelX = mid.x;
-      labelY = mid.y;
-    } else if (points.length >= 2) {
-      labelX = Math.round((points[0].x + points[points.length - 1].x) / 2);
-      labelY = Math.round((points[0].y + points[points.length - 1].y) / 2);
-    }
+    const { labelX, labelY } = labelPoint(points[0], points[points.length - 1], bendpoints, labelPosition);
 
     resultEdges.push({
       id:         edgeData.id || /** @type {string} */ (edgeObj.name),   // Cast: every edge is set with a name
@@ -251,5 +268,5 @@ function layout(graph) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { layout };
+  module.exports = { layout, checkEngineParams, dialogSettings, ENGINE_PARAMS };
 }

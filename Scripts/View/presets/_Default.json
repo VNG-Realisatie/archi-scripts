@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "_Default",
   "algorithm": "Layered",
   "params": {
@@ -9,12 +9,12 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "nestingRules": [],
+    "nestingConditions": [],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": false,
@@ -36,15 +36,15 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementRules": [],
-    "diagramRules": [],
-    "relationRules": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "rules": []
+        "conditions": []
       }
     ]
   },
@@ -55,7 +55,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsobjecten/Bedrijfsobjectmodel",
   "algorithm": "Layered",
   "params": {
@@ -9,11 +9,11 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ],
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
@@ -37,30 +37,30 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "grouping"}
     ],
-    "diagramRules": [],
-    "relationRules": []
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
         ]
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"relation": "association-relationship", "added": "business-object"},
           {"relation": "specialization-relationship", "added": "business-object"}
         ]
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       }
@@ -73,7 +73,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [
+      "conditions": [
         {"color": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Greens"}
       ],
       "mixedValuesColor": "#FF6B35",
@@ -96,15 +96,8 @@
   "engineParams": {
     "ELK": {
       "elk.spacing.nodeSelfLoop": 20,
-      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
-      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
       "org.eclipse.elk.portConstraints": "FIXED_SIDE"
-    },
-    "Dagre": {},
-    "Graphviz": {
-      "esep": "+8"
-    },
-    "layout": {}
+    }
   },
   "viewProperties": {
     "addObjectId": true,

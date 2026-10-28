@@ -4,5 +4,5 @@ const Common     = require(REPO_ROOT + "_lib/Common");
 const RunPreset  = require(REPO_ROOT + "View/lib/run_preset");
 const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 Common.initConsoleLog(__FILE__, true);
-RunPreset.fromBase($(selection), ACTION.LAYOUT_ONLY.id, { direction: "Right", nestingRules: [] });
+RunPreset.fromBase($(selection), ACTION.LAYOUT_ONLY.id, { direction: "Right", nestingConditions: [] });
 Common.finishConsoleLog();

@@ -15,8 +15,8 @@ Internal names never appear in UI labels or button text; tooltips may use them i
 | Algorithm | algorithm, engine | Padding | container padding |
 | Level | rank, layer | Placement | node placement |
 | Direction | direction, orientation | Ranking | ranker |
-| Nesting | nesting rules | Cycles | acyclicer |
-| Reverse | reverse rules | Pack | rectpacking |
+| Nesting | nesting conditions | Cycles | acyclicer |
+| Reverse | reverse conditions | Pack | rectpacking |
 | Layout inside | container algorithm | Wrap label at | label max line width |
 | Same width per level | alignWidthSameType | Snap columns to grid | snapColumnsToGrid |
 | View size › Free | no size constraint | Repeat | runs, hops |
@@ -25,14 +25,14 @@ Internal names never appear in UI labels or button text; tooltips may use them i
 
 ## Look and feel
 
-These principles hold for the whole dialog (preset row, every tab, totals line, action area) and for every other dialog in the repo. How to realise them in SWT, with the gap sizes in pixels: [`ai/dialog-style.md`](../../../../ai/dialog-style.md). Where the dialog does not meet them yet: [ARCHITECTURE § Known gaps](../ARCHITECTURE.md#known-gaps).
+These principles hold for the whole dialog (preset row, every tab, totals line, action area) and for every other dialog in the repo. How to realise them in SWT, with the gap sizes in pixels: [`dialog-style.md`](dialog-style.md). Where the dialog does not meet them yet: [ARCHITECTURE § Known gaps](../ARCHITECTURE.md#known-gaps).
 
 **Window.** The dialog is 1000 px wide and as tall as the monitor's usable area (at most 1800 px). Each tab scrolls on its own; the preset row and the action area stay visible.
 
 **Look**
-1. **One grammar.** Groups, form rows, rule tables, notes and counts look and behave the same on every tab. The same kind of setting always gets the same kind of control, in the same place.
+1. **One grammar.** Groups, form rows, condition tables, notes and counts look and behave the same on every tab. The same kind of setting always gets the same kind of control, in the same place.
 2. **Left to right, left-aligned.** Labels, headings, notes and column headers are left-aligned, also over several lines. Nothing is right-aligned or stretched, except free-text inputs (name, folder), wrapping notes and the closing button of the dialog (Cancel, bottom right).
-3. **One group, one subject.** A group's title names its subject; an opening line of explanation is optional. Two subjects get two groups. Within a group: the main control first (e.g. a rule table), then switches, then numbers, then settings for the whole group. Groups stand out from the page with a slightly lighter background, in a light and a dark theme.
+3. **One group, one subject.** A group's title names its subject; an opening line of explanation is optional. Two subjects get two groups. Within a group: the main control first (e.g. a condition table), then switches, then numbers, then settings for the whole group. Groups stand out from the page with a slightly lighter background, in a light and a dark theme.
 4. **Every control is named.** A label sits right before its control, or the control is a switch that names itself. A unit (px, pt, %) follows its field.
 5. **What belongs together sits together.** One row holds the options on one subject. The gap between a label and its control is small; the gap between pairs is clearly larger. An option that depends on a switch sits right behind it (*☐ Use label width  Wrap label at [400]*).
 6. **One vertical line per tab.** Row headings (*Size:*, *Order:*) form one column, as wide as the widest heading on the tab, so every row's fields start at the same x. Columns are aligned only within a raster: a table, a radio table, a block of checkboxes, or the first label/control pair of related groups.
@@ -93,14 +93,14 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │  │
 │ │               First object: Business Actor: Customer                │  │
 │ │  Containing:  12 elements, 8 relations                              │  │
-│ │  Filter selection by element type (no Include rule = keep all, …):  │  │
+│ │  Filter selection by element type (no Include condition = keep …):  │  │
 │ │   On │ Mode    │ Element type                                ✕      │  │
 │ │   ☑  │ Include │ All                                         ✕      │  │
-│ │   [+ Add rule]  ☐ Property condition                                │  │
-│ │  Filter selection by diagram type (no Include rule = keep all, …):  │  │
-│ │   On │ Mode │ Diagram type     [+ Add rule]                         │  │
-│ │  Filter selection by relations (no Include rule = keep all, …):     │  │
-│ │   On │ Mode │ Source type │ Relation type │ Target type  [+ Add rule]│  │
+│ │   [+ Add condition]  ☐ Match property                               │  │
+│ │  Filter selection by diagram type (no Include condition = keep …):  │  │
+│ │   On │ Mode │ Diagram type     [+ Add condition]                    │  │
+│ │  Filter selection by relations (no Include condition = keep …):     │  │
+│ │   On│Mode│Source type│Relation type│Target type   [+ Add condition]  │  │
 │ └─────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Expand selection ─────────────────────────────────────────────────┐   │
 │ │ ┌──────────────────────────────────────────────────────────────┐   │   │
@@ -108,10 +108,10 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ │ │On│Mode   │Previous step│Direction│Added         │Added    │ │   │   │
 │ │ │  │       │elements     │         │relations     │elements │ │   │   │
 │ │ │☑ │Include│Grouping     │Outgoing │Aggregation(3)│All (4)  │✕│   │   │
-│ │ │ [+ Add rule]  ☐ Property condition   Repeat: [1× ▼]          │   │   │
+│ │ │ [+ Add condition]  ☐ Match property   Repeat: [1× ▼]         │   │   │
 │ │ └──────────────────────────────────────────────────────────────┘   │   │
 │ │ ┌──────────────────────────────────────────────────────────────┐   │   │
-│ │ │ [▸] Step 2 · 1 rule · Adds: nothing           [↑] [↓]   [✕]  │   │   │
+│ │ │ [▸] Step 2 · 1 condition · Adds: nothing      [↑] [↓]   [✕]  │   │   │
 │ │ └──────────────────────────────────────────────────────────────┘   │   │
 │ │ [+ Add step]                                                       │   │
 │ └────────────────────────────────────────────────────────────────────┘   │
@@ -121,27 +121,27 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 **Counts.**
 - **Selected**: what the user picked, with a suffix `First object: <Type>: <Name>`. An empty selection shows `Selected: nothing`, without the suffix.
 - **Containing**: the count after folders and views are opened up.
-- **Filter rules**: each rule's type combo shows how many it keeps on its own, *Grouping (28)*.
-- **Adds**: one counter per step, in its header. It shows what the step *adds*, not a running total, and `Adds: nothing` when zero. A collapsed step also names its number of rules.
-- **Step rules**: the chosen Added relations / Added elements type shows `(n)`, *Aggregation (3)*. That is what the step adds with only that rule (same input, same repeat), so adding or changing another rule never changes it.
-- An Exclude rule shows instead what it removes from the other rules' result.
+- **Filter conditions**: each condition's type combo shows how many it keeps on its own, *Grouping (28)*.
+- **Adds**: one counter per step, in its header. It shows what the step *adds*, not a running total, and `Adds: nothing` when zero. A collapsed step also names its number of conditions.
+- **Step conditions**: the chosen Added relations / Added elements type shows `(n)`, *Aggregation (3)*. That is what the step adds with only that condition (same input, same repeat), so adding or changing another condition never changes it.
+- An Exclude condition shows instead what it removes from the other conditions' result.
 - Only types with a count above zero are shown.
-- Counts update on every change of a rule, on/off, repeat or step order. They use the same selection logic as the action ([counting rules](selection-nesting.md#counting-rules)).
+- Counts update on every change of a condition, on/off, repeat or step order. They use the same selection logic as the action ([counting rules](selection-nesting.md#counting-rules)).
 
-**Rules that are off.** This applies to every rule table: Selection, Nesting, Reverse and Style.
-- A rule that is off is greyed, except its *On* box and ✕.
-- Its count stays visible, greyed, and shows what the rule *would* keep, add or remove when switched on.
-- Switching a rule on or off updates every count: the active rules, the off rules, the step totals and *On the generated view*.
+**Conditions that are off.** This applies to every condition table: Selection, Nesting, Reverse and Style.
+- A condition that is off is greyed, except its *On* box and ✕.
+- Its count stays visible, greyed, and shows what the condition *would* keep, add or remove when switched on.
+- Switching a condition on or off updates every count: the active conditions, the off conditions, the step totals and *On the generated view*.
 
-**Global filter.** Three independent rule tables ([rule lists](presets.md#rule-lists)). Each shows the default row `Include | All` when nothing is filtered.
-- **Element type**: On · Mode · Element type, plus Property · Value behind *Property condition*. *Property condition* is on and locked as soon as a rule uses a property.
-- **Diagram type**: On · Mode · Diagram type, for the diagram objects of selected views; a view reference matches *reference*. The table is shown only when the selection holds diagram objects; its rules are kept either way.
+**Global filter.** Three independent condition tables ([condition lists](presets.md#condition-lists)). Each shows the default row `Include | All` when nothing is filtered.
+- **Element type**: On · Mode · Element type, plus Property · Value behind *Match property*. *Match property* is on and locked as soon as a condition uses a property.
+- **Diagram type**: On · Mode · Diagram type, for the diagram objects of selected views; a view reference matches *reference*. The table is shown only when the selection holds diagram objects; its conditions are kept either way.
 - **Relations**: On · Mode · Source type · Relation type · Target type: which relations between the filtered elements are drawn.
 
 **Steps** (GUI title *Expand selection*). A one-line explanation, the ordered steps, and `[+ Add step]` under the last one. Each step is a frame:
 - **Header**, on the left: the collapse triangle (▾/▸) and the bold title `Step N`; the title and summary are clickable too. Then the `Adds:` summary. On the right: move (↑ ↓) and, set apart, remove (✕). Their different place and shape keep collapsing and moving apart.
-- **Rule table**: On · Mode · Previous step elements · Direction · Added relations · Added elements, plus Property of · Property · Value behind *Property condition*. Property and value lists come from the step's candidates (every relation the step saw, before its rules) that match the rule's types.
-- **Footer**: `[+ Add rule]`, *Property condition* and **Repeat** (`1×`–`5×` or `until nothing new`). With *until nothing new*, `Adds:` shows `(nothing new after N×)` or `(stopped at max 10×)`.
+- **Condition table**: On · Mode · Previous step elements · Direction · Added relations · Added elements, plus Property of · Property · Value behind *Match property*. Property and value lists come from the step's candidates (every relation the step saw, before its conditions) that match the condition's types.
+- **Footer**: `[+ Add condition]`, *Match property* and **Repeat** (`1×`–`5×` or `until nothing new`). With *until nothing new*, `Adds:` shows `(nothing new after N×)` or `(stopped at max 10×)`.
 
 ### Layout tab
 
@@ -161,15 +161,15 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ │   On │ Mode    │ Source │ Relation        │ Target │ Every │ Nested │ │ │
 │ │   ☑  │ Include │ All    │ Aggregation (62)│ All    │  ☑    │ 37     │✕│ │
 │ │   ☑  │ Include │ Driver │ Association (8) │ Driver │  ☐    │ 0      │✕│ │
-│ │   [+ Add rule]                                                        │ │
+│ │   [+ Add condition]                                                   │ │
 │ │  31 matching relations are drawn as a line: the child already has a   │ │
-│ │  parent. A rule with Every shows such a child in every parent.        │ │
+│ │  parent. A condition with Every shows such a child in every parent.   │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Reverse ─────────────────────────────────────────────────────────────┐ │
 │ │  Flip these relations:                                                │ │
 │ │   On │ Mode    │ Source │ Relation         │ Target │        │       │ │
 │ │   ☐  │ Include │ All    │ All              │ All    │        │ ✕     │ │
-│ │   [+ Add rule]  ☐ Property condition                                  │ │
+│ │   [+ Add condition]  ☐ Match property                                 │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
 │ │  Layout:   Layout inside [Layered ▼]  Connections [Crossing… ▼]  Padding [20] │
@@ -196,11 +196,11 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Relation counters.** The Nesting and Reverse tables count, per rule, the relations on the predicted view that it matches on its own, after the chosen relation type: *Aggregation (62)*. An Exclude rule shows what it removes from the other rules' matches. For nesting, *Nested* shows how many become a nesting; it is empty for a rule that is off. A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for rules without *Every*), the nesting would be circular, or the relation is a self-relation. The counts use the same resolution as the writer.
-- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting rule is on, and its tooltip says so. The explanation of the Nesting and Reverse rules is the tooltip of those boxes.
-- **No Include rule.** A Nesting or Reverse list starts from nothing. With Exclude rules but no Include rule that is on, a grey note under the table says nothing is nested (or reversed) and that an Include rule is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include rule; a feature list picks nothing.
+- **Relation counters.** The Nesting and Reverse tables count, per condition, the relations on the predicted view that it matches on its own, after the chosen relation type: *Aggregation (62)*. An Exclude condition shows what it removes from the other conditions' matches. For nesting, *Nested* shows how many become a nesting; it is empty for a condition that is off. A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for conditions without *Every*), the nesting would be circular, or the relation is a self-relation. The counts use the same resolution as the writer.
+- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting condition is on, and its tooltip says so. The explanation of the Nesting and Reverse conditions is the tooltip of those boxes.
+- **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed, reason in the tooltip) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
-- **Empty Nesting / Reverse.** An empty table shows the default rule switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
+- **Empty Nesting / Reverse.** An empty table shows the default condition switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
 - **Form rows.** Containers, Flow, Elements and Connections share the tab's heading column. Flow, Elements and Connections form one raster over their first label/control pair; Containers › Options is a full 2×2 raster.
 
 **Algorithms** (generated): five styles in a radio table.
@@ -240,13 +240,13 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 | Field | Parameter | Default | Tooltip | Used by |
 |---|---|---|---|---|
-| Nesting | `nestingRules` | none | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; a rule with Every shows it in every parent. Only relations an Include rule picks are nested; Exclude rules take relations out of those, so Exclude rules alone nest nothing. | Layered, Tree, Grid, Pack, Dagre, Dot, FDP |
+| Nesting | `nestingConditions` | none | Draw matching relations as nesting: the child inside its parent. — Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; a condition with Every shows it in every parent. Only relations an Include condition picks are nested; Exclude conditions take relations out of those, so Exclude conditions alone nest nothing. | Layered, Tree, Grid, Pack, Dagre, Dot, FDP |
 
 **Reverse**
 
 | Field | Parameter | Default | Tooltip | Used by |
 |---|---|---|---|---|
-| Reverse | `reverseRules` | realization, serving, specialization | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include rule picks are reversed; Exclude rules take relations out of those, so Exclude rules alone reverse nothing. | Layered, Tree, Grid, Pack, Dagre, Dot, FDP |
+| Reverse | `reverseConditions` | realization, serving, specialization | Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged. — Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include condition picks are reversed; Exclude conditions take relations out of those, so Exclude conditions alone reverse nothing. | Layered, Tree, Grid, Pack, Dagre, Dot, FDP |
 
 **Containers**
 
@@ -296,7 +296,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 | Field | Parameter | Default | Tooltip | Used by |
 |---|---|---|---|---|
-| Aspect ratio | `aspectRatio` | 1.78 | Arrange the layout toward this width-to-height ratio. — Element sizes are unchanged. | all algorithms except Dagre, Circo |
+| Aspect ratio | `aspectRatio` | 1.78 | Arrange the layout toward this width-to-height ratio. — Element sizes are unchanged. | all algorithms except Radial, Dagre, Circo |
 | Max width | `maxWidth` | 0 | The view is at most this wide: a wider layout is arranged in more rows. — px — element sizes are unchanged. | Layered, Tree, Grid, Pack |
 <!-- /generated:layout-params -->
 
@@ -313,14 +313,14 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 ```
 ┌─[Selection]──[Layout]──[Appearance]──────────────────────────────────────────┐
 │ ┌─ Style by property ─────────────────────────────────────────────────────┐  │
-│ │ Color elements or relations by property values. Each rule says what gets  │  │
-│ │ the color and whose property gives the value.                             │  │
+│ │ Color elements or relations by property values. Each condition says what  │  │
+│ │ gets the color and whose property gives the value.                        │  │
 │ │ On│Color          │Source  │Relation   │Target │Property of│Property│Range │  │
 │ │ ☑ │Element (own…) │App Comp│ —         │ —     │ —         │Status  │Blues▓│✕ │
 │ │ ☑ │Relation       │All     │Flow       │All    │Relation   │Volume  │Reds ▓│✕ │
 │ │ ☑ │Source element │All     │Serving    │All    │Relation   │Priority│OrRd▓⚠│✕ │
-│ │ [+ Add rule]                                                              │  │
-│ │ ⚠ Rules 3, 4 style the same objects. The last rule wins. …               │  │
+│ │ [+ Add condition]                                                         │  │
+│ │ ⚠ Conditions 3, 4 style the same objects. The last condition wins. …     │  │
 │ │ Mixed values color: [#FF6B35 ▪]   Line width of styled relations: [▼]     │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
@@ -338,22 +338,22 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Style by property.** One rule table ([style rules](presets.md#rule-lists)).
-- A rule is active when it is on and has a property.
-- Its Property combo shows how many objects on the predicted view the rule colours, *Status (14)*. Before a property is chosen, it shows just *(n)*: the objects the rule reaches.
-- A rule that is off shows what it would colour and takes no part in the ⚠ check.
-- Unique values are sorted and mapped to evenly spaced colours of the rule's colour range. An object with several different values gets the *mixed values* colour.
-- Relations coloured by a *Color = Relation* rule take the fixed line width, when one is chosen.
-- Where two rules style the same object, the later wins, and the dialog marks both with ⚠ (computed on the predicted view).
-- The row tooltip reads the rule as a sentence.
-- **Reset on Expand view / Layout only**, when there is at least one style rule (on or off): first every element's fill, and every relation's line colour and width, is reset on the view. Then the active rules colour again, so a changed rule never leaves colours of an earlier run behind. Colours set in the same pass by nesting level or highlight repeated are kept; colours set by hand on the view are lost. Without style rules, nothing is reset.
+**Style by property.** One condition table ([style conditions](presets.md#condition-lists)).
+- A condition is active when it is on and has a property.
+- Its Property combo shows how many objects on the predicted view the condition colours, *Status (14)*. Before a property is chosen, it shows just *(n)*: the objects the condition reaches.
+- A condition that is off shows what it would colour and takes no part in the ⚠ check.
+- Unique values are sorted and mapped to evenly spaced colours of the condition's colour range. An object with several different values gets the *mixed values* colour.
+- Relations coloured by a *Color = Relation* condition take the fixed line width, when one is chosen.
+- Where two conditions style the same object, the later wins, and the dialog marks both with ⚠ (computed on the predicted view).
+- The row tooltip reads the condition as a sentence.
+- **Reset on Expand view / Layout only**, when there is at least one style condition (on or off): first every element's fill, and every relation's line colour and width, is reset on the view. Then the active conditions colour again, so a changed condition never leaves colours of an earlier run behind. Colours set in the same pass by nesting level or highlight repeated are kept; colours set by hand on the view are lost. Without style conditions, nothing is reset.
 
-**Style by nesting level.** Active only when a Nesting rule is on; otherwise an informational label replaces the controls. Two rows, font and colour; the spinner after the font switch is the root size, and the field after the colour switch the root colour.
+**Style by nesting level.** Active only when a Nesting condition is on; otherwise an informational label replaces the controls. Two rows, font and colour; the spinner after the font switch is the root size, and the field after the colour switch the root colour.
 - **Font.** Root containers (depth 0) get the root size, bold if set. Each deeper level gets the root size minus depth × decrease, never below the tool's default (9 pt). Containers only.
 - **Colour.** Each chain uses its root container's current fill as the darkest anchor, or the root colour when the container has no fill; with neither, the chain is skipped. Each level inward is lightened by *Lighten/level* % toward white. Leaves of the chain's type are coloured at their own depth too.
 - **Type chain.** Each root container defines its chain's type. Styling applies only to objects of the root's type whose whole ancestor chain back to the root has that type: font to containers, colour to containers and leaves. A container of another type breaks the chain: neither it nor any descendant is styled.
 
-**Highlight repeated elements.** Gives each element that appears more than once on the view its own fill colour from the range. It needs a nesting rule with *Every*. Enable and range are on one row.
+**Highlight repeated elements.** Gives each element that appears more than once on the view its own fill colour from the range. It needs a nesting condition with *Every*. Enable and range are on one row.
 
 **Colour ranges.** Every range combo offers the same set of ColorBrewer schemes, with a gradient preview strip that repaints on change.
 
@@ -384,7 +384,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - left, *On the generated view*: what *New view* puts on a new view;
 - right, *On the expanded view*: what *Expand view* leaves on the selected view; empty when *Expand view* is disabled.
 
-*Layout only* has no column: it writes what is on the view, which *Current selection* on the Selection tab already counts. Both columns use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. They refresh on every dialog change; the selected view's content is read once, when the dialog opens.
+*Layout only* has no column: it writes what is on the view, which *Current selection* on the Selection tab already counts. Both columns use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens.
 
 **Action area**: two groups with the same rows (one field row, one button row), so fields and buttons line up. Cancel sits below, bottom right, as wide as a Modify button.
 - **Create new view**: *Folder* and *Name* (this group only), *New view*, *One view each*.

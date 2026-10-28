@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsobjecten/Beleidsdomeinen ingedeeld in Iv3",
   "algorithm": "Pack",
   "params": {
@@ -27,29 +27,29 @@
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": true,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ]
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "business-object"},
       {"elementType": "grouping"}
     ],
-    "relationRules": [
+    "relationConditions": [
       {"relation": "aggregation-relationship"}
     ],
-    "diagramRules": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 5,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       }
@@ -61,7 +61,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

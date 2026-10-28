@@ -50,7 +50,7 @@ What the subsystem needs around it. Scripts run straight from a clone, with no i
 | Neighbour | Tested with | Contract | Without it |
 |---|---|---|---|
 | Archi + jArchi | Archi 5, jArchi 1.12: GraalJS 24.1.2, CommonJS on | The jArchi API (`ai/jarchi-scripting/jarchi.d.ts`), SWT / JFace for the dialog, one undo step per script run | Nothing runs; without CommonJS the libraries do not load, and ELK says so |
-| Graphviz | 14.1 | `dot -K<engine> -Tjson` from the PATH; the `-Tjson` shape in `types/vendor.d.ts` | Dot, Neato, FDP, SFDP, Twopi and Circo stop with an error; the other algorithms work. Behaviour differs per version (test case 10) |
+| Graphviz | 14.1 | `dot -K<engine> -Tjson` from the PATH; the `-Tjson` shape in `types/vendor.d.ts` | Dot, Neato, FDP, SFDP, Twopi and Circo stop with an error; the other algorithms work. Started by `lib/process_runner.js` in Archi and `tools/process_runner_node.js` in Node. Behaviour differs per version (test case 10) |
 | Vendored libraries | Versions in [`ai/repo-guide.md`](../../../ai/repo-guide.md) § Vendored libraries | elkjs (synchronous `layout`), dagre-cluster-fix (compound graphs), chroma-js (colour scales); the members used are typed in `types/vendor.d.ts` | The engine's algorithms fail; an update can change every layout |
 | Files | — | Presets and the session, plain JSON with a `schemaVersion` ([Persistent state](#persistent-state)) | The Default preset comes from the code; the dialog starts from the defaults |
 | Calling scripts | — | The [public API](#public-api) | — |
@@ -64,23 +64,29 @@ How the modules realise the three layers of [SPEC.md § 3](SPEC.md#3-architectur
 
 ```
 Layer 1 — Entry points ──────────────────────────────────────────────────────────────────────
-  _gui.ajs ─► gui/dialog_main.js  (+ gui/rule_table.js, gui/dialog_presets.js)
-                │ edits presets and the session; live counts through the pipeline helpers
+  _gui.ajs ─► gui/dialog_main.js  (+ gui/tab_*.js, widgets.js, condition_table.js, counts.js, dialog_presets.js)
+                │ edits presets and the session; live counts through gui/counts.js
   View/_*.ajs, shortcuts/**/<preset>_<Action>_<Dir>.ajs ─► run_preset.js   (headless)
   other scripts (e.g. Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs) ─► generate_view directly
                 │ (selection, preset, action)
 Layer 2 — View-generation API ───────────────────────────────────────────────────────────────
-  generate_view.js   orchestrator and the only view writer
-     ├─ selection_pipeline.js   selection → object set; nesting resolution; predicted counts
+  generate_view.js   orchestrator: read → plan() → apply → styling
+     ├─ selection_read.js       Archi reads → Snapshot (the only selection code that uses `$`)
+     ├─ selection_pipeline.js   Snapshot → object set; filter, steps, relations; predicted counts
+     ├─ nesting.js              nesting split and resolution; pairing with the visuals; counts
+     ├─ layout_graph.js         object set + nesting → LayoutGraph (nodes, edges)
+     ├─ write_plan.js           layout result + target view → WritePlan; bendpoints
+     ├─ view_writer.js          applies a WritePlan to the view (the only view writer)
+     ├─ process_runner.js       starts an external process (Graphviz) with Java; Node has its own
      └─ appearance.js           styling pass on the written view
                 │ LayoutGraph                       ▲ LayoutResult
 Layer 3 — Engine adapters ───────────────────────────────────────────────────────────────────
   engines/elk.js · engines/dagre.js · engines/graphviz.js   (+ engines/engine-utils.js)
-     └─ vendored libraries: elkjs, dagre-cluster-fix; Graphviz `dot` as an external process
+     └─ vendored libraries: elkjs, dagre-cluster-fix; Graphviz `dot` as an external process, started by a runner passed in
 
 Shared (Layers 1–2) ─────────────────────────────────────────────────────────────────────────
   defs.js        SSOT: algorithm registry, params, labels, tooltips, defaults; preset validation
-  rel_filter.js  the rule model of every rule list (pure)
+  rel_filter.js  the condition model of every condition list (pure)
   preset_io.js   preset and session files
   _lib/*         repo-wide helpers: selection, logging, folders
 ```
@@ -89,16 +95,25 @@ Shared (Layers 1–2) ───────────────────�
 |---|---|---|---|
 | `View/_*.ajs`, `shortcuts/**/<preset>_<Action>_<Dir>.ajs` | 1 | Entry scripts: base or named preset + fixed overrides → API | `run_preset` |
 | `lib/run_preset.js` | 1 | Preset, action and direction from the file name, or the base preset `all` | `preset_io`, `generate_view`, `defs` |
-| `lib/gui/dialog_main.js` | 1 | Generate View dialog, all tabs | all of the above except the adapters |
-| `lib/gui/rule_table.js` | 1 | The widget for every rule list | `rel_filter` |
+| `lib/gui/dialog_main.js` | 1 | Generate View dialog: opening, preset row, Properties tab, action area, settings ↔ widgets sync, putting the counts on the widgets | the gui modules, `preset_io`, `generate_view`, `selection_read`, `defs` |
+| `lib/gui/tab_selection.js`, `tab_layout.js`, `tab_appearance.js` | 1 | One tab each: Selection (filters, step blocks), Layout (algorithm, nesting, containers, flow, elements, connections, view size; the param → widget table `PARAM_WIDGETS`; controls that follow the algorithm), Appearance | `widgets`, `condition_table`, `counts`, `defs`, `appearance`, `rel_filter` |
+| `lib/gui/widgets.js` | 1 | SWT helpers without dialog state: tab pages, groups, form rows, combos, checks, spinners, colour pickers | `defs` |
+| `lib/gui/condition_table.js` | 1 | The widget for every condition list, and the column sets of the dialog's condition tables | `rel_filter`, `widgets`, `defs` |
+| `lib/gui/counts.js` | 1 | Everything the dialog's counters show: per-condition counts, what each step adds, the predicted view, the totals, the saved-preset compare. No widgets; Node loads it | `defs`, `selection_pipeline`, `nesting`, `rel_filter` |
 | `lib/gui/dialog_presets.js` | 1 | Save As / Rename dialog | `preset_io` |
-| `lib/generate_view.js` | 2 | The API and the **only** view writer: target view, layout graph, engine call, write, styling, view properties | `selection_pipeline`, `defs`, `appearance`, adapters, `_lib/*` |
-| `lib/selection_pipeline.js` | 2 | Selection → object set; nesting split and resolution; pairing with the visuals; predicted counts. Shared by API and dialog | `_lib/selection`, `defs`, `rel_filter` |
+| `lib/generate_view.js` | 2 | The API and the orchestration: `generate_view` (read, target view, apply, styling, view properties) and the pure `plan(preset, snapshot, actionId, runProcess)` (object set, relation roles, layout graph, engine call, write plan) | `selection_pipeline`, `selection_read`, `layout_graph`, `write_plan`, `view_writer`, `process_runner`, `nesting`, `defs`, `appearance`, adapters, `_lib/*` |
+| `lib/layout_graph.js` | 2 | Object set + nesting resolution → `LayoutGraph`: a node per occurrence, an edge per routed relation, element order, sizing. Pure | `defs`, `nesting`, `engine-utils` |
+| `lib/write_plan.js` | 2 | Layout result + the target view's positions → `WritePlan`: nodes parents first (keep, move, create), removals, connections with their bendpoints, nestings, records. Pure | `defs`, `nesting` |
+| `lib/view_writer.js` | 2 | Applies a `WritePlan` to the view; decides nothing. The **only** code that changes what is on a view | `defs` |
+| `lib/process_runner.js` | 2 | The `ProcessRunner` for Archi: starts an external process with Java `ProcessBuilder`, input and output through temp files, a time limit. `tools/process_runner_node.js` is its Node twin | — |
+| `lib/selection_read.js` | 2 | Archi reads of the selection and the target view (its visuals and their positions) into a `Snapshot`; the relations index; the seed elements. The only selection code that uses `$` | `_lib/selection`, `defs`, `nesting` |
+| `lib/selection_pipeline.js` | 2 | Snapshot → object set: filter, related-elements steps, relation collection, predicted counts. Pure. Shared by API and dialog | `defs`, `rel_filter`, `nesting`, `selection_read` |
+| `lib/nesting.js` | 2 | Nesting split and resolution; pairing with the visuals; managed-occurrence records; predicted counts. Pure | `defs`, `rel_filter` |
 | `lib/appearance.js` | 2 | Post-write styling pass | `defs`, `rel_filter`, chroma-js |
 | `lib/engines/elk.js`, `dagre.js`, `graphviz.js` | 3 | One adapter per engine: layout graph → layout result | `defs`, `engine-utils`, engine library |
 | `lib/engines/engine-utils.js` | 3 | Engine-independent sizing and ordering | `defs` |
 | `lib/defs.js` | shared | SSOT: algorithms, params, labels, tooltips, defaults, enums; preset validation; effective params | `_lib/selection`, `rel_filter` |
-| `lib/rel_filter.js` | shared | Rule model: normalise, match, file form | — |
+| `lib/rel_filter.js` | shared | Condition model: normalise, match, file form | — |
 | `lib/preset_io.js` | shared | Preset and session files | `defs`, `rel_filter` |
 | `tools/`, `test/` | — | Checks, generators, migrations, harness; Archi test scripts | — |
 
@@ -108,14 +123,14 @@ The sections below describe the implementation per functional subject, grouped b
 
 | Subject | Layer | Modules (exported names) | What | Detail |
 |---|---|---|---|---|
-| [Dialog](#dialog) | 1 | `gui/dialog_main.js`, `gui/rule_table.js`, `gui/dialog_presets.js`; counts through the pipeline helpers | [SPEC § 9](SPEC.md#9-ux--generate-view-dialog) | [gui.md](reference/gui.md) |
+| [Dialog](#dialog) | 1 | `gui/dialog_main.js`, `gui/tab_*.js`, `gui/widgets.js`, `gui/condition_table.js`, `gui/counts.js` (`dialogCounts`), `gui/dialog_presets.js` | [SPEC § 9](SPEC.md#9-ux--generate-view-dialog) | [gui.md](reference/gui.md) |
 | Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromBase`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
 | [Model and actions](#model-and-actions) | 2 | `generate_view.js` (`generate_view`) | [SPEC § 4](SPEC.md#4-data-model), [§ 5](SPEC.md#5-actions) | — |
-| [Selection](#selection) | 2 | `selection_pipeline.js` (`buildObjectSet` = `readSelection` + `composeObjectSet`, step helpers), `_lib/selection.js` | [SPEC § 6](SPEC.md#6-selection) | [selection-nesting.md](reference/selection-nesting.md#selection-run-order) |
-| [Nesting](#nesting) | 2 | `selection_pipeline.js` (`splitNestingRels`, `resolveNesting`); `generate_view.js` (`buildLayoutGraph`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#nesting-reference) |
-| [Managed occurrences](#managed-occurrences) | 2 | `selection_pipeline.js` (`describeVisuals`, `classifyVisuals`, `managedRecords`); the writer | [SPEC § 7](SPEC.md#7-layout-options), [§ 12](SPEC.md#12-resilience--error-model) | [selection-nesting.md](reference/selection-nesting.md#managed-occurrences) |
-| [Writer](#writer) | 2 | `generate_view.js`; `selection_pipeline.js` (`nestingConnections`) | [SPEC § 5](SPEC.md#5-actions), [§ 11](SPEC.md#11-rules--invariants) | [selection-nesting.md](reference/selection-nesting.md#writer-parenthood) |
-| [Appearance](#appearance) | 2 | `appearance.js` (`applyAppearance`, `computeRuleTargets`) | [SPEC § 10](SPEC.md#10-colouring--appearance) | [gui.md](reference/gui.md#appearance-tab) |
+| [Selection](#selection) | 2 | `selection_read.js` (`readSelection`, `readRelationIndex`), `selection_pipeline.js` (`buildObjectSet` = `readSelection` + `composeObjectSet`, step helpers), `_lib/selection.js` | [SPEC § 6](SPEC.md#6-selection) | [selection-nesting.md](reference/selection-nesting.md#selection-run-order) |
+| [Nesting](#nesting) | 2 | `nesting.js` (`splitNestingRels`, `resolveNesting`); `layout_graph.js` (`buildLayoutGraph`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#nesting-reference) |
+| [Managed occurrences](#managed-occurrences) | 2 | `selection_read.js` (`describeVisuals`), `nesting.js` (`classifyVisuals`, `managedRecords`); the writer | [SPEC § 7](SPEC.md#7-layout-options), [§ 12](SPEC.md#12-resilience--error-model) | [selection-nesting.md](reference/selection-nesting.md#managed-occurrences) |
+| [Writer](#writer) | 2 | `write_plan.js` (`planWrite`), `view_writer.js` (`applyWritePlan`); `nesting.js` (`nestingConnections`) | [SPEC § 5](SPEC.md#5-actions), [§ 11](SPEC.md#11-rules--invariants) | [selection-nesting.md](reference/selection-nesting.md#writer-parenthood) |
+| [Appearance](#appearance) | 2 | `appearance.js` (`applyAppearance`, `computeConditionTargets`) | [SPEC § 10](SPEC.md#10-colouring--appearance) | [gui.md](reference/gui.md#appearance-tab) |
 | [Engines](#layer-3--engine-adapters) | 3 | `engines/elk.js`, `dagre.js`, `graphviz.js` (`layout`), `engine-utils.js` | [SPEC § 7](SPEC.md#7-layout-options), [§ 8](SPEC.md#8-engine-contract) | [engines.md](reference/engines.md) |
 | [Sizing](#sizing) | 3 | `engines/elk.js`, `engine-utils.js` (`alignWidthsByLevel`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#sizing-refinements) |
 | [SSOT and presets](#ssot-and-presets) | shared | `defs.js` (`validatePreset`, `effectiveParams`), `rel_filter.js`, `preset_io.js` | [SPEC § 3](SPEC.md#3-architecture), [§ 14](SPEC.md#14-development-rules) | [presets.md](reference/presets.md) |
@@ -127,7 +142,9 @@ The code stays plain JavaScript; TypeScript only checks it (JSDoc annotations, `
 | Boundary | Types | Used by |
 |---|---|---|
 | Archi ↔ every layer | `ai/jarchi-scripting/jarchi.d.ts`: jArchi globals, collections, proxies | all checked modules |
-| Layer 1 → 2: preset, rules, object set | `types/view.d.ts`: rules, presets, algorithm specs, pipeline shapes | dialog, pipeline, API, `defs`, `rel_filter` |
+| Archi reader → pure pipeline: the `Snapshot` | `types/view.d.ts`: `Snapshot`, `RelationIndex`, `ExistingView`; `readSelection` and the harness's `readSnapshot` both produce it | `selection_read`, `selection_pipeline`, `nesting`, the harness |
+| Layer 1 → 2: preset, conditions, object set, write plan | `types/view.d.ts`: conditions, presets, algorithm specs, pipeline shapes, `WritePlan` | dialog, pipeline, API, `defs`, `rel_filter` |
+| Inside the dialog: counts, widgets, context | `types/view.d.ts`: `DialogCountInput`, `DialogCounts`, `DialogWidgets`, `DialogContext`, `StepBlock` | `gui/*` |
 | Layer 2 → 3: the engine contract | `types/layout.d.ts`: `LayoutGraph` → `LayoutResult`, nesting resolution | API, adapters |
 | Layer 3 ↔ libraries | `types/vendor.d.ts`: the members used of elkjs, dagre-cluster-fix, chroma-js, Graphviz `-Tjson` | adapters, appearance |
 | Layer 1 ↔ SWT | `types/swt.d.ts`: the SWT / JFace members the dialog uses | dialog |
@@ -147,7 +164,7 @@ Code outside the subsystem uses only these exports (SPEC § 3); everything else 
 | `defs.ACTION` | The four action ids | every caller of `generate_view` |
 | `gui/dialog_main.open(selection)` | Opens the dialog; runs the chosen action after it closes | `_gui.ajs` |
 
-Internal exports serve the dialog, the harness and the tests: the other functions of `preset_io`, `run_preset` and `selection_pipeline`, `buildLayoutGraph` (harness only) and the adapters' `layout`.
+Internal exports serve the dialog, the harness and the tests: the other functions of `preset_io`, `run_preset`, `selection_pipeline`, `selection_read`, `nesting`, `layout_graph`, `write_plan` and `view_writer`, `generate_view.plan` (pure; the harness and tests) and the adapters' `layout`.
 
 **Policy.** A change to a public signature updates every caller in the same commit (repo rule 3: no alias, no fallback). Callers are `.ajs` files outside the typecheck, so a broken call shows only at run time: find them with `grep -rn "generate_view\|run_preset" Scripts --include=*.ajs --include=*.js`. Those outside `Scripts/View/` are in `Scripts/GEMMA/GGM/`; `shortcuts/GEMMA/` is git-ignored, so a clone may hold callers the grep of another clone does not see.
 
@@ -156,11 +173,11 @@ Internal exports serve the dialog, the harness and the tests: the other function
 | Decision | Why |
 |---|---|
 | Three layers; each talks only to the one below. | The dialog, the headless scripts and other scripts (the GGM pipeline) drive one API, so a view comes out the same however it was started. The API is the one place where a view changes. Engines can be swapped without touching selection or writing. |
-| Adapters see only the layout graph: no `$`, selection, preset file or view. | All knowledge of an engine sits in one file, and an adapter runs unchanged in Node, so layouts can be reproduced and tested without Archi ([test levels](#test-levels)). Adding an engine touches no other module. |
+| Adapters see only the layout graph: no `$`, selection, preset file or view; an engine that starts a process is passed its runner. | All knowledge of an engine sits in one file, and an adapter runs unchanged in Node, so layouts can be reproduced and tested without Archi ([test levels](#test-levels)). Adding an engine touches no other module. |
 | One SSOT (`defs.js`) for functional metadata; engine option names only in the adapters. | Dialog controls, enabling, validation, capability masking and the generated doc tables all derive from one registry: nothing to keep in sync, no mirrored constants. |
 | The selection pipeline is a module of its own, shared by API and dialog. | The dialog's counts call the same exported helpers as the action, so a count is a promise ([SPEC § 6](SPEC.md#6-selection)) by construction, not by keeping two copies alike. |
-| One writer for all four actions. | Behaviour differs only in the object set and the target view; one write path cannot drift per action (SPEC rule 9). |
-| The rule model (`rel_filter`) is pure: no Archi, no Java. | Six rule lists share one matcher and one file form, tested in Node; the pipeline, the dialog and the styling pass cannot read a rule differently. |
+| One write plan and one apply for all four actions; the plan is pure, the apply only follows it. | Behaviour differs only in the object set and the target view; one write path cannot drift per action (SPEC rule 9). Positions, pairing, removals and bendpoints are decided in Node-testable code; the part that needs Archi is a list of jArchi calls. |
+| The condition model (`rel_filter`) is pure: no Archi, no Java. | Six condition lists share one matcher and one file form, tested in Node; the pipeline, the dialog and the styling pass cannot read a condition differently. |
 | Pure parts are split from the parts that touch Archi (`resolveNesting`, `classifyVisuals`, `nestingConnections`). | The hard logic (nesting, managed occurrences, pairing) is tested in Node; what touches Archi stays thin. |
 | Appearance is a separate pass after the write. | It reads only the written view and the model, so it behaves the same for every action and can never move or resize anything. |
 | The action runs after the dialog closes. | No view changes under a modal dialog; the settings are saved to the session first, so a failed run loses nothing. |
@@ -174,7 +191,7 @@ Internal exports serve the dialog, the harness and the tests: the other function
 Dialog (_gui.ajs → gui/dialog_main · open)
   1 capture the selection before anything opens (focus loss can clear it)
   2 read the session (else the defaults), validate it       preset_io · readSession
-  3 a view selected on the canvas: read it once             selection_pipeline · readSelection
+  3 a view selected on the canvas: read it once             selection_read · readSelection, readRelationIndex
   4 build the tabs; recount on every committed change       (the helpers below)
   5 an action closes the dialog; save the session
     (Cycle: the next order), then call the API              generate_view
@@ -187,26 +204,30 @@ Headless (run_preset · fromFilename, fromBase)
 
 API (generate_view)                                         module · exported name
   1 validate the preset, mask inactive params               defs · validatePreset, effectiveParams
-  2 selection → object set (+ VisualSet on Modify):         selection_pipeline · buildObjectSet
-    read (jArchi, logged), then compose (filter, steps,       → readSelection, composeObjectSet
-    predicted counts; no console output)
-  3 relation roles: nesting candidates | connections        selection_pipeline · splitNestingRels
-  4 Modify: identify the target view
-  5 layout graph: resolve nesting, pair with the visuals,   generate_view · buildLayoutGraph
-    nodes = occurrences, edges = routed relations             → selection_pipeline · resolveNesting
-  6 engine                                                  adapter · layout
-  7 Create: create or empty the view (only now)
-  8 write: reposition / create / remove, bendpoints,        generate_view (writer)
-    nestings, managed-occurrence records                      → selection_pipeline · nestingConnections, managedRecords
-  9 styling pass                                            appearance · applyAppearance
- 10 view properties                                         generate_view
+  2 read the selection and, on Modify, the target view     selection_read · readSelection → Snapshot (jArchi, logged)
+  3 Modify: identify the target view
+  4 plan(preset, snapshot, action, runProcess), pure:     generate_view · plan
+    a object set: filter, steps, relations, predicted       selection_pipeline · buildObjectSet → composeObjectSet
+      counts
+    b relation roles: nesting candidates | connections      nesting · splitNestingRels
+    c layout graph: resolve nesting, pair with the          layout_graph · buildLayoutGraph
+      visuals; nodes = occurrences, edges = routed            → nesting · resolveNesting
+      relations
+    d engine                                                adapter · layout
+    e write plan: nodes parents first (keep / move /        write_plan · planWrite
+      create), removals, connections with bendpoints,         → nesting · nestingConnections, managedRecords
+      nestings, managed-occurrence records
+  5 Create: create or empty the view (only now)
+  6 apply the write plan                                    view_writer · applyWritePlan
+  7 styling pass                                            appearance · applyAppearance
+  8 view properties                                         generate_view
 
-Dialog (live counts, before the run) — the same helpers:
+Dialog (live counts, before the run) — gui/counts · dialogCounts calls the same helpers:
   steps          selection_pipeline · expandStepWithRelations, findRelationsBetween
-  nesting        selection_pipeline · splitNestingRels, resolveNesting, describeVisuals
-  totals         selection_pipeline · predictViewCounts, logCountBlock
-  Expand view    selection_pipeline · composeObjectSet on what readSelection read before the dialog opened
-  ⚠ style check  appearance · computeRuleTargets
+  nesting        nesting · splitNestingRels, resolveNesting; selection_read · describeVisuals
+  totals         nesting · predictViewCounts; selection_pipeline · logCountBlock
+  Expand view    selection_pipeline · composeObjectSet on the Snapshot readSelection returned before the dialog opened
+  ⚠ style check  appearance · computeConditionTargets
 ```
 
 ### Identities
@@ -233,12 +254,14 @@ Dialog (live counts, before the run) — the same helpers:
 | A `*` marks settings that differ from the saved preset; switching presets discards changes without a confirm. | Users need to know when Save would do something. With Save and Save As explicit, a confirm on every switch annoys more than it helps; the `*` shows the loss before it happens. |
 | A Default preset always exists and cannot be renamed or deleted. | The combo is never empty, and there is always a safe fallback. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms of all styles are visible at once: users scan the full option space without opening a combo, and the style/algorithm relation shows at a glance. |
-| Steps start expanded when a preset is loaded. | All rules and their counts are visible at once; a block is collapsed on demand. |
+| Steps start expanded when a preset is loaded. | All conditions and their counts are visible at once; a block is collapsed on demand. |
 | Live counts recompute on value-commit, not per keystroke. | Counting can be expensive (relation traversal); recomputing per keystroke is wasteful and flickers. |
 
 **Realisation.**
 - **The configuration is the source of truth**; widgets are a view on it, with one sync in and one save out. Layout params are table-driven (`PARAM_WIDGETS`: param → widget kind), so loading, saving, enabling and tooltips are one loop. Labels, tooltips and "used by" come from `defs`.
-- **One rule-table widget** serves every rule list; its checkboxes are drawn on a Canvas, so they can turn grey (`ai/dialog-style.md`). Counts of an off rule are computed with the rule switched on.
+- **The dialog is cut along its tabs.** `dialog_main` owns the settings, the sync between them and the widgets, the preset row, the action area and the counters; each tab file builds its tab. A tab cannot require `dialog_main`, so the context carries two callbacks, `recount()` and `markModified()`, set when the dialog opens. Helpers shared by tabs live in `widgets.js`; the Layout and Appearance tabs need each other's state, which is why the nesting query is there.
+- **Counting has no widgets.** `counts.dialogCounts` takes the conditions as the tables show them and the selection read before the dialog opened, and returns every number; `dialog_main` reads the tables, calls it and puts the numbers on the widgets. Node tests it (`counts_test.js`).
+- **One condition-table widget** serves every condition list; its checkboxes are drawn on a Canvas, so they can turn grey ([`dialog-style.md`](reference/dialog-style.md)). Counts of an off condition are computed with the condition switched on.
 - **Commit events**: selection events and spinner focus-out.
 - **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle* on, the run's order is set first (Selection for a Create action), and the session gets the next one.
 - **Coupled distances** react to the spinners' Selection event, which only the user fires (not `setSelection`), and to every algorithm update, which also runs after a preset is loaded.
@@ -263,31 +286,33 @@ Dialog (live counts, before the run) — the same helpers:
 |---|---|
 | Folders and view nodes are stripped from the element set before layout. | They are containers in the model browser, not placeable on a canvas. |
 | Related elements come in steps with chain semantics; an empty step ends the chain. | Exploration is stepped ("from processes → applications → services"); one step cannot express it. An empty step stops step N+1 from bypassing step N's intent. |
-| A step rule's direction is *either*, *outgoing* or *incoming*, default *either*; an empty step rule list follows every relation. | All three are common and *either* most of all, so the default asks nothing. No rules means no restriction, as in every rule list. |
-| A step's Include rule draws a relation on type, direction and previous-step type only. | A step's drawn relations stay predictable from its relation column, and migrated steps kept exactly their old form. |
+| A step condition's direction is *either*, *outgoing* or *incoming*, default *either*; an empty step condition list follows every relation. | All three are common and *either* most of all, so the default asks nothing. No conditions means no restriction, as in every condition list. |
+| A step's Include condition draws a relation on type, direction and previous-step type only. | A step's drawn relations stay predictable from its relation column, and migrated steps kept exactly their old form. |
 | Modify actions skip the element filter. | It would hide element types already drawn and size containers for a subset, leaving the hidden elements outside their bounds. |
 | Step relations come from the collection that reached the new elements, not from everything selected so far. | Relations back to earlier steps would be drawn and could create spurious extra occurrences. |
 
 **Realisation.**
+- **Snapshot.** `readSelection` reads the selection, the target view and the relations once into a `Snapshot` (elements, diagram objects, `relationsOf`, the existing view, diagram-blocks, described visuals); `composeObjectSet` and every step, relation and nesting helper work on it and read no jArchi. `relationsOf` follows jArchi's `rels()` order (source relations, then target relations; a self-loop twice, verified with `probeJArchiApi.ajs`), cached per element. The harness builds the same `Snapshot` from an `.archimate` file (`readSnapshot`).
 - **Prediction = result.** The dialog's counts and the API call the same exported helpers: step expansion, relation collection, nesting split and resolution, predicted counts.
-- **Diagram-blocks** are found on the target view of a Modify action from the parent chain: a diagram object with no diagram object above it, with everything below it. Their contents stay out of the pairing and the layout graph; an element that appears only inside diagram-blocks is not laid out.
+- **Diagram-blocks** are found from the parent chain on the view read: the target view of a Modify action, or the view(s) a Create action copies from (a view selected in the model tree, the view of a canvas selection). A diagram-block is a diagram object with no diagram object above it, with everything below it (`children()`, recursively) and the lines between them. Their contents stay out of the pairing and the layout graph; an element that appears only inside diagram-blocks is not laid out. A Create action keeps only the diagram-blocks the diagram filter keeps.
+- **Diagram objects of a Create action**: those of the selected views and those selected on a canvas, each once (`getSelection` walks a view's `children()`, which lists its connections too).
 
 ### Nesting
 
 | Decision | Why |
 |---|---|
-| *Every container* is a flag per nesting rule, not a global switch. | Whether a child may have several parents depends on the relation: a composition has one whole; an aggregation or grouping may have many. |
-| A relation matching several nesting rules gets *every container* if any of them has it. | Rule order then has no meaning, as in every rule list; an extra rule can only add occurrences. |
-| The one-parent choice uses the current view, then names; never model or rule order. | Re-layout keeps elements where the user has them; a fresh view is reproducible. |
+| *Every container* is a flag per nesting condition, not a global switch. | Whether a child may have several parents depends on the relation: a composition has one whole; an aggregation or grouping may have many. |
+| A relation matching several nesting conditions gets *every container* if any of them has it. | Condition order then has no meaning, as in every condition list; an extra condition can only add occurrences. |
+| The one-parent choice uses the current view, then names; never model or condition order. | Re-layout keeps elements where the user has them; a fresh view is reproducible. |
 | A relation drawn as nesting loses its other lines on the view. | Containment already shows it; a left-over line shows it twice and reads as a second relation. |
 | Nesting relations forming a cycle are all drawn as connections. | A cycle is nearly always a modelling error or a double relation. Lines make it visible, where breaking it at one relation would hide it. Nothing disappears, and the rule is order-independent. |
 | A connection is drawn once per relation, between the occurrences closest together; one already on the view keeps its ends. | A relation is one fact; every pair of occurrences multiplied the lines (3,918 for 60 relations on a 128-occurrence view). The closest pair keeps the line local; keeping the user's ends means re-layout never moves a line to other boxes. |
 
 **Realisation.**
-- **One resolution** (`resolveNesting`) serves the predicted counts, the dialog's rule counts and the layout graph. No step depends on relation, rule or element order: candidates are taken in relation-id order, and every choice compares names and ids.
+- **One resolution** (`resolveNesting`) serves the predicted counts, the dialog's condition counts and the layout graph. No step depends on relation, condition or element order: candidates are taken in relation-id order, and every choice compares names and ids.
 - **Cycles first.** The strongly connected components (Tarjan) of the candidate graph parent → child are found first. Every candidate inside a component is routed, and the cycle is logged by its element names. What remains is acyclic, so later steps need no cycle checks.
 - **Parents per child**:
-  - every parent reached by a relation matching a rule with `everyContainer` (`RuleLists.matchEveryContainer`; Exclude rules still veto);
+  - every parent reached by a relation matching a condition with `everyContainer` (`ConditionLists.matchEveryContainer`; Exclude conditions still veto);
   - plus at most one parent from the other relations: a container the child sits in on the target view (`currentContainers`, from the VisualSet; the dialog takes it from the selected view), else by name, then id.
 
   All candidates between a chosen parent and the child nest; the rest are routed.
@@ -317,34 +342,41 @@ Dialog (live counts, before the run) — the same helpers:
 
 | Decision | Why |
 |---|---|
-| Expand view and Layout only lay everything out again by the Layout tab; user content is kept, but its container and position come from the layout. | One source: laying out twice gives the same view, and a setting always shows its effect. Keeping the old container showed a relation both nested and as a line when its nesting rule was off. With an algorithm that does not nest, it left objects outside their container's box, hidden by Archi. |
-| A diagram-block keeps its size, appearance and contents; only its position is laid out. | A legend or titled frame is made by hand; its contents have no relation a nesting rule could select. Laid out one by one, a legend fell apart (test case 14). |
+| Expand view and Layout only lay everything out again by the Layout tab; user content is kept, but its container and position come from the layout. | One source: laying out twice gives the same view, and a setting always shows its effect. Keeping the old container showed a relation both nested and as a line when its nesting condition was off. With an algorithm that does not nest, it left objects outside their container's box, hidden by Archi. |
+| A diagram-block keeps its size, appearance and contents; only its position is laid out. | A legend or titled frame is made by hand; its contents have no relation a nesting condition could select. Laid out one by one, a legend fell apart (test case 14). |
 | A diagram object's connection is laid out with the relations. | Left out, a note was placed loose beside the view, its line running across it (test case 13). |
+| A Create action copies the diagram objects it read with the public jArchi API: the object is created, then the attributes that differ from a fresh one are copied. | Model changes go only through the supported jArchi API (user decision, test case 16): no jArchi or Archi internals. Copying only what differs keeps a default a default. |
 | Non-orthogonal lines keep room for the end symbols (SPEC § 7); a line left without bendpoints is drawn straight. | Archi takes an end symbol's direction from the last few pixels of the line. Graphviz's curves start on the element border, so the first sampled bendpoint lay 0–4 px from it: fine at 100 % zoom, a turned arrowhead at 50 % (test case 13). Orthogonal corners are the route itself and stay. |
 | A Create action creates or empties its view only after the layout succeeded. | An engine failure must not leave an empty view or destroy the one being overwritten (SPEC § 12). |
 | Coordinates are converted engine-agnostically, by `parentId` on the result nodes. | Each engine nests differently; parent info on the result keeps engine-specific code out of the orchestrator. |
+| What the writer does is computed first, as a plan (`write_plan.js`, pure), and applied after (`view_writer.js`). | Positions, pairing, removals and bendpoints run and are checked in Node (`tools/write_plans.js` digests); the Archi part is a list of jArchi calls. |
+| Bounds in the plan are whole pixels, relative to where the container is stored. | jArchi truncates a fraction toward zero, so the plan holds what the view holds. A new or moved child lands against its container as stored, not as laid out: ≤ 1 px from the layout in fractional layouts (ELK Stress, Radial, Tree, Pack; Dagre), none in the others. |
 
 **Realisation.**
-- **Parent-first.** Nodes are written after their parent, so the parent's new bounds exist when a child is converted to parent-relative coordinates.
-- **Pairing** comes from the resolution; the writer only follows it. Diagram objects are matched by their own id.
+- **Plan, then apply.** `planWrite` returns the steps in order: self-loops removed, nodes, managed occurrences removed, connections, nestings, unrouted connections cleared, records. `applyWritePlan` follows it; a step that fails is logged and the write goes on, and a node whose container was not written is left out.
+- **Parent-first.** Nodes are planned after their parent, so a child's bounds are relative to where its parent is stored.
+- **What the plan reads.** The target view's objects come from the Snapshot (`ExistingView.positions`: parent visual and bounds), not from jArchi: the plan knows a visual's current container and which connections Archi removes with a removed visual.
+- **Pairing** comes from the resolution; the plan only follows it. Diagram objects are matched by their own id: one on the target view is kept, one read from another view is copied (`CopiedNode`), a diagram-block with its contents where they sit in it and the lines between them (`copiedLines`, with their own bendpoints).
+- **Copies** (`view_writer.js`): an element visual with `add(element, …)`, a note, group or legend with `createObject`, a view reference with `createViewReference`, a line with `view.add(relation, …)` or `createConnection`; then text, name, documentation, properties, colours, font, line, border, alignment, opacity, gradient, figure, icon, image and legend options where they differ. An element visual's name, documentation and properties are its element's and are left alone. `applyWritePlan` returns the written visuals, so the appearance pass skips the copies inside a diagram-block.
 - **Re-parenting** uses the jArchi 1.10 move (`parent.add(existingVisual, x, y)`), which keeps the visual, its appearance and its connections.
 - **Every container counts** when the writer decides whether a visual must move: an element, a group or a note. Otherwise an element inside a group is written at view-root coordinates while it stays in the group.
 - **Connections** are matched per visual pair, and each visual relation is used once; a visual relation between other visuals is not reused for another pair.
 - **Ends inside a diagram-block.** An edge with such an end is laid out at the diagram-block; the layout graph keeps the visual at that end, and the writer connects to it. A line with both ends inside one diagram-block keeps its bendpoints.
-- **Bendpoints** are Archi relative bendpoints: offsets from the source and target centres. For reversed relations their order is flipped back to the model direction.
+- **Bendpoints** are Archi relative bendpoints: offsets from the source and target centres, computed in the plan from the boxes the connection's ends have after the write. For reversed relations their order is flipped back to the model direction.
 - **End room.** Before the label points are added, bendpoints of non-orthogonal lines too close to their element or to the previous bendpoint are dropped (`CONNECTION_END_ROOM`, `BENDPOINT_MIN_GAP`). Label points start that far outside the point where Archi lets the line leave the element (the line from its centre towards the first bendpoint).
 - **Middle labels.** Archi puts a Middle label at the middle point *by index* of source anchor, bendpoints and target anchor. To put it where the engine reserved space, the writer makes the label point a bendpoint and adds collinear bendpoints on the shorter side until both sides hold as many. The drawn route is unchanged.
 - **Self-loops** are deleted from the view for algorithms without self-loop support. Otherwise the engine's route is used, or a small corner loop when the engine returns none.
 - **Connections the engine did not route** get their bendpoints cleared, so switching algorithms leaves no stale routing.
 - **Nesting connections** (`nestingConnections`, pipeline; pure, tested in Node): per binding, the visual relation between the two paired visuals is kept; every other visual relation of a nested relation is deleted.
 - **Every visual gets a node.** An unpaired user visual is laid out at view root; nothing is left behind unpositioned.
+- A Create action does not restyle the diagram connections of the view it read from: it copies them, to the copy of each end or to the node an element end was laid out as.
 - Appearance and view properties run after the write. Setting bounds keeps a visual's appearance (`test/test_visual_props.ajs`).
 
 ### Appearance
 
 **Realisation.**
 - A separate pass that reads only the written view and the model, so it behaves the same for every action.
-- Objects inside a diagram-block are skipped and keep their appearance.
+- Objects inside a diagram-block are skipped and keep their appearance; on a Create action, their copies.
 - Style by property shares its target computation with the dialog's ⚠ check.
 
 ## Layer 3 — Engine adapters
@@ -363,6 +395,7 @@ Dialog (live counts, before the run) — the same helpers:
 
 **Realisation.**
 - **Engine options, last wins:** engine defaults → GUI params through the adapter's mapping → `engineParams.<Engine>` from the preset (expert override, no dialog control). `engineParams.layout` tunes the engine-independent label sizing.
+- **Settings outside the dialog are checked at the run, not in `validatePreset`:** `validatePreset` also runs when the dialog loads a preset, and console output inside the modal dialog blocks until it closes. `generate_view.checkEngineParams` checks `layout` (`engine-utils.checkLabelSizing`) and the run's engine (the adapter's `checkEngineParams`), never another engine's section, which only a run with that engine uses. Each adapter owns its table (`ENGINE_PARAMS`: keys, defaults, effect) and `dialogSettings`, the keys its mapping sets with the param that sets them. `engine-utils.dialogKeys` finds those by probing each mapper: a key whose value varies, or that is left out for some value, is set by the dialog; a key with one value for every probe is a fixed value of the adapter, which counts as a default. ELK option ids, targets and algorithms come from the bundled ELK's registry (`metadata()` in the elkjs wrapper). The check rebuilds the run's root, container and leaf options with `_engineOptions` and `_elkNode`, so an option the adapter sets after the preset shows as not used. Only an algorithm's own options (`elk.<algorithm>.*`) are checked against the algorithm: ELK declares fewer core options than an algorithm reads (measured: Stress uses `elk.padding` and `elk.aspectRatio` undeclared). Not detected: a core option that has no effect in this run (`elk.spacing.nodeSelfLoop` with Pack, which passes no self-loops to ELK). Reference: [presets § Settings outside the dialog](reference/presets.md#settings-outside-the-dialog).
 - **Order** is applied while building the layout graph: the elements outside containers are sorted among themselves, and with a sorted order the relations follow the order of their elements. The ELK and Dagre adapters keep that input order outside containers, and sort by type and name only inside a container.
 
 ### Sizing
@@ -396,9 +429,10 @@ Realisation: [ELK](#elk).
   - The adapter searches one ratio for all scopes (log scale, then bisection), measures each run, and repeats the best run with routing.
   - Rectpacking hangs at high ratios, so Pack is capped at 3.
   - Where the ratio has no effect (connection chains set the width, or *Crossing containers*), the target is logged as not reachable.
+  - Radial has no *Aspect ratio*: the bundled elkjs declares no `elk.aspectRatio` for `radial`, so the layout never responds to it, and the control is disabled.
 - **Reserve label space** (Layered). Each connection label is an inline ELK label with its estimated size. Layer spacing becomes the connection spacing, and every edge gets a label box (empty ones invisible), so a gap between element layers is `max(layer spacing, label + 2 × connection spacing)`.
 - **Jogs** under 5 px right after a port, left by node placement, are straightened onto the longer segment.
-- **Same width per level** runs ELK twice: measure natural widths, then set leaf widths and container minimum sizes and lay out again. **Snap columns to grid** (Grid, Pack) is a position-only pass on the result; leaves are moved, never resized.
+- **Same width per level** sets leaf widths and container minimum sizes before the one ELK run. The anchor, the narrowest box at the deepest level, is a leaf, whose input width ELK keeps, so the widths come from the layout graph. **Snap columns to grid** (Grid, Pack) is a position-only pass on the result; leaves are moved, never resized.
 - **Placement.** *Centred* = network-simplex placement: the shortest total connection length centres an element between its neighbours. *Straight lines* = Brandes-Köpf: each element is aligned with one neighbour, computed from four corners, and the smallest result is kept; hence the lean towards a corner.
 - **Tree** (mrtree) has one spacing for siblings and levels, and only two line styles of its own: a stub then a diagonal, or centre to centre. It ignores the general edge-routing option; ELK silently ignores every option an algorithm does not declare.
   - **Layer distance:** every root-level box is widened in the flow direction by layer distance − element distance (a container by padding on both flow sides), then narrowed back after layout, centred: positions only, sizes unchanged. Connection ends in the widened part move onto the real side.
@@ -451,7 +485,7 @@ Realisation: [ELK](#elk).
 
 ## SSOT and presets
 
-Shared by layers 1 and 2: `defs.js` (registry, defaults, validation), `rel_filter.js` (rule model) and `preset_io.js` (files).
+Shared by layers 1 and 2: `defs.js` (registry, defaults, validation), `rel_filter.js` (condition model) and `preset_io.js` (files).
 
 | Decision | Why |
 |---|---|
@@ -466,7 +500,7 @@ DEFAULT_PRESET (defs.js)                      code defaults
  ← session       presets/_session.json        dialog: the last settings; a picked preset replaces them
  ← overrides     entry script or caller       direction from the file name, fixed params of View/_*.ajs,
                                               opts.edit, a calling script's own changes
- → validatePreset                             missing keys defaulted, unknown keys stripped, rules checked
+ → validatePreset                             missing keys defaulted, unknown keys stripped, conditions checked
  → effectiveParams                            inactive params dropped, locks applied (connections mode)
  → adapter: engine defaults ← GUI params (mapping) ← engineParams.<Engine>
 ```
@@ -474,8 +508,8 @@ DEFAULT_PRESET (defs.js)                      code defaults
 **Realisation.**
 - **One registry per algorithm** in `defs.js`: engine, style, nesting and self-loop capability, active params, allowed values. Dialog enabling, validation and the generated tables derive from it; `tools/check_registry.js` checks registry ↔ defaults ↔ dialog widgets.
 - **Effective params.** Inactive params are dropped and locks applied (connections mode) before the pipeline, adapter or writer sees the preset.
-- **File form.** Plain JSON, one rule per line, defaults omitted, so a changed rule is one changed line in a diff.
-- **The schema version gates loading.** A different `schemaVersion` is refused with a message. A shape change ships with a one-shot, idempotent Node migration in `tools/` that rewrites every preset, `_session.json` included; there is no conversion at load time. Version 3 replaced `params.showInEveryContainer` with `everyContainer` per nesting rule; `tools/migrate_presets_everycontainer.js` set it on every nesting rule of a preset whose global switch was on.
+- **File form.** Plain JSON, one condition per line, defaults omitted, so a changed condition is one changed line in a diff.
+- **The schema version gates loading.** A different `schemaVersion` is refused with a message. A shape change ships with a one-shot, idempotent Node migration in `tools/` that rewrites every preset, `_session.json` included; there is no conversion at load time. Version 3 replaced `params.showInEveryContainer` with `everyContainer` per nesting condition. Version 4 renamed the *rule* keys to *condition* (`tools/migrate_presets_conditions.js`). Only the latest migration is kept: an older one stamps the current version on its own output, so at version 4 it would write the old keys, which loading strips silently; the migrations to versions 2 and 3 run from commit `61c9c52` ([README](../README.md#presets)).
 
 ## Cross-cutting concepts
 
@@ -490,7 +524,7 @@ Concerns that span the layers.
 | The entry point shows the reason in a message box (SPEC § 12). | The console can be closed or scrolled away; a run that writes nothing without a word looks like a hang. |
 | Silent catches form a closed list: an SWT call on a widget that may be disposed (layout, redraw, text during a dialog update); a jArchi lookup that may find nothing (a diagram-object type a view cannot hold, a property that is absent); deleting a visual that Archi already removed with its parent. Every other catch logs what failed and on which object. | These cases are expected and harmless. Anything else hidden in an empty catch shows up only later, as a wrong view without a reason. |
 
-Realisation today: `generate_view` catches every failure of a run, logs it with its stack and returns normally; the dialog has a second catch around the call. The adapters throw `Error` (ELK not loaded, Graphviz not found, its exit code, the timeout). What does not meet the decisions yet: [Known gaps](#known-gaps).
+Realisation today: `generate_view` catches every failure of a run, logs it with its stack and returns normally; the dialog has a second catch around the call. The adapters throw `Error` (ELK not loaded, Graphviz not found, its exit code, the timeout; the adapter builds these messages from the runner's outcome). What does not meet the decisions yet: [Known gaps](#known-gaps).
 
 ### Unit of work
 
@@ -508,11 +542,11 @@ The same modules run in two runtimes.
 | Runtime | What runs | Globals |
 |---|---|---|
 | Archi: jArchi 1.12, GraalJS 24.1.2, CommonJS | Everything | `$`, `selection`, `model`, `__DIR__`, `__FILE__`, `Java`, `Packages`, `window`; `console` with `log` and `error`, one argument each |
-| Node 22, development | `defs`, `rel_filter`, `selection_pipeline` (the pure parts), `generate_view` (`buildLayoutGraph`), `engine-utils`, the ELK and Dagre adapters; `tools/` | The harness's stand-ins: a global `__DIR__`, a `Java` that only reads files, a console that drops the `Loading …` lines |
+| Node 22, development | `defs`, `rel_filter`, `nesting`, `selection_pipeline`, `layout_graph`, `write_plan`, `generate_view` (`plan`), `engine-utils`, the ELK, Dagre and Graphviz adapters; `tools/` (Graphviz needs `dot` on the PATH, started by `tools/process_runner_node.js`) | The harness's stand-ins: a global `__DIR__`, a `Java` that only reads files (the vendored elkjs reads its worker that way), a console that drops the `Loading …` lines |
 
-- A module that must load in Node uses `$`, `Java` and `window` only inside functions the Node path does not call, and exports under `typeof module !== "undefined"`.
+- A pure file uses no `$`, `model`, `selection`, `Java`, `Packages` or `window`; checked by `jsconfig.pure.json`. Files not yet on its list still use them inside functions the Node path does not call. `nesting.js`, `selection_pipeline.js`, `layout_graph.js` and `write_plan.js` are pure but not on the list: their type import of `defs` pulls `_lib/selection.js` and `Common.js` (which use `$`) into the pure program. They join when `defs.js` stops requiring `selection.js`; `selection_read.js` is Archi code by design. A module that Node loads exports under `typeof module !== "undefined"`.
 - The harness reads the model with its own `.archimate` reader: a second path to the model, which can drift from what jArchi returns.
-- Only in Archi: the dialog, the writer, the styling pass, preset files and Graphviz (the `Java` stand-in cannot start `dot`).
+- Only in Archi: the dialog, `view_writer.js` (applying a plan), `generate_view`'s own entry (reading and opening views), the styling pass, preset files and the Java process runner (`lib/process_runner.js`; Node has its own runner, so Graphviz runs there too).
 - Sorting by name is the same in both ([Determinism](#determinism)); speed is not ([Performance](#performance)).
 
 ### Determinism
@@ -529,14 +563,14 @@ Sources of order: the selection (Order *as selected*), ids (relations are taken 
 | Decision | Why |
 |---|---|
 | The action runs on the UI thread, after the dialog closes, without progress or cancel. | jArchi scripts are synchronous: no timers, no event loop, and model changes belong on the UI thread. Archi does not respond during a run. |
-| ELK runs in-process; Graphviz runs as an external process with a time limit (`GRAPHVIZ_TIMEOUT_S` in the adapter, 60 s). | ELK can be slow but ends (Pack is capped where rectpacking hangs); in-process it cannot be stopped. `dot` is fast but can hang for good on a rare bug, and a process can be stopped. The limit is engine-specific, so the adapter owns it. |
-| Live counts recompute on commit, with a cache per step rule. | Counting traverses relations; per keystroke it is wasted work and flickers. |
+| ELK runs in-process; Graphviz runs as an external process with a time limit (`GRAPHVIZ_TIMEOUT_S` in the adapter, 60 s). | ELK can be slow but ends (Pack is capped where rectpacking hangs); in-process it cannot be stopped. `dot` is fast but can hang for good on a rare bug, and a process can be stopped. The limit is engine-specific, so the adapter owns it; the runner, passed in (Java in Archi, `child_process` in Node), only enforces it. |
+| Live counts recompute on commit, with a cache per step condition. | Counting traverses relations; per keystroke it is wasted work and flickers. |
 
 **Realisation.**
 - **Interpreted JavaScript.** jArchi's GraalJS runs on Archi's own JVM without the Graal compiler, so scripts are interpreted, never compiled. ELK, a large transpiled library, is therefore much slower in Archi than in Node; the harness is the place to try a large layout.
-- **Multi-pass layouts.** The ELK view-size search (log-scale steps, then bisection, each a full layout; the best is run again with routing); same width per level (two runs); the Radial and Stress second runs; Circo's second process for a graph of several parts. *One view each* runs the whole pipeline per element.
-- **Reading once.** Required modules are memoised and adapters load on first use. The dialog reads Expand view's content (`readSelection`) once before it opens and composes (`composeObjectSet`) on every change.
-- **Count cache.** A step rule's count is cached per rule and input (repeat plus FNV-1a signatures of the id lists), and the cache is emptied above 500 entries.
+- **Multi-pass layouts.** The ELK view-size search (log-scale steps, then bisection, each a full layout; the best is run again with routing); the Radial and Stress second runs; Circo's second process for a graph of several parts. *One view each* runs the whole pipeline per element.
+- **Reading once.** Required modules are memoised and adapters load on first use. The dialog reads the relations index (`readRelationIndex`, per element on first use) and Expand view's `Snapshot` (`readSelection`) once before it opens, and composes (`composeObjectSet`) on every change; the target view's visuals are described once per read.
+- **Count cache.** A step condition's count is cached per condition and input (repeat plus FNV-1a signatures of the id lists), and the cache is emptied above 500 entries.
 - **Measuring.** `generate_view` logs the time per phase (`Timing:`). Budget numbers follow once SPEC § 13 defines them.
 
 ### Logging
@@ -560,17 +594,19 @@ Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its pr
 
 - **Write safety.** `preset_io.writeJSON` writes a file in place, with no temp file and rename: a crash mid-write leaves a broken preset, which then fails to load. Reading and writing use the JVM's default charset, UTF-8 on Archi 5 (Java 21, and `Archi.ini` sets `-Dfile.encoding=UTF-8`).
 - **One session.** Two Archi instances share `_session.json`; the last to save wins.
-- **Ownership.** Tracked presets are shared through the repo. Local, git-ignored: `_session.json`, `presets/Test/` (four tracked as test data), `presets/GEMMA/*` except `GGM`, and the shortcut scripts in `shortcuts/GEMMA/`.
+- **Ownership.** Tracked presets are shared through the repo. Local, git-ignored: `_session.json`, `presets/GEMMA/*` except `GGM`, and the shortcut scripts in `shortcuts/GEMMA/`.
 
 ## Platform constraints
 
-View-specific jArchi behaviour. General jArchi rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md), SWT / GTK in [`swt-gtk.md`](../../../ai/jarchi-scripting/swt-gtk.md), and the repo's dialog style in [`ai/dialog-style.md`](../../../ai/dialog-style.md).
+View-specific jArchi behaviour. General jArchi rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md), SWT / GTK in [`swt-gtk.md`](../../../ai/jarchi-scripting/swt-gtk.md), and the repo's dialog style in [`dialog-style.md`](reference/dialog-style.md).
 
 - `$(view).children()` misses view references; find them per diagram type.
 - A view reference reports type `"archimate-diagram-model"` instead of `"diagram-model-reference"`; both are in `DIAGRAM_TYPES`.
 - `view.add(obj, x, y, w, h)` works for elements only; diagram objects take the 2-argument form.
+- `$(view).children()` lists the view's top-level objects and all its connections (`DiagramModelProxy.children()`).
+- `createObject` makes a note, group or legend only (wiki, jArchi 1.12); a `diagram-model-image` cannot be created.
 - Bounds are relative to the parent visual. Setting bounds keeps the appearance.
-- `openInUI()` is unreliable for a view created in the same run; the view is opened through its EMF model (`EditorManager.openDiagramEditor`).
+- `openInUI()` opens a view created or emptied in the same run as the focused tab (checked in Archi for every action).
 
 ## Development and testing
 
@@ -594,7 +630,7 @@ How a change is designed, built and checked. The binding steps are in [`Scripts/
 | Value of an option | `defs.js` value list, label, tooltip → adapter mapping | as above |
 | Algorithm | `defs.js` registry entry (engine, style, capabilities, active params) → adapter mapping | as above; harness `--layout`; `tools/compare-layouts.js` for the other algorithms |
 | Engine | an adapter in `engines/` (`layout(LayoutGraph) → LayoutResult`) → the engine switch in `generate_view` (Known gap 2); its library in `Scripts/node_modules/`, its members in `types/vendor.d.ts` | as for an algorithm; `ai/repo-guide.md` § Vendored libraries |
-| Rule list | `defs.js` default (empty list) → `rel_filter` when it needs another column → a `rule_table` in the dialog → the pipeline or styling pass that reads it | `rel_filter_test.js`, `check_registry.js`, typecheck |
+| Condition list | `defs.js` default (empty list) → `rel_filter` when it needs another column → a `condition_table` in the dialog → the pipeline or styling pass that reads it | `rel_filter_test.js`, `check_registry.js`, typecheck |
 | Diagram-object type | `defs.js` `DIAGRAM_TYPES` (closed set) → pipeline filter and traversal → writer | `nesting_test.js`; in Archi |
 | Action | `defs.js` `ACTION` → `run_preset` file-name map → dialog button → object set in the pipeline; the writer stays action-agnostic (SPEC rule 9) | every level; SPEC § 5 |
 | Styling group | `defs.js` appearance defaults → `appearance.js` → Appearance tab | in Archi; SPEC § 10 |
@@ -605,12 +641,14 @@ How a change is designed, built and checked. The binding steps are in [`Scripts/
 | Level | How | Covers | Does not cover |
 |---|---|---|---|
 | Static | `npm run typecheck` (CI) | The [typed contracts](#typed-contracts) and jArchi API use in `lib/` | Behaviour; `.ajs` entry scripts, `tools/` |
-| Unit, Node | `node Scripts/View/tools/rel_filter_test.js`, `nesting_test.js [model.archimate]` (CI) | Rule model; nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders); managed occurrences: capture, pairing, connections between occurrences | Engines, writer |
+| Unit, Node | `node Scripts/View/tools/rel_filter_test.js`, `nesting_test.js [model.archimate]` (CI); `compose_test.js` (object set and predicted counts on the test model, per view and action); `counts_test.js` (the dialog's counts on the test model) | Condition model; nesting resolution: several parents, every container, cycles, order independence (also on a model's view in both relation orders); managed occurrences: capture, pairing, connections between occurrences | Engines, writer |
 | Consistency, Node | `check_registry.js`; `gen_docs_tables.js [--write]` (check by default) | Registry ↔ defaults ↔ dialog widgets; generated doc tables up to date | — |
-| Pipeline on a real view, Node | `view_harness.js <model.archimate> <view path> [preset] [--on-view] [--layout]` | A view from a model file → pipeline input → nesting → layout graph → engine; params masked as in Archi | The writer, rendering, Graphviz (its Java stand-in cannot start `dot`), diagram objects |
-| Layout regression, Node | `node tools/compare-layouts.js <checkout> <model> <view> [presets…]` (repo root `tools/`) on two checkouts, then diff | One digest per preset × algorithm: a change leaves layouts as they were | Graphviz, writer |
+| Plan on a real view, Node | `view_harness.js <model.archimate> <view path> [preset] [--action=<id>] [--write-plan]`; as a module `readSnapshot` gives the `Snapshot` and `planView` runs `generate_view.plan` on it | A view from a model file → the run's own plan: object set → nesting → layout graph → engine → write plan; params masked as in Archi | Applying the plan (`view_writer.js`), rendering. Graphviz needs `dot` on the PATH |
+| Write plans, Node | `node Scripts/View/tools/write_plans.js [--full]`: one digest per preset × algorithm × view × action on the test model; the baseline digests are in `plan/view-testability-baseline-write-plans.md` | The writer's decisions: positions relative to the container, keep / move / create / remove, pairing, connections, bendpoints, records; Graphviz needs `dot` on the PATH | Applying them |
+| Layout regression, Node | `node tools/compare-layouts.js <checkout> <model> <view> [presets…]` (repo root `tools/`) on two checkouts, then diff; it lays out what a New view run makes (`planView`), so both checkouts need a harness with `planView`; the baseline digests of the [test model](#test-data) are in `plan/view-testability-baseline-layout-digests.md` | One digest per preset × algorithm, Graphviz included (a different `dot` version can change them): a change leaves layouts as they were | Writer |
+| Written views, Archi + Node | `test/run_baseline.ajs` in Archi replaces `Views/Baseline` of the test model with the action × view × preset matrix and saves the model; `node Scripts/View/tools/compare-views.js --head` diffs it with the committed one (visual ids left out). Procedure: skill `view-baseline` | The writer as Archi applies it: parent-first placement, keep / create / remove, connections, bendpoints, managed-occurrence records, appearance | Rendering |
 | No behaviour change | `node tools/same-code.js <file…>` (repo root `tools/`) | Only comments or JSDoc changed | — |
-| In Archi | Run the action on a test view: golden path plus empty selection, one element, deep nesting; `test/test_visual_props.ajs`, `test/_test_self_loops.ajs`; `Scripts/Develop/probeJArchiApi.ajs` | Writer, rendering, dialog, Graphviz, jArchi API assumptions | — |
+| In Archi | Run the action on a test view: golden path plus empty selection, one element, deep nesting; `test/test_visual_props.ajs`, `test/_test_self_loops.ajs`; `Scripts/Develop/probeJArchiApi.ajs` | Writer, rendering, dialog, the Java process runner, jArchi API assumptions | — |
 
 ### Judging a result
 
@@ -624,15 +662,16 @@ How a change is designed, built and checked. The binding steps are in [`Scripts/
 
 ### Test data
 
-- **Models** are outside the repo; the paths and the coArchi working copy are in the skill.
-- **Views** for testing are in the folder `Views/Test` of the model.
-- **Presets** for testing are in `presets/Test/` (git-ignored, four tracked); what the dialog last ran is in `presets/_session.json`.
+- **Test model** `test/model/view-test.archimate`, in the repo, built by `test/build_test_model.ajs` (edit the script, rerun it in Archi, take a new baseline, commit both): three views in `Views/Test` — `1 Nesting` (composition and aggregation chains, two parents, a cycle, a reversed type, a self-loop, a note and a group), `2 Edited` (view 1 generated, then edited by hand: a moved visual, a user connection, an added element, a note and a diagram-block) and `3 Network` (20 elements in two parts, labelled relations, no nesting). `Views/Baseline` in the same file is the written result of the 10-run matrix; commit a new one only when a change is meant to alter the views. A second run in the same Archi session writes the same views (checked), so the model need not be reopened between runs.
+- **Real models** are outside the repo; the paths and the coArchi working copy are in the skill.
+- **Views** of a real model for testing are in the folder `Views/Test`.
+- **Presets** for testing are in `presets/Test/`; `presets/Test/baseline/` holds the two the Archi baseline runs (`baseline.json`, `AlgoTwopi.json`) and `counters.json` (`baseline` with an empty step, the check of test case 16); `write_plans.js` takes all three. It is not edited without taking a new baseline. What the dialog last ran is in `presets/_session.json`.
 
 ## Risks
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| `gui/dialog_main.js` is one module of about 3,500 lines | A dialog change is slow and easily breaks another tab | Per-tab modules (Known gap 3) when a tab changes a lot; every dialog change is checked in Archi |
+| The tabs share one widget map and one context (`DialogWidgets`, `DialogContext`) | A change to one tab's widgets can break another tab's update functions | The types in `types/view.d.ts`; every dialog change is checked in Archi |
 | `dagre-cluster-fix` is a fork of unrecorded origin | A bug in it stays; there is no upstream to update from | Dagre is one algorithm; ELK covers compound layouts |
 | Graphviz is installed by the user, and its behaviour differs per version | An update can change a layout or crash an option (`mode=ipsep` in 14.1) | The tested version in [Context](#context); the time limit stops a hang |
 | jArchi behaviour that is not documented ([Platform constraints](#platform-constraints)) | A jArchi update can break the writer or the dialog | The constraints in one place; `Scripts/Develop/probeJArchiApi.ajs` |
@@ -646,23 +685,25 @@ Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` o
 
 1. Unknown preset keys are dropped without a warning (SPEC § 12, § 14).
 2. A fixed switch in `generate_view` picks the adapter, not a registry (SPEC § 3).
-3. The dialog is one module, not per-tab modules (SPEC § 3, § 9).
-4. `engineParams` is passed through as-is, not typed per engine ([presets](reference/presets.md#preset-json-schema)).
+3. The Properties tab and the preset row are not modules of their own; they are in `gui/dialog_main.js` (SPEC § 3, § 9).
+4. `engineParams` is passed through as-is, not typed per engine; a run checks its keys, but a value of the wrong type (e.g. a string for `ELK`) is not reported ([presets](reference/presets.md#settings-outside-the-dialog)).
 5. There is no master *Apply styling* switch: `appearance.enabled` is not in `DEFAULT_PRESET`, so validation drops it (SPEC § 10).
 6. Look and feel ([principles](reference/gui.md#look-and-feel)); seen in the code, still to check in Archi:
    - The Appearance and Properties tabs lay out their rows on their own, without the tab's heading column (Look 6).
    - The opening explanations of *Expand selection* and the Appearance groups are black, not grey; two have a fixed width instead of wrapping at the group width (Look 9).
    - Group margins differ: the Layout tab uses wider inner margins than the other tabs (Look 8).
-   - Style by nesting level: the root-size spinner and the root-colour field have no label (Look 4). Its info line says "nesting types" instead of *Nesting rule* (SPEC rule 16).
+   - Style by nesting level: the root-size spinner and the root-colour field have no label (Look 4). Its info line says "nesting types" instead of *Nesting condition* (SPEC rule 16).
    - The preset row, the totals line and the action area have not been checked against the principles yet.
 7. Testing:
    - SPEC § 13 acceptance is not automated: the count promise (predicted = written) is checked only in Archi, and no scale budget is defined.
    - CI runs the typecheck and the two unit tests, not `check_registry.js` or `gen_docs_tables.js`.
-   - The Archi test scripts in `test/` are git-ignored, so only one machine has them; `test/` also still holds old preset migrations.
-   - No test model is in the repo, so the harness and the layout regression cannot run in CI.
+   - The test model and its baseline are in the repo, but CI does not use them yet: the harness, the layout regression, `write_plans.js` and `compare-views.js` run by hand.
+   - Applying a plan (`view_writer.js`) has no Node test; only Archi runs it. `nesting_test.js` models a write for the pairing tests (`simulateWrite`, local to the test) instead of using the real plan.
 8. Errors ([Errors](#errors), SPEC § 12):
    - A failed run reaches only the console: `generate_view` catches every failure itself, so no entry point can show a message box.
    - About 90 empty catches in `lib/`, many outside the closed list.
    - Strings are thrown instead of `Error`: `generate_view` (engine switch, view folder), `preset_io.readPreset`, `defs.validatePreset`, `run_preset.parseFilename`.
    - A failed preset save is only logged: `writeJSON` catches it, and `writePreset` still logs `Preset saved`.
 9. The confirm before *One view each* writes more than 20 views is asked by `generate_view` (`window.confirm`), not by the entry point (SPEC § 3, § 5); a headless caller gets it too.
+10. Step expansion and relation collection follow the order of jArchi's `rels()` (the order the model stores relations in), so *Order as selected* layouts depend on it; Determinism says no result does. Sorting by id would change those layouts and the Archi baseline. The order is also not stable within an Archi session: drawing a connection (`view.add(relation, …)`) moves its relation to the end of `rels()` (probed), so the harness's relation index matches only a freshly opened model.
+11. *New view* does not copy an image object (SPEC § 5 "What Create takes from a view"): jArchi's `createObject` cannot make one, and model changes go only through the public jArchi API (§ Writer). It is laid out and counted, then left out with a console line, so its place stays empty.

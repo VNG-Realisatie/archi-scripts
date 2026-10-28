@@ -33,7 +33,7 @@ new (Java.type("java.math.BigDecimal"))("1.1"); // parenthesise Java.type(...) b
 
 ## Calling Java
 
-- **Arguments:** JS numbers are doubles. Widening is fine; a lossy conversion (`1.1` to an `int` parameter) throws `TypeError`.
+- **Arguments:** JS numbers are doubles. Widening is fine. A lossy conversion (`10.7` to an `int` parameter) truncates toward zero in jArchi, which runs GraalJS with `polyglot.js.nashorn-compat` (probed 2026-10-26: `add(element, 10.7, 20.2, 120.9, 55.5)` gives bounds 10, 20, 120, 55; −3.7 gives −3). Plain GraalJS throws `TypeError` instead.
 - **Overloads:** the narrowest lossless match wins. Force one with `obj["method(java.lang.String,int)"](a, b)` (fully qualified types, no spaces). Constructors cannot be selected this way. Ambiguous calls throw "Multiple applicable overloads found".
 - **Arity:** calling a Java method with the wrong number of arguments throws (`Arity error - expected: 1 actual: 3` for `console.error("a", b, c)`); use a template string.
 - **Java strings** are JS strings in GraalJS: `typeof element.type` is `"string"`, usable as an object key without `String()`. `String(x)` remains a harmless way to stringify any host value.

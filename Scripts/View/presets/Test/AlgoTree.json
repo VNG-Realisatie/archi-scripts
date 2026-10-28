@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Test/AlgoTree",
   "algorithm": "Tree",
   "params": {
@@ -9,12 +9,12 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "nestingRules": [
+    "nestingConditions": [
       {"on": false, "relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
@@ -38,15 +38,15 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementRules": [],
-    "diagramRules": [],
-    "relationRules": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "rules": []
+        "conditions": []
       }
     ]
   },
@@ -57,7 +57,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

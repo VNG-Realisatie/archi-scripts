@@ -7,12 +7,12 @@ The detail behind [SPEC.md § 6 Selection](../SPEC.md#6-selection) and the nesti
 The selection turns (selection, preset, action) into the object set for layout. Same input and model → same set. It only reads, never edits a view, and works with sets, not lists (no duplicates).
 
 1. **Open up the selection.** Folders → their contents. Views → their visual contents, split into model concepts and diagram objects. Canvas objects → the concepts behind them. A Modify action also captures the VisualSet of its target view (bounds, appearance, parenthood), before any model traversal, so reposition-vs-create never depends on stage order.
-2. **Global filter**: element rules, relation rules, diagram rules (visibility only, SPEC § 6).
+2. **Global filter**: element conditions, relation conditions, diagram conditions (visibility only, SPEC § 6).
 3. **Steps**, as a chain (SPEC § 6); step 1 starts from the filtered base.
 4. **Elements only**: relations, folders and views leave the element set.
 5. **Relations**, collected in two passes, with no relation counted twice:
-   - *base*: relations between filtered-base elements that the relation rules keep;
-   - *per run*: relations that a step rule draws between the run's new elements and the collection that reached them. That collection is the step input for the first run and the previous run's elements after that. Relations among one run's new elements, and to earlier-step elements outside that collection, are not collected.
+   - *base*: relations between filtered-base elements that the relation conditions keep;
+   - *per run*: relations that a step condition draws between the run's new elements and the collection that reached them. That collection is the step input for the first run and the previous run's elements after that. Relations among one run's new elements, and to earlier-step elements outside that collection, are not collected.
 6. **Diagram objects.** A connection of a diagram object (a note's line to an element) is an edge, never a node, and is laid out with the other connections, so the note stays next to what it is about. A Modify action also finds the diagram-blocks on the view; their contents are not laid out.
 
 **Modify actions** skip stage 2 (SPEC § 6); *Layout only* also skips stage 3 and keeps only the relations already drawn on the view. *Expand view* needs elements selected on the view (a view selected in the model tree is refused) and runs the steps from them. It starts from the relations drawn on the view, so no missing relation between elements already there is added, and adds the relations the steps follow. Then every element and diagram object of the view joins, so the whole view is laid out.
@@ -30,13 +30,14 @@ Step 1 adds:    102 elements ·  98 relations
 Total to view:
   elements:    18 containers ·  92 nested elements ·   0 standalones ·   0 extra occurrences
   relations:   11 nestings   ·  98 connections
-  diagram:      0 diagram objects
+  diagram:      0 diagram objects · 0 diagram connections
 ```
 
 - **Exact sums.** `Filtered base + Σ Step N adds = Total`, for elements and for relations. A step's relations are the new relations of its runs (run order step 5), minus any counted before; never a count of raw selection relations.
 - **Elements partition.** `elements = containers + nested elements + standalones`. It counts model elements, so *every container* never inflates it. **Extra occurrences** are a separate field.
 - **Relations partition** on the view: `relations = nestings + connections`.
 - **Extra occurrences on non-nesting algorithms** are counted, although these algorithms draw each element once.
+- **Everything written is counted.** A diagram-block is laid out as one node, but its contents are counted: its diagram objects as diagram objects, an element only inside it as an element and a standalone. A diagram connection is counted when both its ends are on the view.
 - The console prints every field, column-aligned; the dialog's totals line hides zeros.
 
 ## Nesting reference
@@ -55,20 +56,20 @@ The container choice wins. A preset with a locked combination runs as *between*,
 
 ### Roles and parents
 
-- **Role.** A relation matching a nesting rule is a **nesting candidate**; every other relation is a connection. The preset is the only authority; the split is total and deterministic.
-- **Direction.** For a nesting, source = parent and target = child. They are swapped when the relation also matches a reverse rule, exactly as reversal flips a connection's layout direction.
-- **Several parents**, never decided by rule or model order:
+- **Role.** A relation matching a nesting condition is a **nesting candidate**; every other relation is a connection. The preset is the only authority; the split is total and deterministic.
+- **Direction.** For a nesting, source = parent and target = child. They are swapped when the relation also matches a reverse condition, exactly as reversal flips a connection's layout direction.
+- **Several parents**, never decided by condition or model order:
 
 | Relation matches | Outcome |
 |---|---|
-| a rule with *every container* (wins when the relation matches several nesting rules) | **Every parent.** The child appears inside this parent whatever its other relations do. Each appearance is its own node mapping back to the same element. An extra occurrence of a container gets its own copies of the container's children. |
-| only rules without it | **One parent.** All such relations of one child together give it at most one parent: the container its user-content occurrence sits in on the view, else the first by name, then by id. The other relations are drawn as connections. |
+| a condition with *every container* (wins when the relation matches several nesting conditions) | **Every parent.** The child appears inside this parent whatever its other relations do. Each appearance is its own node mapping back to the same element. An extra occurrence of a container gets its own copies of the container's children. |
+| only conditions without it | **One parent.** All such relations of one child together give it at most one parent: the container its user-content occurrence sits in on the view, else the first by name, then by id. The other relations are drawn as connections. |
 
-  Example: a composition from P1 (rule without *every container*) and an aggregation from P2 (rule with it) put the child in P1 **and** in P2.
+  Example: a composition from P1 (condition without *every container*) and an aggregation from P2 (condition with it) put the child in P1 **and** in P2.
 - **Cycles.**
   - Nesting candidates that together form a containment cycle are **all** drawn as connections; candidates outside the cycle are unaffected.
   - The dialog counts them as *circular*, and the log names each cycle by its elements.
-  - To nest part of a cycle anyway, take the other relations out with an Exclude rule.
+  - To nest part of a cycle anyway, take the other relations out with an Exclude condition.
 - **Asymmetric roles.** An element may be a parent in one relation and a child in another; roles are per relation. Diamonds and deep chains follow from the same rules.
 - **Container derivation.** A container is any element with at least one child after resolution. It is derived, never declared, and being a container does not change an element's type.
 - **Nothing undrawn.** A nesting candidate that does not become containment is drawn as a connection.
@@ -90,7 +91,7 @@ Every action, *Layout only* too, reconciles them:
 4. **Add and remove.** A placement without an occurrence gets a new, managed one, except the first if the element has no user content. A managed occurrence left without a placement is removed, with the connections drawn to it.
 5. **Record.** The view's records are rewritten to describe exactly its managed occurrences.
 
-A **record** identifies a placement: the element and its chain of containers up to the view root, not a visual object. So a copied view keeps its managed occurrences, and a managed occurrence stays managed when another rule takes over its nesting.
+A **record** identifies a placement: the element and its chain of containers up to the view root, not a visual object. So a copied view keeps its managed occurrences, and a managed occurrence stays managed when another condition takes over its nesting.
 
 Edge cases:
 - **Last occurrence.** When all of an element's occurrences are managed, the first in view order becomes user content, so an element never disappears from the view.
@@ -101,7 +102,7 @@ Edge cases:
 
 ### Writer parenthood
 
-Each visual's container is decided anew in every run, by the nesting rules only:
+Each visual's container is decided anew in every run, by the nesting conditions only:
 - An occurrence with a parent is drawn inside the visual paired with that parent. Otherwise it goes to view root, also when it sat inside an element or a diagram object before.
 - An existing visual under another parent is moved there. It keeps its appearance and connections; its bounds become relative to the new parent.
 - Objects inside a diagram-block keep their parent.
@@ -141,7 +142,7 @@ Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container 
 | 2 | 220 | `A1a` → 220 | `B1a` → 220 |
 | 3 | 200 (anchor) | `Bx` → 200 | — |
 
-It needs each container's natural width, so a first sizing pass measures it. The widths are set *between* passes, never after the final layout. It is available only where the engine sizes containers from content ([capability matrix](engines.md#capability-matrix)).
+The anchor is the narrowest box at the deepest level, which is always an element at its own width, so no sizing pass is needed. The widths are set before the layout, never after it. It is available only where the engine sizes containers from content ([capability matrix](engines.md#capability-matrix)).
 
 ### Snap columns to grid
 

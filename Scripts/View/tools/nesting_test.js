@@ -1,5 +1,5 @@
 /**
- * Node tests for nesting resolution (selection_pipeline.resolveNesting): several parents,
+ * Node tests for nesting resolution (nesting.resolveNesting): several parents,
  * every container, cycles, order independence; managed occurrences (capture, pairing, records)
  * and connections between occurrences (layout graph). Run from the repo root:
  *   node Scripts/View/tools/nesting_test.js [model.archimate]
@@ -9,7 +9,9 @@
 const fs = require("fs");
 const H  = require("./view_harness");
 const Defs = require("../lib/defs");
+const Nesting = require("../lib/nesting");
 const Pipeline = require("../lib/selection_pipeline");
+const LayoutGraph = require("../lib/layout_graph");
 
 let failed = 0;
 function eq(actual, expected, label) {
@@ -19,20 +21,58 @@ function eq(actual, expected, label) {
 
 const el = (id, name, type) => ({ id, name: name || id, type: type || "grouping", prop: () => undefined });
 const rel = (id, s, t, type) => ({ id, type: type || "aggregation-relationship", source: s, target: t, name: "", prop: () => undefined });
-const params = rules => Defs.validatePreset({ params: { nestingRules: rules, reverseRules: [] } }).params;
+const params = conditions => Defs.validatePreset({ params: { nestingConditions: conditions, reverseConditions: [] } }).params;
 const AGG = [{ relation: "aggregation-relationship" }];
 const AGG_EVERY = [{ relation: "aggregation-relationship", everyContainer: true }];
 
 function resolve(p, elements, rels, visuals) {
-  const split = Pipeline.splitNestingRels(rels, p);
-  return Pipeline.resolveNesting(elements, split.nestingRels, p, visuals);
+  const split = Nesting.splitNestingRels(rels, p);
+  return Nesting.resolveNesting(elements, split.nestingRels, p, visuals);
 }
+/** Order-free summary of a resolution: per element its occurrences' parent elements; cycles; lines. */
+function summarize(nesting, byId) {
+  const base = id => id.replace(/_occ_\d+$/, "");
+  const name = id => { const e = byId.get(base(id)); return e ? e.name : id; };
+  const placements = Object.keys(nesting.occurrenceMap).sort().map(id =>
+    `${name(id)} ⊂ [${nesting.occurrenceMap[id].map(o => nesting.parentMap[o] ? name(base(nesting.parentMap[o])) : "root").sort().join(", ")}]`);
+  return {
+    placements,
+    nested:   nesting.parentRels.map(b => `${b.rel.id}:${b.srcOccId}>${b.tgtOccId}`).sort(),
+    lines:    nesting.notNestedNestingRels.map(r => r.id).sort(),
+    circular: nesting.circularNestingRels.map(r => r.id).sort(),
+    cycles:   nesting.cycles.map(c => c.elements.map(e => e.name).join(" ↔ ")),
+  };
+}
+/**
+ * The visuals and records a write leaves on the view, from a resolution's pairing: paired visuals
+ * kept, new ones created (id "new:<occurrence>"), removed ones gone, records rewritten.
+ * Connections are not modelled. Returns contents for the next run.
+ */
+function simulateWrite(contents, nesting) {
+  const visualOfOcc = occ => nesting.visualOf[occ] || `new:${occ}`;
+  const raw = [];
+  for (const el of contents.elements) {
+    for (const occ of nesting.occurrenceMap[el.id]) {
+      const p = nesting.parentMap[occ];
+      raw.push({ id: visualOfOcc(occ), conceptId: el.id, parentVisualId: p ? visualOfOcc(p) : null });
+    }
+  }
+  const records = Nesting.managedRecords(nesting, () => true);
+  return { ...contents, visuals: Nesting.classifyVisuals(raw, records), visualRelations: [], records };
+}
+
 function run(p, elements, rels, visuals) {
-  return H.summarize(resolve(p, elements, rels, visuals), new Map(elements.map(e => [e.id, e])));
+  return summarize(resolve(p, elements, rels, visuals), new Map(elements.map(e => [e.id, e])));
+}
+/** The layout graph generate_view would build (preset params masked to the algorithm's). */
+function layoutGraph(preset, { elements, relations, visuals, visualRelations }) {
+  const masked = { ...preset, params: Defs.effectiveParams(preset) };
+  const split = Nesting.splitNestingRels(relations, masked.params);
+  return LayoutGraph.buildLayoutGraph(masked, elements, split.connectionRels.slice(), split.nestingRels, [], visuals, visualRelations);
 }
 // Visuals on a view: [visual id, element id, parent visual id], in view order, plus records.
 const visuals = (rows, records) =>
-  Pipeline.classifyVisuals(rows.map(([id, conceptId, parentVisualId]) => ({ id, conceptId, parentVisualId: parentVisualId || null })), records || []);
+  Nesting.classifyVisuals(rows.map(([id, conceptId, parentVisualId]) => ({ id, conceptId, parentVisualId: parentVisualId || null })), records || []);
 const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " ⊂"));
 
 // ── cycles ────────────────────────────────────────────────────────────────────
@@ -85,19 +125,19 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
 {
   const [g1, g2, c, k] = [el("g1", "G1"), el("g2", "G2"), el("c", "C"), el("k", "K", "business-object")];
   const rels = [rel("r1", g1, c), rel("r2", g2, c), rel("r3", c, k, "composition-relationship")];
-  const rules = [...AGG_EVERY, { relation: "composition-relationship" }];
-  const s = run(params(rules), [g1, g2, c, k], rels);
+  const conditions = [...AGG_EVERY, { relation: "composition-relationship" }];
+  const s = run(params(conditions), [g1, g2, c, k], rels);
   eq(placementOf(s, "C"), "C ⊂ [G1, G2]", "every: the child appears in each parent");
   eq(placementOf(s, "K"), "K ⊂ [C, C]", "every: an extra container occurrence gets copies of its children");
-  eq(run(params(rules), [k, c, g2, g1], rels.slice().reverse()), s, "every: order-free");
-  // A relation matching a rule with and one without everyContainer: every container wins.
+  eq(run(params(conditions), [k, c, g2, g1], rels.slice().reverse()), s, "every: order-free");
+  // A relation matching a condition with and one without everyContainer: every container wins.
   const both = run(params([...AGG, ...AGG_EVERY]), [g1, g2, c], rels.slice(0, 2));
-  eq(placementOf(both, "C"), "C ⊂ [G1, G2]", "every: wins over a rule without it");
+  eq(placementOf(both, "C"), "C ⊂ [G1, G2]", "every: wins over a condition without it");
   // One composition parent (no every) plus every aggregation parent.
   const [p1, p2, ch] = [el("p1", "P1"), el("p2", "P2"), el("ch", "Child")];
   const mixed = run(params([{ relation: "composition-relationship" }, ...AGG_EVERY]), [p1, p2, ch],
     [rel("m1", p1, ch, "composition-relationship"), rel("m2", p2, ch)]);
-  eq(placementOf(mixed, "Child"), "Child ⊂ [P1, P2]", "every: plus the one parent of the other rules");
+  eq(placementOf(mixed, "Child"), "Child ⊂ [P1, P2]", "every: plus the one parent of the other conditions");
   // Self-loop: never containment.
   const loop = run(params(AGG_EVERY), [g1], [rel("l", g1, g1)]);
   eq(loop.lines, ["l"], "self-relation is drawn as a line");
@@ -112,7 +152,7 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   const one   = params([...AGG, { relation: "composition-relationship" }]);
   const contents = vs => ({ elements, relations: rels, visuals: vs, visualRelations: [] });
   const created = n => Object.values(n.occurrenceMap).flat().filter(o => !n.visualOf[o]).length;
-  const step = (p, cont) => { const n = resolve(p, elements, rels, cont.visuals); return { n, next: H.simulateWrite(cont, n) }; };
+  const step = (p, cont) => { const n = resolve(p, elements, rels, cont.visuals); return { n, next: simulateWrite(cont, n) }; };
 
   const fresh = step(every, contents([]));
   eq(fresh.next.records, ["c in g2", "k in c in g2"], "managed: a new view records its extra occurrences");
@@ -130,7 +170,7 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   const h = step(one, contents(hand));
   eq([h.n.removedVisualIds, h.n.userAtRoot, h.n.parentMap[h.n.occurrenceOf.get("vc2")]], [[], 1, undefined],
      "user content the settings place nowhere stays on the view, at view root: its container is not kept");
-  const flat = Defs.effectiveParams(Defs.validatePreset({ algorithm: "Circo", params: { nestingRules: AGG } }));
+  const flat = Defs.effectiveParams(Defs.validatePreset({ algorithm: "Circo", params: { nestingConditions: AGG } }));
   const hf = resolve(flat, elements, rels, hand);
   eq([hf.userAtRoot, Object.keys(hf.parentMap)], [1, []],
      "an algorithm that does not nest: no element keeps a container");
@@ -151,7 +191,7 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   const inside = visuals([["vg1", "g1"], ["vg2", "g2"], ["vc", "c", "vg1"], ["vc2", "c", "vg2"], ["vx", "k", "vc2"]],
     ["c in g2"]);
   eq(inside.find(v => v.id === "vc2").managed, false, "managed: a container holding user content is user content");
-  const note = Pipeline.classifyVisuals([{ id: "vg2", conceptId: "g2" }, { id: "vc2", conceptId: "c", parentVisualId: "vg2" },
+  const note = Nesting.classifyVisuals([{ id: "vg2", conceptId: "g2" }, { id: "vc2", conceptId: "c", parentVisualId: "vg2" },
     { id: "vn", conceptId: null, parentVisualId: "vc2" }, { id: "vc", conceptId: "c" }], ["c in g2"]);
   eq(note.map(v => v.managed), [false, false, false, false], "managed: a note inside makes the container user content");
   // Same placement twice: one record, two visuals → the first in view order is managed.
@@ -166,11 +206,11 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
                { id: "l2", concept: rels[1], source: { id: "vg2" }, target: { id: "vc" } },
                { id: "n3", concept: rels[2], source: { id: "vc" }, target: { id: "vk" } }];
   const ev = resolve(every, elements, rels, lineRun);
-  const nc = Pipeline.nestingConnections(ev.parentRels, ev.visualOf, vrs);
+  const nc = Nesting.nestingConnections(ev.parentRels, ev.visualOf, vrs);
   eq([nc.keptVrIds.filter(Boolean).sort(), nc.removedVrIds], [["n1", "n3"], ["l2"]],
      "nesting connections: kept between the paired visuals, the old line of a nested relation removed");
   const on1 = resolve(one, elements, rels, lineRun);
-  eq(Pipeline.nestingConnections(on1.parentRels, on1.visualOf, vrs).removedVrIds, [],
+  eq(Nesting.nestingConnections(on1.parentRels, on1.visualOf, vrs).removedVrIds, [],
      "nesting connections: a relation drawn as a line keeps its line");
   // A record that matches nothing is dropped.
   eq(visuals([["vg1", "g1"]], ["c in g2"]).map(v => v.managed), [false], "managed: a stale record is dropped");
@@ -184,8 +224,8 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   const rels = [rel("n1", g1, a), rel("n2", g2, a), rel("n3", g1, b), rel("n4", g2, b),
                 rel("s1", a, b, "serving-relationship"), rel("s2", x, a, "serving-relationship"),
                 rel("s3", g1, a, "serving-relationship")];
-  const preset = Defs.validatePreset({ algorithm: "Layered", params: { nestingRules: AGG_EVERY, reverseRules: [] } });
-  const graph = cont => H.layoutGraph(preset, { elements, relations: rels, visuals: [], visualRelations: [], ...cont });
+  const preset = Defs.validatePreset({ algorithm: "Layered", params: { nestingConditions: AGG_EVERY, reverseConditions: [] } });
+  const graph = cont => layoutGraph(preset, { elements, relations: rels, visuals: [], visualRelations: [], ...cont });
   const edgesOf = g => g.edges.map(e => `${e.id}:${e.source}>${e.target}`).sort();
   eq(edgesOf(graph({})), ["s1:a>b", "s2:x>a", "s3:g1>a_occ_1"],
      "connections: once per relation, closest pair; not between a container and its own content");
@@ -202,24 +242,35 @@ const MODEL = process.argv[2] || "/home/mark/temp/wiki-gemma-model.archimate";
 if (fs.existsSync(MODEL)) {
   const m = H.loadModel(MODEL);
   const view = H.findView(m, "Views/_Generated/Kennismodel (copy)");
-  for (const [label, rules] of [["one parent", AGG], ["every container", AGG_EVERY]]) {
-    const p = params(rules);
-    const fwd = H.viewContents(m, view);
-    const rev = H.viewContents(m, view, { reverse: true });
+  const noSteps = Defs.validatePreset({ relatedElements: { steps: [] }, params: { nestingConditions: [], reverseConditions: [] } });
+  const snapshot = H.readSnapshot(m, view, Defs.ACTION.NEW_VIEW.id);
+  // The relations between the view's elements, with the elements and the relations of each in the given order.
+  const contentsOf = (snap, reverse) => {
+    const snapshot2 = reverse
+      ? { ...snap, elements: snap.elements.slice().reverse(), relationsOf: e => snap.relationsOf(e).slice().reverse() }
+      : snap;
+    const { elements, relations } = Pipeline.composeObjectSet(snapshot2, noSteps, Defs.ACTION.NEW_VIEW.id).objectSet;
+    return { elements, relations, visuals: [], visualRelations: [] };
+  };
+  for (const [label, conditions] of [["one parent", AGG], ["every container", AGG_EVERY]]) {
+    const p = params(conditions);
+    const fwd = contentsOf(snapshot, false);
+    const rev = contentsOf(snapshot, true);
     const byId = new Map(fwd.elements.map(e => [e.id, e]));
-    const s = H.summarize(H.resolve(p, fwd).nesting, byId);
-    eq(H.summarize(H.resolve(p, rev).nesting, byId), s, `Kennismodel (copy), ${label}: same result in reverse order`);
+    const res = c => resolve(p, c.elements, c.relations, c.visuals);
+    const s = summarize(res(fwd), byId);
+    eq(summarize(res(rev), byId), s, `Kennismodel (copy), ${label}: same result in reverse order`);
     const groep = placementOf(s, "Groep"), cap = placementOf(s, "Capability");
     if (label === "every container") {
       eq([groep, cap.split(", ").length], ["Groep ⊂ [Kennismodel, Kennismodel-wiki]", 5], `Kennismodel (copy), ${label}: every parent`);
-      const preset = Defs.validatePreset({ params: { nestingRules: rules, reverseRules: [] } });
-      const g = H.layoutGraph(preset, H.newView(fwd));
+      const preset = Defs.validatePreset({ params: { nestingConditions: conditions, reverseConditions: [] } });
+      const g = layoutGraph(preset, fwd);
       eq([g.nodes.length, g.edges.length], [128, 60], `Kennismodel (copy), ${label}: one connection per relation`);
-      const first = H.resolve(p, fwd).nesting;
-      const next = H.simulateWrite(fwd, first);
-      const second = H.resolve(p, next).nesting;
+      const first = res(fwd);
+      const next = simulateWrite(fwd, first);
+      const second = res(next);
       eq([second.removedVisualIds.length, Object.values(second.occurrenceMap).flat().filter(o => !second.visualOf[o]).length,
-          H.simulateWrite(next, second).records], [0, 0, next.records], `Kennismodel (copy), ${label}: a second run is stable`);
+          simulateWrite(next, second).records], [0, 0, next.records], `Kennismodel (copy), ${label}: a second run is stable`);
     } else {
       eq(groep.split(", ").length, 1, `Kennismodel (copy), ${label}: Groep has one parent`);
     }

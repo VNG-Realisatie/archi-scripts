@@ -18,16 +18,39 @@ const _log = console.log; console.log = () => {};
 const Defs = require(path.join(VIEW, "lib", "defs.js"));
 console.log = _log;
 
-const { STYLES, ALGORITHMS, PARAM_LABELS, PARAM_TOOLTIPS, LAYOUT_GROUPS, HIDDEN_PARAMS, DEFAULT_PRESET } = Defs;
+console.log = () => {};
+const ADAPTERS = {
+  ELK:      require(path.join(VIEW, "lib", "engines", "elk.js")),
+  Dagre:    require(path.join(VIEW, "lib", "engines", "dagre.js")),
+  Graphviz: require(path.join(VIEW, "lib", "engines", "graphviz.js")),
+};
+console.log = _log;
+
+const { STYLES, ALGORITHMS, PARAM_LABELS, PARAM_TOOLTIPS, LAYOUT_GROUPS, HIDDEN_PARAMS, DEFAULT_PRESET,
+  LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS } = Defs;
 const ALGS = Object.keys(ALGORITHMS);
 const cell = t => String(t).replace(/\|/g, "\\|").replace(/\n/g, " ");
 const usedBy = k => cell(Defs.paramUsedBy(k).replace(/^Used by: /, ""));
 
-// Default value of a param as the preset file holds it; a rule list shows its relation types.
+// Default value of a param as the preset file holds it; a condition list shows its relation types.
 const defaultOf = k => {
   const v = DEFAULT_PRESET.params[k];
   if (Array.isArray(v)) return v.length ? v.map(r => r.relation.replace(/-relationship$/, "")).join(", ") : "none";
   return typeof v === "boolean" ? (v ? "on" : "off") : cell(v);
+};
+
+// The dialog options that set an engine key, with the algorithms where they do (none listed: all of
+// the engine's algorithms), from each adapter's dialogSettings on the default params.
+const dialogSetters = engine => {
+  const algs = ALGS.filter(n => ALGORITHMS[n].engine === engine);
+  const byKey = {};
+  for (const n of algs) {
+    const params = Defs.effectiveParams(Defs.validatePreset({ algorithm: n }));
+    for (const [key, param] of Object.entries(ADAPTERS[engine].dialogSettings(n, params)))
+      ((byKey[key] = byKey[key] || {})[param] = byKey[key][param] || []).push(n);
+  }
+  return key => Object.entries(byKey[key] || {})
+    .map(([param, on]) => PARAM_LABELS[param] + (on.length === algs.length ? "" : ` (${on.join(", ")})`)).join("; ") || "—";
 };
 
 const tables = {
@@ -59,6 +82,22 @@ const tables = {
     ...HIDDEN_PARAMS.map(k => `| \`${k}\` (${PARAM_LABELS[k]}) | ${defaultOf(k)} | ${usedBy(k)} |`),
   ],
 
+  "engine-params": () => {
+    const rows = [];
+    for (const [engine, adapter] of Object.entries(ADAPTERS)) {
+      const setBy = dialogSetters(engine);
+      for (const [key, e] of Object.entries(adapter.ENGINE_PARAMS)) {
+        const effect = e.effect + (e.usedBy ? `; only ${e.usedBy.join(", ")}` : "");
+        rows.push(`| ${engine} | \`${key}\`<br>${cell(effect)} | ${e.default === undefined ? "unset" : cell(e.default)} | ${cell(setBy(key))} |`);
+      }
+    }
+    for (const [key, d] of Object.entries(LABEL_SIZING_DEFAULTS)) {
+      if (!LABEL_SIZING_EFFECTS[key]) throw `LABEL_SIZING_EFFECTS has no text for "${key}"`;
+      rows.push(`| layout | \`${key}\`<br>${cell(LABEL_SIZING_EFFECTS[key])} | ${d} | ${key === "labelMaxLineWidth" ? PARAM_LABELS[key] : "—"} |`);
+    }
+    return ["| Section | Key and effect | Default | Set by the dialog |", "|---|---|---|---|", ...rows];
+  },
+
   "capability-matrix": () => {
     const rows = [...Object.values(LAYOUT_GROUPS).flat(), ...HIDDEN_PARAMS];
     const head = `| Parameter | ${ALGS.join(" | ")} |`;
@@ -75,6 +114,7 @@ const tables = {
 const DOCS = {
   "reference/gui.md":     ["styles", "algorithms", "layout-params", "preset-only"],
   "reference/engines.md": ["capability-matrix"],
+  "reference/presets.md": ["engine-params"],
 };
 
 const stale = [];

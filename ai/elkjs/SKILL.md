@@ -28,7 +28,7 @@ When `elk.hierarchyHandling` is `INCLUDE_CHILDREN`, the root algorithm sees all 
 
 ## In jArchi (GraalJS)
 
-1. **Synchronous wrapper** — elkjs's `layout()` returns a Promise and needs a worker; GraalJS has neither an event loop nor workers. This repo replaces `Scripts/node_modules/elkjs/index.js` with a wrapper that runs the bundled worker in-process and returns the laid-out graph directly: `require(REPO_ROOT + "node_modules/elkjs/index.js").layout(graph)`.
+1. **Synchronous wrapper** — elkjs's `layout()` returns a Promise and needs a worker; GraalJS has neither an event loop nor workers. This repo replaces `Scripts/node_modules/elkjs/index.js` with a wrapper that runs the bundled worker in-process and returns the laid-out graph directly: `require(REPO_ROOT + "node_modules/elkjs/index.js").layout(graph)`. Its `metadata()` returns the bundled ELK's registry: `options` (`id`, `type`, `targets`, …) and `algorithms` (`id`, `knownOptions`, …), with full ids (`org.eclipse.elk.…`). An algorithm reads more core options than its `knownOptions` lists (Stress uses `elk.padding` and `elk.aspectRatio`).
 2. **Top-left coordinates** — ELK node `x`/`y` are top-left and relative to the parent; no centre conversion (unlike dagre).
 3. **All sections** — bendpoints are in `edge.sections[*].bendPoints`; iterate every section (see "Multi-section output" above), not only `sections[0]`.
 4. **String option values** — layout option values are strings (`{ "elk.spacing.nodeNode": "50" }`); convert numbers with `String(v)`.

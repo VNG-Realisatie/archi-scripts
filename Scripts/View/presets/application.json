@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "application",
   "algorithm": "Layered",
   "params": {
@@ -15,8 +15,8 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "nestingRules": [],
-    "reverseRules": [
+    "nestingConditions": [],
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
@@ -25,7 +25,7 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "application-collaboration"},
       {"elementType": "application-component"},
       {"elementType": "application-event"},
@@ -36,7 +36,7 @@
       {"elementType": "application-service"},
       {"elementType": "grouping"}
     ],
-    "relationRules": [
+    "relationConditions": [
       {"relation": "access-relationship"},
       {"relation": "aggregation-relationship"},
       {"relation": "assignment-relationship"},
@@ -48,7 +48,7 @@
       {"relation": "specialization-relationship"},
       {"relation": "triggering-relationship"}
     ],
-    "diagramRules": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

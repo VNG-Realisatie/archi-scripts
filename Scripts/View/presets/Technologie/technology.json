@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Technologie/technology",
   "algorithm": "Layered",
   "params": {
@@ -9,11 +9,11 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ],
-    "nestingRules": [],
+    "nestingConditions": [],
     "padding": 20,
     "diagramPadding": 10,
     "sortContainers": true,
@@ -35,7 +35,7 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "grouping"},
       {"elementType": "artifact"},
       {"elementType": "communication-network"},
@@ -51,8 +51,8 @@
       {"elementType": "technology-process"},
       {"elementType": "technology-service"}
     ],
-    "diagramRules": [],
-    "relationRules": []
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": []
@@ -64,7 +64,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

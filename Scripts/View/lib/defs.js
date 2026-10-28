@@ -14,7 +14,7 @@ const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf(
 /** @type {typeof import("../../_lib/selection")} */
 const { DIAGRAM_OBJECT_TYPES } = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("./rel_filter")} */
-const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
+const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "di
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack.
 const PARAMS_ELK_NESTING = Object.freeze([
-  "nestingRules", "padding",
+  "nestingConditions", "padding",
   "sortContainers", "alignWidthSameType",
   "containerAlgorithm",
 ]);
@@ -69,8 +69,8 @@ const MIN_CONNECTION_LENGTH = 20;
 // Dialog label per layout param, and the Layout-tab group it is in. Used for the dialog's
 // tooltips and the generated tables in docs/reference/.
 const PARAM_LABELS = Object.freeze({
-  nestingRules:             "Nesting",
-  reverseRules:             "Reverse",
+  nestingConditions:        "Nesting",
+  reverseConditions:        "Reverse",
   containerAlgorithm:       "Layout inside",
   connectionsMode:          "Connections",
   padding:                  "Padding",
@@ -103,13 +103,13 @@ const PARAM_LABELS = Object.freeze({
 // "Used by: …" computed from activeParams, so tooltips never contradict the registry.
 /** @type {Readonly<Record<string, string[]>>} */
 const PARAM_TOOLTIPS = Object.freeze({
-  nestingRules:             ["Draw matching relations as nesting: the child inside its parent.",
+  nestingConditions:        ["Draw matching relations as nesting: the child inside its parent.",
                              "Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; " +
-                             "a rule with Every shows it in every parent. Only relations an Include rule picks are nested; Exclude rules take " +
-                             "relations out of those, so Exclude rules alone nest nothing."],
-  reverseRules:             ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
-                             "Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include rule picks are " +
-                             "reversed; Exclude rules take relations out of those, so Exclude rules alone reverse nothing."],
+                             "a condition with Every shows it in every parent. Only relations an Include condition picks are nested; Exclude conditions take " +
+                             "relations out of those, so Exclude conditions alone nest nothing."],
+  reverseConditions:        ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
+                             "Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include condition picks are " +
+                             "reversed; Exclude conditions take relations out of those, so Exclude conditions alone reverse nothing."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
                              "Grid or Pack: Connections is locked to Between containers."],
   connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
@@ -181,8 +181,8 @@ function paramTooltip(key, extra) {
 }
 
 const LAYOUT_GROUPS = Object.freeze({
-  Nesting:     ["nestingRules"],
-  Reverse:     ["reverseRules"],
+  Nesting:     ["nestingConditions"],
+  Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
                 "sortContainers", "alignWidthSameType", "snapColumnsToGrid"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
@@ -197,7 +197,7 @@ const LAYOUT_GROUPS = Object.freeze({
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
 
 // Graphviz cluster-nesting controls — Dot, FDP. padding = cluster margin (graphviz.js).
-const PARAMS_GV_CLUSTER = Object.freeze(["nestingRules", "padding"]);
+const PARAMS_GV_CLUSTER = Object.freeze(["nestingConditions", "padding"]);
 
 // Shared supportedOptions arrays — defined before ALGORITHMS so they can be referenced inline.
 const DIRECTION_VALUES = Object.freeze(["Right", "Left", "Down", "Up"]);
@@ -227,7 +227,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    true,   // ELK layered routes self-loops (SelfLoopDistribution / SelfLoopOrdering)
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "nodePlacement", "routing", "labelPosition", "reverseRules", "connectionsMode",
+      "direction", "nodePlacement", "routing", "labelPosition", "reverseConditions", "connectionsMode",
       "layerSpacing", "elementSpacing", "connectionSpacing", "connectionElementSpacing",
       "connectionLabelSpacing",
     ],
@@ -252,7 +252,7 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    false,  // mrtree is acyclic-by-construction; self-loops not routed
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "direction", "routing", "labelPosition", "reverseRules", "layerSpacing",
+      "direction", "routing", "labelPosition", "reverseConditions", "layerSpacing",
       "elementSpacing", "connectionSpacing", "connectionElementSpacing",
     ],
     supportedOptions: {
@@ -285,7 +285,8 @@ const ALGORITHMS = Object.freeze({
     style:                "Hierarchy",
     supportsNesting:      "none",   // ELK Radial crashes on compound graphs
     supportsSelfLoops:    false,    // tree-like layout; self-loops not routed
-    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing", "aspectRatio"],
+    // No aspectRatio: the bundled elkjs declares no elk.aspectRatio for radial, so the layout never responds to it.
+    activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing"],
     supportedOptions:     {},
     labelPositionDefault: null,
     tooltip: "Tree radiating from a central element: every depth on its own circle, each subtree in its own sector. Cycles are cut to a tree (ELK Radial)",
@@ -301,7 +302,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
-      "elementSpacing", "reverseRules",
+      "elementSpacing", "reverseConditions",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
@@ -318,7 +319,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
       "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
-      "elementSpacing", "reverseRules",
+      "elementSpacing", "reverseConditions",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
@@ -334,8 +335,8 @@ const ALGORITHMS = Object.freeze({
     supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS,
-      "direction", "ranking", "acyclicer", "labelPosition", "reverseRules",
-      "nestingRules", "sortContainers",
+      "direction", "ranking", "acyclicer", "labelPosition", "reverseConditions",
+      "nestingConditions", "sortContainers",
       "layerSpacing", "elementSpacing", "connectionSpacing",
     ],
     supportedOptions: {
@@ -357,7 +358,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "direction", "routing", "labelPosition",
-      "layerSpacing", "elementSpacing", "reverseRules",
+      "layerSpacing", "elementSpacing", "reverseConditions",
       // connectionSpacing / connectionElementSpacing: dot has no equivalent (sep/esep are not used by dot)
     ],
     supportedOptions: {
@@ -401,7 +402,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS, "aspectRatio", ...PARAMS_GV_CLUSTER,
       "routing", "labelPosition",
-      "elementSpacing", "connectionElementSpacing", "reverseRules",
+      "elementSpacing", "connectionElementSpacing", "reverseConditions",
     ],
     supportedOptions: {
       routing:       ROUTING_GV_POLY,
@@ -706,7 +707,7 @@ const COLOR_RANGES = Object.freeze([
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 3,   // 2 = rule lists (rel_filter.js); 3 = everyContainer per nesting rule; older presets are migrated offline
+  schemaVersion: 4,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -717,12 +718,12 @@ const DEFAULT_PRESET = Object.freeze({
     labelPosition:         "Middle",
     ranking:               "Balanced",
     acyclicer:             "Default",
-    reverseRules:          [                       // rule list (rel_filter "relation"): flipped relations; [] = none
+    reverseConditions:     [                       // condition list (rel_filter "relation"): flipped relations; [] = none
       { relation: "realization-relationship" },
       { relation: "serving-relationship" },
       { relation: "specialization-relationship" },
     ],
-    nestingRules:          [],                     // rule list (rel_filter "relation"): relations drawn as nesting; [] = none
+    nestingConditions:     [],                     // condition list (rel_filter "relation"): relations drawn as nesting; [] = none
     padding:               20,
     diagramPadding:        10,
     sortContainers:        false,
@@ -745,14 +746,14 @@ const DEFAULT_PRESET = Object.freeze({
     labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
   },
-  // Filter lists (empty = keep everything); rule shapes in rel_filter.js.
+  // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
   filter: {
-    elementRules:  [],   // kind "element"
-    diagramRules:  [],   // kind "diagram"
-    relationRules: [],   // kind "relation"
+    elementConditions:  [],   // kind "element"
+    diagramConditions:  [],   // kind "diagram"
+    relationConditions: [],   // kind "relation"
   },
   relatedElements: {
-    steps: [{ repeat: 1, rules: [] }],  // each: { repeat, rules: [kind "step"] }
+    steps: [{ repeat: 1, conditions: [] }],  // each: { repeat, conditions: [kind "step"] }
   },
   view: {
     name:   "",
@@ -760,11 +761,11 @@ const DEFAULT_PRESET = Object.freeze({
     suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
   },
   appearance: {
-    // Style rules (kind "style"); a later rule wins where two rules style the same object.
+    // Style conditions (kind "style"); a later condition wins where two conditions style the same object.
     styleByProperty: {
-      rules:            [],
+      conditions:       [],
       mixedValuesColor: "#FF6B35",   // element / relation that gets more than one value
-      lineWidth:        0,           // 0 = no change; 1..3 for relations styled by a Color = Relation rule
+      lineWidth:        0,           // 0 = no change; 1..3 for relations styled by a Color = Relation condition
     },
     nestingLevel: {
       fontEnabled:        false,
@@ -796,6 +797,17 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMaxLineWidth: 400,
   labelMinWidth:    60,
   labelMinHeight:   30,
+});
+// What each label-sizing key does (generated table in reference/presets.md). Label sizing = Use label
+// width; the connection-label box of Reserve label space uses the first four.
+const LABEL_SIZING_EFFECTS = Object.freeze({
+  labelCharWidth:    "Width of one character in the label-width estimate (px)",
+  labelLineHeight:   "Height of one label line (px)",
+  labelHPadding:     "Room left and right of the label (px)",
+  labelVPadding:     "Room above and below the label (px)",
+  labelMaxLineWidth: "Not used here: the dialog's Wrap label at sets it",
+  labelMinWidth:     "Smallest element width with Use label width (px)",
+  labelMinHeight:    "Smallest element height with Use label width (px)",
 });
 
 // ── Name order ────────────────────────────────────────────────────────────────
@@ -860,10 +872,10 @@ function repeatMaxRuns(v) {
 // ── Preset validation ─────────────────────────────────────────────────────────
 
 /**
- * Valid ids for rule normalisation (rel_filter.normalizeRules).
+ * Valid ids for condition normalisation (rel_filter.normalizeConditions).
  * @returns {ValidTypeSets}
  */
-function _ruleValidity() {
+function _conditionValidity() {
   return {
     elements:    new Set(ELEMENT_TYPES),
     relations:   new Set(RELATION_TYPE_IDS),
@@ -873,8 +885,8 @@ function _ruleValidity() {
 }
 
 /**
- * Keys of the pre-rule-list preset format found in `raw`. Presets are migrated offline
- * (tools/migrate_presets_relrows.js); loading one unmigrated would silently drop its filters.
+ * Keys of the preset format before condition lists (schemaVersion 2) found in `raw`. Presets are
+ * migrated offline (README.md § Presets); loading one unmigrated would silently drop its filters.
  * @param {PresetFile} raw
  * @returns {string[]}
  */
@@ -911,7 +923,7 @@ function validatePreset(raw) {
     throw `Preset schemaVersion ${raw.schemaVersion} is not supported (expected ${DEFAULT_PRESET.schemaVersion}).`;
   const legacy = _legacyKeys(raw);
   if (legacy.length)
-    throw `Preset uses the old filter format (${legacy.join(", ")}). Run: node Scripts/View/tools/migrate_presets_relrows.js`;
+    throw `Preset uses the old filter format (${legacy.join(", ")}). Migrate it: Scripts/View/README.md § Presets.`;
 
   /** @type {Preset} */
   const preset = JSON.parse(JSON.stringify(DEFAULT_PRESET));  // deep clone defaults
@@ -923,20 +935,20 @@ function validatePreset(raw) {
   const alg = ALGORITHMS[preset.algorithm];
   if (!alg) throw `Unknown algorithm: "${preset.algorithm}". Valid algorithms: ${Object.keys(ALGORITHMS).join(", ")}`;
 
-  const valid = _ruleValidity();
-  /** @type {<K extends RuleKind>(kind: K, list: unknown, where: string) => RuleByKind[K][]} */
-  const rules = (kind, list, where) => RuleLists.normalizeRules(kind, list, valid, where);
+  const valid = _conditionValidity();
+  /** @type {<K extends ConditionKind>(kind: K, list: unknown, where: string) => ConditionByKind[K][]} */
+  const conditions = (kind, list, where) => ConditionLists.normalizeConditions(kind, list, valid, where);
 
-  // DEFAULT_PRESET holds its rule lists in file form; defaults a preset leaves in place get the full shape too.
-  preset.params.nestingRules = rules("relation", preset.params.nestingRules, "params.nestingRules");
-  preset.params.reverseRules = rules("relation", preset.params.reverseRules, "params.reverseRules");
+  // DEFAULT_PRESET holds its condition lists in file form; defaults a preset leaves in place get the full shape too.
+  preset.params.nestingConditions = conditions("relation", preset.params.nestingConditions, "params.nestingConditions");
+  preset.params.reverseConditions = conditions("relation", preset.params.reverseConditions, "params.reverseConditions");
 
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {
     for (const [key, rawVal] of Object.entries(raw.params)) {
       if (!(key in DEFAULT_PRESET.params)) continue;  // unknown key ignored
-      if (key === "nestingRules" || key === "reverseRules") {
-        preset.params[key] = rules("relation", rawVal, `params.${key}`);
+      if (key === "nestingConditions" || key === "reverseConditions") {
+        preset.params[key] = conditions("relation", rawVal, `params.${key}`);
         continue;
       }
       // Migrate old direction labels (e.g. "Left → Right" → "Left") so old presets remain valid.
@@ -964,16 +976,16 @@ function validatePreset(raw) {
 
   // filter
   if (raw.filter && typeof raw.filter === "object") {
-    preset.filter.elementRules  = rules("element",  raw.filter.elementRules,  "filter.elementRules");
-    preset.filter.diagramRules  = rules("diagram",  raw.filter.diagramRules,  "filter.diagramRules");
-    preset.filter.relationRules = rules("relation", raw.filter.relationRules, "filter.relationRules");
+    preset.filter.elementConditions  = conditions("element",  raw.filter.elementConditions,  "filter.elementConditions");
+    preset.filter.diagramConditions  = conditions("diagram",  raw.filter.diagramConditions,  "filter.diagramConditions");
+    preset.filter.relationConditions = conditions("relation", raw.filter.relationConditions, "filter.relationConditions");
   }
 
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
   if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
     preset.relatedElements.steps = raw.relatedElements.steps.map((/** @type {PresetFile} */ step, /** @type {number} */ i) => ({
       repeat: normalizeRepeat(step.repeat),
-      rules:  rules("step", step.rules, `relatedElements.steps[${i}].rules`),
+      conditions:  conditions("step", step.conditions, `relatedElements.steps[${i}].conditions`),
     }));
   }
 
@@ -991,7 +1003,7 @@ function validatePreset(raw) {
 
     if (ra.styleByProperty && typeof ra.styleByProperty === "object") {
       const rs = ra.styleByProperty;
-      pa.styleByProperty.rules = rules("style", rs.rules, "appearance.styleByProperty.rules");
+      pa.styleByProperty.conditions = conditions("style", rs.conditions, "appearance.styleByProperty.conditions");
       if (typeof rs.mixedValuesColor === "string" && rs.mixedValuesColor.trim()) pa.styleByProperty.mixedValuesColor = rs.mixedValuesColor.trim();   // empty → default
       if (typeof rs.lineWidth === "number")        pa.styleByProperty.lineWidth = Math.max(0, Math.min(3, Math.round(rs.lineWidth)));
     }
@@ -1101,7 +1113,7 @@ if (typeof module !== "undefined" && module.exports) {
     SPLINE_SAMPLE_POINTS,
     CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
-    LABEL_SIZING_DEFAULTS,
+    LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS,
     CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,
     validatePreset, effectiveParams, connectionsModeLock,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,

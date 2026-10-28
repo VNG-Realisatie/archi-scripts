@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsproces/Levensloop en kernobject",
   "algorithm": "Layered",
   "params": {
@@ -9,8 +9,8 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [],
-    "nestingRules": [
+    "reverseConditions": [],
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
@@ -34,28 +34,28 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementRules": [],
-    "diagramRules": [],
-    "relationRules": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 2,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"added": "business-process"},
           {"added": "business-object"}
         ]
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"relation": "association-relationship", "added": "value"},
           {"relation": "access-relationship", "added": "path"},
           {"relation": "specialization-relationship"},
@@ -65,7 +65,7 @@
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"direction": "incoming", "relation": "aggregation-relationship"}
         ]
       }
@@ -78,7 +78,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

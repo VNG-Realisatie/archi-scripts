@@ -4,10 +4,14 @@
  * the View pipeline produces for a view of a model file (Node, no Archi). Run it on two checkouts
  * and diff the output to show a change leaves layouts as they were.
  *
+ * The layout is the one a New view run makes (the harness's planView on the view selected on its canvas: filter,
+ * steps, diagram objects, nesting), so a checkout needs a harness with planView (from milestone 3 of the
+ * testability refactor); older ones give other digests (plan/view-testability-baseline-layout-digests.md).
+ *
  * Run: node tools/compare-layouts.js <checkout root> <model.archimate> "<folder/…/view>" [preset.json…]
  *        default presets: every Scripts/View/presets/*.json of the checkout
  *        --keep-concept-id   include conceptId in the hash (left out by default)
- * Graphviz algorithms report ERROR in Node (the adapter needs Java's ProcessBuilder).
+ * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
  *
  * Compare with the current HEAD:
  *   git worktree add /tmp/old HEAD
@@ -52,9 +56,9 @@ for (const file of presets) {
       const raw = JSON.parse(fs.readFileSync(file, "utf8"));
       raw.algorithm = algorithm;
       const preset = Defs.validatePreset(raw);
-      preset.params = Defs.effectiveParams(preset);   // masked, as generate_view does
-      const graph = H.layoutGraph(preset, H.viewContents(model, view, {}));
-      const result = H.layout(graph);
+      const planned = H.planView(model, view, preset, Defs.ACTION.NEW_VIEW.id);
+      if (!planned) throw new Error("nothing to place");
+      const result = planned.result;
       line = `${digest(result)} ${result.nodes.length}n ${result.edges.length}e`;
     } catch (e) {
       line = `ERROR ${String(e).split("\n")[0].slice(0, 80)}`;

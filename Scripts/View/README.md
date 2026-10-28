@@ -27,7 +27,7 @@ The scripts run straight from a clone: the layout libraries are included in `Scr
    - **Layout** — algorithm, nesting, flow, element size, connections, view size;
    - **Appearance** — colour elements and relations by property or nesting level;
 
-   Every filter — global filter, steps, nesting, reverse, style by property — is a table of rules: *Source type · Relation type · Target type*, each rule *Include* or *Exclude*. *All* matches any type. A step's rules read from the previous step's elements: *Previous step elements · Direction · Added relations · Added elements*.
+   Every filter — global filter, steps, nesting, reverse, style by property — is a table of conditions: *Source type · Relation type · Target type*, each condition *Include* or *Exclude*. *All* matches any type. A step's conditions read from the previous step's elements: *Previous step elements · Direction · Added relations · Added elements*.
    - **Properties** — properties written to the generated view.
 3. Click an action:
    - **New view** / **One view each** — create view(s) in *Folder* with *Name*;
@@ -39,7 +39,7 @@ Hover over any setting for what it does and which algorithms use it. Settings th
 
 A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog; `_Default.json` holds the code defaults.
 
-Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring it up to date with `node Scripts/View/tools/migrate_presets_relrows.js` (to version 2, rule lists), then `migrate_presets_everycontainer.js` (to version 3); `--dry-run` first.
+Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 3 preset up to date with `node Scripts/View/tools/migrate_presets_conditions.js` (`--dry-run` first). An older preset: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then come back and run `migrate_presets_conditions.js`.
 
 ## Shortcut scripts
 

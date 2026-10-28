@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "GEMMA/GGM/GGM data-object specialisaties",
   "algorithm": "Dot",
   "params": {
@@ -9,12 +9,12 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 10,
@@ -38,12 +38,12 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "grouping"},
       {"elementType": "data-object"}
     ],
-    "diagramRules": [],
-    "relationRules": [
+    "diagramConditions": [],
+    "relationConditions": [
       {"relation": "aggregation-relationship"},
       {"relation": "specialization-relationship"}
     ]
@@ -52,7 +52,7 @@
     "steps": [
       {
         "repeat": "untilNothingNew",
-        "rules": [
+        "conditions": [
           {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"},
           {"direction": "incoming", "relation": "aggregation-relationship", "added": "data-object"},
           {"relation": "specialization-relationship", "added": "grouping"},
@@ -68,7 +68,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

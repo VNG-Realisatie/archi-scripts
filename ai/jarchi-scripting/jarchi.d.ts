@@ -148,7 +148,10 @@ interface DiagramComponent extends ArchiProxy {
 /** A box on a view: element, note, group, view reference, … (DiagramModelObjectProxy). */
 interface VisualObject extends DiagramComponent {
   readonly concept: ArchiElement | null;
-  /** Reading returns a fresh copy; write a whole or partial object to change it. */
+  /**
+   * Reading returns a fresh copy (a Java map: JSON.stringify gives {}); write a whole or partial object
+   * to change it. Stored as whole pixels: a fraction is truncated toward zero, here and in add() (probed).
+   */
   get bounds(): Bounds;
   set bounds(value: Partial<Bounds>);
   /** Create a child visual for an element; x/y relative to this object. */
@@ -348,7 +351,11 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   is(selector: string): boolean;
   clone(): ArchiCollection<T>;
 
-  /** Descendants (recursive). */
+  /**
+   * Descendants (recursive). On a view: every visual and connection. On a visual object: only its
+   * element visuals, no notes, groups or connections (plugin source: DiagramModelObjectProxy.find()
+   * filters on "element"); walk children() for all its contents.
+   */
   find(): ArchiCollection<DescendantsOf<T>>;
   find(selector: ElementSelector): ArchiCollection<ElementsOf<T>>;
   find(selector: RelationSelector): ArchiCollection<RelationsOf<T>>;
@@ -365,6 +372,11 @@ interface ArchiCollection<T extends ArchiProxy = ArchiObject> {
   /** All ancestors. @since 1.7 */
   parents(selector?: string): ArchiCollection<ParentsOf<T>>;
 
+  /**
+   * Source relations, then target relations; a self-loop is listed in both. Each part in the order the
+   * relations were attached: the model file's order when the model is opened, and drawing a connection
+   * (view.add(relation, …)) moves its relation to the end (probed). So the order depends on the session.
+   */
   rels(selector?: string): ArchiCollection<RelationsOf<T>>;
   inRels(selector?: string): ArchiCollection<RelationsOf<T>>;
   outRels(selector?: string): ArchiCollection<RelationsOf<T>>;
@@ -474,14 +486,7 @@ interface JArchiStatic {
   readonly child_process: { exec(...args: string[]): void };
 }
 
-declare var $: JArchiStatic;
-declare var jArchi: JArchiStatic;
-/** Current model (check `model.isSet()` first). */
-declare var model: CurrentModel;
-/** Objects selected in the model tree or on a view when the script started. */
-declare var selection: ArchiCollection<ArchiObject>;
-
-// ── Console and dialogs ──────────────────────────────────────────────────────────────────────────
+// ── Console ──────────────────────────────────────────────────────────────────────────────────────
 
 /** jArchi Script Console (dom/ui/Console.java). Not the browser/Node console: there is no warn/info/debug. */
 interface JArchiConsole {
@@ -499,31 +504,6 @@ interface JArchiConsole {
 }
 declare var console: JArchiConsole;
 
-interface FileDialogOptions {
-  title?: string;
-  filterExtensions?: string[];
-  fileName?: string;
-}
-/** Simple JFace dialogs on Archi's main window (js/init.js). */
-declare var window: {
-  alert(message: string): void;
-  confirm(message: string): boolean;
-  /** Entered text, or null when cancelled. */
-  prompt(message: string, defaultText?: string): string | null;
-  promptOpenFile(options?: FileDialogOptions): string | null;
-  promptOpenDirectory(options?: { title?: string; filterPath?: string }): string | null;
-  promptSaveFile(options?: FileDialogOptions): string | null;
-  /** @since 1.4 */
-  promptSelection(title: string, choices: string[]): string | null;
-};
-
-/** Stop the script (throws "__EXIT__", shown as "Exited"). */
-declare function exit(): never;
-/** @since 1.8 — alias of exit(). */
-declare function quit(): never;
-/** Run another script file in the global scope. */
-declare function load(source: string | { name: string; script: string }): unknown;
-
 // ── Script environment ───────────────────────────────────────────────────────────────────────────
 
 /** Directory of the running script file, with a trailing separator (nashorn-compat). */
@@ -533,32 +513,6 @@ declare var __FILE__: string;
 declare var __LINE__: number;
 /** User scripts folder from the jArchi preferences, with a trailing separator. */
 declare var __SCRIPTS_DIR__: string;
-
-/**
- * Java interop (GraalJS). Results are Java objects whose shape tsc cannot know, hence `any`:
- * annotate the variable that receives a Java value when you need checking. An interface, so a
- * typings file can add `type()` overloads per class name (types/swt.d.ts does for SWT / JFace).
- */
-interface JavaInterop {
-  type(className: string): any;
-  from(javaArray: any): any[];
-  to(jsArray: unknown[], javaType?: string | object): any;
-  extend(...types: any[]): any;
-  /** The superclass methods of an object made with Java.extend, e.g. Java.super(dlg).okPressed(). */
-  super(object: unknown): any;
-  isJavaObject(value: unknown): boolean;
-  isType(value: unknown): boolean;
-  typeName(value: unknown): string | undefined;
-}
-declare var Java: JavaInterop;
-/** Nashorn-compat package roots, e.g. Packages.java.io.File or java.io.File (prefer Java.type). */
-declare var Packages: any;
-declare var java: any;
-declare var javax: any;
-/** Archi's main SWT Shell (org.eclipse.swt.widgets.Shell). */
-declare var shell: any;
-declare var workbench: any;
-declare var workbenchwindow: any;
 
 // CommonJS (GraalJS commonjs-require, enabled in the jArchi preferences)
 declare function require(id: string): any;

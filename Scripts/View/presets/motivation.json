@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "motivation",
   "algorithm": "Layered",
   "params": {
@@ -15,11 +15,11 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ],
@@ -27,15 +27,15 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "constraint"},
       {"elementType": "grouping"}
     ],
-    "relationRules": [
+    "relationConditions": [
       {"relation": "aggregation-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "diagramRules": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

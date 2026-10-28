@@ -133,6 +133,8 @@ interface ElkExtendedEdge extends ElkShape {
 interface ElkSyncModule {
   /** Lays out `graph` and returns it with positions filled in; extra fields on nodes and edges survive. */
   layout<G extends ElkNode>(graph: G): G;
+  /** The bundled ELK's option and algorithm registry (full ids, e.g. "org.eclipse.elk.spacing.nodeNode"). */
+  metadata(): { options: { id: string; targets?: string[] }[]; algorithms: { id: string; knownOptions?: string[] }[] };
 }
 
 // ── chroma-js (Scripts/node_modules/chroma-js, required as "chroma-js") — gka.github.io/chroma.js ─

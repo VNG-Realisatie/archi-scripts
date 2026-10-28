@@ -26,7 +26,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 | Folder structure, loading modules, `_lib` modules, entry scripts, testing | `ai/repo-guide.md` |
 | jArchi API (typed, from the plugin source) | `ai/jarchi-scripting/jarchi.d.ts` |
 | GraalJS runtime, Java interop, external processes | `ai/jarchi-scripting/graaljs-java.md` |
-| SWT / JFace / GTK mechanics · dialog look and feel: principles · SWT realisation (read before changing any dialog) | `ai/jarchi-scripting/swt-gtk.md` · `Scripts/View/docs/reference/gui.md` § Look and feel · `ai/dialog-style.md` |
+| SWT / JFace / GTK mechanics · dialog look and feel: principles · SWT realisation (read before changing any dialog) | `ai/jarchi-scripting/swt-gtk.md` · `Scripts/View/docs/reference/gui.md` § Look and feel · `Scripts/View/docs/reference/dialog-style.md` |
 | View subsystem: rules · what · detail per subject · design decisions + how | `Scripts/View/AGENTS.md` · `Scripts/View/docs/SPEC.md` · `Scripts/View/docs/reference/` · `Scripts/View/docs/ARCHITECTURE.md` |
 | Static type checking: scope, JSDoc, casts, typings | `types/README.md` · `ai/jarchi-scripting/jarchi.d.ts` |
 
@@ -39,6 +39,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 | `dagre` | Dagre / dagre-cluster-fix layout | `ai/dagre/SKILL.md` |
 | `graphviz` | Graphviz: DOT, engines, attributes, `-Tjson` | `ai/graphviz/SKILL.md` |
 | `view-testing` | The user reports a generated or laid-out view that looks wrong | `ai/view-testing/SKILL.md` |
+| `view-baseline` | A View change must be checked in Archi against the committed baseline; the test model is rebuilt | `ai/view-baseline/SKILL.md` |
 
 ## Hard rules
 
@@ -57,7 +58,7 @@ No exceptions.
 
 Defaults, not hard rules; a reason to deviate goes in a comment.
 
-- **Names.** Functions: camelCase verbs (`buildGraph`); private: `_` prefix, not exported; engine-specific: suffix (`_buildGraphELK`); constants: UPPER_SNAKE_CASE; required modules: PascalCase (`const Common = require(…)`), always called with the namespace (`Common.debug()`).
+- **Names.** Functions: camelCase verbs (`buildGraph`); file-internal: `_` prefix, never exported; an exported function has no `_`; engine-specific: suffix (`_buildGraphELK`); constants: UPPER_SNAKE_CASE; required modules: PascalCase (`const Common = require(…)`), always called with the namespace (`Common.debug()`).
 - **Functions.** One verb — a name that needs "and" is two functions. Aim for ≤ 30 lines. Return one value; two results → `{ a, b }`. Guards in the caller, not in the extracted function. Extract on the third identical line, not before.
 - **Errors.** Validate at the boundaries (user input, files, presets, external tools); trust internal code — the typecheck covers its contracts. No fallback for a case that cannot happen.
 - **Logging.** `console.log` for progress, `console.error` for errors (one argument: jArchi's console takes one; it has no `warn`), `Common.debug` for diagnostics.

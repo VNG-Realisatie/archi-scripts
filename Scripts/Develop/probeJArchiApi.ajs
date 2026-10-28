@@ -1,7 +1,9 @@
 /*
  * Probe the jArchi API assumptions behind ai/jarchi-scripting/jarchi.d.ts.
  *
- * Read-only: the model is not changed. Select a model with at least two elements and one
+ * The model's contents are not changed: two probes write on a temporary view and delete it (Archi's undo
+ * stack shows it); one of them can change the order rels() gives in memory, so reopen the model before a
+ * baseline run. Select a model with at least two elements and one
  * relation; select a view (or something on it) to also probe visuals. Copy the console output
  * back into the typings (@remarks unverified → verified) and ai/jarchi-scripting docs.
  */
@@ -85,14 +87,78 @@ if (view) {
   probe("connection.bounds (missing member)", () => vc ? String(vc.bounds) : "skipped: no connection");
   probe("connection.source is a visual", () => vc ? `${vc.source.type}, has view ${!!vc.source.view}` : "skipped");
   probe("diagram-model-reference reports type", () => { const r = $(view).find("diagram-model-reference").first(); return r ? r.type : "skipped: none"; });
+  // selection_read._diagramBlockContents reads a diagram-block's contents with find(); the View test model's
+  // "2 Edited" has a group "Block" holding a note and an element.
+  probe("find() of a group: what it lists", () => {
+    const group = $(view).find("diagram-model-group").filter(g => $(g).children().size() > 0).first();
+    if (!group) return "skipped: no group with contents on the view";
+    let inside = 0;
+    const count = (/** @type {VisualObject} */ o) => { $(o).children().each(c => { inside++; count(c); }); };
+    count(group);
+    const found = $(group).find();
+    return `${found.size()} found (${found.filter(o => !!o.concept).size()} element visuals) of ${inside} inside`;
+  });
 } else {
   results.push("views: skipped (no view in the model)");
 }
+
+// ── Fractional bounds (the write plan stores whole pixels, truncated) ────────
+// Writes on a temporary view and deletes it, so the model's contents stay as they were.
+probe("fractional bounds are stored as", () => {
+  const tmp = model.createArchimateView("probe fractional bounds 9f3c");
+  // vo.bounds is a Java map: JSON.stringify gives {}, so the fields are read one by one.
+  const show = (/** @type {VisualObject} */ vo) => { const b = vo.bounds; return `${b.x},${b.y},${b.width},${b.height}`; };
+  try {
+    const vo = tmp.add(first, 10.7, 20.2, 120.9, 55.5);
+    const added = show(vo);
+    vo.bounds = { x: -3.7, y: 4.5 };
+    return `add(10.7, 20.2, 120.9, 55.5) → ${added}; bounds = {x: -3.7, y: 4.5} → ${show(vo)}`;
+  } finally { tmp.delete(); }
+});
+
+// ── rels() order (the Node harness's relation index assumes it) ──────────────
+// Per element: source relations, then target relations, each in the order $("relation") gives.
+const allRels = []; $("relation").each(r => allRels.push(r));
+probe("rels() order = source relations, then target", () => {
+  let checked = 0, differ = 0, example = "";
+  $("element").each(e => {
+    const expected = [...allRels.filter(r => r.source.id === e.id), ...allRels.filter(r => r.target.id === e.id)].map(r => r.id);
+    const actual = []; $(e).rels().each(r => actual.push(r.id));
+    checked++;
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      differ++;
+      if (!example) example = ` first: "${e.name}" expected ${expected.length} [${expected.join(" ")}], got ${actual.length} [${actual.join(" ")}]`;
+    }
+  });
+  return `${checked} elements, ${differ} differ.${example}`;
+});
+probe("rels() of a self-loop lists it", () => {
+  const loop = allRels.find(r => r.source.id === r.target.id);
+  if (!loop) return "skipped: no self-loop in the model";
+  let n = 0; $(`#${loop.source.id}`).rels().each(r => { if (r.id === loop.id) n++; });
+  return `${n}× (the Node index lists it twice, as the source and as the target)`;
+});
+// After the two above: it changes the rels() order in memory (reopen the model before run_baseline.ajs).
+probe("drawing a connection reorders rels()", () => {
+  const isElement = (/** @type {ArchiConcept} */ c) => !c.type.endsWith("-relationship");
+  const el = $("element").filter(e => $(e).outRels().filter(r => isElement(r.target)).size() >= 1 && $(e).outRels().size() >= 2).first();
+  if (!el) return "skipped: no element with two outgoing relations";
+  const ids = () => { const a = []; $(el).outRels().each(r => a.push(r.id)); return a.join(" "); };
+  const before = ids();
+  const rel = $(el).outRels().filter(r => isElement(r.target)).first();
+  const tmp = model.createArchimateView("probe rels order 9f3c");
+  try {
+    tmp.add(rel, tmp.add(rel.source, 10, 10, 120, 55), tmp.add(rel.target, 200, 10, 120, 55));
+    const after = ids();
+    return after === before ? `no ("${el.name}": ${before})` : `yes ("${el.name}", drew ${rel.id}): ${before} → ${after}`;
+  } finally { tmp.delete(); }
+});
 
 // ── Script environment ───────────────────────────────────────────────────────
 probe("__DIR__ ends with a separator", () => /[\\/]$/.test(__DIR__));
 probe("__SCRIPTS_DIR__", () => __SCRIPTS_DIR__);
 probe("relative require inside a module", () => require(REPO_ROOT + "Develop/_probe_require_a.js").viaRelative);
+probe("relative require with ../ inside a module", () => require(REPO_ROOT + "Develop/_probe_require_a.js").viaParent);
 
 console.log(results.join("\n"));
 console.log("\nProbe finished.");

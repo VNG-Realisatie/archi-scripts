@@ -21,9 +21,10 @@ const problems = [];
 const OWN_HANDLING = ["maxWidth", "aspectRatio", "viewSizeMode"];
 const HIDDEN = Defs.HIDDEN_PARAMS || [];
 
-// Widget table, read from the dialog source (the dialog itself needs SWT and cannot load in Node).
-const src   = fs.readFileSync(path.join(VIEW, "lib", "gui", "dialog_main.js"), "utf8");
-const table = src.slice(src.indexOf("const PARAM_WIDGETS"), src.indexOf("});", src.indexOf("const PARAM_WIDGETS")));
+// Widget table, read from the dialog sources (the dialog itself needs SWT and cannot load in Node).
+const guiDir = path.join(VIEW, "lib", "gui");
+const src    = fs.readdirSync(guiDir).filter(f => f.endsWith(".js")).map(f => fs.readFileSync(path.join(guiDir, f), "utf8")).join("\n");
+const table  = src.slice(src.indexOf("const PARAM_WIDGETS"), src.indexOf("});", src.indexOf("const PARAM_WIDGETS")));
 const widgetParams = [...table.matchAll(/^\s+(\w+):\s+\{ w: "(\w+)"/gm)].map(m => ({ param: m[1], widget: m[2] }));
 for (const { param, widget } of widgetParams)
   if (!new RegExp(`w\\.${widget}\\b|"${widget}"`).test(src.replace(table, ""))) problems.push(`PARAM_WIDGETS.${param}: widget ${widget} is never built`);

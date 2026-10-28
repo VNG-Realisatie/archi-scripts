@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsproces/Levensloop en bedrijfsprocessen",
   "algorithm": "Layered",
   "params": {
@@ -9,8 +9,8 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [],
-    "nestingRules": [
+    "reverseConditions": [],
+    "nestingConditions": [
       {"relation": "aggregation-relationship"}
     ],
     "padding": 20,
@@ -34,27 +34,27 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementRules": [],
-    "diagramRules": [],
-    "relationRules": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "repeat": 2,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-process"}
         ]
       },
       {
         "repeat": 3,
-        "rules": [
+        "conditions": [
           {"relation": "triggering-relationship", "added": "business-event"},
           {"relation": "triggering-relationship", "added": "business-process"},
           {"relation": "aggregation-relationship", "added": "business-event"}
@@ -69,7 +69,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

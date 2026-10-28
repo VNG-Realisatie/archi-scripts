@@ -2,7 +2,7 @@
  * Shared utilities for layout engine adapters.
  * 
  * These functions operate on the LayoutGraph data structure (engine-agnostic)
- * and are used by both elk.js and dagre.js.
+ * and are used by elk.js, dagre.js and graphviz.js (the column snap and the width alignment by elk.js only).
  */
 console.log("Loading engines/engine-utils.js");
 
@@ -12,7 +12,7 @@ const REPO_ROOT = (() => {
 })();
 
 /** @type {typeof import("../defs")} */
-const { LABEL_SIZING_DEFAULTS, compareNames } = require(REPO_ROOT + "View/lib/defs");
+const { LABEL_SIZING_DEFAULTS, compareNames, ALGORITHMS, PARAM_LABELS } = require(REPO_ROOT + "View/lib/defs");
 
 // ── Self-loop pass-through ────────────────────────────────────────────────────
 
@@ -38,17 +38,15 @@ function selfLoopResult(edge) {
 // ── Node sorting ──────────────────────────────────────────────────────────────
 
 /**
- * Comparator for nodes: by element type (code point) first, then by name (Defs.compareNames).
- * Works with both LayoutGraph nodes (elementType / label) and
- * ELK nodeMap items (_type / _name).
- * @param {{ elementType?: string, _type?: string, label?: string, _name?: string }} a
- * @param {{ elementType?: string, _type?: string, label?: string, _name?: string }} b
+ * Comparator for LayoutGraph nodes: by element type (code point) first, then by name (Defs.compareNames).
+ * @param {{ elementType?: string, label?: string }} a
+ * @param {{ elementType?: string, label?: string }} b
  */
 function byTypeAndName(a, b) {
-  const ta = a.elementType || a._type || "";
-  const tb = b.elementType || b._type || "";
-  const na = a.label || a._name || "";
-  const nb = b.label || b._name || "";
+  const ta = a.elementType || "";
+  const tb = b.elementType || "";
+  const na = a.label || "";
+  const nb = b.label || "";
   if (ta !== tb) return ta < tb ? -1 : 1;
   return compareNames(na, nb);
 }
@@ -102,29 +100,17 @@ function sortedNodes(nodes, parentMap, sortContainers) {
  * The caller applies the returned widths as: an **exact** width on leaves, and a
  * **minimum-size floor** on containers (so a container never shrinks below its
  * content — "smallest, but never below content"; a multi-column container bulges
- * past its level width). Widths are only known after a first layout pass, so the
- * caller passes pass-1 rendered widths via `renderedWidthById`.
+ * past its level width). Only the deepest level's widths are read; that level holds
+ * leaves only, whose input widths the engine keeps, so no layout pass is needed.
  *
- * @param {{ id: string, _name?: string, label?: string }[]} items  nodes to process
+ * @param {{ id: string }[]}       items             nodes to process
  * @param {Record<string, string>} parentMap         { childId: parentId } — defines levels and subtrees
- * @param {Record<string, number>} renderedWidthById { id: pass-1 renderedWidth } for all boxes
+ * @param {Record<string, number>} widthById         { id: width } for all boxes
  * @param {number}                 ring              width added per nesting level (= 2 × container padding)
  * @param {(msg: string) => void}  [log]             optional logger (e.g. console.log) for diagnostics
  * @returns {Record<string, number>}                 { id: targetWidth } for every item
  */
-function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
-  // Children index from parentMap.
-  /** @type {Record<string, string[]>} */
-  const childrenOf = {};
-  for (const childId of Object.keys(parentMap)) {
-    const p = parentMap[childId];
-    (childrenOf[p] = childrenOf[p] || []).push(childId);
-  }
-  /** @type {Record<string, string>} */
-  const nameOf = {};
-  for (const it of items) nameOf[it.id] = it._name || it.label || it.id;
-  const isContainer = (/** @type {string} */ id) => !!(childrenOf[id] && childrenOf[id].length);
-
+function alignWidthsByLevel(items, parentMap, widthById, ring, log) {
   /** @type {Record<string, number>} */
   const levelCache = {};
   /** @param {string} id */
@@ -139,24 +125,8 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
     return (levelCache[id] = l);
   }
 
-  // Sub-nesting depth: 0 for a leaf, else 1 + max child depth.
-  /** @type {Record<string, number>} */
-  const subCache = {};
-  /**
-   * @param {string} id
-   * @returns {number}
-   */
-  function subtreeDepth(id) {
-    if (id in subCache) return subCache[id];
-    const kids = childrenOf[id];
-    if (!kids || !kids.length) return (subCache[id] = 0);
-    let m = 0;
-    for (const k of kids) m = Math.max(m, subtreeDepth(k));
-    return (subCache[id] = 1 + m);
-  }
-
   const widthOf = (/** @type {string} */ id) => {
-    const w = renderedWidthById[id];
+    const w = widthById[id];
     return w > 0 ? w : 0;
   };
 
@@ -201,6 +171,215 @@ function alignWidthsByLevel(items, parentMap, renderedWidthById, ring, log) {
   return targetById;
 }
 
+// ── Edge geometry ─────────────────────────────────────────────────────────────
+
+/**
+ * Point at parameter t (0..1) on the cubic Bézier curve p0 → p3 with control points p1, p2.
+ * Not rounded: the caller rounds to pixels.
+ * @param {Point}  p0
+ * @param {Point}  p1
+ * @param {Point}  p2
+ * @param {Point}  p3
+ * @param {number} t
+ * @returns {Point}
+ */
+function cubicPoint(p0, p1, p2, p3, t) {
+  const m = 1 - t;
+  return {
+    x: m*m*m*p0.x + 3*m*m*t*p1.x + 3*m*t*t*p2.x + t*t*t*p3.x,
+    y: m*m*m*p0.y + 3*m*m*t*p1.y + 3*m*t*t*p2.y + t*t*t*p3.y,
+  };
+}
+
+/**
+ * Where a connection label sits: at the start or end point, or (Middle) on the middle bendpoint,
+ * else on the midpoint between start and end.
+ * @param {Point}   start
+ * @param {Point}   end
+ * @param {Point[]} bendpoints      rounded bendpoints between start and end
+ * @param {string}  labelPosition   "Source" | "Target" | "Middle"
+ * @returns {{ labelX: number, labelY: number }}
+ */
+function labelPoint(start, end, bendpoints, labelPosition) {
+  if (labelPosition === "Source") return { labelX: Math.round(start.x), labelY: Math.round(start.y) };
+  if (labelPosition === "Target") return { labelX: Math.round(end.x),   labelY: Math.round(end.y) };
+  if (bendpoints.length > 0) {
+    const mid = bendpoints[Math.floor(bendpoints.length / 2)];
+    return { labelX: mid.x, labelY: mid.y };
+  }
+  return { labelX: Math.round((start.x + end.x) / 2), labelY: Math.round((start.y + end.y) / 2) };
+}
+
+// ── Center-snap column alignment to a global grid ──────────────────────────────
+
+/**
+ * Align leaf columns top-to-bottom across the view as a **global variable-width table**.
+ * Mutates absolute x of resultNodes in place and re-wraps containers around their moved
+ * children; **leaves are never resized** (position-only — see [No post-layout scaling]).
+ *
+ * Every leaf column is placed on one shared set of vertical bands so columns line up across
+ * the whole view; each column is as wide as its widest leaf. Gaps start **tight** and are
+ * then **widened only where containers actually collide**, by exactly the overlap amount —
+ * so most boundaries stay minimal and only the few that genuinely need a deep gap get one,
+ * while every column stays on the shared grid (widening a boundary just shifts everything
+ * to its right).
+ *
+ * Algorithm:
+ *   1. Detect columns: sort leaves by centre, split on a >½-leaf gap (consecutive compare).
+ *   2. Column width = widest member leaf.
+ *   3. Initial gap per boundary = max row need (`spacing + padding × symmetric ancestor
+ *      difference`) − 2×padding, floored at spacing.
+ *   4. Iterate: place leaves on the column grid + re-wrap containers; find adjacent sibling
+ *      containers that overlap; widen each offending boundary by the overlap; repeat until
+ *      no container overlaps (or a few iterations).
+ *
+ * @param {LayoutResultNode[]}     resultNodes  flattened nodes { id, x, y, width, height, parentId }
+ * @param {EffectiveParams}        options      graph.options (spacing, padding)
+ * @param {Record<string, string>} nameById     { id: displayName }
+ * @param {(msg: string) => void}  log          logger
+ */
+function snapColumnsToGrid(resultNodes, options, nameById, log) {
+  /** @type {Record<string, LayoutResultNode>} */
+  const byId = {};
+  /** @type {Record<string, LayoutResultNode[]>} */
+  const childrenByParent = {};
+  /** @type {Set<string>} */
+  const containerIds = new Set();
+  for (const n of resultNodes) {
+    byId[n.id] = n;
+    if (n.parentId != null) {
+      (childrenByParent[n.parentId] = childrenByParent[n.parentId] || []).push(n);
+      containerIds.add(n.parentId);
+    }
+  }
+  const isContainer = (/** @type {string} */ id) => containerIds.has(id);
+  const centerOf = (/** @type {LayoutResultNode} */ n) => n.x + (n.width || 0) / 2;
+  const rightOf  = (/** @type {LayoutResultNode} */ n) => n.x + (n.width || 0);
+  const spacing = options.elementSpacing || 0;
+  const pad = options.padding || 0;
+
+  const leaves = resultNodes.filter(n => !isContainer(n.id));
+  if (leaves.length < 2) { log("[colSnap] skipped (no columns)"); return; }
+
+  // Container-ancestor set per leaf, and symmetric-difference count between two leaves.
+  /** @type {Record<string, Set<string>>} */
+  const anc = {};
+  for (const lf of leaves) {
+    const s = new Set(); let p = lf.parentId;
+    while (p != null) { s.add(p); p = byId[p] ? byId[p].parentId : null; }
+    anc[lf.id] = s;
+  }
+  const symDiff = (/** @type {string} */ a, /** @type {string} */ b) => {
+    let d = 0;
+    for (const x of anc[a]) if (!anc[b].has(x)) d++;
+    for (const x of anc[b]) if (!anc[a].has(x)) d++;
+    return d;
+  };
+
+  // 1. Detect columns (consecutive-centre compare; split on >½-leaf gap).
+  const sorted = leaves.slice().sort((a, b) => centerOf(a) - centerOf(b));
+  /** @type {{ members: LayoutResultNode[], w: number }[]} */
+  const cols = [];
+  /** @type {LayoutResultNode | null} */
+  let prev = null;
+  for (const lf of sorted) {
+    const thr = prev ? Math.min(lf.width || 0, prev.width || 0) / 2 : 0;
+    if (prev && centerOf(lf) - centerOf(prev) <= thr + 1e-6) {
+      const c = cols[cols.length - 1]; c.members.push(lf); c.w = Math.max(c.w, lf.width || 0);
+    } else {
+      cols.push({ members: [lf], w: lf.width || 0 });
+    }
+    prev = lf;
+  }
+  if (cols.length < 2) { log("[colSnap] 1 column — nothing to align"); return; }
+  /** @type {Record<string, number>} */
+  const colOf = {};
+  cols.forEach((c, i) => c.members.forEach(m => { colOf[m.id] = i; }));
+
+  // 3. Initial gap per boundary = max row need − slack (2·padding), floored at spacing.
+  //    Tight first; the loop below widens only the boundaries that actually collide.
+  const yOver = (/** @type {LayoutResultNode} */ a, /** @type {LayoutResultNode} */ b) => a.y < b.y + (b.height || 0) && b.y < a.y + (a.height || 0);
+  const slack = 2 * pad;
+  /** @type {number[]} */
+  const gap = [];
+  /** @type {number[]} */
+  const rawGap = [];
+  for (let k = 0; k < cols.length - 1; k++) {
+    let need = spacing;
+    for (const a of cols[k].members) for (const b of cols[k + 1].members) {
+      if (!yOver(a, b)) continue;
+      const req = spacing + pad * symDiff(a.id, b.id);
+      if (req > need) need = req;
+    }
+    rawGap.push(need);
+    gap.push(Math.max(spacing, need - slack));
+  }
+
+  const origin = Math.min(...cols[0].members.map(m => m.x));
+  const nm = (/** @type {string} */ id) => nameById[id] || id;
+  const ROOT = "__root__";
+  const parents = [...new Set(resultNodes.map(n => (n.parentId == null ? ROOT : n.parentId)))];
+  const depthOf = (/** @type {string} */ id) => { let d = 0, p = byId[id] ? byId[id].parentId : null; while (p != null) { d++; p = byId[p] ? byId[p].parentId : null; } return d; };
+  const containersByDepth = [...containerIds].sort((a, b) => depthOf(b) - depthOf(a));
+  // Rightmost leaf-column index within a container's subtree (the boundary to its right).
+  const rightCol = (/** @type {string} */ cid) => { let hi = -1; (function w(/** @type {string} */ id){ for (const c of (childrenByParent[id] || [])) { if (!isContainer(c.id)) hi = Math.max(hi, colOf[c.id]); else w(c.id); } })(cid); return hi; };
+
+  // Position every leaf on the column grid defined by `gap`, then re-wrap containers.
+  function applyGrid() {
+    const colCenter = [origin + cols[0].w / 2];
+    let left = origin;
+    for (let k = 1; k < cols.length; k++) { left += cols[k - 1].w + gap[k - 1]; colCenter.push(left + cols[k].w / 2); }
+    for (const lf of leaves) lf.x += colCenter[colOf[lf.id]] - centerOf(lf);   // idempotent (absolute target)
+    for (const cid of containersByDepth) {
+      const kids = childrenByParent[cid] || []; if (!kids.length) continue;
+      byId[cid].x = Math.min(...kids.map(k => k.x)) - pad;
+      byId[cid].width = (Math.max(...kids.map(k => rightOf(k))) + pad) - byId[cid].x;
+    }
+  }
+  // Find adjacent sibling containers that overlap; return { boundaryIndex: maxNeededWiden }.
+  function findOverlaps() {
+    /** @type {Record<string, number>} */
+    const widen = {};
+    /** @type {string[]} */
+    const list = [];
+    for (const pid of parents) {
+      const sibs = (pid === ROOT ? resultNodes.filter(n => n.parentId == null) : (childrenByParent[pid] || []))
+                     .filter(k => isContainer(k.id)).sort((a, b) => a.x - b.x);
+      for (let i = 1; i < sibs.length; i++) {
+        let nearRight = -Infinity, nb = null;
+        for (let j = 0; j < i; j++) if (yOver(sibs[i], sibs[j]) && rightOf(sibs[j]) > nearRight) { nearRight = rightOf(sibs[j]); nb = sibs[j]; }
+        if (!nb) continue;
+        const g = sibs[i].x - nearRight;
+        if (g < spacing - 1e-6) {
+          const b = rightCol(nb.id);                    // widen the boundary at the left container's right edge
+          if (b >= 0 && b < gap.length) widen[b] = Math.max(widen[b] || 0, spacing - g);
+          list.push(`    overlap in "${pid === ROOT ? "(root)" : nm(pid)}": "${nm(nb.id)}" ↔ "${nm(sibs[i].id)}" gap=${Math.round(g)}px → widen gap ${b}`);
+        }
+      }
+    }
+    return { widen, list };
+  }
+
+  // 4. Iterate: lay out tight, find collisions, widen exactly those boundaries, repeat.
+  let iters = 0;
+  /** @type {string[]} */
+  let lastList = [];
+  for (; iters < 8; iters++) {
+    applyGrid();
+    const { widen, list } = findOverlaps();
+    lastList = list;
+    const keys = Object.keys(widen);
+    if (!keys.length) break;
+    for (const k of keys) gap[+k] += widen[k];
+  }
+
+  log(`[colSnap] applied — ${cols.length} columns, widths [${cols.map(c => c.w).join(", ")}]; ` +
+      `slack=${slack}px (2·padding); ${iters} widen-iteration(s); final gaps [${gap.map(Math.round).join(", ")}]`);
+  for (let k = 0; k < gap.length; k++) log(`    gap ${k}→${k + 1}: raw need ${Math.round(rawGap[k])} ⇒ final ${Math.round(gap[k])}`);
+  if (lastList.length) { log(`[colSnap] unresolved overlaps after ${iters} iters:`); for (const l of lastList) log(l); }
+  else log(`[colSnap] overlap scan: clean (all adjacent containers ≥ ${spacing}px)`);
+}
+
 // ── Parameter mapping ─────────────────────────────────────────────────────────
 
 /**
@@ -220,6 +399,74 @@ function applyParams(algName, opts, mapping) {
     if (value !== undefined) Object.assign(result, fn(value, opts));
   }
   return result;
+}
+
+/**
+ * Engine keys whose value a dialog option sets through a mapping, each with that param. Each active
+ * param is probed with its value, every value the algorithm offers for it, and 1 / 1000 or the other
+ * boolean. A key the mapper leaves out for some probes counts as set by the dialog too (Cycles
+ * Default sets no acyclicer); a key with one value for every probe is a fixed value the mapper adds
+ * (e.g. Pack's compaction iterations with Distance), not set by the dialog.
+ * @param {string}          algName
+ * @param {EffectiveParams} opts     the run's params (active params only)
+ * @param {ParamMapping}    mapping
+ * @returns {Record<string, string>} engine key → param key
+ */
+function dialogKeys(algName, opts, mapping) {
+  const offered = ALGORITHMS[algName] ? ALGORITHMS[algName].supportedOptions : {};
+  /** @type {Record<string, string>} */
+  const keys = {};
+  for (const [param, fn] of Object.entries(mapping[algName] || {})) {
+    const value = /** @type {Record<string, unknown>} */ (opts)[param];   // Cast: key comes from the mapping, whose keys are param names.
+    if (value === undefined) continue;
+    const probes = [value, ...(offered[param] || []), ...(typeof value === "boolean" ? [!value] : [1, 1000])];
+    const outputs = probes.map(probe => fn(probe, opts));
+    for (const key of new Set(outputs.flatMap(out => Object.keys(out)))) {
+      if (new Set(outputs.map(out => key in out ? String(out[key]) : undefined)).size > 1) keys[key] = param;
+    }
+  }
+  return keys;
+}
+
+// ── Settings outside the dialog ───────────────────────────────────────────────
+// engineParams keys a preset sets without a dialog control. Each owner checks its own section
+// (adapters: engineParams.<Engine>; label sizing below: engineParams.layout) and returns one
+// finding per key; a key without a problem applies.
+
+const SETTING_UNKNOWN = "unknown — not used, remove";
+const SETTING_DEFAULT = "same as the default — remove";
+
+/**
+ * The problem of one engineParams key (null when it applies: unknown, set by a dialog option
+ * (the preset wins), or equal to what the run uses without it) and that value.
+ * @param {string}                  key
+ * @param {unknown}                 value
+ * @param {Record<string, unknown>} defaults  every known key with its default
+ * @param {Record<string, string>}  dialog    engine key → param key (dialogKeys)
+ * @param {Record<string, unknown>} current   what the mapping sets for the run's params (applyParams):
+ *                                            dialog values and fixed values, which win over a default
+ * @returns {{ problem: string | null, without?: unknown }}
+ */
+function settingProblem(key, value, defaults, dialog, current) {
+  if (!(key in defaults)) return { problem: SETTING_UNKNOWN };
+  const without = key in current ? current[key] : defaults[key];
+  const same = String(value) === String(without);
+  if (key in dialog) {
+    const label = /** @type {Record<string, string>} */ (PARAM_LABELS)[dialog[key]];   // Cast: dialog values are param keys
+    return { problem: same ? `same as the dialog's "${label}" sets — remove` : `overrides the dialog's "${label}" — set it there`, without };
+  }
+  return { problem: same ? SETTING_DEFAULT : null, without };
+}
+
+/**
+ * Findings for engineParams.layout (label sizing). labelMaxLineWidth is a dialog option, which wins.
+ * @param {Partial<LabelSizing> | undefined} layout
+ * @returns {SettingFinding[]}
+ */
+function checkLabelSizing(layout) {
+  return Object.entries(layout || {}).map(([key, value]) => ({ key, value,
+    ...(key === "labelMaxLineWidth" ? { problem: `the dialog's "${PARAM_LABELS.labelMaxLineWidth}" wins — not used, remove` }
+      : settingProblem(key, value, LABEL_SIZING_DEFAULTS, {}, {})) }));
 }
 
 // ── Edge-density node sizing ──────────────────────────────────────────────────
@@ -296,7 +543,7 @@ function sizeLabelBasedNodes(nodes, params, engineParams) {
     const label = (node.label || "").trim();
     if (!label) continue;
 
-    const rawPx = _textWidth(label, charW);
+    const rawPx = textWidth(label, charW);
     const innerMax = maxLineW - 2 * hPad;
 
     let w, h;
@@ -314,7 +561,7 @@ function sizeLabelBasedNodes(nodes, params, engineParams) {
         // two lines: split at nearest space to midpoint
         const line1 = label.slice(0, split);
         const line2 = label.slice(split + 1);
-        w = Math.max(_textWidth(line1, charW), _textWidth(line2, charW)) + 2 * hPad;
+        w = Math.max(textWidth(line1, charW), textWidth(line2, charW)) + 2 * hPad;
         h = 2 * lineH + vPad;
       }
     }
@@ -323,13 +570,13 @@ function sizeLabelBasedNodes(nodes, params, engineParams) {
   }
 }
 
-// Estimated pixel width of a string: uppercase letters count double charW (they are wider),
-// every other character counts single. Uppercase detection covers accented letters too.
 /**
+ * Estimated pixel width of a string: uppercase letters count double charW (they are wider),
+ * every other character counts single. Uppercase detection covers accented letters too.
  * @param {string} str
  * @param {number} charW
  */
-function _textWidth(str, charW) {
+function textWidth(str, charW) {
   let units = 0;
   for (const c of str) {
     const isUpper = c !== c.toLowerCase() && c === c.toUpperCase();
@@ -357,8 +604,15 @@ if (typeof module !== "undefined" && module.exports) {
     sortedNodes,
     alignWidthsByLevel,
     applyParams,
+    dialogKeys,
+    SETTING_UNKNOWN,
+    settingProblem,
+    checkLabelSizing,
     expandNodeSizesForEdgeDensity,
     sizeLabelBasedNodes,
-    _textWidth,
+    textWidth,
+    cubicPoint,
+    labelPoint,
+    snapColumnsToGrid,
   };
 }

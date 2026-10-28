@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "business",
   "algorithm": "Layered",
   "params": {
@@ -15,8 +15,8 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 0,
-    "nestingRules": [],
-    "reverseRules": [
+    "nestingConditions": [],
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
@@ -25,7 +25,7 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "business-actor"},
       {"elementType": "business-collaboration"},
       {"elementType": "business-event"},
@@ -40,7 +40,7 @@
       {"elementType": "product"},
       {"elementType": "representation"}
     ],
-    "relationRules": [
+    "relationConditions": [
       {"relation": "aggregation-relationship"},
       {"relation": "assignment-relationship"},
       {"relation": "composition-relationship"},
@@ -48,7 +48,7 @@
       {"relation": "specialization-relationship"},
       {"relation": "realization-relationship"}
     ],
-    "diagramRules": []
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []

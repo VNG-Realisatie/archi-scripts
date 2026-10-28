@@ -99,12 +99,29 @@ interface LayoutResult {
   viewHeight: number;
 }
 
-/** An engine adapter (engines/elk.js, dagre.js, graphviz.js). */
+/** An engine adapter (engines/elk.js, dagre.js, graphviz.js). Only an engine that starts a process uses `runProcess`. */
 interface LayoutAdapter {
-  layout(graph: LayoutGraph): LayoutResult;
+  layout(graph: LayoutGraph, runProcess: ProcessRunner): LayoutResult;
+  /** Settings outside the dialog: one finding per key of the engine's engineParams section. */
+  checkEngineParams(preset: MaskedPreset): SettingFinding[];
 }
 
-// ── Nesting resolution (selection_pipeline.resolveNesting) ───────────────────────────────────────
+/** How a process run ended; `exitCode` is meaningful for "finished" only. */
+interface ProcessOutcome {
+  state: "finished" | "timeout" | "not-found";
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Runs `command` with `args`, `input` on its standard input, and stops it after `timeoutSeconds`.
+ * Java ProcessBuilder in Archi (lib/process_runner.js), child_process in Node (tools/process_runner_node.js);
+ * both pass input and output through temp files and delete them again. Never throws for the three states.
+ */
+type ProcessRunner = (command: string, args: string[], input: string, timeoutSeconds: number) => ProcessOutcome;
+
+// ── Nesting resolution (nesting.resolveNesting) ───────────────────────────────────────
 
 /** A nesting relation bound to the occurrences at its two ends. */
 interface ParentRel {
@@ -115,7 +132,7 @@ interface ParentRel {
   tgtOccId: string;
 }
 
-/** One element visual on the target view, classified (selection_pipeline.describeVisuals). */
+/** One element visual on the target view, classified (selection_read.describeVisuals). */
 interface VisualDescription {
   id: string;
   /** The element; null for a note, group or view reference. */

@@ -1,0 +1,14 @@
+{
+  // Pure files: no jArchi or Java globals ($, model, selection, window, Java, Packages, exit, load), so a file
+  // that Node can load is checked as one. Same options as jsconfig.json; jarchi-globals.d.ts is left out.
+  // Add a file to "include" when it becomes pure. Run: npm run typecheck. Scope: types/README.md.
+  "extends": "./jsconfig.json",
+  "include": [
+    "ai/jarchi-scripting/jarchi.d.ts",
+    "types/layout.d.ts",
+    "types/view.d.ts",
+    "types/vendor.d.ts",
+    "types/swt.d.ts",
+    "Scripts/View/lib/rel_filter.js"
+  ]
+}

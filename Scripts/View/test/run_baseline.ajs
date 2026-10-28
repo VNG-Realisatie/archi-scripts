@@ -1,0 +1,126 @@
+/**
+ * Run the baseline matrix on the View test model and save it: the written views are the baseline.
+ *
+ * Matrix (2 presets × 5 runs = 10): NEW_VIEW on "1 Nesting" and "3 Network", EXPAND_VIEW and LAYOUT_ONLY on
+ * "2 Edited", ONE_EACH on two elements of "3 Network"; presets Test/baseline/baseline and Test/baseline/AlgoTwopi (presets/Test/baseline/ holds what the baseline needs; do not edit them without taking a new baseline). Every run writes
+ * into Views/Baseline, named "<preset> <action> <view>"; ONE_EACH writes one folder of that name. The Modify
+ * actions run on a copy of view 2, so the test views stay as built. Names as build_test_model.ajs creates them.
+ *
+ * Run in Archi with the test model (Scripts/View/test/model/view-test.archimate) selected. The script first
+ * deletes what Views/Baseline holds, then runs the matrix and saves the model in place. Procedure, comparing
+ * with the committed baseline and when to commit a new one: skill view-baseline (ai/view-baseline/SKILL.md).
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common       = require(REPO_ROOT + "_lib/Common");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
+const PresetIO     = require(REPO_ROOT + "View/lib/preset_io");
+const GenView      = require(REPO_ROOT + "View/lib/generate_view");
+const { ACTION }   = require(REPO_ROOT + "View/lib/defs");
+
+const MODEL_FILE      = "view-test.archimate";
+const BASELINE_FOLDER = "/Baseline";   // under /Views, as preset view.folder
+const PRESETS = ["Test/baseline/baseline", "Test/baseline/AlgoTwopi"];
+// view: source view; expandFrom: the element whose visual is selected for EXPAND_VIEW; elements: ONE_EACH seeds
+const RUNS = [
+  { action: ACTION.NEW_VIEW.id,    view: "1 Nesting" },
+  { action: ACTION.NEW_VIEW.id,    view: "3 Network" },
+  { action: ACTION.EXPAND_VIEW.id, view: "2 Edited", expandFrom: "Added component" },
+  { action: ACTION.LAYOUT_ONLY.id, view: "2 Edited" },
+  { action: ACTION.ONE_EACH.id,    view: "3 Network", elements: ["Assess", "Operating system"] },
+];
+
+Common.initConsoleLog(__FILE__, true);
+try {
+  _checkTestModel();
+  _clearBaseline();
+  const folder = /** @type {Folder} */ (ArchiFolders.getFolderPath("/Views" + BASELINE_FOLDER));
+  /** @type {string[]} */
+  const failed = [];
+  for (const presetName of PRESETS) {
+    for (const run of RUNS) {
+      const name = `${presetName.replace(/^.*\//, "")} ${run.action} ${run.view}`;
+      console.log(`\n##### ${name}`);
+      const views = GenView.generate_view(_runPreset(presetName, run, name), _runSelection(run, name, folder), run.action);
+      const expected = run.elements ? run.elements.length : 1;
+      if (views.length !== expected) failed.push(`${name}: ${views.length} views, expected ${expected}`);
+    }
+  }
+  console.log(`\nBaseline: ${PRESETS.length * RUNS.length - failed.length}/${PRESETS.length * RUNS.length} runs wrote their views`);
+  for (const f of failed) console.error(f);
+  model.save();
+  console.log(`Baseline saved: ${model.getPath()}`);
+} catch (error) {
+  console.error(`> ${typeof /** @type {Error} */ (error).stack === "undefined" ? error : /** @type {Error} */ (error).stack}`);
+}
+Common.finishConsoleLog();
+
+/** The current model is the test model, loaded from its file. */
+function _checkTestModel() {
+  if (!model.isSet()) throw "Select the test model first.";
+  const path = (model.getPath() || "").replace(/\\/g, "/");
+  if (!path.endsWith("/" + MODEL_FILE)) throw `The current model is "${model.name}" (${path || "not saved"}); select the test model ${MODEL_FILE}.`;
+}
+
+/** Delete the views and folders of the previous baseline; the Baseline folder stays. */
+function _clearBaseline() {
+  const baseline = $("folder.Baseline").first();
+  if (!baseline) return;
+  const clear = (/** @type {Folder} */ folder) => {
+    $(folder).children().each(c => {
+      if (c.type === "folder") clear(/** @type {Folder} */ (c));
+      c.delete();
+    });
+  };
+  clear(/** @type {Folder} */ (baseline));
+}
+
+/**
+ * The preset with the run's view name and folder.
+ * @param {string} presetName
+ * @param {{ action: string }} run
+ * @param {string} name  run name
+ */
+function _runPreset(presetName, run, name) {
+  const preset = PresetIO.readPreset(presetName);
+  if (run.action === ACTION.ONE_EACH.id) {
+    preset.view.folder = `${BASELINE_FOLDER}/${name}`;   // views named after the elements
+    preset.view.suffix = "";
+  } else {
+    preset.view.name   = name;
+    preset.view.folder = BASELINE_FOLDER;
+  }
+  return preset;
+}
+
+/**
+ * What the run selects: the source view (NEW_VIEW), a copy of it (LAYOUT_ONLY), an element's visual on a copy
+ * (EXPAND_VIEW) or the seed elements (ONE_EACH).
+ * @param {{ action: string, view: string, expandFrom?: string, elements?: string[] }} run
+ * @param {string} name    run name, for the copy
+ * @param {Folder} folder  where the copy goes
+ * @returns {ArchiCollection<ArchiObject>}
+ */
+function _runSelection(run, name, folder) {
+  const source = _one($("view").filter(v => v.name === run.view), `view "${run.view}"`);
+  if (run.action === ACTION.NEW_VIEW.id) return $(source);
+  if (run.elements) {
+    const seeds = $();
+    for (const n of run.elements) seeds.add(_one($("element").filter(e => e.name === n), `element "${n}"`));
+    return seeds;
+  }
+  const copy = source.duplicate(folder);
+  copy.name = name;
+  if (run.action === ACTION.LAYOUT_ONLY.id) return $(copy);
+  return $(copy).find("element").filter(v => !!v.concept && v.concept.name === run.expandFrom);
+}
+
+/**
+ * @template {ArchiProxy} T
+ * @param {ArchiCollection<T>} found
+ * @param {string} what
+ * @returns {T}
+ */
+function _one(found, what) {
+  if (found.size() !== 1) throw `${what}: ${found.size()} found, expected 1`;
+  return /** @type {T} */ (found.first());
+}

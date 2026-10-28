@@ -19,7 +19,7 @@ const REPO_ROOT = (() => {
 /** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
-const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
+const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { validatePreset, SESSION_FILENAME, compareNames } = Defs;
 
 const USER_PARAM_FOLDER    = "presets";
@@ -50,7 +50,7 @@ function readJSON(path) {
   return JSON.parse(content);
 }
 
-// Presets and the session file: rule lists one rule per line (rel_filter.stringifyPreset).
+// Presets and the session file: condition lists one condition per line (rel_filter.stringifyPreset).
 /**
  * @param {string} path
  * @param {object} obj
@@ -61,7 +61,7 @@ function writeJSON(path, obj) {
   try {
     new File(path).getParentFile().mkdirs();
     const writer = new FileWriter(path);
-    writer.write(RuleLists.stringifyPreset(obj));
+    writer.write(ConditionLists.stringifyPreset(obj));
     writer.close();
   } catch (e) {
     console.error(`Failed to write file: ${path} ${e}`);

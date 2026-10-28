@@ -6,7 +6,7 @@ The scripts stay plain JavaScript (CommonJS, GraalJS). TypeScript is used only a
 
 ```sh
 npm ci              # once: installs the pinned typescript (devDependency, root package.json)
-npm run typecheck   # tsc -p jsconfig.json — exit 0 = no findings
+npm run typecheck   # tsc -p jsconfig.json && tsc -p jsconfig.pure.json — exit 0 = no findings
 ```
 
 VS Code shows the same findings while editing (it reads `jsconfig.json`). The pinned version (`typescript` 6.0.3) is the one VS Code bundles, so editor and command line agree.
@@ -21,6 +21,8 @@ CI (`.github/workflows/check.yml`) runs `npm ci`, the typecheck and the Node tes
 | `Scripts/View/lib/gui/*.js` | View dialog (SWT / JFace) |
 | `Scripts/_lib/Common.js`, `archi_folders.js`, `selection.js` | Shared modules the View code loads |
 
+`jsconfig.pure.json` checks the pure files (listed in its `include`) a second time without `ai/jarchi-scripting/jarchi-globals.d.ts`, so `$`, `model`, `selection`, `window`, `Java`, `Packages`, `exit` or `load` in a pure file, or in a module it imports, is a type error. A file joins the list when it and everything it imports are pure.
+
 Not checked: `.ajs` entry scripts (tsc does not read that extension; keep them thin), `View/tools/` (Node), other folders, and the vendored libraries in `Scripts/node_modules/` (`maxNodeModuleJsDepth: 0`).
 
 Settings: `strict` (no implicit `any`, null checks), ES2022 target, no DOM library, no Node types.
@@ -29,9 +31,10 @@ Settings: `strict` (no implicit `any`, null checks), ES2022 target, no DOM libra
 
 | File | Contents | Source |
 |---|---|---|
-| `ai/jarchi-scripting/jarchi.d.ts` | jArchi globals, collections, proxies, console, dialogs, constants, ArchiMate type names | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
-| `types/view.d.ts` | Rules, presets, algorithm specs, pipeline shapes | `Scripts/View/lib/rel_filter.js`, `defs.js`, `selection_pipeline.js`; SPEC § Vocabulary |
-| `types/layout.d.ts` | `LayoutGraph` → `LayoutResult` engine contract, nesting resolution | SPEC §8 and the adapters |
+| `ai/jarchi-scripting/jarchi.d.ts` | Collections, proxies, `console`, `__DIR__` and CommonJS, constants, ArchiMate type names (also in Node) | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
+| `ai/jarchi-scripting/jarchi-globals.d.ts` | The globals that exist only in Archi: `$`, `jArchi`, `model`, `selection`, `window`, `exit`, `load`, `Java`, `Packages` | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
+| `types/view.d.ts` | Conditions, presets, algorithm specs, pipeline shapes, dialog counts and widgets | `Scripts/View/lib/rel_filter.js`, `defs.js`, `selection_pipeline.js`, `selection_read.js`, `nesting.js`, `write_plan.js`, `gui/*.js`; SPEC § Vocabulary |
+| `types/layout.d.ts` | `LayoutGraph` → `LayoutResult` engine contract, the `ProcessRunner` an adapter is passed, nesting resolution | SPEC §8, the adapters and the two runners (`Scripts/View/lib/process_runner.js`, `Scripts/View/tools/process_runner_node.js`) |
 | `types/vendor.d.ts` | The members used of dagre-cluster-fix, elkjs (sync wrapper), chroma-js, Graphviz `-Tjson` | Library docs; only what the code uses |
 | `types/swt.d.ts` | The SWT / JFace members the dialog uses, as `Java.type("<class>")` overloads | SWT and JFace Javadoc; only what the code uses |
 
@@ -42,7 +45,7 @@ Settings: `strict` (no implicit `any`, null checks), ES2022 target, no DOM libra
 - **Imports.** The scripts load modules with `require(REPO_ROOT + "…")`, a path tsc cannot follow. Put the module's type on the line above: `/** @type {typeof import("./defs")} */` then `const Defs = require(REPO_ROOT + "View/lib/defs");`
 - **Functions.** `@param` / `@returns` on every function; shared shapes go in `types/*.d.ts`, named as in SPEC § Vocabulary. A shape that only one module uses can be a `@typedef` there.
 - **Casts** (`/** @type {X} */ (expr)`) are assertions, not conversions: they change nothing at run time and switch the check off for that expression. Prefer, in this order: annotate the declaration; a `@typedef` / `@param`; a cast with a one-line reason; `// @ts-expect-error -- reason` only for a checker limitation. Never change executable code just to satisfy the checker.
-- **Object maps.** Rule, preset and params shapes are type aliases (not interfaces) so code that reads them by key can view them as `Record<string, unknown>`.
+- **Object maps.** Condition, preset and params shapes are type aliases (not interfaces) so code that reads them by key can view them as `Record<string, unknown>`.
 - **Java classes.** `Java.type("<class>")` is typed for the classes listed in `types/swt.d.ts` and `any` for every other class. A class the code starts to use gets a minimal entry there (the members it calls); a Java value that stays `any` gets its type on the receiving declaration.
 - **jArchi duck typing.** A proxy without a member reads it as `undefined`; the typings say so (`view?: undefined` on concepts, `bounds?: undefined` on connections), so `if (o.view)` narrows to visuals without a cast.
 

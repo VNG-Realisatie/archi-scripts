@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "regels",
   "algorithm": "Layered",
   "params": {
@@ -23,14 +23,14 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "connectionSpacing": 20,
-    "nestingRules": [],
-    "reverseRules": [],
+    "nestingConditions": [],
+    "reverseConditions": [],
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [],
-    "relationRules": [],
-    "diagramRules": []
+    "elementConditions": [],
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": []
@@ -41,7 +41,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

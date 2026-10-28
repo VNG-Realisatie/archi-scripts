@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 4,
+  "name": "Test/baseline/baseline",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "composition-relationship"},
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship"}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "elementOrder": "Selection",
+    "cycleElementOrder": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 60,
+    "elementSpacing": 40,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "conditions": [
+          {}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "baseline",
+    "folder": "/Baseline",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "conditions": [
+        {"property": "domain", "colorRange": "Set2"}
+      ],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Baseline runs on the test model (Scripts/View/test/model/view-test.archimate): nesting with every container and a reversed type, one step to the neighbours, style by the property domain"
+}

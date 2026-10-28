@@ -35,7 +35,7 @@ description: Use when writing or changing jArchi scripts for Archi (.ajs files, 
 
 | File | Read when |
 |---|---|
-| `jarchi.d.ts` | Any API question: members, signatures, constants, ArchiMate type names. Derived from the plugin source; `@remarks unverified` = not yet observed in Archi |
+| `jarchi.d.ts`, `jarchi-globals.d.ts` | Any API question: members, signatures, constants, ArchiMate type names (the Archi-only globals `$`, `model`, `selection`, `window`, `Java` are in `jarchi-globals.d.ts`). Derived from the plugin source; `@remarks unverified` = not yet observed in Archi |
 | `graaljs-java.md` | `Java.type` / `Java.extend`, Java lists and maps, overloads, files, external processes |
 | `swt-gtk.md` | Building dialogs with SWT / JFace (GTK behaviour, fonts, layouts, `TitleAreaDialog`) |
 | [Plugin wiki](https://github.com/archimatetool/archi-scripting-plugin/wiki) | Examples and prose; Archi behaviour visible to scripts (how relations are drawn, visuals vs. concepts, view folders, console) and ArchiMate semantics as Archi understands them. Consult it before claiming how Archi behaves or designing a workaround for what Archi may already do. Where it disagrees with `jarchi.d.ts`, the plugin source decides |

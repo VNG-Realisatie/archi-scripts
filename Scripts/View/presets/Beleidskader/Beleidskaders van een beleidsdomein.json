@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Beleidskader/Beleidskaders van een beleidsdomein",
   "algorithm": "Layered",
   "params": {
@@ -9,10 +9,10 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "association-relationship"}
     ],
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true},
       {"relation": "association-relationship", "everyContainer": true}
     ],
@@ -37,21 +37,21 @@
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [],
-    "diagramRules": [],
-    "relationRules": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
         ]
       },
       {
         "repeat": 1,
-        "rules": [
+        "conditions": [
           {"added": "driver"}
         ]
       }
@@ -64,7 +64,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

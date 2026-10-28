@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Beleidskader/UPL en grondslag",
   "algorithm": "Layered",
   "params": {
@@ -9,10 +9,10 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseRules": [
+    "reverseConditions": [
       {"source": "driver", "relation": "association-relationship", "target": "driver"}
     ],
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship", "everyContainer": true},
       {"source": "driver", "relation": "association-relationship", "target": "business-service", "everyContainer": true},
       {"source": "driver", "relation": "association-relationship", "target": "driver", "everyContainer": true}
@@ -38,27 +38,27 @@
     "connectionLabelSpacing": true
   },
   "filter": {
-    "elementRules": [],
-    "diagramRules": [],
-    "relationRules": []
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 2,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
         "repeat": "untilNothingNew",
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "driver"}
         ]
       },
       {
         "repeat": 3,
-        "rules": [
+        "conditions": [
           {"previous": "driver", "relation": "association-relationship", "added": "business-service"},
           {"previous": "driver", "direction": "incoming", "relation": "association-relationship"}
         ]
@@ -72,7 +72,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },

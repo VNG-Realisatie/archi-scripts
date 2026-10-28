@@ -4,13 +4,13 @@
  * Called from generate_view.js after _writeView. Applies fill colours, fonts,
  * and line widths to VisualElements/VisualConnections based on preset.appearance.
  *
- * Rule precedence (later overrides earlier for the same VO):
- *   nestingLevel → highlightRepeated → styleByProperty rules (in list order)
+ * Condition precedence (later overrides earlier for the same VO):
+ *   nestingLevel → highlightRepeated → styleByProperty conditions (in list order)
  *
  * Reset on Modify (layout_only, expand_view): a disabled nesting-level or highlight feature
  * resets the elements it would have styled to Archi defaults (fillColor = null, font = Segoe UI
- * 9 normal); with style rules, every element fill and relation line colour / width not styled
- * earlier in the pass is reset before the rules colour (SPEC §10, Style by property).
+ * 9 normal); with style conditions, every element fill and relation line colour / width not styled
+ * earlier in the pass is reset before the conditions colour (SPEC §10, Style by property).
  */
 console.log("Loading appearance.js");
 
@@ -23,7 +23,7 @@ const Chroma = require("chroma-js");
 /** @type {typeof import("./defs")} */
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
-const RuleLists = require(REPO_ROOT + "View/lib/rel_filter");
+const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 const { COLOR_RANGES, compareNames } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
@@ -37,7 +37,7 @@ const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"])
  * @property {Map<string, string | null | undefined>}  rootIdById  undefined: parent not on the view
  * @property {number}                      maxContainerDepth
  *
- * @typedef {{ kind: "element" | "relation", values: Set<string> }} RuleTarget
+ * @typedef {{ kind: "element" | "relation", values: Set<string> }} ConditionTarget
  */
 
 // Archi default font — used when resetting.
@@ -65,20 +65,20 @@ function applyAppearance(view, preset, actionId, diagramBlockOf) {
 
   const anyEnabled =
     nl.fontEnabled || nl.colorEnabled || hr.enabled ||
-    sbp.rules.some(r => r.on !== false && r.property);
+    sbp.conditions.some(r => r.on !== false && r.property);
 
   if (!anyEnabled && !isModify) return;
 
   console.log(`\nAppearance (${actionId || "?"})`);
-  // params is the algorithm's effective subset: nestingRules is absent when the algorithm does not nest.
-  const hasNestingTypes = (preset.params.nestingRules || []).length > 0;
+  // params is the algorithm's effective subset: nestingConditions is absent when the algorithm does not nest.
+  const hasNestingTypes = (preset.params.nestingConditions || []).length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
     console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  rootColor=${nl.rootColor}  lighten=${nl.lightenPerLevel}%/level`);
   if (hr.enabled)
     console.log(`  highlightRepeated  range=${hr.colorRange}`);
-  sbp.rules.forEach((r, i) => {
+  sbp.conditions.forEach((r, i) => {
     if (r.on === false || !r.property) return;
-    console.log(`  styleByProperty rule ${i + 1}  color=${r.color}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
+    console.log(`  styleByProperty condition ${i + 1}  color=${r.color}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
   });
 
   const depths = _computeViewDepths(view, keep);
@@ -92,7 +92,7 @@ function applyAppearance(view, preset, actionId, diagramBlockOf) {
 
   _applyNestingLevel(view, nl, depths, isModify, styledVoIds, keep);
   _applyHighlightRepeated(view, hr, isModify, styledVoIds, keep);
-  _applyStyleRules(view, sbp, isModify, styledVoIds, keep);
+  _applyStyleConditions(view, sbp, isModify, styledVoIds, keep);
 }
 
 /**
@@ -319,56 +319,56 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds, keep) {
 // ── Style by property ─────────────────────────────────────────────────────────
 
 /**
- * Which objects does a style rule reach, and which property values do they get?
+ * Which objects does a style condition reach, and which property values do they get?
  * Pure over model objects, so the dialog's conflict check (predicted view contents) and the
  * writer (objects on the generated view) share one implementation.
  *
- * Rule.color decides what is styled:
- *   element    the element itself, by its own property (type = rule.source)
- *   relation   the relation, by the property of rule.propertyOf (relation / source / target)
- *   source     the source element of every relation matching the rule (model-wide relations),
- *              by the property of rule.propertyOf (element = itself, relation, source, target)
+ * Condition.color decides what is styled:
+ *   element    the element itself, by its own property (type = condition.source)
+ *   relation   the relation, by the property of condition.propertyOf (relation / source / target)
+ *   source     the source element of every relation matching the condition (model-wide relations),
+ *              by the property of condition.propertyOf (element = itself, relation, source, target)
  *   target     the target element likewise
  *
- * @param {StyleRule}       rule       normalised style rule (rel_filter kind "style")
+ * @param {StyleCondition}       condition       normalised style condition (rel_filter kind "style")
  * @param {ArchiElement[]}  elements   element concepts in scope
  * @param {ArchiRelation[]} relations  relation concepts in scope (used by color = relation)
- * @returns {Map<string, RuleTarget>}  object id → hit; values is empty
+ * @returns {Map<string, ConditionTarget>}  object id → hit; values is empty
  *          when the property is unset on the object(s)
  */
-function computeRuleTargets(rule, elements, relations) {
-  /** @type {Map<string, RuleTarget>} */
+function computeConditionTargets(condition, elements, relations) {
+  /** @type {Map<string, ConditionTarget>} */
   const out = new Map();
-  /** @type {(id: string, kind: RuleTarget["kind"], obj: PropertySource | null | undefined) => void} */
+  /** @type {(id: string, kind: ConditionTarget["kind"], obj: PropertySource | null | undefined) => void} */
   const hit = (id, kind, obj) => {
     let h = out.get(id);
     if (!h) { h = { kind, values: new Set() }; out.set(id, h); }
-    if (!rule.property || !obj) return;
+    if (!condition.property || !obj) return;
     try {
-      const v = obj.prop(rule.property);
+      const v = obj.prop(condition.property);
       if (v !== null && v !== undefined && v !== "") h.values.add(String(v));
     } catch (e) {}
   };
-  const matches = (/** @type {ArchiRelation} */ r) => RuleLists.styleRuleMatchesRelation(rule, r.type, r.source && r.source.type, r.target && r.target.type);
+  const matches = (/** @type {ArchiRelation} */ r) => ConditionLists.styleConditionMatchesRelation(condition, r.type, r.source && r.source.type, r.target && r.target.type);
   // Whose property supplies the value: the relation, one of its ends, or (propertyOf "element")
   // the styled element itself.
   /** @type {(r: ArchiRelation, el: ArchiElement | null) => PropertySource} */
-  const readFrom = (r, el) => rule.propertyOf === "source" ? r.source
-                            : rule.propertyOf === "target" ? r.target
-                            : rule.propertyOf === "element" && el ? el : r;
+  const readFrom = (r, el) => condition.propertyOf === "source" ? r.source
+                            : condition.propertyOf === "target" ? r.target
+                            : condition.propertyOf === "element" && el ? el : r;
 
-  if (rule.color === "element") {
+  if (condition.color === "element") {
     for (const el of elements) {
-      if (rule.source && el.type !== rule.source) continue;
+      if (condition.source && el.type !== condition.source) continue;
       hit(el.id, "element", el);
     }
-  } else if (rule.color === "relation") {
+  } else if (condition.color === "relation") {
     for (const r of relations) {
       if (!r.source || !r.target || !matches(r)) continue;
       hit(r.id, "relation", readFrom(r, null));
     }
   } else {
-    const wantSource = rule.color === "source";
+    const wantSource = condition.color === "source";
     for (const el of elements) {
       try {
         $(el).rels().each(r => {
@@ -392,9 +392,9 @@ function computeRuleTargets(rule, elements, relations) {
  * @param {Set<string>}                              styledVoIds
  * @param {Map<string, string>}                      keep  visuals inside a diagram-block: left out
  */
-function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
-  const rules = settings.rules || [];
-  if (rules.length === 0) return;
+function _applyStyleConditions(view, settings, isModify, styledVoIds, keep) {
+  const conditions = settings.conditions || [];
+  if (conditions.length === 0) return;
   const mixedColor = settings.mixedValuesColor;
   const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
 
@@ -424,7 +424,7 @@ function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
   const elements  = Array.from(elementById.values());
   const relations = Array.from(relationById.values());
 
-  // Modify actions: reset every fill and line first, so a changed rule leaves no colours of an
+  // Modify actions: reset every fill and line first, so a changed condition leaves no colours of an
   // earlier run behind. Objects colored earlier in this pass (nesting level, highlight) are kept.
   if (isModify) {
     let n = 0;
@@ -437,17 +437,17 @@ function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
   }
 
   /** @type {Map<number, Set<string>>} */
-  const styledByRule = new Map();     // rule index → Set("element:id" | "relation:id") it colored
+  const styledByCondition = new Map();     // condition index → Set("element:id" | "relation:id") it colored
 
-  rules.forEach((rule, i) => {
-    if (rule.on === false || !rule.property) return;
-    const targets = computeRuleTargets(rule, elements, relations);
+  conditions.forEach((condition, i) => {
+    if (condition.on === false || !condition.property) return;
+    const targets = computeConditionTargets(condition, elements, relations);
 
     // One value → its colour from the range; several different values → the mixed-values colour.
     const unique = Array.from(new Set(
       Array.from(targets.values()).filter(h => h.values.size === 1).map(h => Array.from(h.values)[0])
     )).sort(compareNames);
-    const colors   = unique.length ? _colorScale(rule.colorRange, unique.length) : [];
+    const colors   = unique.length ? _colorScale(condition.colorRange, unique.length) : [];
     /** @type {Record<string, string>} */
     const colorMap = {};
     unique.forEach((val, k) => { colorMap[val] = colors[k]; });
@@ -471,12 +471,12 @@ function _applyStyleRules(view, settings, isModify, styledVoIds, keep) {
       mine.add(`${h.kind}:${id}`);
       colored++;
     });
-    styledByRule.set(i, mine);
-    console.log(`  styleByProperty rule ${i + 1}: ${targets.size} matched  ${colored} colored  ${mixed} mixed values  ${unique.length} unique values`);
+    styledByCondition.set(i, mine);
+    console.log(`  styleByProperty condition ${i + 1}: ${targets.size} matched  ${colored} colored  ${mixed} mixed values  ${unique.length} unique values`);
   });
 
-  RuleLists.detectRuleConflicts(styledByRule).forEach(c =>
-    console.log(`  ⚠ styleByProperty rule ${c.rule + 1} also styles ${c.count} objects of rule${c.with.length > 1 ? "s" : ""} ${c.with.map(j => j + 1).join(", ")}; the last rule wins`));
+  ConditionLists.detectConditionConflicts(styledByCondition).forEach(c =>
+    console.log(`  ⚠ styleByProperty condition ${c.condition + 1} also styles ${c.count} objects of condition${c.with.length > 1 ? "s" : ""} ${c.with.map(j => j + 1).join(", ")}; the last condition wins`));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -514,5 +514,5 @@ function _lightenHex(hex, factor) {
 // ── Module exports ────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { applyAppearance, computeRuleTargets };
+  module.exports = { applyAppearance, computeConditionTargets };
 }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "name": "Bedrijfsobjecten/Bedrijfsobjecten per domein",
   "algorithm": "Pack",
   "params": {
@@ -7,7 +7,7 @@
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "acyclicer": "Default",
+    "acyclicer": "Greedy",
     "padding": 10,
     "diagramPadding": 20,
     "sortContainers": false,
@@ -26,27 +26,27 @@
     "viewSizeMode": "none",
     "labelSizing": true,
     "labelMaxLineWidth": 160,
-    "nestingRules": [
+    "nestingConditions": [
       {"relation": "aggregation-relationship"}
     ],
-    "reverseRules": [
+    "reverseConditions": [
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ],
     "connectionLabelSpacing": false
   },
   "filter": {
-    "elementRules": [
+    "elementConditions": [
       {"elementType": "grouping"}
     ],
-    "relationRules": [],
-    "diagramRules": []
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
     "steps": [
       {
         "repeat": 4,
-        "rules": [
+        "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"},
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
         ]
@@ -59,7 +59,7 @@
   },
   "appearance": {
     "styleByProperty": {
-      "rules": [],
+      "conditions": [],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0
     },
@@ -79,25 +79,7 @@
   },
   "engineParams": {
     "layout": {
-      "labelCharWidth": 9,
-      "labelLineHeight": 24,
-      "labelHPadding": 16,
-      "labelVPadding": 8,
-      "labelMinWidth": 60,
-      "labelMinHeight": 30
-    },
-    "ELK": {
-      "elk.layered.cycleBreaking.strategy": "GREEDY",
-      "elk.layered.edgeRouting.selfLoopDistribution": "EQUALLY",
-      "elk.layered.edgeRouting.selfLoopOrdering": "SEQUENCED",
-      "elk.layered.feedbackEdges": "true",
-      "elk.spacing.nodeSelfLoop": 20
-    },
-    "Dagre": {
-      "acyclicer": "greedy"
-    },
-    "Graphviz": {
-      "esep": "+20"
+      "labelCharWidth": 9
     }
   },
   "viewProperties": {

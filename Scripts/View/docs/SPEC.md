@@ -9,7 +9,7 @@ A self-contained specification for rebuilding the View subsystem from scratch. I
 
 ### Purpose
 
-Starting with a selection, generate or modify the layout of ArchiMate **views**. The script turns a chosen subset of the model (plus rules for which related elements to include) into a positioned diagram.
+Starting with a selection, generate or modify the layout of ArchiMate **views**. The script turns a chosen subset of the model (plus conditions for which related elements to include) into a positioned diagram.
 
 ### Use cases
 
@@ -40,13 +40,14 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 **Visual**
 - **VisualElement**: the placement of one element on one view. It has bounds, may carry appearance overrides, and points back to its element.
 - **VisualRelation**: the drawing of one relation on one view, with endpoints and bendpoints.
-- **occurrence**: a visual appearance of an element on a view. Normally there is one per view; a nesting rule set to *every container* can give an element several.
+- **occurrence**: a visual appearance of an element on a view. Normally there is one per view; a nesting condition set to *every container* can give an element several.
 - **diagram object**: a canvas-only object with no model concept (note, group, image, legend, view-reference). It belongs to exactly one view.
+- **diagram connection**: a line on a view with no relation behind it, between a diagram object and another object, such as a note's line to an element.
 
 **VisualElement roles**
 - **container**: drawn as a box around other VisualElements.
 - **nested element**: drawn inside a container; not itself a container.
-- **standalone**: drawn at view root; contains nothing and is contained by nothing.
+- **standalone**: contains nothing and is nested by no relation: drawn at view root, or only inside a diagram-block.
 - **extra occurrence**: the 2nd to Nth appearance of one element under different containers; a managed occurrence or user content.
 
 **VisualRelation roles**
@@ -56,14 +57,14 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 
 **Existing view contents**: what *Expand view* and *Layout only* keep of what is already on the view ([§ 5](#5-actions)).
 - **user content**: every object on the view that the system did not place itself: elements, connections and diagram objects. It is always kept; the layout decides whether it is nested and where it goes.
-- **managed occurrence**: an extra occurrence the system placed itself for an *every container* rule and recorded on the view. It follows the settings. Only managed occurrences are ever removed.
+- **managed occurrence**: an extra occurrence the system placed itself for an *every container* condition and recorded on the view. It follows the settings. Only managed occurrences are ever removed.
 - **diagram-block**: a diagram object with contents, together with everything inside it, such as a legend, or a frame with a title and elements. The layout decides only its position.
 
 **Subsystem**
 - **Layout**: algorithmic positioning of all visible objects on a view.
 - **Preset**: a named, persistable bundle of selection, layout and styling configuration.
-- **Step**: one ordered related-elements expansion stage inside a preset; holds a rule list.
-- **rule / rule list**: a rule is a pattern over element and relation types (*All* = any), either *Include* or *Exclude*. A list keeps any Include match minus any Exclude match.
+- **Step**: one ordered related-elements expansion stage inside a preset; holds a condition list.
+- **condition / condition list**: a condition is a pattern over element and relation types (*All* = any), either *Include* or *Exclude*. A list keeps any Include match minus any Exclude match.
 - **Action**: a runtime verb (create / per-element / expand / re-layout); never stored in a preset.
 - **Session**: the last-used configuration, restored when the UI opens.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
@@ -114,15 +115,15 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | view | VisualRelation | 1 → 0..N | and its drawn relations |
 | view | diagram object | 1 → 0..N | canvas-only objects |
 | **VisualElement** | element | N → 1 | each placement realises exactly one element |
-| **element** | occurrence | 1 → 0..N | one element, many appearances across views (and more than one per view under an *every container* rule) |
+| **element** | occurrence | 1 → 0..N | one element, many appearances across views (and more than one per view under an *every container* condition) |
 | **relation** | element (source, target) | N → 2 | directed; source and target are elements |
 | **VisualRelation** | relation | N → 1 | draws one relation, as a *nesting* or a *connection* |
 | **container** | nested element | 1 → 1..N | containment is **derived** from resolved nestings, never declared |
 | **element** | container role | — | an element may be a container in one relation and a child in another |
 | **diagram object** | model concept | N → 0 | realises nothing in the model |
-| **Preset** | Step | 1 → 0..N | ordered list, each with its rules; empty = no expansion |
-| Preset | rule list | 1 → 6 | filter (elements, diagram objects, relations), nesting, reverse, style; empty filter = all, empty feature list = none |
-| Preset | appearance config | 1 → 1 | styling rules, with a master on/off |
+| **Preset** | Step | 1 → 0..N | ordered list, each with its conditions; empty = no expansion |
+| Preset | condition list | 1 → 6 | filter (elements, diagram objects, relations), nesting, reverse, style; empty filter = all, empty feature list = none |
+| Preset | appearance config | 1 → 1 | style conditions, with a master on/off |
 | **VisualSet** | view | 1 → 1 | existing visuals of one target view, captured before the run |
 | **managed-occurrence record** | view | N → 1 | element + its chain of containers up to the view root; stored on the view, so it survives a view copy |
 | **LayoutGraph** | element + nesting + connection | projection | engine-facing view of the object set |
@@ -133,6 +134,7 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 - Relations partition into **nestings** and **connections**.
 - Elements partition into **containers**, **nested** and **standalone**.
 - **Extra occurrences** are counted separately and never folded into the element categories.
+- Diagram objects and **diagram connections** are counted apart. Everything written is counted, the objects and lines inside a diagram-block too.
 
 **Action** is a runtime parameter, never part of a preset; headless scripts may name it next to the preset. The stored form: [preset JSON schema](reference/presets.md#preset-json-schema).
 
@@ -151,6 +153,12 @@ Four actions in two groups. The writer is the same for all four. An action diffe
 
 A model-tree selection can drive only the Create group, because nothing identifies a target view. A canvas or whole-view selection can drive either group: Create clones it into a fresh view, and Modify acts in place.
 
+**What Create takes from a view.** *New view* copies the diagram objects of a canvas or whole-view selection that the diagram filter keeps, as Expand view and Layout only keep them: size, text and appearance unchanged, a diagram-block with its contents. An element that appears only inside a diagram-block appears only there on the new view. A diagram connection is drawn when both its ends are on the new view. *One view each* takes no diagram objects: each of its views is about one element.
+
+**New view or Layout only.** On a whole view the difference is the view object.
+- *Layout only* changes the selected view in place: its id, properties and documentation stay, and so does every reference to it from other views. It keeps the appearance of the visuals and all user content, and adds nothing.
+- *New view* writes into a fresh view; when the target folder already holds a view with that name, it empties that view and writes into it, which keeps that view's id and properties. The source view is not changed. Filter and steps apply, every relation between the elements is drawn, and elements get default appearance plus the preset's styling; diagram objects keep their own.
+
 **The single writer rule.** It is action-agnostic, with no per-action branch: *for each result object, if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from the current nesting); otherwise **create** it with default appearance.* Relations follow the same rule: an existing relation gets its bendpoints rewritten, a new one is created.
 
 **Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm. Selected elements of more than one type give a warning on the console; the run goes on.
@@ -160,7 +168,7 @@ Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify act
 **What Expand view and Layout only keep.** Both take the selection from the view and lay everything out again by the Layout tab; *Expand view* first expands it when steps are set. With nesting off, the view has no nesting afterwards.
 - **User content** is kept, apart from the connections rule 10 removes. The layout decides whether it is nested and where it goes; where it sat before plays no part.
 - **Managed occurrences** follow the settings ([§ 7](#7-layout-options)).
-- **Diagram objects** keep their size and appearance; the engine decides their position. A diagram object is never nested: nesting rules select relations, and a diagram object has none.
+- **Diagram objects** keep their size and appearance; the engine decides their position. A diagram object is never nested: nesting conditions select relations, and a diagram object has none.
 - **A diagram-block** keeps its size, appearance and contents; the engine decides only its position. A relation from outside to an object inside it is laid out as a relation to the diagram-block, and drawn to the object itself.
 
 ---
@@ -173,7 +181,7 @@ Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify act
 
 Mixed selections are valid and normalise into one object set.
 
-**Filtering.** A global filter narrows what is included, in three independent rule lists:
+**Filtering.** A global filter narrows what is included, in three independent condition lists:
 - elements: by type, optionally with a property value;
 - diagram objects: by type;
 - relations: by source type, relation type and target type, among the relations drawn between the selected elements.
@@ -182,13 +190,13 @@ Filtering is **visibility-only**: hiding an element never alters the nesting str
 
 **Related-elements steps build on each other.** After the filtered base comes an ordered list of expansion steps.
 - **Each step expands outward from the previous step's additions only**, not from the whole accumulated set. A sequence reads as "from these, reach those; from *those*, reach the next".
-- A step rule reads from that set: *previous-step type → direction (outgoing / incoming / either) → added relation type → added element type*, plus an optional property value. It shows what it reaches.
+- A step condition reads from that set: *previous-step type → direction (outgoing / incoming / either) → added relation type → added element type*, plus an optional property value. It shows what it reaches.
 - Followed relations are drawn; the added type and property only decide which elements join.
 - **Repeat** runs the step 1–5 times, or *until nothing new* (at most 10 runs); each run starts from the previous run's additions.
 - **An empty step ends the chain.**
 - A step adds elements only. A relation whose other end is a relation (ArchiMate allows a relation on a relation) is not followed; following relations on relations is not supported yet.
 
-**A wider filter never yields less.** An extra Include rule can only keep or grow what a step adds; an extra Exclude rule can only shrink it. There are no hidden exceptions. A rule that names an unknown type is rejected with a message, never widened to *All*.
+**A wider filter never yields less.** An extra Include condition can only keep or grow what a step adds; an extra Exclude condition can only shrink it. There are no hidden exceptions. A condition that names an unknown type is rejected with a message, never widened to *All*.
 
 **Modify actions are conservative.**
 - `LAYOUT_ONLY` ignores the steps and never adds a missing relation: it only lays out again what is already on the view (managed occurrences excepted, [§ 7](#7-layout-options)).
@@ -209,12 +217,12 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 **Algorithm styles.** Algorithms are grouped by the insight they give: Flow, Hierarchy, Network, Circular and Compact, all visible at once ([styles and algorithms](reference/gui.md#layout-tab)).
 
 **Relations: nesting and reversal.**
-- **Nesting.** Relations matching a nesting rule are drawn as containment: the child sits **inside** its parent's box. The view then expresses **hierarchy and ownership directly**. Because containment removes the line, **double relations and unexpected structure** stand out.
-- A rule's source and target types restrict which elements may be a container (e.g. source *Grouping*). An optional property condition, on the relation, its source or its target, narrows a rule further.
-- **Reversal.** Relations matching a reverse rule are flipped: the flow lays them out from target to source, and a nested one has its target as parent. The model relation and its arrows stay unchanged.
-- Each rule counts the relations it hits and how many become a nesting; the dialog says why the others are drawn as a line.
+- **Nesting.** Relations matching a nesting condition are drawn as containment: the child sits **inside** its parent's box. The view then expresses **hierarchy and ownership directly**. Because containment removes the line, **double relations and unexpected structure** stand out.
+- A condition's source and target types restrict which elements may be a container (e.g. source *Grouping*). An optional property value, on the relation, its source or its target, narrows a condition further.
+- **Reversal.** Relations matching a reverse condition are flipped: the flow lays them out from target to source, and a nested one has its target as parent. The model relation and its arrows stay unchanged.
+- Each condition counts the relations it hits and how many become a nesting; the dialog says why the others are drawn as a line.
 
-**Containers** (active once a nesting rule is on):
+**Containers** (active once a nesting condition is on):
 - **Layout inside**: the algorithm that arranges the children *inside* each container.
 - **Connections between vs. crossing containers.**
   - *Between*: each container is laid out on its own, and connections enter at its border.
@@ -226,13 +234,13 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Consequences** (not separate controls). For a nesting relation the **source is the parent** and the **target the child**; they are swapped if the type is also reversed. Container-ness is **derived**: an element is a container exactly when something resolves to be its child.
 
-**Several parents** are never decided by rule or model order ([roles and parents](reference/selection-nesting.md#roles-and-parents)).
-- A nesting rule set to **every container** places the child in *each* parent it reaches, as extra occurrences (e.g. an element filed under several groupings). Algorithms that do not draw containment draw each element once.
+**Several parents** are never decided by condition or model order ([roles and parents](reference/selection-nesting.md#roles-and-parents)).
+- A nesting condition set to **every container** places the child in *each* parent it reaches, as extra occurrences (e.g. an element filed under several groupings). Algorithms that do not draw containment draw each element once.
 - The other nesting relations of one child give it **at most one** parent, the container it already sits in or else the first by name; the rest are drawn as connections.
 - Nesting relations that together form a **cycle** (A contains B … contains A) are all drawn as connections.
 - A relation drawn as nesting is never also drawn as a line. A connection whose ends have several occurrences is drawn **once** ([connections between occurrences](reference/selection-nesting.md#connections-between-occurrences)).
 
-**Managed occurrences** follow from the settings, so every action, `LAYOUT_ONLY` too, reconciles them: missing ones are added and recorded on the view, recorded ones no longer asked for are removed, and switching a rule back on restores them. User content is always laid out, at view root if the settings place it nowhere ([managed occurrences](reference/selection-nesting.md#managed-occurrences)).
+**Managed occurrences** follow from the settings, so every action, `LAYOUT_ONLY` too, reconciles them: missing ones are added and recorded on the view, recorded ones no longer asked for are removed, and switching a condition back on restores them. User content is always laid out, at view root if the settings place it nowhere ([managed occurrences](reference/selection-nesting.md#managed-occurrences)).
 
 **Flow.**
 - A main direction, for algorithms where direction drives ranking.
@@ -270,6 +278,8 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Preset-only options** have no or minimal effect on the view (e.g. the canvas margin) and so no control. A preset can still set them, and a non-default value is logged.
 
+**Settings outside the dialog.** A preset can also tune the layout engine and the label-size estimate directly, without a control ([settings outside the dialog](reference/presets.md#settings-outside-the-dialog)). A run lists each such setting that applies, and warns, saying what to do, about each one that has no effect, equals its default or overrides a dialog option.
+
 ---
 
 ## 8. Engine contract
@@ -299,7 +309,7 @@ Element labels are intrinsic to nodes; the result carries no separate label coor
 
 **View-size constraints.** The adapter receives only the active constraint; the others are zeroed. The behaviour per engine: [per-engine view-size](reference/engines.md#per-engine-view-size).
 
-**No post-layout scaling** (rules 1–2, no exceptions): no adapter multiplies the result by any factor or scales the set after `layout()` returns. Width alignment is a *pre*-layout adjustment between two sizing passes, so it is not an exception.
+**No post-layout scaling** (rules 1–2, no exceptions): no adapter multiplies the result by any factor or scales the set after `layout()` returns. Width alignment is a *pre*-layout adjustment, so it is not an exception.
 
 **Adapter obligations.** Honour every option active for the chosen algorithm and ignore the rest; translate values to native form, setting only options the engine itself has (rule 18); apply size constraints without scaling; return absolute coordinates; never read or write a view (rule 5).
 
@@ -312,7 +322,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 **Preset row.** Picking a preset **loads all its settings** at once; `*` marks settings that differ from the saved preset. Save, Save As…, Rename… and Delete manage presets; **Default** always exists and cannot be renamed or deleted. The last-used configuration and UI state are restored on open, from a user-local session that is never shared as a preset.
 
 **Tabs.** Four tabs, each owning one concern, in separate modules:
-- **Selection**: the live counts (selected → containing; per filter rule, per step), the global filter, and the ordered steps. Every rule list is a table with one rule per row. Each step shows what it adds, per rule and in total, with controls to collapse, reorder and remove it. When a preset loads, all steps start expanded.
+- **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows what it adds, per condition and in total, with controls to collapse, reorder and remove it. When a preset loads, all steps start expanded.
 - **Layout**: the algorithm radio table (all styles always visible), then the groups of [§ 7](#7-layout-options). Options the chosen algorithm does not use are greyed, with their values kept.
 - **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance), with a master on/off.
 - **Properties**: key/value properties written to each generated view.
@@ -338,9 +348,9 @@ A **post-write styling pass** that sets fill colours, fonts and line widths. It 
 **Master toggle.** One *Apply styling* switch enables or skips the whole pass, and persists in the preset. When it is off, no element appearance is touched, whatever the group settings. When it is on, styling applies to all four actions, and on re-layout or expand it replaces earlier styling.
 
 Three groups, applied in this order; on the same object the later wins: **nesting level → highlight repeated → style by property**.
-- **Style by property**: style rules, applied in order. A rule says what gets the colour (an element by its own property, a relation, or the source / target element of a matching relation), whose property gives the value, and a colour scale. Several different values on one object give a *mixed values* colour; styled relations may take a fixed line width. When two rules style one object the dialog flags it, and the last wins.
-- **Style by nesting level**: varies container font size and fill colour by nesting depth. It applies only along an unbroken **same-type chain** from each root container: a container of another type breaks the chain for itself and its descendants. It is active only when nesting rules are configured.
-- **Highlight repeated**: gives each element that appears more than once on the view its own colour. It needs a nesting rule set to *every container*.
+- **Style by property**: style conditions, applied in order. A condition says what gets the colour (an element by its own property, a relation, or the source / target element of a matching relation), whose property gives the value, and a colour scale. Several different values on one object give a *mixed values* colour; styled relations may take a fixed line width. When two conditions style one object the dialog flags it, and the last wins.
+- **Style by nesting level**: varies container font size and fill colour by nesting depth. It applies only along an unbroken **same-type chain** from each root container: a container of another type breaks the chain for itself and its descendants. It is active only when nesting conditions are configured.
+- **Highlight repeated**: gives each element that appears more than once on the view its own colour. It needs a nesting condition set to *every container*.
 
 Detail: [Appearance tab](reference/gui.md#appearance-tab).
 
@@ -389,7 +399,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 - **Engine failure.** If an adapter throws or returns an unusable result, the run aborts cleanly with a logged reason. **No partial view is written**, and an existing view of that name is left as it was: a Create action creates or empties its view only after the layout succeeded. Where an algorithm is known to fail on certain graph shapes, the adapter pre-conditions the graph (e.g. cycle or forest pre-processing) rather than letting the engine crash.
 - **Target resolution failure.** If a Modify action cannot identify its view, or a Create action cannot create or locate its folder, the run aborts with a message; nothing is written.
 - **Empty or invalid selection.** The run proceeds and produces an empty (or unchanged) view; this is not an error.
-- **Invalid preset.** Validation repairs its shape: unknown keys are dropped with a warning, missing keys defaulted, and an invalid rule is skipped with a warning. A preset with another `schemaVersion` is refused with a message naming the expected version.
+- **Invalid preset.** Validation repairs its shape: unknown keys are dropped with a warning, missing keys defaulted, and an invalid condition is skipped with a warning. A preset with another `schemaVersion` is refused with a message naming the expected version.
 - **Partial results.** Edges the engine dropped have any stale routing cleared. A nesting that cannot be drawn as containment is drawn as a connection, never left as it was.
 - **A failed run** shows its reason in a message box from the entry point; the detail goes to the console. A failure is never only on the console. A preset that cannot be saved says so; the dialog does not act as if it was saved.
 - **One run is one undo step.** One undo reverts everything a run changed, of a failed run too. An engine failure writes nothing (above); a failure while writing or styling can leave the view partly written, and that undo restores it.
@@ -422,6 +432,6 @@ Functional detail per subject; not part of the readable body.
 | File | Holds |
 |---|---|
 | [reference/gui.md](reference/gui.md) | Display-label map, dialog mock-ups and per-control behaviour, generated option tables |
-| [reference/presets.md](reference/presets.md) | Preset JSON schema, rule lists |
+| [reference/presets.md](reference/presets.md) | Preset JSON schema, condition lists |
 | [reference/selection-nesting.md](reference/selection-nesting.md) | Selection run order, counting rules, nesting reference, sizing refinements |
 | [reference/engines.md](reference/engines.md) | Runtime and engines, layout graph and result, capability matrix, view size per engine, console logging |

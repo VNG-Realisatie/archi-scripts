@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 4,
+  "name": "Test/Circo",
+  "algorithm": "Circo",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "Per cycle",
+    "routing": "Spline (approximated)",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "influence-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship"},
+      {"mode": "exclude", "relation": "aggregation-relationship", "target": "grouping"}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sortContainers": false,
+    "elementOrder": "Selection",
+    "cycleElementOrder": false,
+    "alignWidthSameType": false,
+    "snapColumnsToGrid": false,
+    "containerAlgorithm": "Grid",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 20,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 9,
+    "elementWidth": 180,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "conditions": [
+          {"on": false}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "DevOps en rollen (copy)",
+    "folder": "/Test",
+    "suffix": ""
+  },
+  "appearance": {
+    "styleByProperty": {
+      "conditions": [
+        {"on": false, "colorRange": "Blues"}
+      ],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "fontEnabled": false,
+      "rootFontSize": 14,
+      "rootFontBold": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "rootColor": "#2B5796",
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Toelichting",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "URL",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "drivingView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "generate_view_param",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": ""
+}

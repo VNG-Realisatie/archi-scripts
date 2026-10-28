@@ -42,7 +42,7 @@ Runtime libraries are copied into the repo, not installed (rule 6). Versions are
 |---|---|---|---|
 | `elkjs` | 0.11.1 | npm `elkjs` (github.com/kieler/elkjs), EPL-2.0 | `View/lib/engines/elk.js` |
 | `dagre-cluster-fix` | 0.9.0 (`lib/version` in `index.js`) | A fork of dagre with compound-graph placement. `dagre8.5.js` beside it is not loaded | `View/lib/engines/dagre.js` |
-| `chroma-js` | 2.1.0 | chroma.js by Gregor Aisch | `View/lib/appearance.js`, `View/lib/gui/dialog_main.js`, `Appearance/`, `GEMMA/` colour scripts |
+| `chroma-js` | 2.1.0 | chroma.js by Gregor Aisch | `View/lib/appearance.js`, `View/lib/gui/widgets.js`, `Appearance/`, `GEMMA/` colour scripts |
 | `papaparse` | 5.0.2 | github.com/mholt/PapaParse, MIT | `ImportExport_CSV/`, `Sync from CSV/` |
 | `showdown` | 2.1.0 | | `Report/generate_report.ajs` |
 | `ascii-table` | 0.0.8 | | `Report/generate_report.ajs`, `Beheren/find_Id_or_Name_InModels.ajs` |
@@ -75,8 +75,9 @@ Signatures are in each module's JSDoc (type-checked for Common, selection, archi
 |---|---|
 | Types and API use (View/lib, three `_lib` modules) | `npm run typecheck` (`types/README.md`) |
 | The View subsystem: test levels, judging a result, test data | `Scripts/View/docs/ARCHITECTURE.md` § Development and testing |
+| View test model and baseline | `Scripts/View/test/model/view-test.archimate` is built by `Scripts/View/test/build_test_model.ajs` (edit the script, rerun it in Archi, commit both). `Scripts/View/test/run_baseline.ajs` writes the 10-run matrix into its `Views/Baseline` and saves it; `node Scripts/View/tools/compare-views.js --head` diffs it with the committed one (skill `view-baseline`). `Scripts/View/tools/compose_test.js` checks the object set and predicted counts on the test model; `Scripts/View/tools/counts_test.js` checks the dialog's counts on it. `Scripts/View/tools/write_plans.js` prints one digest per write plan (preset × algorithm × view × action; `--full` for the JSON); digests: `plan/view-testability-baseline-write-plans.md`. Layout digests: `plan/view-testability-baseline-layout-digests.md`. Both digest tools run Graphviz through `dot` on the PATH (`Scripts/View/tools/process_runner_node.js`) |
 | Other scripts, dialogs | Run the script in Archi on a small test model; golden path plus empty selection, one element, deep nesting |
 | jArchi API assumptions | `Scripts/Develop/probeJArchiApi.ajs` in Archi |
-| A refactor or annotation changes no behaviour | `tools/same-code.js` (code), `tools/compare-layouts.js` (layout output) — `types/README.md` |
+| A refactor or annotation changes no behaviour | `tools/same-code.js` (code), `tools/compare-layouts.js` (layout output), `Scripts/View/tools/write_plans.js` (write plans) — `types/README.md` |
 
 CI (`.github/workflows/check.yml`, every push and pull request) runs the typecheck, `rel_filter_test.js` and `nesting_test.js`; the rest is by hand.
