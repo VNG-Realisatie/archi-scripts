@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "name": "hiddenRel",
   "algorithm": "Layered",
   "params": {
@@ -37,9 +37,8 @@
     "palette": "",
     "nestingLevel": {
       "conditions": [
-        {"child": "same"}
+        {"bold": true, "child": "same"}
       ],
-      "rootFontBold": true,
       "darkenStart": 0
     }
   }

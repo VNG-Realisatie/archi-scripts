@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
@@ -89,13 +89,11 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same", "color": "Grouping"},
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "fontSize": 16, "bold": true, "child": "same"},
         {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag"},
         {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"}
       ],
       "fontEnabled": true,
-      "rootFontSize": 16,
-      "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
       "darkenStart": 2,

@@ -41,9 +41,12 @@ const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"])
  * @property {boolean}       isContainer
  *
  * @typedef {object} NestingStyle  how followNestingChains styles a visual
- * @property {number} depth          from the root: font size
- * @property {number} segmentDepth   from the segment start: lightening
- * @property {string} color          the colour name of the condition that selected it; "" = Default
+ * @property {number}  segmentDepth  from the segment start: lightening
+ * @property {string}  color         the colour name of the condition that selected it; "" = Default
+ * @property {number}  fontSize      pt; DEFAULT_FONT_SIZE = unchanged
+ * @property {boolean} bold          the condition starts here and is bold
+ * @property {number}  nr            the number of the condition that selected it
+ * @property {boolean} asContainer   a container, or a leaf beside one: it takes the font
  *
  * @typedef {{ kind: "element" | "relation", values: Set<string> }} ConditionTarget
  */
@@ -145,25 +148,34 @@ function _onView(view, selector, keep) {
  * itself and everything inside it. Of conditions that select the same element the most specific wins
  * (_specificity); of equally specific ones the last. A child with the colour and type of its parent
  * continues the parent's segment one level deeper; otherwise it starts a segment.
+ * Font: where a condition starts (a root, or a child selected by another condition than its parent)
+ * the element takes the condition's font size and bold; elsewhere, and where the condition has no
+ * font size, the size is its parent's less fontDecreasePerLevel, never below DEFAULT_FONT_SIZE.
+ * A leaf beside a container (same parent, or both roots) is styled as a container.
  * @param {NestingNode[]}           nodes       every element visual; order = view order (determinism)
  * @param {NestingStyleCondition[]} conditions
- * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: equally specific conditions ("2, 3") that select the same elements with different colours
+ * @param {number}                  fontDecreasePerLevel
+ * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: equally specific conditions ("2, 3") that select the same elements with different styles
  */
-function followNestingChains(nodes, conditions) {
+function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
   const active = conditions.map((r, i) => ({ r, nr: i + 1 })).filter(x => x.r.on !== false);
   const byId   = new Map(nodes.map(n => [n.id, n]));
   /** @type {Map<string, NestingStyle>} */
   const styles = new Map();
   /** @type {Set<string>} */
   const conflicts = new Set();
+  /** @type {Set<string | null>} */
+  const withContainer = new Set(nodes.filter(n => n.isContainer).map(n => n.parentId));
   // Stable sort: parents before children, view order within a depth.
   for (const n of nodes.slice().sort((a, b) => a.depth - b.depth)) {
+    const asContainer = n.isContainer || withContainer.has(n.parentId);
     if (!n.parentId) {
-      if (!n.isContainer) continue;
+      if (!asContainer) continue;
       const own = active.filter(x => x.r.parent === n.type);
       const sel = own.length ? own : active.filter(x => !x.r.parent);
       if (sel.length === 0) continue;
-      styles.set(n.id, { depth: 0, segmentDepth: 0, color: _lastOf(sel, conflicts).color });
+      const win = _lastOf(sel, conflicts);
+      styles.set(n.id, Object.assign({ segmentDepth: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)));
       continue;
     }
     const ps = styles.get(n.parentId);
@@ -171,17 +183,28 @@ function followNestingChains(nodes, conditions) {
     if (!ps || !parent) continue;
     const sel = active.filter(x => ConditionLists.nestingStyleConditionMatches(x.r, parent.type, n.type, n.rels));
     if (sel.length === 0) continue;
-    const color = _mostSpecific(sel, conflicts).color;
-    styles.set(n.id, n.type === parent.type && color === ps.color
-      ? { depth: n.depth, segmentDepth: ps.segmentDepth + 1, color }
-      : { depth: n.depth, segmentDepth: 0, color });
+    const win = _mostSpecific(sel, conflicts);
+    const color = win.r.color;
+    const segmentDepth = n.type === parent.type && color === ps.color ? ps.segmentDepth + 1 : 0;
+    const smaller = Math.max(DEFAULT_FONT_SIZE, ps.fontSize - fontDecreasePerLevel);
+    const font = win.nr === ps.nr ? { fontSize: smaller, bold: false } : _font(win.r, smaller);
+    styles.set(n.id, Object.assign({ segmentDepth, color, nr: win.nr, asContainer }, font));
   }
   return { styles, conflicts: [...conflicts] };
 }
 
 /**
+ * The font where condition r starts: its own size, or `inherited` when it has none.
+ * @param {NestingStyleCondition} r
+ * @param {number}                inherited
+ */
+function _font(r, inherited) {
+  return { fontSize: r.fontSize || inherited, bold: r.bold };
+}
+
+/**
  * The condition that wins among those selecting one element: the most specific, of equally specific
- * ones the last. Equally specific winners with different colours are added to conflicts.
+ * ones the last. Equally specific winners with different styles are added to conflicts.
  * @param {{ r: NestingStyleCondition, nr: number }[]} sel  non-empty, in list order
  * @param {Set<string>} conflicts
  */
@@ -191,13 +214,13 @@ function _mostSpecific(sel, conflicts) {
 }
 
 /**
- * The last of equally specific conditions; different colours among them are added to conflicts.
+ * The last of equally specific conditions; different styles among them are added to conflicts.
  * @param {{ r: NestingStyleCondition, nr: number }[]} best  non-empty, in list order
  * @param {Set<string>} conflicts
  */
 function _lastOf(best, conflicts) {
-  if (new Set(best.map(x => x.r.color)).size > 1) conflicts.add(best.map(x => x.nr).join(", "));
-  return best[best.length - 1].r;
+  if (new Set(best.map(x => `${x.r.color}/${x.r.fontSize}/${x.r.bold}`)).size > 1) conflicts.add(best.map(x => x.nr).join(", "));
+  return best[best.length - 1];
 }
 
 /**
@@ -253,9 +276,9 @@ function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
   const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
   const nodes = vos.map(vo => _nestingNode(vo, keep));
-  const { styles, conflicts } = followNestingChains(nodes, settings.conditions);
+  const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
   if (conflicts.length > 0)
-    console.log(`  nestingLevel: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different colours; the last condition wins.`);
+    console.log(`  nestingLevel: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
   /** @type {Set<string>} */
   const unknownColors = new Set();
 
@@ -266,17 +289,12 @@ function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep
       if (isModify && settings.colorEnabled) { vo.fillColor = null; colorReset++; }
       return;
     }
-    const isContainer = nodes[i].isContainer;
-
-    // Font: root gets rootFontSize (+ bold if rootFontBold), each deeper level decreases
-    // by fontDecreasePerLevel pt from the root, clamped at DEFAULT_FONT_SIZE. Containers only.
-    const size = Math.max(DEFAULT_FONT_SIZE, settings.rootFontSize - st.depth * settings.fontDecreasePerLevel);
-    const bold = st.depth === 0 && settings.rootFontBold;
-    if (isContainer && (size > DEFAULT_FONT_SIZE || bold)) {
+    // Font (followNestingChains): containers, and leaves beside one.
+    if (st.asContainer && (st.fontSize > DEFAULT_FONT_SIZE || st.bold)) {
       if (settings.fontEnabled) {
         vo.fontName  = DEFAULT_FONT_NAME;
-        vo.fontSize  = size;
-        vo.fontStyle = bold ? "bold" : DEFAULT_FONT_STYLE;
+        vo.fontSize  = st.fontSize;
+        vo.fontStyle = st.bold ? "bold" : DEFAULT_FONT_STYLE;
         fontSet++;
       } else if (isModify) {
         vo.fontName  = DEFAULT_FONT_NAME;

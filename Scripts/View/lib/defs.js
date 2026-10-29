@@ -726,7 +726,7 @@ const COLOR_RANGES = Object.freeze([
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
-  schemaVersion: 5,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; older presets are migrated offline
+  schemaVersion: 6,   // 2 = condition lists (rel_filter.js); 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions; 5 = nesting style conditions + palette; 6 = font size and bold per nesting style condition; older presets are migrated offline
   name:      "",
   algorithm: "Layered",
   params: {
@@ -789,10 +789,8 @@ const DEFAULT_PRESET = Object.freeze({
     },
     nestingLevel: {
       // Nesting style conditions (kind "nestingStyle"): the nesting steps styling follows from each root container.
-      conditions:         [{ child: "same" }],
+      conditions:         [{ child: "same", fontSize: 14 }],
       fontEnabled:        false,
-      rootFontSize:       14,
-      rootFontBold:       false,
       fontDecreasePerLevel: 2,
       colorEnabled:       false,
       darkenStart:        1,     // steps darker than its colour a segment starts (chroma darken)
@@ -1037,8 +1035,6 @@ function validatePreset(raw) {
       const rn = ra.nestingLevel;
       if (Array.isArray(rn.conditions)) pa.nestingLevel.conditions = conditions("nestingStyle", rn.conditions, "appearance.nestingLevel.conditions");
       if (typeof rn.fontEnabled          === "boolean") pa.nestingLevel.fontEnabled          = rn.fontEnabled;
-      if (typeof rn.rootFontSize         === "number")  pa.nestingLevel.rootFontSize         = rn.rootFontSize;
-      if (typeof rn.rootFontBold         === "boolean") pa.nestingLevel.rootFontBold         = rn.rootFontBold;
       if (typeof rn.fontDecreasePerLevel === "number")  pa.nestingLevel.fontDecreasePerLevel = rn.fontDecreasePerLevel;
       if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
       if (typeof rn.darkenStart          === "number")  pa.nestingLevel.darkenStart          = Math.max(0, Math.min(3, Math.round(rn.darkenStart)));

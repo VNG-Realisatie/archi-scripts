@@ -133,14 +133,23 @@ function layout(graph) {
   const childrenOf = {};
   for (const node of ordered) (childrenOf[node.parent || ""] = childrenOf[node.parent || ""] || []).push(node);
 
-  // Same width per level: leaves get the level width, containers a minimum.
+  // Same width per level: leaves get the level width, containers a minimum; a leaf beside a
+  // container takes the width of the narrowest container of its column (widenToColumns).
   /** @type {Record<string, number>} */
   const levelWidth = {};
+  /** @type {Set<string>} */
+  const columnWide = new Set();
+  /** @type {Record<string, { x: number, width: number }>} */
+  const columnOf = {};
   if (graph.alignWidthSameType && Object.keys(parentMap).length) {
     /** @type {Record<string, number>} */
     const widths = {};
     for (const node of graph.nodes) widths[node.id] = node.width;
     Object.assign(levelWidth, alignWidthsByLevel(graph.nodes, parentMap, widths, 2 * pad, log));
+    for (const kids of Object.values(childrenOf)) {
+      if (!kids.some(k => childrenOf[k.id])) continue;
+      for (const k of kids) if (!childrenOf[k.id]) columnWide.add(k.id);
+    }
   }
 
   /**
@@ -157,10 +166,10 @@ function layout(graph) {
     const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0), h: s.h + top + pad, child }));
     return { id: node.id, shapes: prune(shapes, goal), table };
   };
-
   const rootTiles = (childrenOf[""] || []).map(tileOf);
   /**
-   * Place tiles i … j of a table in the shape `index`, with its top left corner at (x, y).
+   * Place tiles i … j of a table in the shape `index`, with its top left corner at (x, y), in a
+   * column `column` wide: parts one above the other share it, parts side by side each have their own.
    * @param {LayoutResultNode[]} out
    * @param {Table}       table
    * @param {number}      i
@@ -169,13 +178,16 @@ function layout(graph) {
    * @param {number}      x
    * @param {number}      y
    * @param {string|null} parentId
+   * @param {number}      column
    */
-  const placeRun = (out, table, i, j, index, x, y, parentId) => {
+  const placeRun = (out, table, i, j, index, x, y, parentId, column) => {
     const shape = table.best[i][j][index];
-    if (i === j) { placeTile(out, table.tiles[i], /** @type {number} */ (shape.child), x, y, parentId); return; }
-    const k = /** @type {number} */ (shape.k), left = table.best[i][k][/** @type {number} */ (shape.a)];
-    placeRun(out, table, i, k, /** @type {number} */ (shape.a), x, y, parentId);
-    placeRun(out, table, k + 1, j, /** @type {number} */ (shape.b), shape.dir === "H" ? x + left.w + gap : x, shape.dir === "H" ? y : y + left.h + gap, parentId);
+    if (i === j) { placeTile(out, table.tiles[i], /** @type {number} */ (shape.child), x, y, parentId, column); return; }
+    const k = /** @type {number} */ (shape.k);
+    const left = table.best[i][k][/** @type {number} */ (shape.a)], right = table.best[k + 1][j][/** @type {number} */ (shape.b)];
+    const side = shape.dir === "H";
+    placeRun(out, table, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? left.w : column);
+    placeRun(out, table, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? right.w : column);
   };
   /**
    * @param {LayoutResultNode[]} out
@@ -184,11 +196,13 @@ function layout(graph) {
    * @param {number}      x
    * @param {number}      y
    * @param {string|null} parentId
+   * @param {number}      column  the width of its column
    */
-  const placeTile = (out, tile, index, x, y, parentId) => {
+  const placeTile = (out, tile, index, x, y, parentId, column) => {
     const shape = tile.shapes[index];
+    if (columnWide.has(tile.id)) columnOf[tile.id] = { x, width: column };
     out.push({ id: tile.id, x, y, width: shape.w, height: shape.h, parentId });
-    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + top, tile.id);
+    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + top, tile.id, shape.w - 2 * pad);
   };
 
   // Columns across containers: the leaf columns of the tiles on one grid, as after Pack.
@@ -207,9 +221,42 @@ function layout(graph) {
   const build = (table, index, quiet) => {
     /** @type {LayoutResultNode[]} */
     const out = [];
-    placeRun(out, table, 0, rootTiles.length - 1, index, diagramPad, diagramPad, null);
+    placeRun(out, table, 0, rootTiles.length - 1, index, diagramPad, diagramPad, null, table.best[0][rootTiles.length - 1][index].w);
+    const sharers = columnSharers(out);
     if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log);
+    widenToColumns(out, sharers);
     return out;
+  };
+  /**
+   * Per leaf beside a container: the sibling containers in its column, as placed (before the grid).
+   * @param {LayoutResultNode[]} out
+   * @returns {Map<string, string[]>}
+   */
+  const columnSharers = out => {
+    /** @type {Map<string, string[]>} */
+    const sharers = new Map();
+    for (const leaf of out) {
+      const col = columnOf[leaf.id];
+      if (!col) continue;
+      sharers.set(leaf.id, out.filter(n => n.parentId === leaf.parentId && childrenOf[n.id] &&
+        n.x < col.x + col.width && col.x < n.x + n.width).map(n => n.id));
+    }
+    return sharers;
+  };
+  /**
+   * A leaf beside a container takes the x and width of the narrowest container of its column (the
+   * grid may have moved and widened them); a leaf no container shares a column with keeps its width.
+   * @param {LayoutResultNode[]} out
+   * @param {Map<string, string[]>} sharers
+   */
+  const widenToColumns = (out, sharers) => {
+    const byId = new Map(out.map(n => [n.id, n]));
+    for (const [id, ids] of sharers) {
+      if (!ids.length) continue;
+      const leaf = /** @type {LayoutResultNode} */ (byId.get(id));
+      const narrowest = ids.map(c => /** @type {LayoutResultNode} */ (byId.get(c))).reduce((p, q) => q.width < p.width ? q : p);
+      if (narrowest.width > leaf.width) { leaf.x = narrowest.x; leaf.width = narrowest.width; }
+    }
   };
   const viewWidth = (/** @type {LayoutResultNode[]} */ list) => Math.max(0, ...list.map(n => n.x + n.width)) + diagramPad;
 

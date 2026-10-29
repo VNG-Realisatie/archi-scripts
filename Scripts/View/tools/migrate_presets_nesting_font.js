@@ -1,17 +1,15 @@
 #!/usr/bin/env node
 /**
- * Node.js migration to schemaVersion 5 (nesting style conditions, colour list): rewrites every
- * preset under presets/ (recursively, _session.json included) in place.
- * Idempotent — only a preset at schemaVersion 4 is rewritten.
+ * Node.js migration to schemaVersion 6 (font size and bold per nesting style condition): rewrites
+ * every preset under presets/ (recursively, _session.json included) in place.
+ * Idempotent — only a preset at schemaVersion 5 is rewritten.
  *
- * Run: node Scripts/View/tools/migrate_presets_nesting_style.js [--dry-run]
+ * Run: node Scripts/View/tools/migrate_presets_nesting_font.js [--dry-run]
  *
  * Changes:
- *   appearance.palette: ""                                     (first key of appearance)
- *   appearance.nestingLevel.conditions: [{ child: "same" }]    (first key; today's same-type chain)
- *   appearance.nestingLevel.darkenStart: 0                     (keeps today's colours)
- *   appearance.nestingLevel.rootColor removed                  (jArchi always reads a fill, so it was never used)
- *   schemaVersion: 5
+ *   appearance.nestingLevel.rootFontSize → fontSize of the first nesting style condition
+ *   appearance.nestingLevel.rootFontBold → bold of the first nesting style condition (when true)
+ *   schemaVersion: 6
  */
 const fs   = require("fs");
 const path = require("path");
@@ -23,7 +21,7 @@ const ConditionLists = require("../lib/rel_filter");
 
 const PRESETS_DIR = path.join(__dirname, "..", "presets");
 const DRY_RUN     = process.argv.includes("--dry-run");
-const FROM        = 4;
+const FROM        = 5;
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
@@ -33,14 +31,16 @@ function walk(dir) {
   });
 }
 
-// Each existing key keeps its position.
+// The old root font was the font of every root container: the first condition carries it.
 function migrate(preset) {
-  const app = preset.appearance || {};
-  const nl  = Object.assign({ conditions: [{ child: ConditionLists.SAME_TYPE }] }, app.nestingLevel || {}, { darkenStart: 0 });
-  delete nl.rootColor;
-  const entries = Object.entries(app).map(([k, v]) => [k, k === "nestingLevel" ? nl : v]);
-  if (!("nestingLevel" in app)) entries.push(["nestingLevel", nl]);
-  preset.appearance = Object.fromEntries([["palette", ""], ...entries]);
+  const nl = (preset.appearance || {}).nestingLevel;
+  if (nl) {
+    const first = (nl.conditions || [])[0];
+    if (first && typeof nl.rootFontSize === "number") first.fontSize = nl.rootFontSize;
+    if (first && nl.rootFontBold === true) first.bold = true;
+    delete nl.rootFontSize;
+    delete nl.rootFontBold;
+  }
   preset.schemaVersion = Defs.DEFAULT_PRESET.schemaVersion;
   return preset;
 }

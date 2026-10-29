@@ -587,6 +587,8 @@ const STYLE_CONDITION_COLUMNS = Object.freeze([
   { key: "warn", kind: "warn" },
 ]);
 
+/** @type {readonly ConditionTableItem[]} */
+const FONT_SIZE_ITEMS = Object.freeze([{ value: 0, label: "" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
 const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "= Parent" }, ...ELEMENT_ITEMS]);
 
 /**
@@ -612,6 +614,11 @@ function nestingStyleConditionColumns(colors) {
         value: v, onChange: on, width: 190 }),
       tooltip: "Color of the elements the condition selects: a palette color, or Default (the type's fill).\n" +
                "Lighter per level; when conditions select the same element the most specific wins." },
+    { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70,
+      tooltip: "Font size of the container where the condition starts; empty: continues from its parent.\n" +
+               "Each level deeper is Decrease/level smaller." },
+    { key: "bold", header: "Bold", kind: "check", width: 40, default: false,
+      tooltip: "Bold for the container where the condition starts; deeper containers are not bold." },
   ]);
 }
 

@@ -14,8 +14,10 @@
  *               propertyOf, property, value }
  *   style     { on, color, source, relation, target, propertyOf,          Appearance › Style by property
  *               property, colorRange }
- *   nestingStyle { on, parent, direction, relation, child, color }        Appearance › Style by nesting level
- *               (child "same" = the parent's type; color: a colour name of the palette, "" = Default)
+ *   nestingStyle { on, parent, direction, relation, child, color,         Appearance › Style by nesting level
+ *               fontSize, bold }
+ *               (child "same" = the parent's type; color: a colour name of the palette, "" = Default;
+ *               fontSize, bold: the container where the condition starts; fontSize 0 = continue from the parent)
  *
  * Empty list: filter lists (global, step) keep everything (emptyMeansAll); feature lists (nesting,
  * reverse, style) select nothing. A condition that is off adds nothing and removes nothing, but an
@@ -67,7 +69,7 @@ const KINDS = Object.freeze({
     enums:    { color: STYLE_COLOR, propertyOf: STYLE_PROP_OF },
   },
   nestingStyle: {
-    defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE, color: "" },
+    defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE, color: "", fontSize: 0, bold: false },
     types:    { parent: "elements", relation: "relations", child: "elements" },
     enums:    { direction: DIRECTIONS },
     specials: { child: [SAME_TYPE] },
@@ -106,7 +108,7 @@ function normalizeCondition(kind, raw, valid, where) {
   const out = Object.assign({}, K.defaults);
   for (const [key, val] of Object.entries(raw)) {
     if (!(key in K.defaults)) return bad(`unknown key "${key}"`);
-    if (key === "on" || key === "everyContainer") {
+    if (key === "on" || key === "everyContainer" || key === "bold") {
       if (typeof val !== "boolean") return bad(`"${key}" must be true or false`);
       out[key] = val;
     } else if (key in K.types) {
@@ -114,6 +116,9 @@ function normalizeCondition(kind, raw, valid, where) {
       const special = K.specials && K.specials[key] && K.specials[key].includes(s);
       if (s !== "" && !special && !valid[K.types[key]].has(s)) return bad(`unknown ${key} "${s}"`);
       out[key] = s;
+    } else if (key === "fontSize") {
+      if (!Number.isInteger(val) || /** @type {number} */ (val) < 0) return bad(`"fontSize" must be a whole number of points (0 = continue from the parent)`);
+      out.fontSize = val;
     } else if (K.enums[key]) {
       if (!K.enums[key].includes(val)) return bad(`${key} must be one of ${K.enums[key].join(", ")}`);
       out[key] = val;

@@ -1119,8 +1119,6 @@ function _syncToUI(ctx) {
   // Feature 4 — Style by nesting level
   if (w.tblNestingStyleConditions) w.tblNestingStyleConditions.setConditions(nl.conditions);
   if (w.chkNestFont)        w.chkNestFont.setSelection(!!(nl.fontEnabled));
-  if (w.spinNestRootFontSize) w.spinNestRootFontSize.setSelection(nl.rootFontSize !== undefined ? nl.rootFontSize : DA.nestingLevel.rootFontSize);
-  if (w.chkNestRootBold)    w.chkNestRootBold.setSelection(nl.rootFontBold !== undefined ? nl.rootFontBold : DA.nestingLevel.rootFontBold);
   if (w.spinNestFontDecrease) w.spinNestFontDecrease.setSelection(nl.fontDecreasePerLevel !== undefined ? nl.fontDecreasePerLevel : DA.nestingLevel.fontDecreasePerLevel);
   if (w.chkNestColor)       w.chkNestColor.setSelection(!!(nl.colorEnabled));
   if (w.spinNestDarken)     w.spinNestDarken.setSelection(nl.darkenStart);
@@ -1203,8 +1201,6 @@ function _saveUI(ctx) {
   // Feature 4 — Style by nesting level
   if (w.tblNestingStyleConditions) c.appearance.nestingLevel.conditions = w.tblNestingStyleConditions.getConditions();
   c.appearance.nestingLevel.fontEnabled         = !!(w.chkNestFont  && w.chkNestFont.getSelection());
-  c.appearance.nestingLevel.rootFontSize        = w.spinNestRootFontSize ? w.spinNestRootFontSize.getSelection() : 14;
-  c.appearance.nestingLevel.rootFontBold        = !!(w.chkNestRootBold && w.chkNestRootBold.getSelection());
   c.appearance.nestingLevel.fontDecreasePerLevel = w.spinNestFontDecrease ? w.spinNestFontDecrease.getSelection() : 2;
   c.appearance.nestingLevel.colorEnabled        = !!(w.chkNestColor && w.chkNestColor.getSelection());
   c.appearance.nestingLevel.darkenStart         = w.spinNestDarken ? w.spinNestDarken.getSelection() : DEFAULT_PRESET.appearance.nestingLevel.darkenStart;

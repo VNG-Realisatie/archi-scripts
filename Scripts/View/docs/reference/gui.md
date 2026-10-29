@@ -331,15 +331,15 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ │ Mixed values color: [■ #FF6B35 ▾]   Line width of styled relations: [▼]   │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
-│ │  Root containers get the largest font, each nesting level a smaller one. │  │
-│ │  ☑ Change font size with nesting level [14 ▲▼]  ☑ Bold                  │  │
-│ │    Decrease/level: [2 ▲▼] pt                                            │  │
+│ │  A container where a condition starts gets the condition's font, each    │  │
+│ │  level deeper a smaller one.                                            │  │
+│ │  ☑ Change font size with nesting level   Decrease/level: [2 ▲▼] pt      │  │
 │ │  ─────────────────────────────────────────────────────────────────      │  │
 │ │  Each condition colors the children it selects, lighter per level; an   │  │
 │ │  element no condition selects stops.                                    │  │
-│ │  On│Parent type  │Direction│Relation type│Child type   │Color           │  │
-│ │  ☑ │Grouping     │Outgoing │Aggregation  │Bus. function│[■ Strategie ▾] │✕ │
-│ │  ☑ │Bus. function│Outgoing │Aggregation  │= Parent     │[■ Bedrijf ge…▾]│✕ │
+│ │  On│Parent type  │Direction│Relation type│Child type   │Color      │Font size│Bold│  │
+│ │  ☑ │Grouping     │Outgoing │Aggregation  │Bus. function│[■ Strat…▾]│ [14 ▾]  │ ☑  │✕ │
+│ │  ☑ │Bus. function│Outgoing │Aggregation  │= Parent     │[■ Bedr…▾] │ [   ▾]  │ ☐  │✕ │
 │ │  [+ Add condition]                                                      │  │
 │ │  ☑ Change color by nesting level  Darken start: [2 ▲▼] steps            │  │
 │ │    Lighten/level: [30 ▲▼] %                                             │  │
@@ -366,7 +366,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 **Style by nesting level.** Active only when a Nesting condition is on; otherwise an informational label replaces the controls. From top to bottom: the font row, a line, the nesting style conditions ([condition lists](presets.md#condition-lists)) and the colour row.
 - **Chain.** From each root container, a nesting step parent → child is selected when an active condition matches its parent type, child type (*= Parent*: the parent's type) and a model relation between the two of the condition's type and direction (seen from the parent). Relation *All* with direction *Either* needs no relation. A root container is styled when a condition names its type as parent, or has parent *All*. A step no condition selects stops the chain: neither the child nor anything inside it is styled. The order of the conditions does not matter.
 - **Tight conditions find model errors.** Name the relation and child type each step should have: an element nested by another relation, such as a business function under a business function by serving instead of aggregation, then keeps its default fill and stands out on the view.
-- **Font.** Root containers get the root size, bold if set. Each deeper level gets the root size minus depth × decrease, never below the tool's default (9 pt). Containers only.
+- **Font.** The container where a condition starts (a root container, or a child another condition selects than its parent) takes the condition's *Font size* and *Bold*. Each level deeper within the same condition is *Decrease/level* smaller, never below the tool's default (9 pt), and not bold. A condition without a font size continues the size from its parent; a root container without one keeps the default. Containers only, and a leaf beside a container (same parent, or both at view root), so a leaf among containers reads as one of them. Equally specific conditions with different fonts count as a conflict, as with colours.
 - **Colour.** A condition gives its colour to the children it selects; a palette colour, or *Default*, the type's default fill. A root container takes the colour of a condition with its type as parent, else of one with parent *All*. When several conditions select one element, the most specific wins: one point each for a named parent type, relation type and direction (*Outgoing* / *Incoming*), and for the child type 2 for a named type, 1 for *= Parent*, 0 for *All*. Of equally specific conditions with different colours the last wins and the console names them; for a root container only the parent type counts. A child with its parent's type and colour continues the parent's segment; any other child starts one. A segment starts *Darken start* levels darker than its colour and each level inward is lighter by *Lighten/level* %. Levels shift HSL lightness only, so hue and saturation stay: a level lighter closes the percentage of the distance to white, a level darker is its inverse, never darker than closing that percentage toward lightness 0.6, and a darker yellow turns towards ochre. Containers and leaves reached by the chain are coloured. On *Expand view* and *Layout only*, every element the chain does not reach gets its default fill back, so no colour of an earlier run stays; a fill set by hand on such an element is lost.
 - **Default condition.** A new preset holds one condition, Parent *All*, Child *= Parent*, Color *Default*: the same-type chain from every root container.
 

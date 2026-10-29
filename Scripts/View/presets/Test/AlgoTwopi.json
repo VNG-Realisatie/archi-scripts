@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "name": "Test/AlgoTwopi",
   "algorithm": "Twopi",
   "params": {
@@ -68,11 +68,9 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"child": "same"}
+        {"fontSize": 14, "child": "same"}
       ],
       "fontEnabled": false,
-      "rootFontSize": 14,
-      "rootFontBold": false,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
       "lightenPerLevel": 15,

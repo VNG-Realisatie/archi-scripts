@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
   "algorithm": "Pack",
   "params": {
@@ -76,11 +76,9 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"child": "same"}
+        {"fontSize": 12, "bold": true, "child": "same"}
       ],
       "fontEnabled": true,
-      "rootFontSize": 12,
-      "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
       "lightenPerLevel": 25,

@@ -8,8 +8,8 @@ A preset is a value: it validates against this schema and round-trips losslessly
 
 ```
 Preset {
-  schemaVersion : 5                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
-                                     // 5 = nesting style conditions, palette
+  schemaVersion : 6                  // 2 = condition lists; 3 = everyContainer per nesting condition; 4 = keys *Rules → *Conditions;
+                                     // 5 = nesting style conditions, palette; 6 = font size and bold per nesting style condition
   name, description : string         // description: shown under the preset combo
   algorithm     : enum               // Algorithm
   params {                           // one key per layout option: the Parameter column of the
@@ -36,9 +36,9 @@ Preset {
       lineWidth : 0..3               // 0 = no change; 1 Normal, 2 Medium, 3 Heavy
     }
     nestingLevel {
-      conditions : NestingStyleCondition[]   // nesting steps followed from each root; default [{ child: "same" }]
-      fontEnabled, rootFontBold : boolean
-      rootFontSize, fontDecreasePerLevel : number (pt)
+      conditions : NestingStyleCondition[]   // nesting steps followed from each root; default [{ child: "same", fontSize: 14 }]
+      fontEnabled : boolean
+      fontDecreasePerLevel : number (pt)
       colorEnabled : boolean
       darkenStart : 0..3             // levels darker a segment starts than its colour
       lightenPerLevel : number (%, 5–40)
@@ -113,7 +113,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all |
 | style    | on, color (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange | `appearance.styleByProperty.conditions` | no styling |
-| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, `""` = Default) | `appearance.nestingLevel.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.

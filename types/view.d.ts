@@ -66,6 +66,10 @@ type NestingStyleCondition = {
   child: string;
   /** A colour name of the chosen palette; "" = Default (the element type's default fill). */
   color: string;
+  /** Font size (pt) of the container where the condition starts; 0 = continue from the parent. */
+  fontSize: number;
+  /** Bold for the container where the condition starts. */
+  bold: boolean;
 };
 
 interface ConditionByKind {
@@ -252,8 +256,6 @@ type Preset = {
     nestingLevel: {
       conditions: NestingStyleCondition[];
       fontEnabled: boolean;
-      rootFontSize: number;
-      rootFontBold: boolean;
       fontDecreasePerLevel: number;
       colorEnabled: boolean;
       darkenStart: number;
@@ -630,7 +632,7 @@ interface DialogCounts {
 
 /** One choice of a "choice" column: the condition value and its label. */
 interface ConditionTableItem {
-  value: string;
+  value: string | number;
   label: string;
 }
 
@@ -824,8 +826,6 @@ type DialogWidgets = {
   nestDescLbl: Swt.Label;
   nestColorDescLbl: Swt.Label;
   chkNestFont: CheckBox;
-  spinNestRootFontSize: Swt.Spinner;
-  chkNestRootBold: CheckBox;
   lblNestDecrease: Swt.Label;
   spinNestFontDecrease: Swt.Spinner;
   lblNestFontPt: Swt.Label;

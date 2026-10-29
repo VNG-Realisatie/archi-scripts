@@ -130,6 +130,23 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq(widths(n => n.parent && !g.nodes.some(c => c.parent === n.id) && n.parent !== "G1S"), [340], "leaves one level down share a width");
 }
 
+// Same width per level: a leaf beside a container takes the width of its column; without Same width it keeps its size.
+{
+  const g = on => {
+    const nodes = [{ id: "A", label: "A", width: 300, height: 60, parent: null }, { id: "Leaf", label: "Leaf", width: 300, height: 60, parent: null }];
+    for (let i = 0; i < 12; i++) nodes.push({ id: `A${i}`, label: `A${i}`, width: 300, height: 60, parent: "A" });
+    const parentMap = {}; for (const n of nodes) if (n.parent) parentMap[n.id] = n.parent;
+    const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20 });
+    return { algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, alignWidthSameType: on, columnsAcrossContainers: false, sort: "None", _parentMap: parentMap };
+  };
+  const by = boxes(run(g(true)));
+  ok(by.A.width > 340 && by.Leaf.x === by.A.x && by.Leaf.y > by.A.y, "column: the leaf sits below the wide container");
+  eq(by.Leaf.width, by.A.width, "column: a leaf beside a container is as wide as its column");
+  eq(boxes(run(g(false))).Leaf.width, 300, "column: without Same width the leaf keeps its size");
+  const grid = run(Object.assign(g(true), { columnsAcrossContainers: true })), gb = boxes(grid);
+  eq([gb.Leaf.x, gb.Leaf.width], [gb.A.x, gb.A.width], "column: after Columns across containers the leaf still spans its column");
+}
+
 // Max width is kept when it can be; otherwise the narrowest layout is returned.
 {
   const wide = run(graph(8, 6)), widthOf = r => Math.max(...r.nodes.map(right));

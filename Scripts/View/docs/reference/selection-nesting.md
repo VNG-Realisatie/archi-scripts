@@ -131,7 +131,7 @@ W[L] = W[L+1] + ring          (ring = left + right container padding)
 ```
 The whole stack is as narrow as it can be while every level is at least as wide as its widest leaf: with equal leaf widths the deepest level is the leaf width; with *Use label width* the widest label of a level sets the stack, so no label is cut.
 
-A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider.
+A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider. In Tiles a leaf beside a container takes the width and left edge of the narrowest sibling container in its column, after *Columns across containers*, so a leaf among containers reads as one of them.
 
 Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container `A` holds two boxes side by side, `A1 ⊃ A1a` and the leaf `A2`; `C` is a lone level-0 leaf. Leaf width 200, ring 20:
 

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "name": "regels",
   "algorithm": "Layered",
   "params": {
@@ -48,11 +48,9 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"child": "same"}
+        {"fontSize": 14, "bold": true, "child": "same"}
       ],
       "fontEnabled": false,
-      "rootFontSize": 14,
-      "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
       "lightenPerLevel": 15,

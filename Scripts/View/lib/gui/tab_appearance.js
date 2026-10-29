@@ -218,32 +218,19 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.lblNestingInfo = lblNestingInfo;
 
   const nestDescLbl = new LabelWidget(grpNest, SWT.WRAP);
-  nestDescLbl.setText("Root containers get the largest font, each nesting level a smaller one.");
+  nestDescLbl.setText("A container where a condition starts gets the condition's font, each level deeper a smaller one.");
   GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(nestDescLbl);
   w.nestDescLbl = nestDescLbl;
 
   // Font row — all controls on one line
   const nestFontRow = new CompositeWidget(grpNest, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0,2).spacing(6,0).applyTo(nestFontRow);
+  GridLayoutFactory.fillDefaults().numColumns(4).margins(0,2).spacing(6,0).applyTo(nestFontRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(nestFontRow);
 
   const chkNestFont = Widgets.checkBox(nestFontRow, "Change font size with nesting level");
-  chkNestFont.setToolTipText("Adjust font size based on nesting depth. Root gets the largest size.");
+  chkNestFont.setToolTipText("Apply the font size and bold of the conditions below to containers.");
   chkNestFont.addListener(SWT.Selection, onChange);
   w.chkNestFont = chkNestFont;
-
-  const nestRootFontSp = new SpinnerWidget(nestFontRow, SWT.BORDER);
-  nestRootFontSp.setValues(14, 8, 24, 0, 1, 2);
-  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestRootFontSp);
-  nestRootFontSp.setToolTipText("Font size for root containers (depth 0)");
-  nestRootFontSp.addListener(SWT.Selection, onChange);
-  w.spinNestRootFontSize = nestRootFontSp;
-
-  const chkNestBold = Widgets.checkBox(nestFontRow, "Bold");
-  chkNestBold.setToolTipText("Make root containers bold");
-  chkNestBold.setSelection(true);
-  chkNestBold.addListener(SWT.Selection, onChange);
-  w.chkNestRootBold = chkNestBold;
 
   const lblNestDecrease = new LabelWidget(nestFontRow, SWT.NONE);
   lblNestDecrease.setText("Decrease/level:");
@@ -369,8 +356,6 @@ function updateNestingLevelState(ctx) {
   Widgets.enable(w.nestColorDescLbl,     hasNesting);
   w.tblNestingStyleConditions.enable(hasNesting);
   Widgets.enable(w.chkNestFont,          hasNesting);
-  Widgets.enable(w.spinNestRootFontSize, hasNesting);
-  Widgets.enable(w.chkNestRootBold,      hasNesting);
   Widgets.enable(w.lblNestDecrease,      hasNesting);
   Widgets.enable(w.spinNestFontDecrease, hasNesting);
   Widgets.enable(w.lblNestFontPt,        hasNesting);
