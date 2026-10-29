@@ -597,21 +597,21 @@ const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "= 
 function nestingStyleConditionColumns(colors) {
   return Object.freeze([
     _onCol,
-    _typeCol("parent", "Parent type", "Type of the container. A root container is styled when a condition names its type here. All = any type.", 150),
+    _typeCol("parent", "Parent type", "Type of the container. A root container takes the color of a condition with its type here, else with All.", 150),
     { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
       tooltip: "Outgoing: the relation starts at the parent; Incoming: it ends there; Either: both (default).\n" +
                "Either with relation All also matches a nesting without a relation." },
     _relCol("relation", "Relation type", "The model relation between parent and child. All = any type."),
     { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 150,
-      tooltip: "Type of the nested element; = Parent: the parent's type (the chain goes one level deeper).\n" +
-               "Another type starts again from that type's color. All = any type." },
+      tooltip: "Type of the nested element the condition selects; = Parent: the parent's type.\n" +
+               "All = any type." },
     { key: "color", header: "Color", kind: "custom",
       create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) => Widgets.colorPicker(p, {
         items: () => [{ value: "", label: "Default", colors: [] }, ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
         missing: x => ({ value: x, label: x + " (not in list)", colors: [] }),
         value: v, onChange: on, width: 190 }),
-      tooltip: "Color of the parent type: a palette color, or Default (the element type's default fill).\n" +
-               "Its elements take it, lighter per level; of conditions with the same parent type the last wins." },
+      tooltip: "Color of the elements the condition selects: a palette color, or Default (the type's fill).\n" +
+               "Lighter per level; when conditions select the same element the most specific wins." },
   ]);
 }
 

@@ -36,7 +36,7 @@
     "elementHeight": 60,
     "maxWidth": 2800,
     "aspectRatio": 1.25,
-    "viewSizeMode": "aspectRatio",
+    "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false
@@ -89,11 +89,9 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "", "color": "Grouping"},
-        {"parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Bedrijf gedrag", "child": "same"},
-        {"on": false, "parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same"},
-        {"on": false, "parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"},
-        {"on": false, "parent": "application-service", "direction": "incoming", "relation": "realization-relationship", "child": "application-component", "color": "Applicatie actief"}
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same", "color": "Grouping"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag"},
+        {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"}
       ],
       "fontEnabled": true,
       "rootFontSize": 16,

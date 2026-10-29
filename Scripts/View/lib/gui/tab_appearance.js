@@ -265,7 +265,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.nestMidSep = nestMidSep;
 
   const nestColorDescLbl = new LabelWidget(grpNest, SWT.WRAP);
-  nestColorDescLbl.setText("Color per parent type, lighter per level; a step no condition matches stops.");
+  nestColorDescLbl.setText("Each condition colors the children it selects, lighter per level; an element no condition selects stops.");
   GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(nestColorDescLbl);
   w.nestColorDescLbl = nestColorDescLbl;
 

@@ -178,15 +178,26 @@ const chains = rules => {
 };
 eq(chains([{ parent: "grouping", color: "Grijs" }]).out, { g0: "0/0/Grijs", g1: "1/1/Grijs" }, "chains: same-type chain stops at another type");
 eq(chains([{}]).out, { g0: "0/0/", o0: "0/0/", g1: "1/1/", o1: "1/1/" }, "chains: default condition = same-type chain from every root");
-// the user's case: the colour of a condition belongs to its parent type
+// the user's case: a condition's colour goes to the children it selects; the component is not selected
 eq(chains([
-  { parent: "grouping" },
-  { parent: "grouping", child: "business-function", relation: "aggregation-relationship", color: "Oranje" },
-  { parent: "business-function", child: "business-function", color: "Geel" },
-  { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship" },
-]).out, { g0: "0/0/Oranje", g1: "1/1/Oranje", f1: "2/0/Geel", f2: "3/1/Geel", s1: "4/0/" },
-   "chains: colour per parent type; unmatched step (component) stops");
-eq(chains([{ parent: "grouping", color: "A" }, { parent: "grouping", child: "", color: "B" }]),
-   { out: { g0: "0/0/B", g1: "1/1/B", f1: "2/0/" }, conflicts: ["grouping"] }, "chains: last colour of a parent type wins, conflict reported");
+  { parent: "grouping", color: "Grijs" },
+  { parent: "", child: "business-function", relation: "aggregation-relationship", color: "Geel" },
+  { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", color: "Blauw" },
+]).out, { g0: "0/0/Grijs", o0: "0/0/Geel", g1: "1/1/Grijs", f1: "2/0/Geel", f2: "3/1/Geel", s1: "4/0/Blauw" },
+   "chains: colour per condition to its selection; unselected step (component) stops; parent All styles every root");
+eq(chains([{ parent: "", color: "A" }, { parent: "grouping", child: "", color: "B" }, { parent: "", child: "", color: "C" }]).out.g0,
+   "0/0/B", "chains: a root takes its own type's condition before parent All");
+eq(chains([{ parent: "grouping", child: "", color: "A" }, { parent: "grouping", color: "B" }]).out,
+   { g0: "0/0/B", g1: "1/1/B", f1: "2/0/A" }, "chains: the most specific condition wins (= Parent over All), whatever the order");
+eq(chains([{ parent: "grouping", child: "grouping", color: "A" }, { parent: "grouping", color: "B" }]).out.g1,
+   "1/0/A", "chains: a child type beats = Parent");
+eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship", color: "A" }, { parent: "grouping", child: "", color: "B" }]).out.f1,
+   "2/0/A", "chains: a named relation beats All");
+eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship", color: "A" }, { parent: "grouping", child: "", direction: "outgoing", color: "B" }]),
+   { out: { g0: "0/0/B", g1: "1/1/B", f1: "2/0/B" }, conflicts: ["1, 2"] }, "chains: equally specific conditions (and a root's): the last wins, conflict reported");
+eq(chains([{ parent: "grouping", color: "A" }, { parent: "", child: "grouping", relation: "aggregation-relationship", color: "B" }]).out,
+   { g0: "0/0/A", o0: "0/0/B", g1: "1/0/B" }, "chains: another colour starts a segment");
+eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship" }]).out,
+   { g0: "0/0/", g1: "1/1/", f1: "2/0/" }, "chains: Default continues a same-type segment, another type starts one");
 console.log(failed ? `\n${failed} FAILED` : "all rel_filter tests passed");
 process.exit(failed ? 1 : 0);

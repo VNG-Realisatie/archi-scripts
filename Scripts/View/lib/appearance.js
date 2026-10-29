@@ -43,7 +43,7 @@ const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"])
  * @typedef {object} NestingStyle  how followNestingChains styles a visual
  * @property {number} depth          from the root: font size
  * @property {number} segmentDepth   from the segment start: lightening
- * @property {string} color          the segment's colour name; "" = Default
+ * @property {string} color          the colour name of the condition that selected it; "" = Default
  *
  * @typedef {{ kind: "element" | "relation", values: Set<string> }} ConditionTarget
  */
@@ -138,52 +138,76 @@ function _onView(view, selector, keep) {
 // ── Style by nesting level ────────────────────────────────────────────────────
 
 /**
- * Follow the nesting style conditions from every root container (pure). A root container is styled
- * when a condition names its type as parent; a nested element when a condition matches the step from
- * its styled parent — the last matching condition wins. A step to the same type continues the
- * parent's segment one level deeper; a step to another type starts a segment. A segment takes the
- * colour of its type: the colour of the last condition with a colour whose parent is that type.
- * An unmatched step stops the chain for the element and everything inside it.
+ * Follow the nesting style conditions from every root container (pure). A condition selects the
+ * nesting steps it matches; the child of a selected step takes the condition's colour, provided its
+ * parent is styled. A root container takes the colour of the last condition whose parent is its
+ * type, else of the last with parent All. An element no condition selects stops the chain for
+ * itself and everything inside it. Of conditions that select the same element the most specific wins
+ * (_specificity); of equally specific ones the last. A child with the colour and type of its parent
+ * continues the parent's segment one level deeper; otherwise it starts a segment.
  * @param {NestingNode[]}           nodes       every element visual; order = view order (determinism)
  * @param {NestingStyleCondition[]} conditions
- * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: types whose conditions give different colours
+ * @returns {{ styles: Map<string, NestingStyle>, conflicts: string[] }}  conflicts: equally specific conditions ("2, 3") that select the same elements with different colours
  */
 function followNestingChains(nodes, conditions) {
-  const active = conditions.filter(r => r.on !== false);
+  const active = conditions.map((r, i) => ({ r, nr: i + 1 })).filter(x => x.r.on !== false);
   const byId   = new Map(nodes.map(n => [n.id, n]));
   /** @type {Map<string, NestingStyle>} */
   const styles = new Map();
+  /** @type {Set<string>} */
+  const conflicts = new Set();
   // Stable sort: parents before children, view order within a depth.
   for (const n of nodes.slice().sort((a, b) => a.depth - b.depth)) {
     if (!n.parentId) {
-      if (!n.isContainer || !active.some(r => !r.parent || r.parent === n.type)) continue;
-      styles.set(n.id, { depth: 0, segmentDepth: 0, color: _typeColor(active, n.type) });
+      if (!n.isContainer) continue;
+      const own = active.filter(x => x.r.parent === n.type);
+      const sel = own.length ? own : active.filter(x => !x.r.parent);
+      if (sel.length === 0) continue;
+      styles.set(n.id, { depth: 0, segmentDepth: 0, color: _lastOf(sel, conflicts).color });
       continue;
     }
     const ps = styles.get(n.parentId);
     const parent = byId.get(n.parentId);
     if (!ps || !parent) continue;
-    if (!active.some(r => ConditionLists.nestingStyleConditionMatches(r, parent.type, n.type, n.rels))) continue;
-    styles.set(n.id, n.type === parent.type
-      ? { depth: n.depth, segmentDepth: ps.segmentDepth + 1, color: ps.color }
-      : { depth: n.depth, segmentDepth: 0, color: _typeColor(active, n.type) });
+    const sel = active.filter(x => ConditionLists.nestingStyleConditionMatches(x.r, parent.type, n.type, n.rels));
+    if (sel.length === 0) continue;
+    const color = _mostSpecific(sel, conflicts).color;
+    styles.set(n.id, n.type === parent.type && color === ps.color
+      ? { depth: n.depth, segmentDepth: ps.segmentDepth + 1, color }
+      : { depth: n.depth, segmentDepth: 0, color });
   }
-  const types = new Set(nodes.filter(n => styles.has(n.id)).map(n => n.type));
-  const conflicts = [...types].filter(t => new Set(active.filter(r => r.color && r.parent === t).map(r => r.color)).size > 1);
-  return { styles, conflicts };
+  return { styles, conflicts: [...conflicts] };
 }
 
 /**
- * The colour of a type: the last condition with a colour whose parent is the type, else the last
- * with parent All; "" = Default.
- * @param {NestingStyleCondition[]} active
- * @param {string} type
+ * The condition that wins among those selecting one element: the most specific, of equally specific
+ * ones the last. Equally specific winners with different colours are added to conflicts.
+ * @param {{ r: NestingStyleCondition, nr: number }[]} sel  non-empty, in list order
+ * @param {Set<string>} conflicts
  */
-function _typeColor(active, type) {
-  const own = active.filter(r => r.color && r.parent === type);
-  const any = active.filter(r => r.color && !r.parent);
-  const list = own.length ? own : any;
-  return list.length ? list[list.length - 1].color : "";
+function _mostSpecific(sel, conflicts) {
+  const top = Math.max(...sel.map(x => _specificity(x.r)));
+  return _lastOf(sel.filter(x => _specificity(x.r) === top), conflicts);
+}
+
+/**
+ * The last of equally specific conditions; different colours among them are added to conflicts.
+ * @param {{ r: NestingStyleCondition, nr: number }[]} best  non-empty, in list order
+ * @param {Set<string>} conflicts
+ */
+function _lastOf(best, conflicts) {
+  if (new Set(best.map(x => x.r.color)).size > 1) conflicts.add(best.map(x => x.nr).join(", "));
+  return best[best.length - 1].r;
+}
+
+/**
+ * How narrowly a condition selects: one point per named parent type, relation type and direction
+ * (outgoing / incoming); child: a type 2, = Parent 1, All 0.
+ * @param {NestingStyleCondition} r
+ */
+function _specificity(r) {
+  const child = r.child === ConditionLists.SAME_TYPE ? 1 : r.child ? 2 : 0;
+  return (r.parent ? 1 : 0) + (r.relation ? 1 : 0) + (r.direction !== "either" ? 1 : 0) + child;
 }
 
 /**
@@ -231,13 +255,17 @@ function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep
   const nodes = vos.map(vo => _nestingNode(vo, keep));
   const { styles, conflicts } = followNestingChains(nodes, settings.conditions);
   if (conflicts.length > 0)
-    console.log(`  nestingLevel: conditions with parent ${conflicts.join(", ")} give different colours; the last condition wins.`);
+    console.log(`  nestingLevel: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different colours; the last condition wins.`);
   /** @type {Set<string>} */
   const unknownColors = new Set();
 
   vos.forEach((vo, i) => {
     const st = styles.get(nodes[i].id);
-    if (!st) return;
+    // Modify: a visual the chain no longer reaches loses the fill of an earlier run (SPEC: replaces earlier styling).
+    if (!st) {
+      if (isModify && settings.colorEnabled) { vo.fillColor = null; colorReset++; }
+      return;
+    }
     const isContainer = nodes[i].isContainer;
 
     // Font: root gets rootFontSize (+ bold if rootFontBold), each deeper level decreases
@@ -311,7 +339,7 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds, keep) {
     console.log(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
   } else if (isModify && settings.colorRange && multiIds.length > 0) {
     let n = 0;
-    multiIds.forEach(id => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { vo.fillColor = null; n++; }); });
+    multiIds.forEach(id => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { if (styledVoIds.has(vo.id)) return; vo.fillColor = null; n++; }); });
     console.log(`  highlightRepeated: ${n} VOs reset`);
   }
 }
