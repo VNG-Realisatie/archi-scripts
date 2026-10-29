@@ -10,6 +10,7 @@ How to work a View test case the user reports. Findings are logged in `Scripts/V
 ## Inputs
 
 - **Model:** `/home/mark/Documents/Archi/model-repository/wiki-gemma-model/.git/temp.archimate` — the coArchi working copy: saved, not yet committed (views land under `model/diagrams/` only after a coArchi commit). Compare its mtime with when the user saved. Other models live next to it, e.g. `softwarecatalogus-archi-repository/.git/temp.archimate`; such a file can be a zip archive (`file` says so) — unzip it and use `model.xml`. A test model with multi-parent aggregations: `/home/mark/temp/wiki-gemma-model.archimate`, view `Views/_Generated/Kennismodel (copy)`.
+- **GEMMA model:** `/home/mark/Documents/Archi/model-repository/gemma-archi-repository/.git/temp.archimate` — e.g. view "GEMMA domeinen" (folder `_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten`).
 - **View:** a name without a folder is in `Views/Test` (e.g. "Burgerzaken", "Kennismodel-wiki"). A view's folder path = the `<folder name=…>` ancestors of its `ArchimateDiagramModel` element.
 - **Preset:** ask which one was used when the user does not name it. `Test/AlgoTree` = `Scripts/View/presets/Test/AlgoTree.json`. Some test presets are untracked (`Test/test-preset.json`, Layered).
 - **What actually ran:** the dialog writes the parameters of its last run to `Scripts/View/presets/_session.json`. Settings changed in the dialog are there, not in the preset file.
