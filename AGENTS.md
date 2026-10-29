@@ -65,3 +65,4 @@ Defaults, not hard rules; a reason to deviate goes in a comment.
 - **Selection.** Use `Selection.getSelection` / `getVisualSelection` (`_lib/selection.js`) when view references and single-object selections should expand; a script with its own selection semantics (e.g. View, `$(selection)`) says so.
 - **Java.** `Java.type("java.io.File")`, not the `java.io.File` package root. Java lists are arrays to GraalJS; Java maps are not plain objects (`JSON.stringify` gives `{}`).
 - **Vocabulary.** Per part; View: `Scripts/View/docs/SPEC.md` § Vocabulary (rule 2).
+- **Asking.** Put a question or an approval to the user only when it is really needed: a decision only the user can make, an approval a rule requires (`Scripts/View/AGENTS.md` § Order of change), or a check only the user can do (in Archi). Never per step of a plan: carry on through the steps and report at the end.
