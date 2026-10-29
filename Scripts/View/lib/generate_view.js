@@ -49,7 +49,12 @@ const {
   validatePreset, effectiveParams, connectionsModeLock,
 } = Defs;
 
-// ── Engine loaders (lazy) ─────────────────────────────────────────────────────
+// Archi's own Java classes, not the jArchi API: used only by _openView (ARCHITECTURE § Platform constraints).
+const EditorManager       = Java.type("com.archimatetool.editor.ui.services.EditorManager");
+const IEditorModelManager = Java.type("com.archimatetool.editor.model.IEditorModelManager");
+const ArchimateModelUtils = Java.type("com.archimatetool.model.util.ArchimateModelUtils");
+
+// ── Engine loaders (lazy)─────────────────────────────────────────────────────
 // require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
 
 /**
@@ -181,12 +186,21 @@ function generate_view(rawPreset, uiSelection, actionId) {
 }
 
 /**
- * Open a view in Archi's editor tab, as the focused tab.
+ * Open a view in Archi's editor tab, as the focused tab. Not `view.openInUI()`: that first re-announces
+ * the model as opened, and Archi's model tree then selects the model instead of the view.
  * @param {ArchimateView} view
  */
 function _openView(view) {
   try {
-    view.openInUI();
+    // Archi returns null instead of throwing at every step
+    // Copies of one model file share the model id; the file path tells them apart (null while unsaved)
+    const path  = view.model.getPath();
+    const model = IEditorModelManager.INSTANCE.getModels().find((/** @type {any} */ m) =>
+      m.getId() === view.model.id && (m.getFile() ? m.getFile().getAbsolutePath() : null) === path);
+    if (!model) throw new Error(`model ${view.model.id} (${path}) not found among the loaded models`);
+    const diagramModel = ArchimateModelUtils.getObjectByID(model, view.id);
+    if (!diagramModel) throw new Error(`view ${view.id} not found in the model`);
+    if (!EditorManager.openDiagramEditor(diagramModel, true)) throw new Error("Archi opened no editor");
   } catch (e) {
     console.error(`Failed to open "${view && view.name}" in the UI — open it manually. (${e})`);
   }

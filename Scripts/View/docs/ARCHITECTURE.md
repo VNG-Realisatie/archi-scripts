@@ -628,7 +628,7 @@ View-specific jArchi behaviour. General jArchi rules are in [`ai/jarchi-scriptin
 - `$(view).children()` lists the view's top-level objects and all its connections (`DiagramModelProxy.children()`).
 - `createObject` makes a note, group or legend only (wiki, jArchi 1.12); a `diagram-model-image` cannot be created.
 - Bounds are relative to the parent visual. Setting bounds keeps the appearance.
-- `openInUI()` opens a view created or emptied in the same run as the focused tab (checked in Archi for every action).
+- `view.openInUI()` first fires Archi's "model opened" event (`ModelUtil.openModelInUI`), so the model tree goes to its root and selects the model. `generate_view._openView` therefore calls Archi's `EditorManager.openDiagramEditor(view, true)` directly, with the view found through `IEditorModelManager` (model id and file path: copies of one file share the id) and `ArchimateModelUtils.getObjectByID`: Archi's own Java classes, not the jArchi API (user decision, Known gap 12). This opens the view as the focused tab and leaves the model tree as it was. It only opens an editor and changes nothing in the model.
 
 ## Development and testing
 
@@ -729,4 +729,4 @@ Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` o
 9. The confirm before *One view each* writes more than 20 views is asked by `generate_view` (`window.confirm`), not by the entry point (SPEC § 3, § 5); a headless caller gets it too.
 10. Step expansion and relation collection follow the order of jArchi's `rels()` (the order the model stores relations in), so *Order as selected* layouts depend on it; Determinism says no result does. Sorting by id would change those layouts and the Archi baseline. The order is also not stable within an Archi session: drawing a connection (`view.add(relation, …)`) moves its relation to the end of `rels()` (probed), so the harness's relation index matches only a freshly opened model.
 11. *New view* does not copy an image object (SPEC § 5 "What Create takes from a view"): jArchi's `createObject` cannot make one, and model changes go only through the public jArchi API (§ Writer). It is laid out and counted, then left out with a console line, so its place stays empty.
-12. After an action (*Layout only*, *New view*, every algorithm) the model, not the view, is selected in the model tree; it used to be the view. The script only calls `view.openInUI()` (`generate_view._openView`); cause not found yet.
+12. Opening the written view uses Archi's own Java classes, outside the supported jArchi API (§ Platform constraints): a later Archi version may change them. `view.openInUI()` would make the model tree select the model after every action.
