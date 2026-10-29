@@ -599,7 +599,7 @@ const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "= 
 function nestingStyleConditionColumns(colors) {
   return Object.freeze([
     _onCol,
-    _typeCol("parent", "Parent type", "Type of the container. A root container takes the color of a condition with its type here, else with All.", 150),
+    _typeCol("parent", "Parent type", "Type of the container. A root container counts as a child under a container of its own type.", 150),
     { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
       tooltip: "Outgoing: the relation starts at the parent; Incoming: it ends there; Either: both (default).\n" +
                "Either with relation All also matches a nesting without a relation." },

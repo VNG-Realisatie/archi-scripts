@@ -191,29 +191,31 @@ eq(chains([
   { parent: "grouping", color: "Grijs" },
   { parent: "", child: "business-function", relation: "aggregation-relationship", color: "Geel" },
   { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", color: "Blauw" },
-]).out, { g0: "0/0/Grijs", o0: "0/0/Geel", g1: "1/1/Grijs", f1: "2/0/Geel", f2: "3/1/Geel", s1: "4/0/Blauw" },
-   "chains: colour per condition to its selection; unselected step (component) stops; parent All styles every root");
+]).out, { g0: "0/0/Grijs", g1: "1/1/Grijs", f1: "2/0/Geel", f2: "3/1/Geel", s1: "4/0/Blauw" },
+   "chains: colour per condition to its selection; unselected step (component) stops; a root only by a condition for its type");
 eq(chains([{ parent: "", color: "A" }, { parent: "grouping", child: "", color: "B" }, { parent: "", child: "", color: "C" }]).out.g0,
    "0/0/B", "chains: a root takes its own type's condition before parent All");
 eq(chains([{ parent: "grouping", child: "", color: "A" }, { parent: "grouping", color: "B" }]).out,
    { g0: "0/0/B", g1: "1/1/B", f1: "2/0/A" }, "chains: the most specific condition wins (= Parent over All), whatever the order");
-eq(chains([{ parent: "grouping", child: "grouping", color: "A" }, { parent: "grouping", color: "B" }]).out.g1,
-   "1/0/A", "chains: a child type beats = Parent");
+eq(chains([{ parent: "grouping", child: "grouping", color: "A" }, { parent: "grouping", color: "B" }]).out,
+   { g0: "0/0/A", g1: "1/1/A" }, "chains: a child type beats = Parent, for a root too");
+eq(chains([{ parent: "", child: "business-function", color: "A" }, { parent: "grouping", color: "B" }]).out.g0,
+   "0/0/B", "chains: a root takes the condition that selects its type as child, whatever the order");
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship", color: "A" }, { parent: "grouping", child: "", color: "B" }]).out.f1,
    "2/0/A", "chains: a named relation beats All");
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship", color: "A" }, { parent: "grouping", child: "", direction: "outgoing", color: "B" }]),
    { out: { g0: "0/0/B", g1: "1/1/B", f1: "2/0/B" }, conflicts: ["1, 2"] }, "chains: equally specific conditions (and a root's): the last wins, conflict reported");
-eq(chains([{ parent: "grouping", color: "A" }, { parent: "", child: "grouping", relation: "aggregation-relationship", color: "B" }]).out,
-   { g0: "0/0/A", o0: "0/0/B", g1: "1/0/B" }, "chains: another colour starts a segment");
+eq(chains([{ parent: "", child: "grouping", relation: "aggregation-relationship", color: "B" }, { parent: "grouping", color: "A" }]),
+   { out: { g0: "0/0/A", g1: "1/0/B" }, conflicts: ["1, 2"] }, "chains: another colour starts a segment; a root does not count the relation");
 eq(chains([{ parent: "grouping", child: "", relation: "aggregation-relationship" }]).out,
    { g0: "0/0/", g1: "1/1/", f1: "2/0/" }, "chains: Default continues a same-type segment, another type starts one");
 eq(fonts([{ fontSize: 14, bold: true }]), { g0: "14b", o0: "14b", g1: "12", o1: "12" }, "fonts: a root takes its condition's font, deeper levels smaller and not bold");
 eq(fonts([{ parent: "grouping", fontSize: 16, bold: true }, { parent: "", child: "business-function", relation: "aggregation-relationship" },
           { parent: "business-function", child: "application-service", direction: "incoming", relation: "serving-relationship", fontSize: 14, bold: true }]),
-   { g0: "16b", o0: "9", g1: "14", f1: "12", f2: "10", s1: "14b" },
+   { g0: "16b", g1: "14", f1: "12", f2: "10", s1: "14b" },
    "fonts: a condition without font size continues from its parent; a condition with one restarts where it starts");
 eq(fonts([{ parent: "grouping", fontSize: 12 }, { parent: "", child: "business-function", relation: "aggregation-relationship", fontSize: 18 }]),
-   { g0: "12", o0: "18", g1: "10", f1: "18", f2: "16" }, "fonts: the size is never below the default 9");
+   { g0: "12", g1: "10", f1: "18", f2: "16" }, "fonts: the size is never below the default 9");
 {
   // a leaf beside a container (here a root leaf and a leaf under g0) takes the font; a lone leaf does not
   const side = [node("g0", null, "grouping", 0, true), node("x0", null, "grouping", 0, false),

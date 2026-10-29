@@ -143,8 +143,8 @@ function _onView(view, selector, keep) {
 /**
  * Follow the nesting style conditions from every root container (pure). A condition selects the
  * nesting steps it matches; the child of a selected step takes the condition's colour, provided its
- * parent is styled. A root container takes the colour of the last condition whose parent is its
- * type, else of the last with parent All. An element no condition selects stops the chain for
+ * parent is styled. A root container is styled by the conditions that would select it under a parent
+ * of its own type; relation and direction do not count for it. An element no condition selects stops the chain for
  * itself and everything inside it. Of conditions that select the same element the most specific wins
  * (_specificity); of equally specific ones the last. A child with the colour and type of its parent
  * continues the parent's segment one level deeper; otherwise it starts a segment.
@@ -171,10 +171,9 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
     const asContainer = n.isContainer || withContainer.has(n.parentId);
     if (!n.parentId) {
       if (!asContainer) continue;
-      const own = active.filter(x => x.r.parent === n.type);
-      const sel = own.length ? own : active.filter(x => !x.r.parent);
+      const sel = active.filter(x => _selectsRoot(x.r, n.type));
       if (sel.length === 0) continue;
-      const win = _lastOf(sel, conflicts);
+      const win = _mostSpecific(sel, conflicts, _rootSpecificity);
       styles.set(n.id, Object.assign({ segmentDepth: 0, color: win.r.color, nr: win.nr, asContainer }, _font(win.r, DEFAULT_FONT_SIZE)));
       continue;
     }
@@ -203,14 +202,24 @@ function _font(r, inherited) {
 }
 
 /**
+ * Whether condition r selects a root container of this type: as a child under a parent of its own type.
+ * @param {NestingStyleCondition} r
+ * @param {string}                type
+ */
+function _selectsRoot(r, type) {
+  return (!r.parent || r.parent === type) && (!r.child || r.child === ConditionLists.SAME_TYPE || r.child === type);
+}
+
+/**
  * The condition that wins among those selecting one element: the most specific, of equally specific
  * ones the last. Equally specific winners with different styles are added to conflicts.
  * @param {{ r: NestingStyleCondition, nr: number }[]} sel  non-empty, in list order
  * @param {Set<string>} conflicts
+ * @param {(r: NestingStyleCondition) => number} [specificity]
  */
-function _mostSpecific(sel, conflicts) {
-  const top = Math.max(...sel.map(x => _specificity(x.r)));
-  return _lastOf(sel.filter(x => _specificity(x.r) === top), conflicts);
+function _mostSpecific(sel, conflicts, specificity = _specificity) {
+  const top = Math.max(...sel.map(x => specificity(x.r)));
+  return _lastOf(sel.filter(x => specificity(x.r) === top), conflicts);
 }
 
 /**
@@ -229,8 +238,16 @@ function _lastOf(best, conflicts) {
  * @param {NestingStyleCondition} r
  */
 function _specificity(r) {
+  return _rootSpecificity(r) + (r.relation ? 1 : 0) + (r.direction !== "either" ? 1 : 0);
+}
+
+/**
+ * How narrowly a condition selects a root container: a root has no relation to its parent.
+ * @param {NestingStyleCondition} r
+ */
+function _rootSpecificity(r) {
   const child = r.child === ConditionLists.SAME_TYPE ? 1 : r.child ? 2 : 0;
-  return (r.parent ? 1 : 0) + (r.relation ? 1 : 0) + (r.direction !== "either" ? 1 : 0) + child;
+  return (r.parent ? 1 : 0) + child;
 }
 
 /**
