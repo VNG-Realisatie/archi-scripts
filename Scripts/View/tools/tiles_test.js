@@ -147,6 +147,38 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq([gb.Leaf.x, gb.Leaf.width], [gb.A.x, gb.A.width], "column: after Columns across containers the leaf still spans its column");
 }
 
+// Same width per level: a leaf takes the width of a container in its own column only, so no siblings overlap.
+{
+  const nodes = [{ id: "R", label: "R", width: 300, height: 60, parent: null }];
+  [0, 6, 0, 0, 0, 0].forEach((n, c) => {
+    nodes.push({ id: `C${c}`, label: `C${c}`, width: 300, height: 60, parent: "R" });
+    for (let i = 0; i < n; i++) nodes.push({ id: `C${c}K${i}`, label: `C${c}K${i}`, width: 300, height: 60, parent: `C${c}` });
+  });
+  const parentMap = {}; for (const n of nodes) if (n.parent) parentMap[n.id] = n.parent;
+  const options = Object.assign({}, Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" })), { padding: 20 });
+  const r = run({ algorithm: "Tiles", nodes, edges: [], options, engineParams: {}, alignWidthSameType: true, columnsAcrossContainers: false, sort: "None", _parentMap: parentMap });
+  const kids = r.nodes.filter(n => n.parentId === "R");
+  const hits = kids.flatMap((a, i) => kids.slice(i + 1).filter(b => overlap(a, b)).map(b => `${a.id}/${b.id}`));
+  eq(hits, [], "column: leaves among containers do not overlap a sibling");
+}
+
+// Columns across containers: leaves whose branches stand side by side never share a grid column, even
+// when leaves elsewhere chain their centres together.
+{
+  const EU = require("../lib/engines/engine-utils");
+  const box = (id, x, y, width, height, parentId) => ({ id, x, y, width, height, parentId });
+  const nodes = [
+    box("P", 0, 0, 1600, 1000, null),
+    box("A", 20, 40, 500, 300, "P"), box("a1", 40, 80, 460, 60, "A"),
+    box("B", 540, 40, 1000, 300, "P"), box("b1", 560, 80, 460, 60, "B"), box("b2", 1060, 80, 460, 60, "B"),
+    box("C", 20, 400, 1500, 300, "P"),
+    box("c1", 170, 440, 460, 60, "C"), box("c2", 320, 520, 460, 60, "C"), box("c3", 470, 600, 460, 60, "C"),
+  ];
+  console.log = () => {}; EU.alignColumnsAcrossContainers(nodes, { elementSpacing: 20, padding: 20 }, {}, () => {}); console.log = _log;
+  const by = boxes({ nodes });
+  ok(!overlap(by.A, by.B), "grid: containers side by side do not share a column");
+}
+
 // Max width is kept when it can be; otherwise the narrowest layout is returned.
 {
   const wide = run(graph(8, 6)), widthOf = r => Math.max(...r.nodes.map(right));

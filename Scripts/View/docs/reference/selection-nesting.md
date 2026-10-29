@@ -131,7 +131,7 @@ W[L] = W[L+1] + ring          (ring = left + right container padding)
 ```
 The whole stack is as narrow as it can be while every level is at least as wide as its widest leaf: with equal leaf widths the deepest level is the leaf width; with *Use label width* the widest label of a level sets the stack, so no label is cut.
 
-A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider. In Tiles a leaf beside a container takes the width and left edge of the narrowest sibling container in its column, after *Columns across containers*, so a leaf among containers reads as one of them.
+A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider. In Tiles a leaf beside a container takes the width and left edge of the narrowest sibling container in its column (the boxes stacked with it), after *Columns across containers*, so a leaf among containers reads as one of them.
 
 Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container `A` holds two boxes side by side, `A1 ⊃ A1a` and the leaf `A2`; `C` is a lone level-0 leaf. Leaf width 200, ring 20:
 
@@ -147,7 +147,7 @@ The widths come from the leaf widths of the layout graph, so no sizing pass is n
 ### Columns across containers
 
 Puts every leaf column of the tiles on one shared grid, so columns line up top to bottom across the whole view (Tiles only; independent of the option above).
-- Each column is as wide as its widest leaf; columns are packed left to right, and every leaf moves onto its column's centre.
+- Each column is as wide as its widest leaf; columns are packed left to right, and every leaf moves onto its column's centre. Two leaves whose boxes stand side by side under a common container never share a column.
 - Gaps start at *Distance*. They widen only where sibling boxes (containers and leaves) would overlap, by exactly the overlap, repeated until clean. Boxes that share a column are reported, not widened: a wider gap does not separate them.
 - Leaves are moved, never resized; containers are re-wrapped around them.
 

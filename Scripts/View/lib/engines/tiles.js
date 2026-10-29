@@ -139,8 +139,9 @@ function layout(graph) {
   const levelWidth = {};
   /** @type {Set<string>} */
   const columnWide = new Set();
-  /** @type {Record<string, { x: number, width: number }>} */
-  const columnOf = {};
+  /** @type {Record<string, number>} */
+  const columnOf = {};   // per placed tile: its column (parts one above the other share one)
+  let columns = 0;
   if (graph.alignWidthSameType && Object.keys(parentMap).length) {
     /** @type {Record<string, number>} */
     const widths = {};
@@ -168,8 +169,8 @@ function layout(graph) {
   };
   const rootTiles = (childrenOf[""] || []).map(tileOf);
   /**
-   * Place tiles i … j of a table in the shape `index`, with its top left corner at (x, y), in a
-   * column `column` wide: parts one above the other share it, parts side by side each have their own.
+   * Place tiles i … j of a table in the shape `index`, with its top left corner at (x, y), in
+   * `column`: parts one above the other share it, parts side by side each get their own.
    * @param {LayoutResultNode[]} out
    * @param {Table}       table
    * @param {number}      i
@@ -184,10 +185,10 @@ function layout(graph) {
     const shape = table.best[i][j][index];
     if (i === j) { placeTile(out, table.tiles[i], /** @type {number} */ (shape.child), x, y, parentId, column); return; }
     const k = /** @type {number} */ (shape.k);
-    const left = table.best[i][k][/** @type {number} */ (shape.a)], right = table.best[k + 1][j][/** @type {number} */ (shape.b)];
+    const left = table.best[i][k][/** @type {number} */ (shape.a)];
     const side = shape.dir === "H";
-    placeRun(out, table, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? left.w : column);
-    placeRun(out, table, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? right.w : column);
+    placeRun(out, table, i, k, /** @type {number} */ (shape.a), x, y, parentId, side ? ++columns : column);
+    placeRun(out, table, k + 1, j, /** @type {number} */ (shape.b), side ? x + left.w + gap : x, side ? y : y + left.h + gap, parentId, side ? ++columns : column);
   };
   /**
    * @param {LayoutResultNode[]} out
@@ -196,13 +197,13 @@ function layout(graph) {
    * @param {number}      x
    * @param {number}      y
    * @param {string|null} parentId
-   * @param {number}      column  the width of its column
+   * @param {number}      column
    */
   const placeTile = (out, tile, index, x, y, parentId, column) => {
     const shape = tile.shapes[index];
-    if (columnWide.has(tile.id)) columnOf[tile.id] = { x, width: column };
+    columnOf[tile.id] = column;
     out.push({ id: tile.id, x, y, width: shape.w, height: shape.h, parentId });
-    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + top, tile.id, shape.w - 2 * pad);
+    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + top, tile.id, ++columns);
   };
 
   // Columns across containers: the leaf columns of the tiles on one grid, as after Pack.
@@ -221,14 +222,14 @@ function layout(graph) {
   const build = (table, index, quiet) => {
     /** @type {LayoutResultNode[]} */
     const out = [];
-    placeRun(out, table, 0, rootTiles.length - 1, index, diagramPad, diagramPad, null, table.best[0][rootTiles.length - 1][index].w);
+    placeRun(out, table, 0, rootTiles.length - 1, index, diagramPad, diagramPad, null, ++columns);
     const sharers = columnSharers(out);
     if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log);
     widenToColumns(out, sharers);
     return out;
   };
   /**
-   * Per leaf beside a container: the sibling containers in its column, as placed (before the grid).
+   * Per leaf beside a container: the containers in its column.
    * @param {LayoutResultNode[]} out
    * @returns {Map<string, string[]>}
    */
@@ -236,10 +237,8 @@ function layout(graph) {
     /** @type {Map<string, string[]>} */
     const sharers = new Map();
     for (const leaf of out) {
-      const col = columnOf[leaf.id];
-      if (!col) continue;
-      sharers.set(leaf.id, out.filter(n => n.parentId === leaf.parentId && childrenOf[n.id] &&
-        n.x < col.x + col.width && col.x < n.x + n.width).map(n => n.id));
+      if (!columnWide.has(leaf.id)) continue;
+      sharers.set(leaf.id, out.filter(n => childrenOf[n.id] && columnOf[n.id] === columnOf[leaf.id]).map(n => n.id));
     }
     return sharers;
   };
