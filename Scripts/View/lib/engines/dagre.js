@@ -147,10 +147,10 @@ function layout(graph) {
 
   const parentMap = graph._parentMap || {};
 
-  // Pre-layout: leaves are always sorted; sortContainers also sorts containers.
+  // Pre-layout: the leaves inside containers are sorted by type and name; Dagre has no Sort option.
   // alignWidthSameType is ELK-only (see capability matrix); Dagre's partial nesting does
   // not support the two-pass container measurement.
-  const nodes = sortedNodes(graph.nodes, parentMap, graph.sortContainers);
+  const nodes = sortedNodes(graph.nodes, parentMap, graph.sort);
 
   const engineOpts = Object.assign(
     {},

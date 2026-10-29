@@ -544,9 +544,8 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
   // ── Object ID ──────────────────────────────────────────────────────────────
   const grpObjId = Widgets.group(page, "Object ID", 1);
 
-  const chkObjId = new ButtonWidget(grpObjId, SWT.CHECK);
-  chkObjId.setText("Add unique Object ID");
-  chkObjId.setToolTipText("Generates a UUID and writes it as the \"Object ID\" property. Skipped if the view already has one.");
+  const chkObjId = Widgets.checkBox(grpObjId, "Add unique Object ID");
+  chkObjId.setToolTipText("Writes a new UUID as the \"Object ID\" property.\nSkipped if the view already has one.");
   chkObjId.addListener(SWT.Selection, onChange);
   w.vpAddObjectId = chkObjId;
 
@@ -587,8 +586,8 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
 
   sortedKeys.forEach(key => {
     // col 1: checkbox
-    const chk = new ButtonWidget(grpViewProps, SWT.CHECK);
-    GridDataFactory.swtDefaults().applyTo(chk);
+    const chk = Widgets.checkBox(grpViewProps, "");
+    GridDataFactory.swtDefaults().applyTo(chk.control);
 
     // col 2: property name label
     const lbl = new LabelWidget(grpViewProps, SWT.NONE);
@@ -621,8 +620,8 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
  */
 function _runAction(actionId, dlg, ctx) {
   _saveUI(ctx);
-  const nextOrder = _cycleElementOrder(ctx.config.params, actionId);
-  _persistSession(ctx, nextOrder ? { elementOrder: nextOrder } : {});
+  const nextOrder = _cycleAlgorithmStart(ctx.config.params, actionId);
+  _persistSession(ctx, nextOrder ? { algorithmStart: nextOrder } : {});
   ctx._actionId = actionId;
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
@@ -635,12 +634,12 @@ function _runAction(actionId, dlg, ctx) {
  * @param {string} actionId
  * @returns {string|null} the order for the next run, or null without Cycle
  */
-function _cycleElementOrder(params, actionId) {
-  if (!params.cycleElementOrder) return null;
+function _cycleAlgorithmStart(params, actionId) {
+  if (!params.cycleAlgorithmStart) return null;
   const creates = actionId === ACTION.NEW_VIEW.id || actionId === ACTION.ONE_EACH.id;
-  if (creates) params.elementOrder = TabLayout.ELEMENT_ORDER_LABELS[0];
-  const i = TabLayout.ELEMENT_ORDER_LABELS.indexOf(params.elementOrder);
-  return TabLayout.ELEMENT_ORDER_LABELS[(i + 1) % TabLayout.ELEMENT_ORDER_LABELS.length];
+  if (creates) params.algorithmStart = TabLayout.ALGORITHM_START_LABELS[0];
+  const i = TabLayout.ALGORITHM_START_LABELS.indexOf(params.algorithmStart);
+  return TabLayout.ALGORITHM_START_LABELS[(i + 1) % TabLayout.ALGORITHM_START_LABELS.length];
 }
 
 // Action-row button: fills cell width, bottom-aligned within group.
@@ -768,7 +767,7 @@ function _buildActionArea(area, ctx, dlg, target) {
 
   new LabelWidget(grpCreate, SWT.NONE).setText("Name:");
   w.txtViewName = new TextWidget(grpCreate, SWT.BORDER);
-  w.txtViewName.setToolTipText("Name of the new view.\nPre-filled with the first selected object.\nA view with this name in the folder is overwritten.");
+  w.txtViewName.setToolTipText("Name of the new view, pre-filled with the first selected object.\nA view with this name in the folder is overwritten.");
   GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewName);
 
   w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(ACTION.NEW_VIEW.id, dlg, ctx));

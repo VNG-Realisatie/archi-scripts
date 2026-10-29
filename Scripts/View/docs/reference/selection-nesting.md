@@ -127,9 +127,9 @@ The Create group never modifies the view the selection came from.
 Boxes at the same nesting depth get a common width, so a nested view reads as telescoping frames instead of ragged boxes. It never changes parent or child. *Level*: root boxes are 0; the children of a level-*N* container are *N+1*.
 
 ```
-W[deepest level] = narrowest box at that level (the leaf base width)
-W[L]             = W[L+1] + ring          (ring = left + right container padding)
+W[L] = W[L+1] + ring          (ring = left + right container padding)
 ```
+The whole stack is as narrow as it can be while every level is at least as wide as its widest leaf: with equal leaf widths the deepest level is the leaf width; with *Use label width* the widest label of a level sets the stack, so no label is cut.
 
 A **leaf** takes exactly its level width. A **container** treats it as a floor: if its side-by-side content needs more, it stays wider.
 
@@ -140,13 +140,17 @@ Example: the deepest branch is `B ⊃ B1 ⊃ B1a ⊃ Bx`; the level-0 container 
 | 0 | 260 | `C` → 260 | `B` → 260; `A` → at least 260, wider to fit its two children |
 | 1 | 240 | `A2` → 240 | `B1`, `A1` → 240 |
 | 2 | 220 | `A1a` → 220 | `B1a` → 220 |
-| 3 | 200 (anchor) | `Bx` → 200 | — |
+| 3 | 200 (deepest leaf) | `Bx` → 200 | — |
 
-The anchor is the narrowest box at the deepest level, which is always an element at its own width, so no sizing pass is needed. The widths are set before the layout, never after it. It is available only where the engine sizes containers from content ([capability matrix](engines.md#capability-matrix)).
+The widths come from the leaf widths of the layout graph, so no sizing pass is needed. The widths are set before the layout, never after it. It is available only where the engine sizes containers from content ([capability matrix](engines.md#capability-matrix)).
 
-### Snap columns to grid
+### Columns across containers
 
-Puts every leaf column on one shared grid, so columns line up top to bottom across the whole view (Grid and Pack only; independent of the option above).
+Puts every leaf column of the tiles on one shared grid, so columns line up top to bottom across the whole view (Tiles only; independent of the option above).
 - Each column is as wide as its widest leaf; columns are packed left to right, and every leaf moves onto its column's centre.
-- Gaps start tight. They widen only where sibling containers would overlap, by exactly the overlap, repeated until clean.
+- Gaps start at *Distance*. They widen only where sibling boxes (containers and leaves) would overlap, by exactly the overlap, repeated until clean. Boxes that share a column are reported, not widened: a wider gap does not separate them.
 - Leaves are moved, never resized; containers are re-wrapped around them.
+
+### Sort
+
+Orders a view with containers (Grid, Pack, Tiles), at every level, always ascending by type and name: *None* keeps the selection order; *Elements* orders the elements and leaves the containers as selected; *Containers, then elements* orders the containers too and puts them first; *All together* puts containers and elements in one list. Where it sorts, it wins over *Algorithm start*. A view without containers is not sorted: *Algorithm start* orders it. Algorithms without Sort (directed views) order the elements inside a container by type and name.

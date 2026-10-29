@@ -7,6 +7,7 @@ The detail behind [SPEC.md § 8 Engine contract](../SPEC.md#8-engine-contract).
 - **Runtime:** a JavaScript script for the Archi modelling tool (jArchi 1.12 / GraalVM JS), with an SWT/GTK dialog.
 - **Engines:**
   - ELK: Layered, Tree, Stress, Radial, Grid, Pack;
+  - Tiles: Tiles (no layout engine: the adapter tiles the nesting itself);
   - Dagre: Dagre;
   - Graphviz: Dot, Twopi, Neato, FDP, SFDP, Circo.
 
@@ -21,7 +22,8 @@ LayoutGraph {
              label, weight }]                         // weight: hint per relation type
   options : object                                    // per-algorithm parameters
   maxWidth, aspectRatio : number                      // only the active one non-zero
-  alignWidthSameType, sortContainers : boolean
+  alignWidthSameType, columnsAcrossContainers : boolean
+  sort? : string                                      // None | Elements | Containers, then elements | All together; absent: no Sort
 }
 LayoutResult {
   nodes : [{ id, x, y, width, height, parentId }]     // ABSOLUTE
@@ -47,38 +49,38 @@ Each algorithm declares:
 An option outside the active set is greyed in the dialog, keeps its value, and is ignored at run time. The matrix is generated from the registry. ✓ active · — greyed out in the dialog.
 
 <!-- generated:capability-matrix -->
-| Parameter | Layered | Tree | Stress | Radial | Grid | Pack | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Nesting `nestingConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
-| Reverse `reverseConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
-| Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
-| Padding `padding` | ✓ | ✓ | — | — | ✓ | ✓ | — | ✓ | — | ✓ | — | — | — |
-| Sort containers `sortContainers` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — |
-| Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Snap columns to grid `snapColumnsToGrid` | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Direction `direction` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
-| Cycles `acyclicer` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Ranking `ranking` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
-| Circles `circles` | — | — | — | — | — | — | — | — | — | — | — | — | ✓ |
-| Layer distance `layerSpacing` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | — | — | — | ✓ | — |
-| Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Use label width `labelSizing` | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Wrap label at `labelMaxLineWidth` | — | — | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Order `elementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Cycle `cycleElementOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Routing `routing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ |
-| Label `labelPosition` | ✓ | ✓ | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — |
-| Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | ✓ | — | — | — | — | — | — |
-| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | ✓ |
-| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | — | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| Max width `maxWidth` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — |
-| Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Self-loops** (capability) | ✓ | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Parameter | Layered | Tree | Stress | Radial | Grid | Pack | Tiles | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Algorithm start `algorithmStart` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Cycle algorithm start `cycleAlgorithmStart` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Nesting `nestingConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
+| Reverse `reverseConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
+| Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — | — |
+| Connections `connectionsMode` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Padding `padding` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | ✓ | — | ✓ | — | — | — |
+| Sort `sort` | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
+| Same width per level `alignWidthSameType` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
+| Columns across containers `columnsAcrossContainers` | — | — | — | — | — | — | ✓ | — | — | — | — | — | — | — |
+| Direction `direction` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | — | — |
+| Cycles `acyclicer` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Ranking `ranking` | — | — | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Placement `nodePlacement` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Circles `circles` | — | — | — | — | — | — | — | — | — | — | — | — | — | ✓ |
+| Layer distance `layerSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | — | — | — | ✓ | — |
+| Width `elementWidth` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Height `elementHeight` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Use label width `labelSizing` | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
+| Wrap label at `labelMaxLineWidth` | — | — | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
+| Distance `elementSpacing` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Routing `routing` | ✓ | ✓ | — | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Label `labelPosition` | ✓ | ✓ | — | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Reserve label space `connectionLabelSpacing` | ✓ | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Between `connectionSpacing` | ✓ | ✓ | — | — | — | — | — | ✓ | — | — | — | — | — | — |
+| Distance to element `connectionElementSpacing` | ✓ | ✓ | — | — | — | — | — | — | — | ✓ | ✓ | ✓ | — | ✓ |
+| Aspect ratio `aspectRatio` | ✓ | ✓ | ✓ | — | — | — | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| Max width `maxWidth` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
+| Diagram padding (preset only) `diagramPadding` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Self-loops** (capability) | ✓ | — | — | — | — | — | — | ~ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 <!-- /generated:capability-matrix -->
 
 **Self-loops** is a capability, not an option:
@@ -90,7 +92,8 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 
 | Engine | Max width | Aspect ratio |
 |---|---|---|
-| ELK Layered, Tree, Grid, Pack | Upper bound, met by re-arranging (more rows). When unreachable (connection chains or the widest container set the width), the narrowest layout is used and reported | Met approximately by re-arranging |
+| ELK Layered, Tree, Grid, Pack | Upper bound, met by re-arranging (more rows); Grid and Pack offer Max width only. When unreachable (connection chains or the widest container set the width), the narrowest layout is used and reported | Met approximately by re-arranging |
+| Tiles | The widest arrangement that fits, with Columns across containers applied; when unreachable the narrowest layout is used and reported | Met approximately: the arrangements closest to it are placed and measured. Free leans toward portrait |
 | ELK Stress | Not supported | Met approximately by re-arranging |
 | ELK Radial | Not supported | Not supported: the engine has no such option |
 | Graphviz | Not supported: it can only widen a layout without scaling | Passed as a ratio hint; not for Circo (circles would become ellipses) |

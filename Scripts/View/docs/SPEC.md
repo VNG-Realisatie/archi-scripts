@@ -233,8 +233,8 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
   - *Crossing*: the whole hierarchy is one layout, and connections run straight to the inner element.
   - Crossing is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
 - **Padding**: the space between a container's border and its contents.
-- **Sort containers**, **same width per level** and **snap columns to grid** are refinements: they order containers, make nested frames telescope cleanly, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
-- Elements inside a container are always ordered by type and name, so a grid reads alphabetically. The elements outside containers follow **Order** (Elements).
+- **Sort**, **same width per level** and **columns across containers** are refinements: they order the boxes, make nested frames telescope cleanly, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
+- **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Algorithm start**. A view without containers is not sorted: Algorithm start orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.
 
 **Consequences** (not separate controls). For a nesting relation the **source is the parent** and the **target the child**; they are swapped if the type is also reversed. Container-ness is **derived**: an element is a container exactly when something resolves to be its child.
 
@@ -256,7 +256,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 **Twopi** puts the best-connected element of each connected part in the centre, and every other element on the ring of its distance (in relations) from there.
 - Along the radius, the space between two rings is at least the layer distance, whatever the angle.
 - A ring whose elements fill its circumference, side by side with the element gap, is *full*. A full ring is exactly tight at a layer distance equal to the element height, and grows and shrinks with the layer distance from there. Below that, the elements are pushed apart and the ring deforms, so the layer distance always has a visible effect.
-- The order of the elements on a ring follows **Order**; twopi does not reduce crossings.
+- The order of the elements on a ring follows **Algorithm start**; twopi does not reduce crossings.
 
 **Stress** places elements by connection length only. Elements that end up on top of each other are moved apart to the element gap afterwards, positions only.
 
@@ -272,13 +272,13 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 - The minimum **gap** between elements, also between unconnected groups.
 - Where connections are routed between the elements (Neato, FDP, SFDP, Circo), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements. The dialog keeps the two values in step, and the one the user changed wins. There the gap is also at least the **shortest connection**, 20 px: room for both end symbols, so the relation type stays readable.
 
-**Order**: the order in which the elements outside containers enter the layout: as selected (default), by name or by type and name. Another order gives the algorithm another starting point: an algorithm that keeps the input order (Tree, Twopi) shows it directly; others (Layered) use it only as a start. With **Cycle** on, a new view starts with the selection order and every layout of an existing view takes the next order, so repeated *Layout only* runs step through the orders. Order never applies inside a container.
+**Algorithm start**: the order in which the elements outside containers enter the layout: as selected (default), by name or by type and name. Another order gives the algorithm another starting point: an algorithm that keeps the input order (Tree, Twopi) shows it directly; others (Layered) use it only as a start. With **Cycle algorithm start** on, a new view starts with the selection order and every layout of an existing view takes the next one, so repeated *Layout only* runs step through them. It is not a sorted view and never applies inside a container; where **Sort** orders the view, the sort wins.
 
 **Connections.** Line routing, label position, reserved space for labels, the distance between parallel connections (elements grow to fit their connections) and the clearance between a connection and the elements it passes.
 
 **Room for the end symbols.** Archi draws a relation's end symbol (arrowhead, dot, diamond) in the direction of the last few pixels of the line; zoomed out, a very short last stretch rounds to another angle. So a curved or polyline connection has no bend within 12 px of its elements, and no two bends closer than 5 px. A connection with no bend left is drawn straight. Orthogonal lines keep their corners.
 
-**View size.** *Free* (default), an **aspect ratio**, or a **max width**; at most one at a time. A target is met by **arranging elements differently** (e.g. more rows), never by scaling (rule 1). An engine that can only widen a layout offers no max width.
+**View size.** *Free* (default), an **aspect ratio**, or a **max width**; at most one at a time. Grid and Pack offer only a max width. Tiles takes the widest arrangement within the max width, or the one closest to the aspect ratio; *Free* leans toward portrait. A target is met by **arranging elements differently** (e.g. more rows), never by scaling (rule 1). An engine that can only widen a layout offers no max width.
 
 **Preset-only options** have no or minimal effect on the view (e.g. the canvas margin) and so no control. A preset can still set them, and a non-default value is logged.
 

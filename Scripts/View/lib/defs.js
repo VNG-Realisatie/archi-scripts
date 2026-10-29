@@ -25,23 +25,23 @@ const PROP_MANAGED_OCCURRENCE = "Managed occurrence";
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const STYLES = Object.freeze({
-  Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains. Insights: sequence, process models, application flows, service interactions, data models." },
-  Hierarchy: { algorithms: ["Tree", "Radial"],                               tooltip: "Optimized for decomposition, containment and nesting structures. Insights: ownership, organisation charts, product breakdown structures, capability decomposition." },
-  Network:   { algorithms: ["Stress", "Neato", "FDP", "SFDP"],               tooltip: "Optimized for interconnected elements without strict hierarchy or direction. Insights: connectivity, clustering, impact propagation, integration networks." },
-  Circular:  { algorithms: ["Twopi", "Circo"],                               tooltip: "Optimized for cyclic, hub-centred and concentric relationships. Insights: central elements, cycles, radial influence patterns, hub-and-spoke structures." },
-  Compact:   { algorithms: ["Grid", "Pack"],                                 tooltip: "Optimized for overview, grouping and space efficiency with minimal relationship emphasis. Insights: portfolio overviews, catalogs, inventories, high-level landscape summaries." },
+  Flow:      { algorithms: ["Layered", "Dagre", "Dot"],                      tooltip: "Optimized for directional flows, dependencies and process chains.\nInsights: sequences, process models, application flows, service interactions, data models." },
+  Hierarchy: { algorithms: ["Tree", "Radial"],                               tooltip: "Optimized for decomposition, containment and nesting structures.\nInsights: ownership, organisation charts, product breakdowns, capability decomposition." },
+  Network:   { algorithms: ["Stress", "Neato", "FDP", "SFDP"],               tooltip: "Optimized for interconnected elements without strict hierarchy or direction.\nInsights: connectivity, clustering, impact propagation, integration networks." },
+  Circular:  { algorithms: ["Twopi", "Circo"],                               tooltip: "Optimized for cyclic, hub-centred and concentric relationships.\nInsights: central elements, cycles, radial influence, hub-and-spoke structures." },
+  Compact:   { algorithms: ["Grid", "Pack", "Tiles"],                        tooltip: "Optimized for overview and space efficiency: tightly arranged containers,\nlittle emphasis on relations. Insights: portfolios, catalogs, inventories." },
 });
 
 // ── Algorithm param groups ────────────────────────────────────────────────────
 // Shared groups spread into activeParams arrays; each algorithm shows only its unique additions.
 
 // Active in every algorithm — not algorithm-specific.
-const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding", "elementOrder", "cycleElementOrder"]);
+const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding", "algorithmStart", "cycleAlgorithmStart"]);
 
-// ELK full-nesting controls — Layered, Tree, Grid, Pack.
+// ELK full-nesting controls — Layered, Tree, Grid, Pack. Sort is not among them: directed views are not sorted.
 const PARAMS_ELK_NESTING = Object.freeze([
   "nestingConditions", "padding",
-  "sortContainers", "alignWidthSameType",
+  "alignWidthSameType",
   "containerAlgorithm",
 ]);
 
@@ -74,11 +74,11 @@ const PARAM_LABELS = Object.freeze({
   containerAlgorithm:       "Layout inside",
   connectionsMode:          "Connections",
   padding:                  "Padding",
-  sortContainers:           "Sort containers",
-  elementOrder:             "Order",
-  cycleElementOrder:        "Cycle",
+  sort:                     "Sort",
+  algorithmStart:           "Algorithm start",
+  cycleAlgorithmStart:      "Cycle algorithm start",
   alignWidthSameType:       "Same width per level",
-  snapColumnsToGrid:        "Snap columns to grid",
+  columnsAcrossContainers:  "Columns across containers",
   direction:                "Direction",
   acyclicer:                "Cycles",
   ranking:                  "Ranking",
@@ -99,48 +99,44 @@ const PARAM_LABELS = Object.freeze({
   maxWidth:                 "Max width",
   diagramPadding:           "Diagram padding",
 });
-// Tooltip per layout param: [what it does, unit / detail]. The dialog adds a third line
-// "Used by: …" computed from activeParams, so tooltips never contradict the registry.
+// Tooltip per layout param: [what it does, unit / detail], two short lines. Which algorithms use a
+// param is not in it: the dialog greys the control (Scripts/View/AGENTS.md § Conventions, Tooltips).
 /** @type {Readonly<Record<string, string[]>>} */
 const PARAM_TOOLTIPS = Object.freeze({
-  nestingConditions:        ["Draw matching relations as nesting: the child inside its parent.",
-                             "Parent = source of the relation; with Reverse, the target. A child with several parents is nested in one of them; " +
-                             "a condition with Every shows it in every parent. Only relations an Include condition picks are nested; Exclude conditions take " +
-                             "relations out of those, so Exclude conditions alone nest nothing."],
-  reverseConditions:        ["Flips matching relations. Flow: laid out from target to source, against the Direction in the Flow box; arrows are unchanged.",
-                             "Nesting: if the relation is also nested, the target becomes the parent. Only relations an Include condition picks are " +
-                             "reversed; Exclude conditions take relations out of those, so Exclude conditions alone reverse nothing."],
+  nestingConditions:        ["Draw matching relations as nesting: the child inside its parent (source; with Reverse, target).",
+                             "Include picks relations, Exclude takes some out of those; Every shows a child in all its parents."],
+  reverseConditions:        ["Flip matching relations: laid out from target to source; the arrows are unchanged.",
+                             "A reversed nesting relation makes the target the parent. Include picks, Exclude takes out."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
-                             "Grid or Pack: Connections is locked to Between containers."],
+                             ""],
   connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
                              "Crossing containers: the whole view is one layout; connections run straight to the element inside."],
   padding:                  ["Space between a container's border and its contents.", "px"],
-  elementOrder:             ["Order in which the elements outside containers go into the layout; another order gives the algorithm another starting point.",
-                             "Inside a container the container's own order holds."],
-  cycleElementOrder:        ["Each layout of an existing view takes the next order: Selection, Name △, Type and name △, Name ▽.",
+  algorithmStart:           ["Order in which the elements enter the layout: another order, another starting point.", ""],
+  cycleAlgorithmStart:      ["Each layout of an existing view takes the next algorithm start.",
                              "A new view always starts with Selection."],
-  sortContainers:           ["Order containers by type and name, as elements always are.",
-                             "Grid and Pack keep this order; the other algorithms start from it."],
+  sort:                     ["Ascending order of the boxes in a view with containers. None: as selected.",
+                             "Elements: by type and name. Containers, then elements: also the containers. All together: one list."],
   alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
-                             "Each parent level is one padding step wider; a container never gets narrower than its contents."],
-  snapColumnsToGrid:        ["Line columns up top to bottom on one grid across the whole view.",
-                             "Each column is as wide as its widest element; element sizes are unchanged."],
+                             "A container is never narrower than its contents; Use label width: the widest label sets it."],
+  columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
+                             "A gap is only wider than Distance where boxes would touch."],
   direction:                ["Direction of the main flow.", ""],
-  acyclicer:                ["How relation cycles are broken before layout.",
-                             "Default: depth-first search. Greedy: a heuristic that reverses few relations. No effect without cycles."],
+  acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
+                             "Default: depth-first search. Greedy: reverses as few relations as it can."],
   ranking:                  ["How elements are assigned to layers.",
-                             "Balanced (network simplex): short connections. Uniform (longest path) and Top-aligned (tight tree): faster."],
+                             "Balanced: short connections. Uniform and Top-aligned: faster."],
   nodePlacement:            ["Where elements sit within their layer.",
-                             "Centred: between the elements they connect to. Straight lines: lined up with one neighbour, leaning to one side."],
+                             "Centred: between the elements they connect to. Straight lines: in line with one neighbour."],
   circles:                  ["How the elements are divided over circles.", ""],
-  layerSpacing:             ["Space between the elements of successive layers along the flow; Tree: between levels; Twopi: between rings.",
-                             "px — Tree: at least Distance between elements; Twopi: a full ring is tight at element height and grows and shrinks with Layer distance; with Reserve label space a gap widens to fit its labels."],
-  elementWidth:             ["Width of every element.", "px — not used with Use label width."],
-  elementHeight:            ["Height of every element.", "px — not used with Use label width."],
+  layerSpacing:             ["Space between successive layers; Tree: between levels; Twopi: between rings.",
+                             "px — Tree: at least Distance; with Reserve label space a gap widens to fit its labels."],
+  elementWidth:             ["Width of every element.", "px"],
+  elementHeight:            ["Height of every element.", "px"],
   labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
-  labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px — only with Use label width."],
+  labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px"],
   elementSpacing:           ["Minimum distance between elements, also between unconnected groups.",
-                             "px — Neato, FDP, SFDP, Circo: at least 2 × Distance to element + 2, so a connection fits between two elements, and at least the shortest connection that shows both end symbols; the other value follows."],
+                             "px — Neato, FDP, SFDP, Circo: room for a connection between two elements; the other value follows."],
   routing:                  ["How connection lines are drawn.", ""],
   labelPosition:            ["Where the connection label sits.", ""],
   connectionLabelSpacing:   ["Keep connection labels clear of other labels, connections and elements.",
@@ -148,7 +144,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   connectionSpacing:        ["Distance between parallel connections, and between connection points on one side of an element.",
                              "px — elements grow to fit their connections; 0 = no growth."],
   connectionElementSpacing: ["Minimum distance between a connection and the elements it passes.",
-                             `px — the first and last bend stay at least ${CONNECTION_END_CLEARANCE} from the element, clear of the end symbol. Neato, FDP, SFDP, Circo: at most half of (Distance between elements − 2); the other value follows.`],
+                             `px — the first and last bend stay ${CONNECTION_END_CLEARANCE} or more from it; Neato, FDP, SFDP, Circo: Distance follows.`],
   aspectRatio:              ["Arrange the layout toward this width-to-height ratio.", "Element sizes are unchanged."],
   maxWidth:                 ["The view is at most this wide: a wider layout is arranged in more rows.",
                              "px — element sizes are unchanged."],
@@ -170,24 +166,25 @@ function paramUsedBy(key) {
 
 /**
  * Full tooltip for a layout param: what it does, an optional extra line (e.g. the selected
- * option's explanation), unit / detail, and "Used by".
+ * option's explanation) and unit / detail. Which algorithms use it is left out: the dialog greys
+ * the control (paramUsedBy is for the docs).
  * @param {string} key
  * @param {string} [extra]
  * @returns {string}
  */
 function paramTooltip(key, extra) {
   const [what, detail] = PARAM_TOOLTIPS[key] || ["", ""];
-  return [what, extra, detail, paramUsedBy(key)].filter(Boolean).join("\n");
+  return [what, extra, detail].filter(Boolean).join("\n");
 }
 
 const LAYOUT_GROUPS = Object.freeze({
+  Algorithm:   ["algorithmStart", "cycleAlgorithmStart"],
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
-                "sortContainers", "alignWidthSameType", "snapColumnsToGrid"],
+                "sort", "alignWidthSameType", "columnsAcrossContainers"],
   Flow:        ["direction", "acyclicer", "ranking", "nodePlacement", "circles", "layerSpacing"],
-  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing",
-                "elementOrder", "cycleElementOrder"],
+  Elements:    ["elementWidth", "elementHeight", "labelSizing", "labelMaxLineWidth", "elementSpacing"],
   Connections: ["routing", "labelPosition", "connectionLabelSpacing", "connectionSpacing", "connectionElementSpacing"],
   "View size": ["aspectRatio", "maxWidth"],
 });
@@ -195,6 +192,8 @@ const LAYOUT_GROUPS = Object.freeze({
 // View-size params — maxWidth + aspectRatio (ELK: met by calibrating elk.aspectRatio — elk.js _fitViewSize).
 // Graphviz has aspectRatio only: it cannot narrow a layout without scaling elements.
 const PARAMS_VIEW_SIZE = Object.freeze(["maxWidth", "aspectRatio"]);
+// Grid and Pack arrange columns: the width sets how many fit, so they offer Max width only (Tiles has both).
+const PARAMS_VIEW_WIDTH = Object.freeze(["maxWidth"]);
 
 // Graphviz cluster-nesting controls — Dot, FDP. padding = cluster margin (graphviz.js).
 const PARAMS_GV_CLUSTER = Object.freeze(["nestingConditions", "padding"]);
@@ -240,7 +239,7 @@ const ALGORITHMS = Object.freeze({
       connectionsMode:    ["Between containers", "Crossing containers"],
     },
     labelPositionDefault: "Middle",
-    tooltip: "Process models, application flows, service interactions with strong directionality and nested containers (ELK)",
+    tooltip: "Process models, application flows and service interactions:\nstrong direction, nested containers (ELK)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -262,7 +261,7 @@ const ALGORITHMS = Object.freeze({
       containerAlgorithm: ["Grid", "Pack"],
     },
     labelPositionDefault: "Middle",
-    tooltip: "Organisation charts, product breakdown structures, capability decomposition with hierarchical nesting (ELK)",
+    tooltip: "Organisation charts, product breakdowns, capability decomposition:\nhierarchical nesting (ELK)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -289,7 +288,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [...ALWAYS_ACTIVE_PARAMS, "elementSpacing"],
     supportedOptions:     {},
     labelPositionDefault: null,
-    tooltip: "Tree radiating from a central element: every depth on its own circle, each subtree in its own sector. Cycles are cut to a tree (ELK Radial)",
+    tooltip: "Tree radiating from a central element: each depth on its own circle, each subtree its own sector.\nCycles are cut to a tree (ELK Radial)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -300,13 +299,13 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // box/rectpacking position nodes only — they do not route edges
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_WIDTH,
+      "sort", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseConditions",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
-    tooltip: "Portfolio overviews, catalogs and inventories with strong nesting support (ELK)",
+    tooltip: "Boxes in regular rows, in their order: simple and easy to scan.\nNesting is supported (ELK Box)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -317,13 +316,29 @@ const ALGORITHMS = Object.freeze({
     supportsNesting:      "full",
     supportsSelfLoops:    false,  // pack only positions nodes; no edge routing
     activeParams:         [
-      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_SIZE,
-      "snapColumnsToGrid", "labelSizing", "labelMaxLineWidth",
+      ...ALWAYS_ACTIVE_PARAMS, ...PARAMS_ELK_NESTING, ...PARAMS_VIEW_WIDTH,
+      "sort", "labelSizing", "labelMaxLineWidth",
       "elementSpacing", "reverseConditions",
     ],
     supportedOptions:     { containerAlgorithm: ["Layered", "Grid", "Pack"] },
     labelPositionDefault: null,
-    tooltip: "High-level landscape summaries and grouped overviews with strong nesting support (ELK)",
+    tooltip: "Packs boxes as tightly as it can; most compact with Use label width.\nNesting is supported (ELK Rectpacking)",
+    paramConflicts: CONFLICTS_VIEW,
+  },
+
+  Tiles: {
+    engine:               "Tiles",
+    engineAlgorithmId:    "tiles",
+    style:                "Compact",
+    supportsNesting:      "full",
+    supportsSelfLoops:    false,  // tiles position nodes only — they do not route edges
+    activeParams:         [
+      ...ALWAYS_ACTIVE_PARAMS, "nestingConditions", "padding", "sort", "alignWidthSameType", "columnsAcrossContainers",
+      ...PARAMS_VIEW_SIZE, "labelSizing", "labelMaxLineWidth", "elementSpacing", "reverseConditions",
+    ],
+    supportedOptions:     {},
+    labelPositionDefault: null,
+    tooltip: "Sorted nestings tiled tightly: the order reads left to right and down.\nLittle white space; nesting is supported (no layout engine)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -336,7 +351,7 @@ const ALGORITHMS = Object.freeze({
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS,
       "direction", "ranking", "acyclicer", "labelPosition", "reverseConditions",
-      "nestingConditions", "sortContainers",
+      "nestingConditions",
       "layerSpacing", "elementSpacing", "connectionSpacing",
     ],
     supportedOptions: {
@@ -367,7 +382,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Hierarchical layered layout with direction control and strong cluster nesting. Supports orthogonal, polyline and spline routing (Graphviz dot)",
+    tooltip: "Hierarchical layered layout with strong cluster nesting.\nOrthogonal, polyline and spline routing (Graphviz dot)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -388,7 +403,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Spring-model layout for undirected networks. No nesting (use FDP) and no direction control (Graphviz neato)",
+    tooltip: "Spring-model layout for undirected networks; for nesting use FDP (Graphviz neato)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -430,7 +445,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Force-directed layout like FDP, built up over coarser versions of the graph: only gains over FDP on large networks (100+ elements). No nesting (Graphviz sfdp)",
+    tooltip: "Force-directed like FDP, built up over coarser versions of the graph.\nOnly gains over FDP on large networks of 100+ elements (Graphviz sfdp)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -448,7 +463,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Network on concentric circles by distance from a central element; every connection kept. No direction control or nesting (Graphviz twopi)",
+    tooltip: "Network on concentric circles by distance from a central element.\nEvery connection is kept (Graphviz twopi)",
     paramConflicts: CONFLICTS_VIEW,
   },
 
@@ -470,10 +485,7 @@ const ALGORITHMS = Object.freeze({
       labelPosition: LP_GV,
     },
     labelPositionDefault: "Natural",
-    tooltip: "Elements on circles, ordered so that few connections cross. Suited to cycles (life cycles, control loops, chains that return to their start): " +
-             "Per cycle shows each cycle as its own circle where cycles meet in one element or one relation; One circle gives an overview in which every element counts equally. " +
-             "The model should have many connections spread over its elements and no dominant hub (use Twopi or Radial), hierarchy (use Tree) or flow direction (use Layered). " +
-             "Up to about 40 elements. No direction control or nesting (Graphviz circo)",
+    tooltip: "Elements on circles, ordered so that few connections cross: for cycles such as life cycles and loops.\nNeeds many connections, no dominant hub or hierarchy; up to about 40 elements (Graphviz circo)",
     paramConflicts: CONFLICTS_VIEW,
   },
 });
@@ -491,7 +503,7 @@ const ACTION = Object.freeze({
   ONE_EACH:      { id: "one_each",      label: "One view each",
     tooltip: "Creates one view per selected element, named after the element." },
   EXPAND_VIEW:   { id: "expand_view",   label: "Expand view",
-    tooltip: "Adds elements related to the elements selected on the view (steps on the Selection tab),\nwith the relations the steps follow, and lays out the whole view.\nNeeds elements selected on the view, not the view in the model tree." },
+    tooltip: "Adds elements related to the elements selected on the view (steps on the Selection tab), then\nlays out the whole view; needs elements selected on the view, not the view in the model tree." },
   LAYOUT_ONLY:   { id: "layout_only",   label: "Layout only",
     tooltip: "Lays out all elements on the view again.\nNothing is added or removed." },
 });
@@ -506,7 +518,7 @@ const ROUTING = Object.freeze({
   STRAIGHT:      { id: "Straight",             label: "Straight",
     tooltip: "Draws relation lines as direct straight lines." },
   SPLINE:        { id: "Spline (approximated)", label: "Spline (approximated)",
-    tooltip: "Graphviz curves, approximated with bendpoints. Graphviz only." },
+    tooltip: "Graphviz curves, approximated with bendpoints." },
   SPLINES:       { id: "Splines",              label: "Splines",
     tooltip: "Draws relation lines as smooth curves." },
 });
@@ -535,9 +547,9 @@ const RANKING = Object.freeze([
 
 const NODE_PLACEMENT = Object.freeze([
   { val: "Centred", default: true,
-    tooltip: "Elements sit centred between the elements they connect to; shortest connections and usually the smallest view." },
+    tooltip: "Elements centred between the elements they connect to:\nshortest connections, usually the smallest view." },
   { val: "Straight lines",
-    tooltip: "As many straight connections as possible; the layout leans to one side, so parents may sit at the edge of their children." },
+    tooltip: "As many straight connections as possible;\nthe layout leans to one side, so parents may sit at the edge of their children." },
 ]);
 
 // ── Circles (Circo only) ──────────────────────────────────────────────────────
@@ -547,8 +559,7 @@ const CIRCLES = Object.freeze([
   { val: "One circle", default: true,
     tooltip: "All elements on one circle; connections run across it. Also fits a model with a hub or without cycles." },
   { val: "Per cycle",
-    tooltip: "Each cycle on its own circle, joined where cycles meet in one element or one relation; cycles joined by two or more relations share a circle. " +
-             "Elements outside a cycle hang off it, so a hub becomes a star." },
+    tooltip: "Each cycle on its own circle, joined where cycles meet in one element or relation.\nElements outside a cycle hang off it, so a hub becomes a star." },
 ]);
 
 // ── Acyclicer options (Dagre only) ────────────────────────────────────────────
@@ -559,10 +570,18 @@ const ACYCLICER = Object.freeze([
 ]);
 
 // ── Element order (all algorithms) ────────────────────────────────────────────
-// Order of the elements outside containers as they go into the layout (generate_view.js);
-// inside a container the container's own order holds.
+// Algorithm start: the order of the elements outside containers as they go into the layout
+// (generate_view.js); a sorted view (SORT_MODE) overrules it.
 
-const ELEMENT_ORDER = Object.freeze([
+/** How the view is sorted (param sort), always ascending, by type and name. */
+const SORT_MODE = Object.freeze({
+  NONE:             "None",
+  ELEMENTS:         "Elements",
+  CONTAINERS_FIRST: "Containers, then elements",
+  ALL_TOGETHER:     "All together",
+});
+
+const ALGORITHM_START = Object.freeze([
   { val: "Selection", default: true },
   { val: "Name △" },
   { val: "Type and name △" },
@@ -585,7 +604,7 @@ const LABEL_POSITIONS = Object.freeze([
   { val: "Source",  tooltip: "Near the source element." },
   { val: "Middle",  tooltip: "At the midpoint of the connection." },
   { val: "Target",  tooltip: "Near the target element." },
-  { val: "Natural", tooltip: "Graphviz-computed position avoiding overlap. Only available with Graphviz algorithms." },
+  { val: "Natural", tooltip: "Graphviz-computed position that avoids overlap." },
 ]);
 
 // ── Aspect ratio options ──────────────────────────────────────────────────────
@@ -726,11 +745,11 @@ const DEFAULT_PRESET = Object.freeze({
     nestingConditions:     [],                     // condition list (rel_filter "relation"): relations drawn as nesting; [] = none
     padding:               20,
     diagramPadding:        10,
-    sortContainers:        false,
-    elementOrder:          "Selection",            // ELEMENT_ORDER: elements outside containers
-    cycleElementOrder:     false,                  // each layout of an existing view takes the next elementOrder
+    sort:                  "Elements",             // SORT_MODE (Grid, Pack, Tiles)
+    algorithmStart:          "Selection",            // ALGORITHM_START: elements outside containers
+    cycleAlgorithmStart:     false,                  // each layout of an existing view takes the next algorithmStart
     alignWidthSameType:    false,
-    snapColumnsToGrid:     false,
+    columnsAcrossContainers:     false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
     connectionsMode:       "Between containers",   // "Crossing containers" | "Between containers"
     layerSpacing:          60,
@@ -1111,7 +1130,7 @@ if (typeof module !== "undefined" && module.exports) {
     paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
+    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ALGORITHM_START, SORT_MODE, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,

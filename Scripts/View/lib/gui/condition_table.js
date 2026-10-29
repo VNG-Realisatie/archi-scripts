@@ -43,55 +43,6 @@ const RowLayout         = Java.type("org.eclipse.swt.layout.RowLayout");
 const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 
-const CHECK_SIZE = 16;
-
-/**
- * A drawn checkbox. A disabled GTK checkbox keeps its blue tick and still looks active; this one
- * turns grey when disabled. Mouse click and Space toggle it; Tab moves past it.
- * @param {Swt.Composite} parent
- * @param {boolean} value
- * @param {(value: boolean) => void} onChange
- * @returns {Required<ConditionTableCell> & { canvas: Swt.Canvas }}
- */
-function checkBox(parent, value, onChange) {
-  const canvas = new CanvasWidget(parent, SWT.NONE);
-  let checked = !!value;
-  const toggle = () => { if (!canvas.isEnabled()) return; checked = !checked; canvas.redraw(); onChange(checked); };
-  canvas.addListener(SWT.Paint, e => {
-    const gc = e.gc, d = canvas.getDisplay(), on = canvas.isEnabled();
-    const sys = (/** @type {number} */ c) => d.getSystemColor(c);
-    const a = canvas.getClientArea();
-    const x = Math.floor((a.width - CHECK_SIZE) / 2), y = Math.floor((a.height - CHECK_SIZE) / 2);
-    gc.setAntialias(SWT.ON);
-    if (checked) {
-      gc.setBackground(sys(on ? SWT.COLOR_LIST_SELECTION : SWT.COLOR_WIDGET_NORMAL_SHADOW));
-      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
-      gc.setForeground(sys(SWT.COLOR_WHITE));
-      gc.setLineWidth(2);
-      gc.drawLine(x + 4, y + 8, x + 7, y + 11);
-      gc.drawLine(x + 7, y + 11, x + 12, y + 5);
-    } else {
-      gc.setBackground(sys(on ? SWT.COLOR_LIST_BACKGROUND : SWT.COLOR_WIDGET_BACKGROUND));
-      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
-      gc.setForeground(sys(on ? SWT.COLOR_WIDGET_DARK_SHADOW : SWT.COLOR_WIDGET_NORMAL_SHADOW));
-      gc.setLineWidth(1);
-      gc.drawRoundRectangle(x, y, CHECK_SIZE - 1, CHECK_SIZE - 1, 5, 5);
-    }
-    if (canvas.isFocusControl()) { gc.setLineWidth(1); gc.drawFocus(x - 1, y - 1, CHECK_SIZE + 2, CHECK_SIZE + 2); }
-  });
-  canvas.addListener(SWT.MouseUp, e => { if (e.button === 1) toggle(); });
-  canvas.addListener(SWT.KeyDown, e => { if (String(e.character) === " ") toggle(); });
-  canvas.addListener(SWT.Traverse, e => { e.doit = true; });
-  canvas.addListener(SWT.FocusIn,  () => canvas.redraw());
-  canvas.addListener(SWT.FocusOut, () => canvas.redraw());
-  return {
-    canvas,
-    set(v) { checked = !!v; canvas.redraw(); },
-    enable(on) { canvas.setEnabled(on); canvas.redraw(); },
-    setToolTipText(text) { canvas.setToolTipText(text); },
-  };
-}
-
 /**
  * Column definition:
  *   key       condition field (count columns: "relations" | "elements")
@@ -161,14 +112,13 @@ function conditionTable(parent, opts) {
     changed();
   });
 
-  /** @type {Swt.Button | null} */
+  /** @type {CheckBox | null} */
   let chkProp = null;
   if (opts.propCondition) {
-    chkProp = new ButtonWidget(footer, SWT.CHECK);
-    chkProp.setText("Match property");
-    chkProp.setToolTipText("Show columns to match by a property value. Always on when a condition uses it.");
-    // Cast: assigned just above; tsc does not keep the narrowing inside the listener.
-    chkProp.addListener(SWT.Selection, () => { propOn = /** @type {Swt.Button} */ (chkProp).getSelection(); rebuild(); });
+    const chk = Widgets.checkBox(footer, "Match property");
+    chk.setToolTipText("Show columns to match by a property value. Always on when a condition uses it.");
+    chk.addListener(SWT.Selection, () => { propOn = chk.getSelection(); rebuild(); });
+    chkProp = chk;
   }
   if (opts.footer) opts.footer(footer);
 
@@ -296,9 +246,9 @@ function conditionTable(parent, opts) {
         return c;
       }
       case "check": {
-        const box = checkBox(grid, condition[col.key] === undefined ? col.default !== false : !!condition[col.key],
+        const box = Widgets.canvasCheck(grid, condition[col.key] === undefined ? col.default !== false : !!condition[col.key],
           v => { condition[col.key] = v; refresh(); changed(); });
-        gd().align(SWT.CENTER, SWT.CENTER).hint(CHECK_SIZE + 2, CHECK_SIZE + 2).applyTo(box.canvas);
+        gd().align(SWT.CENTER, SWT.CENTER).hint(Widgets.CHECK_SIZE + 2, Widgets.CHECK_SIZE + 2).applyTo(box.canvas);
         box.setToolTipText(tip);
         return box;
       }
@@ -566,8 +516,8 @@ const RELATION_CONDITION_COLUMNS = Object.freeze([
 ]);
 // Nesting / reverse: the relation-type combo shows the condition's count, "Aggregation (62)".
 const _countedRelCol = Object.assign({}, RELATION_CONDITION_COLUMNS[2], { count: "relations", width: 166,
-  tooltip: "Relationship type. All = any type.\n(n): relations on the view this condition matches on its own; " +
-           "for an Exclude condition, how many it removes from the other conditions' matches." });
+  tooltip: "Relationship type; All = any type.\n" +
+           "(n): relations on the view this condition matches on its own; Exclude: how many it removes." });
 /** @type {ConditionTableColumn<RelationCondition>[]} */
 const _COUNTED_FEATURE_COLUMNS = [_onCol, _featureModeCol, RELATION_CONDITION_COLUMNS[1], _countedRelCol, RELATION_CONDITION_COLUMNS[3],
   { key: "propertyOf", header: "Property of", kind: "choice", items: REL_PROP_OF_ITEMS, width: 120, optional: true,
@@ -577,11 +527,11 @@ const _COUNTED_FEATURE_COLUMNS = [_onCol, _featureModeCol, RELATION_CONDITION_CO
 const NESTING_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
   { key: "everyContainer", header: "Every", kind: "check", width: 40, default: false,
     enabled: r => r.mode !== "exclude",
-    tooltip: "A child with several parents: on = it appears in every parent; off = it appears in one parent " +
-             "and the other relations are drawn as a line." },
+    tooltip: "A child with several parents: on = it appears in every parent;\n" +
+             "off = in one parent, and the other relations are drawn as a line." },
   { key: "nested", header: "Nested", kind: "count", width: 50, format: n => String(n),
-    tooltip: "Of those relations, how many are drawn as nesting. The others are drawn as a line: " +
-             "their child already has a parent, or they form a circular nesting." }]);
+    tooltip: "How many of those relations are drawn as nesting; the others are lines:\n" +
+             "their child already has a parent, or the nesting would be circular." }]);
 // Reverse: an empty cell where Nesting has its Nested count, so both tables line up.
 /** @type {readonly ConditionTableColumn<RelationCondition>[]} */
 const REVERSE_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
@@ -590,8 +540,8 @@ const REVERSE_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
 /** @type {readonly ConditionTableColumn<RelationCondition>[]} */
 const FILTER_RELATION_CONDITION_COLUMNS = Object.freeze([_onCol, RELATION_CONDITION_COLUMNS[0], RELATION_CONDITION_COLUMNS[1],
   Object.assign({}, RELATION_CONDITION_COLUMNS[2], { count: "count", width: 166,
-    tooltip: "Relationship type. All = any type.\n(n): relations between the filtered elements this condition keeps on its own; " +
-             "for an Exclude condition, how many it removes from the other conditions' result." }),
+    tooltip: "Relationship type; All = any type.\n" +
+             "(n): relations between the filtered elements it keeps on its own; Exclude: how many it removes." }),
   RELATION_CONDITION_COLUMNS[3]]);
 /** @type {readonly ConditionTableColumn<StepCondition>[]} */
 const STEP_CONDITION_COLUMNS = Object.freeze([
@@ -607,7 +557,7 @@ const STEP_CONDITION_COLUMNS = Object.freeze([
   Object.assign(_typeCol("added", "Added\nelements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
     { count: "elements" }),
   { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS, width: 120, optional: true,
-    tooltip: "Where the property is read: the added element, the followed relation or the element from the previous step." },
+    tooltip: "Where the property is read: the added element, the followed relation or the previous step's element." },
   ..._propCols("add elements"),
 ]);
 /** @type {readonly ConditionTableColumn<StyleCondition>[]} */
@@ -630,8 +580,8 @@ const STYLE_CONDITION_COLUMNS = Object.freeze([
     enabled: r => r.color !== "element",
     tooltip: "Whose property supplies the value: the element, the relation, its source or its target." },
   { key: "property", header: "Property", kind: "prop", width: 140, count: "count",
-    tooltip: "The property whose values give the colors.\n(n): objects on the view this condition colors " +
-             "(no property chosen yet: objects it reaches)." },
+    tooltip: "The property whose values give the colors.\n" +
+             "(n): objects on the view this condition colors (no property yet: objects it reaches)." },
   { key: "colorRange", header: "Range", kind: "custom", create: (p, v, on) => Widgets.colorRangePicker(p, v || "Blues", on),
     tooltip: "Colors from low to high value of the property." },
   { key: "warn", kind: "warn" },
@@ -649,20 +599,19 @@ function nestingStyleConditionColumns(colors) {
     _onCol,
     _typeCol("parent", "Parent type", "Type of the container. A root container is styled when a condition names its type here. All = any type.", 150),
     { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
-      tooltip: "Outgoing: the relation starts at the parent.\nIncoming: the relation ends at the parent.\n" +
-               "Either: both (default). Either with relation All also matches a nesting without a relation." },
+      tooltip: "Outgoing: the relation starts at the parent; Incoming: it ends there; Either: both (default).\n" +
+               "Either with relation All also matches a nesting without a relation." },
     _relCol("relation", "Relation type", "The model relation between parent and child. All = any type."),
     { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 150,
-      tooltip: "Type of the nested element. = Parent: the parent's type (the chain continues one level deeper). " +
+      tooltip: "Type of the nested element; = Parent: the parent's type (the chain goes one level deeper).\n" +
                "Another type starts again from that type's color. All = any type." },
     { key: "color", header: "Color", kind: "custom",
       create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) => Widgets.colorPicker(p, {
         items: () => [{ value: "", label: "Default", colors: [] }, ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
         missing: x => ({ value: x, label: x + " (not in list)", colors: [] }),
         value: v, onChange: on, width: 190 }),
-      tooltip: "Color of the parent type: a color of the palette, or Default (the element type's default fill). " +
-               "Elements of that type take it, lighter per nesting level; where conditions with the same parent type " +
-               "give different colors, the last one wins." },
+      tooltip: "Color of the parent type: a palette color, or Default (the element type's default fill).\n" +
+               "Its elements take it, lighter per level; of conditions with the same parent type the last wins." },
   ]);
 }
 

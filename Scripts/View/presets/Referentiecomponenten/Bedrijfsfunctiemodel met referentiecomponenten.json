@@ -1,12 +1,12 @@
 {
   "schemaVersion": 5,
   "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
-  "algorithm": "Pack",
+  "algorithm": "Tiles",
   "params": {
     "direction": "Right",
     "nodePlacement": "Centred",
     "circles": "One circle",
-    "routing": "Orthogonal",
+    "routing": "Straight",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
@@ -21,21 +21,21 @@
     ],
     "padding": 20,
     "diagramPadding": 20,
-    "sortContainers": false,
-    "elementOrder": "Selection",
-    "cycleElementOrder": false,
+    "sort": "All together",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
     "alignWidthSameType": true,
-    "snapColumnsToGrid": false,
+    "columnsAcrossContainers": true,
     "containerAlgorithm": "Pack",
     "connectionsMode": "Between containers",
     "layerSpacing": 180,
-    "elementSpacing": 10,
+    "elementSpacing": 20,
     "connectionSpacing": 25,
-    "connectionElementSpacing": 20,
+    "connectionElementSpacing": 9,
     "elementWidth": 300,
     "elementHeight": 60,
-    "maxWidth": 0,
-    "aspectRatio": 1,
+    "maxWidth": 2800,
+    "aspectRatio": 1.25,
     "viewSizeMode": "aspectRatio",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
@@ -49,9 +49,10 @@
   "relatedElements": {
     "steps": [
       {
-        "repeat": 2,
+        "repeat": 1,
         "conditions": [
-          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
       {
@@ -75,7 +76,7 @@
     ]
   },
   "view": {
-    "name": "Ondersteuning",
+    "name": "GEMMA domeinen",
     "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
     "suffix": ""
   },
@@ -83,19 +84,19 @@
     "palette": "GEMMA",
     "styleByProperty": {
       "conditions": [],
-      "mixedValuesColor": "#FF6B35",
+      "mixedValuesColor": "#f66151",
       "lineWidth": 0
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Strategie"},
-        {"parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag"},
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "child": "", "color": "Grouping"},
+        {"parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Bedrijf gedrag", "child": "same"},
         {"on": false, "parent": "business-function", "direction": "outgoing", "relation": "aggregation-relationship", "child": "same"},
         {"on": false, "parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"},
         {"on": false, "parent": "application-service", "direction": "incoming", "relation": "realization-relationship", "child": "application-component", "color": "Applicatie actief"}
       ],
       "fontEnabled": true,
-      "rootFontSize": 14,
+      "rootFontSize": 16,
       "rootFontBold": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
@@ -103,7 +104,7 @@
       "lightenPerLevel": 30
     },
     "highlightRepeated": {
-      "enabled": true,
+      "enabled": false,
       "colorRange": "Pastel1"
     }
   },

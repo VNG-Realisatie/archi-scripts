@@ -19,6 +19,15 @@ No exceptions. Violating them corrupts diagrams or breaks the pipeline. Each is 
 
 Preset files (`presets/**/*.json`) are plain JSON, no `module.exports`.
 
+## Conventions
+
+Defaults, not hard rules; a reason to deviate goes in a comment.
+
+- **Tooltips.**
+  - At most two short lines: what it does, then the one detail or trade-off the user needs.
+  - No availability: never which algorithms use it or when it is greyed. The dialog greys the control; say why only when the reason is not obvious (*Needs a Nesting condition with Every*).
+  - No list of the options a control already shows; name an option only to explain it (*Greedy: reverses as few relations as it can*).
+
 ## Docs
 
 **What goes where**: the Division table in `docs/ARCHITECTURE.md` (canonical) — one owner per fact, values in `lib/defs.js`, doc tables generated from it, no restated code. On a conflict SPEC wins. Markers: `<!-- @mark: … -->` = act on it, then remove; `<!-- @keep: … -->` = signed off, do not rewrite.

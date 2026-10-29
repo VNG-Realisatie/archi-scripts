@@ -39,8 +39,9 @@ interface LayoutGraph {
   options: EffectiveParams;
   engineParams: EngineParams;
   alignWidthSameType: boolean;
-  snapColumnsToGrid: boolean;
-  sortContainers: boolean;
+  columnsAcrossContainers: boolean;
+  /** How the boxes are sorted (defs.SORT_MODE); undefined where the algorithm has no Sort (directed views). */
+  sort?: string;
   /** Occurrence id → parent occurrence id (container-ness is derived from this; Scripts/View/AGENTS.md). */
   _parentMap: Record<string, string>;
   _parentRels: ParentRel[];

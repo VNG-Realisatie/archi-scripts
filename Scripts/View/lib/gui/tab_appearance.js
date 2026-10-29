@@ -145,7 +145,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   const paletteRow = new CompositeWidget(page, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 2).spacing(6, 0).applyTo(paletteRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(paletteRow);
-  const paletteTip = `Named colors to choose from in the nesting style conditions (${Palettes.PALETTES_FILE} in the presets folder).`;
+  const paletteTip = `Named colors for the nesting style conditions (${Palettes.PALETTES_FILE} in the presets folder).`;
   const lblPalette = new LabelWidget(paletteRow, SWT.NONE);
   lblPalette.setText("Palette:");
   lblPalette.setToolTipText(paletteTip);
@@ -185,8 +185,8 @@ function buildAppearanceTab(tabFolder, ctx) {
   const sbpFoot = new CompositeWidget(grpSbp, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 2).spacing(6, 0).applyTo(sbpFoot);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpFoot);
-  const mixedTip = "Used when an element or relation gets more than one different value for the property, " +
-                   "so no single color from the range applies.";
+  const mixedTip = "Used when an element or relation has more than one value for the property,\n" +
+                   "so no single color of the range applies.";
   const lblMixed = new LabelWidget(sbpFoot, SWT.NONE);
   lblMixed.setText("Mixed values color:");
   lblMixed.setToolTipText(mixedTip);
@@ -227,8 +227,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   GridLayoutFactory.fillDefaults().numColumns(6).margins(0,2).spacing(6,0).applyTo(nestFontRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(nestFontRow);
 
-  const chkNestFont = new ButtonWidget(nestFontRow, SWT.CHECK);
-  chkNestFont.setText("Change font size with nesting level");
+  const chkNestFont = Widgets.checkBox(nestFontRow, "Change font size with nesting level");
   chkNestFont.setToolTipText("Adjust font size based on nesting depth. Root gets the largest size.");
   chkNestFont.addListener(SWT.Selection, onChange);
   w.chkNestFont = chkNestFont;
@@ -240,8 +239,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   nestRootFontSp.addListener(SWT.Selection, onChange);
   w.spinNestRootFontSize = nestRootFontSp;
 
-  const chkNestBold = new ButtonWidget(nestFontRow, SWT.CHECK);
-  chkNestBold.setText("Bold");
+  const chkNestBold = Widgets.checkBox(nestFontRow, "Bold");
   chkNestBold.setToolTipText("Make root containers bold");
   chkNestBold.setSelection(true);
   chkNestBold.addListener(SWT.Selection, onChange);
@@ -283,13 +281,12 @@ function buildAppearanceTab(tabFolder, ctx) {
   GridLayoutFactory.fillDefaults().numColumns(7).margins(0,2).spacing(6,0).applyTo(nestColorRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(nestColorRow);
 
-  const chkNestColor = new ButtonWidget(nestColorRow, SWT.CHECK);
-  chkNestColor.setText("Change color by nesting level");
+  const chkNestColor = Widgets.checkBox(nestColorRow, "Change color by nesting level");
   chkNestColor.setToolTipText("Fill each segment from its start color, lighter per nesting level.");
   chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
   w.chkNestColor = chkNestColor;
 
-  const darkenTip = "A segment starts this many levels darker than its color: one level darker is the inverse of one level lighter, " +
+  const darkenTip = "A segment starts this many levels darker than its color,\n" +
                     "so its color is reached this many levels in.";
   const lblNestDarken = new LabelWidget(nestColorRow, SWT.NONE);
   lblNestDarken.setText("Darken start:");
@@ -311,7 +308,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   const nestLightenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
   nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
   GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestLightenSp);
-  nestLightenSp.setToolTipText("Per level inside a segment, the fill closes this percentage of the distance to white (hue and saturation kept).");
+  nestLightenSp.setToolTipText("Per level inside a segment, the fill moves this percentage closer to white\n(hue and saturation kept).");
   nestLightenSp.addListener(SWT.Selection, onChange);
   w.spinNestLighten = nestLightenSp;
 
@@ -330,8 +327,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   GridLayoutFactory.fillDefaults().numColumns(4).margins(0,2).spacing(6,0).applyTo(hlRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(hlRow);
 
-  const chkHighlightRep = new ButtonWidget(hlRow, SWT.CHECK);
-  chkHighlightRep.setText("Enable");
+  const chkHighlightRep = Widgets.checkBox(hlRow, "Enable");
   chkHighlightRep.setToolTipText("Elements that appear more than once on this view receive a shared color per identity.\nNeeds a Nesting condition with Every.");
   chkHighlightRep.addListener(SWT.Selection, () => {
     updateAppearancePropStates(ctx);

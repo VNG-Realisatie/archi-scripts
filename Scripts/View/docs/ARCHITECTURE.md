@@ -196,7 +196,7 @@ Dialog (_gui.ajs → gui/dialog_main · open)
   3 a view selected on the canvas: read it once             selection_read · readSelection, readRelationIndex
   4 build the tabs; recount on every committed change       (the helpers below)
   5 an action closes the dialog; save the session
-    (Cycle: the next order), then call the API              generate_view
+    (Cycle algorithm start: the next one), then call the API generate_view
 
 Headless (run_preset · fromFilename, fromBase)
   1 file name → preset, action, direction; or the base preset
@@ -263,9 +263,9 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - **The configuration is the source of truth**; widgets are a view on it, with one sync in and one save out. Layout params are table-driven (`PARAM_WIDGETS`: param → widget kind), so loading, saving, enabling and tooltips are one loop. Labels, tooltips and "used by" come from `defs`.
 - **The dialog is cut along its tabs.** `dialog_main` owns the settings, the sync between them and the widgets, the preset row, the action area and the counters; each tab file builds its tab. A tab cannot require `dialog_main`, so the context carries two callbacks, `recount()` and `markModified()`, set when the dialog opens. Helpers shared by tabs live in `widgets.js`; the Layout and Appearance tabs need each other's state, which is why the nesting query is there.
 - **Counting has no widgets.** `counts.dialogCounts` takes the conditions as the tables show them and the selection read before the dialog opened, and returns every number; `dialog_main` reads the tables, calls it and puts the numbers on the widgets. Node tests it (`counts_test.js`).
-- **One condition-table widget** serves every condition list; its checkboxes are drawn on a Canvas, so they can turn grey ([`dialog-style.md`](reference/dialog-style.md)). Counts of an off condition are computed with the condition switched on.
+- **One condition-table widget** serves every condition list. Every checkbox of the dialog is drawn on a Canvas (`Widgets.checkBox`, `Widgets.canvasCheck`), so it can turn grey ([`dialog-style.md`](reference/dialog-style.md)). Counts of an off condition are computed with the condition switched on.
 - **Commit events**: selection events and spinner focus-out.
-- **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle* on, the run's order is set first (Selection for a Create action), and the session gets the next one.
+- **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle algorithm start* on, the run's start is set first (Selection for a Create action), and the session gets the next one.
 - **Coupled distances** react to the spinners' Selection event, which only the user fires (not `setSelection`), and to every algorithm update, which also runs after a preset is loaded.
 
 ## Layer 2 — View-generation API
@@ -399,19 +399,20 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 | An option is offered for an algorithm only where it has its effect; where the engine lacks it, the adapter provides it only as a named exception (SPEC rule 18). | One control must behave the same in every algorithm. With Tree's layer distance and routing greyed out, levels sat at element distance with slanted lines, and nothing could be set (test cases 1–2). |
 | An adapter sets only the engine's own options; it may compute their values from the layout graph, but adds no placement, ordering or crossing reduction of its own (SPEC rule 18). | Otherwise the algorithms converge: Twopi, Circo and Radial would each become the adapter's own radial layout, and choosing an algorithm would stop mattering. |
 | Layer distance is the space between elements, border to border, in every algorithm (SPEC rule 19). | Twopi's own ring distance is centre to centre, so the same value gave a far tighter view than Layered; one meaning lets a user switch algorithms without re-tuning. |
-| **Order** (elements outside containers) is separate from **Sort containers**; *Cycle* starts every new view with the selection order. | Sort containers makes a grid read alphabetically; Order gives the algorithm another starting point. Starting from the selection keeps a new view reproducible; cycling on re-layout lets the user click through alternatives. |
+| **Algorithm start** (elements outside containers, in the Algorithm box) is separate from **Sort** (Containers box; Grid, Pack, Tiles; always ascending); where Sort sorts, it wins and Algorithm start is greyed. *Cycle algorithm start* starts every new view with the selection order. | Sorting makes a grid or the tiles read alphabetically; Algorithm start gives the algorithm another starting point; one Order meaning both was ambiguous. Sort needs containers: a flat view is ordered by Algorithm start, which also sorts by name. Directed views are not sorted. |
 
 **Realisation.**
 - **Engine options, last wins:** engine defaults → GUI params through the adapter's mapping → `engineParams.<Engine>` from the preset (expert override, no dialog control). `engineParams.layout` tunes the engine-independent label sizing.
 - **Settings outside the dialog are checked at the run, not in `validatePreset`:** `validatePreset` also runs when the dialog loads a preset, and console output inside the modal dialog blocks until it closes. `generate_view.checkEngineParams` checks `layout` (`engine-utils.checkLabelSizing`) and the run's engine (the adapter's `checkEngineParams`), never another engine's section, which only a run with that engine uses. Each adapter owns its table (`ENGINE_PARAMS`: keys, defaults, effect) and `dialogSettings`, the keys its mapping sets with the param that sets them. `engine-utils.dialogKeys` finds those by probing each mapper: a key whose value varies, or that is left out for some value, is set by the dialog; a key with one value for every probe is a fixed value of the adapter, which counts as a default. ELK option ids, targets and algorithms come from the bundled ELK's registry (`metadata()` in the elkjs wrapper). The check rebuilds the run's root, container and leaf options with `_engineOptions` and `_elkNode`, so an option the adapter sets after the preset shows as not used. Only an algorithm's own options (`elk.<algorithm>.*`) are checked against the algorithm: ELK declares fewer core options than an algorithm reads (measured: Stress uses `elk.padding` and `elk.aspectRatio` undeclared). Not detected: a core option that has no effect in this run (`elk.spacing.nodeSelfLoop` with Pack, which passes no self-loops to ELK). Reference: [presets § Settings outside the dialog](reference/presets.md#settings-outside-the-dialog).
-- **Order** is applied while building the layout graph: the elements outside containers are sorted among themselves, and with a sorted order the relations follow the order of their elements. The ELK and Dagre adapters keep that input order outside containers, and sort by type and name only inside a container.
+- **Algorithm start** is applied while building the layout graph: the elements outside containers are sorted among themselves, and with a sorted order the relations follow the order of their elements. **Sort** is applied by the adapters through `engine-utils.sortedNodes` (ELK, Dagre, Tiles), by type and name: `graph.sort` is absent for an algorithm without Sort (then only the elements inside containers are sorted), and a view without containers is left as it is. ELK Pack sets `orderBySize` only for *Elements*.
 
 ### Sizing
 
 | Decision | Why |
 |---|---|
 | Same width per level telescopes from the deepest level, one padding ring per level, and floors containers. | It is the width a single-column container of that depth would have: well defined at every level and independent of how wide one busy branch packs. A container that needs more bulges instead of clipping. |
-| Snap columns to grid starts tight and widens only where containers collide. | Gaps stay minimal except where real containers would overlap. |
+| Columns across containers starts every gap at Distance and widens only where siblings collide; it is offered for Tiles only. | Gaps stay minimal except where real boxes would overlap. A gap taken from the worst row, or one gap for all boundaries, made every boundary as wide as the worst (130–190 px in deep views). On Pack the columns do not exist: ELK Pack gave no column structure on a view of 800 elements. |
+| Same width per level takes the widest leaf of a level into account. | With Use label width the leaves differ; the stack is as narrow as it can be while every level holds its widest label. |
 
 Realisation: [ELK](#elk).
 
@@ -434,13 +435,13 @@ Realisation: [ELK](#elk).
 - **Connections-mode lock.** Grid or Pack inside containers forces *Between containers*, because ELK rejects connections into `box` / `rectpacking`. So does an active view size, because a hierarchical layout does not pack unconnected children into rows.
 - An edge between a container and its own descendant cannot be laid out; it is drawn unrouted.
 - **View size.** ELK has no width bound for nested layouts, and top-down layout scales (forbidden). The lever is `elk.aspectRatio` in every scope: it sets how wide unconnected children pack, and its effect compounds over levels.
-  - The adapter searches one ratio for all scopes (log scale, then bisection), measures each run, and repeats the best run with routing.
+  - The adapter searches one ratio for all scopes: it starts from the target, estimates the next ratio from the closest run (a slope measured from the two closest), and keeps every run with its log, so the chosen run is the result (no repeat). At most 6 runs, 10% accepted; Max width is the same search toward the ratio at which the view would be that wide. Grid and Pack offer Max width only.
   - Rectpacking hangs at high ratios, so Pack is capped at 3.
   - Where the ratio has no effect (connection chains set the width, or *Crossing containers*), the target is logged as not reachable.
   - Radial has no *Aspect ratio*: the bundled elkjs declares no `elk.aspectRatio` for `radial`, so the layout never responds to it, and the control is disabled.
 - **Reserve label space** (Layered). Each connection label is an inline ELK label with its estimated size. Layer spacing becomes the connection spacing, and every edge gets a label box (empty ones invisible), so a gap between element layers is `max(layer spacing, label + 2 × connection spacing)`.
 - **Jogs** under 5 px right after a port, left by node placement, are straightened onto the longer segment.
-- **Same width per level** sets leaf widths and container minimum sizes before the one ELK run. The anchor, the narrowest box at the deepest level, is a leaf, whose input width ELK keeps, so the widths come from the layout graph. **Snap columns to grid** (Grid, Pack) is a position-only pass on the result; leaves are moved, never resized.
+- **Same width per level** sets leaf widths and container minimum sizes before the one ELK run: the widths come from the leaf widths of the layout graph, whose input width ELK keeps.
 - **Placement.** *Centred* = network-simplex placement: the shortest total connection length centres an element between its neighbours. *Straight lines* = Brandes-Köpf: each element is aligned with one neighbour, computed from four corners, and the smallest result is kept; hence the lean towards a corner.
 - **Tree** (mrtree) has one spacing for siblings and levels, and only two line styles of its own: a stub then a diagonal, or centre to centre. It ignores the general edge-routing option; ELK silently ignores every option an algorithm does not declare.
   - **Layer distance:** every root-level box is widened in the flow direction by layer distance − element distance (a container by padding on both flow sides), then narrowed back after layout, centred: positions only, sizes unchanged. Connection ends in the widened part move onto the real side.
@@ -490,6 +491,18 @@ Realisation: [ELK](#elk).
   - Element distance goes to `mindist` and, as for Neato, to `overlap=prism` with `sep`: `mindist` alone left wide elements overlapping.
   - *Per cycle*: per connected part, the element with the most connections inside the largest biconnected component (Tarjan; first in input order on a tie) gets `root=true`. A part without a cycle keeps circo's choice.
   - A graph of more than one part runs `-Kcirco -Tdot`, then `-Kneato -n1` on that output: neato keeps the positions, applies the same `overlap` and `sep`, and routes the lines.
+
+### Tiles
+
+| Decision | Why |
+|---|---|
+| Tiles has no layout engine: an adapter (`engines/tiles.js`) tiles the nesting itself, as an ordered slicing floorplan. | Sorted nestings are what it is for, and ELK Pack places by size: it cannot keep an order and leaves holes next to tall boxes. A search over column counts (first attempt) was brute force and gave ragged results; the dynamic programme finds the best shapes without guessing. |
+| Every box has a list of shapes (width, height) that no other shape beats in both; a run of neighbours is cut in two, side by side or one above the other, and the best shapes of every run follow. | A container settles on its shape only when its parent knows the room, so two small containers can sit side by side when that saves space. The order of the children is the reading order (left to right, then down). |
+| The lists keep the shapes with at most 1.5 times the least area, at most 32, spread over the widths on a log scale. | Without the waste filter the thinning dropped the useful widths (a list from 460 to 15260 px). |
+| The view: with Max width the widest root shape that fits once Columns across containers is applied; with Aspect ratio the closest of the 8 nearest shapes, placed and measured; Free: area × (1 + ln²(ratio / 0.75)). The root keeps 96 shapes. | Max width as an upper bound with a portrait preference gave under 2000 px for a limit of 3000; the grid widens a view, so it is judged after the grid. The smallest area alone is one tall column of 500 px. |
+| Connections are not routed (straight lines), as with Pack. | The adapter sets positions only. |
+
+Realisation: `buildTable` (the programme over the runs), `prune` (the shape lists), `build` (one root shape placed, grid applied), `layout` (sorting through `sortedNodes`, Same width through `alignWidthsByLevel`, placement from the back-pointers). *Columns across containers* runs after it through `engine-utils.alignColumnsAcrossContainers`. Test: `tools/tiles_test.js`.
 
 ## SSOT and presets
 
@@ -716,3 +729,4 @@ Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` o
 9. The confirm before *One view each* writes more than 20 views is asked by `generate_view` (`window.confirm`), not by the entry point (SPEC § 3, § 5); a headless caller gets it too.
 10. Step expansion and relation collection follow the order of jArchi's `rels()` (the order the model stores relations in), so *Order as selected* layouts depend on it; Determinism says no result does. Sorting by id would change those layouts and the Archi baseline. The order is also not stable within an Archi session: drawing a connection (`view.add(relation, …)`) moves its relation to the end of `rels()` (probed), so the harness's relation index matches only a freshly opened model.
 11. *New view* does not copy an image object (SPEC § 5 "What Create takes from a view"): jArchi's `createObject` cannot make one, and model changes go only through the public jArchi API (§ Writer). It is laid out and counted, then left out with a console line, so its place stays empty.
+12. After an action (*Layout only*, *New view*, every algorithm) the model, not the view, is selected in the model tree; it used to be the view. The script only calls `view.openInUI()` (`generate_view._openView`); cause not found yet.

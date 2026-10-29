@@ -16,18 +16,10 @@ const Defs    = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./nesting")} */
 const Nesting = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("./engines/engine-utils")} */
-const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes, byTypeAndName } = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { ALGORITHMS, RELATION_WEIGHT_MAP, compareNames } = Defs;
+const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes, ORDER_COMPARE } = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { ALGORITHMS, RELATION_WEIGHT_MAP } = Defs;
 
 const JUNCTION_DIAMETER = 14;
-
-// Element order (defs ELEMENT_ORDER) → comparator; Selection has none: the order the elements came in.
-/** @type {Record<string, (a: LayoutNode, b: LayoutNode) => number>} */
-const ORDER_COMPARE = {
-  "Name △":          (a, b) => compareNames(a.label || "", b.label || ""),
-  "Type and name △": byTypeAndName,
-  "Name ▽":          (a, b) => compareNames(b.label || "", a.label || ""),
-};
 
 /**
  * With a sorted order, put the relations in the order of their elements too: some engines take the
@@ -44,7 +36,7 @@ function _orderEdges(nodes, edges, order) {
 }
 
 /**
- * Put the elements outside containers in the chosen order (defs ELEMENT_ORDER), in place: they
+ * Put the elements outside containers in the chosen order (defs ALGORITHM_START), in place: they
  * keep their slots in the list, only their order among themselves changes. Selection keeps the
  * order they came in. A container's contents keep the container's own order (the engines).
  * @param {LayoutNode[]} nodes
@@ -133,7 +125,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     nodeIds.add(vo.id);
   }
 
-  _orderRootLeaves(nodes, params.elementOrder);
+  _orderRootLeaves(nodes, params.algorithmStart);
 
   // Edges from routed relations: each relation once (docs/reference/selection-nesting.md: Connections between occurrences).
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
@@ -224,7 +216,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     edges.push({ id: String(dc.id), conceptId: String(dc.id), source: src, target: tgt, label: "", weight: 1.0 });
   }
 
-  _orderEdges(nodes, edges, params.elementOrder);
+  _orderEdges(nodes, edges, params.algorithmStart);
 
   const engineParams = preset.engineParams || {};
   sizeLabelBasedNodes(nodes, params, engineParams);
@@ -236,8 +228,8 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     options:        params,
     engineParams,
     alignWidthSameType: params.alignWidthSameType || false,
-    snapColumnsToGrid: params.snapColumnsToGrid || false,
-    sortContainers: params.sortContainers || false,
+    columnsAcrossContainers: params.columnsAcrossContainers || false,
+    sort: params.sort,
     _parentMap:     parentMap,
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,

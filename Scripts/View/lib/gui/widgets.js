@@ -22,6 +22,7 @@ const SpinnerWidget     = Java.type("org.eclipse.swt.widgets.Spinner");
 const GroupWidget       = Java.type("org.eclipse.swt.widgets.Group");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
+const CanvasWidget      = Java.type("org.eclipse.swt.widgets.Canvas");
 const TabItemWidget           = Java.type("org.eclipse.swt.widgets.TabItem");
 const ScrolledCompositeWidget = Java.type("org.eclipse.swt.custom.ScrolledComposite");
 const SWTMenu                 = Java.type("org.eclipse.swt.widgets.Menu");
@@ -534,6 +535,94 @@ function pushBtn(parent, label, tip, handler) {
   return btn;
 }
 
+const CHECK_SIZE = 16;
+
+/**
+ * A drawn checkbox. A disabled GTK checkbox keeps its blue tick and still looks active; this one
+ * turns grey when disabled. Mouse click and Space toggle it; Tab moves past it.
+ * @param {Swt.Composite} parent
+ * @param {boolean} value
+ * @param {(value: boolean) => void} onChange
+ * @returns {Required<ConditionTableCell> & { canvas: Swt.Canvas, get(): boolean, toggle(): void }}
+ */
+function canvasCheck(parent, value, onChange) {
+  const canvas = new CanvasWidget(parent, SWT.NONE);
+  let checked = !!value;
+  const toggle = () => { if (!canvas.isEnabled()) return; checked = !checked; canvas.redraw(); onChange(checked); };
+  canvas.addListener(SWT.Paint, e => {
+    const gc = e.gc, d = canvas.getDisplay(), on = canvas.isEnabled();
+    const sys = (/** @type {number} */ c) => d.getSystemColor(c);
+    const a = canvas.getClientArea();
+    const x = Math.floor((a.width - CHECK_SIZE) / 2), y = Math.floor((a.height - CHECK_SIZE) / 2);
+    gc.setAntialias(SWT.ON);
+    if (checked) {
+      gc.setBackground(sys(on ? SWT.COLOR_LIST_SELECTION : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
+      gc.setForeground(sys(SWT.COLOR_WHITE));
+      gc.setLineWidth(2);
+      gc.drawLine(x + 4, y + 8, x + 7, y + 11);
+      gc.drawLine(x + 7, y + 11, x + 12, y + 5);
+    } else {
+      gc.setBackground(sys(on ? SWT.COLOR_LIST_BACKGROUND : SWT.COLOR_WIDGET_BACKGROUND));
+      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
+      gc.setForeground(sys(on ? SWT.COLOR_WIDGET_DARK_SHADOW : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+      gc.setLineWidth(1);
+      gc.drawRoundRectangle(x, y, CHECK_SIZE - 1, CHECK_SIZE - 1, 5, 5);
+    }
+    if (canvas.isFocusControl()) { gc.setLineWidth(1); gc.drawFocus(x - 1, y - 1, CHECK_SIZE + 2, CHECK_SIZE + 2); }
+  });
+  canvas.addListener(SWT.MouseUp, e => { if (e.button === 1) toggle(); });
+  canvas.addListener(SWT.KeyDown, e => { if (String(e.character) === " ") toggle(); });
+  canvas.addListener(SWT.Traverse, e => { e.doit = true; });
+  canvas.addListener(SWT.FocusIn,  () => canvas.redraw());
+  canvas.addListener(SWT.FocusOut, () => canvas.redraw());
+  return {
+    canvas,
+    get() { return checked; },
+    toggle,
+    set(v) { checked = !!v; canvas.redraw(); },
+    enable(on) { canvas.setEnabled(on); canvas.redraw(); },
+    setToolTipText(text) { canvas.setToolTipText(text); },
+  };
+}
+
+/**
+ * A checkbox with its label, drawn, so it turns grey when disabled (see canvasCheck). Behaves like
+ * the SWT button it replaces: getSelection / setSelection / addListener(SWT.Selection) / setEnabled;
+ * `control` is the composite to lay out.
+ * @param {Swt.Composite} parent
+ * @param {string} label  "" for a box without text
+ * @returns {CheckBox}
+ */
+function checkBox(parent, label) {
+  const box = new CompositeWidget(parent, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(label ? 2 : 1).margins(0, 0).spacing(4, 0).applyTo(box);
+  /** @type {(() => void)[]} */
+  const listeners = [];
+  const cell = canvasCheck(box, false, () => listeners.forEach(fn => fn()));
+  GridDataFactory.swtDefaults().hint(CHECK_SIZE + 2, CHECK_SIZE + 2).applyTo(cell.canvas);
+  /** @type {Swt.Label | null} */
+  let text = null;
+  if (label) {
+    text = new LabelWidget(box, SWT.NONE);
+    text.setText(label);
+    GridDataFactory.fillDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(text);
+    text.addListener(SWT.MouseUp, e => { if (e.button === 1) cell.toggle(); });
+  }
+  const setEnabled = (/** @type {boolean} */ on) => { cell.enable(on); if (text) text.setEnabled(on); };
+  return {
+    control: box,
+    getSelection: () => cell.get(),
+    setSelection: v => cell.set(v),
+    addListener: (type, fn) => { listeners.push(fn); },
+    setText: t => { if (text) text.setText(t); },
+    setToolTipText: t => { box.setToolTipText(t); cell.canvas.setToolTipText(t); if (text) text.setToolTipText(t); },
+    setEnabled,
+    enable: setEnabled,
+    isEnabled: () => cell.canvas.isEnabled(),
+  };
+}
+
 /**
  * @param {Swt.Composite} parent
  * @param {string} label
@@ -543,12 +632,11 @@ function pushBtn(parent, label, tip, handler) {
  * @param {string} key
  */
 function addCheck(parent, label, tip, span, w, key) {
-  const btn = new ButtonWidget(parent, SWT.CHECK);
-  btn.setText(label);
-  if (tip) btn.setToolTipText(tip);
-  GridDataFactory.fillDefaults().span(span, 1).applyTo(btn);
-  w[key] = btn;
-  return btn;
+  const chk = checkBox(parent, label);
+  if (tip) chk.setToolTipText(tip);
+  GridDataFactory.fillDefaults().span(span, 1).applyTo(chk.control);
+  w[key] = chk;
+  return chk;
 }
 
 /**
@@ -575,6 +663,6 @@ function addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    scrolledTab, lbl, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, colorRangePicker, colorRangeItems, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR,
+    scrolledTab, lbl, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, colorRangePicker, colorRangeItems, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, canvasCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR,
   };
 }

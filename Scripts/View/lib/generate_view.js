@@ -60,6 +60,7 @@ function _getAdapter(engine) {
   if (engine === "ELK")      return require(REPO_ROOT + "View/lib/engines/elk");
   if (engine === "Dagre")    return require(REPO_ROOT + "View/lib/engines/dagre");
   if (engine === "Graphviz") return require(REPO_ROOT + "View/lib/engines/graphviz");
+  if (engine === "Tiles")    return require(REPO_ROOT + "View/lib/engines/tiles");
   throw `Unknown engine: "${engine}"`;
 }
 

@@ -8,7 +8,7 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "padding": 20,
-    "sortContainers": true,
+    "sort": "Containers, then elements",
     "layerSpacing": 180,
     "elementSpacing": 15,
     "elementWidth": 270,

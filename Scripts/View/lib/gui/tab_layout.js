@@ -22,7 +22,7 @@ const TabAppearance = require(REPO_ROOT + "View/lib/gui/tab_appearance");
 /** @type {typeof import("./condition_table")} */
 const { conditionTable, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS } = require(REPO_ROOT + "View/lib/gui/condition_table");
 
-const { STYLES, ALGORITHMS, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ELEMENT_ORDER, LABEL_POSITIONS, AR_OPTIONS, DEFAULT_PRESET } = Defs;
+const { STYLES, ALGORITHMS, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ALGORITHM_START, LABEL_POSITIONS, AR_OPTIONS, DEFAULT_PRESET } = Defs;
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
@@ -47,7 +47,8 @@ const NODE_PLACEMENT_TOOLTIPS = Object.fromEntries(NODE_PLACEMENT.map(n => [n.va
 const CIRCLES_LABELS          = CIRCLES.map(c => c.val);
 const CIRCLES_TOOLTIPS        = Object.fromEntries(CIRCLES.map(c => [c.val, c.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
-const ELEMENT_ORDER_LABELS    = ELEMENT_ORDER.map(o => o.val);
+const ALGORITHM_START_LABELS    = ALGORITHM_START.map(o => o.val);
+const SORT_MODE_LABELS      = Object.values(Defs.SORT_MODE);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
 const CONNECTIONS_MODE_LABELS = Defs.ALGORITHMS.Layered.supportedOptions.connectionsMode;
@@ -65,8 +66,8 @@ const PARAM_WIDGETS = Object.freeze({
   labelSizing:              { w: "chkLabelSizing",               kind: "check" },
   labelMaxLineWidth:        { w: "spinLabelMaxLineWidth",        kind: "spin" },
   elementSpacing:           { w: "spinElementSpacing",           kind: "spin" },
-  elementOrder:             { w: "cmbElementOrder",              kind: "combo", items: ELEMENT_ORDER_LABELS },
-  cycleElementOrder:        { w: "chkCycleElementOrder",         kind: "check" },
+  algorithmStart:             { w: "cmbAlgorithmStart",              kind: "combo", items: ALGORITHM_START_LABELS },
+  cycleAlgorithmStart:        { w: "chkCycleAlgorithmStart",         kind: "check" },
   layerSpacing:             { w: "spinLayerSpacing",             kind: "spin" },
   direction:                { w: "cmbDirection",                 kind: "combo", items: DIRECTION_LABELS },
   acyclicer:                { w: "cmbAcyclicer",                 kind: "combo", items: ACYCLICER_LABELS },
@@ -83,9 +84,9 @@ const PARAM_WIDGETS = Object.freeze({
   containerAlgorithm:       { w: "cmbContainerAlgorithm",        kind: "combo", items: CONTAINER_ALGO_LABELS },
   connectionsMode:          { w: "cmbConnectionsMode",           kind: "combo", items: CONNECTIONS_MODE_LABELS },
   padding:                  { w: "spinPadding",                  kind: "spin" },
-  sortContainers:           { w: "chkSortContainers",            kind: "check" },
+  sort:     { w: "cmbSort",      kind: "combo", items: SORT_MODE_LABELS },
   alignWidthSameType:       { w: "chkAlignWidthSameType",        kind: "check" },
-  snapColumnsToGrid:        { w: "chkSnapColumns",               kind: "check" },
+  columnsAcrossContainers:        { w: "chkColumnsAcrossContainers",               kind: "check" },
 });
 
 /**
@@ -165,6 +166,12 @@ function buildLayoutTab(tabFolder, ctx) {
   /** @type {Swt.Composite} */
   let row;
 
+  // Algorithm start: the starting point the algorithm gets, so it sits in the Algorithm box.
+  row = Widgets.formRow(grpAlg, "Algorithm start:", formRows, "form", 2);
+  row.getLayoutData().horizontalSpan = 4;
+  Widgets.addCombo(row, null, ALGORITHM_START_LABELS, 0, SWT.DEFAULT, "cmbAlgorithmStart", w);
+  Widgets.addCheck(row, "Cycle algorithm start", null, 2, w, "chkCycleAlgorithmStart");
+
   // Nesting / reverse / show-in-every alter the on-view role split (nestings vs connections,
   // containers vs nested elements, occurrences): refresh the live counters and dependent controls.
   const onParamsChange = () => {
@@ -224,11 +231,12 @@ function buildLayoutTab(tabFolder, ctx) {
   w.cmbContainerAlgorithm.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   w.cmbConnectionsMode.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
 
+  row = Widgets.formRow(grpCtr, "Sort:", formRows, "ctrOptions");
+  Widgets.addCombo(row, null, SORT_MODE_LABELS, 0, SWT.DEFAULT, "cmbSort", w);
+  w.cmbSort.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   row = Widgets.formRow(grpCtr, "Options:", formRows, "ctrOptions");
-  Widgets.addCheck(row, "Sort containers", null, 2, w, "chkSortContainers");
-  row = Widgets.formRow(grpCtr, "", formRows, "ctrOptions");
   Widgets.addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
-  Widgets.addCheck(row, "Snap columns to grid", null, 2, w, "chkSnapColumns");
+  Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
   w.grpContainers = grpCtr;
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
@@ -255,9 +263,6 @@ function buildLayoutTab(tabFolder, ctx) {
   w.chkLabelSizing.addListener(SWT.Selection, () => updateAlgorithmControls(ctx));
   row = Widgets.formRow(grpEl, "Spacing:", formRows, "form", 2);
   Widgets.addSpinnerRow(row, "Distance", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w);
-  row = Widgets.formRow(grpEl, "Order:", formRows, "form", 2);
-  Widgets.addCombo(row, null, ELEMENT_ORDER_LABELS, 0, SWT.DEFAULT, "cmbElementOrder", w);
-  Widgets.addCheck(row, "Cycle", null, 2, w, "chkCycleElementOrder");
 
   // ── Connections ───────────────────────────────────────────────────────────────
   const grpCon = Widgets.group(page, "Connections", 1, BOX);
@@ -317,7 +322,7 @@ function buildLayoutTab(tabFolder, ctx) {
   finish();
 }
 
-// Layout-tab tooltips from defs (Defs.paramTooltip: what · detail · Used by …).
+// Layout-tab tooltips from defs (Defs.paramTooltip: what · detail).
 // Combos with per-option explanations get theirs from _updateComboTooltips.
 /** @param {DialogWidgets} w */
 function _applyLayoutTooltips(w) {
@@ -452,6 +457,11 @@ function updateAlgorithmControls(ctx) {
   Widgets.enable(w.spinElementWidth,      active.has("elementWidth")  && !labelSizingOn);
   Widgets.enable(w.spinElementHeight,     active.has("elementHeight") && !labelSizingOn);
   Widgets.enable(w.spinLabelMaxLineWidth, labelSizingOn);
+  // Algorithm start gives way to a sorted view: where Sort applies (a view with containers) and sorts, the sort wins.
+  if (active.has("sort") && _nestingOn(w, alg) && w.cmbSort && w.cmbSort.getText() !== Defs.SORT_MODE.NONE) {
+    Widgets.enable(w.cmbAlgorithmStart, false);
+    Widgets.enable(w.chkCycleAlgorithmStart, false);
+  }
   // Containers settings only matter once a Nesting condition is on.
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) Widgets.enable(w[PARAM_WIDGETS[k].w], false);
@@ -556,6 +566,6 @@ function _updateConnectionsMode(ctx) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    buildLayoutTab, updateAlgorithmControls, updateLayoutConditionCounts, selectedAlgorithm, getViewSizeMode, PARAM_WIDGETS, ELEMENT_ORDER_LABELS,
+    buildLayoutTab, updateAlgorithmControls, updateLayoutConditionCounts, selectedAlgorithm, getViewSizeMode, PARAM_WIDGETS, ALGORITHM_START_LABELS,
   };
 }

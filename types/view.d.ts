@@ -167,11 +167,11 @@ type PresetParams = {
   nestingConditions: RelationCondition[];
   padding: number;
   diagramPadding: number;
-  sortContainers: boolean;
-  elementOrder: string;
-  cycleElementOrder: boolean;
+  sort: string;
+  algorithmStart: string;
+  cycleAlgorithmStart: boolean;
   alignWidthSameType: boolean;
-  snapColumnsToGrid: boolean;
+  columnsAcrossContainers: boolean;
   containerAlgorithm: string;
   connectionsMode: ConnectionsMode;
   layerSpacing: number;
@@ -211,6 +211,8 @@ interface EngineParams {
   ELK?: Record<string, string | number | boolean>;
   Dagre?: Record<string, string | number>;
   Graphviz?: Record<string, string | number>;
+  /** No setting applies: every key is reported as unknown. */
+  Tiles?: Record<string, string | number | boolean>;
 }
 
 /** One engineParams key checked before a run (Settings outside the dialog); problem null = it applies. */
@@ -274,7 +276,7 @@ type PresetFile = { [key: string]: any };
 
 // ── Algorithms (defs.ALGORITHMS) ─────────────────────────────────────────────────────────────────
 
-type EngineName = "ELK" | "Dagre" | "Graphviz";
+type EngineName = "ELK" | "Dagre" | "Graphviz" | "Tiles";
 
 interface AlgorithmSpec {
   engine: EngineName;
@@ -635,6 +637,19 @@ interface ConditionTableItem {
 /** Per-condition counts shown in a condition table, by count key (column key or column `count`). */
 type ConditionTableCounts = Record<string, number | undefined>;
 
+/** A drawn checkbox with its label (gui/widgets.js checkBox): grey when disabled, unlike a GTK checkbox. `control` is what gets laid out. */
+interface CheckBox {
+  control: Swt.Composite;
+  getSelection(): boolean;
+  setSelection(value: boolean): void;
+  addListener(type: number, fn: () => void): void;
+  setText(text: string): void;
+  setToolTipText(text: string): void;
+  setEnabled(on: boolean): void;
+  enable(on: boolean): void;
+  isEnabled(): boolean;
+}
+
 /** A "custom" cell: a controller the table drives instead of an SWT control. */
 interface ConditionTableCell {
   set(value: any): void;
@@ -736,7 +751,7 @@ interface StepBlock {
 }
 
 /** One row of the Properties tab. */
-type ViewPropertyRow = { key: string; chk: Swt.Button; cmb: Swt.Combo };
+type ViewPropertyRow = { key: string; chk: CheckBox; cmb: Swt.Combo };
 
 /**
  * One column of the totals line: the title, then per sub-line (elements, relations, diagram) its
@@ -772,9 +787,9 @@ type DialogWidgets = {
   cmbContainerAlgorithm: Swt.Combo;
   cmbConnectionsMode: Swt.Combo;
   spinPadding: Swt.Spinner;
-  chkSortContainers: Swt.Button;
-  chkAlignWidthSameType: Swt.Button;
-  chkSnapColumns: Swt.Button;
+  cmbSort: Swt.Combo;
+  chkAlignWidthSameType: CheckBox;
+  chkColumnsAcrossContainers: CheckBox;
   cmbDirection: Swt.Combo;
   cmbAcyclicer: Swt.Combo;
   cmbRanking: Swt.Combo;
@@ -782,15 +797,15 @@ type DialogWidgets = {
   cmbCircles: Swt.Combo;
   spinLayerSpacing: Swt.Spinner;
   spinElementWidth: Swt.Spinner;
-  chkLabelSizing: Swt.Button;
+  chkLabelSizing: CheckBox;
   spinLabelMaxLineWidth: Swt.Spinner;
   spinElementHeight: Swt.Spinner;
   spinElementSpacing: Swt.Spinner;
-  cmbElementOrder: Swt.Combo;
-  chkCycleElementOrder: Swt.Button;
+  cmbAlgorithmStart: Swt.Combo;
+  chkCycleAlgorithmStart: CheckBox;
   cmbRouting: Swt.Combo;
   cmbLabelPosition: Swt.Combo;
-  chkConnectionLabelSpacing: Swt.Button;
+  chkConnectionLabelSpacing: CheckBox;
   spinConnectionSpacing: Swt.Spinner;
   spinConnectionElementSpacing: Swt.Spinner;
   radioViewSizeNone: Swt.Button;
@@ -808,25 +823,25 @@ type DialogWidgets = {
   lblNestingInfo: Swt.Label;
   nestDescLbl: Swt.Label;
   nestColorDescLbl: Swt.Label;
-  chkNestFont: Swt.Button;
+  chkNestFont: CheckBox;
   spinNestRootFontSize: Swt.Spinner;
-  chkNestRootBold: Swt.Button;
+  chkNestRootBold: CheckBox;
   lblNestDecrease: Swt.Label;
   spinNestFontDecrease: Swt.Spinner;
   lblNestFontPt: Swt.Label;
   nestMidSep: Swt.Label;
-  chkNestColor: Swt.Button;
+  chkNestColor: CheckBox;
   lblNestDarken: Swt.Label;
   spinNestDarken: Swt.Spinner;
   lblNestDarkenSteps: Swt.Label;
   lblNestLighten: Swt.Label;
   spinNestLighten: Swt.Spinner;
   lblNestLightenPct: Swt.Label;
-  chkHighlightRep: Swt.Button;
+  chkHighlightRep: CheckBox;
   lblHighlightRepRange: Swt.Label;
   pickHighlightRepRange: ColorPicker;
   // Properties tab
-  vpAddObjectId: Swt.Button;
+  vpAddObjectId: CheckBox;
   vpRows: ViewPropertyRow[];
   // Action area
   viewTotals: TotalsBlock;
@@ -843,7 +858,7 @@ type DialogWidgets = {
 type WidgetName<T> = { [K in keyof DialogWidgets]: DialogWidgets[K] extends T ? K : never }[keyof DialogWidgets];
 
 /** A layout param's widget (tab_layout.js PARAM_WIDGETS). */
-type ParamWidget = { kind: "spin"; w: WidgetName<Swt.Spinner> } | { kind: "check"; w: WidgetName<Swt.Button> } |
+type ParamWidget = { kind: "spin"; w: WidgetName<Swt.Spinner> } | { kind: "check"; w: WidgetName<CheckBox> } |
                    { kind: "combo"; w: WidgetName<Swt.Combo>; items: readonly string[] } |
                    { kind: "conditions"; w: WidgetName<ConditionTable<"relation">> };
 

@@ -18,7 +18,7 @@ const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONTAINER_LABEL_CLEARANCE, CONNECTION_END_CLEARANCE } = Defs;
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys, settingProblem, SETTING_UNKNOWN, cubicPoint, labelPoint, snapColumnsToGrid } = EngineUtils;
+const { selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys, settingProblem, SETTING_UNKNOWN, cubicPoint, labelPoint, alignColumnsAcrossContainers } = EngineUtils;
 
 /**
  * ELK graph objects as this adapter builds them, fresh for every ELK run. ELK ignores the `_`
@@ -79,7 +79,7 @@ const { selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys
 //   maxWidth / aspectRatio → view-size calibration in layout() (re-runs ELK with a searched
 //                           elk.aspectRatio; see _fitViewSize)
 //   nestingConditions     → graph structure (parentMap)
-//   sortContainers        → node sort order via engine-utils.sortedNodes
+//   sort  → node sort order via engine-utils.sortedNodes
 //   alignWidthSameType    → per-level target widths from the input widths
 //                           (engine-utils.alignWidthsByLevel): leaves get exact width,
 //                           containers a MINIMUM_SIZE floor (_boxSizes)
@@ -199,7 +199,7 @@ const _TREE_BASE = {
 //   packing.compaction.iterations          passes of row compaction; more = tighter (default 1)
 //   packing.compaction.rowHeightReevaluation re-evaluates row height after each move (default false)
 //   orderBySize                            sort nodes largest-first before placement (default false)
-//     → set in _engineOptions: only when sortContainers is off (they conflict)
+//     → set in _engineOptions: only when the containers are not sorted (they conflict)
 //   whiteSpaceElimination.strategy         post-pass to fill gaps; NONE = off (default)
 //   widthApproximation.optimizationGoal    MAX_SCALE_DRIVEN (default) — maximises use of target width
 //     → ASPECT_RATIO_DRIVEN whenever an aspect ratio is set (_AR_PACK)
@@ -273,12 +273,15 @@ function _loadELK() {
 
 /**
  * Compute layout positions.
- * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, alignWidthSameType, sortContainers }
+ * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, alignWidthSameType, sort }
  * @returns {LayoutResult}     — { nodes, edges, viewWidth, viewHeight }
  */
 function layout(graph) {
-  const k = _fitViewSize(graph);
-  return _layoutOnce(k === null ? graph : _withAspectRatio(graph, k), false);
+  const logger = (/** @type {string} */ msg) => console.log("  " + msg);
+  const fit = _fitViewSize(graph);
+  if (!fit) return _layoutOnce(graph, logger);
+  for (const line of fit.lines) logger(line);
+  return fit.result;
 }
 
 /**
@@ -303,74 +306,95 @@ function _withAspectRatio(graph, k) {
 // Views whose width is set by connection chains (layer count) have no lever: logged, not met.
 const VIEW_SIZE_K_MIN     = 0.1;
 const VIEW_SIZE_K_MAX     = 10;
-const VIEW_SIZE_TOLERANCE = 0.03;  // relative aspect-ratio error accepted as a match
-const VIEW_SIZE_MAX_RUNS  = 10;    // measuring ELK runs per search, before the final run
+const VIEW_SIZE_TOLERANCE = 0.1;   // accepted miss: relative ratio error, or below Max width
+const VIEW_SIZE_MAX_RUNS  = 6;     // ELK runs per search; the chosen run is the result, there is no final run
+
+/** @typedef {{ width: number, height: number, k: number, result: LayoutResult, lines: string[] }} ViewSizeRun */
 
 /**
- * Search the elk.aspectRatio that meets the active view-size target.
+ * Search the elk.aspectRatio that meets the active view-size target. Every run is a full layout
+ * and keeps its log lines, so the chosen run is the result: no extra run to repeat it.
+ *
+ * The next ratio comes from the closest run so far, assuming the view ratio follows
+ * k^slope (slope 1 at first, then measured from the two closest runs; row counts are integers, so
+ * the ratio moves in steps). Max width is the same search toward the ratio at which the view
+ * would be exactly that wide, re-estimated from each run's area.
  * @param {LayoutGraph} graph
- * @returns {number|null}  ratio for the final run; null = no target (or natural layout fits)
+ * @returns {{ result: LayoutResult, lines: string[] } | null}  the chosen run; null = no target
  */
 function _fitViewSize(graph) {
   const o = graph.options;
-  /** @typedef {{ width: number, height: number, k: number }} ViewSizeRun */
   const target = (o.aspectRatio || 0) > 0 ? "aspectRatio" : (o.maxWidth || 0) > 0 ? "maxWidth" : null;
   if (!target) return null;
   // Cast: the target is set only when its param is > 0.
   const goal = /** @type {number} */ (target === "aspectRatio" ? o.aspectRatio : o.maxWidth);
-  const log = (/** @type {string} */ msg) => console.log("  " + msg);
   const t0 = Date.now();
   const kMax = ALGORITHMS[graph.algorithm].engineAlgorithmId === "rectpacking" ? PACK_ASPECT_RATIO_MAX : VIEW_SIZE_K_MAX;
-  let runs = 0;
+  /** @type {ViewSizeRun[]} */
+  const runs = [];
   const measure = (/** @type {number} */ k) => {
-    runs++;
-    return Object.assign(_boundingBox(_layoutOnce(_withAspectRatio(graph, k), true).nodes), { k });
+    /** @type {string[]} */
+    const lines = [];
+    const result = _layoutOnce(_withAspectRatio(graph, k), msg => lines.push(msg));
+    /** @type {ViewSizeRun} */
+    const run = Object.assign(_boundingBox(result.nodes), { k, result, lines });
+    runs.push(run);
+    return run;
   };
-  const size = (/** @type {ViewSizeRun} */ m) => `${m.width}×${m.height} px`;
-  const done = (/** @type {string} */ msg) => log(`View size: ${msg}  (${runs} layout runs, ${Date.now() - t0} ms)`);
-
-  if (target === "maxWidth") {
-    const natural = measure(0);
-    if (natural.width <= goal) { done(`max width ${o.maxWidth} px — natural layout fits (${size(natural)})`); return null; }
-    let lo = VIEW_SIZE_K_MIN, hi = kMax;
-    let best = measure(lo);
-    if (best.width > goal) {
-      done(`⚠ max width ${o.maxWidth} px not reachable — narrowest layout ${size(best)} (connection chains or the widest container set the minimum)`);
-      return lo;
-    }
-    while (runs < VIEW_SIZE_MAX_RUNS && hi / lo > 1.02) {
-      const k = Math.sqrt(lo * hi), m = measure(k);
-      if (m.width <= goal) { lo = k; if (m.width > best.width) best = m; }
-      else hi = k;
-    }
-    done(`max width ${o.maxWidth} px → ${size(best)}  (natural ${size(natural)}, elk.aspectRatio ${best.k.toFixed(2)})`);
-    return best.k;
-  }
-
-  // aspectRatio: bisection on k; the view ratio grows with k (in steps — row counts are integers).
+  const size  = (/** @type {ViewSizeRun} */ m) => `${m.width}×${m.height} px`;
   const ratio = (/** @type {ViewSizeRun} */ m) => m.width / m.height;
-  const err   = (/** @type {ViewSizeRun} */ m) => Math.abs(Math.log(ratio(m) / goal));
-  let best = measure(goal);
-  const report = () => done(`aspect ratio ${goal} → ${ratio(best).toFixed(2)}, ${size(best)}  (elk.aspectRatio ${best.k.toFixed(2)})`);
-  if (err(best) <= VIEW_SIZE_TOLERANCE) { report(); return best.k; }
-  const first = best, up = ratio(first) < goal;
-  const edge    = up ? kMax : VIEW_SIZE_K_MIN;
-  const extreme = first.k === edge ? first : measure(edge);
-  if (err(extreme) < err(best)) best = extreme;
-  // The extreme is still on the same side of the goal: no k gets closer than it.
-  if ((ratio(extreme) < goal) === up) {
-    const still = extreme !== first && extreme.width === first.width && extreme.height === first.height;
-    done(`⚠ aspect ratio ${goal} not reachable — ${still ? "layout does not respond" : "closest"}: ${ratio(best).toFixed(2)}, ${size(best)}`);
-    return best.k;
+  const choose = (/** @type {ViewSizeRun} */ best, /** @type {string} */ msg) => {
+    const header = `View size: ${msg}  (${runs.length} layout runs, ${Date.now() - t0} ms)`;
+    return { result: best.result, lines: [header, ...best.lines] };
+  };
+
+  // The ratio the view should have to meet the target, from one run's area.
+  const wanted = (/** @type {ViewSizeRun} */ m) => target === "aspectRatio" ? goal : goal * goal / (m.width * m.height);
+  const miss   = (/** @type {ViewSizeRun} */ m) => Math.abs(Math.log(ratio(m) / wanted(m)));
+  const fits   = (/** @type {ViewSizeRun} */ m) => target === "aspectRatio" ? miss(m) <= VIEW_SIZE_TOLERANCE
+                                                  : m.width <= goal && m.width >= goal * (1 - VIEW_SIZE_TOLERANCE);
+  // Aspect ratio: the smallest miss. Max width: the widest run that fits, else the narrowest.
+  const better = (/** @type {ViewSizeRun} */ a, /** @type {ViewSizeRun} */ b) => {
+    if (target === "aspectRatio") return miss(a) < miss(b);
+    if ((a.width <= goal) !== (b.width <= goal)) return a.width <= goal;
+    return a.width <= goal ? a.width > b.width : a.width < b.width;
+  };
+  const best = () => runs.reduce((a, b) => (better(b, a) ? b : a));
+
+  // First run: Max width starts from the natural layout, and stops there when it fits.
+  const first = measure(target === "aspectRatio" ? Math.min(goal, kMax) : 0);
+  if (target === "maxWidth" && first.width <= goal) return choose(first, `max width ${goal} px — natural layout fits (${size(first)})`);
+  while (runs.length < VIEW_SIZE_MAX_RUNS && !fits(best())) {
+    const near = best();
+    const t = wanted(near);
+    // Slope of ln(ratio) over ln(k) between the two closest runs with distinct k (the natural run has no k).
+    const sorted = runs.filter(r => r.k > 0).sort((a, b) => miss(a) - miss(b));
+    let slope = 1;
+    if (sorted.length >= 2 && sorted[0].k !== sorted[1].k) {
+      const s = Math.log(ratio(sorted[0]) / ratio(sorted[1])) / Math.log(sorted[0].k / sorted[1].k);
+      if (s > 0.2 && isFinite(s)) slope = Math.min(s, 4);
+    }
+    const from = near.k > 0 ? near.k : ratio(near);   // the natural layout has no k: its own ratio stands in
+    let k = Math.min(kMax, Math.max(VIEW_SIZE_K_MIN, from * Math.pow(t / ratio(near), 1 / slope)));
+    // Stay inside the runs that bracket the target; bisect when the step leaves them.
+    const below = runs.filter(r => r.k > 0 && ratio(r) < t), above = runs.filter(r => r.k > 0 && ratio(r) > t);
+    if (below.length && above.length) {
+      const lo = Math.max(...below.map(r => r.k)), hi = Math.min(...above.map(r => r.k));
+      if (lo < hi && (k <= lo || k >= hi)) k = Math.sqrt(lo * hi);
+    }
+    // No new k to try (the ratio is out of reach, or the layout does not respond to it).
+    if (runs.some(r => r.k > 0 && Math.abs(Math.log(r.k / k)) < 0.02)) break;
+    measure(k);
   }
-  let lo = up ? Math.min(goal, kMax) : VIEW_SIZE_K_MIN, hi = up ? kMax : goal;
-  while (runs < VIEW_SIZE_MAX_RUNS && err(best) > VIEW_SIZE_TOLERANCE && hi / lo > 1.02) {
-    const k = Math.sqrt(lo * hi), m = measure(k);
-    if (err(m) < err(best)) best = m;
-    if (ratio(m) < goal) lo = k; else hi = k;
+  const chosen = best();
+  if (target === "maxWidth") {
+    return choose(chosen, chosen.width <= goal
+      ? `max width ${goal} px → ${size(chosen)}  (elk.aspectRatio ${chosen.k.toFixed(2)})`
+      : `⚠ max width ${goal} px not reachable — narrowest layout ${size(chosen)} (connection chains or the widest container set the minimum)`);
   }
-  report();
-  return best.k;
+  return choose(chosen, fits(chosen)
+    ? `aspect ratio ${goal} → ${ratio(chosen).toFixed(2)}, ${size(chosen)}  (elk.aspectRatio ${chosen.k.toFixed(2)})`
+    : `⚠ aspect ratio ${goal} not reached — closest: ${ratio(chosen).toFixed(2)}, ${size(chosen)}`);
 }
 
 /**
@@ -393,13 +417,10 @@ function _boundingBox(nodes) {
 /**
  * One ELK layout: options → boxes and edges → ELK run(s) → LayoutResult.
  * @param {LayoutGraph} graph
- * @param {boolean}     quiet  no progress output (view-size measuring runs)
+ * @param {Logger}      log    progress output (the view-size search collects it per run)
  * @returns {LayoutResult}
  */
-function _layoutOnce(graph, quiet) {
-  // All layout-step output is indented under the "Layout:" header logged by the orchestrator.
-  /** @type {Logger} */
-  const log = quiet ? () => {} : msg => console.log("  " + msg);
+function _layoutOnce(graph, log) {
   /** @type {Record<string, string>} */
   const parentMap = {};
   for (const node of graph.nodes) if (node.parent) parentMap[node.id] = node.parent;
@@ -432,7 +453,7 @@ function _layoutOnce(graph, quiet) {
   if (graph.alignWidthSameType && nesting) _logWidthMismatches(nodes, boxes, containerIds, names, log);
   // Center-snap columns to a global grid (position-only; grows containers, never resizes
   // leaves). Aligns leaf columns top-to-bottom across the view. Gated on its own toggle.
-  if (graph.snapColumnsToGrid && nesting) snapColumnsToGrid(nodes, graph.options, names, log);
+  if (graph.columnsAcrossContainers && nesting) alignColumnsAcrossContainers(nodes, graph.options, names, log);
   // Tree layer distance: connections are collected against the widened boxes ELK placed.
   const elkBoxes = treeExtra > 0 ? nodes.map(n => Object.assign({}, n)) : nodes;
   if (treeExtra > 0) _narrowTreeBoxes(nodes, treeExtra, eo.vertical);
@@ -494,9 +515,9 @@ function _engineOptions(algorithm, o, elkParams, nesting) {
     "elk.spacing.portPort":         String(portSpacing),
     "elk.spacing.portsSurrounding": `[top=${portSpacing},left=${portSpacing},bottom=${portSpacing},right=${portSpacing}]`,
   } : {};
-  // orderBySize: only for Pack, and only when sortContainers is off — they conflict because
-  // sortContainers pre-sorts by type+name and orderBySize overrides that with size-first order.
-  const orderBySize = algorithm === "Pack" && !o.sortContainers ? { "elk.rectpacking.orderBySize": "true" } : {};
+  // orderBySize: only for Pack, and only when the containers are not sorted — they conflict because
+  // sorting them pre-sorts by type+name and orderBySize overrides that with size-first order.
+  const orderBySize = algorithm === "Pack" && o.sort === Defs.SORT_MODE.ELEMENTS ? { "elk.rectpacking.orderBySize": "true" } : {};
 
   return {
     root: Object.assign({ "elk.algorithm": algorithmId }, defaults, rootGui, preset, portOpts,
@@ -710,7 +731,7 @@ function _buildELKGraph(graph, eo, parentMap, boxes, edges, rootExtra) {
   for (const node of graph.nodes) byId[node.id] = _elkNode(node.id, boxes[node.id], containerIds.has(node.id), eo);
   /** @type {ElkWorkNode[]} */
   const rootChildren = [];
-  for (const node of sortedNodes(graph.nodes, parentMap, graph.sortContainers))
+  for (const node of sortedNodes(graph.nodes, parentMap, graph.sort))
     (node.parent ? byId[node.parent].children : rootChildren).push(byId[node.id]);
   const { rootEdges, edgeMeta } = _placeEdges(edges, parentMap, byId, eo.edgeMode);
   const layoutOptions = Object.assign({}, eo.root, rootExtra);
