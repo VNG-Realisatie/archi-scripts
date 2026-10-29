@@ -120,7 +120,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   alignWidthSameType:       ["Give all boxes of one nesting level the same width.",
                              "A container is never narrower than its contents; Use label width: the widest label sets it."],
   columnsAcrossContainers:  ["Line up the columns of the tiles on one grid across the whole view.",
-                             "A gap is only wider than Distance where boxes would touch."],
+                             "Boxes of one level line up along their parent's edge; neighbours stay Distance apart."],
   direction:                ["Direction of the main flow.", ""],
   acyclicer:                ["How relation cycles are broken before layout; no effect without cycles.",
                              "Default: depth-first search. Greedy: reverses as few relations as it can."],

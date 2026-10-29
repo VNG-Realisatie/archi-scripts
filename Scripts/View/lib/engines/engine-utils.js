@@ -229,39 +229,35 @@ function labelPoint(start, end, bendpoints, labelPosition) {
   return { labelX: Math.round((start.x + end.x) / 2), labelY: Math.round((start.y + end.y) / 2) };
 }
 
-// ── Center-snap column alignment to a global grid ──────────────────────────────
-
-/** Most passes of placing the grid and widening the gaps that collide. */
-const MAX_WIDEN_PASSES = 80;
+// ── Column tracks across containers (CSS Grid subgrid model) ───────────────────
 
 /**
- * Align leaf columns top-to-bottom across the view as a **global variable-width table**.
- * Mutates absolute x of resultNodes in place and re-wraps containers around their moved
- * children; **leaves are never resized** (position-only — see [No post-layout scaling]).
+ * Line the boxes of a nested view up on one set of column tracks across the whole view, as CSS Grid
+ * does for nested subgrids. Mutates x and width in place; heights and y stay.
  *
- * Every leaf column is placed on one shared set of vertical bands so columns line up across
- * the whole view; each column is as wide as its widest leaf. Gaps start at the element
- * distance and widen **only where siblings actually collide**, by exactly the overlap, so a
- * boundary is as narrow as the rows that cross it allow (a deeply nested view gets no wider gaps
- * than a flat one unless its containers need them).
+ * Every leaf takes one track and every container the tracks of its leaves; a box's edges lie on the
+ * track lines, so two boxes side by side are always the element distance apart, at every depth. A
+ * container's padding counts in the track at its edge, as an extra margin on the leaves there, and
+ * adds up through containers that share that edge (CSS Grid 2, subgrid item contribution).
  *
- * Algorithm:
- *   1. Assign columns: leaves at one x under one parent form a stack. In order of centre, each
- *      stack takes the leftmost column right of every stack whose branch stands beside its own
- *      (side by side under their lowest common container: one x would make them overlap), so a
- *      stack never waits for a column it does not collide with.
- *   2. Column width = widest member leaf.
- *   3. Every gap starts at the element distance.
- *   4. Iterate: place leaves on the column grid + re-wrap containers; find adjacent siblings
- *      (containers and leaves) that overlap; widen each offending boundary by the overlap;
- *      repeat until nothing overlaps (or MAX_WIDEN_PASSES).
+ *   1. Assign tracks: leaves at one x under one parent form a stack. In order of centre, each stack
+ *      takes the leftmost track right of every stack whose branch stands beside its own (side by
+ *      side under their lowest common container).
+ *   2. A leaf in `fit` spans the tracks of the narrowest container it names (fewest tracks; none:
+ *      its own track). Track width: the widest leaf plus the paddings of the containers whose edge
+ *      lies in the track; leaves in `fit` do not size a track, unless a track holds nothing else.
+ *   3. Place: a container or a leaf in `fit` spans its tracks less the paddings of its ancestors on
+ *      the same edges; any other leaf is centred in its track inside those paddings, never resized.
+ *      Where a box shares an edge with its parent, the boxes of its depth on that track line take the
+ *      largest inset among them, so they line up; an edge that faces a sibling keeps its own.
  *
  * @param {LayoutResultNode[]}     resultNodes  flattened nodes { id, x, y, width, height, parentId }
  * @param {EffectiveParams}        options      graph.options (spacing, padding)
  * @param {Record<string, string>} nameById     { id: displayName }
  * @param {(msg: string) => void}  log          logger
+ * @param {Map<string, string[]>}  [fit]        leaves that fill tracks instead of sizing them: the containers whose span they take
  */
-function alignColumnsAcrossContainers(resultNodes, options, nameById, log) {
+function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map()) {
   /** @type {Record<string, LayoutResultNode>} */
   const byId = {};
   /** @type {Record<string, LayoutResultNode[]>} */
@@ -299,7 +295,8 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log) {
     if (ca[i] === cb[j]) { i--; j--; }   // a common ancestor: step to the branches below it
     return yOver(ca[i], cb[j]);
   };
-  // 1. Assign columns: stacks in order of centre, each in the leftmost column its side-by-side neighbours allow.
+
+  // 1. Assign tracks: stacks in order of centre, each in the leftmost track its side-by-side neighbours allow.
   /** @type {Map<string, LayoutResultNode[]>} */
   const stackOf = new Map();
   for (const lf of leaves) {
@@ -309,93 +306,94 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log) {
   }
   const stacks = [...stackOf.values()].sort((a, b) => centerOf(a[0]) - centerOf(b[0]));
   /** @type {number[]} */
-  const stackCol = [];
+  const stackTrack = [];
   stacks.forEach((st, i) => {
-    let col = 0;
-    for (let h = 0; h < i; h++) if (stackCol[h] >= col && stacks[h].some(m => st.some(lf => sideBySide(m, lf)))) col = stackCol[h] + 1;
-    stackCol.push(col);
+    let t = 0;
+    for (let h = 0; h < i; h++) if (stackTrack[h] >= t && stacks[h].some(m => st.some(lf => sideBySide(m, lf)))) t = stackTrack[h] + 1;
+    stackTrack.push(t);
   });
-  /** @type {{ members: LayoutResultNode[], w: number }[]} */
-  const cols = Array.from({ length: Math.max(0, ...stackCol) + 1 }, () => ({ members: /** @type {LayoutResultNode[]} */ ([]), w: 0 }));
-  stacks.forEach((st, i) => { const c = cols[stackCol[i]]; c.members.push(...st); c.w = Math.max(c.w, ...st.map(m => m.width || 0)); });
-  if (cols.length < 2) { log("[columns] 1 column — nothing to align"); return; }
-  /** @type {Record<string, number>} */
-  const colOf = {};
-  cols.forEach((c, i) => c.members.forEach(m => { colOf[m.id] = i; }));
-  // 3. Every gap starts at the element distance; the loop below widens the boundaries that collide.
-  /** @type {number[]} */
-  const gap = new Array(cols.length - 1).fill(spacing);
-
-  const origin = Math.min(...cols[0].members.map(m => m.x));
-  const nm = (/** @type {string} */ id) => nameById[id] || id;
-  const ROOT = "__root__";
-  const parents = [...new Set(resultNodes.map(n => (n.parentId == null ? ROOT : n.parentId)))];
-  const depthOf = (/** @type {string} */ id) => { let d = 0, p = byId[id] ? byId[id].parentId : null; while (p != null) { d++; p = byId[p] ? byId[p].parentId : null; } return d; };
-  const containersByDepth = [...containerIds].sort((a, b) => depthOf(b) - depthOf(a));
-  // First and last leaf column of every box (a container: of its subtree). Widening the boundary after
-  // the last column of the left box only separates it from a box that starts in a later column.
+  const tracks = Math.max(0, ...stackTrack) + 1;
+  if (tracks < 2) { log("[columns] 1 column — nothing to align"); return; }
   /** @type {Record<string, { lo: number, hi: number }>} */
-  const colRange = {};
-  for (const lf of leaves) colRange[lf.id] = { lo: colOf[lf.id], hi: colOf[lf.id] };
-  for (const cid of containersByDepth) {
-    const kids = childrenByParent[cid] || [];
-    colRange[cid] = { lo: Math.min(...kids.map(k => colRange[k.id].lo)), hi: Math.max(...kids.map(k => colRange[k.id].hi)) };
-  }
-
-  // Position every leaf on the column grid defined by `gap`, then re-wrap containers.
-  function applyGrid() {
-    const colCenter = [origin + cols[0].w / 2];
-    let left = origin;
-    for (let k = 1; k < cols.length; k++) { left += cols[k - 1].w + gap[k - 1]; colCenter.push(left + cols[k].w / 2); }
-    for (const lf of leaves) lf.x += colCenter[colOf[lf.id]] - centerOf(lf);   // idempotent (absolute target)
-    for (const cid of containersByDepth) {
-      const kids = childrenByParent[cid] || []; if (!kids.length) continue;
-      byId[cid].x = Math.min(...kids.map(k => k.x)) - pad;
-      byId[cid].width = (Math.max(...kids.map(k => rightOf(k))) + pad) - byId[cid].x;
+  const span = {};
+  stacks.forEach((st, i) => st.forEach(lf => { span[lf.id] = { lo: stackTrack[i], hi: stackTrack[i] }; }));
+  const depthOf = (/** @type {string} */ id) => chainOf(byId[id]).length - 1;
+  const containersByDepth = [...containerIds].sort((a, b) => depthOf(b) - depthOf(a));
+  /** @param {LayoutResultNode[]} kids  siblings: a leaf in `fit` takes the span of the narrowest container it names */
+  const spanFitting = kids => {
+    for (const k of kids) {
+      const named = (fit.get(k.id) || []).map(c => span[c]);
+      if (named.length) span[k.id] = named.reduce((p, q) => q.hi - q.lo < p.hi - p.lo ? q : p);
     }
+  };
+  for (const cid of containersByDepth) {
+    const kids = childrenByParent[cid];
+    spanFitting(kids);
+    span[cid] = { lo: Math.min(...kids.map(k => span[k.id].lo)), hi: Math.max(...kids.map(k => span[k.id].hi)) };
   }
-  // Find adjacent siblings (containers and leaves) that overlap; return { boundaryIndex: maxNeededWiden }.
-  function findOverlaps() {
+  spanFitting(resultNodes.filter(n => n.parentId == null));
+  // Insets in paddings from the track line, per edge: one more than the parent's where the parent has
+  // its edge on the same line. There the boxes of one depth on one line take the largest, so they line
+  // up (narrowed to the narrowest) inside their parent; an edge that faces a sibling keeps its own.
+  /** @type {Record<string, { lo: number, hi: number }>} */
+  const inset = {};
+  /** @type {Record<number, LayoutResultNode[]>} */
+  const byDepth = {};
+  for (const n of resultNodes) (byDepth[depthOf(n.id)] = byDepth[depthOf(n.id)] || []).push(n);
+  for (const level of Object.keys(byDepth).map(Number).sort((a, b) => a - b)) {
     /** @type {Record<string, number>} */
-    const widen = {};
-    /** @type {string[]} */
-    const list = [];
-    for (const pid of parents) {
-      const sibs = (pid === ROOT ? resultNodes.filter(n => n.parentId == null) : (childrenByParent[pid] || []))
-                     .sort((a, b) => a.x - b.x);
-      for (let i = 1; i < sibs.length; i++) {
-        let nearRight = -Infinity, nb = null;
-        for (let j = 0; j < i; j++) if (yOver(sibs[i], sibs[j]) && rightOf(sibs[j]) > nearRight) { nearRight = rightOf(sibs[j]); nb = sibs[j]; }
-        if (!nb) continue;
-        const g = sibs[i].x - nearRight;
-        if (g < spacing - 1e-6) {
-          const b = colRange[nb.id].hi;                 // widen the boundary at the left box's right edge
-          const fixable = b < gap.length && colRange[sibs[i].id].lo > b;
-          if (fixable) widen[b] = Math.max(widen[b] || 0, spacing - g);
-          list.push(`    overlap in "${pid === ROOT ? "(root)" : nm(pid)}": "${nm(nb.id)}" ↔ "${nm(sibs[i].id)}" gap=${Math.round(g)}px` +
-                    (fixable ? ` → widen gap ${b}` : " (share a column: a wider gap does not separate them)"));
-        }
+    const most = {};
+    for (const n of byDepth[level]) {
+      const p = n.parentId != null ? byId[n.parentId] : null;
+      inset[n.id] = { lo: 0, hi: 0 };
+      for (const edge of /** @type {("lo" | "hi")[]} */ (["lo", "hi"])) {
+        inset[n.id][edge] = p && span[p.id][edge] === span[n.id][edge] ? inset[p.id][edge] + 1 : 0;
+        const key = `${edge}|${span[n.id][edge]}`;
+        most[key] = Math.max(most[key] || 0, inset[n.id][edge]);
       }
     }
-    return { widen, list };
+    for (const n of byDepth[level]) for (const edge of /** @type {("lo" | "hi")[]} */ (["lo", "hi"])) {
+      const p = n.parentId != null ? byId[n.parentId] : null;
+      if (p && span[p.id][edge] === span[n.id][edge]) inset[n.id][edge] = most[`${edge}|${span[n.id][edge]}`];
+    }
   }
 
-  // 4. Iterate: lay out tight, find collisions, widen exactly those boundaries, repeat.
-  let iters = 0;
+  // 2. Track widths: the widest leaf plus the paddings on its edges; leaves that fit only where nothing else is.
+  /** @type {number[]} */
+  const width = new Array(tracks).fill(0);
+  /** @type {number[]} */
+  const fitWidth = new Array(tracks).fill(0);
+  for (const lf of leaves) {
+    const t = span[lf.id].lo, need = (lf.width || 0) + pad * (inset[lf.id].lo + inset[lf.id].hi);
+    if (!fit.has(lf.id)) width[t] = Math.max(width[t], need);
+    else if (span[lf.id].hi === t) fitWidth[t] = Math.max(fitWidth[t], need);
+  }
+  for (let t = 0; t < tracks; t++) if (!width[t]) width[t] = fitWidth[t];
+  const origin = Math.min(...resultNodes.filter(n => n.parentId == null).map(n => n.x));
+  /** @type {number[]} */
+  const start = [origin];
+  for (let t = 1; t < tracks; t++) start.push(start[t - 1] + width[t - 1] + spacing);
+
+  // 3. Place every box on the track lines, inside the paddings of the ancestors on its edges.
+  for (const n of resultNodes) {
+    const left = start[span[n.id].lo] + pad * inset[n.id].lo;
+    const right = start[span[n.id].hi] + width[span[n.id].hi] - pad * inset[n.id].hi;
+    if (isContainer(n.id) || fit.has(n.id)) { n.x = left; n.width = right - left; }
+    else n.x = left + (right - left - (n.width || 0)) / 2;
+  }
+
+  log(`[columns] applied — ${tracks} tracks, widths [${width.map(Math.round).join(", ")}]`);
+  // Check: siblings side by side are at least the element distance apart.
+  const nm = (/** @type {string} */ id) => nameById[id] || id;
   /** @type {string[]} */
-  let lastList = [];
-  for (; iters < MAX_WIDEN_PASSES; iters++) {
-    applyGrid();
-    const { widen, list } = findOverlaps();
-    lastList = list.filter(l => !l.includes("→ widen gap"));   // what a wider gap does not fix
-    const keys = Object.keys(widen);
-    if (!keys.length) break;
-    for (const k of keys) gap[+k] += widen[k];
+  const overlaps = [];
+  for (const sibs of [resultNodes.filter(n => n.parentId == null), ...Object.values(childrenByParent)]) {
+    for (const a of sibs) for (const b of sibs) {
+      if (a !== b && yOver(a, b) && a.x <= b.x && b.x - rightOf(a) < spacing - 1e-6 && (a.x < b.x || a.id < b.id))
+        overlaps.push(`    "${nm(a.id)}" ↔ "${nm(b.id)}" gap=${Math.round(b.x - rightOf(a))}px`);
+    }
   }
-
-  log(`[columns] applied — ${cols.length} columns, widths [${cols.map(c => c.w).join(", ")}]; ` +
-      `${iters} widen-iteration(s); gaps [${gap.map(Math.round).join(", ")}]`);
-  if (lastList.length) { log(`[columns] unresolved overlaps after ${iters} iters:`); for (const l of lastList.slice(0, 20)) log(l); }
+  if (overlaps.length) { log("[columns] siblings closer than the element distance:"); for (const l of overlaps.slice(0, 20)) log(l); }
   else log(`[columns] overlap scan: clean (all adjacent siblings ≥ ${spacing}px)`);
 }
 

@@ -265,7 +265,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Padding | `padding` | 20 | Space between a container's border and its contents. — px | Layered, Tree, Grid, Pack, Tiles, Dot, FDP |
 | Sort | `sort` | Elements | Ascending order of the boxes in a view with containers. None: as selected. — Elements: by type and name. Containers, then elements: also the containers. All together: one list. | Grid, Pack, Tiles |
 | Same width per level | `alignWidthSameType` | off | Give all boxes of one nesting level the same width. — A container is never narrower than its contents; Use label width: the widest label sets it. | Layered, Tree, Grid, Pack, Tiles |
-| Columns across containers | `columnsAcrossContainers` | off | Line up the columns of the tiles on one grid across the whole view. — A gap is only wider than Distance where boxes would touch. | Tiles |
+| Columns across containers | `columnsAcrossContainers` | off | Line up the columns of the tiles on one grid across the whole view. — Boxes of one level line up along their parent's edge; neighbours stay Distance apart. | Tiles |
 
 **Flow**
 

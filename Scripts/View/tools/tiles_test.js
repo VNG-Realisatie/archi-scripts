@@ -190,7 +190,26 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   ];
   console.log = () => {}; EU.alignColumnsAcrossContainers(nodes, { elementSpacing: 20, padding: 20 }, {}, () => {}); console.log = _log;
   const by = boxes({ nodes });
-  eq(by.y2.x, by.x2.x, "grid: a stack moves left into the first column its neighbours allow");
+  ok(by.y2.x < by.x3.x && Math.abs(by.y2.x - by.x2.x) <= 20, "grid: a stack moves left into the first column its neighbours allow");
+}
+
+// Columns across containers: boxes of one level line up on a track line where their parent's edge is
+// on it too (the largest inset of that level); an edge facing a sibling keeps the element distance.
+{
+  const EU = require("../lib/engines/engine-utils");
+  const box = (id, x, y, width, height, parentId) => ({ id, x, y, width, height, parentId });
+  const nodes = [
+    box("P", 0, 0, 1200, 400, null),
+    box("A", 20, 40, 500, 160, "P"), box("A1", 40, 80, 460, 100, "A"), box("a1", 60, 110, 420, 60, "A1"), box("L", 540, 40, 540, 60, "P"),
+    box("B", 20, 220, 1100, 160, "P"),
+    box("C1", 40, 260, 460, 100, "B"), box("c1", 60, 290, 420, 60, "C1"),
+    box("C2", 520, 260, 460, 100, "B"), box("c2", 540, 290, 420, 60, "C2"),
+  ];
+  console.log = () => {}; EU.alignColumnsAcrossContainers(nodes, { elementSpacing: 20, padding: 20 }, {}, () => {}); console.log = _log;
+  const by = boxes({ nodes });
+  eq(by.A1.x, by.C1.x, "grid: boxes of one level line up where their parent's edge is on the track line");
+  eq([by.L.x - right(by.A), by.C2.x - right(by.C1)], [20, 20], "grid: siblings stay the element distance apart");
+  eq([by.a1.width, by.c1.width, by.L.width], [420, 420, 540], "grid: leaves keep their size");
 }
 
 // Max width is kept when it can be; otherwise the narrowest layout is returned.

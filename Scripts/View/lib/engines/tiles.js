@@ -224,8 +224,9 @@ function layout(graph) {
     const out = [];
     placeRun(out, table, 0, rootTiles.length - 1, index, diagramPad, diagramPad, null, ++columns);
     const sharers = columnSharers(out);
-    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log);
-    widenToColumns(out, sharers);
+    // On the grid a leaf beside a container fills its track; without it, it takes its column's width.
+    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers);
+    else widenToColumns(out, sharers);
     return out;
   };
   /**
