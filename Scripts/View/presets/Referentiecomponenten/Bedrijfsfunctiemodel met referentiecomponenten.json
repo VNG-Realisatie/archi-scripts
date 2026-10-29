@@ -52,6 +52,8 @@
         "repeat": 1,
         "conditions": [
           {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"},
+          {"mode": "exclude", "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"},
+          {"mode": "exclude", "previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA type", "value": "Beleidsdomein"},
           {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
         ]
       },
@@ -90,7 +92,7 @@
     "nestingLevel": {
       "conditions": [
         {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "fontSize": 16, "bold": true, "child": "same"},
-        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "business-function", "color": "Bedrijf gedrag", "fontSize": 14, "bold": true},
         {"parent": "business-function", "direction": "incoming", "relation": "serving-relationship", "child": "application-service", "color": "Applicatie gedrag"}
       ],
       "fontEnabled": true,

@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 6,
+  "name": "Referentiecomponenten/Applicatieservices met referentiecomponenten",
+  "algorithm": "Tiles",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Straight",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship", "everyContainer": true},
+      {"relation": "realization-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 20,
+    "sort": "All together",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
+    "alignWidthSameType": true,
+    "columnsAcrossContainers": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 180,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 9,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 2800,
+    "aspectRatio": 1,
+    "viewSizeMode": "aspectRatio",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 2,
+        "conditions": [
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein en doelgroep"},
+          {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping", "property": "GEMMA subtype", "value": "Domein"}
+        ]
+      },
+      {
+        "repeat": 4,
+        "conditions": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
+          {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+        ]
+      },
+      {
+        "repeat": 2,
+        "conditions": [
+          {"on": false, "direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Domeinen",
+    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "GEMMA",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#f66151",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "color": "Grouping", "fontSize": 16, "bold": true, "child": "same"},
+        {"direction": "outgoing", "relation": "aggregation-relationship", "child": "application-service", "color": "Applicatie gedrag", "fontSize": 10, "bold": true}
+      ],
+      "fontEnabled": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "darkenStart": 1,
+      "lightenPerLevel": 40
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": true,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "Applicatiearchitectuur",
+        "enabled": true
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA URL",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Managed occurrence",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": true
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "drivingView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "generate_view_param",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "includeTableOfView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "organisation",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "path",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "De GEMMA informatiearchitectuur platen\n"
+}
