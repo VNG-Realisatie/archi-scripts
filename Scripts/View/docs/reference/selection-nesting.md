@@ -147,7 +147,8 @@ The widths come from the leaf widths of the layout graph, so no sizing pass is n
 ### Columns across containers
 
 Puts every leaf column of the tiles on one shared grid, so columns line up top to bottom across the whole view (Tiles only; independent of the option above).
-- Each column is as wide as its widest leaf; columns are packed left to right, and every leaf moves onto its column's centre. Two leaves whose boxes stand side by side under a common container never share a column.
+- Leaves at one x under one parent form a stack. From left to right, each stack takes the leftmost column right of every stack whose box stands beside its own (side by side under a common container), so no stack keeps a column of its own just because it stood further right.
+- Each column is as wide as its widest leaf; columns are packed left to right, and every leaf moves onto its column's centre.
 - Gaps start at *Distance*. They widen only where sibling boxes (containers and leaves) would overlap, by exactly the overlap, repeated until clean. Boxes that share a column are reported, not widened: a wider gap does not separate them.
 - Leaves are moved, never resized; containers are re-wrapped around them.
 

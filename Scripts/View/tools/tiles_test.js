@@ -178,6 +178,20 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   const by = boxes({ nodes });
   ok(!overlap(by.A, by.B), "grid: containers side by side do not share a column");
 }
+// Columns across containers: a stack takes the leftmost column its side-by-side neighbours allow,
+// not a column of its own because it stood further right.
+{
+  const EU = require("../lib/engines/engine-utils");
+  const box = (id, x, y, width, height, parentId) => ({ id, x, y, width, height, parentId });
+  const nodes = [
+    box("P", 0, 0, 2000, 800, null),
+    box("X", 20, 40, 1460, 120, "P"), box("x1", 40, 80, 460, 60, "X"), box("x2", 520, 80, 460, 60, "X"), box("x3", 1000, 80, 460, 60, "X"),
+    box("Y", 20, 400, 1960, 120, "P"), box("y1", 40, 440, 460, 60, "Y"), box("y2", 1500, 440, 460, 60, "Y"),
+  ];
+  console.log = () => {}; EU.alignColumnsAcrossContainers(nodes, { elementSpacing: 20, padding: 20 }, {}, () => {}); console.log = _log;
+  const by = boxes({ nodes });
+  eq(by.y2.x, by.x2.x, "grid: a stack moves left into the first column its neighbours allow");
+}
 
 // Max width is kept when it can be; otherwise the narrowest layout is returned.
 {

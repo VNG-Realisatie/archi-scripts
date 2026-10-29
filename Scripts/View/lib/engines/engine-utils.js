@@ -246,9 +246,10 @@ const MAX_WIDEN_PASSES = 80;
  * than a flat one unless its containers need them).
  *
  * Algorithm:
- *   1. Detect columns: sort leaves by centre, split on a >½-leaf gap (consecutive compare) and
- *      before a leaf whose branch stands beside the branch of a column member (side by side
- *      under their lowest common container: one x would make them overlap).
+ *   1. Assign columns: leaves at one x under one parent form a stack. In order of centre, each
+ *      stack takes the leftmost column right of every stack whose branch stands beside its own
+ *      (side by side under their lowest common container: one x would make them overlap), so a
+ *      stack never waits for a column it does not collide with.
  *   2. Column width = widest member leaf.
  *   3. Every gap starts at the element distance.
  *   4. Iterate: place leaves on the column grid + re-wrap containers; find adjacent siblings
@@ -298,26 +299,29 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log) {
     if (ca[i] === cb[j]) { i--; j--; }   // a common ancestor: step to the branches below it
     return yOver(ca[i], cb[j]);
   };
-  // 1. Detect columns (consecutive-centre compare; split on >½-leaf gap or a member beside it).
-  const sorted = leaves.slice().sort((a, b) => centerOf(a) - centerOf(b));
-  /** @type {{ members: LayoutResultNode[], w: number }[]} */
-  const cols = [];
-  /** @type {LayoutResultNode | null} */
-  let prev = null;
-  for (const lf of sorted) {
-    const thr = prev ? Math.min(lf.width || 0, prev.width || 0) / 2 : 0;
-    if (prev && centerOf(lf) - centerOf(prev) <= thr + 1e-6 && !cols[cols.length - 1].members.some(m => sideBySide(m, lf))) {
-      const c = cols[cols.length - 1]; c.members.push(lf); c.w = Math.max(c.w, lf.width || 0);
-    } else {
-      cols.push({ members: [lf], w: lf.width || 0 });
-    }
-    prev = lf;
+  // 1. Assign columns: stacks in order of centre, each in the leftmost column its side-by-side neighbours allow.
+  /** @type {Map<string, LayoutResultNode[]>} */
+  const stackOf = new Map();
+  for (const lf of leaves) {
+    const key = `${lf.parentId}|${Math.round(lf.x)}`;
+    if (!stackOf.has(key)) stackOf.set(key, []);
+    /** @type {LayoutResultNode[]} */ (stackOf.get(key)).push(lf);
   }
+  const stacks = [...stackOf.values()].sort((a, b) => centerOf(a[0]) - centerOf(b[0]));
+  /** @type {number[]} */
+  const stackCol = [];
+  stacks.forEach((st, i) => {
+    let col = 0;
+    for (let h = 0; h < i; h++) if (stackCol[h] >= col && stacks[h].some(m => st.some(lf => sideBySide(m, lf)))) col = stackCol[h] + 1;
+    stackCol.push(col);
+  });
+  /** @type {{ members: LayoutResultNode[], w: number }[]} */
+  const cols = Array.from({ length: Math.max(0, ...stackCol) + 1 }, () => ({ members: /** @type {LayoutResultNode[]} */ ([]), w: 0 }));
+  stacks.forEach((st, i) => { const c = cols[stackCol[i]]; c.members.push(...st); c.w = Math.max(c.w, ...st.map(m => m.width || 0)); });
   if (cols.length < 2) { log("[columns] 1 column — nothing to align"); return; }
   /** @type {Record<string, number>} */
   const colOf = {};
   cols.forEach((c, i) => c.members.forEach(m => { colOf[m.id] = i; }));
-
   // 3. Every gap starts at the element distance; the loop below widens the boundaries that collide.
   /** @type {number[]} */
   const gap = new Array(cols.length - 1).fill(spacing);
