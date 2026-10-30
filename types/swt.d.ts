@@ -19,7 +19,8 @@ declare namespace Swt {
     readonly SINGLE: number; readonly MULTI: number; readonly WRAP: number;
     readonly SEPARATOR: number; readonly HORIZONTAL: number; readonly VERTICAL: number;
     readonly H_SCROLL: number; readonly V_SCROLL: number; readonly BOLD: number;
-    readonly INHERIT_DEFAULT: number;
+    readonly INHERIT_DEFAULT: number; readonly NO_TRIM: number; readonly SEARCH: number; readonly ICON_CANCEL: number;
+    readonly LEFT: number;
     // alignment and sizes
     readonly BEGINNING: number; readonly LEAD: number; readonly CENTER: number; readonly END: number;
     readonly FILL: number; readonly TOP: number; readonly DEFAULT: number;
@@ -27,7 +28,9 @@ declare namespace Swt {
     readonly Selection: number; readonly DefaultSelection: number; readonly Modify: number;
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
     readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number; readonly Dispose: number;
-    readonly MouseDown: number; readonly MouseDoubleClick: number;
+    readonly MouseDown: number; readonly MouseDoubleClick: number; readonly Deactivate: number;
+    // key codes
+    readonly ARROW_DOWN: number;
     // traversal details
     readonly TRAVERSE_RETURN: number; readonly TRAVERSE_ESCAPE: number;
     // GC
@@ -61,7 +64,7 @@ declare namespace Swt {
   }
 
   /** The listener argument; Paint events carry gc and display, mouse / key / traverse events the rest. */
-  interface Event { gc: GC; display: Display; button: number; character: string; detail: number; doit: boolean; widget: Widget }
+  interface Event { gc: GC; display: Display; button: number; character: string; keyCode: number; detail: number; doit: boolean; widget: Widget; x: number; y: number }
 
   interface Display {
     getSystemColor(id: number): Color;
@@ -144,6 +147,7 @@ declare namespace Swt {
     getMonitor(): Monitor;
     getBounds(): Rectangle;
     setBounds(x: number, y: number, width: number, height: number): void;
+    open(): void;
   }
 
   interface Label extends Control {
@@ -187,6 +191,23 @@ declare namespace Swt {
     getItemCount(): number;
     indexOf(item: string): number;
     getText(): string;
+  }
+
+  interface Tree extends Composite {
+    removeAll(): void;
+    getItems(): TreeItem[];
+    getItem(point: Point): TreeItem | null;
+    getSelection(): TreeItem[];
+    setSelection(item: TreeItem): void;
+    showItem(item: TreeItem): void;
+    setRedraw(redraw: boolean): void;
+  }
+  interface TreeItem extends Widget {
+    setText(text: string): void;
+    setFont(font: Font): void;
+    getItems(): TreeItem[];
+    getExpanded(): boolean;
+    setExpanded(expanded: boolean): void;
   }
 
   interface Spinner extends Composite {
@@ -265,6 +286,9 @@ interface JavaInterop {
   type(className: "org.eclipse.swt.widgets.Button"): Swt.WidgetClass<Swt.Composite, Swt.Button>;
   type(className: "org.eclipse.swt.widgets.Combo"): Swt.WidgetClass<Swt.Composite, Swt.Combo>;
   type(className: "org.eclipse.swt.widgets.Text"): Swt.WidgetClass<Swt.Composite, Swt.Text>;
+  type(className: "org.eclipse.swt.widgets.Shell"): new (parent: Swt.Shell, style: number) => Swt.Shell;
+  type(className: "org.eclipse.swt.widgets.Tree"): Swt.WidgetClass<Swt.Composite, Swt.Tree>;
+  type(className: "org.eclipse.swt.widgets.TreeItem"): new (parent: Swt.Tree | Swt.TreeItem, style: number) => Swt.TreeItem;
   type(className: "org.eclipse.swt.widgets.Spinner"): Swt.WidgetClass<Swt.Composite, Swt.Spinner>;
   type(className: "org.eclipse.swt.widgets.Group"): Swt.WidgetClass<Swt.Composite, Swt.Group>;
   type(className: "org.eclipse.swt.widgets.Canvas"): Swt.WidgetClass<Swt.Composite, Swt.Canvas>;

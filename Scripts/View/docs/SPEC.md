@@ -323,7 +323,7 @@ Element labels are intrinsic to nodes; the result carries no separate label coor
 
 The dialog defines a selection, a layout and styling, previews the result live, and runs an action. It is the only surface that edits presets. Mock-ups and per-control behaviour: [dialog reference](reference/gui.md#dialog-reference).
 
-**Preset row.** Picking a preset **loads all its settings** at once; `*` marks settings that differ from the saved preset. Save, Save As…, Rename… and Delete manage presets; **Default** always exists and cannot be renamed or deleted. The last-used configuration and UI state are restored on open, from a user-local session that is never shared as a preset.
+**Preset row.** Presets are picked from a tree of their folders, or found by typing part of the name or folder. Picking a preset **loads all its settings** at once; `*` marks settings that differ from the saved preset. Save, Save As…, Rename… and Delete manage presets; **Default** always exists and cannot be renamed or deleted. The last-used configuration and UI state are restored on open, from a user-local session that is never shared as a preset.
 
 **Tabs.** Four tabs, each owning one concern, in separate modules:
 - **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows its name (or its number), its repeat and what it adds, per condition and in total, with controls to rename, collapse, reorder and remove it. When a preset loads, all steps start expanded.

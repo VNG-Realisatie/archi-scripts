@@ -25,6 +25,10 @@ const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
 const CanvasWidget      = Java.type("org.eclipse.swt.widgets.Canvas");
 const TabItemWidget           = Java.type("org.eclipse.swt.widgets.TabItem");
 const ScrolledCompositeWidget = Java.type("org.eclipse.swt.custom.ScrolledComposite");
+const ShellWidget             = Java.type("org.eclipse.swt.widgets.Shell");
+const TextWidget              = Java.type("org.eclipse.swt.widgets.Text");
+const TreeWidget              = Java.type("org.eclipse.swt.widgets.Tree");
+const TreeItemWidget          = Java.type("org.eclipse.swt.widgets.TreeItem");
 const SWTMenu                 = Java.type("org.eclipse.swt.widgets.Menu");
 const MenuItemWidget          = Java.type("org.eclipse.swt.widgets.MenuItem");
 const SWTColorDialog          = Java.type("org.eclipse.swt.widgets.ColorDialog");
@@ -32,6 +36,7 @@ const SWTColor                = Java.type("org.eclipse.swt.graphics.Color");
 const SWTImage                = Java.type("org.eclipse.swt.graphics.Image");
 const SWTGC                   = Java.type("org.eclipse.swt.graphics.GC");
 const SWTRGB                  = Java.type("org.eclipse.swt.graphics.RGB");
+const SWTPoint                = Java.type("org.eclipse.swt.graphics.Point");
 const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 
@@ -361,6 +366,189 @@ function colorRangePicker(parent, value, onChange, tooltip) {
   });
 }
 
+// ── Tree picker ───────────────────────────────────────────────────────────────
+// A choice among names with folders ("folder/sub/name"): a button that shows the chosen name, and a
+// pop-up with a filter field over a tree of folders (collapsible) and names. A combo lists them flat.
+
+const TREE_PICKER_HEIGHT = 400;
+
+/**
+ * The tree of names: folders first, each level in the order of the names.
+ * @param {readonly string[]} names  "name" or "folder/sub/name"
+ * @returns {TreePickerFolder}
+ */
+function _treeOfNames(names) {
+  /** @type {TreePickerFolder} */
+  const root = { path: "", folders: new Map(), names: [] };
+  for (const name of names) {
+    const parts = name.split("/");
+    let node = root;
+    for (const part of parts.slice(0, -1)) {
+      let sub = node.folders.get(part);
+      if (!sub) {
+        sub = { path: node.path ? node.path + "/" + part : part, folders: new Map(), names: [] };
+        node.folders.set(part, sub);
+      }
+      node = sub;
+    }
+    node.names.push(name);
+  }
+  return root;
+}
+
+/**
+ * Tree picker (see above). Names are read each time the pop-up opens. A click, or Enter on a
+ * name, chooses it; Enter in the filter field chooses the first name shown; Esc or a click
+ * elsewhere closes the pop-up.
+ * @param {Swt.Composite} parent
+ * @param {TreePickerOptions} opts
+ * @returns {TreePicker}
+ */
+function treePicker(parent, opts) {
+  const btn = new ButtonWidget(parent, SWT.PUSH | SWT.LEFT);
+  if (opts.tooltip) btn.setToolTipText(opts.tooltip);
+  let value = "";
+
+  const show = () => btn.setText(value + "  ▾");
+  /** @param {string} v */
+  const choose = v => { value = v; show(); opts.onChange(v); };
+
+  btn.addListener(SWT.Selection, () => _openTreePopup(btn, opts.items(), value, choose));
+  show();
+
+  return {
+    button: btn,
+    get: () => value,
+    set: v => { value = v; show(); },
+  };
+}
+
+/**
+ * The pop-up of a tree picker, under its button.
+ * @param {Swt.Button} btn
+ * @param {readonly string[]} names
+ * @param {string} current
+ * @param {(name: string) => void} choose
+ */
+function _openTreePopup(btn, names, current, choose) {
+  const popup = new ShellWidget(btn.getShell(), SWT.NO_TRIM);
+  GridLayoutFactory.fillDefaults().margins(4, 4).spacing(0, 4).applyTo(popup);
+
+  const txtFilter = new TextWidget(popup, SWT.SEARCH | SWT.ICON_CANCEL | SWT.BORDER);
+  txtFilter.setMessage("Filter");
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(txtFilter);
+
+  const tree = new TreeWidget(popup, SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL | SWT.BORDER);
+  GridDataFactory.fillDefaults().grab(true, true).applyTo(tree);
+
+  const close = () => { if (!popup.isDisposed()) popup.dispose(); };
+  /** @param {string} name */
+  const pick = name => { close(); choose(name); };
+  const fill = () => _fillTree(tree, names, txtFilter.getText().trim().toLowerCase(), current);
+
+  txtFilter.addListener(SWT.Modify, fill);
+  txtFilter.addListener(SWT.DefaultSelection, () => {
+    const first = _firstName(tree.getItems());
+    if (first) pick(String(first.getData("name")));
+  });
+  txtFilter.addListener(SWT.KeyDown, e => {
+    if (e.keyCode !== SWT.ARROW_DOWN) return;
+    const first = _firstName(tree.getItems());
+    if (first) tree.setSelection(first);
+    tree.setFocus();
+  });
+  tree.addListener(SWT.MouseUp, e => {
+    if (e.button !== 1) return;
+    const item = tree.getItem(new SWTPoint(e.x, e.y));
+    if (item && item.getData("name")) pick(String(item.getData("name")));
+  });
+  tree.addListener(SWT.DefaultSelection, () => {
+    const item = tree.getSelection()[0];
+    if (!item) return;
+    if (item.getData("name")) pick(String(item.getData("name")));
+    else item.setExpanded(!item.getExpanded());
+  });
+  for (const control of [txtFilter, tree]) {
+    control.addListener(SWT.Traverse, e => {
+      if (e.detail === SWT.TRAVERSE_ESCAPE) { e.doit = false; close(); }
+    });
+  }
+  popup.addListener(SWT.Deactivate, close);
+
+  fill();
+  _placeTreePopup(popup, btn);
+  popup.open();
+  txtFilter.setFocus();
+}
+
+/**
+ * Fill the tree with the names that contain the filter (in their full name, folders included).
+ * Without a filter only the folders of the current name are expanded; with one, every folder.
+ * @param {Swt.Tree} tree
+ * @param {readonly string[]} names
+ * @param {string} filter  lower case; "" = all
+ * @param {string} current
+ */
+function _fillTree(tree, names, filter, current) {
+  tree.setRedraw(false);
+  tree.removeAll();
+  const root = _treeOfNames(filter ? names.filter(n => n.toLowerCase().includes(filter)) : names);
+  /** @type {Swt.TreeItem | null} */
+  let currentItem = null;
+  /**
+   * @param {Swt.Tree | Swt.TreeItem} parentItem
+   * @param {TreePickerFolder} node
+   */
+  const add = (parentItem, node) => {
+    for (const [label, sub] of node.folders) {
+      const item = new TreeItemWidget(parentItem, SWT.NONE);
+      item.setText(label);
+      const bold = getBoldFont();
+      if (bold) item.setFont(bold);
+      add(item, sub);
+      item.setExpanded(!!filter || current.startsWith(sub.path + "/"));   // after its children: GTK expands no empty item
+    }
+    for (const name of node.names) {
+      const item = new TreeItemWidget(parentItem, SWT.NONE);
+      item.setText(name.slice(name.lastIndexOf("/") + 1));
+      item.setData("name", name);
+      if (name === current) currentItem = item;
+    }
+  };
+  add(tree, root);
+  tree.setRedraw(true);
+  if (currentItem) { tree.setSelection(currentItem); tree.showItem(currentItem); }
+}
+
+/**
+ * The first name in the tree order, depth first.
+ * @param {Swt.TreeItem[]} items
+ * @returns {Swt.TreeItem | null}
+ */
+function _firstName(items) {
+  for (const item of items) {
+    if (item.getData("name")) return item;
+    const found = _firstName(item.getItems());
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Put the pop-up under the button, as wide as the button, within the monitor.
+ * @param {Swt.Shell} popup
+ * @param {Swt.Button} btn
+ */
+function _placeTreePopup(popup, btn) {
+  const b      = btn.getBounds();
+  const at     = btn.getParent().toDisplay(b.x, b.y + b.height);
+  const area   = btn.getShell().getMonitor().getClientArea();
+  const width  = Math.max(b.width, popup.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+  const height = Math.min(TREE_PICKER_HEIGHT, area.y + area.height - at.y);
+  const x      = Math.max(area.x, Math.min(at.x, area.x + area.width - width));
+  popup.setBounds(x, at.y, width, height);
+}
+
 // Group container with the project's standard GridData + GridLayout.
 // Pass " " (single space) as label for an unlabelled-but-title-bar-reserved group.
 // By default the title bar font is made bold; pass bold: false to opt out (e.g. action row groups).
@@ -663,6 +851,6 @@ function addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    scrolledTab, lbl, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, colorRangePicker, colorRangeItems, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, canvasCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR,
+    scrolledTab, lbl, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, colorRangePicker, colorRangeItems, treePicker, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, canvasCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR,
   };
 }

@@ -112,6 +112,21 @@ interface ColorPicker extends ConditionTableCell {
   refresh(): void;
 }
 
+/** Options of a tree picker (gui/widgets.js treePicker): names are "name" or "folder/sub/name". */
+interface TreePickerOptions {
+  items: () => readonly string[];
+  onChange: (name: string) => void;
+  tooltip?: string;
+}
+/** The controller treePicker returns. */
+interface TreePicker {
+  button: Swt.Button;
+  get(): string;
+  set(name: string): void;
+}
+/** One folder in a tree picker's pop-up: its path, sub-folders by label, and the names it holds. */
+interface TreePickerFolder { path: string; folders: Map<string, TreePickerFolder>; names: string[] }
+
 /** Type ids a condition may name, per field group (built by defs.validatePreset). */
 interface ValidTypeSets {
   elements: Set<string>;
@@ -769,7 +784,7 @@ type TotalsBlock = { title: Swt.Label; rows: { sub: Swt.Label; counts: Swt.Label
  */
 type DialogWidgets = {
   tabFolder: Swt.TabFolder;
-  cmbPreset: Swt.Combo;
+  pickPreset: TreePicker;
   lblModified: Swt.Label;
   btnRename: Swt.Button;
   btnDelete: Swt.Button;

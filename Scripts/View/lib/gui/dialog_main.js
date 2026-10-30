@@ -5,7 +5,7 @@
  * Exports open(uiSelection) → calls generate_view on OK.
  *
  * Dialog layout:
- *   Preset row — combo (loads on pick) · * modified · Save · Save As… | Rename… · Delete; description
+ *   Preset row — tree picker (loads on pick) · * modified · Save · Save As… | Rename… · Delete; description
  *   Tabs       — Selection · Layout · Appearance · Properties
  *   Totals     — what the current settings put on a view
  *   Actions    — Create new view (Folder, Name, New view, One view each) ·
@@ -860,7 +860,7 @@ function _clearModified(ctx) {
 
 // ── Preset row ────────────────────────────────────────────────────────────────
 
-// Row 1: Preset [combo] *  Save  Save As…  |  Rename…  Delete      Row 2: the preset's description.
+// Row 1: Preset [picker] *  Save  Save As…  |  Rename…  Delete      Row 2: the preset's description.
 // Save / Save As write the current settings; Rename / Delete act on the saved file only.
 /**
  * @param {Swt.Composite} parent
@@ -875,10 +875,12 @@ function _buildPresetRow(parent, ctx, dlg) {
 
   new LabelWidget(row, SWT.NONE).setText("Preset:");
 
-  const cmbPreset = new ComboWidget(row, SWT.READ_ONLY | SWT.DROP_DOWN);
-  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(cmbPreset);
-  cmbPreset.setToolTipText("Choosing a preset loads all its settings.");
-  w.cmbPreset = cmbPreset;
+  w.pickPreset = Widgets.treePicker(row, {
+    items:   () => PresetIO.listPresets(),
+    tooltip: "Choosing a preset loads all its settings.\nType in the filter to find a preset by name or folder.",
+    onChange: name => _loadPreset(ctx, name),
+  });
+  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(w.pickPreset.button);
 
   // Modified indicator — shown while the settings differ from the saved preset
   const lblModified = new LabelWidget(row, SWT.NONE);
@@ -934,16 +936,11 @@ function _buildPresetRow(parent, ctx, dlg) {
   });
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnDelete);
 
-  // Row 2: description of the preset (hidden when empty), aligned under the combo.
+  // Row 2: description of the preset (hidden when empty), aligned under the picker.
   new LabelWidget(row, SWT.NONE);
   w.lblPresetDescription = new LabelWidget(row, SWT.WRAP);
   try { w.lblPresetDescription.setForeground(row.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (x) {}
   GridDataFactory.fillDefaults().grab(true, false).span(7, 1).hint(300, SWT.DEFAULT).applyTo(w.lblPresetDescription);
-
-  cmbPreset.addListener(SWT.Selection, () => {
-    const idx = cmbPreset.getSelectionIndex();
-    if (idx >= 0) _loadPreset(ctx, String(cmbPreset.getItem(idx)));
-  });
 
   _afterPresetChange(ctx, { keepModified: true });
 }
@@ -953,7 +950,7 @@ function _presetName(ctx) {
   return ctx.config.name || PresetIO.DEFAULT_PRESET_NAME;
 }
 
-// Load a saved preset into the dialog (all settings), as when it is picked in the combo.
+// Load a saved preset into the dialog (all settings), as when it is picked in the preset picker.
 /**
  * @param {DialogContext} ctx
  * @param {string} name
@@ -974,7 +971,7 @@ function _loadPreset(ctx, name) {
   _afterPresetChange(ctx);
 }
 
-// Refresh the preset row after a load / save / rename / delete: combo items and selection,
+// Refresh the preset row after a load / save / rename / delete: the chosen preset,
 // description line, Rename/Delete state (not for Default) and the modified indicator.
 /**
  * @param {DialogContext} ctx
@@ -983,7 +980,7 @@ function _loadPreset(ctx, name) {
 function _afterPresetChange(ctx, opts) {
   const w    = ctx.widgets;
   const name = _presetName(ctx);
-  _refreshPresetCombo(w.cmbPreset, name);
+  w.pickPreset.set(name);
   const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
   try { w.btnDelete.setEnabled(!isDefault); w.btnRename.setEnabled(!isDefault); } catch (x) {}
 
@@ -1300,19 +1297,6 @@ function _spinSet(spinner, value) {
 function _mergePreset(ctx, validated) {
   for (const k of Object.keys(ctx.config)) if (!k.startsWith("_")) delete /** @type {Record<string, unknown>} */ (ctx.config)[k];   // Cast: emptied and refilled below
   Object.assign(ctx.config, JSON.parse(JSON.stringify(validated)));
-}
-
-/**
- * @param {Swt.Combo} combo
- * @param {string} currentName
- */
-function _refreshPresetCombo(combo, currentName) {
-  combo.removeAll();
-  PresetIO.listPresets().forEach(n => combo.add(n));
-  if (currentName) {
-    const i = combo.indexOf(currentName);
-    if (i >= 0) combo.select(i);
-  }
 }
 
 if (typeof module !== "undefined" && module.exports) {

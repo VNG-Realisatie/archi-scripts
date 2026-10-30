@@ -53,7 +53,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 
 ```
 ┌─ Generate View ────────────────────────────────────────────────────────────┐
-│ Preset: [Application Flow LR  ▼] *  [Save] [Save As…] │ [Rename…] [Delete] │
+│ Preset: [Application Flow LR  ▾] *  [Save] [Save As…] │ [Rename…] [Delete] │
 │         Views of application flows, left to right             (description) │
 │ ┌─[Selection]──[Layout]──[Appearance]──[Properties]─────────────────────┐  │
 │ │   (tab content, below)                                                │  │
@@ -73,13 +73,13 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 
 Above the tab strip, left to right:
 
-- **Preset combo**: every saved preset, also in nested folders (`folder/sub/name`); Default first. Picking one loads all its settings, including values of options its algorithm does not use, so a later Save writes back exactly what was loaded.
+- **Preset picker**: a button with the current preset (`folder/sub/name`). It opens a pop-up with a filter field over a tree of every saved preset: folders first, folded, with the current preset's folders open and the preset selected. Typing filters on the full name, folders included, and opens every folder that holds a match; Enter in the filter picks the first match, Esc or a click outside closes the pop-up. Picking one (a click, or Enter on a preset) loads all its settings, including values of options its algorithm does not use, so a later Save writes back exactly what was loaded.
 - **`*`**: shown while the settings differ from the saved preset, after any change. It also shows on open when the session differs from the preset it came from; the view name is not compared, because it is pre-filled from the selection. Save, Save As and loading a preset clear it.
 - **Save** overwrites the current preset.
 - **Save As…** asks Name, Folder and Description, writes a new preset and selects it.
 - **Rename…** uses the same dialog: it renames or moves the *saved* preset and edits its description. Unsaved changes stay in the dialog and are not written.
 - **Delete** deletes the saved preset after a confirm and loads Default.
-- **Description line**: the preset's description, grey, under the combo; hidden when empty.
+- **Description line**: the preset's description, grey, under the picker; hidden when empty.
 
 Save As and Rename ask before overwriting another preset. Default is created on first run if absent; Rename and Delete are disabled for it. A preset file holds only the [preset schema](presets.md#preset-json-schema), never the action or dialog state.
 

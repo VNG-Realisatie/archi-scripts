@@ -256,7 +256,8 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 |---|---|
 | Selecting a preset applies it at once; there is no Apply button. | The universal pattern for preset pickers (DAWs, IDEs, Lightroom). Apply adds a click without adding safety, since overwriting a preset is a separate Save. |
 | A `*` marks settings that differ from the saved preset; switching presets discards changes without a confirm. | Users need to know when Save would do something. With Save and Save As explicit, a confirm on every switch annoys more than it helps; the `*` shows the loss before it happens. |
-| A Default preset always exists and cannot be renamed or deleted. | The combo is never empty, and there is always a safe fallback. |
+| A Default preset always exists and cannot be renamed or deleted. | The picker is never empty, and there is always a safe fallback. |
+| Presets are picked from a tree of their folders with a filter field, not from a combo. | A flat combo of all presets in all folders is long to scan; folders that fold open and a filter on the full name make the choice quick. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms of all styles are visible at once: users scan the full option space without opening a combo, and the style/algorithm relation shows at a glance. |
 | Steps start expanded when a preset is loaded. | All conditions and their counts are visible at once; a block is collapsed on demand. |
 | A step has an optional name, edited in place in its header; a named step hides its condition count when collapsed. | A collapsed step then says what it adds, not how it is built. |
@@ -272,6 +273,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - **Commit events**: selection events and spinner focus-out.
 - **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle algorithm start* on, the run's start is set first (Selection for a Create action), and the session gets the next one.
 - **Step header.** Repeat is a push button with a menu, as the colour picker: a GTK combo is taller than the header buttons. The name field takes the title's place (GridData `exclude`); the header row is padded to the field's height, so it keeps one height while editing. A display MouseDown filter ends the edit, because a click on a label takes no focus from the field. A single click collapses after the double-click time, so a double-click does not collapse and expand first.
+- **Preset picker** (`Widgets.treePicker`): a push button with a pop-up `Shell` (`NO_TRIM`, no `ON_TOP`: [swt-gtk.md](../../../ai/jarchi-scripting/swt-gtk.md)) on the dialog's shell, holding a search `Text` and a `Tree`, rebuilt on every keystroke of the filter. A click picks on MouseUp over a preset item, so arrow keys move without loading; a folder folds open after its children are added, because GTK does not expand an empty item. The pop-up closes on `Deactivate`.
 - **Coupled distances** react to the spinners' Selection event, which only the user fires (not `setSelection`), and to every algorithm update, which also runs after a preset is loaded.
 
 ## Layer 2 — View-generation API
