@@ -87,11 +87,6 @@
   "viewProperties": {
     "addObjectId": false,
     "properties": [
-      {
-        "key": "Managed occurrence",
-        "value": "",
-        "enabled": false
-      }
     ]
   },
   "description": "Baseline runs on the test model (Scripts/View/test/model/view-test.archimate): nesting with every container and a reversed type, one step to the neighbours, style by the property domain"

@@ -128,17 +128,7 @@
         "enabled": false
       },
       {
-        "key": "GEMMA URL",
-        "value": "",
-        "enabled": false
-      },
-      {
         "key": "GEMMA thema",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "Managed occurrence",
         "value": "",
         "enabled": false
       },
@@ -169,31 +159,6 @@
       },
       {
         "key": "author",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "drivingView",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "generate_view_param",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "includeTableOfView",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "organisation",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "path",
         "value": "",
         "enabled": false
       }

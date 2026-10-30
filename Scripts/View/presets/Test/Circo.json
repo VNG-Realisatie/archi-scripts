@@ -138,16 +138,6 @@
         "key": "Viewtype",
         "value": "",
         "enabled": false
-      },
-      {
-        "key": "drivingView",
-        "value": "",
-        "enabled": false
-      },
-      {
-        "key": "generate_view_param",
-        "value": "",
-        "enabled": false
       }
     ]
   },

@@ -24,6 +24,8 @@ const Common = require(REPO_ROOT + "_lib/Common");
 const Selection = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("../hidden_properties")} */
+const HiddenProps = require(REPO_ROOT + "View/lib/hidden_properties");
 /** @type {typeof import("../preset_io")} */
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 /** @type {typeof import("../generate_view")} */
@@ -48,7 +50,7 @@ const TabAppearance = require(REPO_ROOT + "View/lib/gui/tab_appearance");
 /** @type {typeof import("./dialog_presets")} */
 const PresetsDialog = require(REPO_ROOT + "View/lib/gui/dialog_presets");
 
-const { ACTION, AR_OPTIONS, COLOR_RANGES, PROP_ID, DEFAULT_PRESET } = Defs;
+const { ACTION, AR_OPTIONS, COLOR_RANGES, DEFAULT_PRESET } = Defs;
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
@@ -538,7 +540,7 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
   const onChange = () => _markModified(ctx);
 
   const descLbl = new LabelWidget(page, SWT.WRAP);
-  descLbl.setText("Add or update properties of the generated view(s)");
+  descLbl.setText("Set properties of the generated view(s): a ticked row is written, an unticked row is removed from the view");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(descLbl);
 
   // ── Object ID ──────────────────────────────────────────────────────────────
@@ -556,15 +558,16 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
   // ── View properties grid ───────────────────────────────────────────────────
   const grpViewProps = Widgets.group(page, "View properties", 3);
 
-  // Collect all properties from all model views (excluding Object ID)
+  // Collect all properties from all model views, except the hidden ones
   /** @type {Map<string, Set<string>>} */
   const allViewProps = new Map();  // key → Set<value>
+  const hidden = HiddenProps.hiddenKeys();
   try {
     $("archimate-diagram-model").each(v => {
       const keys = v.prop() || [];
       if (!Array.isArray(keys)) return;
       keys.forEach(k => {
-        if (!k || k === PROP_ID) return;
+        if (!k || hidden.has(k)) return;
         if (!allViewProps.has(k)) allViewProps.set(k, new Set());
         try {
           const val = v.prop(k);

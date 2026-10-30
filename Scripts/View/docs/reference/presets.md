@@ -49,7 +49,7 @@ Preset {
                                                       // each owner merges its section over its defaults
   viewProperties {
     addObjectId : boolean            // write a unique Object ID when the view has none
-    properties : { key, value : string, enabled : boolean }[]   // key never "Object ID"
+    properties : { key, value : string, enabled : boolean }[]   // key never hidden; enabled false removes the key from the view
   }
 }
 Step { name : string, repeat : 1..5 | "untilNothingNew", conditions : StepCondition[] }   // name "" = Step N; conditions [] = follow every relation
@@ -142,3 +142,13 @@ One condition model for every list. A list keeps what matches **any active Inclu
 ```
 
 The file is read when the dialog builds its Appearance tab and at a run that uses a palette colour. An unusable file is reported in the console, naming what is wrong, and the run uses Default. Without the file there are no palettes. The GEMMA palette holds the default fill colours of the GEMMA Archi preferences, one per group of element types.
+
+## Hidden properties
+
+`presets/_hidden_properties.json` lists the view property keys the Properties tab does not show and generation never touches. It is per installation: another model has other keys.
+
+```
+{ "hidden": [ "GEMMA URL", "path", … ] }
+```
+
+*Object ID* and *Managed occurrence* are always hidden and not listed. The file is read when the tab is built and at each run; an unusable file stops the run with a message naming what is wrong. Without the file only the two always-hidden keys apply. A preset row with a hidden key is left alone and the console says to remove it.

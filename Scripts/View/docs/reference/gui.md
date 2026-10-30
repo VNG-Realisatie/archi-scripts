@@ -392,8 +392,9 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- One row per property key found on any view of the model, except *Object ID*: a checkbox, the key, and an editable combo of all values found for that key. Nothing is pre-selected.
-- After layout and styling, every enabled row's value is written to the generated view. An enabled row without a value removes that key from the view. Disabled rows are ignored: they never touch the view. The preset keeps every configured row, enabled or not.
+- One row per property key found on any view of the model, except the hidden keys: a checkbox, the key, and an editable combo of all values found for that key. Nothing is pre-selected.
+- After layout and styling, every ticked row's value is written to the generated view. A ticked row without a value removes that key from the view, and so does an unticked row, in every action. The preset keeps every configured row, ticked or not.
+- **Hidden properties.** *Object ID* and *Managed occurrence* are always hidden (the tool owns them), plus the keys of `presets/_hidden_properties.json` ([presets.md](presets.md#hidden-properties)). A hidden key has no row and generation never sets or removes it. The console lists the hidden keys when the tab opens and at each run.
 - **Object ID.** When checked and the view has no *Object ID* property, a new unique id is written; an existing one is never overwritten. *One view each* gives each view its own id.
 
 ### Totals line and action area

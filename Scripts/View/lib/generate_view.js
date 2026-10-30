@@ -25,6 +25,8 @@ const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 
 /** @type {typeof import("./defs")} */
 const Defs       = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("./hidden_properties")} */
+const HiddenProps = require(REPO_ROOT + "View/lib/hidden_properties");
 /** @type {typeof import("./selection_pipeline")} */
 const Pipeline   = require(REPO_ROOT + "View/lib/selection_pipeline");
 /** @type {typeof import("./nesting")} */
@@ -216,12 +218,17 @@ function _applyViewProperties(view, preset) {
   const vp = preset.viewProperties;
   if (!vp) return;
 
+  const hidden = HiddenProps.hiddenKeys();
   /** @type {string[]} */
   const lines = [];
   (vp.properties || []).forEach(p => {
-    // docs/reference/gui.md (Properties tab): disabled rows are ignored. An enabled row without a value clears the key.
-    if (!p.key || p.key === PROP_ID || !p.enabled) return;
-    if (p.value) {
+    // docs/reference/gui.md (Properties tab): a ticked row is written (no value clears the key), an unticked row removes the key.
+    if (!p.key) return;
+    if (hidden.has(p.key)) {
+      console.error(`Properties: "${p.key}" is hidden (${HiddenProps.HIDDEN_FILE}) and is left alone. Remove it from the preset.`);
+      return;
+    }
+    if (p.enabled && p.value) {
       view.prop(p.key, p.value);
       lines.push(`  prop set:     ${p.key} = "${p.value}"`);
     } else if (view.prop(p.key) !== null) {

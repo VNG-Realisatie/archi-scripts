@@ -89,6 +89,7 @@ Shared (Layers 1–2) ───────────────────�
   rel_filter.js  the condition model of every condition list (pure)
   preset_io.js   preset and session files
   palettes.js    the palettes file (named colours)
+  hidden_properties.js  the hidden view properties file
   _lib/*         repo-wide helpers: selection, logging, folders
 ```
 
@@ -117,6 +118,7 @@ Shared (Layers 1–2) ───────────────────�
 | `lib/rel_filter.js` | shared | Condition model: normalise, match, file form | — |
 | `lib/preset_io.js` | shared | Preset and session files | `defs`, `rel_filter` |
 | `lib/palettes.js` | shared | The palettes file: read, validate, colour lookup | — |
+| `lib/hidden_properties.js` | shared | The hidden properties file: read, validate, the hidden key set | `defs` |
 | `tools/`, `test/` | — | Checks, generators, migrations, harness; Archi test scripts | — |
 
 ### Subjects and layers
@@ -391,6 +393,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - A nesting style colour belongs to the condition that selects the child, not to a type: the earlier per-parent-type colour gave a step's colour to its parent, so a function → service condition coloured the functions. The most specific condition wins instead of the last, so the list has no order, like the other condition lists. A root container counts as a child under a parent of its own type, so a condition styles the element it selects there too: taking the condition whose parent was the root's type gave a business-function root the colour of a function → service condition, and made the order of conditions matter.
 - The dialog has no ⚠ for nesting style conditions that select one element with different colours: its predicted view has no nesting tree. The run logs the condition numbers instead.
 - On a Modify action the pass resets the fill of every element the chain does not reach, and Highlight repeated's reset skips what an earlier group styled; otherwise the fill of an earlier run stayed.
+- Hidden view properties live in one file beside the palettes (`presets/_hidden_properties.json`, `hidden_properties.js`): the keys differ per model, and the `_` prefix keeps it out of the preset list. *Object ID* and *Managed occurrence* are hidden in code, because the tool owns them. An unticked row removes its key, so the view holds exactly what the tab shows.
 - Palettes live in one file (`presets/_palettes.json`, `palettes.js`) that a preset names, so a colour is defined once for every preset. The run reads it only when a nesting style condition names a colour.
 - Every colour choice in the dialog is the colour picker (`widgets.js`): a button and a menu with swatch images, since an SWT Combo shows text only on GTK ([dialog-style.md](reference/dialog-style.md#colour-choices)).
 
@@ -619,6 +622,7 @@ Sources of order: the selection (Order *as selected*), ids (relations are taken 
 | Presets | `presets/**/*.json` | Folders allowed. `_Default` = the code defaults, hidden. `all` = base preset of `View/_*.ajs`. |
 | Session | `presets/_session.json` | Last settings plus UI state (`_`-prefixed keys); git-ignored |
 | Palettes | `presets/_palettes.json` | Named colours the presets pick from (`appearance.palette`); tracked |
+| Hidden properties | `presets/_hidden_properties.json` | View property keys the Properties tab hides and generation leaves alone; tracked |
 | View properties | the generated view | From the Properties tab; optional object-id property |
 | Managed-occurrence records | view property `Managed occurrence` | Rewritten by every run; not for editing |
 

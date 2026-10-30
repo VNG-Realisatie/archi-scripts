@@ -329,7 +329,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 - **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows its name (or its number), its repeat and what it adds, per condition and in total, with controls to rename, collapse, reorder and remove it. When a preset loads, all steps start expanded.
 - **Layout**: the algorithm radio table (all styles always visible), then the groups of [§ 7](#7-layout-options). Options the chosen algorithm does not use are greyed, with their values kept.
 - **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance), with a master on/off.
-- **Properties**: key/value properties written to each generated view.
+- **Properties**: key/value properties of each generated view: a ticked row is written, an unticked row is removed. Keys the tool owns or an installation lists as hidden are not shown and never touched.
 
 **Totals and actions.** Below the tabs, always visible, the predicted totals on the view stand above their action group: *on the generated view* for the Create group, and *on the expanded view* when *Expand view* is enabled. Two equal action groups follow: **Create new view** (folder, name; *New view*, *One view each*), always enabled; and **Modify selected view** (*Expand view*, *Layout only*), enabled only when the selection identifies a view. **Cancel** keeps the UI state.
 
