@@ -64,10 +64,29 @@ const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFa
 const TitleAreaDialog   = Java.type("org.eclipse.jface.dialogs.TitleAreaDialog");
 const IDialogConstants  = Java.type("org.eclipse.jface.dialogs.IDialogConstants");
 
-// Default dialog dimensions. Width set explicitly to avoid SWT computing a wide size from
-// content hints. Height: the monitor's usable height, at most DEFAULT_DIALOG_HEIGHT.
+// Default dialog dimensions. Width: what the Appearance tab needs (_appearanceDialogWidth), so the
+// dialog does not take a wide size from content hints; DEFAULT_DIALOG_WIDTH when it cannot be measured.
+// Height: the monitor's usable height, at most DEFAULT_DIALOG_HEIGHT.
 const DEFAULT_DIALOG_WIDTH  = 1000;
 const DEFAULT_DIALOG_HEIGHT = 1800;   // Layout tab without scrolling
+
+/**
+ * Dialog width at which the Appearance tab shows whole: its page's natural width plus the frames
+ * around it (area margins, tab folder, scrollbar, window).
+ * @param {DialogContext} ctx
+ * @param {Swt.Shell} shell
+ * @returns {number}
+ */
+function _appearanceDialogWidth(ctx, shell) {
+  try {
+    const page = ctx.appearancePage.computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+    const scrollbar = ctx.appearanceScrolled.getVerticalBar().getSize().x;
+    const inTabs = ctx.widgets.tabFolder.computeTrim(0, 0, page + scrollbar, 0).width;
+    const area = 2 * 8;   // createDialogArea margins
+    const window = shell.computeTrim(0, 0, inTabs + area, 0).width;
+    return Math.max(window, 0) || DEFAULT_DIALOG_WIDTH;
+  } catch (e) { return DEFAULT_DIALOG_WIDTH; }
+}
 
 // ── open() ────────────────────────────────────────────────────────────────────
 
@@ -281,7 +300,7 @@ function open(uiSelection) {
       const Point = Java.type("org.eclipse.swt.graphics.Point");
       let height = DEFAULT_DIALOG_HEIGHT;
       try { height = Math.min(height, dlg.getShell().getMonitor().getClientArea().height); } catch (e) {}
-      return new Point(DEFAULT_DIALOG_WIDTH, height);
+      return new Point(_appearanceDialogWidth(ctx, dlg.getShell()), height);
     },
 
     // Top of the monitor's usable area, centred horizontally — the dialog uses the full height.

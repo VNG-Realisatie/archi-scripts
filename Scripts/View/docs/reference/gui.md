@@ -27,7 +27,7 @@ Internal names never appear in UI labels or button text; tooltips may use them i
 
 These principles hold for the whole dialog (preset row, every tab, totals line, action area) and for every other dialog in the repo. How to realise them in SWT, with the gap sizes in pixels: [`dialog-style.md`](dialog-style.md). Where the dialog does not meet them yet: [ARCHITECTURE § Known gaps](../ARCHITECTURE.md#known-gaps).
 
-**Window.** The dialog is 1000 px wide and as tall as the monitor's usable area (at most 1800 px). Each tab scrolls on its own; the preset row and the action area stay visible.
+**Window.** The dialog is as wide as the Appearance tab needs (1000 px when that cannot be measured) and as tall as the monitor's usable area (at most 1800 px). Each tab scrolls on its own; the preset row and the action area stay visible.
 
 **Look**
 1. **One grammar.** Groups, form rows, condition tables, notes and counts look and behave the same on every tab. The same kind of setting always gets the same kind of control, in the same place.

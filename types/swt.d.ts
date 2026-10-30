@@ -128,6 +128,8 @@ declare namespace Swt {
 
   interface Scrollable extends Control {
     getClientArea(): Rectangle;
+    computeTrim(x: number, y: number, width: number, height: number): Rectangle;
+    getVerticalBar(): Control;
   }
 
   interface Composite extends Scrollable {
