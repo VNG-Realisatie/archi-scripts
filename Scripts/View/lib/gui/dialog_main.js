@@ -764,6 +764,7 @@ function _buildActionArea(area, ctx, dlg, target) {
   w.txtViewFolder = new TextWidget(grpCreate, SWT.BORDER);
   w.txtViewFolder.setToolTipText(`Folder under Views, e.g. /_Generated/Project.\nEmpty = ${Defs.GENERATED_VIEW_FOLDER}.`);
   GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewFolder);
+  w.txtViewFolder.addListener(SWT.Modify, () => _markModified(ctx));
 
   new LabelWidget(grpCreate, SWT.NONE).setText("Name:");
   w.txtViewName = new TextWidget(grpCreate, SWT.BORDER);
