@@ -257,6 +257,8 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 | A Default preset always exists and cannot be renamed or deleted. | The combo is never empty, and there is always a safe fallback. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms of all styles are visible at once: users scan the full option space without opening a combo, and the style/algorithm relation shows at a glance. |
 | Steps start expanded when a preset is loaded. | All conditions and their counts are visible at once; a block is collapsed on demand. |
+| A step has an optional name, edited in place in its header; a named step hides its condition count when collapsed. | A collapsed step then says what it adds, not how it is built. |
+| Repeat belongs to the step, not to a condition, and sits in the step header before the title. | Per condition, a repeat either stops the conditions working together (each its own chain, so one never sees what another reached) or counts hops per condition along a path, where the first path to reach an element decides what follows it and an extra condition can yield less (SPEC § 6). A different depth per relation takes a step of its own. In the header it shows when collapsed; before the title it keeps its place. |
 | Live counts recompute on value-commit, not per keystroke. | Counting can be expensive (relation traversal); recomputing per keystroke is wasteful and flickers. |
 
 **Realisation.**
@@ -266,6 +268,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - **One condition-table widget** serves every condition list. Every checkbox of the dialog is drawn on a Canvas (`Widgets.checkBox`, `Widgets.canvasCheck`), so it can turn grey ([`dialog-style.md`](reference/dialog-style.md)). Counts of an off condition are computed with the condition switched on.
 - **Commit events**: selection events and spinner focus-out.
 - **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle algorithm start* on, the run's start is set first (Selection for a Create action), and the session gets the next one.
+- **Step header.** Repeat is a push button with a menu, as the colour picker: a GTK combo is taller than the header buttons. The name field takes the title's place (GridData `exclude`); the header row is padded to the field's height, so it keeps one height while editing. A display MouseDown filter ends the edit, because a click on a label takes no focus from the field. A single click collapses after the double-click time, so a double-click does not collapse and expand first.
 - **Coupled distances** react to the spinners' Selection event, which only the user fires (not `setSelection`), and to every algorithm update, which also runs after a preset is loaded.
 
 ## Layer 2 — View-generation API

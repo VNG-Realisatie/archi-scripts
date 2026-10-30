@@ -104,14 +104,17 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 │ └─────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Expand selection ─────────────────────────────────────────────────┐   │
 │ │ ┌──────────────────────────────────────────────────────────────┐   │   │
-│ │ │ [▾] Step 1 · Adds: 4 elements · 3 relations   [↑] [↓]   [✕]  │   │   │
+│ │ │ [▾] [1× ▾] Step 1 · Adds: 4 elements · 3 relations [↑][↓][✕] │   │   │
 │ │ │On│Mode   │Previous step│Direction│Added         │Added    │ │   │   │
 │ │ │  │       │elements     │         │relations     │elements │ │   │   │
 │ │ │☑ │Include│Grouping     │Outgoing │Aggregation(3)│All (4)  │✕│   │   │
-│ │ │ [+ Add condition]  ☐ Match property   Repeat: [1× ▼]         │   │   │
+│ │ │ [+ Add condition]  ☐ Match property                          │   │   │
 │ │ └──────────────────────────────────────────────────────────────┘   │   │
 │ │ ┌──────────────────────────────────────────────────────────────┐   │   │
-│ │ │ [▸] Step 2 · 1 condition · Adds: nothing      [↑] [↓]   [✕]  │   │   │
+│ │ │ [▸] [∞ ▾]  Applications · Adds: 12 elements   [↑][↓] [✕]     │   │   │
+│ │ └──────────────────────────────────────────────────────────────┘   │   │
+│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
+│ │ │ [▸] [1× ▾] Step 3 · 1 condition · Adds: nothing   [↑][↓] [✕] │   │   │
 │ │ └──────────────────────────────────────────────────────────────┘   │   │
 │ │ [+ Add step]                                                       │   │
 │ └────────────────────────────────────────────────────────────────────┘   │
@@ -122,7 +125,7 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - **Selected**: what the user picked, with a suffix `First object: <Type>: <Name>`. An empty selection shows `Selected: nothing`, without the suffix.
 - **Containing**: the count after folders and views are opened up.
 - **Filter conditions**: each condition's type combo shows how many it keeps on its own, *Grouping (28)*.
-- **Adds**: one counter per step, in its header. It shows what the step *adds*, not a running total, and `Adds: nothing` when zero. A collapsed step also names its number of conditions.
+- **Adds**: one counter per step, in its header. It shows what the step *adds*, not a running total, and `Adds: nothing` when zero. A collapsed step without a name also names its number of conditions.
 - **Step conditions**: the chosen Added relations / Added elements type shows `(n)`, *Aggregation (3)*. That is what the step adds with only that condition (same input, same repeat), so adding or changing another condition never changes it.
 - An Exclude condition shows instead what it removes from the other conditions' result.
 - Only types with a count above zero are shown.
@@ -139,9 +142,11 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - **Relations**: On · Mode · Source type · Relation type · Target type: which relations between the filtered elements are drawn.
 
 **Steps** (GUI title *Expand selection*). A one-line explanation, the ordered steps, and `[+ Add step]` under the last one. Each step is a frame:
-- **Header**, on the left: the collapse triangle (▾/▸) and the bold title `Step N`; the title and summary are clickable too. Then the `Adds:` summary. On the right: move (↑ ↓) and, set apart, remove (✕). Their different place and shape keep collapsing and moving apart.
+- **Header**, on the left: the collapse triangle (▾/▸), **Repeat** and the bold title: the step's name, or `Step N` without one. A click on the title or the summary collapses too. Then the `Adds:` summary. On the right: move (↑ ↓) and, set apart, remove (✕). Their different place and shape keep collapsing and moving apart.
+- **Name**: a double-click on the title edits it in place. Enter, or a click outside the field, keeps it; Esc cancels; empty gives `Step N` back. A changed name shows `*`.
+- **Repeat**: a button with a menu, `1×`–`5×` or `∞` (until nothing new), as high as the header buttons and of one width. Before the title, so it keeps its place whatever the name. With `∞`, `Adds:` shows `(nothing new after N×)` or `(stopped at max 10×)`.
 - **Condition table**: On · Mode · Previous step elements · Direction · Added relations · Added elements, plus Property of · Property · Value behind *Match property*. Property and value lists come from the step's candidates (every relation the step saw, before its conditions) that match the condition's types.
-- **Footer**: `[+ Add condition]`, *Match property* and **Repeat** (`1×`–`5×` or `until nothing new`). With *until nothing new*, `Adds:` shows `(nothing new after N×)` or `(stopped at max 10×)`.
+- **Footer**: `[+ Add condition]` and *Match property*.
 
 ### Layout tab
 

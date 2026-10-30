@@ -26,7 +26,10 @@ const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
 const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
 const GroupWidget       = Java.type("org.eclipse.swt.widgets.Group");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
-const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
+const MenuWidget        = Java.type("org.eclipse.swt.widgets.Menu");
+const MenuItemWidget    = Java.type("org.eclipse.swt.widgets.MenuItem");
+const TextWidget        = Java.type("org.eclipse.swt.widgets.Text");
+const Listener          = Java.type("org.eclipse.swt.widgets.Listener");
 const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 
@@ -169,7 +172,7 @@ function _stepPropObjects(b, condition) {
 // ── Expand selection: step blocks ─────────────────────────────────────────────
 
 // Append a new step block.
-// stepData (optional): { repeat, conditions } from a preset to restore.
+// stepData (optional): { name, repeat, conditions } from a preset to restore.
 /**
  * @param {DialogContext} ctx
  * @param {Step} [stepData]
@@ -189,9 +192,9 @@ function addRelatedBlock(ctx, stepData) {
   GridLayoutFactory.fillDefaults().numColumns(1).margins(6, 4).spacing(4, 4).applyTo(block);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(block);
 
-  // Header row: [▾] Step N · summary (grabs) [↑] [↓]   [✕]
+  // Header row: [▾] [repeat] name or Step N (double-click: rename in place) · summary (grabs) [↑] [↓]   [✕]
   const header = new CompositeWidget(block, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(6).margins(0, 0).spacing(4, 0).applyTo(header);
+  GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 0).spacing(4, 0).applyTo(header);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(header);
 
   /**
@@ -208,9 +211,13 @@ function addRelatedBlock(ctx, stepData) {
   };
   const btnCollapse = _hdrBtn("▾", "Collapse / expand this step");
 
+  // Repeat belongs to the whole step, so it sits in the header, visible when collapsed;
+  // before the title, so it keeps one place whatever the name's length.
+  const repeatPicker = _repeatPicker(header, onChange);
+
   const lblTitle = new LabelWidget(header, SWT.NONE);
   const f = Widgets.getBoldFont(); if (f) try { lblTitle.setFont(f); } catch (e) {}
-  lblTitle.setToolTipText("Collapse / expand this step");
+  lblTitle.setToolTipText("Click: collapse / expand this step.\nDouble-click: rename it.");
   GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(lblTitle);
 
   const lblBlockCounts = new LabelWidget(header, SWT.NONE);
@@ -232,17 +239,13 @@ function addRelatedBlock(ctx, stepData) {
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 4).applyTo(body);
   body.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
-  const repeatTip =
-    "How many times this step runs. Each run starts from the previous run's additions. " +
-    `"until nothing new" runs until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`;
-  // Typed initializer: tsc would otherwise narrow it to null, as it is set inside the footer callback.
-  let cmbRepeat = /** @type {Swt.Combo | null} */ (null);
   // Cast: table is set right below.
   const blockObj = /** @type {StepBlock} */ ({
     container: block, header, body, blkSep, lblTitle, lblBlockCounts,
     btnUp, btnDown, btnCollapse, btnRemove,
     collapsed: false, addsText: "nothing", candidates: /** @type {StepCandidate[]} */ ([]), countCache: new Map(),
-    getRepeat: () => Defs.REPEAT_OPTIONS[Math.max(0, cmbRepeat ? cmbRepeat.getSelectionIndex() : 0)].value,
+    name: stepData ? stepData.name : "",
+    getRepeat: () => repeatPicker.get(),
   });
 
   blockObj.table = conditionTable(body, {
@@ -250,33 +253,19 @@ function addRelatedBlock(ctx, stepData) {
     onChange: () => { refreshBlockHeader(blockObj); onChange(); }, onLayout,
     propItems:  r => Counts.propNames(_stepPropObjects(blockObj, r)),
     valueItems: r => Counts.propValues(_stepPropObjects(blockObj, r), r.property),
-    footer: footer => {
-      const lblRepeat = new LabelWidget(footer, SWT.NONE);
-      lblRepeat.setText("Repeat:");
-      lblRepeat.setToolTipText(repeatTip);
-      cmbRepeat = new ComboWidget(footer, SWT.READ_ONLY | SWT.DROP_DOWN);
-      // Cast: assigned just above; tsc does not keep the narrowing inside the callback.
-      Defs.REPEAT_OPTIONS.forEach(o => /** @type {Swt.Combo} */ (cmbRepeat).add(o.label));
-      cmbRepeat.select(0);
-      cmbRepeat.setToolTipText(repeatTip);
-      cmbRepeat.addListener(SWT.Selection, onChange);
-    },
   });
   blockObj.table.setConditions(stepData ? stepData.conditions : []);
   if (stepData) {
-    const r = Defs.normalizeRepeat(stepData.repeat);
-    // Cast: set by the footer callback, which conditionTable calls before it returns.
-    /** @type {Swt.Combo} */ (cmbRepeat).select(Math.max(0, Defs.REPEAT_OPTIONS.findIndex(o => o.value === r)));
+    repeatPicker.set(Defs.normalizeRepeat(stepData.repeat));
   }
   ctx.relBlocks.push(blockObj);
 
   btnUp.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, -1));
   btnDown.addListener(SWT.Selection, () => _moveRelatedBlock(ctx, blockObj, +1));
   btnCollapse.addListener(SWT.Selection, () => _toggleCollapseBlock(ctx, blockObj));
-  lblTitle.addListener(SWT.MouseUp, () => _toggleCollapseBlock(ctx, blockObj));
+  _addNameEditor(ctx, blockObj);
   lblBlockCounts.addListener(SWT.MouseUp, () => _toggleCollapseBlock(ctx, blockObj));
   btnRemove.addListener(SWT.Selection, () => _removeRelatedBlock(ctx, blockObj));
-
 
   _renumberAndReorderRelBlocks(ctx);
   ctx.recount();
@@ -288,7 +277,8 @@ function addRelatedBlock(ctx, stepData) {
 function refreshBlockHeader(b) {
   if (!b || !b.lblBlockCounts) return;
   const n = b.table ? b.table.displayedConditions().length : 0;
-  const conditionsPart = b.collapsed ? `${n} condition${n === 1 ? "" : "s"} · ` : "";
+  // A named step says what it is; without a name, a collapsed step names its number of conditions.
+  const conditionsPart = b.collapsed && !b.name ? `${n} condition${n === 1 ? "" : "s"} · ` : "";
   try { b.lblBlockCounts.setText(`·  ${conditionsPart}Adds: ${b.addsText || "nothing"}`); } catch (e) {}
 }
 
@@ -348,12 +338,130 @@ function _toggleCollapseBlock(ctx, blockObj) {
   Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
-// Reorder block widgets to match ctx.relBlocks order, then update the title ("Step N") and
+// Repeat picker: a push button with the chosen repeat and a pop-up menu, the current one ticked.
+// A button, not a combo: a GTK combo is taller than the header buttons.
+/**
+ * @param {Swt.Composite} parent
+ * @param {() => void} onChange
+ * @returns {{ get: () => StepRepeat, set: (v: StepRepeat) => void }}
+ */
+function _repeatPicker(parent, onChange) {
+  const btn = new ButtonWidget(parent, SWT.PUSH);
+  btn.setToolTipText(
+    "How many times this step runs; each run starts from the previous run's additions.\n" +
+    `∞: until a run adds nothing (at most ${Defs.REPEAT_MAX}×).`);
+  GridDataFactory.swtDefaults().hint(44, 22).align(SWT.BEGINNING, SWT.CENTER).applyTo(btn);
+  let value = Defs.REPEAT_OPTIONS[0].value;
+  /** @type {Swt.Menu | null} */
+  let menu = null;
+  const show = () => {
+    const opt = Defs.REPEAT_OPTIONS.find(o => o.value === value) || Defs.REPEAT_OPTIONS[0];
+    btn.setText(opt.label + " ▾");
+  };
+
+  btn.addListener(SWT.Selection, () => {
+    if (menu) menu.dispose();
+    const m = menu = new MenuWidget(btn);
+    for (const o of Defs.REPEAT_OPTIONS) {
+      const mi = new MenuItemWidget(m, SWT.PUSH);
+      mi.setText(o.value === value ? o.label + "   ✓" : o.label);
+      mi.addListener(SWT.Selection, () => { value = o.value; show(); onChange(); });
+    }
+    const b = btn.getBounds();
+    m.setLocation(btn.getParent().toDisplay(b.x, b.y + b.height));
+    m.setVisible(true);
+  });
+  btn.addListener(SWT.Dispose, () => { if (menu) menu.dispose(); });
+  show();
+  return { get: () => value, set: v => { value = v; show(); } };
+}
+
+// In-place rename: double-click on the title puts a text field in its place; Enter, a click
+// outside the field or leaving it keeps the name, Esc cancels. A single click still collapses,
+// after the double-click time, so a double-click does not collapse and expand the step first.
+/**
+ * @param {DialogContext} ctx
+ * @param {StepBlock} b
+ */
+function _addNameEditor(ctx, b) {
+  const display = b.lblTitle.getDisplay();
+  const txtName = new TextWidget(b.header, SWT.BORDER | SWT.SINGLE);
+  txtName.moveBelow(b.lblTitle);
+  txtName.setToolTipText("Enter: keep · Esc: cancel.\nEmpty = Step N.");
+  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).hint(200, SWT.DEFAULT).exclude(true).applyTo(txtName);
+  txtName.setVisible(false);
+  // The field is taller than the header row: pad the row to the field's height, so the
+  // header keeps one height while editing.
+  const pad = Math.max(0, Math.ceil(
+    (txtName.computeSize(SWT.DEFAULT, SWT.DEFAULT).y - b.header.computeSize(SWT.DEFAULT, SWT.DEFAULT).y) / 2));
+  b.header.getLayout().marginHeight = pad;
+  let editing = false;
+  // A click elsewhere takes no focus from the field on a label or the background, so a display
+  // filter ends the edit. One Java object, so removeFilter finds the listener that was added.
+  const clickOutside = new (Java.extend(Listener))({
+    handleEvent: (/** @type {Swt.Event} */ e) => { if (e.widget !== txtName) finish(true); },
+  });
+
+  /** @param {boolean} on */
+  const show = on => {
+    editing = on;
+    txtName.getLayoutData().exclude = !on;
+    b.lblTitle.getLayoutData().exclude = on;
+    txtName.setVisible(on);
+    b.lblTitle.setVisible(!on);
+    b.header.getLayout().marginHeight = on ? 0 : pad;
+    if (on) display.addFilter(SWT.MouseDown, clickOutside);
+    else display.removeFilter(SWT.MouseDown, clickOutside);
+    try { b.header.layout(true, true); } catch (e) {}
+  };
+  /** @param {boolean} keep */
+  const finish = keep => {
+    if (!editing) return;
+    show(false);
+    const name = txtName.getText().trim();
+    if (!keep || name === b.name) return;
+    b.name = name;
+    _setBlockTitle(b, ctx.relBlocks.indexOf(b));
+    refreshBlockHeader(b);
+    ctx.markModified();
+  };
+
+  b.lblTitle.addListener(SWT.MouseUp, () => {
+    display.timerExec(display.getDoubleClickTime(), () => {
+      if (!editing && !b.container.isDisposed()) _toggleCollapseBlock(ctx, b);
+    });
+  });
+  b.lblTitle.addListener(SWT.MouseDoubleClick, () => {
+    txtName.setText(b.name);
+    txtName.setMessage("Step " + (ctx.relBlocks.indexOf(b) + 1));
+    show(true);
+    txtName.setFocus();
+    txtName.selectAll();
+  });
+  // doit = false: Enter and Esc must not reach the dialog (default button, close).
+  txtName.addListener(SWT.Traverse, e => {
+    if (e.detail === SWT.TRAVERSE_RETURN) { e.doit = false; finish(true); }
+    else if (e.detail === SWT.TRAVERSE_ESCAPE) { e.doit = false; finish(false); }
+  });
+  txtName.addListener(SWT.FocusOut, () => finish(true));
+  txtName.addListener(SWT.Dispose, () => display.removeFilter(SWT.MouseDown, clickOutside));
+}
+
+// Header title: the step's name, or "Step N" without one.
+/**
+ * @param {StepBlock} b
+ * @param {number} i  index in ctx.relBlocks
+ */
+function _setBlockTitle(b, i) {
+  try { b.lblTitle.setText(b.name || "Step " + (i + 1)); } catch (e) {}
+}
+
+// Reorder block widgets to match ctx.relBlocks order, then update the title and
 // the enabled state of the move buttons.
 /** @param {DialogContext} ctx */
 function _renumberAndReorderRelBlocks(ctx) {
   ctx.relBlocks.forEach((b, i) => {
-    try { b.lblTitle.setText("Step " + (i + 1)); } catch (e) {}
+    _setBlockTitle(b, i);
     b.btnUp.setEnabled(i > 0);
     b.btnDown.setEnabled(i < ctx.relBlocks.length - 1);
   });

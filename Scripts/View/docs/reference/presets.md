@@ -52,10 +52,10 @@ Preset {
     properties : { key, value : string, enabled : boolean }[]   // key never "Object ID"
   }
 }
-Step { repeat : 1..5 | "untilNothingNew", conditions : StepCondition[] }   // [] = follow every relation
+Step { name : string, repeat : 1..5 | "untilNothingNew", conditions : StepCondition[] }   // name "" = Step N; conditions [] = follow every relation
 ```
 
-`repeat`: each run starts from the previous run's additions; *until nothing new* stops when a run adds nothing, at most 10 runs.
+`name`: shown instead of *Step N*; a step without `name` loads as `""`. `repeat`: each run starts from the previous run's additions; *until nothing new* (`∞` in the dialog) stops when a run adds nothing, at most 10 runs.
 
 ## Settings outside the dialog
 

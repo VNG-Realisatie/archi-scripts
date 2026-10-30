@@ -152,6 +152,7 @@ type StepRepeat = 1 | 2 | 3 | 4 | 5 | "untilNothingNew";
 
 /** Expand-selection step: run its condition list `repeat` times. */
 interface Step {
+  name: string; // "" = shown as Step N
   repeat: StepRepeat;
   conditions: StepCondition[];
 }
@@ -747,6 +748,7 @@ interface StepBlock {
   collapsed: boolean;
   addsText: string; // header summary of what the step adds
   candidates: StepCandidate[]; // what the step saw before its conditions (property lists)
+  name: string; // "" = shown as Step N
   getRepeat: () => StepRepeat;
   table: ConditionTable<"step">;
   countCache: Map<string, StepAdds>; // per-condition counts (Counts.stepConditionCounts)

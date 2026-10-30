@@ -27,6 +27,9 @@ declare namespace Swt {
     readonly Selection: number; readonly DefaultSelection: number; readonly Modify: number;
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
     readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number; readonly Dispose: number;
+    readonly MouseDown: number; readonly MouseDoubleClick: number;
+    // traversal details
+    readonly TRAVERSE_RETURN: number; readonly TRAVERSE_ESCAPE: number;
     // GC
     readonly ON: number;
     // system colours
@@ -58,13 +61,17 @@ declare namespace Swt {
   }
 
   /** The listener argument; Paint events carry gc and display, mouse / key / traverse events the rest. */
-  interface Event { gc: GC; display: Display; button: number; character: string; doit: boolean }
+  interface Event { gc: GC; display: Display; button: number; character: string; detail: number; doit: boolean; widget: Widget }
 
   interface Display {
     getSystemColor(id: number): Color;
     getSystemFont(): Font;
     getActiveShell(): Shell | null;
     asyncExec(runnable: () => void): void;
+    timerExec(milliseconds: number, runnable: () => void): void;
+    getDoubleClickTime(): number;
+    addFilter(eventType: number, listener: unknown): void;
+    removeFilter(eventType: number, listener: unknown): void;
   }
 
   interface GridData {
@@ -75,6 +82,7 @@ declare namespace Swt {
   interface GridLayout {
     verticalSpacing: number;
     marginWidth: number;
+    marginHeight: number;
     marginLeft: number;
     marginRight: number;
   }
@@ -98,6 +106,7 @@ declare namespace Swt {
     setEnabled(enabled: boolean): void;
     isEnabled(): boolean;
     setVisible(visible: boolean): void;
+    setFocus(): boolean;
     getVisible(): boolean;
     isVisible(): boolean;
     setFont(font: Font): void;
@@ -151,6 +160,7 @@ declare namespace Swt {
     getText(): string;
     setText(text: string): void;
     selectAll(): void;
+    setMessage(message: string): void;
   }
 
   interface Menu extends Widget {
@@ -218,6 +228,7 @@ declare namespace JFace {
     hint(xHint: number, yHint: number): GridDataFactory;
     indent(hIndent: number, vIndent: number): GridDataFactory;
     span(hSpan: number, vSpan: number): GridDataFactory;
+    exclude(shouldExclude: boolean): GridDataFactory;
     applyTo(control: Swt.Control): void;
     create(): Swt.GridData;
   }

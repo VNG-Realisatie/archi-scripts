@@ -772,7 +772,7 @@ const DEFAULT_PRESET = Object.freeze({
     relationConditions: [],   // kind "relation"
   },
   relatedElements: {
-    steps: [{ repeat: 1, conditions: [] }],  // each: { repeat, conditions: [kind "step"] }
+    steps: [{ name: "", repeat: 1, conditions: [] }],  // each: { name ("" = Step N), repeat, conditions: [kind "step"] }
   },
   view: {
     name:   "",
@@ -866,7 +866,7 @@ const REPEAT_OPTIONS = Object.freeze([
   { value: 3, label: "3×" },
   { value: 4, label: "4×" },
   { value: 5, label: "5×" },
-  { value: REPEAT_UNTIL_NOTHING_NEW, label: "until nothing new" },
+  { value: REPEAT_UNTIL_NOTHING_NEW, label: "∞" },
 ]);
 
 /**
@@ -1005,6 +1005,7 @@ function validatePreset(raw) {
   // relatedElements — reads `steps` only. No fallback to legacy `layers` (rule #12).
   if (raw.relatedElements && Array.isArray(raw.relatedElements.steps)) {
     preset.relatedElements.steps = raw.relatedElements.steps.map((/** @type {PresetFile} */ step, /** @type {number} */ i) => ({
+      name:       step.name !== undefined ? String(step.name) : "",
       repeat: normalizeRepeat(step.repeat),
       conditions:  conditions("step", step.conditions, `relatedElements.steps[${i}].conditions`),
     }));

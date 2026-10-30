@@ -458,7 +458,7 @@ function _countInput(ctx, objects) {
       relation: w.tblRelationConditions ? w.tblRelationConditions.displayedConditions() : [],
     },
     steps: (ctx.relBlocks || []).map(b => ({
-      step: { repeat: b.getRepeat(), conditions: b.table.getConditions() }, displayedConditions: b.table.displayedConditions(), cache: b.countCache,
+      step: { name: b.name, repeat: b.getRepeat(), conditions: b.table.getConditions() }, displayedConditions: b.table.displayedConditions(), cache: b.countCache,
     })),
     params: {
       nestingConditions: w.tblNestingConditions ? w.tblNestingConditions.getConditions() : [],
@@ -1181,7 +1181,7 @@ function _saveUI(ctx) {
 
   // Related elements — round-trip the dynamic step-block array.
   c.relatedElements = {
-    steps: (ctx.relBlocks || []).map(b => ({ repeat: b.getRepeat(), conditions: b.table.getConditions() })),
+    steps: (ctx.relBlocks || []).map(b => ({ name: b.name, repeat: b.getRepeat(), conditions: b.table.getConditions() })),
   };
 
   // View

@@ -63,7 +63,7 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 **Subsystem**
 - **Layout**: algorithmic positioning of all visible objects on a view.
 - **Preset**: a named, persistable bundle of selection, layout and styling configuration.
-- **Step**: one ordered related-elements expansion stage inside a preset; holds a condition list.
+- **Step**: one ordered related-elements expansion stage inside a preset; holds an optional name, a repeat and a condition list.
 - **condition / condition list**: a condition is a pattern over element and relation types (*All* = any), either *Include* or *Exclude*. A list keeps any Include match minus any Exclude match.
 - **Action**: a runtime verb (create / per-element / expand / re-layout); never stored in a preset.
 - **Session**: the last-used configuration, restored when the UI opens.
@@ -196,7 +196,7 @@ Filtering is **visibility-only**: hiding an element never alters the nesting str
 - **Each step expands outward from the previous step's additions only**, not from the whole accumulated set. A sequence reads as "from these, reach those; from *those*, reach the next".
 - A step condition reads from that set: *previous-step type → direction (outgoing / incoming / either) → added relation type → added element type*, plus an optional property value. It shows what it reaches.
 - Followed relations are drawn; the added type and property only decide which elements join.
-- **Repeat** runs the step 1–5 times, or *until nothing new* (at most 10 runs); each run starts from the previous run's additions.
+- **Repeat** runs the step 1–5 times, or *until nothing new* (at most 10 runs); each run starts from the previous run's additions. It belongs to the whole step: a different depth per relation takes a step of its own.
 - **An empty step ends the chain.**
 - A step adds elements only. A relation whose other end is a relation (ArchiMate allows a relation on a relation) is not followed; following relations on relations is not supported yet.
 
@@ -326,7 +326,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 **Preset row.** Picking a preset **loads all its settings** at once; `*` marks settings that differ from the saved preset. Save, Save As…, Rename… and Delete manage presets; **Default** always exists and cannot be renamed or deleted. The last-used configuration and UI state are restored on open, from a user-local session that is never shared as a preset.
 
 **Tabs.** Four tabs, each owning one concern, in separate modules:
-- **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows what it adds, per condition and in total, with controls to collapse, reorder and remove it. When a preset loads, all steps start expanded.
+- **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows its name (or its number), its repeat and what it adds, per condition and in total, with controls to rename, collapse, reorder and remove it. When a preset loads, all steps start expanded.
 - **Layout**: the algorithm radio table (all styles always visible), then the groups of [§ 7](#7-layout-options). Options the chosen algorithm does not use are greyed, with their values kept.
 - **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance), with a master on/off.
 - **Properties**: key/value properties written to each generated view.

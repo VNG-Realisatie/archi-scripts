@@ -157,7 +157,7 @@ function stepConditionCounts(relationsOf, s, input, cumulative, seen, total) {
     const key = `${sig}|${JSON.stringify(list)}`;
     let r = cache.get(key);
     if (!r) {
-      const res = Pipeline.expandStepWithRelations(relationsOf, input, { repeat: step.repeat, conditions: list }, cumulative, new Set(seen));
+      const res = Pipeline.expandStepWithRelations(relationsOf, input, Object.assign({}, step, { conditions: list }), cumulative, new Set(seen));
       r = { elements: res.added.length, relations: res.rels.length };
       cache.set(key, r);
     }
