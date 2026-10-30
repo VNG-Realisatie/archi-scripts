@@ -259,6 +259,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 | Steps start expanded when a preset is loaded. | All conditions and their counts are visible at once; a block is collapsed on demand. |
 | A step has an optional name, edited in place in its header; a named step hides its condition count when collapsed. | A collapsed step then says what it adds, not how it is built. |
 | Repeat belongs to the step, not to a condition, and sits in the step header before the title. | Per condition, a repeat either stops the conditions working together (each its own chain, so one never sees what another reached) or counts hops per condition along a path, where the first path to reach an element decides what follows it and an extra condition can yield less (SPEC § 6). A different depth per relation takes a step of its own. In the header it shows when collapsed; before the title it keeps its place. |
+| Style by nesting level puts its Font and Color switches above its conditions. | They decide which columns of the table take effect; off greys those columns ([gui.md § Look and feel](reference/gui.md#look-and-feel), rule 3). |
 | Live counts recompute on value-commit, not per keystroke. | Counting can be expensive (relation traversal); recomputing per keystroke is wasteful and flickers. |
 
 **Realisation.**

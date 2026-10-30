@@ -826,12 +826,10 @@ type DialogWidgets = {
   cmbStyleLineWidth: Swt.Combo;
   lblNestingInfo: Swt.Label;
   nestDescLbl: Swt.Label;
-  nestColorDescLbl: Swt.Label;
   chkNestFont: CheckBox;
   lblNestDecrease: Swt.Label;
   spinNestFontDecrease: Swt.Spinner;
   lblNestFontPt: Swt.Label;
-  nestMidSep: Swt.Label;
   chkNestColor: CheckBox;
   lblNestDarken: Swt.Label;
   spinNestDarken: Swt.Spinner;

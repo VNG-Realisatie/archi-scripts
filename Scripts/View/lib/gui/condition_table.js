@@ -593,10 +593,12 @@ const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "= 
 
 /**
  * Columns of the nesting style table; the colour cell lists the colours of the chosen palette.
+ * The colour and font cells are greyed while their switch (Color, Font) is off.
  * @param {() => readonly { name: string, hex: string }[]} colors
+ * @param {{ color: () => boolean, font: () => boolean }} switches
  * @returns {readonly ConditionTableColumn<NestingStyleCondition>[]}
  */
-function nestingStyleConditionColumns(colors) {
+function nestingStyleConditionColumns(colors, switches) {
   return Object.freeze([
     _onCol,
     _typeCol("parent", "Parent type", "Type of the container. A root container counts as a child under a container of its own type.", 150),
@@ -612,12 +614,13 @@ function nestingStyleConditionColumns(colors) {
         items: () => [{ value: "", label: "Default", colors: [] }, ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
         missing: x => ({ value: x, label: x + " (not in list)", colors: [] }),
         value: v, onChange: on, width: 190 }),
+      enabled: () => switches.color(),
       tooltip: "Color of the elements the condition selects: a palette color, or Default (the type's fill).\n" +
                "Lighter per level; when conditions select the same element the most specific wins." },
-    { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70,
+    { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70, enabled: () => switches.font(),
       tooltip: "Font size of the container where the condition starts; empty: continues from its parent.\n" +
-               "Each level deeper is Decrease/level smaller." },
-    { key: "bold", header: "Bold", kind: "check", width: 40, default: false,
+               "Each level deeper is smaller by Smaller per level." },
+    { key: "bold", header: "Bold", kind: "check", width: 40, default: false, enabled: () => switches.font(),
       tooltip: "Bold for the container where the condition starts; deeper containers are not bold." },
   ]);
 }

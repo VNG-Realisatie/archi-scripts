@@ -211,97 +211,95 @@ function buildAppearanceTab(tabFolder, ctx) {
   // ── 4. Style by nesting level ─────────────────────────────────────────────
   const grpNest = Widgets.group(page, "Style by nesting level", 1);
 
-  // Info label — shown/hidden via updateNestingLevelState (hidden when nesting types are configured).
+  // Info label — shown/hidden via updateNestingLevelState (hidden when a Nesting condition is on).
   const lblNestingInfo = new LabelWidget(grpNest, SWT.WRAP);
-  lblNestingInfo.setText("Configure nesting types in the Layout tab to activate this feature.");
+  lblNestingInfo.setText("Turn on a Nesting condition in the Layout tab to use this.");
   GridDataFactory.fillDefaults().grab(true, false).applyTo(lblNestingInfo);
   w.lblNestingInfo = lblNestingInfo;
 
   const nestDescLbl = new LabelWidget(grpNest, SWT.WRAP);
-  nestDescLbl.setText("A container where a condition starts gets the condition's font, each level deeper a smaller one.");
+  nestDescLbl.setText("Emphasize significant nesting levels with color and font. " +
+    "Each condition marks a level; deeper levels get lighter and smaller.");
   GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(nestDescLbl);
   w.nestDescLbl = nestDescLbl;
 
-  // Font row — all controls on one line
-  const nestFontRow = new CompositeWidget(grpNest, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0,2).spacing(6,0).applyTo(nestFontRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(nestFontRow);
+  // Switches first, then the conditions both use. One raster: the first label after each
+  // switch lines up.
+  const nestSwitches = new CompositeWidget(grpNest, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 2).spacing(Widgets.GAP_FIELD, 4).applyTo(nestSwitches);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(nestSwitches);
+  /**
+   * @param {string} text
+   * @param {number} indent  extra gap before the label
+   */
+  const nestLabel = (text, indent) => {
+    const l = new LabelWidget(nestSwitches, SWT.NONE);
+    l.setText(text);
+    GridDataFactory.swtDefaults().indent(indent, 0).applyTo(l);
+    return l;
+  };
+  const SWITCH_GAP = 10 - Widgets.GAP_FIELD;            // switch → dependent option
+  const PAIR_GAP   = Widgets.GAP_PAIR - Widgets.GAP_FIELD;
 
-  const chkNestFont = Widgets.checkBox(nestFontRow, "Change font size with nesting level");
-  chkNestFont.setToolTipText("Apply the font size and bold of the conditions below to containers.");
-  chkNestFont.addListener(SWT.Selection, onChange);
+  // Font row
+  const chkNestFont = Widgets.checkBox(nestSwitches, "Font");
+  chkNestFont.setToolTipText("Where a condition starts, the container takes its Font size and Bold;\n" +
+                             "each level deeper is smaller and not bold.");
+  chkNestFont.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
   w.chkNestFont = chkNestFont;
 
-  const lblNestDecrease = new LabelWidget(nestFontRow, SWT.NONE);
-  lblNestDecrease.setText("Decrease/level:");
-  w.lblNestDecrease = lblNestDecrease;
-  const nestFontDecreaseSp = new SpinnerWidget(nestFontRow, SWT.BORDER);
+  const decreaseTip = "Points smaller per level deeper, never below the default size.";
+  w.lblNestDecrease = nestLabel("Smaller per level:", SWITCH_GAP);
+  w.lblNestDecrease.setToolTipText(decreaseTip);
+  const nestFontDecreaseSp = new SpinnerWidget(nestSwitches, SWT.BORDER);
   nestFontDecreaseSp.setValues(2, 1, 6, 0, 1, 1);
   GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestFontDecreaseSp);
-  nestFontDecreaseSp.setToolTipText("Reduce font size by this many points per nesting level");
+  nestFontDecreaseSp.setToolTipText(decreaseTip);
   nestFontDecreaseSp.addListener(SWT.Selection, onChange);
   w.spinNestFontDecrease = nestFontDecreaseSp;
+  w.lblNestFontPt = nestLabel("pt", 0);
+  new LabelWidget(nestSwitches, SWT.NONE);
+  new LabelWidget(nestSwitches, SWT.NONE);
+  new LabelWidget(nestSwitches, SWT.NONE);
 
-  const lblNestFontPt = new LabelWidget(nestFontRow, SWT.NONE);
-  lblNestFontPt.setText("pt");
-  w.lblNestFontPt = lblNestFontPt;
-
-  // Separator between font and the color conditions
-  const nestMidSep = new LabelWidget(grpNest, SWT.SEPARATOR | SWT.HORIZONTAL);
-  GridDataFactory.fillDefaults().grab(true, false).hint(SWT.DEFAULT, 6).applyTo(nestMidSep);
-  w.nestMidSep = nestMidSep;
-
-  const nestColorDescLbl = new LabelWidget(grpNest, SWT.WRAP);
-  nestColorDescLbl.setText("Each condition colors the children it selects, lighter per level; an element no condition selects stops.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(nestColorDescLbl);
-  w.nestColorDescLbl = nestColorDescLbl;
-
-  w.tblNestingStyleConditions = conditionTable(grpNest, {
-    kind: "nestingStyle", columns: nestingStyleConditionColumns(paletteColors), onChange,
-    onLayout: relayout,
-    emptyText: "No conditions: nothing is styled by nesting level.",
-    addTooltip: "Add a nesting step to follow. Where two conditions match the same step, the last condition wins.",
-  });
-
-  // Color row — all controls on one line
-  const nestColorRow = new CompositeWidget(grpNest, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(7).margins(0,2).spacing(6,0).applyTo(nestColorRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(nestColorRow);
-
-  const chkNestColor = Widgets.checkBox(nestColorRow, "Change color by nesting level");
-  chkNestColor.setToolTipText("Fill each segment from its start color, lighter per nesting level.");
+  // Color row
+  const chkNestColor = Widgets.checkBox(nestSwitches, "Color");
+  chkNestColor.setToolTipText("The elements a condition selects take its color; each level deeper in that color is lighter.\n" +
+                              "When conditions select the same element, the most specific wins.");
   chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
   w.chkNestColor = chkNestColor;
 
+  const lightenTip = "Per level inside a segment, the fill moves this percentage closer to white\n" +
+                     "(hue and saturation kept).";
+  w.lblNestLighten = nestLabel("Lighter per level:", SWITCH_GAP);
+  w.lblNestLighten.setToolTipText(lightenTip);
+  const nestLightenSp = new SpinnerWidget(nestSwitches, SWT.BORDER);
+  nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
+  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestLightenSp);
+  nestLightenSp.setToolTipText(lightenTip);
+  nestLightenSp.addListener(SWT.Selection, onChange);
+  w.spinNestLighten = nestLightenSp;
+  w.lblNestLightenPct = nestLabel("%", 0);
+
   const darkenTip = "A segment starts this many levels darker than its color,\n" +
                     "so its color is reached this many levels in.";
-  const lblNestDarken = new LabelWidget(nestColorRow, SWT.NONE);
-  lblNestDarken.setText("Darken start:");
-  lblNestDarken.setToolTipText(darkenTip);
-  w.lblNestDarken = lblNestDarken;
-  const nestDarkenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
+  w.lblNestDarken = nestLabel("Start darker:", PAIR_GAP);
+  w.lblNestDarken.setToolTipText(darkenTip);
+  const nestDarkenSp = new SpinnerWidget(nestSwitches, SWT.BORDER);
   nestDarkenSp.setValues(DEFAULT_PRESET.appearance.nestingLevel.darkenStart, 0, 3, 0, 1, 1);
   GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestDarkenSp);
   nestDarkenSp.setToolTipText(darkenTip);
   nestDarkenSp.addListener(SWT.Selection, onChange);
   w.spinNestDarken = nestDarkenSp;
-  const lblNestDarkenSteps = new LabelWidget(nestColorRow, SWT.NONE);
-  lblNestDarkenSteps.setText("steps");
-  w.lblNestDarkenSteps = lblNestDarkenSteps;
+  w.lblNestDarkenSteps = nestLabel("levels", 0);
 
-  const lblNestLighten = new LabelWidget(nestColorRow, SWT.NONE);
-  lblNestLighten.setText("Lighten/level:");
-  w.lblNestLighten = lblNestLighten;
-  const nestLightenSp = new SpinnerWidget(nestColorRow, SWT.BORDER);
-  nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
-  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestLightenSp);
-  nestLightenSp.setToolTipText("Per level inside a segment, the fill moves this percentage closer to white\n(hue and saturation kept).");
-  nestLightenSp.addListener(SWT.Selection, onChange);
-  w.spinNestLighten = nestLightenSp;
-
-  const lblNestLightenPct = new LabelWidget(nestColorRow, SWT.NONE);
-  lblNestLightenPct.setText("%");
-  w.lblNestLightenPct = lblNestLightenPct;
+  w.tblNestingStyleConditions = conditionTable(grpNest, {
+    kind: "nestingStyle", onChange,
+    columns: nestingStyleConditionColumns(paletteColors, { color: () => chkNestColor.getSelection(), font: () => chkNestFont.getSelection() }),
+    onLayout: relayout,
+    emptyText: "No conditions: nothing is styled by nesting level.",
+    addTooltip: "Add a nesting step to follow. When conditions select the same element, the most specific wins.",
+  });
 
   // ── 5. Highlight repeated elements ───────────────────────────────────────
   const grpHighlight = Widgets.group(page, "Highlight repeated elements", 1);
@@ -353,16 +351,16 @@ function updateNestingLevelState(ctx) {
   } catch (e) {}
 
   Widgets.enable(w.nestDescLbl,          hasNesting);
-  Widgets.enable(w.nestColorDescLbl,     hasNesting);
   w.tblNestingStyleConditions.enable(hasNesting);
   Widgets.enable(w.chkNestFont,          hasNesting);
-  Widgets.enable(w.lblNestDecrease,      hasNesting);
-  Widgets.enable(w.spinNestFontDecrease, hasNesting);
-  Widgets.enable(w.lblNestFontPt,        hasNesting);
-  Widgets.enable(w.nestMidSep,           hasNesting);
   Widgets.enable(w.chkNestColor,         hasNesting);
   Widgets.enable(w.chkHighlightRep,      _hasEveryContainer(w));  // repeats only come from conditions with Every
   updateAppearancePropStates(ctx);
+
+  const hasFont = hasNesting && w.chkNestFont.getSelection();
+  Widgets.enable(w.lblNestDecrease,      hasFont);
+  Widgets.enable(w.spinNestFontDecrease, hasFont);
+  Widgets.enable(w.lblNestFontPt,        hasFont);
 
   const hasColor = hasNesting && w.chkNestColor.getSelection();
   Widgets.enable(w.lblNestDarken,        hasColor);
