@@ -117,6 +117,8 @@ interface TreePickerOptions {
   items: () => readonly string[];
   onChange: (name: string) => void;
   tooltip?: string;
+  /** Top-level names shown above the folders (e.g. Default). */
+  first?: readonly string[];
 }
 /** The controller treePicker returns. */
 interface TreePicker {
@@ -786,6 +788,7 @@ type DialogWidgets = {
   tabFolder: Swt.TabFolder;
   pickPreset: TreePicker;
   lblModified: Swt.Label;
+  btnSave: Swt.Button;
   btnRename: Swt.Button;
   btnDelete: Swt.Button;
   lblPresetDescription: Swt.Label;

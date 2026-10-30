@@ -111,7 +111,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | element  | on, mode, elementType, property, value | `filter.elementConditions` | keep all |
 | diagram  | on, mode, diagramType | `filter.diagramConditions` | keep all |
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
-| step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all |
+| step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | adds nothing (ends the chain); a pass-all condition `{}` follows all |
 | style    | on, color (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange | `appearance.styleByProperty.conditions` | no styling |
 | nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
 
@@ -129,7 +129,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 
 **Validation.** Each condition is normalised. An unknown key, enum value or type id skips the condition with a warning, so a typo never widens a list to All. A preset with another `schemaVersion` is refused with a message.
 
-**File form.** Fields at their default are omitted, a pass-all list is written as `[]`, and every condition sits on one line, so a diff shows one changed condition as one changed line.
+**File form.** Fields at their default are omitted, a pass-all filter list is written as `[]` (a step list is not: there `[]` adds nothing), and every condition sits on one line, so a diff shows one changed condition as one changed line.
 
 **Nesting style conditions.** No Mode column: every condition is an Include condition. `child` is always written, so the default condition reads `{"child": "same"}`. Matching and colours: [gui.md § Appearance tab](gui.md#appearance-tab).
 

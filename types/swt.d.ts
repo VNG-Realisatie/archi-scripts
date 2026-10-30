@@ -274,6 +274,7 @@ declare namespace JFace {
     getShell(): Swt.Shell;
     setTitle(title: string): void;
     setMessage(message: string): void;
+    setErrorMessage(message: string | null): void;
   }
 
   interface InputDialog { open(): number; getValue(): string | null }

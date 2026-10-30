@@ -772,7 +772,8 @@ const DEFAULT_PRESET = Object.freeze({
     relationConditions: [],   // kind "relation"
   },
   relatedElements: {
-    steps: [{ name: "", repeat: 1, conditions: [] }],  // each: { name ("" = Step N), repeat, conditions: [kind "step"] }
+    // each: { name ("" = Step N), repeat, conditions: [kind "step"] }; the default adds one ring: every neighbour
+    steps: [{ name: "Directly related elements (1 ring)", repeat: 1, conditions: [{}] }],
   },
   view: {
     name:   "",
@@ -963,6 +964,7 @@ function validatePreset(raw) {
   preset.params.nestingConditions = conditions("relation", preset.params.nestingConditions, "params.nestingConditions");
   preset.params.reverseConditions = conditions("relation", preset.params.reverseConditions, "params.reverseConditions");
   preset.appearance.nestingLevel.conditions = conditions("nestingStyle", preset.appearance.nestingLevel.conditions, "appearance.nestingLevel.conditions");
+  preset.relatedElements.steps.forEach((step, i) => { step.conditions = conditions("step", step.conditions, `relatedElements.steps[${i}].conditions`); });
 
   // params — merge raw.params over defaults, validate options
   if (raw.params && typeof raw.params === "object") {

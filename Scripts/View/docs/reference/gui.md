@@ -73,7 +73,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 
 Above the tab strip, left to right:
 
-- **Preset picker**: a button with the current preset (`folder/sub/name`). It opens a pop-up with a filter field over a tree of every saved preset: folders first, folded, with the current preset's folders open and the preset selected. Typing filters on the full name, folders included, and opens every folder that holds a match; Enter in the filter picks the first match, Esc or a click outside closes the pop-up. Picking one (a click, or Enter on a preset) loads all its settings, including values of options its algorithm does not use, so a later Save writes back exactly what was loaded.
+- **Preset picker**: a button with the current preset (`folder/sub/name`). It opens a pop-up with a filter field over a tree of every saved preset: Default first, then the folders, folded, with the current preset's folders open and the preset selected. Typing filters on the full name, folders included, and opens every folder that holds a match; Enter in the filter picks the first match, Esc or a click outside closes the pop-up. Picking one (a click, or Enter on a preset) loads all its settings, including values of options its algorithm does not use, so a later Save writes back exactly what was loaded.
 - **`*`**: shown while the settings differ from the saved preset, after any change. It also shows on open when the session differs from the preset it came from; the view name is not compared, because it is pre-filled from the selection. Save, Save As and loading a preset clear it.
 - **Save** overwrites the current preset.
 - **Save As…** asks Name, Folder and Description, writes a new preset and selects it.
@@ -81,7 +81,7 @@ Above the tab strip, left to right:
 - **Delete** deletes the saved preset after a confirm and loads Default.
 - **Description line**: the preset's description, grey, under the picker; hidden when empty.
 
-Save As and Rename ask before overwriting another preset. Default is created on first run if absent; Rename and Delete are disabled for it. A preset file holds only the [preset schema](presets.md#preset-json-schema), never the action or dialog state.
+Save As and Rename ask before overwriting another preset; the name Default is refused, with a message in the name dialog. Default is created from the code defaults if absent; Save, Rename and Delete are disabled for it, and their tooltips say to use Save As…. When Default is chosen, the console lists every setting in which `Default.json` differs from the code defaults, condition lists in file form, one line each; from the dialog after it closes, because console output there blocks. A preset file holds only the [preset schema](presets.md#preset-json-schema), never the action or dialog state.
 
 ### Selection tab
 

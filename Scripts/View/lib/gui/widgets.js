@@ -413,7 +413,7 @@ function treePicker(parent, opts) {
   /** @param {string} v */
   const choose = v => { value = v; show(); opts.onChange(v); };
 
-  btn.addListener(SWT.Selection, () => _openTreePopup(btn, opts.items(), value, choose));
+  btn.addListener(SWT.Selection, () => _openTreePopup(btn, opts.items(), opts.first || [], value, choose));
   show();
 
   return {
@@ -427,10 +427,11 @@ function treePicker(parent, opts) {
  * The pop-up of a tree picker, under its button.
  * @param {Swt.Button} btn
  * @param {readonly string[]} names
+ * @param {readonly string[]} first  top-level names shown above the folders
  * @param {string} current
  * @param {(name: string) => void} choose
  */
-function _openTreePopup(btn, names, current, choose) {
+function _openTreePopup(btn, names, first, current, choose) {
   const popup = new ShellWidget(btn.getShell(), SWT.NO_TRIM);
   GridLayoutFactory.fillDefaults().margins(4, 4).spacing(0, 4).applyTo(popup);
 
@@ -444,7 +445,7 @@ function _openTreePopup(btn, names, current, choose) {
   const close = () => { if (!popup.isDisposed()) popup.dispose(); };
   /** @param {string} name */
   const pick = name => { close(); choose(name); };
-  const fill = () => _fillTree(tree, names, txtFilter.getText().trim().toLowerCase(), current);
+  const fill = () => _fillTree(tree, names, first, txtFilter.getText().trim().toLowerCase(), current);
 
   txtFilter.addListener(SWT.Modify, fill);
   txtFilter.addListener(SWT.DefaultSelection, () => {
@@ -486,10 +487,11 @@ function _openTreePopup(btn, names, current, choose) {
  * Without a filter only the folders of the current name are expanded; with one, every folder.
  * @param {Swt.Tree} tree
  * @param {readonly string[]} names
+ * @param {readonly string[]} first  top-level names shown above the folders
  * @param {string} filter  lower case; "" = all
  * @param {string} current
  */
-function _fillTree(tree, names, filter, current) {
+function _fillTree(tree, names, first, filter, current) {
   tree.setRedraw(false);
   tree.removeAll();
   const root = _treeOfNames(filter ? names.filter(n => n.toLowerCase().includes(filter)) : names);
@@ -497,9 +499,20 @@ function _fillTree(tree, names, filter, current) {
   let currentItem = null;
   /**
    * @param {Swt.Tree | Swt.TreeItem} parentItem
+   * @param {string} name
+   */
+  const addName = (parentItem, name) => {
+    const item = new TreeItemWidget(parentItem, SWT.NONE);
+    item.setText(name.slice(name.lastIndexOf("/") + 1));
+    item.setData("name", name);
+    if (name === current) currentItem = item;
+  };
+  /**
+   * @param {Swt.Tree | Swt.TreeItem} parentItem
    * @param {TreePickerFolder} node
    */
   const add = (parentItem, node) => {
+    if (node === root) node.names.filter(n => first.includes(n)).forEach(n => addName(parentItem, n));
     for (const [label, sub] of node.folders) {
       const item = new TreeItemWidget(parentItem, SWT.NONE);
       item.setText(label);
@@ -508,12 +521,7 @@ function _fillTree(tree, names, filter, current) {
       add(item, sub);
       item.setExpanded(!!filter || current.startsWith(sub.path + "/"));   // after its children: GTK expands no empty item
     }
-    for (const name of node.names) {
-      const item = new TreeItemWidget(parentItem, SWT.NONE);
-      item.setText(name.slice(name.lastIndexOf("/") + 1));
-      item.setData("name", name);
-      if (name === current) currentItem = item;
-    }
+    node.names.filter(n => node !== root || !first.includes(n)).forEach(n => addName(parentItem, n));
   };
   add(tree, root);
   tree.setRedraw(true);

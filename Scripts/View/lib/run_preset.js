@@ -26,7 +26,7 @@ const Defs     = require(REPO_ROOT + "View/lib/defs");
 const { ACTION } = Defs;
 
 // Base preset of the View/_*.ajs scripts: a normal preset, so it is edited in the dialog.
-// _Default (the code defaults) is used when it does not exist.
+// Default is used when it does not exist.
 const BASE_PRESET_NAME = "all";
 
 /** @type {Readonly<Record<string, string>>} */
@@ -84,6 +84,7 @@ function fromBase(selection, actionId, params = {}) {
   const preset = PresetIO.readPreset(name);
   Object.assign(preset.params, params);
   console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
+  if (name === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
   return GenView.generate_view(preset, selection, actionId);   // generate_view validates the overrides too
 }
 

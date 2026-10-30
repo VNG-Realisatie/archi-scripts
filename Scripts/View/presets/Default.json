@@ -1,6 +1,7 @@
 {
   "schemaVersion": 6,
-  "name": "_Default",
+  "name": "Default",
+  "description": "The selection plus every element directly related to it. Start a new preset from here with Save As….",
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
@@ -43,8 +44,11 @@
   "relatedElements": {
     "steps": [
       {
+        "name": "Directly related elements (1 ring)",
         "repeat": 1,
-        "conditions": []
+        "conditions": [
+          {}
+        ]
       }
     ]
   },
@@ -68,7 +72,7 @@
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
       "lightenPerLevel": 15,
-      "darkenStart": 0
+      "darkenStart": 1
     },
     "highlightRepeated": {
       "enabled": false,

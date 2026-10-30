@@ -230,6 +230,9 @@ function open(uiSelection) {
       { label: "Filtered:  ", elems: _lEl, rels: _lRel, diag: _lDiag },
     ]);
   }
+  PresetIO.ensureDefault();
+  const defaultAtOpen = _presetName(ctx) === PresetIO.DEFAULT_PRESET_NAME;
+  if (defaultAtOpen) PresetIO.logDefaultDifferences();
 
   // The view Expand view / Layout only work on: the view of selected canvas objects, or a view
   // selected in the model tree (Layout only). name "" = none, the Modify group is then disabled;
@@ -335,6 +338,8 @@ function open(uiSelection) {
   ctx.dlg = dlg;  // its shell parents the dialogs opened from it (Save As, confirmations)
   const result = dlg.open();  // blocks until dialog closes
 
+  // Default picked in the dialog: its differences could not be logged there (console blocks)
+  if (!defaultAtOpen && _presetName(ctx) === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
   // Dialog is fully closed here — safe to run generate_view
   if (result === IDialogConstants.CANCEL_ID || result < 0) return;
 
@@ -860,8 +865,14 @@ function _clearModified(ctx) {
 
 // ── Preset row ────────────────────────────────────────────────────────────────
 
+const SAVE_TIP    = "Overwrite this preset with the current settings.";
+const RENAME_TIP  = "Rename or move the saved preset, or change its description.\nUnsaved changes are kept in the dialog, not written.";
+const DELETE_TIP  = "Delete the saved preset and load Default.";
+const DEFAULT_TIP = "Default is read-only: Save As… saves the settings as a new preset.";
+
 // Row 1: Preset [picker] *  Save  Save As…  |  Rename…  Delete      Row 2: the preset's description.
 // Save / Save As write the current settings; Rename / Delete act on the saved file only.
+// Default is read-only here: Save, Rename and Delete are off for it.
 /**
  * @param {Swt.Composite} parent
  * @param {DialogContext} ctx
@@ -877,6 +888,7 @@ function _buildPresetRow(parent, ctx, dlg) {
 
   w.pickPreset = Widgets.treePicker(row, {
     items:   () => PresetIO.listPresets(),
+    first:   [PresetIO.DEFAULT_PRESET_NAME],
     tooltip: "Choosing a preset loads all its settings.\nType in the filter to find a preset by name or folder.",
     onChange: name => _loadPreset(ctx, name),
   });
@@ -889,12 +901,12 @@ function _buildPresetRow(parent, ctx, dlg) {
   lblModified.setVisible(false);
   w.lblModified = lblModified;
 
-  const btnSave = Widgets.pushBtn(row, "Save", "Overwrite this preset with the current settings.", () => {
+  w.btnSave = Widgets.pushBtn(row, "Save", SAVE_TIP, () => {
     _saveUI(ctx);
     PresetIO.writePreset(_presetName(ctx), ctx.config, { quiet: true });
     _afterPresetChange(ctx);
   });
-  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(btnSave);
+  GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnSave);
 
   const btnSaveAs = Widgets.pushBtn(row, "Save As…", "Save the current settings as a new preset.", () => {
     _saveUI(ctx);
@@ -910,7 +922,7 @@ function _buildPresetRow(parent, ctx, dlg) {
   const sep = new LabelWidget(row, SWT.SEPARATOR | SWT.VERTICAL);
   GridDataFactory.swtDefaults().hint(SWT.DEFAULT, 20).indent(6, 0).applyTo(sep);
 
-  w.btnRename = Widgets.pushBtn(row, "Rename…", "Rename or move the saved preset, or change its description.\nUnsaved changes are kept in the dialog, not written.", () => {
+  w.btnRename = Widgets.pushBtn(row, "Rename…", RENAME_TIP, () => {
     const oldName = _presetName(ctx);
     _openPresetNameDialog(ctx, "Rename…", `Rename or move preset "${oldName}".`, (newName, description) => {
       const saved = PresetIO.readPreset(oldName);
@@ -925,7 +937,7 @@ function _buildPresetRow(parent, ctx, dlg) {
   });
   GridDataFactory.swtDefaults().hint(90, SWT.DEFAULT).applyTo(w.btnRename);
 
-  w.btnDelete = Widgets.pushBtn(row, "Delete", "Delete the saved preset and load Default.", () => {
+  w.btnDelete = Widgets.pushBtn(row, "Delete", DELETE_TIP, () => {
     const name = _presetName(ctx);
     if (name === PresetIO.DEFAULT_PRESET_NAME) return;
     if (!_confirm(ctx, "Delete preset", `Delete preset "${name}"?`)) return;
@@ -982,7 +994,12 @@ function _afterPresetChange(ctx, opts) {
   const name = _presetName(ctx);
   w.pickPreset.set(name);
   const isDefault = name === PresetIO.DEFAULT_PRESET_NAME;
-  try { w.btnDelete.setEnabled(!isDefault); w.btnRename.setEnabled(!isDefault); } catch (x) {}
+  /** @type {[Swt.Button, string][]} */
+  const fileButtons = [[w.btnSave, SAVE_TIP], [w.btnRename, RENAME_TIP], [w.btnDelete, DELETE_TIP]];
+  for (const [btn, tip] of fileButtons) {
+    btn.setEnabled(!isDefault);
+    btn.setToolTipText(isDefault ? DEFAULT_TIP : tip);
+  }
 
   const desc = String(ctx.config.description || "");
   try {
@@ -1048,6 +1065,7 @@ function _openPresetNameDialog(ctx, title, message, onConfirm) {
     defaultName:        current === PresetIO.DEFAULT_PRESET_NAME ? "" : current,
     defaultDescription: ctx.config.description || "",
     parentShell:        _dialogShell(ctx),
+    reservedNames:      [PresetIO.DEFAULT_PRESET_NAME],
     onConfirm(newName, description) {
       if (newName !== current && PresetIO.listPresets().includes(newName)
           && !_confirm(ctx, "Overwrite preset", `Preset "${newName}" already exists. Overwrite it?`)) return;

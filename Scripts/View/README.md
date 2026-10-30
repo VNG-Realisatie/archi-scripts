@@ -37,7 +37,7 @@ Hover over any setting for what it does and which algorithms use it. Settings th
 
 ## Presets
 
-A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog; `_Default.json` holds the code defaults.
+A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plain JSON). Create and change presets in the dialog — *Save*, *Save As…*, *Rename…*, *Delete*. The last-used settings are kept in `presets/_session.json` (local, not in git). Files starting with `_` are not listed in the dialog. `Default.json` holds the code defaults: the selection plus one ring. It is read-only in the dialog (start a new preset from it with *Save As…*); edit the file for your own defaults, and the console lists where they differ from the code.
 
 Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 5 preset up to date with `node Scripts/View/tools/migrate_presets_nesting_font.js` (`--dry-run` first). A version 4 preset: check out commit `8e13b2e` and run its `tools/migrate_presets_nesting_style.js` first. A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
 
@@ -47,7 +47,7 @@ Presets have a `schemaVersion`. A preset in an older format is refused with a me
 
 Run a saved preset without the dialog.
 
-**Base preset** — the preset `all` (edit it in the dialog; without it the code defaults `_Default`):
+**Base preset** — the preset `all` (edit it in the dialog; without it `Default`):
 
 | Script | Action |
 |---|---|

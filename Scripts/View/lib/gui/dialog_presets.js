@@ -38,6 +38,7 @@ const WindowConstants   = Java.type("org.eclipse.jface.window.Window");
  * @property {string}  [defaultDescription] pre-filled description
  * @property {boolean} [showDescription]    show description field (default true)
  * @property {(fullName: string, description: string) => void} onConfirm  called on OK
+ * @property {readonly string[]} [reservedNames]  full names OK refuses, with a message in the dialog
  * @property {Swt.Shell} [parentShell]      the calling dialog's shell; the Save As dialog opens on
  *   top of it (with Archi's main shell it would open behind a modal dialog)
  *
@@ -45,7 +46,7 @@ const WindowConstants   = Java.type("org.eclipse.jface.window.Window");
  */
 function openSaveAs({
   title, message, defaultName, defaultFolder, defaultDescription,
-  showDescription = true, onConfirm, parentShell,
+  showDescription = true, onConfirm, parentShell, reservedNames = [],
 }) {
   /** @type {JFace.TitleAreaDialog} */
   let dlg;
@@ -166,6 +167,10 @@ function openSaveAs({
       // so it should never be the last item when OK is pressed; fall back to root if it is.
 
       const fullName    = folder ? folder + "/" + name : name;
+      if (reservedNames.includes(fullName)) {
+        dlg.setErrorMessage(`"${fullName}" is reserved; choose another name.`);
+        return;
+      }
       const description = dlgState.txtDesc ? dlgState.txtDesc.getText() : (defaultDescription || "");
       onConfirm(fullName, description);
       Java.super(dlg).okPressed();

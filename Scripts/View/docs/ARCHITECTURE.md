@@ -163,7 +163,7 @@ Code outside the subsystem uses only these exports (SPEC § 3); everything else 
 |---|---|---|
 | `generate_view.generate_view(preset, selection, actionId?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
 | `run_preset.fromFilename(file, selection, opts?)` | Preset, action and direction from the script's file name; `opts.folder`, `opts.preset`, `opts.edit` | `shortcuts/**`, `Scripts/GEMMA/GGM/*_<Action>_<Dir>.ajs` |
-| `run_preset.fromBase(selection, actionId, params?)` | The base preset `all` (else `_Default`) with params replaced | `View/_*.ajs` |
+| `run_preset.fromBase(selection, actionId, params?)` | The base preset `all` (else `Default`) with params replaced | `View/_*.ajs` |
 | `preset_io.readPreset(name)` | A validated preset; throws when it is missing or has another schema version | scripts that change a preset before `generate_view` (GGM) |
 | `defs.ACTION` | The four action ids | every caller of `generate_view` |
 | `gui/dialog_main.open(selection)` | Opens the dialog; runs the chosen action after it closes | `_gui.ajs` |
@@ -256,7 +256,8 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 |---|---|
 | Selecting a preset applies it at once; there is no Apply button. | The universal pattern for preset pickers (DAWs, IDEs, Lightroom). Apply adds a click without adding safety, since overwriting a preset is a separate Save. |
 | A `*` marks settings that differ from the saved preset; switching presets discards changes without a confirm. | Users need to know when Save would do something. With Save and Save As explicit, a confirm on every switch annoys more than it helps; the `*` shows the loss before it happens. |
-| A Default preset always exists and cannot be renamed or deleted. | The picker is never empty, and there is always a safe fallback. |
+| A Default preset always exists, is listed and is read-only in the dialog: no Save, Rename or Delete, and its name is reserved. | The picker is never empty, there is always a safe fallback, and a new preset starts from it with Save As…. |
+| Default is a file (`presets/Default.json`) that may differ from the code defaults; choosing it logs every difference, without a warning. | Users can keep their own defaults without a code change, and still see where they leave the code defaults. |
 | Presets are picked from a tree of their folders with a filter field, not from a combo. | A flat combo of all presets in all folders is long to scan; folders that fold open and a filter on the full name make the choice quick. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms of all styles are visible at once: users scan the full option space without opening a combo, and the style/algorithm relation shows at a glance. |
 | Steps start expanded when a preset is loaded. | All conditions and their counts are visible at once; a block is collapsed on demand. |
@@ -273,7 +274,8 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - **Commit events**: selection events and spinner focus-out.
 - **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle algorithm start* on, the run's start is set first (Selection for a Create action), and the session gets the next one.
 - **Step header.** Repeat is a push button with a menu, as the colour picker: a GTK combo is taller than the header buttons. The name field takes the title's place (GridData `exclude`); the header row is padded to the field's height, so it keeps one height while editing. A display MouseDown filter ends the edit, because a click on a label takes no focus from the field. A single click collapses after the double-click time, so a double-click does not collapse and expand first.
-- **Preset picker** (`Widgets.treePicker`): a push button with a pop-up `Shell` (`NO_TRIM`, no `ON_TOP`: [swt-gtk.md](../../../ai/jarchi-scripting/swt-gtk.md)) on the dialog's shell, holding a search `Text` and a `Tree`, rebuilt on every keystroke of the filter. A click picks on MouseUp over a preset item, so arrow keys move without loading; a folder folds open after its children are added, because GTK does not expand an empty item. The pop-up closes on `Deactivate`.
+- **Default differences** (`PresetIO.logDefaultDifferences`): both sides normalised by `validatePreset` and compacted to file form, then flattened, a condition list as one value. Logged before the dialog opens when the session is Default, after it closes when Default was chosen in it, and by `run_preset` when it falls back to Default.
+- **Preset picker** (`Widgets.treePicker`): a push button with a pop-up `Shell` (`NO_TRIM`, no `ON_TOP`: [swt-gtk.md](../../../ai/jarchi-scripting/swt-gtk.md)) on the dialog's shell, holding a search `Text` and a `Tree`, rebuilt on every keystroke of the filter; the `first` names (Default) stand above the folders. A click picks on MouseUp over a preset item, so arrow keys move without loading; a folder folds open after its children are added, because GTK does not expand an empty item. The pop-up closes on `Deactivate`.
 - **Coupled distances** react to the spinners' Selection event, which only the user fires (not `setSelection`), and to every algorithm update, which also runs after a preset is loaded.
 
 ## Layer 2 — View-generation API
@@ -532,7 +534,7 @@ Where a value comes from, last wins:
 
 ```
 DEFAULT_PRESET (defs.js)                      code defaults
- ← preset file   presets/<name>.json          headless: the named preset, or `all`, else `_Default`
+ ← preset file   presets/<name>.json          headless: the named preset, or `all`, else `Default`
  ← session       presets/_session.json        dialog: the last settings; a picked preset replaces them
  ← overrides     entry script or caller       direction from the file name, fixed params of View/_*.ajs,
                                               opts.edit, a calling script's own changes
@@ -621,7 +623,7 @@ Sources of order: the selection (Order *as selected*), ids (relations are taken 
 
 | What | Where | Notes |
 |---|---|---|
-| Presets | `presets/**/*.json` | Folders allowed. `_Default` = the code defaults, hidden. `all` = base preset of `View/_*.ajs`. |
+| Presets | `presets/**/*.json` | Folders allowed. `Default` = the code defaults or the user's own, read-only in the dialog. `all` = base preset of `View/_*.ajs`. |
 | Session | `presets/_session.json` | Last settings plus UI state (`_`-prefixed keys); git-ignored |
 | Palettes | `presets/_palettes.json` | Named colours the presets pick from (`appearance.palette`); tracked |
 | Hidden properties | `presets/_hidden_properties.json` | View property keys the Properties tab hides and generation leaves alone; tracked |
