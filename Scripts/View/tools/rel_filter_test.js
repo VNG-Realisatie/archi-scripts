@@ -41,6 +41,9 @@ eq(norm("relation", [{ everyContainer: "yes" }]), [], "non-boolean everyContaine
 eq(RF.isPassAll("relation", []), true, "empty list passes all");
 eq(RF.isPassAll("relation", norm("relation", [{}])), true, "default condition passes all");
 eq(RF.isPassAll("relation", norm("relation", [{ relation: "serving-relationship" }])), false, "specific condition filters");
+eq(RF.compactPreset({ filter: { relationConditions: norm("relation", [{}]) }, relatedElements: { steps: [{ conditions: norm("step", [{}]) }] } }),
+   { filter: { relationConditions: [] }, relatedElements: { steps: [{ conditions: [{}] }] } },
+   "compact: a pass-all filter becomes [], a pass-all step condition stays (an empty step adds nothing)");
 
 // ── relation matching ─────────────────────────────────────────────────────────
 const rel = conditions => (t, s, g, all) => RF.matchRelation(norm("relation", conditions), t, s, g, all);

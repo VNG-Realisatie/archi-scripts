@@ -444,7 +444,8 @@ function compactPreset(preset) {
     if (o && last in o) o[last] = _compactList(kind, o[last], isFilter);
   }
   const steps = c.relatedElements && c.relatedElements.steps;
-  if (Array.isArray(steps)) steps.forEach((/** @type {{ conditions?: unknown }} */ st) => { if (st && "conditions" in st) st.conditions = _compactList("step", st.conditions, true); });
+  // A step is not a filter: [] adds nothing, a pass-all condition adds every neighbour.
+  if (Array.isArray(steps)) steps.forEach((/** @type {{ conditions?: unknown }} */ st) => { if (st && "conditions" in st) st.conditions = _compactList("step", st.conditions, false); });
   return c;
 }
 
