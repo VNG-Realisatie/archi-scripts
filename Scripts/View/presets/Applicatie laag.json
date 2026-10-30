@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 6,
+  "name": "Applicatie laag",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingConditions": [],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Containers, then elements",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Crossing containers",
+    "layerSpacing": 180,
+    "elementSpacing": 40,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 140,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementConditions": [
+      {"elementType": "application-collaboration"},
+      {"elementType": "application-component"},
+      {"elementType": "application-event"},
+      {"elementType": "application-function"},
+      {"elementType": "application-interaction"},
+      {"elementType": "application-interface"},
+      {"elementType": "application-process"},
+      {"elementType": "application-service"},
+      {"elementType": "grouping"}
+    ],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": []
+  },
+  "view": {
+    "name": "Beleidsdomeinen ingedeeld in Iv3",
+    "folder": "/_Generated",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"bold": true, "child": "same"}
+      ],
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "darkenStart": 0,
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA URL",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "drivingView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "generate_view_param",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "includeTableOfView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "organisation",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "path",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "Behoud alleen applicatielaag elementen"
+}

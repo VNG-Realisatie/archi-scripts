@@ -1,18 +1,31 @@
 {
   "schemaVersion": 6,
   "name": "Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
-  "algorithm": "Pack",
+  "algorithm": "Tiles",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "access-relationship", "everyContainer": true},
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
     "padding": 20,
     "diagramPadding": 20,
     "sort": "Elements",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
     "alignWidthSameType": true,
-    "columnsAcrossContainers": false,
+    "columnsAcrossContainers": true,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Crossing containers",
     "layerSpacing": 120,
@@ -22,28 +35,20 @@
     "elementWidth": 240,
     "elementHeight": 30,
     "maxWidth": 0,
-    "aspectRatio": 0,
+    "aspectRatio": 1.78,
     "viewSizeMode": "none",
     "labelSizing": false,
-    "nestingConditions": [
-      {"relation": "access-relationship", "everyContainer": true},
-      {"relation": "aggregation-relationship", "everyContainer": true}
-    ],
-    "reverseConditions": [
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
-    ],
+    "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false
   },
   "filter": {
     "elementConditions": [
       {"elementType": "business-function"}
     ],
+    "diagramConditions": [],
     "relationConditions": [
       {"relation": "aggregation-relationship"}
-    ],
-    "diagramConditions": []
+    ]
   },
   "relatedElements": {
     "steps": [
@@ -62,8 +67,9 @@
     ]
   },
   "view": {
-    "name": "Klant- en keteninteractie",
-    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten"
+    "name": "Bedrijfsfunctielagen",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
+    "suffix": ""
   },
   "appearance": {
     "palette": "",
@@ -81,8 +87,8 @@
       "fontEnabled": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": true,
-      "lightenPerLevel": 25,
-      "darkenStart": 0
+      "darkenStart": 0,
+      "lightenPerLevel": 25
     },
     "highlightRepeated": {
       "enabled": false,
@@ -94,9 +100,99 @@
     "addObjectId": true,
     "properties": [
       {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA URL",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Managed occurrence",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
         "key": "Publiceren",
         "value": "GEMMA Online en redactie",
         "enabled": true
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "drivingView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "generate_view_param",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "includeTableOfView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "organisation",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "path",
+        "value": "",
+        "enabled": false
       }
     ]
   },

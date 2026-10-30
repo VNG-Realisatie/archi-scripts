@@ -5,6 +5,7 @@
   "params": {
     "direction": "Right",
     "nodePlacement": "Straight lines",
+    "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
@@ -19,6 +20,8 @@
     "padding": 20,
     "diagramPadding": 20,
     "sort": "Elements",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
     "alignWidthSameType": false,
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
@@ -46,12 +49,14 @@
   "relatedElements": {
     "steps": [
       {
+        "name": "Bedrijfsobjecten van beleidsdomein",
         "repeat": 1,
         "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-object"}
         ]
       },
       {
+        "name": "Relaties",
         "repeat": 1,
         "conditions": [
           {"relation": "association-relationship", "added": "business-object"},
@@ -59,6 +64,7 @@
         ]
       },
       {
+        "name": "Gerelateerde beleidsdomeinen",
         "repeat": 1,
         "conditions": [
           {"direction": "incoming", "relation": "aggregation-relationship", "added": "grouping"}
@@ -67,12 +73,12 @@
     ]
   },
   "view": {
-    "name": "Begraafplaatsen en crematoria",
-    "folder": "/Bedrijfsobjecten/Bedrijfsobjectmodellen",
+    "name": "Afval",
+    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen",
     "suffix": ""
   },
   "appearance": {
-    "palette": "",
+    "palette": "GEMMA",
     "styleByProperty": {
       "conditions": [
         {"color": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Greens"}
@@ -87,8 +93,8 @@
       "fontEnabled": true,
       "fontDecreasePerLevel": 2,
       "colorEnabled": false,
-      "lightenPerLevel": 15,
-      "darkenStart": 0
+      "darkenStart": 0,
+      "lightenPerLevel": 15
     },
     "highlightRepeated": {
       "enabled": true,
@@ -103,7 +109,103 @@
   },
   "viewProperties": {
     "addObjectId": true,
-    "properties": []
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA URL",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Managed occurrence",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "drivingView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "generate_view_param",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "includeTableOfView",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "organisation",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "path",
+        "value": "",
+        "enabled": false
+      }
+    ]
   },
   "description": "Selecteer een beleidsdomein en genereer het bedrijfsobjectmodel"
 }
