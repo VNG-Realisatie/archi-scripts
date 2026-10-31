@@ -38,13 +38,21 @@ const RATIO_CANDIDATES = 8;
 const VIEW_SHAPES = 96;
 /** A shape with more than this times the least area of its run is too wasteful to be worth keeping. */
 const MAX_WASTE = 1.5;
+// The search over every cut of every run grows with about n⁴ (Node: 48 tiles 0.7 s, 100 tiles 20 s,
+// 561 tiles hours). A longer run is cut into consecutive chunks of at most CHUNK_SIZE tiles, each chunk
+// tiled as a run, then the chunks tiled as one: 561 tiles in 1 s, 2–3 % less of the area filled.
+/** Longest run tiled by the full search. */
+const FULL_SEARCH_MAX = 48;
+/** Tiles per chunk of a longer run. */
+const CHUNK_SIZE = 24;
 
 /**
  * A size a run of boxes can take, with how it is built.
  * Single box: `child` is the index of the box's own shape. Two parts: the run is cut after box `k`
  * (side by side `H` or one above the other `V`); `a` and `b` index the shapes of the two parts.
  * @typedef {{ w: number, h: number, child?: number, k?: number, dir?: "H" | "V", a?: number, b?: number }} Shape
- * @typedef {{ id: string, shapes: Shape[], table?: Table }} Tile  one box of a run: a leaf, or a container
+ * @typedef {{ id: string, shapes: Shape[], table?: Table, chunk?: boolean }} Tile  one box of a run: a leaf, a
+ *   container, or a chunk of a long run (no node of its own, no padding)
  * @typedef {{ tiles: Tile[], best: Shape[][][] }} Table  best[i][j]: the shapes of tiles i … j
  */
 
@@ -80,7 +88,8 @@ function prune(shapes, widthCap, maxShapes = MAX_SHAPES) {
 }
 
 /**
- * The best shapes of every run of tiles, by dynamic programming over the runs.
+ * The best shapes of every run of tiles, by dynamic programming over the runs; a run longer than
+ * FULL_SEARCH_MAX as a run of chunks.
  * @param {Tile[]} tiles
  * @param {number} gap
  * @param {number} widthCap
@@ -88,6 +97,7 @@ function prune(shapes, widthCap, maxShapes = MAX_SHAPES) {
  * @returns {Table}
  */
 function buildTable(tiles, gap, widthCap, finalShapes = MAX_SHAPES) {
+  if (tiles.length > FULL_SEARCH_MAX) return buildTable(chunksOf(tiles, gap, widthCap), gap, widthCap, finalShapes);
   const n = tiles.length;
   /** @type {Shape[][][]} */
   const best = Array.from({ length: n }, () => Array.from({ length: n }, () => /** @type {Shape[]} */ ([])));
@@ -112,6 +122,25 @@ function buildTable(tiles, gap, widthCap, finalShapes = MAX_SHAPES) {
 }
 
 /**
+ * A long run as consecutive chunks of at most CHUNK_SIZE tiles, of near-equal length, in order.
+ * @param {Tile[]} tiles
+ * @param {number} gap
+ * @param {number} widthCap
+ * @returns {Tile[]}
+ */
+function chunksOf(tiles, gap, widthCap) {
+  const count = Math.ceil(tiles.length / CHUNK_SIZE);
+  /** @type {Tile[]} */
+  const chunks = [];
+  for (let c = 0; c < count; c++) {
+    const part = tiles.slice(Math.floor(c * tiles.length / count), Math.floor((c + 1) * tiles.length / count));
+    const table = buildTable(part, gap, widthCap);
+    chunks.push({ id: "", chunk: true, table, shapes: table.best[0][part.length - 1].map((s, child) => ({ w: s.w, h: s.h, child })) });
+  }
+  return chunks;
+}
+
+/**
  * Tiles in the sorted order of their nodes: a leaf at its size, a container with the shapes its
  * children give it (padding added, never narrower than its level).
  * @param {LayoutGraph} graph
@@ -132,6 +161,11 @@ function layout(graph) {
   /** @type {Record<string, LayoutNode[]>} */
   const childrenOf = {};
   for (const node of ordered) (childrenOf[node.parent || ""] = childrenOf[node.parent || ""] || []).push(node);
+  const longRuns = Object.values(childrenOf).filter(kids => kids.length > FULL_SEARCH_MAX);
+  if (longRuns.length) {
+    log(`Tiles: ${longRuns.length} container(s) or view with more than ${FULL_SEARCH_MAX} elements side by side (largest ${Math.max(...longRuns.map(k => k.length))}) — ` +
+        `tiled in chunks of at most ${CHUNK_SIZE}, a little less compact`);
+  }
 
   // Same width per level: leaves get the level width, containers a minimum; a leaf beside a
   // container takes the width of the narrowest container of its column (widenToColumns).
@@ -163,7 +197,7 @@ function layout(graph) {
     const kids = childrenOf[node.id];
     if (!kids) return { id: node.id, shapes: [{ w: levelWidth[node.id] || node.width, h: node.height }] };
     const table = buildTable(kids.map(tileOf), gap, goal);
-    const inner = table.best[0][kids.length - 1];
+    const inner = table.best[0][table.tiles.length - 1];
     const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0), h: s.h + top + pad, child }));
     return { id: node.id, shapes: prune(shapes, goal), table };
   };
@@ -201,6 +235,11 @@ function layout(graph) {
    */
   const placeTile = (out, tile, index, x, y, parentId, column) => {
     const shape = tile.shapes[index];
+    if (tile.chunk) {   // its tiles go straight into the run's own container
+      const table = /** @type {Table} */ (tile.table);   // Cast: every chunk has a table
+      placeRun(out, table, 0, table.tiles.length - 1, /** @type {number} */ (shape.child), x, y, parentId, column);
+      return;
+    }
     columnOf[tile.id] = column;
     out.push({ id: tile.id, x, y, width: shape.w, height: shape.h, parentId });
     if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + top, tile.id, ++columns);
@@ -222,7 +261,7 @@ function layout(graph) {
   const build = (table, index, quiet) => {
     /** @type {LayoutResultNode[]} */
     const out = [];
-    placeRun(out, table, 0, rootTiles.length - 1, index, diagramPad, diagramPad, null, ++columns);
+    placeRun(out, table, 0, table.tiles.length - 1, index, diagramPad, diagramPad, null, ++columns);
     const sharers = columnSharers(out);
     // On the grid a leaf beside a container fills its track; without it, it takes its column's width.
     if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers);
@@ -264,7 +303,7 @@ function layout(graph) {
   let nodes = [];
   if (rootTiles.length) {
     const table = buildTable(rootTiles, gap, goal, VIEW_SHAPES);
-    const shapes = table.best[0][rootTiles.length - 1];
+    const shapes = table.best[0][table.tiles.length - 1];
     let chosen = 0;
     let note = "";
     if (o.maxWidth) {

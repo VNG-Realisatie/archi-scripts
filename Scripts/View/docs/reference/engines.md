@@ -5,6 +5,7 @@ The detail behind [SPEC.md § 8 Engine contract](../SPEC.md#8-engine-contract).
 ## Runtime and engines
 
 - **Runtime:** a JavaScript script for the Archi modelling tool (jArchi 1.12 / GraalVM JS), with an SWT/GTK dialog.
+- **Node layout:** the engines run in a Node process when `node` is on the PATH, else in Archi; the same result either way.
 - **Engines:**
   - ELK: Layered, Tree, Stress, Radial, Grid, Pack;
   - Tiles: Tiles (no layout engine: the adapter tiles the nesting itself);
@@ -111,7 +112,7 @@ Each orchestration phase is a step: one blank line, a header at root indent (`St
 | `Pipeline — build object set:` | Filtered base, step adds, totals ([counting rules](selection-nesting.md#counting-rules)) |
 | `Layout graph:` | Relation roles (nestings · connections), nestings applied, cycles |
 | `View target:` | Modify actions: the view identified (before the layout graph) |
-| `Layout:` | Engine passes, width alignment, layout result, view size |
+| `Layout:` | Engine passes, width alignment, where the layout ran (`Layout in Node: … ms layout · … ms process`, or `Layout in Archi:` with the reason), layout result, view size |
 | `View target:` | Create actions: the view created or overwritten, after the layout succeeded |
 | `Write:` | Nodes written (extra occurrences included), connections, final counts |
 | `Timing:` | Time per phase: selection, view target, layout graph, layout, write, appearance; then `generate_view:` with the total |

@@ -37,6 +37,8 @@ const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 const LayoutGraph = require(REPO_ROOT + "View/lib/layout_graph");
 /** @type {typeof import("./process_runner")} */
 const ProcessRun = require(REPO_ROOT + "View/lib/process_runner");
+/** @type {typeof import("./node_layout")} */
+const NodeLayout = require(REPO_ROOT + "View/lib/node_layout");
 /** @type {typeof import("./write_plan")} */
 const WritePlan  = require(REPO_ROOT + "View/lib/write_plan");
 /** @type {typeof import("./view_writer")} */
@@ -59,16 +61,22 @@ const ArchimateModelUtils = Java.type("com.archimatetool.model.util.ArchimateMod
 // ── Engine loaders (lazy)─────────────────────────────────────────────────────
 // require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
 
+// Adapter module per engine, relative to Scripts/: loaded here, and by the Node layout process.
+/** @type {Record<string, string>} */
+const ENGINE_MODULE = {
+  ELK:      "View/lib/engines/elk",
+  Dagre:    "View/lib/engines/dagre",
+  Graphviz: "View/lib/engines/graphviz",
+  Tiles:    "View/lib/engines/tiles",
+};
+
 /**
  * @param {string} engine
  * @returns {LayoutAdapter}
  */
 function _getAdapter(engine) {
-  if (engine === "ELK")      return require(REPO_ROOT + "View/lib/engines/elk");
-  if (engine === "Dagre")    return require(REPO_ROOT + "View/lib/engines/dagre");
-  if (engine === "Graphviz") return require(REPO_ROOT + "View/lib/engines/graphviz");
-  if (engine === "Tiles")    return require(REPO_ROOT + "View/lib/engines/tiles");
-  throw `Unknown engine: "${engine}"`;
+  if (!(engine in ENGINE_MODULE)) throw `Unknown engine: "${engine}"`;
+  return require(REPO_ROOT + ENGINE_MODULE[engine]);
 }
 
 // ── Settings outside the dialog ───────────────────────────────────────────────
@@ -314,7 +322,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
  * @param {MaskedPreset} preset    validated, params masked to the algorithm (effectiveParams)
  * @param {Snapshot}     snapshot
  * @param {string}       actionId  ACTION.*.id
- * @param {ProcessRunner} runProcess  starts the Graphviz binary: Java in Archi, child_process in Node
+ * @param {ProcessRunner} runProcess  starts the Node layout process and the Graphviz binary: Java in Archi, child_process in Node
  * @param {{ lap(name: string): void }} [timer]  phase timing
  * @returns {{ objectSet: ObjectSet, graph: LayoutGraph, result: LayoutResult, writePlan: WritePlan } | null}
  *   null when there is nothing to place
@@ -341,7 +349,8 @@ function plan(preset, snapshot, actionId, runProcess, timer = { lap() {} }) {
   _logRelationRoles(graph, nestingRels, routedRels);
 
   console.log("\nLayout:");
-  const result = _getAdapter(ALGORITHMS[preset.algorithm].engine).layout(graph, runProcess);
+  const engine = ALGORITHMS[preset.algorithm].engine;
+  const result = NodeLayout.layout(graph, ENGINE_MODULE[engine], _getAdapter(engine), runProcess);
   timer.lap("layout");
   _logLayoutResult(result);
 

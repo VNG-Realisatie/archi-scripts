@@ -114,6 +114,11 @@ const ENGINE_PARAMS = {
   "elk.layered.considerModelOrder.strategy":      { default: "NONE", effect: "Layered: the input order is not kept" },
   "elk.layered.feedbackEdges":                    { default: "true", effect: "Layered: connections against the flow leave and enter on the flow sides" },
   "elk.spacing.nodeSelfLoop":                     { default: 40, effect: "Distance between an element and its self-loops (px)" },
+  // Stress starts from a full ELK Force layout (elk.interactive off), which takes most of its time.
+  // Measured on 561 elements · 560 connections (Node): Stress 29 s → 4 s, same size; the overlap
+  // removal 64 → 16 iterations: 9 s → 2.4 s, 2 element pairs left overlapping instead of 0–1.
+  "elk.force.iterations":                         { default: 30, effect: "Stress: iterations of the force layout it starts from (ELK: 300)" },
+  "elk.overlapRemoval.maxIterations":             { default: 16, effect: "Stress: iterations of the overlap removal after it (ELK: 64)" },
 };
 const DEFAULT_ELK_PARAMS = Object.fromEntries(Object.entries(ENGINE_PARAMS).map(([k, s]) => [k, s.default]));
 
