@@ -4,7 +4,8 @@
  * plan generate_view's plan() makes for the test model. Run it on two checkouts and diff the output
  * to show a change leaves what the writer does as it was; --full prints the plans as JSON instead.
  *
- * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--full]
+ * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--full] [--in-process]
+ *        --in-process: the adapters run in this process (about 10× faster), not in a Node layout process
  *        default model: Scripts/View/test/model/view-test.archimate; presets: presets/Test/baseline/*.json
  * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
  *
@@ -25,6 +26,7 @@ const Defs = require(path.join(__dirname, "..", "lib", "defs.js"));
 
 const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const full = process.argv.includes("--full");
+const inProcess = process.argv.includes("--in-process");
 const VIEW = path.join(__dirname, "..");
 const model = H.loadModel(args[0] || path.join(VIEW, "test/model/view-test.archimate"));
 const presetDir = path.join(VIEW, "presets/Test/baseline");
@@ -42,7 +44,7 @@ for (const file of presets) {
         const tag = `${file.padEnd(16)} ${algorithm.padEnd(8)} ${viewName.padEnd(10)} ${action.padEnd(11)}`;
         let line;
         try {
-          const planned = H.planView(model, H.findView(model, "Views/Test/" + viewName), preset, action);
+          const planned = H.planView(model, H.findView(model, "Views/Test/" + viewName), preset, action, inProcess);
           const json = planned ? H.writePlanJson(planned.writePlan) : "null";
           if (full) { log(`== ${tag}\n${json}`); continue; }
           const wp = planned && planned.writePlan;

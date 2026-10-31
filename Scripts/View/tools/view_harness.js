@@ -8,6 +8,7 @@
  * Run: node Scripts/View/tools/view_harness.js <model.archimate> "<folder/…/view name>" [preset.json]
  *        [--action=<action id>]  default: layout_only (the view's contents as they are)
  *        [--write-plan]          print the write plan as JSON instead of the summary
+ *        [--in-process]          the adapter runs in this process, not in a Node layout process (debugging, speed)
  *
  * As a module: loadModel, findView, readSnapshot, relationIndex, planView, writePlanJson
  * and the parsers (see below).
@@ -230,10 +231,16 @@ function readSnapshot(model, view, actionId) {
  * its canvas: object set, layout graph, layout result and write plan; null when nothing is placed.
  * @param preset    a validated preset (validatePreset); masked here as generate_view does
  * @param actionId  ACTION.*.id
+ * @param inProcess the adapter runs in this process; default: in a Node layout process with this Node, as in Archi
+ * (dot from Scripts/View/config.js when it sets dotPath)
  */
-function planView(model, view, preset, actionId) {
+function planView(model, view, preset, actionId, inProcess = false) {
   const GenView = require(LIB + "generate_view");
-  return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, readSnapshot(model, view, actionId), actionId, require("./process_runner_node").runProcess);
+  const ViewConfig = require(LIB + "view_config");
+  // The Node layout with this Node; dot as config.js says, as in Archi.
+  const config = { ...ViewConfig.readConfig(fs.existsSync), nodePath: process.execPath };
+  const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess };
+  return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, readSnapshot(model, view, actionId), actionId, runtime);
 }
 
 /** A write plan as JSON: elements and relations by id. */
@@ -250,14 +257,14 @@ if (typeof module !== "undefined" && module.exports) {
 if (require.main === module) {
   const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
   const flag = name => process.argv.find(a => a === `--${name}` || a.startsWith(`--${name}=`));
-  if (args.length < 2) { _log("usage: view_harness.js <model.archimate> <view path> [preset.json] [--action=<action id>] [--write-plan]"); process.exit(2); }
+  if (args.length < 2) { _log("usage: view_harness.js <model.archimate> <view path> [preset.json] [--action=<action id>] [--write-plan] [--in-process]"); process.exit(2); }
   const preset = Defs.validatePreset(args[2] ? JSON.parse(fs.readFileSync(args[2], "utf8")) : {});
   const model = loadModel(args[0]);
   const view = findView(model, args[1]);
   const action = flag("action") ? flag("action").split("=")[1] : Defs.ACTION.LAYOUT_ONLY.id;
   const log = console.log;
   console.log = () => {};   // the plan's console output
-  const planned = planView(model, view, preset, action);
+  const planned = planView(model, view, preset, action, !!flag("in-process"));
   console.log = log;
   if (!planned) _log("Nothing to place.");
   else if (flag("write-plan")) _log(writePlanJson(planned.writePlan));

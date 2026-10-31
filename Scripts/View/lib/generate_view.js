@@ -39,6 +39,8 @@ const LayoutGraph = require(REPO_ROOT + "View/lib/layout_graph");
 const ProcessRun = require(REPO_ROOT + "View/lib/process_runner");
 /** @type {typeof import("./node_layout")} */
 const NodeLayout = require(REPO_ROOT + "View/lib/node_layout");
+/** @type {typeof import("./view_config")} */
+const ViewConfig = require(REPO_ROOT + "View/lib/view_config");
 /** @type {typeof import("./write_plan")} */
 const WritePlan  = require(REPO_ROOT + "View/lib/write_plan");
 /** @type {typeof import("./view_writer")} */
@@ -176,10 +178,11 @@ function generate_view(rawPreset, uiSelection, actionId) {
   /** @type {ArchimateView[]} */
   const views = [];
   try {
+    const runtime = _layoutRuntime();
     if (action === ACTION.ONE_EACH.id) {
-      views.push(..._generateOneEach(preset, uiSelection));
+      views.push(..._generateOneEach(preset, uiSelection, runtime));
     } else {
-      const view = _generateSingle(preset, uiSelection, action, null);
+      const view = _generateSingle(preset, uiSelection, action, null, runtime);
       if (view) views.push(view);
     }
   } catch (error) {
@@ -260,9 +263,10 @@ function _applyViewProperties(view, preset) {
  * @param {ArchiCollection<ArchiObject>} uiSelection
  * @param {string}                       actionId
  * @param {string | null}                viewNameOverride
+ * @param {LayoutRuntime}                runtime
  * @returns {ArchimateView | null}
  */
-function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
+function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtime) {
   const timer = _phaseTimer();
   const snapshot = SelectionRead.readSelection(uiSelection, actionId);
   timer.lap("selection");
@@ -285,7 +289,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
     console.log(`  Using: "${existingView.name}" (in place)`);
   }
 
-  const planned = plan(preset, snapshot, actionId, ProcessRun.runProcess, timer);
+  const planned = plan(preset, snapshot, actionId, runtime, timer);
   if (!planned) return null;
 
   let view = existingView;
@@ -316,18 +320,31 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride) {
 }
 
 /**
+ * Where the layout of a run in Archi runs: in a Node layout process, programs started by the Java
+ * runner from the paths of the View configuration (config.js). Read once per run.
+ * @returns {LayoutRuntime}
+ */
+function _layoutRuntime() {
+  const Files = Java.type("java.nio.file.Files");
+  const Paths = Java.type("java.nio.file.Paths");
+  const config = ViewConfig.readConfig(path => Files.exists(Paths.get(path)));
+  return { runProcess: ViewConfig.programRunner(ProcessRun.runProcess, config), config, inProcess: false };
+}
+
+/**
  * The pure part of one view generation: object set, relation roles, layout graph, layout engine,
  * write plan. Archi runs it on the Snapshot readSelection read; the Node harness on one read from a
  * model file. The target view's contents come from the Snapshot (none for a Create action).
  * @param {MaskedPreset} preset    validated, params masked to the algorithm (effectiveParams)
  * @param {Snapshot}     snapshot
  * @param {string}       actionId  ACTION.*.id
- * @param {ProcessRunner} runProcess  starts the Node layout process and the Graphviz binary: Java in Archi, child_process in Node
+ * @param {LayoutRuntime} runtime  where the layout runs; its runner starts the Node layout process and
+ *   Graphviz: Java in Archi, child_process in Node
  * @param {{ lap(name: string): void }} [timer]  phase timing
  * @returns {{ objectSet: ObjectSet, graph: LayoutGraph, result: LayoutResult, writePlan: WritePlan } | null}
  *   null when there is nothing to place
  */
-function plan(preset, snapshot, actionId, runProcess, timer = { lap() {} }) {
+function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   const objectSet = Pipeline.buildObjectSet(snapshot, preset, actionId);
   timer.lap("object set");
 
@@ -350,7 +367,7 @@ function plan(preset, snapshot, actionId, runProcess, timer = { lap() {} }) {
 
   console.log("\nLayout:");
   const engine = ALGORITHMS[preset.algorithm].engine;
-  const result = NodeLayout.layout(graph, ENGINE_MODULE[engine], _getAdapter(engine), runProcess);
+  const result = NodeLayout.layout(graph, ENGINE_MODULE[engine], _getAdapter(engine), runtime);
   timer.lap("layout");
   _logLayoutResult(result);
 
@@ -415,9 +432,10 @@ function _fmtMs(ms) {
 /**
  * @param {MaskedPreset}                 preset
  * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @param {LayoutRuntime}                runtime
  * @returns {ArchimateView[]}
  */
-function _generateOneEach(preset, uiSelection) {
+function _generateOneEach(preset, uiSelection, runtime) {
   // Seeds = raw model elements from the Archi selection, before preset filter and expansion.
   // Each seed gets its own full pipeline run (filter + expansion + layout + write).
   const seeds = SelectionRead.getSeedElements(uiSelection);
@@ -436,7 +454,7 @@ function _generateOneEach(preset, uiSelection) {
   const views = [];
   for (const element of seeds) {
     console.log(`\nGenerating view for: ${element.name}`);
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + preset.view.suffix);
+    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + preset.view.suffix, runtime);
     if (view) views.push(view);
   }
   return views;

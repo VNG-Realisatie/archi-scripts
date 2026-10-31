@@ -17,6 +17,7 @@ Started from "generate views using graphlib" by Hervé Jouin (<https://forum.arc
 - **Archi with jArchi** (tested: Archi 5, jArchi 1.12). In *Preferences › Scripting*: *Enable CommonJS* on, and GraalVM as the JavaScript engine where jArchi offers a choice.
 - **Graphviz** on the PATH (the `dot` program), only for the algorithms Dot, Neato, FDP, SFDP, Twopi and Circo. The others need nothing outside this repository.
 - **Node.js** on the PATH (the `node` program, current LTS), recommended: the layout then runs in Node, for a large view often more than ten times faster. Without it the layout runs in Archi, and the console says so.
+- When Archi does not find `node` or `dot` on its PATH (macOS, Node from nvm or fnm), set their paths in `Scripts/View/config.js`: an example is in `config.default.js` next to it. The file is your own and is not in git.
 
 The scripts run straight from a clone: the layout libraries are included in `Scripts/node_modules/`.
 

@@ -11,6 +11,7 @@
  * Run: node tools/compare-layouts.js <checkout root> <model.archimate> "<folder/…/view>" [preset.json…]
  *        default presets: every Scripts/View/presets/*.json of the checkout
  *        --keep-concept-id   include conceptId in the hash (left out by default)
+ *        --in-process        the adapters run in this process, not in a Node layout process
  * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
  *
  * Compare with the current HEAD:
@@ -25,6 +26,7 @@ const crypto = require("crypto");
 
 const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const keepConceptId = process.argv.includes("--keep-concept-id");
+const inProcess = process.argv.includes("--in-process");
 if (args.length < 3) { console.error("usage: node tools/compare-layouts.js <checkout root> <model.archimate> <view path> [preset.json…]"); process.exit(2); }
 const [root, modelFile, viewPath, ...presetArgs] = args;
 
@@ -56,7 +58,7 @@ for (const file of presets) {
       const raw = JSON.parse(fs.readFileSync(file, "utf8"));
       raw.algorithm = algorithm;
       const preset = Defs.validatePreset(raw);
-      const planned = H.planView(model, view, preset, Defs.ACTION.NEW_VIEW.id);
+      const planned = H.planView(model, view, preset, Defs.ACTION.NEW_VIEW.id, inProcess);
       if (!planned) throw new Error("nothing to place");
       const result = planned.result;
       line = `${digest(result)} ${result.nodes.length}n ${result.edges.length}e`;

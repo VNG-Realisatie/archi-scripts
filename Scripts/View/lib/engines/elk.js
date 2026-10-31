@@ -120,6 +120,9 @@ const ENGINE_PARAMS = {
   "elk.force.iterations":                         { default: 30, effect: "Stress: iterations of the force layout it starts from (ELK: 300)" },
   "elk.overlapRemoval.maxIterations":             { default: 16, effect: "Stress: iterations of the overlap removal after it (ELK: 64)" },
 };
+// An ELK algorithm whose options another reads, because that one runs it: Stress starts from a Force layout.
+/** @type {Record<string, string[]>} */
+const RUNS_ALGORITHM = { force: ["stress"] };
 const DEFAULT_ELK_PARAMS = Object.fromEntries(Object.entries(ENGINE_PARAMS).map(([k, s]) => [k, s.default]));
 
 // Shared aspect-ratio mapping reused wherever both root and container scopes carry the same fn.
@@ -1452,7 +1455,8 @@ function checkEngineParams(preset) {
     if (!targeted.length) return finding(`ELK reads it on connections, ports or labels only — not used, remove`);
     const part = id.split(".");
     const owner = part.length > 4 && algorithms.has(part[3]) ? part[3] : null;   // an algorithm's own option
-    const read = owner ? targeted.filter(scope => scope.by.includes(owner)) : targeted;
+    const readers = owner ? [owner, ...(RUNS_ALGORITHM[owner] || [])] : [];
+    const read = owner ? targeted.filter(scope => scope.by.some(a => readers.includes(a))) : targeted;
     if (!read.length) return finding(`an ELK ${owner} option — not used by ${usedBy}, remove`);
     if (read.every(scope => scope.options[id] !== String(value))) return finding("set by the adapter itself — not used, remove");
     return { key, value, ...settingProblem(id, value, defaults, dialog, current) };

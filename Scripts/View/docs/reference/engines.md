@@ -5,7 +5,7 @@ The detail behind [SPEC.md § 8 Engine contract](../SPEC.md#8-engine-contract).
 ## Runtime and engines
 
 - **Runtime:** a JavaScript script for the Archi modelling tool (jArchi 1.12 / GraalVM JS), with an SWT/GTK dialog.
-- **Node layout:** the engines run in a Node process when `node` is on the PATH, else in Archi; the same result either way.
+- **Node layout:** the engines run in a Node process when `node` is found (the PATH, or `config.js`), else in Archi; the same result either way.
 - **Engines:**
   - ELK: Layered, Tree, Stress, Radial, Grid, Pack;
   - Tiles: Tiles (no layout engine: the adapter tiles the nesting itself);

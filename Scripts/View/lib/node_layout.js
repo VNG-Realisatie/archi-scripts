@@ -1,9 +1,10 @@
 /**
  * Node layout: the engine call of plan() runs in a Node process (tools/node_layout_run.js) instead of
  * in the script's own JavaScript engine. GraalJS in jArchi runs without runtime compilation, so the
- * adapters' work takes about 40× as long there as in Node (ARCHITECTURE § Node layout). The layout
+ * adapters' work takes about 40× as long there as in Node (ARCHITECTURE § Performance). The layout
  * graph goes to the process as JSON on stdin; the result and the adapter's console lines come back
- * on stdout. Without `node` on the PATH the adapter runs in the script itself, as before.
+ * on stdout. Without Node the adapter runs in the script itself, as before. Where `node` is: the
+ * View configuration (Scripts/View/config.default.js, config.js), through the runtime's runner.
  */
 console.log("Loading node_layout.js");
 
@@ -30,15 +31,18 @@ const ADAPTER_FIELDS = /** @type {const} */ ([
  * Lay out the graph in Node; without Node, with the adapter in the script itself.
  * @param {LayoutGraph}   graph
  * @param {string}        engineModule  the adapter's module, relative to Scripts/ (e.g. "View/lib/engines/elk")
- * @param {LayoutAdapter} adapter       the same module, loaded: runs the layout when Node is not found
- * @param {ProcessRunner} runProcess
+ * @param {LayoutAdapter} adapter       the same module, loaded: runs the layout when Node is not used
+ * @param {LayoutRuntime} runtime
  * @returns {LayoutResult}
  */
-function layout(graph, engineModule, adapter, runProcess) {
+function layout(graph, engineModule, adapter, runtime) {
+  const { runProcess, config } = runtime;
+  if (runtime.inProcess) return adapter.layout(graph, runProcess);
   const t0 = Date.now();
-  const out = runProcess(NODE_BIN, [NODE_LAYOUT_SCRIPT], JSON.stringify({ engineModule, graph: _adapterInput(graph) }), NODE_LAYOUT_TIMEOUT_S);
+  const input = JSON.stringify({ engineModule, config, graph: _adapterInput(graph) });
+  const out = runProcess(NODE_BIN, [NODE_LAYOUT_SCRIPT], input, NODE_LAYOUT_TIMEOUT_S);   // a configured path not found throws
   if (out.state === "not-found") {
-    console.log(`  Layout in Archi: '${NODE_BIN}' not found on the PATH — install Node.js (nodejs.org) for a faster layout`);
+    console.log(`  Layout in Archi: '${NODE_BIN}' not found on the PATH — install Node.js (nodejs.org) for a faster layout, or set nodePath in Scripts/View/config.js`);
     return adapter.layout(graph, runProcess);
   }
   if (out.state === "timeout") {

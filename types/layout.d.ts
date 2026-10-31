@@ -122,6 +122,22 @@ interface ProcessOutcome {
  */
 type ProcessRunner = (command: string, args: string[], input: string, timeoutSeconds: number) => ProcessOutcome;
 
+/** Scripts/View/config.default.js with the machine's config.js over it (lib/view_config.js): the programs a run starts. */
+interface ViewConfig {
+  nodePath: string;
+  dotPath: string;
+}
+
+/** Where the layout runs (lib/node_layout.js). */
+interface LayoutRuntime {
+  /** Starts `node` and `dot` from the config's paths (view_config.programRunner). */
+  runProcess: ProcessRunner;
+  /** Passed on to the Node layout process, whose runner starts `dot`. */
+  config: ViewConfig;
+  /** The adapter runs in the script itself, not in a Node layout process (the harness's --in-process). */
+  inProcess: boolean;
+}
+
 // ── Nesting resolution (nesting.resolveNesting) ───────────────────────────────────────
 
 /** A nesting relation bound to the occurrences at its two ends. */
