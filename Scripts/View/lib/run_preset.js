@@ -13,6 +13,8 @@
  *
  * The View/_*.ajs scripts run the base preset instead (fromBase), with fixed overrides:
  *   RunPreset.fromBase($(selection), ACTION.LAYOUT_ONLY.id, { direction: "Down" });
+ * or the dialog's last settings (fromSession), with Cycle algorithm start on:
+ *   RunPreset.fromSession($(selection), ACTION.LAYOUT_ONLY.id);
  */
 console.log("Loading run_preset.js");
 
@@ -88,6 +90,37 @@ function fromBase(selection, actionId, params = {}) {
   return GenView.generate_view(preset, selection, actionId);   // generate_view validates the overrides too
 }
 
+/**
+ * Run the session (the dialog's last settings) on the selection with Cycle algorithm start on,
+ * whatever the dialog's checkbox says; the session gets the next order, so each run tries another.
+ * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
+ * @param {string}                       actionId   ACTION.*.id
+ * @returns {ArchimateView[]} generated / changed views
+ */
+function fromSession(selection, actionId) {
+  const preset = PresetIO.readSession();
+  const next   = cycleAlgorithmStart(preset.params, actionId);
+  const session = JSON.parse(JSON.stringify(preset));
+  session.params.algorithmStart = next;
+  PresetIO.writeSession(session);
+  console.log(`Session  action ${actionId}  algorithm start ${preset.params.algorithmStart} (next: ${next})`);
+  return GenView.generate_view(preset, selection, actionId);
+}
+
+/**
+ * Cycle: a new view starts with the selection order; each layout of an existing view takes the
+ * session's order, and the session gets the next one. Sets the run's order in params.
+ * @param {PresetParams} params  changed in place
+ * @param {string} actionId
+ * @returns {string} the order for the next run
+ */
+function cycleAlgorithmStart(params, actionId) {
+  const orders  = Defs.ALGORITHM_START.map(o => o.val);
+  const creates = actionId === ACTION.NEW_VIEW.id || actionId === ACTION.ONE_EACH.id;
+  if (creates) params.algorithmStart = orders[0];
+  return orders[(orders.indexOf(params.algorithmStart) + 1) % orders.length];
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromBase, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
+  module.exports = { fromFilename, fromBase, fromSession, cycleAlgorithmStart, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
 }

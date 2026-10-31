@@ -60,6 +60,12 @@ Run a saved preset without the dialog.
 | `_layout_LR.ajs`, `_layout_TB.ajs` | Layout only, direction Right / Down, no nesting |
 | `_layout_nested_LR.ajs`, `_layout_nested_TB.ajs` | Layout only, direction Right / Down, aggregation as nesting |
 
+**Session** — the dialog's last settings (`presets/_session.json`):
+
+| Script | Action |
+|---|---|
+| `_layout_session_cycle.ajs` | Layout only with *Cycle algorithm start*: each run takes the next algorithm start, without opening the dialog |
+
 **Named preset**: put a script in `shortcuts/` (or a sub-folder; `presets/` holds only the JSON), name it `<preset>_<Action>_<Direction>.ajs` and give it these lines:
 
 ```js

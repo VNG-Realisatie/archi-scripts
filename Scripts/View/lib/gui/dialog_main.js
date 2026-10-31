@@ -30,6 +30,8 @@ const HiddenProps = require(REPO_ROOT + "View/lib/hidden_properties");
 const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 /** @type {typeof import("../generate_view")} */
 const GenView = require(REPO_ROOT + "View/lib/generate_view");
+/** @type {typeof import("../run_preset")} */
+const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
 /** @type {typeof import("../selection_pipeline")} */
 const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
 /** @type {typeof import("../selection_read")} */
@@ -647,26 +649,11 @@ function _buildViewPropertiesTab(tabFolder, ctx) {
  */
 function _runAction(actionId, dlg, ctx) {
   _saveUI(ctx);
-  const nextOrder = _cycleAlgorithmStart(ctx.config.params, actionId);
+  const nextOrder = ctx.config.params.cycleAlgorithmStart ? RunPreset.cycleAlgorithmStart(ctx.config.params, actionId) : null;
   _persistSession(ctx, nextOrder ? { algorithmStart: nextOrder } : {});
   ctx._actionId = actionId;
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
-}
-
-/**
- * Cycle: a new view starts with the selection order; each layout of an existing view takes the
- * session's order, and the session gets the next one. Sets the run's order in params.
- * @param {PresetParams} params  changed in place
- * @param {string} actionId
- * @returns {string|null} the order for the next run, or null without Cycle
- */
-function _cycleAlgorithmStart(params, actionId) {
-  if (!params.cycleAlgorithmStart) return null;
-  const creates = actionId === ACTION.NEW_VIEW.id || actionId === ACTION.ONE_EACH.id;
-  if (creates) params.algorithmStart = TabLayout.ALGORITHM_START_LABELS[0];
-  const i = TabLayout.ALGORITHM_START_LABELS.indexOf(params.algorithmStart);
-  return TabLayout.ALGORITHM_START_LABELS[(i + 1) % TabLayout.ALGORITHM_START_LABELS.length];
 }
 
 // Action-row button: fills cell width, bottom-aligned within group.

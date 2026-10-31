@@ -130,7 +130,7 @@ The sections below describe the implementation per functional subject, grouped b
 | Subject | Layer | Modules (exported names) | What | Detail |
 |---|---|---|---|---|
 | [Dialog](#dialog) | 1 | `gui/dialog_main.js`, `gui/tab_*.js`, `gui/widgets.js`, `gui/condition_table.js`, `gui/counts.js` (`dialogCounts`), `gui/dialog_presets.js` | [SPEC § 9](SPEC.md#9-ux--generate-view-dialog) | [gui.md](reference/gui.md) |
-| Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromBase`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
+| Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromBase`, `fromSession`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
 | [Model and actions](#model-and-actions) | 2 | `generate_view.js` (`generate_view`) | [SPEC § 4](SPEC.md#4-data-model), [§ 5](SPEC.md#5-actions) | — |
 | [Selection](#selection) | 2 | `selection_read.js` (`readSelection`, `readRelationIndex`), `selection_pipeline.js` (`buildObjectSet` = `readSelection` + `composeObjectSet`, step helpers), `_lib/selection.js` | [SPEC § 6](SPEC.md#6-selection) | [selection-nesting.md](reference/selection-nesting.md#selection-run-order) |
 | [Nesting](#nesting) | 2 | `nesting.js` (`splitNestingRels`, `resolveNesting`); `layout_graph.js` (`buildLayoutGraph`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#nesting-reference) |
@@ -166,6 +166,7 @@ Code outside the subsystem uses only these exports (SPEC § 3); everything else 
 | `generate_view.generate_view(preset, selection, actionId?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
 | `run_preset.fromFilename(file, selection, opts?)` | Preset, action and direction from the script's file name; `opts.folder`, `opts.preset`, `opts.edit` | `shortcuts/**`, `Scripts/GEMMA/GGM/*_<Action>_<Dir>.ajs` |
 | `run_preset.fromBase(selection, actionId, params?)` | The base preset `all` (else `Default`) with params replaced | `View/_*.ajs` |
+| `run_preset.fromSession(selection, actionId)` | The session with Cycle algorithm start on, whatever its checkbox; the session gets the next algorithm start | `View/_layout_session_cycle.ajs` |
 | `preset_io.readPreset(name)` | A validated preset; throws when it is missing or has another schema version | scripts that change a preset before `generate_view` (GGM) |
 | `defs.ACTION` | The four action ids | every caller of `generate_view` |
 | `gui/dialog_main.open(selection)` | Opens the dialog; runs the chosen action after it closes | `_gui.ajs` |
@@ -202,8 +203,9 @@ Dialog (_gui.ajs → gui/dialog_main · open)
   5 an action closes the dialog; save the session
     (Cycle algorithm start: the next one), then call the API generate_view
 
-Headless (run_preset · fromFilename, fromBase)
-  1 file name → preset, action, direction; or the base preset
+Headless (run_preset · fromFilename, fromBase, fromSession)
+  1 file name → preset, action, direction; or the base preset; or the session
+    (Cycle algorithm start: the next one is saved)
   2 read the preset; apply the direction, fixed overrides,  preset_io · readPreset
     opts.edit
   3 call the API                                            generate_view
