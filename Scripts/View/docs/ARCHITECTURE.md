@@ -254,6 +254,10 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 
 `gui/*`, `run_preset.js` and the entry scripts collect (selection, preset, action) and call the API; only the dialog edits presets. The headless path has no decisions of its own beyond SPEC § 5.
 
+| Decision | Why |
+|---|---|
+| A preset describes one run: every key in it is applied by the API, so a preset-bound script runs it as the dialog does. What changes the settings between runs belongs to the session, never to a preset file; today that is *Cycle algorithm start* only, which `fromFilename` and `fromBase` ignore (they run the preset's own `algorithmStart`). `fromSession` cycles: it runs the session and saves the next start in it, as the dialog does. | Cycling needs state that outlives a run. In a preset file a headless run would rewrite the file every time: a tracked preset would show as changed in git after each layout, and the dialog would no longer be the only editor of presets. The session is already the user-local state between runs. |
+
 ### Dialog
 
 | Decision | Why |

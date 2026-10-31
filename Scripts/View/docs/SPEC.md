@@ -85,6 +85,7 @@ Three layers, top to bottom. Each layer talks only to the one below.
 Layer 1 — Entry points      produce (preset, selection, action), call the API
   • Generate View dialog  — defines selection/layout/styling; live counts; only editor of presets
   • Preset-bound scripts  — headless: load a preset, call the API, exit
+  • Session script       — headless: run the session, keep the next algorithm start
 Layer 2 — View-generation API   sole orchestrator and sole writer to views
   validate preset → run selection → build layout graph → call engine → write → style
 Layer 3 — Engine adapters   one per engine: layout graph in, positions out; nothing else
@@ -272,7 +273,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 - The minimum **gap** between elements, also between unconnected groups.
 - Where connections are routed between the elements (Neato, FDP, SFDP, Circo), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements. The dialog keeps the two values in step, and the one the user changed wins. There the gap is also at least the **shortest connection**, 20 px: room for both end symbols, so the relation type stays readable.
 
-**Algorithm start**: the order in which the elements outside containers enter the layout: as selected (default), by name or by type and name. Another order gives the algorithm another starting point: an algorithm that keeps the input order (Tree, Twopi) shows it directly; others (Layered) use it only as a start. With **Cycle algorithm start** on, a new view starts with the selection order and every layout of an existing view takes the next one, so repeated *Layout only* runs step through them. It is not a sorted view and never applies inside a container; where **Sort** orders the view, the sort wins.
+**Algorithm start**: the order in which the elements outside containers enter the layout: as selected (default), by name or by type and name. Another order gives the algorithm another starting point: an algorithm that keeps the input order (Tree, Twopi) shows it directly; others (Layered) use it only as a start. With **Cycle algorithm start** on, a new view starts with the selection order and every layout of an existing view takes the next one, so repeated *Layout only* runs step through them. The next order is kept in the session, so the steps run from the dialog or from the session script; a preset-bound script runs one layout with the preset's own algorithm start. It is not a sorted view and never applies inside a container; where **Sort** orders the view, the sort wins.
 
 **Connections.** Line routing, label position, reserved space for labels, the distance between parallel connections (elements grow to fit their connections) and the clearance between a connection and the elements it passes.
 
