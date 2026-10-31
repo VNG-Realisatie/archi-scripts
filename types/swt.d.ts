@@ -19,6 +19,7 @@ declare namespace Swt {
     readonly SINGLE: number; readonly MULTI: number; readonly WRAP: number;
     readonly SEPARATOR: number; readonly HORIZONTAL: number; readonly VERTICAL: number;
     readonly H_SCROLL: number; readonly V_SCROLL: number; readonly BOLD: number;
+    readonly NORMAL: number; readonly ITALIC: number;
     readonly INHERIT_DEFAULT: number; readonly NO_TRIM: number; readonly SEARCH: number; readonly ICON_CANCEL: number;
     readonly LEFT: number;
     // alignment and sizes
@@ -47,6 +48,8 @@ declare namespace Swt {
   interface Color { getRGB(): RGB; dispose(): void }
   interface Image { dispose(): void }
   interface Font {}
+  /** Name, height (pt) and style of a font; toString() gives the string Archi stores and FontFactory reads. */
+  interface FontData { getHeight(): number; toString(): string }
   interface Monitor { getClientArea(): Rectangle }
 
   interface GC {
@@ -60,6 +63,9 @@ declare namespace Swt {
     drawLine(x1: number, y1: number, x2: number, y2: number): void;
     drawFocus(x: number, y: number, width: number, height: number): void;
     drawRectangle(x: number, y: number, width: number, height: number): void;
+    setFont(font: Swt.Font): void;
+    /** One line's size; a line break in the text adds a line. */
+    textExtent(text: string): Point;
     dispose(): void;
   }
 
@@ -69,6 +75,7 @@ declare namespace Swt {
   interface Display {
     getSystemColor(id: number): Color;
     getSystemFont(): Font;
+    getDPI(): Point;
     getActiveShell(): Shell | null;
     asyncExec(runnable: () => void): void;
     timerExec(milliseconds: number, runnable: () => void): void;
@@ -300,7 +307,8 @@ interface JavaInterop {
   type(className: "org.eclipse.swt.graphics.Color"): new (display: Swt.Display, red: number, green: number, blue: number) => Swt.Color;
   type(className: "org.eclipse.swt.graphics.Point"): new (x: number, y: number) => Swt.Point;
   type(className: "org.eclipse.swt.graphics.Image"): new (display: Swt.Display, width: number, height: number) => Swt.Image;
-  type(className: "org.eclipse.swt.graphics.GC"): new (image: Swt.Image) => Swt.GC;
+  type(className: "org.eclipse.swt.graphics.GC"): new (drawable: Swt.Image | Swt.Display) => Swt.GC;
+  type(className: "org.eclipse.swt.graphics.FontData"): new (name: string, height: number, style: number) => Swt.FontData;
   type(className: "org.eclipse.swt.graphics.RGB"): new (red: number, green: number, blue: number) => Swt.RGB;
   type(className: "org.eclipse.swt.widgets.Menu"): new (parent: Swt.Control) => Swt.Menu;
   type(className: "org.eclipse.swt.widgets.MenuItem"): new (parent: Swt.Menu, style: number) => Swt.MenuItem;

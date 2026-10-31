@@ -111,7 +111,8 @@ const PARAM_TOOLTIPS = Object.freeze({
                              ""],
   connectionsMode:          ["Controls how containers and their contents are positioned in the view.",
                              "Between containers: Containers are laid out independently. Connections attach to container borders.\nAcross containers: The entire view is laid out as one graph. Connections attach directly to elements."],
-  padding:                  ["Space between a container's border and its contents.", "px"],
+  padding:                  ["Space between a container's border and its contents.",
+                             "px — below a container's label half of it, more for a larger font."],
   algorithmStart:           ["Order in which the elements enter the layout: another order, another starting point.", ""],
   cycleAlgorithmStart:      ["Each layout of an existing view takes the next algorithm start.",
                              "A new view always starts with Selection."],
@@ -707,8 +708,6 @@ const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views, like preset view.
 const SESSION_FILENAME     = "_session.json";
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
-// Extra top padding inside container nodes so the container label is not covered by children.
-const CONTAINER_LABEL_CLEARANCE = 30;
 
 // ColorBrewer scheme names supported by Chroma.js.
 // Qualitative schemes (discrete, pastel) come first; sequential/diverging follow.
@@ -818,7 +817,7 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
   labelMinHeight:   30,
 });
 // What each label-sizing key does (generated table in reference/presets.md). Label sizing = Use label
-// width; the connection-label box of Reserve label space uses the first four.
+// width; the other label sizes are measured in the label's font (label_size.js).
 const LABEL_SIZING_EFFECTS = Object.freeze({
   labelCharWidth:    "Width of one character in the label-width estimate (px)",
   labelLineHeight:   "Height of one label line (px)",
@@ -1134,7 +1133,6 @@ if (typeof module !== "undefined" && module.exports) {
     PROP_ID, PROP_MANAGED_OCCURRENCE,
     GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
-    CONTAINER_LABEL_CLEARANCE,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS,
     CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,

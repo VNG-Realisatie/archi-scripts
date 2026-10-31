@@ -193,6 +193,41 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
 }
 
 /**
+ * The font Style by nesting level gives a visual with this style (followNestingChains): containers,
+ * and leaves beside one, with a larger or bold font. With the font on it is set; off, a Modify action
+ * resets it to Archi's default; otherwise the visual keeps its font (undefined).
+ * @param {NestingStyle} st
+ * @param {Preset["appearance"]["nestingLevel"]} settings
+ * @param {boolean} isModify
+ * @returns {TextFont | undefined}
+ */
+function nestingFont(st, settings, isModify) {
+  if (!st.asContainer || !(st.fontSize > DEFAULT_FONT_SIZE || st.bold)) return undefined;
+  if (settings.fontEnabled) return { name: DEFAULT_FONT_NAME, size: st.fontSize, style: st.bold ? "bold" : DEFAULT_FONT_STYLE };
+  if (isModify) return { name: DEFAULT_FONT_NAME, size: DEFAULT_FONT_SIZE, style: DEFAULT_FONT_STYLE };
+  return undefined;
+}
+
+/**
+ * The fonts Style by nesting level will give the element visuals (pure): for the layout, which
+ * reserves room for the labels before the appearance pass writes them.
+ * @param {NestingNode[]} nodes  every element visual (followNestingChains)
+ * @param {Preset["appearance"]["nestingLevel"]} settings
+ * @param {boolean} isModify
+ * @returns {Map<string, TextFont>}  visual id → font; a visual that keeps its font is absent
+ */
+function nestingFonts(nodes, settings, isModify) {
+  /** @type {Map<string, TextFont>} */
+  const fonts = new Map();
+  const { styles } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
+  for (const [id, st] of styles) {
+    const font = nestingFont(st, settings, isModify);
+    if (font) fonts.set(id, font);
+  }
+  return fonts;
+}
+
+/**
  * The font where condition r starts: its own size, or `inherited` when it has none.
  * @param {NestingStyleCondition} r
  * @param {number}                inherited
@@ -306,19 +341,12 @@ function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep
       if (isModify && settings.colorEnabled) { vo.fillColor = null; colorReset++; }
       return;
     }
-    // Font (followNestingChains): containers, and leaves beside one.
-    if (st.asContainer && (st.fontSize > DEFAULT_FONT_SIZE || st.bold)) {
-      if (settings.fontEnabled) {
-        vo.fontName  = DEFAULT_FONT_NAME;
-        vo.fontSize  = st.fontSize;
-        vo.fontStyle = st.bold ? "bold" : DEFAULT_FONT_STYLE;
-        fontSet++;
-      } else if (isModify) {
-        vo.fontName  = DEFAULT_FONT_NAME;
-        vo.fontSize  = DEFAULT_FONT_SIZE;
-        vo.fontStyle = DEFAULT_FONT_STYLE;
-        fontReset++;
-      }
+    const font = nestingFont(st, settings, isModify);
+    if (font) {
+      vo.fontName  = font.name;
+      vo.fontSize  = font.size;
+      vo.fontStyle = font.style;
+      if (settings.fontEnabled) fontSet++; else fontReset++;
     }
 
     // Colour: the segment's colour (its condition's colour, or Default = the element type's default
@@ -599,5 +627,5 @@ function _shadeHex(hex, levels, step) {
 // ── Module exports ────────────────────────────────────────────────────────────
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { applyAppearance, computeConditionTargets, followNestingChains };
+  module.exports = { applyAppearance, computeConditionTargets, followNestingChains, nestingFonts };
 }

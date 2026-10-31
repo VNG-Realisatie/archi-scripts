@@ -13,9 +13,28 @@ interface LayoutNode {
   /** Leaf size; the engine sizes containers from their children. */
   width: number;
   height: number;
+  /** Room a container's label takes above its contents (px): Archi's text margin, its lines in its font and the gap below them (label_size.containerLabelRoom); 0 for a node that holds none or a label without text. */
+  labelHeight: number;
   /** Parent occurrence id (nesting), or null at the root. */
   parent: string | null;
 }
+
+/** A font as a label is drawn with it: as jArchi reads a visual's font. */
+interface TextFont {
+  name: string;
+  /** Points. */
+  size: number;
+  /** jArchi fontStyle: "normal", "bold", "italic" or "bolditalic". */
+  style: string;
+}
+
+/**
+ * One line of text as Archi draws it in a font (px): its width, the line height, and `em`, the font
+ * size (its points at the screen's dpi), about the height of the visible text. null = Archi's default
+ * view font. Archi measures with SWT (lib/text_measure.js), the Node harness estimates
+ * (tools/text_measure_node.js).
+ */
+type TextMeasure = (text: string, font: TextFont | null) => { width: number; height: number; em: number };
 
 /** One relation to route, between two occurrences. */
 interface LayoutEdge {
@@ -27,6 +46,9 @@ interface LayoutEdge {
   source: string;
   target: string;
   label: string;
+  /** Size of the label's text in the connection's font (px): its widest line, and its lines × the font size (the visible text); 0 without a label. */
+  labelWidth: number;
+  labelHeight: number;
   /** Layout weight per relation type (defs.RELATION_WEIGHT_MAP). */
   weight: number;
 }
@@ -48,6 +70,8 @@ interface LayoutGraph {
   /** Element id → its occurrence ids. */
   _occurrenceMap: Record<string, string[]>;
   _nesting: NestingResolution;
+  /** A container's labelHeight at a width the engine drew it (label_size.js); not passed to the adapter. */
+  _labelHeightAt: (nodeId: string, width: number) => number;
   /** Edges with an end inside a diagram-block: edge id → the visual at that end (layout direction). */
   _diagramBlockEnds: Map<string, { source: string | null; target: string | null }>;
   _nestingStats: { candidates: number; applied: number; circularNestings: number; notNestedNestings: number };
@@ -136,6 +160,8 @@ interface LayoutRuntime {
   config: ViewConfig;
   /** The adapter runs in the script itself, not in a Node layout process (the harness's --in-process). */
   inProcess: boolean;
+  /** Measures label text for the layout graph: SWT in Archi, an estimate in Node. */
+  measureText: TextMeasure;
 }
 
 // ── Nesting resolution (nesting.resolveNesting) ───────────────────────────────────────

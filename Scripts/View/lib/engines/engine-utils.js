@@ -614,8 +614,20 @@ function _nearestSpace(str, mid) {
   return -1;
 }
 
+/**
+ * Room above a container's contents: its label with the gap below it (LayoutNode.labelHeight); without
+ * a label the padding.
+ * @param {number} padding
+ * @param {number} labelHeight
+ * @returns {number}
+ */
+function containerTop(padding, labelHeight) {
+  return labelHeight > 0 ? labelHeight : padding;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    containerTop,
     selfLoopResult,
     byTypeAndName,
     ORDER_COMPARE,

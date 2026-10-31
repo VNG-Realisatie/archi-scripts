@@ -27,6 +27,7 @@ console.log = (...a) => { if (!(typeof a[0] === "string" && a[0].startsWith("Loa
 
 const Defs     = require(LIB + "defs");
 const Nesting  = require(LIB + "nesting");   // classifyVisuals, as describeVisuals
+const TextMeasureNode = require("./text_measure_node");
 
 // ── .archimate reader ─────────────────────────────────────────────────────────
 
@@ -122,6 +123,18 @@ function findView(model, viewPath) {
 }
 
 /**
+ * A visual's font as jArchi reads it: its own font attribute ("1|<name>|<size>|<SWT style bits>|…"),
+ * else Archi's default view font (the harness's).
+ */
+function _font(node) {
+  const f = node.attrs.font ? node.attrs.font.split("|") : null;
+  const D = TextMeasureNode.HARNESS_DEFAULT_FONT;
+  if (!f) return { fontName: D.name, fontSize: D.size, fontStyle: D.style };
+  const bits = parseInt(f[3], 10) || 0;   // SWT: 1 bold, 2 italic
+  return { fontName: f[1], fontSize: Math.round(parseFloat(f[2])), fontStyle: ["normal", "bold", "italic", "bolditalic"][bits & 3] };
+}
+
+/**
  * The contents of a view as the jArchi reader sees them (selection_read.js): element visuals, diagram
  * objects (notes, groups with their bounds, connections without a relation with their ends),
  * diagram-blocks, visual relations, the positions of every object, and the managed-occurrence
@@ -138,7 +151,7 @@ function _walkView(model, view) {
         if (c.attrs.archimateRelationship) {
           const rel = model.relations.get(c.attrs.archimateRelationship);
           drawnRelIds.add(c.attrs.archimateRelationship);
-          if (rel) visualRelations.push({ id: c.attrs.id, concept: rel, ...ends });
+          if (rel) visualRelations.push({ id: c.attrs.id, concept: rel, ...ends, ..._font(c) });
         } else {
           diagramObjects.push({ id: c.attrs.id, type: "diagram-model-connection", name: c.attrs.name || "", ...ends });
         }
@@ -150,8 +163,8 @@ function _walkView(model, view) {
       if (!el && !isDiagramObject) continue;
       positions.set(c.attrs.id, { parentId: parentVisual ? parentVisual.id : null, bounds: _bounds(c) });
       const record = el
-        ? { id: c.attrs.id, type: "archimate-element", concept: el, bounds: _bounds(c) }
-        : { id: c.attrs.id, type, name: c.attrs.name || "", bounds: _bounds(c) };
+        ? { id: c.attrs.id, type: "archimate-element", concept: el, bounds: _bounds(c), ..._font(c) }
+        : { id: c.attrs.id, type, name: c.attrs.name || "", bounds: _bounds(c), ..._font(c) };
       if (blockId) {
         diagramBlockOf.set(c.attrs.id, blockId);
         if (!blockContents.has(blockId)) blockContents.set(blockId, { visuals: [], connections: [] });
@@ -161,7 +174,7 @@ function _walkView(model, view) {
       if (el) {
         if (!seen.has(el.id)) { seen.add(el.id); elements.push(el); }
         raw.push({ id: c.attrs.id, conceptId: el.id, parentVisualId, isElement: true });
-        visualElements.push({ id: c.attrs.id, concept: el });
+        visualElements.push({ id: c.attrs.id, concept: el, ..._font(c) });
       } else {
         diagramObjects.push(record);
         raw.push({ id: c.attrs.id, conceptId: null, parentVisualId, isElement: false });
@@ -239,7 +252,8 @@ function planView(model, view, preset, actionId, inProcess = false) {
   const ViewConfig = require(LIB + "view_config");
   // The Node layout with this Node; dot as config.js says, as in Archi.
   const config = { ...ViewConfig.readConfig(fs.existsSync), nodePath: process.execPath };
-  const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess };
+  const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess,
+                    measureText: TextMeasureNode.measureText };
   return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, readSnapshot(model, view, actionId), actionId, runtime);
 }
 

@@ -42,7 +42,10 @@ function graph(groups, leaves, extra) {
     columnsAcrossContainers: !!(extra && extra.columnsAcrossContainers), sort: (extra && extra.sort) || "Containers, then elements", _parentMap: parentMap };
 }
 
-const run = g => { console.log = () => {}; try { return Tiles.layout(g); } finally { console.log = _log; } };
+// The label height the layout graph gives a container (label_size.js): about one line of a 9 pt label.
+const LABEL_HEIGHT = 20;
+const withLabelHeights = g => ({ ...g, nodes: g.nodes.map(n => ({ labelHeight: g.nodes.some(c => c.parent === n.id) ? LABEL_HEIGHT : 0, ...n })) });
+const run = g => { console.log = () => {}; try { return Tiles.layout(withLabelHeights(g)); } finally { console.log = _log; } };
 const boxes = result => Object.fromEntries(result.nodes.map(n => [n.id, n]));
 const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 const right = n => n.x + n.width;

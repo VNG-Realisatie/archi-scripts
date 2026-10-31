@@ -15,10 +15,10 @@ const REPO_ROOT = (() => {
 
 /** @type {typeof import("../defs")} */
 const Defs = require(REPO_ROOT + "View/lib/defs");
-const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONTAINER_LABEL_CLEARANCE, CONNECTION_END_CLEARANCE } = Defs;
+const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONNECTION_END_CLEARANCE } = Defs;
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys, settingProblem, SETTING_UNKNOWN, cubicPoint, labelPoint, alignColumnsAcrossContainers } = EngineUtils;
+const { containerTop, selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys, settingProblem, SETTING_UNKNOWN, cubicPoint, labelPoint, alignColumnsAcrossContainers } = EngineUtils;
 
 /**
  * ELK graph objects as this adapter builds them, fresh for every ELK run. ELK ignores the `_`
@@ -52,7 +52,7 @@ const { selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys
  * @typedef {(msg: string) => void} Logger
  *
  * Box handed to ELK: a leaf's size; for a container its minimum width (0 = none; ELK sizes containers)
- * and, for a root-level container in Tree, its elk.padding (layer distance).
+ * and its elk.padding (room for its label at the top; for a root-level container in Tree also the layer distance).
  * @typedef {{ width: number, height: number, padding?: string }} ElkBox
  *
  * ELK options of one layout run, assembled once (_engineOptions).
@@ -160,12 +160,15 @@ const _NODE_PLACEMENT = (/** @type {string} */ v) => ({ "elk.layered.nodePlaceme
 const LAYER_SPACING_KEY = "elk.layered.spacing.nodeNodeBetweenLayers";
 const _LAYER_SPACING = (/** @type {number} */ v) => ({ [LAYER_SPACING_KEY]: String(v) });
 const _PAD_DIAGRAM   = (/** @type {number} */ v) => ({ "elk.padding": `[top=${v},left=${v},bottom=${v},right=${v}]` });
-// Container padding p, plus flow on both flow sides (Tree layer distance, _boxSizes).
-const _containerPadding = (/** @type {number} */ p, /** @type {number} */ flow, /** @type {boolean} */ vertical) => {
+// Container padding p, the container's label at the top (containerTop), plus flow on both flow
+// sides (Tree layer distance) — _boxSizes.
+const _containerPadding = (/** @type {number} */ p, /** @type {number} */ flow, /** @type {boolean} */ vertical, /** @type {number} */ labelHeight) => {
   const v = vertical ? flow : 0, h = vertical ? 0 : flow;
-  return `[top=${p + CONTAINER_LABEL_CLEARANCE + v},left=${p + h},bottom=${p + v},right=${p + h}]`;
+  return `[top=${containerTop(p, labelHeight) + v},left=${p + h},bottom=${p + v},right=${p + h}]`;
 };
-const _PAD_CONTAINER = (/** @type {number} */ v) => ({ "elk.padding": _containerPadding(v, 0, false) });
+// Padding of the dialog's option, for every container alike; each container's own label height is
+// added per container (_boxSizes), which overrides this.
+const _PAD_CONTAINER = (/** @type {number} */ v) => ({ "elk.padding": _containerPadding(v, 0, false, 0) });
 
 // edgeEdge + edgeEdgeBetweenLayers: within-layer and between-layer channels both need spacing.
 const _LAYERED_CONN_SPACING      = (/** @type {number} */ v) => ({
@@ -580,10 +583,10 @@ function _boxSizes(graph, parentMap, containerIds, treeExtra, vertical, log) {
     const w = levelWidth[node.id] > 0 ? levelWidth[node.id] : 0;
     const widen = treeExtra > 0 && !node.parent;
     if (containerIds.has(node.id)) {
-      boxes[node.id] = !widen ? { width: w, height: 0 } : {
-        width:   w > 0 && !vertical ? w + treeExtra : w,
+      boxes[node.id] = {
+        width:   widen && w > 0 && !vertical ? w + treeExtra : w,
         height:  0,
-        padding: _containerPadding(graph.options.padding || 0, treeExtra / 2, vertical),
+        padding: _containerPadding(graph.options.padding || 0, widen ? treeExtra / 2 : 0, vertical, node.labelHeight),
       };
       continue;
     }
@@ -623,10 +626,6 @@ function _logWidthMismatches(nodes, boxes, containerIds, names, log) {
  */
 function _workEdges(graph, reserveLabels) {
   const nodeIds = graph.nodes.map(n => n.id), known = new Set(nodeIds);
-  // Connection-label sizing uses the same text estimate and tuning as label-based node sizing
-  // (defaults + preset engineParams.layout).
-  /** @type {LabelSizing} */
-  const lp = Object.assign({}, Defs.LABEL_SIZING_DEFAULTS, graph.engineParams && graph.engineParams.layout);
   /** @type {ElkWorkEdge[]} */
   const edges = [];
   /** @type {LayoutEdge[]} */
@@ -637,7 +636,7 @@ function _workEdges(graph, reserveLabels) {
     /** @type {ElkWorkEdge} */
     const entry = { id: edge.id, _archiRelId: edge.conceptId || edge.id, sources: [edge.source], targets: [edge.target] };
     if (edge.weight) entry.properties = { "elk.priority": edge.weight };
-    if (reserveLabels) entry.labels = [_labelBox(edge, lp, graph.options)];
+    if (reserveLabels) entry.labels = [_labelBox(edge, graph.options)];
     edges.push(entry);
   }
   // ELK Radial requires a spanning tree (no cycles), so its c2c traversal terminates.
@@ -688,33 +687,34 @@ function _runELK(graph, eo, parentMap, boxes, edges, log) {
  *   gap without labels  = layerSpacing
  *   gap with a label    = max(layerSpacing, label + 2 × connectionSpacing)
  *   element → label     = max(connectionSpacing, (layerSpacing − label) / 2)
+ * Across the flow ELK keeps connectionSpacing between two labels and connectionElementSpacing between
+ * a label and an element, beside their boxes. The box takes only what the text (LayoutEdge.labelWidth /
+ * labelHeight) needs beyond that to keep LABEL_GAP clear, so labels stacked across the flow follow the
+ * connection spacing (no jog between a port and its label) unless the text is too large for it.
  * Connections without a label get an invisible box (GAP_LABEL_SUFFIX; ignored by _collectEdgeResults).
  * ELK ignores labels with empty text, hence the placeholder text.
- * Label size: same text estimate and tuning as label-based node sizing; hPad / vPad are its margin.
  * inline: ELK centres the label on the line and reserves that box — where Archi draws it.
  */
 const GAP_LABEL_SUFFIX = "_gap";
+// Least room between the text of two connection labels across the flow, and between a label and an element (px).
+const LABEL_GAP = 5;
 /**
  * @param {LayoutEdge}      edge
- * @param {LabelSizing}     lp
  * @param {EffectiveParams} opts
  * @returns {ElkWorkLabel}
  */
-function _labelBox(edge, lp, opts) {
-  const flowIsX  = opts.direction !== "Up" && opts.direction !== "Down";
-  const minFlow  = Math.max(0, (opts.layerSpacing || 0) - 2 * (opts.connectionSpacing || 0));
-  let w = 0, h = 0;
-  if (edge.label) {
-    const lines = edge.label.split("\n");
-    w = Math.max(...lines.map(l => EngineUtils.textWidth(l, lp.labelCharWidth))) + lp.labelHPadding;
-    h = lines.length * lp.labelLineHeight + lp.labelVPadding;
-  }
-  if (flowIsX) w = Math.max(w, minFlow); else h = Math.max(h, minFlow);
+function _labelBox(edge, opts) {
+  const flowIsX = opts.direction !== "Up" && opts.direction !== "Down";
+  const spacing = opts.connectionSpacing || 0, toElement = opts.connectionElementSpacing || 0;
+  const minFlow = Math.max(0, (opts.layerSpacing || 0) - 2 * spacing);
+  const along  = Math.max(flowIsX ? edge.labelWidth : edge.labelHeight, minFlow);
+  const text   = flowIsX ? edge.labelHeight : edge.labelWidth;
+  const across = text > 0 ? Math.max(0, text + LABEL_GAP - spacing, text + 2 * LABEL_GAP - 2 * toElement) : 0;
   return {
     id:            edge.id + (edge.label ? "_lbl" : GAP_LABEL_SUFFIX),
     text:          edge.label || "_",
-    width:         w,
-    height:        h,
+    width:         flowIsX ? along : across,
+    height:        flowIsX ? across : along,
     layoutOptions: { "elk.edgeLabels.inline": "true" },
   };
 }

@@ -1,8 +1,9 @@
 /**
  * View generation API.
  *
- * Orchestrator. Read the selection once (Snapshot) → plan (pure: object set, layout graph, one
- * layout engine call, write plan) → apply the write plan to the target view → styling.
+ * Orchestrator. Read the selection once (Snapshot) → plan (pure: object set, layout graph, the
+ * layout — engine calls until the container labels fit — write plan) → apply the write plan to the
+ * target view → styling.
  *
  * The writer's rule (SPEC §5): per result object,
  *   exists on target view? → reposition (appearance preserved; parenthood re-derived from the nesting)
@@ -41,6 +42,8 @@ const ProcessRun = require(REPO_ROOT + "View/lib/process_runner");
 const NodeLayout = require(REPO_ROOT + "View/lib/node_layout");
 /** @type {typeof import("./view_config")} */
 const ViewConfig = require(REPO_ROOT + "View/lib/view_config");
+/** @type {typeof import("./text_measure")} */
+const TextMeasure = require(REPO_ROOT + "View/lib/text_measure");
 /** @type {typeof import("./write_plan")} */
 const WritePlan  = require(REPO_ROOT + "View/lib/write_plan");
 /** @type {typeof import("./view_writer")} */
@@ -321,14 +324,16 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtim
 
 /**
  * Where the layout of a run in Archi runs: in a Node layout process, programs started by the Java
- * runner from the paths of the View configuration (config.js). Read once per run.
+ * runner from the paths of the View configuration (config.js). Read once per run. Labels are
+ * measured with SWT in Archi's view fonts.
  * @returns {LayoutRuntime}
  */
 function _layoutRuntime() {
   const Files = Java.type("java.nio.file.Files");
   const Paths = Java.type("java.nio.file.Paths");
   const config = ViewConfig.readConfig(path => Files.exists(Paths.get(path)));
-  return { runProcess: ViewConfig.programRunner(ProcessRun.runProcess, config), config, inProcess: false };
+  return { runProcess: ViewConfig.programRunner(ProcessRun.runProcess, config), config, inProcess: false,
+           measureText: TextMeasure.createTextMeasure() };
 }
 
 /**
@@ -356,24 +361,73 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   // Build LayoutGraph (uniform — no action branch). Pairing with the visuals on the view is
   // part of the nesting resolution, so every visual gets a node.
   console.log("\nLayout graph:");
+  const isModify = actionId === ACTION.LAYOUT_ONLY.id || actionId === ACTION.EXPAND_VIEW.id;
+  const labels = { measure: runtime.measureText, relationsOf: snapshot.relationsOf, isModify };
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
-                                  objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet);
+                                  objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
     console.log("  No elements to place — view not generated.");
     return null;
   }
   _logRelationRoles(graph, nestingRels, routedRels);
+  const sample = runtime.measureText("Archi", null);
+  console.log(`  Label text in Archi's default view font: "Archi" ${sample.width} px wide, a line ${sample.height} px, font size ${Math.round(sample.em)} px`);
 
   console.log("\nLayout:");
   const engine = ALGORITHMS[preset.algorithm].engine;
-  const result = NodeLayout.layout(graph, ENGINE_MODULE[engine], _getAdapter(engine), runtime);
+  const laid = _layoutFittingLabels(graph, g => NodeLayout.layout(g, ENGINE_MODULE[engine], _getAdapter(engine), runtime));
   timer.lap("layout");
-  _logLayoutResult(result);
+  _logLayoutResult(laid.result);
 
-  const writePlan = WritePlan.planWrite(preset, objectSet, graph, result);
+  const writePlan = WritePlan.planWrite(preset, objectSet, laid.graph, laid.result);
   timer.lap("write plan");
-  return { objectSet, graph, result, writePlan };
+  return { objectSet, graph: laid.graph, result: laid.result, writePlan };
+}
+
+// Layouts per run at most to fit the container labels (_layoutFittingLabels).
+const LABEL_FIT_RUNS = 4;
+
+/**
+ * Lay out, and lay out again with each container's label at the width the layout drew the container.
+ * The layout graph reserves a container's label at the narrowest the container can be, so a wider
+ * container can have room for a line its label does not use. Each next layout reserves what the
+ * labels need at the widths of the layout before; the last one the most any layout needed, so it
+ * does not swing between two layouts. The first layout in which every container's label fits is
+ * kept; the first layout always fits.
+ * @param {LayoutGraph} graph
+ * @param {(graph: LayoutGraph) => LayoutResult} run  one engine call
+ * @returns {{ graph: LayoutGraph, result: LayoutResult }}
+ */
+function _layoutFittingLabels(graph, run) {
+  const containerIds = [...new Set(Object.values(graph._parentMap))];
+  // Casts below: the maps hold every container id, and every container is placed.
+  /** @type {(r: LayoutResult) => Map<string, number>} */
+  const needed = r => {
+    const width = new Map(r.nodes.map(n => [n.id, n.width]));
+    return new Map(containerIds.map(id => [id, graph._labelHeightAt(id, /** @type {number} */ (width.get(id)))]));
+  };
+  /** @type {(heights: Map<string, number>) => LayoutGraph} */
+  const withHeights = heights => ({ ...graph, nodes: graph.nodes.map(n => heights.has(n.id) ? { ...n, labelHeight: /** @type {number} */ (heights.get(n.id)) } : n) });
+  /** @type {(need: Map<string, number>, g: LayoutGraph) => boolean} */
+  const fits = (need, g) => g.nodes.every(n => !need.has(n.id) || /** @type {number} */ (need.get(n.id)) <= n.labelHeight);
+
+  const first = { graph, result: run(graph) };
+  let need = needed(first.result);
+  const reserved = new Map(graph.nodes.map(n => [n.id, n.labelHeight]));
+  const changed = containerIds.filter(id => need.get(id) !== reserved.get(id)).length;
+  if (changed === 0) return first;
+  console.log(`  Container labels: ${changed} of ${containerIds.length} need other room at the width they were drawn — laid out again`);
+  const most = new Map(need);
+  for (let k = 2; k <= LABEL_FIT_RUNS; k++) {
+    const g = withHeights(k < LABEL_FIT_RUNS ? need : most);
+    const result = run(g);
+    need = needed(result);
+    if (fits(need, g)) return { graph: g, result };
+    for (const [id, h] of need) most.set(id, Math.max(/** @type {number} */ (most.get(id)), h));
+  }
+  console.log("  Container labels: no later layout fits every label — the first layout is kept");
+  return first;
 }
 
 /**

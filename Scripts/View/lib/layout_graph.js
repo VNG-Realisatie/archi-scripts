@@ -15,6 +15,8 @@ const REPO_ROOT = (() => {
 const Defs    = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./nesting")} */
 const Nesting = require(REPO_ROOT + "View/lib/nesting");
+/** @type {typeof import("./label_size")} */
+const LabelSize = require(REPO_ROOT + "View/lib/label_size");
 /** @type {typeof import("./engines/engine-utils")} */
 const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes, ORDER_COMPARE } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { ALGORITHMS, RELATION_WEIGHT_MAP } = Defs;
@@ -61,12 +63,13 @@ function _orderRootLeaves(nodes, order) {
  * @param {DiagramObject[] | undefined}      diagramObjects
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
- * @param {DiagramObject[] | undefined}      [diagramConnections]  connections of diagram objects (a note's line)
- * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition> }} [diagramBlocks]
+ * @param {DiagramObject[] | undefined}      diagramConnections    connections of diagram objects (a note's line)
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[] }} diagramBlocks
  *   contents of diagram-blocks and the target view's objects (ObjectSet)
+ * @param {import("./label_size").LabelInput} labels  measuring and fonts for the label heights
  * @returns {LayoutGraph}
  */
-function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, visuals, visualRelations, diagramConnections, diagramBlocks) {
+function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObjects, visuals, visualRelations, diagramConnections, diagramBlocks, labels) {
   diagramObjects = diagramObjects || [];
   const params = preset.params;
 
@@ -102,6 +105,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
       // Casts: elementWidth / elementHeight are active for every algorithm (ALWAYS_ACTIVE_PARAMS).
       width:       el.type === "junction" ? JUNCTION_DIAMETER : /** @type {number} */ (params.elementWidth),
       height:      el.type === "junction" ? JUNCTION_DIAMETER : /** @type {number} */ (params.elementHeight),
+      labelHeight: 0,   // _fitLabels, once the leaves have their final size
     };
     for (const occId of occurrenceMap[el.id]) {
       nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
@@ -120,6 +124,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
       elementType: vo.type || "",
       width:       (vo.bounds && vo.bounds.width)  || params.elementWidth  || 140,
       height:      (vo.bounds && vo.bounds.height) || params.elementHeight || 60,
+      labelHeight: 0,   // never a container
       parent:      null,
     });
     nodeIds.add(vo.id);
@@ -143,7 +148,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   };
   /** @type {(v: { id: string } | null | undefined) => string | null} */
   const inner = v => (v && diagramBlockOf.has(String(v.id)) ? String(v.id) : null);
-  /** @typedef {{ src: string, tgt: string, srcVisual: string | null, tgtVisual: string | null }} EdgeEnds */
+  /** @typedef {{ src: string, tgt: string, srcVisual: string | null, tgtVisual: string | null, drawn?: VisualConnection }} EdgeEnds */
   /** @type {Map<string, EdgeEnds[]>} */
   const drawnByRel = new Map();   // relation id → the ends of its visual relations
   for (const vr of (visualRelations || [])) {
@@ -152,7 +157,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     if (!relId || !src || !tgt) continue;
     let drawn = drawnByRel.get(relId);
     if (!drawn) { drawn = []; drawnByRel.set(relId, drawn); }
-    drawn.push({ src, tgt, srcVisual: inner(vr.source), tgtVisual: inner(vr.target) });
+    drawn.push({ src, tgt, srcVisual: inner(vr.source), tgtVisual: inner(vr.target), drawn: vr });
   }
   /** Occurrences of an element; for one only inside a diagram-block, that diagram-block (with the visual there). */
   /** @type {(id: string) => { occs: string[], visual: string | null } | null} */
@@ -178,6 +183,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     edgeIds.add(rel.id);
 
     const isReversed = Nesting.isReversed(rel, params);
+    /** @type {EdgeEnds[]} */
     const pairs = drawnByRel.get(rel.id) || [(() => {
       const [src, tgt] = _closestPair(srcPlaces.occs, tgtPlaces.occs, parentMap, srcId === tgtId);
       return { src, tgt, srcVisual: srcPlaces.visual, tgtVisual: tgtPlaces.visual };
@@ -185,6 +191,9 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     pairs.forEach((p, k) => {
       if (p.src === p.tgt && srcId !== tgtId) return;   // both ends inside one diagram-block: it moves as a whole
       const id = k === 0 ? rel.id : `${rel.id}_${k}`;   // unique per edge for the layout engine
+      // The label in the connection's font: the one on the view, else Archi's default.
+      const font = p.drawn ? { name: p.drawn.fontName, size: p.drawn.fontSize, style: p.drawn.fontStyle } : null;
+      const labelSize = LabelSize.connectionLabelSize(rel.name || "", font, labels.measure);
       // For reversed-typed relations, swap source/target so the layout
       // engine traverses the edge in the reversed direction. The model
       // relation is untouched; Archi draws using its intrinsic direction.
@@ -194,6 +203,8 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
         source: isReversed ? p.tgt : p.src,
         target: isReversed ? p.src : p.tgt,
         label:  rel.name || "",
+        labelWidth:  labelSize.width,
+        labelHeight: labelSize.height,
         weight: RELATION_WEIGHT_MAP[rel.type] || 1.0,
       });
       if (p.srcVisual || p.tgtVisual) diagramBlockEnds.set(id, isReversed
@@ -213,7 +224,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     const src = dcEnd(dc.source);
     const tgt = dcEnd(dc.target);
     if (!src || !tgt || src === tgt) continue;
-    edges.push({ id: String(dc.id), conceptId: String(dc.id), source: src, target: tgt, label: "", weight: 1.0 });
+    edges.push({ id: String(dc.id), conceptId: String(dc.id), source: src, target: tgt, label: "", labelWidth: 0, labelHeight: 0, weight: 1.0 });
   }
 
   _orderEdges(nodes, edges, params.algorithmStart);
@@ -221,6 +232,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   const engineParams = preset.engineParams || {};
   sizeLabelBasedNodes(nodes, params, engineParams);
   expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
+  const labelHeightAt = _fitLabels(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels);
 
   return {
     algorithm:      preset.algorithm,
@@ -234,6 +246,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     _parentRels:    parentRels,
     _occurrenceMap: occurrenceMap,
     _nesting:       nesting,
+    _labelHeightAt: labelHeightAt,
     _diagramBlockEnds:     diagramBlockEnds,
     _nestingStats: {
       candidates:        nestingRels.length,
@@ -242,6 +255,49 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
       notNestedNestings: notNestedNestingRels.length,
     },
   };
+}
+
+/**
+ * Fit the labels, in place: an element taller when its label needs more height than it has, and each
+ * container's labelHeight at the narrowest the container can be (LabelSize.narrowestContainers), in
+ * the font and text width Archi will draw the label with (LabelSize.labelLayouts).
+ * @param {LayoutNode[]}      nodes           leaves at their size before labels
+ * @param {ArchiElement[]}    elements
+ * @param {NestingResolution} nesting
+ * @param {VisualObject[]}    visualElements  the element visuals on the target view
+ * @param {MaskedPreset}      preset
+ * @param {import("./label_size").LabelInput} labels
+ * @returns {(nodeId: string, width: number) => number}  a container's label height at a width (LayoutGraph._labelHeightAt)
+ */
+function _fitLabels(nodes, elements, nesting, visualElements, preset, labels) {
+  const elementById = new Map(elements.map(e => [e.id, e]));
+  /** @type {Map<string, ArchiElement>} */
+  const elementOf = new Map();
+  for (const [elementId, occs] of Object.entries(nesting.occurrenceMap)) {
+    const el = elementById.get(elementId);
+    if (el) for (const occ of occs) elementOf.set(occ, el);
+  }
+  const visualById = new Map(visualElements.map(v => [String(v.id), v]));
+  const layoutOf = LabelSize.labelLayouts(nodes, nesting.parentMap, {
+    elementOf:    id => elementOf.get(id),
+    visualOf:     id => { const v = nesting.visualOf[id]; return v ? visualById.get(v) : undefined; },
+    nestingLevel: preset.appearance.nestingLevel,
+    input:        labels,
+  });
+  const containers = new Set(Object.values(nesting.parentMap));
+  for (const n of nodes) {
+    if (containers.has(n.id) || !elementOf.has(n.id)) continue;   // a container is sized by the engine; a diagram object keeps its bounds
+    n.height = Math.max(n.height, LabelSize.leafHeightForLabel(n.label, n.width, layoutOf(n.id), labels.measure));
+  }
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const padding = preset.params.padding || 0;
+  // Casts: called with node ids only.
+  /** @type {(nodeId: string, width: number) => number} */
+  const labelHeightAt = (id, width) => LabelSize.containerLabelRoom(/** @type {LayoutNode} */ (byId.get(id)).label, width, layoutOf(id), labels.measure, padding);
+  for (const [id, width] of LabelSize.narrowestContainers(nodes, padding)) {
+    /** @type {LayoutNode} */ (byId.get(id)).labelHeight = labelHeightAt(id, width);
+  }
+  return labelHeightAt;
 }
 
 /**

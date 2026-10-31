@@ -21,12 +21,9 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-/** @type {typeof import("../defs")} */
-const Defs = require(REPO_ROOT + "View/lib/defs");
-const { CONTAINER_LABEL_CLEARANCE } = Defs;
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, alignWidthsByLevel, alignColumnsAcrossContainers } = EngineUtils;
+const { containerTop, selfLoopResult, sortedNodes, alignWidthsByLevel, alignColumnsAcrossContainers } = EngineUtils;
 
 /** Width / height the whole view is shaped toward (portrait: the tiles read down). */
 const VIEW_RATIO = 0.75;
@@ -152,7 +149,8 @@ function layout(graph) {
   const parentMap = graph._parentMap || {};
   const gap = o.elementSpacing || 0;
   const pad = o.padding || 0;
-  const top = pad + CONTAINER_LABEL_CLEARANCE;
+  const labelHeight = Object.fromEntries(graph.nodes.map(n => [n.id, n.labelHeight]));
+  const topOf = (/** @type {string} */ id) => containerTop(pad, labelHeight[id]);
   const diagramPad = o.diagramPadding || 0;
   const goal = o.maxWidth ? o.maxWidth - 2 * diagramPad : 0;
 
@@ -198,7 +196,7 @@ function layout(graph) {
     if (!kids) return { id: node.id, shapes: [{ w: levelWidth[node.id] || node.width, h: node.height }] };
     const table = buildTable(kids.map(tileOf), gap, goal);
     const inner = table.best[0][table.tiles.length - 1];
-    const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0), h: s.h + top + pad, child }));
+    const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0), h: s.h + topOf(node.id) + pad, child }));
     return { id: node.id, shapes: prune(shapes, goal), table };
   };
   const rootTiles = (childrenOf[""] || []).map(tileOf);
@@ -242,7 +240,7 @@ function layout(graph) {
     }
     columnOf[tile.id] = column;
     out.push({ id: tile.id, x, y, width: shape.w, height: shape.h, parentId });
-    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + top, tile.id, ++columns);
+    if (tile.table) placeRun(out, tile.table, 0, tile.table.tiles.length - 1, /** @type {number} */ (shape.child), x + pad, y + topOf(tile.id), tile.id, ++columns);
   };
 
   // Columns across containers: the leaf columns of the tiles on one grid, as after Pack.
