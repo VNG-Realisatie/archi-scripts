@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 6,
+  "name": "Beleidsdomeinen/Beleidsdomeinen ingedeeld in GEMMA domeinen",
+  "algorithm": "Tiles",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 20,
+    "sort": "Containers, then elements",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
+    "alignWidthSameType": true,
+    "columnsAcrossContainers": true,
+    "containerAlgorithm": "Pack",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 180,
+    "elementSpacing": 10,
+    "connectionSpacing": 20,
+    "connectionElementSpacing": 20,
+    "elementWidth": 300,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementConditions": [
+      {"elementType": "grouping"}
+    ],
+    "diagramConditions": [],
+    "relationConditions": [
+      {"relation": "aggregation-relationship"}
+    ]
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"direction": "outgoing", "relation": "aggregation-relationship", "added": "grouping"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"property": "GEMMA type", "value": "Beleidsdomein"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "GEMMA domeinen",
+    "folder": "/_Generated/Beleidsdomeinen",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "GEMMA",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"color": "Grouping", "fontSize": 14, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "darkenStart": 1,
+      "lightenPerLevel": 40
+    },
+    "highlightRepeated": {
+      "enabled": true,
+      "colorRange": "Greens"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "GEMMA Online en redactie",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "Selecteer GEMMA domeinen en genereer view"
+}

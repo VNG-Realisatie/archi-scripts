@@ -137,7 +137,7 @@ function generate_view(rawPreset, uiSelection, actionId) {
     && !(Array.isArray(_rawParams[k]) && _rawParams[k].length === 0));
   if (_dropped.length) console.log(`Algorithm "${preset.algorithm}" ignores inactive params: ${_dropped.join(", ")}`);
   if (_rawParams.connectionsMode !== preset.params.connectionsMode && preset.params.connectionsMode !== undefined)
-    console.log(`Connections: "${preset.params.connectionsMode}" (Crossing containers not possible with ${connectionsModeLock(preset.algorithm, _rawParams)})`);
+    console.log(`Connections: "${preset.params.connectionsMode}" (Across containers not possible with ${connectionsModeLock(preset.algorithm, _rawParams)})`);
 
   console.log(`\n=== generate_view ===`);
   console.log(`Action: ${action}`);
@@ -150,7 +150,7 @@ function generate_view(rawPreset, uiSelection, actionId) {
       p.labelPosition    && `label=${p.labelPosition}`,
       `spacing=el:${p.elementSpacing ?? "—"} layer:${p.layerSpacing ?? "—"}`,
       `size=${p.elementWidth ?? "—"}×${p.elementHeight ?? "—"}`,
-      (p.nestingConditions && p.nestingConditions.length) && `nesting=${p.nestingConditions.length}conditions containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode || "Between containers"}`,
+      (p.nestingConditions && p.nestingConditions.length) && `nesting=${p.nestingConditions.length}conditions containerAlgo=${p.containerAlgorithm || "(same)"}  connMode=${p.connectionsMode}`,
     ].filter(Boolean);
     console.log(`Params: ${parts.join("  ")}`);
   }

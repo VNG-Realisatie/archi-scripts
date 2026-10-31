@@ -108,7 +108,7 @@ const ENGINE_PARAMS = {
   // Measured on 60–80 node test graphs: ~15% fewer crossings, ~4× layout time (still ~1 s).
   "elk.layered.crossingMinimization.greedySwitch.activationThreshold":
                                                   { default: 0,  effect: "Layered: element swaps that remove crossings, from this element count up (ELK: 40)" },
-  // 25: on 7 test views (Crossing containers) as few or fewer crossings than 50; 15 or lower
+  // 25: on 7 test views (Across containers) as few or fewer crossings than 50; 15 or lower
   // leaves extra crossings. Layout time in Archi (interpreted GraalJS) ~45% less than 50.
   "elk.layered.thoroughness":                     { default: 25, effect: "Layered: random restarts of the crossing reduction (ELK: 7)" },
   "elk.layered.considerModelOrder.strategy":      { default: "NONE", effect: "Layered: the input order is not kept" },
@@ -498,7 +498,7 @@ function _engineOptions(algorithm, o, elkParams, nesting) {
   const containerAlgorithm = o.containerAlgorithm || algorithm;
   const containerAlgorithmId = ALGORITHMS[containerAlgorithm].engineAlgorithmId;
   const vertical = o.direction === "Up" || o.direction === "Down";
-  const hierarchyMode = o.connectionsMode === "Crossing containers" ? "INCLUDE_CHILDREN" : "SEPARATE_CHILDREN";
+  const hierarchyMode = o.connectionsMode === "Across containers" ? "INCLUDE_CHILDREN" : "SEPARATE_CHILDREN";
 
   const strings = (/** @type {Record<string, string | number | boolean>} */ p) =>
     Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)]));

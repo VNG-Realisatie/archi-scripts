@@ -109,8 +109,8 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "A reversed nesting relation makes the target the parent. Include picks, Exclude takes out."],
   containerAlgorithm:       ["Algorithm that arranges the elements inside each container.",
                              ""],
-  connectionsMode:          ["Between containers: each container is laid out on its own; connections enter at its border.",
-                             "Crossing containers: the whole view is one layout; connections run straight to the element inside."],
+  connectionsMode:          ["Controls how containers and their contents are positioned in the view.",
+                             "Between containers: Containers are laid out independently. Connections attach to container borders.\nAcross containers: The entire view is laid out as one graph. Connections attach directly to elements."],
   padding:                  ["Space between a container's border and its contents.", "px"],
   algorithmStart:           ["Order in which the elements enter the layout: another order, another starting point.", ""],
   cycleAlgorithmStart:      ["Each layout of an existing view takes the next algorithm start.",
@@ -127,7 +127,7 @@ const PARAM_TOOLTIPS = Object.freeze({
   ranking:                  ["How elements are assigned to layers.",
                              "Balanced: short connections. Uniform and Top-aligned: faster."],
   nodePlacement:            ["Where elements sit within their layer.",
-                             "Centred: between the elements they connect to. Straight lines: in line with one neighbour."],
+                             "Centred: shortest connections overall.\nStraight lines: as many straight connections as possible."],
   circles:                  ["How the elements are divided over circles.", ""],
   layerSpacing:             ["Space between successive layers; Tree: between levels; Twopi: between rings.",
                              "px — Tree: at least Distance; with Reserve label space a gap widens to fit its labels."],
@@ -236,7 +236,7 @@ const ALGORITHMS = Object.freeze({
       routing:            ["Orthogonal", "Polyline", "Splines"],
       labelPosition:      LP_ELK,
       containerAlgorithm: ["Layered", "Grid", "Pack"],
-      connectionsMode:    ["Between containers", "Crossing containers"],
+      connectionsMode:    ["Between containers", "Across containers"],
     },
     labelPositionDefault: "Middle",
     tooltip: "Process models, application flows and service interactions:\nstrong direction, nested containers (ELK)",
@@ -546,10 +546,8 @@ const RANKING = Object.freeze([
 // Engine-specific strategy identifiers live in engines/elk.js.
 
 const NODE_PLACEMENT = Object.freeze([
-  { val: "Centred", default: true,
-    tooltip: "Elements centred between the elements they connect to:\nshortest connections, usually the smallest view." },
-  { val: "Straight lines",
-    tooltip: "As many straight connections as possible;\nthe layout leans to one side, so parents may sit at the edge of their children." },
+  { val: "Centred", default: true },
+  { val: "Straight lines" },
 ]);
 
 // ── Circles (Circo only) ──────────────────────────────────────────────────────
@@ -751,7 +749,7 @@ const DEFAULT_PRESET = Object.freeze({
     alignWidthSameType:    false,
     columnsAcrossContainers:     false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
-    connectionsMode:       "Between containers",   // "Crossing containers" | "Between containers"
+    connectionsMode:       "Across containers",    // "Across containers" | "Between containers"
     layerSpacing:          60,
     elementSpacing:        40,
     connectionSpacing:        25,              // also the port spacing on elements (ELK: portPort)
@@ -1075,8 +1073,8 @@ function validatePreset(raw) {
 }
 
 /**
- * Why "Crossing containers" cannot be used with these params, or null when it can.
- * Crossing containers lays the whole hierarchy out as one layered graph (ELK INCLUDE_CHILDREN):
+ * Why "Across containers" cannot be used with these params, or null when it can.
+ * Across containers lays the whole hierarchy out as one layered graph (ELK INCLUDE_CHILDREN):
  *   - Grid / Pack inside containers: ELK rejects connections into those containers
  *     (UnsupportedGraphException), and the root stacks unconnected containers in one column;
  *   - view size: a hierarchical layout does not pack unconnected elements into rows, so they
@@ -1118,7 +1116,7 @@ function effectiveParams(preset) {
     if (!active.has(key))       continue;
     out[key] = (conflictKeys.has(key) && key !== viewSizeMode) ? 0 : /** @type {Record<string, unknown>} */ (preset.params)[key];
   }
-  if (out.connectionsMode === "Crossing containers" && connectionsModeLock(preset.algorithm, preset.params))
+  if (out.connectionsMode === "Across containers" && connectionsModeLock(preset.algorithm, preset.params))
     out.connectionsMode = "Between containers";
   return /** @type {EffectiveParams} */ (out);   // Cast: a subset of preset.params, as built above
 }

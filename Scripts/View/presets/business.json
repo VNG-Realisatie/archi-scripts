@@ -21,7 +21,7 @@
       {"relation": "serving-relationship"},
       {"relation": "specialization-relationship"}
     ],
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Across containers",
     "connectionLabelSpacing": false
   },
   "filter": {

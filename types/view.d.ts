@@ -175,7 +175,7 @@ interface Step {
 }
 
 type ViewSizeMode = "none" | "maxWidth" | "aspectRatio";
-type ConnectionsMode = "Between containers" | "Crossing containers";
+type ConnectionsMode = "Between containers" | "Across containers";
 
 /** Layout params of a validated preset (DEFAULT_PRESET.params). */
 type PresetParams = {

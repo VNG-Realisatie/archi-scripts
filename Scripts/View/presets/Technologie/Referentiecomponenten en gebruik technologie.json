@@ -24,7 +24,7 @@
       {"relation": "realization-relationship"},
       {"relation": "serving-relationship"}
     ],
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Across containers",
     "connectionLabelSpacing": false
   },
   "filter": {

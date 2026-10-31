@@ -25,7 +25,7 @@
       {"relation": "assignment-relationship"},
       {"relation": "association-relationship"}
     ],
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Across containers",
     "connectionLabelSpacing": false
   },
   "filter": {

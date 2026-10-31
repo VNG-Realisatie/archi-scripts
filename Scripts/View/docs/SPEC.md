@@ -229,10 +229,10 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Containers** (active once a nesting condition is on):
 - **Layout inside**: the algorithm that arranges the children *inside* each container.
-- **Connections between vs. crossing containers.**
+- **Connections between vs. across containers.**
   - *Between*: each container is laid out on its own, and connections enter at its border.
-  - *Crossing*: the whole hierarchy is one layout, and connections run straight to the inner element.
-  - Crossing is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
+  - *Across*: the whole hierarchy is one layout, and connections run straight to the inner element.
+  - Across is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
 - **Padding**: the space between a container's border and its contents.
 - **Sort**, **same width per level** and **columns across containers** are refinements: they order the boxes, make nested frames telescope cleanly, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
 - **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Algorithm start**. A view without containers is not sorted: Algorithm start orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.

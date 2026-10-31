@@ -43,7 +43,6 @@ const LABEL_POS_ALL           = LABEL_POSITIONS.map(lp => lp.val);
 const LABEL_POS_TOOLTIPS      = Object.fromEntries(LABEL_POSITIONS.map(lp => [lp.val, lp.tooltip]));
 const RANKING_LABELS          = RANKING.map(r => r.val);
 const NODE_PLACEMENT_LABELS   = NODE_PLACEMENT.map(n => n.val);
-const NODE_PLACEMENT_TOOLTIPS = Object.fromEntries(NODE_PLACEMENT.map(n => [n.val, n.tooltip]));
 const CIRCLES_LABELS          = CIRCLES.map(c => c.val);
 const CIRCLES_TOOLTIPS        = Object.fromEntries(CIRCLES.map(c => [c.val, c.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
@@ -247,7 +246,6 @@ function buildLayoutTab(tabFolder, ctx) {
   Widgets.addCombo(row, "Ranking",   RANKING_LABELS,   0, SWT.DEFAULT, "cmbRanking",   w);
   row = Widgets.formRow(grpFlow, "Layers:", formRows, "form", 2);
   Widgets.addCombo(row, "Placement", NODE_PLACEMENT_LABELS, 0, SWT.DEFAULT, "cmbNodePlacement", w);
-  w.cmbNodePlacement.addListener(SWT.Selection, () => _updateComboTooltips(w));
   Widgets.addCombo(row, "Circles",   CIRCLES_LABELS,        0, SWT.DEFAULT, "cmbCircles",       w);
   w.cmbCircles.addListener(SWT.Selection, () => _updateComboTooltips(w));
   Widgets.addSpinnerRow(row, "Layer distance", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
@@ -342,7 +340,6 @@ function _updateComboTooltips(w) {
   // Cast: a list of (combo, param, option tooltips) triples.
   for (const [ctrl, key, tips] of /** @type {[Swt.Combo, string, Record<string, string>][]} */ ([[w.cmbRouting, "routing", ROUTING_TOOLTIPS],
                                    [w.cmbLabelPosition, "labelPosition", LABEL_POS_TOOLTIPS],
-                                   [w.cmbNodePlacement, "nodePlacement", NODE_PLACEMENT_TOOLTIPS],
                                    [w.cmbCircles, "circles", CIRCLES_TOOLTIPS]])) {
     if (!ctrl) continue;
     const item = String(ctrl.getText());
@@ -561,7 +558,7 @@ function _updateConnectionsMode(ctx) {
   Widgets.enable(w.cmbConnectionsMode, !reason);
   if (reason) w.cmbConnectionsMode.select(CONNECTIONS_MODE_LABELS.indexOf("Between containers"));
   w.cmbConnectionsMode.setToolTipText(Defs.paramTooltip("connectionsMode",
-    reason ? `Locked to Between containers: Crossing containers is not possible with ${reason}.` : ""));
+    reason ? `Locked to Between containers: Across containers is not possible with ${reason}.` : ""));
 }
 
 if (typeof module !== "undefined" && module.exports) {

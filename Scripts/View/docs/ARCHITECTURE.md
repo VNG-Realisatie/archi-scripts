@@ -451,7 +451,7 @@ Realisation: [ELK](#elk).
 | Network has no ELK Force. | Same principle as FDP, but slower, messier, without overlap removal or routing around elements (test case 8). Stress stays as the Network algorithm that needs no Graphviz. |
 
 **Realisation.**
-- **Hierarchy.** *Crossing containers* = `INCLUDE_CHILDREN`: one layered graph, with crossing minimisation across levels. *Between containers* = `SEPARATE_CHILDREN`: each container on its own.
+- **Hierarchy.** *Across containers* = `INCLUDE_CHILDREN`: one layered graph, with crossing minimisation across levels. *Between containers* = `SEPARATE_CHILDREN`: each container on its own.
 - **Edges live in their lowest common ancestor container.** ELK's coordinates are relative to it and are offset back.
 - **Hierarchical ports.**
   - With *Between containers* and Layered at root and in the container, a cross-container edge is split into segments, joined by a port on every crossed container. The inner layout reserves the port, the outer layout connects to it, and the writer gets one joined path.
@@ -462,7 +462,7 @@ Realisation: [ELK](#elk).
 - **View size.** ELK has no width bound for nested layouts, and top-down layout scales (forbidden). The lever is `elk.aspectRatio` in every scope: it sets how wide unconnected children pack, and its effect compounds over levels.
   - The adapter searches one ratio for all scopes: it starts from the target, estimates the next ratio from the closest run (a slope measured from the two closest), and keeps every run with its log, so the chosen run is the result (no repeat). At most 6 runs, 10% accepted; Max width is the same search toward the ratio at which the view would be that wide. Grid and Pack offer Max width only.
   - Rectpacking hangs at high ratios, so Pack is capped at 3.
-  - Where the ratio has no effect (connection chains set the width, or *Crossing containers*), the target is logged as not reachable.
+  - Where the ratio has no effect (connection chains set the width, or *Across containers*), the target is logged as not reachable.
   - Radial has no *Aspect ratio*: the bundled elkjs declares no `elk.aspectRatio` for `radial`, so the layout never responds to it, and the control is disabled.
 - **Reserve label space** (Layered). Each connection label is an inline ELK label with its estimated size. Layer spacing becomes the connection spacing, and every edge gets a label box (empty ones invisible), so a gap between element layers is `max(layer spacing, label + 2 × connection spacing)`.
 - **Jogs** under 5 px right after a port, left by node placement, are straightened onto the longer segment.

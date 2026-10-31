@@ -20,7 +20,7 @@
     "alignWidthSameType": false,
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
-    "connectionsMode": "Crossing containers",
+    "connectionsMode": "Across containers",
     "layerSpacing": 180,
     "elementSpacing": 40,
     "connectionSpacing": 25,

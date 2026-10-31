@@ -178,7 +178,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ │   [+ Add condition]  ☐ Match property                                 │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Containers ──────────────────────────────────────────────────────────┐ │
-│ │  Layout:   Layout inside [Layered ▼]  Connections [Crossing… ▼]  Padding [20] │
+│ │  Layout:   Layout inside [Layered ▼]  Connections [Across… ▼]    Padding [20] │
 │ │  Sort:     [Elements ▼]                                               │ │
 │ │  Options:  ☐ Same width per level     ☐ Columns across containers     │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
@@ -266,7 +266,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Field | Parameter | Default | Tooltip | Used by |
 |---|---|---|---|---|
 | Layout inside | `containerAlgorithm` | Layered | Algorithm that arranges the elements inside each container. | Layered, Tree, Grid, Pack |
-| Connections | `connectionsMode` | Between containers | Between containers: each container is laid out on its own; connections enter at its border. — Crossing containers: the whole view is one layout; connections run straight to the element inside. | Layered |
+| Connections | `connectionsMode` | Across containers | Controls how containers and their contents are positioned in the view. — Between containers: Containers are laid out independently. Connections attach to container borders. Across containers: The entire view is laid out as one graph. Connections attach directly to elements. | Layered |
 | Padding | `padding` | 20 | Space between a container's border and its contents. — px | Layered, Tree, Grid, Pack, Tiles, Dot, FDP |
 | Sort | `sort` | Elements | Ascending order of the boxes in a view with containers. None: as selected. — Elements: by type and name. Containers, then elements: also the containers. All together: one list. | Grid, Pack, Tiles |
 | Same width per level | `alignWidthSameType` | off | Give all boxes of one nesting level the same width. — A container is never narrower than its contents; Use label width: the widest label sets it. | Layered, Tree, Grid, Pack, Tiles |
@@ -279,7 +279,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Direction | `direction` | Right | Direction of the main flow. | Layered, Tree, Dagre, Dot |
 | Cycles | `acyclicer` | Default | How relation cycles are broken before layout; no effect without cycles. — Default: depth-first search. Greedy: reverses as few relations as it can. | Dagre |
 | Ranking | `ranking` | Balanced | How elements are assigned to layers. — Balanced: short connections. Uniform and Top-aligned: faster. | Dagre |
-| Placement | `nodePlacement` | Centred | Where elements sit within their layer. — Centred: between the elements they connect to. Straight lines: in line with one neighbour. | Layered |
+| Placement | `nodePlacement` | Centred | Where elements sit within their layer. — Centred: shortest connections overall. Straight lines: as many straight connections as possible. | Layered |
 | Circles | `circles` | One circle | How the elements are divided over circles. | Circo |
 | Layer distance | `layerSpacing` | 60 | Space between successive layers; Tree: between levels; Twopi: between rings. — px — Tree: at least Distance; with Reserve label space a gap widens to fit its labels. | Layered, Tree, Dagre, Dot, Twopi |
 

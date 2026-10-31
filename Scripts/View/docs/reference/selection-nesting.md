@@ -45,10 +45,10 @@ Total to view:
 ### Containers and connections mode
 
 *Layout inside* arranges the children of each container.
-- *Crossing containers* (default) lays the whole hierarchy out as one graph. Connections run straight to the element inside, and crossing minimisation spans all levels.
+- *Across containers* (default) lays the whole hierarchy out as one graph. Connections run straight to the element inside, and crossing minimisation spans all levels.
 - *Between containers* lays out each container on its own; connections enter at its border.
 
-**Lock.** Crossing is impossible, and *between* is used (greyed, with the reason) when:
+**Lock.** Across is impossible, and *between* is used (greyed, with the reason) when:
 - Layout inside is Grid or Pack: connections into a packed container are not supported, and without them the containers stack in one column;
 - a view size is active: a one-graph layout does not pack unconnected elements into rows.
 
