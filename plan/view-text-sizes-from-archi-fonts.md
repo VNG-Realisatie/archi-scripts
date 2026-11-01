@@ -66,5 +66,5 @@ The layout reserves room for text from the font Archi will draw it with, measure
 ## Handoff
 
 - Done: steps 1–6, committed. The plan is complete.
-- Later, separately: move Dagre to `@dagrejs/dagre` 3.x (test against dagre-cluster-fix in the harness first; vendor it with `@dagrejs/graphlib`).
+- Later, separately: move Dagre to `@dagrejs/dagre` 3.x — `plan/todo-view-dagre-3-migration.md`.
 - User: nothing.
