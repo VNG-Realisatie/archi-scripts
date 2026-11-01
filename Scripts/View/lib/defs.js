@@ -710,17 +710,6 @@ const ONE_EACH_CONFIRM_ABOVE = 20;   // One view each: the entry point asks befo
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
 
-// ColorBrewer scheme names supported by Chroma.js.
-// Qualitative schemes (discrete, pastel) come first; sequential/diverging follow.
-// appearance.js uses these for colour interpolation; the UI uses them for combo box population.
-const COLOR_RANGES = Object.freeze([
-  // Qualitative — distinct pastel tones, no gradient:
-  "Pastel1", "Pastel2", "Set2", "Set3",
-  // Sequential — light end kept, dark end trimmed in _colorScale:
-  "Blues", "Greens", "Oranges", "Purples", "Reds", "Greys",
-  // Diverging — light centre; both dark ends trimmed:
-  "RdYlBu", "RdYlGn", "Spectral", "OrRd", "PuBu",
-]);
 // ── Preset schema defaults ────────────────────────────────────────────────────
 
 const DEFAULT_PRESET = Object.freeze({
@@ -779,12 +768,12 @@ const DEFAULT_PRESET = Object.freeze({
     suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
   },
   appearance: {
-    palette: "",   // palette name in presets/_palettes.json; "" = none
+    palette: "Brewer",   // palette name in presets/_palettes.json: every colour and colour range of the Appearance tab
     // Style conditions (kind "style"); a later condition wins where two conditions style the same object.
     styleByProperty: {
       conditions:       [],
       mixedValuesColor: "#FF6B35",   // element / relation that gets more than one value
-      lineWidth:        0,           // 0 = no change; 1..3 for relations styled by a Color = Relation condition
+      lineWidth:        0,           // 0 = no change; 1..3 for relations styled by an Apply to = Relation condition
     },
     nestingLevel: {
       // Nesting style conditions (kind "nestingStyle"): the nesting steps styling follows from each root container.
@@ -895,7 +884,6 @@ function _conditionValidity() {
     elements:    new Set(ELEMENT_TYPES),
     relations:   new Set(RELATION_TYPE_IDS),
     diagrams:    new Set(Object.keys(DIAGRAM_TYPES)),
-    colorRanges: new Set(COLOR_RANGES),
   };
 }
 
@@ -1070,7 +1058,7 @@ function validatePreset(raw) {
       if (typeof rs.lineWidth === "number")        pa.styleByProperty.lineWidth = Math.max(0, Math.min(3, Math.round(rs.lineWidth)));
     }
 
-    if (typeof ra.palette === "string") pa.palette = ra.palette;
+    if (typeof ra.palette === "string" && ra.palette.trim()) pa.palette = ra.palette;
 
     if (ra.nestingLevel && typeof ra.nestingLevel === "object") {
       const rn = ra.nestingLevel;
@@ -1171,7 +1159,7 @@ if (typeof module !== "undefined" && module.exports) {
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
     PROP_ID, PROP_MANAGED_OCCURRENCE,
-    GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, COLOR_RANGES,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS,

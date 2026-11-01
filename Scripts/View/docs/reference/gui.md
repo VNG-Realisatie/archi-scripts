@@ -40,7 +40,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 8. **Fixed spacing.** One set of gaps for the whole dialog: label → control, pair → pair, heading → first pair, switch → dependent option, between rows, inside and between groups.
 9. **Short text, explanation in the tooltip.** Labels and column headers fit on one line. Notes are grey, sit under their subject and wrap at the group width.
 10. **Off is grey, the label too.** A setting that does not apply is greyed together with its label and keeps its value; the greying is the only sign. A disabled checkbox is drawn grey, so a ticked box never looks active when it does not apply.
-11. **Never cut off.** When a table is wider than the tab, the dialog widens: only wider, within the monitor, never back. On a monitor that is too narrow, the tab scrolls horizontally.
+11. **Never cut off.** When a table grows wider than the tab, the dialog widens: only wider, within the monitor, never back. When the user makes the dialog narrower than a table, or the monitor is too narrow, the tab scrolls horizontally.
 
 **Feel**
 1. **Immediate, honest feedback.** Every count and the totals line update on each committed change and show exactly what the action will write. `*` shows unsaved changes.
@@ -324,31 +324,34 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 ```
 ┌─[Selection]──[Layout]──[Appearance]──────────────────────────────────────────┐
-│ Palette: [GEMMA ▼]                                                           │
+│ ┌─ Colors ────────────────────────────────────────────────────────────────┐  │
+│ │ Every color and color range on this tab comes from the palette.          │  │
+│ │ Palette:   [Brewer ▼]                                                    │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Style by property ─────────────────────────────────────────────────────┐  │
-│ │ Color elements or relations by property values. Each condition says what  │  │
-│ │ gets the color and whose property gives the value.                        │  │
-│ │ On│Color          │Source  │Relation   │Target │Property of│Property│Range        │  │
-│ │ ☑ │Element (own…) │App Comp│ —         │ —     │ —         │Status  │[▓▓ Blues ▾] │✕ │
-│ │ ☑ │Relation       │All     │Flow       │All    │Relation   │Volume  │[▓▓ Reds ▾]  │✕ │
-│ │ ☑ │Source element │All     │Serving    │All    │Relation   │Priority│[▓▓ OrRd ▾] ⚠│✕ │
-│ │ [+ Add condition]                                                         │  │
-│ │ ⚠ Conditions 3, 4 style the same objects. The last condition wins. …     │  │
-│ │ Mixed values color: [■ #FF6B35 ▾]   Line width of styled relations: [▼]   │  │
+│ │ Color elements or relations by property values. Each condition says what │  │
+│ │ gets the color and whose property gives the value.                       │  │
+│ │ On│Apply to      │Source type│Relation type│Target type│Property of│Property│Color range │  │
+│ │ ☑ │Element       │App Comp   │ —           │ —         │ —         │Status  │[▓▓ Blues ▾]│✕ │
+│ │ ☑ │Relation      │All        │Flow         │All        │Relation   │Volume  │[▓▓ Reds ▾] │✕ │
+│ │ ☑ │Source element│All        │Serving      │All        │Relation   │Priority│[▓▓ OrRd ▾]⚠│✕ │
+│ │ [+ Add condition]                                                        │  │
+│ │ ⚠ Conditions 3, 4 style the same objects. The last condition wins. …    │  │
+│ │ Options:   Mixed values color [■ Red ▾]   Line width [No change ▼]       │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Style by nesting level ────────────────────────────────────────────────┐  │
-│ │  Emphasize significant nesting levels with color and font. Each         │  │
-│ │  condition marks a level; deeper levels get lighter and smaller.        │  │
-│ │  ☑ Font   Smaller per level: [2 ▲▼] pt                                  │  │
-│ │  ☑ Color  Lighter per level: [15 ▲▼] %   Start darker: [2 ▲▼] levels    │  │
-│ │  On│Parent type  │Direction│Relation type│Child type   │Color      │Font size│Bold│  │
-│ │  ☑ │Grouping     │Outgoing │Aggregation  │Bus. function│[■ Strat…▾]│ [14 ▾]  │ ☑  │✕ │
-│ │  ☑ │Bus. function│Outgoing │Aggregation  │= Parent     │[■ Bedr…▾] │ [   ▾]  │ ☐  │✕ │
-│ │  [+ Add condition]                                                      │  │
+│ │ Emphasize significant nesting levels with color and font. Each           │  │
+│ │ condition marks a level; deeper levels get lighter and smaller.          │  │
+│ │ Apply:     ☑ Font   Smaller per level [2 ▲▼] pt                          │  │
+│ │            ☑ Color  Lighter per level [15 ▲▼] %   Start darker [2 ▲▼] levels │
+│ │ On│Parent type  │Direction│Relation type│Child type   │Color      │Font size│Bold│  │
+│ │ ☑ │Grouping     │Outgoing │Aggregation  │Bus. function│[■ Strat…▾]│ [14 ▾]  │ ☑  │✕ │
+│ │ ☑ │Bus. function│Outgoing │Aggregation  │= Parent     │[■ Bedr…▾] │ [   ▾]  │ ☐  │✕ │
+│ │ [+ Add condition]                                                        │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 │ ┌─ Highlight repeated elements ───────────────────────────────────────────┐  │
-│ │  Elements that have multiple occurrences get the same color.            │  │
-│ │  ☑ Enable  Color range: [▓▓ Pastel1 ▾]                                  │  │
+│ │ Elements that have multiple occurrences get the same color.              │  │
+│ │            ☑ Highlight  Color range [▓▓ Pastel1 ▾]                       │  │
 │ └─────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -358,23 +361,23 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - Its Property combo shows how many objects on the predicted view the condition colours, *Status (14)*. Before a property is chosen, it shows just *(n)*: the objects the condition reaches.
 - A condition that is off shows what it would colour and takes no part in the ⚠ check.
 - Unique values are sorted and mapped to evenly spaced colours of the condition's colour range. An object with several different values gets the *mixed values* colour.
-- Relations coloured by a *Color = Relation* condition take the fixed line width, when one is chosen.
+- Relations coloured by an *Apply to = Relation* condition take the fixed line width, when one is chosen.
 - Where two conditions style the same object, the later wins, and the dialog marks both with ⚠ (computed on the predicted view).
 - The row tooltip reads the condition as a sentence.
 - **Reset on Expand view / Layout only**, when there is at least one style condition (on or off): first every element's fill, and every relation's line colour and width, is reset on the view. Then the active conditions colour again, so a changed condition never leaves colours of an earlier run behind. Colours set in the same pass by nesting level or highlight repeated are kept; colours set by hand on the view are lost. Without style conditions, nothing is reset.
 
-**Palette.** One combo at the top of the tab: *None* or a palette from `presets/_palettes.json` ([presets.md](presets.md#palettes)). The colour pickers of the tab offer its colours; a palette the file does not hold shows as *None*, and the console says so.
+**Colors.** The first group holds the palette: one combo with the palettes of `presets/_palettes.json` ([presets.md](presets.md#palettes)); there is always one, the first being the default. Every colour and colour range of the tab comes from it. Switching it changes the pickers at once: a colour or range the new palette does not hold becomes its first colour or range (a colour of its own, chosen with *Other…*, stays), so a picker always shows what the run writes. A palette the file does not hold shows the first one.
 
 **Style by nesting level.** Emphasizes significant nesting levels: each condition marks one. Active only when a Nesting condition is on; otherwise an informational label replaces the controls. From top to bottom: the explanation, the *Font* and *Color* switches with their numbers in one raster, and the nesting style conditions ([condition lists](presets.md#condition-lists)). The switches come first because they decide which columns take effect: *Font* off greys *Font size*, *Bold* and *Smaller per level*; *Color* off greys *Color*, *Lighter per level* and *Start darker*.
 - **Chain.** From each root container, a nesting step parent → child is selected when an active condition matches its parent type, child type (*= Parent*: the parent's type) and a model relation between the two of the condition's type and direction (seen from the parent). Relation *All* with direction *Either* needs no relation. A root container is styled by a condition that would select it as a child under a parent of its own type: parent its type or *All*, child its type, *= Parent* or *All*; relation and direction do not count. A step no condition selects stops the chain: neither the child nor anything inside it is styled. The order of the conditions does not matter.
 - **Tight conditions find model errors.** Name the relation and child type each step should have: an element nested by another relation, such as a business function under a business function by serving instead of aggregation, then keeps its default fill and stands out on the view.
 - **Font.** The container where a condition starts (a root container, or a child another condition selects than its parent) takes the condition's *Font size* and *Bold*. Each level deeper within the same condition is *Smaller per level* smaller, never below the tool's default (9 pt), and not bold. A condition without a font size continues the size from its parent; a root container without one keeps the default. Containers only, and a leaf beside a container (same parent, or both at view root), so a leaf among containers reads as one of them. Equally specific conditions with different fonts count as a conflict, as with colours.
-- **Colour.** A condition gives its colour to the children it selects, a root container included; a palette colour, or *Default*, the type's default fill. When several conditions select one element, the most specific wins: one point each for a named parent type, relation type and direction (*Outgoing* / *Incoming*), and for the child type 2 for a named type, 1 for *= Parent*, 0 for *All*. Of equally specific conditions with different colours the last wins and the console names them; for a root container relation and direction do not count. A child with its parent's type and colour continues the parent's segment; any other child starts one. A segment starts *Start darker* levels darker than its colour and each level inward is lighter by *Lighter per level* %. Levels shift HSL lightness only, so hue and saturation stay: a level lighter closes the percentage of the distance to white, a level darker is its inverse, never darker than closing that percentage toward lightness 0.6, and a darker yellow turns towards ochre. Containers and leaves reached by the chain are coloured. On *Expand view* and *Layout only*, every element the chain does not reach gets its default fill back, so no colour of an earlier run stays; a fill set by hand on such an element is lost.
+- **Colour.** A condition gives its colour to the children it selects, a root container included: a palette colour, a colour of its own (*Other…*), or *Default*, the type's default fill. When several conditions select one element, the most specific wins: one point each for a named parent type, relation type and direction (*Outgoing* / *Incoming*), and for the child type 2 for a named type, 1 for *= Parent*, 0 for *All*. Of equally specific conditions with different colours the last wins and the console names them; for a root container relation and direction do not count. A child with its parent's type and colour continues the parent's segment; any other child starts one. A segment starts *Start darker* levels darker than its colour and each level inward is lighter by *Lighter per level* %. Levels shift HSL lightness only, so hue and saturation stay: a level lighter closes the percentage of the distance to white, a level darker is its inverse, never darker than closing that percentage toward lightness 0.6, and a darker yellow turns towards ochre. Containers and leaves reached by the chain are coloured. On *Expand view* and *Layout only*, every element the chain does not reach gets its default fill back, so no colour of an earlier run stays; a fill set by hand on such an element is lost.
 - **Default condition.** A new preset holds one condition, Parent *All*, Child *= Parent*, Color *Default*: the same-type chain from every root container.
 
-**Highlight repeated elements.** Gives each element that appears more than once on the view its own fill colour from the range. It needs a nesting condition with *Every*. Enable and range are on one row.
+**Highlight repeated elements.** Gives each element that appears more than once on the view its own fill colour from the range. It needs a nesting condition with *Every*. The *Highlight* switch and its colour range are on one row.
 
-**Colour pickers.** Every colour or colour range is chosen with a colour picker: a button with the chosen item's swatch or gradient strip and its name, and a menu that shows every item with its own swatch, the current one ticked. Colour ranges offer the same set of ColorBrewer schemes. *Mixed values color* offers the palette's colours and *Other…*, the system colour dialog; its value is a hex colour. A disabled picker shows an empty swatch.
+**Colour pickers.** Every colour or colour range is chosen with a colour picker: a button with the chosen item's swatch or gradient strip and its name, and a menu that shows every item with its own swatch, the current one ticked. A colour range picker offers the palette's ranges. A colour picker (*Mixed values color*, a nesting style colour) offers the palette's colours, *Other…* (the system colour dialog) and, for a nesting style colour, *Default*; a palette colour is kept by name, a colour of its own as hex. A disabled picker shows an empty swatch.
 
 ### Properties tab
 

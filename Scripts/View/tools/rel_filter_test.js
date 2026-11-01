@@ -16,7 +16,6 @@ const valid = {
   elements:    new Set(["grouping", "business-object", "application-component", "business-service"]),
   relations:   new Set(["aggregation-relationship", "serving-relationship", "association-relationship"]),
   diagrams:    new Set(["archimate-diagram-model"]),
-  colorRanges: new Set(["Blues", "Reds"]),
 };
 const norm = (kind, raw) => RF.normalizeConditions(kind, raw, valid, "test");
 const el = (type, props) => ({ id: type, type, prop: k => (props || {})[k] });
@@ -28,7 +27,7 @@ eq(norm("relation", [{ relation: "serving-relationship" }]),
 eq(norm("relation", [{ relaton: "serving-relationship" }]), [], "unknown key rejects the condition");
 eq(norm("relation", [{ relation: "nonsense-relationship" }]), [], "unknown type rejects the condition");
 eq(norm("step", [{ direction: "sideways" }]), [], "unknown enum rejects the condition");
-eq(norm("style", [{ colorRange: "Nope" }]), [], "unknown colour range rejects the condition");
+eq(norm("style", [{ colorRange: "" }]), [], "an empty colour range rejects the condition");
 eq(RF.serializeCondition("step", norm("step", [{ relation: "serving-relationship", added: "business-object" }])[0]),
    { relation: "serving-relationship", added: "business-object" }, "serialise omits defaults");
 eq(RF.serializeCondition("relation", norm("relation", [{ on: false, relation: "serving-relationship" }])[0]),

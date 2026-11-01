@@ -88,6 +88,7 @@ declare namespace Swt {
     exclude: boolean;
     widthHint: number;
     horizontalSpan: number;
+    horizontalIndent: number;
   }
   interface GridLayout {
     verticalSpacing: number;
@@ -127,6 +128,7 @@ declare namespace Swt {
     setLayoutData(data: GridData): void;
     computeSize(wHint: number, hHint: number): Point;
     getSize(): Point;
+    setSize(width: number, height: number): void;
     moveAbove(control: Control | null): void;
     moveBelow(control: Control | null): void;
     redraw(): void;

@@ -70,7 +70,7 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
 
 **Appearance**
-- **palette**: a named list of named colours, shared by the presets; a preset picks one.
+- **palette**: a named set of colours and colour ranges that belong together, shared by the presets; a preset always names one, and every colour of its styling comes from it.
 - **segment**: a run of nested elements of one type inside a chain of *Style by nesting level*; a nesting step to another type starts the next segment.
 
 **Counter rule.** *Relations* is a model word. Selection counters (filtered base, step adds) use it; on the view, count **nestings** and **connections**, never "relations". Internal data-structure names (`parentMap`, `childIds`, `occurrenceMap`, …) are code-only and never surface in the UI or logs. GUI labels for internal terms: [display-label map](reference/gui.md#display-label-map).

@@ -28,9 +28,7 @@ function buildPropertiesTab(tabFolder, ctx) {
   const w = ctx.widgets;
   const onChange = () => ctx.markModified();
 
-  const descLbl = new LabelWidget(page, SWT.WRAP);
-  descLbl.setText("Set properties of the generated view(s): a ticked row is written, an unticked row is removed from the view");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(descLbl);
+  Widgets.noteLabel(page, "Set properties of the generated view(s): a ticked row is written, an unticked row is removed from the view.");
 
   // ── Object ID ──────────────────────────────────────────────────────────────
   const grpObjId = Widgets.group(page, "Object ID", 1);
@@ -40,9 +38,7 @@ function buildPropertiesTab(tabFolder, ctx) {
   chkObjId.addListener(SWT.Selection, onChange);
   w.vpAddObjectId = chkObjId;
 
-  const objIdNote = new LabelWidget(grpObjId, SWT.NONE);
-  objIdNote.setText("Leaves existing Object ID unchanged");
-  GridDataFactory.fillDefaults().indent(18, 0).applyTo(objIdNote);
+  Widgets.noteLabel(grpObjId, "Leaves an existing Object ID unchanged.");
 
   // ── View properties grid ───────────────────────────────────────────────────
   const grpViewProps = Widgets.group(page, "View properties", 3);
@@ -71,9 +67,8 @@ function buildPropertiesTab(tabFolder, ctx) {
   const sortedKeys = Array.from(allViewProps.keys()).sort();
 
   if (sortedKeys.length === 0) {
-    const emptyLbl = new LabelWidget(grpViewProps, SWT.NONE);
-    emptyLbl.setText("No view properties found in the current model.");
-    GridDataFactory.fillDefaults().span(3, 1).applyTo(emptyLbl);
+    const emptyLbl = Widgets.noteLabel(grpViewProps, "No view properties found in the current model.");
+    emptyLbl.getLayoutData().horizontalSpan = 3;
   }
 
   sortedKeys.forEach(key => {

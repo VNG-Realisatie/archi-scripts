@@ -48,7 +48,7 @@ type StepCondition = {
 
 type StyleCondition = {
   on: boolean;
-  color: "element" | "relation" | "source" | "target";
+  applyTo: "element" | "relation" | "source" | "target";
   source: string;
   relation: string;
   target: string;
@@ -86,14 +86,24 @@ type AnyCondition = ConditionByKind[ConditionKind];
 interface Palette {
   name: string;
   colors: { name: string; hex: string }[];
+  ranges: PaletteRange[];
+}
+
+/** A colour range of a palette: interpolated between its colours, `padding` left out at both ends (palettes.rangeColors). */
+interface PaletteRange {
+  name: string;
+  colors: string[];
+  padding: [number, number];
 }
 
 /** One choice of a colour picker (gui/widgets.js colorPicker). colors: one hex = a swatch, several = a gradient, none = an empty frame. */
 interface ColorPickerItem { value: string; label: string; colors: readonly string[] }
 interface ColorPickerOptions {
   items: () => readonly ColorPickerItem[];
-  /** The item shown for a value that is not among the items. */
+  /** The item shown for a value that is not among the items (and that `fallback` does not replace). */
   missing: (value: string) => ColorPickerItem;
+  /** A value that is not among the items is replaced by the one this returns (reported through onChange). */
+  fallback?: (items: readonly ColorPickerItem[]) => string;
   value: string;
   onChange: (value: string) => void;
   tooltip?: string;
@@ -134,7 +144,6 @@ interface ValidTypeSets {
   elements: Set<string>;
   relations: Set<string>;
   diagrams: Set<string>;
-  colorRanges: Set<string>;
 }
 
 /** Schema of one condition kind: defaults, which fields hold type ids, which hold enum values. */

@@ -26,10 +26,9 @@ const Defs      = require(REPO_ROOT + "View/lib/defs");
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
 /** @type {typeof import("./palettes")} */
 const Palettes  = require(REPO_ROOT + "View/lib/palettes");
-const { COLOR_RANGES, compareNames } = Defs;
+const { compareNames } = Defs;
 
 // Qualitative schemes are discrete colour sets; padding is meaningless on them.
-const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"]);
 
 /**
  * @typedef {object} NestingNode  an element visual, for followNestingChains
@@ -81,15 +80,16 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf) {
   if (!anyEnabled && !isModify) return;
 
   console.log(`\nAppearance (${actionId || "?"})`);
+  const palette = Palettes.paletteOf(Palettes.readPalettes(), app.palette, message => console.error(`Appearance: ${message}`));
   // params is the algorithm's effective subset: nestingConditions is absent when the algorithm does not nest.
   const hasNestingTypes = (preset.params.nestingConditions || []).length > 0;
   if ((nl.fontEnabled || nl.colorEnabled) && hasNestingTypes)
-    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  colorList=${app.palette || "none"}  darkenStart=${nl.darkenStart}  lighten=${nl.lightenPerLevel}%/level  conditions=${nl.conditions.filter(r => r.on !== false).length}`);
+    console.log(`  nestingLevel  font=${nl.fontEnabled}  color=${nl.colorEnabled}  palette=${palette.name}  darkenStart=${nl.darkenStart}  lighten=${nl.lightenPerLevel}%/level  conditions=${nl.conditions.filter(r => r.on !== false).length}`);
   if (hr.enabled)
     console.log(`  highlightRepeated  range=${hr.colorRange}`);
   sbp.conditions.forEach((r, i) => {
     if (r.on === false || !r.property) return;
-    console.log(`  styleByProperty condition ${i + 1}  color=${r.color}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
+    console.log(`  styleByProperty condition ${i + 1}  applyTo=${r.applyTo}  ${r.source || "all"} ${r.relation || "all"} ${r.target || "all"}  prop=${r.propertyOf}."${r.property}"  range=${r.colorRange}`);
   });
 
   // VOs colored by an active feature are protected from being cleared by later disabled-feature
@@ -98,29 +98,9 @@ function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf) {
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, _colorLookup(app.palette, nl), isModify, defaultFont, styledVoIds, keep);
-  _applyHighlightRepeated(view, hr, isModify, styledVoIds, keep);
-  _applyStyleConditions(view, sbp, isModify, styledVoIds, keep);
-}
-
-/**
- * Hex of a colour name in the chosen palette. The file is read only when a nesting style
- * condition names a colour; an unreadable file or unknown list is reported, and Default is used.
- * @param {string} paletteName
- * @param {Preset["appearance"]["nestingLevel"]} nl
- * @returns {(colorName: string) => string | null}
- */
-function _colorLookup(paletteName, nl) {
-  if (!nl.colorEnabled || !nl.conditions.some(r => r.on !== false && r.color)) return () => null;
-  /** @type {Palette[]} */
-  let palettes = [];
-  try { palettes = Palettes.readPalettes(); }
-  catch (e) { console.error(`Appearance: ${e} Nesting style colours use Default.`); return () => null; }
-  if (!palettes.some(p => p.name === paletteName)) {
-    console.error(`Appearance: palette "${paletteName}" is not in ${Palettes.PALETTES_FILE}; nesting style colours use Default. Choose a palette on the Appearance tab.`);
-    return () => null;
-  }
-  return name => Palettes.colorHex(palettes, paletteName, name);
+  _applyNestingLevel(view, nl, palette, isModify, defaultFont, styledVoIds, keep);
+  _applyHighlightRepeated(view, hr, palette, isModify, styledVoIds, keep);
+  _applyStyleConditions(view, sbp, palette, isModify, styledVoIds, keep);
 }
 
 /**
@@ -322,21 +302,23 @@ function _voDepth(vo) {
 /**
  * @param {ArchimateView}                          view
  * @param {Preset["appearance"]["nestingLevel"]}   settings
- * @param {(colorName: string) => string | null}   colorOf  hex of a colour of the chosen palette
+ * @param {Palette}                                palette  the run's palette: the colours
  * @param {boolean}                                isModify
  * @param {TextFont}                               defaultFont  Archi's default view font
  * @param {Set<string>}                            styledVoIds
  * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
  */
-function _applyNestingLevel(view, settings, colorOf, isModify, defaultFont, styledVoIds, keep) {
+function _applyNestingLevel(view, settings, palette, isModify, defaultFont, styledVoIds, keep) {
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
   const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
   const nodes = vos.map(vo => _nestingNode(vo, keep));
   const { styles, conflicts } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
   if (conflicts.length > 0)
     console.log(`  nestingLevel: conditions ${conflicts.join(" · ")} are equally specific and select the same elements with different styles; the last condition wins.`);
+  // One message per colour name the palette does not hold.
   /** @type {Set<string>} */
-  const unknownColors = new Set();
+  const reported = new Set();
+  const reportOnce = (/** @type {string} */ m) => { if (!reported.has(m)) { reported.add(m); console.error(`Appearance: ${m}`); } };
 
   vos.forEach((vo, i) => {
     const st = styles.get(nodes[i].id);
@@ -356,8 +338,7 @@ function _applyNestingLevel(view, settings, colorOf, isModify, defaultFont, styl
     // Colour: the segment's colour (its condition's colour, or Default = the element type's default
     // fill), shaded by segmentDepth − darkenStart levels: darkenStart levels darker at the segment start.
     if (settings.colorEnabled) {
-      let start = st.color ? colorOf(st.color) : null;
-      if (st.color && !start) unknownColors.add(st.color);
+      let start = st.color ? Palettes.colorOf(palette, st.color, reportOnce) : null;
       vo.fillColor = null;                       // reading it back gives the type's default fill
       if (!start) start = vo.fillColor;
       vo.fillColor = _shadeHex(start, st.segmentDepth - settings.darkenStart, settings.lightenPerLevel / 100);
@@ -369,7 +350,6 @@ function _applyNestingLevel(view, settings, colorOf, isModify, defaultFont, styl
     }
   });
 
-  unknownColors.forEach(c => console.error(`Appearance: colour "${c}" is not in the chosen palette; Default used. Choose a colour of the palette in the nesting style condition.`));
   if (settings.fontEnabled  || fontReset  > 0) console.log(`  nestingLevel font:  ${fontSet} set  ${fontReset} reset`);
   if (settings.colorEnabled || colorReset > 0) console.log(`  nestingLevel color: ${colorSet} set  ${colorReset} reset`);
 }
@@ -379,11 +359,12 @@ function _applyNestingLevel(view, settings, colorOf, isModify, defaultFont, styl
 /**
  * @param {ArchimateView}                              view
  * @param {Preset["appearance"]["highlightRepeated"]}  settings
+ * @param {Palette}                                   palette  the run's palette: the ranges
  * @param {boolean}                                    isModify
  * @param {Set<string>}                                styledVoIds
  * @param {Map<string, string>}                        keep  visuals inside a diagram-block: left out
  */
-function _applyHighlightRepeated(view, settings, isModify, styledVoIds, keep) {
+function _applyHighlightRepeated(view, settings, palette, isModify, styledVoIds, keep) {
   /** @type {Map<string, VisualObject[]>} */
   const byConceptId = new Map();
   _onView(view, "element", keep).forEach(vo => {
@@ -400,7 +381,7 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds, keep) {
 
   if (settings.enabled) {
     if (multiIds.length === 0) { console.log(`  highlightRepeated: 0 multi-occurrence elements`); return; }
-    const colors = _colorScale(settings.colorRange, multiIds.length);
+    const colors = _colorScale(palette, settings.colorRange, multiIds.length);
     let n = 0;
     multiIds.forEach((id, i) => { /** @type {VisualObject[]} */ (byConceptId.get(id)).forEach(vo => { vo.fillColor = colors[i]; styledVoIds.add(vo.id); n++; }); });
     console.log(`  highlightRepeated: ${n} VOs colored  (${multiIds.length} elements  range=${settings.colorRange})`);
@@ -418,7 +399,7 @@ function _applyHighlightRepeated(view, settings, isModify, styledVoIds, keep) {
  * Pure over model objects, so the dialog's conflict check (predicted view contents) and the
  * writer (objects on the generated view) share one implementation.
  *
- * Condition.color decides what is styled:
+ * Condition.applyTo decides what is styled:
  *   element    the element itself, by its own property (type = condition.source)
  *   relation   the relation, by the property of condition.propertyOf (relation / source / target)
  *   source     the source element of every relation matching the condition (model-wide relations),
@@ -452,18 +433,18 @@ function computeConditionTargets(condition, elements, relations) {
                             : condition.propertyOf === "target" ? r.target
                             : condition.propertyOf === "element" && el ? el : r;
 
-  if (condition.color === "element") {
+  if (condition.applyTo === "element") {
     for (const el of elements) {
       if (condition.source && el.type !== condition.source) continue;
       hit(el.id, "element", el);
     }
-  } else if (condition.color === "relation") {
+  } else if (condition.applyTo === "relation") {
     for (const r of relations) {
       if (!r.source || !r.target || !matches(r)) continue;
       hit(r.id, "relation", readFrom(r, null));
     }
   } else {
-    const wantSource = condition.color === "source";
+    const wantSource = condition.applyTo === "source";
     for (const el of elements) {
       try {
         $(el).rels().each(r => {
@@ -483,14 +464,16 @@ function computeConditionTargets(condition, elements, relations) {
 /**
  * @param {ArchimateView}                            view
  * @param {Preset["appearance"]["styleByProperty"]}  settings
+ * @param {Palette}                                   palette  the run's palette: the ranges
  * @param {boolean}                                  isModify
  * @param {Set<string>}                              styledVoIds
  * @param {Map<string, string>}                      keep  visuals inside a diagram-block: left out
  */
-function _applyStyleConditions(view, settings, isModify, styledVoIds, keep) {
+function _applyStyleConditions(view, settings, palette, isModify, styledVoIds, keep) {
   const conditions = settings.conditions || [];
   if (conditions.length === 0) return;
-  const mixedColor = settings.mixedValuesColor;
+  const mixedColor = Palettes.colorOf(palette, settings.mixedValuesColor, m => console.error(`Appearance: ${m}`))
+    || Defs.DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor;
   const fixedWidth = settings.lineWidth > 0 ? Math.min(3, Math.max(1, settings.lineWidth)) : 0;
 
   // The objects on the view, by model concept id.
@@ -542,7 +525,7 @@ function _applyStyleConditions(view, settings, isModify, styledVoIds, keep) {
     const unique = Array.from(new Set(
       Array.from(targets.values()).filter(h => h.values.size === 1).map(h => Array.from(h.values)[0])
     )).sort(compareNames);
-    const colors   = unique.length ? _colorScale(condition.colorRange, unique.length) : [];
+    const colors   = unique.length ? _colorScale(palette, condition.colorRange, unique.length) : [];
     /** @type {Record<string, string>} */
     const colorMap = {};
     unique.forEach((val, k) => { colorMap[val] = colors[k]; });
@@ -576,24 +559,21 @@ function _applyStyleConditions(view, settings, isModify, styledVoIds, keep) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Build a Chroma colour scale and return n evenly spaced hex strings.
-// Qualitative schemes (Pastel1, Set2, …) are discrete — no padding.
-// Sequential/diverging schemes trim their dark end with padding([0.1, 0.4])
-// to keep colours in the light-to-medium range readable on light backgrounds.
+// n evenly spaced colours of a range of the run's palette; a range the palette does not hold is
+// reported and its first range used.
 /**
- * @param {string} rangeName
- * @param {number} n
+ * @param {Palette} palette
+ * @param {string}  rangeName
+ * @param {number}  n
  * @returns {string[]}
  */
-function _colorScale(rangeName, n) {
-  try {
-    const scale = Chroma.scale(rangeName);
-    if (QUALITATIVE_COLOR_RANGES.has(rangeName)) return scale.colors(n);
-    return scale.padding([0.1, 0.4]).colors(n);
-  } catch (e) {
-    console.log(`appearance: unknown colour range "${rangeName}", falling back to Pastel1`);
-    return Chroma.scale("Pastel1").colors(n);
+function _colorScale(palette, rangeName, n) {
+  let range = palette.ranges.find(r => r.name === rangeName);
+  if (!range) {
+    range = palette.ranges[0];
+    console.error(`Appearance: colour range "${rangeName}" is not in palette "${palette.name}"; its first range "${range.name}" is used, as the dialog shows. Save the preset to keep it.`);
   }
+  return Palettes.rangeColors(range, n);
 }
 
 // Darker yellow turns ochre, not lemon (HSL) or olive (Lab): per darker level the hue of a yellow

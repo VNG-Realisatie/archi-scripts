@@ -72,10 +72,10 @@
     "suffix": ""
   },
   "appearance": {
-    "palette": "",
+    "palette": "Brewer",
     "styleByProperty": {
       "conditions": [
-        {"color": "target", "relation": "access-relationship", "propertyOf": "relation", "property": "Confidence", "colorRange": "Greens"}
+        {"applyTo": "target", "relation": "access-relationship", "propertyOf": "relation", "property": "Confidence", "colorRange": "Greens"}
       ],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 0

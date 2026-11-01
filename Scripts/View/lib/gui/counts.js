@@ -325,10 +325,10 @@ function styleConditionSentence(r) {
   const of = { element: "its own", relation: "the relation's", source: "the source element's", target: "the target element's" };
   const range = `, from the ${r.colorRange} range`;
   const off = r.on === false ? " (off)" : "";
-  if (r.color === "element")  return `Color every ${el(r.source)} by its own ${prop}${range}.${off}`;
-  if (r.color === "relation") return `Color every ${pat} by ${of[r.propertyOf] || "its own"} ${prop}${range}.${off}`;
+  if (r.applyTo === "element")  return `Color every ${el(r.source)} by its own ${prop}${range}.${off}`;
+  if (r.applyTo === "relation") return `Color every ${pat} by ${of[r.propertyOf] || "its own"} ${prop}${range}.${off}`;
   const of2 = r.propertyOf === "element" ? "its own" : of[r.propertyOf];
-  return `Color the ${r.color} element of every ${pat} by ${of2} ${prop}${range}.${off}`;
+  return `Color the ${r.applyTo} element of every ${pat} by ${of2} ${prop}${range}.${off}`;
 }
 
 // ── Saved preset ──────────────────────────────────────────────────────────────

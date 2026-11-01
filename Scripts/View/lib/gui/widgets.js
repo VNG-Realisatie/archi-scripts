@@ -9,11 +9,9 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
-/** @type {typeof import("../defs")} */
-const Defs = require(REPO_ROOT + "View/lib/defs");
-const Chroma = require("chroma-js");
+/** @type {typeof import("../palettes")} */
+const Palettes = require(REPO_ROOT + "View/lib/palettes");
 
-const { COLOR_RANGES } = Defs;
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
@@ -74,19 +72,25 @@ function scrolledTab(tabFolder, tabLabel) {
     finish: () => {
       scrolled.setContent(page);
       resizeScrolled(scrolled, page);
+      // The page reflows to the viewport width, notes included, once the user stops resizing
+      // (one layout per pause, not one per resize event). A resize by the user never widens the
+      // dialog back: a table wider than the tab then scrolls horizontally.
+      let last = 0, pending = false;
+      const settle = () => {
+        if (scrolled.isDisposed()) { pending = false; return; }
+        const idle = Date.now() - last;
+        if (idle < RESIZE_SETTLE_MS) { scrolled.getDisplay().timerExec(RESIZE_SETTLE_MS - idle, settle); return; }
+        pending = false;
+        resizeScrolled(scrolled, page, { growShell: false });
+      };
+      scrolled.addListener(SWT.Resize, () => {
+        last = Date.now();
+        if (pending) return;
+        pending = true;
+        scrolled.getDisplay().timerExec(RESIZE_SETTLE_MS, settle);
+      });
     },
   };
-}
-
-/**
- * @param {Swt.Composite} parent
- * @param {string} text
- */
-function lbl(parent, text) {
-  const l = new LabelWidget(parent, SWT.NONE);
-  l.setText(text || "");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(l);
-  return l;
 }
 
 // Recompute ScrolledComposite min-size after page content changes.
@@ -96,8 +100,9 @@ function lbl(parent, text) {
 /**
  * @param {Swt.ScrolledComposite} scrolled
  * @param {Swt.Composite} page
+ * @param {{ growShell?: boolean }} [opts]  growShell false: the user resized the dialog, keep its width
  */
-function resizeScrolled(scrolled, page) {
+function resizeScrolled(scrolled, page, opts) {
   if (!scrolled || !page) return;
   try {
     let clientW = scrolled.getClientArea().width;
@@ -105,14 +110,17 @@ function resizeScrolled(scrolled, page) {
       scrolled.setMinSize(page.computeSize(clientW > 0 ? clientW : SWT.DEFAULT, SWT.DEFAULT));
       return;
     }
+    _fitNotes(page, clientW);
     // Page width at which every fitWidth control has its natural width.
     const short = _fitShortfall(page);
-    let wantW = short === null ? clientW : page.getSize().x + short;
-    if (wantW > clientW) {
+    const wantW = short === null ? clientW : page.getSize().x + short;
+    if (wantW > clientW && !(opts && opts.growShell === false)) {
       _growShell(scrolled.getShell(), wantW - clientW);
       clientW = scrolled.getClientArea().width;
     }
-    scrolled.setMinSize(page.computeSize(Math.max(clientW, wantW), SWT.DEFAULT));
+    const pageW = Math.max(clientW, wantW);
+    if (pageW !== clientW) _fitNotes(page, pageW);   // the page scrolls: notes wrap at its width
+    scrolled.setMinSize(page.computeSize(pageW, SWT.DEFAULT));
   } catch (e) {}
 }
 
@@ -186,7 +194,12 @@ function getGroupBackground() {
   return _groupBgCache;
 }
 
-// Grey explanatory line under a control.
+// Pause after the last resize event before the tab is laid out again.
+const RESIZE_SETTLE_MS = 150;
+
+// Grey explanatory line: an opening line of a group or a note under a control. It wraps at its
+// parent's width (resizeScrolled → _fitNotes), also when the dialog gets narrower again.
+const NOTE_MIN_WIDTH = 100;
 /**
  * @param {Swt.Composite} parent
  * @param {string} text
@@ -195,31 +208,40 @@ function noteLabel(parent, text) {
   const lbl = new LabelWidget(parent, SWT.WRAP);
   lbl.setText(text);
   try { lbl.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
-  GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT).applyTo(lbl);
-  _wrapToParent(lbl);
+  GridDataFactory.fillDefaults().grab(true, false).hint(NOTE_MIN_WIDTH, SWT.DEFAULT).applyTo(lbl);
+  lbl.setData("note", true);
   return lbl;
 }
 
-// A wrapping label breaks at its parent's width: the width hint follows the parent on resize, so
-// the label's height fits its lines (a fixed hint gives lines of one width and a height of another).
-/** @param {Swt.Label} lbl */
-function _wrapToParent(lbl) {
-  const parent = lbl.getParent();
-  parent.addListener(SWT.Resize, () => {
-    try {
-      const lay = parent.getLayout();
-      const inner = parent.getClientArea().width - 2 * lay.marginWidth - lay.marginLeft - lay.marginRight;
-      const gd = lbl.getLayoutData();
-      if (inner > 50 && gd.widthHint !== inner) {
-        gd.widthHint = inner;
-        parent.layout(true, false);
-        // The label's height changed: let the tab's scrolled area follow.
-        for (let c = parent; c; c = c.getParent())
-          // Cast: a tab's content is its page composite (scrolledTab).
-          if (c instanceof ScrolledCompositeWidget) { resizeScrolled(c, /** @type {Swt.Composite} */ (c.getContent())); break; }
-      }
-    } catch (e) {}
-  });
+// A wrapping label needs a width hint: without one it asks for its text on one line, with a fixed
+// one its lines follow the column and its height the hint. So the notes first get the minimum
+// hint, the page is laid out at the viewport width, and then each note gets its parent's inner
+// width, so its height fits its lines. A note never makes the page wider than the viewport.
+/**
+ * @param {Swt.Composite} page
+ * @param {number} width  viewport width
+ */
+function _fitNotes(page, width) {
+  /** @type {Swt.Label[]} */
+  const notes = [];
+  /** @param {Swt.Composite} c */
+  const collect = c => {
+    for (const child of c.getChildren()) {
+      if (child.getData("note")) notes.push(/** @type {Swt.Label} */ (child));   // Cast: only noteLabel sets "note"
+      else if (child instanceof CompositeWidget) collect(/** @type {Swt.Composite} */ (child));
+    }
+  };
+  collect(page);
+  if (!notes.length) return;
+  for (const n of notes) n.getLayoutData().widthHint = NOTE_MIN_WIDTH;
+  page.setSize(width, page.computeSize(width, SWT.DEFAULT).y);
+  page.layout(true, true);
+  for (const n of notes) {
+    const parent = n.getParent(), lay = parent.getLayout(), gd = n.getLayoutData();
+    const inner = parent.getClientArea().width - 2 * lay.marginWidth - lay.marginLeft - lay.marginRight - gd.horizontalIndent;
+    if (inner > NOTE_MIN_WIDTH) gd.widthHint = inner;
+  }
+  page.layout(true, true);
 }
 
 /**
@@ -287,8 +309,21 @@ function colorPicker(parent, opts) {
   /** @type {Swt.Image[]} */
   let menuImages = [];
 
+  // A value the items do not hold: with `fallback` it is replaced (and reported through onChange),
+  // so the picker always shows what the run uses; else it is shown as `missing` gives it. A hex
+  // value chosen with Other… is kept.
   /** @returns {ColorPickerItem} */
-  const current = () => opts.items().find(it => it.value === value) || opts.missing(value);
+  const current = () => {
+    const items = opts.items();
+    const found = items.find(it => it.value === value);
+    if (found) return found;
+    if (opts.fallback && !(opts.other && Palettes.HEX.test(value))) {
+      const v = opts.fallback(items);
+      const item = items.find(it => it.value === v);
+      if (item) { value = v; opts.onChange(v); return item; }
+    }
+    return opts.missing(value);
+  };
   const disposeMenu = () => {
     if (menu) { try { menu.dispose(); } catch (e) {} menu = null; }
     menuImages.forEach(img => { try { img.dispose(); } catch (e) {} });
@@ -347,23 +382,48 @@ function colorPicker(parent, opts) {
   };
 }
 
-/** Items of a colour-range picker: every ColorBrewer range with its gradient. */
-function colorRangeItems() {
-  return COLOR_RANGES.map(r => ({ value: r, label: r, colors: Chroma.scale(r).colors(12) }));
+/**
+ * Picker of one colour (nesting style conditions, Mixed values color): the palette's colours by
+ * name, Other… for a colour of its own (hex), and with `withDefault` the type's default fill ("").
+ * A name the palette does not hold becomes its first colour, as the run uses it (palettes.colorOf).
+ * @param {Swt.Composite} parent
+ * @param {{ colors: () => readonly { name: string, hex: string }[], value: string, onChange: (value: string) => void,
+ *           withDefault?: boolean, tooltip?: string, width?: number }} opts
+ * @returns {ColorPicker}
+ */
+function paletteColorPicker(parent, opts) {
+  return colorPicker(parent, {
+    items: () => [...(opts.withDefault ? [{ value: "", label: "Default", colors: [] }] : []),
+                  ...opts.colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
+    missing: v => ({ value: v, label: v, colors: Palettes.HEX.test(v) ? [v] : [] }),
+    fallback: list => { const first = list.find(it => it.value !== ""); return first ? first.value : ""; },
+    other: true, value: opts.value, onChange: opts.onChange, tooltip: opts.tooltip, width: opts.width,
+  });
 }
 
 /**
- * Colour-range picker (style conditions, highlight repeated).
+ * Colour-range picker (style conditions, highlight repeated): the ranges of the active palette.
  * @param {Swt.Composite} parent
  * @param {string} value
  * @param {(value: string) => void} onChange
+ * @param {() => ColorPickerItem[]} items  the palette's ranges with their gradient (rangeItems)
  * @param {string} [tooltip]
  */
-function colorRangePicker(parent, value, onChange, tooltip) {
+function colorRangePicker(parent, value, onChange, items, tooltip) {
   return colorPicker(parent, {
-    items: colorRangeItems, value, onChange, tooltip, swatchWidth: 60, width: 150,
+    items, value, onChange, tooltip, swatchWidth: 60, width: 150,
     missing: v => ({ value: v, label: v, colors: [] }),
+    fallback: list => list.length ? list[0].value : "",   // a range the palette does not hold: its first range
   });
+}
+
+/**
+ * The items of a colour-range picker: each range of a palette with its gradient.
+ * @param {Palette | undefined} palette
+ * @returns {ColorPickerItem[]}
+ */
+function rangeItems(palette) {
+  return palette ? palette.ranges.map(r => ({ value: r.name, label: r.name, colors: Palettes.rangeColors(r, 12) })) : [];
 }
 
 // ── Tree picker ───────────────────────────────────────────────────────────────
@@ -557,6 +617,10 @@ function _placeTreePopup(popup, btn) {
   popup.setBounds(x, at.y, width, height);
 }
 
+// Inside a group, the same on every tab (dialog-style.md § Fixed spacing).
+const GROUP_MARGIN_H = 8;
+const GROUP_MARGIN_V = 6;
+
 // Group container with the project's standard GridData + GridLayout.
 // Pass " " (single space) as label for an unlabelled-but-title-bar-reserved group.
 // By default the title bar font is made bold; pass bold: false to opt out (e.g. action row groups).
@@ -578,7 +642,7 @@ function group(parent, label, numColumns, opts) {
     .applyTo(grp);
   GridLayoutFactory.fillDefaults()
     .numColumns(numColumns)
-    .margins(opts.marginH || 6, opts.marginV || 4)
+    .margins(opts.marginH || GROUP_MARGIN_H, opts.marginV || GROUP_MARGIN_V)
     .spacing(opts.spaceH || 4, opts.spaceV || 4)
     .applyTo(grp);
   return grp;
@@ -859,6 +923,6 @@ function addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    scrolledTab, lbl, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, colorRangePicker, colorRangeItems, treePicker, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, canvasCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR,
+    scrolledTab, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, paletteColorPicker, colorRangePicker, rangeItems, treePicker, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, canvasCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
   };
 }

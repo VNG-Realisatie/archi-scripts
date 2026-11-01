@@ -50,7 +50,7 @@ const TabProperties = require(REPO_ROOT + "View/lib/gui/tab_properties");
 /** @type {typeof import("./preset_row")} */
 const PresetRow = require(REPO_ROOT + "View/lib/gui/preset_row");
 
-const { ACTION, AR_OPTIONS, COLOR_RANGES, DEFAULT_PRESET } = Defs;
+const { ACTION, AR_OPTIONS, DEFAULT_PRESET } = Defs;
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
@@ -737,7 +737,7 @@ function _buildActionArea(area, ctx, dlg, target) {
   new LabelWidget(row, SWT.NONE);
   const cancelRow = new CompositeWidget(row, SWT.NONE);
   // margins / spacing as Widgets.group's defaults, so the columns match the Modify group's buttons
-  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(6, 0).spacing(4, 0).applyTo(cancelRow);
+  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(Widgets.GROUP_MARGIN_H, 0).spacing(4, 0).applyTo(cancelRow);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(cancelRow);
   new LabelWidget(cancelRow, SWT.NONE);
   const btnCancel = new ButtonWidget(cancelRow, SWT.PUSH);
@@ -817,12 +817,9 @@ function _syncToUI(ctx) {
   const nl   = app.nestingLevel;
   const hr   = app.highlightRepeated;
 
-  // Palette: a name that is not in _palettes.json shows as None.
-  if (w.cmbPalette) {
-    const idx = ctx.palettes.findIndex(p => p.name === app.palette);
-    if (app.palette && idx < 0) console.error(`Appearance: palette "${app.palette}" is not in _palettes.json; None is shown. Choose a palette.`);
-    w.cmbPalette.select(idx + 1);
-  }
+  // Palette: a name that is not in _palettes.json shows the first (default) palette; the run
+  // reports it (no console output here: the dialog is modal).
+  if (w.cmbPalette && ctx.palettes.length) w.cmbPalette.select(Math.max(0, ctx.palettes.findIndex(p => p.name === app.palette)));
 
   // Style by property — conditions, mixed-values colour, line width
   if (w.tblStyleConditions) w.tblStyleConditions.setConditions(sbp.conditions);
@@ -839,7 +836,7 @@ function _syncToUI(ctx) {
 
   // Feature 5 — Highlight repeated elements
   if (w.chkHighlightRep)       w.chkHighlightRep.setSelection(!!(hr.enabled));
-  if (w.pickHighlightRepRange) w.pickHighlightRepRange.set(COLOR_RANGES.includes(hr.colorRange) ? hr.colorRange : DA.highlightRepeated.colorRange);
+  if (w.pickHighlightRepRange) w.pickHighlightRepRange.set(hr.colorRange || DA.highlightRepeated.colorRange);
 
   TabAppearance.updateNestingLevelState(ctx);
   TabAppearance.updateAppearancePropStates(ctx);
@@ -881,7 +878,7 @@ function _saveUI(ctx) {
   if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
 
   // Appearance
-  if (w.cmbPalette) c.appearance.palette = w.cmbPalette.getSelectionIndex() > 0 ? ctx.palettes[w.cmbPalette.getSelectionIndex() - 1].name : "";
+  if (w.cmbPalette && ctx.palettes.length) c.appearance.palette = ctx.palettes[Math.max(0, w.cmbPalette.getSelectionIndex())].name;
 
   // Style by property
   c.appearance.styleByProperty = {

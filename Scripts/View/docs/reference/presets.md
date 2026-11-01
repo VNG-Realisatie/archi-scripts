@@ -28,10 +28,10 @@ Preset {
     suffix : string                  // One view each: appended to each element name
   }
   appearance {
-    palette : string                 // name of a palette in presets/_palettes.json; "" = none
+    palette : string                 // name of a palette in presets/_palettes.json; default "Brewer"
     styleByProperty {
       conditions : StyleCondition[]  // in order; the later condition wins on one object
-      mixedValuesColor : hex         // fill for an object with several values
+      mixedValuesColor : string      // fill for an object with several values: a colour name of the palette, or a hex
       lineWidth : 0..3               // 0 = no change; 1 Normal, 2 Medium, 3 Heavy
     }
     nestingLevel {
@@ -42,7 +42,7 @@ Preset {
       darkenStart : 0..3             // levels darker a segment starts than its colour
       lightenPerLevel : number (%, 5–40)
     }
-    highlightRepeated { enabled : boolean, colorRange : scheme name }
+    highlightRepeated { enabled : boolean, colorRange : string }   // a range name of the palette
   }
   engineParams { ELK?, Dagre?, Graphviz?, layout? }   // settings outside the dialog, passed through as-is;
                                                       // each owner merges its section over its defaults
@@ -122,8 +122,8 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | diagram  | on, mode, diagramType | `filter.diagramConditions` | keep all |
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
 | step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | adds nothing (ends the chain); a pass-all condition `{}` follows all |
-| style    | on, color (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange | `appearance.styleByProperty.conditions` | no styling |
-| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
+| style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
+| nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, a hex, or `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
 
 **Step conditions are written from the previous step's elements.**
 - `direction`: `outgoing` = the previous-step element is the relation's source; `incoming` = it is the target; `either` (default) = both.
@@ -145,13 +145,26 @@ One condition model for every list. A list keeps what matches **any active Inclu
 
 ## Palettes
 
-`presets/_palettes.json` holds the palettes every preset can pick from (`appearance.palette`). A palette is a name and a list of named colours; names are unique within the file and within a palette.
+`presets/_palettes.json` holds the palettes a preset picks from (`appearance.palette`). A palette is a set of colours and colour ranges that belong together: every colour and colour range of the Appearance tab comes from the preset's palette. There is always one; the first palette of the file is the default.
 
 ```
-{ "palettes": [ { "name": "GEMMA", "colors": [ { "name": "Bedrijf gedrag", "hex": "#ffffcc" }, … ] } ] }
+{ "palettes": [ { "name": "Brewer",
+    "colors": [ { "name": "Blue", "hex": "#b3cde3" }, … ],
+    "ranges": [ { "name": "Blues", "colors": ["#f7fbff", …, "#08306b"], "padding": [0.1, 0.4] }, … ] } ] }
 ```
 
-The file is read when the dialog builds its Appearance tab and at a run that uses a palette colour. An unusable file is reported in the console, naming what is wrong, and the run uses Default. Without the file there are no palettes. The GEMMA palette holds the default fill colours of the GEMMA Archi preferences, one per group of element types.
+- **colors**: named colours, for *Mixed values color* and the nesting style colours. A setting names a colour; a colour of its own (*Other…*) is a hex.
+- **ranges**: named ranges, for the style conditions and *Highlight repeated elements*. A range interpolates between two or more colours; `padding` (optional, `[start, end]`, each below 0.5) leaves out that fraction at either end, so a dark end does not hide black text.
+- Names are unique within the file, and colour and range names within a palette.
+
+| Palette | Colours | Ranges | Source |
+|---|---|---|---|
+| Brewer | the 9 Pastel1 tints | Pastel1, Pastel2, Set2, Set3 (qualitative); Blues, Greens, Oranges, Purples, Reds, Greys, OrRd, PuBu (sequential); RdYlBu, RdYlGn, Spectral (diverging) | ColorBrewer, as chroma-js bundles it |
+| Tol | *light*: 9 colours made to fill labelled cells | Light, Pale (qualitative); Sunset, BuRd, PRGn (diverging); YlOrBr, Iridescent (sequential) | Paul Tol's schemes, colour-blind safe (`tol_colors`, BSD) |
+| Open Color | step 2 of each of 13 hues | Light (qualitative); steps 0–6 of each hue; Blue–Red, Teal–Orange (diverging) | Open Color 1.9.1 (MIT): equal brightness per step across hues |
+| GEMMA | the default fill colours of the GEMMA Archi preferences, one per group of element types | Lagen (one colour per layer); Bedrijf, Applicatie, Technologie, Strategie, Motivatie | GEMMA |
+
+The file is read when the dialog builds its Appearance tab and at a run with styling. An unusable or missing file stops it with a message naming what is wrong. A palette, colour or range a preset names that the file does not hold is replaced by the first one, in the dialog and at the run (which says so in the console).
 
 ## Hidden properties
 

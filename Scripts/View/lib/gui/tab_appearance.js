@@ -21,7 +21,7 @@ const Widgets = require(REPO_ROOT + "View/lib/gui/widgets");
 /** @type {typeof import("./tab_selection")} */
 const TabSelection = require(REPO_ROOT + "View/lib/gui/tab_selection");
 /** @type {typeof import("./condition_table")} */
-const { conditionTable, STYLE_CONDITION_COLUMNS, nestingStyleConditionColumns } = require(REPO_ROOT + "View/lib/gui/condition_table");
+const { conditionTable, styleConditionColumns, nestingStyleConditionColumns } = require(REPO_ROOT + "View/lib/gui/condition_table");
 /** @type {typeof import("../palettes")} */
 const Palettes = require(REPO_ROOT + "View/lib/palettes");
 
@@ -68,7 +68,7 @@ function _stylePropItems(ctx, r) {
   const pred = ctx.predicted;
   const els  = pred ? pred.elements  : TabSelection.rawElements(ctx, "");
   const rels = pred ? pred.relations : (ctx.rawModelObjects || []).filter(o => _REL_TYPE_ID_SET.has(o.type));
-  const of = r.color === "element" ? "element" : r.propertyOf === "element" ? r.color : r.propertyOf;
+  const of = r.applyTo === "element" ? "element" : r.propertyOf === "element" ? r.applyTo : r.propertyOf;
   if (of === "relation") return Counts.propNames(rels.filter(x => !r.relation || x.type === r.relation));
   const type = of === "target" ? r.target : r.source;
   return Counts.propNames(els.filter(x => !type || x.type === type));
@@ -139,38 +139,40 @@ function buildAppearanceTab(tabFolder, ctx) {
     Widgets.resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
   };
 
-  // ── Palette ──────────────────────────────────────────────────────────────────
+  // The rows of the groups share one heading column (Widgets.formRow / alignFormColumns).
+  /** @type {Swt.Composite[]} */
+  const formRows = [];
+
+  // ── Colors: the palette every colour and colour range of the tab comes from ──
   try { ctx.palettes = Palettes.readPalettes(); }
   catch (e) { ctx.palettes = []; console.error(`Appearance: ${e}`); }
-  const paletteRow = new CompositeWidget(page, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).margins(6, 2).spacing(6, 0).applyTo(paletteRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(paletteRow);
-  const paletteTip = `Named colors for the nesting style conditions (${Palettes.PALETTES_FILE} in the presets folder).`;
-  const lblPalette = new LabelWidget(paletteRow, SWT.NONE);
-  lblPalette.setText("Palette:");
-  lblPalette.setToolTipText(paletteTip);
+  const grpColors = Widgets.group(page, "Colors", 1);
+  Widgets.noteLabel(grpColors, "Every color and color range on this tab comes from the palette.");
+  const paletteRow = Widgets.formRow(grpColors, "Palette:", formRows);
   const cmbPalette = new ComboWidget(paletteRow, SWT.READ_ONLY | SWT.DROP_DOWN);
-  cmbPalette.add("None");
   ctx.palettes.forEach(p => cmbPalette.add(p.name));
-  cmbPalette.select(0);
-  cmbPalette.setToolTipText(paletteTip);
-  cmbPalette.addListener(SWT.Selection, () => { w.tblNestingStyleConditions.refreshItems(); w.pickMixedColor.refresh(); onChange(); });
+  if (ctx.palettes.length) cmbPalette.select(0);
+  cmbPalette.setToolTipText(`Colors and color ranges that belong together (${Palettes.PALETTES_FILE} in the presets folder).`);
+  cmbPalette.addListener(SWT.Selection, () => {
+    w.tblNestingStyleConditions.refreshItems();
+    w.tblStyleConditions.refreshItems();
+    w.pickMixedColor.refresh();
+    w.pickHighlightRepRange.refresh();
+    onChange();
+  });
   w.cmbPalette = cmbPalette;
-  const paletteColors = () => {
-    const i = cmbPalette.getSelectionIndex();
-    return i > 0 ? ctx.palettes[i - 1].colors : [];
-  };
+  const palette = () => ctx.palettes[Math.max(0, cmbPalette.getSelectionIndex())];
+  const paletteColors = () => { const p = palette(); return p ? p.colors : []; };
+  const paletteRanges = () => Widgets.rangeItems(palette());
 
   // ── 1. Style by property: style conditions ──────────────────────────────────────
   const grpSbp = Widgets.group(page, "Style by property", 1);
 
-  const sbpDescLbl = new LabelWidget(grpSbp, SWT.WRAP);
-  sbpDescLbl.setText("Color elements or relations by property values. Each condition says what gets the color and whose property gives the value.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(sbpDescLbl);
+  Widgets.noteLabel(grpSbp, "Color elements or relations by property values. Each condition says what gets the color and whose property gives the value.");
 
   const onStyleChange = () => { ctx.markModified(); updateStyleWarnings(ctx); };
   w.tblStyleConditions = conditionTable(grpSbp, {
-    kind: "style", columns: STYLE_CONDITION_COLUMNS, onChange: onStyleChange,
+    kind: "style", columns: styleConditionColumns(paletteRanges), onChange: onStyleChange,
     onLayout: relayout,
     propItems: r => _stylePropItems(ctx, r),
     rowTooltip: Counts.styleConditionSentence,
@@ -182,25 +184,20 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.lblStyleConflicts.getLayoutData().exclude = true;
   w.lblStyleConflicts.setVisible(false);
 
-  const sbpFoot = new CompositeWidget(grpSbp, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0, 2).spacing(6, 0).applyTo(sbpFoot);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(sbpFoot);
+  const sbpFoot = Widgets.formRow(grpSbp, "Options:", formRows);
   const mixedTip = "Used when an element or relation has more than one value for the property,\n" +
                    "so no single color of the range applies.";
   const lblMixed = new LabelWidget(sbpFoot, SWT.NONE);
-  lblMixed.setText("Mixed values color:");
+  lblMixed.setText("Mixed values color");
   lblMixed.setToolTipText(mixedTip);
-  w.pickMixedColor = Widgets.colorPicker(sbpFoot, {
-    items: () => paletteColors().map(c => ({ value: c.hex, label: c.name, colors: [c.hex] })),
-    missing: v => ({ value: v, label: v, colors: /^#[0-9a-fA-F]{6}$/.test(v) ? [v] : [] }),
-    value: DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor, onChange, tooltip: mixedTip, other: true, width: 170,
+  w.pickMixedColor = Widgets.paletteColorPicker(sbpFoot, {
+    colors: paletteColors, value: DEFAULT_PRESET.appearance.styleByProperty.mixedValuesColor, onChange, tooltip: mixedTip, width: 170,
   });
 
-  const widthTip = "Line width for all relations colored by a condition with Color = Relation.";
+  const widthTip = "Line width for all relations colored by a condition with Apply to = Relation.";
   const lblWidth = new LabelWidget(sbpFoot, SWT.NONE);
-  lblWidth.setText("Line width of styled relations:");
+  lblWidth.setText("Line width");
   lblWidth.setToolTipText(widthTip);
-  GridDataFactory.swtDefaults().indent(16, 0).applyTo(lblWidth);
   const cmbWidth = new ComboWidget(sbpFoot, SWT.READ_ONLY | SWT.DROP_DOWN);
   ["No change", "1 - Normal", "2 - Medium", "3 - Heavy"].forEach(t => cmbWidth.add(t));
   cmbWidth.select(0);
@@ -212,58 +209,42 @@ function buildAppearanceTab(tabFolder, ctx) {
   const grpNest = Widgets.group(page, "Style by nesting level", 1);
 
   // Info label — shown/hidden via updateNestingLevelState (hidden when a Nesting condition is on).
-  const lblNestingInfo = new LabelWidget(grpNest, SWT.WRAP);
-  lblNestingInfo.setText("Turn on a Nesting condition in the Layout tab to use this.");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(lblNestingInfo);
-  w.lblNestingInfo = lblNestingInfo;
-
-  const nestDescLbl = new LabelWidget(grpNest, SWT.WRAP);
-  nestDescLbl.setText("Emphasize significant nesting levels with color and font. " +
+  w.lblNestingInfo = Widgets.noteLabel(grpNest, "Turn on a Nesting condition in the Layout tab to use this.");
+  w.nestDescLbl = Widgets.noteLabel(grpNest, "Emphasize significant nesting levels with color and font. " +
     "Each condition marks a level; deeper levels get lighter and smaller.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(nestDescLbl);
-  w.nestDescLbl = nestDescLbl;
 
   // Switches first, then the conditions both use. One raster: the first label after each
   // switch lines up.
-  const nestSwitches = new CompositeWidget(grpNest, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(7).margins(0, 2).spacing(Widgets.GAP_FIELD, 4).applyTo(nestSwitches);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(nestSwitches);
-  /**
-   * @param {string} text
-   * @param {number} indent  extra gap before the label
-   */
-  const nestLabel = (text, indent) => {
-    const l = new LabelWidget(nestSwitches, SWT.NONE);
+  let nestRow = Widgets.formRow(grpNest, "Apply:", formRows, "nestSwitches", 3);
+  /** @param {string} text */
+  const nestLabel = text => {
+    const l = new LabelWidget(nestRow, SWT.NONE);
     l.setText(text);
-    GridDataFactory.swtDefaults().indent(indent, 0).applyTo(l);
     return l;
   };
-  const SWITCH_GAP = 10 - Widgets.GAP_FIELD;            // switch → dependent option
-  const PAIR_GAP   = Widgets.GAP_PAIR - Widgets.GAP_FIELD;
 
   // Font row
-  const chkNestFont = Widgets.checkBox(nestSwitches, "Font");
+  const chkNestFont = Widgets.checkBox(nestRow, "Font");
+  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkNestFont.control);
   chkNestFont.setToolTipText("Where a condition starts, the container takes its Font size and Bold;\n" +
                              "each level deeper is smaller and not bold.");
   chkNestFont.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
   w.chkNestFont = chkNestFont;
 
   const decreaseTip = "Points smaller per level deeper, never below the default size.";
-  w.lblNestDecrease = nestLabel("Smaller per level:", SWITCH_GAP);
+  w.lblNestDecrease = nestLabel("Smaller per level");
   w.lblNestDecrease.setToolTipText(decreaseTip);
-  const nestFontDecreaseSp = new SpinnerWidget(nestSwitches, SWT.BORDER);
-  nestFontDecreaseSp.setValues(2, 1, 6, 0, 1, 1);
-  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestFontDecreaseSp);
-  nestFontDecreaseSp.setToolTipText(decreaseTip);
-  nestFontDecreaseSp.addListener(SWT.Selection, onChange);
-  w.spinNestFontDecrease = nestFontDecreaseSp;
-  w.lblNestFontPt = nestLabel("pt", 0);
-  new LabelWidget(nestSwitches, SWT.NONE);
-  new LabelWidget(nestSwitches, SWT.NONE);
-  new LabelWidget(nestSwitches, SWT.NONE);
+  const decrease = _spinnerWithUnit(nestRow, "pt");
+  decrease.spinner.setValues(2, 1, 6, 0, 1, 1);
+  decrease.spinner.setToolTipText(decreaseTip);
+  decrease.spinner.addListener(SWT.Selection, onChange);
+  w.spinNestFontDecrease = decrease.spinner;
+  w.lblNestFontPt = decrease.unit;
 
   // Color row
-  const chkNestColor = Widgets.checkBox(nestSwitches, "Color");
+  nestRow = Widgets.formRow(grpNest, "", formRows, "nestSwitches", 3);
+  const chkNestColor = Widgets.checkBox(nestRow, "Color");
+  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkNestColor.control);
   chkNestColor.setToolTipText("The elements a condition selects take its color; each level deeper in that color is lighter.\n" +
                               "When conditions select the same element, the most specific wins.");
   chkNestColor.addListener(SWT.Selection, () => { updateNestingLevelState(ctx); onChange(); });
@@ -271,27 +252,25 @@ function buildAppearanceTab(tabFolder, ctx) {
 
   const lightenTip = "Per level inside a segment, the fill moves this percentage closer to white\n" +
                      "(hue and saturation kept).";
-  w.lblNestLighten = nestLabel("Lighter per level:", SWITCH_GAP);
+  w.lblNestLighten = nestLabel("Lighter per level");
   w.lblNestLighten.setToolTipText(lightenTip);
-  const nestLightenSp = new SpinnerWidget(nestSwitches, SWT.BORDER);
-  nestLightenSp.setValues(15, 5, 40, 0, 5, 5);
-  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestLightenSp);
-  nestLightenSp.setToolTipText(lightenTip);
-  nestLightenSp.addListener(SWT.Selection, onChange);
-  w.spinNestLighten = nestLightenSp;
-  w.lblNestLightenPct = nestLabel("%", 0);
+  const lighten = _spinnerWithUnit(nestRow, "%");
+  lighten.spinner.setValues(15, 5, 40, 0, 5, 5);
+  lighten.spinner.setToolTipText(lightenTip);
+  lighten.spinner.addListener(SWT.Selection, onChange);
+  w.spinNestLighten = lighten.spinner;
+  w.lblNestLightenPct = lighten.unit;
 
   const darkenTip = "A segment starts this many levels darker than its color,\n" +
                     "so its color is reached this many levels in.";
-  w.lblNestDarken = nestLabel("Start darker:", PAIR_GAP);
+  w.lblNestDarken = nestLabel("Start darker");
   w.lblNestDarken.setToolTipText(darkenTip);
-  const nestDarkenSp = new SpinnerWidget(nestSwitches, SWT.BORDER);
-  nestDarkenSp.setValues(DEFAULT_PRESET.appearance.nestingLevel.darkenStart, 0, 3, 0, 1, 1);
-  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(nestDarkenSp);
-  nestDarkenSp.setToolTipText(darkenTip);
-  nestDarkenSp.addListener(SWT.Selection, onChange);
-  w.spinNestDarken = nestDarkenSp;
-  w.lblNestDarkenSteps = nestLabel("levels", 0);
+  const darken = _spinnerWithUnit(nestRow, "levels");
+  darken.spinner.setValues(DEFAULT_PRESET.appearance.nestingLevel.darkenStart, 0, 3, 0, 1, 1);
+  darken.spinner.setToolTipText(darkenTip);
+  darken.spinner.addListener(SWT.Selection, onChange);
+  w.spinNestDarken = darken.spinner;
+  w.lblNestDarkenSteps = darken.unit;
 
   w.tblNestingStyleConditions = conditionTable(grpNest, {
     kind: "nestingStyle", onChange,
@@ -304,15 +283,11 @@ function buildAppearanceTab(tabFolder, ctx) {
   // ── 5. Highlight repeated elements ───────────────────────────────────────
   const grpHighlight = Widgets.group(page, "Highlight repeated elements", 1);
 
-  const hlDescLbl = new LabelWidget(grpHighlight, SWT.WRAP);
-  hlDescLbl.setText("Elements that have multiple occurrences get the same color. Repetition becomes visible across the model.");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(hlDescLbl);
+  Widgets.noteLabel(grpHighlight, "Elements that have multiple occurrences get the same color. Repetition becomes visible across the model.");
 
-  const hlRow = new CompositeWidget(grpHighlight, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(4).margins(0,2).spacing(6,0).applyTo(hlRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(hlRow);
-
-  const chkHighlightRep = Widgets.checkBox(hlRow, "Enable");
+  const hlRow = Widgets.formRow(grpHighlight, "", formRows);
+  const chkHighlightRep = Widgets.checkBox(hlRow, "Highlight");
+  GridDataFactory.fillDefaults().span(2, 1).applyTo(chkHighlightRep.control);
   chkHighlightRep.setToolTipText("Elements that appear more than once on this view receive a shared color per identity.\nNeeds a Nesting condition with Every.");
   chkHighlightRep.addListener(SWT.Selection, () => {
     updateAppearancePropStates(ctx);
@@ -321,14 +296,31 @@ function buildAppearanceTab(tabFolder, ctx) {
   w.chkHighlightRep = chkHighlightRep;
 
   const hlRangeLbl = new LabelWidget(hlRow, SWT.NONE);
-  hlRangeLbl.setText("Color range:");
+  hlRangeLbl.setText("Color range");
   w.lblHighlightRepRange = hlRangeLbl;
   w.pickHighlightRepRange = Widgets.colorRangePicker(hlRow, DEFAULT_PRESET.appearance.highlightRepeated.colorRange, onChange,
-    "Color scale for assigning distinct colors to repeated element identities.");
+    paletteRanges, "Colors of the palette's range, one per repeated element.");
 
+  Widgets.alignFormColumns(formRows);
   updateNestingLevelState(ctx);
   updateAppearancePropStates(ctx);
   finish();
+}
+
+/**
+ * A spinner with its unit right behind it: one control cell of a form row (Look 4).
+ * @param {Swt.Composite} row
+ * @param {string} unit
+ * @returns {{ spinner: Swt.Spinner, unit: Swt.Label }}
+ */
+function _spinnerWithUnit(row, unit) {
+  const cell = new CompositeWidget(row, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).spacing(4, 0).applyTo(cell);
+  const spinner = new SpinnerWidget(cell, SWT.BORDER);
+  GridDataFactory.swtDefaults().hint(Widgets.SPINNER_WIDTH, SWT.DEFAULT).applyTo(spinner);
+  const lbl = new LabelWidget(cell, SWT.NONE);
+  lbl.setText(unit);
+  return { spinner, unit: lbl };
 }
 
 // Enable/disable the "Style by nesting level" controls based on whether any nesting

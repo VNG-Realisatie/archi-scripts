@@ -33,8 +33,8 @@ const GridDataFactory         = Java.type("org.eclipse.jface.layout.GridDataFact
 const GridLayoutFactory       = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
 
 // ── Derived lists ─────────────────────────────────────────────────────────────
-// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL,
-// COLOR_RANGES are imported from Defs above.
+// RELATION_TYPE_IDS, RELATION_TYPE_LABELS, ELEMENT_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL
+// are imported from Defs above.
 
 const DIRECTION_LABELS        = DIRECTIONS.map(d => d.val);
 const ROUTING_ALL             = Object.values(ROUTING).map(r => r.label);
@@ -112,12 +112,11 @@ function buildLayoutTab(tabFolder, ctx) {
   ctx.layoutScrolled = scrolled;
   ctx.layoutPage     = page;
   page.getLayout().verticalSpacing = 8;          // between boxes
-  const BOX = { marginH: 8, marginV: 6 };       // inside a box
 
   // ── Algorithm ─────────────────────────────────────────────────────────────────
   // Algorithm selection is a table, one row per style: [Style label:] [○ Algo] [○ Algo] …
   // All radio buttons are in the same composite so SWT auto-groups them (mutually exclusive).
-  const grpAlg = Widgets.group(page, "Algorithm", 4, Object.assign({ spaceH: 6 }, BOX));
+  const grpAlg = Widgets.group(page, "Algorithm", 4, { spaceH: 6 });
 
   // Algorithm radio table spans all 4 columns of grpAlg: a label column plus one per algorithm
   // of the largest style.
@@ -180,12 +179,12 @@ function buildLayoutTab(tabFolder, ctx) {
   };
 
   // ── Nesting · Reverse ─────────────────────────────────────────────────────────
-  const grpNest = Widgets.group(page, "Nesting", 1, BOX);
+  const grpNest = Widgets.group(page, "Nesting", 1);
   const onLayoutPage = () => {
     try { ctx.layoutPage.layout(true, true); } catch (e) {}
     Widgets.resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
   };
-  Widgets.lbl(grpNest, "Draw these relations as nesting, child inside its parent:")
+  Widgets.noteLabel(grpNest, "Draw these relations as nesting, child inside its parent:")
     .setToolTipText(Defs.paramTooltip("nestingConditions"));
   /** @type {Partial<ConditionTableOptions<"relation">>} */
   const relPropItems = {
@@ -206,8 +205,8 @@ function buildLayoutTab(tabFolder, ctx) {
   w.lblNestingNote.setVisible(false);
 
 
-  const grpRev = Widgets.group(page, "Reverse", 1, BOX);
-  Widgets.lbl(grpRev, "Flip these relations:")
+  const grpRev = Widgets.group(page, "Reverse", 1);
+  Widgets.noteLabel(grpRev, "Flip these relations:")
     .setToolTipText(Defs.paramTooltip("reverseConditions"));
   w.tblReverseConditions = conditionTable(grpRev, /** @type {ConditionTableOptions<"relation">} */ (Object.assign({
     kind: "relation", columns: REVERSE_CONDITION_COLUMNS, onChange: onParamsChange, onLayout: onLayoutPage,
@@ -222,7 +221,7 @@ function buildLayoutTab(tabFolder, ctx) {
                         "Nesting: if the relation is also nested, the target becomes the parent.");
 
   // ── Containers ────────────────────────────────────────────────────────────────
-  const grpCtr = Widgets.group(page, "Containers", 1, BOX);
+  const grpCtr = Widgets.group(page, "Containers", 1);
   row = Widgets.formRow(grpCtr, "Layout:", formRows);
   Widgets.addCombo(row, "Layout inside", CONTAINER_ALGO_LABELS,   0, SWT.DEFAULT, "cmbContainerAlgorithm", w);
   Widgets.addCombo(row, "Connections",   CONNECTIONS_MODE_LABELS, 0, SWT.DEFAULT, "cmbConnectionsMode", w);
@@ -239,7 +238,7 @@ function buildLayoutTab(tabFolder, ctx) {
   w.grpContainers = grpCtr;
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
-  const grpFlow = Widgets.group(page, "Flow", 1, BOX);
+  const grpFlow = Widgets.group(page, "Flow", 1);
   row = Widgets.formRow(grpFlow, "Order:", formRows, "form", 2);
   Widgets.addCombo(row, "Direction", DIRECTION_LABELS, 0, SWT.DEFAULT, "cmbDirection", w);
   Widgets.addCombo(row, "Cycles",    ACYCLICER_LABELS, 0, SWT.DEFAULT, "cmbAcyclicer", w);
@@ -251,7 +250,7 @@ function buildLayoutTab(tabFolder, ctx) {
   Widgets.addSpinnerRow(row, "Layer distance", "spinLayerSpacing", DP.layerSpacing, 0, 2000, 20, w);
 
   // ── Elements ──────────────────────────────────────────────────────────────────
-  const grpEl = Widgets.group(page, "Elements", 1, BOX);
+  const grpEl = Widgets.group(page, "Elements", 1);
   row = Widgets.formRow(grpEl, "Size:", formRows, "form", 2);
   Widgets.addSpinnerRow(row, "Width",  "spinElementWidth",  DP.elementWidth,  10, 1000, 10, w);
   Widgets.addCheck(row, "Use label width", null, 2, w, "chkLabelSizing");
@@ -263,7 +262,7 @@ function buildLayoutTab(tabFolder, ctx) {
   Widgets.addSpinnerRow(row, "Distance", "spinElementSpacing", DP.elementSpacing, 0, 500, 5, w);
 
   // ── Connections ───────────────────────────────────────────────────────────────
-  const grpCon = Widgets.group(page, "Connections", 1, BOX);
+  const grpCon = Widgets.group(page, "Connections", 1);
   row = Widgets.formRow(grpCon, "Line:", formRows, "form", 2);
   Widgets.addCombo(row, "Routing", ROUTING_ALL,   0, SWT.DEFAULT, "cmbRouting",       w);
   w.cmbRouting.addListener(SWT.Selection, () => _updateComboTooltips(w));
@@ -280,7 +279,7 @@ function buildLayoutTab(tabFolder, ctx) {
   Widgets.alignFormColumns(formRows);
 
   // ── View size ─────────────────────────────────────────────────────────────────
-  const grpVS = Widgets.group(page, "View size", 1, BOX);
+  const grpVS = Widgets.group(page, "View size", 1);
 
   // Inline row: ● Free  ○ Aspect ratio [combo]  ○ Max width [spinner]
   // All three radios live in the same composite → SWT mutual exclusion is automatic.

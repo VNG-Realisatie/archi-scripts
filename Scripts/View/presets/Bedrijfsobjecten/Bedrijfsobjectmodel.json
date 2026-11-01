@@ -81,7 +81,7 @@
     "palette": "GEMMA",
     "styleByProperty": {
       "conditions": [
-        {"color": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Greens"}
+        {"applyTo": "relation", "relation": "specialization-relationship", "propertyOf": "relation", "property": "GGM-uml-type", "colorRange": "Technologie"}
       ],
       "mixedValuesColor": "#FF6B35",
       "lineWidth": 3
@@ -98,7 +98,7 @@
     },
     "highlightRepeated": {
       "enabled": true,
-      "colorRange": "Pastel1"
+      "colorRange": "Lagen"
     }
   },
   "engineParams": {

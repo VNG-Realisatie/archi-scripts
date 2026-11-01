@@ -43,7 +43,7 @@ A preset is a saved set of dialog settings: `presets/<folder>/<name>.json` (plai
 
 Presets have a `schemaVersion`. A preset in an older format is refused with a message; bring a version 5 preset up to date with `node Scripts/View/tools/migrate_presets_nesting_font.js` (`--dry-run` first). A version 4 preset: check out commit `8e13b2e` and run its `tools/migrate_presets_nesting_style.js` first. A version 3 preset: check out commit `deb432c` and run its `tools/migrate_presets_conditions.js` first. Older: check out commit `61c9c52`, run its `tools/migrate_presets_relrows.js` (to version 2) and `migrate_presets_everycontainer.js` (to version 3), then continue with the newer steps.
 
-**Palettes** — `presets/_palettes.json` holds named colours (the GEMMA palette: the GEMMA default fill colours); pick a palette at the top of the Appearance tab and its colours in *Style by nesting level*. Add a palette or colour by editing the file.
+**Palettes** — `presets/_palettes.json` holds the palettes: colours and colour ranges that belong together (Brewer, the default; Tol; Open Color; GEMMA, the GEMMA default fill colours). Pick one in the *Colors* group of the Appearance tab; every colour and colour range of the tab comes from it. Add a palette, colour or range by editing the file ([presets.md](docs/reference/presets.md#palettes)).
 
 ## Shortcut scripts
 

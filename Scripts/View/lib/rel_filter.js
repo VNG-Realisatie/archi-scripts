@@ -12,7 +12,7 @@
  *               propertyOf, property, value }
  *   step      { on, mode, previous, direction, relation, added,           expand-selection step
  *               propertyOf, property, value }
- *   style     { on, color, source, relation, target, propertyOf,          Appearance › Style by property
+ *   style     { on, applyTo, source, relation, target, propertyOf,        Appearance › Style by property
  *               property, colorRange }
  *   nestingStyle { on, parent, direction, relation, child, color,         Appearance › Style by nesting level
  *               fontSize, bold }
@@ -32,7 +32,7 @@ console.log("Loading rel_filter.js");
 const MODES       = Object.freeze(["include", "exclude"]);
 const DIRECTIONS  = Object.freeze(["either", "outgoing", "incoming"]);
 const STEP_PROP_OF  = Object.freeze(["added", "relation", "previous"]);
-const STYLE_COLOR   = Object.freeze(["element", "relation", "source", "target"]);
+const STYLE_APPLY_TO = Object.freeze(["element", "relation", "source", "target"]);
 const STYLE_PROP_OF = Object.freeze(["element", "relation", "source", "target"]);
 const REL_PROP_OF   = Object.freeze(["relation", "source", "target"]);
 const SAME_TYPE     = "same";   // nestingStyle child: the same type as the parent
@@ -63,10 +63,10 @@ const KINDS = Object.freeze({
     enums:    { mode: MODES, direction: DIRECTIONS, propertyOf: STEP_PROP_OF },
   },
   style: {
-    defaults: { on: true, color: "element", source: "", relation: "", target: "",
+    defaults: { on: true, applyTo: "element", source: "", relation: "", target: "",
                 propertyOf: "element", property: "", colorRange: "Blues" },
     types:    { source: "elements", relation: "relations", target: "elements" },
-    enums:    { color: STYLE_COLOR, propertyOf: STYLE_PROP_OF },
+    enums:    { applyTo: STYLE_APPLY_TO, propertyOf: STYLE_PROP_OF },
   },
   nestingStyle: {
     defaults: { on: true, parent: "", direction: "either", relation: "", child: SAME_TYPE, color: "", fontSize: 0, bold: false },
@@ -123,8 +123,9 @@ function normalizeCondition(kind, raw, valid, where) {
       if (!K.enums[key].includes(val)) return bad(`${key} must be one of ${K.enums[key].join(", ")}`);
       out[key] = val;
     } else if (key === "colorRange") {
-      if (!valid.colorRanges.has(String(val))) return bad(`unknown colorRange "${val}"`);
-      out.colorRange = String(val);
+      // A range of the preset's palette: checked at the run (appearance), where the palette is read.
+      if (typeof val !== "string" || !val.trim()) return bad(`"colorRange" must name a colour range of the palette`);
+      out.colorRange = val;
     } else {
       out[key] = val === undefined || val === null ? "" : String(val);   // property, value
     }
@@ -486,7 +487,7 @@ function stringifyPreset(preset) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    MODES, DIRECTIONS, STEP_PROP_OF, STYLE_COLOR, STYLE_PROP_OF, REL_PROP_OF, KINDS,
+    MODES, DIRECTIONS, STEP_PROP_OF, STYLE_APPLY_TO, STYLE_PROP_OF, REL_PROP_OF, KINDS,
     defaultCondition, normalizeCondition, normalizeConditions, serializeCondition, isPassAll,
     evalConditions, matchElement, matchDiagram, matchRelation, matchEveryContainer, relationPropObject, matchStep, matchStepRelation,
     styleConditionMatchesRelation, detectConditionConflicts, SAME_TYPE, nestingStyleConditionMatches,

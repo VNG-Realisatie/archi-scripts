@@ -62,7 +62,7 @@
     "suffix": ""
   },
   "appearance": {
-    "palette": "",
+    "palette": "Brewer",
     "styleByProperty": {
       "conditions": [],
       "mixedValuesColor": "#FF6B35",

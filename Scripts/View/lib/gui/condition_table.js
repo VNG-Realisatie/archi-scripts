@@ -441,8 +441,8 @@ const STEP_PROP_OF_ITEMS = Object.freeze([
   { value: "added", label: "Added element" }, { value: "relation", label: "Added relation" },
   { value: "previous", label: "Previous element" },
 ]);
-const STYLE_COLOR_ITEMS = Object.freeze([
-  { value: "element", label: "Element (own property)" }, { value: "relation", label: "Relation" },
+const STYLE_APPLY_TO_ITEMS = Object.freeze([
+  { value: "element", label: "Element" }, { value: "relation", label: "Relation" },
   { value: "source", label: "Source element" }, { value: "target", label: "Target element" },
 ]);
 const REL_PROP_OF_ITEMS = Object.freeze([
@@ -560,32 +560,44 @@ const STEP_CONDITION_COLUMNS = Object.freeze([
     tooltip: "Where the property is read: the added element, the followed relation or the previous step's element." },
   ..._propCols("add elements"),
 ]);
-/** @type {readonly ConditionTableColumn<StyleCondition>[]} */
-const STYLE_CONDITION_COLUMNS = Object.freeze([
-  _onCol,
-  { key: "color", header: "Color", kind: "choice", items: STYLE_COLOR_ITEMS, width: 150,
-    tooltip: "What gets the color: the element itself (using its own property), the relation, " +
-             "or the source / target element of a matching relation.",
-    // Element colors by its own property; a relation has no "element" to read from.
-    onChange: r => {
-      if (r.color === "element") r.propertyOf = "element";
-      else if (r.color === "relation" && r.propertyOf === "element") r.propertyOf = "relation";
-    } },
-  _typeCol("source", "Source", "Element type at the start of the relation (Color = Element: the element type). All = any.", 140),
-  Object.assign(_relCol("relation", "Relation", "Relationship type. All = any type."),
-    { width: 105, enabled: (/** @type {StyleCondition} */ r) => r.color !== "element" }),
-  Object.assign(_typeCol("target", "Target", "Element type at the end of the relation. All = any.", 140),
-    { enabled: (/** @type {StyleCondition} */ r) => r.color !== "element" }),
-  { key: "propertyOf", header: "Property of", kind: "choice", items: STYLE_PROP_OF_ITEMS, width: 120,
-    enabled: r => r.color !== "element",
-    tooltip: "Whose property supplies the value: the element, the relation, its source or its target." },
-  { key: "property", header: "Property", kind: "prop", width: 140, count: "count",
-    tooltip: "The property whose values give the colors.\n" +
-             "(n): objects on the view this condition colors (no property yet: objects it reaches)." },
-  { key: "colorRange", header: "Range", kind: "custom", create: (p, v, on) => Widgets.colorRangePicker(p, v || "Blues", on),
-    tooltip: "Colors from low to high value of the property." },
-  { key: "warn", kind: "warn" },
-]);
+/**
+ * Columns of the style table; the range cell lists the ranges of the chosen palette.
+ * @param {() => ColorPickerItem[]} ranges  the palette's ranges (Widgets.rangeItems); a new condition takes the first
+ * @returns {readonly ConditionTableColumn<StyleCondition>[]}
+ */
+function styleConditionColumns(ranges) {
+  /** @type {readonly ConditionTableColumn<StyleCondition>[]} */
+  const columns = [
+    _onCol,
+    { key: "applyTo", header: "Apply to", kind: "choice", items: STYLE_APPLY_TO_ITEMS, width: 150,
+      tooltip: "What gets the color: the element itself (using its own property), the relation, " +
+               "or the source / target element of a matching relation.",
+      // Element colors by its own property; a relation has no "element" to read from.
+      onChange: r => {
+        if (r.applyTo === "element") r.propertyOf = "element";
+        else if (r.applyTo === "relation" && r.propertyOf === "element") r.propertyOf = "relation";
+      } },
+    _typeCol("source", "Source type", "Element type at the start of the relation (Apply to = Element: the element type). All = any.", 140),
+    Object.assign(_relCol("relation", "Relation type", "Relationship type. All = any type."),
+      { width: 105, enabled: (/** @type {StyleCondition} */ r) => r.applyTo !== "element" }),
+    Object.assign(_typeCol("target", "Target type", "Element type at the end of the relation. All = any.", 140),
+      { enabled: (/** @type {StyleCondition} */ r) => r.applyTo !== "element" }),
+    { key: "propertyOf", header: "Property of", kind: "choice", items: STYLE_PROP_OF_ITEMS, width: 120,
+      enabled: r => r.applyTo !== "element",
+      tooltip: "Whose property supplies the value: the element, the relation, its source or its target." },
+    { key: "property", header: "Property", kind: "prop", width: 140, count: "count",
+      tooltip: "The property whose values give the colors.\n" +
+               "(n): objects on the view this condition colors (no property yet: objects it reaches)." },
+    { key: "colorRange", header: "Color range", kind: "custom",
+      create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) => {
+        const first = ranges()[0];
+        return Widgets.colorRangePicker(p, v || (first ? first.value : ""), on, ranges);
+      },
+      tooltip: "Colors from low to high value of the property: a range of the palette." },
+    { key: "warn", kind: "warn" },
+  ];
+  return Object.freeze(columns);
+}
 
 /** @type {readonly ConditionTableItem[]} */
 const FONT_SIZE_ITEMS = Object.freeze([{ value: 0, label: "" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
@@ -610,12 +622,10 @@ function nestingStyleConditionColumns(colors, switches) {
       tooltip: "Type of the nested element the condition selects; = Parent: the parent's type.\n" +
                "All = any type." },
     { key: "color", header: "Color", kind: "custom",
-      create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) => Widgets.colorPicker(p, {
-        items: () => [{ value: "", label: "Default", colors: [] }, ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
-        missing: x => ({ value: x, label: x + " (not in list)", colors: [] }),
-        value: v, onChange: on, width: 190 }),
+      create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) =>
+        Widgets.paletteColorPicker(p, { colors, value: v, onChange: on, withDefault: true, width: 190 }),
       enabled: () => switches.color(),
-      tooltip: "Color of the elements the condition selects: a palette color, or Default (the type's fill).\n" +
+      tooltip: "Color of the selected elements: a palette color, Other… or Default (the type's fill).\n" +
                "Lighter per level; when conditions select the same element the most specific wins." },
     { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70, enabled: () => switches.font(),
       tooltip: "Font size of the container where the condition starts; empty: continues from its parent.\n" +
@@ -628,6 +638,6 @@ function nestingStyleConditionColumns(colors, switches) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     conditionTable, nestingStyleConditionColumns,
-    ELEMENT_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS, FILTER_RELATION_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS, STYLE_CONDITION_COLUMNS,
+    ELEMENT_CONDITION_COLUMNS, DIAGRAM_CONDITION_COLUMNS, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS, FILTER_RELATION_CONDITION_COLUMNS, STEP_CONDITION_COLUMNS, styleConditionColumns,
   };
 }

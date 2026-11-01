@@ -91,7 +91,7 @@ Shared (Layers 1–2) ───────────────────�
   defs.js        SSOT: algorithm registry, params, labels, tooltips, defaults; preset validation
   rel_filter.js  the condition model of every condition list (pure)
   preset_io.js   preset and session files
-  palettes.js    the palettes file (named colours)
+  palettes.js    the palettes file (colours and colour ranges)
   hidden_properties.js  the hidden view properties file
   _lib/*         repo-wide helpers: selection, logging, folders
 ```
@@ -124,7 +124,7 @@ Shared (Layers 1–2) ───────────────────�
 | `lib/defs.js` | shared | SSOT: algorithms, params, labels, tooltips, defaults, enums; preset validation; effective params | `_lib/selection`, `rel_filter` |
 | `lib/rel_filter.js` | shared | Condition model: normalise, match, file form | — |
 | `lib/preset_io.js` | shared | Preset and session files | `defs`, `rel_filter` |
-| `lib/palettes.js` | shared | The palettes file: read, validate, colour lookup | — |
+| `lib/palettes.js` | shared | The palettes file: read, validate, the run's palette, colour lookup, range colours | chroma-js |
 | `lib/hidden_properties.js` | shared | The hidden properties file: read, validate, the hidden key set | `defs` |
 | `tools/`, `test/` | — | Checks, generators, migrations, harness; Archi test scripts | — |
 
@@ -412,7 +412,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - A nesting font is Archi's default view font of the run (`text_measure.defaultViewFont`, `FontFactory.getDefaultUserViewFontData`) with the style's size and bold; a reset writes that default font. jArchi cannot leave a name out or clear a font: every font setter writes name, size and style (`DiagramModelComponentProxy`), so the name is the default's, not a fixed "Segoe UI" (another name than the rest of the view, and in an Open Exchange export, which writes every visual's font, the exporting machine's default for the others). The cost: a font name the user set on a styled container is overwritten.
 - On a Modify action the pass resets the fill of every element the chain does not reach, and Highlight repeated's reset skips what an earlier group styled; otherwise the fill of an earlier run stayed.
 - Hidden view properties live in one file beside the palettes (`presets/_hidden_properties.json`, `hidden_properties.js`): the keys differ per model, and the `_` prefix keeps it out of the preset list. *Object ID* and *Managed occurrence* are hidden in code, because the tool owns them. An unticked row removes its key, so the view holds exactly what the tab shows.
-- Palettes live in one file (`presets/_palettes.json`, `palettes.js`) that a preset names, so a colour is defined once for every preset. The run reads it only when a nesting style condition names a colour.
+- Palettes live in one file (`presets/_palettes.json`, `palettes.js`) that a preset names, so a colour is defined once for every preset. A palette holds the colour ranges too: with the ranges a fixed ColorBrewer list beside the palette, the single colours and the ranges of one view did not belong together. One palette per preset, not one for colours and one for ranges: a palette is designed as one family; a mix is a palette of its own in the file. There is always a palette (no *None*), so every colour setting resolves. A setting names a palette colour or range; *Other…* gives a hex. A name the palette does not hold becomes its first colour or range, in the dialog (`colorPicker` `fallback`) and at the run (`palettes.colorOf`, `appearance._colorScale`, with a console line), so the dialog shows what the run writes; marking the name *not in list* showed neither. A range's `padding` replaces the code's fixed trim of ColorBrewer's dark ends.
 - Every colour choice in the dialog is the colour picker (`widgets.js`): a button and a menu with swatch images, since an SWT Combo shows text only on GTK ([dialog-style.md](reference/dialog-style.md#colour-choices)).
 
 ## Layer 3 — Engine adapters
@@ -671,7 +671,7 @@ Sources of order: the selection (Order *as selected*), ids (relations are taken 
 |---|---|---|
 | Presets | `presets/**/*.json` | Folders allowed. `Default` = the code defaults or the user's own, read-only in the dialog. `all` = base preset of `View/_*.ajs`. |
 | Session | `presets/_session.json` | Last settings plus UI state (`_`-prefixed keys); git-ignored |
-| Palettes | `presets/_palettes.json` | Named colours the presets pick from (`appearance.palette`); tracked |
+| Palettes | `presets/_palettes.json` | Colours and colour ranges the presets pick from (`appearance.palette`); tracked |
 | Program paths | `config.js` next to `config.default.js` | `node` and `dot`, per machine; git-ignored |
 | Hidden properties | `presets/_hidden_properties.json` | View property keys the Properties tab hides and generation leaves alone; tracked |
 | View properties | the generated view | From the Properties tab; optional object-id property |
@@ -773,7 +773,6 @@ Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` o
 
 | # | Gap | Fixing it gives | Requirement it meets, and what that gives |
 |---|---|---|---|
-| 6 | Look and feel ([principles](reference/gui.md#look-and-feel)); seen in the code, still to check in Archi:<br>• The Appearance and Properties tabs lay out their rows on their own, without the tab's heading column (Look 6).<br>• The opening explanations of *Expand selection* and the Appearance groups are black, not grey; two have a fixed width instead of wrapping at the group width (Look 9).<br>• Group margins differ: the Layout tab uses wider inner margins than the other tabs (Look 8).<br>• Style by nesting level: the root-size spinner has no label (Look 4). Its info line says "nesting types" instead of *Nesting condition* (SPEC rule 16).<br>• The preset row, the totals line and the action area have not been checked against the principles yet. | Every tab looks and reads the same way, so the dialog is quicker to scan and nothing looks unfinished. | gui.md § Look and feel: one consistent look across every dialog in the repo. |
 | 7 | Testing:<br>• SPEC § 13 acceptance is not automated: the count promise (predicted = written) is checked only in Archi, and no scale budget is defined.<br>• CI runs the typecheck and the two unit tests, not `check_registry.js` or `gen_docs_tables.js`.<br>• The test model and its baseline are in the repo, but CI does not use them yet: the harness, the layout regression, `write_plans.js` and `compare-views.js` run by hand.<br>• Applying a plan (`view_writer.js`) has no Node test; only Archi runs it. `nesting_test.js` models a write for the pairing tests (`simulateWrite`, local to the test) instead of using the real plan. | A regression is caught on push instead of only when someone runs the checks by hand or sees it in Archi. | SPEC § 13, acceptance: proof that the dialog's predicted totals match the view, and that the live counter stays fast on a large model. |
 | 8 | Errors ([Errors](#errors)):<br>• A failed run reaches only the console: `generate_view` catches every failure itself, so no entry point can show a message box.<br>• About 90 empty catches in `lib/`, many outside the closed list.<br>• Strings are thrown instead of `Error`: `generate_view` (engine switch, view folder), `preset_io.readPreset`, `defs.validatePreset`, `run_preset.parseFilename`.<br>• A failed preset save is only logged: `writeJSON` catches it, and `writePreset` still logs `Preset saved`. | The user sees a failed run or save instead of missing it in the console, and an error carries a stack for the maintainer. | SPEC § 12: a failure is never only on the console, and the dialog never acts as if a failed save succeeded. |
 | 10 | Step expansion and relation collection follow the order of jArchi's `rels()` (the order the model stores relations in), so *Order as selected* layouts depend on it; Determinism says no result does. Sorting by id would change those layouts and the Archi baseline. The order is also not stable within an Archi session: drawing a connection (`view.add(relation, …)`) moves its relation to the end of `rels()` (probed), so the harness's relation index matches only a freshly opened model. | *Order as selected* gives the same layout whether the model was just opened or connections were drawn in the session, and the harness always matches Archi. | SPEC rule 12, determinism: the same inputs always give the same view, so a layout can be reproduced and compared. |

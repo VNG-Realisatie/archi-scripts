@@ -59,17 +59,10 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   ctx.selectionScrolled = scrolled;
   ctx.selectionPage     = page;
 
-  // Recompute the ScrolledComposite's min-size whenever the shell width changes,
-  // so the page reflows to the current viewport width before scrolling kicks in.
-  try {
-    const ControlListenerJ = Java.type("org.eclipse.swt.events.ControlListener");
-    scrolled.addControlListener(ControlListenerJ.controlResizedAdapter(e => Widgets.resizeScrolled(scrolled, page)));
-  } catch (e) {}
-
   // ── Current selection ────────────────────────────────────────────────────────
   // Three 2-col counter rows (Selected / Containing / Filtered) + the global Filter
   // as a labelled section directly underneath, all inside one Group.
-  const grpInfo = Widgets.group(page, "Current selection", 1, { marginH: 8, marginV: 6, spaceH: 0, spaceV: 3 });
+  const grpInfo = Widgets.group(page, "Current selection", 1, { spaceH: 0, spaceV: 3 });
 
   // 2-col sub-composite: [fixed-width label] [count text, grabs width]
   const ctrComp = new CompositeWidget(grpInfo, SWT.NONE);
@@ -99,7 +92,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
     Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   };
 
-  Widgets.lbl(grpInfo, "Filter selection by element type (no Include condition = keep all, minus Exclude):");
+  Widgets.noteLabel(grpInfo, "Filter selection by element type (no Include condition = keep all, minus Exclude):");
   w.tblElementConditions = conditionTable(grpInfo, {
     kind: "element", columns: ELEMENT_CONDITION_COLUMNS, filterList: true, propCondition: true,
     onChange: onFilterChange, onLayout: onSelLayout,
@@ -112,7 +105,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   const diagBox = new CompositeWidget(grpInfo, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 4).applyTo(diagBox);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(diagBox);
-  Widgets.lbl(diagBox, "Filter selection by diagram type (no Include condition = keep all, minus Exclude):");
+  Widgets.noteLabel(diagBox, "Filter selection by diagram type (no Include condition = keep all, minus Exclude):");
   w.tblDiagramConditions = conditionTable(diagBox, {
     kind: "diagram", columns: DIAGRAM_CONDITION_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
   });
@@ -120,7 +113,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   diagBox.setVisible(hasDiagramObjects);
   diagBox.getLayoutData().exclude = !hasDiagramObjects;
 
-  Widgets.lbl(grpInfo, "Filter selection by relations (no Include condition = keep all, minus Exclude):");
+  Widgets.noteLabel(grpInfo, "Filter selection by relations (no Include condition = keep all, minus Exclude):");
   w.tblRelationConditions = conditionTable(grpInfo, {
     kind: "relation", columns: FILTER_RELATION_CONDITION_COLUMNS, filterList: true, onChange: onFilterChange, onLayout: onSelLayout,
   });
@@ -129,9 +122,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   // One block per step; each holds a condition table. "+ Add step" sits below the steps.
   const grpRel = Widgets.group(page, "Expand selection", 1);
 
-  const lblExplain = new LabelWidget(grpRel, SWT.WRAP);
-  lblExplain.setText("Expand the selection with connected elements. Each step defines which relation to follow.");
-  GridDataFactory.fillDefaults().grab(true, false).hint(420, SWT.DEFAULT).applyTo(lblExplain);
+  Widgets.noteLabel(grpRel, "Expand the selection with connected elements. Each step defines which relation to follow.");
 
   const blocksContainer = new CompositeWidget(grpRel, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(4, 8).applyTo(blocksContainer);

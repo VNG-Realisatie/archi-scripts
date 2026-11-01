@@ -82,7 +82,7 @@
     },
     "highlightRepeated": {
       "enabled": true,
-      "colorRange": "Pastel1"
+      "colorRange": "Lagen"
     }
   },
   "engineParams": {},

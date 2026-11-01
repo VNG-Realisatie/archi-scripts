@@ -62,7 +62,7 @@
     "suffix": ""
   },
   "appearance": {
-    "palette": "",
+    "palette": "Brewer",
     "styleByProperty": {
       "conditions": [
         {"property": "domain", "colorRange": "Set2"}

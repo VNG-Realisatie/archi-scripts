@@ -1,6 +1,96 @@
 {
   "palettes": [
     {
+      "name": "Brewer",
+      "colors": [
+        {"name": "Red", "hex": "#fbb4ae"},
+        {"name": "Blue", "hex": "#b3cde3"},
+        {"name": "Green", "hex": "#ccebc5"},
+        {"name": "Purple", "hex": "#decbe4"},
+        {"name": "Orange", "hex": "#fed9a6"},
+        {"name": "Yellow", "hex": "#ffffcc"},
+        {"name": "Brown", "hex": "#e5d8bd"},
+        {"name": "Pink", "hex": "#fddaec"},
+        {"name": "Grey", "hex": "#f2f2f2"}
+      ],
+      "ranges": [
+        {"name": "Pastel1", "colors": ["#fbb4ae", "#b3cde3", "#ccebc5", "#decbe4", "#fed9a6", "#ffffcc", "#e5d8bd", "#fddaec", "#f2f2f2"]},
+        {"name": "Pastel2", "colors": ["#b3e2cd", "#fdcdac", "#cbd5e8", "#f4cae4", "#e6f5c9", "#fff2ae", "#f1e2cc", "#cccccc"]},
+        {"name": "Set2", "colors": ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"]},
+        {"name": "Set3", "colors": ["#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd", "#ccebc5", "#ffed6f"]},
+        {"name": "Blues", "colors": ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c", "#08306b"], "padding": [0.1, 0.4]},
+        {"name": "Greens", "colors": ["#f7fcf5", "#e5f5e0", "#c7e9c0", "#a1d99b", "#74c476", "#41ab5d", "#238b45", "#006d2c", "#00441b"], "padding": [0.1, 0.4]},
+        {"name": "Oranges", "colors": ["#fff5eb", "#fee6ce", "#fdd0a2", "#fdae6b", "#fd8d3c", "#f16913", "#d94801", "#a63603", "#7f2704"], "padding": [0.1, 0.4]},
+        {"name": "Purples", "colors": ["#fcfbfd", "#efedf5", "#dadaeb", "#bcbddc", "#9e9ac8", "#807dba", "#6a51a3", "#54278f", "#3f007d"], "padding": [0.1, 0.4]},
+        {"name": "Reds", "colors": ["#fff5f0", "#fee0d2", "#fcbba1", "#fc9272", "#fb6a4a", "#ef3b2c", "#cb181d", "#a50f15", "#67000d"], "padding": [0.1, 0.4]},
+        {"name": "Greys", "colors": ["#ffffff", "#f0f0f0", "#d9d9d9", "#bdbdbd", "#969696", "#737373", "#525252", "#252525", "#000000"], "padding": [0.1, 0.4]},
+        {"name": "RdYlBu", "colors": ["#a50026", "#d73027", "#f46d43", "#fdae61", "#fee090", "#ffffbf", "#e0f3f8", "#abd9e9", "#74add1", "#4575b4", "#313695"], "padding": [0.1, 0.4]},
+        {"name": "RdYlGn", "colors": ["#a50026", "#d73027", "#f46d43", "#fdae61", "#fee08b", "#ffffbf", "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850", "#006837"], "padding": [0.1, 0.4]},
+        {"name": "Spectral", "colors": ["#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#ffffbf", "#e6f598", "#abdda4", "#66c2a5", "#3288bd", "#5e4fa2"], "padding": [0.1, 0.4]},
+        {"name": "OrRd", "colors": ["#fff7ec", "#fee8c8", "#fdd49e", "#fdbb84", "#fc8d59", "#ef6548", "#d7301f", "#b30000", "#7f0000"], "padding": [0.1, 0.4]},
+        {"name": "PuBu", "colors": ["#fff7fb", "#ece7f2", "#d0d1e6", "#a6bddb", "#74a9cf", "#3690c0", "#0570b0", "#045a8d", "#023858"], "padding": [0.1, 0.4]}
+      ]
+    },
+    {
+      "name": "Tol",
+      "colors": [
+        {"name": "Light Blue", "hex": "#77aadd"},
+        {"name": "Orange", "hex": "#ee8866"},
+        {"name": "Light Yellow", "hex": "#eedd88"},
+        {"name": "Pink", "hex": "#ffaabb"},
+        {"name": "Light Cyan", "hex": "#99ddff"},
+        {"name": "Mint", "hex": "#44bb99"},
+        {"name": "Pear", "hex": "#bbcc33"},
+        {"name": "Olive", "hex": "#aaaa00"},
+        {"name": "Pale Grey", "hex": "#dddddd"}
+      ],
+      "ranges": [
+        {"name": "Light", "colors": ["#77aadd", "#ee8866", "#eedd88", "#ffaabb", "#99ddff", "#44bb99", "#bbcc33", "#aaaa00", "#dddddd"]},
+        {"name": "Pale", "colors": ["#bbccee", "#ffcccc", "#ccddaa", "#eeeebb", "#cceeff", "#dddddd"]},
+        {"name": "Sunset", "colors": ["#364b9a", "#4a7bb7", "#6ea6cd", "#98cae1", "#c2e4ef", "#eaeccc", "#feda8b", "#fdb366", "#f67e4b", "#dd3d2d", "#a50026"], "padding": [0.2, 0.2]},
+        {"name": "BuRd", "colors": ["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#f7f7f7", "#fddbc7", "#f4a582", "#d6604d", "#b2182b"], "padding": [0.2, 0.2]},
+        {"name": "PRGn", "colors": ["#762a83", "#9970ab", "#c2a5cf", "#e7d4e8", "#f7f7f7", "#d9f0d3", "#acd39e", "#5aae61", "#1b7837"], "padding": [0.2, 0.2]},
+        {"name": "YlOrBr", "colors": ["#ffffe5", "#fff7bc", "#fee391", "#fec44f", "#fb9a29", "#ec7014", "#cc4c02", "#993404", "#662506"], "padding": [0, 0.4]},
+        {"name": "Iridescent", "colors": ["#fefbe9", "#fcf7d5", "#f5f3c1", "#eaf0b5", "#ddecbf", "#d0e7ca", "#c2e3d2", "#b5ddd8", "#a8d8dc", "#9bd2e1", "#8dcbe4", "#81c4e7", "#7bbce7", "#7eb2e4", "#88a5dd", "#9398d2", "#9b8ac4", "#9d7db2", "#9a709e", "#906388", "#805770", "#684957", "#46353a"], "padding": [0, 0.4]}
+      ]
+    },
+    {
+      "name": "Open Color",
+      "colors": [
+        {"name": "Red", "hex": "#ffc9c9"},
+        {"name": "Pink", "hex": "#fcc2d7"},
+        {"name": "Grape", "hex": "#eebefa"},
+        {"name": "Violet", "hex": "#d0bfff"},
+        {"name": "Indigo", "hex": "#bac8ff"},
+        {"name": "Blue", "hex": "#a5d8ff"},
+        {"name": "Cyan", "hex": "#99e9f2"},
+        {"name": "Teal", "hex": "#96f2d7"},
+        {"name": "Green", "hex": "#b2f2bb"},
+        {"name": "Lime", "hex": "#d8f5a2"},
+        {"name": "Yellow", "hex": "#ffec99"},
+        {"name": "Orange", "hex": "#ffd8a8"},
+        {"name": "Gray", "hex": "#e9ecef"}
+      ],
+      "ranges": [
+        {"name": "Light", "colors": ["#ffc9c9", "#fcc2d7", "#eebefa", "#d0bfff", "#bac8ff", "#a5d8ff", "#99e9f2", "#96f2d7", "#b2f2bb", "#d8f5a2", "#ffec99", "#ffd8a8"]},
+        {"name": "Red", "colors": ["#fff5f5", "#ffe3e3", "#ffc9c9", "#ffa8a8", "#ff8787", "#ff6b6b", "#fa5252"]},
+        {"name": "Pink", "colors": ["#fff0f6", "#ffdeeb", "#fcc2d7", "#faa2c1", "#f783ac", "#f06595", "#e64980"]},
+        {"name": "Grape", "colors": ["#f8f0fc", "#f3d9fa", "#eebefa", "#e599f7", "#da77f2", "#cc5de8", "#be4bdb"]},
+        {"name": "Violet", "colors": ["#f3f0ff", "#e5dbff", "#d0bfff", "#b197fc", "#9775fa", "#845ef7", "#7950f2"]},
+        {"name": "Indigo", "colors": ["#edf2ff", "#dbe4ff", "#bac8ff", "#91a7ff", "#748ffc", "#5c7cfa", "#4c6ef5"]},
+        {"name": "Blue", "colors": ["#e7f5ff", "#d0ebff", "#a5d8ff", "#74c0fc", "#4dabf7", "#339af0", "#228be6"]},
+        {"name": "Cyan", "colors": ["#e3fafc", "#c5f6fa", "#99e9f2", "#66d9e8", "#3bc9db", "#22b8cf", "#15aabf"]},
+        {"name": "Teal", "colors": ["#e6fcf5", "#c3fae8", "#96f2d7", "#63e6be", "#38d9a9", "#20c997", "#12b886"]},
+        {"name": "Green", "colors": ["#ebfbee", "#d3f9d8", "#b2f2bb", "#8ce99a", "#69db7c", "#51cf66", "#40c057"]},
+        {"name": "Lime", "colors": ["#f4fce3", "#e9fac8", "#d8f5a2", "#c0eb75", "#a9e34b", "#94d82d", "#82c91e"]},
+        {"name": "Yellow", "colors": ["#fff9db", "#fff3bf", "#ffec99", "#ffe066", "#ffd43b", "#fcc419", "#fab005"]},
+        {"name": "Orange", "colors": ["#fff4e6", "#ffe8cc", "#ffd8a8", "#ffc078", "#ffa94d", "#ff922b", "#fd7e14"]},
+        {"name": "Gray", "colors": ["#f8f9fa", "#f1f3f5", "#e9ecef", "#dee2e6", "#ced4da", "#adb5bd", "#868e96"]},
+        {"name": "Blue–Red", "colors": ["#339af0", "#4dabf7", "#74c0fc", "#a5d8ff", "#d0ebff", "#e7f5ff", "#ffffff", "#fff5f5", "#ffe3e3", "#ffc9c9", "#ffa8a8", "#ff8787", "#ff6b6b"]},
+        {"name": "Teal–Orange", "colors": ["#20c997", "#38d9a9", "#63e6be", "#96f2d7", "#c3fae8", "#e6fcf5", "#ffffff", "#fff4e6", "#ffe8cc", "#ffd8a8", "#ffc078", "#ffa94d", "#ff922b"]}
+      ]
+    },
+    {
       "name": "GEMMA",
       "colors": [
         {"name": "Bedrijf actief", "hex": "#ffffdd"},
@@ -18,6 +108,14 @@
         {"name": "Waardestroom", "hex": "#dad5f0"},
         {"name": "Motivatie", "hex": "#cab5ea"},
         {"name": "Grouping", "hex": "#f6f6f6"}
+      ],
+      "ranges": [
+        {"name": "Lagen", "colors": ["#ffffcc", "#b7dee8", "#c6efce", "#f9c268", "#cab5ea", "#cfde7a", "#dad5f0", "#f5aa27"]},
+        {"name": "Bedrijf", "colors": ["#ffffdd", "#ffffcc", "#fefeb4", "#fdf68c"]},
+        {"name": "Applicatie", "colors": ["#daeef3", "#b7dee8", "#92cddc", "#6dbccf"]},
+        {"name": "Technologie", "colors": ["#def6e3", "#c6efce", "#a0e4ad", "#7bd78d"]},
+        {"name": "Strategie", "colors": ["#fde3b8", "#f9c268", "#f5aa27"]},
+        {"name": "Motivatie", "colors": ["#dad5f0", "#cab5ea", "#a98bdc"]}
       ]
     }
   ]
