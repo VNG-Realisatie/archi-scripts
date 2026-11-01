@@ -55,6 +55,7 @@ const ICON_OFFSET = Object.freeze({
  * @property {TextMeasure}   measure
  * @property {LineBreaks}    breaks       where Archi may break label text
  * @property {TextFont}      defaultFont  Archi's default view font (Style by nesting level writes its name)
+ * @property {NewVisualDefaults} newVisual  how Archi creates a new element visual (its label layout)
  * @property {RelationIndex} relationsOf  the model relations of an element (Style by nesting level)
  * @property {boolean}       isModify     Layout only / Expand view: Style by nesting level resets a font it no longer sets
  *
@@ -74,8 +75,8 @@ const ICON_OFFSET = Object.freeze({
 /**
  * How each element node's label is laid out. Font: the one Style by nesting level sets or resets,
  * else the visual's, else Archi's default view font. Text width: the visual's figure type, text
- * alignment, text position and icon; a new visual as Archi creates it (a grouping left-aligned,
- * another element taken as centred, the narrower of Archi's choices; text at the top; icon shown).
+ * alignment, text position and icon; a new visual as Archi creates it (figure type, text alignment
+ * and text position from Archi's preferences, a grouping left-aligned; icon shown).
  * @param {LayoutNode[]}           nodes
  * @param {Record<string, string>} parentMap
  * @param {LabelSources}           src
@@ -102,7 +103,7 @@ function labelLayouts(nodes, parentMap, src) {
     const vo = src.visualOf(id);
     const el = src.elementOf(id);
     const font = styled.get(id) || (vo ? { name: vo.fontName, size: vo.fontSize, style: vo.fontStyle } : null);
-    return { font, ...(el ? _iconRoom(el.type, vo) : { iconCut: 0, iconClear: 0 }), breaks: src.input.breaks };
+    return { font, ...(el ? _iconRoom(el.type, vo, src.input.newVisual) : { iconCut: 0, iconClear: 0 }), breaks: src.input.breaks };
   };
 }
 
@@ -112,15 +113,16 @@ function labelLayouts(nodes, parentMap, src) {
  * text, which Archi lets run under the icon, the room it needs on the right of the first line.
  * @param {string} type  jArchi element type
  * @param {VisualObject | undefined} vo  undefined = a new visual
+ * @param {NewVisualDefaults} newVisual  how Archi creates a new visual
  * @returns {{ iconCut: number, iconClear: number }}
  */
-function _iconRoom(type, vo) {
+function _iconRoom(type, vo, newVisual) {
   const offset = ICON_OFFSET[type];
-  const figureType = vo ? vo.figureType : 0;
-  const position   = vo ? vo.textPosition : TEXT_POSITION_TOP;
+  const figureType = vo ? vo.figureType : newVisual.figureTypeOf(type);
+  const position   = vo ? vo.textPosition : type === "grouping" ? TEXT_POSITION_TOP : newVisual.textPosition;
   const shown      = vo ? vo.showIcon !== ICON_VISIBLE_NEVER : true;
   if (!offset || figureType !== 0 || position !== TEXT_POSITION_TOP || !shown) return { iconCut: 0, iconClear: 0 };
-  const alignment = vo ? vo.textAlignment : type === "grouping" ? TEXT_ALIGNMENT_LEFT : TEXT_ALIGNMENT_CENTER;
+  const alignment = vo ? vo.textAlignment : type === "grouping" ? TEXT_ALIGNMENT_LEFT : newVisual.textAlignment;
   const clear = offset - ARCHI_TEXT_MARGIN;
   if (alignment === TEXT_ALIGNMENT_LEFT) return { iconCut: 0, iconClear: clear };
   return { iconCut: alignment === TEXT_ALIGNMENT_CENTER ? 2 * clear : clear, iconClear: 0 };

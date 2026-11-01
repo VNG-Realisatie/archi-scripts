@@ -333,7 +333,8 @@ function _layoutRuntime() {
   const Paths = Java.type("java.nio.file.Paths");
   const config = ViewConfig.readConfig(path => Files.exists(Paths.get(path)));
   return { runProcess: ViewConfig.programRunner(ProcessRun.runProcess, config), config, inProcess: false,
-           measureText: TextMeasure.createTextMeasure(), lineBreaks: TextMeasure.createLineBreaks(), defaultFont: TextMeasure.defaultViewFont() };
+           measureText: TextMeasure.createTextMeasure(), lineBreaks: TextMeasure.createLineBreaks(), defaultFont: TextMeasure.defaultViewFont(),
+           newVisual: TextMeasure.newVisualDefaults() };
 }
 
 /**
@@ -362,7 +363,8 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   // part of the nesting resolution, so every visual gets a node.
   console.log("\nLayout graph:");
   const isModify = actionId === ACTION.LAYOUT_ONLY.id || actionId === ACTION.EXPAND_VIEW.id;
-  const labels = { measure: runtime.measureText, breaks: runtime.lineBreaks, defaultFont: runtime.defaultFont, relationsOf: snapshot.relationsOf, isModify };
+  const labels = { measure: runtime.measureText, breaks: runtime.lineBreaks, defaultFont: runtime.defaultFont, newVisual: runtime.newVisual,
+                   relationsOf: snapshot.relationsOf, isModify };
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   timer.lap("layout graph");

@@ -177,6 +177,21 @@ interface LayoutRuntime {
   lineBreaks: LineBreaks;
   /** Archi's default view font: FontFactory's in Archi, a fresh Archi's in Node. */
   defaultFont: TextFont;
+  /** How Archi creates a new element visual: its preferences in Archi, a fresh Archi's in Node. */
+  newVisual: NewVisualDefaults;
+}
+
+/**
+ * How Archi creates a new element visual (ArchimateDiagramModelFactory): Preferences › Appearance ›
+ * ArchiMate Figures. A grouping is always left-aligned (GroupingUIProvider), whatever the preference.
+ */
+interface NewVisualDefaults {
+  /** Default text alignment of an ArchiMate figure (ITextAlignment). */
+  textAlignment: number;
+  /** Default text position of an ArchiMate figure (ITextPosition). */
+  textPosition: number;
+  /** The figure type Archi gives a new visual of a jArchi element type (0 or 1). */
+  figureTypeOf(type: string): number;
 }
 
 // ── Nesting resolution (nesting.resolveNesting) ───────────────────────────────────────

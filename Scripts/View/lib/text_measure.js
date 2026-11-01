@@ -1,8 +1,8 @@
 /**
  * Text measuring in Archi (LayoutRuntime.measureText): SWT measures one line in the font Archi draws a
  * label with — FontFactory's view font, so Archi's own font scaling applies. Runs on the UI thread,
- * where jArchi runs scripts. Where a line may break comes from Java too. The Node harness has its own
- * estimate (tools/text_measure_node.js).
+ * where jArchi runs scripts. Where a line may break comes from Java too, and how Archi creates a new
+ * element visual from its preferences. The Node harness has its own estimate (tools/text_measure_node.js).
  */
 console.log("Loading text_measure.js");
 
@@ -16,6 +16,8 @@ const ServiceLoader         = Java.type("java.util.ServiceLoader");
 const Locale                = Java.type("java.util.Locale");
 // Archi's own class, not the jArchi API (ARCHITECTURE § Platform constraints): the font a figure draws with.
 const FontFactory = Java.type("com.archimatetool.editor.ui.FontFactory");
+// Archi's own class too: its preference store holds how a new element visual is created.
+const ArchiPlugin = Java.type("com.archimatetool.editor.ArchiPlugin");
 
 /**
  * A measurer for one run; it remembers what it measured.
@@ -57,6 +59,35 @@ function defaultViewFont() {
 }
 
 /**
+ * How Archi creates a new element visual (ArchimateDiagramModelFactory.createDiagramModelArchimateObject,
+ * which jArchi's add uses): text alignment, text position and figure type from Preferences ›
+ * Appearance › ArchiMate Figures (IPreferenceConstants). Read once per run.
+ * @returns {NewVisualDefaults}
+ */
+function newVisualDefaults() {
+  const store = ArchiPlugin.getInstance().getPreferenceStore();
+  /** @type {Map<string, number>} */
+  const figureTypes = new Map();
+  return {
+    textAlignment: store.getInt("defaultArchiMateTextAlignment"),
+    textPosition:  store.getInt("defaultArchiMateTextPosition"),
+    figureTypeOf: type => {
+      if (!figureTypes.has(type)) figureTypes.set(type, store.getInt("defaultFigure" + _eClassName(type)));
+      return /** @type {number} */ (figureTypes.get(type));   // Cast: set on the line above
+    },
+  };
+}
+
+/**
+ * The EMF class name of a jArchi element type ("business-actor" → "BusinessActor").
+ * @param {string} type
+ * @returns {string}
+ */
+function _eClassName(type) {
+  return type.split("-").map(part => part.charAt(0).toUpperCase() + part.substring(1)).join("");
+}
+
+/**
  * Where Archi breaks label text: the line BreakIterator draw2d's text flow wraps with
  * (FlowUtilities.getLineInstance: the first BreakIteratorProvider registered, else Java's own).
  * @returns {LineBreaks}
@@ -84,4 +115,4 @@ function _viewFont(font) {
   return FontFactory.getViewFont(new FontData(font.name, font.size, style).toString());
 }
 
-module.exports = { createTextMeasure, createLineBreaks, defaultViewFont };
+module.exports = { createTextMeasure, createLineBreaks, defaultViewFont, newVisualDefaults };

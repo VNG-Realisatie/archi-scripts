@@ -1,12 +1,18 @@
 /**
  * Text measuring in Node (LayoutRuntime.measureText) for the harness and the Node tests: an estimate
  * from the point size, set to what Archi measures with SWT on the development machine
- * (lib/text_measure.js). Archi's default view font is a user preference; the harness takes the one a
- * fresh Archi has.
+ * (lib/text_measure.js). Archi's default view font and how it creates a new element visual are user
+ * preferences; the harness takes those of a fresh Archi.
  */
 
 /** The default view font of a fresh Archi (Preferences › Appearance › Fonts). */
 const HARNESS_DEFAULT_FONT = Object.freeze({ name: "Segoe UI", size: 9, style: "normal" });
+
+/**
+ * How a fresh Archi creates a new element visual (PreferenceInitializer): centred, text at the top, figure type 0.
+ * @type {NewVisualDefaults}
+ */
+const HARNESS_NEW_VISUAL = Object.freeze({ textAlignment: 2, textPosition: 0, figureTypeOf: () => 0 });
 
 // Archi 5.10 on GTK measured (2026-10-31): 9 pt = 15 px (120 dpi), a line 21 px, "Archi" 34 px wide.
 const PX_PER_PT      = 120 / 72;
@@ -52,4 +58,4 @@ function lineBreaks(text) {
   return offsets;
 }
 
-module.exports = { measureText, lineBreaks, HARNESS_DEFAULT_FONT };
+module.exports = { measureText, lineBreaks, HARNESS_DEFAULT_FONT, HARNESS_NEW_VISUAL };
