@@ -898,6 +898,48 @@ function _conditionValidity() {
   };
 }
 
+// The shape unknownPresetKeys checks a preset file against: DEFAULT_PRESET and the `description`
+// readPreset keeps, with the item shape of the two lists whose items are not conditions.
+const _PRESET_FILE_SHAPE = Object.freeze({ ...DEFAULT_PRESET, description: "" });
+/** @type {Readonly<Record<string, object>>} */
+const _ITEM_SHAPES = Object.freeze({
+  "relatedElements.steps":     { name: "", repeat: 1, conditions: [] },
+  "viewProperties.properties": { key: "", value: "", enabled: false },
+});
+
+/**
+ * The keys of a preset file that validatePreset does not read, as paths ("params.layerSpacng",
+ * "relatedElements.steps[0].nam"). Not looked into: condition lists (normalizeConditions skips a
+ * condition with an unknown key, with a warning) and `engineParams` (checkEngineParams, at the run).
+ * @param {PresetFile} raw
+ * @returns {string[]}
+ */
+function unknownPresetKeys(raw) {
+  /** @type {string[]} */
+  const found = [];
+  _unknownKeys(raw, _PRESET_FILE_SHAPE, "", found);
+  return found;
+}
+
+/**
+ * @param {unknown}                 raw
+ * @param {Record<string, unknown>} shape
+ * @param {string}                  at     path of `raw`; "" = the preset
+ * @param {string[]}                found  extended with the unknown paths
+ */
+function _unknownKeys(raw, shape, at, found) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  for (const [key, value] of Object.entries(raw)) {
+    const path = at ? `${at}.${key}` : key;
+    const known = shape[key];
+    const items = _ITEM_SHAPES[path];
+    if (!(key in shape)) found.push(path);
+    else if (items && Array.isArray(value)) value.forEach((item, i) => _unknownKeys(item, /** @type {Record<string, unknown>} */ (items), `${path}[${i}]`, found));   // Cast: an item shape is a plain object
+    else if (path !== "engineParams" && known && typeof known === "object" && !Array.isArray(known))
+      _unknownKeys(value, /** @type {Record<string, unknown>} */ (known), path, found);   // Cast: checked to be a plain object
+  }
+}
+
 /**
  * Keys of the preset format before condition lists (schemaVersion 2) found in `raw`. Presets are
  * migrated offline (README.md § Presets); loading one unmigrated would silently drop its filters.
@@ -1035,7 +1077,6 @@ function validatePreset(raw) {
       if (typeof rn.colorEnabled         === "boolean") pa.nestingLevel.colorEnabled         = rn.colorEnabled;
       if (typeof rn.darkenStart          === "number")  pa.nestingLevel.darkenStart          = Math.max(0, Math.min(3, Math.round(rn.darkenStart)));
       if (typeof rn.lightenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.lightenPerLevel;
-      else if (typeof rn.darkenPerLevel === "number") pa.nestingLevel.lightenPerLevel = rn.darkenPerLevel; // migration
     }
 
     if (ra.highlightRepeated && typeof ra.highlightRepeated === "object") {
@@ -1132,7 +1173,7 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS,
     CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,
-    validatePreset, effectiveParams, connectionsModeLock,
+    validatePreset, unknownPresetKeys, effectiveParams, connectionsModeLock,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
     compareNames,
   };

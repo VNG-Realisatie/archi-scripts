@@ -319,7 +319,10 @@ interface JavaInterop {
   type(className: "org.eclipse.jface.layout.GridLayoutFactory"): JFace.GridLayoutFactoryClass;
   type(className: "org.eclipse.jface.resource.FontDescriptor"): { createFrom(font: Swt.Font): JFace.FontDescriptor };
   type(className: "org.eclipse.jface.dialogs.IDialogConstants"): { readonly OK_ID: number; readonly CANCEL_ID: number };
-  type(className: "org.eclipse.jface.dialogs.MessageDialog"): { openConfirm(parent: Swt.Shell, title: string, message: string): boolean };
+  type(className: "org.eclipse.jface.dialogs.MessageDialog"): {
+    openConfirm(parent: Swt.Shell, title: string, message: string): boolean;
+    openWarning(parent: Swt.Shell, title: string, message: string): void;
+  };
   type(className: "org.eclipse.jface.dialogs.InputDialog"): new (parent: Swt.Shell, title: string, message: string, initial: string, validator: null) => JFace.InputDialog;
   type(className: "org.eclipse.jface.window.Window"): { readonly OK: number; readonly CANCEL: number };
 }

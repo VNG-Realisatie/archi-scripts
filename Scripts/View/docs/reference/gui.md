@@ -74,6 +74,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 Above the tab strip, left to right:
 
 - **Preset picker**: a button with the current preset (`folder/sub/name`). It opens a pop-up with a filter field over a tree of every saved preset: Default first, then the folders, folded, with the current preset's folders open and the preset selected. Typing filters on the full name, folders included, and opens every folder that holds a match; Enter in the filter picks the first match, Esc or a click outside closes the pop-up. Picking one (a click, or Enter on a preset) loads all its settings, including values of options its algorithm does not use, so a later Save writes back exactly what was loaded.
+- **Unknown keys**: a picked preset whose file has keys the dialog does not read opens a warning box that names them; they are not loaded, and saving the preset drops them.
 - **`*`**: shown while the settings differ from the saved preset, after any change. It also shows on open when the session differs from the preset it came from; the view name is not compared, because it is pre-filled from the selection. Save, Save As and loading a preset clear it.
 - **Save** overwrites the current preset.
 - **Save As…** asks Name, Folder and Description, writes a new preset and selects it.

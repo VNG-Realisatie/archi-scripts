@@ -138,16 +138,21 @@ function listFolders() {
 }
 
 /**
- * Read and validate a named preset. Preserves description field.
+ * Read and validate a named preset. Preserves description field. Keys validation does not read are
+ * reported: by default on the console; a caller inside a modal dialog passes its own report.
  * @param {string} name  preset name — "name" or "folder/name" (without .json)
+ * @param {(message: string) => void} [reportUnknownKeys]  called once when the file has unknown keys
  * @returns {Preset} validated preset, with description preserved
  * @throws if file not found
  */
-function readPreset(name) {
+function readPreset(name, reportUnknownKeys = message => console.log(`Warning: ${message}`)) {
   if (name === DEFAULT_PRESET_NAME) ensureDefault();
   const path = _presetPath(name);
   const raw  = readJSON(path);
   if (!raw) throw `Preset not found: "${name}" (${path})`;
+  const unknown = Defs.unknownPresetKeys(raw);
+  if (unknown.length)
+    reportUnknownKeys(`Preset "${name}" has keys that are not read: ${unknown.join(", ")}. Remove them from the file or correct their names; saving the preset drops them.`);
   const validated = validatePreset(raw);
   if (raw.description !== undefined) validated.description = raw.description;
   return validated;

@@ -4,50 +4,147 @@
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "influence-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "influence-relationship"}
+    ],
     "padding": 20,
+    "diagramPadding": 10,
     "sort": "Containers, then elements",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
     "layerSpacing": 180,
     "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 0,
-    "nestingConditions": [
-      {"relation": "aggregation-relationship"},
-      {"relation": "assignment-relationship"},
-      {"relation": "association-relationship"},
-      {"relation": "realization-relationship"}
-    ],
-    "reverseConditions": [
-      {"relation": "assignment-relationship"},
-      {"relation": "association-relationship"}
-    ],
-    "connectionsMode": "Across containers",
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false
   },
   "filter": {
     "elementConditions": [],
-    "relationConditions": [],
-    "diagramConditions": []
+    "diagramConditions": [],
+    "relationConditions": []
   },
   "relatedElements": {
-    "steps": []
+    "steps": [
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"relation": "influence-relationship"}
+        ]
+      }
+    ]
   },
   "view": {
-    "name": "",
-    "suffix": "",
-    "folder": ""
+    "name": "Kernwaarden",
+    "folder": "/_Generated",
+    "suffix": ""
   },
   "appearance": {
     "palette": "",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
     "nestingLevel": {
       "conditions": [
         {"bold": true, "child": "same"}
       ],
-      "darkenStart": 0
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "darkenStart": 0,
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
     }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      }
+    ]
   }
 }

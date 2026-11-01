@@ -575,7 +575,7 @@ DEFAULT_PRESET (defs.js)                      code defaults
  ← session       presets/_session.json        dialog: the last settings; a picked preset replaces them
  ← overrides     entry script or caller       direction from the file name, fixed params of View/_*.ajs,
                                               opts.edit, a calling script's own changes
- → validatePreset                             missing keys defaulted, unknown keys stripped, conditions checked
+ → validatePreset                             missing keys defaulted, unknown keys reported and stripped, conditions checked
  → effectiveParams                            inactive params dropped, locks applied (connections mode)
  → adapter: engine defaults ← GUI params (mapping) ← engineParams.<Engine>
 ```
@@ -584,6 +584,7 @@ DEFAULT_PRESET (defs.js)                      code defaults
 - **One registry per algorithm** in `defs.js`: engine, style, nesting and self-loop capability, active params, allowed values. Dialog enabling, validation and the generated tables derive from it; `tools/check_registry.js` checks registry ↔ defaults ↔ dialog widgets.
 - **Effective params.** Inactive params are dropped and locks applied (connections mode) before the pipeline, adapter or writer sees the preset.
 - **File form.** Plain JSON, one condition per line, defaults omitted, so a changed condition is one changed line in a diff.
+- **Unknown keys are reported when a preset file is read** (`defs.unknownPresetKeys`, called by `preset_io.readPreset`): every key validation does not read, as a path (`params.layerSpacng`, `relatedElements.steps[0].nam`), with the advice to remove or correct it. Condition lists and `engineParams` are not looked into: a condition with an unknown key is skipped with a warning, and `engineParams` is checked at the run. `readPreset` logs the message on the console; the dialog passes its own report and shows it in a warning box after the load, because console output blocks while the modal dialog is open. Comparing with the saved preset and Rename read quietly: the message came at the load.
 - **The schema version gates loading.** A different `schemaVersion` is refused with a message. A shape change ships with a one-shot, idempotent Node migration in `tools/` that rewrites every preset, `_session.json` included; there is no conversion at load time. Version 3 replaced `params.showInEveryContainer` with `everyContainer` per nesting condition. Version 4 renamed the *rule* keys to *condition*. Version 5 added the nesting style conditions and the palette and dropped `rootColor`, which was never used because jArchi always reads an effective fill (the default condition and `darkenStart: 0`, so existing presets keep their colours). Version 6 moved `rootFontSize` and `rootFontBold` to `fontSize` and `bold` of the first nesting style condition (`tools/migrate_presets_nesting_font.js`). Only the latest migration is kept: an older one stamps the current version on its own output, which loading then strips or refuses; the migrations to versions 2 and 3 run from commit `61c9c52`, the one to version 4 from `deb432c`, the one to version 5 from `8e13b2e` ([README](../README.md#presets)).
 
 ## Cross-cutting concepts
@@ -767,7 +768,6 @@ How a change is designed, built and checked. The binding steps are in [`Scripts/
 
 Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` or this document: the to-do list. Fixing one removes it here.
 
-1. Unknown preset keys are dropped without a warning (SPEC § 12, § 14).
 2. A fixed switch in `generate_view` picks the adapter, not a registry (SPEC § 3).
 3. The Properties tab and the preset row are not modules of their own; they are in `gui/dialog_main.js` (SPEC § 3, § 9).
 4. `engineParams` is passed through as-is, not typed per engine; a run checks its keys, but a value of the wrong type (e.g. a string for `ELK`) is not reported ([presets](reference/presets.md#settings-outside-the-dialog)).

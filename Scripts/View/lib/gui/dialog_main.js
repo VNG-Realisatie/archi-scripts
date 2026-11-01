@@ -281,7 +281,7 @@ function open(uiSelection) {
       _updateFilteredCount(ctx);  // populate the live counters on dialog open
       ctx._ready = true;          // enable modified indicator from here on
       let saved = null;
-      try { saved = PresetIO.readPreset(_presetName(ctx)); } catch (e) {}  // preset file gone — nothing to compare with
+      try { saved = PresetIO.readPreset(_presetName(ctx), () => {}); } catch (e) {}  // preset file gone — nothing to compare with; its keys are reported when it is loaded
       if (saved && Counts.differsFromSaved(saved, ctx.config)) _markModified(ctx);  // session changed since the last save
 
       tabFolder.setSelection(config._lastTabIndex || 0);
@@ -912,7 +912,7 @@ function _buildPresetRow(parent, ctx, dlg) {
   w.btnRename = Widgets.pushBtn(row, "Rename…", RENAME_TIP, () => {
     const oldName = _presetName(ctx);
     _openPresetNameDialog(ctx, "Rename…", `Rename or move preset "${oldName}".`, (newName, description) => {
-      const saved = PresetIO.readPreset(oldName);
+      const saved = PresetIO.readPreset(oldName, () => {});   // reported when it was loaded
       saved.name        = newName;
       saved.description = description;
       PresetIO.writePreset(newName, saved, { quiet: true });
@@ -957,11 +957,14 @@ function _presetName(ctx) {
 function _loadPreset(ctx, name) {
   try {
     ctx._ready = false;  // no modified indicator while the widgets are filled
-    const loaded = PresetIO.readPreset(name);
+    /** @type {string | null} */
+    let unknownKeys = null;
+    const loaded = PresetIO.readPreset(name, message => { unknownKeys = message; });
     _mergePreset(ctx, loaded);
     ctx.config.name = name;
     _syncToUI(ctx);
     _updateFilteredCount(ctx);
+    if (unknownKeys) _warn(ctx, "Unknown preset keys", unknownKeys);
   } catch (e) {
     console.error("Load preset: " + e);
   } finally {
@@ -1037,6 +1040,17 @@ function _confirmParent(ctx) {
 function _confirm(ctx, title, message) {
   const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
   return MessageDialog.openConfirm(_confirmParent(ctx), title, message);
+}
+
+// A warning on top of the topmost open dialog: console output would block while it is open.
+/**
+ * @param {DialogContext} ctx
+ * @param {string} title
+ * @param {string} message
+ */
+function _warn(ctx, title, message) {
+  const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
+  MessageDialog.openWarning(_confirmParent(ctx), title, message);
 }
 
 /**
