@@ -30,6 +30,13 @@ for (const { param, widget } of widgetParams)
   if (!new RegExp(`w\\.${widget}\\b|"${widget}"`).test(src.replace(table, ""))) problems.push(`PARAM_WIDGETS.${param}: widget ${widget} is never built`);
 const inGui = new Set([...widgetParams.map(x => x.param), ...OWN_HANDLING]);
 
+// Every algorithm's engine has an adapter in engines/registry.js (SPEC § 3, engine-adapter registry).
+console.log = () => {};
+const Registry = require(path.join(VIEW, "lib", "engines", "registry.js"));
+console.log = _log;
+for (const [name, a] of Object.entries(ALGORITHMS))
+  if (!Registry.ENGINES.includes(a.engine)) problems.push(`${name}: engine ${a.engine} has no adapter in engines/registry.js`);
+
 for (const [name, a] of Object.entries(ALGORITHMS)) {
   if (new Set(a.activeParams).size !== a.activeParams.length) problems.push(`${name}: duplicate activeParams`);
   for (const k of a.activeParams) {

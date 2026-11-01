@@ -52,6 +52,8 @@ const ViewWriter = require(REPO_ROOT + "View/lib/view_writer");
 const Appearance = require(REPO_ROOT + "View/lib/appearance");
 /** @type {typeof import("./engines/engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
+/** @type {typeof import("./engines/registry")} */
+const Registry = require(REPO_ROOT + "View/lib/engines/registry");
 
 const {
   ACTION, ALGORITHMS, GENERATED_VIEW_FOLDER, PROP_ID,
@@ -62,27 +64,6 @@ const {
 const EditorManager       = Java.type("com.archimatetool.editor.ui.services.EditorManager");
 const IEditorModelManager = Java.type("com.archimatetool.editor.model.IEditorModelManager");
 const ArchimateModelUtils = Java.type("com.archimatetool.model.util.ArchimateModelUtils");
-
-// ── Engine loaders (lazy)─────────────────────────────────────────────────────
-// require() is memoised by jvm-npm (Require.cache), so repeated calls return the same module.
-
-// Adapter module per engine, relative to Scripts/: loaded here, and by the Node layout process.
-/** @type {Record<string, string>} */
-const ENGINE_MODULE = {
-  ELK:      "View/lib/engines/elk",
-  Dagre:    "View/lib/engines/dagre",
-  Graphviz: "View/lib/engines/graphviz",
-  Tiles:    "View/lib/engines/tiles",
-};
-
-/**
- * @param {string} engine
- * @returns {LayoutAdapter}
- */
-function _getAdapter(engine) {
-  if (!(engine in ENGINE_MODULE)) throw `Unknown engine: "${engine}"`;
-  return require(REPO_ROOT + ENGINE_MODULE[engine]);
-}
 
 // ── Settings outside the dialog ───────────────────────────────────────────────
 
@@ -97,7 +78,7 @@ function _getAdapter(engine) {
  */
 function checkEngineParams(preset) {
   const engine = ALGORITHMS[preset.algorithm].engine;
-  const sections = new Set([...Object.values(ALGORITHMS).map(a => a.engine), "layout"]);
+  const sections = new Set([...Registry.ENGINES, "layout"]);
   const isObject = (/** @type {unknown} */ v) => !!v && typeof v === "object" && !Array.isArray(v);
   /** @type {string[]} */
   const lines = [];
@@ -109,7 +90,7 @@ function checkEngineParams(preset) {
   /** @type {[string, () => SettingFinding[]][]} */
   const owners = [
     ["layout", () => EngineUtils.checkLabelSizing(preset.engineParams.layout)],
-    [engine,   () => _getAdapter(engine).checkEngineParams(preset)],
+    [engine,   () => Registry.adapterOf(engine).checkEngineParams(preset)],
   ];
   for (const [section, check] of owners) {
     const value = /** @type {Record<string, unknown>} */ (preset.engineParams)[section];   // Cast: section is an EngineParams key
@@ -397,7 +378,7 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
 
   console.log("\nLayout:");
   const engine = ALGORITHMS[preset.algorithm].engine;
-  const laid = _layoutFittingLabels(graph, g => NodeLayout.layout(g, ENGINE_MODULE[engine], _getAdapter(engine), runtime));
+  const laid = _layoutFittingLabels(graph, g => NodeLayout.layout(g, engine, runtime));
   timer.lap("layout");
   _logLayoutResult(laid.result);
 

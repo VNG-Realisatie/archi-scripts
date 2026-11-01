@@ -13,6 +13,9 @@ const REPO_ROOT = (() => {
   return p.substring(0, i === -1 ? p.length : i + 9);
 })();
 
+/** @type {typeof import("./engines/registry")} */
+const Registry = require(REPO_ROOT + "View/lib/engines/registry");
+
 const NODE_BIN = "node";
 const NODE_LAYOUT_SCRIPT = REPO_ROOT + "View/tools/node_layout_run.js";
 // Seconds one layout may take: Archi waits on its UI thread. Graphviz keeps its own limit inside the process.
@@ -30,16 +33,16 @@ const ADAPTER_FIELDS = /** @type {const} */ ([
 /**
  * Lay out the graph in Node; without Node, with the adapter in the script itself.
  * @param {LayoutGraph}   graph
- * @param {string}        engineModule  the adapter's module, relative to Scripts/ (e.g. "View/lib/engines/elk")
- * @param {LayoutAdapter} adapter       the same module, loaded: runs the layout when Node is not used
+ * @param {string}        engine   engine id: the adapter comes from engines/registry.js, here and in the process
  * @param {LayoutRuntime} runtime
  * @returns {LayoutResult}
  */
-function layout(graph, engineModule, adapter, runtime) {
+function layout(graph, engine, runtime) {
   const { runProcess, config } = runtime;
+  const adapter = Registry.adapterOf(engine);   // also checks that the engine is registered before Node starts
   if (runtime.inProcess) return adapter.layout(graph, runProcess);
   const t0 = Date.now();
-  const input = JSON.stringify({ engineModule, config, graph: _adapterInput(graph) });
+  const input = JSON.stringify({ engine, config, graph: _adapterInput(graph) });
   const out = runProcess(NODE_BIN, [NODE_LAYOUT_SCRIPT], input, NODE_LAYOUT_TIMEOUT_S);   // a configured path not found throws
   if (out.state === "not-found") {
     console.log(`  Layout in Archi: '${NODE_BIN}' not found on the PATH — install Node.js (nodejs.org) for a faster layout, or set nodePath in Scripts/View/config.js`);

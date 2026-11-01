@@ -84,7 +84,7 @@ Layer 2 — View-generation API ────────────────
      └─ appearance.js           styling pass on the written view
                 │ LayoutGraph                       ▲ LayoutResult
 Layer 3 — Engine adapters ───────────────────────────────────────────────────────────────────
-  engines/elk.js · engines/dagre.js · engines/graphviz.js   (+ engines/engine-utils.js)
+  engines/registry.js → engines/elk.js · dagre.js · graphviz.js · tiles.js   (+ engines/engine-utils.js)
      └─ vendored libraries: elkjs, dagre-cluster-fix; Graphviz `dot` as an external process, started by a runner passed in
 
 Shared (Layers 1–2) ─────────────────────────────────────────────────────────────────────────
@@ -117,7 +117,8 @@ Shared (Layers 1–2) ───────────────────�
 | `lib/selection_pipeline.js` | 2 | Snapshot → object set: filter, related-elements steps, relation collection, predicted counts. Pure. Shared by API and dialog | `defs`, `rel_filter`, `nesting`, `selection_read` |
 | `lib/nesting.js` | 2 | Nesting split and resolution; pairing with the visuals; managed-occurrence records; predicted counts. Pure | `defs`, `rel_filter` |
 | `lib/appearance.js` | 2 | Post-write styling pass; the fonts of Style by nesting level for the layout (`nestingFonts`) | `defs`, `rel_filter`, `palettes`, chroma-js |
-| `lib/engines/elk.js`, `dagre.js`, `graphviz.js` | 3 | One adapter per engine: layout graph → layout result | `defs`, `engine-utils`, engine library |
+| `lib/engines/registry.js` | 3 | Engine-adapter registry: the adapter module of each engine id; the API and the Node layout process find an adapter here | the adapters |
+| `lib/engines/elk.js`, `dagre.js`, `graphviz.js`, `tiles.js` | 3 | One adapter per engine: layout graph → layout result | `defs`, `engine-utils`, engine library |
 | `lib/engines/engine-utils.js` | 3 | Engine-independent sizing and ordering | `defs` |
 | `lib/defs.js` | shared | SSOT: algorithms, params, labels, tooltips, defaults, enums; preset validation; effective params | `_lib/selection`, `rel_filter` |
 | `lib/rel_filter.js` | shared | Condition model: normalise, match, file form | — |
@@ -140,7 +141,7 @@ The sections below describe the implementation per functional subject, grouped b
 | [Managed occurrences](#managed-occurrences) | 2 | `selection_read.js` (`describeVisuals`), `nesting.js` (`classifyVisuals`, `managedRecords`); the writer | [SPEC § 7](SPEC.md#7-layout-options), [§ 12](SPEC.md#12-resilience--error-model) | [selection-nesting.md](reference/selection-nesting.md#managed-occurrences) |
 | [Writer](#writer) | 2 | `write_plan.js` (`planWrite`), `view_writer.js` (`applyWritePlan`); `nesting.js` (`nestingConnections`) | [SPEC § 5](SPEC.md#5-actions), [§ 11](SPEC.md#11-rules--invariants) | [selection-nesting.md](reference/selection-nesting.md#writer-parenthood) |
 | [Appearance](#appearance) | 2 | `appearance.js` (`applyAppearance`, `computeConditionTargets`, `followNestingChains`), `palettes.js` | [SPEC § 10](SPEC.md#10-colouring--appearance) | [gui.md](reference/gui.md#appearance-tab) |
-| [Engines](#layer-3--engine-adapters) | 3 | `engines/elk.js`, `dagre.js`, `graphviz.js` (`layout`), `engine-utils.js` | [SPEC § 7](SPEC.md#7-layout-options), [§ 8](SPEC.md#8-engine-contract) | [engines.md](reference/engines.md) |
+| [Engines](#layer-3--engine-adapters) | 3 | `engines/registry.js` (`adapterOf`), `elk.js`, `dagre.js`, `graphviz.js`, `tiles.js` (`layout`), `engine-utils.js` | [SPEC § 7](SPEC.md#7-layout-options), [§ 8](SPEC.md#8-engine-contract) | [engines.md](reference/engines.md) |
 | [Sizing](#sizing) | 3 | `engines/elk.js`, `engine-utils.js` (`alignWidthsByLevel`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#sizing-refinements) |
 | [SSOT and presets](#ssot-and-presets) | shared | `defs.js` (`validatePreset`, `effectiveParams`), `rel_filter.js`, `preset_io.js` | [SPEC § 3](SPEC.md#3-architecture), [§ 14](SPEC.md#14-development-rules) | [presets.md](reference/presets.md) |
 
@@ -715,7 +716,7 @@ How a change is designed, built and checked. The binding steps are in [`Scripts/
 | Layout option | `defs.js`: default in `DEFAULT_PRESET.params`, label, tooltip, active params per algorithm → dialog `PARAM_WIDGETS` → adapter mapping | `check_registry.js`, `gen_docs_tables.js --write`, typecheck; SPEC § 7 |
 | Value of an option | `defs.js` value list, label, tooltip → adapter mapping | as above |
 | Algorithm | `defs.js` registry entry (engine, style, capabilities, active params) → adapter mapping | as above; harness `--layout`; `tools/compare-layouts.js` for the other algorithms |
-| Engine | an adapter in `engines/` (`layout(LayoutGraph) → LayoutResult`) → the engine switch in `generate_view` (Known gap 2); its library in `Scripts/node_modules/`, its members in `types/vendor.d.ts` | as for an algorithm; `ai/repo-guide.md` § Vendored libraries |
+| Engine | an adapter in `engines/` (`layout(LayoutGraph) → LayoutResult`) → one entry in `engines/registry.js` (`check_registry.js` checks that every algorithm's engine has one); its library in `Scripts/node_modules/`, its members in `types/vendor.d.ts` | as for an algorithm; `ai/repo-guide.md` § Vendored libraries |
 | Condition list | `defs.js` default (empty list) → `rel_filter` when it needs another column → a `condition_table` in the dialog → the pipeline or styling pass that reads it | `rel_filter_test.js`, `check_registry.js`, typecheck |
 | Diagram-object type | `defs.js` `DIAGRAM_TYPES` (closed set) → pipeline filter and traversal → writer | `nesting_test.js`; in Archi |
 | Action | `defs.js` `ACTION` → `run_preset` file-name map → dialog button → object set in the pipeline; the writer stays action-agnostic (SPEC rule 9) | every level; SPEC § 5 |
@@ -771,7 +772,6 @@ Where the code, its tests or its tooling do not yet meet SPEC.md, `reference/` o
 
 | # | Gap | Fixing it gives | Requirement it meets, and what that gives |
 |---|---|---|---|
-| 2 | A fixed switch in `generate_view` picks the adapter, not a registry. | An engine is added with one registration and one SSOT entry, without touching `generate_view`. | SPEC § 3, engine-adapter registry: a new engine or algorithm changes no other module, so it cannot break the existing ones. |
 | 3 | The Properties tab and the preset row are not modules of their own; they are in `gui/dialog_main.js`. | A smaller `dialog_main.js`; the Properties tab and the preset row can be changed and tested on their own. | SPEC § 3 and § 9, per-tab modules: each surface of the dialog is testable in isolation. |
 | 5 | There is no master *Apply styling* switch: `appearance.enabled` is not in `DEFAULT_PRESET`, so validation drops it. | One switch to run a layout without touching any appearance, without switching every styling group off one by one. | SPEC § 10, master toggle: styling can be skipped as a whole, and that choice is kept in the preset. |
 | 6 | Look and feel ([principles](reference/gui.md#look-and-feel)); seen in the code, still to check in Archi:<br>• The Appearance and Properties tabs lay out their rows on their own, without the tab's heading column (Look 6).<br>• The opening explanations of *Expand selection* and the Appearance groups are black, not grey; two have a fixed width instead of wrapping at the group width (Look 9).<br>• Group margins differ: the Layout tab uses wider inner margins than the other tabs (Look 8).<br>• Style by nesting level: the root-size spinner has no label (Look 4). Its info line says "nesting types" instead of *Nesting condition* (SPEC rule 16).<br>• The preset row, the totals line and the action area have not been checked against the principles yet. | Every tab looks and reads the same way, so the dialog is quicker to scan and nothing looks unfinished. | gui.md § Look and feel: one consistent look across every dialog in the repo. |

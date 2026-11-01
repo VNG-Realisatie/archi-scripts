@@ -19,11 +19,9 @@ const Defs = require(path.join(VIEW, "lib", "defs.js"));
 console.log = _log;
 
 console.log = () => {};
-const ADAPTERS = {
-  ELK:      require(path.join(VIEW, "lib", "engines", "elk.js")),
-  Dagre:    require(path.join(VIEW, "lib", "engines", "dagre.js")),
-  Graphviz: require(path.join(VIEW, "lib", "engines", "graphviz.js")),
-};
+const Registry = require(path.join(VIEW, "lib", "engines", "registry.js"));
+// The adapters with settings outside the dialog (Tiles has none).
+const ADAPTERS = Object.fromEntries(Registry.ENGINES.map(e => [e, Registry.adapterOf(e)]).filter(([, a]) => a.ENGINE_PARAMS));
 console.log = _log;
 
 const { STYLES, ALGORITHMS, PARAM_LABELS, PARAM_TOOLTIPS, LAYOUT_GROUPS, HIDDEN_PARAMS, DEFAULT_PRESET,

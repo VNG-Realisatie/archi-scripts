@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Node layout, the process side (lib/node_layout.js starts it): reads { engineModule, config, graph } as JSON
+ * Node layout, the process side (lib/node_layout.js starts it): reads { engine, config, graph } as JSON
  * from stdin, runs the adapter's layout, writes { lines, ms, result } or { lines, ms, error } as JSON
  * to stdout. `lines` are the adapter's console lines in order; the caller replays them. Exit code 0
  * for both: a non-zero exit means this process itself failed (stderr says why).
@@ -48,7 +48,7 @@ function _alive(pid) {
 
 /**
  * The worker: load the adapter, run its layout, post the output.
- * @param {{ engineModule: string, config: ViewConfig, graph: LayoutGraph }} input
+ * @param {{ engine: string, config: ViewConfig, graph: LayoutGraph }} input
  */
 function _runLayout(input) {
   global.__DIR__ = path.join(__dirname, "..", "lib") + "/";
@@ -60,7 +60,7 @@ function _runLayout(input) {
   const ViewConfig = require("../lib/view_config");
   // dot from the configured path, as in Archi
   const runProcess = ViewConfig.programRunner(require("./process_runner_node").runProcess, input.config);
-  const adapter = require(path.join(__dirname, "..", "..", input.engineModule));
+  const adapter = require("../lib/engines/registry").adapterOf(input.engine);
 
   /** @type {{ text: string, error: boolean }[]} */
   const lines = [];
