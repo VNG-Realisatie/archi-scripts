@@ -1249,10 +1249,10 @@ function _collectEdgeResults(layouted, edgeMeta, resultNodes, resultEdges, label
  * Remove tiny jogs ELK leaves between two parallel segments — e.g. a port 1–3 px off the line it
  * joins, because node placement could not put the long segment exactly in line with the port.
  * The shorter of the two parallel segments moves onto the longer one's line (shifting a path end
- * along the element side by < JOG_MAX), so the jog disappears. Then duplicate and collinear
+ * along the element side by at most JOG_MAX), so the jog disappears. Then duplicate and collinear
  * interior points are dropped; the two path ends are always kept.
  */
-const JOG_MAX = 5;  // px
+const JOG_MAX = 5;  // px, inclusive
 /**
  * @param {Point[]} path  [start, ...bendpoints, end] (absolute)
  * @returns {Point[]}
@@ -1271,7 +1271,7 @@ function _straightenJogs(path) {
   for (let i = 1; i + 2 < p.length; i++) {
     const a = p[i - 1], b = p[i], c = p[i + 1], d = p[i + 2];
     for (const [par, perp, k] of axes) {
-      if (!(par(a, b) && perp(b, c) && par(c, d) && len(b, c) < JOG_MAX)) continue;
+      if (!(par(a, b) && perp(b, c) && par(c, d) && len(b, c) <= JOG_MAX)) continue;
       if (len(a, b) <= len(c, d)) a[k] = b[k] = c[k];
       else                        c[k] = d[k] = b[k];
     }
@@ -1339,7 +1339,7 @@ function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
   }
 
   // Straighten tiny jogs (orthogonal / polyline only). The path ends may shift along the element
-  // side by less than JOG_MAX, so the ports below are taken from the straightened path.
+  // side by at most JOG_MAX, so the ports below are taken from the straightened path.
   let pathStart = rnd(first.startPoint), pathEnd = rnd(last.endPoint);
   if (!isSplines) {
     const path = _straightenJogs([pathStart, ...bps, pathEnd]);
