@@ -25,6 +25,8 @@ const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 const GenView  = require(REPO_ROOT + "View/lib/generate_view");
 /** @type {typeof import("./defs")} */
 const Defs     = require(REPO_ROOT + "View/lib/defs");
+/** @type {typeof import("./selection_read")} */
+const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 const { ACTION } = Defs;
 
 // Base preset of the View/_*.ajs scripts: a normal preset, so it is edited in the dialog.
@@ -71,7 +73,7 @@ function fromFilename(file, selection, opts = {}) {
   if (parsed.direction) preset.params.direction = parsed.direction;
   if (opts.edit) opts.edit(preset);
   console.log(`Preset "${name}"  action ${parsed.actionId}${parsed.direction ? `  direction ${parsed.direction}` : ""}`);
-  return GenView.generate_view(preset, selection, parsed.actionId);
+  return _run(preset, selection, parsed.actionId);
 }
 
 /**
@@ -87,7 +89,7 @@ function fromBase(selection, actionId, params = {}) {
   Object.assign(preset.params, params);
   console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
   if (name === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
-  return GenView.generate_view(preset, selection, actionId);   // generate_view validates the overrides too
+  return _run(preset, selection, actionId);   // generate_view validates the overrides too
 }
 
 /**
@@ -104,6 +106,31 @@ function fromSession(selection, actionId) {
   session.params.algorithmStart = next;
   PresetIO.writeSession(session);
   console.log(`Session  action ${actionId}  algorithm start ${preset.params.algorithmStart} (next: ${next})`);
+  return _run(preset, selection, actionId);
+}
+
+/**
+ * Ask before *One view each* writes more than ONE_EACH_CONFIRM_ABOVE views (SPEC § 5). The entry
+ * point asks, not generate_view, so the API runs without a user (the baseline, a calling script).
+ * @param {ArchiCollection<ArchiObject>} selection
+ * @param {string} [actionId]  ACTION.*.id; absent = New view (generate_view's default)
+ * @returns {boolean} the run may go on
+ */
+function confirmViewCount(selection, actionId) {
+  if (actionId !== ACTION.ONE_EACH.id) return true;
+  const count = SelectionRead.getSeedElements(selection).length;
+  return count <= Defs.ONE_EACH_CONFIRM_ABOVE || window.confirm(`This will generate ${count} views. Continue?`);
+}
+
+/**
+ * Run the action after the confirm; a cancelled run writes nothing.
+ * @param {PresetFile} preset
+ * @param {ArchiCollection<ArchiObject>} selection
+ * @param {string} actionId
+ * @returns {ArchimateView[]}
+ */
+function _run(preset, selection, actionId) {
+  if (!confirmViewCount(selection, actionId)) { console.log("One view each cancelled: nothing written."); return []; }
   return GenView.generate_view(preset, selection, actionId);
 }
 
@@ -122,5 +149,5 @@ function cycleAlgorithmStart(params, actionId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromBase, fromSession, cycleAlgorithmStart, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
+  module.exports = { fromFilename, fromBase, fromSession, confirmViewCount, cycleAlgorithmStart, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
 }

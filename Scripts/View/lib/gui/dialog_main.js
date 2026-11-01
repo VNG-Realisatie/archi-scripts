@@ -343,6 +343,7 @@ function open(uiSelection) {
   // Dialog is fully closed here — safe to run generate_view
   if (result === IDialogConstants.CANCEL_ID || result < 0) return;
 
+  if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId)) { console.log("One view each cancelled: nothing written."); return; }
   try {
     GenView.generate_view(ctx.config, ctx.uiSelection, ctx._actionId);
   } catch (e) {

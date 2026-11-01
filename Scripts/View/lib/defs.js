@@ -706,6 +706,7 @@ const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
 
 const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views, like preset view.folder
 const SESSION_FILENAME     = "_session.json";
+const ONE_EACH_CONFIRM_ABOVE = 20;   // One view each: the entry point asks before writing more views than this
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
 
@@ -1170,7 +1171,7 @@ if (typeof module !== "undefined" && module.exports) {
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
     PROP_ID, PROP_MANAGED_OCCURRENCE,
-    GENERATED_VIEW_FOLDER, SESSION_FILENAME, COLOR_RANGES,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, COLOR_RANGES,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS,

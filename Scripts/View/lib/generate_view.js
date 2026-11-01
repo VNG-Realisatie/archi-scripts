@@ -523,10 +523,6 @@ function _generateOneEach(preset, uiSelection, runtime) {
   // Each seed gets its own full pipeline run (filter + expansion + layout + write).
   const seeds = SelectionRead.getSeedElements(uiSelection);
   if (seeds.length === 0) { console.log("No elements selected."); return []; }
-  if (seeds.length > 20) {
-    const cont = window.confirm(`This will generate ${seeds.length} views. Continue?`);
-    if (!cont) return [];
-  }
 
   const types = new Set(seeds.map(e => e.type));
   if (types.size > 1) {
