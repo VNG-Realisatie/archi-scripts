@@ -15,6 +15,8 @@ interface LayoutNode {
   height: number;
   /** Room a container's label takes above its contents (px): Archi's text margin, its lines in its font and the gap below them (label_size.containerLabelRoom); 0 for a node that holds none or a label without text. */
   labelHeight: number;
+  /** The narrowest a container may be for its label: the widest piece of it Archi does not break, with its text margin and the type icon (label_size.narrowestForLabel); 0 for a leaf. */
+  minWidth: number;
   /** Parent occurrence id (nesting), or null at the root. */
   parent: string | null;
 }
@@ -35,6 +37,13 @@ interface TextFont {
  * (tools/text_measure_node.js).
  */
 type TextMeasure = (text: string, font: TextFont | null) => { width: number; height: number; em: number };
+
+/**
+ * Where Archi may break a line of label text: the offsets after which a new line can start, ascending,
+ * the text's length last. Archi: Java's line BreakIterator, as draw2d's text flow takes it
+ * (lib/text_measure.js); the Node harness follows its rules (tools/text_measure_node.js).
+ */
+type LineBreaks = (text: string) => number[];
 
 /** One relation to route, between two occurrences. */
 interface LayoutEdge {
@@ -72,6 +81,8 @@ interface LayoutGraph {
   _nesting: NestingResolution;
   /** A container's labelHeight at a width the engine drew it (label_size.js); not passed to the adapter. */
   _labelHeightAt: (nodeId: string, width: number) => number;
+  /** The width a container needs when drawn at a width: wider when its label's first line, as Archi wraps it, runs under the type icon (label_size.clearOfIcon); not passed to the adapter. */
+  _widthAt: (nodeId: string, width: number) => number;
   /** Edges with an end inside a diagram-block: edge id → the visual at that end (layout direction). */
   _diagramBlockEnds: Map<string, { source: string | null; target: string | null }>;
   _nestingStats: { candidates: number; applied: number; circularNestings: number; notNestedNestings: number };
@@ -162,6 +173,8 @@ interface LayoutRuntime {
   inProcess: boolean;
   /** Measures label text for the layout graph: SWT in Archi, an estimate in Node. */
   measureText: TextMeasure;
+  /** Where Archi breaks label text: Java's BreakIterator in Archi, its rules in Node. */
+  lineBreaks: LineBreaks;
 }
 
 // ── Nesting resolution (nesting.resolveNesting) ───────────────────────────────────────

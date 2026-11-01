@@ -246,6 +246,7 @@ function labelPoint(start, end, bendpoints, labelPosition) {
  *   2. A leaf in `fit` spans the tracks of the narrowest container it names (fewest tracks; none:
  *      its own track). Track width: the widest leaf plus the paddings of the containers whose edge
  *      lies in the track; leaves in `fit` do not size a track, unless a track holds nothing else.
+ *      A container narrower than its minWidth widens the last of its tracks, inner containers first.
  *   3. Place: a container or a leaf in `fit` spans its tracks less the paddings of its ancestors on
  *      the same edges; any other leaf is centred in its track inside those paddings, never resized.
  *      Where a box shares an edge with its parent, the boxes of its depth on that track line take the
@@ -256,8 +257,9 @@ function labelPoint(start, end, bendpoints, labelPosition) {
  * @param {Record<string, string>} nameById     { id: displayName }
  * @param {(msg: string) => void}  log          logger
  * @param {Map<string, string[]>}  [fit]        leaves that fill tracks instead of sizing them: the containers whose span they take
+ * @param {Record<string, number>} [minWidth]   container id → the narrowest it may be (LayoutNode.minWidth)
  */
-function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map()) {
+function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit = new Map(), minWidth = {}) {
   /** @type {Record<string, LayoutResultNode>} */
   const byId = {};
   /** @type {Record<string, LayoutResultNode[]>} */
@@ -369,6 +371,13 @@ function alignColumnsAcrossContainers(resultNodes, options, nameById, log, fit =
     else if (span[lf.id].hi === t) fitWidth[t] = Math.max(fitWidth[t], need);
   }
   for (let t = 0; t < tracks; t++) if (!width[t]) width[t] = fitWidth[t];
+  const spanned = [...containerIds].sort((a, b) => (span[a].hi - span[a].lo) - (span[b].hi - span[b].lo));
+  for (const id of spanned) {
+    const { lo, hi } = span[id];
+    let w = (hi - lo) * spacing - pad * (inset[id].lo + inset[id].hi);
+    for (let t = lo; t <= hi; t++) w += width[t];
+    if (w < (minWidth[id] || 0)) width[hi] += minWidth[id] - w;
+  }
   const origin = Math.min(...resultNodes.filter(n => n.parentId == null).map(n => n.x));
   /** @type {number[]} */
   const start = [origin];
@@ -531,89 +540,6 @@ function expandNodeSizesForEdgeDensity(nodes, edges, params) {
   }
 }
 
-// ── Label-based node sizing ───────────────────────────────────────────────────
-
-/**
- * Pre-layout: set node width and height based on label text length.
- * Short labels get small nodes; long labels wrap to two lines and get a taller node.
- * Enabled by params.labelSizing (GUI checkbox, active for Pack and Grid).
- * Tuning via engineParams.layout.labelChar*, labelLine*, labelH/VPadding, etc.
- *
- * @param {LayoutNode[]} nodes         LayoutGraph nodes (mutated in place)
- * @param {EffectiveParams | null | undefined} params  preset.params (needs .labelSizing)
- * @param {EngineParams | null | undefined}    engineParams  merged engineParams (tuning keys in .layout)
- */
-function sizeLabelBasedNodes(nodes, params, engineParams) {
-  if (!params || !params.labelSizing) return;
-  /** @type {LabelSizing} */
-  const lp = Object.assign({}, LABEL_SIZING_DEFAULTS, engineParams && engineParams.layout);
-  if (params.labelMaxLineWidth !== undefined) lp.labelMaxLineWidth = params.labelMaxLineWidth;
-  const charW = lp.labelCharWidth;
-  const lineH = lp.labelLineHeight;
-  const hPad = lp.labelHPadding;
-  const vPad = lp.labelVPadding;
-  const maxLineW = lp.labelMaxLineWidth;
-  const minW = lp.labelMinWidth;
-  const minH = lp.labelMinHeight;
-
-  for (const node of nodes) {
-    const label = (node.label || "").trim();
-    if (!label) continue;
-
-    const rawPx = textWidth(label, charW);
-    const innerMax = maxLineW - 2 * hPad;
-
-    let w, h;
-    if (rawPx <= innerMax) {
-      // fits on one line
-      w = rawPx + 2 * hPad;
-      h = lineH + vPad;
-    } else {
-      const split = _nearestSpace(label, Math.floor(label.length / 2));
-      if (split < 0) {
-        // no space → cannot wrap; single long line
-        w = rawPx + 2 * hPad;
-        h = lineH + vPad;
-      } else {
-        // two lines: split at nearest space to midpoint
-        const line1 = label.slice(0, split);
-        const line2 = label.slice(split + 1);
-        w = Math.max(textWidth(line1, charW), textWidth(line2, charW)) + 2 * hPad;
-        h = 2 * lineH + vPad;
-      }
-    }
-    node.width = Math.max(minW, Math.ceil(w));
-    node.height = Math.max(minH, Math.ceil(h));
-  }
-}
-
-/**
- * Estimated pixel width of a string: uppercase letters count double charW (they are wider),
- * every other character counts single. Uppercase detection covers accented letters too.
- * @param {string} str
- * @param {number} charW
- */
-function textWidth(str, charW) {
-  let units = 0;
-  for (const c of str) {
-    const isUpper = c !== c.toLowerCase() && c === c.toUpperCase();
-    units += isUpper ? 2 : 1;
-  }
-  return units * charW;
-}
-
-/**
- * @param {string} str
- * @param {number} mid
- */
-function _nearestSpace(str, mid) {
-  for (let d = 0; d <= mid; d++) {
-    if (str[mid - d] === " ") return mid - d;
-    if (str[mid + d] === " ") return mid + d;
-  }
-  return -1;
-}
-
 /**
  * Room above a container's contents: its label with the gap below it (LayoutNode.labelHeight); without
  * a label the padding.
@@ -639,8 +565,6 @@ if (typeof module !== "undefined" && module.exports) {
     settingProblem,
     checkLabelSizing,
     expandNodeSizesForEdgeDensity,
-    sizeLabelBasedNodes,
-    textWidth,
     cubicPoint,
     labelPoint,
     alignColumnsAcrossContainers,

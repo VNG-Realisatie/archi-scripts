@@ -196,7 +196,7 @@ function layout(graph) {
     if (!kids) return { id: node.id, shapes: [{ w: levelWidth[node.id] || node.width, h: node.height }] };
     const table = buildTable(kids.map(tileOf), gap, goal);
     const inner = table.best[0][table.tiles.length - 1];
-    const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0), h: s.h + topOf(node.id) + pad, child }));
+    const shapes = inner.map((s, child) => ({ w: Math.max(s.w + 2 * pad, levelWidth[node.id] || 0, node.minWidth), h: s.h + topOf(node.id) + pad, child }));
     return { id: node.id, shapes: prune(shapes, goal), table };
   };
   const rootTiles = (childrenOf[""] || []).map(tileOf);
@@ -248,6 +248,7 @@ function layout(graph) {
   /** @type {Record<string, string>} */
   const names = {};
   for (const node of graph.nodes) names[node.id] = node.label || node.id;
+  const minWidths = Object.fromEntries(graph.nodes.map(n => [n.id, n.minWidth]));
   /**
    * The view for one shape of the root: placed, then on the column grid when asked (that can make
    * it wider, so Max width is judged on this).
@@ -262,7 +263,7 @@ function layout(graph) {
     placeRun(out, table, 0, table.tiles.length - 1, index, diagramPad, diagramPad, null, ++columns);
     const sharers = columnSharers(out);
     // On the grid a leaf beside a container fills its track; without it, it takes its column's width.
-    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers);
+    if (gridOn) alignColumnsAcrossContainers(out, o, names, quiet ? () => {} : log, sharers, minWidths);
     else widenToColumns(out, sharers);
     return out;
   };

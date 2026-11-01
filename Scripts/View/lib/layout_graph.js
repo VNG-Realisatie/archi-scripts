@@ -18,7 +18,7 @@ const Nesting = require(REPO_ROOT + "View/lib/nesting");
 /** @type {typeof import("./label_size")} */
 const LabelSize = require(REPO_ROOT + "View/lib/label_size");
 /** @type {typeof import("./engines/engine-utils")} */
-const { expandNodeSizesForEdgeDensity, sizeLabelBasedNodes, ORDER_COMPARE } = require(REPO_ROOT + "View/lib/engines/engine-utils");
+const { expandNodeSizesForEdgeDensity, ORDER_COMPARE } = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { ALGORITHMS, RELATION_WEIGHT_MAP } = Defs;
 
 const JUNCTION_DIAMETER = 14;
@@ -106,6 +106,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
       width:       el.type === "junction" ? JUNCTION_DIAMETER : /** @type {number} */ (params.elementWidth),
       height:      el.type === "junction" ? JUNCTION_DIAMETER : /** @type {number} */ (params.elementHeight),
       labelHeight: 0,   // _fitLabels, once the leaves have their final size
+      minWidth:    0,   // _fitLabels, for a container
     };
     for (const occId of occurrenceMap[el.id]) {
       nodes.push({ ...baseNode, id: occId, parent: parentMap[occId] || null });
@@ -125,6 +126,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
       width:       (vo.bounds && vo.bounds.width)  || params.elementWidth  || 140,
       height:      (vo.bounds && vo.bounds.height) || params.elementHeight || 60,
       labelHeight: 0,   // never a container
+      minWidth:    0,
       parent:      null,
     });
     nodeIds.add(vo.id);
@@ -230,9 +232,10 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   _orderEdges(nodes, edges, params.algorithmStart);
 
   const engineParams = preset.engineParams || {};
-  sizeLabelBasedNodes(nodes, params, engineParams);
+  const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels);
+  if (params.labelSizing) _sizeToLabels(nodes, fonts, params, engineParams, labels.measure);
   expandNodeSizesForEdgeDensity(nodes, edges, params);   // after label sizing, which would overwrite it
-  const labelHeightAt = _fitLabels(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels);
+  const { labelHeightAt, widthAt } = _fitLabels(nodes, nesting, fonts, preset, labels.measure);
 
   return {
     algorithm:      preset.algorithm,
@@ -247,6 +250,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     _occurrenceMap: occurrenceMap,
     _nesting:       nesting,
     _labelHeightAt: labelHeightAt,
+    _widthAt:       widthAt,
     _diagramBlockEnds:     diagramBlockEnds,
     _nestingStats: {
       candidates:        nestingRels.length,
@@ -258,18 +262,22 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
 }
 
 /**
- * Fit the labels, in place: an element taller when its label needs more height than it has, and each
- * container's labelHeight at the narrowest the container can be (LabelSize.narrowestContainers), in
- * the font and text width Archi will draw the label with (LabelSize.labelLayouts).
- * @param {LayoutNode[]}      nodes           leaves at their size before labels
+ * @typedef {object} NodeLabels  how Archi will draw each node's label
+ * @property {(nodeId: string) => import("./label_size").LabelLayout} layoutOf
+ * @property {(nodeId: string) => boolean} isElement  false for a diagram object, which keeps its bounds
+ */
+
+/**
+ * The font and text width Archi will draw each node's label with (LabelSize.labelLayouts).
+ * @param {LayoutNode[]}      nodes
  * @param {ArchiElement[]}    elements
  * @param {NestingResolution} nesting
  * @param {VisualObject[]}    visualElements  the element visuals on the target view
  * @param {MaskedPreset}      preset
  * @param {import("./label_size").LabelInput} labels
- * @returns {(nodeId: string, width: number) => number}  a container's label height at a width (LayoutGraph._labelHeightAt)
+ * @returns {NodeLabels}
  */
-function _fitLabels(nodes, elements, nesting, visualElements, preset, labels) {
+function _labelLayouts(nodes, elements, nesting, visualElements, preset, labels) {
   const elementById = new Map(elements.map(e => [e.id, e]));
   /** @type {Map<string, ArchiElement>} */
   const elementOf = new Map();
@@ -284,20 +292,61 @@ function _fitLabels(nodes, elements, nesting, visualElements, preset, labels) {
     nestingLevel: preset.appearance.nestingLevel,
     input:        labels,
   });
+  return { layoutOf, isElement: id => elementOf.has(id) };
+}
+
+/**
+ * Use label width, in place: each element leaf sized to its measured label (LabelSize.labelSizedLeaf).
+ * @param {LayoutNode[]}    nodes
+ * @param {NodeLabels}      fonts
+ * @param {EffectiveParams} params
+ * @param {EngineParams}    engineParams  label-sizing tuning in .layout
+ * @param {TextMeasure}     measure
+ */
+function _sizeToLabels(nodes, fonts, params, engineParams, measure) {
+  /** @type {LabelSizing} */
+  const sizing = Object.assign({}, Defs.LABEL_SIZING_DEFAULTS, engineParams.layout);
+  if (params.labelMaxLineWidth !== undefined) sizing.labelMaxLineWidth = params.labelMaxLineWidth;
+  for (const n of nodes) {
+    if (!fonts.isElement(n.id)) continue;
+    const size = LabelSize.labelSizedLeaf(n.label, fonts.layoutOf(n.id), measure, sizing);
+    if (size) { n.width = size.width; n.height = size.height; }
+  }
+}
+
+/**
+ * Fit the labels, in place: an element taller when its label needs more height than it has, each
+ * container no narrower than a piece of its label Archi does not break, and its labelHeight at the
+ * narrowest the container can be (LabelSize.narrowestContainers).
+ * @param {LayoutNode[]}      nodes    leaves at their size before labels
+ * @param {NestingResolution} nesting
+ * @param {NodeLabels}        fonts
+ * @param {MaskedPreset}      preset
+ * @param {TextMeasure}       measure
+ * @returns {{ labelHeightAt: (nodeId: string, width: number) => number, widthAt: (nodeId: string, width: number) => number }}
+ *   a container's label height at a width, and the width it needs drawn at a width (LayoutGraph._labelHeightAt, _widthAt)
+ */
+function _fitLabels(nodes, nesting, fonts, preset, measure) {
+  const { layoutOf } = fonts;
   const containers = new Set(Object.values(nesting.parentMap));
   for (const n of nodes) {
-    if (containers.has(n.id) || !elementOf.has(n.id)) continue;   // a container is sized by the engine; a diagram object keeps its bounds
-    n.height = Math.max(n.height, LabelSize.leafHeightForLabel(n.label, n.width, layoutOf(n.id), labels.measure));
+    if (containers.has(n.id) || !fonts.isElement(n.id)) continue;   // a container is sized by the engine; a diagram object keeps its bounds
+    n.height = Math.max(n.height, LabelSize.leafHeightForLabel(n.label, n.width, layoutOf(n.id), measure));
   }
+  for (const n of nodes) if (containers.has(n.id)) n.minWidth = LabelSize.narrowestForLabel(n.label, layoutOf(n.id), measure);
   const byId = new Map(nodes.map(n => [n.id, n]));
   const padding = preset.params.padding || 0;
   // Casts: called with node ids only.
   /** @type {(nodeId: string, width: number) => number} */
-  const labelHeightAt = (id, width) => LabelSize.containerLabelRoom(/** @type {LayoutNode} */ (byId.get(id)).label, width, layoutOf(id), labels.measure, padding);
-  for (const [id, width] of LabelSize.narrowestContainers(nodes, padding)) {
-    /** @type {LayoutNode} */ (byId.get(id)).labelHeight = labelHeightAt(id, width);
+  const labelHeightAt = (id, width) => LabelSize.containerLabelRoom(/** @type {LayoutNode} */ (byId.get(id)).label, width, layoutOf(id), measure, padding);
+  /** @type {(nodeId: string, width: number) => number} */
+  const widthAt = (id, width) => LabelSize.clearOfIcon(/** @type {LayoutNode} */ (byId.get(id)).label, width, layoutOf(id), measure, 0);
+  for (const [id, width] of LabelSize.narrowestContainers(nodes, padding, widthAt)) {
+    const n = /** @type {LayoutNode} */ (byId.get(id));
+    n.minWidth = width;   // the engine draws it no narrower, so the label fits as reserved
+    n.labelHeight = labelHeightAt(id, width);
   }
-  return labelHeightAt;
+  return { labelHeightAt, widthAt };
 }
 
 /**

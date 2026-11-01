@@ -218,8 +218,6 @@ type EffectiveParams = Partial<Omit<PresetParams, "viewSizeMode">>;
 
 /** Label-sizing tuning (defs.LABEL_SIZING_DEFAULTS, overridable in engineParams.layout). */
 interface LabelSizing {
-  labelCharWidth: number;
-  labelLineHeight: number;
   labelHPadding: number;
   labelVPadding: number;
   labelMaxLineWidth: number;

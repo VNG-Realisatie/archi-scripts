@@ -269,7 +269,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 - Which models it suits is in its tooltip; it has no direction control and no nesting.
 
 **Elements.**
-- Size: a fixed width and height, or size **by label**, wrapping long labels at a chosen width. An element grows taller when its label does not fit.
+- Size: a fixed width and height, or size **by label**: in as few lines as fit a chosen width, evenly long, with a little room around the text and clear of the type icon. A word the tool cannot break makes the element wider than that width. An element grows taller when its label does not fit.
 - The minimum **gap** between elements, also between unconnected groups.
 - Where connections are routed between the elements (Neato, FDP, SFDP, Circo), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements. The dialog keeps the two values in step, and the one the user changed wins. There the gap is also at least the **shortest connection**, 20 px: room for both end symbols, so the relation type stays readable.
 
@@ -277,7 +277,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Connections.** Line routing, label position, reserved space for labels, the distance between parallel connections (elements grow to fit their connections) and the clearance between a connection and the elements it passes. Across the flow, reserved labels follow the distance between parallel connections and keep at least 5 px between their text.
 
-**Label text** is sized in the font it will be drawn with: the one *Style by nesting level* sets, else the object's own on the view, else the tool's default view font; measured as the tool draws it, at the width the text gets inside its figure.
+**Label text** is sized in the font it will be drawn with: the one *Style by nesting level* sets, else the object's own on the view, else the tool's default view font; measured and broken into lines as the tool draws it, at the width the text gets inside its figure. Labels are never changed: a container is never narrower than a word of its label the tool cannot break, and the first line of a label the tool lets run under the type icon (left-aligned) ends before it. Each container label gets the room its lines need at the width the container is drawn.
 
 **Room for the end symbols.** Archi draws a relation's end symbol (arrowhead, dot, diamond) in the direction of the last few pixels of the line; zoomed out, a very short last stretch rounds to another angle. So a curved or polyline connection has no bend within 12 px of its elements, and no two bends closer than 5 px. A connection with no bend left is drawn straight. Orthogonal lines keep their corners.
 
@@ -285,7 +285,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Preset-only options** have no or minimal effect on the view (e.g. the canvas margin) and so no control. A preset can still set them, and a non-default value is logged.
 
-**Settings outside the dialog.** A preset can also tune the layout engine and the label-size estimate directly, without a control ([settings outside the dialog](reference/presets.md#settings-outside-the-dialog)). A run lists each such setting that applies, and warns, saying what to do, about each one that has no effect, equals its default or overrides a dialog option.
+**Settings outside the dialog.** A preset can also tune the layout engine and the sizing by label directly, without a control ([settings outside the dialog](reference/presets.md#settings-outside-the-dialog)). A run lists each such setting that applies, and warns, saying what to do, about each one that has no effect, equals its default or overrides a dialog option.
 
 ---
 

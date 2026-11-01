@@ -85,11 +85,7 @@
       "colorRange": "Pastel1"
     }
   },
-  "engineParams": {
-    "layout": {
-      "labelCharWidth": 9
-    }
-  },
+  "engineParams": {},
   "viewProperties": {
     "addObjectId": true,
     "properties": [

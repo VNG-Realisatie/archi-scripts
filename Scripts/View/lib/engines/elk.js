@@ -464,7 +464,7 @@ function _layoutOnce(graph, log) {
   if (graph.alignWidthSameType && nesting) _logWidthMismatches(nodes, boxes, containerIds, names, log);
   // Center-snap columns to a global grid (position-only; grows containers, never resizes
   // leaves). Aligns leaf columns top-to-bottom across the view. Gated on its own toggle.
-  if (graph.columnsAcrossContainers && nesting) alignColumnsAcrossContainers(nodes, graph.options, names, log);
+  if (graph.columnsAcrossContainers && nesting) alignColumnsAcrossContainers(nodes, graph.options, names, log, new Map(), Object.fromEntries(graph.nodes.map(n => [n.id, n.minWidth])));
   // Tree layer distance: connections are collected against the widened boxes ELK placed.
   const elkBoxes = treeExtra > 0 ? nodes.map(n => Object.assign({}, n)) : nodes;
   if (treeExtra > 0) _narrowTreeBoxes(nodes, treeExtra, eo.vertical);
@@ -584,7 +584,7 @@ function _boxSizes(graph, parentMap, containerIds, treeExtra, vertical, log) {
     const widen = treeExtra > 0 && !node.parent;
     if (containerIds.has(node.id)) {
       boxes[node.id] = {
-        width:   widen && w > 0 && !vertical ? w + treeExtra : w,
+        width:   Math.max(widen && w > 0 && !vertical ? w + treeExtra : w, node.minWidth),   // never narrower than its label allows
         height:  0,
         padding: _containerPadding(graph.options.padding || 0, widen ? treeExtra / 2 : 0, vertical, node.labelHeight),
       };

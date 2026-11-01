@@ -26,4 +26,30 @@ function measureText(text, font) {
   return { width: Math.ceil(text.length * em * CHAR_WIDTH_EM * bold), height: Math.ceil(em * LINE_HEIGHT_EM), em };
 }
 
-module.exports = { measureText, HARNESS_DEFAULT_FONT };
+// Java's line BreakIterator (JDK 21, as Archi 5.10 runs; checked 2026-11-01): a break after spaces, and
+// after - – — , . ; : ? ! ) unless another of them follows ("--") or a digit-dot/comma-digit ("2.0",
+// "1,5"); before ( after anything but a space; none after / \ _ & + ' nor at a no-break space.
+const PUNCT_AFTER  = /[\-\u2013\u2014,.;:?!)]/;
+const DIGIT_JOINED = /[.,]/;
+
+/**
+ * Where a line of label text may break, as Java's line BreakIterator says (an estimate of its rules).
+ * @param {string} text
+ * @returns {number[]}  offsets after which a new line can start, ascending, text.length last
+ */
+function lineBreaks(text) {
+  /** @type {number[]} */
+  const offsets = [];
+  for (let i = 1; i < text.length; i++) {
+    const prev = text[i - 1], c = text[i];
+    if (c === " " || c === "\t") continue;   // spaces stay with the piece before them
+    const digits = DIGIT_JOINED.test(prev) && /\d/.test(c) && i >= 2 && /\d/.test(text[i - 2]);
+    const after = prev === " " || prev === "\t" || (PUNCT_AFTER.test(prev) && !PUNCT_AFTER.test(c) && !digits);
+    const before = c === "(" && prev !== "(";
+    if (after || before) offsets.push(i);
+  }
+  offsets.push(text.length);
+  return offsets;
+}
+
+module.exports = { measureText, lineBreaks, HARNESS_DEFAULT_FONT };

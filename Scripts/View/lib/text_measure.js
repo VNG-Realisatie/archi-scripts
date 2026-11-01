@@ -1,7 +1,8 @@
 /**
  * Text measuring in Archi (LayoutRuntime.measureText): SWT measures one line in the font Archi draws a
  * label with — FontFactory's view font, so Archi's own font scaling applies. Runs on the UI thread,
- * where jArchi runs scripts. The Node harness has its own estimate (tools/text_measure_node.js).
+ * where jArchi runs scripts. Where a line may break comes from Java too. The Node harness has its own
+ * estimate (tools/text_measure_node.js).
  */
 console.log("Loading text_measure.js");
 
@@ -9,6 +10,10 @@ const SWT         = Java.type("org.eclipse.swt.SWT");
 const Display     = Java.type("org.eclipse.swt.widgets.Display");
 const GC          = Java.type("org.eclipse.swt.graphics.GC");
 const FontData    = Java.type("org.eclipse.swt.graphics.FontData");
+const BreakIterator         = Java.type("java.text.BreakIterator");
+const BreakIteratorProvider = Java.type("java.text.spi.BreakIteratorProvider");
+const ServiceLoader         = Java.type("java.util.ServiceLoader");
+const Locale                = Java.type("java.util.Locale");
 // Archi's own class, not the jArchi API (ARCHITECTURE § Platform constraints): the font a figure draws with.
 const FontFactory = Java.type("com.archimatetool.editor.ui.FontFactory");
 
@@ -41,6 +46,23 @@ function createTextMeasure() {
 }
 
 /**
+ * Where Archi breaks label text: the line BreakIterator draw2d's text flow wraps with
+ * (FlowUtilities.getLineInstance: the first BreakIteratorProvider registered, else Java's own).
+ * @returns {LineBreaks}
+ */
+function createLineBreaks() {
+  const providers = ServiceLoader.load(BreakIteratorProvider.class).iterator();
+  const iterator = providers.hasNext() ? providers.next().getLineInstance(Locale.getDefault()) : BreakIterator.getLineInstance();
+  return text => {
+    iterator.setText(text);
+    /** @type {number[]} */
+    const offsets = [];
+    for (let at = iterator.next(); at !== BreakIterator.DONE; at = iterator.next()) offsets.push(at);
+    return offsets;
+  };
+}
+
+/**
  * The font Archi draws a label with; FontFactory owns it (never disposed here).
  * @param {TextFont | null} font  null = Archi's default view font
  * @returns {Swt.Font}
@@ -51,4 +73,4 @@ function _viewFont(font) {
   return FontFactory.getViewFont(new FontData(font.name, font.size, style).toString());
 }
 
-module.exports = { createTextMeasure };
+module.exports = { createTextMeasure, createLineBreaks };

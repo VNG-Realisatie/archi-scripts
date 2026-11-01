@@ -69,7 +69,7 @@ function run(p, elements, rels, visuals) {
 function layoutGraph(preset, { elements, relations, visuals, visualRelations }) {
   const masked = { ...preset, params: Defs.effectiveParams(preset) };
   const split = Nesting.splitNestingRels(relations, masked.params);
-  const labels = { measure: TextMeasureNode.measureText, relationsOf: () => [], isModify: false };
+  const labels = { measure: TextMeasureNode.measureText, breaks: TextMeasureNode.lineBreaks, relationsOf: () => [], isModify: false };
   return LayoutGraph.buildLayoutGraph(masked, elements, split.connectionRels.slice(), split.nestingRels, [], visuals, visualRelations, undefined, {}, labels);
 }
 // Visuals on a view: [visual id, element id, parent visual id], in view order, plus records.

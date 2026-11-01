@@ -59,7 +59,7 @@ Step { name : string, repeat : 1..5 | "untilNothingNew", conditions : StepCondit
 
 ## Settings outside the dialog
 
-`engineParams` tunes the layout engines and the label-size estimate (`layout`) without a dialog control. Per section the run merges, last wins: the defaults below → the dialog's options → `engineParams` ([ARCHITECTURE § Options across engines](../ARCHITECTURE.md#options-across-engines)). `labelMaxLineWidth` is the exception: the dialog's *Wrap label at* always wins.
+`engineParams` tunes the layout engines and the sizing by label (`layout`) without a dialog control. Per section the run merges, last wins: the defaults below → the dialog's options → `engineParams` ([ARCHITECTURE § Options across engines](../ARCHITECTURE.md#options-across-engines)). `labelMaxLineWidth` is the exception: the dialog's *Wrap label at* always wins.
 
 Every run checks the `layout` section and the section of its own engine; another engine's section is checked by a run with that engine. The console lists each setting that applies, with the default it replaces where that is known, and adds a ⚠ line, with what to do, for each setting that:
 - is unknown: a section, a key, or an id the bundled ELK does not know (ELK also takes the end of an id, `elk.spacing.nodeNode`);
@@ -93,10 +93,8 @@ ELK core options (`elk.padding`, `elk.spacing.*`, …) are not checked against t
 | Dagre | `marginy`<br>Margin above and below the view (px) | 0 | Diagram padding |
 | Dagre | `align`<br>Alignment in a layer: UL, UR, DL, DR; unset = centred | unset | — |
 | Graphviz | `esep`<br>Distance between a connection and an element (pt, +w = per side); only Neato, FDP, SFDP, Twopi, Circo | +24 with Orthogonal routing, otherwise +8 | Distance to element (Neato, FDP, SFDP, Circo) |
-| layout | `labelCharWidth`<br>Width of one character in the label-width estimate (px) | 8 | — |
-| layout | `labelLineHeight`<br>Height of one label line (px) | 24 | — |
-| layout | `labelHPadding`<br>Room left and right of the label (px) | 16 | — |
-| layout | `labelVPadding`<br>Room above and below the label (px) | 8 | — |
+| layout | `labelHPadding`<br>Room left and right of the label, beyond Archi's text margin and the type icon (px) | 4 | — |
+| layout | `labelVPadding`<br>Room above and below the label, beyond Archi's text margin (px) | 4 | — |
 | layout | `labelMaxLineWidth`<br>Not used here: the dialog's Wrap label at sets it | 400 | Wrap label at |
 | layout | `labelMinWidth`<br>Smallest element width with Use label width (px) | 60 | — |
 | layout | `labelMinHeight`<br>Smallest element height with Use label width (px) | 30 | — |

@@ -333,7 +333,7 @@ function _layoutRuntime() {
   const Paths = Java.type("java.nio.file.Paths");
   const config = ViewConfig.readConfig(path => Files.exists(Paths.get(path)));
   return { runProcess: ViewConfig.programRunner(ProcessRun.runProcess, config), config, inProcess: false,
-           measureText: TextMeasure.createTextMeasure() };
+           measureText: TextMeasure.createTextMeasure(), lineBreaks: TextMeasure.createLineBreaks() };
 }
 
 /**
@@ -362,7 +362,7 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
   // part of the nesting resolution, so every visual gets a node.
   console.log("\nLayout graph:");
   const isModify = actionId === ACTION.LAYOUT_ONLY.id || actionId === ACTION.EXPAND_VIEW.id;
-  const labels = { measure: runtime.measureText, relationsOf: snapshot.relationsOf, isModify };
+  const labels = { measure: runtime.measureText, breaks: runtime.lineBreaks, relationsOf: snapshot.relationsOf, isModify };
   const graph = LayoutGraph.buildLayoutGraph(preset, objectSet.elements, routedRels, nestingRels, objectSet.diagramObjects,
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   timer.lap("layout graph");
@@ -386,47 +386,74 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
 }
 
 // Layouts per run at most to fit the container labels (_layoutFittingLabels).
-const LABEL_FIT_RUNS = 4;
+const LABEL_FIT_RUNS = 6;
+/** @typedef {{ height: number, width: number, drawn: number }} LabelNeed  a container label's room and the container's width at the width it was drawn */
+/** @typedef {{ graph: LayoutGraph, result: LayoutResult }} LabelAttempt */
 
 /**
- * Lay out, and lay out again with each container's label at the width the layout drew the container.
- * The layout graph reserves a container's label at the narrowest the container can be, so a wider
- * container can have room for a line its label does not use. Each next layout reserves what the
- * labels need at the widths of the layout before; the last one the most any layout needed, so it
- * does not swing between two layouts. The first layout in which every container's label fits is
- * kept; the first layout always fits.
+ * Lay out until every container's label has its room at the width the layout drew the container.
+ * The layout graph reserves a label at the narrowest the container can be; drawn wider, the label can
+ * need fewer lines, drawn narrower (another shape) more, and a container whose label's first line runs
+ * under the type icon must be wider. Each next layout reserves at least what any layout so far needed
+ * (room and width only grow, so a fitting layout comes); from a fitting one, a trim layout reserves
+ * the room the labels need at the drawn widths, the containers no narrower than drawn. Kept: the
+ * first layout in which every label has exactly its room, else the fitting one with the least room to
+ * spare, else the first. At most LABEL_FIT_RUNS layouts.
  * @param {LayoutGraph} graph
  * @param {(graph: LayoutGraph) => LayoutResult} run  one engine call
- * @returns {{ graph: LayoutGraph, result: LayoutResult }}
+ * @returns {LabelAttempt}
  */
 function _layoutFittingLabels(graph, run) {
   const containerIds = [...new Set(Object.values(graph._parentMap))];
   // Casts below: the maps hold every container id, and every container is placed.
-  /** @type {(r: LayoutResult) => Map<string, number>} */
+  /** @type {(r: LayoutResult) => Map<string, LabelNeed>} */
   const needed = r => {
-    const width = new Map(r.nodes.map(n => [n.id, n.width]));
-    return new Map(containerIds.map(id => [id, graph._labelHeightAt(id, /** @type {number} */ (width.get(id)))]));
+    const drawnOf = new Map(r.nodes.map(n => [n.id, n.width]));
+    return new Map(containerIds.map(id => {
+      const drawn = /** @type {number} */ (drawnOf.get(id));
+      const width = graph._widthAt(id, drawn);
+      return [id, { height: graph._labelHeightAt(id, width), width, drawn }];
+    }));
   };
-  /** @type {(heights: Map<string, number>) => LayoutGraph} */
-  const withHeights = heights => ({ ...graph, nodes: graph.nodes.map(n => heights.has(n.id) ? { ...n, labelHeight: /** @type {number} */ (heights.get(n.id)) } : n) });
-  /** @type {(need: Map<string, number>, g: LayoutGraph) => boolean} */
-  const fits = (need, g) => g.nodes.every(n => !need.has(n.id) || /** @type {number} */ (need.get(n.id)) <= n.labelHeight);
+  /** @type {(g: LayoutGraph, need: Map<string, LabelNeed>, room: (n: LayoutNode, nd: LabelNeed) => { labelHeight: number, minWidth: number }) => LayoutGraph} */
+  const reserve = (g, need, room) => ({ ...g, nodes: g.nodes.map(n => { const nd = need.get(n.id); return nd ? { ...n, ...room(n, nd) } : n; }) });
+  /** @type {(need: Map<string, LabelNeed>, g: LayoutGraph) => number} room to spare; -1 = a label does not fit */
+  const spare = (need, g) => {
+    let sum = 0;
+    for (const n of g.nodes) {
+      const nd = need.get(n.id);
+      if (!nd) continue;
+      if (nd.width > nd.drawn || nd.height > n.labelHeight) return -1;
+      sum += n.labelHeight - nd.height;
+    }
+    return sum;
+  };
 
-  const first = { graph, result: run(graph) };
-  let need = needed(first.result);
-  const reserved = new Map(graph.nodes.map(n => [n.id, n.labelHeight]));
-  const changed = containerIds.filter(id => need.get(id) !== reserved.get(id)).length;
-  if (changed === 0) return first;
-  console.log(`  Container labels: ${changed} of ${containerIds.length} need other room at the width they were drawn — laid out again`);
-  const most = new Map(need);
+  /** @type {LabelAttempt} */
+  let attempt = { graph, result: run(graph) };
+  const first = attempt;
+  let need = needed(attempt.result);
+  let left = spare(need, graph);
+  if (left === 0) return first;
+  console.log(`  Container labels: ${containerIds.filter(id => /** @type {LabelNeed} */ (need.get(id)).height !== graph.nodes.find(n => n.id === id)?.labelHeight).length} of ${containerIds.length} need other room at the width they were drawn — laid out again`);
+  /** @type {{ attempt: LabelAttempt, left: number } | null} */
+  let best = null;
   for (let k = 2; k <= LABEL_FIT_RUNS; k++) {
-    const g = withHeights(k < LABEL_FIT_RUNS ? need : most);
-    const result = run(g);
-    need = needed(result);
-    if (fits(need, g)) return { graph: g, result };
-    for (const [id, h] of need) most.set(id, Math.max(/** @type {number} */ (most.get(id)), h));
+    if (left > 0 && (!best || left < best.left)) best = { attempt, left };
+    const g = left >= 0
+      // Trim: the room needed at the drawn width, never narrower than drawn.
+      ? reserve(attempt.graph, need, (n, nd) => ({ labelHeight: nd.height, minWidth: Math.max(n.minWidth, nd.drawn) }))
+      // Grow: at least what this layout needed, a container wider where its label asks.
+      : reserve(attempt.graph, need, (n, nd) => ({ labelHeight: Math.max(n.labelHeight, nd.height), minWidth: Math.max(n.minWidth, nd.width > nd.drawn ? nd.width : 0) }));
+    attempt = { graph: g, result: run(g) };
+    need = needed(attempt.result);
+    left = spare(need, g);
+    if (left === 0) return attempt;
+    if (left > 0 && best && left >= best.left) break;   // trimming no longer helps
   }
-  console.log("  Container labels: no later layout fits every label — the first layout is kept");
+  if (left > 0 && (!best || left < best.left)) best = { attempt, left };
+  if (best) return best.attempt;
+  console.log("  Container labels: no layout fits every label — the first layout is kept");
   return first;
 }
 

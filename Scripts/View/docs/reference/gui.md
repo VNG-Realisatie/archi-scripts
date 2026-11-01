@@ -289,8 +289,8 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 |---|---|---|---|---|
 | Width | `elementWidth` | 200 | Width of every element. — px | all algorithms |
 | Height | `elementHeight` | 60 | Height of every element. — px | all algorithms |
-| Use label width | `labelSizing` | off | Size each element to its label; long labels wrap to two lines. — Replaces Width and Height. | Grid, Pack, Tiles |
-| Wrap label at | `labelMaxLineWidth` | 400 | Label width at which Use label width wraps to a second line. — px | Grid, Pack, Tiles |
+| Use label width | `labelSizing` | off | Size each element to its label, in as few even lines as Wrap label at allows. — Replaces Width and Height. | Grid, Pack, Tiles |
+| Wrap label at | `labelMaxLineWidth` | 400 | Widest element Use label width makes; a longer label wraps. — px — a word Archi cannot break makes it wider. | Grid, Pack, Tiles |
 | Distance | `elementSpacing` | 40 | Minimum distance between elements, also between unconnected groups. — px — Neato, FDP, SFDP, Circo: room for a connection between two elements; the other value follows. | all algorithms |
 
 **Connections**

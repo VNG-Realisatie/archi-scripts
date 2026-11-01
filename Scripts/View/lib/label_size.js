@@ -53,6 +53,7 @@ const ICON_OFFSET = Object.freeze({
 /**
  * @typedef {object} LabelInput  what the label sizes are read from besides the layout graph
  * @property {TextMeasure}   measure
+ * @property {LineBreaks}    breaks       where Archi may break label text
  * @property {RelationIndex} relationsOf  the model relations of an element (Style by nesting level)
  * @property {boolean}       isModify     Layout only / Expand view: Style by nesting level resets a font it no longer sets
  *
@@ -64,7 +65,9 @@ const ICON_OFFSET = Object.freeze({
  *
  * @typedef {object} LabelLayout  how Archi lays out one node's label
  * @property {TextFont | null} font     null = Archi's default view font
- * @property {number}          iconCut  what the type icon takes off the text width (px)
+ * @property {number}          iconCut    what the type icon takes off the text width (px)
+ * @property {number}          iconClear  room the icon needs right of text Archi does not keep clear of it (left-aligned; px)
+ * @property {LineBreaks}      breaks   where the text may break
  */
 
 /**
@@ -98,26 +101,28 @@ function labelLayouts(nodes, parentMap, src) {
     const vo = src.visualOf(id);
     const el = src.elementOf(id);
     const font = styled.get(id) || (vo ? { name: vo.fontName, size: vo.fontSize, style: vo.fontStyle } : null);
-    return { font, iconCut: el ? _iconCut(el.type, vo) : 0 };
+    return { font, ...(el ? _iconRoom(el.type, vo) : { iconCut: 0, iconClear: 0 }), breaks: src.input.breaks };
   };
 }
 
 /**
- * What the type icon takes off the width of an element's text (Archi's calculateTextControlBounds).
+ * The room the type icon takes from an element's text: what Archi takes off the text width
+ * (calculateTextControlBounds: centred text both sides, right-aligned the right), and for left-aligned
+ * text, which Archi lets run under the icon, the room it needs on the right of the first line.
  * @param {string} type  jArchi element type
  * @param {VisualObject | undefined} vo  undefined = a new visual
- * @returns {number}
+ * @returns {{ iconCut: number, iconClear: number }}
  */
-function _iconCut(type, vo) {
+function _iconRoom(type, vo) {
   const offset = ICON_OFFSET[type];
-  if (!offset) return 0;
   const figureType = vo ? vo.figureType : 0;
   const position   = vo ? vo.textPosition : TEXT_POSITION_TOP;
   const shown      = vo ? vo.showIcon !== ICON_VISIBLE_NEVER : true;
-  if (figureType !== 0 || position !== TEXT_POSITION_TOP || !shown) return 0;
+  if (!offset || figureType !== 0 || position !== TEXT_POSITION_TOP || !shown) return { iconCut: 0, iconClear: 0 };
   const alignment = vo ? vo.textAlignment : type === "grouping" ? TEXT_ALIGNMENT_LEFT : TEXT_ALIGNMENT_CENTER;
   const clear = offset - ARCHI_TEXT_MARGIN;
-  return alignment === TEXT_ALIGNMENT_CENTER ? 2 * clear : alignment === TEXT_ALIGNMENT_RIGHT ? clear : 0;
+  if (alignment === TEXT_ALIGNMENT_LEFT) return { iconCut: 0, iconClear: clear };
+  return { iconCut: alignment === TEXT_ALIGNMENT_CENTER ? 2 * clear : clear, iconClear: 0 };
 }
 
 /**
@@ -139,12 +144,14 @@ function _relsBetween(parent, child, relationsOf) {
 }
 
 /**
- * The narrowest each container can be: its widest child and padding on both sides.
+ * The narrowest each container can be: its widest child and padding on both sides, at least its
+ * minWidth, as `fit` widens it for its label.
  * @param {LayoutNode[]} nodes  leaves at their final size
  * @param {number}       padding
+ * @param {(nodeId: string, width: number) => number} fit  the width a container needs drawn at a width (LayoutGraph._widthAt)
  * @returns {Map<string, number>}  container id → width (px)
  */
-function narrowestContainers(nodes, padding) {
+function narrowestContainers(nodes, padding, fit) {
   /** @type {Map<string, LayoutNode[]>} */
   const childrenOf = new Map();
   for (const n of nodes) if (n.parent) {
@@ -158,7 +165,7 @@ function narrowestContainers(nodes, padding) {
     const kids = childrenOf.get(n.id);
     if (!kids) return n.width;
     let w = widths.get(n.id);
-    if (w === undefined) { w = Math.max(...kids.map(narrowest)) + 2 * padding; widths.set(n.id, w); }
+    if (w === undefined) { w = fit(n.id, Math.max(n.minWidth, Math.max(...kids.map(narrowest)) + 2 * padding)); widths.set(n.id, w); }
     return w;
   };
   for (const n of nodes) if (childrenOf.has(n.id)) narrowest(n);
@@ -175,7 +182,7 @@ function narrowestContainers(nodes, padding) {
  * @returns {number}
  */
 function labelHeight(text, width, layout, measure) {
-  const lines = lineCount(text, width - 2 * ARCHI_TEXT_MARGIN - layout.iconCut, layout.font, measure);
+  const lines = lineCount(text, width - 2 * ARCHI_TEXT_MARGIN - layout.iconCut, layout, measure);
   if (lines === 0) return 0;
   const lineHeight = measure(text.split(/\r?\n/)[0], layout.font).height;   // one line: a line break would count twice
   return ARCHI_TEXT_MARGIN + Math.ceil(lines * lineHeight);
@@ -213,6 +220,66 @@ function leafHeightForLabel(text, width, layout, measure) {
 }
 
 /**
+ * An element's size from its label (Use label width): the fewest lines that fit in maxLineWidth, at
+ * the narrowest width that keeps that many lines, so the lines come out even; a piece between two of
+ * Archi's break points is never broken, so a wider one widens the element past maxLineWidth. Around the
+ * text Archi's text margin, the type icon and the padding; the first line ends before the icon.
+ * @param {string}      text
+ * @param {LabelLayout} layout
+ * @param {TextMeasure} measure
+ * @param {LabelSizing} sizing
+ * @returns {{ width: number, height: number } | null}  null without text
+ */
+function labelSizedLeaf(text, layout, measure, sizing) {
+  if (!text.trim()) return null;
+  const around = 2 * (ARCHI_TEXT_MARGIN + sizing.labelHPadding) + layout.iconCut + layout.iconClear;
+  const narrowest = _widestPiece(text, layout, measure);   // Archi breaks a piece only when it must
+  const widest = Math.max(narrowest, sizing.labelMaxLineWidth - around);
+  const lines = lineCount(text, widest, layout, measure);
+  let lo = narrowest, hi = widest;   // the narrowest text width with `lines` lines; less width never gives fewer lines
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (lineCount(text, mid, layout, measure) <= lines) hi = mid; else lo = mid + 1;
+  }
+  const width = clearOfIcon(text, Math.max(sizing.labelMinWidth, hi + around), layout, measure, sizing.labelHPadding);
+  const height = leafHeightForLabel(text, width - 2 * sizing.labelHPadding, layout, measure) + 2 * sizing.labelVPadding;
+  return { width, height: Math.max(sizing.labelMinHeight, height) };
+}
+
+/**
+ * The narrowest a figure of at least this width can be with the first line of its label, as Archi
+ * wraps it, ending `gap` before the type icon; the width itself when the label keeps clear of the icon
+ * (layout.iconClear 0: Archi already does).
+ * @param {string}      text
+ * @param {number}      width
+ * @param {LabelLayout} layout
+ * @param {TextMeasure} measure
+ * @param {number}      gap
+ * @returns {number}
+ */
+function clearOfIcon(text, width, layout, measure, gap) {
+  if (!layout.iconClear || !text.trim()) return width;
+  let w = width;
+  const textWidth = () => w - 2 * ARCHI_TEXT_MARGIN - layout.iconCut;
+  while (_firstLineWidth(text, textWidth(), layout, measure) > textWidth() - layout.iconClear - gap) w++;
+  return w;
+}
+
+/**
+ * The narrowest a figure can be without Archi breaking its label inside a piece (between two break
+ * points) or running it under the type icon: the widest piece, Archi's text margin on both sides and
+ * the icon; 0 without text.
+ * @param {string}      text
+ * @param {LabelLayout} layout
+ * @param {TextMeasure} measure
+ * @returns {number}
+ */
+function narrowestForLabel(text, layout, measure) {
+  if (!text.trim()) return 0;
+  return _widestPiece(text, layout, measure) + 2 * ARCHI_TEXT_MARGIN + layout.iconCut + layout.iconClear;
+}
+
+/**
  * Size of a connection's label text (LayoutEdge.labelWidth / labelHeight): its widest line, and its
  * lines × the font size, the height of the visible text. Archi does not wrap a connection label.
  * @param {string}          text
@@ -227,30 +294,30 @@ function connectionLabelSize(text, font, measure) {
 }
 
 /**
- * Lines a text takes wrapped at a width, as Archi's text flow wraps it: at spaces, a word wider than
- * the width over as many lines as it needs, and a line break in the text starts a line. Archi also
- * breaks after a hyphen; this does not, so it never counts fewer lines than Archi draws.
- * @param {string}          text
- * @param {number}          width
- * @param {TextFont | null} font
- * @param {TextMeasure}     measure
+ * Lines a text takes wrapped at a width, as draw2d's text flow wraps it: at the break points Archi's
+ * line BreakIterator gives (layout.breaks), a piece wider than the width over as many lines as it
+ * then needs, and a line break in the text starts a line; spaces at a line's end take no width.
+ * @param {string}      text
+ * @param {number}      width
+ * @param {LabelLayout} layout
+ * @param {TextMeasure} measure
  * @returns {number}  0 without text
  */
-function lineCount(text, width, font, measure) {
+function lineCount(text, width, layout, measure) {
   if (!text.trim()) return 0;
   const w = Math.max(1, width);
+  /** @type {(t: string) => number} */
+  const widthOf = t => measure(t.trimEnd(), layout.font).width;
   let lines = 0;
   for (const paragraph of text.split(/\r?\n/)) {
-    const words = paragraph.split(" ").filter(Boolean);
-    if (words.length === 0) { lines++; continue; }   // an empty line
+    if (!paragraph.trim()) { lines++; continue; }   // an empty line
     let line = "";   // the open line; "" = none
-    for (const word of words) {
-      const candidate = line ? line + " " + word : word;
-      if (line && measure(candidate, font).width <= w) { line = candidate; continue; }
-      if (line) lines++;   // the word does not fit: close the open line
-      const wordWidth = measure(word, font).width;
-      if (wordWidth <= w) { line = word; continue; }
-      lines += Math.ceil(wordWidth / w);   // a word wider than the line fills lines of its own
+    for (const piece of _pieces(paragraph, layout.breaks)) {
+      if (line && widthOf(line + piece) <= w) { line += piece; continue; }
+      if (line) lines++;   // the piece does not fit: close the open line
+      const pieceWidth = widthOf(piece);
+      if (pieceWidth <= w) { line = piece; continue; }
+      lines += Math.ceil(pieceWidth / w);   // a piece wider than the line fills lines of its own
       line = "";
     }
     if (line) lines++;
@@ -258,4 +325,53 @@ function lineCount(text, width, font, measure) {
   return lines;
 }
 
-module.exports = { labelLayouts, narrowestContainers, labelHeight, containerLabelRoom, leafHeightForLabel, connectionLabelSize, lineCount };
+/**
+ * Width of a text's first line wrapped at a width (as lineCount wraps); a piece wider than the width
+ * fills it.
+ * @param {string}      text
+ * @param {number}      width
+ * @param {LabelLayout} layout
+ * @param {TextMeasure} measure
+ * @returns {number}
+ */
+function _firstLineWidth(text, width, layout, measure) {
+  /** @type {(t: string) => number} */
+  const widthOf = t => measure(t.trimEnd(), layout.font).width;
+  let line = "";
+  for (const piece of _pieces(text.split(/\r?\n/)[0], layout.breaks)) {
+    if (line && widthOf(line + piece) > width) break;
+    line += piece;
+  }
+  return Math.min(width, widthOf(line));
+}
+
+/**
+ * A line of text cut at its break points, spaces kept with the piece before them.
+ * @param {string}     paragraph
+ * @param {LineBreaks} breaks
+ * @returns {string[]}
+ */
+function _pieces(paragraph, breaks) {
+  /** @type {string[]} */
+  const pieces = [];
+  let start = 0;
+  for (const end of breaks(paragraph)) { pieces.push(paragraph.slice(start, end)); start = end; }
+  return pieces.filter(p => p.trim());
+}
+
+/**
+ * The widest piece of a text between two break points (_pieces), measured.
+ * @param {string}      text
+ * @param {LabelLayout} layout
+ * @param {TextMeasure} measure
+ * @returns {number}
+ */
+function _widestPiece(text, layout, measure) {
+  let widest = 0;
+  for (const paragraph of text.split(/\r?\n/)) {
+    for (const piece of _pieces(paragraph, layout.breaks)) widest = Math.max(widest, measure(piece.trimEnd(), layout.font).width);
+  }
+  return widest;
+}
+
+module.exports = { labelLayouts, narrowestContainers, labelHeight, containerLabelRoom, leafHeightForLabel, labelSizedLeaf, clearOfIcon, narrowestForLabel, connectionLabelSize, lineCount };

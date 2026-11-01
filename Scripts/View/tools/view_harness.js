@@ -135,6 +135,15 @@ function _font(node) {
 }
 
 /**
+ * How a visual lays out its text, as jArchi reads it: figure type, text alignment and position, with
+ * Archi's model defaults for an absent attribute (0, centre, top); the icon as shown (no images here).
+ */
+function _textLayout(node) {
+  const num = (/** @type {string} */ key, /** @type {number} */ dflt) => node.attrs[key] === undefined ? dflt : parseInt(node.attrs[key], 10);
+  return { figureType: num("type", 0), textAlignment: num("textAlignment", 2), textPosition: num("textPosition", 0), showIcon: 0 };
+}
+
+/**
  * The contents of a view as the jArchi reader sees them (selection_read.js): element visuals, diagram
  * objects (notes, groups with their bounds, connections without a relation with their ends),
  * diagram-blocks, visual relations, the positions of every object, and the managed-occurrence
@@ -174,7 +183,7 @@ function _walkView(model, view) {
       if (el) {
         if (!seen.has(el.id)) { seen.add(el.id); elements.push(el); }
         raw.push({ id: c.attrs.id, conceptId: el.id, parentVisualId, isElement: true });
-        visualElements.push({ id: c.attrs.id, concept: el, ..._font(c) });
+        visualElements.push({ id: c.attrs.id, concept: el, ..._font(c), ..._textLayout(c) });
       } else {
         diagramObjects.push(record);
         raw.push({ id: c.attrs.id, conceptId: null, parentVisualId, isElement: false });
@@ -253,7 +262,7 @@ function planView(model, view, preset, actionId, inProcess = false) {
   // The Node layout with this Node; dot as config.js says, as in Archi.
   const config = { ...ViewConfig.readConfig(fs.existsSync), nodePath: process.execPath };
   const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess,
-                    measureText: TextMeasureNode.measureText };
+                    measureText: TextMeasureNode.measureText, lineBreaks: TextMeasureNode.lineBreaks };
   return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, readSnapshot(model, view, actionId), actionId, runtime);
 }
 

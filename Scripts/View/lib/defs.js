@@ -134,8 +134,8 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "px — Tree: at least Distance; with Reserve label space a gap widens to fit its labels."],
   elementWidth:             ["Width of every element.", "px"],
   elementHeight:            ["Height of every element.", "px"],
-  labelSizing:              ["Size each element to its label; long labels wrap to two lines.", "Replaces Width and Height."],
-  labelMaxLineWidth:        ["Label width at which Use label width wraps to a second line.", "px"],
+  labelSizing:              ["Size each element to its label, in as few even lines as Wrap label at allows.", "Replaces Width and Height."],
+  labelMaxLineWidth:        ["Widest element Use label width makes; a longer label wraps.", "px — a word Archi cannot break makes it wider."],
   elementSpacing:           ["Minimum distance between elements, also between unconnected groups.",
                              "px — Neato, FDP, SFDP, Circo: room for a connection between two elements; the other value follows."],
   routing:                  ["How connection lines are drawn.", ""],
@@ -758,8 +758,8 @@ const DEFAULT_PRESET = Object.freeze({
     maxWidth:              0,
     aspectRatio:           1.78,
     viewSizeMode:          "none",  // "none" | "maxWidth" | "aspectRatio"
-    labelSizing:           false,   // derive node width/height from label text (Pack & Grid only)
-    labelMaxLineWidth:     400,    // max label pixel width before wrapping to two lines (Pack & Grid only)
+    labelSizing:           false,   // derive node width/height from the measured label (label_size.labelSizedLeaf)
+    labelMaxLineWidth:     400,    // widest element Use label width makes before the label wraps
     connectionLabelSpacing:      true,   // reserve space for connection labels in ELK Layered (prevents overlap)
   },
   // Filter lists (empty = keep everything); condition shapes in rel_filter.js.
@@ -804,14 +804,12 @@ const DEFAULT_PRESET = Object.freeze({
 });
 
 // ── Label-based node sizing defaults ─────────────────────────────────────────
-// Fallback tuning values for sizeLabelBasedNodes (engine-utils.js).
-// labelMaxLineWidth is also a GUI-exposed params key (DEFAULT_PRESET.params) and
-// takes priority when set; the remaining keys are engineParams.layout-only.
+// Use label width (label_size.labelSizedLeaf): the label is measured in its font. labelMaxLineWidth is
+// also a GUI-exposed params key (DEFAULT_PRESET.params) and takes priority when set; the remaining
+// keys are engineParams.layout-only.
 const LABEL_SIZING_DEFAULTS = Object.freeze({
-  labelCharWidth:    8,
-  labelLineHeight:  24,
-  labelHPadding:    16,
-  labelVPadding:     8,
+  labelHPadding:     4,
+  labelVPadding:     4,
   labelMaxLineWidth: 400,
   labelMinWidth:    60,
   labelMinHeight:   30,
@@ -819,10 +817,8 @@ const LABEL_SIZING_DEFAULTS = Object.freeze({
 // What each label-sizing key does (generated table in reference/presets.md). Label sizing = Use label
 // width; the other label sizes are measured in the label's font (label_size.js).
 const LABEL_SIZING_EFFECTS = Object.freeze({
-  labelCharWidth:    "Width of one character in the label-width estimate (px)",
-  labelLineHeight:   "Height of one label line (px)",
-  labelHPadding:     "Room left and right of the label (px)",
-  labelVPadding:     "Room above and below the label (px)",
+  labelHPadding:     "Room left and right of the label, beyond Archi's text margin and the type icon (px)",
+  labelVPadding:     "Room above and below the label, beyond Archi's text margin (px)",
   labelMaxLineWidth: "Not used here: the dialog's Wrap label at sets it",
   labelMinWidth:     "Smallest element width with Use label width (px)",
   labelMinHeight:    "Smallest element height with Use label width (px)",
