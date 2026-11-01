@@ -56,9 +56,9 @@ Common.finishConsoleLog();
 
 /** The current model is the test model, loaded from its file. */
 function _checkTestModel() {
-  if (!model.isSet()) throw "Select the test model first.";
+  if (!model.isSet()) throw new Error("Select the test model first.");
   const path = (model.getPath() || "").replace(/\\/g, "/");
-  if (!path.endsWith("/" + MODEL_FILE)) throw `The current model is "${model.name}" (${path || "not saved"}); select the test model ${MODEL_FILE}.`;
+  if (!path.endsWith("/" + MODEL_FILE)) throw new Error(`The current model is "${model.name}" (${path || "not saved"}); select the test model ${MODEL_FILE}.`);
 }
 
 /** Delete the views and folders of the previous baseline; the Baseline folder stays. */
@@ -121,6 +121,6 @@ function _runSelection(run, name, folder) {
  * @returns {T}
  */
 function _one(found, what) {
-  if (found.size() !== 1) throw `${what}: ${found.size()} found, expected 1`;
+  if (found.size() !== 1) throw new Error(`${what}: ${found.size()} found, expected 1`);
   return /** @type {T} */ (found.first());
 }

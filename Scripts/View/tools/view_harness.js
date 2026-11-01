@@ -119,7 +119,7 @@ function findView(model, viewPath) {
   if (exact.length === 1) return exact[0];
   const byName = model.views.filter(v => v.name === viewPath || v.path.endsWith("/" + viewPath));
   if (byName.length === 1) return byName[0];
-  throw `View "${viewPath}": ${exact.length + byName.length ? "ambiguous" : "not found"}`;
+  throw new Error(`View "${viewPath}": ${exact.length + byName.length ? "ambiguous" : "not found"}`);
 }
 
 /**

@@ -24,12 +24,12 @@ const PRESETS_DIR = __DIR__.replace(/\\/g, "/").replace(/\/lib\/?$/, "/") + "pre
 function validateHidden(raw) {
   // Cast: shape is checked below.
   const r = /** @type {{ hidden?: unknown }} */ (raw);
-  if (!r || typeof r !== "object" || !Array.isArray(r.hidden)) throw `${HIDDEN_FILE}: expected { "hidden": [ … ] }.`;
+  if (!r || typeof r !== "object" || !Array.isArray(r.hidden)) throw new Error(`${HIDDEN_FILE}: expected { "hidden": [ … ] }.`);
   /** @type {Set<string>} */
   const seen = new Set();
   return r.hidden.map((/** @type {unknown} */ k, /** @type {number} */ i) => {
-    if (typeof k !== "string" || !k.trim()) throw `${HIDDEN_FILE}: hidden[${i}] must be a property name.`;
-    if (seen.has(k)) throw `${HIDDEN_FILE}: "${k}" appears twice. Remove one.`;
+    if (typeof k !== "string" || !k.trim()) throw new Error(`${HIDDEN_FILE}: hidden[${i}] must be a property name.`);
+    if (seen.has(k)) throw new Error(`${HIDDEN_FILE}: "${k}" appears twice. Remove one.`);
     seen.add(k);
     return k;
   });

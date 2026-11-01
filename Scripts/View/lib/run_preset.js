@@ -53,7 +53,7 @@ function parseFilename(file) {
   const [preset, action, direction] = base.split("_");
   const actionId = FILENAME_ACTIONS[action];
   if (!preset || !actionId)
-    throw `Script name "${base}" must be <preset>_<${Object.keys(FILENAME_ACTIONS).join("|")}>_<${Object.keys(FILENAME_DIRECTIONS).join("|")}>`;
+    throw new Error(`Script name "${base}" must be <preset>_<${Object.keys(FILENAME_ACTIONS).join("|")}>_<${Object.keys(FILENAME_DIRECTIONS).join("|")}>`);
   const dir = (direction || "").split(" ")[0];  // "LR copy" → "LR"
   return { preset, actionId, direction: FILENAME_DIRECTIONS[dir] || null };
 }

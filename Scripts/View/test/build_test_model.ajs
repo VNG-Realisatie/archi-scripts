@@ -165,7 +165,7 @@ function _checkNotLoaded(path) {
   const target = String(new File(path).getCanonicalPath());
   for (const m of $.model.getLoadedModels()) {
     const p = m.getPath();
-    if (p && String(new File(p).getCanonicalPath()) === target) throw `Close the model "${m.name}" (${p}) first: this script saves a new model there.`;
+    if (p && String(new File(p).getCanonicalPath()) === target) throw new Error(`Close the model "${m.name}" (${p}) first: this script saves a new model there.`);
   }
 }
 
@@ -192,7 +192,7 @@ function _createRelations(defs, els) {
   return defs.map(([type, name, s, t, accessType]) => {
     const source = els[s], target = els[t];
     if (!$.model.isAllowedRelationship(type, source.type, target.type))
-      throw `Not allowed in ArchiMate: ${type} from ${source.type} "${source.name}" to ${target.type} "${target.name}"`;
+      throw new Error(`Not allowed in ArchiMate: ${type} from ${source.type} "${source.name}" to ${target.type} "${target.name}"`);
     const rel = model.createRelationship(type, name, source, target);
     if (accessType) rel.accessType = accessType;
     return rel;
@@ -245,7 +245,7 @@ function _generateEdited(view1) {
   preset.view.name   = VIEW_EDITED;
   preset.view.folder = VIEW_FOLDER;
   const views = GenView.generate_view(preset, $(view1), ACTION.NEW_VIEW.id);
-  if (views.length !== 1) throw `NEW_VIEW on "${view1.name}" wrote ${views.length} views, expected 1 (see the log above)`;
+  if (views.length !== 1) throw new Error(`NEW_VIEW on "${view1.name}" wrote ${views.length} views, expected 1 (see the log above)`);
   return views[0];
 }
 
@@ -285,7 +285,7 @@ function _editView2(view, els, editRels) {
  */
 function _visualOf(view, el) {
   const found = $(view).find("element").filter(v => !!v.concept && v.concept.id === el.id);
-  if (found.size() !== 1) throw `"${el.name}" has ${found.size()} visuals on view "${view.name}", expected 1`;
+  if (found.size() !== 1) throw new Error(`"${el.name}" has ${found.size()} visuals on view "${view.name}", expected 1`);
   return /** @type {VisualObject} */ (found.first());
 }
 

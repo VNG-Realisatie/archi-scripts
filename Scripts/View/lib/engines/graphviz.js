@@ -164,7 +164,7 @@ function checkEngineParams(preset) {
  */
 function layout(graph, runProcess) {
   const alg = ALGORITHMS[graph.algorithm];
-  if (!alg || alg.engine !== "Graphviz") throw `Graphviz adapter: unknown algorithm "${graph.algorithm}"`;
+  if (!alg || alg.engine !== "Graphviz") throw new Error(`Graphviz adapter: unknown algorithm "${graph.algorithm}"`);
 
   const dotSource = _buildDOT(graph);
   const _graphLine = dotSource.split("\n").find(l => l.trim().startsWith("graph [")) || "";

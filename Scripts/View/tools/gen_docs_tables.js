@@ -90,7 +90,7 @@ const tables = {
       }
     }
     for (const [key, d] of Object.entries(LABEL_SIZING_DEFAULTS)) {
-      if (!LABEL_SIZING_EFFECTS[key]) throw `LABEL_SIZING_EFFECTS has no text for "${key}"`;
+      if (!LABEL_SIZING_EFFECTS[key]) throw new Error(`LABEL_SIZING_EFFECTS has no text for "${key}"`);
       rows.push(`| layout | \`${key}\`<br>${cell(LABEL_SIZING_EFFECTS[key])} | ${d} | ${key === "labelMaxLineWidth" ? PARAM_LABELS[key] : "—"} |`);
     }
     return ["| Section | Key and effect | Default | Set by the dialog |", "|---|---|---|---|", ...rows];

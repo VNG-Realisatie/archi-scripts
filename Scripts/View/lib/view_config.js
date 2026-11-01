@@ -42,12 +42,12 @@ function readConfig(fileExists) {
  * @returns {Partial<ViewConfig>}
  */
 function validateConfig(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw `${CONFIG_FILE}: expected module.exports = { … }.`;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(`${CONFIG_FILE}: expected module.exports = { … }.`);
   // Cast: an object, checked above.
   const r = /** @type {Record<string, unknown>} */ (raw);
   for (const [key, value] of Object.entries(r)) {
-    if (!(key in DEFAULTS)) throw `${CONFIG_FILE}: unknown setting "${key}" (settings: ${Object.keys(DEFAULTS).join(", ")}). Remove it.`;
-    if (typeof value !== "string" || !value.trim()) throw `${CONFIG_FILE}: ${key} must be the path of the program.`;
+    if (!(key in DEFAULTS)) throw new Error(`${CONFIG_FILE}: unknown setting "${key}" (settings: ${Object.keys(DEFAULTS).join(", ")}). Remove it.`);
+    if (typeof value !== "string" || !value.trim()) throw new Error(`${CONFIG_FILE}: ${key} must be the path of the program.`);
   }
   return /** @type {Partial<ViewConfig>} */ (r);   // Cast: keys and values checked above
 }

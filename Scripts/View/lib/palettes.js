@@ -29,35 +29,35 @@ function validatePalettes(raw) {
   const where = PALETTES_FILE;
   // Cast: shape is checked field by field below.
   const r = /** @type {{ palettes?: unknown }} */ (raw);
-  if (!r || typeof r !== "object" || !Array.isArray(r.palettes)) throw `${where}: expected { "palettes": [ … ] }.`;
+  if (!r || typeof r !== "object" || !Array.isArray(r.palettes)) throw new Error(`${where}: expected { "palettes": [ … ] }.`);
   /** @type {Set<string>} */
   const names = new Set();
   return r.palettes.map((/** @type {any} */ p, /** @type {number} */ i) => {
-    if (!p || typeof p.name !== "string" || !p.name.trim()) throw `${where}: palettes[${i}] needs a name.`;
-    if (names.has(p.name)) throw `${where}: palette "${p.name}" appears twice.`;
+    if (!p || typeof p.name !== "string" || !p.name.trim()) throw new Error(`${where}: palettes[${i}] needs a name.`);
+    if (names.has(p.name)) throw new Error(`${where}: palette "${p.name}" appears twice.`);
     names.add(p.name);
-    if (!Array.isArray(p.colors)) throw `${where}: palette "${p.name}" needs a colors list.`;
+    if (!Array.isArray(p.colors)) throw new Error(`${where}: palette "${p.name}" needs a colors list.`);
     /** @type {Set<string>} */
     const colorNames = new Set();
     const colors = p.colors.map((/** @type {any} */ c, /** @type {number} */ j) => {
-      if (!c || typeof c.name !== "string" || !c.name.trim()) throw `${where}: palette "${p.name}" colors[${j}] needs a name.`;
-      if (colorNames.has(c.name)) throw `${where}: palette "${p.name}" has colour "${c.name}" twice.`;
+      if (!c || typeof c.name !== "string" || !c.name.trim()) throw new Error(`${where}: palette "${p.name}" colors[${j}] needs a name.`);
+      if (colorNames.has(c.name)) throw new Error(`${where}: palette "${p.name}" has colour "${c.name}" twice.`);
       colorNames.add(c.name);
-      if (typeof c.hex !== "string" || !HEX.test(c.hex)) throw `${where}: colour "${c.name}" needs a hex value like #ffffcc.`;
+      if (typeof c.hex !== "string" || !HEX.test(c.hex)) throw new Error(`${where}: colour "${c.name}" needs a hex value like #ffffcc.`);
       return { name: c.name, hex: c.hex.toLowerCase() };
     });
-    if (!Array.isArray(p.ranges) || !p.ranges.length) throw `${where}: palette "${p.name}" needs a ranges list.`;
+    if (!Array.isArray(p.ranges) || !p.ranges.length) throw new Error(`${where}: palette "${p.name}" needs a ranges list.`);
     /** @type {Set<string>} */
     const rangeNames = new Set();
     const ranges = p.ranges.map((/** @type {any} */ r, /** @type {number} */ j) => {
-      if (!r || typeof r.name !== "string" || !r.name.trim()) throw `${where}: palette "${p.name}" ranges[${j}] needs a name.`;
-      if (rangeNames.has(r.name)) throw `${where}: palette "${p.name}" has range "${r.name}" twice.`;
+      if (!r || typeof r.name !== "string" || !r.name.trim()) throw new Error(`${where}: palette "${p.name}" ranges[${j}] needs a name.`);
+      if (rangeNames.has(r.name)) throw new Error(`${where}: palette "${p.name}" has range "${r.name}" twice.`);
       rangeNames.add(r.name);
       if (!Array.isArray(r.colors) || r.colors.length < 2 || !r.colors.every((/** @type {unknown} */ h) => typeof h === "string" && HEX.test(h)))
-        throw `${where}: range "${r.name}" needs two or more hex colours like #ffffcc.`;
+        throw new Error(`${where}: range "${r.name}" needs two or more hex colours like #ffffcc.`);
       const pad = r.padding === undefined ? [0, 0] : r.padding;
       if (!Array.isArray(pad) || pad.length !== 2 || !pad.every((/** @type {unknown} */ x) => typeof x === "number" && x >= 0 && x < 0.5))
-        throw `${where}: range "${r.name}" padding must be [start, end], each from 0 to below 0.5.`;
+        throw new Error(`${where}: range "${r.name}" padding must be [start, end], each from 0 to below 0.5.`);
       return { name: r.name, colors: r.colors.map((/** @type {string} */ h) => h.toLowerCase()), padding: /** @type {[number, number]} */ (pad) };
     });
     return { name: p.name, colors, ranges };
@@ -72,9 +72,9 @@ function readPalettes() {
   const Files = Java.type("java.nio.file.Files");
   const Paths = Java.type("java.nio.file.Paths");
   const path = Paths.get(PRESETS_DIR + PALETTES_FILE);
-  if (!Files.exists(path)) throw `${PALETTES_FILE} not found in the presets folder: the Appearance colours come from it.`;
+  if (!Files.exists(path)) throw new Error(`${PALETTES_FILE} not found in the presets folder: the Appearance colours come from it.`);
   const palettes = validatePalettes(JSON.parse(String(Files.readString(path))));
-  if (!palettes.length) throw `${PALETTES_FILE}: no palettes.`;
+  if (!palettes.length) throw new Error(`${PALETTES_FILE}: no palettes.`);
   return palettes;
 }
 

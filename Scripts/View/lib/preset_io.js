@@ -149,7 +149,7 @@ function readPreset(name, reportUnknownKeys = message => console.log(`Warning: $
   if (name === DEFAULT_PRESET_NAME) ensureDefault();
   const path = _presetPath(name);
   const raw  = readJSON(path);
-  if (!raw) throw `Preset not found: "${name}" (${path})`;
+  if (!raw) throw new Error(`Preset not found: "${name}" (${path})`);
   const unknown = Defs.unknownPresetKeys(raw);
   if (unknown.length)
     reportUnknownKeys(`Preset "${name}" has keys that are not read: ${unknown.join(", ")}. Remove them from the file or correct their names; saving the preset drops them.`);

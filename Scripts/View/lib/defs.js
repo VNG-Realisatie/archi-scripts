@@ -967,10 +967,10 @@ function _legacyKeys(raw) {
  */
 function validatePreset(raw) {
   if (raw.schemaVersion !== undefined && raw.schemaVersion !== DEFAULT_PRESET.schemaVersion)
-    throw `Preset schemaVersion ${raw.schemaVersion} is not supported (expected ${DEFAULT_PRESET.schemaVersion}).`;
+    throw new Error(`Preset schemaVersion ${raw.schemaVersion} is not supported (expected ${DEFAULT_PRESET.schemaVersion}).`);
   const legacy = _legacyKeys(raw);
   if (legacy.length)
-    throw `Preset uses the old filter format (${legacy.join(", ")}). Migrate it: Scripts/View/README.md § Presets.`;
+    throw new Error(`Preset uses the old filter format (${legacy.join(", ")}). Migrate it: Scripts/View/README.md § Presets.`);
 
   /** @type {Preset} */
   const preset = JSON.parse(JSON.stringify(DEFAULT_PRESET));  // deep clone defaults
@@ -980,7 +980,7 @@ function validatePreset(raw) {
   if (raw.algorithm !== undefined) preset.algorithm = raw.algorithm;
 
   const alg = ALGORITHMS[preset.algorithm];
-  if (!alg) throw `Unknown algorithm: "${preset.algorithm}". Valid algorithms: ${Object.keys(ALGORITHMS).join(", ")}`;
+  if (!alg) throw new Error(`Unknown algorithm: "${preset.algorithm}". Valid algorithms: ${Object.keys(ALGORITHMS).join(", ")}`);
 
   const valid = _conditionValidity();
   /** @type {<K extends ConditionKind>(kind: K, list: unknown, where: string) => ConditionByKind[K][]} */
