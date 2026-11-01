@@ -175,6 +175,8 @@ interface LayoutRuntime {
   measureText: TextMeasure;
   /** Where Archi breaks label text: Java's BreakIterator in Archi, its rules in Node. */
   lineBreaks: LineBreaks;
+  /** Archi's default view font: FontFactory's in Archi, a fresh Archi's in Node. */
+  defaultFont: TextFont;
 }
 
 // ── Nesting resolution (nesting.resolveNesting) ───────────────────────────────────────

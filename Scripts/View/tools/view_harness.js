@@ -262,7 +262,8 @@ function planView(model, view, preset, actionId, inProcess = false) {
   // The Node layout with this Node; dot as config.js says, as in Archi.
   const config = { ...ViewConfig.readConfig(fs.existsSync), nodePath: process.execPath };
   const runtime = { runProcess: ViewConfig.programRunner(require("./process_runner_node").runProcess, config), config, inProcess,
-                    measureText: TextMeasureNode.measureText, lineBreaks: TextMeasureNode.lineBreaks };
+                    measureText: TextMeasureNode.measureText, lineBreaks: TextMeasureNode.lineBreaks,
+                    defaultFont: TextMeasureNode.HARNESS_DEFAULT_FONT };
   return GenView.plan({ ...preset, params: Defs.effectiveParams(preset) }, readSnapshot(model, view, actionId), actionId, runtime);
 }
 

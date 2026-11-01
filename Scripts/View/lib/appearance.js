@@ -8,8 +8,8 @@
  *   nestingLevel → highlightRepeated → styleByProperty conditions (in list order)
  *
  * Reset on Modify (layout_only, expand_view): a disabled nesting-level or highlight feature
- * resets the elements it would have styled to Archi defaults (fillColor = null, font = Segoe UI
- * 9 normal); with style conditions, every element fill and relation line colour / width not styled
+ * resets the elements it would have styled to Archi defaults (fillColor = null, font = Archi's
+ * default view font); with style conditions, every element fill and relation line colour / width not styled
  * earlier in the pass is reset before the conditions colour (SPEC §10, Style by property).
  */
 console.log("Loading appearance.js");
@@ -51,8 +51,7 @@ const QUALITATIVE_COLOR_RANGES = new Set(["Pastel1", "Pastel2", "Set2", "Set3"])
  * @typedef {{ kind: "element" | "relation", values: Set<string> }} ConditionTarget
  */
 
-// Archi default font — used when resetting.
-const DEFAULT_FONT_NAME  = "Segoe UI";
+// The font size a nesting condition without one keeps, and the smallest Font decrease per level gives.
 const DEFAULT_FONT_SIZE  = 9;
 const DEFAULT_FONT_STYLE = "normal";
 
@@ -64,9 +63,10 @@ const DEFAULT_FONT_STYLE = "normal";
  * @param {ArchimateView} view
  * @param {MaskedPreset}  preset  params masked to the algorithm (defs.effectiveParams)
  * @param {string}        actionId
+ * @param {TextFont}      defaultFont  Archi's default view font: the name of a nesting font, and a reset
  * @param {Map<string, string>} [diagramBlockOf]  visuals inside a diagram-block: they keep their appearance
  */
-function applyAppearance(view, preset, actionId, diagramBlockOf) {
+function applyAppearance(view, preset, actionId, defaultFont, diagramBlockOf) {
   const keep = diagramBlockOf || new Map();
   const app  = preset.appearance;
   const isModify = actionId === "layout_only" || actionId === "expand_view";
@@ -98,7 +98,7 @@ function applyAppearance(view, preset, actionId, diagramBlockOf) {
   /** @type {Set<string>} */
   const styledVoIds = new Set();
 
-  _applyNestingLevel(view, nl, _colorLookup(app.palette, nl), isModify, styledVoIds, keep);
+  _applyNestingLevel(view, nl, _colorLookup(app.palette, nl), isModify, defaultFont, styledVoIds, keep);
   _applyHighlightRepeated(view, hr, isModify, styledVoIds, keep);
   _applyStyleConditions(view, sbp, isModify, styledVoIds, keep);
 }
@@ -194,17 +194,19 @@ function followNestingChains(nodes, conditions, fontDecreasePerLevel) {
 
 /**
  * The font Style by nesting level gives a visual with this style (followNestingChains): containers,
- * and leaves beside one, with a larger or bold font. With the font on it is set; off, a Modify action
- * resets it to Archi's default; otherwise the visual keeps its font (undefined).
+ * and leaves beside one, with a larger or bold font, in Archi's default view font (its name at this
+ * run, so a changed default carries over). With the font on it is set; off, a Modify action resets
+ * it to Archi's default view font; otherwise the visual keeps its font (undefined).
  * @param {NestingStyle} st
  * @param {Preset["appearance"]["nestingLevel"]} settings
  * @param {boolean} isModify
+ * @param {TextFont} defaultFont  Archi's default view font
  * @returns {TextFont | undefined}
  */
-function nestingFont(st, settings, isModify) {
+function nestingFont(st, settings, isModify, defaultFont) {
   if (!st.asContainer || !(st.fontSize > DEFAULT_FONT_SIZE || st.bold)) return undefined;
-  if (settings.fontEnabled) return { name: DEFAULT_FONT_NAME, size: st.fontSize, style: st.bold ? "bold" : DEFAULT_FONT_STYLE };
-  if (isModify) return { name: DEFAULT_FONT_NAME, size: DEFAULT_FONT_SIZE, style: DEFAULT_FONT_STYLE };
+  if (settings.fontEnabled) return { name: defaultFont.name, size: st.fontSize, style: st.bold ? "bold" : DEFAULT_FONT_STYLE };
+  if (isModify) return defaultFont;
   return undefined;
 }
 
@@ -214,14 +216,15 @@ function nestingFont(st, settings, isModify) {
  * @param {NestingNode[]} nodes  every element visual (followNestingChains)
  * @param {Preset["appearance"]["nestingLevel"]} settings
  * @param {boolean} isModify
+ * @param {TextFont} defaultFont  Archi's default view font
  * @returns {Map<string, TextFont>}  visual id → font; a visual that keeps its font is absent
  */
-function nestingFonts(nodes, settings, isModify) {
+function nestingFonts(nodes, settings, isModify, defaultFont) {
   /** @type {Map<string, TextFont>} */
   const fonts = new Map();
   const { styles } = followNestingChains(nodes, settings.conditions, settings.fontDecreasePerLevel);
   for (const [id, st] of styles) {
-    const font = nestingFont(st, settings, isModify);
+    const font = nestingFont(st, settings, isModify, defaultFont);
     if (font) fonts.set(id, font);
   }
   return fonts;
@@ -321,10 +324,11 @@ function _voDepth(vo) {
  * @param {Preset["appearance"]["nestingLevel"]}   settings
  * @param {(colorName: string) => string | null}   colorOf  hex of a colour of the chosen palette
  * @param {boolean}                                isModify
+ * @param {TextFont}                               defaultFont  Archi's default view font
  * @param {Set<string>}                            styledVoIds
  * @param {Map<string, string>}                    keep  visuals inside a diagram-block: left out
  */
-function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep) {
+function _applyNestingLevel(view, settings, colorOf, isModify, defaultFont, styledVoIds, keep) {
   let fontSet = 0, fontReset = 0, colorSet = 0, colorReset = 0;
   const vos = _onView(view, "element", keep).filter(vo => !!vo.id);
   const nodes = vos.map(vo => _nestingNode(vo, keep));
@@ -341,7 +345,7 @@ function _applyNestingLevel(view, settings, colorOf, isModify, styledVoIds, keep
       if (isModify && settings.colorEnabled) { vo.fillColor = null; colorReset++; }
       return;
     }
-    const font = nestingFont(st, settings, isModify);
+    const font = nestingFont(st, settings, isModify, defaultFont);
     if (font) {
       vo.fontName  = font.name;
       vo.fontSize  = font.size;

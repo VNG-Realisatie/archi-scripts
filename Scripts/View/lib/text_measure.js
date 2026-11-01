@@ -46,6 +46,17 @@ function createTextMeasure() {
 }
 
 /**
+ * Archi's default view font (Preferences › Appearance › Fonts), as jArchi reads a visual without a
+ * font of its own.
+ * @returns {TextFont}
+ */
+function defaultViewFont() {
+  const fd = FontFactory.getDefaultUserViewFontData();
+  const bold = (fd.getStyle() & SWT.BOLD) !== 0, italic = (fd.getStyle() & SWT.ITALIC) !== 0;
+  return { name: fd.getName(), size: fd.getHeight(), style: bold ? (italic ? "bolditalic" : "bold") : italic ? "italic" : "normal" };
+}
+
+/**
  * Where Archi breaks label text: the line BreakIterator draw2d's text flow wraps with
  * (FlowUtilities.getLineInstance: the first BreakIteratorProvider registered, else Java's own).
  * @returns {LineBreaks}
@@ -73,4 +84,4 @@ function _viewFont(font) {
   return FontFactory.getViewFont(new FontData(font.name, font.size, style).toString());
 }
 
-module.exports = { createTextMeasure, createLineBreaks };
+module.exports = { createTextMeasure, createLineBreaks, defaultViewFont };

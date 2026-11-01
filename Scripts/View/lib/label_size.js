@@ -54,6 +54,7 @@ const ICON_OFFSET = Object.freeze({
  * @typedef {object} LabelInput  what the label sizes are read from besides the layout graph
  * @property {TextMeasure}   measure
  * @property {LineBreaks}    breaks       where Archi may break label text
+ * @property {TextFont}      defaultFont  Archi's default view font (Style by nesting level writes its name)
  * @property {RelationIndex} relationsOf  the model relations of an element (Style by nesting level)
  * @property {boolean}       isModify     Layout only / Expand view: Style by nesting level resets a font it no longer sets
  *
@@ -96,7 +97,7 @@ function labelLayouts(nodes, parentMap, src) {
       depth: depthOf(n.id), isContainer: containers.has(n.id),
     });
   }
-  const styled = Appearance.nestingFonts(nestingNodes, src.nestingLevel, src.input.isModify);
+  const styled = Appearance.nestingFonts(nestingNodes, src.nestingLevel, src.input.isModify, src.input.defaultFont);
   return id => {
     const vo = src.visualOf(id);
     const el = src.elementOf(id);
