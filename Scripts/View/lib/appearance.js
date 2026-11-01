@@ -252,7 +252,7 @@ function _lastOf(best, conflicts) {
 
 /**
  * How narrowly a condition selects: one point per named parent type, relation type and direction
- * (outgoing / incoming); child: a type 2, = Parent 1, All 0.
+ * (outgoing / incoming); child: a type 2, Same as parent 1, All 0.
  * @param {NestingStyleCondition} r
  */
 function _specificity(r) {

@@ -601,7 +601,7 @@ function styleConditionColumns(ranges) {
 
 /** @type {readonly ConditionTableItem[]} */
 const FONT_SIZE_ITEMS = Object.freeze([{ value: 0, label: "" }, ...Array.from({ length: 17 }, (_, i) => ({ value: i + 8, label: String(i + 8) }))]);
-const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "= Parent" }, ...ELEMENT_ITEMS]);
+const CHILD_ITEMS = Object.freeze([{ value: ConditionLists.SAME_TYPE, label: "Same as parent" }, ...ELEMENT_ITEMS]);
 
 /**
  * Columns of the nesting style table; the colour cell lists the colours of the chosen palette.
@@ -618,8 +618,8 @@ function nestingStyleConditionColumns(colors, switches) {
       tooltip: "Outgoing: the relation starts at the parent; Incoming: it ends there; Either: both (default).\n" +
                "Either with relation All also matches a nesting without a relation." },
     _relCol("relation", "Relation type", "The model relation between parent and child. All = any type."),
-    { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 150,
-      tooltip: "Type of the nested element the condition selects; = Parent: the parent's type.\n" +
+    { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 158,   // fits "Same as parent"
+      tooltip: "Type of the nested element the condition selects; Same as parent: the parent's type.\n" +
                "All = any type." },
     { key: "color", header: "Color", kind: "custom",
       create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) =>

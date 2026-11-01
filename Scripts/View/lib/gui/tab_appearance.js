@@ -285,7 +285,7 @@ function buildAppearanceTab(tabFolder, ctx) {
 
   Widgets.noteLabel(grpHighlight, "Elements that have multiple occurrences get the same color. Repetition becomes visible across the model.");
 
-  const hlRow = Widgets.formRow(grpHighlight, "", formRows);
+  const hlRow = Widgets.formRow(grpHighlight, "Apply:", formRows);
   const chkHighlightRep = Widgets.checkBox(hlRow, "Highlight");
   GridDataFactory.fillDefaults().span(2, 1).applyTo(chkHighlightRep.control);
   chkHighlightRep.setToolTipText("Elements that appear more than once on this view receive a shared color per identity.\nNeeds a Nesting condition with Every.");
