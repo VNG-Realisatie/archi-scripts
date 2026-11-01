@@ -55,6 +55,7 @@ function readJSON(path) {
 /**
  * @param {string} path
  * @param {object} obj
+ * @throws when the file cannot be written
  */
 function writeJSON(path, obj) {
   const File       = Java.type("java.io.File");
@@ -64,8 +65,8 @@ function writeJSON(path, obj) {
     const writer = new FileWriter(path);
     writer.write(ConditionLists.stringifyPreset(obj));
     writer.close();
-  } catch (e) {
-    console.error(`Failed to write file: ${path} ${e}`);
+  } catch (e) {   // a Java exception: say which file
+    throw new Error(`Failed to write ${path}: ${e}`);
   }
 }
 
@@ -164,6 +165,7 @@ function readPreset(name, reportUnknownKeys = message => console.log(`Warning: $
  * @param {object} preset  preset object (dialog fields starting with "_" are dropped)
  * @param {{quiet?:boolean}} [opts]  quiet: no console line — for callers inside an SWT handler of
  *                                   a modal dialog, where console output blocks until it closes
+ * @throws when the file cannot be written; nothing is logged as saved
  */
 function writePreset(name, preset, opts) {
   // Dialog/session state (action, _lastTabIndex, …) is not part of a preset.
@@ -272,7 +274,9 @@ function readSession() {
  * @param {object} preset  current configuration
  */
 function writeSession(preset) {
-  writeJSON(presetDir() + SESSION_FILENAME, preset);
+  // Not a preset: a session that cannot be saved does not stop the dialog or the run.
+  try { writeJSON(presetDir() + SESSION_FILENAME, preset); }
+  catch (e) { console.error(`Session not saved: ${/** @type {Error} */ (e).message}`); }
 }
 
 if (typeof module !== "undefined" && module.exports) {

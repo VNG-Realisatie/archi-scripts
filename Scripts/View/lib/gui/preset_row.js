@@ -80,17 +80,16 @@ function buildPresetRow(parent, ctx) {
 
   w.btnSave = Widgets.pushBtn(row, "Save", SAVE_TIP, () => {
     ctx.saveUI();
-    PresetIO.writePreset(presetName(ctx), ctx.config, { quiet: true });
-    _afterPresetChange(ctx);
+    if (_written(ctx, () => PresetIO.writePreset(presetName(ctx), ctx.config, { quiet: true }))) _afterPresetChange(ctx);
   });
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnSave);
 
   const btnSaveAs = Widgets.pushBtn(row, "Save As…", "Save the current settings as a new preset.", () => {
     ctx.saveUI();
     _openPresetNameDialog(ctx, "Save As…", "Save the current settings as a new preset.", (newName, description) => {
+      if (!_written(ctx, () => PresetIO.writePreset(newName, { ...ctx.config, name: newName, description }, { quiet: true }))) return;
       ctx.config.name        = newName;
       ctx.config.description = description;
-      PresetIO.writePreset(newName, ctx.config, { quiet: true });
       _afterPresetChange(ctx);
     });
   });
@@ -105,7 +104,7 @@ function buildPresetRow(parent, ctx) {
       const saved = PresetIO.readPreset(oldName, () => {});   // reported when it was loaded
       saved.name        = newName;
       saved.description = description;
-      PresetIO.writePreset(newName, saved, { quiet: true });
+      if (!_written(ctx, () => PresetIO.writePreset(newName, saved, { quiet: true }))) return;   // the old one stays
       if (newName !== oldName) PresetIO.deletePreset(oldName);
       ctx.config.name        = newName;
       ctx.config.description = description;
@@ -121,7 +120,7 @@ function buildPresetRow(parent, ctx) {
     try {
       PresetIO.deletePreset(name);
       _loadPreset(ctx, PresetIO.DEFAULT_PRESET_NAME);
-    } catch (e) { console.error("Delete failed: " + e); }
+    } catch (e) { _warn(ctx, "Preset not deleted", String(/** @type {Error} */ (e).message || e)); }
   });
   GridDataFactory.swtDefaults().hint(70, SWT.DEFAULT).applyTo(w.btnDelete);
 
@@ -160,7 +159,7 @@ function _loadPreset(ctx, name) {
     ctx.recount();
     if (unknownKeys) _warn(ctx, "Unknown preset keys", unknownKeys);
   } catch (e) {
-    console.error("Load preset: " + e);
+    _warn(ctx, "Preset not loaded", String(/** @type {Error} */ (e).message || e));
   } finally {
     ctx._ready = true;
   }
@@ -243,6 +242,17 @@ function _confirm(ctx, title, message) {
 function _warn(ctx, title, message) {
   const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
   MessageDialog.openWarning(_confirmParent(ctx), title, message);
+}
+
+// Run a preset write; a failure is shown, and the dialog does not act as if it was saved (SPEC § 12).
+/**
+ * @param {DialogContext} ctx
+ * @param {() => void} write
+ * @returns {boolean} written
+ */
+function _written(ctx, write) {
+  try { write(); return true; }
+  catch (e) { _warn(ctx, "Preset not saved", String(/** @type {Error} */ (e).message || e)); return false; }
 }
 
 // Name + folder + description dialog for Save As / Rename. Asks before overwriting another preset.
