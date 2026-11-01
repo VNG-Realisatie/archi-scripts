@@ -351,9 +351,7 @@ function layout(graph) {
     });
   }
 
-  const maxX = Math.max(0, ...nodes.map(n => n.x + n.width));
-  const maxY = Math.max(0, ...nodes.map(n => n.y + n.height));
-  return { nodes, edges, viewWidth: Math.ceil(maxX + diagramPad) + 20, viewHeight: Math.ceil(maxY + diagramPad) + 20 };
+  return { nodes, edges };
 }
 
 /**

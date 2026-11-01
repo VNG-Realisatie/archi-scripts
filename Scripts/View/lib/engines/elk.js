@@ -285,7 +285,7 @@ function _loadELK() {
 /**
  * Compute layout positions.
  * @param {LayoutGraph} graph  — { nodes, edges, options, algorithm, alignWidthSameType, sort }
- * @returns {LayoutResult}     — { nodes, edges, viewWidth, viewHeight }
+ * @returns {LayoutResult}     — { nodes, edges }
  */
 function layout(graph) {
   const logger = (/** @type {string} */ msg) => console.log("  " + msg);
@@ -477,12 +477,7 @@ function _layoutOnce(graph, log) {
   // Self-loops: pass-through with empty bendpoints. Writer synthesises.
   resultEdges.push(...selfLoops.map(selfLoopResult));
 
-  return {
-    nodes,
-    edges:      resultEdges,
-    viewWidth:  Math.ceil(layouted.width  || 0) + 20,
-    viewHeight: Math.ceil(layouted.height || 0) + 20,
-  };
+  return { nodes, edges: resultEdges };
 }
 
 /**

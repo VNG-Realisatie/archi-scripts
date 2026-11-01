@@ -226,3 +226,5 @@ All steps of this plan are done. Open: D1 (the user retests *Snap columns to gri
 ## Next step
 
 No step left in this plan. Open items (D1 retest, S1, S2, S4) each need the user's decision first.
+
+- 2026-11-01: D1 resolved (snap columns gone from the code); S1 done (`viewWidth` / `viewHeight` dropped from `LayoutResult` and the layout digest). Open: S2, S4.

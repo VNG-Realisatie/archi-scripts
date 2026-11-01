@@ -303,7 +303,6 @@ An engine is an opaque function behind one normalised interface, `layout(LayoutG
 **LayoutResult (out).**
 - **nodes**: the same ids, with **absolute** x/y/width/height and a parent id. The orchestrator converts them to parent-relative at write time.
 - **edges**: the same ids, with **absolute** bendpoints, a straight-line flag, an optional label position, and optionally the points where the line leaves and enters the elements.
-- **viewWidth / viewHeight**: the natural bounding box.
 
 Element labels are intrinsic to nodes; the result carries no separate label coordinates. Field lists: [layout graph and result](reference/engines.md#layout-graph-and-result).
 

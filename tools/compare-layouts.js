@@ -44,11 +44,10 @@ const algorithms = Object.keys(Defs.ALGORITHMS);
 const model = H.loadModel(modelFile);
 const view = H.findView(model, viewPath);
 
-/** @param {{nodes: object[], edges: {conceptId?: string}[], viewWidth: number, viewHeight: number}} r */
+/** @param {{nodes: object[], edges: {conceptId?: string}[]}} r */
 const digest = r => crypto.createHash("sha1").update(JSON.stringify({
   nodes: r.nodes,
   edges: keepConceptId ? r.edges : r.edges.map(e => { const { conceptId, ...rest } = e; return rest; }),
-  w: r.viewWidth, h: r.viewHeight,
 })).digest("hex").slice(0, 12);
 
 for (const file of presets) {

@@ -597,10 +597,8 @@ function _extractResult(graph, jsonOut) {
 
   _normalizeOrigin(resultNodes, resultEdges);
 
-  let maxX = 0, maxY = 0;
-  for (const n of resultNodes) { maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height); }
 
-  return { nodes: resultNodes, edges: resultEdges, viewWidth: maxX + 20, viewHeight: maxY + 20 };
+  return { nodes: resultNodes, edges: resultEdges };
 }
 
 /**

@@ -35,7 +35,6 @@ LayoutResult {
              bendpoints : [{ x, y }],                 // ABSOLUTE
              isStraight : boolean,
              labelX, labelY : number }]               // 0,0 = no placement
-  viewWidth, viewHeight : number
 }
 ```
 

@@ -130,9 +130,6 @@ interface LayoutResultEdge {
 interface LayoutResult {
   nodes: LayoutResultNode[];
   edges: LayoutResultEdge[];
-  /** Natural bounding box. */
-  viewWidth: number;
-  viewHeight: number;
 }
 
 /** An engine adapter (engines/elk.js, dagre.js, graphviz.js). Only an engine that starts a process uses `runProcess`. */
