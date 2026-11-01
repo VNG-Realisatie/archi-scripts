@@ -285,7 +285,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Preset-only options** have no or minimal effect on the view (e.g. the canvas margin) and so no control. A preset can still set them, and a non-default value is logged.
 
-**Settings outside the dialog.** A preset can also tune the layout engine and the sizing by label directly, without a control ([settings outside the dialog](reference/presets.md#settings-outside-the-dialog)). A run lists each such setting that applies, and warns, saying what to do, about each one that has no effect, equals its default or overrides a dialog option.
+**Settings outside the dialog.** A preset can also tune the layout engine and the sizing by label directly, without a control ([settings outside the dialog](reference/presets.md#settings-outside-the-dialog)). A run lists each such setting that applies, and warns, saying what to do, about each one that has no effect, equals its default or overrides a dialog option. A setting of the wrong type stops the run before anything is written.
 
 ---
 

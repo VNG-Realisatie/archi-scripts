@@ -16,7 +16,7 @@ const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, DIRECTION_MAP } = Defs;
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { selfLoopResult, sortedNodes, applyParams, dialogKeys, settingProblem, labelPoint } = EngineUtils;
+const { selfLoopResult, sortedNodes, applyParams, dialogKeys, settingProblem, settingTypeFinding, labelPoint } = EngineUtils;
 
 // ── Engine-specific parameter mapping ────────────────────────────────────────
 
@@ -30,17 +30,17 @@ const RANKER = {
 
 // Settings outside the dialog (engineParams.Dagre): the graph options dagre reads, with dagre's own
 // default. The dialog sets all but align (acyclicer only for Greedy); engineParams.Dagre wins over it.
-/** @type {Record<string, { default: string | number | undefined, effect: string }>} */
+/** @type {Record<string, { default: string | number | undefined, type: SettingType, effect: string }>} */
 const ENGINE_PARAMS = {
-  rankdir:   { default: "tb",              effect: "Direction of the layers: tb, bt, lr, rl" },
-  ranker:    { default: "network-simplex", effect: "Layer assignment: network-simplex, tight-tree, longest-path" },
-  acyclicer: { default: undefined,         effect: "Cycle breaking: unset = depth-first, greedy" },
-  ranksep:   { default: 50,                effect: "Distance between layers (px)" },
-  nodesep:   { default: 50,                effect: "Distance between elements in one layer (px)" },
-  edgesep:   { default: 20,                effect: "Distance between connections in one layer (px)" },
-  marginx:   { default: 0,                 effect: "Margin left and right of the view (px)" },
-  marginy:   { default: 0,                 effect: "Margin above and below the view (px)" },
-  align:     { default: undefined,         effect: "Alignment in a layer: UL, UR, DL, DR; unset = centred" },
+  rankdir:   { default: "tb",              type: "text",   effect: "Direction of the layers: tb, bt, lr, rl" },
+  ranker:    { default: "network-simplex", type: "text",   effect: "Layer assignment: network-simplex, tight-tree, longest-path" },
+  acyclicer: { default: undefined,         type: "text",   effect: "Cycle breaking: unset = depth-first, greedy" },
+  ranksep:   { default: 50,                type: "number", effect: "Distance between layers (px)" },
+  nodesep:   { default: 50,                type: "number", effect: "Distance between elements in one layer (px)" },
+  edgesep:   { default: 20,                type: "number", effect: "Distance between connections in one layer (px)" },
+  marginx:   { default: 0,                 type: "number", effect: "Margin left and right of the view (px)" },
+  marginy:   { default: 0,                 type: "number", effect: "Margin above and below the view (px)" },
+  align:     { default: undefined,         type: "text",   effect: "Alignment in a layer: UL, UR, DL, DR; unset = centred" },
 };
 
 /** @type {ParamMapping} */
@@ -83,7 +83,8 @@ function checkEngineParams(preset) {
   const dialog  = dialogSettings(preset.algorithm, preset.params);
   const current = applyParams("Dagre", preset.params, PARAM_MAPPING);
   return Object.entries(preset.engineParams.Dagre || {}).map(([key, value]) =>
-    ({ key, value, ...settingProblem(key, _num(value), defaults, dialog, current) }));
+    key in ENGINE_PARAMS && settingTypeFinding(key, value, ENGINE_PARAMS[key].type, true)
+      || { key, value, ...settingProblem(key, _num(value), defaults, dialog, current) });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

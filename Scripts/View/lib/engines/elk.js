@@ -18,7 +18,7 @@ const Defs = require(REPO_ROOT + "View/lib/defs");
 const { ALGORITHMS, SPLINE_SAMPLE_POINTS, CONNECTION_END_CLEARANCE } = Defs;
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils = require(REPO_ROOT + "View/lib/engines/engine-utils");
-const { containerTop, selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys, settingProblem, SETTING_UNKNOWN, cubicPoint, labelPoint, alignColumnsAcrossContainers } = EngineUtils;
+const { containerTop, selfLoopResult, sortedNodes, alignWidthsByLevel, applyParams, dialogKeys, settingProblem, settingTypeFinding, SETTING_UNKNOWN, cubicPoint, labelPoint, alignColumnsAcrossContainers } = EngineUtils;
 
 /**
  * ELK graph objects as this adapter builds them, fresh for every ELK run. ELK ignores the `_`
@@ -1393,6 +1393,13 @@ function dialogSettings(algorithm, params) {
     dialogKeys(params.containerAlgorithm || algorithm, params, CONTAINER_MAPPING));
 }
 
+// The type an ELK option value must have, by the type the bundled ELK's registry declares; ELK reads
+// every value from a text too. OBJECT (e.g. elk.padding) is not checked.
+/** @type {Readonly<Record<string, SettingType>>} */
+const ELK_SETTING_TYPES = Object.freeze({
+  DOUBLE: "number", INT: "integer", BOOLEAN: "boolean", ENUM: "text", ENUMSET: "text", STRING: "text",
+});
+
 /**
  * One finding per engineParams.ELK key. Option ids and targets come from the bundled ELK's registry;
  * ELK also accepts the end of an id ("elk.spacing.nodeNode"). Not used: an unknown id; an option
@@ -1411,7 +1418,9 @@ function checkEngineParams(preset) {
   const meta = _loadELK().metadata();
   /** @type {Record<string, string[]>} */
   const targets = {};
-  for (const o of meta.options) targets[o.id] = o.targets || [];
+  /** @type {Record<string, string>} */
+  const types = {};
+  for (const o of meta.options) { targets[o.id] = o.targets || []; types[o.id] = o.type; }
   const ids = Object.keys(targets);
   const idOf = (/** @type {string} */ key) => ids.find(id => id === key || id.endsWith("." + key));
   // By option id; a later key for the same option wins, as in ELK.
@@ -1449,6 +1458,9 @@ function checkEngineParams(preset) {
     const finding = (/** @type {string | null} */ problem) => ({ key, value, problem });
     const id = idOf(key);
     if (!id) return finding(SETTING_UNKNOWN);
+    const type = ELK_SETTING_TYPES[types[id]];
+    const wrongType = type && settingTypeFinding(key, value, type, true);
+    if (wrongType) return wrongType;
     const later = keys.slice(i + 1).find(k => idOf(k) === id);
     if (later) return finding(`the same ELK option as "${later}", which wins — remove one`);
     const targeted = scopes.filter(scope => scope.reads.some(t => targets[id].includes(t)));

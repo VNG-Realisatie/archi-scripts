@@ -87,29 +87,42 @@ function _getAdapter(engine) {
 // ── Settings outside the dialog ───────────────────────────────────────────────
 
 /**
- * Console lines for the preset's engineParams: every key that applies, and a ⚠ line per key that is
- * not used, equals its default or overrides a dialog option. Checked: the label sizing and the run's
- * engine; another engine's section is checked by a run with that engine.
+ * Console lines for the preset's engineParams: every key that applies, a ⚠ line per key that is
+ * not used, equals its default or overrides a dialog option, and a ✗ line per section that is not an
+ * object and per value of the wrong type. Checked: the label sizing and the run's engine; another
+ * engine's section is checked by a run with that engine.
  * @param {MaskedPreset} preset
- * @returns {string[]}  empty when the preset sets nothing outside the dialog
+ * @returns {{ lines: string[], invalid: number }}  lines: empty when the preset sets nothing outside
+ *   the dialog; invalid: the ✗ lines, on which the run stops
  */
 function checkEngineParams(preset) {
   const engine = ALGORITHMS[preset.algorithm].engine;
   const sections = new Set([...Object.values(ALGORITHMS).map(a => a.engine), "layout"]);
-  const lines = Object.keys(preset.engineParams)
-    .filter(section => !sections.has(section))
-    .map(section => `  ⚠ ${section}: ${EngineUtils.SETTING_UNKNOWN}`);
-  /** @type {[string, SettingFinding[]][]} */
-  const checked = [
-    ["layout", EngineUtils.checkLabelSizing(preset.engineParams.layout)],
-    [engine,   _getAdapter(engine).checkEngineParams(preset)],
-  ];
-  for (const [section, findings] of checked) for (const f of findings) {
-    const setting = `${section} "${f.key}" = ${f.value}`;
-    lines.push(f.problem ? `  ⚠ ${setting}: ${f.problem}`
-      : `  ${setting}${f.without !== undefined ? ` (default ${f.without})` : ""}`);
+  const isObject = (/** @type {unknown} */ v) => !!v && typeof v === "object" && !Array.isArray(v);
+  /** @type {string[]} */
+  const lines = [];
+  let invalid = 0;
+  for (const [section, value] of Object.entries(preset.engineParams)) {
+    if (!sections.has(section)) lines.push(`  ⚠ ${section}: ${EngineUtils.SETTING_UNKNOWN}`);
+    else if (!isObject(value)) { lines.push(`  ✗ ${section} = ${JSON.stringify(value)}: must be an object of settings — correct it`); invalid++; }
   }
-  return lines.length ? ["Settings outside the dialog (engineParams):", ...lines] : [];
+  /** @type {[string, () => SettingFinding[]][]} */
+  const owners = [
+    ["layout", () => EngineUtils.checkLabelSizing(preset.engineParams.layout)],
+    [engine,   () => _getAdapter(engine).checkEngineParams(preset)],
+  ];
+  for (const [section, check] of owners) {
+    const value = /** @type {Record<string, unknown>} */ (preset.engineParams)[section];   // Cast: section is an EngineParams key
+    if (value !== undefined && !isObject(value)) continue;   // reported above
+    for (const f of check()) {
+      const setting = `${section} "${f.key}" = ${JSON.stringify(f.value)}`;
+      if (f.invalid) invalid++;
+      lines.push(f.invalid ? `  ✗ ${setting}: ${f.problem}`
+        : f.problem ? `  ⚠ ${setting}: ${f.problem}`
+        : `  ${setting}${f.without !== undefined ? ` (default ${f.without})` : ""}`);
+    }
+  }
+  return { lines: lines.length ? ["Settings outside the dialog (engineParams):", ...lines] : [], invalid };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -168,7 +181,13 @@ function generate_view(rawPreset, uiSelection, actionId) {
       .map(k => `${k}=${shown[k]}`);
     if (hidden.length) console.log(`Preset values not in dialog: ${hidden.join("  ")}`);
   }
-  for (const line of checkEngineParams(preset)) console.log(line);
+  const settings = checkEngineParams(preset);
+  for (const line of settings.lines) console.log(line);
+  if (settings.invalid) {
+    console.error(`Run stopped: ${settings.invalid} engineParams setting(s) of the wrong type (✗ above). Correct the preset; nothing is written.`);
+    console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
+    return [];
+  }
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";

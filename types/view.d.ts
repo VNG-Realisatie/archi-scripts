@@ -242,7 +242,12 @@ interface SettingFinding {
   problem: string | null;
   /** The value the run uses without the key, where the adapter knows it. */
   without?: unknown;
+  /** The value has the wrong type (`problem` says which it needs): the run stops before the layout. */
+  invalid?: boolean;
 }
+
+/** The type an engineParams value must have (engine-utils.SETTING_TYPES). */
+type SettingType = "number" | "integer" | "boolean" | "text" | "numberOrText";
 
 interface ViewProperty {
   key: string;

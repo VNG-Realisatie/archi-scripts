@@ -67,6 +67,17 @@ Every run checks the `layout` section and the section of its own engine; another
 - names one ELK option twice, under two keys;
 - overrides a dialog option, or equals what the dialog or the default sets.
 
+A value of the wrong type stops the run before the layout, with a ✗ line that names the type it needs; nothing is written. So does a section that is not an object. The type per section:
+
+| Section | Type of a value |
+|---|---|
+| `layout` | a number |
+| ELK | the type the bundled ELK declares for the option: a number, a whole number, `true`/`false` or a text; ELK also reads each from a text (`"12"`, `"true"`). An option of type object (`elk.padding`) is not checked. |
+| Dagre | a number (`"80"` counts too: dagre converts it) for `ranksep`, `nodesep`, `edgesep`, `marginx`, `marginy`; a text for the others |
+| Graphviz | `esep`: a number or a text (`"+8"`) |
+
+An `engineParams` that is not an object is dropped by validation and reported when the preset is read, with the keys validation does not read.
+
 ELK core options (`elk.padding`, `elk.spacing.*`, …) are not checked against the algorithm: ELK declares fewer of them than an algorithm reads. *Set by the dialog* lists the option that sets a key, with its algorithms where that is not every algorithm of the engine. ELK and Dagre take any option the engine reads; Graphviz only `esep`.
 
 <!-- generated:engine-params -->

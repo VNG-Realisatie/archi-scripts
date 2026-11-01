@@ -462,6 +462,41 @@ function dialogKeys(algName, opts, mapping) {
 const SETTING_UNKNOWN = "unknown — not used, remove";
 const SETTING_DEFAULT = "same as the default — remove";
 
+// The type an engineParams value must have. `parsed`: the engine also reads the value from a text
+// (ELK, dagre), so "20" is a number and "true" a boolean there.
+/** @type {Readonly<Record<SettingType, { name: string, accepts(value: unknown, parsed: boolean): boolean }>>} */
+const SETTING_TYPES = Object.freeze({
+  number:       { name: "a number",           accepts: (v, parsed) => _isNumber(v, parsed) },
+  integer:      { name: "a whole number",     accepts: (v, parsed) => _isNumber(v, parsed) && Number.isInteger(Number(v)) },
+  boolean:      { name: "true or false",      accepts: (v, parsed) => typeof v === "boolean" || parsed && (v === "true" || v === "false") },
+  text:         { name: "a text",             accepts: v => typeof v === "string" },
+  numberOrText: { name: "a number or a text", accepts: v => typeof v === "string" || typeof v === "number" && Number.isFinite(v) },
+});
+
+/**
+ * @param {unknown} value
+ * @param {boolean} parsed  a text that holds a number counts
+ * @returns {boolean}
+ */
+function _isNumber(value, parsed) {
+  if (typeof value === "number") return Number.isFinite(value);
+  return parsed && typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value));
+}
+
+/**
+ * The finding for an engineParams value of the wrong type (the run stops on it), or null when the
+ * type is right.
+ * @param {string}      key
+ * @param {unknown}     value
+ * @param {SettingType} type
+ * @param {boolean}     parsed  the engine reads the value from a text too
+ * @returns {SettingFinding | null}
+ */
+function settingTypeFinding(key, value, type, parsed) {
+  const t = SETTING_TYPES[type];
+  return t.accepts(value, parsed) ? null : { key, value, problem: `must be ${t.name} — correct it`, invalid: true };
+}
+
 /**
  * The problem of one engineParams key (null when it applies: unknown, set by a dialog option
  * (the preset wins), or equal to what the run uses without it) and that value.
@@ -490,9 +525,10 @@ function settingProblem(key, value, defaults, dialog, current) {
  * @returns {SettingFinding[]}
  */
 function checkLabelSizing(layout) {
-  return Object.entries(layout || {}).map(([key, value]) => ({ key, value,
-    ...(key === "labelMaxLineWidth" ? { problem: `the dialog's "${PARAM_LABELS.labelMaxLineWidth}" wins — not used, remove` }
-      : settingProblem(key, value, LABEL_SIZING_DEFAULTS, {}, {})) }));
+  return Object.entries(layout || {}).map(([key, value]) =>
+    key === "labelMaxLineWidth" ? { key, value, problem: `the dialog's "${PARAM_LABELS.labelMaxLineWidth}" wins — not used, remove` }
+    : key in LABEL_SIZING_DEFAULTS && settingTypeFinding(key, value, "number", false)
+      || { key, value, ...settingProblem(key, value, LABEL_SIZING_DEFAULTS, {}, {}) });
 }
 
 // ── Edge-density node sizing ──────────────────────────────────────────────────
@@ -563,6 +599,7 @@ if (typeof module !== "undefined" && module.exports) {
     dialogKeys,
     SETTING_UNKNOWN,
     settingProblem,
+    settingTypeFinding,
     checkLabelSizing,
     expandNodeSizesForEdgeDensity,
     cubicPoint,

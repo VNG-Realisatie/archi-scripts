@@ -20,7 +20,7 @@ const Defs         = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
-const { applyParams, dialogKeys, settingProblem, cubicPoint } = EngineUtils;
+const { applyParams, dialogKeys, settingProblem, settingTypeFinding, cubicPoint } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
 const PT2PX = 96 / 72;
@@ -44,9 +44,10 @@ const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // Settings outside the dialog (engineParams.Graphviz): the only Graphviz attribute the adapter reads,
 // with the algorithms that use it (dot ignores esep). Distance to element sets it where the
 // algorithm offers that option; engineParams.Graphviz wins over it.
-/** @type {Record<string, { default: string, effect: string, usedBy: string[] }>} */
+/** @type {Record<string, { default: string, type: SettingType, effect: string, usedBy: string[] }>} */
 const ENGINE_PARAMS = {
   esep: { default: `${GRAPHVIZ_EDGE_CLEARANCE_ORTHO} with Orthogonal routing, otherwise ${GRAPHVIZ_EDGE_CLEARANCE_CURVED}`,
+          type: "numberOrText",
           effect: "Distance between a connection and an element (pt, +w = per side)",
           usedBy: ["Neato", "FDP", "SFDP", "Twopi", "Circo"] },
 };
@@ -149,9 +150,10 @@ function checkEngineParams(preset) {
   const defaults = { esep: _defaultEsep(current.splines || "polyline") };
   const dialog   = dialogSettings(preset.algorithm, preset.params);
   return Object.entries(preset.engineParams.Graphviz || {}).map(([key, value]) =>
-    key in ENGINE_PARAMS && !ENGINE_PARAMS[key].usedBy.includes(preset.algorithm)
+    key in ENGINE_PARAMS && settingTypeFinding(key, value, ENGINE_PARAMS[key].type, false)
+    || (key in ENGINE_PARAMS && !ENGINE_PARAMS[key].usedBy.includes(preset.algorithm)
       ? { key, value, problem: `not used by ${preset.algorithm} — remove` }
-      : { key, value, ...settingProblem(key, value, defaults, dialog, current) });
+      : { key, value, ...settingProblem(key, value, defaults, dialog, current) }));
 }
 
 /**

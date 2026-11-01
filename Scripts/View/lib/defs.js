@@ -910,7 +910,8 @@ const _ITEM_SHAPES = Object.freeze({
 /**
  * The keys of a preset file that validatePreset does not read, as paths ("params.layerSpacng",
  * "relatedElements.steps[0].nam"). Not looked into: condition lists (normalizeConditions skips a
- * condition with an unknown key, with a warning) and `engineParams` (checkEngineParams, at the run).
+ * condition with an unknown key, with a warning) and the sections of `engineParams` (checkEngineParams,
+ * at the run); an `engineParams` that is not an object is reported, as validation drops it.
  * @param {PresetFile} raw
  * @returns {string[]}
  */
@@ -934,6 +935,7 @@ function _unknownKeys(raw, shape, at, found) {
     const known = shape[key];
     const items = _ITEM_SHAPES[path];
     if (!(key in shape)) found.push(path);
+    else if (path === "engineParams" && (!value || typeof value !== "object" || Array.isArray(value))) found.push(`${path} (not an object)`);
     else if (items && Array.isArray(value)) value.forEach((item, i) => _unknownKeys(item, /** @type {Record<string, unknown>} */ (items), `${path}[${i}]`, found));   // Cast: an item shape is a plain object
     else if (path !== "engineParams" && known && typeof known === "object" && !Array.isArray(known))
       _unknownKeys(value, /** @type {Record<string, unknown>} */ (known), path, found);   // Cast: checked to be a plain object
