@@ -389,7 +389,9 @@ function _unrouted(remaining, consumed, diagramBlockOf) {
  */
 function _connectionStyle(re, srcBox, tgtBox, selfLoop, reversed, params) {
   const lp = TEXT_POSITION[/** @type {string} */ (params.labelPosition)];   // Cast: absent → TEXT_POSITION["undefined"] → none
-  return { textPosition: lp === undefined ? null : lp, bendpoints: _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, params) };
+  // Archi puts a Source or Target label at the line's end: only a middle label needs label points.
+  const atEnd = lp === TEXT_POSITION.Source || lp === TEXT_POSITION.Target;
+  return { textPosition: lp === undefined ? null : lp, bendpoints: _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, atEnd, params) };
 }
 
 /**
@@ -401,10 +403,11 @@ function _connectionStyle(re, srcBox, tgtBox, selfLoop, reversed, params) {
  * @param {Box}              tgtBox
  * @param {boolean}          selfLoop
  * @param {boolean}          reversed
+ * @param {boolean}          atEnd     the label sits at an end of the line: no label points
  * @param {EffectiveParams}  params
  * @returns {Bendpoint[]}
  */
-function _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, params) {
+function _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, atEnd, params) {
   if (!re.bendpoints || re.bendpoints.length === 0) return selfLoop ? _selfLoopBendpoints(srcBox) : [];
   if (re.isStraight) return [];
   const srcCenter = _center(srcBox), tgtCenter = _center(tgtBox);
@@ -418,7 +421,8 @@ function _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, params) {
     srcPort = _roomPoint(startBox, bps[0]);
     tgtPort = _roomPoint(endBox, bps[bps.length - 1]);
   }
-  const relative = _insertLabelMidpointBp(bps, srcCenter, tgtCenter, re.labelX, re.labelY, srcPort, tgtPort).map(bp => ({
+  const routed = atEnd ? bps : _insertLabelMidpointBp(bps, srcCenter, tgtCenter, re.labelX, re.labelY, srcPort, tgtPort);
+  const relative = routed.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),
     startY: Math.round(bp.y - srcCenter.y),
     endX:   Math.round(bp.x - tgtCenter.x),
