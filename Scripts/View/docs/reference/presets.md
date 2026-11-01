@@ -28,7 +28,6 @@ Preset {
     suffix : string                  // One view each: appended to each element name
   }
   appearance {
-    enabled : boolean                // Apply styling: master on/off (not built yet: ARCHITECTURE § Known gaps)
     palette : string                 // name of a palette in presets/_palettes.json; "" = none
     styleByProperty {
       conditions : StyleCondition[]  // in order; the later condition wins on one object

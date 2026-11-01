@@ -128,7 +128,7 @@ The conceptual entities and how they relate. Cardinalities use `1`, `0..N`, `1..
 | **diagram object** | model concept | N → 0 | realises nothing in the model |
 | **Preset** | Step | 1 → 0..N | ordered list, each with its conditions; empty = no expansion |
 | Preset | condition list | 1 → 6 | filter (elements, diagram objects, relations), nesting, reverse, style; empty filter = all, empty feature list = none |
-| Preset | appearance config | 1 → 1 | style conditions, with a master on/off |
+| Preset | appearance config | 1 → 1 | style conditions |
 | **VisualSet** | view | 1 → 1 | existing visuals of one target view, captured before the run |
 | **managed-occurrence record** | view | N → 1 | element + its chain of containers up to the view root; stored on the view, so it survives a view copy |
 | **LayoutGraph** | element + nesting + connection | projection | engine-facing view of the object set |
@@ -331,7 +331,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 **Tabs.** Four tabs, each owning one concern, in separate modules:
 - **Selection**: the live counts (selected → containing; per filter condition, per step), the global filter, and the ordered steps. Every condition list is a table with one condition per row. Each step shows its name (or its number), its repeat and what it adds, per condition and in total, with controls to rename, collapse, reorder and remove it. When a preset loads, all steps start expanded.
 - **Layout**: the algorithm radio table (all styles always visible), then the groups of [§ 7](#7-layout-options). Options the chosen algorithm does not use are greyed, with their values kept.
-- **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance), with a master on/off.
+- **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance).
 - **Properties**: key/value properties of each generated view: a ticked row is written, an unticked row is removed. Keys the tool owns or an installation lists as hidden are not shown and never touched.
 
 **Totals and actions.** Below the tabs, always visible, the predicted totals on the view stand above their action group: *on the generated view* for the Create group, and *on the expanded view* when *Expand view* is enabled. Two equal action groups follow: **Create new view** (folder, name; *New view*, *One view each*), always enabled; and **Modify selected view** (*Expand view*, *Layout only*), enabled only when the selection identifies a view. **Cancel** keeps the UI state.
@@ -351,8 +351,6 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 ## 10. Colouring — Appearance
 
 A **post-write styling pass** that sets fill colours, fonts and line widths. It runs **after** positioning and **never moves or resizes** anything, so it is exempt from the no-scaling rule.
-
-**Master toggle.** One *Apply styling* switch enables or skips the whole pass, and persists in the preset. When it is off, no element appearance is touched, whatever the group settings. When it is on, styling applies to all four actions, and on re-layout or expand it replaces earlier styling.
 
 Three groups, applied in this order; on the same object the later wins: **nesting level → highlight repeated → style by property**.
 - **Style by property**: style conditions, applied in order. A condition says what gets the colour (an element by its own property, a relation, or the source / target element of a matching relation), whose property gives the value, and a colour scale. Several different values on one object give a *mixed values* colour; styled relations may take a fixed line width. When two conditions style one object the dialog flags it, and the last wins.
