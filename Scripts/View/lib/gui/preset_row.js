@@ -34,13 +34,13 @@ const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory"
 function markModified(ctx) {
   if (!ctx._ready || ctx.modified) return;
   ctx.modified = true;
-  try { ctx.widgets.lblModified.setVisible(true); } catch (x) {}
+  try { ctx.widgets.lblModified.setVisible(true); } catch (x) {}   // silent: may be disposed
 }
 
 /** @param {DialogContext} ctx */
 function _clearModified(ctx) {
   ctx.modified = false;
-  try { ctx.widgets.lblModified.setVisible(false); } catch (x) {}
+  try { ctx.widgets.lblModified.setVisible(false); } catch (x) {}   // silent: may be disposed
 }
 
 const SAVE_TIP    = "Overwrite this preset with the current settings.";
@@ -127,7 +127,7 @@ function buildPresetRow(parent, ctx) {
   // Row 2: description of the preset (hidden when empty), aligned under the picker.
   new LabelWidget(row, SWT.NONE);
   w.lblPresetDescription = new LabelWidget(row, SWT.WRAP);
-  try { w.lblPresetDescription.setForeground(row.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (x) {}
+  w.lblPresetDescription.setForeground(row.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
   GridDataFactory.fillDefaults().grab(true, false).span(7, 1).hint(300, SWT.DEFAULT).applyTo(w.lblPresetDescription);
 
   _afterPresetChange(ctx, { keepModified: true });
@@ -190,7 +190,7 @@ function _afterPresetChange(ctx, opts) {
     const gd = w.lblPresetDescription.getLayoutData();
     if (gd) { gd.exclude = !desc; w.lblPresetDescription.setVisible(!!desc); }
     w.lblPresetDescription.getParent().getParent().layout(true, true);
-  } catch (x) {}
+  } catch (x) {}   // silent: a dialog update on widgets that may be disposed
 
   if (!(opts && opts.keepModified)) _clearModified(ctx);
 }
@@ -203,8 +203,8 @@ function _afterPresetChange(ctx, opts) {
  * @returns {Swt.Shell}
  */
 function _dialogShell(ctx) {
-  try { const sh = ctx.dlg && ctx.dlg.getShell(); if (sh && !sh.isDisposed()) return sh; } catch (e) {}
-  return shell;
+  const sh = ctx.dlg && ctx.dlg.getShell();
+  return sh && !sh.isDisposed() ? sh : shell;
 }
 
 // Parent for a confirmation: the Save As dialog when it is open (Overwrite?), else this dialog.
@@ -213,13 +213,11 @@ function _dialogShell(ctx) {
  * @returns {Swt.Shell}
  */
 function _confirmParent(ctx) {
-  try {
-    const Display = Java.type("org.eclipse.swt.widgets.Display");
-    const own = _dialogShell(ctx);
-    const active = Display.getCurrent().getActiveShell();
-    if (active && active.getParent && active.getParent() === own) return active;
-    return own;
-  } catch (e) { return _dialogShell(ctx); }
+  const Display = Java.type("org.eclipse.swt.widgets.Display");
+  const own = _dialogShell(ctx);
+  const active = Display.getCurrent().getActiveShell();
+  if (active && active.getParent && active.getParent() === own) return active;
+  return own;
 }
 
 // Yes/no question on top of the topmost open dialog (window.confirm would open behind it).

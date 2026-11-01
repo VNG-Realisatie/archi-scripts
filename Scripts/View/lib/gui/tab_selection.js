@@ -88,7 +88,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   const onFilterChange = () => ctx.recount();
 
   const onSelLayout = () => {
-    try { ctx.selectionPage.layout(true, true); } catch (e) {}
+    try { ctx.selectionPage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
     Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   };
 
@@ -173,7 +173,7 @@ function addRelatedBlock(ctx, stepData) {
   const blocksContainer = w.blocksContainer;
   const onChange = () => ctx.recount();
   const onLayout = () => {
-    try { ctx.selectionPage.layout(true, true); } catch (e) {}
+    try { ctx.selectionPage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
     Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
   };
 
@@ -207,7 +207,7 @@ function addRelatedBlock(ctx, stepData) {
   const repeatPicker = _repeatPicker(header, onChange);
 
   const lblTitle = new LabelWidget(header, SWT.NONE);
-  const f = Widgets.getBoldFont(); if (f) try { lblTitle.setFont(f); } catch (e) {}
+  lblTitle.setFont(Widgets.getBoldFont());
   lblTitle.setToolTipText("Click: collapse / expand this step.\nDouble-click: rename it.");
   GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(lblTitle);
 
@@ -270,7 +270,7 @@ function refreshBlockHeader(b) {
   const n = b.table ? b.table.displayedConditions().length : 0;
   // A named step says what it is; without a name, a collapsed step names its number of conditions.
   const conditionsPart = b.collapsed && !b.name ? `${n} condition${n === 1 ? "" : "s"} · ` : "";
-  try { b.lblBlockCounts.setText(`·  ${conditionsPart}Adds: ${b.addsText || "nothing"}`); } catch (e) {}
+  try { b.lblBlockCounts.setText(`·  ${conditionsPart}Adds: ${b.addsText || "nothing"}`); } catch (e) {}   // silent: the step may be removed
 }
 
 /**
@@ -280,7 +280,7 @@ function refreshBlockHeader(b) {
 function _setBlockCollapsed(b, collapsed) {
   b.collapsed = collapsed;
   for (const part of [b.body, b.blkSep]) {
-    try { part.setVisible(!collapsed); } catch (e) {}
+    try { part.setVisible(!collapsed); } catch (e) {}   // silent here and below: the step may be removed
     const gd = part.getLayoutData();
     if (gd) gd.exclude = collapsed;
   }
@@ -295,7 +295,7 @@ function _setBlockCollapsed(b, collapsed) {
 function _removeRelatedBlock(ctx, blockObj) {
   const i = ctx.relBlocks.indexOf(blockObj);
   if (i < 0) return;
-  try { blockObj.container.dispose(); } catch (e) {}
+  try { blockObj.container.dispose(); } catch (e) {}   // silent: may be disposed already
   ctx.relBlocks.splice(i, 1);
   _renumberAndReorderRelBlocks(ctx);
   ctx.recount();
@@ -325,7 +325,7 @@ function _moveRelatedBlock(ctx, blockObj, direction) {
  */
 function _toggleCollapseBlock(ctx, blockObj) {
   _setBlockCollapsed(blockObj, !blockObj.collapsed);
-  try { ctx.selectionPage.layout(true, true); } catch (e) {}
+  try { ctx.selectionPage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
   Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
@@ -403,7 +403,7 @@ function _addNameEditor(ctx, b) {
     b.header.getLayout().marginHeight = on ? 0 : pad;
     if (on) display.addFilter(SWT.MouseDown, clickOutside);
     else display.removeFilter(SWT.MouseDown, clickOutside);
-    try { b.header.layout(true, true); } catch (e) {}
+    try { b.header.layout(true, true); } catch (e) {}   // silent: the step may be removed
   };
   /** @param {boolean} keep */
   const finish = keep => {
@@ -444,7 +444,7 @@ function _addNameEditor(ctx, b) {
  * @param {number} i  index in ctx.relBlocks
  */
 function _setBlockTitle(b, i) {
-  try { b.lblTitle.setText(b.name || "Step " + (i + 1)); } catch (e) {}
+  try { b.lblTitle.setText(b.name || "Step " + (i + 1)); } catch (e) {}   // silent: the step may be removed
 }
 
 // Reorder block widgets to match ctx.relBlocks order, then update the title and
@@ -461,11 +461,12 @@ function _renumberAndReorderRelBlocks(ctx) {
   /** @type {Swt.Group | null} */
   let prevBlk = null;
   for (const b of ctx.relBlocks) {
-    if (prevBlk) { try { b.container.moveBelow(prevBlk); } catch (e) {} }
+    if (prevBlk) { try { b.container.moveBelow(prevBlk); } catch (e) {} }   // silent: a step may be removed
     prevBlk = b.container;
   }
 
   if (ctx.widgets.blocksContainer) {
+    // silent: layout on widgets that may be disposed
     try { ctx.widgets.blocksContainer.layout(true, true); } catch (e) {}
     try { ctx.widgets.blocksContainer.getShell().layout(true, true); } catch (e) {}
   }

@@ -292,7 +292,7 @@ function conditionTable(parent, opts) {
   }
 
   function rebuild() {
-    if (grid) { try { grid.dispose(); } catch (e) {} }
+    if (grid) { try { grid.dispose(); } catch (e) {} }   // silent: may be disposed already
     grid = new CompositeWidget(outer, SWT.NONE);
     grid.moveAbove(footer);
     GridDataFactory.fillDefaults().grab(true, false).applyTo(grid);
@@ -332,12 +332,12 @@ function conditionTable(parent, opts) {
     if (conditions.length === 0) {
       const l = new LabelWidget(grid, SWT.NONE);
       l.setText(opts.emptyText || "No conditions.");
-      try { l.setForeground(grid.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
+      l.setForeground(grid.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
       GridDataFactory.fillDefaults().span(ncells, 1).applyTo(l);
     }
 
     refresh();
-    try { outer.layout(true, true); } catch (e) {}
+    try { outer.layout(true, true); } catch (e) {}   // silent: layout on a table that may be disposed
     if (opts.onLayout) opts.onLayout();
   }
 
@@ -349,7 +349,8 @@ function conditionTable(parent, opts) {
       for (const { col, ctrl, first } of cells.values()) {
         if (!ctrl) continue;
         // The first cell of a row carries the row tooltip (e.g. a style condition as a sentence).
-        if (first && opts.rowTooltip && ctrl.setToolTipText) { try { ctrl.setToolTipText(opts.rowTooltip(condition)); } catch (e) {} }
+        // silent here and below: a dialog update on cells that may be disposed
+        if (first && opts.rowTooltip && ctrl.setToolTipText) { const tip = opts.rowTooltip(condition); try { ctrl.setToolTipText(tip); } catch (e) {} }
         const on = enabled && (!col || ((!col.enabled || col.enabled(condition)) && (condition.on !== false || col.key === "on")));
         if (ctrl.enable) ctrl.enable(on); else { try { ctrl.setEnabled(on); } catch (e) {} }
         if (!col) continue;
@@ -398,7 +399,7 @@ function conditionTable(parent, opts) {
       rows.forEach((cells, i) => {
         for (const { col, ctrl } of cells.values()) {
           if (!col) continue;
-          if (col.kind === "count") { try { ctrl.setText(countText(col, counts[i])); } catch (e) {} }
+          if (col.kind === "count") { const text = countText(col, counts[i]); try { ctrl.setText(text); } catch (e) {} }   // silent: may be disposed
           else if (col.kind === "choice" && col.count) {
             const ci = choiceItems(col, conditions[i], i);
             if (String(ctrl.getText()) !== ci.selected) comboItems(ctrl, ci.labels, ci.selected);
@@ -414,7 +415,7 @@ function conditionTable(parent, opts) {
       rows.forEach((cells, i) => {
         for (const { col, ctrl } of cells.values()) {
           if (!col || col.kind !== "warn") continue;
-          try { ctrl.setText(warnings.has(i) ? "⚠" : ""); ctrl.setToolTipText(warnings.get(i) || ""); } catch (e) {}
+          try { ctrl.setText(warnings.has(i) ? "⚠" : ""); ctrl.setToolTipText(warnings.get(i) || ""); } catch (e) {}   // silent: may be disposed
         }
       });
     },

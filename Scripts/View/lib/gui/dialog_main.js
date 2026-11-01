@@ -77,14 +77,12 @@ const DEFAULT_DIALOG_HEIGHT = 1800;   // Layout tab without scrolling
  * @returns {number}
  */
 function _appearanceDialogWidth(ctx, shell) {
-  try {
-    const page = ctx.appearancePage.computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
-    const scrollbar = ctx.appearanceScrolled.getVerticalBar().getSize().x;
-    const inTabs = ctx.widgets.tabFolder.computeTrim(0, 0, page + scrollbar, 0).width;
-    const area = 2 * 8;   // createDialogArea margins
-    const window = shell.computeTrim(0, 0, inTabs + area, 0).width;
-    return Math.max(window, 0) || DEFAULT_DIALOG_WIDTH;
-  } catch (e) { return DEFAULT_DIALOG_WIDTH; }
+  const page = ctx.appearancePage.computeSize(SWT.DEFAULT, SWT.DEFAULT).x;
+  const scrollbar = ctx.appearanceScrolled.getVerticalBar().getSize().x;
+  const inTabs = ctx.widgets.tabFolder.computeTrim(0, 0, page + scrollbar, 0).width;
+  const area = 2 * 8;   // createDialogArea margins
+  const window = shell.computeTrim(0, 0, inTabs + area, 0).width;
+  return Math.max(window, 0) || DEFAULT_DIALOG_WIDTH;
 }
 
 // ── open() ────────────────────────────────────────────────────────────────────
@@ -108,17 +106,15 @@ function open(uiSelection) {
   const selectedCount = { elems: 0, rels: 0, views: 0, folders: 0, diagrams: 0 };
   let firstName = "";
   let firstType = "";
-  try {
-    uiSelection.each(o => {
-      const t = o.type || "";
-      if (!firstName && o.name) { firstName = o.name; firstType = t; }
-      if      (t === "archimate-diagram-model")  selectedCount.views++;
-      else if (t.endsWith("-relationship"))      selectedCount.rels++;
-      else if (t === "folder")                   selectedCount.folders++;
-      else if (t.startsWith("diagram-model-"))   selectedCount.diagrams++;
-      else                                       selectedCount.elems++;
-    });
-  } catch (e) {}
+  uiSelection.each(o => {
+    const t = o.type || "";
+    if (!firstName && o.name) { firstName = o.name; firstType = t; }
+    if      (t === "archimate-diagram-model")  selectedCount.views++;
+    else if (t.endsWith("-relationship"))      selectedCount.rels++;
+    else if (t === "folder")                   selectedCount.folders++;
+    else if (t.startsWith("diagram-model-"))   selectedCount.diagrams++;
+    else                                       selectedCount.elems++;
+  });
   ctx.firstName = firstName;  // propagate for _syncToUI pre-fill
   ctx.firstObject = firstName ? `${Counts.typeToDisplay(firstType)}: ${firstName}` : "";
 
@@ -126,44 +122,36 @@ function open(uiSelection) {
   // When a view (archimate-diagram-model) is selected, $(view).find() enumerates visual objects.
   // $(view).children() returns nothing useful from the model tree — find() is the correct API.
   const containingCount = { elems: 0, rels: 0, diagrams: 0, views: 0, folders: 0 };
-  try {
-    uiSelection.each(o => {
-      const t = o.type || "";
-      if (t === "archimate-diagram-model" && !o.view) {
-        // Model-tree view: count its model elements, relations, and diagram objects
-        // Skip ArchimateView concepts — view-reference VOs appear in find("element") with
-        // .concept pointing to the referenced view; count them as diagram objects instead.
-        try { $(o).find("element").each(ve => {
-          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") containingCount.elems++;
-        }); } catch (e) {}
-        try { $(o).find("relation").each(() => containingCount.rels++); } catch (e) {}
-        try {
-          Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
-            try { $(o).find(dt).each(() => containingCount.diagrams++); } catch (e2) {}
-          });
-        } catch (e) {}
-      } else if (o.view || t === "folder") {
-        // Canvas VO (may be a container nesting child VOs) or a model-tree folder.
-        // Selection.getSelection now handles both: walks $(obj).children() recursively,
-        // extracting concepts from canvas VOs and diagram objects.
-        try {
-          const coll = Selection.getSelection($(o), "*");
-          const c    = Counts.countSelection(coll);
-          containingCount.elems    += c.elems;
-          containingCount.rels     += c.rels;
-          containingCount.diagrams += c.diagrams;
-          containingCount.views    += c.views;
-          containingCount.folders  += c.folders;
-        } catch (e) {}
-      } else if (t.endsWith("-relationship")) {
-        containingCount.rels++;
-      } else if (t.startsWith("diagram-model-")) {
-        containingCount.diagrams++;
-      } else if (t !== "archimate-diagram-model") {
-        containingCount.elems++;
-      }
-    });
-  } catch (e) {}
+  uiSelection.each(o => {
+    const t = o.type || "";
+    if (t === "archimate-diagram-model" && !o.view) {
+      // Model-tree view: count its model elements, relations, and diagram objects
+      // Skip ArchimateView concepts — view-reference VOs appear in find("element") with
+      // .concept pointing to the referenced view; count them as diagram objects instead.
+      $(o).find("element").each(ve => {
+        if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") containingCount.elems++;
+      });
+      $(o).find("relation").each(() => containingCount.rels++);
+      Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { containingCount.diagrams += SelectionRead.findDiagramObjects(o, dt).length; });
+    } else if (o.view || t === "folder") {
+      // Canvas VO (may be a container nesting child VOs) or a model-tree folder.
+      // Selection.getSelection now handles both: walks $(obj).children() recursively,
+      // extracting concepts from canvas VOs and diagram objects.
+      const coll = Selection.getSelection($(o), "*");
+      const c    = Counts.countSelection(coll);
+      containingCount.elems    += c.elems;
+      containingCount.rels     += c.rels;
+      containingCount.diagrams += c.diagrams;
+      containingCount.views    += c.views;
+      containingCount.folders  += c.folders;
+    } else if (t.endsWith("-relationship")) {
+      containingCount.rels++;
+    } else if (t.startsWith("diagram-model-")) {
+      containingCount.diagrams++;
+    } else if (t !== "archimate-diagram-model") {
+      containingCount.elems++;
+    }
+  });
   ctx.containingCount = containingCount;
 
   // Collect flat array of model objects for live filter statistics.
@@ -172,39 +160,37 @@ function open(uiSelection) {
   const rawModelObjects = [];
   /** @type {DiagramObject[]} */
   const selectedVisuals = [];   // visual elements in the selection: one-parent choice and pairing (describeVisuals)
-  try {
-    const seen = new Set();
-    /** @param {ArchiObject | null} o */
-    const add = o => {
-      if (!o || !o.id || seen.has(o.id)) return;
-      if ((o.type || "") === "folder") return;  // folder = container, skip
-      seen.add(o.id);
-      rawModelObjects.push(o);
-    };
-    uiSelection.each(o => {
-      const t = o.type || "";
-      if (t === "archimate-diagram-model" && !o.view) {
-        // Model-tree view: expand to model elements, relations, AND diagram objects
-        // Skip ArchimateView concepts — view-reference VOs may appear in find("element")
-        // with their .concept pointing to the referenced view (type "archimate-diagram-model")
-        try { $(o).find("element").each(ve => {
-          if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") { add(ve.concept); selectedVisuals.push(/** @type {VisualObject} */ (ve)); }   // Cast: on a view, "element" selects visuals
-        }); } catch (e) {}
-        try { $(o).find("relation").each(vr => { if (vr.concept) add(vr.concept); }); } catch (e) {}
-        Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
-          try { $(o).find(dt).each(dvo => { if (dvo && dvo.id) add(dvo); }); } catch (e) {}
-        });
-      } else if (o.view || t === "folder") {
-        // Canvas VO (may be a container) or model-tree folder.
-        // Selection.getSelection recurses via $(obj).children() and extracts
-        // concepts from canvas VOs and diagram objects in one pass.
-        try { Selection.getSelection($(o), "*").each(add); } catch (e) {}
-        if (o.view && o.concept) selectedVisuals.push(o);
-      } else {
-        add(o);
-      }
-    });
-  } catch (e) {}
+  const seen = new Set();
+  /** @param {ArchiObject | null} o */
+  const add = o => {
+    if (!o || !o.id || seen.has(o.id)) return;
+    if ((o.type || "") === "folder") return;  // folder = container, skip
+    seen.add(o.id);
+    rawModelObjects.push(o);
+  };
+  uiSelection.each(o => {
+    const t = o.type || "";
+    if (t === "archimate-diagram-model" && !o.view) {
+      // Model-tree view: expand to model elements, relations, AND diagram objects
+      // Skip ArchimateView concepts — view-reference VOs may appear in find("element")
+      // with their .concept pointing to the referenced view (type "archimate-diagram-model")
+      $(o).find("element").each(ve => {
+        if (ve.concept && (ve.concept.type || "") !== "archimate-diagram-model") { add(ve.concept); selectedVisuals.push(/** @type {VisualObject} */ (ve)); }   // Cast: on a view, "element" selects visuals
+      });
+      $(o).find("relation").each(vr => { if (vr.concept) add(vr.concept); });
+      Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
+        SelectionRead.findDiagramObjects(o, dt).forEach(dvo => { if (dvo && dvo.id) add(dvo); });
+      });
+    } else if (o.view || t === "folder") {
+      // Canvas VO (may be a container) or model-tree folder.
+      // Selection.getSelection recurses via $(obj).children() and extracts
+      // concepts from canvas VOs and diagram objects in one pass.
+      Selection.getSelection($(o), "*").each(add);
+      if (o.view && o.concept) selectedVisuals.push(o);
+    } else {
+      add(o);
+    }
+  });
   ctx.rawModelObjects = rawModelObjects;
   ctx.visuals = SelectionRead.describeVisuals(selectedVisuals);
   ctx.relationsOf = SelectionRead.readRelationIndex();
@@ -238,13 +224,11 @@ function open(uiSelection) {
   // selected in the model tree (Layout only). name "" = none, the Modify group is then disabled;
   // onCanvas: objects on the view are selected — Expand view needs them to expand from.
   const target = { name: "", onCanvas: false };
-  try {
-    uiSelection.each(o => {
-      if (target.name) return;
-      if (o.view)                                    { target.name = String(o.view.name || ""); target.onCanvas = true; }
-      else if (o.type === "archimate-diagram-model") target.name = String(o.name || "");
-    });
-  } catch (e) {}
+  uiSelection.each(o => {
+    if (target.name) return;
+    if (o.view)                                    { target.name = String(o.view.name || ""); target.onCanvas = true; }
+    else if (o.type === "archimate-diagram-model") target.name = String(o.name || "");
+  });
   // Expand view's content is read once, here: the selection is read before the dialog opens, and
   // the totals line composes from it on every change (Pipeline.composeObjectSet).
   ctx.expandSnapshot = target.onCanvas ? SelectionRead.readSelection(uiSelection, ACTION.EXPAND_VIEW.id) : null;
@@ -278,8 +262,12 @@ function open(uiSelection) {
       _syncToUI(ctx);
       _updateFilteredCount(ctx);  // populate the live counters on dialog open
       ctx._ready = true;          // enable modified indicator from here on
-      let saved = null;
-      try { saved = PresetIO.readPreset(PresetRow.presetName(ctx), () => {}); } catch (e) {}  // preset file gone — nothing to compare with; its keys are reported when it is loaded
+      const name = PresetRow.presetName(ctx);
+      let saved = null;   // preset file gone: nothing to compare with
+      if (PresetIO.listPresets().includes(name)) {
+        try { saved = PresetIO.readPreset(name, () => {}); }   // its keys are reported when it is loaded
+        catch (e) { console.error(`Preset "${name}" not compared with the session: ${/** @type {Error} */ (e).message}`); }
+      }
       if (saved && Counts.differsFromSaved(saved, ctx.config)) PresetRow.markModified(ctx);  // session changed since the last save
 
       tabFolder.setSelection(config._lastTabIndex || 0);
@@ -292,7 +280,7 @@ function open(uiSelection) {
         if (pairs[i]) Widgets.resizeScrolled(pairs[i][0], pairs[i][1]);
       };
       tabFolder.addListener(SWT.Selection, fitTab);
-      area.getDisplay().asyncExec(() => { try { if (!area.isDisposed()) fitTab(); } catch (e) {} });
+      area.getDisplay().asyncExec(() => { try { if (!area.isDisposed()) fitTab(); } catch (e) {} });   // silent: a tab may be disposed meanwhile
       return area;
     },
 
@@ -301,18 +289,15 @@ function open(uiSelection) {
 
     getInitialSize: function() {
       const Point = Java.type("org.eclipse.swt.graphics.Point");
-      let height = DEFAULT_DIALOG_HEIGHT;
-      try { height = Math.min(height, dlg.getShell().getMonitor().getClientArea().height); } catch (e) {}
+      const height = Math.min(DEFAULT_DIALOG_HEIGHT, dlg.getShell().getMonitor().getClientArea().height);
       return new Point(_appearanceDialogWidth(ctx, dlg.getShell()), height);
     },
 
     // Top of the monitor's usable area, centred horizontally — the dialog uses the full height.
     getInitialLocation: function(/** @type {Swt.Point} */ size) {
       const Point = Java.type("org.eclipse.swt.graphics.Point");
-      try {
-        const area = dlg.getShell().getMonitor().getClientArea();
-        return new Point(area.x + Math.max(0, Math.round((area.width - size.x) / 2)), area.y);
-      } catch (e) { return Java.super(dlg).getInitialLocation(size); }
+      const area = dlg.getShell().getMonitor().getClientArea();
+      return new Point(area.x + Math.max(0, Math.round((area.width - size.x) / 2)), area.y);
     },
 
     createButtonBar: function(/** @type {Swt.Composite} */ parent) {
@@ -458,6 +443,7 @@ function _updateFilteredCount(ctx) {
   try {
     _showCounts(ctx, Counts.dialogCounts(_countInput(ctx, objects)));
   } catch (e) {
+    console.error(`Counts failed: ${/** @type {Error} */ (e).stack || e}`);
     (ctx.relBlocks || []).forEach(b => _setStepAdds(b, 0, 0));
   }
   TabAppearance.updateStyleWarnings(ctx);
@@ -535,7 +521,7 @@ function _showCounts(ctx, counts) {
       _setTotals(w.viewTotals, "On the generated view:", counts.view);
       if (counts.expandView) _setTotals(w.expandTotals, "On the expanded view:", counts.expandView);
       if (ctx.area) ctx.area.layout(true, true);  // the line count may change
-    } catch (e) {}
+    } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
   }
 }
 
@@ -616,7 +602,7 @@ function _buildTotalsRow(area, target) {
       expandTotals.fit(column);
       // Outside the running layout: the blocks' heights changed.
       totalsRow.getDisplay().asyncExec(() => { if (!totalsRow.isDisposed()) area.layout(true, true); });
-    } catch (e) {}
+    } catch (e) {}   // silent: a resize while the dialog closes, on widgets that may be disposed
   });
   return { viewTotals, expandTotals };
 }
@@ -724,7 +710,7 @@ function _buildActionArea(area, ctx, dlg, target) {
       + (target.onCanvas ? "" : "\nExpand view needs elements selected on the view.")
     : "Expand view and Layout only need a selected view, or elements on a view.");
   GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, true).hint(100, SWT.DEFAULT).applyTo(lblTarget);
-  if (targetViewName) { const f = Widgets.getBoldFont(); if (f) try { lblTarget.setFont(f); } catch (e) {} }
+  if (targetViewName) lblTarget.setFont(Widgets.getBoldFont());
 
   w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(ACTION.EXPAND_VIEW.id, dlg, ctx));
   w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
@@ -794,7 +780,7 @@ function _syncToUI(ctx) {
   if (ctx.relBlocks && ctx.widgets.blocksContainer) {
     while (ctx.relBlocks.length > 0) {
       const b = ctx.relBlocks[0];
-      try { b.container.dispose(); } catch (e) {}
+      try { b.container.dispose(); } catch (e) {}   // silent: may be disposed already
       ctx.relBlocks.shift();
     }
     const steps = (c.relatedElements && c.relatedElements.steps) || [];

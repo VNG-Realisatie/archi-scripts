@@ -100,7 +100,7 @@ function updateStyleWarnings(ctx) {
         // Feedback in the Property combo: colored objects, or reached objects before a property is chosen.
         counts[i] = { count: r.property ? ids.size : targets.size };
         if (r.property && r.on !== false) styled.set(i, ids);
-      } catch (e) {}
+      } catch (e) { console.error(`Appearance: style condition ${i + 1} not counted: ${/** @type {Error} */ (e).stack || e}`); }
     });
     ConditionLists.detectConditionConflicts(styled).forEach(c => warnings.set(c.condition,
       `Condition ${c.with.map(j => j + 1).join(", ")} also styles ${c.count} of these objects. ` +
@@ -118,7 +118,7 @@ function updateStyleWarnings(ctx) {
   lbl.setText(text);
   lbl.setVisible(!!text);
   lbl.getLayoutData().exclude = !text;
-  try { ctx.appearancePage.layout(true, true); } catch (e) {}
+  try { ctx.appearancePage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
   Widgets.resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
 }
 
@@ -135,7 +135,7 @@ function buildAppearanceTab(tabFolder, ctx) {
   ctx.appearancePage     = page;
   ctx.appearanceScrolled = scrolled;
   const relayout = () => {
-    try { ctx.appearancePage.layout(true, true); } catch (e) {}
+    try { ctx.appearancePage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
     Widgets.resizeScrolled(ctx.appearanceScrolled, ctx.appearancePage);
   };
 
@@ -145,7 +145,7 @@ function buildAppearanceTab(tabFolder, ctx) {
 
   // ── Colors: the palette every colour and colour range of the tab comes from ──
   try { ctx.palettes = Palettes.readPalettes(); }
-  catch (e) { ctx.palettes = []; console.error(`Appearance: ${e}`); }
+  catch (e) { ctx.palettes = []; console.error(`Appearance: ${/** @type {Error} */ (e).message}`); }
   const grpColors = Widgets.group(page, "Colors", 1);
   Widgets.noteLabel(grpColors, "Every color and color range on this tab comes from the palette.");
   const paletteRow = Widgets.formRow(grpColors, "Palette:", formRows);
@@ -333,7 +333,7 @@ function updateNestingLevelState(ctx) {
 
   const hasNesting = Widgets.hasNestingConditions(w);
 
-  try { w.lblNestingInfo.setVisible(!hasNesting); } catch (e) {}
+  try { w.lblNestingInfo.setVisible(!hasNesting); } catch (e) {}   // silent here and below: a dialog update on widgets that may be disposed
   try {
     const gd = w.lblNestingInfo.getLayoutData();
     gd.exclude = hasNesting;

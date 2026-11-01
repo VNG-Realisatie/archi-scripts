@@ -121,7 +121,7 @@ function resizeScrolled(scrolled, page, opts) {
     const pageW = Math.max(clientW, wantW);
     if (pageW !== clientW) _fitNotes(page, pageW);   // the page scrolls: notes wrap at its width
     scrolled.setMinSize(page.computeSize(pageW, SWT.DEFAULT));
-  } catch (e) {}
+  } catch (e) {}   // silent: a resize on widgets that may be disposed (the dialog closing)
 }
 
 // Largest (natural width − current width) over the visible fitWidth controls under root;
@@ -168,12 +168,10 @@ function _growShell(shell, dx) {
 let _boldFontCache = null;
 function getBoldFont() {
   if (_boldFontCache) return _boldFontCache;
-  try {
-    const FontDescriptor = Java.type("org.eclipse.jface.resource.FontDescriptor");
-    const display = Java.type("org.eclipse.swt.widgets.Display").getCurrent();
-    const fd = FontDescriptor.createFrom(display.getSystemFont()).setStyle(SWT.BOLD);
-    _boldFontCache = fd.createFont(display);
-  } catch (e) {}
+  const FontDescriptor = Java.type("org.eclipse.jface.resource.FontDescriptor");
+  const display = Java.type("org.eclipse.swt.widgets.Display").getCurrent();
+  const fd = FontDescriptor.createFrom(display.getSystemFont()).setStyle(SWT.BOLD);
+  _boldFontCache = fd.createFont(display);
   return _boldFontCache;
 }
 
@@ -183,14 +181,12 @@ function getBoldFont() {
 let _groupBgCache = null;
 function getGroupBackground() {
   if (_groupBgCache) return _groupBgCache;
-  try {
-    const display = Java.type("org.eclipse.swt.widgets.Display").getCurrent();
-    const rgb = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND).getRGB();
-    const dark = (rgb.red + rgb.green + rgb.blue) / 3 < 128;
-    const f = dark ? 0.08 : 0.5;   // share of the way to white
-    const up = (/** @type {number} */ c) => Math.round(c + (255 - c) * f);
-    _groupBgCache = new SWTColor(display, up(rgb.red), up(rgb.green), up(rgb.blue));
-  } catch (e) {}
+  const display = Java.type("org.eclipse.swt.widgets.Display").getCurrent();
+  const rgb = display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND).getRGB();
+  const dark = (rgb.red + rgb.green + rgb.blue) / 3 < 128;
+  const f = dark ? 0.08 : 0.5;   // share of the way to white
+  const up = (/** @type {number} */ c) => Math.round(c + (255 - c) * f);
+  _groupBgCache = new SWTColor(display, up(rgb.red), up(rgb.green), up(rgb.blue));
   return _groupBgCache;
 }
 
@@ -207,7 +203,7 @@ const NOTE_MIN_WIDTH = 100;
 function noteLabel(parent, text) {
   const lbl = new LabelWidget(parent, SWT.WRAP);
   lbl.setText(text);
-  try { lbl.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY)); } catch (e) {}
+  lbl.setForeground(parent.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
   GridDataFactory.fillDefaults().grab(true, false).hint(NOTE_MIN_WIDTH, SWT.DEFAULT).applyTo(lbl);
   lbl.setData("note", true);
   return lbl;
@@ -325,6 +321,7 @@ function colorPicker(parent, opts) {
     return opts.missing(value);
   };
   const disposeMenu = () => {
+    // silent: the menu and its images may be disposed already, with the dialog
     if (menu) { try { menu.dispose(); } catch (e) {} menu = null; }
     menuImages.forEach(img => { try { img.dispose(); } catch (e) {} });
     menuImages = [];
@@ -576,8 +573,7 @@ function _fillTree(tree, names, first, filter, current) {
     for (const [label, sub] of node.folders) {
       const item = new TreeItemWidget(parentItem, SWT.NONE);
       item.setText(label);
-      const bold = getBoldFont();
-      if (bold) item.setFont(bold);
+      item.setFont(getBoldFont());
       add(item, sub);
       item.setExpanded(!!filter || current.startsWith(sub.path + "/"));   // after its children: GTK expands no empty item
     }
@@ -634,9 +630,9 @@ function group(parent, label, numColumns, opts) {
   opts = opts || {};
   const grp = new GroupWidget(parent, SWT.NONE);
   grp.setText(label);
-  if (opts.bold !== false) { const f = getBoldFont(); if (f) try { grp.setFont(f); } catch (e) {} }
-  const bg = getGroupBackground();
-  if (bg) try { grp.setBackground(bg); grp.setBackgroundMode(SWT.INHERIT_DEFAULT); } catch (e) {}
+  if (opts.bold !== false) grp.setFont(getBoldFont());
+  grp.setBackground(getGroupBackground());
+  grp.setBackgroundMode(SWT.INHERIT_DEFAULT);
   GridDataFactory.fillDefaults()
     .grab(opts.grabH !== false, opts.grabV || false)
     .applyTo(grp);
@@ -776,6 +772,7 @@ function addCombo(parent, label, items, selectedIdx, widthHint, key, w, tooltip)
 function enable(widget, enabled) {
   if (!widget) return;
   if (widget.enable) { widget.enable(enabled); return; }  // controller (condition table, colour-range cell)
+  // silent: a dialog update on a widget that may be disposed
   try { widget.setEnabled(enabled); } catch (e) {}
   // The label in front of a combo / spinner greys with it (see addCombo, addSpinnerRow).
   try { const lbl = widget.getData("label"); if (lbl) lbl.setEnabled(enabled); } catch (e) {}

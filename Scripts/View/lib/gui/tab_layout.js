@@ -181,7 +181,7 @@ function buildLayoutTab(tabFolder, ctx) {
   // ── Nesting · Reverse ─────────────────────────────────────────────────────────
   const grpNest = Widgets.group(page, "Nesting", 1);
   const onLayoutPage = () => {
-    try { ctx.layoutPage.layout(true, true); } catch (e) {}
+    try { ctx.layoutPage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
     Widgets.resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
   };
   Widgets.noteLabel(grpNest, "Draw these relations as nesting, child inside its parent:")
@@ -377,7 +377,7 @@ function updateLayoutConditionCounts(ctx, relations, counts) {
     _setNote(w.lblReverseNote, _noIncludeNote(w.tblReverseConditions, "reversed")),
   ];
   if (!changed.some(Boolean)) return;
-  try { ctx.layoutPage.layout(true, true); } catch (e) {}
+  try { ctx.layoutPage.layout(true, true); } catch (e) {}   // silent: layout on a page that may be disposed
   Widgets.resizeScrolled(ctx.layoutScrolled, ctx.layoutPage);
 }
 
@@ -427,7 +427,8 @@ function _updateContainersHint(ctx, algName) {
   if (!w.grpContainers) return;
   const alg = ALGORITHMS[algName];
   const usesContainers = Defs.LAYOUT_GROUPS.Containers.some(k => alg.activeParams.includes(k));
-  try { w.grpContainers.setToolTipText(usesContainers && !_nestingOn(w, alg) ? "Add a Nesting condition to use these settings." : ""); } catch (e) {}
+  const tip = usesContainers && !_nestingOn(w, alg) ? "Add a Nesting condition to use these settings." : "";
+  try { w.grpContainers.setToolTipText(tip); } catch (e) {}   // silent: may be disposed
 }
 
 // ── Algorithm controls ────────────────────────────────────────────────────────

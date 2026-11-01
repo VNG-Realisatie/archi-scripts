@@ -47,20 +47,16 @@ function buildPropertiesTab(tabFolder, ctx) {
   /** @type {Map<string, Set<string>>} */
   const allViewProps = new Map();  // key → Set<value>
   const hidden = HiddenProps.hiddenKeys();
-  try {
-    $("archimate-diagram-model").each(v => {
-      const keys = v.prop() || [];
-      if (!Array.isArray(keys)) return;
-      keys.forEach(k => {
-        if (!k || hidden.has(k)) return;
-        if (!allViewProps.has(k)) allViewProps.set(k, new Set());
-        try {
-          const val = v.prop(k);
-          if (val !== null && val !== undefined && val !== "") /** @type {Set<string>} */ (allViewProps.get(k)).add(String(val));   // Cast: set above
-        } catch (e) {}
-      });
+  $("archimate-diagram-model").each(v => {
+    const keys = v.prop() || [];
+    if (!Array.isArray(keys)) return;
+    keys.forEach(k => {
+      if (!k || hidden.has(k)) return;
+      if (!allViewProps.has(k)) allViewProps.set(k, new Set());
+      const val = v.prop(k);
+      if (val !== null && val !== undefined && val !== "") /** @type {Set<string>} */ (allViewProps.get(k)).add(String(val));   // Cast: set above
     });
-  } catch (e) {}
+  });
 
   /** @type {ViewPropertyRow[]} */
   const rows = [];

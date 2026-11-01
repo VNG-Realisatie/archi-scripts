@@ -25,7 +25,7 @@ function runProcess(command, args, input, timeoutSeconds) {
     pb.redirectError(errFile.toFile());
     let proc;
     try { proc = pb.start(); }
-    catch (e) { return { state: "not-found", exitCode: -1, stdout: "", stderr: "" }; }
+    catch (e) { return { state: "not-found", exitCode: -1, stdout: "", stderr: "" }; }   // the caller says which program
 
     if (!proc.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
       proc.destroyForcibly().waitFor(5, TimeUnit.SECONDS);   // let go of the files before they are deleted

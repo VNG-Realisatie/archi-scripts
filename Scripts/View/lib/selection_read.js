@@ -149,7 +149,7 @@ function readRelationIndex() {
     if (!rels) {
       /** @type {ArchiRelation[]} */
       const read = [];
-      try { $(element).rels().each(rel => read.push(rel)); } catch (e) {}
+      $(element).rels().each(rel => read.push(rel));
       rels = read;
       cache.set(element.id, rels);
     }
@@ -190,19 +190,15 @@ function _expandViews(collection, logPrefix = "") {
   };
 
   viewColl.each(view => {
-    try {
-      $(view).find("element").each(ve => {
-        // view-reference VOs surface in find("element") with .type "archimate-diagram-model"
-        // (jArchi 1.12 quirk). Classify them as diagram objects via DIAGRAM_TYPES membership.
-        if (ve.type && ve.type in Defs.DIAGRAM_TYPES) { addDiagramVO(ve); return; }
-        addConcept(ve.concept || ve);
-      });
-    } catch (e) {}
-    try {
-      $(view).find("relation").each(vr => { addConcept(vr.concept || vr); });
-    } catch (e) {}
+    $(view).find("element").each(ve => {
+      // view-reference VOs surface in find("element") with .type "archimate-diagram-model"
+      // (jArchi 1.12 quirk). Classify them as diagram objects via DIAGRAM_TYPES membership.
+      if (ve.type && ve.type in Defs.DIAGRAM_TYPES) { addDiagramVO(ve); return; }
+      addConcept(ve.concept || ve);
+    });
+    $(view).find("relation").each(vr => { addConcept(vr.concept || vr); });
     Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => {
-      try { $(view).find(dt).each(dvo => { if (dvo && dvo.id) addDiagramVO(dvo); }); } catch (e) {}
+      findDiagramObjects(view, dt).forEach(dvo => { if (dvo && dvo.id) addDiagramVO(dvo); });
     });
   });
 
@@ -227,19 +223,17 @@ function _readDiagramBlocks(views) {
   for (const view of views) {
     for (const dt of Object.keys(Defs.DIAGRAM_TYPES)) {
       if (dt === "diagram-model-connection") continue;
-      try {
-        $(view).find(dt).each(d => {
-          if (blockContents.has(String(d.id))) return;   // a view reference is found under two types
-          // Cast: parent() of a visual is a visual, or the view (which has no .view).
-          for (let p = /** @type {VisualObject | null} */ ($(d).parent().first()); p && p.view; p = /** @type {VisualObject | null} */ ($(p).parent().first())) {
-            if (isDiagramObject(p)) return;   // inside another diagram object: part of that diagram-block
-          }
-          const contents = _blockContents(/** @type {VisualObject} */ (d));   // Cast: found on a view, so a visual
-          if (contents.visuals.length === 0) return;
-          blockContents.set(String(d.id), contents);
-          for (const c of contents.visuals) diagramBlockOf.set(String(c.visual.id), String(d.id));
-        });
-      } catch (e) {}
+      findDiagramObjects(view, dt).forEach(d => {
+        if (blockContents.has(String(d.id))) return;   // a view reference is found under two types
+        // Cast: parent() of a visual is a visual, or the view (which has no .view).
+        for (let p = /** @type {VisualObject | null} */ ($(d).parent().first()); p && p.view; p = /** @type {VisualObject | null} */ ($(p).parent().first())) {
+          if (isDiagramObject(p)) return;   // inside another diagram object: part of that diagram-block
+        }
+        const contents = _blockContents(/** @type {VisualObject} */ (d));   // Cast: found on a view, so a visual
+        if (contents.visuals.length === 0) return;
+        blockContents.set(String(d.id), contents);
+        for (const c of contents.visuals) diagramBlockOf.set(String(c.visual.id), String(d.id));
+      });
     }
   }
   return { diagramBlockOf, blockContents };
@@ -333,32 +327,28 @@ function _collectExistingVisuals(uiSelection, actionId, logPrefix = "") {
 
   // Case 1: view selected from the model tree.
   let viewFound = false;
-  try {
-    uiSelection.each(o => {
-      if (o.type === "archimate-diagram-model" && !o.view) {
-        viewFound = true;
-        const view = /** @type {ArchiView} */ (o);   // Cast: type is archimate-diagram-model and it is not a visual
-        existingView = view;
-        try { $(view).find("element").each(addVE); } catch (e) {}
-        try { $(view).find("relation").each(addVR); } catch (e) {}
-      }
-    });
-  } catch (e) {}
+  uiSelection.each(o => {
+    if (o.type === "archimate-diagram-model" && !o.view) {
+      viewFound = true;
+      const view = /** @type {ArchiView} */ (o);   // Cast: type is archimate-diagram-model and it is not a visual
+      existingView = view;
+      $(view).find("element").each(addVE);
+      $(view).find("relation").each(addVR);
+    }
+  });
 
   // Case 2: visual objects selected on a canvas.
   if (!viewFound) {
-    try {
-      Selection.getVisualSelection(uiSelection, "*").each(vo => {
-        if (!vo || !vo.id || !vo.view) return;
-        // Casts: a visual whose concept is a relationship is a connection.
-        if (vo.concept && vo.concept.type && vo.concept.type.endsWith("-relationship")) addVR(/** @type {VisualConnection} */ (vo));
-        else addVE(/** @type {VisualObject} */ (vo));
-      });
-    } catch (e) {}
+    Selection.getVisualSelection(uiSelection, "*").each(vo => {
+      if (!vo || !vo.id || !vo.view) return;
+      // Casts: a visual whose concept is a relationship is a connection.
+      if (vo.concept && vo.concept.type && vo.concept.type.endsWith("-relationship")) addVR(/** @type {VisualConnection} */ (vo));
+      else addVE(/** @type {VisualObject} */ (vo));
+    });
     // EXPAND_VIEW lays out the whole view, not only the selected visuals.
     if (actionId === ACTION.EXPAND_VIEW.id && existingView) {
-      try { $(existingView).find("element").each(addVE); } catch (e) {}
-      try { $(existingView).find("relation").each(addVR); } catch (e) {}
+      $(existingView).find("element").each(addVE);
+      $(existingView).find("relation").each(addVR);
     }
   }
 
@@ -403,26 +393,22 @@ function describeVisuals(visualElements) {
   const raw = [];
   /** @type {Set<string>} */
   const seen = new Set();
-  const parentOf = (/** @type {DiagramObject} */ o) => { try { const p = $(o).parent().filter("element").first(); return p ? String(p.id) : null; } catch (e) { return null; } };
-  try {
-    $(view).find("element").each(ve => {
-      if (!ve.concept || !ve.concept.id || ve.type in Defs.DIAGRAM_TYPES) return;
-      seen.add(String(ve.id));
-      raw.push({ id: String(ve.id), conceptId: ve.concept.id, parentVisualId: parentOf(ve) });
+  const parentOf = (/** @type {DiagramObject} */ o) => { const p = $(o).parent().filter("element").first(); return p ? String(p.id) : null; };
+  $(view).find("element").each(ve => {
+    if (!ve.concept || !ve.concept.id || ve.type in Defs.DIAGRAM_TYPES) return;
+    seen.add(String(ve.id));
+    raw.push({ id: String(ve.id), conceptId: ve.concept.id, parentVisualId: parentOf(ve) });
+  });
+  // Notes, groups, view references: user content, so a managed container holding one is kept.
+  for (const dt of Object.keys(Defs.DIAGRAM_TYPES)) {
+    if (dt === "diagram-model-connection") continue;
+    findDiagramObjects(view, dt).forEach(o => {
+      if (seen.has(String(o.id))) return;   // a view reference is found under two types
+      seen.add(String(o.id));
+      raw.push({ id: String(o.id), conceptId: null, parentVisualId: parentOf(o) });
     });
-    // Notes, groups, view references: user content, so a managed container holding one is kept.
-    for (const dt of Object.keys(Defs.DIAGRAM_TYPES)) {
-      if (dt === "diagram-model-connection") continue;
-      try { $(view).find(dt).each(o => {
-        if (seen.has(String(o.id))) return;   // a view reference is found under two types
-        seen.add(String(o.id));
-        raw.push({ id: String(o.id), conceptId: null, parentVisualId: parentOf(o) });
-      }); } catch (e) {}
-    }
-  } catch (e) { console.error(`Failed to read the visuals of view "${view && view.name}": ${e}`); }
-  /** @type {string[]} */
-  let records = [];
-  try { records = [...(view.prop(Defs.PROP_MANAGED_OCCURRENCE, true) || [])].map(String); } catch (e) {}
+  }
+  const records = [...(view.prop(Defs.PROP_MANAGED_OCCURRENCE, true) || [])].map(String);   // absent: null
   return Nesting.classifyVisuals(raw, records).filter(v => wanted.has(v.id));
 }
 
@@ -444,7 +430,22 @@ function getSeedElements(uiSelection) {
   return seeds;
 }
 
+/**
+ * The diagram objects of one type in a view or under a visual. A type the view cannot hold finds
+ * nothing or throws: a silent catch (ARCHITECTURE § Errors), around the lookup only.
+ * @param {ArchiObject} scope  a view or a visual
+ * @param {string}      type   a Defs.DIAGRAM_TYPES key
+ * @returns {DiagramObject[]}
+ */
+function findDiagramObjects(scope, type) {
+  /** @type {DiagramObject[]} */
+  const found = [];
+  try { $(scope).find(type).each(o => found.push(/** @type {DiagramObject} */ (o))); } catch (e) {}   // Cast: found by a diagram-object type
+  return found;
+}
+
 module.exports = {
+  findDiagramObjects,
   readSelection,
   readRelationIndex,
   readDiagramBlocks,

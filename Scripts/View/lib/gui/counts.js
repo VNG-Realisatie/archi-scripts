@@ -287,7 +287,7 @@ function countSelection(coll) {
 function propNames(objs) {
   const names = new Set();
   for (const o of objs || []) {
-    try { const ks = o.prop(); if (Array.isArray(ks)) ks.forEach(k => { if (k) names.add(String(k)); }); } catch (e) {}
+    try { const ks = o.prop(); if (Array.isArray(ks)) ks.forEach(k => { if (k) names.add(String(k)); }); } catch (e) {}   // silent: an object without properties
   }
   return Array.from(names).sort(compareNames);
 }
@@ -301,7 +301,7 @@ function propValues(objs, key) {
   if (!key) return [];
   const vals = new Set();
   for (const o of objs || []) {
-    try { const v = o.prop(key); if (v !== null && v !== undefined && v !== "") vals.add(String(v)); } catch (e) {}
+    try { const v = o.prop(key); if (v !== null && v !== undefined && v !== "") vals.add(String(v)); } catch (e) {}   // silent: an object without properties
   }
   return Array.from(vals).sort(compareNames);
 }

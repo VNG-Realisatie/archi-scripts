@@ -420,10 +420,8 @@ function computeConditionTargets(condition, elements, relations) {
     let h = out.get(id);
     if (!h) { h = { kind, values: new Set() }; out.set(id, h); }
     if (!condition.property || !obj) return;
-    try {
-      const v = obj.prop(condition.property);
-      if (v !== null && v !== undefined && v !== "") h.values.add(String(v));
-    } catch (e) {}
+    const v = obj.prop(condition.property);
+    if (v !== null && v !== undefined && v !== "") h.values.add(String(v));
   };
   const matches = (/** @type {ArchiRelation} */ r) => ConditionLists.styleConditionMatchesRelation(condition, r.type, r.source && r.source.type, r.target && r.target.type);
   // Whose property supplies the value: the relation, one of its ends, or (propertyOf "element")

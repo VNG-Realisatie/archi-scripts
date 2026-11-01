@@ -570,7 +570,7 @@ function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
     console.log(`  Overwriting view: "${viewName}"`);
-    try { $(existing).find().each(o => o.delete()); } catch (e) { console.error(`Failed to clear view "${viewName}" before overwrite: ${e}`); }
+    $(existing).find().each(o => { try { o.delete(); } catch (e) {} });   // silent: Archi already removed it with its parent
     return existing;
   }
   const v = model.createArchimateView(viewName);

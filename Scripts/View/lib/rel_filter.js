@@ -195,7 +195,7 @@ const _typeOk = (want, actual) => want === "" || want === undefined || want === 
 function _propOf(obj, key) {
   if (!obj || typeof obj.prop !== "function") return undefined;
   try { const v = obj.prop(key); return v === null || v === undefined ? "" : String(v); }
-  catch (e) { return undefined; }
+  catch (e) { return undefined; }   // silent: an object without properties
 }
 
 /**
