@@ -20,7 +20,7 @@ const Defs         = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./engine-utils")} */
 const EngineUtils  = require(REPO_ROOT + "View/lib/engines/engine-utils");
 const { SPLINE_SAMPLE_POINTS, ALGORITHMS, DIRECTION_MAP } = Defs;
-const { applyParams, dialogKeys, settingProblem, settingTypeFinding, cubicPoint } = EngineUtils;
+const { applyParams, dialogKeys, settingProblem, settingTypeFinding, cubicPoint, labelPoint } = EngineUtils;
 
 // Graphviz output is in points (72 pt/inch); multiply by PT2PX to get pixels (96 px/inch).
 const PT2PX = 96 / 72;
@@ -668,18 +668,14 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
       ports = _splineEnds(String(dotEdge.pos), totalH);
     }
 
-    // Natural label position from Graphviz lp attribute
+    // Natural: Graphviz's lp; otherwise the shared rule on the line's end points (as ELK and Dagre)
     let labelX = 0, labelY = 0;
     if (labelPos === "Natural" && dotEdge.lp) {
       const lp = _parseXY(String(dotEdge.lp));
       labelX = Math.round(lp.x * PT2PX);
       labelY = Math.round((totalH - lp.y) * PT2PX);
-    } else if (bendpoints.length > 0) {
-      const pos  = labelPos === "Source" ? 0
-                 : labelPos === "Target" ? bendpoints.length - 1
-                 : Math.floor(bendpoints.length / 2);
-      labelX = bendpoints[pos].x;
-      labelY = bendpoints[pos].y;
+    } else if (ports) {
+      ({ labelX, labelY } = labelPoint(ports.start, ports.end, bendpoints, labelPos));
     }
 
     resultEdges.push({
