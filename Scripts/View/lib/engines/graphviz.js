@@ -188,6 +188,25 @@ function layout(graph, runProcess) {
 
 // ── DOT source builder ────────────────────────────────────────────────────────
 
+// Room dot and fdp add to a cluster label (measured, Graphviz 14): above the contents the margin, the
+// label height and LABEL_GAP_PT; across, the label width and 2 × LABEL_GAP_PT.
+const LABEL_GAP_PT = 8;
+
+/**
+ * A cluster's label as an empty table of fixed size, so dot keeps the room Archi's label takes: the
+ * contents start the container's labelHeight below its top, and the cluster is at least its minWidth
+ * wide. Without a label the cluster keeps its margin alone.
+ * @param {LayoutNode} node
+ * @param {number}     margin  cluster margin (pt)
+ * @returns {string}  graph attributes, with a leading space; "" without a label
+ */
+function _clusterLabel(node, margin) {
+  if (!node.labelHeight) return "";
+  const height = Math.max(1, Math.ceil(node.labelHeight * 0.75 - margin - LABEL_GAP_PT));   // px → pt
+  const width  = Math.max(1, Math.ceil(node.minWidth * 0.75 - 2 * LABEL_GAP_PT));
+  return ` labelloc=t labeljust=l label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0" CELLSPACING="0" FIXEDSIZE="TRUE" WIDTH="${width}" HEIGHT="${height}"><TR><TD></TD></TR></TABLE>>`;
+}
+
 /**
  * @typedef {{ x: number, y: number, w: number, h: number }} GvBox  a node or cluster box in px
  */
@@ -244,6 +263,7 @@ function _buildDOT(graph) {
     }
   }
 
+  const connected = new Set(graph.edges.flatMap(e => [e.source, e.target]));
   const lines = [
     'digraph G {',
     `  graph [${graphAttrs}]`,
@@ -264,8 +284,9 @@ function _buildDOT(graph) {
     const label    = node ? (node.label || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') : "";
     if (children.length > 0) {
       lines.push(`${indent}subgraph "cluster_${id}" {`);
-      lines.push(`${indent}  graph [margin=${clusterMargin} label="${label}"]`);
-      lines.push(`${indent}  "${id}"`);
+      lines.push(`${indent}  graph [margin=${clusterMargin}${node ? _clusterLabel(node, clusterMargin) : ""}]`);
+      // The container's own node, inside its cluster, only as the end of a connection: it takes a rank.
+      if (connected.has(id)) lines.push(`${indent}  "${id}"`);
       children.forEach(cid => writeNode(cid, indent + "  ", visiting));
       lines.push(`${indent}}`);
     } else {
