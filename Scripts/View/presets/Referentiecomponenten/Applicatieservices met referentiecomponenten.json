@@ -48,6 +48,7 @@
   "relatedElements": {
     "steps": [
       {
+        "name": "",
         "repeat": 2,
         "conditions": [
           {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
@@ -56,6 +57,7 @@
         ]
       },
       {
+        "name": "",
         "repeat": 4,
         "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "application-service"},
@@ -63,6 +65,7 @@
         ]
       },
       {
+        "name": "",
         "repeat": 2,
         "conditions": [
           {"on": false, "direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
@@ -71,7 +74,7 @@
     ]
   },
   "view": {
-    "name": "Domeinen",
+    "name": "Bestuur",
     "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
     "suffix": ""
   },

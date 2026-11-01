@@ -917,4 +917,8 @@ interface DialogContext {
   expandSnapshot?: Snapshot | null; // what Expand view works on (readSelection), null when it is disabled
   recount: () => void; // recount after a change of the settings (marks the dialog modified)
   markModified: () => void;
+  /** Read every tab into config (the preset row's Save and Save As). */
+  saveUI: () => void;
+  /** Show config in every tab (the preset row's load). */
+  syncToUI: () => void;
 }
