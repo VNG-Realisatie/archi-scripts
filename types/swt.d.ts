@@ -324,6 +324,7 @@ interface JavaInterop {
   type(className: "org.eclipse.jface.dialogs.MessageDialog"): {
     openConfirm(parent: Swt.Shell, title: string, message: string): boolean;
     openWarning(parent: Swt.Shell, title: string, message: string): void;
+    openError(parent: Swt.Shell, title: string, message: string): void;
   };
   type(className: "org.eclipse.jface.dialogs.InputDialog"): new (parent: Swt.Shell, title: string, message: string, initial: string, validator: null) => JFace.InputDialog;
   type(className: "org.eclipse.jface.window.Window"): { readonly OK: number; readonly CANCEL: number };

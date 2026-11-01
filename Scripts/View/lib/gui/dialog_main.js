@@ -347,7 +347,7 @@ function open(uiSelection) {
   try {
     GenView.generate_view(ctx.config, ctx.uiSelection, ctx._actionId);
   } catch (e) {
-    console.error("generate_view error: " + (/** @type {Error} */ (e).message || e));   // Cast: a thrown Error or a string
+    RunPreset.showFailure(e);
   }
 }
 

@@ -40,9 +40,14 @@ try {
     for (const run of RUNS) {
       const name = `${presetName.replace(/^.*\//, "")} ${run.action} ${run.view}`;
       console.log(`\n##### ${name}`);
-      const views = GenView.generate_view(_runPreset(presetName, run, name), _runSelection(run, name, folder), run.action);
       const expected = run.elements ? run.elements.length : 1;
-      if (views.length !== expected) failed.push(`${name}: ${views.length} views, expected ${expected}`);
+      try {
+        const views = GenView.generate_view(_runPreset(presetName, run, name), _runSelection(run, name, folder), run.action);
+        if (views.length !== expected) failed.push(`${name}: ${views.length} views, expected ${expected}`);
+      } catch (error) {   // one failed run does not stop the baseline
+        console.error(`> ${/** @type {Error} */ (error).stack || error}`);
+        failed.push(`${name}: failed (${/** @type {Error} */ (error).message || error})`);
+      }
     }
   }
   console.log(`\nBaseline: ${PRESETS.length * RUNS.length - failed.length}/${PRESETS.length * RUNS.length} runs wrote their views`);

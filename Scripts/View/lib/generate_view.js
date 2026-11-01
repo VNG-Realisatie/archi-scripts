@@ -115,6 +115,7 @@ function checkEngineParams(preset) {
  * @param {ArchiCollection<ArchiObject>} uiSelection $(selection) from Archi UI
  * @param {string}          [actionId]  ACTION.*.id (runtime — not stored in preset files); default NEW_VIEW
  * @returns {ArchimateView[]}
+ * @throws when the run fails; the caller shows the reason (ARCHITECTURE § Errors)
  */
 function generate_view(rawPreset, uiSelection, actionId) {
   Common.startCounter("generate_view");
@@ -165,9 +166,7 @@ function generate_view(rawPreset, uiSelection, actionId) {
   const settings = checkEngineParams(preset);
   for (const line of settings.lines) console.log(line);
   if (settings.invalid) {
-    console.error(`Run stopped: ${settings.invalid} engineParams setting(s) of the wrong type (✗ above). Correct the preset; nothing is written.`);
-    console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
-    return [];
+    throw new Error(`Run stopped: ${settings.invalid} engineParams setting(s) of the wrong type (✗ on the console). Correct the preset; nothing is written.`);
   }
   console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
   {
@@ -188,10 +187,9 @@ function generate_view(rawPreset, uiSelection, actionId) {
       const view = _generateSingle(preset, uiSelection, action, null, runtime);
       if (view) views.push(view);
     }
-  } catch (error) {
-    console.error(`generate_view error: ${typeof /** @type {Error} */ (error).stack === "undefined" ? error : /** @type {Error} */ (error).stack}`);
+  } finally {   // a failure goes to the entry point, which shows it (ARCHITECTURE § Errors)
+    console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
   }
-  console.log(`\ngenerate_view: ${Common.endCounter("generate_view")}`);
 
   // Open the generated view(s) in Archi's UI.
   //   NEW_VIEW / EXPAND_VIEW / LAYOUT_ONLY → exactly one view in `views`; open it.
@@ -273,7 +271,6 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtim
   const timer = _phaseTimer();
   const snapshot = SelectionRead.readSelection(uiSelection, actionId);
   timer.lap("selection");
-  if (!snapshot) return null;   // the reason is on the console
 
   // Determine the target view.
   //   EXPAND_VIEW / LAYOUT_ONLY → the selected existing view, changed in place
@@ -285,10 +282,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtim
   const existingView = /** @type {ArchimateView | null} */ (snapshot.existing.existingView);
   if (inPlace) {
     console.log("\nView target:");
-    if (!existingView) {
-      console.error(`${actionId}: no existing view in selection`);
-      return null;
-    }
+    if (!existingView) throw new Error("Layout only and Expand view: select a view, or objects on a view, to work on.");
     console.log(`  Using: "${existingView.name}" (in place)`);
   }
 

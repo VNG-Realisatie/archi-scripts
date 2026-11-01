@@ -67,13 +67,15 @@ function parseFilename(file) {
  * @returns {ArchimateView[]} generated / changed views
  */
 function fromFilename(file, selection, opts = {}) {
-  const parsed = parseFilename(file);
-  const name   = opts.preset || (opts.folder ? `${opts.folder}/${parsed.preset}` : parsed.preset);
-  const preset = PresetIO.readPreset(name);
-  if (parsed.direction) preset.params.direction = parsed.direction;
-  if (opts.edit) opts.edit(preset);
-  console.log(`Preset "${name}"  action ${parsed.actionId}${parsed.direction ? `  direction ${parsed.direction}` : ""}`);
-  return _run(preset, selection, parsed.actionId);
+  return _reported(() => {
+    const parsed = parseFilename(file);
+    const name   = opts.preset || (opts.folder ? `${opts.folder}/${parsed.preset}` : parsed.preset);
+    const preset = PresetIO.readPreset(name);
+    if (parsed.direction) preset.params.direction = parsed.direction;
+    if (opts.edit) opts.edit(preset);
+    console.log(`Preset "${name}"  action ${parsed.actionId}${parsed.direction ? `  direction ${parsed.direction}` : ""}`);
+    return _run(preset, selection, parsed.actionId);
+  });
 }
 
 /**
@@ -84,12 +86,14 @@ function fromFilename(file, selection, opts = {}) {
  * @returns {ArchimateView[]} generated / changed views
  */
 function fromBase(selection, actionId, params = {}) {
-  const name   = PresetIO.listPresets().includes(BASE_PRESET_NAME) ? BASE_PRESET_NAME : PresetIO.DEFAULT_PRESET_NAME;
-  const preset = PresetIO.readPreset(name);
-  Object.assign(preset.params, params);
-  console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
-  if (name === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
-  return _run(preset, selection, actionId);   // generate_view validates the overrides too
+  return _reported(() => {
+    const name   = PresetIO.listPresets().includes(BASE_PRESET_NAME) ? BASE_PRESET_NAME : PresetIO.DEFAULT_PRESET_NAME;
+    const preset = PresetIO.readPreset(name);
+    Object.assign(preset.params, params);
+    console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
+    if (name === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
+    return _run(preset, selection, actionId);   // generate_view validates the overrides too
+  });
 }
 
 /**
@@ -100,13 +104,15 @@ function fromBase(selection, actionId, params = {}) {
  * @returns {ArchimateView[]} generated / changed views
  */
 function fromSession(selection, actionId) {
-  const preset = PresetIO.readSession();
-  const next   = cycleAlgorithmStart(preset.params, actionId);
-  const session = JSON.parse(JSON.stringify(preset));
-  session.params.algorithmStart = next;
-  PresetIO.writeSession(session);
-  console.log(`Session  action ${actionId}  algorithm start ${preset.params.algorithmStart} (next: ${next})`);
-  return _run(preset, selection, actionId);
+  return _reported(() => {
+    const preset = PresetIO.readSession();
+    const next   = cycleAlgorithmStart(preset.params, actionId);
+    const session = JSON.parse(JSON.stringify(preset));
+    session.params.algorithmStart = next;
+    PresetIO.writeSession(session);
+    console.log(`Session  action ${actionId}  algorithm start ${preset.params.algorithmStart} (next: ${next})`);
+    return _run(preset, selection, actionId);
+  });
 }
 
 /**
@@ -135,6 +141,28 @@ function _run(preset, selection, actionId) {
 }
 
 /**
+ * Show why a run failed: the reason in a message box, the stack on the console (SPEC § 12). The
+ * entry points call it; the code between them throws.
+ * @param {unknown} error
+ */
+function showFailure(error) {
+  const e = /** @type {Error} */ (error);   // Cast: an Error, or a Java exception from Archi
+  console.error(`Run failed: ${e.stack || e}`);
+  const MessageDialog = Java.type("org.eclipse.jface.dialogs.MessageDialog");
+  MessageDialog.openError(shell, "View run failed", e.message || String(e));
+}
+
+/**
+ * Run a shortcut's work; a failure is shown (showFailure).
+ * @param {() => ArchimateView[]} work
+ * @returns {ArchimateView[]} the views written, none when the run failed
+ */
+function _reported(work) {
+  try { return work(); }
+  catch (e) { showFailure(e); return []; }
+}
+
+/**
  * Cycle: a new view starts with the selection order; each layout of an existing view takes the
  * session's order, and the session gets the next one. Sets the run's order in params.
  * @param {PresetParams} params  changed in place
@@ -149,5 +177,5 @@ function cycleAlgorithmStart(params, actionId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromBase, fromSession, confirmViewCount, cycleAlgorithmStart, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
+  module.exports = { fromFilename, fromBase, fromSession, showFailure, confirmViewCount, cycleAlgorithmStart, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
 }

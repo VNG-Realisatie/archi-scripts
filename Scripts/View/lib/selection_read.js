@@ -34,7 +34,8 @@ function _isModifyAction(actionId) {
  * selected on a view: null, the reason on the console.
  * @param {ArchiCollection<ArchiObject>} uiSelection  $(selection) from Archi UI
  * @param {string}                       actionId     ACTION.*.id
- * @returns {Snapshot | null}
+ * @returns {Snapshot}
+ * @throws when Expand view has no elements selected on its view
  */
 function readSelection(uiSelection, actionId) {
   const INDENT = "  ";
@@ -49,10 +50,8 @@ function readSelection(uiSelection, actionId) {
   const existing = _collectExistingVisuals(uiSelection, actionId, INDENT);
   // EXPAND_VIEW expands from elements selected on the view; a view picked in the model tree has no
   // such selection. The whole view is laid out, but only the steps' relations are added to it.
-  if (isExpand && (existing.viewFromTree || !existing.existingView)) {
-    console.error("Expand view: select one or more elements on the view (not the view in the model tree).");
-    return null;
-  }
+  if (isExpand && (existing.viewFromTree || !existing.existingView))
+    throw new Error("Expand view: select one or more elements on the view (not the view in the model tree).");
   // Diagram-blocks: a diagram object with contents (a legend, a frame) moves as one object with all it
   // holds; its contents are not laid out. Modify: on the target view; Create: on the view(s) read, to copy.
   const isModify = _isModifyAction(actionId);
