@@ -26,7 +26,7 @@
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
     "connectionsMode": "Across containers",
-    "layerSpacing": 0,
+    "layerSpacing": 40,
     "elementSpacing": 20,
     "connectionSpacing": 25,
     "connectionElementSpacing": 20,
@@ -112,7 +112,7 @@
     "properties": [
       {
         "key": "Architectuurlaag",
-        "value": "",
+        "value": "Applicatiearchitectuur",
         "enabled": false
       },
       {

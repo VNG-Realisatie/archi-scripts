@@ -3,32 +3,32 @@
   "name": "Kennismodel/Kennismodel",
   "algorithm": "Layered",
   "params": {
-    "direction": "Down",
-    "nodePlacement": "Straight lines",
+    "direction": "Right",
+    "nodePlacement": "Centred",
     "circles": "One circle",
     "routing": "Orthogonal",
     "labelPosition": "Middle",
     "ranking": "Balanced",
-    "acyclicer": "Default",
+    "acyclicer": "Greedy",
     "reverseConditions": [
       {"relation": "serving-relationship"},
       {"relation": "realization-relationship"}
     ],
     "nestingConditions": [
-      {"source": "grouping", "relation": "aggregation-relationship"}
+      {"source": "grouping", "relation": "aggregation-relationship", "everyContainer": true}
     ],
     "padding": 20,
     "diagramPadding": 10,
     "sort": "Elements",
-    "algorithmStart": "Type and name △",
+    "algorithmStart": "Name △",
     "cycleAlgorithmStart": false,
     "alignWidthSameType": false,
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
-    "connectionsMode": "Between containers",
-    "layerSpacing": 0,
+    "connectionsMode": "Across containers",
+    "layerSpacing": 60,
     "elementSpacing": 30,
-    "connectionSpacing": 20,
+    "connectionSpacing": 25,
     "connectionElementSpacing": 20,
     "elementWidth": 200,
     "elementHeight": 60,
@@ -37,7 +37,7 @@
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": false
+    "connectionLabelSpacing": true
   },
   "filter": {
     "elementConditions": [],
@@ -63,7 +63,7 @@
     ]
   },
   "view": {
-    "name": "Bedrijfsarchitectuur",
+    "name": "Beleidsdomeinindeling",
     "folder": "/Kennismodel",
     "suffix": ""
   },

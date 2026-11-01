@@ -34,7 +34,7 @@
     "elementHeight": 60,
     "maxWidth": 0,
     "aspectRatio": 1.33,
-    "viewSizeMode": "none",
+    "viewSizeMode": "aspectRatio",
     "labelSizing": true,
     "labelMaxLineWidth": 160,
     "connectionLabelSpacing": false
@@ -91,7 +91,7 @@
     "properties": [
       {
         "key": "Architectuurlaag",
-        "value": "",
+        "value": "Applicatiearchitectuur",
         "enabled": false
       },
       {

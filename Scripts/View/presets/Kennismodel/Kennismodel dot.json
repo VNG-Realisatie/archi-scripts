@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 6,
+  "name": "Kennismodel/Kennismodel dot",
+  "algorithm": "Dot",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Greedy",
+    "reverseConditions": [
+      {"relation": "serving-relationship"},
+      {"relation": "realization-relationship"}
+    ],
+    "nestingConditions": [
+      {"source": "grouping", "relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "algorithmStart": "Name △",
+    "cycleAlgorithmStart": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 180,
+    "elementSpacing": 30,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"direction": "outgoing", "relation": "aggregation-relationship"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"mode": "exclude", "added": "grouping"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Beleidsdomeinindeling",
+    "folder": "/Kennismodel dot",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"fontSize": 14, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "darkenStart": 0,
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Layout en folder voor kennismodel views"
+}
