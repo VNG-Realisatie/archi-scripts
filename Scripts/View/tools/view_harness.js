@@ -210,9 +210,8 @@ function _walkView(model, view) {
 }
 
 /**
- * The relations of an element as jArchi's rels() gives them:
- * its source relations, then its target relations, each in file order; a self-loop is listed twice (verified in Archi).
- * That is the order of a freshly opened model: in Archi, drawing a connection moves its relation to the end.
+ * The relations of an element as readRelationIndex gives them: in relation-id order;
+ * a self-loop is listed twice, as jArchi's rels() lists it (verified in Archi).
  * @returns {(element: {id: string}) => object[]}
  */
 function relationIndex(model) {
@@ -222,7 +221,12 @@ function relationIndex(model) {
     if (rel.source) push(bySource, rel.source.id, rel);
     if (rel.target) push(byTarget, rel.target.id, rel);
   }
-  return element => [...(bySource.get(element.id) || []), ...(byTarget.get(element.id) || [])];
+  const sorted = new Map();
+  return element => {
+    if (!sorted.has(element.id)) sorted.set(element.id, [...(bySource.get(element.id) || []), ...(byTarget.get(element.id) || [])]
+      .sort((a, b) => Defs.compareIds(a.id, b.id)));
+    return sorted.get(element.id);
+  };
 }
 
 /**

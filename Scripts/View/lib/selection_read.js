@@ -137,8 +137,9 @@ function _canvasDiagramObjects(raw, ofViews) {
 }
 
 /**
- * The relations of an element, read from the model on first use and kept: the model does not
- * change while a snapshot is in use.
+ * The relations of an element in relation-id order, read from the model on first use and kept: the
+ * model does not change while a snapshot is in use. Not jArchi's rels() order: drawing a connection
+ * moves its relation to the end of it, so that order changes within an Archi session.
  * @returns {RelationIndex}
  */
 function readRelationIndex() {
@@ -150,7 +151,7 @@ function readRelationIndex() {
       /** @type {ArchiRelation[]} */
       const read = [];
       $(element).rels().each(rel => read.push(rel));
-      rels = read;
+      rels = read.sort((a, b) => Defs.compareIds(a.id, b.id));
       cache.set(element.id, rels);
     }
     return rels;

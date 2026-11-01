@@ -14,7 +14,7 @@ const REPO_ROOT = (() => {
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
-const { compareNames } = Defs;
+const { compareNames, compareIds } = Defs;
 
 /**
  * Strip a synthetic occurrence suffix (`${id}_occ_N`) to recover the element id.
@@ -34,7 +34,7 @@ function _byNameThenId(a, b) {
   const na = (a && a.name) || "", nb = (b && b.name) || "";
   if (na !== nb) return compareNames(na, nb);
   // Casts: callers compare elements that exist.
-  return /** @type {{ id: string }} */ (a).id < /** @type {{ id: string }} */ (b).id ? -1 : /** @type {{ id: string }} */ (a).id > /** @type {{ id: string }} */ (b).id ? 1 : 0;
+  return compareIds(/** @type {{ id: string }} */ (a).id, /** @type {{ id: string }} */ (b).id);
 }
 
 /**
@@ -335,7 +335,7 @@ function resolveNesting(elements, nestingRels, params, visuals) {
       every:    ConditionLists.matchEveryContainer(conditions, rel.type, rel.source.type, rel.target.type, rel),
     });
   }
-  cands.sort((a, b) => a.rel.id < b.rel.id ? -1 : a.rel.id > b.rel.id ? 1 : 0);
+  cands.sort((a, b) => compareIds(a.rel.id, b.rel.id));
 
   // 1. Cycles.
   /** @type {Map<string, string[]>} */

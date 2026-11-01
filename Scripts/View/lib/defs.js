@@ -834,6 +834,15 @@ function _nameKey(s) {
 function compareNames(a, b) {
   const ka = _nameKey(a), kb = _nameKey(b);
   if (ka !== kb) return ka < kb ? -1 : 1;
+  return compareIds(a, b);
+}
+
+/**
+ * The one id comparison: code-point order, the same on every machine.
+ * @param {string} a
+ * @param {string} b
+ */
+function compareIds(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
@@ -1166,6 +1175,6 @@ if (typeof module !== "undefined" && module.exports) {
     CONNECTION_END_CLEARANCE, CONNECTION_END_ROOM, BENDPOINT_MIN_GAP, MIN_CONNECTION_LENGTH,
     validatePreset, unknownPresetKeys, effectiveParams, connectionsModeLock,
     REPEAT_UNTIL_NOTHING_NEW, REPEAT_MAX, REPEAT_OPTIONS, normalizeRepeat, repeatMaxRuns,
-    compareNames,
+    compareNames, compareIds,
   };
 }
