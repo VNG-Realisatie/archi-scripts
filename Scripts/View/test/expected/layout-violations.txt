@@ -40,8 +40,6 @@ baseline.json Pack 4 Parts new_view: count: 25 connections promised, 2 planned
 baseline.json Tiles 1 Nesting new_view: count: 8 connections promised, 7 planned
 baseline.json Tiles 2 Edited new_view: count: 10 connections promised, 9 planned
 baseline.json Tiles 4 Parts new_view: count: 25 connections promised, 22 planned
-baseline.json Dot 1 Nesting new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
-baseline.json Dot 2 Edited new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
 counters.json Tree 1 Nesting new_view: count: 8 connections promised, 7 planned
 counters.json Tree 2 Edited new_view: count: 10 connections promised, 9 planned
 counters.json Tree 4 Parts new_view: count: 25 connections promised, 20 planned
@@ -63,5 +61,3 @@ counters.json Pack 4 Parts new_view: count: 25 connections promised, 2 planned
 counters.json Tiles 1 Nesting new_view: count: 8 connections promised, 7 planned
 counters.json Tiles 2 Edited new_view: count: 10 connections promised, 9 planned
 counters.json Tiles 4 Parts new_view: count: 25 connections promised, 22 planned
-counters.json Dot 1 Nesting new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
-counters.json Dot 2 Edited new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next

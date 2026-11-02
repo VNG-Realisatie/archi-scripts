@@ -593,7 +593,7 @@ function _extractResult(graph, jsonOut) {
 
   /** @type {LayoutResultEdge[]} */
   const resultEdges = [];
-  _walkEdges(jsonOut, graph.edges, totalH, splines, skipBend, labelPos, resultEdges);
+  _walkEdges(jsonOut, graph.edges, totalH, splines, skipBend, labelPos, clusters, resultEdges);
 
   _normalizeOrigin(resultNodes, resultEdges);
 
@@ -645,9 +645,10 @@ function _walkJSON(obj, nodes, clusters, totalH) {
  * @param {string}             splines      Graphviz splines value
  * @param {boolean}            skipBend     straight lines: no bendpoints
  * @param {string}             labelPos     labelPosition param
+ * @param {Record<string, GvBox>} clusters  container id → box
  * @param {LayoutResultEdge[]} resultEdges  filled
  */
-function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, resultEdges) {
+function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, clusters, resultEdges) {
   if (!jsonOut.edges) return;
   for (const dotEdge of jsonOut.edges) {
     const eid = String((dotEdge.attrs && dotEdge.attrs.eid) || dotEdge.eid || "");
@@ -661,11 +662,19 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, re
     /** @type {{ start: Point, end: Point } | null} */
     let ports = null;
     if (!skipBend && dotEdge.pos) {
-      // Samples of a short curve round to the same pixel: keep one.
-      bendpoints = _flattenSpline(String(dotEdge.pos), totalH, splines)
-        .map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))
-        .filter((p, i, a) => i === 0 || p.x !== a[i - 1].x || p.y !== a[i - 1].y);
       ports = _splineEnds(String(dotEdge.pos), totalH);
+      // A connection to a container starts at the container's own node inside its cluster: the line
+      // Archi draws starts at the container's border.
+      let line = _routeLine(String(dotEdge.pos), totalH, splines);
+      const srcBox = clusters[originalEdge.source], tgtBox = clusters[originalEdge.target];
+      if (srcBox) line = _clipStart(line, srcBox);
+      if (tgtBox) line = _clipStart(line.slice().reverse(), tgtBox).reverse();
+      if (ports && srcBox) ports.start = _roundPoint(line[0]);
+      if (ports && tgtBox) ports.end = _roundPoint(line[line.length - 1]);
+      // Samples of a short curve round to the same pixel: keep one.
+      bendpoints = _bendsOf(line)
+        .map(_roundPoint)
+        .filter((p, i, a) => i === 0 || p.x !== a[i - 1].x || p.y !== a[i - 1].y);
     }
 
     // Natural: Graphviz's lp; otherwise the shared rule on the line's end points (as ELK and Dagre)
@@ -731,12 +740,13 @@ function _splineEnds(posStr, totalH) {
 }
 
 /**
+ * The route as a line in px: its start, the corners (ortho, polyline) or curve samples (spline), its end.
  * @param {string} posStr      Graphviz edge pos
  * @param {number} totalH
  * @param {string} splineType  Graphviz splines value
  * @returns {Point[]}
  */
-function _flattenSpline(posStr, totalH, splineType) {
+function _routeLine(posStr, totalH, splineType) {
   let s = posStr.trim();
   if (s.startsWith("e,")) s = s.substring(s.indexOf(" ") + 1);
 
@@ -748,14 +758,10 @@ function _flattenSpline(posStr, totalH, splineType) {
       if (!isNaN(x) && !isNaN(y)) pts.push({ x: x * PT2PX, y: (totalH - y) * PT2PX });
     }
   }
-  if (pts.length < 2) return [];
-  if (pts.length < 4) {
-    const f = pts[0], l = pts[pts.length - 1];
-    return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
-  }
+  if (pts.length < 4) return pts.length < 2 ? [] : [pts[0], pts[pts.length - 1]];
 
   const useBezier = splineType === "spline" || splineType === "curved";
-  const bps = [];
+  const line = [pts[0]];
 
   if (useBezier) {
     const numSegs = Math.floor((pts.length - 1) / 3);
@@ -764,20 +770,56 @@ function _flattenSpline(posStr, totalH, splineType) {
       const n = SPLINE_SAMPLE_POINTS;
       for (let k = 1; k < n; k++) {
         const p = cubicPoint(P0, P1, P2, P3, k / n);
-        bps.push({ x: Math.round(p.x), y: Math.round(p.y) });
+        line.push({ x: Math.round(p.x), y: Math.round(p.y) });
       }
-      if (seg < numSegs - 1) bps.push({ x: Math.round(P3.x), y: Math.round(P3.y) });
+      if (seg < numSegs - 1) line.push({ x: Math.round(P3.x), y: Math.round(P3.y) });
     }
   } else {
-    // Ortho / polyline: segment endpoints are corners; skip first and last boundaries
-    for (let i = 3; i < pts.length - 1; i += 3) bps.push(pts[i]);
+    // Ortho / polyline: segment endpoints are corners
+    for (let i = 3; i < pts.length - 1; i += 3) line.push(pts[i]);
   }
-  // Ortho/polyline straight segment: 4-point path with no interior bends.
-  if (bps.length === 0) {
-    const f = pts[0], l = pts[pts.length - 1];
-    return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
-  }
-  return bps;
+  line.push(pts[pts.length - 1]);
+  return line;
+}
+
+/**
+ * Bendpoints of a route line: its inner points; a straight line gets its midpoint, so Archi keeps it
+ * straight between elements whose centres are not in line.
+ * @param {Point[]} line
+ * @returns {Point[]}
+ */
+function _bendsOf(line) {
+  if (line.length < 2) return [];
+  if (line.length > 2) return line.slice(1, -1);
+  const f = line[0], l = line[1];
+  return [{ x: Math.round((f.x + l.x) / 2), y: Math.round((f.y + l.y) / 2) }];
+}
+
+/**
+ * A line that starts inside a box, from where it leaves the box: the points inside go, and the line
+ * starts on the border. A line that starts outside, or never leaves the box, is kept as it is.
+ * @param {Point[]} line
+ * @param {GvBox}   box
+ * @returns {Point[]}
+ */
+function _clipStart(line, box) {
+  const inside = (/** @type {Point} */ p) => p.x > box.x && p.x < box.x + box.w && p.y > box.y && p.y < box.y + box.h;
+  const out = line.findIndex(p => !inside(p));
+  if (out <= 0) return line;
+  const a = line[out - 1], b = line[out];
+  // The fraction of a → b at which the segment crosses the border
+  const tx = b.x > box.x + box.w ? (box.x + box.w - a.x) / (b.x - a.x) : b.x < box.x ? (box.x - a.x) / (b.x - a.x) : 1;
+  const ty = b.y > box.y + box.h ? (box.y + box.h - a.y) / (b.y - a.y) : b.y < box.y ? (box.y - a.y) / (b.y - a.y) : 1;
+  const t = Math.min(tx, ty);
+  return [{ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, ...line.slice(out)];
+}
+
+/**
+ * @param {Point} p
+ * @returns {Point}
+ */
+function _roundPoint(p) {
+  return { x: Math.round(p.x), y: Math.round(p.y) };
 }
 
 /**

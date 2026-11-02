@@ -1,6 +1,6 @@
 # Static type check and Node checks of the View subsystem (types/README.md, Scripts/View/docs/ARCHITECTURE.md § Development and testing).
-# Fingerprints and known violations are compared without the Graphviz algorithms: their results depend on the
-# Graphviz version (the expected files hold dot 14.1.4's). Archi itself does not run here.
+# Fingerprints are compared without the Graphviz algorithms: their results depend on the Graphviz version (the
+# expected files hold dot 14.1.4's). Archi itself does not run here.
 name: check
 
 on:
@@ -34,14 +34,10 @@ jobs:
           node Scripts/View/tools/write_plans.js --check --in-process --without-graphviz
           node Scripts/View/tools/write_plans.js --variants --check --in-process --without-graphviz
           node tools/compare-layouts.js --check --in-process --without-graphviz
+      # A rule holds whatever the Graphviz version: the rule checks run every algorithm, with the runner's Graphviz.
+      - run: sudo apt-get install -y graphviz
       - name: Rule checks
         run: |
-          node Scripts/View/tools/layout_checks.js --check --in-process --without-graphviz
-          node Scripts/View/tools/layout_checks.js --variants --check --in-process --without-graphviz
-          node Scripts/View/tools/layout_checks.js --large --check --in-process --without-graphviz
-      # The Graphviz algorithms' rule violations, with the runner's Graphviz: reported, not compared, while
-      # their known list holds findings not fixed yet (plan/view-test-plan.md, F1, F2).
-      - run: sudo apt-get install -y graphviz
-      - name: Rule checks, Graphviz (report)
-        continue-on-error: true
-        run: node Scripts/View/tools/layout_checks.js --in-process
+          node Scripts/View/tools/layout_checks.js --check --in-process
+          node Scripts/View/tools/layout_checks.js --variants --check --in-process
+          node Scripts/View/tools/layout_checks.js --large --check --in-process
