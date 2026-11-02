@@ -24,8 +24,8 @@ function fingerprint(algorithm, json) {
 }
 
 /**
- * --without-graphviz (CI): runs of Graphviz algorithms are skipped, and their lines left out of the
- * comparison: Graphviz results depend on its version (expected files: dot 14.1.4).
+ * --without-graphviz (CI's fingerprints, a machine without Graphviz): runs of Graphviz algorithms are skipped, and their
+ * lines left out of the comparison: Graphviz results depend on its version and build (expected files: dot 14.1.4).
  * @param {string} algorithm
  */
 function skipped(algorithm) {
