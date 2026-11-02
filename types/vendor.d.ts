@@ -78,6 +78,8 @@ interface GraphvizJsonEdge {
   pos?: string;
   /** Label position "x,y". */
   lp?: string;
+  /** External label (xlabel) position "x,y". */
+  xlp?: string;
 }
 
 // ── elkjs — repo's synchronous wrapper (Scripts/node_modules/elkjs/index.js) ────────────────────

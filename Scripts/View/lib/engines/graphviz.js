@@ -677,10 +677,11 @@ function _walkEdges(jsonOut, graphEdges, totalH, splines, skipBend, labelPos, cl
         .filter((p, i, a) => i === 0 || p.x !== a[i - 1].x || p.y !== a[i - 1].y);
     }
 
-    // Natural: Graphviz's lp; otherwise the shared rule on the line's end points (as ELK and Dagre)
+    // Natural: where Graphviz put the label (an xlabel's place is xlp); otherwise the shared rule on the
+    // line's end points (as ELK and Dagre)
     let labelX = 0, labelY = 0;
-    if (labelPos === "Natural" && dotEdge.lp) {
-      const lp = _parseXY(String(dotEdge.lp));
+    if (labelPos === "Natural" && dotEdge.xlp) {
+      const lp = _parseXY(String(dotEdge.xlp));
       labelX = Math.round(lp.x * PT2PX);
       labelY = Math.round((totalH - lp.y) * PT2PX);
     } else if (ports) {
