@@ -6,7 +6,8 @@
  * into Views/Baseline, named "<preset> <action> <view>"; ONE_EACH writes one folder of that name. The Modify
  * actions run on a copy of view 2, so the test views stay as built. Names as build_test_model.ajs creates them.
  *
- * Run in Archi with the test model (Scripts/View/test/model/view-test.archimate) selected. The script first
+ * Run in Archi with the test model (Scripts/View/test/model/view-test.archimate) selected, or through Archi's
+ * command line on a copy: Scripts/View/tools/archi_cli.sh Scripts/View/test/run_baseline.ajs. The script first
  * deletes what Views/Baseline holds, then runs the matrix and saves the model in place. Procedure, comparing
  * with the committed baseline and when to commit a new one: skill view-baseline (ai/view-baseline/SKILL.md).
  */
@@ -30,6 +31,17 @@ const RUNS = [
 ];
 
 Common.initConsoleLog(__FILE__, true);
+// Archi's command line (tools/archi_cli.sh) prints console.error like console.log: mark the line for console_checks.js.
+// The console's own methods cannot be replaced, so the whole object is, for every module.
+if (!Java.type("org.eclipse.ui.PlatformUI").isWorkbenchRunning()) {
+  const jArchiConsole = console;
+  globalThis.console = /** @type {any} */ ({
+    log:   (/** @type {any} */ message) => jArchiConsole.log(message),
+    error: (/** @type {any} */ message) => jArchiConsole.log(`ERROR: ${message}`),
+    show:  () => jArchiConsole.show(),
+    clear: () => jArchiConsole.clear(),
+  });
+}
 try {
   _checkTestModel();
   _clearBaseline();

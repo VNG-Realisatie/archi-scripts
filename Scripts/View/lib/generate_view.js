@@ -64,6 +64,7 @@ const {
 const EditorManager       = Java.type("com.archimatetool.editor.ui.services.EditorManager");
 const IEditorModelManager = Java.type("com.archimatetool.editor.model.IEditorModelManager");
 const ArchimateModelUtils = Java.type("com.archimatetool.model.util.ArchimateModelUtils");
+const PlatformUI          = Java.type("org.eclipse.ui.PlatformUI");
 
 // ── Settings outside the dialog ───────────────────────────────────────────────
 
@@ -195,7 +196,8 @@ function generate_view(rawPreset, uiSelection, actionId) {
   //   NEW_VIEW / EXPAND_VIEW / LAYOUT_ONLY → exactly one view in `views`; open it.
   //   ONE_EACH                              → potentially many views; open only the first
   //                                           so the user isn't flooded with N tabs.
-  if (views.length > 0) _openView(views[0]);
+  // Archi's command line has no window to open them in.
+  if (views.length > 0 && PlatformUI.isWorkbenchRunning()) _openView(views[0]);
   return views;
 }
 

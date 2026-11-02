@@ -65,7 +65,7 @@ function applyWritePlan(view, plan) {
   const atRoot = plan.userAtRoot ? ` · ${plan.userAtRoot} user content the settings place nowhere, at view root` : "";
   const copiedNote = copied ? ` · ${copied} copied from the view read` : "";
   console.log(`  Occurrences: ${kept} kept · ${written.size - kept - copied} created${copiedNote} · ${removed} managed removed · ${plan.records.length} managed on view${atRoot}`);
-  _logObjectsOnView(view, plan.connections.length);
+  _logObjectsOnView(view, plan.nestings.length + plan.keptNestings);
   console.log(`View "${view.name}" written`);
   return written;
 }
@@ -250,19 +250,21 @@ function _logNodes(nodes) {
 }
 
 /**
- * Count the objects on the written view. find("relation") gives connections + nestings; a mismatch
- * with the pipeline's "Total to view" usually means nesting candidates were dropped by Archi's
- * one-parent-per-child rule (see "Nestings applied").
+ * Count the objects on the written view, in the fields of the pipeline's "Total to view" (the count
+ * promise). find("relation") gives connections + nestings; a nesting mismatch usually means nesting
+ * candidates were dropped by Archi's one-parent-per-child rule (see "Nestings applied").
  * @param {ArchimateView} view
- * @param {number}        connections  laid-out connections written
+ * @param {number}        nestings  nesting connections created or kept
  */
-function _logObjectsOnView(view, connections) {
-  let elements = 0, relations = 0, diagramObjects = 0;
+function _logObjectsOnView(view, nestings) {
+  let elements = 0, relations = 0, diagramObjects = 0, diagramConnections = 0;
   $(view).find("element").each(() => elements++);
   $(view).find("relation").each(() => relations++);
   // A type a view cannot hold finds nothing or throws: a silent catch (ARCHITECTURE § Errors).
-  Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { try { $(view).find(dt).each(() => diagramObjects++); } catch (e) {} });
-  console.log(`  Objects on view: ${elements} elements · ${connections} connections · ${relations - connections} nestings · ${diagramObjects} diagram objects`);
+  Object.keys(Defs.DIAGRAM_TYPES).forEach(dt => { try { $(view).find(dt).each(() => {
+    if (dt === "diagram-model-connection") diagramConnections++; else diagramObjects++;
+  }); } catch (e) {} });
+  console.log(`  Objects on view: ${elements} elements · ${relations - nestings} connections · ${nestings} nestings · ${diagramObjects} diagram objects · ${diagramConnections} diagram connections`);
 }
 
 /**
