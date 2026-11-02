@@ -1,28 +1,22 @@
 #!/usr/bin/env node
 /**
- * Write-plan digests (Node, no Archi): per preset × algorithm × view × action one hash of the write
- * plan generate_view's plan() makes for the test model. Run it on two checkouts and diff the output
- * to show a change leaves what the writer does as it was; --full prints the plans as JSON instead.
+ * Write-plan fingerprints (Node, no Archi): per preset × algorithm × view × action one hash of the write
+ * plan generate_view's plan() makes for the test model, with its counts. --check compares them with
+ * test/expected/write-plans.txt, --write rewrites it (expected.js); --full prints the plans as JSON instead.
  *
- * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--full] [--in-process]
+ * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--check | --write | --full] [--in-process]
  *        --in-process: the adapters run in this process (about 10× faster), not in a Node layout process
  *        default model: Scripts/View/test/model/view-test.archimate; presets: presets/Test/baseline/*.json
  * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
- *
- * Compare with the current HEAD:
- *   git worktree add /tmp/old HEAD
- *   node /tmp/old/Scripts/View/tools/write_plans.js > old.txt
- *   node Scripts/View/tools/write_plans.js > new.txt
- *   diff old.txt new.txt; git worktree remove /tmp/old
  */
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 
 const log = console.log;
 console.log = () => {};   // the modules' and the plan's console output
 const H    = require(path.join(__dirname, "view_harness.js"));
 const Defs = require(path.join(__dirname, "..", "lib", "defs.js"));
+const Expected = require(path.join(__dirname, "expected.js"));
 
 const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const full = process.argv.includes("--full");
@@ -33,6 +27,7 @@ const presetDir = path.join(VIEW, "presets/Test/baseline");
 const presets = fs.readdirSync(presetDir).filter(f => f.endsWith(".json")).sort();
 const VIEWS = ["1 Nesting", "2 Edited", "3 Network"];
 const ACTIONS = [Defs.ACTION.NEW_VIEW.id, Defs.ACTION.EXPAND_VIEW.id, Defs.ACTION.LAYOUT_ONLY.id];
+const lines = [];
 
 for (const file of presets) {
   for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
@@ -48,13 +43,14 @@ for (const file of presets) {
           const json = planned ? H.writePlanJson(planned.writePlan) : "null";
           if (full) { log(`== ${tag}\n${json}`); continue; }
           const wp = planned && planned.writePlan;
-          line = `${crypto.createHash("sha1").update(json).digest("hex").slice(0, 12)}` +
+          line = Expected.fingerprint(algorithm, json) +
             (wp ? ` ${wp.nodes.length}n ${wp.connections.length}c ${wp.nestings.length + wp.keptNestings}nest ${wp.removedVisuals.length}rm` : "");
         } catch (e) {
           line = `ERROR ${String(e).split("\n")[0].slice(0, 80)}`;
         }
-        log(`${tag} ${line}`);
+        lines.push(`${tag} ${line}`);
       }
     }
   }
 }
+if (!full) Expected.report(lines, "write-plans.txt", log);

@@ -25,4 +25,4 @@ The baseline is what Archi's writer puts on the views of the test model for a fi
 
 ## Rebuilding the test model
 
-`build_test_model.ajs` saves a new model without `Views/Baseline` (the user closes the test model first). Then `run_baseline.ajs` on it, the compare (only the intended test-view changes and the baseline views that follow from them may differ), and commit the script, the model and the new digests (`write_plans.js`, `compare-layouts.js`) together.
+`build_test_model.ajs` saves a new model without `Views/Baseline` (the user closes the test model first). Then `run_baseline.ajs` on it, the compare (only the intended test-view changes and the baseline views that follow from them may differ), and commit the script, the model and the expected files (`write_plans.js --write`, `compare-layouts.js --write`) together.
