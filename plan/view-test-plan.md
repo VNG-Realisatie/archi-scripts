@@ -150,7 +150,7 @@ Only what is added; each step is one commit after the user's approval.
 | F10 | Dagre, view 5: 6 children outside their container, one 1640 px above it | dagre-cluster-fix with three nesting levels (Known gap 15) | Investigate; may be a reason to leave the fork (Known gap 15) |
 | — | Algorithms without self-loops (Tree, Stress, Tiles, Grid, Pack, Radial) still count the removed self-loop in *Total to view* (views 1, 2, 4: one more promised than written) | The totals count it before the algorithm removes it | The totals leave out a self-loop the algorithm does not draw |
 
-## Docs proposal (step 8, awaiting approval)
+## Docs (step 8, approved 2026-11-02, done)
 
 ARCHITECTURE § Development and testing:
 - Test levels: *Write plans* gets `--variants` (one option at a time where offered, and the options without effect); *Layout regression* runs on views 1–4. New rows: **Rule checks, Node** (`layout_checks.js [--variants | --large] --check`: the rules and what they cover, known violations in `test/expected/`); **Written views, Archi CLI + Node** replaces the run in Archi: `tools/archi_cli.sh test/run_baseline.ajs`, then `compare-views.js` and `console_checks.js` (count promise, errors, warnings, time); **Rendering, Archi CLI + Node** (`render_views.ajs` + `svg_checks.js`: text cut, clipped, end symbol, label over, line through; `svg_checks_probe.ajs` checks the checks); **Archi time** (`run_large.ajs`, logged). *In Archi* shrinks to the dialog and what is judged by eye (readability).
@@ -165,5 +165,5 @@ Skill `view-baseline`: the agent runs the baseline through `archi_cli.sh` and co
 ## Handoff
 
 - Done: steps 1–7 committed (the extended model in the repo; `compare-views.js --head`: only views 4, 5 and the two view-4 baseline runs are new).
-- Next: step 8 after the docs approval; fixes F1–F10 one by one after approval, each updating the known violations.
-- User: approve the docs proposal; choose F7 and approve the fixes.
+- Next: fixes F1–F10 one by one (approved; F7: straight lines), each updating the known violations and, where views change, the baseline.
+- User: nothing.
