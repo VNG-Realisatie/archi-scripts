@@ -23,6 +23,23 @@ function fingerprint(algorithm, json) {
   return crypto.createHash("sha1").update(json).digest("hex").slice(0, 12);
 }
 
+/**
+ * --without-graphviz (CI): runs of Graphviz algorithms are skipped, and their lines left out of the
+ * comparison: Graphviz results depend on its version (expected files: dot 14.1.4).
+ * @param {string} algorithm
+ */
+function skipped(algorithm) {
+  if (!process.argv.includes("--without-graphviz")) return false;
+  const Defs = require(path.join(__dirname, "..", "lib", "defs.js"));   // after the harness: defs needs its Java stand-in
+  return Defs.ALGORITHMS[algorithm].engine === "Graphviz";
+}
+
+/** @param {string} line */
+function _graphvizLine(line) {
+  const Defs = require(path.join(__dirname, "..", "lib", "defs.js"));
+  return line.split(/\s+|:/).some(token => token in Defs.ALGORITHMS && Defs.ALGORITHMS[token].engine === "Graphviz");
+}
+
 /** @returns {"check" | "write" | "print"} */
 function mode() {
   if (process.argv.includes("--check")) return "check";
@@ -40,12 +57,14 @@ function report(lines, name, log) {
   const file = path.join(EXPECTED_DIR, name);
   const m = mode();
   if (m === "print") { lines.forEach(l => log(l)); return; }
+  if (m === "write" && process.argv.includes("--without-graphviz")) throw new Error("--write needs every algorithm: run it without --without-graphviz");
   if (m === "write") {
     fs.writeFileSync(file, lines.join("\n") + "\n");
     log(`${lines.length} lines written to ${path.relative(process.cwd(), file)}`);
     return;
   }
-  const expected = fs.readFileSync(file, "utf8").split("\n").filter(l => l !== "");
+  const withoutGraphviz = process.argv.includes("--without-graphviz");
+  const expected = fs.readFileSync(file, "utf8").split("\n").filter(l => l !== "" && !(withoutGraphviz && _graphvizLine(l)));
   const diff = _diff(expected, lines);
   if (!diff.length) { log(`${name}: ${lines.length} lines as expected`); return; }
   log(`${name}: ${diff.length} lines differ (- expected, + now)`);
@@ -66,4 +85,4 @@ function _diff(expected, actual) {
   ].sort((a, b) => a.slice(2).localeCompare(b.slice(2)));
 }
 
-module.exports = { EXPECTED_DIR, UNSTABLE_ALGORITHMS, fingerprint, report };
+module.exports = { EXPECTED_DIR, UNSTABLE_ALGORITHMS, fingerprint, skipped, report };

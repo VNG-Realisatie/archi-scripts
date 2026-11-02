@@ -4,11 +4,11 @@
  * plan generate_view's plan() makes for the test model, with its counts. --check compares them with
  * test/expected/write-plans.txt, --write rewrites it (expected.js); --full prints the plans as JSON instead.
  * --variants: one option changed on baseline.json per algorithm where the dialog offers it (variants.js),
- * New view on views 1–3, against test/expected/write-plans-variants.txt; it ends with the variants whose
- * plan equals the base on all three views ("no effect": an option without a visible effect, or test
+ * New view on views 1–4, against test/expected/write-plans-variants.txt; it ends with the variants whose
+ * plan equals the base on every test view ("no effect": an option without a visible effect, or test
  * views that cannot show it).
  *
- * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--variants] [--check | --write | --full] [--in-process]
+ * Run: node Scripts/View/tools/write_plans.js [model.archimate] [--variants] [--check | --write | --full] [--in-process] [--without-graphviz]
  *        --in-process: the adapters run in this process (about 10× faster), not in a Node layout process
  *        default model: Scripts/View/test/model/view-test.archimate; presets: presets/Test/baseline/*.json
  * Graphviz algorithms need the dot binary on the PATH (the harness runs it with child_process).
@@ -30,7 +30,7 @@ const VIEW = path.join(__dirname, "..");
 const model = H.loadModel(args[0] || path.join(VIEW, "test/model/view-test.archimate"));
 const presetDir = path.join(VIEW, "presets/Test/baseline");
 const presets = fs.readdirSync(presetDir).filter(f => f.endsWith(".json")).sort();
-const VIEWS = ["1 Nesting", "2 Edited", "3 Network"];
+const VIEWS = ["1 Nesting", "2 Edited", "3 Network", "4 Parts"];
 const ACTIONS = [Defs.ACTION.NEW_VIEW.id, Defs.ACTION.EXPAND_VIEW.id, Defs.ACTION.LAYOUT_ONLY.id];
 const VARIANT_PRESET = "baseline.json";
 /** @type {string[]} */
@@ -39,7 +39,7 @@ const lines = [], noEffect = [];
 if (process.argv.includes("--variants")) {
   // One option changed on baseline.json, New view only: the Modify actions share the layout.
   const raw = JSON.parse(fs.readFileSync(path.join(presetDir, VARIANT_PRESET), "utf8"));
-  for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
+  for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {
     // The base as the algorithm runs it: a value it does not offer is already replaced (validatePreset).
     const base = Defs.validatePreset({ ...raw, algorithm }).params;
     const baseLines = VIEWS.map(viewName => _run("", Defs.validatePreset({ ...raw, algorithm }), algorithm, viewName, Defs.ACTION.NEW_VIEW.id));
@@ -48,7 +48,7 @@ if (process.argv.includes("--variants")) {
       const variantLines = VIEWS.map(viewName => _run(`${algorithm.padEnd(8)} ${viewName.padEnd(10)} ${variant.name.padEnd(36)}`, preset, algorithm, viewName, Defs.ACTION.NEW_VIEW.id));
       // An option has a visible effect wherever it is offered (Scripts/View/AGENTS.md, hard rule 10).
       if (!full && !(algorithm in Expected.UNSTABLE_ALGORITHMS) && variantLines.every((l, i) => l.slice(-baseLines[i].length) === baseLines[i])) {
-        noEffect.push(`${algorithm.padEnd(8)} no effect on views 1–3: ${variant.name}`);
+        noEffect.push(`${algorithm.padEnd(8)} no effect on views 1–4: ${variant.name}`);
       }
     }
   }
@@ -56,7 +56,7 @@ if (process.argv.includes("--variants")) {
   if (!full) Expected.report(lines, "write-plans-variants.txt", log);
 } else {
   for (const file of presets) {
-    for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
+    for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {
       const raw = JSON.parse(fs.readFileSync(path.join(presetDir, file), "utf8"));
       raw.algorithm = algorithm;
       const preset = Defs.validatePreset(raw);

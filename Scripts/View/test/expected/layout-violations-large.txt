@@ -1,0 +1,68 @@
+Tree 5 Large: count: 162 connections promised, 145 planned
+Stress 5 Large: count: 442 connections promised, 440 planned
+Radial 5 Large: overlap: id-1c2190f493654f76b7590798f5bc1c5c and id-7b04ae94b9484704870e4353422d9787 by 58 px
+Radial 5 Large: overlap: id-8ee23f399a3744038a2b36d695eb365d and id-f4929d07cd374c1b945d4b718fd414c9 by 57 px
+Radial 5 Large: overlap: id-fb6f660cb9004075a868f7f07c5820be and id-cd9b89af201444eaab00ca568eac554e by 59 px
+Radial 5 Large: overlap: id-88767a1a6130458d9f357b7ac0ad6e18 and id-22e31136f06247348d9d8152f0be293a by 47 px
+Radial 5 Large: overlap: id-5fd30454c24a4e928d6c6dc720c421b1 and id-32c71b98c8964753924ae530b9faa28b by 46 px
+Radial 5 Large: overlap: id-19330097798942689dd305ebaeca3ebf and id-48d5c75df87049469a7a59068440c8ef by 30 px
+Radial 5 Large: overlap: id-f6f0165078784c7ea43c0defe48aa2c2 and id-053d086a6c864a71b803a10770656f12 by 46 px
+Radial 5 Large: overlap: id-b2a040ba8fc2479b8b420f733276856d and id-9314705ebca04519a4db9e6083e5888f by 8 px
+Radial 5 Large: overlap: id-df078e14b9f8475ca19dff8aa062c274 and id-23da7da346824dfca0b8ab5ca632cd98 by 6 px
+Radial 5 Large: overlap: id-155e53d7d0ff4fbf935326d18d39d3f0 and id-ece19c120fbd40b2a3a865ba44c434a2 by 47 px
+Radial 5 Large: overlap: id-67dd383ce056462a9236719c7877e97f and id-f5ebd79d06cf4cef97a849f1e44147ae by 30 px
+Radial 5 Large: overlap: id-20721818ebb442318c20ac0e28c38934 and id-eb0ee364f77740eaaa409acc8952b15f by 9 px
+Radial 5 Large: overlap: id-54a3822d95cc4f7f831b5986237633ea and id-466f75e1e9c241e9b1cf23acbb5307c6 by 40 px
+Radial 5 Large: overlap: id-74228a2167aa4854ad17fc9219232770 and id-28de2c98dc62466c980e79856a8a4c4c by 55 px
+Radial 5 Large: overlap: id-3043b63cab87482aa12dcea57c58b4d8 and id-75bee7937feb4e8abafd7ac39dc3ed30 by 55 px
+Radial 5 Large: overlap: id-973c6282cfd14c6f9dbf7b2faff00b74 and id-69f862ec177d4526b6f9072c7047d921 by 8 px
+Radial 5 Large: overlap: id-fb969c21b1944dbcb17e28bbbbacddcb and id-8e5a310ac83e4a1dadc6d749dede2b49 by 14 px
+Radial 5 Large: overlap: id-fb969c21b1944dbcb17e28bbbbacddcb and id-ddc81c32124b4520a184241b5bbc87f6 by 14 px
+Radial 5 Large: overlap: id-508862cf402b4d7d8b33132b03584682 and id-d0f0f55cb3634029bb6a2231d0f8c0af by 53 px
+Radial 5 Large: overlap: id-508862cf402b4d7d8b33132b03584682 and id-432b52d8e0754aea8d6a340541d4dec3 by 50 px
+Radial 5 Large: overlap: id-1d812b6e38cf4b1d8b782846e0aaef96 and id-aa36c8e4513441f1962b05ff64bc93b2 by 18 px
+Radial 5 Large: overlap: id-5a945bc468fb4a2fab65174296889d83 and id-9cab91a671fb4c5c8f109555516ed971 by 60 px
+Radial 5 Large: overlap: id-6276064fba3040d2bd7ef290202b2e36 and id-ccd3b9eb11674513bcf89576cf92e4b4 by 17 px
+Radial 5 Large: overlap: id-3e4bec4f58664125a20131b3137cc167 and id-902d599775a540dfa501cff54aacff5a by 60 px
+Radial 5 Large: overlap: id-2e85824d9bbb4dd79e30120f7bffc214 and id-a91ba9dd1fa84f2ab383c60ec75c9f01 by 60 px
+Radial 5 Large: overlap: id-1bed4e5ef84f4cff8292466b664fc9e9 and id-c79d36cb636d4c8e95662806e5be8f23 by 14 px
+Radial 5 Large: overlap: id-8341583b1b2547a9ada7206401a66f0e and id-60e60691bf5b43e387fcdbd576a1bef9 by 60 px
+Radial 5 Large: overlap: id-c925e76bcfca4607a9dbe0fa0b1a5d67 and id-b14d16094b4d4b61bad8b3dd8c776d4b by 47 px
+Radial 5 Large: overlap: id-06b32f95a1e0479fbc326304b896fce5 and id-ead144548469498ca6ab2fb89de03ca4 by 60 px
+Radial 5 Large: overlap: id-02aa5c0e17354dc9be8c4b8110ebf920 and id-dd38f6ab2bf74ecca1f34f96fe99af2d by 39 px
+Radial 5 Large: overlap: id-d983da2879414fe9804ab7da68ac8c44 and id-f624a64654c3406db2263da353d12ee0 by 56 px
+Radial 5 Large: overlap: id-18cd8cbfde6d46fbb664577172b8e0cf and id-4a574002479e4ac8af82bda37b4dd774 by 50 px
+Radial 5 Large: overlap: id-8e5a310ac83e4a1dadc6d749dede2b49 and id-ddc81c32124b4520a184241b5bbc87f6 by 60 px
+Radial 5 Large: overlap: id-8b9537aea59e4f1aab316de1cf5c893e and id-eb0ee364f77740eaaa409acc8952b15f by 12 px
+Radial 5 Large: overlap: id-228be4a93a4b4e2a9f607e91aaece066 and id-5d30eee51c8246208d0b25904c8aa905 by 11 px
+Radial 5 Large: overlap: id-61699e4bd113481da9fb92e10be34dff and id-b41239f5ce804d298847af92d98f94ab by 9 px
+Radial 5 Large: overlap: id-cc5abd4a19bc49a1b2686492b28c16d9 and id-d39e8c7c852c476abe150ef7b29e2833 by 60 px
+Radial 5 Large: overlap: id-88833ad3fb2148c88ed725352d409f4f and id-d4053155975241ce873c29be2a66d370 by 52 px
+Radial 5 Large: overlap: id-cb30c66b309a43dfb5e5fb987108bdd5 and id-e9f1b86ee69d49c6840f5547e0d22bbc by 60 px
+Radial 5 Large: count: 442 connections promised, 299 planned
+Grid 5 Large: count: 162 connections promised, 15 planned
+Pack 5 Large: count: 162 connections promised, 15 planned
+Tiles 5 Large: count: 162 connections promised, 160 planned
+Dagre 5 Large: outside: id-b06b084f18954fd582eda93cc401874c out of id-a688f622b26443afb999e5dfb75ad135 at top 1640 px
+Dagre 5 Large: outside: id-389c2e47483545c2a87845a98109024f out of id-a688f622b26443afb999e5dfb75ad135 at top 1540 px
+Dagre 5 Large: outside: id-34592c970f3b46159d55779677d9acdb out of id-1f638b27806140058f29d08103927a63 at top 1472 px
+Dagre 5 Large: outside: id-f624a64654c3406db2263da353d12ee0 out of id-2872eb466f3d45af9f8f7d2c8664bfb6 at top 1160 px
+Dagre 5 Large: outside: id-7454a74edfac4c9aaa3edd124b632cc0 out of id-2872eb466f3d45af9f8f7d2c8664bfb6 at top 1260 px
+Dagre 5 Large: outside: id-8cf6d8b092aa463eac6e769a78ed0b2b out of id-2872eb466f3d45af9f8f7d2c8664bfb6 at top 1360 px
+Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-ccd3b9eb11674513bcf89576cf92e4b4 first segment 8 px, 84° off the next
+Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-3111cf4d80904249b5882d0769b41113 first segment 10 px, 95° off the next
+Dot 5 Large: end room: flow-relationship id-a3aa31ab79d845bdb2374315acb4f33f→id-64aa6e626c9b48dd8b8373d86f43ec20 first segment 10 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-1d812b6e38cf4b1d8b782846e0aaef96→id-6a690ec4bdda488f9bcd47fdf74beb8e first segment 6 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-4d75e3ce6007427e863878716c561926→id-389c2e47483545c2a87845a98109024f first segment 4 px, 80° off the next
+Dot 5 Large: end room: flow-relationship id-ae872888587c49b4b6879dca5b7f97e0→id-bb5aa74ed30342b3bff6e509332e2214 first segment 7 px, 90° off the next
+Dot 5 Large: end room: flow 100 id-41decb303c8440258e28cc8d7d5cd87a→id-7b04ae94b9484704870e4353422d9787 last segment 3 px, 11° off the next
+Dot 5 Large: end room: flow-relationship id-eb8e439377ce4f4e89bc9add0296f312→id-36a9fb337f1d448f80ef930e914b939d last segment 6 px, 10° off the next
+Dot 5 Large: end room: flow-relationship id-7bae02bb385b4e85aa31fcc2b98ae3a2→id-eb8e439377ce4f4e89bc9add0296f312 first segment 2 px, 84° off the next
+Dot 5 Large: end room: flow-relationship id-374e484f897243deacd7d9a944904619→id-5276b98cf61c451d912a96e2f0591f0b first segment 3 px, 82° off the next
+Dot 5 Large: end room: flow-relationship id-a0a7b53562d64317b84529954c0e7477→id-761b737741b74657bc2a7246a10545d5 first segment 9 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-925620e192d740e08dab24167adebd8e→id-40bf4ceaa8e04c4abf9ce95344e88a38 first segment 4 px, 95° off the next
+Dot 5 Large: end room: flow-relationship id-81e7610a161048009a8e8b2237f5b0ba→id-ece19c120fbd40b2a3a865ba44c434a2 first segment 6 px, 85° off the next
+Dot 5 Large: end room: flow 60 id-f76c708009404e939ea5e0fdd1ca5511→id-adf09369b9dc43d9b8c9ad85e1402513 first segment 6 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-6371862843ae4069aa6bc2ac717d626e→id-602b31a83e2143649202c08ecd7cbae5 first segment 5 px, 82° off the next
+Dot 5 Large: self-loop: id-367ff694ad574e4e846b5d44519fc338 has 5 bendpoints inside id-fbb94d1231ef4ac0906e3a64ddb92901
+FDP 5 Large: self-loop: id-367ff694ad574e4e846b5d44519fc338 without bendpoints, drawn inside id-fbb94d1231ef4ac0906e3a64ddb92901

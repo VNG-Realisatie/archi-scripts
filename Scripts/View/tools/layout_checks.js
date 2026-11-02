@@ -19,10 +19,14 @@
  *              Archi's middle, and a label point in the end room, which the writer keeps free)
  *   self-loop  an algorithm without self-loops writes none; with them, the loop has bendpoints, none
  *              inside the element (else Archi draws it inside)
+ *   count      New view: the plan writes as many connections as the totals promise (SPEC § 6, the count
+ *              promise; in Archi: console_checks.js)
  *
  * --variants: the variants of baseline.json instead (variants.js, as write_plans.js --variants).
+ * --large: view 5 (300 elements) with baseline.json and every algorithm, New view, with the time per run in
+ * Node (logged only; not compared twice).
  *
- * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants] [--in-process] [--check | --write]
+ * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants | --large] [--in-process] [--check | --write] [--without-graphviz]
  * Exit 1 when a rule is broken; each violation is one line. --check compares them with the known violations
  * in test/expected/layout-violations[-variants].txt (findings not fixed yet; expected.js), --write rewrites it.
  */
@@ -45,25 +49,27 @@ const VIEW = path.join(__dirname, "..");
 const model = H.loadModel(args[0] || path.join(VIEW, "test/model/view-test.archimate"));
 const presetDir = path.join(VIEW, "presets/Test/baseline");
 const presets = fs.readdirSync(presetDir).filter(f => f.endsWith(".json")).sort();
-const VIEWS = ["1 Nesting", "2 Edited", "3 Network"];
+const VIEWS = ["1 Nesting", "2 Edited", "3 Network", "4 Parts"];
 const ACTIONS = [Defs.ACTION.NEW_VIEW.id, Defs.ACTION.EXPAND_VIEW.id, Defs.ACTION.LAYOUT_ONLY.id];
 
-const variants = process.argv.includes("--variants");
+const variants = process.argv.includes("--variants"), large = process.argv.includes("--large");
 /** @type {string[]} */
 const violations = [];
 let runs = 0;
-for (const run of variants ? _variantRuns() : _presetRuns()) {
+for (const run of variants ? _variantRuns() : large ? _largeRuns() : _presetRuns()) {
   const view = H.findView(model, "Views/Test/" + run.viewName);
   captured = [];
+  const start = Date.now();
   const planned = H.planView(model, view, run.preset, run.action, inProcess);
+  if (large) log(`${String(Date.now() - start).padStart(7)} ms  ${run.tag}`);   // T2: logged, no limit
   if (!planned) continue;
   runs++;
-  const again = run.algorithm in Expected.UNSTABLE_ALGORITHMS ? null : H.planView(model, view, run.preset, run.action, inProcess);
-  for (const v of checkRun(planned, again, captured, run.algorithm)) violations.push(`${run.tag}: ${v}`);
+  const again = large || run.algorithm in Expected.UNSTABLE_ALGORITHMS ? null : H.planView(model, view, run.preset, run.action, inProcess);
+  for (const v of checkRun(planned, again, captured, run.algorithm, run.action)) violations.push(`${run.tag}: ${v}`);
 }
 log(`${runs} runs, ${violations.length ? violations.length + " violations" : "no violations"}`);
-// --check: the known violations (findings not fixed yet) in test/expected/layout-violations[-variants].txt
-const knownFile = variants ? "layout-violations-variants.txt" : "layout-violations.txt";
+// --check: the known violations (findings not fixed yet) in test/expected/layout-violations[-variants|-large].txt
+const knownFile = `layout-violations${variants ? "-variants" : large ? "-large" : ""}.txt`;
 if (process.argv.includes("--check") || process.argv.includes("--write")) Expected.report(violations, knownFile, log);
 else { violations.forEach(v => log(v)); if (violations.length) process.exitCode = 1; }
 
@@ -74,7 +80,7 @@ function _presetRuns() {
   /** @type {Run[]} */
   const out = [];
   for (const file of presets) {
-    for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
+    for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {
       const raw = JSON.parse(fs.readFileSync(path.join(presetDir, file), "utf8"));
       const preset = Defs.validatePreset({ ...raw, algorithm });
       for (const viewName of VIEWS) {
@@ -85,12 +91,20 @@ function _presetRuns() {
   return out;
 }
 
+/** View 5 (300 elements), baseline.json with every algorithm, New view. @returns {Run[]} */
+function _largeRuns() {
+  const raw = JSON.parse(fs.readFileSync(path.join(presetDir, "baseline.json"), "utf8"));
+  return Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a)).map(algorithm => ({
+    tag: `${algorithm} 5 Large`, preset: Defs.validatePreset({ ...raw, algorithm }), algorithm, viewName: "5 Large", action: Defs.ACTION.NEW_VIEW.id,
+  }));
+}
+
 /** The variants of baseline.json, New view, as write_plans.js --variants. @returns {Run[]} */
 function _variantRuns() {
   const raw = JSON.parse(fs.readFileSync(path.join(presetDir, "baseline.json"), "utf8"));
   /** @type {Run[]} */
   const out = [];
-  for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
+  for (const algorithm of Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a))) {
     for (const variant of Variants.variantsOf(algorithm, Defs.validatePreset({ ...raw, algorithm }).params)) {
       const preset = Defs.validatePreset({ ...raw, algorithm, params: variant.params });
       for (const viewName of VIEWS) out.push({ tag: `${algorithm} ${viewName} ${variant.name}`, preset, algorithm, viewName, action: Defs.ACTION.NEW_VIEW.id });
@@ -105,9 +119,10 @@ function _variantRuns() {
  * @param {{result: LayoutResult} | null} again  the same run once more, null when not compared
  * @param {string[]} console  the run's console lines
  * @param {string} algorithm
+ * @param {string} action
  * @returns {string[]}
  */
-function checkRun(planned, again, console, algorithm) {
+function checkRun(planned, again, console, algorithm, action) {
   const { graph, result, writePlan } = planned;
   const byId = new Map(result.nodes.map(n => [n.id, n]));
   return [
@@ -118,7 +133,22 @@ function checkRun(planned, again, console, algorithm) {
     ..._viewSize(result, graph.options, console),
     ..._lines(writePlan, result, byId, graph.options),
     ..._selfLoops(writePlan, result, algorithm),
+    ...(action === Defs.ACTION.NEW_VIEW.id ? _countPromise(writePlan, console) : []),
   ];
+}
+
+/**
+ * New view: the plan writes every connection the totals promise (the pipeline's "Total to view").
+ * @param {WritePlan} writePlan
+ * @param {string[]} console
+ */
+function _countPromise(writePlan, console) {
+  const relations = console.find(l => /^\s*relations:\s+\d+ nesting/.test(l));
+  const diagram = console.find(l => /^\s*diagram:\s+\d+ diagram object/.test(l));
+  if (!relations || !diagram) return ["count: no \"Total to view\" in the console"];
+  const promised = Number((relations.match(/(\d+) connections?/) || [])[1]) + Number((diagram.match(/(\d+) diagram connections?/) || [])[1]);
+  const planned = writePlan.connections.length + writePlan.copiedLines.length;
+  return planned === promised ? [] : [`count: ${promised} connections promised, ${planned} planned`];
 }
 
 /**

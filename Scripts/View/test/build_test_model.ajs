@@ -10,8 +10,9 @@
  *               diagram-block (a group holding a note and an element). NEW_VIEW does not copy diagram objects,
  *               so view 2 gets its own for the Modify actions.
  *   3 Network   20 elements in two unconnected parts, no nesting relations, mixed relation types with labels
+ *   4 Parts, 5 Large   test_model_views.js
  *
- * Views 1 and 3 are closed: no relation leaves them, so the step in baseline.json (all neighbours) adds nothing
+ * Views 1, 3, 4 and 5 are closed: no relation leaves them, so the step in baseline.json (all neighbours) adds nothing
  * to a NEW_VIEW of them. The elements added to view 2 have no relation to view 1.
  *
  * Run in Archi (no selection needed); close the test model first if it is open. To change the test data, edit
@@ -24,6 +25,7 @@ const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const PresetIO     = require(REPO_ROOT + "View/lib/preset_io");
 const GenView      = require(REPO_ROOT + "View/lib/generate_view");
 const { ACTION }   = require(REPO_ROOT + "View/lib/defs");
+const TestViews    = require(REPO_ROOT + "View/test/test_model_views");
 
 const MODEL_NAME  = "View test";
 const MODEL_PATH  = REPO_ROOT + "View/test/model/view-test.archimate";
@@ -32,7 +34,6 @@ const VIEW_NESTING = "1 Nesting";
 const VIEW_EDITED  = "2 Edited";
 const VIEW_NETWORK = "3 Network";
 const PRESET       = "Test/baseline/baseline";
-const PROP_DOMAIN  = "domain";   // styled by the style condition in baseline.json
 
 // [key, type, name, domain]
 const NESTING_ELEMENTS = [
@@ -125,7 +126,7 @@ const EDIT_RELATIONS = [
   ["association-relationship", "user line", "compB", "dataY"],       // the user connection
 ];
 
-const GRID = { x: 20, y: 20, dx: 200, dy: 100, columns: 4, width: 160, height: 60 };
+const GRID = TestViews.GRID;
 
 Common.initConsoleLog(__FILE__, true);
 try {
@@ -135,18 +136,20 @@ try {
   testModel.openInUI();       // generate_view opens the views it writes
   const folder = /** @type {Folder} */ (ArchiFolders.getFolderPath("/Views" + VIEW_FOLDER));
 
-  const els = Object.assign(_createElements(NESTING_ELEMENTS), _createElements(NETWORK_ELEMENTS));
-  const nestingRels = _createRelations(NESTING_RELATIONS, els);
-  const networkRels = _createRelations(NETWORK_RELATIONS, els);
+  const els = Object.assign(TestViews.createElements(NESTING_ELEMENTS), TestViews.createElements(NETWORK_ELEMENTS));
+  const nestingRels = TestViews.createRelations(NESTING_RELATIONS, els);
+  const networkRels = TestViews.createRelations(NETWORK_RELATIONS, els);
 
-  const view1 = _flatView(VIEW_NESTING, folder, NESTING_ELEMENTS.map(d => els[d[0]]), nestingRels);
+  const view1 = TestViews.flatView(VIEW_NESTING, folder, NESTING_ELEMENTS.map(d => els[d[0]]), nestingRels);
   _addNesting1DiagramObjects(view1, els);
-  _flatView(VIEW_NETWORK, folder, NETWORK_ELEMENTS.map(d => els[d[0]]), networkRels);
+  TestViews.flatView(VIEW_NETWORK, folder, NETWORK_ELEMENTS.map(d => els[d[0]]), networkRels);
 
   const view2 = _generateEdited(view1);
-  Object.assign(els, _createElements(EDIT_ELEMENTS));
-  const editRels = _createRelations(EDIT_RELATIONS, els);
+  Object.assign(els, TestViews.createElements(EDIT_ELEMENTS));
+  const editRels = TestViews.createRelations(EDIT_RELATIONS, els);
   _editView2(view2, els, editRels);
+  TestViews.buildParts(folder);
+  TestViews.buildLarge(folder);
 
   new (Java.type("java.io.File"))(MODEL_PATH).getParentFile().mkdirs();
   testModel.save(MODEL_PATH);
@@ -167,57 +170,6 @@ function _checkNotLoaded(path) {
     const p = m.getPath();
     if (p && String(new File(p).getCanonicalPath()) === target) throw new Error(`Close the model "${m.name}" (${p}) first: this script saves a new model there.`);
   }
-}
-
-/**
- * @param {string[][]} defs  [key, type, name, domain]
- * @returns {Record<string, ArchiElement>}
- */
-function _createElements(defs) {
-  /** @type {Record<string, ArchiElement>} */
-  const out = {};
-  for (const [key, type, name, domain] of defs) {
-    out[key] = model.createElement(type, name);
-    if (domain) out[key].prop(PROP_DOMAIN, domain);
-  }
-  return out;
-}
-
-/**
- * @param {string[][]} defs  [type, name, source key, target key, accessType]
- * @param {Record<string, ArchiElement>} els
- * @returns {ArchiRelation[]}
- */
-function _createRelations(defs, els) {
-  return defs.map(([type, name, s, t, accessType]) => {
-    const source = els[s], target = els[t];
-    if (!$.model.isAllowedRelationship(type, source.type, target.type))
-      throw new Error(`Not allowed in ArchiMate: ${type} from ${source.type} "${source.name}" to ${target.type} "${target.name}"`);
-    const rel = model.createRelationship(type, name, source, target);
-    if (accessType) rel.accessType = accessType;
-    return rel;
-  });
-}
-
-/**
- * A view with the elements in a grid at view root and every relation drawn.
- * @param {string} name
- * @param {Folder} folder
- * @param {ArchiElement[]} elements
- * @param {ArchiRelation[]} relations
- * @returns {ArchimateView}
- */
-function _flatView(name, folder, elements, relations) {
-  const view = model.createArchimateView(name, folder);
-  /** @type {Record<string, VisualObject>} */
-  const visualOf = {};
-  elements.forEach((el, i) => {
-    const x = GRID.x + (i % GRID.columns) * GRID.dx, y = GRID.y + Math.floor(i / GRID.columns) * GRID.dy;
-    visualOf[el.id] = view.add(el, x, y, GRID.width, GRID.height);
-  });
-  for (const rel of relations) view.add(rel, visualOf[rel.source.id], visualOf[rel.target.id]);
-  console.log(`View "${name}": ${elements.length} elements · ${relations.length} relations`);
-  return view;
 }
 
 /**

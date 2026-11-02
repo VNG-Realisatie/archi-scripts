@@ -69,7 +69,7 @@ function parse(lines) {
     }
     else if (t.startsWith("ERROR: ")) errors.push(`${run}: ${t.slice(7)}`);
     else if (t.includes("⚠") || t.startsWith("Warning:")) { if (!warnings.includes(`${run}: ${t}`)) warnings.push(`${run}: ${t}`); }
-    else if (t.startsWith("Timing:")) { const m = t.match(/\(total (\d+) ms\)/); if (m) timings.push({ run, view: views.length ? views[views.length - 1].view : "", ms: Number(m[1]) }); }
+    else if (t.startsWith("Timing:")) { const m = t.match(/\(total ([\d.]+) (ms|s)\)/); if (m) timings.push({ run, view: views.length ? views[views.length - 1].view : "", ms: Math.round(Number(m[1]) * (m[2] === "s" ? 1000 : 1)) }); }
   }
   return { views, errors, warnings, timings };
 }

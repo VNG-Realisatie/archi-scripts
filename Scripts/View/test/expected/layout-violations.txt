@@ -1,6 +1,71 @@
+AlgoTwopi.json Tree 1 Nesting new_view: count: 14 connections promised, 13 planned
+AlgoTwopi.json Tree 2 Edited new_view: count: 15 connections promised, 14 planned
+AlgoTwopi.json Tree 4 Parts new_view: count: 29 connections promised, 26 planned
+AlgoTwopi.json Stress 1 Nesting new_view: count: 14 connections promised, 13 planned
+AlgoTwopi.json Stress 2 Edited new_view: count: 15 connections promised, 14 planned
+AlgoTwopi.json Stress 4 Parts new_view: count: 29 connections promised, 26 planned
+AlgoTwopi.json Radial 1 Nesting new_view: count: 14 connections promised, 11 planned
+AlgoTwopi.json Radial 2 Edited new_view: count: 15 connections promised, 12 planned
+AlgoTwopi.json Radial 3 Network new_view: count: 21 connections promised, 18 planned
+AlgoTwopi.json Radial 4 Parts new_view: count: 29 connections promised, 23 planned
+AlgoTwopi.json Grid 1 Nesting new_view: count: 14 connections promised, 0 planned
+AlgoTwopi.json Grid 2 Edited new_view: count: 15 connections promised, 0 planned
+AlgoTwopi.json Grid 3 Network new_view: count: 21 connections promised, 0 planned
+AlgoTwopi.json Grid 4 Parts new_view: count: 29 connections promised, 0 planned
+AlgoTwopi.json Pack 1 Nesting new_view: count: 14 connections promised, 0 planned
+AlgoTwopi.json Pack 2 Edited new_view: count: 15 connections promised, 0 planned
+AlgoTwopi.json Pack 3 Network new_view: count: 21 connections promised, 0 planned
+AlgoTwopi.json Pack 4 Parts new_view: count: 29 connections promised, 0 planned
+AlgoTwopi.json Tiles 1 Nesting new_view: count: 14 connections promised, 13 planned
+AlgoTwopi.json Tiles 2 Edited new_view: count: 15 connections promised, 14 planned
+AlgoTwopi.json Tiles 4 Parts new_view: count: 29 connections promised, 26 planned
 AlgoTwopi.json Dot 1 Nesting new_view: self-loop: id-352b2542f7944741ba7ad596182df96a without bendpoints, drawn inside id-0148539ca743472c9919b39d757d0bdf
 AlgoTwopi.json Dot 2 Edited new_view: self-loop: id-352b2542f7944741ba7ad596182df96a without bendpoints, drawn inside id-0148539ca743472c9919b39d757d0bdf
+AlgoTwopi.json Dot 4 Parts new_view: self-loop: id-6dc16b5cd3824a9ea42b1ad7abb0cb21 without bendpoints, drawn inside id-e007009a46e842c1940d8f083e0bce15
+AlgoTwopi.json Dot 4 Parts new_view: self-loop: id-bcf8ba8409c04eb89cab4537c5406a5a without bendpoints, drawn inside id-abd0b81c016041b789d0ef0f7ac3679e
+baseline.json Tree 1 Nesting new_view: count: 8 connections promised, 7 planned
+baseline.json Tree 2 Edited new_view: count: 10 connections promised, 9 planned
+baseline.json Tree 4 Parts new_view: count: 25 connections promised, 20 planned
+baseline.json Stress 1 Nesting new_view: count: 14 connections promised, 13 planned
+baseline.json Stress 2 Edited new_view: count: 16 connections promised, 15 planned
+baseline.json Stress 4 Parts new_view: count: 29 connections promised, 26 planned
+baseline.json Radial 1 Nesting new_view: count: 14 connections promised, 11 planned
+baseline.json Radial 2 Edited new_view: count: 16 connections promised, 13 planned
+baseline.json Radial 3 Network new_view: count: 21 connections promised, 18 planned
+baseline.json Radial 4 Parts new_view: count: 29 connections promised, 23 planned
+baseline.json Grid 1 Nesting new_view: count: 8 connections promised, 0 planned
+baseline.json Grid 2 Edited new_view: count: 10 connections promised, 0 planned
+baseline.json Grid 3 Network new_view: count: 21 connections promised, 0 planned
+baseline.json Grid 4 Parts new_view: count: 25 connections promised, 2 planned
+baseline.json Pack 1 Nesting new_view: count: 8 connections promised, 0 planned
+baseline.json Pack 2 Edited new_view: count: 10 connections promised, 0 planned
+baseline.json Pack 3 Network new_view: count: 21 connections promised, 0 planned
+baseline.json Pack 4 Parts new_view: count: 25 connections promised, 2 planned
+baseline.json Tiles 1 Nesting new_view: count: 8 connections promised, 7 planned
+baseline.json Tiles 2 Edited new_view: count: 10 connections promised, 9 planned
+baseline.json Tiles 4 Parts new_view: count: 25 connections promised, 22 planned
 baseline.json Dot 1 Nesting new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
 baseline.json Dot 2 Edited new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+counters.json Tree 1 Nesting new_view: count: 8 connections promised, 7 planned
+counters.json Tree 2 Edited new_view: count: 10 connections promised, 9 planned
+counters.json Tree 4 Parts new_view: count: 25 connections promised, 20 planned
+counters.json Stress 1 Nesting new_view: count: 14 connections promised, 13 planned
+counters.json Stress 2 Edited new_view: count: 16 connections promised, 15 planned
+counters.json Stress 4 Parts new_view: count: 29 connections promised, 26 planned
+counters.json Radial 1 Nesting new_view: count: 14 connections promised, 11 planned
+counters.json Radial 2 Edited new_view: count: 16 connections promised, 13 planned
+counters.json Radial 3 Network new_view: count: 21 connections promised, 18 planned
+counters.json Radial 4 Parts new_view: count: 29 connections promised, 23 planned
+counters.json Grid 1 Nesting new_view: count: 8 connections promised, 0 planned
+counters.json Grid 2 Edited new_view: count: 10 connections promised, 0 planned
+counters.json Grid 3 Network new_view: count: 21 connections promised, 0 planned
+counters.json Grid 4 Parts new_view: count: 25 connections promised, 2 planned
+counters.json Pack 1 Nesting new_view: count: 8 connections promised, 0 planned
+counters.json Pack 2 Edited new_view: count: 10 connections promised, 0 planned
+counters.json Pack 3 Network new_view: count: 21 connections promised, 0 planned
+counters.json Pack 4 Parts new_view: count: 25 connections promised, 2 planned
+counters.json Tiles 1 Nesting new_view: count: 8 connections promised, 7 planned
+counters.json Tiles 2 Edited new_view: count: 10 connections promised, 9 planned
+counters.json Tiles 4 Parts new_view: count: 25 connections promised, 22 planned
 counters.json Dot 1 Nesting new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
 counters.json Dot 2 Edited new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next

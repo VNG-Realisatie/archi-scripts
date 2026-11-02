@@ -1,8 +1,9 @@
 /**
  * Run the baseline matrix on the View test model and save it: the written views are the baseline.
  *
- * Matrix (2 presets × 5 runs = 10): NEW_VIEW on "1 Nesting" and "3 Network", EXPAND_VIEW and LAYOUT_ONLY on
- * "2 Edited", ONE_EACH on two elements of "3 Network"; presets Test/baseline/baseline and Test/baseline/AlgoTwopi (presets/Test/baseline/ holds what the baseline needs; do not edit them without taking a new baseline). Every run writes
+ * Matrix (2 presets × 5 runs + 2 = 12): NEW_VIEW on "1 Nesting" and "3 Network", EXPAND_VIEW and LAYOUT_ONLY on
+ * "2 Edited", ONE_EACH on two elements of "3 Network"; with baseline only, NEW_VIEW on "4 Parts" with its own
+ * algorithm (Layered) and with Grid; presets Test/baseline/baseline and Test/baseline/AlgoTwopi (presets/Test/baseline/ holds what the baseline needs; do not edit them without taking a new baseline). Every run writes
  * into Views/Baseline, named "<preset> <action> <view>"; ONE_EACH writes one folder of that name. The Modify
  * actions run on a copy of view 2, so the test views stay as built. Names as build_test_model.ajs creates them.
  *
@@ -17,6 +18,7 @@ const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 const PresetIO     = require(REPO_ROOT + "View/lib/preset_io");
 const GenView      = require(REPO_ROOT + "View/lib/generate_view");
 const { ACTION }   = require(REPO_ROOT + "View/lib/defs");
+const CliConsole   = require(REPO_ROOT + "View/test/cli_console");
 
 const MODEL_FILE      = "view-test.archimate";
 const BASELINE_FOLDER = "/Baseline";   // under /Views, as preset view.folder
@@ -29,40 +31,36 @@ const RUNS = [
   { action: ACTION.LAYOUT_ONLY.id, view: "2 Edited" },
   { action: ACTION.ONE_EACH.id,    view: "3 Network", elements: ["Assess", "Operating system"] },
 ];
+// Once, with the first preset: view 4's parts and self-loops with an algorithm that routes the loops and one
+// that removes them.
+const PARTS_RUNS = [
+  { action: ACTION.NEW_VIEW.id, view: "4 Parts" },
+  { action: ACTION.NEW_VIEW.id, view: "4 Parts", algorithm: "Grid" },
+];
 
 Common.initConsoleLog(__FILE__, true);
-// Archi's command line (tools/archi_cli.sh) prints console.error like console.log: mark the line for console_checks.js.
-// The console's own methods cannot be replaced, so the whole object is, for every module.
-if (!Java.type("org.eclipse.ui.PlatformUI").isWorkbenchRunning()) {
-  const jArchiConsole = console;
-  globalThis.console = /** @type {any} */ ({
-    log:   (/** @type {any} */ message) => jArchiConsole.log(message),
-    error: (/** @type {any} */ message) => jArchiConsole.log(`ERROR: ${message}`),
-    show:  () => jArchiConsole.show(),
-    clear: () => jArchiConsole.clear(),
-  });
-}
+CliConsole.markErrorsOnCommandLine();
 try {
   _checkTestModel();
   _clearBaseline();
   const folder = /** @type {Folder} */ (ArchiFolders.getFolderPath("/Views" + BASELINE_FOLDER));
   /** @type {string[]} */
   const failed = [];
-  for (const presetName of PRESETS) {
-    for (const run of RUNS) {
-      const name = `${presetName.replace(/^.*\//, "")} ${run.action} ${run.view}`;
-      console.log(`\n##### ${name}`);
-      const expected = run.elements ? run.elements.length : 1;
-      try {
-        const views = GenView.generate_view(_runPreset(presetName, run, name), _runSelection(run, name, folder), run.action);
-        if (views.length !== expected) failed.push(`${name}: ${views.length} views, expected ${expected}`);
-      } catch (error) {   // one failed run does not stop the baseline
-        console.error(`> ${/** @type {Error} */ (error).stack || error}`);
-        failed.push(`${name}: failed (${/** @type {Error} */ (error).message || error})`);
-      }
+  const matrix = [...PRESETS.flatMap(presetName => RUNS.map(run => ({ presetName, run }))),
+                  ...PARTS_RUNS.map(run => ({ presetName: PRESETS[0], run }))];
+  for (const { presetName, run } of matrix) {
+    const name = `${presetName.replace(/^.*\//, "")} ${run.action} ${run.view}${run.algorithm ? " " + run.algorithm : ""}`;
+    console.log(`\n##### ${name}`);
+    const expected = run.elements ? run.elements.length : 1;
+    try {
+      const views = GenView.generate_view(_runPreset(presetName, run, name), _runSelection(run, name, folder), run.action);
+      if (views.length !== expected) failed.push(`${name}: ${views.length} views, expected ${expected}`);
+    } catch (error) {   // one failed run does not stop the baseline
+      console.error(`> ${/** @type {Error} */ (error).stack || error}`);
+      failed.push(`${name}: failed (${/** @type {Error} */ (error).message || error})`);
     }
   }
-  console.log(`\nBaseline: ${PRESETS.length * RUNS.length - failed.length}/${PRESETS.length * RUNS.length} runs wrote their views`);
+  console.log(`\nBaseline: ${matrix.length - failed.length}/${matrix.length} runs wrote their views`);
   for (const f of failed) console.error(f);
   model.save();
   console.log(`Baseline saved: ${model.getPath()}`);
@@ -94,11 +92,12 @@ function _clearBaseline() {
 /**
  * The preset with the run's view name and folder.
  * @param {string} presetName
- * @param {{ action: string }} run
+ * @param {{ action: string, algorithm?: string }} run
  * @param {string} name  run name
  */
 function _runPreset(presetName, run, name) {
   const preset = PresetIO.readPreset(presetName);
+  if (run.algorithm) preset.algorithm = run.algorithm;
   if (run.action === ACTION.ONE_EACH.id) {
     preset.view.folder = `${BASELINE_FOLDER}/${name}`;   // views named after the elements
     preset.view.suffix = "";

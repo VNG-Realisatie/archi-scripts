@@ -7,8 +7,8 @@
  * steps, diagram objects, nesting), so a checkout needs a harness with planView (from milestone 3 of the
  * testability refactor).
  *
- * Run: node tools/compare-layouts.js --check | --write
- *        this checkout, the test model's views 1–3, presets/Test/baseline/*.json, against
+ * Run: node tools/compare-layouts.js --check | --write [--without-graphviz]
+ *        this checkout, the test model's views 1–4 (or another model's, as the first argument), presets/Test/baseline/*.json, against
  *        Scripts/View/test/expected/layouts.txt (Scripts/View/tools/expected.js)
  *      node tools/compare-layouts.js <checkout root> <model.archimate> "<folder/…/view>" [preset.json…]
  *        default presets: every Scripts/View/presets/*.json of the checkout
@@ -27,14 +27,14 @@ const path = require("path");
 
 const Expected = require(path.join(__dirname, "../Scripts/View/tools/expected.js"));
 
-const TEST_VIEWS = ["1 Nesting", "2 Edited", "3 Network"];
+const TEST_VIEWS = ["1 Nesting", "2 Edited", "3 Network", "4 Parts"];
 const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const keepConceptId = process.argv.includes("--keep-concept-id");
 const inProcess = process.argv.includes("--in-process");
 const testSet = process.argv.includes("--check") || process.argv.includes("--write");
 if (!testSet && args.length < 3) { console.error("usage: node tools/compare-layouts.js --check | --write | <checkout root> <model.archimate> <view path> [preset.json…]"); process.exit(2); }
 const [root, modelFile, viewPath, ...presetArgs] = testSet
-  ? [path.join(__dirname, ".."), path.join(__dirname, "../Scripts/View/test/model/view-test.archimate"), ""]
+  ? [path.join(__dirname, ".."), args[0] || path.join(__dirname, "../Scripts/View/test/model/view-test.archimate"), ""]
   : args;
 
 // Quiet the "Loading …" lines and engine progress the modules print.
@@ -46,7 +46,7 @@ const Defs = require(path.resolve(root, "Scripts/View/lib/defs.js"));
 const presetDir = path.resolve(root, testSet ? "Scripts/View/presets/Test/baseline" : "Scripts/View/presets");
 const presets = presetArgs.length ? presetArgs.map(p => path.resolve(p))
   : fs.readdirSync(presetDir).filter(f => f.endsWith(".json") && f !== "_session.json").sort().map(f => path.join(presetDir, f));
-const algorithms = Object.keys(Defs.ALGORITHMS);
+const algorithms = Object.keys(Defs.ALGORITHMS).filter(a => !Expected.skipped(a));
 
 const model = H.loadModel(modelFile);
 

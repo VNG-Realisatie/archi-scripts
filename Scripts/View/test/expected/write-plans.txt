@@ -7,6 +7,9 @@ AlgoTwopi.json   Layered  2 Edited   layout_only 47cd43695b9a 15n 15c 0nest 1rm
 AlgoTwopi.json   Layered  3 Network  new_view    8f0551f34d5f 20n 21c 0nest 0rm
 AlgoTwopi.json   Layered  3 Network  expand_view b38ee01bf1cf 20n 21c 0nest 0rm
 AlgoTwopi.json   Layered  3 Network  layout_only b38ee01bf1cf 20n 21c 0nest 0rm
+AlgoTwopi.json   Layered  4 Parts    new_view    a751a17b96f0 33n 29c 0nest 0rm
+AlgoTwopi.json   Layered  4 Parts    expand_view 9578483426dc 33n 29c 0nest 0rm
+AlgoTwopi.json   Layered  4 Parts    layout_only 9578483426dc 33n 29c 0nest 0rm
 AlgoTwopi.json   Tree     1 Nesting  new_view    f3e7aa6a4a82 15n 13c 0nest 0rm
 AlgoTwopi.json   Tree     1 Nesting  expand_view 62c573d3c863 14n 12c 0nest 0rm
 AlgoTwopi.json   Tree     1 Nesting  layout_only 62c573d3c863 14n 12c 0nest 0rm
@@ -16,6 +19,9 @@ AlgoTwopi.json   Tree     2 Edited   layout_only e5a22616965a 15n 14c 0nest 1rm
 AlgoTwopi.json   Tree     3 Network  new_view    30717fff88b9 20n 21c 0nest 0rm
 AlgoTwopi.json   Tree     3 Network  expand_view 63904539de96 20n 21c 0nest 0rm
 AlgoTwopi.json   Tree     3 Network  layout_only 63904539de96 20n 21c 0nest 0rm
+AlgoTwopi.json   Tree     4 Parts    new_view    50bc64faf6f1 33n 26c 0nest 0rm
+AlgoTwopi.json   Tree     4 Parts    expand_view 6efa84ea6850 33n 26c 0nest 0rm
+AlgoTwopi.json   Tree     4 Parts    layout_only 6efa84ea6850 33n 26c 0nest 0rm
 AlgoTwopi.json   Stress   1 Nesting  new_view    b838d6f33df3 15n 13c 0nest 0rm
 AlgoTwopi.json   Stress   1 Nesting  expand_view a1b9300704a4 14n 12c 0nest 0rm
 AlgoTwopi.json   Stress   1 Nesting  layout_only a1b9300704a4 14n 12c 0nest 0rm
@@ -25,6 +31,9 @@ AlgoTwopi.json   Stress   2 Edited   layout_only 3c1ec48ffa26 15n 14c 0nest 1rm
 AlgoTwopi.json   Stress   3 Network  new_view    692aad40500a 20n 21c 0nest 0rm
 AlgoTwopi.json   Stress   3 Network  expand_view fdc2813e9d16 20n 21c 0nest 0rm
 AlgoTwopi.json   Stress   3 Network  layout_only fdc2813e9d16 20n 21c 0nest 0rm
+AlgoTwopi.json   Stress   4 Parts    new_view    481cc2041eb3 33n 26c 0nest 0rm
+AlgoTwopi.json   Stress   4 Parts    expand_view 2ffd10da5308 33n 26c 0nest 0rm
+AlgoTwopi.json   Stress   4 Parts    layout_only 2ffd10da5308 33n 26c 0nest 0rm
 AlgoTwopi.json   Radial   1 Nesting  new_view    7bfb8e353aca 15n 11c 0nest 0rm
 AlgoTwopi.json   Radial   1 Nesting  expand_view 7558c1e6eda6 14n 10c 0nest 0rm
 AlgoTwopi.json   Radial   1 Nesting  layout_only 7558c1e6eda6 14n 10c 0nest 0rm
@@ -34,6 +43,9 @@ AlgoTwopi.json   Radial   2 Edited   layout_only ec63b318c299 15n 12c 0nest 1rm
 AlgoTwopi.json   Radial   3 Network  new_view    c19a8d49a0f0 20n 18c 0nest 0rm
 AlgoTwopi.json   Radial   3 Network  expand_view e8540ca26f54 20n 18c 0nest 0rm
 AlgoTwopi.json   Radial   3 Network  layout_only e8540ca26f54 20n 18c 0nest 0rm
+AlgoTwopi.json   Radial   4 Parts    new_view    103fe9569d12 33n 23c 0nest 0rm
+AlgoTwopi.json   Radial   4 Parts    expand_view 6277ebeffba6 33n 23c 0nest 0rm
+AlgoTwopi.json   Radial   4 Parts    layout_only 6277ebeffba6 33n 23c 0nest 0rm
 AlgoTwopi.json   Grid     1 Nesting  new_view    7009ca623dfa 15n 0c 0nest 0rm
 AlgoTwopi.json   Grid     1 Nesting  expand_view 2608a11c78e4 14n 0c 0nest 0rm
 AlgoTwopi.json   Grid     1 Nesting  layout_only 2608a11c78e4 14n 0c 0nest 0rm
@@ -43,6 +55,9 @@ AlgoTwopi.json   Grid     2 Edited   layout_only f903e61beebf 15n 0c 0nest 1rm
 AlgoTwopi.json   Grid     3 Network  new_view    341a0a96a2b4 20n 0c 0nest 0rm
 AlgoTwopi.json   Grid     3 Network  expand_view ce169474157a 20n 0c 0nest 0rm
 AlgoTwopi.json   Grid     3 Network  layout_only ce169474157a 20n 0c 0nest 0rm
+AlgoTwopi.json   Grid     4 Parts    new_view    553531c6362b 33n 0c 0nest 0rm
+AlgoTwopi.json   Grid     4 Parts    expand_view 0313c0269ef7 33n 0c 0nest 0rm
+AlgoTwopi.json   Grid     4 Parts    layout_only 0313c0269ef7 33n 0c 0nest 0rm
 AlgoTwopi.json   Pack     1 Nesting  new_view    8d2a22029793 15n 0c 0nest 0rm
 AlgoTwopi.json   Pack     1 Nesting  expand_view ac57d57ca758 14n 0c 0nest 0rm
 AlgoTwopi.json   Pack     1 Nesting  layout_only ac57d57ca758 14n 0c 0nest 0rm
@@ -52,6 +67,9 @@ AlgoTwopi.json   Pack     2 Edited   layout_only 99c1cf9f07ef 15n 0c 0nest 1rm
 AlgoTwopi.json   Pack     3 Network  new_view    fe620662c272 20n 0c 0nest 0rm
 AlgoTwopi.json   Pack     3 Network  expand_view 5313076a39c1 20n 0c 0nest 0rm
 AlgoTwopi.json   Pack     3 Network  layout_only 5313076a39c1 20n 0c 0nest 0rm
+AlgoTwopi.json   Pack     4 Parts    new_view    8568d0702830 33n 0c 0nest 0rm
+AlgoTwopi.json   Pack     4 Parts    expand_view 35dfef2b48c6 33n 0c 0nest 0rm
+AlgoTwopi.json   Pack     4 Parts    layout_only 35dfef2b48c6 33n 0c 0nest 0rm
 AlgoTwopi.json   Tiles    1 Nesting  new_view    f526ba0a84ed 15n 13c 0nest 0rm
 AlgoTwopi.json   Tiles    1 Nesting  expand_view b482da343cd3 14n 12c 0nest 0rm
 AlgoTwopi.json   Tiles    1 Nesting  layout_only b482da343cd3 14n 12c 0nest 0rm
@@ -61,6 +79,9 @@ AlgoTwopi.json   Tiles    2 Edited   layout_only c89824464c13 15n 14c 0nest 1rm
 AlgoTwopi.json   Tiles    3 Network  new_view    1c7c72383ff4 20n 21c 0nest 0rm
 AlgoTwopi.json   Tiles    3 Network  expand_view b44309d4db5f 20n 21c 0nest 0rm
 AlgoTwopi.json   Tiles    3 Network  layout_only b44309d4db5f 20n 21c 0nest 0rm
+AlgoTwopi.json   Tiles    4 Parts    new_view    9b41f3948fa7 33n 26c 0nest 0rm
+AlgoTwopi.json   Tiles    4 Parts    expand_view 324a1ad495ef 33n 26c 0nest 0rm
+AlgoTwopi.json   Tiles    4 Parts    layout_only 324a1ad495ef 33n 26c 0nest 0rm
 AlgoTwopi.json   Dagre    1 Nesting  new_view    0d9ac20b5a64 15n 14c 0nest 0rm
 AlgoTwopi.json   Dagre    1 Nesting  expand_view f00a3f149b81 14n 13c 0nest 0rm
 AlgoTwopi.json   Dagre    1 Nesting  layout_only f00a3f149b81 14n 13c 0nest 0rm
@@ -70,6 +91,9 @@ AlgoTwopi.json   Dagre    2 Edited   layout_only 7de23b00bfb9 15n 15c 0nest 1rm
 AlgoTwopi.json   Dagre    3 Network  new_view    63dd8da65ecf 20n 21c 0nest 0rm
 AlgoTwopi.json   Dagre    3 Network  expand_view 8e8bfe6c320e 20n 21c 0nest 0rm
 AlgoTwopi.json   Dagre    3 Network  layout_only 8e8bfe6c320e 20n 21c 0nest 0rm
+AlgoTwopi.json   Dagre    4 Parts    new_view    8989f5c675bd 33n 29c 0nest 0rm
+AlgoTwopi.json   Dagre    4 Parts    expand_view 9cf058fe00fa 33n 29c 0nest 0rm
+AlgoTwopi.json   Dagre    4 Parts    layout_only 9cf058fe00fa 33n 29c 0nest 0rm
 AlgoTwopi.json   Dot      1 Nesting  new_view    c72498121c66 15n 14c 0nest 0rm
 AlgoTwopi.json   Dot      1 Nesting  expand_view f86db2ae3c3a 14n 13c 0nest 0rm
 AlgoTwopi.json   Dot      1 Nesting  layout_only f86db2ae3c3a 14n 13c 0nest 0rm
@@ -79,6 +103,9 @@ AlgoTwopi.json   Dot      2 Edited   layout_only 9e843f7eb3ba 15n 15c 0nest 1rm
 AlgoTwopi.json   Dot      3 Network  new_view    845483826b4a 20n 21c 0nest 0rm
 AlgoTwopi.json   Dot      3 Network  expand_view 841a0d07f34b 20n 21c 0nest 0rm
 AlgoTwopi.json   Dot      3 Network  layout_only 841a0d07f34b 20n 21c 0nest 0rm
+AlgoTwopi.json   Dot      4 Parts    new_view    7aaa78047258 33n 29c 0nest 0rm
+AlgoTwopi.json   Dot      4 Parts    expand_view bc142e1f29a1 33n 29c 0nest 0rm
+AlgoTwopi.json   Dot      4 Parts    layout_only bc142e1f29a1 33n 29c 0nest 0rm
 AlgoTwopi.json   Neato    1 Nesting  new_view    7e270853f84d 15n 14c 0nest 0rm
 AlgoTwopi.json   Neato    1 Nesting  expand_view c087f1f72d6d 14n 13c 0nest 0rm
 AlgoTwopi.json   Neato    1 Nesting  layout_only c087f1f72d6d 14n 13c 0nest 0rm
@@ -88,6 +115,9 @@ AlgoTwopi.json   Neato    2 Edited   layout_only f76a62645bae 15n 15c 0nest 1rm
 AlgoTwopi.json   Neato    3 Network  new_view    2199fa4f6cd0 20n 21c 0nest 0rm
 AlgoTwopi.json   Neato    3 Network  expand_view 41c6ac222904 20n 21c 0nest 0rm
 AlgoTwopi.json   Neato    3 Network  layout_only 41c6ac222904 20n 21c 0nest 0rm
+AlgoTwopi.json   Neato    4 Parts    new_view    987c1a16331a 33n 29c 0nest 0rm
+AlgoTwopi.json   Neato    4 Parts    expand_view f83eda4da17c 33n 29c 0nest 0rm
+AlgoTwopi.json   Neato    4 Parts    layout_only f83eda4da17c 33n 29c 0nest 0rm
 AlgoTwopi.json   FDP      1 Nesting  new_view    -            15n 14c 0nest 0rm
 AlgoTwopi.json   FDP      1 Nesting  expand_view -            14n 13c 0nest 0rm
 AlgoTwopi.json   FDP      1 Nesting  layout_only -            14n 13c 0nest 0rm
@@ -97,6 +127,9 @@ AlgoTwopi.json   FDP      2 Edited   layout_only -            15n 15c 0nest 1rm
 AlgoTwopi.json   FDP      3 Network  new_view    -            20n 21c 0nest 0rm
 AlgoTwopi.json   FDP      3 Network  expand_view -            20n 21c 0nest 0rm
 AlgoTwopi.json   FDP      3 Network  layout_only -            20n 21c 0nest 0rm
+AlgoTwopi.json   FDP      4 Parts    new_view    -            33n 29c 0nest 0rm
+AlgoTwopi.json   FDP      4 Parts    expand_view -            33n 29c 0nest 0rm
+AlgoTwopi.json   FDP      4 Parts    layout_only -            33n 29c 0nest 0rm
 AlgoTwopi.json   SFDP     1 Nesting  new_view    0ff260f32fc7 15n 14c 0nest 0rm
 AlgoTwopi.json   SFDP     1 Nesting  expand_view a03edf699864 14n 13c 0nest 0rm
 AlgoTwopi.json   SFDP     1 Nesting  layout_only a03edf699864 14n 13c 0nest 0rm
@@ -106,6 +139,9 @@ AlgoTwopi.json   SFDP     2 Edited   layout_only 97f8ea9aad53 15n 15c 0nest 1rm
 AlgoTwopi.json   SFDP     3 Network  new_view    d19363840158 20n 21c 0nest 0rm
 AlgoTwopi.json   SFDP     3 Network  expand_view 0244dd9ab05f 20n 21c 0nest 0rm
 AlgoTwopi.json   SFDP     3 Network  layout_only 0244dd9ab05f 20n 21c 0nest 0rm
+AlgoTwopi.json   SFDP     4 Parts    new_view    2e41701291e3 33n 29c 0nest 0rm
+AlgoTwopi.json   SFDP     4 Parts    expand_view ed6be8e82731 33n 29c 0nest 0rm
+AlgoTwopi.json   SFDP     4 Parts    layout_only ed6be8e82731 33n 29c 0nest 0rm
 AlgoTwopi.json   Twopi    1 Nesting  new_view    a13a25fdfebc 15n 14c 0nest 0rm
 AlgoTwopi.json   Twopi    1 Nesting  expand_view 9fa7d226852d 14n 13c 0nest 0rm
 AlgoTwopi.json   Twopi    1 Nesting  layout_only 9fa7d226852d 14n 13c 0nest 0rm
@@ -115,6 +151,9 @@ AlgoTwopi.json   Twopi    2 Edited   layout_only e3d1f8e76a2a 15n 15c 0nest 1rm
 AlgoTwopi.json   Twopi    3 Network  new_view    ee2bba3605bb 20n 21c 0nest 0rm
 AlgoTwopi.json   Twopi    3 Network  expand_view 2793ad1dfb15 20n 21c 0nest 0rm
 AlgoTwopi.json   Twopi    3 Network  layout_only 2793ad1dfb15 20n 21c 0nest 0rm
+AlgoTwopi.json   Twopi    4 Parts    new_view    0e7e11e1e812 33n 29c 0nest 0rm
+AlgoTwopi.json   Twopi    4 Parts    expand_view f52f5019883e 33n 29c 0nest 0rm
+AlgoTwopi.json   Twopi    4 Parts    layout_only f52f5019883e 33n 29c 0nest 0rm
 AlgoTwopi.json   Circo    1 Nesting  new_view    9824fd09bd30 15n 14c 0nest 0rm
 AlgoTwopi.json   Circo    1 Nesting  expand_view b822bf51d6c7 14n 13c 0nest 0rm
 AlgoTwopi.json   Circo    1 Nesting  layout_only b822bf51d6c7 14n 13c 0nest 0rm
@@ -124,6 +163,9 @@ AlgoTwopi.json   Circo    2 Edited   layout_only ad902a5d14f3 15n 15c 0nest 1rm
 AlgoTwopi.json   Circo    3 Network  new_view    16246cb13baf 20n 21c 0nest 0rm
 AlgoTwopi.json   Circo    3 Network  expand_view 1dff1e735288 20n 21c 0nest 0rm
 AlgoTwopi.json   Circo    3 Network  layout_only 1dff1e735288 20n 21c 0nest 0rm
+AlgoTwopi.json   Circo    4 Parts    new_view    eb46c3141994 33n 29c 0nest 0rm
+AlgoTwopi.json   Circo    4 Parts    expand_view 46d9fbbcde8e 33n 29c 0nest 0rm
+AlgoTwopi.json   Circo    4 Parts    layout_only 46d9fbbcde8e 33n 29c 0nest 0rm
 baseline.json    Layered  1 Nesting  new_view    f3c9fe032291 16n 8c 6nest 0rm
 baseline.json    Layered  1 Nesting  expand_view fc7b3bc3d664 15n 8c 6nest 0rm
 baseline.json    Layered  1 Nesting  layout_only 381f07201d58 15n 7c 6nest 0rm
@@ -133,6 +175,9 @@ baseline.json    Layered  2 Edited   layout_only 1818249329e4 16n 9c 6nest 0rm
 baseline.json    Layered  3 Network  new_view    d78c9aab1ad7 20n 21c 0nest 0rm
 baseline.json    Layered  3 Network  expand_view fcb2f58ef606 20n 21c 0nest 0rm
 baseline.json    Layered  3 Network  layout_only fcb2f58ef606 20n 21c 0nest 0rm
+baseline.json    Layered  4 Parts    new_view    c98a710796f8 33n 25c 4nest 0rm
+baseline.json    Layered  4 Parts    expand_view b235c50d272e 33n 25c 4nest 0rm
+baseline.json    Layered  4 Parts    layout_only b235c50d272e 33n 25c 4nest 0rm
 baseline.json    Tree     1 Nesting  new_view    58483f662a6c 16n 7c 6nest 0rm
 baseline.json    Tree     1 Nesting  expand_view 7f0c6745bde8 15n 7c 6nest 0rm
 baseline.json    Tree     1 Nesting  layout_only 0ced04f38476 15n 6c 6nest 0rm
@@ -142,6 +187,9 @@ baseline.json    Tree     2 Edited   layout_only 603e912d1492 16n 8c 6nest 0rm
 baseline.json    Tree     3 Network  new_view    9a2641341f20 20n 21c 0nest 0rm
 baseline.json    Tree     3 Network  expand_view d9c17cd1a116 20n 21c 0nest 0rm
 baseline.json    Tree     3 Network  layout_only d9c17cd1a116 20n 21c 0nest 0rm
+baseline.json    Tree     4 Parts    new_view    39295dcde3f1 33n 20c 4nest 0rm
+baseline.json    Tree     4 Parts    expand_view e1763ec673c5 33n 20c 4nest 0rm
+baseline.json    Tree     4 Parts    layout_only e1763ec673c5 33n 20c 4nest 0rm
 baseline.json    Stress   1 Nesting  new_view    c0769d68f25c 15n 13c 0nest 0rm
 baseline.json    Stress   1 Nesting  expand_view 34b6ae287106 14n 13c 0nest 0rm
 baseline.json    Stress   1 Nesting  layout_only d01220a85346 14n 12c 0nest 0rm
@@ -151,6 +199,9 @@ baseline.json    Stress   2 Edited   layout_only 2753f759778c 15n 14c 0nest 1rm
 baseline.json    Stress   3 Network  new_view    3ac5210a66b1 20n 21c 0nest 0rm
 baseline.json    Stress   3 Network  expand_view 8d9cf65b9ca8 20n 21c 0nest 0rm
 baseline.json    Stress   3 Network  layout_only 8d9cf65b9ca8 20n 21c 0nest 0rm
+baseline.json    Stress   4 Parts    new_view    fa699e689337 33n 26c 0nest 0rm
+baseline.json    Stress   4 Parts    expand_view 66790470c7ed 33n 26c 0nest 0rm
+baseline.json    Stress   4 Parts    layout_only 66790470c7ed 33n 26c 0nest 0rm
 baseline.json    Radial   1 Nesting  new_view    7bfb8e353aca 15n 11c 0nest 0rm
 baseline.json    Radial   1 Nesting  expand_view 558b3ca64556 14n 11c 0nest 0rm
 baseline.json    Radial   1 Nesting  layout_only 7558c1e6eda6 14n 10c 0nest 0rm
@@ -160,6 +211,9 @@ baseline.json    Radial   2 Edited   layout_only ec63b318c299 15n 12c 0nest 1rm
 baseline.json    Radial   3 Network  new_view    e60b053bf5be 20n 18c 0nest 0rm
 baseline.json    Radial   3 Network  expand_view 0a8c83bf6139 20n 18c 0nest 0rm
 baseline.json    Radial   3 Network  layout_only 0a8c83bf6139 20n 18c 0nest 0rm
+baseline.json    Radial   4 Parts    new_view    ef0a815f29db 33n 23c 0nest 0rm
+baseline.json    Radial   4 Parts    expand_view 3471e97d530e 33n 23c 0nest 0rm
+baseline.json    Radial   4 Parts    layout_only 3471e97d530e 33n 23c 0nest 0rm
 baseline.json    Grid     1 Nesting  new_view    29dab0a1ff5e 16n 0c 6nest 0rm
 baseline.json    Grid     1 Nesting  expand_view 712f1d7b9999 15n 0c 6nest 0rm
 baseline.json    Grid     1 Nesting  layout_only 712f1d7b9999 15n 0c 6nest 0rm
@@ -169,6 +223,9 @@ baseline.json    Grid     2 Edited   layout_only 82037c2bf563 16n 0c 6nest 0rm
 baseline.json    Grid     3 Network  new_view    8e66823f2fa0 20n 0c 0nest 0rm
 baseline.json    Grid     3 Network  expand_view a276c8a162fd 20n 0c 0nest 0rm
 baseline.json    Grid     3 Network  layout_only a276c8a162fd 20n 0c 0nest 0rm
+baseline.json    Grid     4 Parts    new_view    ca06359cbd3b 33n 2c 4nest 0rm
+baseline.json    Grid     4 Parts    expand_view 64ff47852f54 33n 2c 4nest 0rm
+baseline.json    Grid     4 Parts    layout_only 64ff47852f54 33n 2c 4nest 0rm
 baseline.json    Pack     1 Nesting  new_view    29127b7960fc 16n 0c 6nest 0rm
 baseline.json    Pack     1 Nesting  expand_view 935783d4e2aa 15n 0c 6nest 0rm
 baseline.json    Pack     1 Nesting  layout_only 935783d4e2aa 15n 0c 6nest 0rm
@@ -178,6 +235,9 @@ baseline.json    Pack     2 Edited   layout_only f59cef3a6be9 16n 0c 6nest 0rm
 baseline.json    Pack     3 Network  new_view    22d159e09e31 20n 0c 0nest 0rm
 baseline.json    Pack     3 Network  expand_view 253727dd1c12 20n 0c 0nest 0rm
 baseline.json    Pack     3 Network  layout_only 253727dd1c12 20n 0c 0nest 0rm
+baseline.json    Pack     4 Parts    new_view    fd9dc4eedae9 33n 2c 4nest 0rm
+baseline.json    Pack     4 Parts    expand_view 611144505bca 33n 2c 4nest 0rm
+baseline.json    Pack     4 Parts    layout_only 611144505bca 33n 2c 4nest 0rm
 baseline.json    Tiles    1 Nesting  new_view    8df280e75d52 16n 7c 6nest 0rm
 baseline.json    Tiles    1 Nesting  expand_view 60317be3802c 15n 7c 6nest 0rm
 baseline.json    Tiles    1 Nesting  layout_only bfba655f3c72 15n 6c 6nest 0rm
@@ -187,6 +247,9 @@ baseline.json    Tiles    2 Edited   layout_only 76bff06db117 16n 8c 6nest 0rm
 baseline.json    Tiles    3 Network  new_view    d37f59a5a859 20n 21c 0nest 0rm
 baseline.json    Tiles    3 Network  expand_view 51a5564582b6 20n 21c 0nest 0rm
 baseline.json    Tiles    3 Network  layout_only 51a5564582b6 20n 21c 0nest 0rm
+baseline.json    Tiles    4 Parts    new_view    260516f26f96 33n 22c 4nest 0rm
+baseline.json    Tiles    4 Parts    expand_view 1aa946fb2bc1 33n 22c 4nest 0rm
+baseline.json    Tiles    4 Parts    layout_only 1aa946fb2bc1 33n 22c 4nest 0rm
 baseline.json    Dagre    1 Nesting  new_view    cbe04a312818 16n 8c 6nest 0rm
 baseline.json    Dagre    1 Nesting  expand_view 94b6a8dd54b1 15n 8c 6nest 0rm
 baseline.json    Dagre    1 Nesting  layout_only 2bdb314f6b85 15n 7c 6nest 0rm
@@ -196,6 +259,9 @@ baseline.json    Dagre    2 Edited   layout_only 602d2b7c33dd 16n 9c 6nest 0rm
 baseline.json    Dagre    3 Network  new_view    9418aba091aa 20n 21c 0nest 0rm
 baseline.json    Dagre    3 Network  expand_view c55bdcafb87c 20n 21c 0nest 0rm
 baseline.json    Dagre    3 Network  layout_only c55bdcafb87c 20n 21c 0nest 0rm
+baseline.json    Dagre    4 Parts    new_view    5d604455a7f3 33n 25c 4nest 0rm
+baseline.json    Dagre    4 Parts    expand_view afdb5ee805ce 33n 25c 4nest 0rm
+baseline.json    Dagre    4 Parts    layout_only afdb5ee805ce 33n 25c 4nest 0rm
 baseline.json    Dot      1 Nesting  new_view    d184adf069ec 16n 8c 6nest 0rm
 baseline.json    Dot      1 Nesting  expand_view 1fd9cc9fc435 15n 8c 6nest 0rm
 baseline.json    Dot      1 Nesting  layout_only 375288a600c4 15n 7c 6nest 0rm
@@ -205,6 +271,9 @@ baseline.json    Dot      2 Edited   layout_only e7debc8293c7 16n 9c 6nest 0rm
 baseline.json    Dot      3 Network  new_view    63cbbbe2e975 20n 21c 0nest 0rm
 baseline.json    Dot      3 Network  expand_view 550b33daf6d4 20n 21c 0nest 0rm
 baseline.json    Dot      3 Network  layout_only 550b33daf6d4 20n 21c 0nest 0rm
+baseline.json    Dot      4 Parts    new_view    9535ab5a7de9 33n 25c 4nest 0rm
+baseline.json    Dot      4 Parts    expand_view ac52df49cc9f 33n 25c 4nest 0rm
+baseline.json    Dot      4 Parts    layout_only ac52df49cc9f 33n 25c 4nest 0rm
 baseline.json    Neato    1 Nesting  new_view    22a6609607be 15n 14c 0nest 0rm
 baseline.json    Neato    1 Nesting  expand_view 04b93ffe6b0c 14n 14c 0nest 0rm
 baseline.json    Neato    1 Nesting  layout_only 70f4276181dd 14n 13c 0nest 0rm
@@ -214,6 +283,9 @@ baseline.json    Neato    2 Edited   layout_only 67a905a51582 15n 15c 0nest 1rm
 baseline.json    Neato    3 Network  new_view    0c0e35f18b66 20n 21c 0nest 0rm
 baseline.json    Neato    3 Network  expand_view ea2d1cf20830 20n 21c 0nest 0rm
 baseline.json    Neato    3 Network  layout_only ea2d1cf20830 20n 21c 0nest 0rm
+baseline.json    Neato    4 Parts    new_view    ae4f8ae7b097 33n 29c 0nest 0rm
+baseline.json    Neato    4 Parts    expand_view bc8c17ae5277 33n 29c 0nest 0rm
+baseline.json    Neato    4 Parts    layout_only bc8c17ae5277 33n 29c 0nest 0rm
 baseline.json    FDP      1 Nesting  new_view    -            16n 8c 6nest 0rm
 baseline.json    FDP      1 Nesting  expand_view -            15n 8c 6nest 0rm
 baseline.json    FDP      1 Nesting  layout_only -            15n 7c 6nest 0rm
@@ -223,6 +295,9 @@ baseline.json    FDP      2 Edited   layout_only -            16n 9c 6nest 0rm
 baseline.json    FDP      3 Network  new_view    -            20n 21c 0nest 0rm
 baseline.json    FDP      3 Network  expand_view -            20n 21c 0nest 0rm
 baseline.json    FDP      3 Network  layout_only -            20n 21c 0nest 0rm
+baseline.json    FDP      4 Parts    new_view    -            33n 25c 4nest 0rm
+baseline.json    FDP      4 Parts    expand_view -            33n 25c 4nest 0rm
+baseline.json    FDP      4 Parts    layout_only -            33n 25c 4nest 0rm
 baseline.json    SFDP     1 Nesting  new_view    36167198e498 15n 14c 0nest 0rm
 baseline.json    SFDP     1 Nesting  expand_view 5d7e984a26af 14n 14c 0nest 0rm
 baseline.json    SFDP     1 Nesting  layout_only 7db8a6904409 14n 13c 0nest 0rm
@@ -232,6 +307,9 @@ baseline.json    SFDP     2 Edited   layout_only 9e21f40dd421 15n 15c 0nest 1rm
 baseline.json    SFDP     3 Network  new_view    f66c4a639b37 20n 21c 0nest 0rm
 baseline.json    SFDP     3 Network  expand_view 06f6e5cf7895 20n 21c 0nest 0rm
 baseline.json    SFDP     3 Network  layout_only 06f6e5cf7895 20n 21c 0nest 0rm
+baseline.json    SFDP     4 Parts    new_view    1ff732fc931e 33n 29c 0nest 0rm
+baseline.json    SFDP     4 Parts    expand_view e229a50cfca3 33n 29c 0nest 0rm
+baseline.json    SFDP     4 Parts    layout_only e229a50cfca3 33n 29c 0nest 0rm
 baseline.json    Twopi    1 Nesting  new_view    1ba1207bdae8 15n 14c 0nest 0rm
 baseline.json    Twopi    1 Nesting  expand_view 18589a9d6bf7 14n 14c 0nest 0rm
 baseline.json    Twopi    1 Nesting  layout_only 6c74206cc717 14n 13c 0nest 0rm
@@ -241,6 +319,9 @@ baseline.json    Twopi    2 Edited   layout_only 0b232a2e65dd 15n 15c 0nest 1rm
 baseline.json    Twopi    3 Network  new_view    9f4971fe6307 20n 21c 0nest 0rm
 baseline.json    Twopi    3 Network  expand_view da30469178cb 20n 21c 0nest 0rm
 baseline.json    Twopi    3 Network  layout_only da30469178cb 20n 21c 0nest 0rm
+baseline.json    Twopi    4 Parts    new_view    767c82a0f151 33n 29c 0nest 0rm
+baseline.json    Twopi    4 Parts    expand_view b47c9ceb5240 33n 29c 0nest 0rm
+baseline.json    Twopi    4 Parts    layout_only b47c9ceb5240 33n 29c 0nest 0rm
 baseline.json    Circo    1 Nesting  new_view    156a03771bc5 15n 14c 0nest 0rm
 baseline.json    Circo    1 Nesting  expand_view 19c90e034552 14n 14c 0nest 0rm
 baseline.json    Circo    1 Nesting  layout_only a1feccdccd75 14n 13c 0nest 0rm
@@ -250,6 +331,9 @@ baseline.json    Circo    2 Edited   layout_only 28dede3443b9 15n 15c 0nest 1rm
 baseline.json    Circo    3 Network  new_view    6f286797931f 20n 21c 0nest 0rm
 baseline.json    Circo    3 Network  expand_view 8b59831a259a 20n 21c 0nest 0rm
 baseline.json    Circo    3 Network  layout_only 8b59831a259a 20n 21c 0nest 0rm
+baseline.json    Circo    4 Parts    new_view    2bb30cc92808 33n 29c 0nest 0rm
+baseline.json    Circo    4 Parts    expand_view 5f283832b150 33n 29c 0nest 0rm
+baseline.json    Circo    4 Parts    layout_only 5f283832b150 33n 29c 0nest 0rm
 counters.json    Layered  1 Nesting  new_view    f3c9fe032291 16n 8c 6nest 0rm
 counters.json    Layered  1 Nesting  expand_view fc7b3bc3d664 15n 8c 6nest 0rm
 counters.json    Layered  1 Nesting  layout_only 381f07201d58 15n 7c 6nest 0rm
@@ -259,6 +343,9 @@ counters.json    Layered  2 Edited   layout_only 1818249329e4 16n 9c 6nest 0rm
 counters.json    Layered  3 Network  new_view    d78c9aab1ad7 20n 21c 0nest 0rm
 counters.json    Layered  3 Network  expand_view fcb2f58ef606 20n 21c 0nest 0rm
 counters.json    Layered  3 Network  layout_only fcb2f58ef606 20n 21c 0nest 0rm
+counters.json    Layered  4 Parts    new_view    c98a710796f8 33n 25c 4nest 0rm
+counters.json    Layered  4 Parts    expand_view b235c50d272e 33n 25c 4nest 0rm
+counters.json    Layered  4 Parts    layout_only b235c50d272e 33n 25c 4nest 0rm
 counters.json    Tree     1 Nesting  new_view    58483f662a6c 16n 7c 6nest 0rm
 counters.json    Tree     1 Nesting  expand_view 7f0c6745bde8 15n 7c 6nest 0rm
 counters.json    Tree     1 Nesting  layout_only 0ced04f38476 15n 6c 6nest 0rm
@@ -268,6 +355,9 @@ counters.json    Tree     2 Edited   layout_only 603e912d1492 16n 8c 6nest 0rm
 counters.json    Tree     3 Network  new_view    9a2641341f20 20n 21c 0nest 0rm
 counters.json    Tree     3 Network  expand_view d9c17cd1a116 20n 21c 0nest 0rm
 counters.json    Tree     3 Network  layout_only d9c17cd1a116 20n 21c 0nest 0rm
+counters.json    Tree     4 Parts    new_view    39295dcde3f1 33n 20c 4nest 0rm
+counters.json    Tree     4 Parts    expand_view e1763ec673c5 33n 20c 4nest 0rm
+counters.json    Tree     4 Parts    layout_only e1763ec673c5 33n 20c 4nest 0rm
 counters.json    Stress   1 Nesting  new_view    c0769d68f25c 15n 13c 0nest 0rm
 counters.json    Stress   1 Nesting  expand_view 34b6ae287106 14n 13c 0nest 0rm
 counters.json    Stress   1 Nesting  layout_only d01220a85346 14n 12c 0nest 0rm
@@ -277,6 +367,9 @@ counters.json    Stress   2 Edited   layout_only 2753f759778c 15n 14c 0nest 1rm
 counters.json    Stress   3 Network  new_view    3ac5210a66b1 20n 21c 0nest 0rm
 counters.json    Stress   3 Network  expand_view 8d9cf65b9ca8 20n 21c 0nest 0rm
 counters.json    Stress   3 Network  layout_only 8d9cf65b9ca8 20n 21c 0nest 0rm
+counters.json    Stress   4 Parts    new_view    fa699e689337 33n 26c 0nest 0rm
+counters.json    Stress   4 Parts    expand_view 66790470c7ed 33n 26c 0nest 0rm
+counters.json    Stress   4 Parts    layout_only 66790470c7ed 33n 26c 0nest 0rm
 counters.json    Radial   1 Nesting  new_view    7bfb8e353aca 15n 11c 0nest 0rm
 counters.json    Radial   1 Nesting  expand_view 558b3ca64556 14n 11c 0nest 0rm
 counters.json    Radial   1 Nesting  layout_only 7558c1e6eda6 14n 10c 0nest 0rm
@@ -286,6 +379,9 @@ counters.json    Radial   2 Edited   layout_only ec63b318c299 15n 12c 0nest 1rm
 counters.json    Radial   3 Network  new_view    e60b053bf5be 20n 18c 0nest 0rm
 counters.json    Radial   3 Network  expand_view 0a8c83bf6139 20n 18c 0nest 0rm
 counters.json    Radial   3 Network  layout_only 0a8c83bf6139 20n 18c 0nest 0rm
+counters.json    Radial   4 Parts    new_view    ef0a815f29db 33n 23c 0nest 0rm
+counters.json    Radial   4 Parts    expand_view 3471e97d530e 33n 23c 0nest 0rm
+counters.json    Radial   4 Parts    layout_only 3471e97d530e 33n 23c 0nest 0rm
 counters.json    Grid     1 Nesting  new_view    29dab0a1ff5e 16n 0c 6nest 0rm
 counters.json    Grid     1 Nesting  expand_view 712f1d7b9999 15n 0c 6nest 0rm
 counters.json    Grid     1 Nesting  layout_only 712f1d7b9999 15n 0c 6nest 0rm
@@ -295,6 +391,9 @@ counters.json    Grid     2 Edited   layout_only 82037c2bf563 16n 0c 6nest 0rm
 counters.json    Grid     3 Network  new_view    8e66823f2fa0 20n 0c 0nest 0rm
 counters.json    Grid     3 Network  expand_view a276c8a162fd 20n 0c 0nest 0rm
 counters.json    Grid     3 Network  layout_only a276c8a162fd 20n 0c 0nest 0rm
+counters.json    Grid     4 Parts    new_view    ca06359cbd3b 33n 2c 4nest 0rm
+counters.json    Grid     4 Parts    expand_view 64ff47852f54 33n 2c 4nest 0rm
+counters.json    Grid     4 Parts    layout_only 64ff47852f54 33n 2c 4nest 0rm
 counters.json    Pack     1 Nesting  new_view    29127b7960fc 16n 0c 6nest 0rm
 counters.json    Pack     1 Nesting  expand_view 935783d4e2aa 15n 0c 6nest 0rm
 counters.json    Pack     1 Nesting  layout_only 935783d4e2aa 15n 0c 6nest 0rm
@@ -304,6 +403,9 @@ counters.json    Pack     2 Edited   layout_only f59cef3a6be9 16n 0c 6nest 0rm
 counters.json    Pack     3 Network  new_view    22d159e09e31 20n 0c 0nest 0rm
 counters.json    Pack     3 Network  expand_view 253727dd1c12 20n 0c 0nest 0rm
 counters.json    Pack     3 Network  layout_only 253727dd1c12 20n 0c 0nest 0rm
+counters.json    Pack     4 Parts    new_view    fd9dc4eedae9 33n 2c 4nest 0rm
+counters.json    Pack     4 Parts    expand_view 611144505bca 33n 2c 4nest 0rm
+counters.json    Pack     4 Parts    layout_only 611144505bca 33n 2c 4nest 0rm
 counters.json    Tiles    1 Nesting  new_view    8df280e75d52 16n 7c 6nest 0rm
 counters.json    Tiles    1 Nesting  expand_view 60317be3802c 15n 7c 6nest 0rm
 counters.json    Tiles    1 Nesting  layout_only bfba655f3c72 15n 6c 6nest 0rm
@@ -313,6 +415,9 @@ counters.json    Tiles    2 Edited   layout_only 76bff06db117 16n 8c 6nest 0rm
 counters.json    Tiles    3 Network  new_view    d37f59a5a859 20n 21c 0nest 0rm
 counters.json    Tiles    3 Network  expand_view 51a5564582b6 20n 21c 0nest 0rm
 counters.json    Tiles    3 Network  layout_only 51a5564582b6 20n 21c 0nest 0rm
+counters.json    Tiles    4 Parts    new_view    260516f26f96 33n 22c 4nest 0rm
+counters.json    Tiles    4 Parts    expand_view 1aa946fb2bc1 33n 22c 4nest 0rm
+counters.json    Tiles    4 Parts    layout_only 1aa946fb2bc1 33n 22c 4nest 0rm
 counters.json    Dagre    1 Nesting  new_view    cbe04a312818 16n 8c 6nest 0rm
 counters.json    Dagre    1 Nesting  expand_view 94b6a8dd54b1 15n 8c 6nest 0rm
 counters.json    Dagre    1 Nesting  layout_only 2bdb314f6b85 15n 7c 6nest 0rm
@@ -322,6 +427,9 @@ counters.json    Dagre    2 Edited   layout_only 602d2b7c33dd 16n 9c 6nest 0rm
 counters.json    Dagre    3 Network  new_view    9418aba091aa 20n 21c 0nest 0rm
 counters.json    Dagre    3 Network  expand_view c55bdcafb87c 20n 21c 0nest 0rm
 counters.json    Dagre    3 Network  layout_only c55bdcafb87c 20n 21c 0nest 0rm
+counters.json    Dagre    4 Parts    new_view    5d604455a7f3 33n 25c 4nest 0rm
+counters.json    Dagre    4 Parts    expand_view afdb5ee805ce 33n 25c 4nest 0rm
+counters.json    Dagre    4 Parts    layout_only afdb5ee805ce 33n 25c 4nest 0rm
 counters.json    Dot      1 Nesting  new_view    d184adf069ec 16n 8c 6nest 0rm
 counters.json    Dot      1 Nesting  expand_view 1fd9cc9fc435 15n 8c 6nest 0rm
 counters.json    Dot      1 Nesting  layout_only 375288a600c4 15n 7c 6nest 0rm
@@ -331,6 +439,9 @@ counters.json    Dot      2 Edited   layout_only e7debc8293c7 16n 9c 6nest 0rm
 counters.json    Dot      3 Network  new_view    63cbbbe2e975 20n 21c 0nest 0rm
 counters.json    Dot      3 Network  expand_view 550b33daf6d4 20n 21c 0nest 0rm
 counters.json    Dot      3 Network  layout_only 550b33daf6d4 20n 21c 0nest 0rm
+counters.json    Dot      4 Parts    new_view    9535ab5a7de9 33n 25c 4nest 0rm
+counters.json    Dot      4 Parts    expand_view ac52df49cc9f 33n 25c 4nest 0rm
+counters.json    Dot      4 Parts    layout_only ac52df49cc9f 33n 25c 4nest 0rm
 counters.json    Neato    1 Nesting  new_view    22a6609607be 15n 14c 0nest 0rm
 counters.json    Neato    1 Nesting  expand_view 04b93ffe6b0c 14n 14c 0nest 0rm
 counters.json    Neato    1 Nesting  layout_only 70f4276181dd 14n 13c 0nest 0rm
@@ -340,6 +451,9 @@ counters.json    Neato    2 Edited   layout_only 67a905a51582 15n 15c 0nest 1rm
 counters.json    Neato    3 Network  new_view    0c0e35f18b66 20n 21c 0nest 0rm
 counters.json    Neato    3 Network  expand_view ea2d1cf20830 20n 21c 0nest 0rm
 counters.json    Neato    3 Network  layout_only ea2d1cf20830 20n 21c 0nest 0rm
+counters.json    Neato    4 Parts    new_view    ae4f8ae7b097 33n 29c 0nest 0rm
+counters.json    Neato    4 Parts    expand_view bc8c17ae5277 33n 29c 0nest 0rm
+counters.json    Neato    4 Parts    layout_only bc8c17ae5277 33n 29c 0nest 0rm
 counters.json    FDP      1 Nesting  new_view    -            16n 8c 6nest 0rm
 counters.json    FDP      1 Nesting  expand_view -            15n 8c 6nest 0rm
 counters.json    FDP      1 Nesting  layout_only -            15n 7c 6nest 0rm
@@ -349,6 +463,9 @@ counters.json    FDP      2 Edited   layout_only -            16n 9c 6nest 0rm
 counters.json    FDP      3 Network  new_view    -            20n 21c 0nest 0rm
 counters.json    FDP      3 Network  expand_view -            20n 21c 0nest 0rm
 counters.json    FDP      3 Network  layout_only -            20n 21c 0nest 0rm
+counters.json    FDP      4 Parts    new_view    -            33n 25c 4nest 0rm
+counters.json    FDP      4 Parts    expand_view -            33n 25c 4nest 0rm
+counters.json    FDP      4 Parts    layout_only -            33n 25c 4nest 0rm
 counters.json    SFDP     1 Nesting  new_view    36167198e498 15n 14c 0nest 0rm
 counters.json    SFDP     1 Nesting  expand_view 5d7e984a26af 14n 14c 0nest 0rm
 counters.json    SFDP     1 Nesting  layout_only 7db8a6904409 14n 13c 0nest 0rm
@@ -358,6 +475,9 @@ counters.json    SFDP     2 Edited   layout_only 9e21f40dd421 15n 15c 0nest 1rm
 counters.json    SFDP     3 Network  new_view    f66c4a639b37 20n 21c 0nest 0rm
 counters.json    SFDP     3 Network  expand_view 06f6e5cf7895 20n 21c 0nest 0rm
 counters.json    SFDP     3 Network  layout_only 06f6e5cf7895 20n 21c 0nest 0rm
+counters.json    SFDP     4 Parts    new_view    1ff732fc931e 33n 29c 0nest 0rm
+counters.json    SFDP     4 Parts    expand_view e229a50cfca3 33n 29c 0nest 0rm
+counters.json    SFDP     4 Parts    layout_only e229a50cfca3 33n 29c 0nest 0rm
 counters.json    Twopi    1 Nesting  new_view    1ba1207bdae8 15n 14c 0nest 0rm
 counters.json    Twopi    1 Nesting  expand_view 18589a9d6bf7 14n 14c 0nest 0rm
 counters.json    Twopi    1 Nesting  layout_only 6c74206cc717 14n 13c 0nest 0rm
@@ -367,6 +487,9 @@ counters.json    Twopi    2 Edited   layout_only 0b232a2e65dd 15n 15c 0nest 1rm
 counters.json    Twopi    3 Network  new_view    9f4971fe6307 20n 21c 0nest 0rm
 counters.json    Twopi    3 Network  expand_view da30469178cb 20n 21c 0nest 0rm
 counters.json    Twopi    3 Network  layout_only da30469178cb 20n 21c 0nest 0rm
+counters.json    Twopi    4 Parts    new_view    767c82a0f151 33n 29c 0nest 0rm
+counters.json    Twopi    4 Parts    expand_view b47c9ceb5240 33n 29c 0nest 0rm
+counters.json    Twopi    4 Parts    layout_only b47c9ceb5240 33n 29c 0nest 0rm
 counters.json    Circo    1 Nesting  new_view    156a03771bc5 15n 14c 0nest 0rm
 counters.json    Circo    1 Nesting  expand_view 19c90e034552 14n 14c 0nest 0rm
 counters.json    Circo    1 Nesting  layout_only a1feccdccd75 14n 13c 0nest 0rm
@@ -376,3 +499,6 @@ counters.json    Circo    2 Edited   layout_only 28dede3443b9 15n 15c 0nest 1rm
 counters.json    Circo    3 Network  new_view    6f286797931f 20n 21c 0nest 0rm
 counters.json    Circo    3 Network  expand_view 8b59831a259a 20n 21c 0nest 0rm
 counters.json    Circo    3 Network  layout_only 8b59831a259a 20n 21c 0nest 0rm
+counters.json    Circo    4 Parts    new_view    2bb30cc92808 33n 29c 0nest 0rm
+counters.json    Circo    4 Parts    expand_view 5f283832b150 33n 29c 0nest 0rm
+counters.json    Circo    4 Parts    layout_only 5f283832b150 33n 29c 0nest 0rm
