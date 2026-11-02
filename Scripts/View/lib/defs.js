@@ -348,6 +348,9 @@ const ALGORITHMS = Object.freeze({
     engineAlgorithmId:    "dagre",
     style:                "Flow",
     supportsNesting:      "partial",
+    // Three levels: dagre's order step (cluster-fix and @dagrejs/dagre 3.1.3) places children of a
+    // level-2 container outside it (test model view 5: 6 children, up to 1640 px).
+    nestingLevels:        2,
     supportsSelfLoops:    "partial",  // dagre-cluster-fix attempts routing; falls back to writer synthesis on error
     activeParams:         [
       ...ALWAYS_ACTIVE_PARAMS,

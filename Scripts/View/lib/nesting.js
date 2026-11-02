@@ -14,7 +14,7 @@ const REPO_ROOT = (() => {
 const Defs      = require(REPO_ROOT + "View/lib/defs");
 /** @type {typeof import("./rel_filter")} */
 const ConditionLists = require(REPO_ROOT + "View/lib/rel_filter");
-const { compareNames, compareIds } = Defs;
+const { compareNames, compareIds, ALGORITHMS } = Defs;
 
 /**
  * Strip a synthetic occurrence suffix (`${id}_occ_N`) to recover the element id.
@@ -281,7 +281,9 @@ function _stronglyConnected(nodeIds, succ) {
  *   2. Parents per child: every parent reached by a relation that matches a nesting condition
  *      with everyContainer; plus at most one parent from the other relations — a container
  *      a user-content visual of the child sits in on the view, else the first by name, then id.
- *      The other relations are drawn as connections (notNestedNestingRels).
+ *      The other relations are drawn as connections (notNestedNestingRels). A parent that would put
+ *      the child below the algorithm's nesting levels is dropped; its relations are drawn as
+ *      connections too (deepNestingRels).
  *   3. Occurrences: an element appears once under each occurrence of each of its parents,
  *      so an extra occurrence of a container gets its own copies of the container's children.
  *      The first occurrence has the element id, the others `${id}_occ_N`.
@@ -290,9 +292,10 @@ function _stronglyConnected(nodeIds, succ) {
  * @param {ArchiElement[]}      elements
  * @param {ArchiRelation[]}     nestingRels   nesting candidates (splitNestingRels)
  * @param {EffectiveParams}     params        preset.params (nestingConditions, reverseConditions)
+ * @param {string}              algorithm     ALGORITHMS key: its nesting levels
  * @param {VisualDescription[]} [visuals]     visuals on the target view (describeVisuals); none for a new view
  * @returns {NestingResolution}  parentMap, occurrenceMap, parentRels, circularNestingRels, cycles,
- *             notNestedNestingRels, and the pairing (see _pairVisuals)
+ *             notNestedNestingRels, deepNestingRels, and the pairing (see _pairVisuals)
  *
  * Each parentRels entry binds a nesting relation to the specific occurrence
  * each visual endpoint should use. `srcOccId` is the occurrence id to render
@@ -300,7 +303,7 @@ function _stronglyConnected(nodeIds, succ) {
  * model); `tgtOccId` likewise for rel.target. For reversed relation types,
  * the child sits on the rel.source side; otherwise on the rel.target side.
  */
-function resolveNesting(elements, nestingRels, params, visuals) {
+function resolveNesting(elements, nestingRels, params, algorithm, visuals) {
   const conditions = params.nestingConditions || [];
   // The containers user content sits in on the view: element id → container element ids.
   /** @type {Map<string | null, Set<string>>} */
@@ -384,13 +387,16 @@ function resolveNesting(elements, nestingRels, params, visuals) {
     const one = [...new Set(list.filter(c => !c.every).map(c => c.parentId))].sort(order);
     if (one.length) parents.add(one[0]);
     parentsOf.set(childId, [...parents].sort(order));
-    for (const p of parents) nestedPair.add(pairKey(p, childId));
   }
+  const deepPair = _limitLevels(parentsOf, ALGORITHMS[algorithm].nestingLevels || Infinity, pairKey);
+  for (const [childId, parents] of parentsOf) for (const p of parents) nestedPair.add(pairKey(p, childId));
   /** @type {Map<string, NestingCandidate[]>} */
   const relsByPair = new Map();
+  /** @type {ArchiRelation[]} */
+  const deepNestingRels = [];
   for (const c of acyclic) {
     const k = pairKey(c.parentId, c.childId);
-    if (!nestedPair.has(k)) { notNestedNestingRels.push(c.rel); continue; }
+    if (!nestedPair.has(k)) { (deepPair.has(k) ? deepNestingRels : notNestedNestingRels).push(c.rel); continue; }
     _pushTo(relsByPair, k, c);
   }
 
@@ -425,7 +431,37 @@ function resolveNesting(elements, nestingRels, params, visuals) {
   // 4. Pairing with the visuals on the view.
   const pairing = _pairVisuals(elements, occurrenceMap, parentMap, visuals);
 
-  return { parentMap, occurrenceMap, parentRels, circularNestingRels, cycles, notNestedNestingRels, ...pairing };
+  return { parentMap, occurrenceMap, parentRels, circularNestingRels, cycles, notNestedNestingRels, deepNestingRels, ...pairing };
+}
+
+/**
+ * Drop the parents that would put a child below the nesting levels: the view root's elements are
+ * level 1, a child one level below its deepest parent. parentsOf is acyclic (cycles are removed first).
+ * @param {Map<string, string[]>}                 parentsOf  child id → parent ids; changed in place
+ * @param {number}                                levels     nesting levels allowed
+ * @param {(p: string, ch: string) => string}     pairKey
+ * @returns {Set<string>} the "parent child" pairs dropped
+ */
+function _limitLevels(parentsOf, levels, pairKey) {
+  /** @type {Set<string>} */
+  const dropped = new Set();
+  if (levels === Infinity) return dropped;
+  /** @type {Map<string, number>} */
+  const level = new Map();
+  /** @type {(id: string) => number} */
+  const levelOf = id => {
+    const known = level.get(id);
+    if (known !== undefined) return known;
+    const parents = parentsOf.get(id) || [];
+    const kept = parents.filter(p => levelOf(p) < levels);
+    for (const p of parents) if (!kept.includes(p)) dropped.add(pairKey(p, id));
+    if (kept.length) parentsOf.set(id, kept); else parentsOf.delete(id);
+    const l = kept.length ? 1 + Math.max(...kept.map(levelOf)) : 1;
+    level.set(id, l);
+    return l;
+  };
+  for (const id of [...parentsOf.keys()].sort()) levelOf(id);
+  return dropped;
 }
 
 /**
@@ -485,18 +521,24 @@ function splitNestingRels(relations, params) {
  *   diagramObjects     — canvas-only positional objects, also those inside a diagram-block
  *   diagramConnections — lines without a relation behind them (a note's line)
  * An element only inside a diagram-block is not laid out but written with it: an element and a standalone.
+ * A self-loop the algorithm does not draw is not on the view: neither a relation nor a connection.
  * @param {ArchiElement[]}      elements
  * @param {ArchiRelation[]}     relations
  * @param {{ objects: number, connections: number, elements: number }} diagram  diagram objects and diagram
  *   connections on the view, and the elements only inside a diagram-block
  * @param {EffectiveParams}     params
+ * @param {string}              algorithm  ALGORITHMS key: its nesting levels and self-loops
  * @param {VisualDescription[]} [visuals]
  * @returns {ViewCounts}
  */
-function predictViewCounts(elements, relations, diagram, params, visuals) {
+function predictViewCounts(elements, relations, diagram, params, algorithm, visuals) {
   const { nestingRels, connectionRels } = splitNestingRels(relations, params);
-  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels } =
-    resolveNesting(elements, nestingRels, params, visuals);
+  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels, deepNestingRels } =
+    resolveNesting(elements, nestingRels, params, algorithm, visuals);
+  const drawn = ALGORITHMS[algorithm].supportsSelfLoops
+    ? (/** @type {ArchiRelation[]} */ list) => list.length
+    : (/** @type {ArchiRelation[]} */ list) => list.filter(r => !(r.source && r.target && r.source.id === r.target.id)).length;
+  const removedSelfLoops = relations.length - drawn(relations);
   // Sum of (occurrences - 1) over every element — extra appearances.
   let extraOccurrences = 0;
   for (const elId of Object.keys(occurrenceMap)) {
@@ -525,9 +567,9 @@ function predictViewCounts(elements, relations, diagram, params, visuals) {
     nestedElements,
     standalones:      standalones + diagram.elements,
     extraOccurrences,
-    relations:        relations.length,
+    relations:        relations.length - removedSelfLoops,
     nestings:         parentRels.length,
-    connections:      connectionRels.length + notNestedNestingRels.length + circularNestingRels.length,
+    connections:      drawn(connectionRels) + drawn(notNestedNestingRels) + circularNestingRels.length + deepNestingRels.length,
     diagramObjects:     diagram.objects,
     diagramConnections: diagram.connections,
   };

@@ -26,9 +26,9 @@ const params = conditions => Defs.validatePreset({ params: { nestingConditions: 
 const AGG = [{ relation: "aggregation-relationship" }];
 const AGG_EVERY = [{ relation: "aggregation-relationship", everyContainer: true }];
 
-function resolve(p, elements, rels, visuals) {
+function resolve(p, elements, rels, visuals, algorithm = "Layered") {
   const split = Nesting.splitNestingRels(rels, p);
-  return Nesting.resolveNesting(elements, split.nestingRels, p, visuals);
+  return Nesting.resolveNesting(elements, split.nestingRels, p, algorithm, visuals);
 }
 /** Order-free summary of a resolution: per element its occurrences' parent elements; cycles; lines. */
 function summarize(nesting, byId) {
@@ -91,6 +91,25 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
   eq(r, s, "cycle: same result in reverse order");
   const two = run(params(AGG), [a, b], [rel("x", a, b), rel("y", b, a)]);
   eq(two.circular, ["x", "y"], "cycle: two elements containing each other");
+}
+
+// ── nesting levels (Dagre: 2) and self-loops in the totals ───────────────────
+{
+  const [a, b, c, d, e] = [el("a", "A"), el("b", "B"), el("c", "C"), el("d", "D"), el("e", "E")];
+  const rels = [rel("r1", a, b), rel("r2", b, c), rel("r3", c, d), rel("r4", a, e)];
+  const all = resolve(params(AGG), [a, b, c, d, e], rels);
+  eq(all.deepNestingRels.map(r => r.id), [], "levels: no limit nests every level");
+  const dagre = resolve(params(AGG), [a, b, c, d, e], rels, undefined, "Dagre");
+  eq(dagre.parentRels.map(b => b.rel.id).sort(), ["r1", "r3", "r4"], "levels: Dagre nests two levels");
+  eq(dagre.deepNestingRels.map(r => r.id), ["r2"], "levels: a deeper relation is drawn as a line");
+  eq([dagre.parentMap.c, dagre.parentMap.d], [undefined, "c"], "levels: its child sits at the root, with its own children");
+  const loop = rel("l", a, a, "flow-relationship");
+  const diagram = { objects: 0, connections: 0, elements: 0 };
+  const count = alg => { const v = Nesting.predictViewCounts([a, b], [rel("r1", a, b), loop], diagram, params(AGG), alg); return [v.relations, v.connections]; };
+  eq(count("Layered"), [2, 1], "totals: a self-loop the algorithm draws is a connection");
+  eq(count("Grid"), [1, 0], "totals: a self-loop the algorithm leaves out is not counted");
+  eq(Nesting.predictViewCounts([a, b, c], [rel("r1", a, b), rel("r2", b, c)], diagram, params(AGG), "Dagre").connections, 1,
+     "totals: a relation below the nesting levels is a connection");
 }
 
 // ── one parent: current container, else name, then id ────────────────────────

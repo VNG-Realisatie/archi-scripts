@@ -35,7 +35,7 @@ Total to view:
 
 - **Exact sums.** `Filtered base + Σ Step N adds = Total`, for elements and for relations. A step's relations are the new relations of its runs (run order step 5), minus any counted before; never a count of raw selection relations.
 - **Elements partition.** `elements = containers + nested elements + standalones`. It counts model elements, so *every container* never inflates it. **Extra occurrences** are a separate field.
-- **Relations partition** on the view: `relations = nestings + connections`.
+- **Relations partition** on the view: `relations = nestings + connections`. A self-loop the algorithm does not draw is not on the view, so neither total counts it (its step still does).
 - **Extra occurrences on non-nesting algorithms** are counted, although these algorithms draw each element once.
 - **Everything written is counted.** A diagram-block is laid out as one node, but its contents are counted: its diagram objects as diagram objects, an element only inside it as an element and a standalone. A diagram connection is counted when both its ends are on the view.
 - The console prints every field, column-aligned; the dialog's totals line hides zeros.
@@ -71,6 +71,7 @@ The container choice wins. A preset with a locked combination runs as *between*,
   - The dialog counts them as *circular*, and the log names each cycle by its elements.
   - To nest part of a cycle anyway, take the other relations out with an Exclude condition.
 - **Asymmetric roles.** An element may be a parent in one relation and a child in another; roles are per relation. Diamonds and deep chains follow from the same rules.
+- **Nesting levels.** An algorithm may lay out a limited number of nesting levels (Dagre: two; the view root's elements are level 1). A parent that would put its child deeper is dropped: its relations are drawn as connections, the child sits at the root and can contain its own children. The dialog counts them, and the log names the limit.
 - **Container derivation.** A container is any element with at least one child after resolution. It is derived, never declared, and being a container does not change an element's type.
 - **Nothing undrawn.** A nesting candidate that does not become containment is drawn as a connection.
 

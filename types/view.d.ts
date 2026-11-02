@@ -317,6 +317,9 @@ interface AlgorithmSpec {
   /** Style group shown in the dialog (defs.STYLES). */
   style: string;
   supportsNesting: "full" | "partial" | "cluster" | "none";
+  /** Nesting levels the algorithm lays out correctly (the view root's elements are level 1); a nesting
+   *  relation that would nest deeper is drawn as a connection. Absent: no limit. */
+  nestingLevels?: number;
   supportsSelfLoops: boolean | "partial";
   /**
    * Connections are routed between the elements, with Distance to element on both sides of the
@@ -604,6 +607,8 @@ interface DialogCountInput {
   steps: DialogStep[];
   /** The nesting and reverse conditions (getConditions). */
   params: EffectiveParams;
+  /** The selected algorithm: its nesting levels and self-loops. */
+  algorithm: string;
   /** The nesting and reverse tables' rows as shown; null before the Layout tab is built. */
   layoutConditions: { nesting: RelationCondition[]; reverse: RelationCondition[] } | null;
   /** Diagram-blocks of the view(s) read (readDiagramBlocks): their contents are not counted on their own. */
@@ -639,8 +644,10 @@ interface LayoutConditionCounts {
   /** Matching relations drawn as a line because they form a circular nesting. */
   circular: number;
   cycles: number;
-  /** Matching self-relations, drawn as a line. */
+  /** Matching self-relations: drawn as a line, or left out by an algorithm without self-loops. */
   selfLoops: number;
+  /** Matching relations drawn as a line because they nest below the algorithm's nesting levels. */
+  deep: number;
 }
 
 /** Everything the dialog's counters show (dialogCounts). */

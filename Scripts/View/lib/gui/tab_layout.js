@@ -146,7 +146,7 @@ function buildLayoutTab(tabFolder, ctx) {
         if (alg.tooltip) radio.setToolTipText(alg.tooltip);
         GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(radio);
         algRadios.set(algName, radio);
-        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) { updateAlgorithmControls(ctx); } });
+        radio.addListener(SWT.Selection, () => { if (radio.getSelection()) { updateAlgorithmControls(ctx); ctx.recount(); } });
       } else {
         new LabelWidget(algTableComp, SWT.NONE);  // empty slot
       }
@@ -362,7 +362,8 @@ function updateLayoutConditionCounts(ctx, relations, counts) {
   w.tblNestingConditions.setCounts(counts.nesting);
   w.tblReverseConditions.setCounts(counts.reverse);
 
-  const { multiParent: multi, circular: circ, cycles, selfLoops: loops } = counts;
+  const { multiParent: multi, circular: circ, cycles, selfLoops: loops, deep } = counts;
+  const alg = selectedAlgorithm(w), spec = ALGORITHMS[alg];
   /** @type {(n: number, s: string, p: string) => string} */
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
   const parts = [];
@@ -370,7 +371,11 @@ function updateLayoutConditionCounts(ctx, relations, counts) {
                         "A condition with Every shows such a child in every parent.");
   if (circ)  parts.push(`${plural(circ, "matching relation forms", "matching relations form")} a circular nesting ` +
                         `(${plural(cycles, "cycle", "cycles")}, named in the log) and ${circ === 1 ? "is" : "are"} drawn as a line.`);
-  if (loops) parts.push(`${plural(loops, "self-relation is", "self-relations are")} drawn as a line.`);
+  if (deep)  parts.push(`${plural(deep, "matching relation is", "matching relations are")} drawn as a line: ` +
+                        `${alg} nests at most ${spec.nestingLevels} levels.`);
+  if (loops) parts.push(spec.supportsSelfLoops
+    ? `${plural(loops, "self-relation is", "self-relations are")} drawn as a line.`
+    : `${plural(loops, "self-relation is", "self-relations are")} left out: ${alg} draws no self-loops.`);
   const nestNone = _noIncludeNote(w.tblNestingConditions, "nested");
   const changed = [
     _setNote(w.lblNestingNote, nestNone || parts.join("\n")),

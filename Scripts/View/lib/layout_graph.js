@@ -75,7 +75,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
 
   // Nesting structure and pairing shared with the pipeline's predictViewCounts so dialog/console
   // counts agree with the writer's actual output. Single source of truth.
-  const nesting = Nesting.resolveNesting(elements, nestingRels, params, visuals);
+  const nesting = Nesting.resolveNesting(elements, nestingRels, params, preset.algorithm, visuals);
   const parentMap    = nesting.parentMap;
   const occurrenceMap = nesting.occurrenceMap;
   const parentRels   = nesting.parentRels;
@@ -92,6 +92,9 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
   // connections so the model relation stays visible in the view.
   for (const r of notNestedNestingRels) routedRels.push(r);
   for (const r of circularNestingRels)  routedRels.push(r);
+  for (const r of nesting.deepNestingRels) routedRels.push(r);
+  if (nesting.deepNestingRels.length)
+    console.log(`  ${nesting.deepNestingRels.length} nesting relations drawn as connections: ${preset.algorithm} nests at most ${ALGORITHMS[preset.algorithm].nestingLevels} levels`);
 
   // Nodes: one per occurrence (paired visuals and unpaired user visuals included).
   /** @type {LayoutNode[]} */

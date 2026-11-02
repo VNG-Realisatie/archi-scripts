@@ -67,7 +67,7 @@ function _isModifyAction(actionId) {
  * elements and relations to put on the view, and the predicted on-view counts. No console
  * output, nothing read from the selection again: the dialog calls it on every change.
  * @param {Snapshot}                                                   snapshot
- * @param {Pick<MaskedPreset, "filter" | "relatedElements" | "params">} preset
+ * @param {Pick<MaskedPreset, "algorithm" | "filter" | "relatedElements" | "params">} preset
  * @param {string}                                                     actionId  ACTION.*.id
  * @returns {ComposedObjectSet}
  */
@@ -135,7 +135,7 @@ function composeObjectSet(snapshot, preset, actionId) {
     connections: countDiagramConnections(diagramConnections, diagramNodes, elements, diagramBlockOf),
     elements:    diagramBlockVisualOf.size,
   };
-  const view = Nesting.predictViewCounts(elements, relations, diagram, preset.params, visuals);
+  const view = Nesting.predictViewCounts(elements, relations, diagram, preset.params, preset.algorithm, visuals);
 
   return {
     objectSet: {

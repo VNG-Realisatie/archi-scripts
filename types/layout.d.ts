@@ -233,6 +233,8 @@ interface NestingResolution extends VisualPairing {
   circularNestingRels: ArchiRelation[];
   cycles: { elements: ArchiElement[]; rels: ArchiRelation[] }[];
   notNestedNestingRels: ArchiRelation[];
+  /** Nesting relations below the algorithm's nesting levels: drawn as connections. */
+  deepNestingRels: ArchiRelation[];
 }
 
 // ── Adapter internals shared through engine-utils ────────────────────────────────────────────────

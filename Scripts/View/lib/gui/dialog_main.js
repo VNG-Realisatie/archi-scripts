@@ -477,6 +477,7 @@ function _countInput(ctx, objects) {
       nestingConditions: w.tblNestingConditions ? w.tblNestingConditions.getConditions() : [],
       reverseConditions: w.tblReverseConditions ? w.tblReverseConditions.getConditions() : [],
     },
+    algorithm: TabLayout.selectedAlgorithm(w),
     layoutConditions: w.tblNestingConditions && w.tblReverseConditions
       ? { nesting: w.tblNestingConditions.displayedConditions(), reverse: w.tblReverseConditions.displayedConditions() }
       : null,

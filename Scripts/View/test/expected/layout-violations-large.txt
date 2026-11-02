@@ -1,15 +1,3 @@
-Tree 5 Large: count: 162 connections promised, 160 planned
-Stress 5 Large: count: 442 connections promised, 440 planned
-Radial 5 Large: count: 442 connections promised, 440 planned
-Grid 5 Large: count: 162 connections promised, 160 planned
-Pack 5 Large: count: 162 connections promised, 160 planned
-Tiles 5 Large: count: 162 connections promised, 160 planned
-Dagre 5 Large: outside: id-b06b084f18954fd582eda93cc401874c out of id-a688f622b26443afb999e5dfb75ad135 at top 1640 px
-Dagre 5 Large: outside: id-389c2e47483545c2a87845a98109024f out of id-a688f622b26443afb999e5dfb75ad135 at top 1540 px
-Dagre 5 Large: outside: id-34592c970f3b46159d55779677d9acdb out of id-1f638b27806140058f29d08103927a63 at top 1472 px
-Dagre 5 Large: outside: id-f624a64654c3406db2263da353d12ee0 out of id-2872eb466f3d45af9f8f7d2c8664bfb6 at top 1160 px
-Dagre 5 Large: outside: id-7454a74edfac4c9aaa3edd124b632cc0 out of id-2872eb466f3d45af9f8f7d2c8664bfb6 at top 1260 px
-Dagre 5 Large: outside: id-8cf6d8b092aa463eac6e769a78ed0b2b out of id-2872eb466f3d45af9f8f7d2c8664bfb6 at top 1360 px
 Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-ccd3b9eb11674513bcf89576cf92e4b4 first segment 8 px, 84° off the next
 Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-3111cf4d80904249b5882d0769b41113 first segment 10 px, 95° off the next
 Dot 5 Large: end room: flow-relationship id-a3aa31ab79d845bdb2374315acb4f33f→id-64aa6e626c9b48dd8b8373d86f43ec20 first segment 10 px, 90° off the next

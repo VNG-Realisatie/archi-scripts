@@ -226,6 +226,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 - A condition's source and target types restrict which elements may be a container (e.g. source *Grouping*). An optional property value, on the relation, its source or its target, narrows a condition further.
 - **Reversal.** Relations matching a reverse condition are flipped: the flow lays them out from target to source, and a nested one has its target as parent. The model relation and its arrows stay unchanged.
 - Each condition counts the relations it hits and how many become a nesting; the dialog says why the others are drawn as a line.
+- An algorithm may nest to a limited depth ([capability matrix](reference/engines.md#capability-matrix)); a nesting relation below it is drawn as a line.
 
 **Containers** (active once a nesting condition is on):
 - **Layout inside**: the algorithm that arranges the children *inside* each container.

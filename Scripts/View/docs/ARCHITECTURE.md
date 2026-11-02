@@ -507,6 +507,7 @@ Realisation of the other decisions: [ELK](#elk).
 
 | Decision | Why |
 |---|---|
+| Dagre nests at most two levels; a deeper nesting relation is drawn as a connection. | With three levels dagre's order step places children of a level-2 container outside it: 6 children on the test model's view 5, up to 1640 px away. `@dagrejs/dagre` 3.1.3 does the same, so leaving the fork does not help, and moving them would be placement of the adapter's own (SPEC rule 18). |
 | Dagre reserves no room for a container's label and keeps no container minWidth. | dagre-cluster-fix sizes a cluster from its children (border nodes) and takes no padding or size; an extra node for the label would be placement of the adapter's own (View hard rule 10). `@dagrejs/dagre` 3.1.3 (October 2026, maintained, CommonJS build) has no cluster padding either; moving to it is a later change. |
 
 **Realisation.** `dagre-cluster-fix` for compound graphs; straight and polyline routing only; Dagre itself drops self-loops.

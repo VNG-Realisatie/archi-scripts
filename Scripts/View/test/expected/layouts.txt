@@ -19,7 +19,7 @@
 1 Nesting  baseline.json            Grid     c52cb900b830 15n 0e
 1 Nesting  baseline.json            Pack     2a413bae1297 15n 0e
 1 Nesting  baseline.json            Tiles    fbc52295d92c 15n 7e
-1 Nesting  baseline.json            Dagre    fe48d3f60cbe 15n 8e
+1 Nesting  baseline.json            Dagre    1d0e60dd86f5 15n 9e
 1 Nesting  baseline.json            Dot      1387a7c83305 15n 8e
 1 Nesting  baseline.json            Neato    766492000ab0 14n 14e
 1 Nesting  baseline.json            FDP      -            15n 8e
@@ -33,7 +33,7 @@
 1 Nesting  counters.json            Grid     c52cb900b830 15n 0e
 1 Nesting  counters.json            Pack     2a413bae1297 15n 0e
 1 Nesting  counters.json            Tiles    fbc52295d92c 15n 7e
-1 Nesting  counters.json            Dagre    fe48d3f60cbe 15n 8e
+1 Nesting  counters.json            Dagre    1d0e60dd86f5 15n 9e
 1 Nesting  counters.json            Dot      1387a7c83305 15n 8e
 1 Nesting  counters.json            Neato    766492000ab0 14n 14e
 1 Nesting  counters.json            FDP      -            15n 8e
@@ -61,7 +61,7 @@
 2 Edited   baseline.json            Grid     80e996a30d0f 17n 0e
 2 Edited   baseline.json            Pack     caa8319244cc 17n 0e
 2 Edited   baseline.json            Tiles    e9222ca885c3 17n 9e
-2 Edited   baseline.json            Dagre    54628305e4c4 17n 10e
+2 Edited   baseline.json            Dagre    a54011cc0713 17n 11e
 2 Edited   baseline.json            Dot      65dc4444dd3d 17n 10e
 2 Edited   baseline.json            Neato    71d9c461e88b 16n 16e
 2 Edited   baseline.json            FDP      -            17n 10e
@@ -75,7 +75,7 @@
 2 Edited   counters.json            Grid     80e996a30d0f 17n 0e
 2 Edited   counters.json            Pack     caa8319244cc 17n 0e
 2 Edited   counters.json            Tiles    e9222ca885c3 17n 9e
-2 Edited   counters.json            Dagre    54628305e4c4 17n 10e
+2 Edited   counters.json            Dagre    a54011cc0713 17n 11e
 2 Edited   counters.json            Dot      65dc4444dd3d 17n 10e
 2 Edited   counters.json            Neato    71d9c461e88b 16n 16e
 2 Edited   counters.json            FDP      -            17n 10e

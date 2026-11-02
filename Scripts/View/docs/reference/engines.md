@@ -46,7 +46,7 @@ LayoutResult {
 
 Each algorithm declares:
 - a style (UI grouping only);
-- a nesting capability (full / partial / cluster / none) and a self-loop capability;
+- a nesting capability (full / partial / cluster / none), optionally its number of nesting levels (Dagre: two), and a self-loop capability;
 - its active options and the allowed values of its select options.
 
 An option outside the active set is greyed in the dialog, keeps its value, and is ignored at run time. The matrix is generated from the registry. ✓ active · — greyed out in the dialog.
