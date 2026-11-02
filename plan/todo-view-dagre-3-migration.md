@@ -17,6 +17,7 @@ Replace the unmaintained `dagre-cluster-fix` 0.9.0 (last release 2022) with the 
 - Packaging: ESM-first; `dist/dagre.cjs` requires `@dagrejs/graphlib` by bare name; `dist/dagre.js` bundles graphlib but sets a global `var dagre` (needs a `module.exports` line). 107 KB, no lodash (cluster-fix 385 KB).
 - New in 3.x: per-cluster `rankdir` / `ranksep` / `nodesep` / `align` (cluster collapsed onto its children in a quick test), `rankalign`, order `constraints`, `customOrder`.
 - `ai/dagre/dagre-reference.md` is wrong that `@dagrejs/dagre` has no compound graphs: clusters work, edges at a cluster do not.
+- View 5 of the test model (300 elements, three nesting levels, 2026-11-02): 3.1.3 places 6 children outside their container (up to 1622 px), as cluster-fix does (1640 px): the ordering bug is in both (finding F10 in `view-test-plan.md`).
 
 ## Pros and cons
 
