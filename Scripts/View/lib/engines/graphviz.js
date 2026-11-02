@@ -227,6 +227,9 @@ function _buildDOT(graph) {
 
   // Map GUI params to Graphviz graph attributes
   const engineOpts = applyParams(graph.algorithm, opts, PARAM_MAPPING);
+  // Twopi offers no Routing: without splines Graphviz draws its lines straight, across the elements
+  // in between; polyline routes them around.
+  if (graph.algorithm === "Twopi") engineOpts.splines = "polyline";
   const splines    = engineOpts.splines || "polyline";
   const gvEP       = graph.engineParams && graph.engineParams.Graphviz;
   // esep priority: engineParams.Graphviz.esep > connectionElementSpacing mapping > routing-based default.

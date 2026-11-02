@@ -10,7 +10,7 @@
 1 Nesting  AlgoTwopi.json           Neato    e59f04521c50 14n 14e
 1 Nesting  AlgoTwopi.json           FDP      -            14n 14e
 1 Nesting  AlgoTwopi.json           SFDP     8959cae4050f 14n 14e
-1 Nesting  AlgoTwopi.json           Twopi    d6bd5ccb871d 14n 14e
+1 Nesting  AlgoTwopi.json           Twopi    9c45d7941144 14n 14e
 1 Nesting  AlgoTwopi.json           Circo    e43dbe7baa59 14n 14e
 1 Nesting  baseline.json            Layered  b217c4e02299 15n 8e
 1 Nesting  baseline.json            Tree     19c9ec4acce3 15n 7e
@@ -24,7 +24,7 @@
 1 Nesting  baseline.json            Neato    766492000ab0 14n 14e
 1 Nesting  baseline.json            FDP      -            15n 8e
 1 Nesting  baseline.json            SFDP     8c988a352cbb 14n 14e
-1 Nesting  baseline.json            Twopi    7f880b89da01 14n 14e
+1 Nesting  baseline.json            Twopi    eae9658476fc 14n 14e
 1 Nesting  baseline.json            Circo    44fd511d1dfd 14n 14e
 1 Nesting  counters.json            Layered  b217c4e02299 15n 8e
 1 Nesting  counters.json            Tree     19c9ec4acce3 15n 7e
@@ -38,7 +38,7 @@
 1 Nesting  counters.json            Neato    766492000ab0 14n 14e
 1 Nesting  counters.json            FDP      -            15n 8e
 1 Nesting  counters.json            SFDP     8c988a352cbb 14n 14e
-1 Nesting  counters.json            Twopi    7f880b89da01 14n 14e
+1 Nesting  counters.json            Twopi    eae9658476fc 14n 14e
 1 Nesting  counters.json            Circo    44fd511d1dfd 14n 14e
 2 Edited   AlgoTwopi.json           Layered  6e6b58e0f602 15n 15e
 2 Edited   AlgoTwopi.json           Tree     980c7783704b 15n 14e
@@ -52,7 +52,7 @@
 2 Edited   AlgoTwopi.json           Neato    88945f7a8c68 15n 15e
 2 Edited   AlgoTwopi.json           FDP      -            15n 15e
 2 Edited   AlgoTwopi.json           SFDP     4399ba37fafe 15n 15e
-2 Edited   AlgoTwopi.json           Twopi    0f06cd842efb 15n 15e
+2 Edited   AlgoTwopi.json           Twopi    54972e7c492d 15n 15e
 2 Edited   AlgoTwopi.json           Circo    fe14ed69057d 15n 15e
 2 Edited   baseline.json            Layered  5d875c90d194 17n 10e
 2 Edited   baseline.json            Tree     cd609c6f3187 17n 9e
@@ -66,7 +66,7 @@
 2 Edited   baseline.json            Neato    71d9c461e88b 16n 16e
 2 Edited   baseline.json            FDP      -            17n 10e
 2 Edited   baseline.json            SFDP     768d2a4e939a 16n 16e
-2 Edited   baseline.json            Twopi    c667a4f9d90c 16n 16e
+2 Edited   baseline.json            Twopi    eca409e7a617 16n 16e
 2 Edited   baseline.json            Circo    6fa87d3fa183 16n 16e
 2 Edited   counters.json            Layered  5d875c90d194 17n 10e
 2 Edited   counters.json            Tree     cd609c6f3187 17n 9e
@@ -80,7 +80,7 @@
 2 Edited   counters.json            Neato    71d9c461e88b 16n 16e
 2 Edited   counters.json            FDP      -            17n 10e
 2 Edited   counters.json            SFDP     768d2a4e939a 16n 16e
-2 Edited   counters.json            Twopi    c667a4f9d90c 16n 16e
+2 Edited   counters.json            Twopi    eca409e7a617 16n 16e
 2 Edited   counters.json            Circo    6fa87d3fa183 16n 16e
 3 Network  AlgoTwopi.json           Layered  b0e0ca959e0b 20n 21e
 3 Network  AlgoTwopi.json           Tree     dd74181db2e9 20n 21e
@@ -136,7 +136,7 @@
 4 Parts    AlgoTwopi.json           Neato    15b6325b8243 33n 29e
 4 Parts    AlgoTwopi.json           FDP      -            33n 29e
 4 Parts    AlgoTwopi.json           SFDP     16501de6c1f8 33n 29e
-4 Parts    AlgoTwopi.json           Twopi    b9f5538ca2c8 33n 29e
+4 Parts    AlgoTwopi.json           Twopi    182305d3b371 33n 29e
 4 Parts    AlgoTwopi.json           Circo    cdf8c74ee2b3 33n 29e
 4 Parts    baseline.json            Layered  7a0715948bfd 33n 25e
 4 Parts    baseline.json            Tree     adbdd0119bde 33n 20e
@@ -150,7 +150,7 @@
 4 Parts    baseline.json            Neato    28c8e5d921e1 33n 29e
 4 Parts    baseline.json            FDP      -            33n 25e
 4 Parts    baseline.json            SFDP     93bb5b24bf04 33n 29e
-4 Parts    baseline.json            Twopi    b0a32b1d619d 33n 29e
+4 Parts    baseline.json            Twopi    1d21181142ec 33n 29e
 4 Parts    baseline.json            Circo    ba3d411faefb 33n 29e
 4 Parts    counters.json            Layered  7a0715948bfd 33n 25e
 4 Parts    counters.json            Tree     adbdd0119bde 33n 20e
@@ -164,5 +164,5 @@
 4 Parts    counters.json            Neato    28c8e5d921e1 33n 29e
 4 Parts    counters.json            FDP      -            33n 25e
 4 Parts    counters.json            SFDP     93bb5b24bf04 33n 29e
-4 Parts    counters.json            Twopi    b0a32b1d619d 33n 29e
+4 Parts    counters.json            Twopi    1d21181142ec 33n 29e
 4 Parts    counters.json            Circo    ba3d411faefb 33n 29e
