@@ -1,11 +1,3 @@
-Layered 1 Nesting direction=Down: size: Handle request 200×60 became 200×75
-Layered 2 Edited direction=Down: size: Handle request 200×60 became 200×75
-Layered 4 Parts direction=Down: size: Broker 200×60 became 200×75
-Layered 4 Parts direction=Down: size: Loner D 200×60 became 200×75
-Layered 1 Nesting direction=Up: size: Handle request 200×60 became 200×75
-Layered 2 Edited direction=Up: size: Handle request 200×60 became 200×75
-Layered 4 Parts direction=Up: size: Broker 200×60 became 200×75
-Layered 4 Parts direction=Up: size: Loner D 200×60 became 200×75
 Layered 4 Parts containerAlgorithm=Grid: count: 25 connections promised, 23 planned
 Layered 4 Parts containerAlgorithm=Pack: count: 25 connections promised, 23 planned
 Tree 1 Nesting direction=Left: count: 8 connections promised, 7 planned

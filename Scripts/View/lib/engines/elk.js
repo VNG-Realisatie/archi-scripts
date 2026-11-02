@@ -757,12 +757,12 @@ function _elkNode(id, box, isContainer, eo) {
     return { id, children: [], edges: [], layoutOptions: Object.assign({}, eo.container, minimum, padding) };
   }
   // Uniform port spacing: portAlignment and nodeSize are read from the leaf itself.
-  // [PORTS, MINIMUM_SIZE] lets ELK grow a leaf until its actual ports (+ one spacing margin at both
-  // ends) fit — never shrinking below the given size. Without it, ports beyond the side make
-  // Archi's orthogonal anchor fall back to a corner.
+  // [MINIMUM_SIZE] without PORTS: the leaf keeps its size (SPEC rule 1), and ports that do not fit at
+  // the port spacing are moved closer on the side. With PORTS, ELK grew an element with a self-loop
+  // in a vertical layout from 60 to 75 px high to fit the loop's ports on its short side.
   const ports = eo.ports ? {
     "elk.portAlignment.default": "CENTER",
-    "elk.nodeSize.constraints":  "[PORTS, MINIMUM_SIZE]",
+    "elk.nodeSize.constraints":  "[MINIMUM_SIZE]",
     "elk.nodeSize.minimum":      `(${box.width}, ${box.height})`,
   } : {};
   return { id, width: box.width, height: box.height, children: [], edges: [], layoutOptions: Object.assign({}, eo.leaf, ports) };
