@@ -43,7 +43,7 @@
 2 Edited   AlgoTwopi.json           Layered  6e6b58e0f602 15n 15e
 2 Edited   AlgoTwopi.json           Tree     980c7783704b 15n 14e
 2 Edited   AlgoTwopi.json           Stress   45d095216e8b 15n 14e
-2 Edited   AlgoTwopi.json           Radial   891185128e00 15n 12e
+2 Edited   AlgoTwopi.json           Radial   75c4ae6b469f 15n 12e
 2 Edited   AlgoTwopi.json           Grid     ae9ad27b035b 15n 0e
 2 Edited   AlgoTwopi.json           Pack     8477cce72661 15n 0e
 2 Edited   AlgoTwopi.json           Tiles    22cb83ab11f9 15n 14e
@@ -85,7 +85,7 @@
 3 Network  AlgoTwopi.json           Layered  b0e0ca959e0b 20n 21e
 3 Network  AlgoTwopi.json           Tree     dd74181db2e9 20n 21e
 3 Network  AlgoTwopi.json           Stress   b4b15f072e07 20n 21e
-3 Network  AlgoTwopi.json           Radial   9805aa5a2850 20n 18e
+3 Network  AlgoTwopi.json           Radial   fe163ccac054 20n 18e
 3 Network  AlgoTwopi.json           Grid     79867d1412c9 20n 0e
 3 Network  AlgoTwopi.json           Pack     c42285b2b198 20n 0e
 3 Network  AlgoTwopi.json           Tiles    538115efe4aa 20n 21e
@@ -99,7 +99,7 @@
 3 Network  baseline.json            Layered  39bd432fd17b 20n 21e
 3 Network  baseline.json            Tree     622ca9d8ab67 20n 21e
 3 Network  baseline.json            Stress   b223282d8bcc 20n 21e
-3 Network  baseline.json            Radial   b1dbf4bf886b 20n 18e
+3 Network  baseline.json            Radial   47c5993f925d 20n 18e
 3 Network  baseline.json            Grid     8ba321665e97 20n 0e
 3 Network  baseline.json            Pack     572c5fd0e3db 20n 0e
 3 Network  baseline.json            Tiles    dd7eb12afdfd 20n 21e
@@ -113,7 +113,7 @@
 3 Network  counters.json            Layered  39bd432fd17b 20n 21e
 3 Network  counters.json            Tree     622ca9d8ab67 20n 21e
 3 Network  counters.json            Stress   b223282d8bcc 20n 21e
-3 Network  counters.json            Radial   b1dbf4bf886b 20n 18e
+3 Network  counters.json            Radial   47c5993f925d 20n 18e
 3 Network  counters.json            Grid     8ba321665e97 20n 0e
 3 Network  counters.json            Pack     572c5fd0e3db 20n 0e
 3 Network  counters.json            Tiles    dd7eb12afdfd 20n 21e
@@ -127,7 +127,7 @@
 4 Parts    AlgoTwopi.json           Layered  f658ab63509c 33n 29e
 4 Parts    AlgoTwopi.json           Tree     5837590b2bf0 33n 26e
 4 Parts    AlgoTwopi.json           Stress   b555f15b7bae 33n 26e
-4 Parts    AlgoTwopi.json           Radial   c9da0ea0706a 33n 23e
+4 Parts    AlgoTwopi.json           Radial   c4aefa699c6e 33n 23e
 4 Parts    AlgoTwopi.json           Grid     0cef480a499f 33n 0e
 4 Parts    AlgoTwopi.json           Pack     9bbe826f62f7 33n 0e
 4 Parts    AlgoTwopi.json           Tiles    023d0d85df23 33n 26e
@@ -141,7 +141,7 @@
 4 Parts    baseline.json            Layered  7a0715948bfd 33n 25e
 4 Parts    baseline.json            Tree     adbdd0119bde 33n 20e
 4 Parts    baseline.json            Stress   694b0b6bcf57 33n 26e
-4 Parts    baseline.json            Radial   764be822a51a 33n 23e
+4 Parts    baseline.json            Radial   def41594e0d0 33n 23e
 4 Parts    baseline.json            Grid     88a77c90a118 33n 2e
 4 Parts    baseline.json            Pack     b80d226b6049 33n 2e
 4 Parts    baseline.json            Tiles    d214c9a2ba31 33n 22e
@@ -155,7 +155,7 @@
 4 Parts    counters.json            Layered  7a0715948bfd 33n 25e
 4 Parts    counters.json            Tree     adbdd0119bde 33n 20e
 4 Parts    counters.json            Stress   694b0b6bcf57 33n 26e
-4 Parts    counters.json            Radial   764be822a51a 33n 23e
+4 Parts    counters.json            Radial   def41594e0d0 33n 23e
 4 Parts    counters.json            Grid     88a77c90a118 33n 2e
 4 Parts    counters.json            Pack     b80d226b6049 33n 2e
 4 Parts    counters.json            Tiles    d214c9a2ba31 33n 22e

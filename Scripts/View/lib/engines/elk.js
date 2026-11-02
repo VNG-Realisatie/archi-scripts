@@ -118,7 +118,7 @@ const ENGINE_PARAMS = {
   // Measured on 561 elements · 560 connections (Node): Stress 29 s → 4 s, same size; the overlap
   // removal 64 → 16 iterations: 9 s → 2.4 s, 2 element pairs left overlapping instead of 0–1.
   "elk.force.iterations":                         { default: 30, effect: "Stress: iterations of the force layout it starts from (ELK: 300)" },
-  "elk.overlapRemoval.maxIterations":             { default: 16, effect: "Stress: iterations of the overlap removal after it (ELK: 64)" },
+  "elk.overlapRemoval.maxIterations":             { default: 16, effect: "Stress, Radial: iterations of the overlap removal after it (ELK: 64)" },
 };
 // An ELK algorithm whose options another reads, because that one runs it: Stress starts from a Force layout.
 /** @type {Record<string, string[]>} */
@@ -665,11 +665,12 @@ function _runELK(graph, eo, parentMap, boxes, edges, log) {
     layouted = run(elkGraph, `ELK result (Radial second run, radius ${radius})`);
   }
 
-  // Stress places elements by connection length only and leaves them on top of each other. ELK SPOrE
-  // moves them apart to Element distance (positions only) and draws the connections straight again.
-  if (eo.algorithmId === "stress") {
+  // Stress places elements by connection length only and leaves them on top of each other; Radial
+  // puts many elements on one ring without moving them apart (view 5: 39 pairs). ELK SPOrE moves them
+  // apart to Element distance (positions only) and draws the connections straight again.
+  if (eo.algorithmId === "stress" || eo.algorithmId === "radial") {
     layouted.layoutOptions = Object.assign({}, layouted.layoutOptions, { "elk.algorithm": "sporeOverlap" });
-    layouted = run(layouted, "ELK result (Stress overlap removal)");
+    layouted = run(layouted, `ELK result (${graph.algorithm} overlap removal)`);
   }
   return { layouted, edgeMeta };
 }

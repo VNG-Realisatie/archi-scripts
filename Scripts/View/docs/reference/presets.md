@@ -92,7 +92,7 @@ ELK core options (`elk.padding`, `elk.spacing.*`, …) are not checked against t
 | ELK | `elk.layered.feedbackEdges`<br>Layered: connections against the flow leave and enter on the flow sides | true | — |
 | ELK | `elk.spacing.nodeSelfLoop`<br>Distance between an element and its self-loops (px) | 40 | — |
 | ELK | `elk.force.iterations`<br>Stress: iterations of the force layout it starts from (ELK: 300) | 30 | — |
-| ELK | `elk.overlapRemoval.maxIterations`<br>Stress: iterations of the overlap removal after it (ELK: 64) | 16 | — |
+| ELK | `elk.overlapRemoval.maxIterations`<br>Stress, Radial: iterations of the overlap removal after it (ELK: 64) | 16 | — |
 | Dagre | `rankdir`<br>Direction of the layers: tb, bt, lr, rl | tb | Direction |
 | Dagre | `ranker`<br>Layer assignment: network-simplex, tight-tree, longest-path | network-simplex | Ranking |
 | Dagre | `acyclicer`<br>Cycle breaking: unset = depth-first, greedy | unset | Cycles |

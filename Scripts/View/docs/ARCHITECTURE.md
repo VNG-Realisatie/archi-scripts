@@ -469,7 +469,7 @@ Realisation of the other decisions: [ELK](#elk).
 |---|---|
 | Placement offers *Centred* (default) and *Straight lines*, without a balanced straight-line variant. | Measured, the balanced variant equals *Centred* in a tree and gives the fewest straight lines elsewhere: a choice without a distinct result. *Centred* is at least as good in a tree and puts the root in the middle. |
 | Tree routing offers *Straight* (no bendpoints; Archi draws the line) and *Splines*. | Adapter-drawn orthogonal and polyline lines between mrtree's end points looked poor next to Layered (test case 6); a straight line is what the tree itself implies. |
-| Stress runs ELK SPOrE after the layout. | ELK Stress ignores the element distance and has no overlap removal (test case 8). SPOrE moves elements apart, positions only, within the no-scaling rule. |
+| Stress and Radial run ELK SPOrE after the layout. | ELK Stress ignores the element distance and has no overlap removal (test case 8); Radial puts many elements on one ring without moving them apart (39 overlapping pairs on the test model's view 5). SPOrE moves elements apart, positions only, within the no-scaling rule. |
 | Stress and its overlap removal run far fewer iterations than ELK's defaults. | Speed over the last overlap: ELK Stress starts from a full force layout, which took 25 of its 29 s on 561 elements, and the overlap removal ran nearly all its iterations. Shorter, the run took 6.8 s instead of 38 s at about the same view size, with 2 pairs of elements left overlapping instead of none. |
 | Network has no ELK Force. | Same principle as FDP, but slower, messier, without overlap removal or routing around elements (test case 8). Stress stays as the Network algorithm that needs no Graphviz. |
 
