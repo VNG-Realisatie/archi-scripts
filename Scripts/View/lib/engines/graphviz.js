@@ -39,6 +39,8 @@ const GRAPHVIZ_ALGORITHMS = new Set(
   Object.entries(ALGORITHMS).filter(([, v]) => v.engine === "Graphviz").map(([k]) => k)
 );
 
+// Algorithms that apply ratio only to a graph of one part: with more, a second run applies it.
+const RATIO_SECOND_RUN = new Set(["Neato", "SFDP"]);
 const GRAPHVIZ_EDGE_CLEARANCE_ORTHO  = '+24';
 const GRAPHVIZ_EDGE_CLEARANCE_CURVED = '+8';
 // Settings outside the dialog (engineParams.Graphviz): the only Graphviz attribute the adapter reads,
@@ -171,13 +173,15 @@ function layout(graph, runProcess) {
   console.log(`Running Graphviz (${alg.engineAlgorithmId})...`);
   console.log(`  DOT graph attrs: ${_graphLine.trim()}`);
 
-  // circo removes overlap only in a graph of one part; with more parts (a note, an unconnected
-  // element) Graphviz itself removes it in a second run: neato -n1 keeps circo's positions, applies
-  // the same overlap and sep, and routes the connections again.
-  const secondRun = graph.algorithm === "Circo" && _partCount(graph) > 1;
-  if (secondRun) console.log("  More than one part: overlap removed and connections routed in a second run (neato -n1)");
+  // circo removes overlap only in a graph of one part, and neato and sfdp apply ratio only to a graph
+  // of one part (they lay out and pack each part on its own). With more parts (a note, an unconnected
+  // element) Graphviz itself does it in a second run: neato -n1 keeps the first run's positions, applies
+  // the same overlap, sep and ratio, and routes the connections again.
+  const ratioOnParts = RATIO_SECOND_RUN.has(graph.algorithm) && (graph.options.aspectRatio || 0) > 0;
+  const secondRun = (graph.algorithm === "Circo" || ratioOnParts) && _partCount(graph) > 1;
+  if (secondRun) console.log(`  More than one part: ${ratioOnParts ? "aspect ratio" : "overlap removal"} and connections in a second run (neato -n1)`);
   const jsonOut = secondRun
-    ? _runDot(runProcess, _runGraphviz(runProcess, dotSource, ["-Kcirco", "-Tdot"]), ["-Kneato", "-n1"])
+    ? _runDot(runProcess, _runGraphviz(runProcess, dotSource, ["-K" + alg.engineAlgorithmId, "-Tdot"]), ["-Kneato", "-n1"])
     : _runDot(runProcess, dotSource, ["-K" + alg.engineAlgorithmId]);
   const _rawBb  = String(jsonOut.bb || "—");
   const _bbParts = _rawBb.split(",").map(parseFloat);
