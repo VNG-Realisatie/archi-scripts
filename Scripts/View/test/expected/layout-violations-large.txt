@@ -1,4 +1,4 @@
-Tree 5 Large: count: 162 connections promised, 145 planned
+Tree 5 Large: count: 162 connections promised, 160 planned
 Stress 5 Large: count: 442 connections promised, 440 planned
 Radial 5 Large: overlap: id-1c2190f493654f76b7590798f5bc1c5c and id-7b04ae94b9484704870e4353422d9787 by 58 px
 Radial 5 Large: overlap: id-8ee23f399a3744038a2b36d695eb365d and id-f4929d07cd374c1b945d4b718fd414c9 by 57 px
@@ -39,9 +39,9 @@ Radial 5 Large: overlap: id-61699e4bd113481da9fb92e10be34dff and id-b41239f5ce80
 Radial 5 Large: overlap: id-cc5abd4a19bc49a1b2686492b28c16d9 and id-d39e8c7c852c476abe150ef7b29e2833 by 60 px
 Radial 5 Large: overlap: id-88833ad3fb2148c88ed725352d409f4f and id-d4053155975241ce873c29be2a66d370 by 52 px
 Radial 5 Large: overlap: id-cb30c66b309a43dfb5e5fb987108bdd5 and id-e9f1b86ee69d49c6840f5547e0d22bbc by 60 px
-Radial 5 Large: count: 442 connections promised, 299 planned
-Grid 5 Large: count: 162 connections promised, 15 planned
-Pack 5 Large: count: 162 connections promised, 15 planned
+Radial 5 Large: count: 442 connections promised, 440 planned
+Grid 5 Large: count: 162 connections promised, 160 planned
+Pack 5 Large: count: 162 connections promised, 160 planned
 Tiles 5 Large: count: 162 connections promised, 160 planned
 Dagre 5 Large: outside: id-b06b084f18954fd582eda93cc401874c out of id-a688f622b26443afb999e5dfb75ad135 at top 1640 px
 Dagre 5 Large: outside: id-389c2e47483545c2a87845a98109024f out of id-a688f622b26443afb999e5dfb75ad135 at top 1540 px

@@ -1,1 +1,24 @@
-
+baseline new_view 4 Parts Grid: line through: line from App 1 to Invoicing through Spoke 1
+baseline new_view 4 Parts Grid: line through: line from App 1 to Invoicing through Spoke 2
+baseline new_view 4 Parts Grid: line through: line from App 1 to Invoicing through Loner A
+baseline new_view 4 Parts Grid: line through: line from App 1 to Invoicing through Express
+baseline new_view 4 Parts Grid: line through: line from Platform to App 1 through Spoke 1
+baseline new_view 4 Parts Grid: line through: line from Platform to App 1 through Store
+baseline new_view 4 Parts Grid: line through: line from Platform to App 1 through Billing
+baseline new_view 4 Parts Grid: line through: line from Platform to App 1 through Pack
+baseline new_view 4 Parts Grid: line through: line from Platform to App 3 through Spoke 2
+baseline new_view 4 Parts Grid: line through: line from Platform to App 3 through Loner A
+baseline new_view 4 Parts Grid: line through: line from Platform to App 3 through Check
+baseline new_view 4 Parts Grid: line through: line from Platform to App 3 through Pick
+baseline new_view 4 Parts Grid: line through: line from Broker to Store through Spoke 2
+baseline new_view 4 Parts Grid: label over: label at 924,37 over Broker
+baseline new_view 4 Parts Grid: line through: line from Hub to Spoke 3 through Spoke 1
+baseline new_view 4 Parts Grid: line through: line from Hub to Spoke 3 through Spoke 2
+baseline new_view 4 Parts Grid: line through: line from Hub to Spoke 4 through Spoke 1
+baseline new_view 4 Parts Grid: line through: line from Hub to Spoke 4 through Spoke 2
+baseline new_view 4 Parts Grid: line through: line from Hub to Spoke 4 through Spoke 3
+baseline new_view 4 Parts Grid: line through: line from Hub to Spoke 2 through Spoke 1
+baseline new_view 4 Parts Grid: line through: line from Check to Act through Billing
+baseline new_view 4 Parts Grid: line through: line from Order to Pick through Pack
+baseline new_view 4 Parts Grid: line through: line from Pack to Ship through Pick
+baseline new_view 4 Parts Grid: line through: line from Pack to Ship through Plan

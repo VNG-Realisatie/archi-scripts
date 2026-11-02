@@ -267,7 +267,7 @@ function _planConnections(preset, objectSet, graph, result, ctx) {
   const blockRef = id => (id && ctx.visualIds.has(id) ? { visual: id } : nodeRef(id || ""));
   /** @type {ConnectionWrite[]} */
   const out = [];
-  for (const re of result.edges) {
+  for (const re of _resultEdges(graph, result)) {
     const dc = diagramConnById.get(re.id);
     if (dc) {
       // A note's line: no relation behind it. One on the target view is restyled; one read from
@@ -297,6 +297,23 @@ function _planConnections(preset, objectSet, graph, result, ctx) {
     out.push(id ? { id, style } : { relation, source, target, style });
   }
   return out;
+}
+
+/**
+ * The result's edges, and a straight one for every edge of the layout graph the engine returns none
+ * for (Grid and Pack place elements only; Radial lays out a spanning tree): Archi draws it from
+ * border to border, so the view holds every connection the totals promise.
+ * @param {LayoutGraph}  graph
+ * @param {LayoutResult} result
+ * @returns {LayoutResultEdge[]}
+ */
+function _resultEdges(graph, result) {
+  const routed = new Set(result.edges.map(e => e.id));
+  const straight = graph.edges.filter(e => !routed.has(e.id)).map(e => ({
+    id: e.id, conceptId: e.conceptId, sourceId: e.source, targetId: e.target,
+    bendpoints: [], labelX: 0, labelY: 0, isStraight: true,
+  }));
+  return [...result.edges, ...straight];
 }
 
 /**
