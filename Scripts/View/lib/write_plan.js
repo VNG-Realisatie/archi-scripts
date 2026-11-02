@@ -433,14 +433,22 @@ function _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, atEnd, params) {
   // Room for the end symbols (not on orthogonal lines, whose corners are the route): bendpoints
   // near an element or near each other go, and label points are added from END_ROOM outwards.
   let bps = re.bendpoints, srcPort = re.srcPort, tgtPort = re.tgtPort;
-  if (params.routing !== "Orthogonal") {
-    const [startBox, endBox] = reversed ? [tgtBox, srcBox] : [srcBox, tgtBox];
+  const [startBox, endBox] = reversed ? [tgtBox, srcBox] : [srcBox, tgtBox];
+  const orthogonal = params.routing === "Orthogonal";
+  if (!orthogonal) {
     bps = _clearEnds(bps, startBox, endBox);
     if (bps.length === 0) return unrouted;
     srcPort = _roomPoint(startBox, bps[0]);
     tgtPort = _roomPoint(endBox, bps[bps.length - 1]);
+  } else if (srcPort && tgtPort) {
+    // An orthogonal line keeps the engine's corners: label points stay END_ROOM from its ends, on its own segments.
+    srcPort = _alongRoom(srcPort, bps[0]);
+    tgtPort = _alongRoom(tgtPort, bps[bps.length - 1]);
   }
-  const routed = atEnd ? bps : _insertLabelMidpointBp(bps, srcCenter, tgtCenter, re.labelX, re.labelY, srcPort, tgtPort);
+  let routed = atEnd ? bps : _insertLabelMidpointBp(bps, srcCenter, tgtCenter, re.labelX, re.labelY, srcPort, tgtPort);
+  // An end segment too short for the room: the label takes Archi's middle instead of points in the end room.
+  const inEndRoom = (/** @type {Point} */ p) => _boxDistance(p, startBox) < CONNECTION_END_ROOM || _boxDistance(p, endBox) < CONNECTION_END_ROOM;
+  if (orthogonal && routed.some(p => !bps.includes(p) && inEndRoom(p))) routed = bps;
   const relative = routed.map(bp => ({
     startX: Math.round(bp.x - srcCenter.x),
     startY: Math.round(bp.y - srcCenter.y),
@@ -586,6 +594,20 @@ function _boxDistance(p, b) {
   const dx = Math.max(b.x - p.x, 0, p.x - (b.x + b.width));
   const dy = Math.max(b.y - p.y, 0, p.y - (b.y + b.height));
   return Math.hypot(dx, dy);
+}
+
+/**
+ * The point CONNECTION_END_ROOM from a line's end along its end segment; the end itself when the
+ * segment is not longer.
+ * @param {Point} end     where the line leaves or enters the element
+ * @param {Point} toward  the first bendpoint from that end
+ * @returns {Point}
+ */
+function _alongRoom(end, toward) {
+  const len = Math.hypot(toward.x - end.x, toward.y - end.y);
+  if (len <= CONNECTION_END_ROOM) return end;
+  const k = CONNECTION_END_ROOM / len;
+  return { x: Math.round(end.x + (toward.x - end.x) * k), y: Math.round(end.y + (toward.y - end.y) * k) };
 }
 
 /**

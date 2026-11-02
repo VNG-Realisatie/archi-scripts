@@ -1,16 +1,30 @@
 Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-ccd3b9eb11674513bcf89576cf92e4b4 first segment 8 px, 84° off the next
+Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-ccd3b9eb11674513bcf89576cf92e4b4 last segment 8 px, 84° off the next
 Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-3111cf4d80904249b5882d0769b41113 first segment 10 px, 95° off the next
+Dot 5 Large: end room: flow-relationship id-9ed870b5247d481ba6f73bc3f4e33a75→id-3111cf4d80904249b5882d0769b41113 last segment 10 px, 83° off the next
 Dot 5 Large: end room: flow-relationship id-a3aa31ab79d845bdb2374315acb4f33f→id-64aa6e626c9b48dd8b8373d86f43ec20 first segment 10 px, 90° off the next
 Dot 5 Large: end room: flow-relationship id-1d812b6e38cf4b1d8b782846e0aaef96→id-6a690ec4bdda488f9bcd47fdf74beb8e first segment 6 px, 90° off the next
 Dot 5 Large: end room: flow-relationship id-4d75e3ce6007427e863878716c561926→id-389c2e47483545c2a87845a98109024f first segment 4 px, 80° off the next
 Dot 5 Large: end room: flow-relationship id-ae872888587c49b4b6879dca5b7f97e0→id-bb5aa74ed30342b3bff6e509332e2214 first segment 7 px, 90° off the next
-Dot 5 Large: end room: flow 100 id-41decb303c8440258e28cc8d7d5cd87a→id-7b04ae94b9484704870e4353422d9787 last segment 3 px, 11° off the next
-Dot 5 Large: end room: flow-relationship id-eb8e439377ce4f4e89bc9add0296f312→id-36a9fb337f1d448f80ef930e914b939d last segment 6 px, 10° off the next
+Dot 5 Large: end room: flow-relationship id-ae872888587c49b4b6879dca5b7f97e0→id-bb5aa74ed30342b3bff6e509332e2214 last segment 7 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-df078e14b9f8475ca19dff8aa062c274→id-acf436c54a0246ceb9b98564e64c22f2 last segment 3 px, 84° off the next
+Dot 5 Large: end room: flow 100 id-41decb303c8440258e28cc8d7d5cd87a→id-7b04ae94b9484704870e4353422d9787 last segment 6 px, 79° off the next
 Dot 5 Large: end room: flow-relationship id-7bae02bb385b4e85aa31fcc2b98ae3a2→id-eb8e439377ce4f4e89bc9add0296f312 first segment 2 px, 84° off the next
+Dot 5 Large: end room: flow-relationship id-7bae02bb385b4e85aa31fcc2b98ae3a2→id-eb8e439377ce4f4e89bc9add0296f312 last segment 2 px, 82° off the next
 Dot 5 Large: end room: flow-relationship id-374e484f897243deacd7d9a944904619→id-5276b98cf61c451d912a96e2f0591f0b first segment 3 px, 82° off the next
+Dot 5 Large: end room: flow-relationship id-374e484f897243deacd7d9a944904619→id-5276b98cf61c451d912a96e2f0591f0b last segment 3 px, 82° off the next
 Dot 5 Large: end room: flow-relationship id-a0a7b53562d64317b84529954c0e7477→id-761b737741b74657bc2a7246a10545d5 first segment 9 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-a0a7b53562d64317b84529954c0e7477→id-761b737741b74657bc2a7246a10545d5 last segment 9 px, 90° off the next
 Dot 5 Large: end room: flow-relationship id-925620e192d740e08dab24167adebd8e→id-40bf4ceaa8e04c4abf9ce95344e88a38 first segment 4 px, 95° off the next
+Dot 5 Large: end room: flow-relationship id-925620e192d740e08dab24167adebd8e→id-40bf4ceaa8e04c4abf9ce95344e88a38 last segment 4 px, 82° off the next
 Dot 5 Large: end room: flow-relationship id-81e7610a161048009a8e8b2237f5b0ba→id-ece19c120fbd40b2a3a865ba44c434a2 first segment 6 px, 85° off the next
+Dot 5 Large: end room: flow-relationship id-81e7610a161048009a8e8b2237f5b0ba→id-ece19c120fbd40b2a3a865ba44c434a2 last segment 6 px, 93° off the next
+Dot 5 Large: end room: flow-relationship id-6276064fba3040d2bd7ef290202b2e36→id-96bd9994f323494ebb8fab6533f1c5a8 last segment 2 px, 84° off the next
 Dot 5 Large: end room: flow 60 id-f76c708009404e939ea5e0fdd1ca5511→id-adf09369b9dc43d9b8c9ad85e1402513 first segment 6 px, 90° off the next
+Dot 5 Large: end room: flow 60 id-f76c708009404e939ea5e0fdd1ca5511→id-adf09369b9dc43d9b8c9ad85e1402513 last segment 6 px, 90° off the next
 Dot 5 Large: end room: flow-relationship id-6371862843ae4069aa6bc2ac717d626e→id-602b31a83e2143649202c08ecd7cbae5 first segment 5 px, 82° off the next
-Dot 5 Large: self-loop: id-367ff694ad574e4e846b5d44519fc338 has 5 bendpoints inside id-fbb94d1231ef4ac0906e3a64ddb92901
+Dot 5 Large: end room: flow-relationship id-6371862843ae4069aa6bc2ac717d626e→id-602b31a83e2143649202c08ecd7cbae5 last segment 5 px, 90° off the next
+Dot 5 Large: end room: flow-relationship id-bbf20b56bcd34fca825c343413ba847d→id-dcdb09e380774256a2d9ed8dbd73dbdd last segment 6 px, 90° off the next
+Dot 5 Large: end room: flow 70 id-a2d952e441b04e0fb9800f23237ef08d→id-a4896154611b4e1d9f99972001099c45 last segment 10 px, 85° off the next
+Dot 5 Large: end room: flow-relationship id-8b9537aea59e4f1aab316de1cf5c893e→id-eb0ee364f77740eaaa409acc8952b15f last segment 8 px, 82° off the next
+Dot 5 Large: self-loop: id-367ff694ad574e4e846b5d44519fc338 has 4 bendpoints inside id-fbb94d1231ef4ac0906e3a64ddb92901
