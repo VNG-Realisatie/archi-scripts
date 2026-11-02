@@ -1,0 +1,14 @@
+Layered 1 Nesting direction=Down: size: Handle request 200×60 became 200×75
+Layered 2 Edited direction=Down: size: Handle request 200×60 became 200×75
+Layered 1 Nesting direction=Up: size: Handle request 200×60 became 200×75
+Layered 2 Edited direction=Up: size: Handle request 200×60 became 200×75
+Dot 1 Nesting direction=Left: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 2 Edited direction=Left: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 1 Nesting labelPosition=Source: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 2 Edited labelPosition=Source: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 1 Nesting labelPosition=Target: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 2 Edited labelPosition=Target: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 1 Nesting labelPosition=Natural: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 2 Edited labelPosition=Natural: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+Dot 1 Nesting aspectRatio=0.5: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 11 px, 50° off the next
+Dot 2 Edited aspectRatio=0.5: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 10 px, 43° off the next

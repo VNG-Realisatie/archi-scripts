@@ -5,7 +5,7 @@
  * something changed.
  *
  * Elements (the layout result):
- *   size       a leaf keeps the size of the layout graph (SPEC rule 1)
+ *   size       a leaf keeps the size of the layout graph (SPEC rule 1); Same width per level only widens
  *   overlap    no two siblings overlap
  *   outside    a child lies inside its container
  *   padding    and at least Padding from its sides
@@ -15,13 +15,16 @@
  *   end room   the first and last segment are at least CONNECTION_END_ROOM long, or run on in the
  *              direction of the next, so the end symbol takes its direction from the line (test case 13)
  *   label      a Middle label sits where the line passes closest to the engine's label point: Archi puts it
- *              at the middle of the drawn points (a line without bendpoints: Archi's middle, not checked)
+ *              at the middle of the drawn points (not checked: a line without bendpoints, whose label is at
+ *              Archi's middle, and a label point in the end room, which the writer keeps free)
  *   self-loop  an algorithm without self-loops writes none; with them, the loop has bendpoints, none
  *              inside the element (else Archi draws it inside)
  *
- * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--in-process] [--check | --write]
+ * --variants: the variants of baseline.json instead (variants.js, as write_plans.js --variants).
+ *
+ * Run: node Scripts/View/tools/layout_checks.js [model.archimate] [--variants] [--in-process] [--check | --write]
  * Exit 1 when a rule is broken; each violation is one line. --check compares them with the known violations
- * in test/expected/layout-violations.txt (findings not fixed yet; expected.js), --write rewrites that list.
+ * in test/expected/layout-violations[-variants].txt (findings not fixed yet; expected.js), --write rewrites it.
  */
 const fs = require("fs");
 const path = require("path");
@@ -33,6 +36,7 @@ console.log = (/** @type {any} */ m) => { captured.push(String(m)); };   // the 
 const H        = require(path.join(__dirname, "view_harness.js"));
 const Defs     = require(path.join(__dirname, "..", "lib", "defs.js"));
 const Expected = require(path.join(__dirname, "expected.js"));
+const Variants = require(path.join(__dirname, "variants.js"));
 
 const TOLERANCE = 1;   // px: rounding in the adapters and the writer
 const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
@@ -44,32 +48,56 @@ const presets = fs.readdirSync(presetDir).filter(f => f.endsWith(".json")).sort(
 const VIEWS = ["1 Nesting", "2 Edited", "3 Network"];
 const ACTIONS = [Defs.ACTION.NEW_VIEW.id, Defs.ACTION.EXPAND_VIEW.id, Defs.ACTION.LAYOUT_ONLY.id];
 
+const variants = process.argv.includes("--variants");
 /** @type {string[]} */
 const violations = [];
 let runs = 0;
-for (const file of presets) {
-  for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
-    const raw = JSON.parse(fs.readFileSync(path.join(presetDir, file), "utf8"));
-    raw.algorithm = algorithm;
-    const preset = Defs.validatePreset(raw);
-    for (const viewName of VIEWS) {
-      for (const action of ACTIONS) {
-        const tag = `${file} ${algorithm} ${viewName} ${action}`;
-        const view = H.findView(model, "Views/Test/" + viewName);
-        captured = [];
-        const planned = H.planView(model, view, preset, action, inProcess);
-        if (!planned) continue;
-        runs++;
-        const again = algorithm in Expected.UNSTABLE_ALGORITHMS ? null : H.planView(model, view, preset, action, inProcess);
-        for (const v of checkRun(planned, again, captured, algorithm)) violations.push(`${tag}: ${v}`);
+for (const run of variants ? _variantRuns() : _presetRuns()) {
+  const view = H.findView(model, "Views/Test/" + run.viewName);
+  captured = [];
+  const planned = H.planView(model, view, run.preset, run.action, inProcess);
+  if (!planned) continue;
+  runs++;
+  const again = run.algorithm in Expected.UNSTABLE_ALGORITHMS ? null : H.planView(model, view, run.preset, run.action, inProcess);
+  for (const v of checkRun(planned, again, captured, run.algorithm)) violations.push(`${run.tag}: ${v}`);
+}
+log(`${runs} runs, ${violations.length ? violations.length + " violations" : "no violations"}`);
+// --check: the known violations (findings not fixed yet) in test/expected/layout-violations[-variants].txt
+const knownFile = variants ? "layout-violations-variants.txt" : "layout-violations.txt";
+if (process.argv.includes("--check") || process.argv.includes("--write")) Expected.report(violations, knownFile, log);
+else { violations.forEach(v => log(v)); if (violations.length) process.exitCode = 1; }
+
+/** @typedef {{tag: string, preset: object, algorithm: string, viewName: string, action: string}} Run */
+
+/** Every preset × algorithm × view × action, as write_plans.js. @returns {Run[]} */
+function _presetRuns() {
+  /** @type {Run[]} */
+  const out = [];
+  for (const file of presets) {
+    for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
+      const raw = JSON.parse(fs.readFileSync(path.join(presetDir, file), "utf8"));
+      const preset = Defs.validatePreset({ ...raw, algorithm });
+      for (const viewName of VIEWS) {
+        for (const action of ACTIONS) out.push({ tag: `${file} ${algorithm} ${viewName} ${action}`, preset, algorithm, viewName, action });
       }
     }
   }
+  return out;
 }
-log(`${runs} runs, ${violations.length ? violations.length + " violations" : "no violations"}`);
-// --check: the known violations (findings not fixed yet) in test/expected/layout-violations.txt
-if (process.argv.includes("--check") || process.argv.includes("--write")) Expected.report(violations, "layout-violations.txt", log);
-else { violations.forEach(v => log(v)); if (violations.length) process.exitCode = 1; }
+
+/** The variants of baseline.json, New view, as write_plans.js --variants. @returns {Run[]} */
+function _variantRuns() {
+  const raw = JSON.parse(fs.readFileSync(path.join(presetDir, "baseline.json"), "utf8"));
+  /** @type {Run[]} */
+  const out = [];
+  for (const algorithm of Object.keys(Defs.ALGORITHMS)) {
+    for (const variant of Variants.variantsOf(algorithm, Defs.validatePreset({ ...raw, algorithm }).params)) {
+      const preset = Defs.validatePreset({ ...raw, algorithm, params: variant.params });
+      for (const viewName of VIEWS) out.push({ tag: `${algorithm} ${viewName} ${variant.name}`, preset, algorithm, viewName, action: Defs.ACTION.NEW_VIEW.id });
+    }
+  }
+  return out;
+}
 
 /**
  * Every rule on one run.
@@ -99,10 +127,12 @@ function checkRun(planned, again, console, algorithm) {
  */
 function _sizes(graph, byId) {
   const parents = new Set(Object.values(graph._parentMap));
+  // Same width per level widens leaves to their level's width in the engine (ARCHITECTURE § Sizing).
+  const widthOk = graph.alignWidthSameType ? (/** @type {number} */ w, /** @type {number} */ w0) => w >= w0 : (/** @type {number} */ w, /** @type {number} */ w0) => w === w0;
   return graph.nodes.filter(n => !parents.has(n.id)).flatMap(n => {
     const r = byId.get(n.id);
     if (!r) return [`size: ${n.label} not in the result`];
-    return r.width === n.width && r.height === n.height ? [] : [`size: ${n.label} ${n.width}×${n.height} became ${r.width}×${r.height}`];
+    return widthOk(r.width, n.width) && r.height === n.height ? [] : [`size: ${n.label} ${n.width}×${n.height} became ${r.width}×${r.height}`];
   });
 }
 
@@ -189,9 +219,12 @@ function _lines(writePlan, result, byId, params) {
       }
     }
     const re = edgeById.get(c.relation.id);
-    // A line without bendpoints gets no label points: Archi's middle is the label's place.
-    if (middle && re && (re.labelX || re.labelY) && c.relation.name && c.style.bendpoints.length) {
-      const label = { x: re.labelX, y: re.labelY }, m = _middle(points);
+    // A line without bendpoints gets no label points: Archi's middle is the label's place. Nor does a
+    // label point in the end room the writer keeps free (or inside an element).
+    const label = re ? { x: re.labelX, y: re.labelY } : null;
+    if (middle && re && label && (re.labelX || re.labelY) && c.relation.name && c.style.bendpoints.length &&
+        Math.min(_boxDistance(label, src), _boxDistance(label, tgt)) >= Defs.CONNECTION_END_ROOM) {
+      const m = _middle(points);
       const off = Math.hypot(m.x - label.x, m.y - label.y) - _lineDistance(label, points);
       if (off > 2) out.push(`label: ${name} drawn ${Math.round(off)} px further from the label point than the line`);
     }
@@ -289,6 +322,11 @@ function _turn(a, b, c) {
 /** The writer's centre (write_plan.js rounds it). @param {Box} b */
 function _center(b) {
   return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
+}
+
+/** Distance from a point to a box; 0 inside (as write_plan.js). @param {Point} p @param {Box} b */
+function _boxDistance(p, b) {
+  return Math.hypot(Math.max(b.x - p.x, 0, p.x - (b.x + b.width)), Math.max(b.y - p.y, 0, p.y - (b.y + b.height)));
 }
 
 /** @param {Point} p @param {Box} b */
