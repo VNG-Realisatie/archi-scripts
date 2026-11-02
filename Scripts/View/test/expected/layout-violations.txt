@@ -1,0 +1,6 @@
+AlgoTwopi.json Dot 1 Nesting new_view: self-loop: id-352b2542f7944741ba7ad596182df96a without bendpoints, drawn inside id-0148539ca743472c9919b39d757d0bdf
+AlgoTwopi.json Dot 2 Edited new_view: self-loop: id-352b2542f7944741ba7ad596182df96a without bendpoints, drawn inside id-0148539ca743472c9919b39d757d0bdf
+baseline.json Dot 1 Nesting new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+baseline.json Dot 2 Edited new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+counters.json Dot 1 Nesting new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
+counters.json Dot 2 Edited new_view: end room: reads id-6c4b4c6f12cb44439e95a8edf42ecfd1→id-0b8c942b3aba44659e32fd226e7f6538 first segment 7 px, 18° off the next
