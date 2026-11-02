@@ -1297,6 +1297,7 @@ function _straightenJogs(path) {
  */
 function _emitEdgeResult(rec, meta, resultEdges, labelPosition, isSplines) {
   const { edge, sections } = rec;
+  if (edge._archiRelId === null) return;   // Radial's helper edge joining two parts: no connection of the graph
   const originalId = edge._archiRelId || edge.id;
   const first = sections[0], last = sections[sections.length - 1];
   const rnd = (/** @type {Point} */ p) => ({ x: Math.round(p.x), y: Math.round(p.y) });
