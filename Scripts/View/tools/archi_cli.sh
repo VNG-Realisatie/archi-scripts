@@ -2,8 +2,9 @@
 # Run a jArchi script in Archi's command line (no window) on a scratch copy of a model, next to an open Archi.
 #
 # Usage: Scripts/View/tools/archi_cli.sh <script.ajs> [model.archimate] [out dir]
-#   model:   default Scripts/View/test/model/view-test.archimate; copied, never changed in place
-#   out dir: default a new temporary folder; gets the copy (as the script saves it) and console.txt
+#   model:   default Scripts/View/test/model/view-test.archimate; copied, never changed in place (a model in the
+#            out dir is used as it is: a later step on a copy)
+#   out dir: default a new temporary folder; gets the copy (as the script saves it) and <script>.console.txt
 #   ARCHI_HOME: the Archi folder, default ~/Tools/Archi
 # Prints the out dir; the exit code is Archi's.
 #
@@ -18,12 +19,12 @@ out=${3:-$(mktemp -d)}
 archi=${ARCHI_HOME:-$HOME/Tools/Archi}
 
 mkdir -p "$out"
-cp "$model" "$out/"
-copy="$out/$(basename "$model")"
+copy="$(realpath "$out")/$(basename "$model")"
+[ "$model" = "$copy" ] || cp "$model" "$copy"   # a model already in the out dir is the copy (a later step on it)
 
 status=0
 GDK_BACKEND=x11 GTK_THEME=Adwaita SWT_GTK3=1 GTK_IM_MODULE=ibus GTK_OVERLAY_SCROLLING=0 UBUNTU_MENUPROXY=0 \
   "$archi/Archi" -application com.archimatetool.commandline.app -consoleLog -nosplash \
-  --loadModel "$copy" --script.runScript "$script" > "$out/console.txt" 2>&1 || status=$?
+  --loadModel "$copy" --script.runScript "$script" > "$out/$(basename "$script" .ajs).console.txt" 2>&1 || status=$?
 echo "$out"
 exit $status

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Checks the console of a run in Archi's command line (tools/archi_cli.sh writes it to console.txt):
+ * Checks the console of a run in Archi's command line (tools/archi_cli.sh writes it to <out dir>/<script>.console.txt):
  *   - count promise: per written view the pipeline's "Total to view" equals the writer's "Objects on view"
  *     (elements with their extra occurrences, connections, nestings, diagram objects, diagram connections);
  *   - no line marked "ERROR: " (the test script marks console.error, which the command line does not);
  *   - the ⚠ and "Warning:" lines equal test/expected/<script>-warnings.txt (expected.js: --check / --write);
  *   - prints Archi's time per view (the "Timing" lines), for the record only.
  *
- * Run: node Scripts/View/tools/console_checks.js <console.txt> [--check | --write]
+ * Run: node Scripts/View/tools/console_checks.js <script.console.txt> [--check | --write]
  * Exit 1 on a count difference, an error line, or (with --check) other warnings.
  */
 const fs = require("fs");
@@ -17,7 +17,7 @@ const Expected = require(path.join(__dirname, "expected.js"));
 const FIELDS = ["elements", "connections", "nestings", "diagram objects", "diagram connections"];
 
 const file = process.argv.slice(2).find(a => !a.startsWith("--"));
-if (!file) { console.error("usage: node Scripts/View/tools/console_checks.js <console.txt> [--check | --write]"); process.exit(2); }
+if (!file) { console.error("usage: node Scripts/View/tools/console_checks.js <script.console.txt> [--check | --write]"); process.exit(2); }
 const lines = fs.readFileSync(file, "utf8").split("\n");
 const scriptLine = lines.find(l => l.startsWith("Running script:"));
 if (!scriptLine) { console.error(`${file}: no "Running script:" line, not a jArchi script's console`); process.exit(2); }

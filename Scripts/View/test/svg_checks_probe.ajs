@@ -1,0 +1,36 @@
+/**
+ * A view with one case of every defect tools/svg_checks.js looks for, in Views/Baseline of a copy of the
+ * test model: a name cut off, a child sticking out of its container, an end symbol turned by a short stub,
+ * a line through an element and a label over it. Checks the checks:
+ *   Scripts/View/tools/archi_cli.sh Scripts/View/test/svg_checks_probe.ajs "" <out dir>
+ *   Scripts/View/tools/archi_cli.sh Scripts/View/test/render_views.ajs <out dir>/view-test.archimate <out dir>
+ *   node Scripts/View/tools/svg_checks.js <out dir>/render <out dir>/view-test.archimate --check=svg-probe.txt
+ * Never on the test model itself: archi_cli.sh works on a copy.
+ */
+const baseline = $("folder.Baseline").first();
+$(baseline).children().delete();   // only the probe is rendered and checked
+const v = model.createArchimateView("svg checks probe", baseline);
+const role = (/** @type {string} */ name) => model.createElement("business-role", name);
+
+// text cut: three lines of name in a 55 px high element
+const actor = model.createElement("business-actor", "Short");
+const long = role("A name that is far too long to fit in this small element, so it wraps onto many lines and is cut off at the bottom");
+const vActor = v.add(actor, 20, 20, 120, 55);
+v.add(model.createRelationship("assignment-relationship", "label one", actor, long), vActor, v.add(long, 300, 20, 120, 55));
+
+// clipped: a child 70 px out of its container
+const container = role("Container");
+v.add(container, 20, 200, 200, 120).add(role("Sticks out"), 150, 40, 120, 55);
+
+// end symbol: the last bendpoint just above-left of F's corner, a short stub at an angle
+const e = role("E"), f = role("F"), inTheWay = role("In the way"), h = role("H");
+const vE = v.add(e, 500, 400, 120, 55);
+v.add(model.createRelationship("serving-relationship", "", e, f), vE, v.add(f, 800, 300, 120, 55))
+  .addRelativeBendpoint({ startX: 237, startY: -132, endX: -63, endY: -32 }, 0);
+
+// line through, label over: the line to H and its label (at the bendpoint) run over "In the way"
+v.add(inTheWay, 520, 535, 120, 30);
+v.add(model.createRelationship("serving-relationship", "over it", e, h), vE, v.add(h, 900, 520, 120, 55))
+  .addRelativeBendpoint({ startX: 0, startY: 120, endX: -400, endY: 0 }, 0);
+
+model.save();

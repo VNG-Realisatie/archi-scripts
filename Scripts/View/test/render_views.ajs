@@ -1,0 +1,36 @@
+/**
+ * Render every view under Views/Baseline of the current model as SVG, as Archi draws it, for
+ * tools/svg_checks.js. Run through Archi's command line on the model a baseline run saved:
+ *   Scripts/View/tools/archi_cli.sh Scripts/View/test/render_views.ajs <out dir>/view-test.archimate <out dir>
+ * Writes <model folder>/render/<n>.svg and index.json (file → view path); with the environment variable
+ * RENDER_PNG=1 also a PNG per view (for a look at readability, not for a check).
+ */
+const System = Java.type("java.lang.System");
+const File   = Java.type("java.io.File");
+
+const out = new File(new File(model.getPath()).getParentFile(), "render");
+out.mkdirs();
+const png = System.getenv("RENDER_PNG") === "1";
+/** @type {Record<string, string>} */
+const index = {};
+let n = 0;
+const baseline = $("folder.Baseline").first();
+if (!baseline) throw new Error("No folder Views/Baseline in " + model.getPath());
+_walk(/** @type {Folder} */ (baseline), "Views/Baseline");
+$.fs.writeFile(new File(out, "index.json").getPath(), JSON.stringify(index, null, 1));
+console.log(`Rendered ${n} views to ${out.getPath()}`);
+
+/**
+ * @param {Folder} folder
+ * @param {string} folderPath
+ */
+function _walk(folder, folderPath) {
+  $(folder).children().each(c => {
+    if (c.type === "folder") { _walk(/** @type {Folder} */ (c), `${folderPath}/${c.name}`); return; }
+    if (c.type !== "archimate-diagram-model") return;
+    const name = `${++n}.svg`;
+    $.model.renderViewToSVG(/** @type {ArchimateView} */ (c), new File(out, name).getPath(), { setViewBox: true });
+    if (png) $.model.renderViewToFile(/** @type {ArchimateView} */ (c), new File(out, `${n}.png`).getPath(), "PNG", { scale: 1 });
+    index[name] = `${folderPath}/${c.name}`;
+  });
+}

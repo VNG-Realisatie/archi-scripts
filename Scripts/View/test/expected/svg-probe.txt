@@ -1,0 +1,6 @@
+svg checks probe: text cut: A name that is far too long to fit in this small element, so it wraps onto many lines and is cut off at the bottom: 15 px at the bottom
+svg checks probe: text cut: Sticks out: 41 px at the right
+svg checks probe: clipped: Sticks out 69 px at the right
+svg checks probe: end symbol: at 790,290 (F) 68° off its segment
+svg checks probe: line through: line from E to H through In the way
+svg checks probe: label over: label at 530,533 over In the way
