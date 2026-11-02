@@ -397,7 +397,9 @@ function _connectionStyle(re, srcBox, tgtBox, selfLoop, reversed, params) {
 /**
  * Self-loops (source === target) without an engine route get a synthesised loop: engine routing
  * for self-loops is unreliable across engines, and Archi's default draws the line inside the element.
- * A straight edge, or one without bendpoints, gets none: Archi draws it from border to border.
+ * A loop the engine routed but whose bendpoints all lie within the end room, or a straight one, counts
+ * as not routed. Any other straight edge, or one without bendpoints, gets none: Archi draws it from
+ * border to border.
  * @param {LayoutResultEdge} re
  * @param {Box}              srcBox
  * @param {Box}              tgtBox
@@ -408,8 +410,8 @@ function _connectionStyle(re, srcBox, tgtBox, selfLoop, reversed, params) {
  * @returns {Bendpoint[]}
  */
 function _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, atEnd, params) {
-  if (!re.bendpoints || re.bendpoints.length === 0) return selfLoop ? _selfLoopBendpoints(srcBox) : [];
-  if (re.isStraight) return [];
+  const unrouted = selfLoop ? _selfLoopBendpoints(srcBox) : [];
+  if (!re.bendpoints || re.bendpoints.length === 0 || re.isStraight) return unrouted;
   const srcCenter = _center(srcBox), tgtCenter = _center(tgtBox);
   // Room for the end symbols (not on orthogonal lines, whose corners are the route): bendpoints
   // near an element or near each other go, and label points are added from END_ROOM outwards.
@@ -417,7 +419,7 @@ function _bendpoints(re, srcBox, tgtBox, selfLoop, reversed, atEnd, params) {
   if (params.routing !== "Orthogonal") {
     const [startBox, endBox] = reversed ? [tgtBox, srcBox] : [srcBox, tgtBox];
     bps = _clearEnds(bps, startBox, endBox);
-    if (bps.length === 0) return [];
+    if (bps.length === 0) return unrouted;
     srcPort = _roomPoint(startBox, bps[0]);
     tgtPort = _roomPoint(endBox, bps[bps.length - 1]);
   }

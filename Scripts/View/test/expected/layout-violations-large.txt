@@ -65,4 +65,3 @@ Dot 5 Large: end room: flow-relationship id-81e7610a161048009a8e8b2237f5b0ba→i
 Dot 5 Large: end room: flow 60 id-f76c708009404e939ea5e0fdd1ca5511→id-adf09369b9dc43d9b8c9ad85e1402513 first segment 6 px, 90° off the next
 Dot 5 Large: end room: flow-relationship id-6371862843ae4069aa6bc2ac717d626e→id-602b31a83e2143649202c08ecd7cbae5 first segment 5 px, 82° off the next
 Dot 5 Large: self-loop: id-367ff694ad574e4e846b5d44519fc338 has 5 bendpoints inside id-fbb94d1231ef4ac0906e3a64ddb92901
-FDP 5 Large: self-loop: id-367ff694ad574e4e846b5d44519fc338 without bendpoints, drawn inside id-fbb94d1231ef4ac0906e3a64ddb92901
