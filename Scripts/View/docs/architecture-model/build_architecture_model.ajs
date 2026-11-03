@@ -1,0 +1,218 @@
+/**
+ * Build the View architecture model and save it as Scripts/View/docs/architecture-model/view-architecture.archimate.
+ *
+ * The content is in architecture_model.js: the modules of Scripts/View and its wrappers, their dependencies, the data
+ * they read and write, and the workflows of running, developing, testing and committing. The model has no views.
+ *
+ * Run in Archi (no selection needed); close the architecture model first if it is open. To change the model, edit
+ * architecture_model.js and rerun.
+ *
+ * Stable ids, so the model can be imported into another model again and again (Import › Another model into selected
+ * model merges by id; README.md): jArchi cannot set an id, so after saving, every id in the file is rewritten to
+ * "id-" + uuid5 of the object's key (element key, relation type and ends, folder path), as the GEMMA-kenniswerkplek
+ * export does. Every object gets the property "view-architecture export date"; sync_architecture_model.ajs removes
+ * from the target model what an older export left behind.
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const Common       = require(REPO_ROOT + "_lib/Common");
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
+const TestViews    = require(REPO_ROOT + "View/test/test_model_views");
+const Content      = require(REPO_ROOT + "View/docs/architecture-model/architecture_model");
+
+const MODEL_NAME = "View architecture";
+const MODEL_PATH = REPO_ROOT + "View/docs/architecture-model/view-architecture.archimate";
+const MODEL_PURPOSE = "The software architecture of the View subsystem (Scripts/View) and its wrappers: modules, their dependencies, " +
+  "the data they use, and the workflows to run, design, build, test, version and commit. Built by build_architecture_model.ajs " +
+  "from architecture_model.js.\n\nConventions: one application component per file; a dependency (A requires, loads or starts B) " +
+  "is a serving relation B → A; business processes for people and agents, application processes for scripts; business " +
+  "processes access business objects (documentation and instructions are business objects); application components and " +
+  "system software access data objects and serve the application processes that use the data; a data object realises the " +
+  "business object it holds; properties path, runtime, typechecked, version.";
+const PROPERTY_KEYS = ["path", "runtime", "typechecked", "version"];
+const EXPORT_DATE_KEY = "view-architecture export date";
+// uuid5(NAMESPACE_URL, "https://github.com/archi-scripts/Scripts/View/docs/architecture-model"): never change it, or
+// every id changes.
+const ID_NAMESPACE = "671ba4cd6c0951ed93c298f6d15673b1";
+
+Common.initConsoleLog(__FILE__, true);
+try {
+  _checkNotLoaded(MODEL_PATH);
+  const archModel = $.model.create(MODEL_NAME);
+  archModel.setAsCurrent();   // archi_folders and createRelations work on the current model
+  archModel.purpose = MODEL_PURPOSE;
+  const exportDate = new Date().toISOString();
+  /** @type {Map<string, string>} stable key → the id Archi gave */
+  const keys = new Map([["model", archModel.id]]);
+
+  const els = _createElements(Content.ELEMENT_GROUPS, exportDate, keys);
+  let total = 0;
+  total += _createRelationFolder("Dependencies", _dependencyRows(Content.DEPENDENCIES), els, exportDate, keys);
+  total += _createRelationFolder("Structure", _structureRows(Content.STRUCTURE), els, exportDate, keys);
+  for (const [folder, rows] of Object.entries(Content.RELATIONS)) total += _createRelationFolder(folder, rows, els, exportDate, keys);
+  _markFolders(exportDate, keys);
+  console.log(`\n${Object.keys(els).length} elements · ${total} relations · export date ${exportDate}`);
+
+  new (Java.type("java.io.File"))(MODEL_PATH).getParentFile().mkdirs();
+  archModel.save(MODEL_PATH);
+  _rewriteIds(MODEL_PATH, keys);
+  console.log(`Architecture model saved with stable ids: ${MODEL_PATH}`);
+} catch (error) {
+  console.error(`> ${typeof /** @type {Error} */ (error).stack === "undefined" ? error : /** @type {Error} */ (error).stack}`);
+}
+Common.finishConsoleLog();
+
+/**
+ * Saving over the file of a model that is open would give two models with one file.
+ * @param {string} path
+ */
+function _checkNotLoaded(path) {
+  const File = Java.type("java.io.File");
+  const target = String(new File(path).getCanonicalPath());
+  for (const m of $.model.getLoadedModels()) {
+    const p = m.getPath();
+    if (p && String(new File(p).getCanonicalPath()) === target) throw new Error(`Close the model "${m.name}" (${p}) first: this script saves a new model there.`);
+  }
+}
+
+/**
+ * The elements of every group, in its folder, with documentation and properties.
+ * @param {{ folder: string, type: string, props?: Record<string, string>, elements: Array<[string, string, string, Record<string, string>?]> }[]} groups
+ * @param {string} exportDate
+ * @param {Map<string, string>} keys  stable key → id; gets "element/<key>"
+ * @returns {Record<string, ArchiElement>}
+ */
+function _createElements(groups, exportDate, keys) {
+  /** @type {Record<string, ArchiElement>} */
+  const out = {};
+  for (const group of groups) {
+    const folder = _folder(group.folder);
+    for (const [key, name, documentation, own] of group.elements) {
+      if (out[key]) throw new Error(`Element key "${key}" is used twice`);
+      const el = folder ? model.createElement(group.type, name, folder) : model.createElement(group.type, name);   // undefined is not "no folder"
+      el.documentation = documentation;
+      const props = Object.assign({}, group.props, own);
+      for (const k of PROPERTY_KEYS) if (props[k]) el.prop(k, props[k]);
+      el.prop(EXPORT_DATE_KEY, exportDate);
+      keys.set(`element/${key}`, el.id);
+      out[key] = el;
+    }
+  }
+  return out;
+}
+
+/**
+ * The folder of a path; undefined for a layer folder itself, so the element goes to the layer's default folder.
+ * @param {string} path  e.g. "/Application/Data/Settings"
+ * @returns {Folder | undefined}
+ */
+function _folder(path) {
+  if (path.split("/").filter(Boolean).length < 2) return undefined;
+  return /** @type {Folder} */ (ArchiFolders.getFolderPath(path));
+}
+
+/**
+ * @param {Record<string, string[]>} dependencies  requirer → required
+ * @returns {string[][]}  serving required → requirer
+ */
+function _dependencyRows(dependencies) {
+  return Object.entries(dependencies).flatMap(([requirer, required]) => required.map(r => ["serving-relationship", "", r, requirer]));
+}
+
+/**
+ * @param {Record<string, string[]>} structure  parent → parts
+ * @returns {string[][]}  composition parent → part
+ */
+function _structureRows(structure) {
+  return Object.entries(structure).flatMap(([parent, parts]) => parts.map(p => ["composition-relationship", "", parent, p]));
+}
+
+/**
+ * Create the relations of the rows in /Relations/<name>; every end must be a known element key.
+ * @param {string} name
+ * @param {string[][]} rows  [type, name, source key, target key, accessType]
+ * @param {Record<string, ArchiElement>} els
+ * @param {string} exportDate
+ * @param {Map<string, string>} keys  stable key → id; gets "relation/<type>/<source>/<target>/<name>"
+ * @returns {number}
+ */
+function _createRelationFolder(name, rows, els, exportDate, keys) {
+  for (const [type, , s, t] of rows) {
+    if (!els[s] || !els[t]) throw new Error(`${name}: unknown element key in ${type} "${s}" → "${t}"`);
+  }
+  const folder = /** @type {Folder} */ (ArchiFolders.getFolderPath("/Relations/" + name));
+  TestViews.createRelations(rows, els).forEach((rel, i) => {
+    const [type, relName, s, t] = rows[i];
+    const key = `relation/${type}/${s}/${t}/${relName}`;
+    if (keys.has(key)) throw new Error(`Relation ${type} "${s}" → "${t}" "${relName}" is defined twice`);
+    keys.set(key, rel.id);
+    rel.prop(EXPORT_DATE_KEY, exportDate);
+    folder.add(rel);
+  });
+  console.log(`Relations/${name}: ${rows.length}`);
+  return rows.length;
+}
+
+/**
+ * Every folder of the model gets the key "folder/<path>", and every folder below a top-level one the export date:
+ * the import would carry it onto the target model's own top-level folders.
+ * @param {string} exportDate
+ * @param {Map<string, string>} keys
+ */
+function _markFolders(exportDate, keys) {
+  $("folder").each(f => {
+    const path = _folderPath(f);
+    keys.set(`folder/${path}`, f.id);
+    if (path.lastIndexOf("/") > 0) f.prop(EXPORT_DATE_KEY, exportDate);
+  });
+}
+
+/**
+ * @param {Folder} folder
+ * @returns {string}  e.g. "/Application/View subsystem/Dialog"
+ */
+function _folderPath(folder) {
+  const names = [];
+  for (let f = folder; f; f = /** @type {Folder} */ ($(f).parent().filter("folder").first())) names.unshift(f.name);
+  return "/" + names.join("/");
+}
+
+/**
+ * Rewrite every id in the saved model file to the uuid5 of its stable key; an id without a key stops the build.
+ * @param {string} path
+ * @param {Map<string, string>} keys  stable key → the id Archi gave
+ */
+function _rewriteIds(path, keys) {
+  const Files = Java.type("java.nio.file.Files");
+  const Paths = Java.type("java.nio.file.Paths");
+  const StandardCharsets = Java.type("java.nio.charset.StandardCharsets");
+  /** @type {Map<string, string>} */
+  const stableOf = new Map();
+  for (const [key, id] of keys) stableOf.set(id, _uuid5(key));
+  const file = Paths.get(path);
+  const text = String(Files.readString(file, StandardCharsets.UTF_8));
+  const unknown = new Set();
+  const rewritten = text.replace(/id-[0-9a-f]{32}/g, id => stableOf.get(id) || (unknown.add(id), id));
+  if (unknown.size > 0) throw new Error(`${unknown.size} ids without a stable key, e.g. ${[...unknown][0]}`);
+  Files.writeString(file, rewritten, StandardCharsets.UTF_8);
+}
+
+/**
+ * "id-" + the name-based UUID (version 5, SHA-1) of the key in ID_NAMESPACE, without dashes, as Archi writes ids.
+ * @param {string} key
+ * @returns {string}
+ */
+function _uuid5(key) {
+  const md = Java.type("java.security.MessageDigest").getInstance("SHA-1");
+  const ns = ID_NAMESPACE.match(/../g).map(h => { const b = parseInt(h, 16); return b > 127 ? b - 256 : b; });
+  md.update(Java.to(ns, "byte[]"));
+  md.update(new (Java.type("java.lang.String"))(key).getBytes("UTF-8"));
+  const digest = md.digest();
+  let hex = "";
+  for (let i = 0; i < 16; i++) {
+    let b = digest[i] & 0xff;
+    if (i === 6) b = (b & 0x0f) | 0x50;   // version 5
+    if (i === 8) b = (b & 0x3f) | 0x80;   // RFC 4122 variant
+    hex += (b < 16 ? "0" : "") + b.toString(16);
+  }
+  return "id-" + hex;
+}

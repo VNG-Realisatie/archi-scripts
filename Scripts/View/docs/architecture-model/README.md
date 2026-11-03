@@ -1,0 +1,27 @@
+# View architecture model
+
+An ArchiMate model (no views) of the View subsystem and its wrappers: modules, dependencies, contracts, data, and the workflows to run, design, build, test, version and commit.
+
+| File | What |
+|---|---|
+| `architecture_model.js` | The content: elements, dependencies, structure and relations as tables. Edit this. |
+| `build_architecture_model.ajs` | Builds the model and saves `view-architecture.archimate` with stable ids. |
+| `view-architecture.archimate` | The built model. Generated: never edit by hand. |
+| `sync_architecture_model.ajs` | After an import into another model: removes what an earlier export added and this one no longer has. |
+
+## Build
+
+Run `build_architecture_model.ajs` in Archi (no selection; close the architecture model first if it is open), or headless with Archi's command line (`Archi -application com.archimatetool.commandline.app -consoleLog -nosplash --script.runScript build_architecture_model.ajs`).
+
+Every object keeps its id from build to build: the id is `"id-" + uuid5` of its key (element: its key in `architecture_model.js`; relation: type, source, target and name; folder: its path). Renaming a key, or changing a relation's type, ends or name, gives that object a new id. Every element, relation and folder below a top-level folder carries the property `view-architecture export date`.
+
+## Import into another model
+
+1. The first time, and after a change to the builder: on a copy of the target model.
+2. Select the target model in the model tree, then *File › Import › Another model into selected model…*, choose `view-architecture.archimate` and turn on updating existing objects. Archi merges by id: a new export updates what an earlier one added.
+3. Run `sync_architecture_model.ajs` on the target model. It lists in the console what carries an older export date (no longer in the export) and deletes it, also from views, after confirmation; then the empty folders of an older export.
+4. Check the result and commit (coArchi).
+
+An element you made by hand before the first import is not linked to the export: it appears twice once. Merge it into the imported one in Archi; from then on the ids stay.
+
+The approach follows the GEMMA-kenniswerkplek export (skill `gemma-archimate-model-archimate-export`); the sync script is adapted from its `wiki-gemma-model-sync.ajs`.

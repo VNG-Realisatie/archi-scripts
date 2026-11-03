@@ -1,0 +1,69 @@
+/**
+ * Sync after importing the View architecture model into another model.
+ *
+ * Run in Archi on the target model (select it in the model tree), directly after "Import › Another model into
+ * selected model" of view-architecture.archimate with updating existing objects on. The import adds and updates
+ * by id; this script removes what an earlier export added and the new one no longer has:
+ * - an element or relation whose "view-architecture export date" is older than the newest is deleted (also from
+ *   views; relations first);
+ * - then a folder with an older export date that is left empty.
+ * Shows the list in the console first and changes nothing without confirmation.
+ *
+ * Adapted from wiki-gemma-model-sync.ajs (GEMMA-kenniswerkplek, skill gemma-archimate-model-archimate-export).
+ */
+const EXPORT_DATE_KEY = "view-architecture export date";
+
+(() => {
+  if (typeof model === "undefined" || !model) {
+    window.alert("Select the target model in the model tree first.");
+    return;
+  }
+  /** @type {ArchiObject[]} */
+  const exported = [];
+  $("concept").each(c => { if (c.prop(EXPORT_DATE_KEY)) exported.push(c); });
+  if (exported.length === 0) {
+    window.alert(`No objects with "${EXPORT_DATE_KEY}" in model "${model.name}". Was the export imported?`);
+    return;
+  }
+  const newest = exported.map(c => c.prop(EXPORT_DATE_KEY)).sort().pop();
+  const stale = exported.filter(c => c.prop(EXPORT_DATE_KEY) < newest);
+
+  console.clear();
+  console.log(`View architecture sync on "${model.name}", newest export: ${newest}`);
+  console.log(`Delete (${stale.length}): in an earlier export, not in this one`);
+  stale.forEach(c => console.log(`  - ${c.name || "(" + c.type + ")"} [${c.type}, ${c.id}]`));
+  if (stale.length === 0) {
+    _removeStaleFolders(newest);
+    window.alert(`In sync with the export of ${newest}. Nothing deleted.`);
+    return;
+  }
+  if (!window.confirm(`Export ${newest}: delete ${stale.length} object(s)? The list is in the console.`)) {
+    console.log("Cancelled; nothing changed.");
+    return;
+  }
+  // Relations first: deleting an element takes its relations along.
+  const isRelation = (/** @type {ArchiObject} */ c) => c.type.endsWith("-relationship");
+  stale.filter(isRelation).forEach(c => { if (c.model) c.delete(); });
+  stale.filter(c => !isRelation(c)).forEach(c => { if (c.model) c.delete(); });
+  const folders = _removeStaleFolders(newest);
+  console.log(`Done: ${stale.length} deleted, ${folders} empty folder(s) removed.`);
+  window.alert(`Done: ${stale.length} deleted, ${folders} empty folder(s) removed. Check the result before committing.`);
+})();
+
+/**
+ * Remove folders of an older export that are empty, deepest first.
+ * @param {string} newest
+ * @returns {number}  folders removed
+ */
+function _removeStaleFolders(newest) {
+  let removed = 0;
+  /** @param {Folder} folder */
+  const visit = folder => {
+    $(folder).children("folder").each(child => visit(child));
+    const date = folder.prop(EXPORT_DATE_KEY);
+    if (date && date < newest && $(folder).children().size() === 0) { folder.delete(); removed++; }
+  };
+  // A top-level folder (Business, Application, …) belongs to every model and cannot be deleted.
+  $(model).children("folder").each(top => $(top).children("folder").each(child => visit(child)));
+  return removed;
+}
