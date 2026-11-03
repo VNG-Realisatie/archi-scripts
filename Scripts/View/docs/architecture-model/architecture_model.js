@@ -7,9 +7,14 @@
  *   - One application component per file; a component per folder or layer composes them. Exceptions: the entry
  *     scripts of Scripts/View and the GEMMA/GGM entry scripts are one component each.
  *   - A dependency (A requires B, loads B or starts B as a process) is a serving relation B → A.
- *   - Workflows: business processes for what people and agents do, application processes for what the scripts do;
- *     an application process serves the business step it supports.
- *   - Business processes access business objects; documentation and instructions are business objects.
+ *   - Workflows: business processes for what people do, application processes for what the scripts do; an
+ *     application process serves the business step it supports.
+ *   - Business processes access business objects; documentation is a business object.
+ *   - AI development environment: an AI agent is an application component, assigned to the skills it performs; a
+ *     skill is an application function that serves the process steps that use it (only skills in use); its SKILL.md
+ *     is an artifact that realises it. Agent rules (AGENTS.md, ai/repo-guide) are artifacts, associated with an agent or a process
+ *     step only where that shows how they steer it. The process is modelled apart from the agent configuration:
+ *     no agent is assigned to a process step.
  *   - Application components and system software access data objects; an application process has no access of its
  *     own: the components (or system software) that access its data serve it. A data object realises the business
  *     object it holds.
@@ -25,7 +30,6 @@ const ELEMENT_GROUPS = [
   { folder: "/Business/Actors", type: "business-actor", elements: [
     ["architect", "Architect", "Uses the View scripts in Archi: generates and re-lays out views with the dialog or an entry script, and reports a view that looks wrong."],
     ["developer", "Developer", "Owns the View subsystem: agrees on behaviour, checks results in Archi (dialog, readability, baseline), approves and commits."],
-    ["agent", "AI coding agent", "A coding agent (Claude Code, Copilot) that follows AGENTS.md, Scripts/View/AGENTS.md and the skills: plans, builds, runs the Node checks and Archi's command line, writes the docs. Asks only for decisions, approvals and checks only the developer can do."],
   ] },
   // Processes: the grouping processes in /Processes, every process they compose in a subfolder named after them.
   { folder: "/Business/Processes", type: "business-process", elements: [
@@ -83,15 +87,6 @@ const ELEMENT_GROUPS = [
     ["boReadme", "README", "User guide of the View scripts.", { path: "Scripts/View/README.md" }],
     ["boTestCases", "test-cases", "Every reported case: view, preset, finding, cause, change, status.", { path: "Scripts/View/docs/test-cases.md" }],
     ["boPlan", "Plan", "A plan, proposal or step log; working notes, not rules (repo rule 8).", { path: "plan/<title>.md" }],
-  ] },
-  { folder: "/Business/Instructions", type: "business-object", elements: [
-    ["boAgents", "AGENTS.md", "Repo rules and routing for every AI tool: hierarchy, hard rules, conventions.", { path: "AGENTS.md" }],
-    ["boViewAgents", "View AGENTS.md", "Rules of Scripts/View: hard rules, tooltips, docs and order of change, testing.", { path: "Scripts/View/AGENTS.md" }],
-    ["boRepoGuide", "repo-guide", "Repo layout, loading modules, shared modules, vendored libraries, testing.", { path: "ai/repo-guide.md" }],
-    ["boSkillJarchi", "Skill jarchi-scripting", "jArchi API, GraalJS/Java, SWT; jarchi.d.ts is the highest repo authority on jArchi facts.", { path: "ai/jarchi-scripting/" }],
-    ["boSkillEngines", "Skills elkjs, dagre, graphviz", "Engine options and formats for the adapters.", { path: "ai/elkjs/, ai/dagre/, ai/graphviz/" }],
-    ["boSkillViewTesting", "Skill view-testing", "Procedure for a reported view that looks wrong.", { path: "ai/view-testing/SKILL.md" }],
-    ["boSkillViewBaseline", "Skill view-baseline", "Procedure for the Archi baseline check and a test-model rebuild.", { path: "ai/view-baseline/SKILL.md" }],
   ] },
 
   // ── Application: View subsystem ───────────────────────────────────────────────────────────────────────────
@@ -308,6 +303,20 @@ const ELEMENT_GROUPS = [
     ["dCommit", "Commit", "A commit on a branch of the git repository: docs, code and expected files together."],
   ] },
 
+  // ── Application: AI development environment ───────────────────────────────────────────────────────────────
+  { folder: "/Application/AI development environment/Agents", type: "application-component", elements: [
+    ["agClaudeCode", "Claude Code", "AI coding agent; reads AGENTS.md natively and finds the skills through the stubs in .claude/skills/. Plans, builds, runs the Node checks and Archi's command line, writes the docs; asks only for decisions, approvals and checks only the developer can do.", { path: ".claude/" }],
+    ["agCopilot", "GitHub Copilot", "AI coding agent; its adapter points to AGENTS.md and Scripts/View/AGENTS.md, and it reads a skill's SKILL.md as AGENTS.md routes it.", { path: ".github/copilot-instructions.md" }],
+  ] },
+  { folder: "/Application/AI development environment/Skills", type: "application-function", elements: [
+    ["skJarchi", "jarchi-scripting", "Write or change jArchi scripts: jArchi API, GraalJS/Java, SWT/JFace dialogs; jarchi.d.ts is the highest repo authority on jArchi facts."],
+    ["skElkjs", "elkjs", "ELK layout: algorithms, JSON graph format, options."],
+    ["skDagre", "dagre", "Dagre / dagre-cluster-fix layout: graphlib graphs, layout options."],
+    ["skGraphviz", "graphviz", "Graphviz: DOT, engines, attributes, -Tjson output."],
+    ["skViewTesting", "view-testing", "A generated or laid-out view looks wrong: find model, preset and session, reproduce in the Node harness, find the cause in the adapter or engine, log the case."],
+    ["skViewBaseline", "view-baseline", "Check a View change in Archi against the committed baseline (run_baseline.ajs through Archi's command line, compare in Node); rebuild the test model."],
+  ] },
+
   // ── Technology ────────────────────────────────────────────────────────────────────────────────────────────
   { folder: "/Technology & Physical", type: "node", elements: [
     ["nWorkstation", "Developer workstation", "Where the architect and developer run Archi and the Node tools (Windows or Linux)."],
@@ -320,6 +329,19 @@ const ELEMENT_GROUPS = [
     ["sDot", "Graphviz dot", "Graphviz layout engines as an external process; installed by the user; 14.1.4 in CI."],
     ["sTsc", "TypeScript compiler", "tsc --noEmit on the JSDoc (root package.json, development only)."],
     ["sGit", "git", "Version control of the repo."],
+  ] },
+  { folder: "/Technology & Physical/AI development environment/Skill definitions", type: "artifact", elements: [
+    ["afSkillJarchi", "jarchi-scripting/SKILL.md", "Skill definition of jarchi-scripting, with jarchi.d.ts, graaljs-java.md and swt-gtk.md next to it.", { path: "ai/jarchi-scripting/SKILL.md" }],
+    ["afSkillElkjs", "elkjs/SKILL.md", "Skill definition of elkjs, with the ELK docs under docs/.", { path: "ai/elkjs/SKILL.md" }],
+    ["afSkillDagre", "dagre/SKILL.md", "Skill definition of dagre, with dagre-reference.md.", { path: "ai/dagre/SKILL.md" }],
+    ["afSkillGraphviz", "graphviz/SKILL.md", "Skill definition of graphviz, with the Graphviz docs under docs/.", { path: "ai/graphviz/SKILL.md" }],
+    ["afSkillViewTesting", "view-testing/SKILL.md", "Skill definition of view-testing.", { path: "ai/view-testing/SKILL.md" }],
+    ["afSkillViewBaseline", "view-baseline/SKILL.md", "Skill definition of view-baseline.", { path: "ai/view-baseline/SKILL.md" }],
+  ] },
+  { folder: "/Technology & Physical/AI development environment/Agent rules", type: "artifact", elements: [
+    ["afAgents", "AGENTS.md", "Repo rules and routing for every AI tool: hierarchy, hard rules, conventions.", { path: "AGENTS.md" }],
+    ["afViewAgents", "View AGENTS.md", "Rules of Scripts/View: hard rules, tooltips, docs and order of change, testing.", { path: "Scripts/View/AGENTS.md" }],
+    ["afRepoGuide", "ai/repo-guide", "Repo layout, loading modules, shared modules, vendored libraries, testing; AGENTS.md routes to it.", { path: "ai/repo-guide.md" }],
   ] },
 ];
 
@@ -467,24 +489,12 @@ const RELATIONS = {
     ["assignment-relationship", "", "architect", "bpGenerateGgm"],
     ["assignment-relationship", "", "architect", "bpReportView"],
     ["assignment-relationship", "", "developer", "bpAgree"],
-    ["assignment-relationship", "", "agent", "bpAgree"],
-    ["assignment-relationship", "", "agent", "bpWritePlan"],
-    ["assignment-relationship", "", "agent", "bpBuild"],
-    ["assignment-relationship", "", "agent", "bpRunNodeChecks"],
     ["assignment-relationship", "", "developer", "bpRunArchiBaseline"],
-    ["assignment-relationship", "", "agent", "bpRunArchiBaseline"],
     ["assignment-relationship", "", "developer", "bpCheckInArchi"],
     ["assignment-relationship", "", "developer", "bpRebuildTestModel"],
     ["assignment-relationship", "", "developer", "bpApprove"],
-    ["assignment-relationship", "", "agent", "bpDocument"],
-    ["assignment-relationship", "", "agent", "bpRewriteExpected"],
     ["assignment-relationship", "", "developer", "bpCommit"],
-    ["assignment-relationship", "", "agent", "bpCommit"],
     ["assignment-relationship", "", "developer", "bpPush"],
-    ["assignment-relationship", "", "agent", "bpFindInputs"],
-    ["assignment-relationship", "", "agent", "bpReproduce"],
-    ["assignment-relationship", "", "agent", "bpFindCause"],
-    ["assignment-relationship", "", "agent", "bpLogCase"],
     // Components perform application processes
     ["assignment-relationship", "", "dialog_main", "apDialogRun"],
     ["assignment-relationship", "", "counts", "apRecount"],
@@ -677,14 +687,6 @@ const RELATIONS = {
     // Which step reads which instructions
     ["access-relationship", "", "bpGenerateDialog", "boReadme", "read"],
     ["access-relationship", "", "bpGenerateScript", "boReadme", "read"],
-    ["access-relationship", "", "bpDevelop", "boAgents", "read"],
-    ["access-relationship", "", "bpDevelop", "boViewAgents", "read"],
-    ["access-relationship", "", "bpDevelop", "boRepoGuide", "read"],
-    ["access-relationship", "", "bpBuild", "boSkillJarchi", "read"],
-    ["access-relationship", "", "bpBuild", "boSkillEngines", "read"],
-    ["access-relationship", "", "bpDiagnose", "boSkillViewTesting", "read"],
-    ["access-relationship", "", "bpRunArchiBaseline", "boSkillViewBaseline", "read"],
-    ["access-relationship", "", "bpRebuildTestModel", "boSkillViewBaseline", "read"],
   ],
   "Realization": [
     ["realization-relationship", "", "dView", "boView"],
@@ -727,6 +729,45 @@ const RELATIONS = {
     ["serving-relationship", "runs", "archi_cli", "run_large"],
     ["serving-relationship", "runs", "archi_cli", "render_views"],
     ["serving-relationship", "runs", "archi_cli", "svg_checks_probe"],
+  ],
+  "AI development environment": [
+    // Agents perform skills
+    ...["agClaudeCode", "agCopilot"].flatMap(agent => ["skJarchi", "skElkjs", "skDagre", "skGraphviz", "skViewTesting", "skViewBaseline"]
+      .map(skill => ["assignment-relationship", "", agent, skill])),
+    // A SKILL.md realises its skill
+    ["realization-relationship", "", "afSkillJarchi", "skJarchi"],
+    ["realization-relationship", "", "afSkillElkjs", "skElkjs"],
+    ["realization-relationship", "", "afSkillDagre", "skDagre"],
+    ["realization-relationship", "", "afSkillGraphviz", "skGraphviz"],
+    ["realization-relationship", "", "afSkillViewTesting", "skViewTesting"],
+    ["realization-relationship", "", "afSkillViewBaseline", "skViewBaseline"],
+    // Skills serve the process steps that use them
+    ["serving-relationship", "", "skJarchi", "bpChangeCode"],
+    ["serving-relationship", "", "skElkjs", "bpChangeCode"],
+    ["serving-relationship", "", "skDagre", "bpChangeCode"],
+    ["serving-relationship", "", "skGraphviz", "bpChangeCode"],
+    ["serving-relationship", "", "skElkjs", "bpFindCause"],
+    ["serving-relationship", "", "skDagre", "bpFindCause"],
+    ["serving-relationship", "", "skGraphviz", "bpFindCause"],
+    ["serving-relationship", "", "skViewTesting", "bpFindInputs"],
+    ["serving-relationship", "", "skViewTesting", "bpReproduce"],
+    ["serving-relationship", "", "skViewTesting", "bpFindCause"],
+    ["serving-relationship", "", "skViewTesting", "bpLogCase"],
+    ["serving-relationship", "", "skViewBaseline", "bpRunArchiBaseline"],
+    ["serving-relationship", "", "skViewBaseline", "bpRebuildTestModel"],
+    // How the agent rules steer agents and process steps
+    ["association-relationship", "instructs", "afAgents", "agClaudeCode"],
+    ["association-relationship", "instructs", "afAgents", "agCopilot"],
+    ["association-relationship", "governs", "afAgents", "bpWritePlan"],
+    ["association-relationship", "governs", "afAgents", "bpCommit"],
+    ["association-relationship", "governs", "afViewAgents", "bpAgree"],
+    ["association-relationship", "governs", "afViewAgents", "bpApprove"],
+    ["association-relationship", "governs", "afViewAgents", "bpDocument"],
+    ["association-relationship", "governs", "afViewAgents", "bpChangeRegistry"],
+    ["association-relationship", "governs", "afViewAgents", "bpChangeCode"],
+    ["association-relationship", "routes to", "afAgents", "afRepoGuide"],
+    ["association-relationship", "governs", "afRepoGuide", "bpChangeCode"],
+    ["association-relationship", "governs", "afRepoGuide", "bpRunNodeChecks"],
   ],
   "Contracts": [
     // Public API

@@ -24,10 +24,13 @@ const MODEL_PATH = REPO_ROOT + "View/docs/architecture-model/view-architecture.a
 const MODEL_PURPOSE = "The software architecture of the View subsystem (Scripts/View) and its wrappers: modules, their dependencies, " +
   "the data they use, and the workflows to run, design, build, test, version and commit. Built by build_architecture_model.ajs " +
   "from architecture_model.js.\n\nConventions: one application component per file; a dependency (A requires, loads or starts B) " +
-  "is a serving relation B → A; business processes for people and agents, application processes for scripts; business " +
-  "processes access business objects (documentation and instructions are business objects); application components and " +
-  "system software access data objects and serve the application processes that use the data; a data object realises the " +
-  "business object it holds; properties path, runtime, typechecked, version.";
+  "is a serving relation B → A; business processes for people, application processes for scripts; business processes " +
+  "access business objects (documentation is a business object); application components and system software access data " +
+  "objects and serve the application processes that use the data; a data object realises the business object it holds; " +
+  "an AI agent is an application component assigned to its skills (application functions), a skill serves the process " +
+  "steps that use it and its SKILL.md (artifact) realises it, agent rules (AGENTS.md, ai/repo-guide; artifacts) are associated with " +
+  "the agents and steps they steer, and no agent is assigned to a process step; properties path, runtime, typechecked, " +
+  "version.";
 const PROPERTY_KEYS = ["path", "runtime", "typechecked", "version"];
 const EXPORT_DATE_KEY = "view-architecture export date";
 // uuid5(NAMESPACE_URL, "https://github.com/archi-scripts/Scripts/View/docs/architecture-model"): never change it, or
