@@ -2,7 +2,8 @@
  * Build the View architecture model and save it as Scripts/View/docs/architecture-model/view-architecture.archimate.
  *
  * The content is in architecture_model.js: the modules of Scripts/View and its wrappers, their dependencies, the data
- * they read and write, and the workflows of running, developing, testing and committing. The model has no views.
+ * they read and write, and the workflows of running, developing, testing and committing. The build adds the knowledge
+ * model: the element and relation types the content uses. The model has no views.
  *
  * Run in Archi (no selection needed); close the architecture model first if it is open. To change the model, edit
  * architecture_model.js and rerun.
@@ -24,13 +25,16 @@ const MODEL_PATH = REPO_ROOT + "View/docs/architecture-model/view-architecture.a
 const MODEL_PURPOSE = "The software architecture of the View subsystem (Scripts/View) and its wrappers: modules, their dependencies, " +
   "the data they use, and the workflows to run, design, build, test, version and commit. Built by build_architecture_model.ajs " +
   "from architecture_model.js.\n\nConventions: one application component per file; a dependency (A requires, loads or starts B) " +
-  "is a serving relation B → A; business processes for people, application processes for scripts; business processes " +
+  "is a serving relation B → A; business processes for people, application processes for the fine-grained steps of the " +
+  "scripts, which realise the application services that serve the business processes; business processes " +
   "access business objects (documentation is a business object); application components and system software access data " +
   "objects and serve the application processes that use the data; a data object realises the business object it holds; " +
   "an AI agent is an application component assigned to its skills (application functions), a skill serves the process " +
   "steps that use it and its SKILL.md (artifact) realises it, agent rules (AGENTS.md, ai/repo-guide; artifacts) are associated with " +
   "the agents and steps they steer, and no agent is assigned to a process step; properties path, runtime, typechecked, " +
-  "version.";
+  "version.\n\nKnowledge model (folders Knowledge model, derived by the build): one element per element type used, one " +
+  "relation per relation type used between two element types, a grouping per top folder; the documentation gives the counts.";
+const KNOWLEDGE_MODEL = "Knowledge model";
 const PROPERTY_KEYS = ["path", "runtime", "typechecked", "version"];
 const EXPORT_DATE_KEY = "view-architecture export date";
 // uuid5(NAMESPACE_URL, "https://github.com/archi-scripts/Scripts/View/docs/architecture-model"): never change it, or
@@ -48,10 +52,18 @@ try {
   const keys = new Map([["model", archModel.id]]);
 
   const els = _createElements(Content.ELEMENT_GROUPS, exportDate, keys);
+  /** @type {Array<[string, string[][]]>} */
+  const relationFolders = [
+    ["Dependencies", _dependencyRows(Content.DEPENDENCIES)],
+    ["Structure", _structureRows(Content.STRUCTURE)],
+    ...Object.entries(Content.RELATIONS),
+  ];
+  _checkTriggerLevels(relationFolders.flatMap(([, rows]) => rows), Content.STRUCTURE);
   let total = 0;
-  total += _createRelationFolder("Dependencies", _dependencyRows(Content.DEPENDENCIES), els, exportDate, keys);
-  total += _createRelationFolder("Structure", _structureRows(Content.STRUCTURE), els, exportDate, keys);
-  for (const [folder, rows] of Object.entries(Content.RELATIONS)) total += _createRelationFolder(folder, rows, els, exportDate, keys);
+  for (const [folder, rows] of relationFolders) total += _createRelationFolder(folder, rows, els, exportDate, keys);
+  const knowledge = _knowledgeModel(Content.ELEMENT_GROUPS, relationFolders.flatMap(([, rows]) => rows), els);
+  Object.assign(els, _createElements(knowledge.groups, exportDate, keys));
+  total += _createRelationFolder(KNOWLEDGE_MODEL, knowledge.relations, els, exportDate, keys);
   _markFolders(exportDate, keys);
   console.log(`\n${Object.keys(els).length} elements · ${total} relations · export date ${exportDate}`);
 
@@ -130,9 +142,70 @@ function _structureRows(structure) {
 }
 
 /**
+ * A trigger connects two processes of one level: parts of the same process, or two top processes.
+ * @param {string[][]} rows  every relation row of the content
+ * @param {Record<string, string[]>} structure  parent → parts
+ */
+function _checkTriggerLevels(rows, structure) {
+  /** @type {Record<string, string>} part → parent */
+  const parentOf = {};
+  for (const [parent, parts] of Object.entries(structure)) for (const p of parts) parentOf[p] = parent;
+  const wrong = rows.filter(([type, , s, t]) => type === "triggering-relationship" && parentOf[s] !== parentOf[t]);
+  if (wrong.length > 0) throw new Error(`Triggers between levels: ${wrong.map(([, , s, t]) => `${s} → ${t}`).join(", ")}`);
+}
+
+/**
+ * The knowledge model of the content: one element per element type used, in /<top folder>/Knowledge model; one
+ * relation per relation type used between two element types; a grouping per top folder that aggregates its types.
+ * @param {{ folder: string, type: string, elements: unknown[] }[]} groups  the content's element groups
+ * @param {string[][]} rows  every relation row of the content
+ * @param {Record<string, ArchiElement>} els
+ * @returns {{ groups: { folder: string, type: string, elements: Array<[string, string, string]> }[], relations: string[][] }}
+ */
+function _knowledgeModel(groups, rows, els) {
+  /** @type {Map<string, { top: string, count: number }>} element type → its top folder and how many elements */
+  const types = new Map();
+  for (const group of groups) {
+    const entry = types.get(group.type) || { top: group.folder.split("/")[1], count: 0 };
+    entry.count += group.elements.length;
+    types.set(group.type, entry);
+  }
+  /** @type {Map<string, { row: string[], count: number }>} "relation type|source type|target type" → its row */
+  const triples = new Map();
+  for (const [type, , s, t] of rows) {
+    const key = `${type}|${els[s].type}|${els[t].type}`;
+    const entry = triples.get(key) || { row: [type, "", `km/${els[s].type}`, `km/${els[t].type}`, type === "access-relationship" ? "access" : ""], count: 0 };
+    entry.count++;
+    triples.set(key, entry);
+  }
+  const tops = [...new Set([...types.values()].map(e => e.top))];
+  return {
+    groups: [
+      ...[...types].map(([type, { top, count }]) => ({ folder: `/${top}/${KNOWLEDGE_MODEL}`, type,
+        elements: [/** @type {[string, string, string]} */ ([`km/${type}`, _typeName(type), `${count} elements of this type in the model.`])] })),
+      { folder: `/Other/${KNOWLEDGE_MODEL}`, type: "grouping",
+        elements: tops.map(top => /** @type {[string, string, string]} */ ([`km/layer/${top}`, top, `The element types in the folder ${top}.`])) },
+    ],
+    relations: [
+      ...[...triples.values()].map(({ row, count }) => [...row, `Stands for ${count} relations in the model.`]),
+      ...[...types].map(([type, { top }]) => ["aggregation-relationship", "", `km/layer/${top}`, `km/${type}`]),
+    ],
+  };
+}
+
+/**
+ * @param {string} type  e.g. "application-process"
+ * @returns {string}  e.g. "Application process"
+ */
+function _typeName(type) {
+  const words = type.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.substring(1);
+}
+
+/**
  * Create the relations of the rows in /Relations/<name>; every end must be a known element key.
  * @param {string} name
- * @param {string[][]} rows  [type, name, source key, target key, accessType]
+ * @param {string[][]} rows  [type, name, source key, target key, accessType, documentation]
  * @param {Record<string, ArchiElement>} els
  * @param {string} exportDate
  * @param {Map<string, string>} keys  stable key → id; gets "relation/<type>/<source>/<target>/<name>"
@@ -144,10 +217,11 @@ function _createRelationFolder(name, rows, els, exportDate, keys) {
   }
   const folder = /** @type {Folder} */ (ArchiFolders.getFolderPath("/Relations/" + name));
   TestViews.createRelations(rows, els).forEach((rel, i) => {
-    const [type, relName, s, t] = rows[i];
+    const [type, relName, s, t, , documentation] = rows[i];
     const key = `relation/${type}/${s}/${t}/${relName}`;
     if (keys.has(key)) throw new Error(`Relation ${type} "${s}" → "${t}" "${relName}" is defined twice`);
     keys.set(key, rel.id);
+    if (documentation) rel.documentation = documentation;
     rel.prop(EXPORT_DATE_KEY, exportDate);
     folder.add(rel);
   });

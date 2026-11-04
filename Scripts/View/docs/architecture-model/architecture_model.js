@@ -7,8 +7,10 @@
  *   - One application component per file; a component per folder or layer composes them. Exceptions: the entry
  *     scripts of Scripts/View and the GEMMA/GGM entry scripts are one component each.
  *   - A dependency (A requires B, loads B or starts B as a process) is a serving relation B → A.
- *   - Workflows: business processes for what people do, application processes for what the scripts do; an
- *     application process serves the business step it supports.
+ *   - Workflows: business processes for what people do, application processes for the fine-grained steps of the
+ *     scripts. An application process realises the application service it delivers; the service serves the
+ *     business processes that use it. No application process serves a business process directly.
+ *   - A trigger connects two processes of one level: parts of the same process, or two top processes.
  *   - Business processes access business objects; documentation is a business object.
  *   - AI development environment: an AI agent is an application component, assigned to the skills it performs; a
  *     skill is an application function that serves the process steps that use it (only skills in use); its SKILL.md
@@ -201,9 +203,21 @@ const ELEMENT_GROUPS = [
     ["checkYml", "check.yml (CI workflow)", "GitHub Actions workflow on every push and pull request, from a clean clone: Graphviz 14.1.4 and the Times font as locally, then typecheck, unit, consistency, fingerprints without Graphviz, rule checks. Archi does not run there.", { path: ".github/workflows/check.yml" }],
   ] },
 
-  // ── Application services: one contract, offered by one or more modules ─────────────────────────────────────
+  // ── Application services: realised by application processes, serve the business processes ─────────────────
   { folder: "/Application/Services", type: "application-service", elements: [
     ["svGenerate", "Generate a view", "Through the Public API: validate the preset, run the action (New view, One view each, Expand view, Layout only; default New view) on the selection, return the written views."],
+    ["svDialog", "Generate with the dialog", "The Generate View dialog on the selection: settings or a preset, live counts of what the view will hold, then an action."],
+    ["svPresetFiles", "Keep preset files", "Save, rename and delete presets as files in presets/; Default stays read-only."],
+    ["svHeadless", "Generate with an entry script", "A run on the selection without the dialog: preset, action and direction from the script's file name, the base preset or the session."],
+    ["svTypecheck", "Check the types", "The JSDoc of the type-checked modules against the typed contracts; exit 0 or the errors."],
+    ["svNodeChecks", "Node checks", "Every check without Archi: types, unit tests, consistency, a real view planned, write-plan and layout fingerprints, layout rules; each against its expected file."],
+    ["svReproduce", "Reproduce a view in Node", "The run's own plan() on a view from a model file, with every intermediate result to inspect."],
+    ["svArchiChecks", "Archi checks", "Checks through Archi's command line on a copy of the test model: the written views against the baseline, the rendering, Archi's time."],
+    ["svMaintain", "Maintain test data and settings", "Rebuild the test model, regenerate the doc tables, rewrite expected files, compare a preset with the session, migrate presets to a new schema."],
+    ["svCi", "CI check", "The checks of a clean clone on every push and pull request; fails the push on any difference."],
+  ] },
+  // Contracts: one behaviour contract, offered by one or more modules
+  { folder: "/Application/Services/Contracts", type: "application-service", elements: [
     ["svRunProcess", "Run a process", "The ProcessRunner contract (types/layout.d.ts): runProcess(command, args, input, timeoutSeconds) → { state: finished | timeout | not-found, exitCode, stdout, stderr }; input and output through temp files, deleted again; never throws for the three states. Java ProcessBuilder in Archi, child_process in Node; the caller gets the runner passed in."],
     ["svLayout", "Lay out a graph", "The LayoutAdapter contract (types/layout.d.ts): layout(graph, runProcess) → layout result, and checkEngineParams(preset). One adapter per engine, found through the registry; the same adapter runs in Archi and in Node."],
     ["svMeasureText", "Measure text", "The TextMeasure contract (types/layout.d.ts): the width of a line of text in a font, and where it may break. SWT and Archi's own classes in Archi; an estimate set to what Archi measures in Node. Passed in to the label sizing."],
@@ -454,16 +468,15 @@ const RELATIONS = {
     ["triggering-relationship", "", "bpRunArchiBaseline", "bpCheckInArchi"],
     ["triggering-relationship", "", "bpTest", "bpApprove"],
     ["triggering-relationship", "", "bpApprove", "bpDocument"],
-    ["triggering-relationship", "", "bpDocument", "bpVersion"],
+    ["triggering-relationship", "", "bpDevelop", "bpVersion"],
     ["triggering-relationship", "", "bpRewriteExpected", "bpCommit"],
     ["triggering-relationship", "", "bpCommit", "bpPush"],
-    ["triggering-relationship", "", "bpPush", "apCi"],
     // Diagnose
     ["triggering-relationship", "", "bpReportView", "bpFindInputs"],
     ["triggering-relationship", "", "bpFindInputs", "bpReproduce"],
     ["triggering-relationship", "", "bpReproduce", "bpFindCause"],
     ["triggering-relationship", "", "bpFindCause", "bpLogCase"],
-    ["triggering-relationship", "fix", "bpLogCase", "bpDevelop"],
+    ["triggering-relationship", "fix", "bpDiagnose", "bpDevelop"],
     // Run
     ["triggering-relationship", "action", "apDialogRun", "apGenerate"],
     ["triggering-relationship", "", "apHeadlessRun", "apGenerate"],
@@ -541,31 +554,49 @@ const RELATIONS = {
     ["assignment-relationship", "", "migrate_presets_nesting_font", "apMigrate"],
     ["assignment-relationship", "", "checkYml", "apCi"],
   ],
+  "Services": [
+    // Application processes realise the services
+    ["realization-relationship", "", "apGenerate", "svGenerate"],
+    ["realization-relationship", "", "apDialogRun", "svDialog"],
+    ["realization-relationship", "", "apRecount", "svDialog"],
+    ["realization-relationship", "", "apSavePreset", "svPresetFiles"],
+    ["realization-relationship", "", "apHeadlessRun", "svHeadless"],
+    ["realization-relationship", "", "apTypecheck", "svTypecheck"],
+    ["realization-relationship", "", "apTypecheck", "svNodeChecks"],
+    ["realization-relationship", "", "apUnit", "svNodeChecks"],
+    ["realization-relationship", "", "apConsistency", "svNodeChecks"],
+    ["realization-relationship", "", "apHarness", "svNodeChecks"],
+    ["realization-relationship", "", "apWritePlans", "svNodeChecks"],
+    ["realization-relationship", "", "apLayoutRegression", "svNodeChecks"],
+    ["realization-relationship", "", "apRuleChecks", "svNodeChecks"],
+    ["realization-relationship", "", "apHarness", "svReproduce"],
+    ["realization-relationship", "", "apWrittenViews", "svArchiChecks"],
+    ["realization-relationship", "", "apRendering", "svArchiChecks"],
+    ["realization-relationship", "", "apArchiTime", "svArchiChecks"],
+    ["realization-relationship", "", "apBuildTestModel", "svMaintain"],
+    ["realization-relationship", "", "apGenDocs", "svMaintain"],
+    ["realization-relationship", "", "apWriteExpected", "svMaintain"],
+    ["realization-relationship", "", "apPresetDiff", "svMaintain"],
+    ["realization-relationship", "", "apMigrate", "svMaintain"],
+    ["realization-relationship", "", "apCi", "svCi"],
+    // Services serve the business processes
+    ["serving-relationship", "", "svGenerate", "bpGenerateGgm"],
+    ["serving-relationship", "", "svDialog", "bpGenerateDialog"],
+    ["serving-relationship", "", "svPresetFiles", "bpManagePresets"],
+    ["serving-relationship", "", "svHeadless", "bpGenerateScript"],
+    ["serving-relationship", "", "svTypecheck", "bpCommit"],
+    ["serving-relationship", "", "svNodeChecks", "bpRunNodeChecks"],
+    ["serving-relationship", "", "svReproduce", "bpReproduce"],
+    ["serving-relationship", "", "svArchiChecks", "bpRunArchiBaseline"],
+    ["serving-relationship", "", "svArchiChecks", "bpRebuildTestModel"],
+    ["serving-relationship", "", "svMaintain", "bpRebuildTestModel"],
+    ["serving-relationship", "", "svMaintain", "bpDocument"],
+    ["serving-relationship", "", "svMaintain", "bpRewriteExpected"],
+    ["serving-relationship", "", "svMaintain", "bpFindInputs"],
+    ["serving-relationship", "", "svMaintain", "bpMigratePresets"],
+    ["serving-relationship", "", "svCi", "bpPush"],
+  ],
   "Support": [
-    // Application processes serve the business steps
-    ["serving-relationship", "", "apDialogRun", "bpGenerateDialog"],
-    ["serving-relationship", "", "apRecount", "bpGenerateDialog"],
-    ["serving-relationship", "", "apSavePreset", "bpManagePresets"],
-    ["serving-relationship", "", "apHeadlessRun", "bpGenerateScript"],
-    ["serving-relationship", "", "apTypecheck", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apTypecheck", "bpCommit"],
-    ["serving-relationship", "", "apUnit", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apConsistency", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apHarness", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apHarness", "bpReproduce"],
-    ["serving-relationship", "", "apWritePlans", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apLayoutRegression", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apRuleChecks", "bpRunNodeChecks"],
-    ["serving-relationship", "", "apWrittenViews", "bpRunArchiBaseline"],
-    ["serving-relationship", "", "apRendering", "bpRunArchiBaseline"],
-    ["serving-relationship", "", "apArchiTime", "bpRunArchiBaseline"],
-    ["serving-relationship", "", "apBuildTestModel", "bpRebuildTestModel"],
-    ["serving-relationship", "", "apWrittenViews", "bpRebuildTestModel"],
-    ["serving-relationship", "", "apGenDocs", "bpDocument"],
-    ["serving-relationship", "", "apWriteExpected", "bpRewriteExpected"],
-    ["serving-relationship", "", "apPresetDiff", "bpFindInputs"],
-    ["serving-relationship", "", "apMigrate", "bpMigratePresets"],
-    ["serving-relationship", "", "apCi", "bpPush"],
     // Components that access the data of a process they do not perform
     ["serving-relationship", "", "preset_io", "apDialogRun"],
     ["serving-relationship", "", "preset_io", "apSavePreset"],
@@ -772,11 +803,9 @@ const RELATIONS = {
   "Contracts": [
     // Public API
     ["assignment-relationship", "", "publicApi", "svGenerate"],
-    ["realization-relationship", "", "apGenerate", "svGenerate"],
     ["serving-relationship", "", "publicApi", "entryScripts"],
     ["serving-relationship", "", "publicApi", "_gui"],
     ["serving-relationship", "", "publicApi", "ggm"],
-    ["serving-relationship", "", "svGenerate", "bpGenerateGgm"],
     // Run a process
     ["realization-relationship", "", "process_runner", "svRunProcess"],
     ["realization-relationship", "", "process_runner_node", "svRunProcess"],

@@ -1,6 +1,8 @@
 # View architecture model
 
-An ArchiMate model (no views) of the View subsystem and its wrappers: modules, dependencies, contracts, data, and the workflows to run, design, build, test, version and commit.
+An ArchiMate model (no views) of the View subsystem and its wrappers: modules, dependencies, contracts, data, and the workflows to run, design, build, test, version and commit. Application processes are the fine-grained steps of the scripts; they realise application services, which serve the business processes.
+
+The build adds a knowledge model, derived from the content: one element per element type used and one relation per relation type used between two element types (folders `Knowledge model`), with a grouping per top folder that aggregates its types; the documentation gives the counts.
 
 | File | What |
 |---|---|
