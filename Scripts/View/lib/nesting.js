@@ -280,7 +280,8 @@ function _stronglyConnected(nodeIds, succ) {
  *      What remains is acyclic.
  *   2. Parents per child: every parent reached by a relation that matches a nesting condition
  *      with everyContainer; plus at most one parent from the other relations — a container
- *      a user-content visual of the child sits in on the view, else the first by name, then id.
+ *      a user-content visual of the child sits in on the view, else the one that joined the object set
+ *      in the earliest run, then the first by name, then id.
  *      The other relations are drawn as connections (notNestedNestingRels). A parent that would put
  *      the child below the algorithm's nesting levels is dropped; its relations are drawn as
  *      connections too (deepNestingRels).
@@ -294,6 +295,7 @@ function _stronglyConnected(nodeIds, succ) {
  * @param {EffectiveParams}     params        preset.params (nestingConditions, reverseConditions)
  * @param {string}              algorithm     ALGORITHMS key: its nesting levels
  * @param {VisualDescription[]} [visuals]     visuals on the target view (describeVisuals); none for a new view
+ * @param {Map<string, number>} [joinRun]     element id → the run it joined the object set in (joinRuns); absent = 0
  * @returns {NestingResolution}  parentMap, occurrenceMap, parentRels, circularNestingRels, cycles,
  *             notNestedNestingRels, deepNestingRels, and the pairing (see _pairVisuals)
  *
@@ -303,7 +305,7 @@ function _stronglyConnected(nodeIds, succ) {
  * model); `tgtOccId` likewise for rel.target. For reversed relation types,
  * the child sits on the rel.source side; otherwise on the rel.target side.
  */
-function resolveNesting(elements, nestingRels, params, algorithm, visuals) {
+function resolveNesting(elements, nestingRels, params, algorithm, visuals, joinRun) {
   const conditions = params.nestingConditions || [];
   // The containers user content sits in on the view: element id → container element ids.
   /** @type {Map<string | null, Set<string>>} */
@@ -315,6 +317,7 @@ function resolveNesting(elements, nestingRels, params, algorithm, visuals) {
     containers.add(v.chain[0]);
   }
   const byId  = new Map(elements.map(el => [el.id, el]));
+  const run   = (/** @type {string} */ id) => (joinRun && joinRun.get(id)) || 0;
   /** @type {ArchiRelation[]} */
   const notNestedNestingRels = [];
 
@@ -383,8 +386,11 @@ function resolveNesting(elements, nestingRels, params, algorithm, visuals) {
     /** @type {(a: string, b: string) => number} */
     // @ts-expect-error -- boolean arithmetic is intended: true − false = 1 puts current containers first
     const order = (a, b) => (current.has(b) - current.has(a)) || _byNameThenId(byId.get(a), byId.get(b));
+    /** @type {(a: string, b: string) => number} */
+    // @ts-expect-error -- boolean arithmetic is intended, as in order
+    const oneOrder = (a, b) => (current.has(b) - current.has(a)) || (run(a) - run(b)) || _byNameThenId(byId.get(a), byId.get(b));
     const parents = new Set(list.filter(c => c.every).map(c => c.parentId));
-    const one = [...new Set(list.filter(c => !c.every).map(c => c.parentId))].sort(order);
+    const one = [...new Set(list.filter(c => !c.every).map(c => c.parentId))].sort(oneOrder);
     if (one.length) parents.add(one[0]);
     parentsOf.set(childId, [...parents].sort(order));
   }
@@ -529,12 +535,13 @@ function splitNestingRels(relations, params) {
  * @param {EffectiveParams}     params
  * @param {string}              algorithm  ALGORITHMS key: its nesting levels and self-loops
  * @param {VisualDescription[]} [visuals]
+ * @param {Map<string, number>} [joinRun]  element id → the run it joined the object set in (joinRuns)
  * @returns {ViewCounts}
  */
-function predictViewCounts(elements, relations, diagram, params, algorithm, visuals) {
+function predictViewCounts(elements, relations, diagram, params, algorithm, visuals, joinRun) {
   const { nestingRels, connectionRels } = splitNestingRels(relations, params);
   const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels, deepNestingRels } =
-    resolveNesting(elements, nestingRels, params, algorithm, visuals);
+    resolveNesting(elements, nestingRels, params, algorithm, visuals, joinRun);
   const drawn = ALGORITHMS[algorithm].supportsSelfLoops
     ? (/** @type {ArchiRelation[]} */ list) => list.length
     : (/** @type {ArchiRelation[]} */ list) => list.filter(r => !(r.source && r.target && r.source.id === r.target.id)).length;

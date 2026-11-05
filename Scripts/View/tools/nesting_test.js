@@ -112,12 +112,19 @@ const placementOf = (s, name) => s.placements.find(x => x.startsWith(name + " �
      "totals: a relation below the nesting levels is a connection");
 }
 
-// ── one parent: current container, else name, then id ────────────────────────
+// ── one parent: current container, else earliest run, else name, then id ─────
 {
   const [p, q, x] = [el("p", "Beta"), el("q", "Alpha"), el("x", "X")];
   const rels = [rel("r1", p, x), rel("r2", q, x)];
   const s = run(params(AGG), [p, q, x], rels);
   eq(placementOf(s, "X"), "X ⊂ [Alpha]", "one parent: first by name");
+  const joined = (joinRun, visuals) => summarize(Nesting.resolveNesting([p, q, x], rels, params(AGG), "Layered", visuals, joinRun),
+    new Map([p, q, x].map(e => [e.id, e])));
+  eq(placementOf(joined(new Map([["x", 1], ["q", 2]])), "X"), "X ⊂ [Beta]", "one parent: the selection wins over a later run");
+  eq(placementOf(joined(new Map([["p", 2], ["x", 1], ["q", 3]])), "X"), "X ⊂ [Beta]", "one parent: the earlier run wins");
+  eq(placementOf(joined(new Map([["p", 2], ["q", 2]])), "X"), "X ⊂ [Alpha]", "one parent: one run → by name");
+  eq(placementOf(joined(new Map([["x", 1], ["p", 2]]), visuals([["vp", "p"], ["vq", "q"], ["vx", "x", "vq"]])), "X"), "X ⊂ [Alpha]",
+     "one parent: the current container wins over the run");
   eq(s.lines, ["r1"], "one parent: the other relation is drawn as a line");
   eq(run(params(AGG), [x, q, p], rels.slice().reverse()), s, "one parent: order-free");
   const cur = run(params(AGG), [p, q, x], rels, visuals([["vp", "p"], ["vq", "q"], ["vx", "x", "vp"]]));

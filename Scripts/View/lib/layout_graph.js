@@ -64,8 +64,8 @@ function _orderRootLeaves(nodes, order) {
  * @param {VisualDescription[] | undefined}  visuals
  * @param {VisualConnection[] | undefined}   visualRelations
  * @param {DiagramObject[] | undefined}      diagramConnections    connections of diagram objects (a note's line)
- * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[] }} diagramBlocks
- *   contents of diagram-blocks and the target view's objects (ObjectSet)
+ * @param {{ diagramBlockOf?: Map<string, string>, diagramBlockVisualOf?: Map<string, string>, positions?: Map<string, VisualPosition>, visualElements?: VisualObject[], joinRun?: Map<string, number> }} diagramBlocks
+ *   contents of diagram-blocks, the target view's objects and the run each element joined in (ObjectSet)
  * @param {import("./label_size").LabelInput} labels  measuring and fonts for the label heights
  * @returns {LayoutGraph}
  */
@@ -75,7 +75,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
 
   // Nesting structure and pairing shared with the pipeline's predictViewCounts so dialog/console
   // counts agree with the writer's actual output. Single source of truth.
-  const nesting = Nesting.resolveNesting(elements, nestingRels, params, preset.algorithm, visuals);
+  const nesting = Nesting.resolveNesting(elements, nestingRels, params, preset.algorithm, visuals, diagramBlocks && diagramBlocks.joinRun);
   const parentMap    = nesting.parentMap;
   const occurrenceMap = nesting.occurrenceMap;
   const parentRels   = nesting.parentRels;

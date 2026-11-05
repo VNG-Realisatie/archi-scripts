@@ -63,9 +63,11 @@ The container choice wins. A preset with a locked combination runs as *between*,
 | Relation matches | Outcome |
 |---|---|
 | a condition with *every container* (wins when the relation matches several nesting conditions) | **Every parent.** The child appears inside this parent whatever its other relations do. Each appearance is its own node mapping back to the same element. An extra occurrence of a container gets its own copies of the container's children. |
-| only conditions without it | **One parent.** All such relations of one child together give it at most one parent: the container its user-content occurrence sits in on the view, else the first by name, then by id. The other relations are drawn as connections. |
+| only conditions without it | **One parent.** All such relations of one child together give it at most one parent: the container its user-content occurrence sits in on the view, else the one that joined the object set in the earliest run (the selection first, then each run of each related-elements step in order), else the first by name, then by id. The other relations are drawn as connections. |
 
   Example: a composition from P1 (condition without *every container*) and an aggregation from P2 (condition with it) put the child in P1 **and** in P2.
+
+  Example: C is part of P1 (composition) and of P2 (aggregation), both conditions without *every container*. Selecting P1 puts C in P1, and P2, reached through C in a later step, gets a line to C; selecting P2 puts C in P2. The selected element is the subject of the view.
 - **Cycles.**
   - Nesting candidates that together form a containment cycle are **all** drawn as connections; candidates outside the cycle are unaffected.
   - The dialog counts them as *circular*, and the log names each cycle by its elements.

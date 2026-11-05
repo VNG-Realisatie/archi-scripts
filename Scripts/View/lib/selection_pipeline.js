@@ -108,7 +108,7 @@ function composeObjectSet(snapshot, preset, actionId) {
   // elements only — NOT the cumulative selection. An empty step terminates the chain.
   const expansion = actionId !== ACTION.LAYOUT_ONLY.id && Array.isArray(preset.relatedElements.steps)
     ? _expandRelatedElements(relationsOf, filteredElementsArr, preset.relatedElements.steps, allRelIds)
-    : { addedElements: [], addedRelations: [], stepCounts: [] };
+    : { addedElements: [], addedRelations: [], stepCounts: [], hops: [] };
   expansion.addedRelations.forEach(r => allRelations.push(r));
 
   // Elements are the filtered base plus step additions
@@ -135,7 +135,8 @@ function composeObjectSet(snapshot, preset, actionId) {
     connections: countDiagramConnections(diagramConnections, diagramNodes, elements, diagramBlockOf),
     elements:    diagramBlockVisualOf.size,
   };
-  const view = Nesting.predictViewCounts(elements, relations, diagram, preset.params, preset.algorithm, visuals);
+  const joinRun = joinRuns(expansion.hops);
+  const view = Nesting.predictViewCounts(elements, relations, diagram, preset.params, preset.algorithm, visuals, joinRun);
 
   return {
     objectSet: {
@@ -151,6 +152,7 @@ function composeObjectSet(snapshot, preset, actionId) {
       blockContents:     snapshot.blockContents,
       diagramBlockVisualOf,
       visuals,
+      joinRun,
     },
     filteredCounts,
     filteredBaseRels,
@@ -203,6 +205,19 @@ function _logComposed(composed, isModifyAction) {
   }
 }
 
+/**
+ * The run in which each added element joined the object set: 1 for the first run of the first step, counting on
+ * through every run of every step. An element that is not in it (the selection, the elements on the view) is 0.
+ * @param {ArchiElement[][]} hops  the elements each run added, in run order (expandStepWithRelations)
+ * @returns {Map<string, number>}  element id → run
+ */
+function joinRuns(hops) {
+  /** @type {Map<string, number>} */
+  const joinRun = new Map();
+  hops.forEach((hop, i) => hop.forEach(el => joinRun.set(el.id, i + 1)));
+  return joinRun;
+}
+
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -213,11 +228,14 @@ function _logComposed(composed, isModifyAction) {
  * @param {ArchiElement[]} filteredElementsArr
  * @param {Step[]}         steps
  * @param {Set<string>}    allRelIds   dedup set, mutated
- * @returns {{ addedElements: ArchiElement[], addedRelations: ArchiRelation[], stepCounts: StepCount[] }}
+ * @returns {{ addedElements: ArchiElement[], addedRelations: ArchiRelation[], stepCounts: StepCount[], hops: ArchiElement[][] }}
+ *   hops: the elements each run of each step added, in run order
  */
 function _expandRelatedElements(relationsOf, filteredElementsArr, steps, allRelIds) {
   /** @type {ArchiElement[]} */
   const addedElements  = [];
+  /** @type {ArchiElement[][]} */
+  const hops           = [];
   /** @type {ArchiRelation[]} */
   const addedRelations = [];
   /** @type {StepCount[]} */
@@ -227,16 +245,17 @@ function _expandRelatedElements(relationsOf, filteredElementsArr, steps, allRelI
   let stepIdx = 0;
   for (const step of steps) {
     stepIdx++;
-    const { added, rels: stepRels, cumulative: newCumul, runs, capped } =
+    const { added, hops: stepHops, rels: stepRels, cumulative: newCumul, runs, capped } =
       expandStepWithRelations(relationsOf, stepInput, step, cumulativeElems, allRelIds);
     cumulativeElems = newCumul;
     added.forEach(o => addedElements.push(o));
+    stepHops.forEach(h => hops.push(h));
     stepRels.forEach(r => addedRelations.push(r));
     stepCounts.push({ idx: stepIdx, elems: added.length, rels: stepRels.length, runs, capped });
     // Chain advance: next step's input is THIS step's additions only.
     stepInput = added;
   }
-  return { addedElements, addedRelations, stepCounts };
+  return { addedElements, addedRelations, stepCounts, hops };
 }
 
 /**
@@ -515,6 +534,7 @@ function _isRelation(concept) {
  * @returns {StepExpansion}
  *   candidates — every (relation, previous-step element, new element) the step saw, before the
  *                conditions; the dialog reads the property lists of the step's conditions from them
+ *   hops   — the elements each run added, in run order
  *   runs   — number of runs that added elements
  *   capped — true when the run limit was reached while the last run still added elements
  */
@@ -543,7 +563,7 @@ function expandStepWithRelations(relationsOf, base, step, cumulative, seenRelIds
   }
   const runs   = hops.filter(h => h.length > 0).length;
   const capped = hops.length === Defs.repeatMaxRuns(step.repeat) && hops[hops.length - 1].length > 0;
-  return { added, rels: newRels, cumulative: cumul, runs, capped, candidates };
+  return { added, hops, rels: newRels, cumulative: cumul, runs, capped, candidates };
 }
 
 /**
@@ -659,6 +679,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildObjectSet,
     composeObjectSet,
     expandStepWithRelations,
+    joinRuns,
     logCountBlock,
     findRelationsBetween,
     globalRelationMatch,

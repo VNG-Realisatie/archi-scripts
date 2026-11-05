@@ -326,7 +326,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 |---|---|
 | *Every container* is a flag per nesting condition, not a global switch. | Whether a child may have several parents depends on the relation: a composition has one whole; an aggregation or grouping may have many. |
 | A relation matching several nesting conditions gets *every container* if any of them has it. | Condition order then has no meaning, as in every condition list; an extra condition can only add occurrences. |
-| The one-parent choice uses the current view, then names; never model or condition order. | Re-layout keeps elements where the user has them; a fresh view is reproducible. |
+| The one-parent choice uses the current view, then the run in which the parent joined the object set, then names; never model or condition order. | Re-layout keeps elements where the user has them; the selection is the subject of the view, so a part shared by two wholes nests in the whole that was selected; a fresh view is reproducible. Every run, not every step: a step with repeat reaches further with each run. |
 | A relation drawn as nesting loses its other lines on the view. | Containment already shows it; a left-over line shows it twice and reads as a second relation. |
 | Nesting relations forming a cycle are all drawn as connections. | A cycle is nearly always a modelling error or a double relation. Lines make it visible, where breaking it at one relation would hide it. Nothing disappears, and the rule is order-independent. |
 | A connection is drawn once per relation, between the occurrences closest together; one already on the view keeps its ends. | A relation is one fact; every pair of occurrences multiplied the lines (3,918 for 60 relations on a 128-occurrence view). The closest pair keeps the line local; keeping the user's ends means re-layout never moves a line to other boxes. |
@@ -336,7 +336,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - **Cycles first.** The strongly connected components (Tarjan) of the candidate graph parent → child are found first. Every candidate inside a component is routed, and the cycle is logged by its element names. What remains is acyclic, so later steps need no cycle checks.
 - **Parents per child**:
   - every parent reached by a relation matching a condition with `everyContainer` (`ConditionLists.matchEveryContainer`; Exclude conditions still veto);
-  - plus at most one parent from the other relations: a container the child sits in on the target view (`currentContainers`, from the VisualSet; the dialog takes it from the selected view), else by name, then id.
+  - plus at most one parent from the other relations: a container the child sits in on the target view (`currentContainers`, from the VisualSet; the dialog takes it from the selected view), else the earliest run (`joinRun`: element id → run, from `Pipeline.joinRuns` over the runs of every step; the selection and the elements on the view are absent, run 0), else by name, then id. The order of the *every container* parents, and so which occurrence is the first, stays current view, then name.
 
   All candidates between a chosen parent and the child nest; the rest are routed.
 - **Occurrences, parents first.** An element gets one occurrence under each occurrence of each of its parents, so an extra occurrence of a container gets copies of all its children. Extra occurrences are numbered in parent order.

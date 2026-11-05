@@ -73,10 +73,13 @@ function dialogCounts(input) {
   const steps = [];
   let cumulative = filteredElements.slice();
   let stepInput  = filteredElements.slice();
+  /** @type {ArchiElement[][]} */
+  const hops = [];
   for (const s of input.steps) {
     const seenBefore = new Set(seenRelIds);
-    const { added, rels: stepRels, cumulative: newCumul, runs, capped, candidates } =
+    const { added, hops: stepHops, rels: stepRels, cumulative: newCumul, runs, capped, candidates } =
       Pipeline.expandStepWithRelations(relationsOf, stepInput, s.step, cumulative, seenRelIds);
+    stepHops.forEach(h => hops.push(h));
     const adds = { elements: added.length, relations: stepRels.length };
     steps.push({ ...adds, runs, capped, candidates,
       conditionCounts: stepConditionCounts(relationsOf, s, stepInput, cumulative, seenBefore, adds) });
@@ -95,9 +98,10 @@ function dialogCounts(input) {
     connections: Pipeline.countDiagramConnections(diagramConnections, diagramNodes, onView, inBlock),
     elements:    onlyInBlocks.size,
   };
-  const view = Nesting.predictViewCounts(onView, finalRels, diagram, input.params, input.algorithm, input.visuals);
+  const joinRun = Pipeline.joinRuns(hops);
+  const view = Nesting.predictViewCounts(onView, finalRels, diagram, input.params, input.algorithm, input.visuals, joinRun);
   const layoutConditions = input.layoutConditions
-    ? layoutConditionCounts(input.layoutConditions, cumulative, finalRels, input.params, input.algorithm, input.visuals)
+    ? layoutConditionCounts(input.layoutConditions, cumulative, finalRels, input.params, input.algorithm, input.visuals, joinRun)
     : null;
 
   // Expand view: composed by the pipeline itself from what it read before the dialog opened.
@@ -245,11 +249,12 @@ function featureConditionCounts(conditions, relations, nestedIds) {
  * @param {EffectiveParams}     params
  * @param {string}              algorithm
  * @param {VisualDescription[]} visuals
+ * @param {Map<string, number>} joinRun  element id → the run it joined the object set in (joinRuns)
  * @returns {LayoutConditionCounts}
  */
-function layoutConditionCounts(tables, elements, relations, params, algorithm, visuals) {
+function layoutConditionCounts(tables, elements, relations, params, algorithm, visuals, joinRun) {
   const split = Nesting.splitNestingRels(relations, params);
-  const nest  = Nesting.resolveNesting(elements, split.nestingRels, params, algorithm, visuals);
+  const nest  = Nesting.resolveNesting(elements, split.nestingRels, params, algorithm, visuals, joinRun);
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
   const loops = nest.notNestedNestingRels.filter(r => r.source && r.target && r.source.id === r.target.id).length;
   return {

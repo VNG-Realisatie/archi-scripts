@@ -364,11 +364,15 @@ interface ObjectSet {
   blockContents?: Map<string, BlockContents>;
   /** Elements that appear only inside a diagram-block: element id → its visual there. */
   diagramBlockVisualOf?: Map<string, string>;
+  /** The run in which each added element joined (joinRuns); the selection and the view's elements are absent (0). */
+  joinRun?: Map<string, number>;
 }
 
 /** One expand-selection step's result (expandStepWithRelations). */
 interface StepExpansion {
   added: ArchiElement[];
+  /** The elements each run added, in run order. */
+  hops: ArchiElement[][];
   rels: ArchiRelation[];
   cumulative: ArchiElement[];
   /** Runs that added elements. */

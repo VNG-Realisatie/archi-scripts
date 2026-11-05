@@ -242,7 +242,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 
 **Several parents** are never decided by condition or model order ([roles and parents](reference/selection-nesting.md#roles-and-parents)).
 - A nesting condition set to **every container** places the child in *each* parent it reaches, as extra occurrences (e.g. an element filed under several groupings). Algorithms that do not draw containment draw each element once.
-- The other nesting relations of one child give it **at most one** parent, the container it already sits in or else the first by name; the rest are drawn as connections.
+- The other nesting relations of one child give it **at most one** parent: the container it already sits in, else the one that joined the view earliest (the selection first, then the related-elements steps in order), else the first by name; the rest are drawn as connections.
 - Nesting relations that together form a **cycle** (A contains B … contains A) are all drawn as connections.
 - A relation drawn as nesting is never also drawn as a line. A connection whose ends have several occurrences is drawn **once** ([connections between occurrences](reference/selection-nesting.md#connections-between-occurrences)).
 
