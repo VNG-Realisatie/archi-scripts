@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 6,
+  "name": "View script/ApplicationProces",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Down",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Target",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "assignment-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "composition-relationship"},
+      {"source": "application-process", "relation": "aggregation-relationship", "target": "application-process"},
+      {"relation": "assignment-relationship", "target": "application-process", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "algorithmStart": "Selection",
+    "cycleAlgorithmStart": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Between containers",
+    "layerSpacing": 60,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 25,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "Directly related elements (1 ring)",
+        "repeat": 1,
+        "conditions": [
+          {},
+          {"on": false, "relation": "serving-relationship"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"previous": "application-process"},
+          {"on": false, "mode": "exclude", "previous": "application-process", "direction": "incoming"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 3,
+        "conditions": [
+          {"previous": "application-process"},
+          {"mode": "exclude", "previous": "application-process", "propertyOf": "previous", "property": "top process", "value": "yes"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "CI check",
+    "folder": "/_Generated/ApplicationProces",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"parent": "application-process", "direction": "outgoing", "relation": "composition-relationship", "fontSize": 14, "child": "same"}
+      ],
+      "fontEnabled": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "darkenStart": 1,
+      "lightenPerLevel": 25
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "vanuit view subsystem"
+}
