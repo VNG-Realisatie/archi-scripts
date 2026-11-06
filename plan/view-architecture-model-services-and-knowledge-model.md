@@ -16,7 +16,7 @@ Done (2026-11-04): approved with one service for the five maintenance processes 
 
 Rule (header of `architecture_model.js` and `MODEL_PURPOSE`): an application process realises the application service it delivers; the application service serves the business process that uses it.
 
-Folders: `/Application/Services` holds the services the business processes use (with Generate a view, which the Public API offers); the three other contracts are in `/Application/Services/Contracts`. Relations in the folder `Relations/Services`.
+Folders: `/Application/Services` holds the services the business processes use (with Generate a view, the API boundary generate_view()); the three other contracts are in `/Application/Services/Contracts`. Relations in the folder `Relations/Services`.
 
 | Service | Realised by | Serves |
 |---|---|---|

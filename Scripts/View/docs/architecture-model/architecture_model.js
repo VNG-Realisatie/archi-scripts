@@ -11,17 +11,21 @@
  *     scripts. An application process realises the application service it delivers; the service serves the
  *     business processes that use it. No application process serves a business process directly.
  *   - A trigger connects two processes of one level: parts of the same process, or two top processes.
+ *   - An actor is assigned to the top process it performs; to a part only when it performs just that part (the
+ *     architect reports a view, the agent and developer diagnose it).
  *   - Business processes access business objects; documentation is a business object.
  *   - AI development environment: an AI agent is an application component, assigned to the skills it performs; a
  *     skill is an application function that serves the process steps that use it (only skills in use); its SKILL.md
- *     is an artifact that realises it. Agent rules (AGENTS.md, ai/repo-guide) are artifacts, associated with an agent or a process
- *     step only where that shows how they steer it. The process is modelled apart from the agent configuration:
+ *     is an artifact that realises it. Agent rules (AGENTS.md, ai/repo-guide) are artifacts, associated with the agents
+ *     they instruct and the top processes they govern; the steps' documentation names the rule that applies. The process is modelled apart from the agent configuration:
  *     no agent is assigned to a process step.
  *   - Application components and system software access data objects; an application process has no access of its
  *     own: the components (or system software) that access its data serve it. A data object realises the business
  *     object it holds.
  *   - Contracts: a data contract is a data object; a behaviour contract that one or more modules offer is an
- *     application service they realise; the subsystem's Public API is an application interface.
+ *     application service they realise. No application interfaces: a module's interface is implicit in it (its main
+ *     exports in the documentation; the public ones in ARCHITECTURE § Public API).
+ *   - Vendored libraries are system software.
  *   - CI is the application component check.yml: ArchiMate assigns no actor to an automated process.
  *   - Names follow the View vocabulary (Scripts/View/docs/SPEC.md § Vocabulary).
  */
@@ -101,9 +105,6 @@ const ELEMENT_GROUPS = [
     ["layerShared", "Shared modules", "Used by layers 1 and 2: the SSOT (defs.js), the condition model, preset and settings files, and the headless runs of the entry scripts (run_preset.js).", { path: "Scripts/View/lib/" }],
     ["layerTestArchi", "Archi test scripts", "jArchi scripts that build the test model and write, time and render the baseline, run through Archi's command line or in Archi.", { path: "Scripts/View/test/" }],
     ["layerTools", "Node tools", "Node checks, harness, generators and migrations; run locally and (partly) in CI. Not type-checked.", { path: "Scripts/View/tools/" }],
-  ] },
-  { folder: "/Application/View subsystem", type: "application-interface", elements: [
-    ["publicApi", "Public API", "The only exports code outside the View subsystem uses; everything else is internal (ARCHITECTURE § Public API, SPEC § 3): generate_view(preset, selection, actionId?), run_preset.fromFilename / fromBase / fromSession, preset_io.readPreset, defs.ACTION and dialog_main.open."],
   ] },
   { folder: "/Application/View subsystem/Dialog", type: "application-component", props: { runtime: "Archi", typechecked: "yes" }, elements: [
     ["_gui", "_gui.ajs", "The only script that opens the Generate View dialog. Captures the Archi selection before the dialog opens (focus loss can clear it); the chosen action runs after the dialog closes. Calls: dialog_main.open().", { path: "Scripts/View/_gui.ajs", typechecked: "no" }],
@@ -191,7 +192,7 @@ const ELEMENT_GROUPS = [
     ["selection", "selection.js", "Turns $(selection) into model concepts or visuals, expanding folders, views and view references; the diagram-object type list defs.js imports.\n\nMain exports: getSelection(), getVisualSelection(), getSelectionArray(), DIAGRAM_OBJECT_TYPES.", { path: "Scripts/_lib/selection.js" }],
     ["archi_folders", "archi_folders.js", "Folder paths: get or create, print a path, delete empty folders.\n\nMain exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().", { path: "Scripts/_lib/archi_folders.js" }],
   ] },
-  { folder: "/Application/Vendored libraries", type: "application-component", props: { runtime: "Archi and Node" }, elements: [
+  { folder: "/Technology & Physical/Vendored libraries", type: "system-software", props: { runtime: "Archi and Node" }, elements: [
     ["elkjs", "elkjs", "Eclipse Layout Kernel in JavaScript; npm elkjs, EPL-2.0. Vendored: no npm at runtime (repo rule 6).", { path: "Scripts/node_modules/elkjs/", version: "0.11.1" }],
     ["dagre-cluster-fix", "dagre-cluster-fix", "A fork of dagre with compound-graph placement, of unrecorded origin (ARCHITECTURE § Risks).", { path: "Scripts/node_modules/dagre-cluster-fix/", version: "0.9.0" }],
     ["chroma-js", "chroma-js", "Colour scales and conversions (chroma.js by Gregor Aisch).", { path: "Scripts/node_modules/chroma-js/", version: "2.1.0" }],
@@ -205,7 +206,7 @@ const ELEMENT_GROUPS = [
 
   // ── Application services: realised by application processes, serve the business processes ─────────────────
   { folder: "/Application/Services", type: "application-service", elements: [
-    ["svGenerate", "Generate a view", "Through the Public API: validate the preset, run the action (New view, One view each, Expand view, Layout only; default New view) on the selection, return the written views."],
+    ["svGenerate", "Generate a view", "generate_view(preset, selection, actionId?), the API boundary of SPEC § 3: validate the preset, run the action (New view, One view each, Expand view, Layout only; default New view) on the selection, return the written views."],
     ["svDialog", "Generate with the dialog", "The Generate View dialog on the selection: settings or a preset, live counts of what the view will hold, then an action."],
     ["svPresetFiles", "Keep preset files", "Save, rename and delete presets as files in presets/; Default stays read-only."],
     ["svHeadless", "Generate with an entry script", "A run on the selection without the dialog: preset, action and direction from the script's file name, the base preset or the session."],
@@ -226,9 +227,9 @@ const ELEMENT_GROUPS = [
   // ── Application processes ─────────────────────────────────────────────────────────────────────────────────
   { folder: "/Application/Processes", type: "application-process", elements: [
     ["apRunView", "Run View", "A run of the View scripts: the dialog or a headless entry script, then the API generates the view."],
-    ["apTests", "Run the tests", "The test levels from cheap to Archi (ARCHITECTURE § Development and testing): typecheck, unit, consistency, harness, fingerprints, rule checks in Node; written views, rendering and time through Archi's command line."],
+    ["apTests", "Run the tests", "The test levels from cheap to Archi (ARCHITECTURE § Development and testing): the Node checks and a real view planned in Node; written views, rendering and time through Archi's command line."],
     ["apMaintain", "Maintain test data and settings", "Rebuild the test model, regenerate the doc tables, rewrite expected files, compare a preset with the session, migrate presets to a new schema."],
-    ["apCi", "CI check", "check.yml on every push and pull request: typecheck, unit, consistency, fingerprints (without the Graphviz algorithms), rule checks. Fails the push on any difference."],
+    ["apCi", "CI check", "check.yml on every push and pull request: the Node checks on a clean clone, in process, with the Graphviz version the known violations hold; the fingerprints without the Graphviz algorithms (they differ between builds of one version). Fails the push on any difference."],
   ] },
   { folder: "/Application/Processes/Run View", type: "application-process", elements: [
     ["apDialogRun", "Run the dialog", "Capture the selection, read the session, read a selected view once, build the tabs, recount on every committed change; an action closes the dialog, saves the session and calls the API (ARCHITECTURE § Run flow)."],
@@ -247,6 +248,7 @@ const ELEMENT_GROUPS = [
     ["apStyle", "Style the view", "The appearance pass on the written view: colours, fonts, line widths."],
   ] },
   { folder: "/Application/Processes/Run the tests", type: "application-process", elements: [
+    ["apNodeChecks", "Run the Node checks", "Typecheck, unit, consistency, write-plan, layout and rule checks in Node, without Archi; each against its expected file. Part of Run the tests and of CI check."],
     ["apTypecheck", "Typecheck", "npm run typecheck: tsc on the JSDoc of lib/** and three _lib modules against the typed contracts (types/*.d.ts, jarchi.d.ts)."],
     ["apUnit", "Unit tests", "rel_filter_test, nesting_test, tiles_test, compose_test, counts_test."],
     ["apConsistency", "Consistency checks", "check_registry.js and gen_docs_tables.js (check mode)."],
@@ -319,8 +321,7 @@ const ELEMENT_GROUPS = [
 
   // ── Application: AI development environment ───────────────────────────────────────────────────────────────
   { folder: "/Application/AI development environment/Agents", type: "application-component", elements: [
-    ["agClaudeCode", "Claude Code", "AI coding agent; reads AGENTS.md natively and finds the skills through the stubs in .claude/skills/. Plans, builds, runs the Node checks and Archi's command line, writes the docs; asks only for decisions, approvals and checks only the developer can do.", { path: ".claude/" }],
-    ["agCopilot", "GitHub Copilot", "AI coding agent; its adapter points to AGENTS.md and Scripts/View/AGENTS.md, and it reads a skill's SKILL.md as AGENTS.md routes it.", { path: ".github/copilot-instructions.md" }],
+    ["agHarness", "Agent harness", "AI coding agent (Claude Code, GitHub Copilot, …); reads AGENTS.md natively or through an adapter that only points there, and finds the skills through the routing in AGENTS.md. Plans, builds, runs the Node checks and Archi's command line, writes the docs; asks only for decisions, approvals and checks only the developer can do."],
   ] },
   { folder: "/Application/AI development environment/Skills", type: "application-function", elements: [
     ["skJarchi", "jarchi-scripting", "Write or change jArchi scripts: jArchi API, GraalJS/Java, SWT/JFace dialogs; jarchi.d.ts is the highest repo authority on jArchi facts."],
@@ -424,7 +425,7 @@ const DEPENDENCIES = {
 
 // Parent → its files; becomes composition.
 const STRUCTURE = {
-  viewSubsystem: ["publicApi", "entryScripts", "layerDialog", "layerApi", "layerEngines", "layerShared", "layerTestArchi", "layerTools"],
+  viewSubsystem: ["entryScripts", "layerDialog", "layerApi", "layerEngines", "layerShared", "layerTestArchi", "layerTools"],
   layerDialog: ["_gui", "dialog_main", "preset_row", "dialog_presets", "tab_selection", "tab_layout", "tab_appearance", "tab_properties", "widgets",
     "condition_table", "counts"],
   layerApi: ["generate_view", "selection_read", "selection_pipeline", "nesting", "layout_graph", "label_size", "text_measure", "write_plan",
@@ -448,8 +449,8 @@ const STRUCTURE = {
   bpVersion: ["bpRewriteExpected", "bpCommit", "bpPush"],
   bpDiagnose: ["bpReportView", "bpFindInputs", "bpReproduce", "bpFindCause", "bpLogCase"],
   apRunView: ["apDialogRun", "apHeadlessRun", "apGenerate"],
-  apTests: ["apTypecheck", "apUnit", "apConsistency", "apHarness", "apWritePlans", "apLayoutRegression", "apRuleChecks", "apWrittenViews",
-    "apRendering", "apArchiTime"],
+  apTests: ["apNodeChecks", "apHarness", "apWrittenViews", "apRendering", "apArchiTime"],
+  apNodeChecks: ["apTypecheck", "apUnit", "apConsistency", "apWritePlans", "apLayoutRegression", "apRuleChecks"],
   apMaintain: ["apBuildTestModel", "apGenDocs", "apWriteExpected", "apPresetDiff", "apMigrate"],
   apDialogRun: ["apRecount", "apSavePreset"],
   apGenerate: ["apValidate", "apRead", "apPlan", "apApply", "apStyle"],
@@ -488,26 +489,14 @@ const RELATIONS = {
     ["triggering-relationship", "", "apPlan", "apApply"],
     ["triggering-relationship", "", "apApply", "apStyle"],
     // Test levels in CI
-    ["aggregation-relationship", "", "apCi", "apTypecheck"],
-    ["aggregation-relationship", "", "apCi", "apUnit"],
-    ["aggregation-relationship", "", "apCi", "apConsistency"],
-    ["aggregation-relationship", "", "apCi", "apWritePlans"],
-    ["aggregation-relationship", "", "apCi", "apLayoutRegression"],
-    ["aggregation-relationship", "", "apCi", "apRuleChecks"],
+    ["aggregation-relationship", "", "apCi", "apNodeChecks"],
   ],
   "Assignment": [
-    ["assignment-relationship", "", "architect", "bpGenerateDialog"],
-    ["assignment-relationship", "", "architect", "bpGenerateScript"],
-    ["assignment-relationship", "", "architect", "bpManagePresets"],
-    ["assignment-relationship", "", "architect", "bpGenerateGgm"],
+    // Actors: the top process; a part only when the actor performs just that part of it
+    ["assignment-relationship", "", "architect", "bpGenerate"],
     ["assignment-relationship", "", "architect", "bpReportView"],
-    ["assignment-relationship", "", "developer", "bpAgree"],
-    ["assignment-relationship", "", "developer", "bpRunArchiBaseline"],
-    ["assignment-relationship", "", "developer", "bpCheckInArchi"],
-    ["assignment-relationship", "", "developer", "bpRebuildTestModel"],
-    ["assignment-relationship", "", "developer", "bpApprove"],
-    ["assignment-relationship", "", "developer", "bpCommit"],
-    ["assignment-relationship", "", "developer", "bpPush"],
+    ["assignment-relationship", "", "developer", "bpDevelop"],
+    ["assignment-relationship", "", "developer", "bpVersion"],
     // Components perform application processes
     ["assignment-relationship", "", "dialog_main", "apDialogRun"],
     ["assignment-relationship", "", "counts", "apRecount"],
@@ -562,13 +551,8 @@ const RELATIONS = {
     ["realization-relationship", "", "apSavePreset", "svPresetFiles"],
     ["realization-relationship", "", "apHeadlessRun", "svHeadless"],
     ["realization-relationship", "", "apTypecheck", "svTypecheck"],
-    ["realization-relationship", "", "apTypecheck", "svNodeChecks"],
-    ["realization-relationship", "", "apUnit", "svNodeChecks"],
-    ["realization-relationship", "", "apConsistency", "svNodeChecks"],
+    ["realization-relationship", "", "apNodeChecks", "svNodeChecks"],
     ["realization-relationship", "", "apHarness", "svNodeChecks"],
-    ["realization-relationship", "", "apWritePlans", "svNodeChecks"],
-    ["realization-relationship", "", "apLayoutRegression", "svNodeChecks"],
-    ["realization-relationship", "", "apRuleChecks", "svNodeChecks"],
     ["realization-relationship", "", "apHarness", "svReproduce"],
     ["realization-relationship", "", "apWrittenViews", "svArchiChecks"],
     ["realization-relationship", "", "apRendering", "svArchiChecks"],
@@ -763,8 +747,8 @@ const RELATIONS = {
   ],
   "AI development environment": [
     // Agents perform skills
-    ...["agClaudeCode", "agCopilot"].flatMap(agent => ["skJarchi", "skElkjs", "skDagre", "skGraphviz", "skViewTesting", "skViewBaseline"]
-      .map(skill => ["assignment-relationship", "", agent, skill])),
+    ...["skJarchi", "skElkjs", "skDagre", "skGraphviz", "skViewTesting", "skViewBaseline"]
+      .map(skill => ["assignment-relationship", "", "agHarness", skill]),
     // A SKILL.md realises its skill
     ["realization-relationship", "", "afSkillJarchi", "skJarchi"],
     ["realization-relationship", "", "afSkillElkjs", "skElkjs"],
@@ -787,25 +771,14 @@ const RELATIONS = {
     ["serving-relationship", "", "skViewBaseline", "bpRunArchiBaseline"],
     ["serving-relationship", "", "skViewBaseline", "bpRebuildTestModel"],
     // How the agent rules steer agents and process steps
-    ["association-relationship", "instructs", "afAgents", "agClaudeCode"],
-    ["association-relationship", "instructs", "afAgents", "agCopilot"],
-    ["association-relationship", "governs", "afAgents", "bpWritePlan"],
-    ["association-relationship", "governs", "afAgents", "bpCommit"],
-    ["association-relationship", "governs", "afViewAgents", "bpAgree"],
-    ["association-relationship", "governs", "afViewAgents", "bpApprove"],
-    ["association-relationship", "governs", "afViewAgents", "bpDocument"],
-    ["association-relationship", "governs", "afViewAgents", "bpChangeRegistry"],
-    ["association-relationship", "governs", "afViewAgents", "bpChangeCode"],
+    ["association-relationship", "instructs", "afAgents", "agHarness"],
+    ["association-relationship", "governs", "afAgents", "bpDevelop"],
+    ["association-relationship", "governs", "afAgents", "bpVersion"],
+    ["association-relationship", "governs", "afViewAgents", "bpDevelop"],
     ["association-relationship", "routes to", "afAgents", "afRepoGuide"],
-    ["association-relationship", "governs", "afRepoGuide", "bpChangeCode"],
-    ["association-relationship", "governs", "afRepoGuide", "bpRunNodeChecks"],
+    ["association-relationship", "governs", "afRepoGuide", "bpDevelop"],
   ],
   "Contracts": [
-    // Public API
-    ["assignment-relationship", "", "publicApi", "svGenerate"],
-    ["serving-relationship", "", "publicApi", "entryScripts"],
-    ["serving-relationship", "", "publicApi", "_gui"],
-    ["serving-relationship", "", "publicApi", "ggm"],
     // Run a process
     ["realization-relationship", "", "process_runner", "svRunProcess"],
     ["realization-relationship", "", "process_runner_node", "svRunProcess"],

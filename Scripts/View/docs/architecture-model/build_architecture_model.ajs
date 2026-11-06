@@ -31,11 +31,13 @@ const MODEL_PURPOSE = "The software architecture of the View subsystem (Scripts/
   "objects and serve the application processes that use the data; a data object realises the business object it holds; " +
   "an AI agent is an application component assigned to its skills (application functions), a skill serves the process " +
   "steps that use it and its SKILL.md (artifact) realises it, agent rules (AGENTS.md, ai/repo-guide; artifacts) are associated with " +
-  "the agents and steps they steer, and no agent is assigned to a process step; properties path, runtime, typechecked, " +
-  "version.\n\nKnowledge model (folders Knowledge model, derived by the build): one element per element type used, one " +
+  "the agents they instruct and the top processes they govern; an actor is assigned to the top process it performs, to a part " +
+  "only when it performs just that part; and no agent is assigned to a process step; properties path, runtime, typechecked, " +
+  "version, and top process (yes on a process that is no part of another).\n\nKnowledge model (folders Knowledge model, derived by the build): one element per element type used, one " +
   "relation per relation type used between two element types, a grouping per top folder; the documentation gives the counts.";
 const KNOWLEDGE_MODEL = "Knowledge model";
-const PROPERTY_KEYS = ["path", "runtime", "typechecked", "version"];
+const TOP_PROCESS_KEY = "top process";
+const PROPERTY_KEYS = ["path", "runtime", "typechecked", "version", TOP_PROCESS_KEY];
 const EXPORT_DATE_KEY = "view-architecture export date";
 // uuid5(NAMESPACE_URL, "https://github.com/archi-scripts/Scripts/View/docs/architecture-model"): never change it, or
 // every id changes.
@@ -51,7 +53,7 @@ try {
   /** @type {Map<string, string>} stable key → the id Archi gave */
   const keys = new Map([["model", archModel.id]]);
 
-  const els = _createElements(Content.ELEMENT_GROUPS, exportDate, keys);
+  const els = _createElements(Content.ELEMENT_GROUPS, exportDate, keys, _topProcesses(Content.ELEMENT_GROUPS, Content.STRUCTURE));
   /** @type {Array<[string, string[][]]>} */
   const relationFolders = [
     ["Dependencies", _dependencyRows(Content.DEPENDENCIES)],
@@ -94,9 +96,10 @@ function _checkNotLoaded(path) {
  * @param {{ folder: string, type: string, props?: Record<string, string>, elements: Array<[string, string, string, Record<string, string>?]> }[]} groups
  * @param {string} exportDate
  * @param {Map<string, string>} keys  stable key → id; gets "element/<key>"
+ * @param {Set<string>} [topProcesses]  keys that get the property "top process"
  * @returns {Record<string, ArchiElement>}
  */
-function _createElements(groups, exportDate, keys) {
+function _createElements(groups, exportDate, keys, topProcesses = new Set()) {
   /** @type {Record<string, ArchiElement>} */
   const out = {};
   for (const group of groups) {
@@ -105,7 +108,7 @@ function _createElements(groups, exportDate, keys) {
       if (out[key]) throw new Error(`Element key "${key}" is used twice`);
       const el = folder ? model.createElement(group.type, name, folder) : model.createElement(group.type, name);   // undefined is not "no folder"
       el.documentation = documentation;
-      const props = Object.assign({}, group.props, own);
+      const props = Object.assign({}, group.props, own, topProcesses.has(key) ? { [TOP_PROCESS_KEY]: "yes" } : {});
       for (const k of PROPERTY_KEYS) if (props[k]) el.prop(k, props[k]);
       el.prop(EXPORT_DATE_KEY, exportDate);
       keys.set(`element/${key}`, el.id);
@@ -113,6 +116,17 @@ function _createElements(groups, exportDate, keys) {
     }
   }
   return out;
+}
+
+/**
+ * The processes that are no part of another process.
+ * @param {{ type: string, elements: Array<[string, ...unknown[]]> }[]} groups
+ * @param {Record<string, string[]>} structure  parent → parts
+ * @returns {Set<string>}
+ */
+function _topProcesses(groups, structure) {
+  const parts = new Set(Object.values(structure).flat());
+  return new Set(groups.filter(g => g.type.endsWith("-process")).flatMap(g => g.elements.map(([key]) => key)).filter(key => !parts.has(key)));
 }
 
 /**
