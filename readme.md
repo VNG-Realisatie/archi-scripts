@@ -1,7 +1,7 @@
 
-| Eigenaar | Ingevuld door |
-|---------|----------------|
-| Kennis Centrum Architectuur | Mark Backer |
+| Eigenaar                    | Ingevuld door |
+| --------------------------- | ------------- |
+| Kennis Centrum Architectuur | Mark Backer   |
 
 ---
 
