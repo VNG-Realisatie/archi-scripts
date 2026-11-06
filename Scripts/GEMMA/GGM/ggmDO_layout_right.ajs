@@ -1,12 +1,12 @@
 /**
  * Shortcut: run a GGM preset on the selection. The filename gives the action and direction:
- *   <name>_<Generate|GenerateMultiple|Expand|Layout>_<LR|RL|TB|BT>.ajs
- * Preset: Scripts/View/presets/GEMMA/GGM/GGM bedrijfsobject specialisaties.json
+ *   <name>_<new_view|one_view_each|expand_view|layout>_<right|left|down|up>.ajs
+ * Preset: Scripts/View/presets/GEMMA/GGM/GGM data-object specialisaties.json
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common    = require(REPO_ROOT + "_lib/Common");
 const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
 
 Common.initConsoleLog(__FILE__, true);
-RunPreset.fromFilename(__FILE__, $(selection), { preset: "GEMMA/GGM/GGM bedrijfsobject specialisaties" });
+RunPreset.fromFilename(__FILE__, $(selection), { preset: "GEMMA/GGM/GGM data-object specialisaties" });
 Common.finishConsoleLog();

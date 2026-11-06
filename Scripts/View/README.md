@@ -53,20 +53,24 @@ Run a saved preset without the dialog.
 
 | Script | Action |
 |---|---|
-| `_generate.ajs` | New view |
-| `_generate_multiple.ajs` | One view each |
-| `_expand.ajs` | Expand view — from the elements selected on a view; the whole view is laid out |
-| `_layout_only.ajs` | Layout only |
-| `_layout_LR.ajs`, `_layout_TB.ajs` | Layout only, direction Right / Down, no nesting |
-| `_layout_nested_LR.ajs`, `_layout_nested_TB.ajs` | Layout only, direction Right / Down, aggregation as nesting |
+| `_all_new_view.ajs` | New view |
+| `_all_one_view_each.ajs` | One view each |
+| `_all_expand_view.ajs` | Expand view — from the elements selected on a view; the whole view is laid out |
+| `_all_layout_right.ajs`, `_all_layout_down.ajs` | Layout only, direction Right / Down, no nesting |
+| `_all_nested_right.ajs`, `_all_nested_down.ajs` | Layout only, direction Right / Down, aggregation as nesting |
 
 **Session** — the dialog's last settings (`presets/_session.json`):
 
 | Script | Action |
 |---|---|
-| `_layout_session_cycle.ajs` | Layout only with *Cycle selection order*: each run takes the next selection order, without opening the dialog |
+| `_session_right.ajs`, `_session_down.ajs` | Layout only, direction Right / Down |
+| `_session_flat.ajs` | Layout only without nesting; the nesting conditions are parked in the session |
+| `_session_nested.ajs` | Layout only with the parked nesting conditions, else aggregation as nesting |
+| `_session_cycle_selection_order.ajs` | Layout only with *Cycle selection order*: each run takes the next selection order, without opening the dialog |
 
-**Named preset**: put a script in `shortcuts/` (or a sub-folder; `presets/` holds only the JSON), name it `<preset>_<Action>_<Direction>.ajs` and give it these lines:
+The first four keep their change in the session: changes stack, and the dialog shows them with `*`, so Save keeps them.
+
+**Named preset**: put a script in `shortcuts/` (or a sub-folder; `presets/` holds only the JSON), name it `<preset>_<action>_<direction>.ajs` and give it these lines:
 
 ```js
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
@@ -79,10 +83,10 @@ Common.finishConsoleLog();
 ```
 
 - `<preset>` — preset name (with `folder`: `presets/<folder>/<preset>.json`)
-- `<Action>` — `Generate` (New view), `GenerateMultiple` (One view each), `Expand`, `Layout`
-- `<Direction>` — `LR`, `RL`, `TB` or `BT`; overrides the preset's direction
+- `<action>` — `new_view`, `one_view_each`, `expand_view`, `layout`
+- `<direction>` — `right`, `left`, `down` or `up`; overrides the preset's direction
 
-Example: `TAenIA_Layout_TB.ajs` lays out the selected view with preset `GEMMA views/TAenIA`, top to bottom. Use `{ preset: "folder/name" }` to name the preset explicitly (see `Scripts/GEMMA/GGM/ggmBO_Layout_LR.ajs`), and `{ edit: preset => { … } }` to change the preset in the script before it runs (e.g. `preset.view.folder = "/Generated"`).
+Example: `TAenIA_layout_down.ajs` lays out the selected view with preset `GEMMA views/TAenIA`, top to bottom. Use `{ preset: "folder/name" }` to name the preset explicitly (see `Scripts/GEMMA/GGM/ggmBO_layout_right.ajs`), and `{ edit: preset => { … } }` to change the preset in the script before it runs (e.g. `preset.view.folder = "/Generated"`).
 
 ## Scripting
 

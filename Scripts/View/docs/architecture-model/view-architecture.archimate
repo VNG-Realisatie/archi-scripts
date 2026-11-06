@@ -809,7 +809,7 @@ Main export: flatten().</documentation>
         <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
       </element>
       <element xsi:type="archimate:ApplicationComponent" name="Entry scripts" id="id-f5a4dd0d15bc59c2be7b3bbb66865ffe">
-        <documentation>Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _generate.ajs (New view with the base preset), _expand.ajs (Expand view), _layout_only.ajs (Layout only), _layout_LR.ajs (Layout only, Left → Right, no nesting) and _layout_session_cycle.ajs (the session, the next algorithm start each run). _gui.ajs is not one of them: it opens the dialog.</documentation>
+        <documentation>Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _all_new_view.ajs (New view with the base preset), _all_expand_view.ajs (Expand view), _layout_only.ajs (Layout only), _all_layout_right.ajs (Layout only, Left → Right, no nesting) and _session_cycle_selection_order.ajs (the session, the next algorithm start each run). _gui.ajs is not one of them: it opens the dialog.</documentation>
         <property key="path" value="Scripts/View/_*.ajs"/>
         <property key="runtime" value="Archi"/>
         <property key="typechecked" value="no"/>
@@ -886,7 +886,7 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
     <folder name="Outside View" id="id-d6e1287b0f445727bbc9eb994c6891f8">
       <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
       <element xsi:type="archimate:ApplicationComponent" name="GEMMA/GGM entry scripts" id="id-90eb2935847852aeacb21d101aea1edf">
-        <documentation>Outside the View subsystem: the scripts in Scripts/GEMMA/GGM that generate or lay out views with View, through its public API (ARCHITECTURE § Public API). 4_ggm_gemma_views.ajs generates the views of the GGM data objects and GEMMA business objects per policy domain with generate_view, with presets in presets/GEMMA/GGM; ggmBO_Generate_LR.ajs, ggmDO_Layout_TB.ajs and four more run the preset their file name names through run_preset.js; include_ggm_gemma.js holds their GGM/GEMMA helpers. shortcuts/GEMMA/ is git-ignored and may hold more callers.</documentation>
+        <documentation>Outside the View subsystem: the scripts in Scripts/GEMMA/GGM that generate or lay out views with View, through its public API (ARCHITECTURE § Public API). 4_ggm_gemma_views.ajs generates the views of the GGM data objects and GEMMA business objects per policy domain with generate_view, with presets in presets/GEMMA/GGM; ggmBO_new_view_right.ajs, ggmDO_layout_down.ajs and four more run the preset their file name names through run_preset.js; include_ggm_gemma.js holds their GGM/GEMMA helpers. shortcuts/GEMMA/ is git-ignored and may hold more callers.</documentation>
         <property key="path" value="Scripts/GEMMA/GGM/"/>
         <property key="runtime" value="Archi"/>
         <property key="typechecked" value="no"/>

@@ -66,7 +66,7 @@ How the modules realise the three layers of [SPEC.md § 3](SPEC.md#3-architectur
 Layer 1 — Entry points ──────────────────────────────────────────────────────────────────────
   _gui.ajs ─► gui/dialog_main.js  (+ gui/preset_row.js, tab_*.js, widgets.js, condition_table.js, counts.js, dialog_presets.js)
                 │ edits presets and the session; live counts through gui/counts.js
-  View/_*.ajs, shortcuts/**/<preset>_<Action>_<Dir>.ajs ─► run_preset.js   (headless)
+  View/_*.ajs, shortcuts/**/<preset>_<action>_<direction>.ajs ─► run_preset.js   (headless)
   other scripts (e.g. Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs) ─► generate_view directly
                 │ (selection, preset, action)
 Layer 2 — View-generation API ───────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ Shared (Layers 1–2) ───────────────────�
 
 | Module | Layer | Responsibility | Uses |
 |---|---|---|---|
-| `View/_*.ajs`, `shortcuts/**/<preset>_<Action>_<Dir>.ajs` | 1 | Entry scripts: base or named preset + fixed overrides → API | `run_preset` |
+| `View/_*.ajs`, `shortcuts/**/<preset>_<action>_<direction>.ajs` | 1 | Entry scripts: base or named preset + fixed overrides → API | `run_preset` |
 | `lib/run_preset.js` | 1 | Preset, action and direction from the file name, or the base preset `all` | `preset_io`, `generate_view`, `defs` |
 | `lib/gui/dialog_main.js` | 1 | Generate View dialog: opening, action area, settings ↔ widgets sync, putting the counts on the widgets | the gui modules, `preset_io`, `generate_view`, `selection_read`, `defs` |
 | `lib/gui/preset_row.js` | 1 | Preset row: picker, modified indicator, Save, Save As, Rename, Delete, description; loading a preset | `preset_io`, `widgets`, `dialog_presets` |
@@ -133,7 +133,7 @@ The sections below describe the implementation per functional subject, grouped b
 | Subject | Layer | Modules (exported names) | What | Detail |
 |---|---|---|---|---|
 | [Dialog](#dialog) | 1 | `gui/dialog_main.js`, `gui/preset_row.js`, `gui/tab_*.js`, `gui/widgets.js`, `gui/condition_table.js`, `gui/counts.js` (`dialogCounts`), `gui/dialog_presets.js` | [SPEC § 9](SPEC.md#9-ux--generate-view-dialog) | [gui.md](reference/gui.md) |
-| Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromBase`, `fromSession`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
+| Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromBase`, `fromSession`, `fromSessionCycling`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
 | [Model and actions](#model-and-actions) | 2 | `generate_view.js` (`generate_view`) | [SPEC § 4](SPEC.md#4-data-model), [§ 5](SPEC.md#5-actions) | — |
 | [Selection](#selection) | 2 | `selection_read.js` (`readSelection`, `readRelationIndex`), `selection_pipeline.js` (`buildObjectSet` = `readSelection` + `composeObjectSet`, step helpers), `_lib/selection.js` | [SPEC § 6](SPEC.md#6-selection) | [selection-nesting.md](reference/selection-nesting.md#selection-run-order) |
 | [Nesting](#nesting) | 2 | `nesting.js` (`splitNestingRels`, `resolveNesting`); `layout_graph.js` (`buildLayoutGraph`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#nesting-reference) |
@@ -167,9 +167,10 @@ Code outside the subsystem uses only these exports (SPEC § 3); everything else 
 | Export | Contract | Callers |
 |---|---|---|
 | `generate_view.generate_view(preset, selection, actionId?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
-| `run_preset.fromFilename(file, selection, opts?)` | Preset, action and direction from the script's file name; `opts.folder`, `opts.preset`, `opts.edit` | `shortcuts/**`, `Scripts/GEMMA/GGM/*_<Action>_<Dir>.ajs` |
-| `run_preset.fromBase(selection, actionId, params?)` | The base preset `all` (else `Default`) with params replaced | `View/_*.ajs` |
-| `run_preset.fromSession(selection, actionId)` | The session with Cycle selection order on, whatever its checkbox; the session gets the next selection order | `View/_layout_session_cycle.ajs` |
+| `run_preset.fromFilename(file, selection, opts?)` | Preset, action and direction from the script's file name; `opts.folder`, `opts.preset`, `opts.edit` | `shortcuts/**`, `Scripts/GEMMA/GGM/*_<action>_<Dir>.ajs` |
+| `run_preset.fromBase(selection, actionId, params?)` | The base preset `all` with params replaced | `View/_*.ajs` |
+| `run_preset.fromSession(selection, actionId, change)` | The session with one change, kept in the session | `View/_session_*.ajs` |
+| `run_preset.fromSessionCycling(selection, actionId)` | The session with Cycle selection order on, whatever its checkbox; the session gets the next selection order | `View/_session_cycle_selection_order.ajs` |
 | `preset_io.readPreset(name)` | A validated preset; throws when it is missing or has another schema version | scripts that change a preset before `generate_view` (GGM) |
 | `defs.ACTION` | The four action ids | every caller of `generate_view` |
 | `gui/dialog_main.open(selection)` | Opens the dialog; runs the chosen action after it closes | `_gui.ajs` |
@@ -206,7 +207,7 @@ Dialog (_gui.ajs → gui/dialog_main · open)
   5 an action closes the dialog; save the session
     (Cycle selection order: the next one), then call the API generate_view
 
-Headless (run_preset · fromFilename, fromBase, fromSession)
+Headless (run_preset · fromFilename, fromBase, fromSession, fromSessionCycling)
   1 file name → preset, action, direction; or the base preset; or the session
     (Cycle selection order: the next one is saved)
   2 read the preset; apply the direction, fixed overrides,  preset_io · readPreset

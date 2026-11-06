@@ -252,7 +252,7 @@ function _flatten(obj, prefix, out) {
 
 /**
  * Read the session file. Returns validated DEFAULT_PRESET if no session exists.
- * @returns {Preset} validated preset with UI-only fields ("_…") preserved
+ * @returns {DialogConfig} validated preset with UI-only fields ("_…") preserved
  */
 function readSession() {
   const path = presetDir() + SESSION_FILENAME;

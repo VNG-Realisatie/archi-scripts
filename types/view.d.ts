@@ -771,7 +771,7 @@ interface ConditionTable<K extends ConditionKind> {
 // ── Dialog (Scripts/View/lib/gui) ────────────────────────────────────────────────────────────────
 
 /** The dialog's settings: a validated preset plus dialog-state fields ("_…", kept by preset_io). */
-type DialogConfig = Preset & { _lastTabIndex?: number };
+type DialogConfig = Preset & { _lastTabIndex?: number; _lastAction?: string; _parkedNestingConditions?: PresetParams["nestingConditions"] };
 
 /** One Expand selection step block (tab_selection.js addRelatedBlock). */
 interface StepBlock {

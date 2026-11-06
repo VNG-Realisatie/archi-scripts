@@ -67,7 +67,7 @@ Signatures are in each module's JSDoc (type-checked for Common, selection, archi
 
 ## An entry script
 
-`.ajs` files are the scripts users run; keep them thin and put logic in modules. A working example to copy: `Scripts/View/_generate.ajs` (REPO_ROOT, require, `Common.initConsoleLog`, one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else does.
+`.ajs` files are the scripts users run; keep them thin and put logic in modules. A working example to copy: `Scripts/View/_all_new_view.ajs` (REPO_ROOT, require, `Common.initConsoleLog`, one call, `Common.finishConsoleLog`). Guard `model.isSet()` when nothing else does.
 
 ## Testing
 

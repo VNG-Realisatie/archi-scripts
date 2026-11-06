@@ -1,11 +1,11 @@
 /**
  * Run a preset from a shortcut script whose filename names it:
  *
- *   <preset>_<Action>_<Direction>.ajs     e.g. TAenIA_Layout_LR.ajs, in shortcuts/ or a sub-folder
+ *   <preset>_<action>_<direction>.ajs     e.g. TAenIA_layout_right.ajs, in shortcuts/ or a sub-folder
  *
  *   preset     preset name under presets/ (opts.folder is put in front: "GEMMA/TAenIA")
- *   Action     Generate | GenerateMultiple | Expand | Layout
- *   Direction  LR | RL | TB | BT — overrides the preset's direction (optional)
+ *   action     new_view | one_view_each | expand_view | layout
+ *   direction  right | left | down | up — overrides the preset's direction (optional)
  *
  * A shortcut script is then three lines:
  *   const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
@@ -13,8 +13,10 @@
  *
  * The View/_*.ajs scripts run the base preset instead (fromBase), with fixed overrides:
  *   RunPreset.fromBase($(selection), ACTION.LAYOUT_ONLY.id, { direction: "Down" });
- * or the dialog's last settings (fromSession), with Cycle selection order on:
- *   RunPreset.fromSession($(selection), ACTION.LAYOUT_ONLY.id);
+ * or the dialog's last settings with one change, kept in the session (fromSession):
+ *   RunPreset.fromSession($(selection), ACTION.LAYOUT_ONLY.id, s => { s.params.direction = "Down"; });
+ * or those settings with Cycle selection order on (fromSessionCycling):
+ *   RunPreset.fromSessionCycling($(selection), ACTION.LAYOUT_ONLY.id);
  */
 console.log("Loading run_preset.js");
 
@@ -29,33 +31,33 @@ const Defs     = require(REPO_ROOT + "View/lib/defs");
 const SelectionRead = require(REPO_ROOT + "View/lib/selection_read");
 const { ACTION } = Defs;
 
-// Base preset of the View/_*.ajs scripts: a normal preset, so it is edited in the dialog.
-// Default is used when it does not exist.
+// Base preset of the View/_all_*.ajs scripts: a normal preset, so it is edited in the dialog.
 const BASE_PRESET_NAME = "all";
 
 /** @type {Readonly<Record<string, string>>} */
 const FILENAME_ACTIONS = Object.freeze({
-  Generate:         ACTION.NEW_VIEW.id,
-  GenerateMultiple: ACTION.ONE_EACH.id,
-  Expand:           ACTION.EXPAND_VIEW.id,
-  Layout:           ACTION.LAYOUT_ONLY.id,
+  new_view:      ACTION.NEW_VIEW.id,
+  one_view_each: ACTION.ONE_EACH.id,
+  expand_view:   ACTION.EXPAND_VIEW.id,
+  layout:        ACTION.LAYOUT_ONLY.id,
 });
 /** @type {Readonly<Record<string, string>>} */
-const FILENAME_DIRECTIONS = Object.freeze({ LR: "Right", RL: "Left", TB: "Down", BT: "Up" });
+const FILENAME_DIRECTIONS = Object.freeze({ right: "Right", left: "Left", down: "Down", up: "Up" });
+// An action holds a "_" itself, so the name is matched on the known words, not split. " copy" after the name is allowed.
+const FILENAME_PATTERN = new RegExp(`^(.+?)_(${Object.keys(FILENAME_ACTIONS).join("|")})(?:_(${Object.keys(FILENAME_DIRECTIONS).join("|")}))?(?: .*)?$`);
 
 /**
- * Split "<preset>_<Action>_<Direction>[ anything].ajs" into its parts.
+ * Split "<preset>_<action>_<direction>[ anything].ajs" into its parts.
  * @param {string} file  script path (__FILE__)
  * @returns {{ preset: string, actionId: string, direction: string|null }}
  */
 function parseFilename(file) {
   const base = String(file).replace(/^.*[\\/]/, "").replace(/\.[^.]*$/, "");
-  const [preset, action, direction] = base.split("_");
-  const actionId = FILENAME_ACTIONS[action];
-  if (!preset || !actionId)
+  const match = base.match(FILENAME_PATTERN);
+  if (!match)
     throw new Error(`Script name "${base}" must be <preset>_<${Object.keys(FILENAME_ACTIONS).join("|")}>_<${Object.keys(FILENAME_DIRECTIONS).join("|")}>`);
-  const dir = (direction || "").split(" ")[0];  // "LR copy" → "LR"
-  return { preset, actionId, direction: FILENAME_DIRECTIONS[dir] || null };
+  const [, preset, action, direction] = match;
+  return { preset, actionId: FILENAME_ACTIONS[action], direction: FILENAME_DIRECTIONS[direction] || null };
 }
 
 /**
@@ -87,11 +89,9 @@ function fromFilename(file, selection, opts = {}) {
  */
 function fromBase(selection, actionId, params = {}) {
   return _reported(() => {
-    const name   = PresetIO.listPresets().includes(BASE_PRESET_NAME) ? BASE_PRESET_NAME : PresetIO.DEFAULT_PRESET_NAME;
-    const preset = PresetIO.readPreset(name);
+    const preset = PresetIO.readPreset(BASE_PRESET_NAME);
     Object.assign(preset.params, params);
-    console.log(`Preset "${name}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
-    if (name === PresetIO.DEFAULT_PRESET_NAME) PresetIO.logDefaultDifferences();
+    console.log(`Preset "${BASE_PRESET_NAME}"  action ${actionId}${Object.keys(params).length ? "  " + JSON.stringify(params) : ""}`);
     return _run(preset, selection, actionId);   // generate_view validates the overrides too
   });
 }
@@ -103,7 +103,7 @@ function fromBase(selection, actionId, params = {}) {
  * @param {string}                       actionId   ACTION.*.id
  * @returns {ArchimateView[]} generated / changed views
  */
-function fromSession(selection, actionId) {
+function fromSessionCycling(selection, actionId) {
   return _reported(() => {
     const preset = PresetIO.readSession();
     const next   = cycleSelectionOrder(preset.params, actionId);
@@ -113,6 +113,45 @@ function fromSession(selection, actionId) {
     console.log(`Session  action ${actionId}  selection order ${preset.params.selectionOrder} (next: ${next})`);
     return _run(preset, selection, actionId);
   });
+}
+
+/**
+ * Run the session with one change, and keep the change in the session: changes stack from run to
+ * run, and the dialog shows them.
+ * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
+ * @param {string}                       actionId   ACTION.*.id
+ * @param {(session: DialogConfig) => void} change  changes the session in place
+ * @returns {ArchimateView[]} generated / changed views
+ */
+function fromSession(selection, actionId, change) {
+  return _reported(() => {
+    const session = PresetIO.readSession();
+    change(session);
+    PresetIO.writeSession(session);
+    console.log(`Session  action ${actionId}  direction ${session.params.direction}  nesting conditions ${session.params.nestingConditions.length}`);
+    return _run(session, selection, actionId);
+  });
+}
+
+/**
+ * Set the nesting conditions aside in the session, so *flat* loses nothing.
+ * @param {DialogConfig} session  changed in place
+ */
+function parkNesting(session) {
+  if (!session.params.nestingConditions.length) return;
+  session._parkedNestingConditions = session.params.nestingConditions;
+  session.params.nestingConditions = [];
+}
+
+/**
+ * Bring back the parked nesting conditions; without any, aggregation is drawn as nesting.
+ * @param {DialogConfig} session  changed in place
+ */
+function restoreNesting(session) {
+  if (session.params.nestingConditions.length) return;
+  // Cast: generate_view fills in the rest of the condition
+  session.params.nestingConditions = session._parkedNestingConditions || /** @type {PresetParams["nestingConditions"]} */ ([{ relation: "aggregation-relationship" }]);
+  delete session._parkedNestingConditions;
 }
 
 /**
@@ -177,5 +216,5 @@ function cycleSelectionOrder(params, actionId) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromBase, fromSession, showFailure, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
+  module.exports = { fromFilename, fromBase, fromSession, fromSessionCycling, parkNesting, restoreNesting, showFailure, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
 }
