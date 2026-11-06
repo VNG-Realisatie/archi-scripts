@@ -13,7 +13,7 @@
  *
  * The View/_*.ajs scripts run the base preset instead (fromBase), with fixed overrides:
  *   RunPreset.fromBase($(selection), ACTION.LAYOUT_ONLY.id, { direction: "Down" });
- * or the dialog's last settings (fromSession), with Cycle algorithm start on:
+ * or the dialog's last settings (fromSession), with Cycle selection order on:
  *   RunPreset.fromSession($(selection), ACTION.LAYOUT_ONLY.id);
  */
 console.log("Loading run_preset.js");
@@ -97,7 +97,7 @@ function fromBase(selection, actionId, params = {}) {
 }
 
 /**
- * Run the session (the dialog's last settings) on the selection with Cycle algorithm start on,
+ * Run the session (the dialog's last settings) on the selection with Cycle selection order on,
  * whatever the dialog's checkbox says; the session gets the next order, so each run tries another.
  * @param {ArchiCollection<ArchiObject>} selection  usually $(selection)
  * @param {string}                       actionId   ACTION.*.id
@@ -106,11 +106,11 @@ function fromBase(selection, actionId, params = {}) {
 function fromSession(selection, actionId) {
   return _reported(() => {
     const preset = PresetIO.readSession();
-    const next   = cycleAlgorithmStart(preset.params, actionId);
+    const next   = cycleSelectionOrder(preset.params, actionId);
     const session = JSON.parse(JSON.stringify(preset));
-    session.params.algorithmStart = next;
+    session.params.selectionOrder = next;
     PresetIO.writeSession(session);
-    console.log(`Session  action ${actionId}  algorithm start ${preset.params.algorithmStart} (next: ${next})`);
+    console.log(`Session  action ${actionId}  selection order ${preset.params.selectionOrder} (next: ${next})`);
     return _run(preset, selection, actionId);
   });
 }
@@ -169,13 +169,13 @@ function _reported(work) {
  * @param {string} actionId
  * @returns {string} the order for the next run
  */
-function cycleAlgorithmStart(params, actionId) {
-  const orders  = Defs.ALGORITHM_START.map(o => o.val);
+function cycleSelectionOrder(params, actionId) {
+  const orders  = Defs.SELECTION_ORDER.map(o => o.val);
   const creates = actionId === ACTION.NEW_VIEW.id || actionId === ACTION.ONE_EACH.id;
-  if (creates) params.algorithmStart = orders[0];
-  return orders[(orders.indexOf(params.algorithmStart) + 1) % orders.length];
+  if (creates) params.selectionOrder = orders[0];
+  return orders[(orders.indexOf(params.selectionOrder) + 1) % orders.length];
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { fromFilename, fromBase, fromSession, showFailure, confirmViewCount, cycleAlgorithmStart, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
+  module.exports = { fromFilename, fromBase, fromSession, showFailure, confirmViewCount, cycleSelectionOrder, parseFilename, FILENAME_ACTIONS, FILENAME_DIRECTIONS, BASE_PRESET_NAME };
 }

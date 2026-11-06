@@ -64,7 +64,7 @@ Run a saved preset without the dialog.
 
 | Script | Action |
 |---|---|
-| `_layout_session_cycle.ajs` | Layout only with *Cycle algorithm start*: each run takes the next algorithm start, without opening the dialog |
+| `_layout_session_cycle.ajs` | Layout only with *Cycle selection order*: each run takes the next selection order, without opening the dialog |
 
 **Named preset**: put a script in `shortcuts/` (or a sub-folder; `presets/` holds only the JSON), name it `<preset>_<Action>_<Direction>.ajs` and give it these lines:
 

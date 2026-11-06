@@ -54,8 +54,8 @@ An option outside the active set is greyed in the dialog, keeps its value, and i
 <!-- generated:capability-matrix -->
 | Parameter | Layered | Tree | Stress | Radial | Grid | Pack | Tiles | Dagre | Dot | Neato | FDP | SFDP | Twopi | Circo |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Algorithm start `algorithmStart` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Cycle algorithm start `cycleAlgorithmStart` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Selection order `selectionOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Cycle selection order `cycleSelectionOrder` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Nesting `nestingConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
 | Reverse `reverseConditions` | ✓ | ✓ | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | — | — | — |
 | Layout inside `containerAlgorithm` | ✓ | ✓ | — | — | ✓ | ✓ | — | — | — | — | — | — | — | — |

@@ -116,7 +116,7 @@ eq(run(graph(4, 7)), run(graph(4, 7)), "same graph, same result");
   eq(readingOrder("All together"), ["A", "B", "C"], "All together: the container sits among the leaves by name");
 }
 
-// A view without containers is not sorted: Algorithm start orders the elements.
+// A view without containers is not sorted: Selection order orders the elements.
 {
   const nodes = ["C", "A", "B"].map(id => ({ id, label: id, elementType: "business-function", width: 300, height: 60, parent: null }));
   const options = Defs.effectiveParams(Defs.validatePreset({ algorithm: "Tiles" }));

@@ -36,7 +36,7 @@ const STYLES = Object.freeze({
 // Shared groups spread into activeParams arrays; each algorithm shows only its unique additions.
 
 // Active in every algorithm — not algorithm-specific.
-const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding", "algorithmStart", "cycleAlgorithmStart"]);
+const ALWAYS_ACTIVE_PARAMS = Object.freeze(["elementWidth", "elementHeight", "diagramPadding", "selectionOrder", "cycleSelectionOrder"]);
 
 // ELK full-nesting controls — Layered, Tree, Grid, Pack. Sort is not among them: directed views are not sorted.
 const PARAMS_ELK_NESTING = Object.freeze([
@@ -75,8 +75,8 @@ const PARAM_LABELS = Object.freeze({
   connectionsMode:          "Connections",
   padding:                  "Padding",
   sort:                     "Sort",
-  algorithmStart:           "Algorithm start",
-  cycleAlgorithmStart:      "Cycle algorithm start",
+  selectionOrder:           "Selection order",
+  cycleSelectionOrder:      "Cycle selection order",
   alignWidthSameType:       "Same width per level",
   columnsAcrossContainers:  "Columns across containers",
   direction:                "Direction",
@@ -113,8 +113,8 @@ const PARAM_TOOLTIPS = Object.freeze({
                              "Between containers: Containers are laid out independently. Connections attach to container borders.\nAcross containers: The entire view is laid out as one graph. Connections attach directly to elements."],
   padding:                  ["Space between a container's border and its contents.",
                              "px — below a container's label half of it, more for a larger font."],
-  algorithmStart:           ["Order in which the elements enter the layout: another order, another starting point.", ""],
-  cycleAlgorithmStart:      ["Each layout of an existing view takes the next algorithm start.",
+  selectionOrder:           ["Order in which the elements enter the layout: another order, another starting point.", ""],
+  cycleSelectionOrder:      ["Each layout of an existing view takes the next selection order.",
                              "A new view always starts with Selection."],
   sort:                     ["Ascending order of the boxes in a view with containers. None: as selected.",
                              "Elements: by type and name. Containers, then elements: also the containers. All together: one list."],
@@ -179,7 +179,7 @@ function paramTooltip(key, extra) {
 }
 
 const LAYOUT_GROUPS = Object.freeze({
-  Algorithm:   ["algorithmStart", "cycleAlgorithmStart"],
+  Algorithm:   ["selectionOrder", "cycleSelectionOrder"],
   Nesting:     ["nestingConditions"],
   Reverse:     ["reverseConditions"],
   Containers:  ["containerAlgorithm", "connectionsMode", "padding",
@@ -572,7 +572,7 @@ const ACYCLICER = Object.freeze([
 ]);
 
 // ── Element order (all algorithms) ────────────────────────────────────────────
-// Algorithm start: the order of the elements outside containers as they go into the layout
+// Selection order: the order of the elements outside containers as they go into the layout
 // (generate_view.js); a sorted view (SORT_MODE) overrules it.
 
 /** How the view is sorted (param sort), always ascending, by type and name. */
@@ -583,7 +583,7 @@ const SORT_MODE = Object.freeze({
   ALL_TOGETHER:     "All together",
 });
 
-const ALGORITHM_START = Object.freeze([
+const SELECTION_ORDER = Object.freeze([
   { val: "Selection", default: true },
   { val: "Name △" },
   { val: "Type and name △" },
@@ -736,8 +736,8 @@ const DEFAULT_PRESET = Object.freeze({
     padding:               20,
     diagramPadding:        10,
     sort:                  "Elements",             // SORT_MODE (Grid, Pack, Tiles)
-    algorithmStart:          "Selection",            // ALGORITHM_START: elements outside containers
-    cycleAlgorithmStart:     false,                  // each layout of an existing view takes the next algorithmStart
+    selectionOrder:          "Selection",            // SELECTION_ORDER: elements outside containers
+    cycleSelectionOrder:     false,                  // each layout of an existing view takes the next selectionOrder
     alignWidthSameType:    false,
     columnsAcrossContainers:     false,
     containerAlgorithm:    "Layered",              // "Layered" | "Grid" | "Pack"
@@ -1166,7 +1166,7 @@ if (typeof module !== "undefined" && module.exports) {
     paramUsedBy, paramTooltip,
     ACTION, ROUTING,
     DIRECTIONS, DIRECTION_MAP,
-    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ALGORITHM_START, SORT_MODE, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
+    RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, SELECTION_ORDER, SORT_MODE, LABEL_POSITIONS, AR_OPTIONS, AR_DEFAULT,
     RELATION_TYPES, RELATION_TYPE_IDS, RELATION_TYPE_LABELS, RELATION_WEIGHT_MAP,
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,

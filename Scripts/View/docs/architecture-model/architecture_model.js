@@ -98,7 +98,7 @@ const ELEMENT_GROUPS = [
   // ── Application: View subsystem ───────────────────────────────────────────────────────────────────────────
   { folder: "/Application/View subsystem", type: "application-component", elements: [
     ["viewSubsystem", "View subsystem", "View generation and layout for Archi (Scripts/View): selection → object set → layout graph → engine (ELK, Dagre, Graphviz, Tiles) → write plan → view. Three layers, each talks only to the one below (ARCHITECTURE § Structure).", { path: "Scripts/View/" }],
-    ["entryScripts", "Entry scripts", "Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _generate.ajs (New view with the base preset), _expand.ajs (Expand view), _layout_only.ajs (Layout only), _layout_LR.ajs (Layout only, Left → Right, no nesting) and _layout_session_cycle.ajs (the session, the next algorithm start each run). _gui.ajs is not one of them: it opens the dialog.", { path: "Scripts/View/_*.ajs", runtime: "Archi", typechecked: "no" }],
+    ["entryScripts", "Entry scripts", "Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _generate.ajs (New view with the base preset), _expand.ajs (Expand view), _layout_only.ajs (Layout only), _layout_LR.ajs (Layout only, Left → Right, no nesting) and _layout_session_cycle.ajs (the session, the next selection order each run). _gui.ajs is not one of them: it opens the dialog.", { path: "Scripts/View/_*.ajs", runtime: "Archi", typechecked: "no" }],
     ["layerDialog", "Dialog", "Layer 1: the Generate View dialog (SWT/JFace), opened only by _gui.ajs, and its counts; the only part that edits presets.", { path: "Scripts/View/_gui.ajs, Scripts/View/lib/gui/" }],
     ["layerApi", "View-generation API", "Layer 2: generate_view and the pipeline modules: read → plan (pure) → apply → styling. The only place where a view changes.", { path: "Scripts/View/lib/" }],
     ["layerEngines", "Engine adapters", "Layer 3: one adapter per engine, LayoutGraph → LayoutResult. No Archi API, no selection, no preset (Scripts/View/AGENTS.md rule 3).", { path: "Scripts/View/lib/engines/" }],
@@ -235,7 +235,7 @@ const ELEMENT_GROUPS = [
     ["apDialogRun", "Run the dialog", "Capture the selection, read the session, read a selected view once, build the tabs, recount on every committed change; an action closes the dialog, saves the session and calls the API (ARCHITECTURE § Run flow)."],
     ["apRecount", "Recount the dialog", "On every committed change: dialogCounts calls the same pipeline helpers as a run (steps, nesting, totals, style check)."],
     ["apSavePreset", "Save, rename or delete a preset", "The preset row writes or moves the preset file; Default stays read-only."],
-    ["apHeadlessRun", "Run headless", "File name → preset, action and direction; or the base preset; or the session (next algorithm start saved). Read the preset, apply the overrides, ask before many views, call the API."],
+    ["apHeadlessRun", "Run headless", "File name → preset, action and direction; or the base preset; or the session (next selection order saved). Read the preset, apply the overrides, ask before many views, call the API."],
     ["apGenerate", "Generate a view", "The API run (generate_view): validate → read → plan → create or empty the view → apply → style → view properties."],
     ["apValidate", "Validate the preset", "validatePreset fills defaults and strips unknown keys; effectiveParams masks params the algorithm does not use."],
     ["apRead", "Read the selection", "readSelection reads the selection, the relations and, on a Modify action, the target view once into a Snapshot."],
@@ -283,7 +283,7 @@ const ELEMENT_GROUPS = [
   ] },
   { folder: "/Application/Data/Settings", type: "data-object", elements: [
     ["dPreset", "Preset", "A named set of settings (selection, layout, appearance, view properties), validated against defs.js on load; folders allowed. Default = code defaults, all = base preset of the entry scripts. Tracked.", { path: "Scripts/View/presets/**/*.json" }],
-    ["dSession", "Session", "The dialog's last settings plus UI state; the next algorithm start of the cycle script. Git-ignored, one per machine.", { path: "Scripts/View/presets/_session.json" }],
+    ["dSession", "Session", "The dialog's last settings plus UI state; the next selection order of the cycle script. Git-ignored, one per machine.", { path: "Scripts/View/presets/_session.json" }],
     ["dPalettes", "Palettes", "Named colours and colour ranges the presets pick from. Tracked.", { path: "Scripts/View/presets/_palettes.json" }],
     ["dHidden", "Hidden properties", "View property keys the Properties tab hides and generation leaves alone. Tracked.", { path: "Scripts/View/presets/_hidden_properties.json" }],
     ["dConfig", "Program paths", "Where node and dot are, per machine: config.default.js (tracked) and config.js (git-ignored).", { path: "Scripts/View/config.default.js, config.js" }],

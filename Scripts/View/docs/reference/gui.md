@@ -161,7 +161,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 │ │ Network:    ○ Stress    ○ Neato    ○ FDP      ○ SFDP                  │ │
 │ │ Circular:   ○ Twopi     ○ Circo                                       │ │
 │ │ Compact:    ○ Grid      ○ Pack     ○ Tiles                            │ │
-│ │ Algorithm start: [Selection ▼]  ☐ Cycle algorithm start               │ │
+│ │ Selection order: [Selection ▼]  ☐ Cycle selection order               │ │
 │ └───────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ Nesting ─────────────────────────────────────────────────────────────┐ │
 │ │  Draw these relations as nesting, child inside its parent:            │ │
@@ -247,8 +247,8 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 | Field | Parameter | Default | Tooltip | Used by |
 |---|---|---|---|---|
-| Algorithm start | `algorithmStart` | Selection | Order in which the elements enter the layout: another order, another starting point. | all algorithms |
-| Cycle algorithm start | `cycleAlgorithmStart` | off | Each layout of an existing view takes the next algorithm start. — A new view always starts with Selection. | all algorithms |
+| Selection order | `selectionOrder` | Selection | Order in which the elements enter the layout: another order, another starting point. | all algorithms |
+| Cycle selection order | `cycleSelectionOrder` | off | Each layout of an existing view takes the next selection order. — A new view always starts with Selection. | all algorithms |
 
 **Nesting**
 
@@ -433,8 +433,8 @@ The rules not covered above:
   - Distance (elements) stays at least twice Distance to element plus 2 px, and at least the shortest connection ([SPEC § 7](../SPEC.md#7-layout-options)).
   - The value the user changes wins; the other follows.
   - Switching to one of these algorithms, or loading a preset for one that breaks the rule, lowers Distance to element at once (and raises Distance to the shortest connection when below it). The `*` then shows the change.
-- **Cycle algorithm start.** An action saves the start for the next run in the session, so the dialog shows the start the next layout will use.
-- **Algorithm start and Sort.** Algorithm start is greyed where Sort applies (a nesting condition is on) and is not *None*: the visible sort wins.
+- **Cycle selection order.** An action saves the start for the next run in the session, so the dialog shows the start the next layout will use.
+- **Selection order and Sort.** Selection order is greyed where Sort applies (a nesting condition is on) and is not *None*: the visible sort wins.
 - **Tooltips** say what an option does in at most two lines; that a control is unavailable shows as grey ([`Scripts/View/AGENTS.md`](../../AGENTS.md) § Conventions).
 - **Empty selection** opens normally, with all counts zero; actions still run.
 - **Malformed preset.** It never aborts the dialog: unknown keys are dropped and missing keys get defaults. An invalid session falls back to the defaults.

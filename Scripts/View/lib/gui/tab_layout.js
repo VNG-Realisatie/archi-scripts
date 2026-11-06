@@ -22,7 +22,7 @@ const TabAppearance = require(REPO_ROOT + "View/lib/gui/tab_appearance");
 /** @type {typeof import("./condition_table")} */
 const { conditionTable, NESTING_CONDITION_COLUMNS, REVERSE_CONDITION_COLUMNS } = require(REPO_ROOT + "View/lib/gui/condition_table");
 
-const { STYLES, ALGORITHMS, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, ALGORITHM_START, LABEL_POSITIONS, AR_OPTIONS, DEFAULT_PRESET } = Defs;
+const { STYLES, ALGORITHMS, ROUTING, DIRECTIONS, RANKING, NODE_PLACEMENT, CIRCLES, ACYCLICER, SELECTION_ORDER, LABEL_POSITIONS, AR_OPTIONS, DEFAULT_PRESET } = Defs;
 
 const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
@@ -46,7 +46,7 @@ const NODE_PLACEMENT_LABELS   = NODE_PLACEMENT.map(n => n.val);
 const CIRCLES_LABELS          = CIRCLES.map(c => c.val);
 const CIRCLES_TOOLTIPS        = Object.fromEntries(CIRCLES.map(c => [c.val, c.tooltip]));
 const ACYCLICER_LABELS        = ACYCLICER.map(a => a.val);
-const ALGORITHM_START_LABELS    = ALGORITHM_START.map(o => o.val);
+const SELECTION_ORDER_LABELS    = SELECTION_ORDER.map(o => o.val);
 const SORT_MODE_LABELS      = Object.values(Defs.SORT_MODE);
 const AR_LABELS               = AR_OPTIONS.map(a => a.label);
 const CONTAINER_ALGO_LABELS   = Defs.ALGORITHMS.Layered.supportedOptions.containerAlgorithm;
@@ -65,8 +65,8 @@ const PARAM_WIDGETS = Object.freeze({
   labelSizing:              { w: "chkLabelSizing",               kind: "check" },
   labelMaxLineWidth:        { w: "spinLabelMaxLineWidth",        kind: "spin" },
   elementSpacing:           { w: "spinElementSpacing",           kind: "spin" },
-  algorithmStart:             { w: "cmbAlgorithmStart",              kind: "combo", items: ALGORITHM_START_LABELS },
-  cycleAlgorithmStart:        { w: "chkCycleAlgorithmStart",         kind: "check" },
+  selectionOrder:             { w: "cmbSelectionOrder",              kind: "combo", items: SELECTION_ORDER_LABELS },
+  cycleSelectionOrder:        { w: "chkCycleSelectionOrder",         kind: "check" },
   layerSpacing:             { w: "spinLayerSpacing",             kind: "spin" },
   direction:                { w: "cmbDirection",                 kind: "combo", items: DIRECTION_LABELS },
   acyclicer:                { w: "cmbAcyclicer",                 kind: "combo", items: ACYCLICER_LABELS },
@@ -164,11 +164,11 @@ function buildLayoutTab(tabFolder, ctx) {
   /** @type {Swt.Composite} */
   let row;
 
-  // Algorithm start: the starting point the algorithm gets, so it sits in the Algorithm box.
-  row = Widgets.formRow(grpAlg, "Algorithm start:", formRows, "form", 2);
+  // Selection order: the starting point the algorithm gets, so it sits in the Algorithm box.
+  row = Widgets.formRow(grpAlg, "Selection order:", formRows, "form", 2);
   row.getLayoutData().horizontalSpan = 4;
-  Widgets.addCombo(row, null, ALGORITHM_START_LABELS, 0, SWT.DEFAULT, "cmbAlgorithmStart", w);
-  Widgets.addCheck(row, "Cycle algorithm start", null, 2, w, "chkCycleAlgorithmStart");
+  Widgets.addCombo(row, null, SELECTION_ORDER_LABELS, 0, SWT.DEFAULT, "cmbSelectionOrder", w);
+  Widgets.addCheck(row, "Cycle selection order", null, 2, w, "chkCycleSelectionOrder");
 
   // Nesting / reverse / show-in-every alter the on-view role split (nestings vs connections,
   // containers vs nested elements, occurrences): refresh the live counters and dependent controls.
@@ -459,10 +459,10 @@ function updateAlgorithmControls(ctx) {
   Widgets.enable(w.spinElementWidth,      active.has("elementWidth")  && !labelSizingOn);
   Widgets.enable(w.spinElementHeight,     active.has("elementHeight") && !labelSizingOn);
   Widgets.enable(w.spinLabelMaxLineWidth, labelSizingOn);
-  // Algorithm start gives way to a sorted view: where Sort applies (a view with containers) and sorts, the sort wins.
+  // Selection order gives way to a sorted view: where Sort applies (a view with containers) and sorts, the sort wins.
   if (active.has("sort") && _nestingOn(w, alg) && w.cmbSort && w.cmbSort.getText() !== Defs.SORT_MODE.NONE) {
-    Widgets.enable(w.cmbAlgorithmStart, false);
-    Widgets.enable(w.chkCycleAlgorithmStart, false);
+    Widgets.enable(w.cmbSelectionOrder, false);
+    Widgets.enable(w.chkCycleSelectionOrder, false);
   }
   // Containers settings only matter once a Nesting condition is on.
   if (!_nestingOn(w, alg))
@@ -568,6 +568,6 @@ function _updateConnectionsMode(ctx) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    buildLayoutTab, updateAlgorithmControls, updateLayoutConditionCounts, selectedAlgorithm, getViewSizeMode, PARAM_WIDGETS, ALGORITHM_START_LABELS,
+    buildLayoutTab, updateAlgorithmControls, updateLayoutConditionCounts, selectedAlgorithm, getViewSizeMode, PARAM_WIDGETS, SELECTION_ORDER_LABELS,
   };
 }

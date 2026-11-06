@@ -85,7 +85,7 @@ Three layers, top to bottom. Each layer talks only to the one below.
 Layer 1 — Entry points      produce (preset, selection, action), call the API
   • Generate View dialog  — defines selection/layout/styling; live counts; only editor of presets
   • Preset-bound scripts  — headless: load a preset, call the API, exit
-  • Session script       — headless: run the session, keep the next algorithm start
+  • Session script       — headless: run the session, keep the next selection order
 Layer 2 — View-generation API   sole orchestrator and sole writer to views
   validate preset → run selection → build layout graph → call engine → write → style
 Layer 3 — Engine adapters   one per engine: layout graph in, positions out; nothing else
@@ -236,7 +236,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
   - Across is unavailable, and *between* is used, when the inner layout is a packing layout or a view size is set; otherwise unconnected elements would stack in one column.
 - **Padding**: the space between a container's border and its contents. Above its contents a container keeps room for its label: its lines wrapped at the width the container is drawn, and below them half the padding, more in proportion for a larger font.
 - **Sort**, **same width per level** and **columns across containers** are refinements: they order the boxes, make nested frames telescope cleanly, and align columns across the view. They only position or derive sizes and never scale a leaf ([§ 8](#8-engine-contract), [sizing refinements](reference/selection-nesting.md#sizing-refinements)).
-- **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Algorithm start**. A view without containers is not sorted: Algorithm start orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.
+- **Sort** (Grid, Pack, Tiles) orders a view with containers, at every level, always ascending by type and name: *None* keeps the selection order, *Elements* (default) orders the elements, *Containers, then elements* the containers too and first, *All together* both in one list. A visible sort wins over **Selection order**. A view without containers is not sorted: Selection order orders it. Directed views have no Sort: the elements inside a container are ordered by type and name.
 
 **Consequences** (not separate controls). For a nesting relation the **source is the parent** and the **target the child**; they are swapped if the type is also reversed. Container-ness is **derived**: an element is a container exactly when something resolves to be its child.
 
@@ -258,7 +258,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 **Twopi** puts the best-connected element of each connected part in the centre, and every other element on the ring of its distance (in relations) from there.
 - Along the radius, the space between two rings is at least the layer distance, whatever the angle.
 - A ring whose elements fill its circumference, side by side with the element gap, is *full*. A full ring is exactly tight at a layer distance equal to the element height, and grows and shrinks with the layer distance from there. Below that, the elements are pushed apart and the ring deforms, so the layer distance always has a visible effect.
-- The order of the elements on a ring follows **Algorithm start**; twopi does not reduce crossings.
+- The order of the elements on a ring follows **Selection order**; twopi does not reduce crossings.
 
 **Stress** places elements by connection length only. Elements that end up on top of each other are moved apart to the element gap afterwards, positions only.
 
@@ -274,7 +274,7 @@ Layout decides *how* objects are positioned. Options are grouped in the order of
 - The minimum **gap** between elements, also between unconnected groups.
 - Where connections are routed between the elements (Neato, FDP, SFDP, Circo), the gap is at least twice the connection–element distance plus 2 px, so a connection fits between two elements. The dialog keeps the two values in step, and the one the user changed wins. There the gap is also at least the **shortest connection**, 20 px: room for both end symbols, so the relation type stays readable.
 
-**Algorithm start**: the order in which the elements outside containers enter the layout: as selected (default), by name or by type and name. Another order gives the algorithm another starting point: an algorithm that keeps the input order (Tree, Twopi) shows it directly; others (Layered) use it only as a start. With **Cycle algorithm start** on, a new view starts with the selection order and every layout of an existing view takes the next one, so repeated *Layout only* runs step through them. The next order is kept in the session, so the steps run from the dialog or from the session script; a preset-bound script runs one layout with the preset's own algorithm start. It is not a sorted view and never applies inside a container; where **Sort** orders the view, the sort wins.
+**Selection order**: the order in which the elements outside containers enter the layout: as selected (default), by name or by type and name. Another order gives the algorithm another starting point: an algorithm that keeps the input order (Tree, Twopi) shows it directly; others (Layered) use it only as a start. With **Cycle selection order** on, a new view starts with the selection order and every layout of an existing view takes the next one, so repeated *Layout only* runs step through them. The next order is kept in the session, so the steps run from the dialog or from the session script; a preset-bound script runs one layout with the preset's own selection order. It is not a sorted view and never applies inside a container; where **Sort** orders the view, the sort wins.
 
 **Connections.** Line routing, label position, reserved space for labels, the distance between parallel connections (elements grow to fit their connections) and the clearance between a connection and the elements it passes. Across the flow, reserved labels follow the distance between parallel connections and keep at least 5 px between their text.
 

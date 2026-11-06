@@ -199,8 +199,8 @@ type PresetParams = {
   padding: number;
   diagramPadding: number;
   sort: string;
-  algorithmStart: string;
-  cycleAlgorithmStart: boolean;
+  selectionOrder: string;
+  cycleSelectionOrder: boolean;
   alignWidthSameType: boolean;
   columnsAcrossContainers: boolean;
   containerAlgorithm: string;
@@ -846,8 +846,8 @@ type DialogWidgets = {
   spinLabelMaxLineWidth: Swt.Spinner;
   spinElementHeight: Swt.Spinner;
   spinElementSpacing: Swt.Spinner;
-  cmbAlgorithmStart: Swt.Combo;
-  chkCycleAlgorithmStart: CheckBox;
+  cmbSelectionOrder: Swt.Combo;
+  chkCycleSelectionOrder: CheckBox;
   cmbRouting: Swt.Combo;
   cmbLabelPosition: Swt.Combo;
   chkConnectionLabelSpacing: CheckBox;

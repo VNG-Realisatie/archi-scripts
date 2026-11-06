@@ -51,7 +51,7 @@ function byTypeAndName(a, b) {
   return compareNames(na, nb);
 }
 
-// Algorithm start (defs ALGORITHM_START) → comparator; Selection has none: the order the elements came in.
+// Selection order (defs SELECTION_ORDER) → comparator; Selection has none: the order the elements came in.
 /** @type {Record<string, (a: LayoutNode, b: LayoutNode) => number>} */
 const ORDER_COMPARE = {
   "Name △":          (a, b) => compareNames(a.label || "", b.label || ""),
@@ -67,7 +67,7 @@ const ORDER_COMPARE = {
  * All together puts containers and leaves of a parent in one list, by type and name.
  * Without a sort mode (the algorithm has no Sort: directed views) the leaves inside containers are
  * ordered by type and name, the containers and the elements outside containers keep their order
- * (Algorithm start, generate_view.js).
+ * (Selection order, generate_view.js).
  *
  * @param {LayoutNode[]}            nodes           LayoutGraph nodes
  * @param {Record<string, string>} parentMap       { childId: parentId }
@@ -76,7 +76,7 @@ const ORDER_COMPARE = {
  */
 function sortedNodes(nodes, parentMap, sortMode) {
   const childSet = new Set(Object.values(parentMap));
-  if (!childSet.size) return nodes.slice();   // no containers: nothing to sort, Algorithm start orders the elements
+  if (!childSet.size) return nodes.slice();   // no containers: nothing to sort, Selection order orders the elements
 
   // Group by parent key
   /** @type {Record<string, LayoutNode[]>} */

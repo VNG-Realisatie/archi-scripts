@@ -550,8 +550,8 @@ function _setStepAdds(b, eCount, rCount, suffix) {
  */
 function _runAction(actionId, dlg, ctx) {
   _saveUI(ctx);
-  const nextOrder = ctx.config.params.cycleAlgorithmStart ? RunPreset.cycleAlgorithmStart(ctx.config.params, actionId) : null;
-  _persistSession(ctx, nextOrder ? { algorithmStart: nextOrder } : {});
+  const nextOrder = ctx.config.params.cycleSelectionOrder ? RunPreset.cycleSelectionOrder(ctx.config.params, actionId) : null;
+  _persistSession(ctx, nextOrder ? { selectionOrder: nextOrder } : {});
   ctx._actionId = actionId;
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();

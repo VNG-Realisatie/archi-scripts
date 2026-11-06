@@ -1,4 +1,4 @@
-/** Re-layout the selected view with the session (the dialog's last settings); each run takes the next algorithm start. */
+/** Re-layout the selected view with the session (the dialog's last settings); each run takes the next selection order. */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common     = require(REPO_ROOT + "_lib/Common");
 const RunPreset  = require(REPO_ROOT + "View/lib/run_preset");

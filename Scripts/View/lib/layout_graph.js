@@ -38,7 +38,7 @@ function _orderEdges(nodes, edges, order) {
 }
 
 /**
- * Put the elements outside containers in the chosen order (defs ALGORITHM_START), in place: they
+ * Put the elements outside containers in the chosen order (defs SELECTION_ORDER), in place: they
  * keep their slots in the list, only their order among themselves changes. Selection keeps the
  * order they came in. A container's contents keep the container's own order (the engines).
  * @param {LayoutNode[]} nodes
@@ -135,7 +135,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     nodeIds.add(vo.id);
   }
 
-  _orderRootLeaves(nodes, params.algorithmStart);
+  _orderRootLeaves(nodes, params.selectionOrder);
 
   // Edges from routed relations: each relation once (docs/reference/selection-nesting.md: Connections between occurrences).
   // Connections already on the view keep their ends; otherwise the closest pair of occurrences.
@@ -232,7 +232,7 @@ function buildLayoutGraph(preset, elements, routedRels, nestingRels, diagramObje
     edges.push({ id: String(dc.id), conceptId: String(dc.id), source: src, target: tgt, label: "", labelWidth: 0, labelHeight: 0, weight: 1.0 });
   }
 
-  _orderEdges(nodes, edges, params.algorithmStart);
+  _orderEdges(nodes, edges, params.selectionOrder);
 
   const engineParams = preset.engineParams || {};
   const fonts = _labelLayouts(nodes, elements, nesting, (diagramBlocks && diagramBlocks.visualElements) || [], preset, labels);
