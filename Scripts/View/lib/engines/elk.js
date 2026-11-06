@@ -732,7 +732,15 @@ function _buildELKGraph(graph, eo, parentMap, boxes, edges, rootExtra) {
   const containerIds = new Set(Object.values(parentMap));
   /** @type {Record<string, ElkWorkNode>} */
   const byId = {};
-  for (const node of graph.nodes) byId[node.id] = _elkNode(node.id, boxes[node.id], containerIds.has(node.id), eo);
+  // ELK 0.11.1 bug: with INCLUDE_CHILDREN and flow Up / Down, ELK Layered applies a Layered container's
+  // nodeSize.minimum transposed — a width floor (W, 0) gives a container at least W high. Swapped,
+  // the floor lands on the width again. A top-level container under a non-Layered root gets the
+  // minimum on both axes in either form: left unswapped.
+  const transposed = eo.hierarchyMode === "INCLUDE_CHILDREN" && eo.vertical && eo.containerAlgorithmId === "layered";
+  for (const node of graph.nodes) {
+    const swap = transposed && (!!node.parent || eo.algorithmId === "layered");
+    byId[node.id] = _elkNode(node.id, boxes[node.id], containerIds.has(node.id), swap, eo);
+  }
   /** @type {ElkWorkNode[]} */
   const rootChildren = [];
   for (const node of sortedNodes(graph.nodes, parentMap, graph.sort))
@@ -746,14 +754,16 @@ function _buildELKGraph(graph, eo, parentMap, boxes, edges, rootExtra) {
  * @param {string}     id
  * @param {ElkBox}     box
  * @param {boolean}    isContainer
+ * @param {boolean}    swapMinimum  the container's minimum goes in as (0, width) (_buildELKGraph)
  * @param {ElkOptions} eo
  * @returns {ElkWorkNode}
  */
-function _elkNode(id, box, isContainer, eo) {
+function _elkNode(id, box, isContainer, swapMinimum, eo) {
   if (isContainer) {
     // Same width per level: floor the container width to its level width; MINIMUM_SIZE keeps it
     // from shrinking below content. Otherwise ELK sizes it from children + padding.
-    const minimum = box.width > 0 ? { "elk.nodeSize.constraints": "[MINIMUM_SIZE]", "elk.nodeSize.minimum": `(${box.width}, 0)` } : {};
+    const size = swapMinimum ? `(0, ${box.width})` : `(${box.width}, 0)`;
+    const minimum = box.width > 0 ? { "elk.nodeSize.constraints": "[MINIMUM_SIZE]", "elk.nodeSize.minimum": size } : {};
     const padding = box.padding ? { "elk.padding": box.padding } : {};
     return { id, children: [], edges: [], layoutOptions: Object.assign({}, eo.container, minimum, padding) };
   }
@@ -1439,9 +1449,9 @@ function checkEngineParams(preset) {
     { reads: ["PARENTS"],          by: [eo.algorithmId],
       options: byId(eo.root) },
     { reads: ["PARENTS", "NODES"], by: [eo.containerAlgorithmId],
-      options: byId(_elkNode("", { width: p.alignWidthSameType ? 1 : 0, height: 0 }, true, eo).layoutOptions || {}) },
+      options: byId(_elkNode("", { width: p.alignWidthSameType ? 1 : 0, height: 0 }, true, false, eo).layoutOptions || {}) },
     { reads: ["NODES"],            by: [eo.algorithmId, eo.containerAlgorithmId],
-      options: byId(_elkNode("", { width: 1, height: 1 }, false, eo).layoutOptions || {}) },
+      options: byId(_elkNode("", { width: 1, height: 1 }, false, false, eo).layoutOptions || {}) },
   ];
   /** @type {Record<string, unknown>} */
   const defaults = Object.fromEntries(ids.map(id => [id, undefined]));
