@@ -1,23 +1,23 @@
 {
   "schemaVersion": 6,
-  "name": "View script/Proces",
-  "algorithm": "Dot",
+  "name": "Bestuurscontext/Bedrijfsservice",
+  "algorithm": "Layered",
   "params": {
-    "direction": "Right",
+    "direction": "Down",
     "nodePlacement": "Centred",
     "circles": "One circle",
     "routing": "Orthogonal",
-    "labelPosition": "Target",
+    "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseConditions": [
       {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
+      {"on": false, "relation": "serving-relationship"},
+      {"relation": "assignment-relationship"}
     ],
     "nestingConditions": [
       {"relation": "composition-relationship", "target": "business-process"},
-      {"source": "application-process", "relation": "serving-relationship", "target": "business-process"},
+      {"relation": "assignment-relationship", "everyContainer": true},
       {"source": "business-process", "relation": "access-relationship", "target": "business-object"}
     ],
     "padding": 20,
@@ -27,12 +27,12 @@
     "cycleAlgorithmStart": false,
     "alignWidthSameType": false,
     "columnsAcrossContainers": false,
-    "containerAlgorithm": "Grid",
+    "containerAlgorithm": "Layered",
     "connectionsMode": "Between containers",
     "layerSpacing": 120,
     "elementSpacing": 20,
     "connectionSpacing": 20,
-    "connectionElementSpacing": 25,
+    "connectionElementSpacing": 9,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
@@ -53,12 +53,27 @@
         "name": "Directly related elements (1 ring)",
         "repeat": 1,
         "conditions": []
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"previous": "business-process"},
+          {"mode": "exclude", "previous": "business-process", "direction": "outgoing", "relation": "realization-relationship", "added": "business-service"}
+        ]
+      },
+      {
+        "name": "Toevoegen onderlinge relaties",
+        "repeat": 1,
+        "conditions": [
+          {"previous": "business-process"}
+        ]
       }
     ]
   },
   "view": {
-    "name": "Development cycle",
-    "folder": "/_Generated/Proces",
+    "name": "Afhandeling van gemeentelijke jeugdhulpdeclaraties",
+    "folder": "/_Generated/Bedrijfsproces",
     "suffix": ""
   },
   "appearance": {
@@ -88,5 +103,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "description": "vanuit map met processen"
+  "description": "vanuit map met bedrijfsprocessen"
 }

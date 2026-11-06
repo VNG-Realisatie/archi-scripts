@@ -3,7 +3,7 @@
   "name": "Kennismodel/Kennismodel",
   "algorithm": "Layered",
   "params": {
-    "direction": "Right",
+    "direction": "Down",
     "nodePlacement": "Centred",
     "circles": "One circle",
     "routing": "Orthogonal",
@@ -63,7 +63,7 @@
     ]
   },
   "view": {
-    "name": "Beleidsdomeinindeling",
+    "name": "Application",
     "folder": "/Kennismodel",
     "suffix": ""
   },
