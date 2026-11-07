@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 6,
+  "name": "GEMMA/TAenIA",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight lines",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "association-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "access-relationship"},
+      {"relation": "aggregation-relationship"}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "selectionOrder": "Selection",
+    "cycleSelectionOrder": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 120,
+    "elementSpacing": 15,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 270,
+    "elementHeight": 25,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementConditions": [
+      {"elementType": "application-component"},
+      {"elementType": "system-software"},
+      {"elementType": "technology-service"}
+    ],
+    "diagramConditions": [],
+    "relationConditions": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "association-relationship"},
+      {"relation": "composition-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"relation": "aggregation-relationship", "added": "application-component"},
+          {"relation": "aggregation-relationship", "added": "system-software"},
+          {"relation": "aggregation-relationship", "added": "technology-service"},
+          {"relation": "association-relationship", "added": "application-component"},
+          {"relation": "association-relationship", "added": "system-software"},
+          {"relation": "association-relationship", "added": "technology-service"},
+          {"relation": "composition-relationship", "added": "application-component"},
+          {"relation": "composition-relationship", "added": "system-software"},
+          {"relation": "composition-relationship", "added": "technology-service"},
+          {"relation": "realization-relationship", "added": "application-component"},
+          {"relation": "realization-relationship", "added": "system-software"},
+          {"relation": "realization-relationship", "added": "technology-service"},
+          {"relation": "serving-relationship", "added": "application-component"},
+          {"relation": "serving-relationship", "added": "system-software"},
+          {"relation": "serving-relationship", "added": "technology-service"},
+          {"relation": "specialization-relationship", "added": "application-component"},
+          {"relation": "specialization-relationship", "added": "system-software"},
+          {"relation": "specialization-relationship", "added": "technology-service"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Technologiecomponenten en -services mapping",
+    "folder": "/_Generated/Technische architectuur",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"fontSize": 14, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "darkenStart": 0,
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "Converted from TAenIA.js (old include_view format)."
+}

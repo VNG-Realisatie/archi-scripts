@@ -1,6 +1,6 @@
 {
   "schemaVersion": 6,
-  "name": "all",
+  "name": "GEMMA/haalcentraal",
   "algorithm": "Layered",
   "params": {
     "direction": "Right",
@@ -9,50 +9,42 @@
     "labelPosition": "Middle",
     "ranking": "Balanced",
     "acyclicer": "Default",
-    "reverseConditions": [
-      {"relation": "realization-relationship"},
-      {"relation": "serving-relationship"},
-      {"relation": "specialization-relationship"}
-    ],
-    "nestingConditions": [
-      {"on": false, "relation": "aggregation-relationship", "everyContainer": true}
-    ],
     "padding": 20,
     "diagramPadding": 10,
     "sort": "Elements",
     "alignWidthSameType": false,
     "columnsAcrossContainers": false,
     "containerAlgorithm": "Layered",
-    "connectionsMode": "Between containers",
-    "layerSpacing": 60,
-    "elementSpacing": 40,
+    "connectionsMode": "Across containers",
+    "layerSpacing": 200,
+    "elementSpacing": 20,
     "connectionSpacing": 25,
     "connectionElementSpacing": 40,
     "elementWidth": 200,
     "elementHeight": 60,
     "maxWidth": 0,
-    "aspectRatio": 1.78,
+    "aspectRatio": 0,
     "viewSizeMode": "none",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
-    "connectionLabelSpacing": true
+    "connectionLabelSpacing": false,
+    "nestingConditions": [],
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
   },
   "filter": {
     "elementConditions": [],
-    "diagramConditions": [],
-    "relationConditions": []
+    "relationConditions": [],
+    "diagramConditions": []
   },
   "relatedElements": {
-    "steps": [
-      {
-        "repeat": 1,
-        "conditions": []
-      }
-    ]
+    "steps": []
   },
   "view": {
     "name": "",
-    "folder": "/_Generated",
+    "folder": "",
     "suffix": ""
   },
   "appearance": {
@@ -64,7 +56,7 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"fontSize": 14, "child": "same"}
+        {"fontSize": 14, "bold": true, "child": "same"}
       ],
       "fontEnabled": false,
       "fontDecreasePerLevel": 2,
@@ -82,5 +74,5 @@
     "addObjectId": false,
     "properties": []
   },
-  "description": "Selecteer een view of 1 of meer elementen en genereer een view"
+  "description": "Converted from haalcentraal.js (old include_view format)."
 }

@@ -121,7 +121,7 @@ One condition model for every list. A list keeps what matches **any active Inclu
 | element  | on, mode, elementType, property, value | `filter.elementConditions` | keep all |
 | diagram  | on, mode, diagramType | `filter.diagramConditions` | keep all |
 | relation | on, mode, source, relation, target, propertyOf (`relation`/`source`/`target`), property, value, everyContainer (nesting conditions only) | `filter.relationConditions`, `params.nestingConditions`, `params.reverseConditions` | filter: keep all · nesting / reverse: none |
-| step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | adds nothing (ends the chain); a pass-all condition `{}` follows all |
+| step     | on, mode, previous, direction (`either`/`outgoing`/`incoming`), relation, added, propertyOf (`added`/`relation`/`previous`), property, value | `steps[].conditions` | follow all, as a pass-all condition `{}`; a step without any active Include match adds nothing |
 | style    | on, applyTo (`element`/`relation`/`source`/`target`), source, relation, target, propertyOf (`element`/`relation`/`source`/`target`), property, colorRange (a range name of the palette) | `appearance.styleByProperty.conditions` | no styling |
 | nestingStyle | on, parent, direction (`either`/`outgoing`/`incoming`, seen from the parent), relation, child (a type, `""` = All or `"same"` = the parent's type; default `"same"`), color (a colour name of the palette, a hex, or `""` = Default), fontSize (pt of the container where the condition starts; `0` = continues from its parent), bold (that container bold) | `appearance.nestingLevel.conditions` | no styling |
 
@@ -174,4 +174,16 @@ The file is read when the dialog builds its Appearance tab and at a run with sty
 { "hidden": [ "GEMMA URL", "path", … ] }
 ```
 
-*Object ID* and *Managed occurrence* are always hidden and not listed. The file is read when the tab is built and at each run; an unusable file stops the run with a message naming what is wrong. Without the file only the two always-hidden keys apply. A preset row with a hidden key is left alone and the console says to remove it.
+*Object ID*, *Managed occurrence* and *View origin* are always hidden and not listed. The file is read when the tab is built and at each run; an unusable file stops the run with a message naming what is wrong. Without the file only the two always-hidden keys apply. A preset row with a hidden key is left alone and the console says to remove it.
+
+## View origin
+
+The view property *View origin* holds how the view was made, as JSON, for Regenerate:
+
+```json
+{ "preset": "GEMMA/GGM/GGM bedrijfsobject specialisaties", "direction": "Down", "action": "one_each",
+  "selection": [{ "id": "id-3f2a", "name": "/Business/Processen" }],
+  "folder": "/_Generated/Project", "element": { "id": "id-91bc", "name": "Klant" } }
+```
+
+`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each* into Folder; absent when the views mirror the model tree. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.

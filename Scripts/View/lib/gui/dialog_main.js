@@ -7,9 +7,8 @@
  * Dialog layout:
  *   Preset row — tree picker (loads on pick) · * modified · Save · Save As… | Rename… · Delete; description (preset_row.js)
  *   Tabs       — Selection · Layout · Appearance · Properties (tab_selection.js, tab_layout.js, tab_appearance.js, tab_properties.js)
- *   Totals     — what the current settings put on a view
- *   Actions    — Create new view (Folder, Name, New view, One view each) ·
- *                Modify selected view (View, Expand view, Layout only — in place); Cancel below
+ *   Actions    — Create new view (New view, One view each; Folder, Name; what it writes) ·
+ *                Modify selected view (Expand view, Layout only; View; what it writes); Run and Cancel below
  */
 console.log("Loading dialog_main.js");
 
@@ -20,6 +19,8 @@ const REPO_ROOT = (() => {
 
 /** @type {typeof import("../../../_lib/Common")} */
 const Common = require(REPO_ROOT + "_lib/Common");
+/** @type {typeof import("../../../_lib/archi_folders")} */
+const ArchiFolders = require(REPO_ROOT + "_lib/archi_folders");
 /** @type {typeof import("../../../_lib/selection")} */
 const Selection = require(REPO_ROOT + "_lib/selection");
 /** @type {typeof import("../defs")} */
@@ -30,6 +31,8 @@ const PresetIO = require(REPO_ROOT + "View/lib/preset_io");
 const GenView = require(REPO_ROOT + "View/lib/generate_view");
 /** @type {typeof import("../run_preset")} */
 const RunPreset = require(REPO_ROOT + "View/lib/run_preset");
+/** @type {typeof import("../view_origin")} */
+const ViewOrigin = require(REPO_ROOT + "View/lib/view_origin");
 /** @type {typeof import("../selection_pipeline")} */
 const Pipeline = require(REPO_ROOT + "View/lib/selection_pipeline");
 /** @type {typeof import("../selection_read")} */
@@ -99,7 +102,7 @@ function open(uiSelection) {
   const w = /** @type {DialogWidgets} */ ({});       // widget map
   const ctx = /** @type {DialogContext} */ ({ config, widgets: w, uiSelection, firstName: "", relBlocks: /** @type {StepBlock[]} */ ([]),
     recount: () => _updateFilteredCount(ctx), markModified: () => PresetRow.markModified(ctx),
-    saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx) });  // firstName set below
+    saveUI: () => _saveUI(ctx), syncToUI: () => _syncToUI(ctx), refreshAction: () => _refreshAction(ctx) });  // firstName set below
 
   // Compute selection counts before the dialog opens.
   // Raw count: what the user had selected in the UI.
@@ -116,6 +119,12 @@ function open(uiSelection) {
     else                                       selectedCount.elems++;
   });
   ctx.firstName = firstName;  // propagate for _syncToUI pre-fill
+  ctx.holdsView = selectedCount.views > 0;
+  ctx.mirrors = SelectionRead.holdsFolderOrView(uiSelection);
+  if (selectedCount.views === 1 && uiSelection.size() === 1) {
+    ctx.selectedView = /** @type {ArchimateView} */ (uiSelection.first());   // Cast: counted as a view
+    ctx.viewFolder = ArchiFolders.printFolderPath(ctx.selectedView).replace(/^\/Views/, "").replace(/(.)\/$/, "$1");
+  }
   ctx.firstObject = firstName ? `${Counts.typeToDisplay(firstType)}: ${firstName}` : "";
 
   // Expanded count: what is contained in the selection (folders expand, views expand to their elements).
@@ -289,6 +298,8 @@ function open(uiSelection) {
 
     getInitialSize: function() {
       const Point = Java.type("org.eclipse.swt.graphics.Point");
+      const bounds = _restoredBounds(ctx, dlg.getShell());
+      if (bounds) return new Point(bounds.width, bounds.height);
       const height = Math.min(DEFAULT_DIALOG_HEIGHT, dlg.getShell().getMonitor().getClientArea().height);
       return new Point(_appearanceDialogWidth(ctx, dlg.getShell()), height);
     },
@@ -296,6 +307,8 @@ function open(uiSelection) {
     // Top of the monitor's usable area, centred horizontally — the dialog uses the full height.
     getInitialLocation: function(/** @type {Swt.Point} */ size) {
       const Point = Java.type("org.eclipse.swt.graphics.Point");
+      const bounds = _restoredBounds(ctx, dlg.getShell());
+      if (bounds) return new Point(bounds.x, bounds.y);
       const area = dlg.getShell().getMonitor().getClientArea();
       return new Point(area.x + Math.max(0, Math.round((area.width - size.x) / 2)), area.y);
     },
@@ -310,6 +323,12 @@ function open(uiSelection) {
 
     createButtonsForButtonBar: function(/** @type {Swt.Composite} */ parent) {
       // Intentionally empty — buttons are in _buildActionArea.
+    },
+
+    // Closed with the window's close button or Esc: the same as Cancel.
+    handleShellCloseEvent: function() {
+      _persistSession(ctx);
+      Java.super(dlg).handleShellCloseEvent();
     },
 
     // The action buttons are custom (see _buildActionArea → _runAction); only Cancel ends up here.
@@ -328,9 +347,10 @@ function open(uiSelection) {
   // Dialog is fully closed here — safe to run generate_view
   if (result === IDialogConstants.CANCEL_ID || result < 0) return;
 
-  if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId)) { console.log("One view each cancelled: nothing written."); return; }
+  if (!RunPreset.confirmViewCount(ctx.uiSelection, ctx._actionId, ctx.config.filter)) { console.log("One view each cancelled: nothing written."); return; }
   try {
-    GenView.generate_view(ctx.config, ctx.uiSelection, ctx._actionId);
+    const run = { ...ctx.config, view: { ...ctx.config.view, folder: ctx.runFolder } };
+    GenView.generate_view(run, ctx.uiSelection, ctx._actionId, { origin: { preset: PresetRow.presetName(ctx), ...(ctx.modified ? { modified: true } : {}) } });
   } catch (e) {
     RunPreset.showFailure(e);
   }
@@ -341,7 +361,29 @@ function _persistSession(ctx, params = {}) {
   const session = JSON.parse(JSON.stringify(ctx.config));
   Object.assign(session.params, params);
   if (ctx.widgets.tabFolder) session._lastTabIndex = ctx.widgets.tabFolder.getSelectionIndex();
+  session._lastAction = ctx.action;
+  const bounds = ctx.dlg.getShell().getBounds();
+  session._dialogBounds = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
   PresetIO.writeSession(session);
+}
+
+/**
+ * Where the dialog was when it closed, cut to its monitor; null when that monitor is gone, or on a
+ * first open: the dialog then opens at its default place.
+ * @param {DialogContext} ctx
+ * @param {Swt.Shell} dialogShell
+ * @returns {DialogBounds | null}
+ */
+function _restoredBounds(ctx, dialogShell) {
+  const bounds = ctx.config._dialogBounds;
+  if (!bounds) return null;
+  for (const monitor of dialogShell.getDisplay().getMonitors()) {
+    const area = monitor.getClientArea();
+    if (area.contains(bounds.x, bounds.y)) {
+      return { x: bounds.x, y: bounds.y, width: Math.min(bounds.width, area.width), height: Math.min(bounds.height, area.height) };
+    }
+  }
+  return null;
 }
 
 
@@ -411,9 +453,18 @@ function _setTotals(block, title, view) {
 }
 
 /**
+ * Off is grey: the counts of the action that is not chosen.
+ * @param {TotalsBlock} block
+ * @param {boolean}     grey
+ */
+function _greyTotals(block, grey) {
+  for (const lbl of [block.title, ...block.rows.flatMap(r => [r.sub, r.counts])]) lbl.setEnabled(!grey);
+}
+
+/**
  * Show or hide labels that form one grid row; a hidden row takes no space.
- * @param {Swt.Label[]} labels
- * @param {boolean}     show
+ * @param {Swt.Control[]} labels
+ * @param {boolean}       show
  */
 function _showRow(labels, show) {
   for (const lbl of labels) {
@@ -437,6 +488,7 @@ function _updateFilteredCount(ctx) {
     (ctx.relBlocks || []).forEach(b => _setStepAdds(b, 0, 0));
     ctx.predicted = null;
     TabAppearance.updateStyleWarnings(ctx);
+    _refreshAction(ctx);
     return;
   }
 
@@ -447,6 +499,7 @@ function _updateFilteredCount(ctx) {
     (ctx.relBlocks || []).forEach(b => _setStepAdds(b, 0, 0));
   }
   TabAppearance.updateStyleWarnings(ctx);
+  _refreshAction(ctx);
 }
 
 /**
@@ -516,14 +569,7 @@ function _showCounts(ctx, counts) {
   ctx.predicted = counts.predicted;
   if (counts.layoutConditions) TabLayout.updateLayoutConditionCounts(ctx, counts.predicted.relations, counts.layoutConditions);
 
-  // The totals line (always visible, multi-line, hide-zero per the canonical vocabulary).
-  if (w.viewTotals) {
-    try {
-      _setTotals(w.viewTotals, "On the generated view:", counts.view);
-      if (counts.expandView) _setTotals(w.expandTotals, "On the expanded view:", counts.expandView);
-      if (ctx.area) ctx.area.layout(true, true);  // the line count may change
-    } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
-  }
+  ctx.counts = counts;   // _updateFilteredCount shows them in the totals line, through _refreshAction
 }
 
 /**
@@ -544,72 +590,164 @@ function _setStepAdds(b, eCount, rCount, suffix) {
 
 // Save the settings, remember the action and close; generate_view runs after dlg.open() returns.
 /**
- * @param {string} actionId
  * @param {JFace.TitleAreaDialog} dlg
  * @param {DialogContext} ctx
  */
-function _runAction(actionId, dlg, ctx) {
+function _runAction(dlg, ctx) {
   _saveUI(ctx);
-  const nextOrder = ctx.config.params.cycleSelectionOrder ? RunPreset.cycleSelectionOrder(ctx.config.params, actionId) : null;
+  const nextOrder = ctx.config.params.cycleSelectionOrder ? RunPreset.cycleSelectionOrder(ctx.config.params, ctx.action) : null;
   _persistSession(ctx, nextOrder ? { selectionOrder: nextOrder } : {});
-  ctx._actionId = actionId;
+  ctx._actionId = ctx.action;
   Common.startCounter("generate_view");
   Java.super(dlg).okPressed();
 }
 
-// Action-row button: fills cell width, bottom-aligned within group.
 /**
- * @param {Swt.Composite} parent
- * @param {string} label
- * @param {() => void} onClick
+ * The action the dialog opens on. With a view selected, *Layout only*: a remembered *New view* would
+ * be one click from replacing it.
+ * @param {DialogContext} ctx
+ * @param {Record<string, boolean>} available  per action id
+ * @returns {string}
  */
-function _actionBtn(parent, label, onClick) {
-  const btn = new ButtonWidget(parent, SWT.PUSH);
-  btn.setText(label);
-  GridDataFactory.fillDefaults().grab(true, false).align(SWT.FILL, SWT.END).applyTo(btn);
-  btn.addListener(SWT.Selection, onClick);
-  return btn;
+function _initialAction(ctx, available) {
+  if (ctx.holdsView) return ACTION.LAYOUT_ONLY.id;
+  const last = ctx.config._lastAction;
+  return last && available[last] ? last : ACTION.NEW_VIEW.id;
+}
+
+/**
+ * The path of every view, read once: a run only adds views after the dialog closes.
+ * @param {DialogContext} ctx
+ * @returns {Set<string>}
+ */
+function _viewPaths(ctx) {
+  if (!ctx.viewPaths) {
+    ctx.viewPaths = new Set();
+    $("view").each(v => { /** @type {Set<string>} */ (ctx.viewPaths).add(`${ArchiFolders.printFolderPath(v)}${v.name}`); });
+  }
+  return ctx.viewPaths;
+}
+
+/**
+ * @param {string} folder  a path under Views, as in Folder
+ * @param {string} name
+ * @returns {string} as _viewPaths has it
+ */
+function _viewPath(folder, name) {
+  return `/Views/${folder || Defs.GENERATED_VIEW_FOLDER}/${name}`.replace(/\/+/g, "/");
+}
+
+/**
+ * The elements of *One view each*: the selection, read once, that passes the filter of now.
+ * @param {DialogContext} ctx
+ * @returns {ArchiElement[]}
+ */
+function _seedElements(ctx) {
+  if (!ctx.seeds) ctx.seeds = SelectionRead.getSeedElements(ctx.uiSelection);
+  const w = ctx.widgets;
+  return Pipeline.applyFilter(ctx.seeds, { ...ctx.config.filter, elementConditions: w.tblElementConditions ? w.tblElementConditions.getConditions() : [] });
+}
+
+/**
+ * What *One view each* will write: the folder of each element when the selection holds a folder
+ * or a view, else Folder.
+ * @param {DialogContext} ctx
+ * @param {string} folder  the text of Folder
+ * @returns {ActionState}
+ */
+function _oneEachState(ctx, folder) {
+  const seeds = _seedElements(ctx);
+  const suffix = ctx.config.view.suffix;
+  if (!ctx.seedFolders) ctx.seedFolders = new Map();
+  const seedFolders = ctx.seedFolders;
+  const pathOf = (/** @type {ArchiElement} */ e) => {
+    if (!ctx.mirrors) return _viewPath(folder, e.name + suffix);
+    const id = String(e.id);
+    if (!seedFolders.has(id)) seedFolders.set(id, ArchiFolders.printFolderPath(e));
+    return `/Views${seedFolders.get(id)}${e.name}${suffix}`;
+  };
+  const replaced = seeds.filter(e => _viewPaths(ctx).has(pathOf(e))).length;
+  const count = `${seeds.length} view${seeds.length === 1 ? "" : "s"}`;
+  const where = ctx.mirrors ? "each in the folder of its element." : `in ${folder || Defs.GENERATED_VIEW_FOLDER}, named after the element.`;
+  const replaces = replaced ? ` ${replaced} replace${replaced === 1 ? "s" : ""} an existing view.` : "";
+  return { label: `Create ${count}`, folder: !ctx.mirrors, name: false, canRun: seeds.length > 0,
+           note: seeds.length ? `${count} ${where}${replaces}` : "No selected element passes the filter." };
+}
+
+/**
+ * What the chosen action uses and will write.
+ * @param {DialogContext} ctx
+ * @returns {ActionState}
+ */
+function _actionState(ctx) {
+  const w = ctx.widgets;
+  const folder = w.txtViewFolder.getText().trim();
+  if (ctx.action === ACTION.ONE_EACH.id) return _oneEachState(ctx, folder);
+  if (ctx.action === ACTION.NEW_VIEW.id) {
+    const replaces = _viewPaths(ctx).has(_viewPath(folder, w.txtViewName.getText().trim()));
+    return { label: replaces ? "Replace view" : "Create view", folder: true, name: true, canRun: true, note: "" };
+  }
+  const label = ctx.action === ACTION.EXPAND_VIEW.id ? ACTION.EXPAND_VIEW.label : ACTION.LAYOUT_ONLY.label;
+  return { label, folder: false, name: false, canRun: true, note: "" };
+}
+
+/**
+ * The note on the origin of the one selected view, "" without one.
+ * @param {DialogContext} ctx
+ * @returns {string}
+ */
+function _originNote(ctx) {
+  const origin = ctx.selectedView ? ViewOrigin.read(ctx.selectedView) : null;
+  if (!origin) return "";
+  if (origin.script) return `Made by "${origin.script}".`;
+  const start = origin.element ? [origin.element] : origin.selection || [];
+  const more = start.length > 1 ? ` and ${start.length - 1} more` : "";
+  return `Made from "${start.length ? start[0].name : "nothing"}${more}" with preset "${origin.preset}"`;
+}
+
+/**
+ * Show what the chosen action uses: Folder and Name are grey when it does not, the run button names
+ * the result, each group shows what its action writes.
+ * @param {DialogContext} ctx
+ */
+function _refreshAction(ctx) {
+  const w = ctx.widgets;
+  if (!w.btnRun) return;   // the action area is built last
+  const state = _actionState(ctx);
+  Widgets.enable(w.txtViewFolder, state.folder);
+  Widgets.enable(w.txtViewName, state.name);
+  w.btnRun.setText(state.label);
+  w.btnRun.setEnabled(state.canRun);
+  w.lblCreateNote.setText(state.note);
+  w.lblOriginNote.setText(_originNote(ctx));
+  _showTotals(ctx);
+}
+
+/**
+ * The counts in the groups: New view and Expand view say what they put on the view, in grey when
+ * not chosen, so a group keeps its height. One view each has its note instead; Layout only writes
+ * what is on the view (Current selection counts it).
+ * @param {DialogContext} ctx
+ */
+function _showTotals(ctx) {
+  const w = ctx.widgets;
+  const oneEach = ctx.action === ACTION.ONE_EACH.id;
+  try {
+    if (ctx.counts) _setTotals(w.createTotals, "On the generated view:", ctx.counts.view);
+    if (ctx.counts && ctx.counts.expandView) _setTotals(w.expandTotals, "On the expanded view:", ctx.counts.expandView);
+    _greyTotals(w.createTotals, ctx.action !== ACTION.NEW_VIEW.id);
+    _greyTotals(w.expandTotals, ctx.action !== ACTION.EXPAND_VIEW.id);
+    _showRow([w.createTotals.box], !oneEach);
+    _showRow([w.lblCreateNote], oneEach);
+    _showRow([w.expandTotals.box], !!(ctx.counts && ctx.counts.expandView));
+    _showRow([w.lblOriginNote], !!w.lblOriginNote.getText());
+    if (ctx.area) ctx.area.layout(true, true);  // the line count may change
+  } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
 }
 
 
 /**
- * The totals line: one totals block above each action group, in two equal columns. The counts wrap:
- * on resize each block's width hint becomes its column's width, so a column never asks for more
- * than its share (a hint that followed the block's own width pushed the other column out).
- * @param {Swt.Composite} area
- * @param {{ name: string, onCanvas: boolean }} target  the view Modify works on
- * @returns {{ viewTotals: TotalsBlock, expandTotals: TotalsBlock }}
- */
-function _buildTotalsRow(area, target) {
-  const SPACING = 8;
-  const totalsRow = new CompositeWidget(area, SWT.NONE);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(totalsRow);
-  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(0, 2).spacing(SPACING, 6).applyTo(totalsRow);
-  const viewTotals = _totalsBlock(totalsRow, "On the generated view: —",
-    "What the current settings put on a new view:\n" +
-    "containers, nested elements, standalones, extra occurrences (Show in every container),\n" +
-    "nestings (box in box), connections (lines) and diagram objects.");
-  const expandTotals = _totalsBlock(totalsRow, target.onCanvas ? "On the expanded view: —" : "",
-    "What Expand view puts on the selected view:\n" +
-    "everything on it, plus the elements and relations the steps add from the selected elements.\n" +
-    "The filter does not apply.");
-  let fitted = 0;
-  totalsRow.addListener(SWT.Resize, () => {
-    try {
-      const column = Math.floor((totalsRow.getClientArea().width - SPACING) / 2);
-      if (column <= 50 || column === fitted) return;
-      fitted = column;
-      viewTotals.fit(column);
-      expandTotals.fit(column);
-      // Outside the running layout: the blocks' heights changed.
-      totalsRow.getDisplay().asyncExec(() => { if (!totalsRow.isDisposed()) area.layout(true, true); });
-    } catch (e) {}   // silent: a resize while the dialog closes, on widgets that may be disposed
-  });
-  return { viewTotals, expandTotals };
-}
-
-/**
- * One column of the totals line: the title over a grid of sub-lines, each its label and its counts.
+ * The totals line: the title over a grid of sub-lines, each its label and its counts.
  * The counts wrap, so a long sub-line continues under its counts. Sub-lines are hidden until
  * _setTotals fills them.
  * @param {Swt.Composite} parent
@@ -642,10 +780,11 @@ function _totalsBlock(parent, title, tooltip) {
     block.getLayoutData().widthHint = width;
     for (const r of rows) r.counts.getLayoutData().widthHint = Math.max(50, width - subWidth - GAP);
   };
-  return { title: titleLbl, rows, fit };
+  return { box: block, title: titleLbl, rows, fit };
 }
 
-// Bottom of the dialog: the totals line, then one group per kind of action, Cancel on the right.
+// Bottom of the dialog: one group per kind of action, each with its choices, what they use and what
+// they write; Run and Cancel below.
 //   Create new view — Folder and Name apply to these actions only.
 //   Modify view     — works on the selected view in place.
 /**
@@ -658,43 +797,49 @@ function _buildActionArea(area, ctx, dlg, target) {
   const targetViewName = target.name;
   const w = ctx.widgets;
 
-  // Always-visible totals: what the current settings put on a view, each above its action group:
-  // Create left, Expand view right (Layout only writes what is on the view: Current selection).
-  // Sub-lines for elements / relations / diagram objects (see _totalsLines).
-  // Same columns as the action row below, so each line starts at its group.
-  const totals = _buildTotalsRow(area, target);
-  w.viewTotals   = totals.viewTotals;
-  w.expandTotals = totals.expandTotals;
+  /** @type {Record<string, boolean>} */
+  const available = { [ACTION.NEW_VIEW.id]: true, [ACTION.ONE_EACH.id]: true, [ACTION.EXPAND_VIEW.id]: target.onCanvas, [ACTION.LAYOUT_ONLY.id]: !!targetViewName };
+  ctx.action = _initialAction(ctx, available);
+  /** @type {Swt.Button[]} */
+  const radios = [];
 
-  // 2 columns: Create | Modify, Cancel below Modify. Both groups have the same rows
-  // (one field row, one button row), so fields and buttons line up.
+  // 2 columns: Create | Modify. Both groups have the same rows, so choices and fields line up.
   const row = new CompositeWidget(area, SWT.NONE);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(row);
   GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(0, 2).spacing(8, 6).applyTo(row);
 
   // ── Create new view ──
   const grpCreate = Widgets.group(row, "Create new view", 4, { grabV: true, bold: false });
+  _actionChoices(grpCreate, 4, [ACTION.NEW_VIEW, ACTION.ONE_EACH], radios, available, ctx);
 
-  new LabelWidget(grpCreate, SWT.NONE).setText("Folder:");
+  const lblFolder = new LabelWidget(grpCreate, SWT.NONE);
+  lblFolder.setText("Folder:");
   w.txtViewFolder = new TextWidget(grpCreate, SWT.BORDER);
+  w.txtViewFolder.setData("label", lblFolder);
   w.txtViewFolder.setToolTipText(`Folder under Views, e.g. /_Generated/Project.\nEmpty = ${Defs.GENERATED_VIEW_FOLDER}.`);
   GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewFolder);
-  w.txtViewFolder.addListener(SWT.Modify, () => PresetRow.markModified(ctx));
+  w.txtViewFolder.addListener(SWT.Modify, () => { PresetRow.markModified(ctx); _refreshAction(ctx); });
 
-  new LabelWidget(grpCreate, SWT.NONE).setText("Name:");
+  const lblName = new LabelWidget(grpCreate, SWT.NONE);
+  lblName.setText("Name:");
   w.txtViewName = new TextWidget(grpCreate, SWT.BORDER);
-  w.txtViewName.setToolTipText("Name of the new view, pre-filled with the first selected object.\nA view with this name in the folder is overwritten.");
+  w.txtViewName.setData("label", lblName);
+  w.txtViewName.setToolTipText("Name of the new view, pre-filled with the first selected object.\nA view with this name in the folder is replaced.");
   GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewName);
+  w.txtViewName.addListener(SWT.Modify, () => _refreshAction(ctx));
 
-  w.btnNewView = _actionBtn(grpCreate, "New view",      () => _runAction(ACTION.NEW_VIEW.id, dlg, ctx));
-  w.btnOneEach = _actionBtn(grpCreate, "One view each", () => _runAction(ACTION.ONE_EACH.id, dlg, ctx));
-  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(w.btnNewView);
-  GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(w.btnOneEach);
-  w.btnNewView.setToolTipText(ACTION.NEW_VIEW.tooltip);
-  w.btnOneEach.setToolTipText(ACTION.ONE_EACH.tooltip + "\nName is not used.");
+  w.createTotals = _totalsBlock(grpCreate, "On the generated view: —",
+    "What the current settings put on a new view:\n" +
+    "containers, nested elements, standalones, extra occurrences (Show in every container),\n" +
+    "nestings (box in box), connections (lines) and diagram objects.");
+  w.createTotals.box.getLayoutData().horizontalSpan = 4;
+  w.lblCreateNote = Widgets.noteLabel(grpCreate, "");
+  w.lblCreateNote.getLayoutData().horizontalSpan = 4;
 
   // ── Modify view ──
   const grpModify = Widgets.group(row, "Modify selected view", 2, { grabV: true, bold: false });
+  _actionChoices(grpModify, 2, [ACTION.EXPAND_VIEW, ACTION.LAYOUT_ONLY], radios, available, ctx);
+
   // "View: <name>" as text, right after the label, in a row as high as a text field (centred),
   // so it lines up with Folder / Name. A long name is cut off; the tooltip shows it in full.
   const viewRow = new CompositeWidget(grpModify, SWT.NONE);
@@ -713,26 +858,83 @@ function _buildActionArea(area, ctx, dlg, target) {
   GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, true).hint(100, SWT.DEFAULT).applyTo(lblTarget);
   if (targetViewName) lblTarget.setFont(Widgets.getBoldFont());
 
-  w.btnExpandView = _actionBtn(grpModify, "Expand view", () => _runAction(ACTION.EXPAND_VIEW.id, dlg, ctx));
-  w.btnLayoutOnly = _actionBtn(grpModify, "Layout only", () => _runAction(ACTION.LAYOUT_ONLY.id, dlg, ctx));
-  w.btnExpandView.setToolTipText(ACTION.EXPAND_VIEW.tooltip);
-  w.btnLayoutOnly.setToolTipText(ACTION.LAYOUT_ONLY.tooltip);
-  w.btnExpandView.setEnabled(target.onCanvas);
-  w.btnLayoutOnly.setEnabled(!!targetViewName);
+  w.expandTotals = _totalsBlock(grpModify, "On the expanded view: —",
+    "What Expand view puts on the selected view:\n" +
+    "everything on it, plus the elements and relations the steps add from the selected elements.\n" +
+    "The filter does not apply.");
+  w.expandTotals.box.getLayoutData().horizontalSpan = 2;
+  w.lblOriginNote = Widgets.noteLabel(grpModify, "");
+  w.lblOriginNote.getLayoutData().horizontalSpan = 2;
 
-  // ── Cancel: bottom right, under Modify, as wide as one of its buttons ──
-  new LabelWidget(row, SWT.NONE);
-  const cancelRow = new CompositeWidget(row, SWT.NONE);
-  // margins / spacing as Widgets.group's defaults, so the columns match the Modify group's buttons
-  GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).margins(Widgets.GROUP_MARGIN_H, 0).spacing(4, 0).applyTo(cancelRow);
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(cancelRow);
-  new LabelWidget(cancelRow, SWT.NONE);
-  const btnCancel = new ButtonWidget(cancelRow, SWT.PUSH);
+  _fitGroupOnResize(area, grpCreate, w.createTotals, w.lblCreateNote);
+  _fitGroupOnResize(area, grpModify, w.expandTotals, w.lblOriginNote);
+
+  // ── Run and Cancel: bottom right ──
+  const buttonRow = new CompositeWidget(area, SWT.NONE);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(buttonRow);
+  GridLayoutFactory.fillDefaults().numColumns(3).margins(0, 2).spacing(8, 0).applyTo(buttonRow);
+  GridDataFactory.fillDefaults().grab(true, false).applyTo(new LabelWidget(buttonRow, SWT.NONE));
+  w.btnRun = new ButtonWidget(buttonRow, SWT.PUSH);
+  GridDataFactory.fillDefaults().hint(160, SWT.DEFAULT).applyTo(w.btnRun);
+  w.btnRun.addListener(SWT.Selection, () => _runAction(dlg, ctx));
+  const btnCancel = new ButtonWidget(buttonRow, SWT.PUSH);
   btnCancel.setText("Cancel");
-  GridDataFactory.fillDefaults().grab(true, false).applyTo(btnCancel);
+  GridDataFactory.fillDefaults().hint(100, SWT.DEFAULT).applyTo(btnCancel);
   btnCancel.addListener(SWT.Selection, () => {
     _persistSession(ctx);  // remember _lastTabIndex even on cancel
     Java.super(dlg).cancelPressed();
+  });
+}
+
+/**
+ * The radios of one group. SWT keeps radios exclusive per parent only, so a choice clears the
+ * radios of the other group.
+ * @param {Swt.Composite} group
+ * @param {number} span  the columns of the group
+ * @param {{ id: string, label: string, tooltip: string }[]} actions
+ * @param {Swt.Button[]} radios  every radio of the dialog, added to
+ * @param {Record<string, boolean>} available  per action id
+ * @param {DialogContext} ctx
+ */
+function _actionChoices(group, span, actions, radios, available, ctx) {
+  const choiceRow = new CompositeWidget(group, SWT.NONE);
+  GridDataFactory.fillDefaults().span(span, 1).applyTo(choiceRow);
+  GridLayoutFactory.fillDefaults().numColumns(actions.length).spacing(Widgets.GAP_PAIR, 0).applyTo(choiceRow);
+  for (const action of actions) {
+    const radio = new ButtonWidget(choiceRow, SWT.RADIO);
+    radio.setText(action.label);
+    radio.setToolTipText(action.tooltip);
+    radio.setEnabled(available[action.id]);
+    radio.setSelection(action.id === ctx.action);
+    radio.addListener(SWT.Selection, () => {
+      if (!radio.getSelection()) return;
+      for (const other of radios) if (other !== radio) other.setSelection(false);
+      ctx.action = action.id;
+      _refreshAction(ctx);
+    });
+    radios.push(radio);
+  }
+}
+
+/**
+ * What wraps in a group follows its width: a wrapping label asks for its text on one line otherwise.
+ * @param {Swt.Composite} area
+ * @param {Swt.Composite} group
+ * @param {TotalsBlock}   totals
+ * @param {Swt.Label}     note
+ */
+function _fitGroupOnResize(area, group, totals, note) {
+  let fitted = 0;
+  group.addListener(SWT.Resize, () => {
+    try {
+      const width = group.getClientArea().width - 2 * Widgets.GROUP_MARGIN_H;
+      if (width <= 50 || width === fitted) return;
+      fitted = width;
+      totals.fit(width);
+      note.getLayoutData().widthHint = width;
+      // Outside the running layout: the heights changed.
+      group.getDisplay().asyncExec(() => { if (!group.isDisposed()) area.layout(true, true); });
+    } catch (e) {}   // silent: a resize while the dialog closes, on widgets that may be disposed
   });
 }
 
@@ -792,7 +994,8 @@ function _syncToUI(ctx) {
   // View name: always pre-fill from the first selected object (captured in open()).
   const viewName  = (ctx && ctx.firstName) || (c.view && c.view.name) || "";
   if (w.txtViewName)   w.txtViewName.setText(viewName);
-  if (w.txtViewFolder) w.txtViewFolder.setText((c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
+  // One selected view: its own folder, so New view replaces it. Only the run sees it, as with the name.
+  if (w.txtViewFolder) w.txtViewFolder.setText(ctx.viewFolder || (c.view && c.view.folder) || Defs.GENERATED_VIEW_FOLDER);
 
   TabLayout.updateAlgorithmControls(ctx);
 
@@ -862,7 +1065,10 @@ function _saveUI(ctx) {
 
   // View
   if (w.txtViewName)   c.view.name   = w.txtViewName.getText().trim();
-  if (w.txtViewFolder) c.view.folder = w.txtViewFolder.getText().trim();
+  if (w.txtViewFolder) {
+    ctx.runFolder = w.txtViewFolder.getText().trim();
+    if (ctx.runFolder !== ctx.viewFolder) c.view.folder = ctx.runFolder;
+  }
 
   // Appearance
   if (w.cmbPalette && ctx.palettes.length) c.appearance.palette = ctx.palettes[Math.max(0, w.cmbPalette.getSelectionIndex())].name;

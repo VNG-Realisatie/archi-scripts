@@ -4,7 +4,7 @@
  *
  *   { "hidden": [ "GEMMA URL", "path", … ] }
  *
- * "Object ID" and "Managed occurrence" are always hidden (the tool owns them) and are not listed.
+ * "Object ID", "Managed occurrence" and "View origin" are always hidden (the tool owns them) and are not listed.
  * The file is read once per run and validated as a whole: an unusable file stops the run with a message.
  */
 console.log("Loading hidden_properties.js");
@@ -52,7 +52,7 @@ function readHidden() {
  * @returns {Set<string>}
  */
 function hiddenKeys() {
-  const keys = new Set([Defs.PROP_ID, Defs.PROP_MANAGED_OCCURRENCE, ...readHidden()]);
+  const keys = new Set([Defs.PROP_ID, Defs.PROP_MANAGED_OCCURRENCE, Defs.PROP_ORIGIN, ...readHidden()]);
   console.log(`Hidden view properties (${HIDDEN_FILE}): ${[...keys].join(", ")}`);
   return keys;
 }

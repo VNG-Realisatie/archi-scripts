@@ -31,9 +31,12 @@ The scripts run straight from a clone: the layout libraries are included in `Scr
 
    Every filter — global filter, steps, nesting, reverse, style by property — is a table of conditions: *Source type · Relation type · Target type*, each condition *Include* or *Exclude*. *All* matches any type. A step's conditions read from the previous step's elements: *Previous step elements · Direction · Added relations · Added elements*.
    - **Properties** — properties written to the generated view.
-3. Click an action:
-   - **New view** / **One view each** — create view(s) in *Folder* with *Name*;
+3. Choose an action and press the run button, which names the result:
+   - **New view** — create a view in *Folder* with *Name*; with a view selected, these are its own, so it is replaced;
+   - **One view each** — create a view per element, in *Folder*; with a folder or view selected, in the folder that mirrors the element's place in the model tree;
    - **Expand view** / **Layout only** — change the selected view in place.
+
+What the chosen action does not use is grey.
 
 Hover over any setting for what it does and which algorithms use it. Settings the chosen algorithm does not use are greyed.
 
@@ -49,26 +52,35 @@ Presets have a `schemaVersion`. A preset in an older format is refused with a me
 
 Run a saved preset without the dialog.
 
-**Base preset** — the preset `all` (edit it in the dialog; without it `Default`):
+**Preset Default** — `presets/Default.json` (read-only in the dialog, so edit the file):
 
 | Script | Action |
 |---|---|
-| `_all_new_view.ajs` | New view |
-| `_all_one_view_each.ajs` | One view each |
-| `_all_expand_view.ajs` | Expand view — from the elements selected on a view; the whole view is laid out |
-| `_all_layout_right.ajs`, `_all_layout_down.ajs` | Layout only, direction Right / Down, no nesting |
-| `_all_nested_right.ajs`, `_all_nested_down.ajs` | Layout only, direction Right / Down, aggregation as nesting |
+| `_default_new_view.ajs` | New view |
+| `_default_one_view_each.ajs` | One view each |
+| `_default_expand_view.ajs` | Expand view — from the elements selected on a view; the whole view is laid out |
+| `_default_layout_flat_right.ajs`, `_default_layout_flat_down.ajs` | Layout only, direction Right / Down, no nesting |
+| `_default_layout_nested_right.ajs`, `_default_layout_nested_down.ajs` | Layout only, direction Right / Down, aggregation as nesting |
 
 **Session** — the dialog's last settings (`presets/_session.json`):
 
 | Script | Action |
 |---|---|
-| `_session_right.ajs`, `_session_down.ajs` | Layout only, direction Right / Down |
-| `_session_flat.ajs` | Layout only without nesting; the nesting conditions are parked in the session |
-| `_session_nested.ajs` | Layout only with the parked nesting conditions, else aggregation as nesting |
-| `_session_cycle_selection_order.ajs` | Layout only with *Cycle selection order*: each run takes the next selection order, without opening the dialog |
+| `_session_layout_right.ajs`, `_session_layout_down.ajs` | Layout only, direction Right / Down |
+| `_session_layout_flat.ajs` | Layout only without nesting; the nesting conditions are parked in the session |
+| `_session_layout_nested.ajs` | Layout only with the parked nesting conditions, else aggregation as nesting |
+| `_session_layout_cycle_selection_order.ajs` | Layout only with *Cycle selection order*: each run takes the next selection order, without opening the dialog |
 
 The first four keep their change in the session: changes stack, and the dialog shows them with `*`, so Save keeps them.
+
+**Regenerate** — make a view again from its origin, which *New view* and *One view each* leave on it:
+
+| Script | Action |
+|---|---|
+| `_regenerate.ajs` | The selected views, or the views in a selected folder, where they stand; a view of *One view each* regenerates only itself |
+| `_regenerate_siblings.ajs` | The selected view of *One view each* with its siblings: a new element gets a view, a view whose element left the start is reported and stays |
+
+The console says what a regenerate uses and does not use. Hand edits on the view are lost.
 
 **Named preset**: put a script in `shortcuts/` (or a sub-folder; `presets/` holds only the JSON), name it `<preset>_<action>_<direction>.ajs` and give it these lines:
 

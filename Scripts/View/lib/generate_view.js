@@ -48,6 +48,8 @@ const TextMeasure = require(REPO_ROOT + "View/lib/text_measure");
 const WritePlan  = require(REPO_ROOT + "View/lib/write_plan");
 /** @type {typeof import("./view_writer")} */
 const ViewWriter = require(REPO_ROOT + "View/lib/view_writer");
+/** @type {typeof import("./view_origin")} */
+const ViewOrigin = require(REPO_ROOT + "View/lib/view_origin");
 /** @type {typeof import("./appearance")} */
 const Appearance = require(REPO_ROOT + "View/lib/appearance");
 /** @type {typeof import("./engines/engine-utils")} */
@@ -115,10 +117,11 @@ function checkEngineParams(preset) {
  * @param {PresetFile}      rawPreset   raw preset object (will be validated)
  * @param {ArchiCollection<ArchiObject>} uiSelection $(selection) from Archi UI
  * @param {string}          [actionId]  ACTION.*.id (runtime — not stored in preset files); default NEW_VIEW
+ * @param {GenerateOptions} [options]   origin of the run; without it a new view gets no origin
  * @returns {ArchimateView[]}
  * @throws when the run fails; the caller shows the reason (ARCHITECTURE § Errors)
  */
-function generate_view(rawPreset, uiSelection, actionId) {
+function generate_view(rawPreset, uiSelection, actionId, options = {}) {
   Common.startCounter("generate_view");
   /** @type {MaskedPreset} */
   const preset = validatePreset(rawPreset);   // masked to the algorithm's params a few lines down
@@ -183,9 +186,9 @@ function generate_view(rawPreset, uiSelection, actionId) {
   try {
     const runtime = _layoutRuntime();
     if (action === ACTION.ONE_EACH.id) {
-      views.push(..._generateOneEach(preset, uiSelection, runtime));
+      views.push(..._generateOneEach(preset, uiSelection, runtime, options));
     } else {
-      const view = _generateSingle(preset, uiSelection, action, null, runtime);
+      const view = _generateSingle(preset, uiSelection, action, _singleTarget(uiSelection, action, options), runtime);
       if (view) views.push(view);
     }
   } finally {   // a failure goes to the entry point, which shows it (ARCHITECTURE § Errors)
@@ -265,11 +268,11 @@ function _applyViewProperties(view, preset) {
  * @param {MaskedPreset}                 preset
  * @param {ArchiCollection<ArchiObject>} uiSelection
  * @param {string}                       actionId
- * @param {string | null}                viewNameOverride
+ * @param {ViewTarget}                   target  where a Create action writes, and the origin it leaves
  * @param {LayoutRuntime}                runtime
  * @returns {ArchimateView | null}
  */
-function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtime) {
+function _generateSingle(preset, uiSelection, actionId, target, runtime) {
   const timer = _phaseTimer();
   const snapshot = SelectionRead.readSelection(uiSelection, actionId);
   timer.lap("selection");
@@ -294,8 +297,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtim
   let view = existingView;
   if (!view) {   // a Create action (a Modify action without its view returned above)
     console.log("\nView target:");
-    const viewName = viewNameOverride || _resolveViewName(preset, planned.objectSet.elements);
-    view = _getOrCreateView(_resolveFolder(preset.view.folder), viewName);
+    view = _targetView(preset, planned.objectSet.elements, target);
   }
 
   console.log("\nWrite:");
@@ -312,6 +314,7 @@ function _generateSingle(preset, uiSelection, actionId, viewNameOverride, runtim
   }
   Appearance.applyAppearance(view, preset, actionId, TextMeasure.defaultViewFont(), keep);
   _applyViewProperties(view, preset);
+  _recordOrigin(view, actionId, target);
   timer.lap("appearance");
 
   console.log(`\nTiming: ${timer.summary()}`);
@@ -512,12 +515,13 @@ function _fmtMs(ms) {
  * @param {MaskedPreset}                 preset
  * @param {ArchiCollection<ArchiObject>} uiSelection
  * @param {LayoutRuntime}                runtime
+ * @param {GenerateOptions}              options
  * @returns {ArchimateView[]}
  */
-function _generateOneEach(preset, uiSelection, runtime) {
-  // Seeds = raw model elements from the Archi selection, before preset filter and expansion.
-  // Each seed gets its own full pipeline run (filter + expansion + layout + write).
-  const seeds = SelectionRead.getSeedElements(uiSelection);
+function _generateOneEach(preset, uiSelection, runtime, options) {
+  // Seeds = model elements from the Archi selection that pass the preset's filter, before expansion:
+  // an element the filter drops would give no view. Each seed gets its own full pipeline run.
+  const seeds = Pipeline.applyFilter(SelectionRead.getSeedElements(uiSelection), preset.filter);
   if (seeds.length === 0) { console.log("No elements selected."); return []; }
 
   const types = new Set(seeds.map(e => e.type));
@@ -525,17 +529,89 @@ function _generateOneEach(preset, uiSelection, runtime) {
     console.log(`Warning: ${types.size} element types selected for One view each. Consider filtering to one type.`);
   }
 
+  const siblings = options.siblings;
+  const mirror = siblings ? siblings.mirror : SelectionRead.holdsFolderOrView(uiSelection);
+  const start = options.origin && !options.origin.script ? ViewOrigin.describeStart(uiSelection) : [];
+
   /** @type {ArchimateView[]} */
   const views = [];
   for (const element of seeds) {
     console.log(`\nGenerating view for: ${element.name}`);
-    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, element.name + preset.view.suffix, runtime);
+    /** @type {ViewTarget} */
+    const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)) };
+    if (mirror) target.folder = () => _mirroredFolder(element);
+    if (options.origin) target.origin = options.origin.script ? options.origin : {
+      ...options.origin, action: ACTION.ONE_EACH.id, selection: start, element: ViewOrigin.describeObject(element),
+      ...(mirror ? {} : { folder: preset.view.folder }),
+    };
+    const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, target, runtime);
     if (view) views.push(view);
   }
   return views;
 }
 
+/**
+ * The folder under Views that mirrors the element's place in the model tree, the layer included,
+ * created when missing. Name by name: a folder name may hold a "/".
+ * @param {ArchiElement} element
+ * @returns {Folder}
+ */
+function _mirroredFolder(element) {
+  /** @type {string[]} */
+  const names = [];
+  for (let f = $(element).parent("folder").first(); f; f = $(f).parent("folder").first()) names.unshift(f.name);
+  let folder = _viewsFolder();
+  for (const name of names) {
+    folder = $(folder).children("folder").filter(f => f.name === name).first() || folder.createFolder(name);
+  }
+  return folder;
+}
+
 // ── View target ───────────────────────────────────────────────────────────────
+
+/**
+ * The target of a New view run. Expand view and Layout only have their view, and leave the origin.
+ * @param {ArchiCollection<ArchiObject>} uiSelection
+ * @param {string}                       action
+ * @param {GenerateOptions}              options
+ * @returns {ViewTarget}
+ */
+function _singleTarget(uiSelection, action, options) {
+  if (options.regenerate) return options.regenerate;
+  if (action !== ACTION.NEW_VIEW.id || !options.origin) return {};
+  return { origin: options.origin.script ? options.origin : { ...options.origin, action, selection: ViewOrigin.describeStart(uiSelection) } };
+}
+
+/**
+ * @param {MaskedPreset}   preset
+ * @param {ArchiElement[]} elements
+ * @param {ViewTarget}     target
+ * @returns {ArchimateView}
+ */
+function _targetView(preset, elements, target) {
+  if (target.view) {
+    console.log(`  Regenerating view: "${target.view.name}"`);
+    _emptyView(target.view);
+    return target.view;
+  }
+  const folder = target.folder ? target.folder() : _resolveFolder(preset.view.folder);
+  return _getOrCreateView(folder, target.name || _resolveViewName(preset, elements));
+}
+
+/**
+ * A new view gets the origin of its run, or loses one of an earlier run. Expand view changes what
+ * a regenerate gives; Layout only does not.
+ * @param {ArchimateView} view
+ * @param {string}        actionId
+ * @param {ViewTarget}    target
+ */
+function _recordOrigin(view, actionId, target) {
+  if (actionId === ACTION.EXPAND_VIEW.id) ViewOrigin.markModified(view);
+  else if (actionId === ACTION.NEW_VIEW.id) {
+    if (target.origin) ViewOrigin.write(view, target.origin);
+    else ViewOrigin.remove(view);
+  }
+}
 
 /**
  * @param {MaskedPreset}   preset
@@ -555,12 +631,28 @@ function _resolveViewName(preset, elements) {
  * @returns {Folder}
  */
 function _resolveFolder(viewFolder) {
-  if (!$("folder.Views").first()) throw new Error(`The model has no "Views" folder; the new view has nowhere to go. Rename the views folder back to "Views".`);
+  _viewsFolder();
   // viewFolder is a path under /Views ("/_Generated/Test"); "" = GENERATED_VIEW_FOLDER.
   const path = "/Views" + (viewFolder || GENERATED_VIEW_FOLDER);
   const folder = ArchiFolders.getFolderPath(path);   // missing subfolders are created
   if (!folder) throw new Error(`View folder "${path}" not found.`);
   return folder;
+}
+
+/**
+ * @returns {Folder}
+ */
+function _viewsFolder() {
+  const folder = $("folder.Views").first();
+  if (!folder) throw new Error(`The model has no "Views" folder; the new view has nowhere to go. Rename the views folder back to "Views".`);
+  return folder;
+}
+
+/**
+ * @param {ArchimateView} view
+ */
+function _emptyView(view) {
+  $(view).find().each(o => { try { o.delete(); } catch (e) {} });   // silent: Archi already removed it with its parent
 }
 
 /**
@@ -572,7 +664,7 @@ function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
     console.log(`  Overwriting view: "${viewName}"`);
-    $(existing).find().each(o => { try { o.delete(); } catch (e) {} });   // silent: Archi already removed it with its parent
+    _emptyView(existing);
     return existing;
   }
   const v = model.createArchimateView(viewName);

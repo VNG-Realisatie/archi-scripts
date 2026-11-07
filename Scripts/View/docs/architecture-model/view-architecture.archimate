@@ -21,7 +21,7 @@
           <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
         </element>
         <element xsi:type="archimate:BusinessProcess" name="Generate a view with an entry script" id="id-3c88c9041dc45af59166b038d1e5138f">
-          <documentation>The architect runs an entry script on the selection: the base preset with fixed overrides, the session, or a preset named by the script's file name. No dialog.</documentation>
+          <documentation>The architect runs an entry script on the selection: the preset Default with fixed overrides, the session, or a preset named by the script's file name. No dialog.</documentation>
           <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
         </element>
         <element xsi:type="archimate:BusinessProcess" name="Manage presets" id="id-2d3c1c3b4f5c5cae96fef4321952f2ed">
@@ -514,9 +514,9 @@ Main exports: sortedNodes(), alignWidthsByLevel(), applyParams(), selfLoopResult
       <folder name="Shared modules" id="id-39413ca33375501d8528ac31f3e2b095">
         <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
         <element xsi:type="archimate:ApplicationComponent" name="run_preset.js" id="id-2e6f2900f2eb5137a0a290b7849350fc">
-          <documentation>Headless runs for the entry scripts and the GEMMA/GGM entry scripts: preset, action and direction from the script's file name (&lt;preset>_&lt;Action>_&lt;Dir>.ajs), the base preset all, or the session; asks before One view each writes many views and shows a failure in a message box.
+          <documentation>Headless runs for the entry scripts and the GEMMA/GGM entry scripts: preset, action and direction from the script's file name (&lt;preset>_&lt;Action>_&lt;Dir>.ajs), the preset Default, or the session; asks before One view each writes many views and shows a failure in a message box.
 
-Main exports: fromFilename(), fromBase(), fromSession(), confirmViewCount(), parseFilename().</documentation>
+Main exports: fromFilename(), fromDefault(), fromSession(), confirmViewCount(), parseFilename().</documentation>
           <property key="path" value="Scripts/View/lib/run_preset.js"/>
           <property key="runtime" value="Archi"/>
           <property key="typechecked" value="yes"/>
@@ -809,7 +809,7 @@ Main export: flatten().</documentation>
         <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
       </element>
       <element xsi:type="archimate:ApplicationComponent" name="Entry scripts" id="id-f5a4dd0d15bc59c2be7b3bbb66865ffe">
-        <documentation>Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _all_new_view.ajs (New view with the base preset), _all_expand_view.ajs (Expand view), _layout_only.ajs (Layout only), _all_layout_right.ajs (Layout only, Left → Right, no nesting) and _session_cycle_selection_order.ajs (the session, the next algorithm start each run). _gui.ajs is not one of them: it opens the dialog.</documentation>
+        <documentation>Layer 1, headless: the .ajs files in Scripts/View that the architect runs on a selection without the dialog. Each is a few lines that call run_preset.js with a fixed action and overrides, or with the session. For example: _default_new_view.ajs (New view with the preset Default), _default_expand_view.ajs (Expand view), _default_layout_flat_right.ajs (Layout only, Left → Right, no nesting) and _session_layout_cycle_selection_order.ajs (the session, the next algorithm start each run). _gui.ajs is not one of them: it opens the dialog.</documentation>
         <property key="path" value="Scripts/View/_*.ajs"/>
         <property key="runtime" value="Archi"/>
         <property key="typechecked" value="no"/>
@@ -932,7 +932,7 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
         <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
       </element>
       <element xsi:type="archimate:ApplicationService" name="Generate with an entry script" id="id-14d13c1562465cc6bc3815c957a9aeea">
-        <documentation>A run on the selection without the dialog: preset, action and direction from the script's file name, the base preset or the session.</documentation>
+        <documentation>A run on the selection without the dialog: preset, action and direction from the script's file name, the preset Default or the session.</documentation>
         <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
       </element>
       <element xsi:type="archimate:ApplicationService" name="Check the types" id="id-5045931cc0515e8e81795faf3ae29eba">
@@ -976,7 +976,7 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
           <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
         </element>
         <element xsi:type="archimate:ApplicationProcess" name="Run headless" id="id-559e224e724453f08fc799252d1b3d89">
-          <documentation>File name → preset, action and direction; or the base preset; or the session (next algorithm start saved). Read the preset, apply the overrides, ask before many views, call the API.</documentation>
+          <documentation>File name → preset, action and direction; or the preset Default; or the session (next algorithm start saved). Read the preset, apply the overrides, ask before many views, call the API.</documentation>
           <property key="view-architecture export date" value="2026-11-05T06:48:45.108Z"/>
         </element>
         <element xsi:type="archimate:ApplicationProcess" name="Generate a view" id="id-249cbb39d7e553c38af291f1a11d0932">

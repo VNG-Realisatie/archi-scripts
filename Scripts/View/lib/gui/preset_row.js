@@ -35,12 +35,14 @@ function markModified(ctx) {
   if (!ctx._ready || ctx.modified) return;
   ctx.modified = true;
   try { ctx.widgets.lblModified.setVisible(true); } catch (x) {}   // silent: may be disposed
+  ctx.refreshAction();
 }
 
 /** @param {DialogContext} ctx */
 function _clearModified(ctx) {
   ctx.modified = false;
   try { ctx.widgets.lblModified.setVisible(false); } catch (x) {}   // silent: may be disposed
+  ctx.refreshAction();
 }
 
 const SAVE_TIP    = "Overwrite this preset with the current settings.";

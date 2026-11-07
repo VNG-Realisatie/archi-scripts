@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 6,
+  "name": "GEMMA/SaaS",
+  "algorithm": "Tiles",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight lines",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "association-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship", "everyContainer": true}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "selectionOrder": "Selection",
+    "cycleSelectionOrder": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 120,
+    "elementSpacing": 10,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 350,
+    "elementHeight": 30,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false
+  },
+  "filter": {
+    "elementConditions": [
+      {"elementType": "product"}
+    ],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {"relation": "aggregation-relationship"}
+        ]
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": []
+      }
+    ]
+  },
+  "view": {
+    "name": "SaaS - Software as a Service",
+    "folder": "/_Generated/Technische architectuur",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"fontSize": 14, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "darkenStart": 0,
+      "lightenPerLevel": 15
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": [
+      {
+        "key": "Architectuurlaag",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Beleidsdomein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Bron",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Detailniveau",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Domein",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "GEMMA thema",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Model",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Publiceren",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Scope",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Titel view SWC",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "Viewtype",
+        "value": "",
+        "enabled": false
+      },
+      {
+        "key": "author",
+        "value": "",
+        "enabled": false
+      }
+    ]
+  },
+  "description": "Selecteer product SaaS en genereer view"
+}

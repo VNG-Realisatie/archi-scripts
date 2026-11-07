@@ -66,7 +66,10 @@ One name per concept across UI, docs, logs and code, grouped by subject.
 - **Step**: one ordered related-elements expansion stage inside a preset; holds an optional name, a repeat and a condition list.
 - **condition / condition list**: a condition is a pattern over element and relation types (*All* = any), either *Include* or *Exclude*. A list keeps any Include match minus any Exclude match.
 - **Action**: a runtime verb (create / per-element / expand / re-layout); never stored in a preset.
-- **Session**: the last-used configuration, restored when the UI opens.
+- **Session**: the last-used configuration and dialog state (open tab, chosen action, window size and position), restored when the UI opens.
+- **Origin**: how a generated view was made (start, destination, preset, action), kept on the view, so it can be made again.
+- **Regenerate**: making a view again from its origin, where it stands.
+- **Siblings**: the views of one *One view each* run: the same start, preset and action.
 - **VisualSet**: the existing visual objects of one target view, captured before a run.
 
 **Appearance**
@@ -85,7 +88,8 @@ Three layers, top to bottom. Each layer talks only to the one below.
 Layer 1 — Entry points      produce (preset, selection, action), call the API
   • Generate View dialog  — defines selection/layout/styling; live counts; only editor of presets
   • Preset-bound scripts  — headless: load a preset, call the API, exit
-  • Session script       — headless: run the session, keep the next selection order
+  • Session scripts      — headless: run the session with one change, kept in the session
+  • Regenerate scripts   — headless: run what the origin of a view holds
 Layer 2 — View-generation API   sole orchestrator and sole writer to views
   validate preset → run selection → build layout graph → call engine → write → style
 Layer 3 — Engine adapters   one per engine: layout graph in, positions out; nothing else
@@ -102,7 +106,7 @@ Shared infrastructure (Layers 1–2): SSOT (algorithms, params, enums, defaults)
 - The dialog is the **only** entry point allowed to edit or persist a preset; preset-bound scripts only read presets.
 - The API is the **only** writer to views.
 - **Only the entry points talk to the user**: a question, a confirm or a message box. The API and the layers below run without a user, so any caller can drive them headless; they report through the returned views, the console and the errors they raise.
-- **Public and internal.** Callers outside the subsystem use only the API and the preset-bound run (a preset named by the script's file name, or the base preset with fixed overrides). Everything else is internal and may change without notice to them.
+- **Public and internal.** Callers outside the subsystem use only the API and the preset-bound run (a preset named by the script's file name, or the preset Default with fixed overrides). Everything else is internal and may change without notice to them.
 - **Engine-adapter registry.** Adapters register under the engine ids they implement, and the API finds the adapter for a chosen algorithm through the registry. Adding an engine is one registration plus one SSOT algorithm entry; adding an algorithm is one SSOT entry plus one adapter mapping. No other module changes.
 - **SSOT/adapter separation.** The SSOT holds only functional definitions: algorithm metadata, GUI params, labels, allowed values and defaults. All engine-specific translation (option names, unit conversions, flag values) lives only in the adapters.
 
@@ -151,8 +155,8 @@ Four actions in two groups. The writer is the same for all four. An action diffe
 
 | Group | Action | Object set | Target view | VisualSet at start |
 |---|---|---|---|---|
-| **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a fresh view in the preset's folder/name (overwrites by name) | empty |
-| | `ONE_EACH` | each selected element, run independently | one fresh view per element, named after the element (plus an optional preset suffix) | empty |
+| **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a view in Folder with Name (replaces by name) | empty |
+| | `ONE_EACH` | each selected element, run independently | one view per element that passes the filter, named after the element (plus an optional preset suffix): in Folder, or mirroring the model tree | empty |
 | **Modify selected view** | `EXPAND_VIEW` | elements selected on the view drive expansion; the whole view is laid out | the selected view, in place | captured |
 | | `LAYOUT_ONLY` | the view's current contents only, no expansion | the selected view | captured |
 
@@ -162,11 +166,20 @@ A model-tree selection can drive only the Create group, because nothing identifi
 
 **New view or Layout only.** On a whole view the difference is the view object.
 - *Layout only* changes the selected view in place: its id, properties and documentation stay, and so does every reference to it from other views. It keeps the appearance of the visuals and all user content, and adds nothing.
-- *New view* writes into a fresh view; when the target folder already holds a view with that name, it empties that view and writes into it, which keeps that view's id and properties. The source view is not changed. Filter and steps apply, every relation between the elements is drawn, and elements get default appearance plus the preset's styling; diagram objects keep their own.
+- *New view* writes into a fresh view; when the target folder already holds a view with that name, it empties that view and writes into it, which keeps that view's id and properties. With one view selected the dialog pre-fills its folder and name, so the result replaces it in place; another folder or name makes a copy, and a script follows its preset. Filter and steps apply, every relation between the elements is drawn, and elements get default appearance plus the preset's styling; diagram objects keep their own.
 
 **The single writer rule.** It is action-agnostic, with no per-action branch: *for each result object, if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from the current nesting); otherwise **create** it with default appearance.* Relations follow the same rule: an existing relation gets its bendpoints rewritten, a new one is created.
 
-**Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm. Selected elements of more than one type give a warning on the console; the run goes on.
+**Where One view each writes.** With only elements selected, every view goes to Folder. With a folder or view anywhere in the selection, every element, loose ones too, gets its view in the folder under Views that mirrors its own place in the model tree, the layer included, and Folder and Name are not used. The views get the structure the model has, and same-named elements from different folders do not overwrite each other. An element the preset's element filter drops gets no view, so no view stays empty.
+
+**Regenerate.** *New view* and *One view each* leave an **origin** on the view: the start, the preset by name, the action and, for *One view each*, the element and Folder. The start is what was selected: a folder stays a folder, so new elements in it join; a view is kept as the elements on it at that moment, so a view that replaced itself does not grow with every regenerate, and its diagram objects do not come back. Objects are found by their identity, which survives a rename and a move; their readable path is a label, never used to find them.
+- *Regenerate* makes the selected views, or the views in a selected folder, again where they stand, with the saved preset; hand edits are lost. A view of *One view each* regenerates only itself.
+- *Regenerate with siblings* runs the start and action again: siblings are updated wherever they are now, a new element gets a view, and a view whose element left the start is reported and stays.
+- A view with a missing object or preset is reported and not written. A renamed preset is such a case; a new run repairs the view. A view made by a script that works on after the run is refused, naming the script.
+- A view made with unsaved settings, or changed by *Expand view* since, is marked; Regenerate says the result can differ. Each run reports what it uses and what it does not.
+- A published release does not carry origins: they are working data.
+
+**Many views.** Before *One view each* writes more than 20 views, the entry point asks the user to confirm; the count is what passes the filter. Selected elements of more than one type give a warning on the console; the run goes on.
 
 Only `NEW_VIEW` overwrites a view's contents, onto a matching name. A Modify action never copies, renames or replaces its view, ignores the preset's view name and folder, and deletes only what rule 10 allows.
 
@@ -334,7 +347,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 - **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance).
 - **Properties**: key/value properties of each generated view: a ticked row is written, an unticked row is removed. Keys the tool owns or an installation lists as hidden are not shown and never touched.
 
-**Totals and actions.** Below the tabs, always visible, the predicted totals on the view stand above their action group: *on the generated view* for the Create group, and *on the expanded view* when *Expand view* is enabled. Two equal action groups follow: **Create new view** (folder, name; *New view*, *One view each*), always enabled; and **Modify selected view** (*Expand view*, *Layout only*), enabled only when the selection identifies a view. **Cancel** keeps the UI state.
+**Actions.** Below the tabs, always visible, two equal groups: **Create new view** (*New view*, *One view each*; folder, name) and **Modify selected view** (*Expand view*, *Layout only*; the view), the latter available only when the selection identifies a view. The user chooses one action; what it does not use is greyed. Each group shows what its action writes: the predicted totals of *New view* and *Expand view*, grey when not chosen, and for *One view each* how many views go where. One run button names the result (*Create 12 views*, *Replace view*). The last action is remembered; with a view selected the dialog opens on *Layout only*, so replacing a view is a deliberate choice. **Cancel** keeps the UI state.
 
 **Self-explanatory options.** A user picks an option by its effect, without knowing the engines.
 - A label or value names the **result** (where elements land, how lines look), never an engine technique or a word whose meaning hides behaviour.
@@ -386,7 +399,7 @@ System-wide, grouped by theme. Code reviews enforce them.
 12. **Determinism**: same inputs → same view, always; no reliance on hash-iteration order. Every order "by name" uses one comparison: accents and case are ignored, and the exact text breaks a tie, so the order is the same on every machine.
 13. **Total validation**: every preset entering the orchestrator is validated. Unknown keys are handled, missing keys defaulted, and option values checked against the algorithm.
 14. **Capability masking**: values for options inactive on the chosen algorithm are ignored at run time. A non-empty inactive value that reaches run time is a defect and is logged.
-15. **UI-only state is partitioned**: a preset holds only what affects generation. UI-only state (active tab, collapsed steps, …) is kept beside it in the session, unseen by the API.
+15. **UI-only state is partitioned**: a preset holds only what affects generation. UI-only state (active tab, chosen action, window size and position, collapsed steps, …) is kept beside it in the session, unseen by the API.
 
 **Vocabulary & naming.**
 16. **One canonical vocabulary**: one name per concept across UI, logs and code; [§ 2](#2-vocabulary) is authoritative.

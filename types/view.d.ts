@@ -771,7 +771,32 @@ interface ConditionTable<K extends ConditionKind> {
 // ── Dialog (Scripts/View/lib/gui) ────────────────────────────────────────────────────────────────
 
 /** The dialog's settings: a validated preset plus dialog-state fields ("_…", kept by preset_io). */
-type DialogConfig = Preset & { _lastTabIndex?: number; _lastAction?: string; _parkedNestingConditions?: PresetParams["nestingConditions"] };
+/** An object of the start of a view: found by id; name is a label (lib/view_origin.js). */
+type OriginObject = { id: string; name: string };
+/** How a view was made, in its property PROP_ORIGIN (lib/view_origin.js). */
+type ViewOrigin = {
+  preset?: string;
+  action?: string;
+  selection?: OriginObject[];
+  folder?: string;
+  element?: OriginObject;
+  direction?: string;
+  modified?: boolean;
+  script?: string;
+};
+/** What a run adds to the origin it writes: an entry point's part. */
+type RunOrigin = Pick<ViewOrigin, "preset" | "direction" | "modified" | "script">;
+/** Where a Create action writes: by default the preset's folder; origin: left on the view. */
+type ViewTarget = { name?: string; folder?: () => Folder; view?: ArchimateView; origin?: ViewOrigin };
+type GenerateOptions = {
+  origin?: RunOrigin;
+  /** Regenerate: this view, with this origin. */
+  regenerate?: ViewTarget;
+  /** Regenerate with siblings: the views of the group by element id; mirror: new views mirror the model tree. */
+  siblings?: { views: Map<string, ArchimateView>; mirror: boolean };
+};
+type DialogBounds = { x: number; y: number; width: number; height: number };
+type DialogConfig = Preset & { _lastTabIndex?: number; _lastAction?: string; _dialogBounds?: DialogBounds; _parkedNestingConditions?: PresetParams["nestingConditions"] };
 
 /** One Expand selection step block (tab_selection.js addRelatedBlock). */
 interface StepBlock {
@@ -801,7 +826,7 @@ type ViewPropertyRow = { key: string; chk: CheckBox; cmb: Swt.Combo };
  * One column of the totals line: the title, then per sub-line (elements, relations, diagram) its
  * label and its counts; fit(column) sets the width hints for a column that wide.
  */
-type TotalsBlock = { title: Swt.Label; rows: { sub: Swt.Label; counts: Swt.Label }[]; fit: (column: number) => void };
+type TotalsBlock = { box: Swt.Composite; title: Swt.Label; rows: { sub: Swt.Label; counts: Swt.Label }[]; fit: (column: number) => void };
 
 /**
  * The dialog's widgets by name. Set while the tabs are built; an update function that can run
@@ -885,14 +910,13 @@ type DialogWidgets = {
   vpAddObjectId: CheckBox;
   vpRows: ViewPropertyRow[];
   // Action area
-  viewTotals: TotalsBlock;
+  createTotals: TotalsBlock;
   expandTotals: TotalsBlock;
   txtViewFolder: Swt.Text;
   txtViewName: Swt.Text;
-  btnNewView: Swt.Button;
-  btnOneEach: Swt.Button;
-  btnExpandView: Swt.Button;
-  btnLayoutOnly: Swt.Button;
+  lblCreateNote: Swt.Label;
+  lblOriginNote: Swt.Label;
+  btnRun: Swt.Button;
 };
 
 /** The names of the widgets of type T. */
@@ -907,6 +931,9 @@ type ParamWidget = { kind: "spin"; w: WidgetName<Swt.Spinner> } | { kind: "check
  * State shared by the tab builders and handlers: created in dialog_main.js open(), filled while building.
  * recount and markModified call back into dialog_main.js, which the tabs cannot require.
  */
+/** What the chosen action uses and will write (dialog_main.js _actionState). */
+type ActionState = { label: string; folder: boolean; name: boolean; canRun: boolean; note: string };
+
 interface DialogContext {
   config: DialogConfig;
   widgets: DialogWidgets;
@@ -931,7 +958,17 @@ interface DialogContext {
   palettes: Palette[]; // palettes (presets/_palettes.json), read when the Appearance tab is built
   _ready?: boolean; // the modified indicator is on
   modified?: boolean;
-  _actionId?: string; // ACTION.*.id of the pressed action button
+  action: string; // ACTION.*.id of the chosen action
+  _actionId?: string; // ACTION.*.id of the run, set when the run button is pressed
+  holdsView?: boolean; // a view is in the selection
+  mirrors?: boolean; // One view each mirrors the model tree (SelectionRead.holdsFolderOrView)
+  selectedView?: ArchimateView; // the one selected object is this view
+  viewFolder?: string; // its folder under Views: Folder is pre-filled with it
+  runFolder?: string; // Folder as the run uses it; not the preset's unless changed
+  viewPaths?: Set<string>; // the path of every view (_viewPaths)
+  seeds?: ArchiElement[]; // the elements of One view each, before the filter
+  seedFolders?: Map<string, string>; // their folders by id
+  counts?: DialogCounts; // the last recount
   predicted?: { elements: ArchiElement[], relations: ArchiRelation[] } | null; // what the view will hold
   viewRelations?: ArchiRelation[]; // relations of the predicted view
   expandSnapshot?: Snapshot | null; // what Expand view works on (readSelection), null when it is disabled
@@ -941,4 +978,6 @@ interface DialogContext {
   saveUI: () => void;
   /** Show config in every tab (the preset row's load). */
   syncToUI: () => void;
+  /** Show what the chosen action uses and will write. */
+  refreshAction: () => void;
 }

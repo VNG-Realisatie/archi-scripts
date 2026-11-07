@@ -24,6 +24,7 @@ const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 const GgmGemma = require(__DIR__ + "include_ggm_gemma.js");
 
 const FOLDER_SYNC_GGM_VIEWS = GgmGemma.FOLDER_SYNC_GGM + "/GGM naar GEMMA";
+const SCRIPT_NAME = "4_ggm_gemma_views.ajs";   // Regenerate refuses these views and names this script: styleLabelsProperties works on after the run
 
 Common.initConsoleLog(__FILE__, true);
 
@@ -45,7 +46,7 @@ try {
     let preset = PresetIO.readPreset("GEMMA/GGM/GGM data-object specialisaties");
     preset.view.folder = GgmGemma.FOLDER_GGM_DATAOBJECT;
     preset.view.suffix = GgmGemma.VIEW_NAME_SUFFIX;
-    styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id)));
+    styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id, { origin: { script: SCRIPT_NAME } })));
 
     console.log();
     console.log(`\nGenereer GEMMA bedrijfsobjectmodellen`);
@@ -54,7 +55,7 @@ try {
     preset = PresetIO.readPreset("GEMMA/GGM/GGM bedrijfsobject specialisaties");
     preset.view.folder = FOLDER_SYNC_GGM_VIEWS + GgmGemma.FOLDER_BEDRIJFSOBJECT;
     preset.view.suffix = "";
-    styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id)));
+    styleLabelsProperties(_toCollection(GenView.generate_view(preset, GEMMA_Beleidsdomeinen, ACTION.ONE_EACH.id, { origin: { script: SCRIPT_NAME } })));
   }
   console.log();
 } catch (error) {

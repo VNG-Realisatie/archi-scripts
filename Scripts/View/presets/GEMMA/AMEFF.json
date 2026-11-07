@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 6,
+  "name": "GEMMA/AMEFF",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight lines",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 80,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false,
+    "nestingConditions": [
+      {"relation": "specialization-relationship"}
+    ],
+    "reverseConditions": [
+      {"relation": "association-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
+  },
+  "filter": {
+    "elementConditions": [],
+    "relationConditions": [
+      {"relation": "aggregation-relationship"},
+      {"relation": "assignment-relationship"},
+      {"relation": "association-relationship"},
+      {"relation": "composition-relationship"},
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "diagramConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "conditions": [
+          {"relation": "aggregation-relationship"},
+          {"relation": "assignment-relationship"},
+          {"relation": "association-relationship"},
+          {"relation": "composition-relationship"},
+          {"relation": "realization-relationship"},
+          {"relation": "serving-relationship"},
+          {"relation": "specialization-relationship"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "",
+    "folder": "",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"fontSize": 14, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "lightenPerLevel": 15,
+      "darkenStart": 0
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Converted from AMEFF.js (old include_view format)."
+}

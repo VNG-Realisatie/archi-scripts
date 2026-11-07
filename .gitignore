@@ -17,9 +17,7 @@ Scripts/View/presets/_session.json
 Scripts/_test
 # Scripts/View/test
 # Scripts/View/presets/Test
-Scripts/View/presets/GEMMA/*
-!Scripts/View/presets/GEMMA/GGM
-Scripts/View/shortcuts/GEMMA
+Scripts/View/presets/GEMMA/user_parameter
 
 # AI refactoring files
 .cursorrules

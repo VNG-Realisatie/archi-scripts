@@ -96,8 +96,9 @@ Shared (Layers 1–2) ───────────────────�
 
 | Module | Layer | Responsibility | Uses |
 |---|---|---|---|
-| `View/_*.ajs`, `shortcuts/**/<preset>_<action>_<direction>.ajs` | 1 | Entry scripts: base or named preset + fixed overrides → API | `run_preset` |
-| `lib/run_preset.js` | 1 | Preset, action and direction from the file name, or the base preset `all` | `preset_io`, `generate_view`, `defs` |
+| `View/_*.ajs`, `shortcuts/**/<preset>_<action>_<direction>.ajs` | 1 | Entry scripts: `Default`, session or named preset + fixed overrides → API | `run_preset` |
+| `lib/run_preset.js` | 1 | Preset, action and direction from the file name, the preset `Default`, the session, or the origin of a view | `preset_io`, `generate_view`, `view_origin`, `defs` |
+| `lib/view_origin.js` | 2 | The origin of a view: describe the start, read, write, find its objects | `selection_read`, `defs` |
 | `lib/gui/dialog_main.js` | 1 | Generate View dialog: opening, action area, settings ↔ widgets sync, putting the counts on the widgets | the gui modules, `preset_io`, `generate_view`, `selection_read`, `defs` |
 | `lib/gui/preset_row.js` | 1 | Preset row: picker, modified indicator, Save, Save As, Rename, Delete, description; loading a preset | `preset_io`, `widgets`, `dialog_presets` |
 | `lib/gui/tab_selection.js`, `tab_layout.js`, `tab_appearance.js`, `tab_properties.js` | 1 | One tab each: Selection (filters, step blocks), Layout (algorithm, nesting, containers, flow, elements, connections, view size; the param → widget table `PARAM_WIDGETS`; controls that follow the algorithm), Appearance, Properties (Object ID, view properties) | `widgets`, `condition_table`, `counts`, `defs`, `appearance`, `rel_filter`, `palettes` |
@@ -133,7 +134,7 @@ The sections below describe the implementation per functional subject, grouped b
 | Subject | Layer | Modules (exported names) | What | Detail |
 |---|---|---|---|---|
 | [Dialog](#dialog) | 1 | `gui/dialog_main.js`, `gui/preset_row.js`, `gui/tab_*.js`, `gui/widgets.js`, `gui/condition_table.js`, `gui/counts.js` (`dialogCounts`), `gui/dialog_presets.js` | [SPEC § 9](SPEC.md#9-ux--generate-view-dialog) | [gui.md](reference/gui.md) |
-| Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromBase`, `fromSession`, `fromSessionCycling`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
+| Entry scripts | 1 | `View/_*.ajs`, `shortcuts/**`, `run_preset.js` (`fromFilename`, `fromDefault`, `fromSession`, `fromSessionCycling`, `fromView`, `fromViewSiblings`) | [SPEC § 3](SPEC.md#3-architecture), [§ 5](SPEC.md#5-actions) | [README](../README.md) |
 | [Model and actions](#model-and-actions) | 2 | `generate_view.js` (`generate_view`) | [SPEC § 4](SPEC.md#4-data-model), [§ 5](SPEC.md#5-actions) | — |
 | [Selection](#selection) | 2 | `selection_read.js` (`readSelection`, `readRelationIndex`), `selection_pipeline.js` (`buildObjectSet` = `readSelection` + `composeObjectSet`, step helpers), `_lib/selection.js` | [SPEC § 6](SPEC.md#6-selection) | [selection-nesting.md](reference/selection-nesting.md#selection-run-order) |
 | [Nesting](#nesting) | 2 | `nesting.js` (`splitNestingRels`, `resolveNesting`); `layout_graph.js` (`buildLayoutGraph`) | [SPEC § 7](SPEC.md#7-layout-options) | [selection-nesting.md](reference/selection-nesting.md#nesting-reference) |
@@ -166,11 +167,12 @@ Code outside the subsystem uses only these exports (SPEC § 3); everything else 
 
 | Export | Contract | Callers |
 |---|---|---|
-| `generate_view.generate_view(preset, selection, actionId?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
+| `generate_view.generate_view(preset, selection, actionId?, options?)` | Validates the preset, runs the action (default `NEW_VIEW`), returns the written views; `options.origin` leaves an origin on a new view, without it none | `run_preset`, the dialog, `Scripts/GEMMA/GGM/4_ggm_gemma_views.ajs` |
 | `run_preset.fromFilename(file, selection, opts?)` | Preset, action and direction from the script's file name; `opts.folder`, `opts.preset`, `opts.edit` | `shortcuts/**`, `Scripts/GEMMA/GGM/*_<action>_<Dir>.ajs` |
-| `run_preset.fromBase(selection, actionId, params?)` | The base preset `all` with params replaced | `View/_*.ajs` |
+| `run_preset.fromDefault(selection, actionId, params?)` | The preset `Default` with params replaced | `View/_default_*.ajs` |
 | `run_preset.fromSession(selection, actionId, change)` | The session with one change, kept in the session | `View/_session_*.ajs` |
-| `run_preset.fromSessionCycling(selection, actionId)` | The session with Cycle selection order on, whatever its checkbox; the session gets the next selection order | `View/_session_cycle_selection_order.ajs` |
+| `run_preset.fromView(selection)`, `fromViewSiblings(selection)` | Regenerate the selected views, or with their siblings | `View/_regenerate*.ajs` |
+| `run_preset.fromSessionCycling(selection, actionId)` | The session with Cycle selection order on, whatever its checkbox; the session gets the next selection order | `View/_session_layout_cycle_selection_order.ajs` |
 | `preset_io.readPreset(name)` | A validated preset; throws when it is missing or has another schema version | scripts that change a preset before `generate_view` (GGM) |
 | `defs.ACTION` | The four action ids | every caller of `generate_view` |
 | `gui/dialog_main.open(selection)` | Opens the dialog; runs the chosen action after it closes | `_gui.ajs` |
@@ -192,7 +194,7 @@ Internal exports serve the dialog, the harness and the tests: the other function
 | Pure parts are split from the parts that touch Archi (`resolveNesting`, `classifyVisuals`, `nestingConnections`). | The hard logic (nesting, managed occurrences, pairing) is tested in Node; what touches Archi stays thin. |
 | Appearance is a separate pass after the write. | It reads only the written view and the model, so it behaves the same for every action and can never move or resize anything. |
 | The action runs after the dialog closes. | No view changes under a modal dialog; the settings are saved to the session first, so a failed run loses nothing. |
-| Only the entry points interact with the user: a question, a confirm, a message box. Layers 2 and 3 report through return values, the console and thrown errors. The confirm before *One view each* writes more than `ONE_EACH_CONFIRM_ABOVE` views is `run_preset.confirmViewCount`, called by the dialog after it closes and by the preset-bound runs (`fromFilename`, `fromBase`, `fromSession`); a direct `generate_view` call is not asked. | The API runs headless in batch scripts (GGM) and in Node (harness); a question there blocks the batch or cannot be answered at all. One layer that asks and reports makes a run behave the same however it was started. |
+| Only the entry points interact with the user: a question, a confirm, a message box. Layers 2 and 3 report through return values, the console and thrown errors. The confirm before *One view each* writes more than `ONE_EACH_CONFIRM_ABOVE` views is `run_preset.confirmViewCount`, called by the dialog after it closes and by the preset-bound runs (`fromFilename`, `fromDefault`, `fromSession`); a direct `generate_view` call is not asked. | The API runs headless in batch scripts (GGM) and in Node (harness); a question there blocks the batch or cannot be answered at all. One layer that asks and reports makes a run behave the same however it was started. |
 | Adapters are loaded on first use, by the algorithm's engine name. | A run loads only the engine it needs; elkjs is large, and Graphviz needs an external process. |
 | Contracts are typed with JSDoc and checked by `tsc`, not written in TypeScript. | Scripts run straight from a clone in GraalJS, with no build step (repo rule 6). JSDoc keeps them plain JavaScript while the editor and CI catch a broken contract between layers; executable code never changes for the checker. |
 
@@ -207,8 +209,8 @@ Dialog (_gui.ajs → gui/dialog_main · open)
   5 an action closes the dialog; save the session
     (Cycle selection order: the next one), then call the API generate_view
 
-Headless (run_preset · fromFilename, fromBase, fromSession, fromSessionCycling)
-  1 file name → preset, action, direction; or the base preset; or the session
+Headless (run_preset · fromFilename, fromDefault, fromSession, fromSessionCycling, fromView, fromViewSiblings)
+  1 file name → preset, action, direction; or the preset Default; or the session
     (Cycle selection order: the next one is saved)
   2 read the preset; apply the direction, fixed overrides,  preset_io · readPreset
     opts.edit
@@ -260,7 +262,7 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 
 | Decision | Why |
 |---|---|
-| A preset describes one run: every key in it is applied by the API, so a preset-bound script runs it as the dialog does. What changes the settings between runs belongs to the session, never to a preset file; today that is *Cycle selection order* only, which `fromFilename` and `fromBase` ignore (they run the preset's own `selectionOrder`). `fromSession` cycles: it runs the session and saves the next start in it, as the dialog does. | Cycling needs state that outlives a run. In a preset file a headless run would rewrite the file every time: a tracked preset would show as changed in git after each layout, and the dialog would no longer be the only editor of presets. The session is already the user-local state between runs. |
+| A preset describes one run: every key in it is applied by the API, so a preset-bound script runs it as the dialog does. What changes the settings between runs belongs to the session, never to a preset file; today that is *Cycle selection order* only, which `fromFilename` and `fromDefault` ignore (they run the preset's own `selectionOrder`). `fromSession` cycles: it runs the session and saves the next start in it, as the dialog does. | Cycling needs state that outlives a run. In a preset file a headless run would rewrite the file every time: a tracked preset would show as changed in git after each layout, and the dialog would no longer be the only editor of presets. The session is already the user-local state between runs. |
 
 ### Dialog
 
@@ -272,6 +274,9 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 | Default is a file (`presets/Default.json`) that may differ from the code defaults; choosing it logs every difference, without a warning. | Users can keep their own defaults without a code change, and still see where they leave the code defaults. |
 | Presets are picked from a tree of their folders with a filter field, not from a combo. | A flat combo of all presets in all folders is long to scan; folders that fold open and a filter on the full name make the choice quick. |
 | Algorithm selection uses a style-grouped radio table, not a combo. | All algorithms of all styles are visible at once: users scan the full option space without opening a combo, and the style/algorithm relation shows at a glance. |
+| The action is a choice with one run button, in the two groups, not four buttons. | Once the action is known the dialog can grey what it does not use, and the button can name the result. The last action in the session keeps repeating at one click. |
+| With a view selected the dialog opens on *Layout only*, whatever the last action. | A remembered *New view* with the pre-filled folder would be one click from replacing a hand-made view. |
+| Replacing a selected view is a pre-fill of Folder and Name in the dialog, not a rule in the pipeline. | *New view* then always follows both fields, a changed field makes a copy, and a script never replaces a view unseen. The baseline runs *New view* on its source views: a rule in `generate_view` would overwrite its input. The pre-filled folder stays out of the preset and the `*`, like the name. |
 | Steps start expanded when a preset is loaded. | All conditions and their counts are visible at once; a block is collapsed on demand. |
 | A step has an optional name, edited in place in its header; a named step hides its condition count when collapsed. | A collapsed step then says what it adds, not how it is built. |
 | Repeat belongs to the step, not to a condition, and sits in the step header before the title. | Per condition, a repeat either stops the conditions working together (each its own chain, so one never sees what another reached) or counts hops per condition along a path, where the first path to reach an element decides what follows it and an extra condition can yield less (SPEC § 6). A different depth per relation takes a step of its own. In the header it shows when collapsed; before the title it keeps its place. |
@@ -302,6 +307,12 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 | Relations, VisualRelations and diagram-model-connections are kept apart from positional objects throughout the pipeline. | An edge has endpoints, not coordinates; as a node it would corrupt the layout graph. One rule covers all three kinds. |
 | Action is a runtime parameter, not preset content. | A preset is a *configuration*, an action a *verb*; sharing presets across selections needs action-agnosticism. |
 | The view name is one user-controlled field; `view.suffix` applies to One view each only. | An algorithm-derived suffix once rewrote the typed name on algorithm switch. The suffix is a fixed preset value appended to each element name (e.g. `" (GGM)"`); the Name field is never changed. |
+| The start of a view is kept on the view, in its origin, not in a preset, script or named session. | A start holds in one model, so it travels with the model and the view; a preset stays reusable across models. A named session would copy the settings and drift from the preset. |
+| The origin refers to the preset by name, not by a copy. | A better preset reaches every view. A view made with unsaved settings cannot come back exactly; it is marked, and Regenerate says so. |
+| An origin finds objects by id; the readable path beside it is a label. | An id survives a rename and a move, a name need not be unique, and a match on a name can silently find another object. |
+| A view in the selection is kept as its elements at that moment. | A view that replaced itself would otherwise be its own start and grow with every regenerate. |
+| Regenerate is an entry point, not a fifth action. | It runs *New view* on the existing view, through the one write path (SPEC rule 9). |
+| `generate_view` writes an origin only when the caller gives one. | Only an entry point knows the preset's name. A raw API call and the baseline stay as they were. |
 | Expand view's target comes from the existing visuals, not from the preset name. | The preset name is for *creating* a view; expanding acts on that specific view (SPEC rule 10). |
 
 ### Selection
@@ -577,7 +588,7 @@ Where a value comes from, last wins:
 
 ```
 DEFAULT_PRESET (defs.js)                      code defaults
- ← preset file   presets/<name>.json          headless: the named preset, or `all`, else `Default`
+ ← preset file   presets/<name>.json          headless: the named preset, or `Default`
  ← session       presets/_session.json        dialog: the last settings; a picked preset replaces them
  ← overrides     entry script or caller       direction from the file name, fixed params of View/_*.ajs,
                                               opts.edit, a calling script's own changes
@@ -609,7 +620,7 @@ Concerns that span the layers.
 Realisation:
 
 - **Run.** `generate_view` does not catch; a `finally` only closes its timer. A Modify action without its view, Expand view without elements selected on it (`selection_read.readSelection`) and `engineParams` of the wrong type throw like an engine failure; an empty selection is not an error. The adapters throw `Error` (ELK not loaded, Graphviz not found, its exit code, the timeout; the adapter builds these messages from the runner's outcome).
-- **Entry points.** `run_preset.showFailure` logs the stack and shows the reason with JFace `MessageDialog.openError`. The dialog calls it around the run after it closed, `_gui.ajs` around opening it, and `fromFilename`, `fromBase` and `fromSession` around their whole work, the preset read included. `test/run_baseline.ajs` catches per run, counts it as failed and goes on.
+- **Entry points.** `run_preset.showFailure` logs the stack and shows the reason with JFace `MessageDialog.openError`. The dialog calls it around the run after it closed, `_gui.ajs` around opening it, and `fromFilename`, `fromDefault` and `fromSession` around their whole work, the preset read included. `test/run_baseline.ajs` catches per run, counts it as failed and goes on.
 - **Presets.** `preset_io.writeJSON` throws, so `writePreset` logs *Preset saved* only after the write. The preset row shows a failed save, load or delete in a warning box (console output blocks while the dialog is open) and then leaves the dialog as it was; Rename deletes the old preset only after the new one is written. `writeSession` logs a failure and goes on: the session is not a preset.
 - **Silent catches.** Each wraps only the call on the closed list and says which case it is. A diagram-object type lookup goes through `selection_read.findDiagramObjects`.
 
@@ -675,21 +686,32 @@ Sources of order: the selection (Order *as selected*), ids (every relation looku
 
 ## Persistent state
 
+What is remembered where, and why:
+
+| What | Where | Why there |
+|---|---|---|
+| Settings: filter, steps, layout, appearance, default folder | preset | Reusable across models, so it holds nothing of one model. Shared and versioned. |
+| Last dialog state: settings, open tab, chosen action, size and position | session | Belongs to the user's last work. Never a source for a repeatable run. |
+| Fixed preset, action and direction | script | A named task, one key, on the current selection. |
+| How a view was made: start, destination, preset name, action | origin, on the view | A start only holds in one model, so it travels with the model and with the view it describes. |
+| A start by a rule, work after the run | script | A rule (all policy domains with a status) is not a list of objects, and styling after the run is not a preset setting. |
+
 | What | Where | Notes |
 |---|---|---|
-| Presets | `presets/**/*.json` | Folders allowed. `Default` = the code defaults or the user's own, read-only in the dialog. `all` = base preset of `View/_*.ajs`. |
+| Presets | `presets/**/*.json` | Folders allowed. `Default` = the code defaults or the user's own, read-only in the dialog, and the preset of `View/_default_*.ajs`. |
 | Session | `presets/_session.json` | Last settings plus UI state (`_`-prefixed keys); git-ignored |
 | Palettes | `presets/_palettes.json` | Colours and colour ranges the presets pick from (`appearance.palette`); tracked |
 | Program paths | `config.js` next to `config.default.js` | `node` and `dot`, per machine; git-ignored |
 | Hidden properties | `presets/_hidden_properties.json` | View property keys the Properties tab hides and generation leaves alone; tracked |
 | View properties | the generated view | From the Properties tab; optional object-id property |
 | Managed-occurrence records | view property `Managed occurrence` | Rewritten by every run; not for editing |
+| Origin | view property `View origin` | Written by *New view* and *One view each* through an entry point; removed from a release by `createReleaseModel.ajs` |
 
 Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its properties.
 
 - **Write safety.** `preset_io.writeJSON` writes a file in place, with no temp file and rename: a crash mid-write leaves a broken preset, which then fails to load. Reading and writing use the JVM's default charset, UTF-8 on Archi 5 (Java 21, and `Archi.ini` sets `-Dfile.encoding=UTF-8`).
 - **One session.** Two Archi instances share `_session.json`; the last to save wins.
-- **Ownership.** Tracked presets are shared through the repo. Local, git-ignored: `config.js`, `_session.json`, `presets/GEMMA/*` except `GGM`, and the shortcut scripts in `shortcuts/GEMMA/`.
+- **Ownership.** Tracked presets are shared through the repo. Local, git-ignored: `config.js`, `_session.json` and `presets/GEMMA/user_parameter/`.
 
 ## Platform constraints
 

@@ -44,7 +44,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 
 **Feel**
 1. **Immediate, honest feedback.** Every count and the totals line update on each committed change and show exactly what the action will write. `*` shows unsaved changes.
-2. **No dead ends.** A greyed control says why in its tooltip; a disabled action group says what to select.
+2. **No dead ends.** A greyed control says why in its tooltip; a disabled action says what to select.
 3. **Safe without nagging.** Switching presets or tabs needs no confirm. Only what destroys a saved preset asks first: Delete, and Save As or Rename onto another preset.
 4. **Calm.** Counts recompute on commit, not per keystroke; the dialog does not jump or resize on every change.
 5. **Self-explanatory options** ([SPEC § 9](../SPEC.md#9-ux--generate-view-dialog)): a label names the result, and a tooltip gives the effect and trade-off.
@@ -58,14 +58,14 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 │ ┌─[Selection]──[Layout]──[Appearance]──[Properties]─────────────────────┐  │
 │ │   (tab content, below)                                                │  │
 │ └───────────────────────────────────────────────────────────────────────┘  │
-│ On the generated view:                 On the expanded view:               │
-│   elements:    24 elements               elements:    31 elements          │
-│   relations:   35 connections            relations:   44 connections       │
 │ ┌ Create new view ──────────────────┐ ┌ Modify selected view ───────────┐  │
+│ │ (•) New view   ( ) One view each  │ │ ( ) Expand view  ( ) Layout only│  │
 │ │ Folder [/_Generated]  Name [____] │ │ View: Customer journey          │  │
-│ │ [New view]     [One view each]    │ │ [Expand view]   [Layout only]   │  │
+│ │ On the generated view:            │ │ On the expanded view:    (grey) │  │
+│ │   elements:    24 elements        │ │   elements:    31 elements      │  │
+│ │   relations:   35 connections     │ │   relations:   44 connections   │  │
 │ └───────────────────────────────────┘ └─────────────────────────────────┘  │
-│                                                         [  Cancel   ]      │
+│                                            [ Create view ]  [  Cancel  ]   │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -401,28 +401,28 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 - **Hidden properties.** *Object ID* and *Managed occurrence* are always hidden (the tool owns them), plus the keys of `presets/_hidden_properties.json` ([presets.md](presets.md#hidden-properties)). A hidden key has no row and generation never sets or removes it. The console lists the hidden keys when the tab opens and at each run.
 - **Object ID.** When checked and the view has no *Object ID* property, a new unique id is written; an existing one is never overwritten. *One view each* gives each view its own id.
 
-### Totals line and action area
+### Action area
 
-**Totals line**: between the tabs and the actions, always visible, in two columns that start above the two action groups:
-- left, *On the generated view*: what *New view* puts on a new view;
-- right, *On the expanded view*: what *Expand view* leaves on the selected view; empty when *Expand view* is disabled.
-
-*Layout only* has no column: it writes what is on the view, which *Current selection* on the Selection tab already counts. Both columns use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens.
-
-**Action area**: two groups with the same rows (one field row, one button row), so fields and buttons line up. Cancel sits below, bottom right, as wide as a Modify button.
-- **Create new view**: *Folder* and *Name* (this group only), *New view*, *One view each*.
+Two groups with the same rows, so choices and fields line up; each holds two choices of the one action. Run and Cancel sit below, bottom right.
+- **Create new view**: *New view*, *One view each*; *Folder* and *Name* (this group only).
 - **Modify selected view**:
-  - *View: \<name\>* names the target: the view of the selected canvas objects, or a view selected in the model tree;
   - *Expand view* is enabled only when objects on the view are selected, because it expands from them;
   - *Layout only*;
-  - without a target, the line says what to select and the buttons are disabled.
-- **Cancel** discards changes and remembers UI-only state (the active tab) for the next open.
+  - *View: \<name\>* names the target: the view of the selected canvas objects, or a view selected in the model tree; without a target, the line says what to select and both choices are disabled;
+  - with one selected view that has an origin, a note says how it was made: *Made from /Business/Processen with preset X.*
+- **Run** names the result: *Create view*, *Replace view* when that view exists, *Create 12 views*, *Expand view*, *Layout only*. It is disabled when no selected element passes the filter for *One view each*.
+- **Cancel** discards changes and remembers UI-only state (the active tab, the chosen action, the size and position of the dialog) for the next open; so does the window's close button.
 
-| Action | View name and folder |
-|---|---|
-| **New view** | Name from the Name field, pre-filled with the first selected object. Folder from Folder, a path under Views (`/_Generated/Project`; empty = `/_Generated`). A view with that name in the folder is overwritten. |
-| **One view each** | One view per element, named after the element plus the preset's suffix (e.g. `" (GGM)"`); Name is not used. |
-| **Expand view / Layout only** | The selected view itself; Folder and Name are not used. |
+The dialog opens on the last action, or on *New view* when that does not fit the selection; with a view selected, on *Layout only*. It opens where it was closed, at that size, cut to its monitor; when that place is on no monitor, top centre.
+
+**Counts**: *On the generated view* is what *New view* puts on a new view, *On the expanded view* what *Expand view* leaves on the selected view; the one not chosen is grey, so a group keeps its height. Both use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens. *One view each* shows a note in their place: *12 views each in the folder of its element. 3 replace an existing view.* *Layout only* has no counts: it writes what is on the view, which *Current selection* on the Selection tab already counts.
+
+| Chosen action | Folder | Name | View name and folder |
+|---|---|---|---|
+| **New view** | on | on | Name from Name, pre-filled with the first selected object. Folder from Folder, a path under Views (`/_Generated/Project`; empty = `/_Generated`). With one view selected, its own folder, which is not saved in the preset. A view with that name in the folder is replaced. |
+| **One view each**, only elements selected | on | grey | One view per element in Folder, named after the element plus the preset's suffix (e.g. `" (GGM)"`). |
+| **One view each**, a folder or view in the selection | grey | grey | The same name, in the folder under Views that mirrors the element's own folder, the layer included. |
+| **Expand view / Layout only** | grey | grey | The selected view itself. |
 
 ### Interaction rules
 
@@ -436,5 +436,5 @@ The rules not covered above:
 - **Cycle selection order.** An action saves the start for the next run in the session, so the dialog shows the start the next layout will use.
 - **Selection order and Sort.** Selection order is greyed where Sort applies (a nesting condition is on) and is not *None*: the visible sort wins.
 - **Tooltips** say what an option does in at most two lines; that a control is unavailable shows as grey ([`Scripts/View/AGENTS.md`](../../AGENTS.md) § Conventions).
-- **Empty selection** opens normally, with all counts zero; actions still run.
+- **Empty selection** opens normally, with all counts zero; *New view* still runs.
 - **Malformed preset.** It never aborts the dialog: unknown keys are dropped and missing keys get defaults. An invalid session falls back to the defaults.

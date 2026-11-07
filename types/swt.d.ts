@@ -43,7 +43,8 @@ declare namespace Swt {
   }
 
   interface Point { x: number; y: number }
-  interface Rectangle { x: number; y: number; width: number; height: number }
+  interface Rectangle {
+    contains(x: number, y: number): boolean; x: number; y: number; width: number; height: number }
   interface RGB { red: number; green: number; blue: number }
   interface Color { getRGB(): RGB; dispose(): void }
   interface Image { dispose(): void }
@@ -73,6 +74,7 @@ declare namespace Swt {
   interface Event { gc: GC; display: Display; button: number; character: string; keyCode: number; detail: number; doit: boolean; widget: Widget; x: number; y: number }
 
   interface Display {
+    getMonitors(): Monitor[];
     getSystemColor(id: number): Color;
     getSystemFont(): Font;
     getDPI(): Point;

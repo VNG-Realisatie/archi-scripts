@@ -80,7 +80,7 @@ function composeObjectSet(snapshot, preset, actionId) {
   let filteredElementsArr = snapshot.elements;
   let diagramObjects      = snapshot.diagramObjects;
   if (!isModifyAction) {
-    filteredElementsArr = _applyFilter(filteredElementsArr, preset.filter);
+    filteredElementsArr = applyFilter(filteredElementsArr, preset.filter);
     diagramObjects      = _applyDiagramFilter(diagramObjects, preset.filter);
   }
 
@@ -396,7 +396,7 @@ function _logConditions(conditions, describe, indent) {
  * @param {Preset["filter"] | undefined} filter
  * @returns {ArchiElement[]}
  */
-function _applyFilter(elements, filter) {
+function applyFilter(elements, filter) {
   if (!filter) return elements;
   const { elementConditions = [] } = filter;
   return elements.filter(el => ConditionLists.matchElement(elementConditions, el));
@@ -676,6 +676,7 @@ function _uniqueById(objects) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    applyFilter,
     buildObjectSet,
     composeObjectSet,
     expandStepWithRelations,

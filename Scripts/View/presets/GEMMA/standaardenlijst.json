@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 6,
+  "name": "GEMMA/standaardenlijst",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Straight lines",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 180,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 40,
+    "elementWidth": 200,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 0,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": false,
+    "nestingConditions": [
+      {"relation": "aggregation-relationship"}
+    ],
+    "reverseConditions": [
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ]
+  },
+  "filter": {
+    "elementConditions": [
+      {"elementType": "application-component"},
+      {"elementType": "application-service"},
+      {"elementType": "constraint"}
+    ],
+    "relationConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "serving-relationship"},
+      {"relation": "specialization-relationship"}
+    ],
+    "diagramConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "repeat": 1,
+        "conditions": [
+          {"relation": "realization-relationship", "added": "application-component"},
+          {"relation": "realization-relationship", "added": "application-service"},
+          {"relation": "realization-relationship", "added": "constraint"},
+          {"relation": "serving-relationship", "added": "application-component"},
+          {"relation": "serving-relationship", "added": "application-service"},
+          {"relation": "serving-relationship", "added": "constraint"},
+          {"relation": "specialization-relationship", "added": "application-component"},
+          {"relation": "specialization-relationship", "added": "application-service"},
+          {"relation": "specialization-relationship", "added": "constraint"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "",
+    "folder": "",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"fontSize": 14, "bold": true, "child": "same"}
+      ],
+      "fontEnabled": false,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": false,
+      "lightenPerLevel": 15,
+      "darkenStart": 0
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "Converted from standaardenlijst.js (old include_view format)."
+}
