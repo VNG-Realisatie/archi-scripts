@@ -16,13 +16,13 @@ Starting with a selection, generate or modify the layout of ArchiMate **views**.
 - quickly generate a starting point for a new view
 - generate context views: one view per element with its related elements (*One view each*), e.g. a view per GGM data object
 - analyse your model by generating different views; use nesting to find unexpected relations, see double relations, etc.
-- generate complex views completely from one preset — selection, layout, appearance and view properties — and regenerate them without the dialog when the model changes, e.g. the GEMMA publication views
+- generate complex views from one preset — filter, steps, layout, appearance and view properties — and regenerate them from what each view remembers (its origin) when the model changes, e.g. the GEMMA publication views
 - lay out a hand-made view again (*Layout only*) or extend it (*Expand view*), keeping what the user put there: legends, notes, hand-placed duplicates
 - drive view generation from other scripts through the API, e.g. the GGM pipeline that generates, styles and sets the properties of the views per policy domain
 
 ### Scope
 
-In scope: generating or modifying views with different layouts; storing and reusing selection and layout configurations (presets); a configuration UI; session continuity.
+In scope: generating or modifying views with different layouts; storing and reusing selection and layout configurations (presets); making a generated view again from its origin; a configuration UI; session continuity.
 
 Out of scope: model authoring beyond what layout implies; editing element properties; exporting to image formats; view diff/merge; real-time collaborative editing.
 
