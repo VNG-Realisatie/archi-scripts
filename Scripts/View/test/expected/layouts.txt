@@ -1,4 +1,4 @@
-1 Nesting  AlgoTwopi.json           Layered  4847aada8cfe 14n 14e
+1 Nesting  AlgoTwopi.json           Layered  43cc4a51bbda 14n 14e
 1 Nesting  AlgoTwopi.json           Tree     472a32497efa 14n 13e
 1 Nesting  AlgoTwopi.json           Stress   4a9e5898afdd 14n 13e
 1 Nesting  AlgoTwopi.json           Radial   1101eaacd610 14n 11e
@@ -40,7 +40,7 @@
 1 Nesting  counters.json            SFDP     8c988a352cbb 14n 14e
 1 Nesting  counters.json            Twopi    eae9658476fc 14n 14e
 1 Nesting  counters.json            Circo    44fd511d1dfd 14n 14e
-2 Edited   AlgoTwopi.json           Layered  6e6b58e0f602 15n 15e
+2 Edited   AlgoTwopi.json           Layered  b68964a6c005 15n 15e
 2 Edited   AlgoTwopi.json           Tree     980c7783704b 15n 14e
 2 Edited   AlgoTwopi.json           Stress   45d095216e8b 15n 14e
 2 Edited   AlgoTwopi.json           Radial   75c4ae6b469f 15n 12e
@@ -54,7 +54,7 @@
 2 Edited   AlgoTwopi.json           SFDP     4399ba37fafe 15n 15e
 2 Edited   AlgoTwopi.json           Twopi    54972e7c492d 15n 15e
 2 Edited   AlgoTwopi.json           Circo    fe14ed69057d 15n 15e
-2 Edited   baseline.json            Layered  5d875c90d194 17n 10e
+2 Edited   baseline.json            Layered  e24d93ce006a 17n 10e
 2 Edited   baseline.json            Tree     cd609c6f3187 17n 9e
 2 Edited   baseline.json            Stress   9c1775492c26 16n 15e
 2 Edited   baseline.json            Radial   20c8a2f53587 16n 13e
@@ -68,7 +68,7 @@
 2 Edited   baseline.json            SFDP     768d2a4e939a 16n 16e
 2 Edited   baseline.json            Twopi    eca409e7a617 16n 16e
 2 Edited   baseline.json            Circo    6fa87d3fa183 16n 16e
-2 Edited   counters.json            Layered  5d875c90d194 17n 10e
+2 Edited   counters.json            Layered  e24d93ce006a 17n 10e
 2 Edited   counters.json            Tree     cd609c6f3187 17n 9e
 2 Edited   counters.json            Stress   9c1775492c26 16n 15e
 2 Edited   counters.json            Radial   20c8a2f53587 16n 13e
@@ -82,7 +82,7 @@
 2 Edited   counters.json            SFDP     768d2a4e939a 16n 16e
 2 Edited   counters.json            Twopi    eca409e7a617 16n 16e
 2 Edited   counters.json            Circo    6fa87d3fa183 16n 16e
-3 Network  AlgoTwopi.json           Layered  b0e0ca959e0b 20n 21e
+3 Network  AlgoTwopi.json           Layered  add7fb46152d 20n 21e
 3 Network  AlgoTwopi.json           Tree     dd74181db2e9 20n 21e
 3 Network  AlgoTwopi.json           Stress   b4b15f072e07 20n 21e
 3 Network  AlgoTwopi.json           Radial   fe163ccac054 20n 18e
@@ -124,7 +124,7 @@
 3 Network  counters.json            SFDP     06dbb31730a9 20n 21e
 3 Network  counters.json            Twopi    34acb4635b94 20n 21e
 3 Network  counters.json            Circo    11038059fabc 20n 21e
-4 Parts    AlgoTwopi.json           Layered  f658ab63509c 33n 29e
+4 Parts    AlgoTwopi.json           Layered  e5045b749d87 33n 29e
 4 Parts    AlgoTwopi.json           Tree     5837590b2bf0 33n 26e
 4 Parts    AlgoTwopi.json           Stress   b555f15b7bae 33n 26e
 4 Parts    AlgoTwopi.json           Radial   c4aefa699c6e 33n 23e

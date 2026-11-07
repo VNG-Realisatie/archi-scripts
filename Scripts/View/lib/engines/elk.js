@@ -521,6 +521,10 @@ function _engineOptions(algorithm, o, elkParams, nesting) {
     "elk.spacing.portPort":         String(portSpacing),
     "elk.spacing.portsSurrounding": `[top=${portSpacing},left=${portSpacing},bottom=${portSpacing},right=${portSpacing}]`,
   } : {};
+  // An element narrower than its layer (a wider element or a label box in the layer): ELK's AUTOMATIC
+  // aligns it by its ports (only outgoing: far side, in and out: centre, only incoming: near side),
+  // which breaks a column of equal elements. Target NODES: read from each node in the layer.
+  const layerAlignment = algorithmId === "layered" || containerAlgorithmId === "layered" ? { "elk.alignment": "CENTER" } : {};
   // orderBySize: only for Pack, and only when the containers are not sorted — they conflict because
   // sorting them pre-sorts by type+name and orderBySize overrides that with size-first order.
   const orderBySize = algorithm === "Pack" && o.sort === Defs.SORT_MODE.ELEMENTS ? { "elk.rectpacking.orderBySize": "true" } : {};
@@ -529,10 +533,10 @@ function _engineOptions(algorithm, o, elkParams, nesting) {
     root: Object.assign({ "elk.algorithm": algorithmId }, defaults, rootGui, preset, portOpts,
       nesting ? { "elk.hierarchyHandling": hierarchyMode } : {}, orderBySize),
     container: Object.assign({ "elk.algorithm": containerAlgorithmId, "elk.hierarchyHandling": hierarchyMode },
-      defaults, ctrGui, preset, portOpts, containerAlgorithmId === "rectpacking" ? orderBySize : {}),
+      layerAlignment, defaults, ctrGui, preset, portOpts, containerAlgorithmId === "rectpacking" ? orderBySize : {}),
     // Node-level options (e.g. selfLoopDistribution, selfLoopOrdering) are target:NODES in ELK:
     // they must be on each node, not only on the root graph.
-    leaf: Object.assign({}, defaults, preset),
+    leaf: Object.assign({}, layerAlignment, defaults, preset),
     ports: portSpacing > 0,
     algorithmId,
     containerAlgorithmId,
