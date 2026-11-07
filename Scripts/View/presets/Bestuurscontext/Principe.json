@@ -11,14 +11,9 @@
     "ranking": "Balanced",
     "acyclicer": "Default",
     "reverseConditions": [
-      {"relation": "realization-relationship"},
-      {"relation": "assignment-relationship"},
-      {"source": "business-service", "target": "capability"}
+      {"source": "requirement", "relation": "influence-relationship", "target": "goal"}
     ],
     "nestingConditions": [
-      {"relation": "composition-relationship", "target": "business-process"},
-      {"relation": "assignment-relationship", "everyContainer": true},
-      {"source": "business-process", "relation": "access-relationship", "target": "business-object"},
       {"source": "requirement", "target": "goal"}
     ],
     "padding": 20,
@@ -58,31 +53,20 @@
       {
         "name": "",
         "repeat": 1,
-        "conditions": [
-          {"previous": "business-service"}
-        ]
+        "conditions": []
       },
       {
         "name": "Toevoegen onderlinge relaties",
-        "repeat": 3,
-        "conditions": [
-          {"previous": "business-process"}
-        ]
-      },
-      {
-        "name": "",
         "repeat": 1,
         "conditions": [
-          {"previous": "requirement"},
-          {"previous": "goal"},
-          {"previous": "driver"}
+          {"added": "artifact"}
         ]
       }
     ]
   },
   "view": {
-    "name": "Aanspreekbare besluitvorming met gescheiden tegenwicht",
-    "folder": "/_Generated/Capability",
+    "name": "Belang betrokkene bij cliëntondersteuning voorop",
+    "folder": "/_Generated/Principe",
     "suffix": ""
   },
   "appearance": {
@@ -94,7 +78,8 @@
     },
     "nestingLevel": {
       "conditions": [
-        {"parent": "business-process", "direction": "outgoing", "relation": "composition-relationship", "fontSize": 14, "child": "same"}
+        {"parent": "principle", "direction": "outgoing", "relation": "composition-relationship", "fontSize": 12, "bold": true, "child": "same"},
+        {"parent": "goal", "fontSize": 12, "child": "same"}
       ],
       "fontEnabled": true,
       "fontDecreasePerLevel": 2,
