@@ -34,7 +34,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 
 | Skill | When | File |
 |---|---|---|
-| `jarchi-scripting` | Writing or changing jArchi scripts: API, collections, GraalJS / Java, SWT dialogs | `ai/jarchi-scripting/SKILL.md` |
+| `jarchi-scripting` | Writing or changing jArchi scripts: API, collections, GraalJS / Java, SWT dialogs; running a script headless | `ai/jarchi-scripting/SKILL.md` |
 | `elkjs` | ELK layout: algorithms, JSON graph format, options (Layered · core options · JSON under `ai/elkjs/docs/`) | `ai/elkjs/SKILL.md` |
 | `dagre` | Dagre / dagre-cluster-fix layout | `ai/dagre/SKILL.md` |
 | `graphviz` | Graphviz: DOT, engines, attributes, `-Tjson` | `ai/graphviz/SKILL.md` |

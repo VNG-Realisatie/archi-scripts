@@ -1,6 +1,6 @@
 ---
 name: jarchi-scripting
-description: Use when writing or changing jArchi scripts for Archi (.ajs files, CommonJS modules run by jArchi), using the jArchi API ($, collections, model, views, visual objects), GraalJS / Java interop (Java.type, Java.extend), or SWT / JFace dialogs in jArchi.
+description: Use when writing or changing jArchi scripts for Archi (.ajs files, CommonJS modules run by jArchi), using the jArchi API ($, collections, model, views, visual objects), GraalJS / Java interop (Java.type, Java.extend), SWT / JFace dialogs in jArchi, or running a script headless through Archi's command line.
 ---
 
 # jArchi scripting
@@ -30,6 +30,21 @@ description: Use when writing or changing jArchi scripts for Archi (.ajs files, 
 19. **Filter by selector, not by type strings**: `collection.filter("element")` / `.filter("relationship")` (and `.size()`), never a loop that pushes objects after `.type` string checks. Convert to a plain array only where a caller needs array semantics.
 20. **A relation's direction is the model's**: Archi draws a connection from the model relation's source → target; a connection has no direction property of its own. Do not invent direction flags or mirror other model facts on visuals.
 21. **APIs that do not exist** (they appear in old docs and answers): `view.routerType`, `connection.absoluteBendpoints`, `model.createFolder`, `model.isAllowedRelationship` (that one is `$.model.isAllowedRelationship`). `vo.delete(x)`: `x` means delete children (pitfall 7).
+
+## Running headless
+
+Archi's command line runs a script without Archi's window, so the agent can run it itself, also while the user's Archi is open:
+
+```
+<Archi> -application com.archimatetool.commandline.app -consoleLog -nosplash [--loadModel <model.archimate>] --script.runScript <script.ajs>
+```
+
+- **Needs** jArchi's command-line plugin: `com.archimatetool.script.commandline_*.jar` in Archi's `dropins` folder.
+- **Archi** on the user's machines: Linux `~/Tools/Archi/Archi`, Windows (scoop) `~/scoop/apps/archi/current/Archi.exe`.
+- **Next to an open Archi.** The run leaves the user's open models (`models.xml`) alone, but a model open in Archi does not see a file the script saves: the user closes that model first, or the script runs on a copy.
+- **Console** goes to stdout; `console.error` is not marked, so a script that must be checked afterwards marks its errors itself.
+- **Linux display settings.** Without the GTK variables of the user's Archi, text measures differently and every element size differs from a run in Archi. `Scripts/View/tools/archi_cli.sh` sets them and runs on a copy of the model. On Windows it is not yet checked whether sizes match.
+- `__DIR__` and `require` work as in Archi; there is no selection.
 
 ## Where to look
 

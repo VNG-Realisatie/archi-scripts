@@ -11,7 +11,7 @@ The baseline is what Archi's writer puts on the views of the test model for a fi
 
 - **Test model** `Scripts/View/test/model/view-test.archimate`, one file: `Views/Test` holds the test views (input, built by `Scripts/View/test/build_test_model.ajs` with `test_model_views.js`), `Views/Baseline` the written views of the last run (output). The committed file is the baseline.
 - **Run** `Scripts/View/test/run_baseline.ajs`: deletes what `Views/Baseline` holds, runs 2 presets (`presets/Test/baseline/`) × 5 runs and 2 runs on view 4, saves the model in place.
-- **Archi's command line** `Scripts/View/tools/archi_cli.sh <script.ajs> [model] [out dir]`: runs the script on a copy in the out dir, next to the user's open Archi, with the display settings of the user's Archi; the console goes to `<out dir>/<script>.console.txt`.
+- **Archi's command line** `Scripts/View/tools/archi_cli.sh <script.ajs> [model] [out dir]` (Linux; the command line itself: skill `jarchi-scripting` § Running headless): runs the script on a copy in the out dir, with the display settings of the user's Archi; the console goes to `<out dir>/<script>.console.txt`.
 
 ## Steps (agent)
 
