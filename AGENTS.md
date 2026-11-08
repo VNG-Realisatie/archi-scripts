@@ -6,7 +6,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 
 | Level | Location | Governs |
 |---|---|---|
-| Generic | `~/ai/shared/` (local machine only, not in the clone) | Working agreements and coding defaults across all projects |
+| Generic | `~/ai/shared/` (own repo, cloned to `~/ai`; not in this clone) | Working agreements and coding defaults across all projects |
 | Project | `AGENTS.md` (this file), `ai/` | Entry point and vocabulary rule, runtime constraints, module structure, testing policy |
 | Shared library | `Scripts/_lib/` module JSDoc, `ai/repo-guide.md` § Shared modules | Contracts every script relies on: selection helpers, utilities, folder resolution |
 | Part | `Scripts/<folder>/AGENTS.md` | One folder only; today `Scripts/View/AGENTS.md` |
