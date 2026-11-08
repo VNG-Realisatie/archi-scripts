@@ -29,9 +29,9 @@ const MODEL_PURPOSE = "The software architecture of the View subsystem (Scripts/
   "scripts, which realise the application services that serve the business processes; business processes " +
   "access business objects (documentation is a business object); application components and system software access data " +
   "objects and serve the application processes that use the data; a data object realises the business object it holds; " +
-  "an AI agent is an application component assigned to its skills (application functions), a skill serves the process " +
-  "steps that use it and its SKILL.md (artifact) realises it, agent rules (AGENTS.md, ai/repo-guide; artifacts) are associated with " +
-  "the agents they instruct and the top processes they govern; an actor is assigned to the top process it performs, to a part " +
+  "an AI agent is an application component assigned to its skills (application functions), a skill is realised by its " +
+  "SKILL.md (artifact) and realises an application service that serves the process steps that use it, the agents read " +
+  "the agent rules (AGENTS.md, ai/repo-guide; artifacts), which are associated with the top processes they govern; an actor is assigned to the top process it performs, to a part " +
   "only when it performs just that part; and no agent is assigned to a process step; properties path, runtime, typechecked, " +
   "version, and top process (yes on a process that is no part of another).\n\nKnowledge model (folders Knowledge model, derived by the build): one element per element type used, one " +
   "relation per relation type used between two element types, a grouping per top folder; the documentation gives the counts.";

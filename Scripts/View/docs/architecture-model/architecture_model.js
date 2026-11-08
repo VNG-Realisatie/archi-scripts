@@ -15,10 +15,11 @@
  *     architect reports a view, the agent and developer diagnose it).
  *   - Business processes access business objects; documentation is a business object.
  *   - AI development environment: an AI agent is an application component, assigned to the skills it performs; a
- *     skill is an application function that serves the process steps that use it (only skills in use); its SKILL.md
- *     is an artifact that realises it. Agent rules (AGENTS.md, ai/repo-guide) are artifacts, associated with the agents
- *     they instruct and the top processes they govern; the steps' documentation names the rule that applies. The process is modelled apart from the agent configuration:
- *     no agent is assigned to a process step.
+ *     skill is an application function, realised by its SKILL.md (an artifact), that realises an application
+ *     service; the service serves the process steps that use it (only skills in use). Agent rules (AGENTS.md,
+ *     ai/repo-guide) are artifacts the agents read, associated with the top processes they govern; the steps'
+ *     documentation names the rule that applies. The process is modelled apart from the agent configuration: it
+ *     sees the services, no agent is assigned to a process step.
  *   - Application components and system software access data objects; an application process has no access of its
  *     own: the components (or system software) that access its data serve it. A data object realises the business
  *     object it holds.
@@ -344,6 +345,12 @@ const ELEMENT_GROUPS = [
     ["sDot", "Graphviz dot", "Graphviz layout engines as an external process; installed by the user; 14.1.4 in CI."],
     ["sTsc", "TypeScript compiler", "tsc --noEmit on the JSDoc (root package.json, development only)."],
     ["sGit", "git", "Version control of the repo."],
+  ] },
+  { folder: "/Application/AI development environment/Services", type: "application-service", elements: [
+    ["asJarchiScripts", "Write jArchi scripts", "Write or change code that runs in Archi: jArchi API, GraalJS/Java, SWT/JFace dialogs."],
+    ["asEngineOptions", "Configure a layout engine", "Choose and set the options of ELK, Dagre or Graphviz, and read their input and output formats."],
+    ["asExplainView", "Reproduce and explain a view", "For a reported view: find what ran, reproduce it in Node, find the cause, log the case."],
+    ["asBaselineCheck", "Check against the Archi baseline", "Run the baseline in Archi's command line on a copy, compare in Node, judge the differences; rebuild the test model."],
   ] },
   { folder: "/Technology & Physical/AI development environment/Skill definitions", type: "artifact", elements: [
     ["afSkillJarchi", "jarchi-scripting/SKILL.md", "Skill definition of jarchi-scripting, with jarchi.d.ts, graaljs-java.md and swt-gtk.md next to it.", { path: "ai/jarchi-scripting/SKILL.md" }],
@@ -756,22 +763,26 @@ const RELATIONS = {
     ["realization-relationship", "", "afSkillGraphviz", "skGraphviz"],
     ["realization-relationship", "", "afSkillViewTesting", "skViewTesting"],
     ["realization-relationship", "", "afSkillViewBaseline", "skViewBaseline"],
-    // Skills serve the process steps that use them
-    ["serving-relationship", "", "skJarchi", "bpChangeCode"],
-    ["serving-relationship", "", "skElkjs", "bpChangeCode"],
-    ["serving-relationship", "", "skDagre", "bpChangeCode"],
-    ["serving-relationship", "", "skGraphviz", "bpChangeCode"],
-    ["serving-relationship", "", "skElkjs", "bpFindCause"],
-    ["serving-relationship", "", "skDagre", "bpFindCause"],
-    ["serving-relationship", "", "skGraphviz", "bpFindCause"],
-    ["serving-relationship", "", "skViewTesting", "bpFindInputs"],
-    ["serving-relationship", "", "skViewTesting", "bpReproduce"],
-    ["serving-relationship", "", "skViewTesting", "bpFindCause"],
-    ["serving-relationship", "", "skViewTesting", "bpLogCase"],
-    ["serving-relationship", "", "skViewBaseline", "bpRunArchiBaseline"],
-    ["serving-relationship", "", "skViewBaseline", "bpRebuildTestModel"],
-    // How the agent rules steer agents and process steps
-    ["association-relationship", "instructs", "afAgents", "agHarness"],
+    // Skills realise the services
+    ["realization-relationship", "", "skJarchi", "asJarchiScripts"],
+    ["realization-relationship", "", "skElkjs", "asEngineOptions"],
+    ["realization-relationship", "", "skDagre", "asEngineOptions"],
+    ["realization-relationship", "", "skGraphviz", "asEngineOptions"],
+    ["realization-relationship", "", "skViewTesting", "asExplainView"],
+    ["realization-relationship", "", "skViewBaseline", "asBaselineCheck"],
+    // Services serve the process steps that use them
+    ["serving-relationship", "", "asJarchiScripts", "bpChangeCode"],
+    ["serving-relationship", "", "asEngineOptions", "bpChangeCode"],
+    ["serving-relationship", "", "asEngineOptions", "bpFindCause"],
+    ["serving-relationship", "", "asExplainView", "bpFindInputs"],
+    ["serving-relationship", "", "asExplainView", "bpReproduce"],
+    ["serving-relationship", "", "asExplainView", "bpFindCause"],
+    ["serving-relationship", "", "asExplainView", "bpLogCase"],
+    ["serving-relationship", "", "asBaselineCheck", "bpRunArchiBaseline"],
+    ["serving-relationship", "", "asBaselineCheck", "bpRebuildTestModel"],
+    // The agent harness reads the agent rules
+    ...["afAgents", "afViewAgents", "afRepoGuide"].map(rules => ["access-relationship", "", "agHarness", rules, "read"]),
+    // How the agent rules steer the process
     ["association-relationship", "governs", "afAgents", "bpDevelop"],
     ["association-relationship", "governs", "afAgents", "bpVersion"],
     ["association-relationship", "governs", "afViewAgents", "bpDevelop"],
