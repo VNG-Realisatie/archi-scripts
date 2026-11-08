@@ -11,7 +11,7 @@ package.json
 config.js
 archi-scripts.code-workspace
 settings.local.json
-Scripts/View/presets/_session.json
+_session.json
 
 # test files
 Scripts/_test
