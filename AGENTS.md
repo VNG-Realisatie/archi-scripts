@@ -26,7 +26,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 | Folder structure, loading modules, `_lib` modules, entry scripts, testing | `ai/repo-guide.md` |
 | jArchi API (typed, from the plugin source) | `ai/jarchi-scripting/jarchi.d.ts` |
 | GraalJS runtime, Java interop, external processes | `ai/jarchi-scripting/graaljs-java.md` |
-| SWT / JFace / GTK mechanics · dialog look and feel: principles · SWT realisation (read before changing any dialog) | `ai/jarchi-scripting/swt-gtk.md` · `Scripts/View/docs/reference/gui.md` § Look and feel · `Scripts/View/docs/reference/dialog-style.md` |
+| SWT / JFace / GTK mechanics · dialog look and feel: principles · SWT realisation (read before changing any dialog) | `ai/jarchi-scripting/swt-gtk.md` · `Scripts/View/docs/reference/gui.md` § Look and feel · `Scripts/View/docs/ARCHITECTURE.md` § Dialog |
 | View subsystem: rules · what · detail per subject · design decisions + how | `Scripts/View/AGENTS.md` · `Scripts/View/docs/SPEC.md` · `Scripts/View/docs/reference/` · `Scripts/View/docs/ARCHITECTURE.md` |
 | Static type checking: scope, JSDoc, casts, typings | `types/README.md` · `ai/jarchi-scripting/jarchi.d.ts` |
 

@@ -235,7 +235,6 @@ function buildLayoutTab(tabFolder, ctx) {
   row = Widgets.formRow(grpCtr, "Options:", formRows, "ctrOptions");
   Widgets.addCheck(row, "Same width per level", null, 2, w, "chkAlignWidthSameType");
   Widgets.addCheck(row, "Columns across containers", null, 2, w, "chkColumnsAcrossContainers");
-  w.grpContainers = grpCtr;
 
   // ── Flow ──────────────────────────────────────────────────────────────────────
   const grpFlow = Widgets.group(page, "Flow", 1);
@@ -422,20 +421,6 @@ function _nestingOn(w, alg) {
   return alg.activeParams.includes("nestingConditions") && Widgets.hasNestingConditions(w);
 }
 
-// Containers settings are greyed out until a Nesting condition is on; the box's tooltip says why.
-/**
- * @param {DialogContext} ctx
- * @param {string} algName
- */
-function _updateContainersHint(ctx, algName) {
-  const w = ctx.widgets;
-  if (!w.grpContainers) return;
-  const alg = ALGORITHMS[algName];
-  const usesContainers = Defs.LAYOUT_GROUPS.Containers.some(k => alg.activeParams.includes(k));
-  const tip = usesContainers && !_nestingOn(w, alg) ? "Add a Nesting condition to use these settings." : "";
-  try { w.grpContainers.setToolTipText(tip); } catch (e) {}   // silent: may be disposed
-}
-
 // ── Algorithm controls ────────────────────────────────────────────────────────
 
 
@@ -467,7 +452,6 @@ function updateAlgorithmControls(ctx) {
   // Containers settings only matter once a Nesting condition is on.
   if (!_nestingOn(w, alg))
     for (const k of Defs.LAYOUT_GROUPS.Containers) if (PARAM_WIDGETS[k]) Widgets.enable(w[PARAM_WIDGETS[k].w], false);
-  _updateContainersHint(ctx, selectedAlgorithm(w));
 
   // View size radios: unsupported options are greyed; a selected unsupported option falls back to None.
   Widgets.enable(w.radioViewSizeMaxWidth,    active.has("maxWidth"));
@@ -545,7 +529,8 @@ function _applyViewSizeMode(ctx) {
 }
 
 // Connections mode follows Defs.connectionsModeLock: Grid / Pack inside containers or an active
-// view size force "Between containers" and lock the combo; the tooltip names the reason.
+// view size force "Between containers" and lock the combo. The cause is on this tab, so the
+// greying is the feedback: the tooltip gives no reason.
 /** @param {DialogContext} ctx */
 function _updateConnectionsMode(ctx) {
   const w = ctx.widgets;
@@ -562,8 +547,6 @@ function _updateConnectionsMode(ctx) {
   });
   Widgets.enable(w.cmbConnectionsMode, !reason);
   if (reason) w.cmbConnectionsMode.select(CONNECTIONS_MODE_LABELS.indexOf("Between containers"));
-  w.cmbConnectionsMode.setToolTipText(Defs.paramTooltip("connectionsMode",
-    reason ? `Locked to Between containers: Across containers is not possible with ${reason}.` : ""));
 }
 
 if (typeof module !== "undefined" && module.exports) {

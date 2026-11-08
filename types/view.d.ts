@@ -849,7 +849,6 @@ type DialogWidgets = {
   blocksContainer: Swt.Composite;
   // Layout tab
   algRadios: Map<string, Swt.Button>;
-  grpContainers: Swt.Group;
   tblNestingConditions: ConditionTable<"relation">;
   tblReverseConditions: ConditionTable<"relation">;
   lblNestingNote: Swt.Label;

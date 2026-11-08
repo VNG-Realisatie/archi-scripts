@@ -613,7 +613,7 @@ function _placeTreePopup(popup, btn) {
   popup.setBounds(x, at.y, width, height);
 }
 
-// Inside a group, the same on every tab (dialog-style.md § Fixed spacing).
+// Inside a group, the same on every tab (ARCHITECTURE § Dialog, Look and feel realisation).
 const GROUP_MARGIN_H = 8;
 const GROUP_MARGIN_V = 6;
 

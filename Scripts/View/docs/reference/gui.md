@@ -25,7 +25,7 @@ Internal names never appear in UI labels or button text; tooltips may use them i
 
 ## Look and feel
 
-These principles hold for the whole dialog (preset row, every tab, totals line, action area) and for every other dialog in the repo. How to realise them in SWT, with the gap sizes in pixels: [`dialog-style.md`](dialog-style.md). Where the dialog does not meet them yet: [ARCHITECTURE § Known gaps](../ARCHITECTURE.md#known-gaps).
+These principles hold for the whole dialog (preset row, every tab, totals line, action area) and for every other dialog in the repo. How they are realised in SWT: [ARCHITECTURE § Dialog](../ARCHITECTURE.md#dialog). Where the dialog does not meet them yet: [ARCHITECTURE § Known gaps](../ARCHITECTURE.md#known-gaps).
 
 **Window.** The dialog is as wide as the Appearance tab needs (1000 px when that cannot be measured) and as tall as the monitor's usable area (at most 1800 px). Each tab scrolls on its own; the preset row and the action area stay visible.
 
@@ -38,16 +38,25 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 6. **One vertical line per tab.** Row headings (*Size:*, *Order:*) form one column, as wide as the widest heading on the tab, so every row's fields start at the same x. Columns are aligned only within a raster: a table, a radio table, a block of checkboxes, or the first label/control pair of related groups.
 7. **Controls keep their own width.** A combo is as wide as its longest item; all number fields have one width. Nothing stretches with the dialog.
 8. **Fixed spacing.** One set of gaps for the whole dialog: label → control, pair → pair, heading → first pair, switch → dependent option, between rows, inside and between groups.
-9. **Short text, explanation in the tooltip.** Labels and column headers fit on one line. Notes are grey, sit under their subject and wrap at the group width.
+9. **Short text, explanation in the tooltip.** Labels and column headers fit on one line. Notes are grey, sit under their subject and wrap at the group width. How the text is written: **Text** below.
 10. **Off is grey, the label too.** A setting that does not apply is greyed together with its label and keeps its value; the greying is the only sign. A disabled checkbox is drawn grey, so a ticked box never looks active when it does not apply.
 11. **Never cut off.** When a table grows wider than the tab, the dialog widens: only wider, within the monitor, never back. When the user makes the dialog narrower than a table, or the monitor is too narrow, the tab scrolls horizontally.
 
 **Feel**
 1. **Immediate, honest feedback.** Every count and the totals line update on each committed change and show exactly what the action will write. `*` shows unsaved changes.
-2. **No dead ends.** A greyed control says why in its tooltip; a disabled action says what to select.
+2. **No dead ends.** When the cause of a greyed control is on the same tab, the greying is the feedback: the user sees it happen, and the tooltip gives no reason. Only when the cause is out of sight, on another tab or outside the dialog, does the tooltip say what is needed (*Needs a Nesting condition with Every*). A disabled action says what to select; a disabled button whose way out is not obvious names it (*use Save As…*).
 3. **Safe without nagging.** Switching presets or tabs needs no confirm. Only what destroys a saved preset asks first: Delete, and Save As or Rename onto another preset.
 4. **Calm.** Counts recompute on commit, not per keystroke; the dialog does not jump or resize on every change.
 5. **Self-explanatory options** ([SPEC § 9](../SPEC.md#9-ux--generate-view-dialog)): a label names the result, and a tooltip gives the effect and trade-off.
+
+**Text**
+1. **Labels.** Sentence case (*Same width per level*), on one line. Internal names never appear: the [display-label map](#display-label-map). A row heading ends in a colon (*Size:*, *Selection order:*, *Preset:*), also when one control follows it; a label inside a label/control pair has none (*Width*, *Direction*).
+2. **Buttons.** A button is a verb, without the object the dialog already shows (*Delete*, not *Delete selected preset*). The run button names the result ([SPEC § 9](../SPEC.md#9-ux--generate-view-dialog)).
+3. **Tooltips.** At most two short lines: what it does, then the one detail or trade-off the user needs. A tooltip adds to its label and does not repeat it. A checkbox whose two states differ in more than on and off describes both.
+   - No availability: never which algorithms use it or when it is greyed (Feel 2). The "Used by" column of the generated tables is for the docs only.
+   - No list of the options a control already shows; name an option only to explain it (*Greedy: reverses as few relations as it can*).
+4. **Notes.** The opening line of a group says what the group decides and when that matters, not how it works.
+5. **Full stops.** A sentence ends with a full stop; a fragment (a heading, a label, a short note) does not.
 
 ## Dialog reference
 
@@ -203,9 +212,9 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 ```
 
 - **Relation counters.** The Nesting and Reverse tables count, per condition, the relations on the predicted view that it matches on its own, after the chosen relation type: *Aggregation (62)*. An Exclude condition shows what it removes from the other conditions' matches. For nesting, *Nested* shows how many become a nesting; it is empty for a condition that is off. A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for conditions without *Every*), the nesting would be circular, or the relation is a self-relation. The counts use the same resolution as the writer.
-- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting condition is on, and its tooltip says so. The explanation of the Nesting and Reverse conditions is the tooltip of those boxes.
+- **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting condition is on. The explanation of the Nesting and Reverse conditions is the tooltip of those boxes.
 - **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
-- **Locks.** Connections falls back to *Between containers* (greyed, reason in the tooltip) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
+- **Locks.** Connections falls back to *Between containers* (greyed) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
 - **Empty Nesting / Reverse.** An empty table shows the default condition switched off, as an example; untouched, it is saved as `[]`. Reverse has an empty cell where Nesting has *Nested*, so the two tables line up.
 - **Form rows.** Containers, Flow, Elements and Connections share the tab's heading column. Flow, Elements and Connections form one raster over their first label/control pair; Containers › Options is a full 2×2 raster.
 
@@ -240,7 +249,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 | Circo | Graphviz | none | ✓ | Elements on circles, ordered so that few connections cross: for cycles such as life cycles and loops. Needs many connections, no dominant hub or hierarchy; up to about 40 elements (Graphviz circo) |
 <!-- /generated:algorithms -->
 
-**Layout options** (generated). Field = dialog label. Tooltip = its first two lines; the third line, "Used by", is the last column.
+**Layout options** (generated). Field = dialog label. Tooltip = the tooltip in the dialog. Used by = the algorithms that use it; it is not in the tooltip, because the dialog greys the control.
 
 <!-- generated:layout-params -->
 **Algorithm**
