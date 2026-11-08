@@ -15,7 +15,7 @@ The build adds a knowledge model, derived from the content: one element per elem
 
 Run `build_architecture_model.ajs` in Archi (no selection; close the architecture model first if it is open), or headless (skill `jarchi-scripting` § Running headless; no `--loadModel`).
 
-Every object keeps its id from build to build: the id is `"id-" + uuid5` of its key (element: its key in `architecture_model.js`; relation: type, source, target and name; folder: its path). Renaming a key, or changing a relation's type, ends or name, gives that object a new id. Every element, relation and folder below a top-level folder carries the property `view-architecture export date`.
+Every object keeps its id from build to build (how: the header of `build_architecture_model.ajs`). Renaming a key in `architecture_model.js`, or changing a relation's type, ends or name, gives that object a new id: after the next import it is a new object.
 
 ## Import into another model
 
