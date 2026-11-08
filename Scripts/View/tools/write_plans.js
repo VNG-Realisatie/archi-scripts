@@ -46,7 +46,7 @@ if (process.argv.includes("--variants")) {
     for (const variant of Variants.variantsOf(algorithm, base)) {
       const preset = Defs.validatePreset({ ...raw, algorithm, params: variant.params });
       const variantLines = VIEWS.map(viewName => _run(`${algorithm.padEnd(8)} ${viewName.padEnd(10)} ${variant.name.padEnd(36)}`, preset, algorithm, viewName, Defs.ACTION.NEW_VIEW.id));
-      // An option has a visible effect wherever it is offered (Scripts/View/AGENTS.md, hard rule 10).
+      // An option has a visible effect wherever it is offered (Scripts/View/AGENTS.md, hard rule 9).
       if (!full && !(algorithm in Expected.UNSTABLE_ALGORITHMS) && variantLines.every((l, i) => l.slice(-baseLines[i].length) === baseLines[i])) {
         noEffect.push(`${algorithm.padEnd(8)} no effect on views 1–4: ${variant.name}`);
       }

@@ -56,7 +56,7 @@ const ELEMENT_GROUPS = [
     ["bpAgree", "Agree on the behaviour", "Developer and agent agree on the behaviour or solution before code changes (Scripts/View/AGENTS.md § Order of change, step 1). Reads SPEC, ARCHITECTURE and the reference doc of the subject."],
     ["bpWritePlan", "Write a plan", "Steps with dependencies and status, the doc sections it builds on, the test data and a dated step log, saved as plan/<title>.md."],
     ["bpBuild", "Build", "Registry first: a new option or value goes into defs.js (defaults, labels, tooltips, capability), then the pipeline, adapter, writer or dialog (ARCHITECTURE § Extension recipes)."],
-    ["bpChangeRegistry", "Change the registry", "Add or change an option, value, algorithm, action or condition list in defs.js; DEFAULT_PRESET.params holds every params key, or validatePreset drops it (Scripts/View/AGENTS.md rule 9)."],
+    ["bpChangeRegistry", "Change the registry", "Add or change an option, value, algorithm, action or condition list in defs.js; DEFAULT_PRESET.params holds every params key (SPEC § 14 Schema migration)."],
     ["bpChangeCode", "Change pipeline, adapter, writer or dialog", "Change the modules the recipe names, in its order; hard rules of Scripts/View/AGENTS.md apply (no post-layout scaling, adapters never touch a view, one write path, determinism)."],
     ["bpMigratePresets", "Migrate the preset shape", "A changed preset shape raises schemaVersion and gets a one-shot migration in tools/ that rewrites every preset and the session (repo rule 3: no compat shim)."],
     ["bpTest", "Test", "The test levels from cheap to Archi; a step is done when its levels pass. Checks only the developer can do in Archi stay open in the plan until confirmed."],
