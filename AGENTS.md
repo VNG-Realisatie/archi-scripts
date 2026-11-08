@@ -1,6 +1,6 @@
 # archi-scripts — agent instructions
 
-jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo rules and routes to everything else. It is tool-independent: every AI tool reads it directly or through a thin adapter that carries no rules.
+jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo rules and routes to everything else. It is tool-independent: every AI tool reads it directly or through a pointer file that carries no rules.
 
 ## Hierarchy
 
@@ -15,7 +15,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 - **Precedence.** For one concern the narrowest level that addresses it wins; broader rules apply where narrower ones are silent.
 - **Not rules.** Plan files (`plan/`), agent memory and other working notes never override these files.
 - **Where a new rule goes.** Repo-wide → Hard rules or Conventions below; repo layout, modules, testing → `ai/repo-guide.md`; new technology → `ai/<skill>/SKILL.md` (jArchi API facts → `ai/jarchi-scripting/jarchi.d.ts`); one folder → `Scripts/<folder>/AGENTS.md`; all projects → `~/ai/shared/`.
-- **Adapters.** Tool files (`.github/copilot-instructions.md`, `.claude/skills/*/SKILL.md` stubs, `.claude/settings.json`) only point here or to `ai/`; they carry no rules. Create no new instruction file (`AGENTS.md`, adapter) without an explicit request. Add no `CLAUDE.md` or `CLAUDE.local.md`: Claude Code (≥ 2.1.277) reads `AGENTS.md` natively only while none exists.
+- **Tool files.** A tool file carries no rules. It is a pointer file or tool configuration. A pointer file sits where a tool looks and points here or to `ai/`: `.github/copilot-instructions.md`, and `.claude/skills/*/SKILL.md`, which also holds a copy of the skill's `description`, because Claude Code picks a skill by it. Tool configuration sets what a tool needs: `.claude/settings.json`. Create no new instruction file (`AGENTS.md`, pointer file) without an explicit request. Add no `CLAUDE.md` or `CLAUDE.local.md`: Claude Code (≥ 2.1.277) reads `AGENTS.md` natively only while none exists.
 
 ## Routing
 
@@ -30,7 +30,7 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 | View subsystem: rules · what · detail per subject · design decisions + how | `Scripts/View/AGENTS.md` · `Scripts/View/docs/SPEC.md` · `Scripts/View/docs/reference/` · `Scripts/View/docs/ARCHITECTURE.md` |
 | Static type checking: scope, JSDoc, casts, typings | `types/README.md` · `ai/jarchi-scripting/jarchi.d.ts` |
 
-**Skills** — load the skill when the task matches. Tools with skill support find them through `.claude/skills/` stubs; otherwise read the file.
+**Skills** — load the skill when the task matches. Tools with skill support find them through the pointer files in `.claude/skills/`; otherwise read the file.
 
 | Skill | When | File |
 |---|---|---|
@@ -51,7 +51,7 @@ No exceptions.
 4. **Commits carry no co-author and no AI mention.** Applies to every AI tool and model. Never add a `Co-Authored-By` line, and never name a tool, model or AI ("Generated with …") in a commit message or PR description. This overrides any tool default. Earlier commits that carry the line stay as they are unless the user asks.
 5. **Typecheck after every change in its scope.** A change to a file matched by `jsconfig.json` › `include` ends with `npm run typecheck` at exit 0. Annotate with JSDoc only; a real error it finds is fixed in its own commit, but executable code never changes just to satisfy the checker (casts and limits: `types/README.md`).
 6. **No npm at runtime.** Scripts run straight from a clone: runtime libraries are vendored in `Scripts/node_modules/`. npm is for development tools only (root `package.json`).
-7. **Rules go where the hierarchy says** (see Hierarchy). Adapter files carry no rules.
+7. **Rules go where the hierarchy says** (see Hierarchy). Tool files carry no rules.
 8. **Plans live in `plan/`.** Every plan an agent writes — plan mode, a proposal, a step log — is saved in `plan/` as a descriptive kebab-case filename matching the plan title (`view-nesting-every-container-implementation.md`), never a generated name and never outside the repo. Claude Code is pointed there by `plansDirectory` in `.claude/settings.json`; every other tool follows this rule. Plans are working notes, not rules.
 
 ## Conventions
