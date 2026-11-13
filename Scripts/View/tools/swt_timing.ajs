@@ -29,11 +29,21 @@ function time(label, fn) {
   console.log(`${ts.map(t => String(t).padStart(6)).join(" ")} ms  ${label}`);
 }
 
-/** @param {(shell: any) => void} build  widgets into a fresh shell; disposed afterwards */
-function inShell(build) {
+/**
+ * @param {(shell: any) => void} build  widgets into a fresh shell; disposed afterwards
+ * @param {boolean} [shown]  open the shell first, as a preset load refills a dialog that is shown
+ */
+function inShell(build, shown) {
   const shell = new Shell(Display.getDefault());
   shell.setLayout(new GridLayout(4, false));
+  if (shown) shell.open();
   try { build(shell); } finally { shell.dispose(); }
+}
+
+/** @param {any} shell @param {() => void} fn  run with the shell's redraw off; switching it on again is timed too */
+function noRedraw(shell, fn) {
+  shell.setRedraw(false);
+  try { fn(); } finally { shell.setRedraw(true); }
 }
 
 /** @param {any} shell @param {number} [widthHint] */
@@ -61,3 +71,16 @@ time("layout, filled combos without width hint", () => inShell(s => { combos(s).
 time("layout, filled combos with width hint",   () => inShell(s => { combos(s, 150).forEach(c => c.setItems(itemsJava)); s.layout(true, true); }));
 time("baseline: create labels + setText + layout", () => inShell(s => { for (let i = 0; i < COMBOS; i++) new Label(s, SWT.NONE).setText(items[i % ITEMS]); s.layout(true, true); }));
 time(`baseline: ${COMBOS * ITEMS} JS → Java calls (String.valueOf)`, () => { const S = Java.type("java.lang.String"); for (let i = 0; i < COMBOS * ITEMS; i++) S.valueOf(i); });
+
+// setRedraw(false) on the shell around the work (plan § Windows: why native widgets are slow › Options):
+// unshown as at open (the dialog fills its widgets before the shell is shown), shown as at a preset load.
+const fill = (/** @type {any} */ s) => combos(s).forEach(c => c.setItems(itemsJava));
+const refill = (/** @type {any} */ s) => s.getChildren().forEach((/** @type {any} */ c) => c.setItems(itemsJava));
+time("unshown: create + fill (setItems), redraw off", () => inShell(s => noRedraw(s, () => fill(s))));
+time("unshown: layout, redraw off",                  () => inShell(s => { fill(s); noRedraw(s, () => s.layout(true, true)); }));
+time("shown: create + fill (setItems)",              () => inShell(s => fill(s), true));
+time("shown: create + fill (setItems), redraw off",  () => inShell(s => noRedraw(s, () => fill(s)), true));
+time("shown: refill (setItems)",                     () => inShell(s => { fill(s); refill(s); }, true));
+time("shown: refill (setItems), redraw off",         () => inShell(s => { fill(s); noRedraw(s, () => refill(s)); }, true));
+time("shown: fill + layout",                         () => inShell(s => { fill(s); s.layout(true, true); }, true));
+time("shown: fill + layout, redraw off",             () => inShell(s => noRedraw(s, () => { fill(s); s.layout(true, true); }), true));

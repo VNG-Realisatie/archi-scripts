@@ -1,7 +1,7 @@
 /**
  * Measure the View dialog: module load, the work before it opens, building the tabs and the counts.
  * Opens the dialog as _gui.ajs does and logs one table when it closes: calls, total, average and max
- * per label. The GUI has no measurement code: this script wraps exported functions of the modules it
+ * per label; once shown, it logs the widgets the dialog holds (per SWT class and tab, combo items). The GUI has no measurement code: this script wraps exported functions of the modules it
  * loads. Module objects are shared, so a caller's `Module.fn(…)` goes through the wrapper; private
  * functions and destructured imports are not measured ("dialog open → shown" minus the measured parts).
  *
@@ -92,8 +92,60 @@ const PresetIO = mods["View/lib/preset_io.js"];
 if (presetName) PresetIO.readSession = () => Object.assign(PresetIO.readPreset(String(presetName)), { name: String(presetName) });
 if (commandLine) PresetIO.writeSession = () => {};   // the measurement leaves the session as it was
 
+// Widgets at open: every control of the dialog's shell per SWT class, per tab ("other": title area, preset
+// row, action area), and the items in its combos and trees. On Win32 each control is a native window, and
+// creating or filling one costs window events (plan § Windows: why native widgets are slow).
+const Composite = Java.type("org.eclipse.swt.widgets.Composite");
+const TabFolder = Java.type("org.eclipse.swt.widgets.TabFolder");
+const Combo = Java.type("org.eclipse.swt.widgets.Combo");
+const Tree = Java.type("org.eclipse.swt.widgets.Tree");
+const OTHER = "other";
+/** @param {any} shell */
+function countWidgets(shell) {
+  /** @type {Map<string, Map<string, number>>} kind → part → count */
+  const counts = new Map();
+  /** @type {string[]} */
+  const parts = [];
+  /** @type {number[]} */
+  const comboItems = [];
+  const add = (/** @type {string} */ kind, /** @type {string} */ part, /** @type {number} */ n) => {
+    if (!counts.has(kind)) counts.set(kind, new Map());
+    const k = /** @type {Map<string, number>} */ (counts.get(kind));
+    k.set(part, (k.get(part) || 0) + n);
+    if (!parts.includes(part)) parts.push(part);
+  };
+  const walk = (/** @type {any} */ c, /** @type {string} */ part) => {
+    add(String(c.getClass().getSimpleName()), part, 1);
+    if (!c.getVisible()) add("(hidden: own setVisible(false))", part, 1);
+    if (c instanceof Combo) { comboItems.push(c.getItemCount()); add("(combo items)", part, c.getItemCount()); }
+    if (c instanceof Tree) add("(tree items, top level)", part, c.getItemCount());
+    if (!(c instanceof Composite)) return;
+    const tabs = c instanceof TabFolder ? c.getItems() : [];
+    for (const child of c.getChildren()) {
+      const tab = tabs.find((/** @type {any} */ t) => t.getControl() === child);
+      walk(child, tab ? String(tab.getText()) : part);
+    }
+  };
+  walk(shell, OTHER);
+  parts.push(parts.splice(parts.indexOf(OTHER), 1)[0]);   // "other" last
+  console.log("");
+  console.log(`Widgets at open, per tab   ${["total", ...parts].map(p => p.padStart(11)).join("")}`);
+  const kinds = [...counts.keys()].sort((a, b) => (a.startsWith("(") ? 1 : 0) - (b.startsWith("(") ? 1 : 0) || a.localeCompare(b));
+  let controls = 0;
+  for (const kind of kinds) {
+    const k = /** @type {Map<string, number>} */ (counts.get(kind));
+    const total = [...k.values()].reduce((a, b) => a + b, 0);
+    if (!kind.startsWith("(")) controls += total;
+    console.log(`  ${kind.padEnd(25)}${[total, ...parts.map(p => k.get(p) || 0)].map(n => String(n).padStart(11)).join("")}`);
+  }
+  console.log(`  ${"controls in total".padEnd(25)}${String(controls).padStart(11)}`);
+  const bands = [[0, 0], [1, 1], [2, 9], [10, 49], [50, Infinity]];
+  console.log(`  combos by item count: ${bands.map(([lo, hi]) => `${hi === Infinity ? `${lo}+` : lo === hi ? lo : `${lo}–${hi}`}: ${comboItems.filter(n => n >= lo && n <= hi).length}`).join(" · ")}`
+    + ` · max ${Math.max(0, ...comboItems)}`);
+}
+
 // Dialog open → shown: the first runnable of the dialog's event loop, queued when the last tab is built.
-// Command line: then close it as its close button does (Cancel).
+// Then count its widgets; command line: close it as its close button does (Cancel).
 let tOpen = 0;
 const TabProperties = mods["View/lib/gui/tab_properties.js"];
 const buildPropertiesTab = TabProperties.buildPropertiesTab;
@@ -101,6 +153,7 @@ TabProperties.buildPropertiesTab = function (/** @type {any} */ tabFolder, /** @
   const r = buildPropertiesTab(tabFolder, ctx);
   tabFolder.getDisplay().asyncExec(() => {
     record("dialog open → shown", Date.now() - tOpen);
+    countWidgets(tabFolder.getShell());
     if (commandLine) for (const sh of Display.getDefault().getShells()) if (sh.getData()) sh.close();
   });
   return r;
