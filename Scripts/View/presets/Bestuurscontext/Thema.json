@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 6,
+  "name": "Bestuurscontext/Thema",
+  "algorithm": "Layered",
+  "params": {
+    "direction": "Right",
+    "nodePlacement": "Centred",
+    "circles": "One circle",
+    "routing": "Orthogonal",
+    "labelPosition": "Middle",
+    "ranking": "Balanced",
+    "acyclicer": "Default",
+    "reverseConditions": [
+      {"relation": "realization-relationship"},
+      {"relation": "assignment-relationship"},
+      {"source": "business-service", "target": "capability"}
+    ],
+    "nestingConditions": [
+      {"relation": "aggregation-relationship", "target": "business-process"}
+    ],
+    "padding": 20,
+    "diagramPadding": 10,
+    "sort": "Elements",
+    "selectionOrder": "Selection",
+    "cycleSelectionOrder": false,
+    "alignWidthSameType": false,
+    "columnsAcrossContainers": false,
+    "containerAlgorithm": "Layered",
+    "connectionsMode": "Across containers",
+    "layerSpacing": 120,
+    "elementSpacing": 20,
+    "connectionSpacing": 25,
+    "connectionElementSpacing": 20,
+    "elementWidth": 240,
+    "elementHeight": 60,
+    "maxWidth": 0,
+    "aspectRatio": 1.78,
+    "viewSizeMode": "none",
+    "labelSizing": false,
+    "labelMaxLineWidth": 400,
+    "connectionLabelSpacing": true
+  },
+  "filter": {
+    "elementConditions": [],
+    "diagramConditions": [],
+    "relationConditions": []
+  },
+  "relatedElements": {
+    "steps": [
+      {
+        "name": "Directly related elements (1 ring)",
+        "repeat": 1,
+        "conditions": []
+      },
+      {
+        "name": "",
+        "repeat": 1,
+        "conditions": [
+          {},
+          {"mode": "exclude", "added": "grouping"}
+        ]
+      }
+    ]
+  },
+  "view": {
+    "name": "Aanbod en deelname ondersteunen",
+    "folder": "/_Generated/Thema",
+    "suffix": ""
+  },
+  "appearance": {
+    "palette": "Brewer",
+    "styleByProperty": {
+      "conditions": [],
+      "mixedValuesColor": "#FF6B35",
+      "lineWidth": 0
+    },
+    "nestingLevel": {
+      "conditions": [
+        {"parent": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "fontSize": 14, "child": "same"}
+      ],
+      "fontEnabled": true,
+      "fontDecreasePerLevel": 2,
+      "colorEnabled": true,
+      "darkenStart": 1,
+      "lightenPerLevel": 25
+    },
+    "highlightRepeated": {
+      "enabled": false,
+      "colorRange": "Pastel1"
+    }
+  },
+  "engineParams": {},
+  "viewProperties": {
+    "addObjectId": false,
+    "properties": []
+  },
+  "description": "selecteer een thema-grouping"
+}

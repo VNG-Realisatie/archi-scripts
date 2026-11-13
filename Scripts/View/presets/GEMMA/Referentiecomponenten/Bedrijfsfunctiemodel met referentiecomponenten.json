@@ -1,6 +1,6 @@
 {
   "schemaVersion": 6,
-  "name": "Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
+  "name": "GEMMA/Referentiecomponenten/Bedrijfsfunctiemodel met referentiecomponenten",
   "algorithm": "Tiles",
   "params": {
     "direction": "Right",
@@ -34,9 +34,9 @@
     "connectionElementSpacing": 9,
     "elementWidth": 300,
     "elementHeight": 60,
-    "maxWidth": 2800,
+    "maxWidth": 2400,
     "aspectRatio": 1.25,
-    "viewSizeMode": "none",
+    "viewSizeMode": "maxWidth",
     "labelSizing": false,
     "labelMaxLineWidth": 400,
     "connectionLabelSpacing": false
@@ -49,6 +49,7 @@
   "relatedElements": {
     "steps": [
       {
+        "name": "",
         "repeat": 1,
         "conditions": [
           {"previous": "grouping", "direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"},
@@ -58,18 +59,21 @@
         ]
       },
       {
+        "name": "",
         "repeat": 4,
         "conditions": [
           {"direction": "outgoing", "relation": "aggregation-relationship", "added": "business-function"}
         ]
       },
       {
+        "name": "",
         "repeat": 4,
         "conditions": [
           {"direction": "incoming", "relation": "serving-relationship", "added": "application-service"}
         ]
       },
       {
+        "name": "",
         "repeat": 2,
         "conditions": [
           {"direction": "incoming", "relation": "realization-relationship", "added": "application-component"}
@@ -78,7 +82,7 @@
     ]
   },
   "view": {
-    "name": "GEMMA domeinen",
+    "name": "Ondersteuning",
     "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
     "suffix": ""
   },
