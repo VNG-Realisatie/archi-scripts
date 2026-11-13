@@ -1,10 +1,12 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Next: a comparable run on Windows (§ Comparable run) and the user's check of the Layout tab counts in Archi; then split the remaining open time.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run on Windows done and the remaining open time split (§ Remaining open time, split). Next: the user chooses the next fix; the user's check of the Layout tab counts in Archi is still open.
 
 ## Handoff
 
 Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Windows before fix 2 (session preset): open → shown on *GEMMA domeinen* 24.3 → 12.9 s.
+
+Windows session done (steps 1–5 below): comparable run and split in § Comparable run and § Remaining open time, split. Next: the user chooses among the candidates there.
 
 Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). Measure and report, change no code; a fix comes after the user's choice.
 
@@ -47,11 +49,13 @@ Run it twice (the first run of a session can be slower) and keep both.
 
 | After fix 2 (53af7de) | Linux | Windows |
 |---|---|---|
-| Load all modules | 0.36 s | |
-| Tabs built (Selection · Layout · Appearance · Properties) | 0.03 · 0.13 · 0.25 · 0.10 s | |
-| `addRelatedBlock` ×4 | 0.10 s | |
-| `dialogCounts` ×1 | 0.71 s | |
-| Dialog open → shown | 2.9–4.0 s | |
+| Load all modules | 0.36 s | 1.41–1.58 s |
+| Tabs built (Selection · Layout · Appearance · Properties) | 0.03 · 0.13 · 0.25 · 0.10 s | 0.11–0.14 · 0.65–0.66 · 0.89–0.94 · 0.55–0.57 s |
+| `addRelatedBlock` ×4 | 0.10 s | 1.33–1.44 s |
+| `dialogCounts` ×1 | 0.71 s | 1.35–1.39 s |
+| Dialog open → shown | 2.9–4.0 s | 11.6–11.7 s |
+
+Windows differs in selection: `Measured: Windows 11 · model "GEMMA" · preset "Bestuurscontext/Capability" · selection 1 object(s), 1613 objects on its views` (Linux: 3 views, 2903 objects). The Windows clone has one view *GEMMA domeinen*; its coArchi clone is 1 commit behind the remote (a component and standards update), which does not explain two views: the Linux model probably holds two more, generated locally. So Windows counts less and is still 3–4× slower; the counts (1.4 s for 1 613 objects against 0.7 s for 2 903) are ≈ 3.5× slower per object.
 
 ## Goal
 
@@ -146,6 +150,29 @@ Remaining open time (after, 12.2 s):
 - end of `createDialogArea` → shown 3.4 s (JFace: initial size, layout, first paint)
 
 Next candidates: the per-condition counts (§ Proposal 3) for the 1.4 s; the 3.4 s after `createDialogArea` and the 1.9 s of filling widgets outside the step blocks are not split yet.
+
+### Remaining open time, split (Windows, after fix 2)
+
+Comparable run (§ Comparable run, Windows selection), two runs, open → shown 12.1 and 11.0 s. Temporary `Date.now()` marks in `dialog_main.js`, logged after the dialog closed, reverted. Each part is the time since the previous mark; largest first:
+
+| Part | Run 1 · run 2 | Candidate fix · gain · lines · risk |
+|---|---|---|
+| Four tabs and preset row built | 2.45 · 1.82 s (Appearance 0.9, Layout 0.65, Properties 0.55) | Lazy Appearance and Properties tabs, built when first shown · ≈ 1.4 s · 40–60 (a "built" guard in `_saveUI` and `_fillWidgets` per appearance key) · medium: a tab not built must not write defaults over the session. Smaller first step: Properties reads the properties of every view in the model; read them when the tab is shown · ≈ 0.5 s · ≈ 10 · low |
+| Before the dialog: `open()` up to `new ConfigDialog` (selection read, expand snapshot, preset, log block) | ≈ 1.7 · 1.6 s; the `gui_timing` readers account for 0.3 s (`describeVisuals` 0.21, `readDiagramBlocks` 0.05) | Split first (the rest of `open()` is private) · unknown |
+| Deferred layout on release (one layout of the whole dialog) | 1.52 · 1.49 s | Inherent to the widget count; lazy tabs (above) shrink it too · part of the 1.4 s above · – · – |
+| Step blocks: 4 condition tables built and filled | 1.36 · 1.50 s | Build a collapsed step's body when it is expanded · ≈ 1 s with collapsed steps, nothing when expanded · ≈ 20 · medium (`_saveUI` reads the table) |
+| `dialogCounts` (final recount) | 1.41 · 1.45 s | § Proposal 3: wrap `featureConditionCounts` and the cache signatures (`_idsSig`) in `gui_timing.ajs`, measure, then decide · est. 0.3–0.5 s · unknown · low (Node tests) |
+| Fill: algorithm, layout params, view size | 1.23 · 0.84 s | Unexpected for setting radios, spinners and a combo: probably a listener doing work per set. Split first (per widget) · up to ≈ 1 s · likely a few lines · low |
+| First paint after `getInitialLocation` (shell open, layout, paint) | 0.48 · 0.45 s | Inherent · – · – · – |
+| Fill: appearance tables and pickers | 0.40 · 0.35 s | Goes with lazy Appearance tab |
+| `_showCounts` (counters on the widgets) | 0.33 · 0.38 s | Low priority; counters on hidden tabs could wait until shown · ≈ 0.2 s · stale flag · medium |
+| Fill: filter tables | 0.32 · 0.36 s | – |
+| JFace before `createDialogArea` (shell, title area) | 0.25 · 0.19 s | Inherent |
+| Fill: `updateAlgorithmControls` 0.20 · 0.19, `updateNestingLevelState` 0.11 · 0.10, `updateAppearancePropStates` 0.07 · 0.05; `buildActionArea` 0.05; refresh action 0.04; rest of `createDialogArea` 0.06; `getInitialSize` 0.02 | < 0.2 s each | – |
+
+Not in "open → shown": module load 1.4–1.6 s (Defender exclusion: user, no code).
+
+Order by gain per line: (1) split "fill: layout params" and "before the dialog", both cheap to look at and possibly a one-line cause; (2) Properties tab read on show; (3) Proposal 3 measured; (4) lazy Appearance tab, only if still needed.
 
 ## Fix 2
 
