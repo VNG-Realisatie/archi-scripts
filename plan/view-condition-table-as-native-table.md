@@ -1,6 +1,6 @@
 # View: condition table as a native table
 
-Status: proposed 2026-11-13, behaviour to agree (§ To agree). Follows from `view-dialog-open-and-counts-performance.md` § Widgets at open: the dialog opens with 617 native controls and 2 340 combo items, most of them in the eight condition tables, and on Windows every native control costs window events.
+Status: built 2026-11-13 (7ee32fc), checked on Linux; next: the user's check in Archi on Linux and Windows (§ Steps 3). Agreed: § To agree 1, 2 and 4 as written; 3 with the step column at 200 px ("Previous step elements" fits on one line, the step table 50 px wider). Found on the way and fixed apart (ee2b4f7): a preset load widened the dialog to the screen (held layout read as cut-off tables), an older fault of a0f1933.
 
 ## Goal
 
@@ -47,8 +47,8 @@ Platform notes to check first (`ai/jarchi-scripting/swt-gtk.md`): `Table.setBack
 
 ## Steps
 
-1. The user agrees § To agree (or changes it).
-2. `condition_table.js` rewritten, `widgets.js` colour menu, `types/view.d.ts`; `npm run typecheck`; `gui_timing.ajs` on Linux (§ Comparable run of the performance plan): controls and items at open before / after.
+1. Done: agreed (Status).
+2. Done (7ee32fc). Linux, GEMMA, `Bestuurscontext/Capability`, two runs: 429 controls and 159 combo items at open (was 617 and 2 340), 11 tables, no combo left in a condition table; open → shown 1.75–1.81 s (was 2.8–3.0 s). Checked headless with screenshots: list under the cell with the current item, a choice writes the condition and the counts follow, ← → and Enter, an off condition greyed except On and ✕, add and remove rows, Match property columns, colour menu, Nesting and Reverse aligned. GTK details found: a cell is 3 px narrower than its column; the table keeps no selection (GTK paints it over owner-drawn cells); `SWT.CR` is a Java char, so Enter is matched on `e.character`. Was: `condition_table.js` rewritten, `widgets.js` colour menu, `types/view.d.ts`; `npm run typecheck`; `gui_timing.ajs` on Linux (§ Comparable run of the performance plan): controls and items at open before / after.
 3. The user checks in Archi on Linux and Windows with the checklist (§ To agree, "Behaviour that stays"), and runs `gui_timing.ajs` on Windows: open → shown and the widget count.
 4. After approval: docs. ARCHITECTURE § Dialog: "One condition-table widget" (now a native table), "every checkbox is drawn on a Canvas" (in a table: drawn in the cell), the Look-and-feel realisation rows that name `canvasCheck`; `gui.md`: the step mock-up (line ≈ 118, two-line headers) and where it names the table's editing (one click, keyboard); README § the step columns stays (one line already). `swt-gtk.md` gets the table mechanics found in step 2. Code and docs in one commit.
 5. Performance plan: the Windows numbers after, and the decision on lazy Appearance / Properties tabs on those numbers.
