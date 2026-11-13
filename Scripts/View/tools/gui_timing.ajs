@@ -10,9 +10,10 @@
  * Command line, comparable between machines (no selection there):
  *   SELECT_TYPE  the type of the objects to select, default "element"
  *   SELECT_NAME  their name (a "—" in it is lost on Windows: pick a name without it)
+ *   SELECT_ID    instead of SELECT_TYPE / SELECT_NAME: one object by id, the same in every clone of a model
  *   PRESET       the dialog opens on this preset instead of the session (the session differs per machine)
  * The dialog closes as soon as it is shown, as its close button does (Cancel, no run); the session is not saved.
- *   SELECT_TYPE=view SELECT_NAME="GEMMA domeinen" PRESET="Bestuurscontext/Capability" \
+ *   SELECT_ID=id-ba72ad08ad1b475390125ad1938fd298 PRESET="Bestuurscontext/Capability" \
  *     Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_timing.ajs <model>
  * Plan and reference numbers: plan/view-dialog-open-and-counts-performance.md.
  */
@@ -84,7 +85,8 @@ for (const [m, names] of Object.entries(MEASURED)) {
 }
 
 const selectName = System.getenv("SELECT_NAME");
-const commandLine = !!selectName;
+const selectId = System.getenv("SELECT_ID");
+const commandLine = !!(selectName || selectId);
 const presetName = System.getenv("PRESET");
 const PresetIO = mods["View/lib/preset_io.js"];
 if (presetName) PresetIO.readSession = () => Object.assign(PresetIO.readPreset(String(presetName)), { name: String(presetName) });
@@ -109,7 +111,8 @@ Common.initConsoleLog(__FILE__, true);
 
 let uiSelection = $(selection);
 if (commandLine) {   // no selection and no workbench shell
-  uiSelection = $(String(System.getenv("SELECT_TYPE") || "element")).filter(o => o.name === String(selectName));
+  uiSelection = selectId ? $(`#${selectId}`)
+    : $(String(System.getenv("SELECT_TYPE") || "element")).filter(o => o.name === String(selectName));
   globalThis.shell = null;
 }
 /** @type {number} */

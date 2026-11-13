@@ -1,0 +1,63 @@
+/**
+ * SWT micro-benchmark for the View dialog's widget cost: why filling and laying out the dialog is
+ * 12–27× slower on Windows than on Linux while plain JavaScript is ≈ 3× slower
+ * (plan/view-dialog-open-and-counts-performance.md). Builds read-only combos as the condition tables
+ * do and times each way of filling and sizing them, plus labels as a baseline. No model needed; the
+ * shell is never shown. Each line: total ms for COMBOS combos (or labels) of ITEMS items.
+ *
+ *   Scripts/View/tools/archi_cli.sh Scripts/View/tools/swt_timing.ajs
+ * Windows: Archi.exe … --script.runScript "<abs path>/swt_timing.ajs" (no --loadModel needed).
+ */
+const SWT       = Java.type("org.eclipse.swt.SWT");
+const Display   = Java.type("org.eclipse.swt.widgets.Display");
+const Shell     = Java.type("org.eclipse.swt.widgets.Shell");
+const Combo     = Java.type("org.eclipse.swt.widgets.Combo");
+const Label     = Java.type("org.eclipse.swt.widgets.Label");
+const GridLayout = Java.type("org.eclipse.swt.layout.GridLayout");
+const GridData  = Java.type("org.eclipse.swt.layout.GridData");
+
+const COMBOS = 40;   // ≈ the combos of four step tables and the filter tables
+const ITEMS  = 60;   // ≈ the element types offered in a type combo
+const ROUNDS = 3;
+const items = Array.from({ length: ITEMS }, (_, i) => `Element type ${i} (${i * 7})`);
+const itemsJava = Java.to(items, "java.lang.String[]");
+
+/** @param {string} label @param {() => void} fn */
+function time(label, fn) {
+  const ts = [];
+  for (let r = 0; r < ROUNDS; r++) { const t = Date.now(); fn(); ts.push(Date.now() - t); }
+  console.log(`${ts.map(t => String(t).padStart(6)).join(" ")} ms  ${label}`);
+}
+
+/** @param {(shell: any) => void} build  widgets into a fresh shell; disposed afterwards */
+function inShell(build) {
+  const shell = new Shell(Display.getDefault());
+  shell.setLayout(new GridLayout(4, false));
+  try { build(shell); } finally { shell.dispose(); }
+}
+
+/** @param {any} shell @param {number} [widthHint] */
+function combos(shell, widthHint) {
+  const list = [];
+  for (let i = 0; i < COMBOS; i++) {
+    const c = new Combo(shell, SWT.READ_ONLY | SWT.DROP_DOWN);
+    const gd = new GridData();
+    if (widthHint) gd.widthHint = widthHint;
+    c.setLayoutData(gd);
+    list.push(c);
+  }
+  return list;
+}
+
+console.log(`${COMBOS} combos × ${ITEMS} items, ${ROUNDS} rounds; ${Java.type("java.lang.System").getProperty("os.name")}`);
+time("create combos (empty)",                   () => inShell(s => combos(s)));
+time("create + fill item by item (add loop)",   () => inShell(s => combos(s).forEach(c => items.forEach(t => c.add(t)))));
+time("create + fill with setItems",             () => inShell(s => combos(s).forEach(c => c.setItems(itemsJava))));
+time("refill: removeAll + add loop",            () => inShell(s => { const cs = combos(s); cs.forEach(c => c.setItems(itemsJava)); cs.forEach(c => { c.removeAll(); items.forEach(t => c.add(t)); }); }));
+time("refill: setItems",                        () => inShell(s => { const cs = combos(s); cs.forEach(c => c.setItems(itemsJava)); cs.forEach(c => c.setItems(itemsJava)); }));
+time("computeSize(DEFAULT) per filled combo",   () => inShell(s => { const cs = combos(s); cs.forEach(c => c.setItems(itemsJava)); cs.forEach(c => c.computeSize(SWT.DEFAULT, SWT.DEFAULT)); }));
+time("computeSize(hint) per filled combo",      () => inShell(s => { const cs = combos(s); cs.forEach(c => c.setItems(itemsJava)); cs.forEach(c => c.computeSize(150, SWT.DEFAULT)); }));
+time("layout, filled combos without width hint", () => inShell(s => { combos(s).forEach(c => c.setItems(itemsJava)); s.layout(true, true); }));
+time("layout, filled combos with width hint",   () => inShell(s => { combos(s, 150).forEach(c => c.setItems(itemsJava)); s.layout(true, true); }));
+time("baseline: create labels + setText + layout", () => inShell(s => { for (let i = 0; i < COMBOS; i++) new Label(s, SWT.NONE).setText(items[i % ITEMS]); s.layout(true, true); }));
+time(`baseline: ${COMBOS * ITEMS} JS → Java calls (String.valueOf)`, () => { const S = Java.type("java.lang.String"); for (let i = 0; i < COMBOS * ITEMS; i++) S.valueOf(i); });

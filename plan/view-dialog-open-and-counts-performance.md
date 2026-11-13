@@ -1,61 +1,63 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run on Windows done and the remaining open time split (§ Remaining open time, split). Next: the user chooses the next fix; the user's check of the Layout tab counts in Archi is still open.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run and split on both machines: the Windows cost is widget filling and layout (§ Linux against Windows per part). Next: the SWT micro-benchmark on Windows (§ Handoff), then the user chooses the next fix; the user's check of the Layout tab counts in Archi is still open.
 
 ## Handoff
 
-Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Windows before fix 2 (session preset): open → shown on *GEMMA domeinen* 24.3 → 12.9 s.
+Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Windows comparable run and split done (25b3e7e); Linux measured the same view and split (§ Comparable run, § Linux against Windows per part). Finding: plain JavaScript is ≈ 3× slower on Windows, widget filling and layout 12–27×. Which SWT call causes it is open: `tools/swt_timing.ajs` measures it in isolation.
 
-Windows session done (steps 1–5 below): comparable run and split in § Comparable run and § Remaining open time, split. Next: the user chooses among the candidates there.
+Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). Measure and report, change no code.
 
-Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). Measure and report, change no code; a fix comes after the user's choice.
+1. `git pull`. Copy the GEMMA model (`gemma-archi-repository`, the coArchi clone; its path is in Archi's `models.xml`) to a scratch folder, as before.
+2. The comparable run once more, now by id (§ Comparable run, Windows command): one run is enough; fill the Windows column if it differs from the run by name.
+3. The SWT micro-benchmark, twice:
 
-1. `git pull`. Find the GEMMA model (`gemma-archi-repository`, the coArchi clone; its path is in Archi's `models.xml`) and copy its `.archimate` to a scratch folder.
-2. Comparable run, twice (§ Comparable run, Windows command). Check the `Measured:` line; fill the Windows column of the table there; note a different selection or object count.
-3. Split the remaining open time. `gui_timing.ajs` does not see private functions, so add temporary `Date.now()` timing, logged once after the dialog closes (console output inside the dialog is unreliable), in `dialog_main.js`:
-   - `_fillWidgets`, per section: layout params, filter tables, step blocks, view name, appearance tables, `updateNestingLevelState`, `updateAppearancePropStates`, `TabProperties.syncToUI`;
-   - `_syncToUI`: the deferred layout when `setLayoutDeferred(false)` releases it;
-   - the final recount: `_countInput`, `dialogCounts`, `_showCounts`, `_refreshAction`;
-   - the end of `createDialogArea` → shown, split by wrapping JFace's `getInitialSize`, `getInitialLocation` and the first paint (`SWT.Paint` listener on the shell).
-   Run twice with the comparable run's command, then revert the timing (`git checkout`).
-4. Write the numbers into this plan: the table in § Comparable run and a list under § After fix 1 and fewer layouts › Remaining open time, with the largest parts first and a candidate fix per part (gain, lines of code, risk).
+       ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash \
+         --script.runScript "$(pwd -W)/Scripts/View/tools/swt_timing.ajs" > swt_timing.txt 2>&1
+
+   Add the Windows numbers next to the Linux ones in § SWT micro-benchmark (the third round of each line; the first warms up).
+4. Under § SWT micro-benchmark, name the line(s) that are far slower than on Linux, and the dialog code that does the same (combo filling: `condition_table.js` `comboItems` / `fillList`, `tab_layout.js` `_setComboItems`, `dialog_main.js` `_paramToWidget`; natural sizes: `widgets.js` `alignFormColumns`, `resizeScrolled`).
 5. Commit only this plan (`docs(plan): …`, no co-author line, AGENTS.md hard rule 4) and push.
 
-The user also checks the Layout tab counts in Archi (fix 2): open the dialog on a selection with nesting conditions and compare the Nesting / Reverse counts with a run before 53af7de.
+Still open for the user: the check of the Layout tab counts in Archi (fix 2): open the dialog on a selection with nesting conditions and compare the Nesting / Reverse counts with a run before 53af7de.
 
-Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun step 2; only module load (1–2 s there vs 0.4 s on Linux) is expected to change.
+Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun step 2; only module load (1.4–1.6 s there vs 0.36 s on Linux) is expected to change.
 
 ## Comparable run
 
 Same model, selection and preset on both machines; the measuring script does the rest. The local session is not used (it differs per machine) and not changed; the dialog closes itself once shown.
 
 - Model: the GEMMA model (`gemma-archi-repository`, opened from its coArchi clone), on a copy.
-- Selection: the views named *GEMMA domeinen* (3 views in the model).
+- Selection: the view *GEMMA domeinen* in `Views/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten`, by id: `id-ba72ad08ad1b475390125ad1938fd298` (1 613 objects). By name the Linux model holds 3 views of that name, Windows 1.
 - Preset: `Bestuurscontext/Capability` (committed; 4 steps, 4 nesting conditions, Layered).
-- The script's first line names OS, model, preset and selection: `Measured: … · selection 3 object(s), 2903 objects on its views`. A different selection or object count means a different model state: note it.
+- The script's first line names OS, model, preset and selection: `Measured: … · selection 1 object(s), 1613 objects on its views`. A different selection or object count means a different model state: note it.
 
 Linux (`Scripts/View/tools/archi_cli.sh`):
 
-    SELECT_TYPE=view SELECT_NAME="GEMMA domeinen" PRESET="Bestuurscontext/Capability" \
+    SELECT_ID=id-ba72ad08ad1b475390125ad1938fd298 PRESET="Bestuurscontext/Capability" \
       Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_timing.ajs <copy of the GEMMA model>
 
 Windows (Git Bash; `archi_cli.sh` is Linux only), on a copy of the model:
 
-    SELECT_TYPE=view SELECT_NAME="GEMMA domeinen" PRESET="Bestuurscontext/Capability" \
+    SELECT_ID=id-ba72ad08ad1b475390125ad1938fd298 PRESET="Bestuurscontext/Capability" \
       ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash \
       --loadModel <copy> --script.runScript "$(pwd -W)/Scripts/View/tools/gui_timing.ajs" > gui_timing.txt 2>&1
 
 Run it twice (the first run of a session can be slower) and keep both.
 
-| After fix 2 (53af7de) | Linux | Windows |
-|---|---|---|
-| Load all modules | 0.36 s | 1.41–1.58 s |
-| Tabs built (Selection · Layout · Appearance · Properties) | 0.03 · 0.13 · 0.25 · 0.10 s | 0.11–0.14 · 0.65–0.66 · 0.89–0.94 · 0.55–0.57 s |
-| `addRelatedBlock` ×4 | 0.10 s | 1.33–1.44 s |
-| `dialogCounts` ×1 | 0.71 s | 1.35–1.39 s |
-| Dialog open → shown | 2.9–4.0 s | 11.6–11.7 s |
+Both columns: the view by id, 1 613 objects (Windows by name, which there is the same view); three runs on Linux, two on Windows.
 
-Windows differs in selection: `Measured: Windows 11 · model "GEMMA" · preset "Bestuurscontext/Capability" · selection 1 object(s), 1613 objects on its views` (Linux: 3 views, 2903 objects). The Windows clone has one view *GEMMA domeinen*; its coArchi clone is 1 commit behind the remote (a component and standards update), which does not explain two views: the Linux model probably holds two more, generated locally. So Windows counts less and is still 3–4× slower; the counts (1.4 s for 1 613 objects against 0.7 s for 2 903) are ≈ 3.5× slower per object.
+| After fix 2 (53af7de) | Linux | Windows | Factor |
+|---|---|---|---|
+| Load all modules | 0.35–0.37 s | 1.41–1.58 s | 4× |
+| Tabs built (Selection · Layout · Appearance · Properties) | 0.03 · 0.13 · 0.24 · 0.09 s | 0.11–0.14 · 0.65–0.66 · 0.89–0.94 · 0.55–0.57 s | 4–6× |
+| `addRelatedBlock` ×4 | 0.10 s | 1.33–1.44 s | 14× |
+| `dialogCounts` ×1 | 0.56–0.59 s | 1.35–1.39 s | 2.4× |
+| Dialog open → shown | 2.7–3.0 s | 11.6–11.7 s | 4× |
+
+"Open → shown" is the first runnable of the dialog's event loop; on Linux it comes ≈ 0.8 s after the first paint (§ Linux against Windows per part), so the first paint is the better end mark for a split.
+
+By name, the Linux model holds 3 views *GEMMA domeinen* (2 903 objects; two generated locally under `_Generated`), the Windows clone 1: the same view as by id. Hence the selection by id.
 
 ## Goal
 
@@ -173,6 +175,47 @@ Comparable run (§ Comparable run, Windows selection), two runs, open → shown 
 Not in "open → shown": module load 1.4–1.6 s (Defender exclusion: user, no code).
 
 Order by gain per line: (1) split "fill: layout params" and "before the dialog", both cheap to look at and possibly a one-line cause; (2) Properties tab read on show; (3) Proposal 3 measured; (4) lazy Appearance tab, only if still needed.
+
+### Linux against Windows per part
+
+The same marks on Linux (same view by id, same preset; two runs, temporary, reverted):
+
+| Part | Linux | Windows | Factor |
+|---|---|---|---|
+| Before the dialog (`open()` → `new ConfigDialog`) | 0.26 s | 1.65 s | 6× |
+| JFace before `createDialogArea` | 0.11 s | 0.22 s | 2× |
+| Tabs and preset row | 0.50 s | 2.1 s | 4× |
+| Fill: algorithm, layout params, view size | 0.09 s | 1.0 s | 12× |
+| Fill: filter tables | 0.02 s | 0.34 s | 17× |
+| Fill: step blocks | 0.10 s | 1.43 s | 14× |
+| Fill: appearance tables, pickers | 0.04 s | 0.37 s | 9× |
+| Fill: `update*` states | 0.04 s | 0.38 s | 10× |
+| Deferred layout on release | 0.055 s | 1.5 s | 27× |
+| `dialogCounts` (plain JavaScript) | 0.51 s | 1.43 s | 2.8× |
+| `_showCounts` (counters into the combos) | 0.014 s | 0.35 s | 25× |
+| First paint after `getInitialLocation` | 0.10 s | 0.46 s | 4.5× |
+
+Conclusion: plain JavaScript (counts, module load) is 2.5–4× slower on Windows; filling widgets and laying them out 9–27×. That is where the Windows time is, and what Linux measurements cannot show. The widgets filled and laid out are mostly read-only combos with many items (condition tables, layout params), filled item by item (`combo.add` per item, after `removeAll`); and natural sizes (`computeSize(SWT.DEFAULT, …)`), which on Win32 may measure the text of every item, are asked by `alignFormColumns` and the scroll pages. Which of these is the cost: § SWT micro-benchmark. Lazy tabs and lazy step bodies (§ Remaining open time, split) cut the widget count and so help either way, at more code.
+
+### SWT micro-benchmark
+
+`Scripts/View/tools/swt_timing.ajs`: 40 read-only combos × 60 items in an unshown shell, three rounds per line (ms per round; the first warms up), each way of filling and sizing, and labels as a baseline.
+
+| Line | Linux | Windows |
+|---|---|---|
+| create combos (empty) | 35 · 17 · 14 | |
+| create + fill item by item (add loop) | 63 · 52 · 46 | |
+| create + fill with setItems | 43 · 41 · 40 | |
+| refill: removeAll + add loop | 82 · 77 · 77 | |
+| refill: setItems | 75 · 72 · 72 | |
+| computeSize(DEFAULT) per filled combo | 89 · 88 · 86 | |
+| computeSize(hint) per filled combo | 87 · 85 · 87 | |
+| layout, filled combos without width hint | 164 · 163 · 163 | |
+| layout, filled combos with width hint | 142 · 141 · 143 | |
+| baseline: create labels + setText + layout | 9 · 7 · 7 | |
+| baseline: 2 400 JS → Java calls | 5 · 2 · 2 | |
+
+On Linux no line stands out: `setItems` and a width hint gain little. The candidate fix follows from the Windows column: `setItems` instead of the add loop (4 places, a few lines each, low risk), width hints where `computeSize(DEFAULT)` is asked, or fewer combos (lazy tabs / step bodies).
 
 ## Fix 2
 
