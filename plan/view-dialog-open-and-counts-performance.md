@@ -282,7 +282,7 @@ The Layout tab counts of the code before (`53af7de^`, a worktree) and after, in 
 
 All 18 differences: a view with a diagram-block whose elements are in nesting relations; the totals are unchanged and only *Nested* and the multi-parent note change. Before, *Nested* counted nestings the totals did not have (*Beheerview kennismodel*: 98 nested against 0 nestings in the totals); now the two agree, as the writer draws it.
 
-Found: those relations are counted in the note as "drawn as a line: the child already has a parent", but the reason is that an end sits only inside a diagram-block (`resolveNesting` puts a relation whose end is not laid out in `notNestedNestingRels`, `nesting.js`). A wrong reason in a note, rare (views with nesting relations into a diagram-block); a separate fix (its own count and sentence), after the user's choice.
+Found: the note gives those relations the wrong reason (§ Found on the way).
 
 ## When the dialog needs what
 
@@ -335,7 +335,8 @@ The CLI quirks found, to note in the jarchi-scripting skill § Running headless:
 
 ## Found on the way
 
-- The console block "GUI — before dialog" never shows elements, relations or diagram objects. `dialog_main.js` passes `elems` / `rels` / `diag`; `Pipeline.logCountBlock` knows only `elements` / `relations` / `diagramObjects` (rule 2: one name per concept). Fix in its own commit.
+- **Open: wrong reason in the Layout tab's nesting note.** A nesting relation with an end that sits only inside a diagram-block is drawn as a line, and the grey note under Nesting counts it as "drawn as a line: the child already has a parent". The real reason is that the end is not laid out: `resolveNesting` (`nesting.js`) puts a relation whose end is not among the laid-out elements in `notNestedNestingRels`, and `layoutConditionCounts` reports all of those as multi-parent. Seen in 18 of 1 299 view × preset runs on the GEMMA model (§ Fix 2 checked), e.g. *Beheerview kennismodel* with `publicerenApplicatieServices`: 99 "multi-parent". Fix: a count of its own (relations with an end in a diagram-block) and its own sentence in the note; behaviour change in a note text, so after the user's choice (Scripts/View/AGENTS.md § Order of change).
+- Fixed (2bda5d5): the console block "GUI — before dialog" showed no elements, relations or diagram objects (`dialog_main.js` passed `elems` / `rels` / `diag`; `logCountBlock` knows only the canonical keys). `CountRow` now types its fields, so the typecheck catches an unknown key.
 
 ## Steps after approval
 
