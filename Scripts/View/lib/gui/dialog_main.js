@@ -281,13 +281,7 @@ function open(uiSelection) {
 
       tabFolder.setSelection(config._lastTabIndex || 0);
       // Fit the shown tab once the dialog is open, and every tab when it is selected.
-      const fitTab = () => {
-        const i = tabFolder.getSelectionIndex();
-        /** @type {[Swt.ScrolledComposite, Swt.Composite][]} */
-        const pairs = [[ctx.selectionScrolled, ctx.selectionPage], [ctx.layoutScrolled, ctx.layoutPage],
-                       [ctx.appearanceScrolled, ctx.appearancePage]];
-        if (pairs[i]) Widgets.resizeScrolled(pairs[i][0], pairs[i][1]);
-      };
+      const fitTab = () => _fitShownTab(ctx);
       tabFolder.addListener(SWT.Selection, fitTab);
       area.getDisplay().asyncExec(() => { try { if (!area.isDisposed()) fitTab(); } catch (e) {} });   // silent: a tab may be disposed meanwhile
       return area;
@@ -952,6 +946,19 @@ function _syncToUI(ctx) {
   shell.setLayoutDeferred(true);
   try { _fillWidgets(ctx); }
   finally { shell.setLayoutDeferred(false); }
+  _fitShownTab(ctx);
+}
+
+/**
+ * Fit the shown tab's page to its scrolled area (Widgets.resizeScrolled): the dialog widens for a table.
+ * @param {DialogContext} ctx
+ */
+function _fitShownTab(ctx) {
+  const i = ctx.widgets.tabFolder.getSelectionIndex();
+  /** @type {[Swt.ScrolledComposite, Swt.Composite][]} */
+  const pairs = [[ctx.selectionScrolled, ctx.selectionPage], [ctx.layoutScrolled, ctx.layoutPage],
+                 [ctx.appearanceScrolled, ctx.appearancePage]];
+  if (pairs[i]) Widgets.resizeScrolled(pairs[i][0], pairs[i][1]);
 }
 
 /** @param {DialogContext} ctx */

@@ -104,6 +104,9 @@ function scrolledTab(tabFolder, tabLabel) {
  */
 function resizeScrolled(scrolled, page, opts) {
   if (!scrolled || !page) return;
+  // While the dialog holds its layout (_syncToUI) new controls have no size yet and would read as cut
+  // off: the dialog fits the shown tab once the layout is released.
+  if (page.isLayoutDeferred()) return;
   try {
     let clientW = scrolled.getClientArea().width;
     if (clientW <= 0 || !scrolled.isVisible()) {

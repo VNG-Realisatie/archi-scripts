@@ -155,6 +155,8 @@ declare namespace Swt {
     layout(changed: Control[]): void;
     /** While true, layout requests are held; setting false again runs one layout. Calls nest. */
     setLayoutDeferred(defer: boolean): void;
+    /** True while this composite or an ancestor holds its layout requests. */
+    isLayoutDeferred(): boolean;
     setBackgroundMode(mode: number): void;
   }
 
