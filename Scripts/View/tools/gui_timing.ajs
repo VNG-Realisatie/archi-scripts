@@ -1,0 +1,114 @@
+/**
+ * Measure the View dialog: module load, the work before it opens, building the tabs and the counts.
+ * Opens the dialog as _gui.ajs does and logs one table when it closes: calls, total, average and max
+ * per label. The GUI has no measurement code: this script wraps exported functions of the modules it
+ * loads. Module objects are shared, so a caller's `Module.fn(…)` goes through the wrapper; private
+ * functions and destructured imports are not measured ("dialog open → shown" minus the measured parts).
+ *
+ * In Archi: select as for _gui.ajs, run this script and close the dialog with Cancel (a run would add its
+ * own calls to the table).
+ * Command line (no selection there): SELECT_TYPE (default "element") and SELECT_NAME pick the objects;
+ * the dialog closes after CLOSE_AFTER_MS (default 4000) as its close button does: Cancel, no run.
+ *   SELECT_TYPE=view SELECT_NAME="…" Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_timing.ajs <model>
+ * Plan and reference numbers: plan/view-dialog-open-and-counts-performance.md.
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const System = Java.type("java.lang.System");
+const Display = Java.type("org.eclipse.swt.widgets.Display");
+const T0 = Date.now();
+
+/** @type {Map<string, { n: number, total: number, max: number }>} */
+const stats = new Map();
+/** @param {string} label @param {number} ms */
+function record(label, ms) {
+  const s = stats.get(label) || { n: 0, total: 0, max: 0 };
+  s.n++; s.total += ms; s.max = Math.max(s.max, ms);
+  stats.set(label, s);
+}
+/** @template T @param {string} label @param {() => T} fn @returns {T} */
+function time(label, fn) {
+  const t = Date.now();
+  try { return fn(); } finally { record(label, Date.now() - t); }
+}
+
+// Module load: leaf-first, so each line costs that module alone (read, parse, top-level code).
+// A module missing from this list is counted with the first one that requires it.
+const MODULES = [
+  "_lib/Common.js", "_lib/archi_folders.js", "_lib/selection.js", "View/lib/rel_filter.js", "View/lib/defs.js",
+  "View/lib/preset_io.js", "View/lib/hidden_properties.js", "View/lib/nesting.js",
+  "View/lib/selection_pipeline.js", "View/lib/selection_read.js", "chroma-js", "View/lib/palettes.js",
+  "View/lib/appearance.js", "View/lib/label_size.js", "View/lib/engines/engine-utils.js",
+  "View/lib/layout_graph.js", "View/lib/process_runner.js", "View/lib/engines/registry.js",
+  "View/lib/node_layout.js", "View/config.default.js", "View/lib/view_config.js",
+  "View/lib/text_measure.js", "View/lib/write_plan.js", "View/lib/view_writer.js",
+  "View/lib/view_origin.js", "View/lib/generate_view.js", "View/lib/run_preset.js",
+  "View/lib/gui/counts.js", "View/lib/gui/widgets.js", "View/lib/gui/condition_table.js",
+  "View/lib/gui/tab_selection.js", "View/lib/gui/tab_appearance.js", "View/lib/gui/tab_layout.js",
+  "View/lib/gui/tab_properties.js", "View/lib/gui/dialog_presets.js", "View/lib/gui/preset_row.js",
+  "View/lib/gui/dialog_main.js",
+];
+/** @type {Record<string, any>} */
+const mods = {};
+for (const m of MODULES) mods[m] = time(`load  ${m}`, () => require(m.endsWith(".js") ? REPO_ROOT + m : m));
+record("load  all modules", Date.now() - T0);
+
+// Exported functions to measure, per module. A name that is not a function stops the script, so a
+// rename cannot silently drop a measurement. Do not add per-object functions (matchElement, …): the
+// wrapper's own cost would show.
+const MEASURED = {
+  "_lib/selection.js":              ["getSelection"],
+  "View/lib/selection_read.js":     ["holdsFolderOrView", "describeVisuals", "readRelationIndex", "readDiagramBlocks", "readSelection"],
+  "View/lib/preset_io.js":          ["ensureDefault", "listPresets", "readPreset", "writeSession"],
+  "View/lib/gui/preset_row.js":     ["buildPresetRow"],
+  "View/lib/gui/tab_selection.js":  ["buildSelectionTab", "addRelatedBlock"],
+  "View/lib/gui/tab_layout.js":     ["buildLayoutTab", "updateAlgorithmControls", "updateLayoutConditionCounts"],
+  "View/lib/gui/tab_appearance.js": ["buildAppearanceTab", "updateStyleWarnings", "updateNestingLevelState", "updateAppearancePropStates"],
+  "View/lib/gui/tab_properties.js": ["buildPropertiesTab", "syncToUI"],
+  "View/lib/gui/widgets.js":        ["resizeScrolled"],
+  "View/lib/gui/counts.js":         ["dialogCounts"],
+  "View/lib/selection_pipeline.js": ["findRelationsBetween", "expandStepWithRelations", "composeObjectSet"],
+  "View/lib/nesting.js":            ["splitNestingRels", "resolveNesting", "predictViewCounts"],
+};
+for (const [m, names] of Object.entries(MEASURED)) {
+  const mod = mods[m];
+  const short = m.replace(/^.*\//, "").replace(/\.js$/, "");
+  for (const name of names) {
+    const fn = mod[name];
+    if (typeof fn !== "function") throw new Error(`gui_timing: ${m} exports no function ${name}`);
+    mod[name] = function (/** @type {any[]} */ ...args) { return time(`${short}.${name}`, () => fn.apply(this, args)); };
+  }
+}
+
+// Dialog open → shown: the first runnable of the dialog's event loop, queued when the last tab is built.
+let tOpen = 0;
+const TabProperties = mods["View/lib/gui/tab_properties.js"];
+const buildPropertiesTab = TabProperties.buildPropertiesTab;
+TabProperties.buildPropertiesTab = function (/** @type {any} */ tabFolder, /** @type {any} */ ctx) {
+  const r = buildPropertiesTab(tabFolder, ctx);
+  tabFolder.getDisplay().asyncExec(() => record("dialog open → shown", Date.now() - tOpen));
+  return r;
+};
+
+const Common = mods["_lib/Common.js"];
+Common.initConsoleLog(__FILE__, true);
+
+let uiSelection = $(selection);
+const selectName = System.getenv("SELECT_NAME");
+if (selectName) {   // command line: no selection and no workbench shell
+  uiSelection = $(String(System.getenv("SELECT_TYPE") || "element")).filter(o => o.name === String(selectName));
+  globalThis.shell = null;
+  Display.getDefault().timerExec(Number(System.getenv("CLOSE_AFTER_MS") || 4000), () => {
+    for (const sh of Display.getDefault().getShells()) if (sh.getData()) sh.close();   // as the close button: Cancel
+  });
+}
+console.log(`Selection: ${uiSelection.size()} object(s)`);
+
+tOpen = Date.now();
+try { mods["View/lib/gui/dialog_main.js"].open(uiSelection); }
+catch (e) { mods["View/lib/run_preset.js"].showFailure(e); }
+
+console.log("");
+console.log("   calls    total      avg      max  (ms)");
+const pad = (/** @type {number} */ v) => String(Math.round(v)).padStart(8);
+for (const [label, s] of stats) console.log(`${pad(s.n)} ${pad(s.total)} ${pad(s.total / s.n)} ${pad(s.max)}  ${label}`);
+Common.finishConsoleLog();
