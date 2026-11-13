@@ -741,7 +741,9 @@ function _showTotals(ctx) {
     _showRow([w.lblCreateNote], oneEach);
     _showRow([w.expandTotals.box], !!(ctx.counts && ctx.counts.expandView));
     _showRow([w.lblOriginNote], !!w.lblOriginNote.getText());
-    if (ctx.area) ctx.area.layout(true, true);  // the line count may change
+    // The line count may change: lay out these labels and their ancestors only, not every tab.
+    const changed = [w.createTotals, w.expandTotals].flatMap(t => [t.box, t.title, ...t.rows.flatMap(r => [r.sub, r.counts])]);
+    if (ctx.area) ctx.area.layout(Java.to([...changed, w.lblCreateNote, w.lblOriginNote], "org.eclipse.swt.widgets.Control[]"));
   } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
 }
 
@@ -940,8 +942,20 @@ function _fitGroupOnResize(area, group, totals, note) {
 
 // ── Sync config ↔ UI ──────────────────────────────────────────────────────────
 
-/** @param {DialogContext} ctx */
+/**
+ * Fill the widgets from the config. Their layout requests are held until the end: one layout instead
+ * of one per step block and table (each a full dialog layout, slow on Windows).
+ * @param {DialogContext} ctx
+ */
 function _syncToUI(ctx) {
+  const shell = ctx.area.getShell();
+  shell.setLayoutDeferred(true);
+  try { _fillWidgets(ctx); }
+  finally { shell.setLayoutDeferred(false); }
+}
+
+/** @param {DialogContext} ctx */
+function _fillWidgets(ctx) {
   const c = ctx.config;
   const w = ctx.widgets;
   const p = c.params;

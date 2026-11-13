@@ -1,15 +1,16 @@
 # View: dialog open and counts performance
 
-Status: proposal 2026-11-13. Measuring script committed (`Scripts/View/tools/gui_timing.ajs`); no fix applied. Next: measure on Windows, then choose the fixes.
+Status: in progress 2026-11-13. Fix 1 and fewer layouts committed (903556b) after the user's check in Archi. Next: the "GUI — before dialog" log fix, then fix 2.
 
-## Handoff: measuring on Windows
+## Handoff
 
-1. `git pull` on branch `GEMMAviews`; open the model *Gemeentelijke bestuurscontext — Sociaal domein* in Archi.
-2. Select the view *Requirements View — gemeentelijke selectie* (972 objects) in the model tree, run `Scripts/View/tools/gui_timing.ajs`, close the dialog with Cancel, copy the table from the console. Repeat with the principle *Belang betrokkene bij cliëntondersteuning voorop* (small selection).
-3. Repeat both with a Windows Defender exclusion for the `Scripts/` folder: separates Windows overhead from code cost.
-4. Compare with the Linux numbers below, and choose among the proposals.
+Done: Windows measured (command line); fix 1 and fewer layouts applied (`tab_selection.js`, `dialog_main.js`, `types/swt.d.ts`), typecheck passes. Open → shown on *GEMMA domeinen* 24.3 → 12.9 s.
 
-A Claude Code session on Windows: read this plan, run the script in Archi as above, or through Archi's command line (`~/scoop/apps/archi/current/Archi.exe`, skill `jarchi-scripting` § Running headless; `archi_cli.sh` is bash, Linux only) with `SELECT_TYPE`, `SELECT_NAME` set.
+Checked by the user in Archi; committed. Next: the "GUI — before dialog" log fix (Steps 4), then decide on fix 2 and the remaining open time (§ After fix 1 and fewer layouts).
+
+Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun; only module load (1–2 s here vs 0.4 s on Linux) is expected to change.
+
+Command line on Windows (Git Bash), on a copy of the model: `SELECT_TYPE=view SELECT_NAME="…" CLOSE_AFTER_MS=25000 ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash --loadModel <copy> --script.runScript <abs path>/gui_timing.ajs > out.txt 2>&1`. `CLOSE_AFTER_MS` must exceed the open time, or "dialog open → shown" is not logged. A `SELECT_NAME` with "—" matches nothing (the env var loses the character): pick a name without it.
 
 ## Goal
 
@@ -19,7 +20,7 @@ Constraint: the most gain for the least code; no new mechanism in the GUI. The m
 
 ## Measurements
 
-Archi's command line (`View/tools/archi_cli.sh`) on Linux, model *Gemeentelijke bestuurscontext — Sociaal domein* (13 511 elements, 7 892 relations), session preset (Default, 3 steps). Windows not measured yet.
+Archi's command line (`View/tools/archi_cli.sh`) on Linux, model *Gemeentelijke bestuurscontext — Sociaal domein* (13 511 elements, 7 892 relations), session preset (Default, 3 steps). Windows: § Measurements on Windows.
 
 | | 1 principle (16 on the view) | view, 341 objects | view, 972 objects |
 |---|---|---|---|
@@ -42,6 +43,66 @@ Large view, per part:
   - relations between: 22 ms
   - ≈ 110 ms not attributed: step condition counts, among them the cache signatures (`_idsSig` hashes every id of input, cumulative and seen per step)
 - **Setting the counters on the widgets**: under 6 ms per recount. The layouts around them cost more: `_showTotals` → `area.layout(true, true)` 28 ms per refresh, and `_renumberAndReorderRelBlocks` → `shell.layout(true, true)` 30 ms per step block.
+
+## Measurements on Windows
+
+Archi's command line on Windows 11 (`Archi.exe` 5.9, jArchi 1.12), the Windows clone of the model, view *UWV-administratiegegevens voor aangewezen wettelijke derden beschikbaar stellen* (553 objects), session preset (4 steps). Three runs; the split below comes from temporary timing in `tab_selection.js` / `dialog_main.js`, reverted.
+
+| | Windows, 553 objects | Linux, 972 objects |
+|---|---|---|
+| Load all modules | 1.4–2.2 s | 0.38 s |
+| Build the four tabs | ≈ 1.5 s (Layout 0.6–0.8, Appearance 0.7–0.9) | ≈ 0.5 s |
+| `_syncToUI` | 13.9 s | 1.9 s |
+| of which `addRelatedBlock` ×4 | 10.4–11.1 s | 1.75 s (×3) |
+| Final recount | 0.7 s | 0.5 s |
+| End of `createDialogArea` → shown | 2.9 s | – |
+| Dialog open → shown | 18.4 s | 3.7 s |
+
+One `addRelatedBlock` (≈ 2.7 s):
+- condition table built and filled: 0.3–1.3 s
+- `_renumberAndReorderRelBlocks`: 0.6–0.85 s, nearly all `shell.layout(true, true)` (0.5–0.7 s)
+- `ctx.recount()`: 0.8–2.3 s
+- `resizeScrolled`: 0.01–0.2 s
+
+One recount (`_updateFilteredCount`, ≈ 0.9–1.7 s):
+- `dialogCounts` with its input: 0.25 s (0.7 s the first time)
+- `_showCounts` (counters on the widgets): 0.1–0.3 s
+- `_refreshAction` → `_showTotals` → `area.layout(true, true)`: 0.45–0.8 s, the largest part
+
+Not split yet: ≈ 3.5 s of `_syncToUI` outside `addRelatedBlock` (filter tables, `updateNestingLevelState` 0.16 s, …).
+
+Consequence:
+- On Windows the cost is SWT layout and widget work, not counting: per change of a condition ≈ 0.25 s counts against ≈ 0.6 s layout and counters.
+- Fix 1 gains more on Windows: −3 recounts ≈ −4.9 s per open and per preset load.
+- "Fewer layouts" (Not proposed below) is no longer small: `shell.layout` per step block ≈ 2.5 s per open, and `area.layout` in `_showTotals` ≈ 0.5 s on every change. Laying out once after `_syncToUI`, and laying out the action area only when its line count changes, become candidates next to fix 1.
+- Fix 2 (−53 ms on Linux) is minor on Windows.
+
+## After fix 1 and fewer layouts
+
+Changes:
+- Fix 1: `addRelatedBlock` no longer recounts; the *Add step* button recounts after it. `_syncToUI`'s callers recount once.
+- `_syncToUI` holds the shell's layout requests (`setLayoutDeferred`) while it fills the widgets: one layout at the end instead of a full dialog layout per step block and table.
+- `_showTotals` lays out only the totals labels, the notes and their ancestors (`area.layout(Control[])`) instead of `area.layout(true, true)`.
+
+Both SWT calls checked headless in GraalJS (a label grows after `layout(Control[])`; a deferred layout runs on release).
+
+Windows command line, GEMMA model (`gemma-archi-repository`), its largest view *GEMMA domeinen* (1 613 objects), session preset (4 steps); before = same run with the changes stashed:
+
+| | before | after |
+|---|---|---|
+| Dialog open → shown | 24.3 s | 12.2–12.9 s |
+| `addRelatedBlock` ×4 | 13.2 s | 1.8–2.0 s |
+| `dialogCounts` while opening | 5 calls, 3.8 s | 1 call, 1.4 s |
+| `_refreshAction` per recount (layout on every change) | 0.45–0.8 s (553-object view) | 32 ms |
+
+Remaining open time (after, 12.2 s):
+- load modules 1.0–1.5 s (not in "open → shown")
+- tabs built: 1.9 s (Appearance 0.75, Layout 0.5–0.65, Properties 0.5)
+- `_syncToUI` 5.6 s: filling the widgets 3.9 s (step blocks 2.0, the rest not split), the one deferred layout 1.7 s
+- the final recount 2.0 s: counts 1.4 s, counters on the widgets 0.5 s
+- end of `createDialogArea` → shown 3.4 s (JFace: initial size, layout, first paint)
+
+Next candidates: fix 2 and the per-condition counts (§ Proposal 2, 3) for the 1.4 s; the 3.4 s after `createDialogArea` and the 1.9 s of filling widgets outside the step blocks are not split yet.
 
 ## When the dialog needs what
 
@@ -68,7 +129,7 @@ Conclusions:
 Not proposed:
 - Layout condition counts only when the Layout tab is shown: −140 ms per change on other tabs, but needs a stale flag and a tab listener; reconsider after 2 and 3.
 - Lazy Appearance / Properties tabs: see the conclusions above.
-- Fewer layouts (`requestLayout` instead of `layout(true, true)`): ≈ 30 ms per change after fix 1; a GTK layout risk for little gain.
+- Fewer layouts: rejected on the Linux numbers (≈ 30 ms per change); applied after the Windows numbers, see § After fix 1 and fewer layouts.
 - Bundling or minifying modules: load is 0.4 s of 4 s, and parsing stays.
 - Windows: first try a Defender exclusion for the `Scripts/` folder (no code). Then compare the measuring script on Windows against these numbers.
 
@@ -99,7 +160,7 @@ The CLI quirks found, to note in the jarchi-scripting skill § Running headless:
 ## Steps after approval
 
 1. Done: `tools/gui_timing.ajs` replaces the in-code instrumentation.
-2. Fix 1; measure (command line, large view); the user checks in Archi: open, preset load, add / remove step.
+2. Done: fix 1 and fewer layouts; measured (command line, *GEMMA domeinen*); the user checks in Archi: open, preset load, add / move / remove step, a condition change.
 3. Fix 2; `counts_test.js`, typecheck, measure.
 4. The "GUI — before dialog" log fix.
 5. With the Windows numbers (Handoff): decide on 3 and the not-proposed items.

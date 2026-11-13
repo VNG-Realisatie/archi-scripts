@@ -151,6 +151,10 @@ declare namespace Swt {
     getLayout(): GridLayout;
     setLayout(layout: GridLayout | RowLayout): void;
     layout(changed: boolean, all: boolean): void;
+    /** Lays out only the changed controls and their ancestors, up to this composite (a Java array: `Java.to`). */
+    layout(changed: Control[]): void;
+    /** While true, layout requests are held; setting false again runs one layout. Calls nest. */
+    setLayoutDeferred(defer: boolean): void;
     setBackgroundMode(mode: number): void;
   }
 

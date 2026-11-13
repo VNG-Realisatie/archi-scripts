@@ -133,7 +133,7 @@ function buildSelectionTab(tabFolder, ctx, selectedCount, containingCount) {
   btnAddBlock.setText("+ Add step");
   btnAddBlock.setToolTipText("Each step builds on the previous selection.");
   GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).applyTo(btnAddBlock);
-  btnAddBlock.addListener(SWT.Selection, () => addRelatedBlock(ctx));
+  btnAddBlock.addListener(SWT.Selection, () => { addRelatedBlock(ctx); ctx.recount(); });
 
   finish();
 }
@@ -162,7 +162,7 @@ function _stepPropObjects(b, condition) {
 
 // ── Expand selection: step blocks ─────────────────────────────────────────────
 
-// Append a new step block.
+// Append a new step block; the caller recounts (once, after all blocks of a preset).
 // stepData (optional): { name, repeat, conditions } from a preset to restore.
 /**
  * @param {DialogContext} ctx
@@ -259,7 +259,6 @@ function addRelatedBlock(ctx, stepData) {
   btnRemove.addListener(SWT.Selection, () => _removeRelatedBlock(ctx, blockObj));
 
   _renumberAndReorderRelBlocks(ctx);
-  ctx.recount();
   Widgets.resizeScrolled(ctx.selectionScrolled, ctx.selectionPage);
 }
 
