@@ -694,9 +694,12 @@ function openListPopup(control, cell, labels, selected, choose) {
   if (selected >= 0) { list.setSelection(selected); list.showSelection(); }
 
   const close = () => { if (!popup.isDisposed()) popup.dispose(); };
-  const pick = () => { const i = list.getSelectionIndex(); close(); if (i >= 0) choose(i); };
+  // Once: on GTK Enter gives both the KeyDown and DefaultSelection.
+  const pick = () => { if (popup.isDisposed()) return; const i = list.getSelectionIndex(); close(); if (i >= 0) choose(i); };
   list.addListener(SWT.MouseUp, e => { if (e.button === 1 && list.getSelectionIndex() >= 0) pick(); });
   list.addListener(SWT.DefaultSelection, pick);
+  // Win32 sends DefaultSelection on a double click only; Enter is matched on e.character (SWT.CR is a Java char).
+  list.addListener(SWT.KeyDown, e => { if (String(e.character) === "\r") pick(); });
   list.addListener(SWT.Traverse, e => { if (e.detail === SWT.TRAVERSE_ESCAPE) { e.doit = false; close(); } });
   popup.addListener(SWT.Deactivate, close);
 

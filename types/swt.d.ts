@@ -30,7 +30,7 @@ declare namespace Swt {
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
     readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number; readonly Dispose: number;
     readonly MouseDown: number; readonly MouseDoubleClick: number; readonly Deactivate: number;
-    readonly MouseMove: number; readonly MeasureItem: number; readonly EraseItem: number; readonly PaintItem: number;
+    readonly MouseMove: number; readonly MouseExit: number; readonly MeasureItem: number; readonly EraseItem: number; readonly PaintItem: number;
     // owner-draw details (EraseItem)
     readonly SELECTED: number; readonly HOT: number; readonly FOCUSED: number; readonly FOREGROUND: number; readonly BACKGROUND: number;
     // key codes

@@ -43,6 +43,7 @@ const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
 const TableWidget       = Java.type("org.eclipse.swt.widgets.Table");
 const TableColumnWidget = Java.type("org.eclipse.swt.widgets.TableColumn");
 const TableItemWidget   = Java.type("org.eclipse.swt.widgets.TableItem");
+const ToolTipWidget     = Java.type("org.eclipse.swt.widgets.ToolTip");
 const RowLayout         = Java.type("org.eclipse.swt.layout.RowLayout");
 const SWTGC             = Java.type("org.eclipse.swt.graphics.GC");
 const SWTPoint          = Java.type("org.eclipse.swt.graphics.Point");
@@ -57,6 +58,8 @@ const ARROW      = "▾";  // marks a cell that opens a list
 const HEADER_PAD = 6;    // px a header keeps beside its text
 const DEL_WIDTH  = 28;   // the ✕ column
 const DEL_TIP    = "Remove this condition.";
+const TIP_DELAY  = 500;  // ms the mouse rests on a cell before its tooltip shows
+const TIP_OFFSET = 20;   // px between the mouse and the tooltip below it
 /** Column width when the column gives none. */
 const WIDTH_BY_KIND = { check: 44, count: 36, warn: 24, prop: 100, value: 100, choice: 150, color: 150 };
 
@@ -105,7 +108,8 @@ function conditionTable(parent, opts) {
   const cursor   = { row: 0, col: 0 };   // the cell with the keyboard focus; col === vcols.length is ✕
   /** @type {Swt.Menu | null} */
   let colorMenu  = null;
-  let tipShown   = "";
+  let tipCell    = "";   // "row:col" of the cell under the mouse, "" outside the cells
+  let tipClicked = false;   // that cell was clicked: its tooltip stays hidden
 
   const outer = new CompositeWidget(parent, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 3).applyTo(outer);
@@ -444,21 +448,43 @@ function conditionTable(parent, opts) {
   // silent: the menu may be disposed already, with the dialog
   table.addListener(SWT.Dispose, () => { if (colorMenu) { try { colorMenu.dispose(); } catch (e) {} } });
 
-  // The tooltip follows the cell under the mouse: the column's, the row's on the first cell, the
-  // warning's on ⚠; set only when it changes, or the tooltip never shows.
+  // The tooltip of the cell under the mouse: the column's, the row's on the first cell, the warning's
+  // on ⚠. A table's own tooltip does not show over its rows on Win32, so the table shows a ToolTip of
+  // its own once the mouse rests on a cell; the column headers keep their native tooltips.
+  /** @param {{ row: number, col: number }} cell */
+  const cellTip = cell => {
+    const condition = conditions[cell.row];
+    const col = cell.col < vcols.length ? vcols[cell.col] : null;
+    if (!condition) return "";
+    if (!col) return DEL_TIP;
+    if (col.kind === "warn") return warnings.get(cell.row) || "";
+    if (cell.col === 0 && opts.rowTooltip) return opts.rowTooltip(condition);
+    return col.tooltip || "";
+  };
+  const tip = new ToolTipWidget(table.getShell(), SWT.NONE);
+  const hideTip = () => { if (!tip.isDisposed()) tip.setVisible(false); };
   table.addListener(SWT.MouseMove, e => {
     const cell = cellAt(e.x, e.y);
-    let tip = "";
-    if (cell) {
-      const condition = conditions[cell.row];
-      const col = cell.col < vcols.length ? vcols[cell.col] : null;
-      if (!col) tip = DEL_TIP;
-      else if (col.kind === "warn") tip = warnings.get(cell.row) || "";
-      else if (cell.col === 0 && opts.rowTooltip) tip = opts.rowTooltip(condition);
-      else tip = col.tooltip || "";
-    }
-    if (tip !== tipShown) { tipShown = tip; table.setToolTipText(tip); }
+    const key = cell ? `${cell.row}:${cell.col}` : "";
+    if (key === tipCell) return;
+    tipCell = key;
+    tipClicked = false;
+    hideTip();
+    if (!cell) return;
+    const at = table.toDisplay(e.x, e.y);
+    table.getDisplay().timerExec(TIP_DELAY, () => {
+      if (table.isDisposed() || tipCell !== key || tipClicked) return;
+      const text = cellTip(cell);
+      if (!text) return;
+      tip.setMessage(text);
+      tip.setLocation(at.x, at.y + TIP_OFFSET);
+      tip.setVisible(true);
+    });
   });
+  table.addListener(SWT.MouseExit, () => { tipCell = ""; hideTip(); });
+  // A click edits the cell: no tooltip over its list or menu until the mouse moves to another cell.
+  table.addListener(SWT.MouseDown, () => { tipClicked = true; hideTip(); });
+  table.addListener(SWT.Dispose, () => tip.dispose());
 
   // ── Structure ─────────────────────────────────────────────────────────────────
 
