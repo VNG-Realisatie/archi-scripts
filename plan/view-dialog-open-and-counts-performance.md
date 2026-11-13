@@ -1,6 +1,6 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1 and fewer layouts committed (903556b) after the user's check in Archi. Next: the "GUI — before dialog" log fix, then fix 2.
+Status: in progress 2026-11-13. Fix 1 and fewer layouts committed (a0f1933) after the user's check in Archi. Next: the "GUI — before dialog" log fix, then fix 2.
 
 ## Handoff
 
@@ -94,6 +94,8 @@ Windows command line, GEMMA model (`gemma-archi-repository`), its largest view *
 | `addRelatedBlock` ×4 | 13.2 s | 1.8–2.0 s |
 | `dialogCounts` while opening | 5 calls, 3.8 s | 1 call, 1.4 s |
 | `_refreshAction` per recount (layout on every change) | 0.45–0.8 s (553-object view) | 32 ms |
+
+Linux command line, same check as § Measurements (view of 972 objects): open → shown 3.5–3.7 s → 2.3 s; `addRelatedBlock` ×3 1.7 s → 62 ms; one `dialogCounts` while opening (833 ms, the first call).
 
 Remaining open time (after, 12.2 s):
 - load modules 1.0–1.5 s (not in "open → shown")
