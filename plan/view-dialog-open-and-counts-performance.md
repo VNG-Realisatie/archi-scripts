@@ -1,12 +1,12 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1 and fewer layouts committed (a0f1933) after the user's check in Archi. Next: the "GUI — before dialog" log fix, then fix 2.
+Status: in progress 2026-11-13. Fix 1 and fewer layouts committed (a0f1933) after the user's check in Archi; the "GUI — before dialog" log fix (2bda5d5) and fix 2 committed. Next: the user checks fix 2 in Archi (Layout tab counts); then split the remaining open time on Windows.
 
 ## Handoff
 
 Done: Windows measured (command line); fix 1 and fewer layouts applied (`tab_selection.js`, `dialog_main.js`, `types/swt.d.ts`), typecheck passes. Open → shown on *GEMMA domeinen* 24.3 → 12.9 s.
 
-Checked by the user in Archi; committed. Next: the "GUI — before dialog" log fix (Steps 4), then decide on fix 2 and the remaining open time (§ After fix 1 and fewer layouts).
+Checked by the user in Archi; committed. Log fix and fix 2 done (§ Fix 2). Next: the user checks the Layout tab counts in Archi; then split the 3.9 s of filling widgets and the 3.4 s after `createDialogArea` on Windows (§ After fix 1 and fewer layouts).
 
 Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun; only module load (1–2 s here vs 0.4 s on Linux) is expected to change.
 
@@ -104,7 +104,13 @@ Remaining open time (after, 12.2 s):
 - the final recount 2.0 s: counts 1.4 s, counters on the widgets 0.5 s
 - end of `createDialogArea` → shown 3.4 s (JFace: initial size, layout, first paint)
 
-Next candidates: fix 2 and the per-condition counts (§ Proposal 2, 3) for the 1.4 s; the 3.4 s after `createDialogArea` and the 1.9 s of filling widgets outside the step blocks are not split yet.
+Next candidates: the per-condition counts (§ Proposal 3) for the 1.4 s; the 3.4 s after `createDialogArea` and the 1.9 s of filling widgets outside the step blocks are not split yet.
+
+## Fix 2
+
+`dialogCounts` splits and resolves the nesting once and passes it to the totals (`Nesting.countView`, the counting part of `predictViewCounts`, which the pipeline keeps calling) and to `layoutConditionCounts`. The Layout tab counts now resolve on the laid-out elements (`onView`), as the writer does (`docs/reference/gui.md` § Relation counters already says so); before they used every element, also those only inside a diagram-block. Node tests (`counts_test`, `nesting_test`, `compose_test`) unchanged.
+
+Linux command line, view of 972 objects: one `dialogCounts` while opening 833 → 805 ms (split 48 + resolve 70 ms once instead of twice); open → shown 2.3 → 2.15 s. On Windows a fraction of the 1.4 s counts.
 
 ## When the dialog needs what
 
@@ -163,6 +169,6 @@ The CLI quirks found, to note in the jarchi-scripting skill § Running headless:
 
 1. Done: `tools/gui_timing.ajs` replaces the in-code instrumentation.
 2. Done: fix 1 and fewer layouts; measured (command line, *GEMMA domeinen*); the user checks in Archi: open, preset load, add / move / remove step, a condition change.
-3. Fix 2; `counts_test.js`, typecheck, measure.
-4. The "GUI — before dialog" log fix.
+3. Done: fix 2; Node tests, typecheck, measured. The user checks the Layout tab counts in Archi.
+4. Done: the "GUI — before dialog" log fix (`CountRow` fields typed, so an unknown key fails the typecheck).
 5. With the Windows numbers (Handoff): decide on 3 and the not-proposed items.

@@ -67,7 +67,7 @@ const MEASURED = {
   "View/lib/gui/widgets.js":        ["resizeScrolled"],
   "View/lib/gui/counts.js":         ["dialogCounts"],
   "View/lib/selection_pipeline.js": ["findRelationsBetween", "expandStepWithRelations", "composeObjectSet"],
-  "View/lib/nesting.js":            ["splitNestingRels", "resolveNesting", "predictViewCounts"],
+  "View/lib/nesting.js":            ["splitNestingRels", "resolveNesting", "predictViewCounts", "countView"],
 };
 for (const [m, names] of Object.entries(MEASURED)) {
   const mod = mods[m];

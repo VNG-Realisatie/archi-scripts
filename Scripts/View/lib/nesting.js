@@ -539,9 +539,24 @@ function splitNestingRels(relations, params) {
  * @returns {ViewCounts}
  */
 function predictViewCounts(elements, relations, diagram, params, algorithm, visuals, joinRun) {
-  const { nestingRels, connectionRels } = splitNestingRels(relations, params);
-  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels, deepNestingRels } =
-    resolveNesting(elements, nestingRels, params, algorithm, visuals, joinRun);
+  const split = splitNestingRels(relations, params);
+  const nesting = resolveNesting(elements, split.nestingRels, params, algorithm, visuals, joinRun);
+  return countView(elements, relations, diagram, algorithm, split.connectionRels, nesting);
+}
+
+/**
+ * The counts of predictViewCounts from a nesting already resolved: a caller that needs the nesting
+ * itself too (the dialog's Layout tab counts) resolves it once.
+ * @param {ArchiElement[]}    elements
+ * @param {ArchiRelation[]}   relations
+ * @param {{ objects: number, connections: number, elements: number }} diagram  as predictViewCounts
+ * @param {string}            algorithm       ALGORITHMS key: its self-loops
+ * @param {ArchiRelation[]}   connectionRels  splitNestingRels(relations, …).connectionRels
+ * @param {NestingResolution} nesting         resolveNesting(elements, …) of the same relations
+ * @returns {ViewCounts}
+ */
+function countView(elements, relations, diagram, algorithm, connectionRels, nesting) {
+  const { parentMap, occurrenceMap, parentRels, notNestedNestingRels, circularNestingRels, deepNestingRels } = nesting;
   const drawn = ALGORITHMS[algorithm].supportsSelfLoops
     ? (/** @type {ArchiRelation[]} */ list) => list.length
     : (/** @type {ArchiRelation[]} */ list) => list.filter(r => !(r.source && r.target && r.source.id === r.target.id)).length;
@@ -603,4 +618,5 @@ module.exports = {
   managedRecords,
   nestingConnections,
   predictViewCounts,
+  countView,
 };

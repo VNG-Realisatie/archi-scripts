@@ -98,11 +98,12 @@ function dialogCounts(input) {
     connections: Pipeline.countDiagramConnections(diagramConnections, diagramNodes, onView, inBlock),
     elements:    onlyInBlocks.size,
   };
+  // The nesting is resolved once, for the totals and the Layout tab's counts.
   const joinRun = Pipeline.joinRuns(hops);
-  const view = Nesting.predictViewCounts(onView, finalRels, diagram, input.params, input.algorithm, input.visuals, joinRun);
-  const layoutConditions = input.layoutConditions
-    ? layoutConditionCounts(input.layoutConditions, cumulative, finalRels, input.params, input.algorithm, input.visuals, joinRun)
-    : null;
+  const split   = Nesting.splitNestingRels(finalRels, input.params);
+  const nesting = Nesting.resolveNesting(onView, split.nestingRels, input.params, input.algorithm, input.visuals, joinRun);
+  const view = Nesting.countView(onView, finalRels, diagram, input.algorithm, split.connectionRels, nesting);
+  const layoutConditions = input.layoutConditions ? layoutConditionCounts(input.layoutConditions, finalRels, nesting) : null;
 
   // Expand view: composed by the pipeline itself from what it read before the dialog opened.
   const expandView = input.expandSnapshot
@@ -244,17 +245,11 @@ function featureConditionCounts(conditions, relations, nestedIds) {
  * The counts of the Layout tab's nesting and reverse tables, and the nesting relations that are
  * drawn as a line, on the predicted view.
  * @param {{ nesting: RelationCondition[], reverse: RelationCondition[] }} tables  the rows as shown
- * @param {ArchiElement[]}      elements
- * @param {ArchiRelation[]}     relations
- * @param {EffectiveParams}     params
- * @param {string}              algorithm
- * @param {VisualDescription[]} visuals
- * @param {Map<string, number>} joinRun  element id → the run it joined the object set in (joinRuns)
+ * @param {ArchiRelation[]}    relations  the predicted view's relations
+ * @param {NestingResolution}  nest       their nesting (Nesting.resolveNesting)
  * @returns {LayoutConditionCounts}
  */
-function layoutConditionCounts(tables, elements, relations, params, algorithm, visuals, joinRun) {
-  const split = Nesting.splitNestingRels(relations, params);
-  const nest  = Nesting.resolveNesting(elements, split.nestingRels, params, algorithm, visuals, joinRun);
+function layoutConditionCounts(tables, relations, nest) {
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
   const loops = nest.notNestedNestingRels.filter(r => r.source && r.target && r.source.id === r.target.id).length;
   return {
