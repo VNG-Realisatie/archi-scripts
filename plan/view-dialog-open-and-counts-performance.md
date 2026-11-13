@@ -1,6 +1,6 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run and split on both machines: the Windows cost is widget filling and layout (§ Linux against Windows per part). Next: the SWT micro-benchmark on Windows (§ Handoff), then the user chooses the next fix; the user's check of the Layout tab counts in Archi is still open.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run and split on both machines: the Windows cost is widget filling and layout (§ Linux against Windows per part). Next: the SWT micro-benchmark on Windows (§ Handoff), then the user chooses the next fix.
 
 ## Handoff
 
@@ -18,8 +18,6 @@ Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). 
    Add the Windows numbers next to the Linux ones in § SWT micro-benchmark (the third round of each line; the first warms up).
 4. Under § SWT micro-benchmark, name the line(s) that are far slower than on Linux, and the dialog code that does the same (combo filling: `condition_table.js` `comboItems` / `fillList`, `tab_layout.js` `_setComboItems`, `dialog_main.js` `_paramToWidget`; natural sizes: `widgets.js` `alignFormColumns`, `resizeScrolled`).
 5. Commit only this plan (`docs(plan): …`, no co-author line, AGENTS.md hard rule 4) and push.
-
-Still open for the user: the check of the Layout tab counts in Archi (fix 2): open the dialog on a selection with nesting conditions and compare the Nesting / Reverse counts with a run before 53af7de.
 
 Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun step 2; only module load (1.4–1.6 s there vs 0.36 s on Linux) is expected to change.
 
@@ -222,6 +220,20 @@ On Linux no line stands out: `setItems` and a width hint gain little. The candid
 `dialogCounts` splits and resolves the nesting once and passes it to the totals (`Nesting.countView`, the counting part of `predictViewCounts`, which the pipeline keeps calling) and to `layoutConditionCounts`. The Layout tab counts now resolve on the laid-out elements (`onView`), as the writer does (`docs/reference/gui.md` § Relation counters already says so); before they used every element, also those only inside a diagram-block. Node tests (`counts_test`, `nesting_test`, `compose_test`) unchanged.
 
 Linux command line, view of 972 objects: one `dialogCounts` while opening 833 → 805 ms (split 48 + resolve 70 ms once instead of twice); open → shown 2.3 → 2.15 s. On Windows a fraction of the 1.4 s counts.
+
+### Fix 2 checked
+
+The Layout tab counts of the code before (`53af7de^`, a worktree) and after, in Node (the dialog's counting, as `counts_test.js` reads a view selected in the model tree), for every view of three models:
+
+| Model · presets | View × preset | With nesting counts | Different |
+|---|---|---|---|
+| test model · `Test/baseline/baseline` | 19 (8 with diagram-blocks) | – | 0 |
+| Bestuurscontext · Capability, Bedrijfsservice, Principe | 7 026 (no diagram-blocks) | 6 294 | 0 |
+| GEMMA · Capability, publicerenApplicatieServices, TAenIA | 1 299 (108 with diagram-blocks) | 410 | 18 |
+
+All 18 differences: a view with a diagram-block whose elements are in nesting relations; the totals are unchanged and only *Nested* and the multi-parent note change. Before, *Nested* counted nestings the totals did not have (*Beheerview kennismodel*: 98 nested against 0 nestings in the totals); now the two agree, as the writer draws it.
+
+Found: those relations are counted in the note as "drawn as a line: the child already has a parent", but the reason is that an end sits only inside a diagram-block (`resolveNesting` puts a relation whose end is not laid out in `notNestedNestingRels`, `nesting.js`). A wrong reason in a note, rare (views with nesting relations into a diagram-block); a separate fix (its own count and sentence), after the user's choice.
 
 ## When the dialog needs what
 
