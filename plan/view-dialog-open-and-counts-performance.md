@@ -1,10 +1,12 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run and split on both machines: the Windows cost is widget filling and layout (§ Linux against Windows per part). Next: the SWT micro-benchmark on Windows (§ Handoff), then the user chooses the next fix.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run and split on both machines; SWT micro-benchmark on both: on Windows every combo costs 20–30× (§ SWT micro-benchmark). Next: the user chooses the next fix.
 
 ## Handoff
 
 Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Windows comparable run and split done (25b3e7e); Linux measured the same view and split (§ Comparable run, § Linux against Windows per part). Finding: plain JavaScript is ≈ 3× slower on Windows, widget filling and layout 12–27×. Which SWT call causes it is open: `tools/swt_timing.ajs` measures it in isolation.
+
+Windows session done (steps 1–5 below): § Comparable run (the Linux id is a local view; Windows id given), § SWT micro-benchmark (Windows column and conclusion). Next: the user chooses among fewer combos at open (lazy step bodies, lazy tabs, items filled on opening a combo) and `setItems` (small gain).
 
 Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). Measure and report, change no code.
 
@@ -42,6 +44,8 @@ Windows (Git Bash; `archi_cli.sh` is Linux only), on a copy of the model:
       --loadModel <copy> --script.runScript "$(pwd -W)/Scripts/View/tools/gui_timing.ajs" > gui_timing.txt 2>&1
 
 Run it twice (the first run of a session can be slower) and keep both.
+
+Windows, by id (2026-11-13): `id-ba72ad08…` is not in the Windows clone (0 objects selected): it is one of the two views generated locally on Linux under `_Generated`. The Windows view *GEMMA domeinen* is the original, `id-1b4f4bbfef5c43f49340bd4f71733d70` under `Views/…/Domein en doelgroep/Domeinen`, also 1 613 objects. So Linux and Windows measure two views with the same object count, not the same view; for one view on both, select `id-1b4f4bbfef5c43f49340bd4f71733d70` on Linux too. One run by that id: load 0.95 s, tabs 0.09 · 0.46 · 0.60 · 0.48 s, `addRelatedBlock` ×4 0.97 s, `dialogCounts` 0.91 s, open → shown 8.5 s; the whole machine was ≈ 30 % faster than in the earlier runs (load 0.95 against 1.4–1.6 s), so the table keeps the earlier runs. With nothing selected (the unknown id) open → shown is still 6.7 s on Windows: most of the open time does not depend on the selection.
 
 Both columns: the view by id, 1 613 objects (Windows by name, which there is the same view); three runs on Linux, two on Windows.
 
@@ -199,21 +203,34 @@ Conclusion: plain JavaScript (counts, module load) is 2.5–4× slower on Window
 
 `Scripts/View/tools/swt_timing.ajs`: 40 read-only combos × 60 items in an unshown shell, three rounds per line (ms per round; the first warms up), each way of filling and sizing, and labels as a baseline.
 
-| Line | Linux | Windows |
-|---|---|---|
-| create combos (empty) | 35 · 17 · 14 | |
-| create + fill item by item (add loop) | 63 · 52 · 46 | |
-| create + fill with setItems | 43 · 41 · 40 | |
-| refill: removeAll + add loop | 82 · 77 · 77 | |
-| refill: setItems | 75 · 72 · 72 | |
-| computeSize(DEFAULT) per filled combo | 89 · 88 · 86 | |
-| computeSize(hint) per filled combo | 87 · 85 · 87 | |
-| layout, filled combos without width hint | 164 · 163 · 163 | |
-| layout, filled combos with width hint | 142 · 141 · 143 | |
-| baseline: create labels + setText + layout | 9 · 7 · 7 | |
-| baseline: 2 400 JS → Java calls | 5 · 2 · 2 | |
+| Line | Linux | Windows (run 1 / run 2) | Factor (third round) |
+|---|---|---|---|
+| create combos (empty) | 35 · 17 · 14 || 334 · 289 · 292 / 324 · 272 · 301 | 20× |
+| create + fill item by item (add loop) | 63 · 52 · 46 || 1342 · 1380 · 1415 / 1306 · 1254 · 1244 | 27–31× |
+| create + fill with setItems | 43 · 41 · 40 || 1770 · 977 · 1054 / 1009 · 1065 · 1074 | 26–27× |
+| refill: removeAll + add loop | 82 · 77 · 77 || 2280 · 2329 · 2306 / 2062 · 2052 · 2029 | 26–30× |
+| refill: setItems | 75 · 72 · 72 || 1813 · 1993 · 1917 / 1694 · 1770 · 1803 | 25–27× |
+| computeSize(DEFAULT) per filled combo | 89 · 88 · 86 || 1110 · 1105 · 1187 / 967 · 980 · 1052 | 12–14× |
+| computeSize(hint) per filled combo | 87 · 85 · 87 || 1114 · 1099 · 1083 / 1050 · 988 · 1070 | 12× |
+| layout, filled combos without width hint | 164 · 163 · 163 || 1297 · 1259 · 1268 / 1153 · 1237 · 1234 | 8× |
+| layout, filled combos with width hint | 142 · 141 · 143 || 1194 · 1311 · 1241 / 1168 · 1179 · 1188 | 8× |
+| baseline: create labels + setText + layout | 9 · 7 · 7 || 82 · 50 · 43 / 47 · 53 · 46 | 6–7× |
+| baseline: 2 400 JS → Java calls | 5 · 2 · 2 || 7 · 8 · 7 / 13 · 4 · 3 | 2–4× |
 
 On Linux no line stands out: `setItems` and a width hint gain little. The candidate fix follows from the Windows column: `setItems` instead of the add loop (4 places, a few lines each, low risk), width hints where `computeSize(DEFAULT)` is asked, or fewer combos (lazy tabs / step bodies).
+
+Windows (2026-11-13, two runs, `Archi.exe` command line): every combo line is far slower, not one way of filling or sizing. Per read-only combo with 60 items, third round:
+- creating it, empty: ≈ 7 ms (Linux 0.35 ms), 20×
+- filling it: ≈ 25 ms item by item, ≈ 19 ms with `setItems` (Linux ≈ 0.8 ms); refilling (`removeAll` first) ≈ 50 ms either way, 25–30×
+- `computeSize`, with or without a width hint: ≈ 27 ms, 12–14×
+- `layout`: ≈ 30 ms, with or without a width hint, 8×
+- labels (create, `setText`, layout): 6–7×; plain JS → Java calls: no real difference.
+
+So the cost is per combo and per item on Win32, whatever the API: `setItems` gains ≈ 20 % of the fill (create + fill 1.05 against 1.24–1.42 s), refill ≈ 10 %, and a width hint nothing. Dialog code doing the same:
+- combo filling: `condition_table.js` `comboItems` / `fillList` (every condition row, filter, step, nesting, style tables), `tab_layout.js` `_setComboItems`, `dialog_main.js` `_paramToWidget`: the fill and refill lines (25–30×), matching "Fill: filter tables / step blocks / layout params" (12–17×) in § Linux against Windows per part;
+- natural sizes: `widgets.js` `alignFormColumns`, `resizeScrolled`: the `computeSize` line (12–14×), and the deferred layout (27× in the dialog, 8× here).
+
+Consequence for the candidates: `setItems` alone is a small gain (≈ 20 % of fill time, a few lines, low risk). The real gain is fewer combos or fewer items at open: lazy step bodies and lazy tabs (§ Remaining open time, split), or filling a combo's item list only when it is opened (one mechanism in `condition_table.js`, fewer items to measure and lay out). Not measured: how `computeSize` and `layout` scale with the item count (the benchmark uses 60 items only).
 
 ## Fix 2
 
