@@ -4,11 +4,24 @@ Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 comm
 
 ## Handoff
 
-Done: Windows measured (command line); fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed, typecheck and Node tests pass. Open → shown on *GEMMA domeinen*, Windows: 24.3 → 12.9 s (before fix 2, session preset).
+Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Windows before fix 2 (session preset): open → shown on *GEMMA domeinen* 24.3 → 12.9 s.
 
-Next on Windows: one comparable run (§ Comparable run), result into § Comparable run's table, then split the remaining open time. The user also checks the Layout tab counts in Archi (fix 2).
+Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). Measure and report, change no code; a fix comes after the user's choice.
 
-Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun; only module load (1–2 s there vs 0.4 s on Linux) is expected to change.
+1. `git pull`. Find the GEMMA model (`gemma-archi-repository`, the coArchi clone; its path is in Archi's `models.xml`) and copy its `.archimate` to a scratch folder.
+2. Comparable run, twice (§ Comparable run, Windows command). Check the `Measured:` line; fill the Windows column of the table there; note a different selection or object count.
+3. Split the remaining open time. `gui_timing.ajs` does not see private functions, so add temporary `Date.now()` timing, logged once after the dialog closes (console output inside the dialog is unreliable), in `dialog_main.js`:
+   - `_fillWidgets`, per section: layout params, filter tables, step blocks, view name, appearance tables, `updateNestingLevelState`, `updateAppearancePropStates`, `TabProperties.syncToUI`;
+   - `_syncToUI`: the deferred layout when `setLayoutDeferred(false)` releases it;
+   - the final recount: `_countInput`, `dialogCounts`, `_showCounts`, `_refreshAction`;
+   - the end of `createDialogArea` → shown, split by wrapping JFace's `getInitialSize`, `getInitialLocation` and the first paint (`SWT.Paint` listener on the shell).
+   Run twice with the comparable run's command, then revert the timing (`git checkout`).
+4. Write the numbers into this plan: the table in § Comparable run and a list under § After fix 1 and fewer layouts › Remaining open time, with the largest parts first and a candidate fix per part (gain, lines of code, risk).
+5. Commit only this plan (`docs(plan): …`, no co-author line, AGENTS.md hard rule 4) and push.
+
+The user also checks the Layout tab counts in Archi (fix 2): open the dialog on a selection with nesting conditions and compare the Nesting / Reverse counts with a run before 53af7de.
+
+Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun step 2; only module load (1–2 s there vs 0.4 s on Linux) is expected to change.
 
 ## Comparable run
 
