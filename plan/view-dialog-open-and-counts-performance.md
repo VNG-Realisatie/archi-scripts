@@ -1,16 +1,44 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1 and fewer layouts committed (a0f1933) after the user's check in Archi; the "GUI — before dialog" log fix (2bda5d5) and fix 2 committed. Next: the user checks fix 2 in Archi (Layout tab counts); then split the remaining open time on Windows.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Next: a comparable run on Windows (§ Comparable run) and the user's check of the Layout tab counts in Archi; then split the remaining open time.
 
 ## Handoff
 
-Done: Windows measured (command line); fix 1 and fewer layouts applied (`tab_selection.js`, `dialog_main.js`, `types/swt.d.ts`), typecheck passes. Open → shown on *GEMMA domeinen* 24.3 → 12.9 s.
+Done: Windows measured (command line); fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed, typecheck and Node tests pass. Open → shown on *GEMMA domeinen*, Windows: 24.3 → 12.9 s (before fix 2, session preset).
 
-Checked by the user in Archi; committed. Log fix and fix 2 done (§ Fix 2). Next: the user checks the Layout tab counts in Archi; then split the 3.9 s of filling widgets and the 3.4 s after `createDialogArea` on Windows (§ After fix 1 and fewer layouts).
+Next on Windows: one comparable run (§ Comparable run), result into § Comparable run's table, then split the remaining open time. The user also checks the Layout tab counts in Archi (fix 2).
 
-Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun; only module load (1–2 s here vs 0.4 s on Linux) is expected to change.
+Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun; only module load (1–2 s there vs 0.4 s on Linux) is expected to change.
 
-Command line on Windows (Git Bash), on a copy of the model: `SELECT_TYPE=view SELECT_NAME="…" CLOSE_AFTER_MS=25000 ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash --loadModel <copy> --script.runScript <abs path>/gui_timing.ajs > out.txt 2>&1`. `CLOSE_AFTER_MS` must exceed the open time, or "dialog open → shown" is not logged. A `SELECT_NAME` with "—" matches nothing (the env var loses the character): pick a name without it.
+## Comparable run
+
+Same model, selection and preset on both machines; the measuring script does the rest. The local session is not used (it differs per machine) and not changed; the dialog closes itself once shown.
+
+- Model: the GEMMA model (`gemma-archi-repository`, opened from its coArchi clone), on a copy.
+- Selection: the views named *GEMMA domeinen* (3 views in the model).
+- Preset: `Bestuurscontext/Capability` (committed; 4 steps, 4 nesting conditions, Layered).
+- The script's first line names OS, model, preset and selection: `Measured: … · selection 3 object(s), 2903 objects on its views`. A different selection or object count means a different model state: note it.
+
+Linux (`Scripts/View/tools/archi_cli.sh`):
+
+    SELECT_TYPE=view SELECT_NAME="GEMMA domeinen" PRESET="Bestuurscontext/Capability" \
+      Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_timing.ajs <copy of the GEMMA model>
+
+Windows (Git Bash; `archi_cli.sh` is Linux only), on a copy of the model:
+
+    SELECT_TYPE=view SELECT_NAME="GEMMA domeinen" PRESET="Bestuurscontext/Capability" \
+      ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash \
+      --loadModel <copy> --script.runScript "$(pwd -W)/Scripts/View/tools/gui_timing.ajs" > gui_timing.txt 2>&1
+
+Run it twice (the first run of a session can be slower) and keep both.
+
+| After fix 2 (53af7de) | Linux | Windows |
+|---|---|---|
+| Load all modules | 0.36 s | |
+| Tabs built (Selection · Layout · Appearance · Properties) | 0.03 · 0.13 · 0.25 · 0.10 s | |
+| `addRelatedBlock` ×4 | 0.10 s | |
+| `dialogCounts` ×1 | 0.71 s | |
+| Dialog open → shown | 2.9–4.0 s | |
 
 ## Goal
 
@@ -149,7 +177,7 @@ One script, `Scripts/View/tools/gui_timing.ajs`, measures the unchanged code; th
 - **Module load**: it requires the modules leaf-first, so each line costs that module alone. A module missing from the list is counted with the first one that requires it.
 - **Wraps exported functions** of the modules it loaded: the tab builders, `addRelatedBlock`, `dialogCounts`, the `selection_read` readers, `Pipeline.expandStepWithRelations` / `findRelationsBetween`, the `Nesting` functions, `PresetIO`. Module objects are shared, so every `Module.fn(…)` call goes through the wrapper. A listed name that is not a function stops the script, so a rename cannot silently drop a measurement.
 - **Dialog open → shown**: the first runnable of the dialog's event loop.
-- **Command line**: `SELECT_TYPE` / `SELECT_NAME` pick the selection (there is none there), `CLOSE_AFTER_MS` closes the dialog as its close button does (Cancel, no run).
+- **Command line**: `SELECT_TYPE` / `SELECT_NAME` pick the selection (there is none there), `PRESET` replaces the session; the dialog closes once shown, as its close button does (Cancel, no run), and the session is not saved.
 - **In Archi** (Windows): select and run it from the Scripts Manager.
 
 Limits:

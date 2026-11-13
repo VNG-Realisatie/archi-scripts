@@ -6,10 +6,14 @@
  * functions and destructured imports are not measured ("dialog open → shown" minus the measured parts).
  *
  * In Archi: select as for _gui.ajs, run this script and close the dialog with Cancel (a run would add its
- * own calls to the table).
- * Command line (no selection there): SELECT_TYPE (default "element") and SELECT_NAME pick the objects;
- * the dialog closes after CLOSE_AFTER_MS (default 4000) as its close button does: Cancel, no run.
- *   SELECT_TYPE=view SELECT_NAME="…" Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_timing.ajs <model>
+ * own calls to the table). The dialog opens on the session, as _gui.ajs does.
+ * Command line, comparable between machines (no selection there):
+ *   SELECT_TYPE  the type of the objects to select, default "element"
+ *   SELECT_NAME  their name (a "—" in it is lost on Windows: pick a name without it)
+ *   PRESET       the dialog opens on this preset instead of the session (the session differs per machine)
+ * The dialog closes as soon as it is shown, as its close button does (Cancel, no run); the session is not saved.
+ *   SELECT_TYPE=view SELECT_NAME="GEMMA domeinen" PRESET="Bestuurscontext/Capability" \
+ *     Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_timing.ajs <model>
  * Plan and reference numbers: plan/view-dialog-open-and-counts-performance.md.
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
@@ -79,13 +83,24 @@ for (const [m, names] of Object.entries(MEASURED)) {
   }
 }
 
+const selectName = System.getenv("SELECT_NAME");
+const commandLine = !!selectName;
+const presetName = System.getenv("PRESET");
+const PresetIO = mods["View/lib/preset_io.js"];
+if (presetName) PresetIO.readSession = () => Object.assign(PresetIO.readPreset(String(presetName)), { name: String(presetName) });
+if (commandLine) PresetIO.writeSession = () => {};   // the measurement leaves the session as it was
+
 // Dialog open → shown: the first runnable of the dialog's event loop, queued when the last tab is built.
+// Command line: then close it as its close button does (Cancel).
 let tOpen = 0;
 const TabProperties = mods["View/lib/gui/tab_properties.js"];
 const buildPropertiesTab = TabProperties.buildPropertiesTab;
 TabProperties.buildPropertiesTab = function (/** @type {any} */ tabFolder, /** @type {any} */ ctx) {
   const r = buildPropertiesTab(tabFolder, ctx);
-  tabFolder.getDisplay().asyncExec(() => record("dialog open → shown", Date.now() - tOpen));
+  tabFolder.getDisplay().asyncExec(() => {
+    record("dialog open → shown", Date.now() - tOpen);
+    if (commandLine) for (const sh of Display.getDefault().getShells()) if (sh.getData()) sh.close();
+  });
   return r;
 };
 
@@ -93,15 +108,15 @@ const Common = mods["_lib/Common.js"];
 Common.initConsoleLog(__FILE__, true);
 
 let uiSelection = $(selection);
-const selectName = System.getenv("SELECT_NAME");
-if (selectName) {   // command line: no selection and no workbench shell
+if (commandLine) {   // no selection and no workbench shell
   uiSelection = $(String(System.getenv("SELECT_TYPE") || "element")).filter(o => o.name === String(selectName));
   globalThis.shell = null;
-  Display.getDefault().timerExec(Number(System.getenv("CLOSE_AFTER_MS") || 4000), () => {
-    for (const sh of Display.getDefault().getShells()) if (sh.getData()) sh.close();   // as the close button: Cancel
-  });
 }
-console.log(`Selection: ${uiSelection.size()} object(s)`);
+/** @type {number} */
+let objectsOnViews = 0;
+uiSelection.filter("archimate-diagram-model").each(v => { objectsOnViews += $(v).find().size(); });
+console.log(`Measured: ${System.getProperty("os.name")} · model "${model.name}" · preset ${presetName ? `"${presetName}"` : "session"}`
+  + ` · selection ${uiSelection.size()} object(s)${objectsOnViews ? `, ${objectsOnViews} objects on its views` : ""}`);
 
 tOpen = Date.now();
 try { mods["View/lib/gui/dialog_main.js"].open(uiSelection); }
