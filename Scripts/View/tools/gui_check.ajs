@@ -1,0 +1,292 @@
+/**
+ * Drive the View dialog with real OS input and screenshot the screen after each action: a dialog check
+ * the agent runs itself, judged on the screenshots and the console. Opens the dialog as _gui.ajs does,
+ * runs one suite of steps once it is shown, then closes it as its close button does (Cancel, no run);
+ * the session is not saved. Method and judging: skill view-testing, § Dialog check.
+ *
+ * Environment:
+ *   SELECT_ID  the object to select, by id (the command line has no selection)
+ *   PRESET     the dialog opens on this preset instead of the session
+ *   SHOTS      folder for the screenshots (NN_<name>.png), must exist
+ *   SUITE      the steps to run, default "tables" (the condition-table checklist)
+ * Each key logs the control that has the focus ("key … → focus List"), so a key that went elsewhere shows.
+ *
+ * Do not touch mouse or keyboard while it runs: the input is posted to the desktop (Display.post).
+ * Windows (Git Bash), on a copy of the model:
+ *   SELECT_ID=… PRESET="Bestuurscontext/Capability" SHOTS=<dir> ~/scoop/apps/archi/current/Archi.exe \
+ *     -application com.archimatetool.commandline.app -consoleLog -nosplash --loadModel <copy> \
+ *     --script.runScript "$(pwd -W)/Scripts/View/tools/gui_check.ajs" > gui_check.txt 2>&1
+ * Linux: SELECT_ID=… PRESET=… SHOTS=<dir> Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_check.ajs <model>
+ */
+const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
+const System = Java.type("java.lang.System");
+const SWT = Java.type("org.eclipse.swt.SWT");
+const Display = Java.type("org.eclipse.swt.widgets.Display");
+const SWTEvent = Java.type("org.eclipse.swt.widgets.Event");
+const Composite = Java.type("org.eclipse.swt.widgets.Composite");
+const TabFolder = Java.type("org.eclipse.swt.widgets.TabFolder");
+const Table = Java.type("org.eclipse.swt.widgets.Table");
+const ScrolledComposite = Java.type("org.eclipse.swt.custom.ScrolledComposite");
+const Image = Java.type("org.eclipse.swt.graphics.Image");
+const GC = Java.type("org.eclipse.swt.graphics.GC");
+const ImageLoader = Java.type("org.eclipse.swt.graphics.ImageLoader");
+const Rectangle = Java.type("org.eclipse.swt.graphics.Rectangle");
+
+const PresetIO = require(REPO_ROOT + "View/lib/preset_io.js");
+const TabProperties = require(REPO_ROOT + "View/lib/gui/tab_properties.js");
+const DialogMain = require(REPO_ROOT + "View/lib/gui/dialog_main.js");
+
+const SHOTS = String(System.getenv("SHOTS"));
+const SUITE = String(System.getenv("SUITE") || "tables");
+const presetName = System.getenv("PRESET");
+if (presetName) PresetIO.readSession = () => Object.assign(PresetIO.readPreset(String(presetName)), { name: String(presetName) });
+PresetIO.writeSession = () => {};   // the check leaves the session as it was
+
+const display = Display.getDefault();
+/** @type {any} */ let shell = null;
+/** @type {any} */ let tabFolder = null;
+let nShot = 0;
+
+/** @param {string} s */
+function log(s) { console.log("[check] " + s); }
+
+// ── Screenshots ──────────────────────────────────────────────────────────────
+
+/** The screen inside a display rectangle (clipped to the monitor) as SHOTS/NN_<name>.png. @param {string} name @param {any} r */
+function shot(name, r) {
+  const m = shell.getMonitor().getBounds();
+  const x = Math.max(m.x, r.x), y = Math.max(m.y, r.y);
+  const w = Math.min(m.x + m.width, r.x + r.width) - x, h = Math.min(m.y + m.height, r.y + r.height) - y;
+  const img = new Image(display, w, h);
+  const gc = new GC(display);
+  gc.copyArea(img, x, y);
+  gc.dispose();
+  const loader = new ImageLoader();
+  loader.data = Java.to([img.getImageData()], "org.eclipse.swt.graphics.ImageData[]");
+  const file = `${SHOTS}/${String(++nShot).padStart(2, "0")}_${name}.png`;
+  loader.save(file, SWT.IMAGE_PNG);
+  img.dispose();
+  log(`shot ${file}`);
+}
+/** @param {string} name */
+const shotShell = name => shot(name, shell.getBounds());
+/** A table with its footer and room for tooltips, lists and menus. @param {string} name @param {any} t */
+const shotTable = (name, t) => {
+  const b = t.getParent().getBounds();
+  const at = t.getParent().getParent().toDisplay(b.x, b.y);
+  shot(name, new Rectangle(at.x - 20, at.y - 40, b.width + 320, b.height + 380));
+};
+
+// ── OS input ─────────────────────────────────────────────────────────────────
+
+/** @param {number} type @param {Record<string, any>} props */
+function post(type, props) { const e = new SWTEvent(); e.type = type; Object.assign(e, props); display.post(e); }
+/** @param {number} x @param {number} y */
+function moveTo(x, y) { post(SWT.MouseMove, { x, y }); }
+/** @param {number} x @param {number} y */
+function clickAt(x, y) { moveTo(x, y); post(SWT.MouseDown, { button: 1 }); post(SWT.MouseUp, { button: 1 }); }
+/**
+ * A key: an SWT key code (arrows, Home) or a character (Enter, Esc, Space, Tab). Win32 maps a character,
+ * not a key code like 13, to its key.
+ * @param {number | string} k
+ */
+function key(k) {
+  const f = display.getFocusControl();
+  log(`key ${JSON.stringify(k)} → focus ${f ? f.getClass().getSimpleName() : "none"}`);
+  const props = typeof k === "string" ? { character: k } : { keyCode: k };
+  post(SWT.KeyDown, props); post(SWT.KeyUp, props);
+}
+const K = { UP: SWT.ARROW_UP, DOWN: SWT.ARROW_DOWN, LEFT: SWT.ARROW_LEFT, RIGHT: SWT.ARROW_RIGHT, HOME: SWT.HOME,
+            ENTER: "\r", ESC: "\u001b", SPACE: " ", TAB: "\t" };
+function shiftTab() { post(SWT.KeyDown, { keyCode: SWT.SHIFT }); key(K.TAB); post(SWT.KeyUp, { keyCode: SWT.SHIFT }); }
+/** The mouse on the dialog's title area: outside every table, so a tooltip starts afresh. */
+const away = () => moveTo(shell.getBounds().x + 5, shell.getBounds().y + 100);
+
+// ── Finding controls ─────────────────────────────────────────────────────────
+
+/** Every Table of the dialog with its tab and column headers. @returns {{ tab: string, t: any, headers: string[] }[]} */
+function tables() {
+  /** @type {{ tab: string, t: any, headers: string[] }[]} */
+  const out = [];
+  /** @param {any} c @param {string} tab */
+  const walk = (c, tab) => {
+    if (c instanceof Table) out.push({ tab, t: c, headers: c.getColumns().map((/** @type {any} */ col) => String(col.getText())) });
+    if (!(c instanceof Composite)) return;
+    const items = c instanceof TabFolder ? c.getItems() : [];
+    for (const ch of c.getChildren()) {
+      const it = items.find((/** @type {any} */ i) => i.getControl() === ch);
+      walk(ch, it ? String(it.getText()) : tab);
+    }
+  };
+  walk(shell, "other");
+  return out;
+}
+/** The nth table on a tab with a column of this header. @param {string} tab @param {string} header @param {number} [nth] */
+function table(tab, header, nth) {
+  const f = tables().filter(x => x.tab === tab && x.headers.includes(header))[nth || 0];
+  if (!f) throw new Error(`no table on ${tab} with column ${header}`);
+  return f.t;
+}
+/** @param {any} t @param {string | number} col  header or index */
+const colIdx = (t, col) => typeof col === "number" ? col : t.getColumns().map((/** @type {any} */ c) => String(c.getText())).indexOf(col);
+/** Scroll the tab so the table shows. @param {any} t */
+function reveal(t) {
+  for (let p = t.getParent(); p; p = p.getParent()) if (p instanceof ScrolledComposite) { p.showControl(t.getParent()); break; }
+}
+/** @param {any} ctrl @param {any} r */
+const centerOf = (ctrl, r) => ctrl.toDisplay(r.x + Math.floor(r.width / 2), r.y + Math.floor(r.height / 2));
+/** @param {any} t @param {number} row @param {string | number} col */
+const cellCenter = (t, row, col) => { reveal(t); return centerOf(t, t.getItem(row).getBounds(colIdx(t, col))); };
+/** @param {any} t @param {number} row @param {string | number} col */
+function clickCell(t, row, col) { const p = cellCenter(t, row, col); clickAt(p.x, p.y); }
+/** @param {any} t @param {number} row @param {string | number} col */
+function hoverCell(t, row, col) { const p = cellCenter(t, row, col); moveTo(p.x - 1, p.y); moveTo(p.x, p.y); }
+/** @param {any} t @param {string} header */
+function hoverHeader(t, header) {
+  reveal(t);
+  const cols = t.getColumns(), ci = colIdx(t, header);
+  let x = 0;
+  for (let i = 0; i < ci; i++) x += cols[i].getWidth();
+  const p = t.toDisplay(x + Math.floor(cols[ci].getWidth() / 2), Math.floor(t.getHeaderHeight() / 2));
+  moveTo(p.x - 1, p.y); moveTo(p.x, p.y);
+}
+/** A condition table's footer control: 0 = + Add condition, 1 = Match property. @param {any} t @param {number} i */
+const footerChild = (t, i) => t.getParent().getChildren()[2].getChildren()[i];
+/** @param {any} c */
+function clickControl(c) { const p = centerOf(c.getParent(), c.getBounds()); clickAt(p.x, p.y); }
+/** @param {string} name */
+function clickTab(name) {
+  const it = tabFolder.getItems().find((/** @type {any} */ i) => String(i.getText()) === name);
+  const p = centerOf(tabFolder, it.getBounds());
+  clickAt(p.x, p.y);
+}
+
+// ── Suites: [ms to wait before the step, step] ───────────────────────────────
+// A native tooltip lies over the controls below it and takes a click: move away before clicking there.
+
+const ELEMENT = () => table("Selection", "Element type");
+const STEP    = () => table("Selection", "Previous step elements");
+const NESTING = () => table("Layout", "Nested");
+const STYLE   = () => table("Appearance", "Apply to");
+const NSTYLE  = () => table("Appearance", "Parent type");
+
+/** @type {Record<string, [number, () => void][]>} */
+const SUITES = {
+  // The condition-table checklist (plan/view-condition-table-as-native-table.md § To agree, "Behaviour that stays").
+  tables: [
+    [2500, () => { log("tables:\n  " + tables().map(x => `${x.tab}: ${x.headers.join("|")} (${x.t.getItemCount()} rows)`).join("\n  ")); clickTab("Selection"); }],
+    [1000, () => shotShell("selection_tab")],
+    [100,  () => hoverHeader(ELEMENT(), "Element type")],
+    [2000, () => shotTable("element_header_tooltip", ELEMENT())],
+    [100,  away],
+    [800,  () => hoverCell(ELEMENT(), 0, "Mode")],
+    [2000, () => shotTable("element_cell_tooltip", ELEMENT())],
+    [100,  () => clickCell(ELEMENT(), 0, "Element type")],
+    [1000, () => shotTable("element_type_list", ELEMENT())],
+    [100,  () => { key(K.DOWN); key(K.DOWN); key(K.ENTER); }],
+    [2500, () => shotShell("element_type_chosen")],
+    [100,  () => clickCell(ELEMENT(), 0, "On")],
+    [2000, () => shotTable("element_off", ELEMENT())],
+    [100,  () => clickCell(ELEMENT(), 0, "On")],
+    [1500, () => clickControl(footerChild(ELEMENT(), 0))],
+    [1500, () => shotTable("element_row_added", ELEMENT())],
+    [100,  () => clickCell(ELEMENT(), 1, ELEMENT().getColumnCount() - 1)],
+    [1500, () => shotTable("element_row_removed", ELEMENT())],
+    [100,  () => clickControl(footerChild(ELEMENT(), 1))],
+    [1500, () => shotShell("element_match_property")],
+    [100,  () => clickCell(ELEMENT(), 0, "Property")],
+    [1200, () => shotTable("element_property_list", ELEMENT())],
+    [100,  () => { key(K.DOWN); key(K.ENTER); }],
+    [2500, () => shotTable("element_property_chosen", ELEMENT())],
+    [100,  () => clickCell(ELEMENT(), 0, "Value")],
+    [1200, () => shotTable("element_value_list", ELEMENT())],
+    [100,  () => key(K.ESC)],
+    [800,  () => shotTable("element_value_list_closed", ELEMENT())],
+    // Keyboard: after an edit the table has the focus, the cursor on the edited cell.
+    [100,  () => { key(K.LEFT); key(K.LEFT); }],
+    [600,  () => shotTable("kbd_cursor_moved", ELEMENT())],
+    [100,  () => key(K.ENTER)],
+    [1000, () => shotTable("kbd_enter_opens_list", ELEMENT())],
+    [100,  () => key(K.ESC)],
+    [600,  () => { key(K.LEFT); key(K.LEFT); key(K.SPACE); }],
+    [1500, () => shotTable("kbd_space_toggles_on", ELEMENT())],
+    [100,  () => key(K.SPACE)],
+    [1500, () => { footerChild(ELEMENT(), 0).setFocus(); shiftTab(); }],
+    [800,  () => shotTable("kbd_shift_tab_into_table", ELEMENT())],
+    [100,  () => clickCell(ELEMENT(), 0, "Property")],
+    [1000, () => { key(K.HOME); key(K.ENTER); }],
+    [2500, () => shotTable("element_property_cleared", ELEMENT())],
+    // Steps
+    [100,  () => hoverHeader(STEP(), "Previous step elements")],
+    [2000, () => shotTable("step_header_tooltip", STEP())],
+    [100,  away],
+    [500,  () => clickCell(STEP(), 0, "Added relations")],
+    [1200, () => shotTable("step_relation_list", STEP())],
+    [100,  () => key(K.ESC)],
+    [100,  () => clickCell(STEP(), 0, "Added elements")],
+    [1200, () => shotTable("step_added_list", STEP())],
+    [100,  () => { key(K.DOWN); key(K.ENTER); }],
+    [3000, () => shotShell("step_added_chosen")],
+    // Layout: Nesting and Reverse line up
+    [100,  () => clickTab("Layout")],
+    [1500, () => shotShell("layout_tab")],
+    [100,  () => hoverCell(NESTING(), 0, "Nested")],
+    [2000, () => shotTable("nested_tooltip", NESTING())],
+    // Appearance
+    [100,  () => clickTab("Appearance")],
+    [1500, () => shotShell("appearance_tab")],
+    [100,  () => { reveal(STYLE()); clickControl(footerChild(STYLE(), 0)); }],
+    [1500, () => clickCell(STYLE(), 0, "Property")],
+    [1200, () => shotTable("style_property_list", STYLE())],
+    [100,  () => { key(K.DOWN); key(K.ENTER); }],
+    [2500, () => shotTable("style_property_chosen", STYLE())],
+    [100,  away],
+    [800,  () => hoverCell(STYLE(), 0, "On")],
+    [2000, () => shotTable("style_row_tooltip", STYLE())],
+    [100,  () => clickCell(STYLE(), 0, "Color range")],
+    [1200, () => shotTable("style_color_menu", STYLE())],
+    [100,  () => key(K.ESC)],
+    [500,  () => clickCell(NSTYLE(), 0, "Color")],
+    [1200, () => shotTable("nesting_style_color_menu", NSTYLE())],
+    [100,  () => key(K.ESC)],
+    [500,  () => clickCell(STYLE(), 0, "Apply to")],
+    [1000, () => { key(K.HOME); key(K.ENTER); }],
+    [2000, () => shotTable("style_apply_to_element", STYLE())],
+    // Every nesting condition off: the nesting style table is disabled as a whole
+    [100,  () => clickTab("Layout")],
+    [800,  () => { const t = NESTING(); for (let i = 0; i < t.getItemCount(); i++) clickCell(t, i, "On"); }],
+    [2500, () => shotTable("nesting_all_off", NESTING())],
+    [100,  () => clickTab("Appearance")],
+    [1500, () => shotShell("appearance_nesting_off")],
+  ],
+};
+
+const steps = SUITES[SUITE];
+if (!steps) throw new Error(`gui_check: no suite ${SUITE}; suites: ${Object.keys(SUITES).join(", ")}`);
+
+/** Run step i after its wait; a failing step is logged and the suite goes on. @param {number} i */
+function run(i) {
+  if (shell.isDisposed()) return;
+  if (i >= steps.length) { log("done"); shell.close(); return; }
+  const [wait, fn] = steps[i];
+  display.timerExec(wait, () => {
+    try { fn(); } catch (e) { log(`ERROR: step ${i} failed: ${e}`); }
+    run(i + 1);
+  });
+}
+
+// The dialog is shown once its last tab is built: start the suite then.
+const buildPropertiesTab = TabProperties.buildPropertiesTab;
+TabProperties.buildPropertiesTab = function (/** @type {any} */ tf, /** @type {any} */ ctx) {
+  const r = buildPropertiesTab(tf, ctx);
+  tabFolder = tf;
+  shell = tf.getShell();
+  tf.getDisplay().asyncExec(() => { shell.forceActive(); run(0); });
+  return r;
+};
+
+globalThis.shell = null;   // no workbench window on the command line
+const selectId = System.getenv("SELECT_ID");
+const uiSelection = selectId ? $(`#${selectId}`) : $(selection);
+log(`suite ${SUITE} · model "${model.name}" · preset ${presetName || "session"} · selection ${uiSelection.size()} object(s)`);
+DialogMain.open(uiSelection);
