@@ -1,27 +1,17 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Comparable run and split on both machines; SWT micro-benchmark on both: on Windows every combo costs 20–30× (§ SWT micro-benchmark). Next: the user chooses the next fix.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Next, on Linux: count the widgets at open, then fewer native widgets at open.
 
 ## Handoff
 
-Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Windows comparable run and split done (25b3e7e); Linux measured the same view and split (§ Comparable run, § Linux against Windows per part). Finding: plain JavaScript is ≈ 3× slower on Windows, widget filling and layout 12–27×. Which SWT call causes it is open: `tools/swt_timing.ajs` measures it in isolation.
+Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Comparable run, split and SWT micro-benchmark on both machines. Cause of the Windows widget cost found as far as it goes without admin rights (§ Windows: why native widgets are slow): every native window event costs 100–300 µs on this laptop, spread over Windows' own listeners; not a third-party program, not SWT, not DPI scaling. The dialog cannot change that; it can create fewer native widgets at open.
 
-Windows session done (steps 1–5 below): § Comparable run (the Linux id is a local view; Windows id given), § SWT micro-benchmark (Windows column and conclusion). Next: the user chooses among fewer combos at open (lazy step bodies, lazy tabs, items filled on opening a combo) and `setItems` (small gain).
+Next, on Linux (the user changes the dialog there):
+1. Count what the dialog creates at open: native widgets per kind (Combo, Text, Button, Label, Composite) and combo items in total, on the comparable run (§ Comparable run). A script like `gui_timing.ajs` that walks the dialog's shell once it is shown; no change to the dialog code.
+2. With that count, the user chooses (§ Windows: why native widgets are slow › Options in the dialog): items filled on first use, lazy step bodies and tabs, or one cell editor per condition table.
+3. Measure each change on Linux; the Windows effect follows from the widget and item count (≈ 4–7 ms per combo, ≈ 0.12–0.4 ms per item on that laptop).
 
-Task for the Windows session (Git Bash in the repo clone, branch `GEMMAviews`). Measure and report, change no code.
-
-1. `git pull`. Copy the GEMMA model (`gemma-archi-repository`, the coArchi clone; its path is in Archi's `models.xml`) to a scratch folder, as before.
-2. The comparable run once more, now by id (§ Comparable run, Windows command): one run is enough; fill the Windows column if it differs from the run by name.
-3. The SWT micro-benchmark, twice:
-
-       ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash \
-         --script.runScript "$(pwd -W)/Scripts/View/tools/swt_timing.ajs" > swt_timing.txt 2>&1
-
-   Add the Windows numbers next to the Linux ones in § SWT micro-benchmark (the third round of each line; the first warms up).
-4. Under § SWT micro-benchmark, name the line(s) that are far slower than on Linux, and the dialog code that does the same (combo filling: `condition_table.js` `comboItems` / `fillList`, `tab_layout.js` `_setComboItems`, `dialog_main.js` `_paramToWidget`; natural sizes: `widgets.js` `alignFormColumns`, `resizeScrolled`).
-5. Commit only this plan (`docs(plan): …`, no co-author line, AGENTS.md hard rule 4) and push.
-
-Optional: a Defender exclusion for the `Scripts/` folder (needs admin) and rerun step 2; only module load (1.4–1.6 s there vs 0.36 s on Linux) is expected to change.
+Open, not for the dialog: a reference measurement of `win32_events.ps1` (§ Windows: why native widgets are slow) on another Windows 11 machine; an event trace only if that machine is fast; a jArchi issue on interpreted JavaScript and per-run parsing.
 
 ## Comparable run
 
@@ -231,6 +221,48 @@ So the cost is per combo and per item on Win32, whatever the API: `setItems` gai
 - natural sizes: `widgets.js` `alignFormColumns`, `resizeScrolled`: the `computeSize` line (12–14×), and the deferred layout (27× in the dialog, 8× here).
 
 Consequence for the candidates: `setItems` alone is a small gain (≈ 20 % of fill time, a few lines, low risk). The real gain is fewer combos or fewer items at open: lazy step bodies and lazy tabs (§ Remaining open time, split), or filling a combo's item list only when it is opened (one mechanism in `condition_table.js`, fewer items to measure and lay out). Not measured: how `computeSize` and `layout` scale with the item count (the benchmark uses 60 items only).
+
+### Windows: why native widgets are slow
+
+Machine: HP EliteBook 8 G1a (AMD Ryzen 7 250, mobile Zen 4, 8 cores), Windows 11 Enterprise, 125 % display scaling, measured on battery in the Balanced power mode; Defender for Endpoint (`MsSense`) running. The Linux machine is a desktop Ryzen 7700 (same generation, higher clocks).
+
+Findings (2026-11-13, no code changed):
+- **Not SWT.** Native Win32 combos built outside Java are as slow: WinForms in PowerShell ≈ 8 ms per empty combo, ≈ 50 ms per combo filled with 60 items; raw `CreateWindowEx("COMBOBOX")` from C# ≈ 4.2–4.7 ms per combo, `CB_ADDSTRING` ≈ 120 µs per item, a static label ≈ 0.35 ms.
+- **Not DPI scaling.** `swt.autoScale.updateOnRuntime` true or false gives the same benchmark; the command line sets neither (SWT 4965, display zoom 125, `DPIUtil` device zoom 100).
+- **Window events are the cost.** `NotifyWinEvent` per event, from the desktop window: ≈ 280–420 µs for foreground (0x0003), create, destroy, show, hide (0x8000–0x8003), selection (0x8006, 0x8007), state change (0x800A), location change (0x800B) and cloaked (0x8017); 0.02 µs for focus (0x8005), name change (0x800C) and value change (0x800E), which nothing listens to. A reported ordinary machine: 1.9 µs per event, 27.6 µs with one wide out-of-process hook, `CB_ADDSTRING` 72 µs ([Twinkle Tray #1352](https://github.com/xanderfrangos/twinkle-tray/issues/1352)). Creating a combo fires several of these events (the combo and its list window), filling and selecting fire selection and state events: ≈ 4 ms per combo.
+- **No single culprit.** Closed one by one, the cost per event fell gradually from ≈ 290 to ≈ 105–140 µs (noise ± 30 µs): Citrix Workspace (all processes), Greenshot, Teams, CrossDeviceResume, AppActions, Radeon Software, App-V, Obsidian, Signal, KeePassXC, Syncthing, Adobe, Firefox, Outlook, WebView2, OneDrive, Archi, the security tray icon, the AMD and Realtek helpers. No third-party DLL is injected into a GUI process (in-process hook excluded). The rest is Windows' own listeners (Explorer, shell hosts, search) and VS Code (not tested: it ran the session).
+- **Power mode**: likely part of the plain JavaScript factor (2.5–4× against a desktop of the same generation); unlikely to explain 50–150× per event. Not tested (the user skipped it).
+- **JavaScript runs interpreted on both machines.** jArchi 1.12 ships GraalJS 24.1 without `truffle-runtime` / compiler jars, so on Archi's OpenJDK 21 GraalJS runs interpreter-only ([GraalVM: embedding languages](https://www.graalvm.org/latest/reference-manual/embed-languages/)); a loop of 3·10⁷ iterations takes 2.0 s on Windows. Each script run also parses every module again (load 0.36 s Linux, 1.4 s Windows). Both are jArchi's to change.
+
+Known issues found: the SWT combo performance bugs are on GTK ([bug 487271](https://bugs.eclipse.org/bugs/show_bug.cgi?id=487271), [bug 489640](https://bugs.eclipse.org/bugs/show_bug.cgi?id=489640), [PR #3401](https://github.com/eclipse-platform/eclipse.platform.swt/pull/3401)); slow Win32 control creation is a known complaint ([wx-users](https://groups.google.com/g/wx-users/c/0QsOCki2CqY)); wide WinEvent hooks slow every other application ([Twinkle Tray #1352](https://github.com/xanderfrangos/twinkle-tray/issues/1352)).
+
+Open on the Windows side (not for the dialog):
+- A reference: the test below on another Windows 11 machine. ≈ 2 µs there: this laptop's setup (IT). 100+ µs there too: normal Windows 11.
+- An event trace (only if the reference is fast): `wpr -start CPU -start GeneralProfile`, the test, `wpr -stop hook.etl` in an admin terminal, analysed in Windows Performance Analyzer (not installed; Store or ADK) with Microsoft symbols: the waits of `NotifyWinEvent` name the receiving processes. Needs admin rights; ≈ 5 min recording, 1–2 h analysis.
+- Accessibility features that listen to window events (Voice Access, Live Captions, text cursor indicator): not checked.
+
+The test (`powershell -ExecutionPolicy Bypass -File win32_events.ps1`); ≈ 2 µs per event is ordinary:
+
+```powershell
+Add-Type -TypeDefinition @"
+using System; using System.Diagnostics; using System.Runtime.InteropServices;
+public static class E {
+  [DllImport("user32.dll")] static extern void NotifyWinEvent(int ev, IntPtr h, int obj, int child);
+  [DllImport("user32.dll")] static extern IntPtr GetDesktopWindow();
+  public static string Run() { string r=""; var h=GetDesktopWindow();
+    foreach (int ev in new[]{0x0003,0x8000,0x8001,0x8002,0x8003,0x8005,0x8006,0x8007,0x800A,0x800B,0x800C,0x800E,0x8017}) {
+      var sw=Stopwatch.StartNew(); for(int i=0;i<2000;i++) NotifyWinEvent(ev,h,-4,0); r+=String.Format("0x{0:X4} {1,7:F2} us\n",ev,sw.Elapsed.TotalMilliseconds*1000/2000); }
+    return r; } }
+"@
+[E]::Run()
+```
+
+Options in the dialog: each native widget costs a fixed number of window events, so the gain the dialog controls is fewer native widgets and items at open. By size:
+- Combo items filled on first use (focus or mouse down) instead of at creation: saves ≈ 0.12–0.4 ms per item on that laptop; a few lines in `condition_table.js`; low risk.
+- Lazy step bodies (built on expand) and lazy Appearance / Properties tabs (§ Remaining open time, split): fewer widgets; 20–60 lines; medium risk (`_saveUI` reads them).
+- One cell editor per condition table (JFace `TableViewer` with a `ComboBoxCellEditor`: cells are drawn text, one combo appears in the cell being edited): one native window per table instead of one combo per cell; the largest gain on every machine; a rewrite of `condition_table.js`.
+- `setRedraw(false)` around `_fillWidgets`: may save state and location events; cheap to try in `swt_timing.ajs`; not measured.
+- `setItems` instead of the add loop: ≈ 20 % of fill time (§ SWT micro-benchmark).
 
 ## Fix 2
 
