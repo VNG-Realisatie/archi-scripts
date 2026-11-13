@@ -1,14 +1,17 @@
 /**
  * Condition table — the one widget for every condition list in the View dialog (condition kinds: rel_filter.js).
  *
- *   ┌ header labels ───────────────────────────────────┐
- *   │ one row per condition: one control per column  ✕ │
- *   └──────────────────────────────────────────────────┘
+ *   ┌ header ───────────────────────────────────────────┐
+ *   │ one row per condition: one cell per column      ✕ │   one native table; every cell is drawn
+ *   └───────────────────────────────────────────────────┘
  *   [+ Add condition]  ☐ Match property  (caller's footer controls)
  *
- * The table keeps its conditions as plain objects; every control writes straight into its condition.
- * Structural changes (add, remove, Match property) rebuild the grid; value changes only
- * refresh enabled states and property lists.
+ * The table keeps its conditions as plain objects and draws every cell from them (SWT owner draw), so a
+ * changed value, count or enabled state is a redraw, not a widget update, and a table is one native
+ * window whatever its size (plan/view-condition-table-as-native-table.md). A click edits a cell: a
+ * choice, property or value cell opens a list under the cell, a check cell toggles, a colour cell opens
+ * the palette menu, ✕ removes the condition. Keyboard: ↑ ↓ row, ← → cell, Space or Enter edits.
+ * Structural changes (add, remove, Match property) add or remove rows and columns; value changes redraw.
  *
  * Filter lists (opts.filterList) always show at least the default condition (= keep everything) and
  * hand back [] for it; feature lists may be empty. With opts.placeholder an empty feature list
@@ -37,25 +40,38 @@ const SWT               = Java.type("org.eclipse.swt.SWT");
 const LabelWidget       = Java.type("org.eclipse.swt.widgets.Label");
 const CompositeWidget   = Java.type("org.eclipse.swt.widgets.Composite");
 const ButtonWidget      = Java.type("org.eclipse.swt.widgets.Button");
-const ComboWidget       = Java.type("org.eclipse.swt.widgets.Combo");
-const CanvasWidget      = Java.type("org.eclipse.swt.widgets.Canvas");
+const TableWidget       = Java.type("org.eclipse.swt.widgets.Table");
+const TableColumnWidget = Java.type("org.eclipse.swt.widgets.TableColumn");
+const TableItemWidget   = Java.type("org.eclipse.swt.widgets.TableItem");
 const RowLayout         = Java.type("org.eclipse.swt.layout.RowLayout");
+const SWTGC             = Java.type("org.eclipse.swt.graphics.GC");
+const SWTPoint          = Java.type("org.eclipse.swt.graphics.Point");
 const GridDataFactory   = Java.type("org.eclipse.jface.layout.GridDataFactory");
 const GridLayoutFactory = Java.type("org.eclipse.jface.layout.GridLayoutFactory");
+
+const CELL_PAD   = 3;    // px between a cell's edge and its content (GTK's cell is already 3 px narrower than its column)
+const ARROW_PAD  = 2;    // px between the text and the ▾
+const COLUMN_GAP = 6;    // px added to every column, the gap the grid had between its cells
+const ROW_PAD    = 5;    // px above and below the text of a row
+const ARROW      = "▾";  // marks a cell that opens a list
+const HEADER_PAD = 6;    // px a header keeps beside its text
+const DEL_WIDTH  = 28;   // the ✕ column
+const DEL_TIP    = "Remove this condition.";
+/** Column width when the column gives none. */
+const WIDTH_BY_KIND = { check: 44, count: 36, warn: 24, prop: 100, value: 100, choice: 150, color: 150 };
 
 /**
  * Column definition:
  *   key       condition field (count columns: "relations" | "elements")
- *   header    heading; "\n" for two lines
+ *   header    heading, one line
  *   tooltip   heading + cell tooltip
- *   kind      choice  read-only combo; items: [{ value, label }]
- *             check   checkbox (boolean field; col.default false: unchecked when the condition has no value);
- *                     drawn, so a disabled tick is grey (a GTK checkbox keeps its blue)
- *             prop    read-only combo of property names (opts.propItems(condition, key))
- *             value   read-only combo of property values (opts.valueItems(condition, key))
- *             count   read-only count label, set with setCounts; "(n)" or col.format(n)
- *             warn    read-only "⚠" label, set with setWarnings
- *             custom  create(parent, value, onChange) → { set(v), enable(on) }; cells = grid cells used
+ *   kind      choice  a list of items: [{ value, label }]
+ *             check   a drawn checkbox (boolean field; col.default false: unchecked when the condition has no value)
+ *             prop    a list of property names (opts.propItems(condition, key))
+ *             value   a list of property values (opts.valueItems(condition, key))
+ *             count   read-only count, set with setCounts; "(n)" or col.format(n)
+ *             warn    read-only "⚠", set with setWarnings
+ *             color   a swatch and name; the palette menu of a ColorChoice (widgets.js): items, missing, fallback, other
  *   width     width (px); cells keep it, nothing stretches with the dialog
  *   optional  true: shown only with Match property (or when a condition has a property)
  *   enabled   (condition) => boolean; the cell is greyed when false
@@ -76,25 +92,45 @@ function conditionTable(parent, opts) {
   const cols = opts.columns;
   // Conditions are read and written by column key, hence the Record view of the condition shape.
   /** @type {(ConditionByKind[K] & Record<string, any>)[]} */
-  let conditions    = [];
+  let conditions = [];
   /** @type {ConditionTableCounts[]} */
-  let counts   = [];
+  let counts     = [];
   /** @type {Map<number, string>} */
-  let warnings = new Map();
-  let propOn   = false;
-  let enabled  = true;
-  // ctrl: the SWT control or custom cell of the column; its type follows col.kind.
-  /** @type {Map<string, { col: ConditionTableColumn<ConditionByKind[K]> | null, ctrl: any, first?: boolean }>[]} */
-  let rows     = [];   // per condition: Map key → { col, ctrl, first }
-  let optionalShown = false;  // optional columns are in the current grid
+  let warnings   = new Map();
+  let propOn     = false;
+  let enabled    = true;
+  /** @type {ConditionTableColumn<ConditionByKind[K]>[]} the columns in the table; the ✕ column follows them */
+  let vcols      = [];
+  let optionalShown = false;  // optional columns are in the table
+  const cursor   = { row: 0, col: 0 };   // the cell with the keyboard focus; col === vcols.length is ✕
+  /** @type {Swt.Menu | null} */
+  let colorMenu  = null;
+  let tipShown   = "";
 
   const outer = new CompositeWidget(parent, SWT.NONE);
   GridLayoutFactory.fillDefaults().numColumns(1).margins(0, 0).spacing(0, 3).applyTo(outer);
   GridDataFactory.fillDefaults().grab(true, false).applyTo(outer);
   outer.setData("fitWidth", true);   // the dialog widens rather than cut a condition off (_resizeScrolled)
 
-  // Set by rebuild() before any cell is built.
-  let grid = /** @type {Swt.Composite} */ (/** @type {unknown} */ (null));
+  const table = new TableWidget(outer, SWT.FULL_SELECTION | SWT.NO_SCROLL);
+  table.setHeaderVisible(true);
+  table.setLinesVisible(false);
+  table.setBackground(outer.getBackground());         // the group's background shows through
+  table.setHeaderBackground(outer.getBackground());
+  table.setHeaderForeground(outer.getDisplay().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND));   // as the grid's header labels
+  // As wide as its columns, not the group: GTK would stretch the last column (✕) over the rest.
+  GridDataFactory.swtDefaults().applyTo(table);       // its hints follow the columns and rows (syncRows)
+  const gcText = new SWTGC(table);
+  const textH = gcText.getFontMetrics().getHeight();
+  /** @type {Map<string, number>} header text widths */
+  const headerW = new Map(cols.map(c => [c.key, gcText.textExtent(c.header || "").x]));
+  gcText.dispose();
+  const rowH = Math.max(Widgets.CHECK_SIZE, textH) + 2 * ROW_PAD;
+
+  const lblEmpty = new LabelWidget(outer, SWT.NONE);
+  lblEmpty.setText(opts.emptyText || "No conditions.");
+  lblEmpty.setForeground(outer.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
+  GridDataFactory.fillDefaults().applyTo(lblEmpty);
 
   const footer = new CompositeWidget(outer, SWT.NONE);
   const rl = new RowLayout(SWT.HORIZONTAL);
@@ -108,7 +144,7 @@ function conditionTable(parent, opts) {
     "Add a condition. Conditions combine: a match with any Include condition is kept, unless an Exclude condition also matches.");
   btnAdd.addListener(SWT.Selection, () => {
     conditions.push(ConditionLists.defaultCondition(kind));
-    rebuild();
+    syncRows();
     changed();
   });
 
@@ -117,7 +153,7 @@ function conditionTable(parent, opts) {
   if (opts.propCondition) {
     const chk = Widgets.checkBox(footer, "Match property");
     chk.setToolTipText("Show columns to match by a property value. Always on when a condition uses it.");
-    chk.addListener(SWT.Selection, () => { propOn = chk.getSelection(); rebuild(); });
+    chk.addListener(SWT.Selection, () => { propOn = chk.getSelection(); rebuildColumns(); syncRows(); });
     chkProp = chk;
   }
   if (opts.footer) opts.footer(footer);
@@ -142,18 +178,8 @@ function conditionTable(parent, opts) {
     return cols.filter(c => !c.optional || showOptional);
   };
 
-  /**
-   * @param {Swt.Combo} combo
-   * @param {string[]} labels
-   * @param {string} selectedLabel
-   */
-  const comboItems = (combo, labels, selectedLabel) => {
-    combo.removeAll();
-    labels.forEach(l => combo.add(String(l)));
-    let idx = labels.indexOf(selectedLabel);
-    if (idx < 0 && selectedLabel) { combo.add(String(selectedLabel)); idx = combo.getItemCount() - 1; }
-    combo.select(Math.max(0, idx));
-  };
+  // ── Cell contents ─────────────────────────────────────────────────────────────
+
   /**
    * @param {ConditionTableChoiceColumn<ConditionByKind[K]>} col
    * @param {unknown} value
@@ -162,22 +188,22 @@ function conditionTable(parent, opts) {
     const it = col.items.find(i => i.value === value);
     return it ? it.label : String(value);
   };
-  // Item labels of a choice combo for row i; with col.count the selected item carries the count.
+  // The list of a choice cell for row i, and the label of its current item (with col.count the count).
+  // An item the column does not hold is appended, so the current value always shows.
   /**
    * @param {ConditionTableChoiceColumn<ConditionByKind[K]>} col
    * @param {Record<string, any>} condition
    * @param {number} i
+   * @returns {{ labels: string[], idx: number }}
    */
   const choiceItems = (col, condition, i) => {
     const labels = col.items.map(it => it.label);
+    let idx = col.items.findIndex(it => it.value === condition[col.key]);
     let selected = choiceLabel(col, condition[col.key]);
     const n = col.count && counts[i] ? counts[i][col.count] : undefined;
-    if (n !== undefined && n !== null) {
-      const idx = col.items.findIndex(it => it.value === condition[col.key]);
-      selected = `${selected} (${n})`;
-      if (idx >= 0) labels[idx] = selected;
-    }
-    return { labels, selected };
+    if (n !== undefined && n !== null) selected = `${selected} (${n})`;
+    if (idx < 0) { labels.push(selected); idx = labels.length - 1; } else labels[idx] = selected;
+    return { labels, idx };
   };
   /**
    * @param {ConditionTablePlainColumn<ConditionByKind[K]>} col
@@ -188,184 +214,315 @@ function conditionTable(parent, opts) {
     if (n === null || n === undefined) return "";
     return col.format ? col.format(n) : `(${n})`;
   };
+  // The list of a property / value cell: the plain names (the first is "", none) and their labels,
+  // the current one decorated with its count ("Status (14)"); a decorated label never ends up in
+  // the condition.
   /**
-   * @param {ConditionTablePlainColumn<ConditionByKind[K]>} col
-   * @param {ConditionByKind[K]} condition
-   */
-  const listItems = (col, condition) => {
-    const fn = col.kind === "prop" ? opts.propItems : opts.valueItems;
-    return [""].concat((fn ? fn(condition, col.key) : []) || []);
-  };
-  // Fill a property / value combo. The plain names stay on the control (data "names", as JSON:
-  // a JS property on a Java object is dropped) so a decorated label ("Status (14)") never ends
-  // up in the condition.
-  /**
-   * @param {Swt.Combo} c
    * @param {ConditionTablePlainColumn<ConditionByKind[K]>} col
    * @param {ConditionByKind[K] & Record<string, any>} condition
    * @param {number} i
+   * @returns {{ names: string[], labels: string[], idx: number }}
    */
-  const fillList = (c, col, condition, i) => {
-    const names = listItems(col, condition);
+  const listItems = (col, condition, i) => {
+    const fn = col.kind === "prop" ? opts.propItems : opts.valueItems;
+    const names = [""].concat((fn ? fn(condition, col.key) : []) || []);
     const value = condition[col.key] || "";
     if (value && names.indexOf(value) < 0) names.push(value);
     const labels = names.slice();
     const n = col.count && counts[i] ? counts[i][col.count] : undefined;
     const idx = names.indexOf(value);
     if (n !== undefined && n !== null) labels[idx] = value ? `${value} (${n})` : `(${n})`;
-    c.setData("names", JSON.stringify(names));
-    if (String(c.getText()) === labels[idx] && c.getItemCount() === labels.length) return;
-    c.removeAll();
-    labels.forEach(l => c.add(String(l)));
-    c.select(Math.max(0, idx));
+    return { names, labels, idx };
   };
+  /**
+   * @param {ConditionTableColorColumn<ConditionByKind[K]>} col
+   * @param {Record<string, any>} condition
+   */
+  const colorItem = (col, condition) => Widgets.colorItemFor(col, condition[col.key] || "").item;
+  /**
+   * @param {ConditionTablePlainColumn<ConditionByKind[K]>} col
+   * @param {Record<string, any>} condition
+   */
+  const checked = (col, condition) => condition[col.key] === undefined ? col.default !== false : !!condition[col.key];
 
   /**
+   * The text of a cell; check and colour cells draw more than text (paintCell).
    * @param {ConditionTableColumn<ConditionByKind[K]>} col
    * @param {ConditionByKind[K] & Record<string, any>} condition
    * @param {number} i
-   * @returns {any} the column's SWT control or custom cell
    */
-  function buildCell(col, condition, i) {
-    const tip = col.tooltip || "";
-    const span = col.cells || 1;
-    const gd = () => GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER);
+  function cellText(col, condition, i) {
     switch (col.kind) {
-      case "choice": {
-        const c = new ComboWidget(grid, SWT.READ_ONLY | SWT.DROP_DOWN);
-        const ci = choiceItems(col, condition, i);
-        comboItems(c, ci.labels, ci.selected);
-        gd().hint(col.width || SWT.DEFAULT, SWT.DEFAULT).applyTo(c);
-        c.setToolTipText(tip);
-        c.addListener(SWT.Selection, () => {
-          const it = col.items[c.getSelectionIndex()];
-          condition[col.key] = it ? it.value : condition[col.key];
-          if (col.onChange) col.onChange(condition);
-          refresh(); changed();
-        });
-        return c;
-      }
-      case "check": {
-        const box = Widgets.canvasCheck(grid, condition[col.key] === undefined ? col.default !== false : !!condition[col.key],
-          v => { condition[col.key] = v; refresh(); changed(); });
-        gd().align(SWT.CENTER, SWT.CENTER).hint(Widgets.CHECK_SIZE + 2, Widgets.CHECK_SIZE + 2).applyTo(box.canvas);
-        box.setToolTipText(tip);
-        return box;
-      }
-      case "prop":
-      case "value": {
-        const c = new ComboWidget(grid, SWT.READ_ONLY | SWT.DROP_DOWN);
-        fillList(c, col, condition, i);
-        gd().hint(col.width || 100, SWT.DEFAULT).applyTo(c);
-        c.setToolTipText(tip);
-        c.addListener(SWT.Selection, () => {
-          const k = c.getSelectionIndex();
-          const names = c.getData("names");
-          condition[col.key] = k > 0 && names ? String(JSON.parse(String(names))[k]) : "";
-          if (col.kind === "prop" && !condition.property) condition.value = "";
-          if (col.onChange) col.onChange(condition);
-          refresh(); changed();
-        });
-        return c;
-      }
-      case "count": {
-        const l = new LabelWidget(grid, SWT.NONE);
-        l.setText(countText(col, counts[i]));
-        gd().hint(col.width || 36, SWT.DEFAULT).applyTo(l);
-        l.setToolTipText(tip);
-        return l;
-      }
-      case "warn": {
-        const l = new LabelWidget(grid, SWT.NONE);
-        l.setText(warnings.has(i) ? "⚠" : "");
-        l.setToolTipText(warnings.get(i) || "");
-        gd().hint(col.width || 18, SWT.DEFAULT).applyTo(l);
-        return l;
-      }
-      case "custom": {
-        const ctrl = col.create(grid, condition[col.key], v => { condition[col.key] = v; refresh(); changed(); });
-        if (ctrl.setToolTipText) ctrl.setToolTipText(tip);
-        return ctrl;
-      }
+      case "choice": { const c = choiceItems(col, condition, i); return c.labels[c.idx]; }
+      case "prop": case "value": { const l = listItems(col, condition, i); return l.labels[l.idx]; }
+      case "count": return countText(col, counts[i]);
+      case "warn":  return warnings.has(i) ? "⚠" : "";
+      case "color": return colorItem(col, condition).label;
+      case "check": return "";
     }
+    return "";
+  }
+
+  // A cell is on when the table is enabled, the column's rule allows it, and the condition is on
+  // (its "on" cell and ✕ stay on). col null: the ✕ cell.
+  /**
+   * @param {ConditionTableColumn<ConditionByKind[K]> | null} col
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   */
+  const cellOn = (col, condition) =>
+    enabled && (!col || ((!col.enabled || col.enabled(condition)) && (condition.on !== false || col.key === "on")));
+
+  // ── Drawing ───────────────────────────────────────────────────────────────────
+
+  table.addListener(SWT.MeasureItem, e => { e.height = rowH; });
+  // The table draws nothing of its own: no selection, hover or focus highlight, no text.
+  table.addListener(SWT.EraseItem, e => { e.detail &= ~(SWT.SELECTED | SWT.HOT | SWT.FOCUSED | SWT.FOREGROUND); });
+  table.addListener(SWT.PaintItem, e => {
+    const i = table.indexOf(e.item);
+    if (i < 0 || i >= conditions.length) return;
+    paintCell(e.gc, e.item.getBounds(e.index), i, e.index);
+  });
+
+  /**
+   * Shorten a text to the width with "…".
+   * @param {Swt.GC} gc
+   * @param {string} text
+   * @param {number} width
+   */
+  function fitText(gc, text, width) {
+    if (gc.textExtent(text).x <= width) return text;
+    let n = text.length;
+    while (n > 1 && gc.textExtent(text.slice(0, n) + "…").x > width) n--;
+    return text.slice(0, n) + "…";
+  }
+
+  /**
+   * @param {Swt.GC} gc
+   * @param {Swt.Rectangle} r  the cell
+   * @param {number} i  row
+   * @param {number} ci  column in the table; vcols.length is ✕
+   */
+  function paintCell(gc, r, i, ci) {
+    const d = table.getDisplay();
+    const condition = conditions[i];
+    const col = ci < vcols.length ? vcols[ci] : null;
+    const on = cellOn(col, condition);
+    gc.setForeground(d.getSystemColor(on ? SWT.COLOR_WIDGET_FOREGROUND : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+    const ty = r.y + Math.floor((r.height - textH) / 2);
+    let x = r.x + CELL_PAD, w = r.width - 2 * CELL_PAD;
+    if (!col) {
+      gc.drawText("✕", r.x + Math.floor((r.width - gc.textExtent("✕").x) / 2), ty, SWT.DRAW_TRANSPARENT);
+    } else if (col.kind === "check") {
+      Widgets.drawCheck(gc, d, r.x + Math.floor((r.width - Widgets.CHECK_SIZE) / 2), r.y + Math.floor((r.height - Widgets.CHECK_SIZE) / 2),
+        checked(col, condition), on);
+    } else {
+      if (col.kind === "color") {
+        const sw = col.swatchWidth || Widgets.SWATCH_W;
+        Widgets.drawSwatch(gc, d, x, r.y + Math.floor((r.height - Widgets.SWATCH_H) / 2), sw, colorItem(col, condition).colors, on);
+        gc.setForeground(d.getSystemColor(on ? SWT.COLOR_WIDGET_FOREGROUND : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+        x += sw + CELL_PAD; w -= sw + CELL_PAD;
+      }
+      const opens = col.kind === "choice" || col.kind === "prop" || col.kind === "value" || col.kind === "color";
+      if (opens) {
+        const aw = gc.textExtent(ARROW).x;
+        gc.drawText(ARROW, r.x + r.width - CELL_PAD - aw, ty, SWT.DRAW_TRANSPARENT);
+        w -= aw + ARROW_PAD;
+      }
+      gc.drawText(fitText(gc, cellText(col, condition, i), w), x, ty, SWT.DRAW_TRANSPARENT);
+    }
+    if (table.isFocusControl() && cursor.row === i && cursor.col === ci) gc.drawFocus(r.x + 1, r.y + 1, r.width - 2, r.height - 2);
+  }
+
+  // ── Editing ───────────────────────────────────────────────────────────────────
+
+  /**
+   * The cell at a point of the table, or null.
+   * @param {number} x
+   * @param {number} y
+   * @returns {{ row: number, col: number } | null}
+   */
+  function cellAt(x, y) {
+    const item = table.getItem(new SWTPoint(x, y));
+    if (!item) return null;
+    const row = table.indexOf(item);
+    for (let ci = 0; ci <= vcols.length; ci++) if (item.getBounds(ci).contains(x, y)) return { row, col: ci };
     return null;
   }
 
-  function rebuild() {
-    if (grid) { try { grid.dispose(); } catch (e) {} }   // silent: may be disposed already
-    grid = new CompositeWidget(outer, SWT.NONE);
-    grid.moveAbove(footer);
-    GridDataFactory.fillDefaults().grab(true, false).applyTo(grid);
-    const vc = visibleCols();
-    optionalShown = vc.some(c => c.optional);
-    const ncells = vc.reduce((n, c) => n + (c.cells || 1), 0) + 1;
-    GridLayoutFactory.fillDefaults().numColumns(ncells).margins(0, 0).spacing(6, 2).applyTo(grid);
+  /** The cell in display coordinates. @param {number} row @param {number} ci */
+  function cellOnScreen(row, ci) {
+    const r = table.getItem(row).getBounds(ci);
+    const at = table.toDisplay(r.x, r.y);
+    r.x = at.x; r.y = at.y;
+    return r;
+  }
 
-    for (const col of vc) {
-      const h = new LabelWidget(grid, SWT.NONE);
-      h.setText(col.header || "");
-      if (col.tooltip) h.setToolTipText(col.tooltip);
-      GridDataFactory.fillDefaults().span(col.cells || 1, 1).align(SWT.FILL, SWT.END).applyTo(h);
+  /**
+   * After a cell changed its condition: the column's normalisation, a redraw and the caller.
+   * @param {ConditionTableColumn<ConditionByKind[K]>} col
+   * @param {ConditionByKind[K] & Record<string, any>} condition
+   */
+  function afterChange(col, condition) {
+    if (col.onChange) col.onChange(condition);
+    refresh();
+    changed();
+    table.setFocus();
+  }
+
+  /** Edit the cell: open its list or menu, toggle it, or remove its row. @param {{ row: number, col: number }} cell */
+  function activate(cell) {
+    const condition = conditions[cell.row];
+    if (!condition) return;
+    if (cell.col === vcols.length) {
+      if (!enabled) return;
+      conditions.splice(cell.row, 1);
+      fillEmpty();
+      syncRows(); changed();
+      return;
     }
-    new LabelWidget(grid, SWT.NONE);  // header of the ✕ column
-
-    rows = conditions.map((condition, i) => {
-      /** @type {Map<string, { col: ConditionTableColumn<ConditionByKind[K]> | null, ctrl: any, first?: boolean }>} */
-      const cells = new Map();
-      vc.forEach((col, ci) => {
-        const ctrl = buildCell(col, condition, i);
-        cells.set(col.key + "#" + ci, { col, ctrl, first: ci === 0 });
-      });
-      const btnDel = new ButtonWidget(grid, SWT.PUSH);
-      btnDel.setText("✕");
-      btnDel.setToolTipText("Remove this condition.");
-      GridDataFactory.swtDefaults().hint(28, 22).align(SWT.CENTER, SWT.CENTER).applyTo(btnDel);
-      btnDel.addListener(SWT.Selection, () => {
-        conditions.splice(conditions.indexOf(condition), 1);
-        fillEmpty();
-        rebuild(); changed();
-      });
-      cells.set("#del", { col: null, ctrl: btnDel });
-      return cells;
-    });
-
-    if (conditions.length === 0) {
-      const l = new LabelWidget(grid, SWT.NONE);
-      l.setText(opts.emptyText || "No conditions.");
-      l.setForeground(grid.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
-      GridDataFactory.fillDefaults().span(ncells, 1).applyTo(l);
+    const col = vcols[cell.col];
+    if (!cellOn(col, condition)) return;
+    switch (col.kind) {
+      case "check":
+        condition[col.key] = !checked(col, condition);
+        afterChange(col, condition);
+        break;
+      case "choice": {
+        const c = choiceItems(col, condition, cell.row);
+        Widgets.openListPopup(table, cellOnScreen(cell.row, cell.col), c.labels, c.idx, k => {
+          const it = col.items[k];
+          if (it) condition[col.key] = it.value;   // the appended unknown item keeps the value
+          afterChange(col, condition);
+        });
+        break;
+      }
+      case "prop": case "value": {
+        const l = listItems(col, condition, cell.row);
+        Widgets.openListPopup(table, cellOnScreen(cell.row, cell.col), l.labels, l.idx, k => {
+          condition[col.key] = k > 0 ? l.names[k] : "";
+          if (col.kind === "prop" && !condition.property) condition.value = "";
+          afterChange(col, condition);
+        });
+        break;
+      }
+      case "color": {
+        // silent: the menu may be disposed already, with the dialog
+        if (colorMenu) { try { colorMenu.dispose(); } catch (e) {} }
+        const r = cellOnScreen(cell.row, cell.col);
+        colorMenu = Widgets.openColorMenu(table, new SWTPoint(r.x, r.y + r.height), col, condition[col.key] || "", v => {
+          condition[col.key] = v;
+          afterChange(col, condition);
+        });
+        break;
+      }
     }
+  }
 
+  table.addListener(SWT.MouseUp, e => {
+    if (e.button !== 1) return;
+    const cell = cellAt(e.x, e.y);
+    if (!cell) return;
+    cursor.row = cell.row; cursor.col = cell.col;
+    table.redraw();
+    activate(cell);
+  });
+  // The table keeps no selection (GTK would paint it over the cells): the cursor is the table's own.
+  table.addListener(SWT.Selection, () => table.deselectAll());
+  table.addListener(SWT.Traverse, e => { if (e.detail === SWT.TRAVERSE_RETURN) e.doit = false; });   // Enter edits, not the dialog's default button
+  table.addListener(SWT.KeyDown, e => {
+    if (!conditions.length) return;
+    const n = vcols.length + 1;
+    const move = (/** @type {number} */ row, /** @type {number} */ col) => { cursor.row = row; cursor.col = col; e.doit = false; table.redraw(); };
+    if (e.keyCode === SWT.ARROW_UP)         move(Math.max(0, cursor.row - 1), cursor.col);
+    else if (e.keyCode === SWT.ARROW_DOWN)  move(Math.min(conditions.length - 1, cursor.row + 1), cursor.col);
+    else if (e.keyCode === SWT.ARROW_LEFT)  move(cursor.row, (cursor.col + n - 1) % n);
+    else if (e.keyCode === SWT.ARROW_RIGHT) move(cursor.row, (cursor.col + 1) % n);
+    else if (String(e.character) === "\r" || String(e.character) === " ") { e.doit = false; activate(cursor); }   // Enter, Space
+  });
+  table.addListener(SWT.FocusIn,  () => table.redraw());
+  table.addListener(SWT.FocusOut, () => table.redraw());
+  // silent: the menu may be disposed already, with the dialog
+  table.addListener(SWT.Dispose, () => { if (colorMenu) { try { colorMenu.dispose(); } catch (e) {} } });
+
+  // The tooltip follows the cell under the mouse: the column's, the row's on the first cell, the
+  // warning's on ⚠; set only when it changes, or the tooltip never shows.
+  table.addListener(SWT.MouseMove, e => {
+    const cell = cellAt(e.x, e.y);
+    let tip = "";
+    if (cell) {
+      const condition = conditions[cell.row];
+      const col = cell.col < vcols.length ? vcols[cell.col] : null;
+      if (!col) tip = DEL_TIP;
+      else if (col.kind === "warn") tip = warnings.get(cell.row) || "";
+      else if (cell.col === 0 && opts.rowTooltip) tip = opts.rowTooltip(condition);
+      else tip = col.tooltip || "";
+    }
+    if (tip !== tipShown) { tipShown = tip; table.setToolTipText(tip); }
+  });
+
+  // ── Structure ─────────────────────────────────────────────────────────────────
+
+  // A column is at least as wide as its header (a table clips a header to its column).
+  /** @param {ConditionTableColumn<ConditionByKind[K]>} col */
+  const colWidth = col => Math.max(col.width || WIDTH_BY_KIND[col.kind], (headerW.get(col.key) || 0) + 2 * HEADER_PAD) + COLUMN_GAP;
+
+  // The table's columns follow the visible columns; disposing them keeps the rows.
+  function rebuildColumns() {
+    for (const c of table.getColumns()) c.dispose();
+    vcols = visibleCols();
+    optionalShown = vcols.some(c => c.optional);
+    for (const col of vcols) {
+      const tc = new TableColumnWidget(table, SWT.LEFT);
+      tc.setText(col.header || "");
+      if (col.tooltip) tc.setToolTipText(col.tooltip);
+      tc.setWidth(colWidth(col));
+      tc.setResizable(false);
+    }
+    const del = new TableColumnWidget(table, SWT.CENTER);
+    del.setWidth(DEL_WIDTH);
+    del.setResizable(false);
+    del.setToolTipText(DEL_TIP);
+    cursor.col = Math.min(cursor.col, vcols.length);
+  }
+
+  // One table row per condition (the rows carry no data: every cell is drawn from the condition), the
+  // table sized to its rows, the empty text when there are none.
+  function syncRows() {
+    const n = conditions.length;
+    if (table.getItemCount() > n) table.remove(n, table.getItemCount() - 1);
+    while (table.getItemCount() < n) new TableItemWidget(table, SWT.NONE);
+    cursor.row = Math.min(cursor.row, Math.max(0, n - 1));
+    lblEmpty.setVisible(n === 0);
+    lblEmpty.getLayoutData().exclude = n > 0;
+    const width = vcols.reduce((s, c) => s + colWidth(c), DEL_WIDTH);
+    const trim = table.computeTrim(0, 0, width, table.getHeaderHeight() + n * rowH);
+    const gd = table.getLayoutData();
+    gd.widthHint = trim.width; gd.heightHint = trim.height;
     refresh();
     try { outer.layout(true, true); } catch (e) {}   // silent: layout on a table that may be disposed
     if (opts.onLayout) opts.onLayout();
   }
 
-  // Enabled states, choice selections (a column's onChange may have changed another field)
-  // and property lists, without rebuilding.
-  function refresh() {
-    rows.forEach((cells, i) => {
-      const condition = conditions[i];
-      for (const { col, ctrl, first } of cells.values()) {
-        if (!ctrl) continue;
-        // The first cell of a row carries the row tooltip (e.g. a style condition as a sentence).
-        // silent here and below: a dialog update on cells that may be disposed
-        if (first && opts.rowTooltip && ctrl.setToolTipText) { const tip = opts.rowTooltip(condition); try { ctrl.setToolTipText(tip); } catch (e) {} }
-        const on = enabled && (!col || ((!col.enabled || col.enabled(condition)) && (condition.on !== false || col.key === "on")));
-        if (ctrl.enable) ctrl.enable(on); else { try { ctrl.setEnabled(on); } catch (e) {} }
-        if (!col) continue;
-        if (col.kind === "choice") {
-          const ci = choiceItems(col, condition, i);
-          if (String(ctrl.getText()) !== ci.selected) comboItems(ctrl, ci.labels, ci.selected);
-        } else if (col.kind === "prop" || col.kind === "value") {
-          fillList(ctrl, col, condition, i);
-        } else if (col.kind === "custom" && ctrl.set) {
-          ctrl.set(condition[col.key]);
-        }
+  // A colour the palette does not hold is replaced as the run replaces it (colorItemFor), and reported.
+  function normalizeColors() {
+    let any = false;
+    for (const col of cols) {
+      if (col.kind !== "color") continue;
+      for (const r of conditions) {
+        const v = Widgets.colorItemFor(col, r[col.key] || "").value;
+        if (v !== (r[col.key] || "")) { r[col.key] = v; any = true; }
       }
-    });
+    }
+    return any;
+  }
+
+  // Enabled states, labels, counts and property lists: a redraw, the cells read the conditions.
+  function refresh() {
+    const replaced = normalizeColors();
     btnAdd.setEnabled(enabled);
     syncPropToggle();
+    table.redraw();
+    if (replaced) changed();
   }
 
   // Match property: checked and locked while a condition uses a property. When the last property
@@ -378,6 +535,8 @@ function conditionTable(parent, opts) {
     chkProp.setEnabled(enabled && !locked);
   }
 
+  rebuildColumns();
+
   return {
     /** Normalised conditions; a filter list that keeps everything gives []. */
     getConditions() {
@@ -389,37 +548,22 @@ function conditionTable(parent, opts) {
       conditions = (list || []).map(r => Object.assign(ConditionLists.defaultCondition(kind), r));
       fillEmpty();
       counts = []; warnings = new Map(); propOn = false;
-      rebuild();
+      rebuildColumns();
+      syncRows();
     },
     /** The rows as shown (normalised; a filter list's default row included), for per-row data. */
     displayedConditions() { return conditions.map(r => Object.assign(ConditionLists.defaultCondition(kind), r)); },
     /** Per-condition counts: [{ relations, elements }] in condition order. */
     setCounts(list) {
       counts = list || [];
-      rows.forEach((cells, i) => {
-        for (const { col, ctrl } of cells.values()) {
-          if (!col) continue;
-          if (col.kind === "count") { const text = countText(col, counts[i]); try { ctrl.setText(text); } catch (e) {} }   // silent: may be disposed
-          else if (col.kind === "choice" && col.count) {
-            const ci = choiceItems(col, conditions[i], i);
-            if (String(ctrl.getText()) !== ci.selected) comboItems(ctrl, ci.labels, ci.selected);
-          } else if ((col.kind === "prop" || col.kind === "value") && col.count) {
-            fillList(ctrl, col, conditions[i], i);
-          }
-        }
-      });
+      table.redraw();
     },
     /** Map condition index → tooltip for the ⚠ column. */
     setWarnings(map) {
       warnings = map || new Map();
-      rows.forEach((cells, i) => {
-        for (const { col, ctrl } of cells.values()) {
-          if (!col || col.kind !== "warn") continue;
-          try { ctrl.setText(warnings.has(i) ? "⚠" : ""); ctrl.setToolTipText(warnings.get(i) || ""); } catch (e) {}   // silent: may be disposed
-        }
-      });
+      table.redraw();
     },
-    /** Re-read property and value lists (after the dialog's dry run). */
+    /** Re-read property and value lists and the palette (after the dialog's dry run, another palette). */
     refreshItems() { refresh(); },
     enable(on) { enabled = !!on; refresh(); },
     footer,
@@ -494,7 +638,7 @@ const _propCols = what => [
 const _COUNT_TIP = "(n): relations / elements this step adds with only this condition. Conditions can overlap, so the sum can " +
                    "exceed the step total. For an Exclude condition: how many it removes from the other conditions' result.";
 
-// Global filter: the type combo shows the condition's count, "Business Actor (12)".
+// Global filter: the type cell shows the condition's count, "Business Actor (12)".
 const _FILTER_COUNT_TIP = "\n(n): how many this condition keeps on its own; for an Exclude condition, how many it removes " +
                           "from the other conditions' result.";
 /** @type {readonly ConditionTableColumn<ElementCondition>[]} */
@@ -515,7 +659,7 @@ const RELATION_CONDITION_COLUMNS = Object.freeze([
   _relCol("relation", "Relation type", "Relationship type. All = any type."),
   _typeCol("target", "Target type", "Element type at the end of the relation. All = any type."),
 ]);
-// Nesting / reverse: the relation-type combo shows the condition's count, "Aggregation (62)".
+// Nesting / reverse: the relation-type cell shows the condition's count, "Aggregation (62)".
 const _countedRelCol = Object.assign({}, RELATION_CONDITION_COLUMNS[2], { count: "relations", width: 166,
   tooltip: "Relationship type; All = any type.\n" +
            "(n): relations on the view this condition matches on its own; Exclude: how many it removes." });
@@ -526,18 +670,18 @@ const _COUNTED_FEATURE_COLUMNS = [_onCol, _featureModeCol, RELATION_CONDITION_CO
   ..._propCols("relations")];
 /** @type {readonly ConditionTableColumn<RelationCondition>[]} */
 const NESTING_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
-  { key: "everyContainer", header: "Every", kind: "check", width: 40, default: false,
+  { key: "everyContainer", header: "Every", kind: "check", width: 48, default: false,
     enabled: r => r.mode !== "exclude",
     tooltip: "A child with several parents: on = it appears in every parent;\n" +
              "off = in one parent, and the other relations are drawn as a line." },
-  { key: "nested", header: "Nested", kind: "count", width: 50, format: n => String(n),
+  { key: "nested", header: "Nested", kind: "count", width: 60, format: n => String(n),
     tooltip: "How many of those relations are drawn as nesting; the others are lines:\n" +
              "their child already has a parent, or the nesting would be circular." }]);
 // Reverse: an empty cell where Nesting has its Nested count, so both tables line up.
 /** @type {readonly ConditionTableColumn<RelationCondition>[]} */
 const REVERSE_CONDITION_COLUMNS = Object.freeze([..._COUNTED_FEATURE_COLUMNS,
-  { key: "_spacer", header: "", kind: "count", width: 40 },
-  { key: "_spacer2", header: "", kind: "count", width: 50 }]);
+  { key: "_spacer", header: "", kind: "count", width: 48 },
+  { key: "_spacer2", header: "", kind: "count", width: 60 }]);
 /** @type {readonly ConditionTableColumn<RelationCondition>[]} */
 const FILTER_RELATION_CONDITION_COLUMNS = Object.freeze([_onCol, RELATION_CONDITION_COLUMNS[0], RELATION_CONDITION_COLUMNS[1],
   Object.assign({}, RELATION_CONDITION_COLUMNS[2], { count: "count", width: 166,
@@ -547,15 +691,15 @@ const FILTER_RELATION_CONDITION_COLUMNS = Object.freeze([_onCol, RELATION_CONDIT
 /** @type {readonly ConditionTableColumn<StepCondition>[]} */
 const STEP_CONDITION_COLUMNS = Object.freeze([
   _onCol, _modeCol,
-  _typeCol("previous", "Previous step\nelements",
-    "Only elements of this type from the previous step are expanded (step 1: the filtered selection). All = any.", 150),
+  _typeCol("previous", "Previous step elements",
+    "Only elements of this type from the previous step are expanded (step 1: the filtered selection). All = any.", 200),
   { key: "direction", header: "Direction", kind: "choice", items: DIRECTION_ITEMS, width: 90,
     tooltip: "Outgoing: the relation starts at an element of the previous step.\n" +
              "Incoming: the relation ends at an element of the previous step.\nEither: both (default)." },
   // The condition's counts sit after the chosen type: "Aggregation (18)", "Business Service (5)".
-  Object.assign(_relCol("relation", "Added\nrelations", "Relationship types to follow from the previous step.\n" + _COUNT_TIP),
+  Object.assign(_relCol("relation", "Added relations", "Relationship types to follow from the previous step.\n" + _COUNT_TIP),
     { count: "relations", width: 166 }),
-  Object.assign(_typeCol("added", "Added\nelements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
+  Object.assign(_typeCol("added", "Added elements", "Types of the elements this step adds.\n" + _COUNT_TIP, 180),
     { count: "elements" }),
   { key: "propertyOf", header: "Property of", kind: "choice", items: STEP_PROP_OF_ITEMS, width: 120, optional: true,
     tooltip: "Where the property is read: the added element, the followed relation or the previous step's element." },
@@ -589,12 +733,8 @@ function styleConditionColumns(ranges) {
     { key: "property", header: "Property", kind: "prop", width: 140, count: "count",
       tooltip: "The property whose values give the colors.\n" +
                "(n): objects on the view this condition colors (no property yet: objects it reaches)." },
-    { key: "colorRange", header: "Color range", kind: "custom",
-      create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) => {
-        const first = ranges()[0];
-        return Widgets.colorRangePicker(p, v || (first ? first.value : ""), on, ranges);
-      },
-      tooltip: "Colors from low to high value of the property: a range of the palette." },
+    { key: "colorRange", header: "Color range", kind: "color", width: 150,
+      tooltip: "Colors from low to high value of the property: a range of the palette.", ...Widgets.colorRangeChoice(ranges) },
     { key: "warn", kind: "warn" },
   ];
   return Object.freeze(columns);
@@ -622,16 +762,14 @@ function nestingStyleConditionColumns(colors, switches) {
     { key: "child", header: "Child type", kind: "choice", items: CHILD_ITEMS, width: 158,   // fits "Same as parent"
       tooltip: "Type of the nested element the condition selects; Same as parent: the parent's type.\n" +
                "All = any type." },
-    { key: "color", header: "Color", kind: "custom",
-      create: (/** @type {Swt.Composite} */ p, /** @type {string} */ v, /** @type {(v: string) => void} */ on) =>
-        Widgets.paletteColorPicker(p, { colors, value: v, onChange: on, withDefault: true, width: 190 }),
-      enabled: () => switches.color(),
+    { key: "color", header: "Color", kind: "color", width: 190, enabled: () => switches.color(),
       tooltip: "Color of the selected elements: a palette color, Other… or Default (the type's fill).\n" +
-               "Lighter per level; when conditions select the same element the most specific wins." },
+               "Lighter per level; when conditions select the same element the most specific wins.",
+      ...Widgets.paletteColorChoice(colors, true) },
     { key: "fontSize", header: "Font size", kind: "choice", items: FONT_SIZE_ITEMS, width: 70, enabled: () => switches.font(),
       tooltip: "Font size of the container where the condition starts; empty: continues from its parent.\n" +
                "Each level deeper is smaller by Smaller per level." },
-    { key: "bold", header: "Bold", kind: "check", width: 40, default: false, enabled: () => switches.font(),
+    { key: "bold", header: "Bold", kind: "check", width: 44, default: false, enabled: () => switches.font(),
       tooltip: "Bold for the container where the condition starts; deeper containers are not bold." },
   ]);
 }

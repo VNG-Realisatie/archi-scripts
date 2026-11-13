@@ -21,7 +21,7 @@ declare namespace Swt {
     readonly H_SCROLL: number; readonly V_SCROLL: number; readonly BOLD: number;
     readonly NORMAL: number; readonly ITALIC: number;
     readonly INHERIT_DEFAULT: number; readonly NO_TRIM: number; readonly SEARCH: number; readonly ICON_CANCEL: number;
-    readonly LEFT: number;
+    readonly LEFT: number; readonly FULL_SELECTION: number; readonly NO_SCROLL: number;
     // alignment and sizes
     readonly BEGINNING: number; readonly LEAD: number; readonly CENTER: number; readonly END: number;
     readonly FILL: number; readonly TOP: number; readonly DEFAULT: number;
@@ -30,16 +30,19 @@ declare namespace Swt {
     readonly FocusOut: number; readonly MouseUp: number; readonly Paint: number; readonly Resize: number;
     readonly FocusIn: number; readonly KeyDown: number; readonly Traverse: number; readonly Dispose: number;
     readonly MouseDown: number; readonly MouseDoubleClick: number; readonly Deactivate: number;
+    readonly MouseMove: number; readonly MeasureItem: number; readonly EraseItem: number; readonly PaintItem: number;
+    // owner-draw details (EraseItem)
+    readonly SELECTED: number; readonly HOT: number; readonly FOCUSED: number; readonly FOREGROUND: number; readonly BACKGROUND: number;
     // key codes
-    readonly ARROW_DOWN: number;
+    readonly ARROW_DOWN: number; readonly ARROW_UP: number; readonly ARROW_LEFT: number; readonly ARROW_RIGHT: number; readonly CR: number;
     // traversal details
     readonly TRAVERSE_RETURN: number; readonly TRAVERSE_ESCAPE: number;
     // GC
-    readonly ON: number;
+    readonly ON: number; readonly DRAW_TRANSPARENT: number;
     // system colours
     readonly COLOR_DARK_GRAY: number; readonly COLOR_WIDGET_BACKGROUND: number; readonly COLOR_WHITE: number;
     readonly COLOR_LIST_BACKGROUND: number; readonly COLOR_LIST_SELECTION: number;
-    readonly COLOR_WIDGET_NORMAL_SHADOW: number; readonly COLOR_WIDGET_DARK_SHADOW: number;
+    readonly COLOR_WIDGET_NORMAL_SHADOW: number; readonly COLOR_WIDGET_DARK_SHADOW: number; readonly COLOR_WIDGET_FOREGROUND: number;
   }
 
   interface Point { x: number; y: number }
@@ -51,6 +54,7 @@ declare namespace Swt {
   interface Font {}
   /** Name, height (pt) and style of a font; toString() gives the string Archi stores and FontFactory reads. */
   interface FontData { getHeight(): number; toString(): string }
+  interface FontMetrics { getHeight(): number; getAverageCharacterWidth(): number }
   interface Monitor { getClientArea(): Rectangle }
 
   interface GC {
@@ -67,11 +71,15 @@ declare namespace Swt {
     setFont(font: Swt.Font): void;
     /** One line's size; a line break in the text adds a line. */
     textExtent(text: string): Point;
+    drawText(text: string, x: number, y: number, flags: number): void;
+    getFontMetrics(): FontMetrics;
     dispose(): void;
   }
 
   /** The listener argument; Paint events carry gc and display, mouse / key / traverse events the rest. */
-  interface Event { gc: GC; display: Display; button: number; character: string; keyCode: number; detail: number; doit: boolean; widget: Widget; x: number; y: number }
+  interface Event { gc: GC; display: Display; button: number; character: string; keyCode: number; detail: number; doit: boolean; widget: Widget; x: number; y: number;
+    /** Owner-draw events (MeasureItem, EraseItem, PaintItem): the item, its column and the measured size. */
+    item: TableItem; index: number; width: number; height: number }
 
   interface Display {
     getMonitors(): Monitor[];
@@ -89,6 +97,7 @@ declare namespace Swt {
   interface GridData {
     exclude: boolean;
     widthHint: number;
+    heightHint: number;
     horizontalSpan: number;
     horizontalIndent: number;
   }
@@ -227,6 +236,41 @@ declare namespace Swt {
     setExpanded(expanded: boolean): void;
   }
 
+  interface Table extends Composite {
+    setHeaderVisible(show: boolean): void;
+    setLinesVisible(show: boolean): void;
+    setHeaderBackground(color: Color | null): void;
+    setHeaderForeground(color: Color | null): void;
+    getHeaderHeight(): number;
+    getItemHeight(): number;
+    getItemCount(): number;
+    getItem(index: number): TableItem;
+    getItem(point: Point): TableItem | null;
+    indexOf(item: TableItem): number;
+    remove(start: number, end: number): void;
+    getColumns(): TableColumn[];
+    getSelectionIndex(): number;
+    setSelection(index: number): void;
+    deselectAll(): void;
+  }
+  interface TableColumn extends Widget {
+    setText(text: string): void;
+    setToolTipText(text: string): void;
+    setWidth(width: number): void;
+    setResizable(resizable: boolean): void;
+  }
+  interface TableItem extends Widget {
+    /** The cell of a column. */
+    getBounds(index: number): Rectangle;
+  }
+  interface List extends Scrollable {
+    setItems(items: unknown): void;
+    setSelection(index: number): void;
+    getSelectionIndex(): number;
+    showSelection(): void;
+    getItemHeight(): number;
+  }
+
   interface Spinner extends Composite {
     getSelection(): number;
     setSelection(value: number): void;
@@ -307,6 +351,10 @@ interface JavaInterop {
   type(className: "org.eclipse.swt.widgets.Shell"): new (parent: Swt.Shell, style: number) => Swt.Shell;
   type(className: "org.eclipse.swt.widgets.Tree"): Swt.WidgetClass<Swt.Composite, Swt.Tree>;
   type(className: "org.eclipse.swt.widgets.TreeItem"): new (parent: Swt.Tree | Swt.TreeItem, style: number) => Swt.TreeItem;
+  type(className: "org.eclipse.swt.widgets.Table"): Swt.WidgetClass<Swt.Composite, Swt.Table>;
+  type(className: "org.eclipse.swt.widgets.TableColumn"): new (parent: Swt.Table, style: number) => Swt.TableColumn;
+  type(className: "org.eclipse.swt.widgets.TableItem"): new (parent: Swt.Table, style: number) => Swt.TableItem;
+  type(className: "org.eclipse.swt.widgets.List"): Swt.WidgetClass<Swt.Composite, Swt.List>;
   type(className: "org.eclipse.swt.widgets.Spinner"): Swt.WidgetClass<Swt.Composite, Swt.Spinner>;
   type(className: "org.eclipse.swt.widgets.Group"): Swt.WidgetClass<Swt.Composite, Swt.Group>;
   type(className: "org.eclipse.swt.widgets.Canvas"): Swt.WidgetClass<Swt.Composite, Swt.Canvas>;
@@ -317,7 +365,7 @@ interface JavaInterop {
   type(className: "org.eclipse.swt.graphics.Color"): new (display: Swt.Display, red: number, green: number, blue: number) => Swt.Color;
   type(className: "org.eclipse.swt.graphics.Point"): new (x: number, y: number) => Swt.Point;
   type(className: "org.eclipse.swt.graphics.Image"): new (display: Swt.Display, width: number, height: number) => Swt.Image;
-  type(className: "org.eclipse.swt.graphics.GC"): new (drawable: Swt.Image | Swt.Display) => Swt.GC;
+  type(className: "org.eclipse.swt.graphics.GC"): new (drawable: Swt.Image | Swt.Display | Swt.Control) => Swt.GC;
   type(className: "org.eclipse.swt.graphics.FontData"): new (name: string, height: number, style: number) => Swt.FontData;
   type(className: "org.eclipse.swt.graphics.RGB"): new (red: number, green: number, blue: number) => Swt.RGB;
   type(className: "org.eclipse.swt.widgets.Menu"): new (parent: Swt.Control) => Swt.Menu;

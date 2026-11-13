@@ -98,19 +98,22 @@ interface PaletteRange {
 
 /** One choice of a colour picker (gui/widgets.js colorPicker). colors: one hex = a swatch, several = a gradient, none = an empty frame. */
 interface ColorPickerItem { value: string; label: string; colors: readonly string[] }
-interface ColorPickerOptions {
+/** What a colour control offers (gui/widgets.js paletteColorChoice, colorRangeChoice): the items and how a value outside them shows. */
+interface ColorChoice {
   items: () => readonly ColorPickerItem[];
   /** The item shown for a value that is not among the items (and that `fallback` does not replace). */
   missing: (value: string) => ColorPickerItem;
   /** A value that is not among the items is replaced by the one this returns (reported through onChange). */
   fallback?: (items: readonly ColorPickerItem[]) => string;
-  value: string;
-  onChange: (value: string) => void;
-  tooltip?: string;
   /** End the menu with "Other…": the system colour dialog, chosen as a hex value. */
   other?: boolean;
   /** px; default 16. */
   swatchWidth?: number;
+}
+interface ColorPickerOptions extends ColorChoice {
+  value: string;
+  onChange: (value: string) => void;
+  tooltip?: string;
   /** Button width hint (px), so the layout does not shift with the chosen label. */
   width?: number;
 }
@@ -695,7 +698,7 @@ interface CheckBox {
   isEnabled(): boolean;
 }
 
-/** A "custom" cell: a controller the table drives instead of an SWT control. */
+/** A drawn control the dialog drives (colour picker, drawn checkbox). */
 interface ConditionTableCell {
   set(value: any): void;
   enable(on: boolean): void;
@@ -709,8 +712,6 @@ interface ConditionTableColumnBase<R> {
   header?: string;
   tooltip?: string;
   width?: number;
-  /** Grid cells the column uses (custom: more than one). */
-  cells?: number;
   optional?: boolean;
   enabled?: (condition: R) => boolean;
   onChange?: (condition: R) => void;
@@ -723,9 +724,9 @@ interface ConditionTableChoiceColumn<R = AnyCondition> extends ConditionTableCol
   items: readonly ConditionTableItem[];
 }
 
-interface ConditionTableCustomColumn<R = AnyCondition> extends ConditionTableColumnBase<R> {
-  kind: "custom";
-  create: (parent: Swt.Composite, value: any, onChange: (value: any) => void) => ConditionTableCell;
+/** A colour cell: a swatch and name, edited through the palette menu of the choice. */
+interface ConditionTableColorColumn<R = AnyCondition> extends ConditionTableColumnBase<R>, ColorChoice {
+  kind: "color";
 }
 
 interface ConditionTablePlainColumn<R = AnyCondition> extends ConditionTableColumnBase<R> {
@@ -736,7 +737,7 @@ interface ConditionTablePlainColumn<R = AnyCondition> extends ConditionTableColu
   format?: (n: number) => string;
 }
 
-type ConditionTableColumn<R = AnyCondition> = ConditionTableChoiceColumn<R> | ConditionTableCustomColumn<R> | ConditionTablePlainColumn<R>;
+type ConditionTableColumn<R = AnyCondition> = ConditionTableChoiceColumn<R> | ConditionTableColorColumn<R> | ConditionTablePlainColumn<R>;
 
 interface ConditionTableOptions<K extends ConditionKind> {
   kind: K;

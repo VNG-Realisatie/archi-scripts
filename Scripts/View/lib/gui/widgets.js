@@ -27,6 +27,7 @@ const ShellWidget             = Java.type("org.eclipse.swt.widgets.Shell");
 const TextWidget              = Java.type("org.eclipse.swt.widgets.Text");
 const TreeWidget              = Java.type("org.eclipse.swt.widgets.Tree");
 const TreeItemWidget          = Java.type("org.eclipse.swt.widgets.TreeItem");
+const ListWidget              = Java.type("org.eclipse.swt.widgets.List");
 const SWTMenu                 = Java.type("org.eclipse.swt.widgets.Menu");
 const MenuItemWidget          = Java.type("org.eclipse.swt.widgets.MenuItem");
 const SWTColorDialog          = Java.type("org.eclipse.swt.widgets.ColorDialog");
@@ -257,45 +258,123 @@ function hasNestingConditions(w) {
 // Combo shows text only on GTK, so a menu is the way to see the colours before choosing.
 
 const SWATCH_H = 14;
+const SWATCH_W = 16;
 
 /**
- * An image of a swatch: one colour, a gradient of several, or none (an empty frame).
+ * Draw a swatch: one colour, a gradient of several, or none (an empty frame).
+ * @param {Swt.GC} gc
  * @param {Swt.Display} display
- * @param {readonly string[]} colors  hex values; [] = none
+ * @param {number} x
+ * @param {number} y
  * @param {number} width
+ * @param {readonly string[]} colors  hex values; [] = none
  * @param {boolean} on  false: an empty frame (a disabled control shows no colour)
  */
-function _swatchImage(display, colors, width, on) {
-  const img = new SWTImage(display, width, SWATCH_H);
-  const gc = new SWTGC(img);
+function drawSwatch(gc, display, x, y, width, colors, on) {
   gc.setBackground(display.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
-  gc.fillRectangle(0, 0, width, SWATCH_H);
+  gc.fillRectangle(x, y, width, SWATCH_H);
   if (on) {
     const seg = width / Math.max(1, colors.length);
     colors.forEach((hex, i) => {
       const col = new SWTColor(display, parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16));
       gc.setBackground(col);
-      gc.fillRectangle(Math.round(i * seg), 0, Math.ceil(seg), SWATCH_H);
+      gc.fillRectangle(x + Math.round(i * seg), y, Math.ceil(seg), SWATCH_H);
       col.dispose();
     });
   }
   gc.setForeground(display.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
-  gc.drawRectangle(0, 0, width - 1, SWATCH_H - 1);
+  gc.drawRectangle(x, y, width - 1, SWATCH_H - 1);
+}
+
+/**
+ * An image of a swatch (drawSwatch), for a button or menu item.
+ * @param {Swt.Display} display
+ * @param {readonly string[]} colors
+ * @param {number} width
+ * @param {boolean} on
+ */
+function _swatchImage(display, colors, width, on) {
+  const img = new SWTImage(display, width, SWATCH_H);
+  const gc = new SWTGC(img);
+  drawSwatch(gc, display, 0, 0, width, colors, on);
   gc.dispose();
   return img;
 }
 
 /**
+ * The item a colour choice shows for a value. A value the items do not hold: with `fallback` it is
+ * replaced (`value` differs from the one given), so the control always shows what the run uses; else
+ * it is shown as `missing` gives it. A hex value chosen with Other… is kept.
+ * @param {ColorChoice} choice
+ * @param {string} value
+ * @returns {{ item: ColorPickerItem, value: string }}
+ */
+function colorItemFor(choice, value) {
+  const items = choice.items();
+  const found = items.find(it => it.value === value);
+  if (found) return { item: found, value };
+  if (choice.fallback && !(choice.other && Palettes.HEX.test(value))) {
+    const v = choice.fallback(items);
+    const item = items.find(it => it.value === v);
+    if (item) return { item, value: v };
+  }
+  return { item: choice.missing(value), value };
+}
+
+/**
+ * Open the menu of a colour choice at a display point: every item with its swatch, the current one
+ * ticked, and with `other` "Other…" (the system colour dialog, whose choice is a hex value). The
+ * caller disposes the menu (the images go with it) before opening the next.
+ * @param {Swt.Control} control  the control the menu belongs to
+ * @param {Swt.Point} at  display coordinates
+ * @param {ColorChoice} choice
+ * @param {string} value
+ * @param {(value: string) => void} choose
+ * @returns {Swt.Menu}
+ */
+function openColorMenu(control, at, choice, value, choose) {
+  const display = control.getDisplay();
+  const swatchW = choice.swatchWidth || SWATCH_W;
+  const menu = new SWTMenu(control);
+  /** @type {Swt.Image[]} */
+  const images = [];
+  for (const it of choice.items()) {
+    const mi = new MenuItemWidget(menu, SWT.PUSH);
+    mi.setText(it.value === value ? it.label + "   ✓" : it.label);
+    const img = _swatchImage(display, it.colors, swatchW, true);
+    images.push(img);
+    mi.setImage(img);
+    mi.addListener(SWT.Selection, () => choose(it.value));
+  }
+  if (choice.other) {
+    new MenuItemWidget(menu, SWT.SEPARATOR);
+    const mi = new MenuItemWidget(menu, SWT.PUSH);
+    mi.setText("Other…");
+    mi.addListener(SWT.Selection, () => {
+      const dlg = new SWTColorDialog(control.getShell());
+      if (Palettes.HEX.test(value)) {
+        dlg.setRGB(new SWTRGB(parseInt(value.slice(1, 3), 16), parseInt(value.slice(3, 5), 16), parseInt(value.slice(5, 7), 16)));
+      }
+      const rgb = dlg.open();
+      if (rgb) choose("#" + [rgb.red, rgb.green, rgb.blue].map(n => ("0" + Number(n).toString(16)).slice(-2)).join(""));
+    });
+  }
+  // silent: an image may be disposed already, with the dialog
+  menu.addListener(SWT.Dispose, () => images.forEach(img => { try { img.dispose(); } catch (e) {} }));
+  menu.setLocation(at);
+  menu.setVisible(true);
+  return menu;
+}
+
+/**
  * Colour picker (see above). Items are read each time the menu opens or the value is set, so a
- * changed list (another palette) shows at once. A value that is not among the items stays,
- * shown as `missing(value)`. With `other`, the menu ends in "Other…": the system colour dialog,
- * whose choice is a hex value.
+ * changed list (another palette) shows at once (colorItemFor).
  * @param {Swt.Composite} parent
  * @param {ColorPickerOptions} opts
  * @returns {ColorPicker}
  */
 function colorPicker(parent, opts) {
-  const swatchW = opts.swatchWidth || 16;
+  const swatchW = opts.swatchWidth || SWATCH_W;
   const btn = new ButtonWidget(parent, SWT.PUSH);
   GridDataFactory.swtDefaults().hint(opts.width || SWT.DEFAULT, SWT.DEFAULT).align(SWT.FILL, SWT.CENTER).applyTo(btn);
   if (opts.tooltip) btn.setToolTipText(opts.tooltip);
@@ -305,36 +384,16 @@ function colorPicker(parent, opts) {
   let btnImage = null;
   /** @type {Swt.Menu | null} */
   let menu = null;
-  /** @type {Swt.Image[]} */
-  let menuImages = [];
 
-  // A value the items do not hold: with `fallback` it is replaced (and reported through onChange),
-  // so the picker always shows what the run uses; else it is shown as `missing` gives it. A hex
-  // value chosen with Other… is kept.
-  /** @returns {ColorPickerItem} */
-  const current = () => {
-    const items = opts.items();
-    const found = items.find(it => it.value === value);
-    if (found) return found;
-    if (opts.fallback && !(opts.other && Palettes.HEX.test(value))) {
-      const v = opts.fallback(items);
-      const item = items.find(it => it.value === v);
-      if (item) { value = v; opts.onChange(v); return item; }
-    }
-    return opts.missing(value);
-  };
-  const disposeMenu = () => {
-    // silent: the menu and its images may be disposed already, with the dialog
-    if (menu) { try { menu.dispose(); } catch (e) {} menu = null; }
-    menuImages.forEach(img => { try { img.dispose(); } catch (e) {} });
-    menuImages = [];
-  };
+  // silent: the menu may be disposed already, with the dialog
+  const disposeMenu = () => { if (menu) { try { menu.dispose(); } catch (e) {} menu = null; } };
   const show = () => {
-    const it = current();
+    const c = colorItemFor(opts, value);
+    if (c.value !== value) { value = c.value; opts.onChange(value); }   // replaced by the fallback: reported
     const old = btnImage;
-    btnImage = _swatchImage(btn.getDisplay(), it.colors, swatchW, enabled);
+    btnImage = _swatchImage(btn.getDisplay(), c.item.colors, swatchW, enabled);
     btn.setImage(btnImage);
-    btn.setText(it.label + "  ▾");
+    btn.setText(c.item.label + "  ▾");
     if (old) old.dispose();
   };
   /** @param {string} v */
@@ -342,32 +401,8 @@ function colorPicker(parent, opts) {
 
   btn.addListener(SWT.Selection, () => {
     disposeMenu();
-    menu = new SWTMenu(btn);
-    const m = menu;
-    for (const it of opts.items()) {
-      const mi = new MenuItemWidget(m, SWT.PUSH);
-      mi.setText(it.value === value ? it.label + "   ✓" : it.label);
-      const img = _swatchImage(btn.getDisplay(), it.colors, swatchW, true);
-      menuImages.push(img);
-      mi.setImage(img);
-      mi.addListener(SWT.Selection, () => choose(it.value));
-    }
-    if (opts.other) {
-      new MenuItemWidget(m, SWT.SEPARATOR);
-      const mi = new MenuItemWidget(m, SWT.PUSH);
-      mi.setText("Other…");
-      mi.addListener(SWT.Selection, () => {
-        const dlg = new SWTColorDialog(btn.getShell());
-        if (/^#[0-9a-fA-F]{6}$/.test(value)) {
-          dlg.setRGB(new SWTRGB(parseInt(value.slice(1, 3), 16), parseInt(value.slice(3, 5), 16), parseInt(value.slice(5, 7), 16)));
-        }
-        const rgb = dlg.open();
-        if (rgb) choose("#" + [rgb.red, rgb.green, rgb.blue].map(n => ("0" + Number(n).toString(16)).slice(-2)).join(""));
-      });
-    }
     const b = btn.getBounds();
-    m.setLocation(btn.getParent().toDisplay(b.x, b.y + b.height));
-    m.setVisible(true);
+    menu = openColorMenu(btn, btn.getParent().toDisplay(b.x, b.y + b.height), opts, value, choose);
   });
   btn.addListener(SWT.Dispose, () => { disposeMenu(); if (btnImage) btnImage.dispose(); });
   show();
@@ -383,26 +418,50 @@ function colorPicker(parent, opts) {
 }
 
 /**
- * Picker of one colour (nesting style conditions, Mixed values color): the palette's colours by
+ * The choice of one colour (nesting style conditions, Mixed values color): the palette's colours by
  * name, Other… for a colour of its own (hex), and with `withDefault` the type's default fill ("").
  * A name the palette does not hold becomes its first colour, as the run uses it (palettes.colorOf).
+ * @param {() => readonly { name: string, hex: string }[]} colors
+ * @param {boolean} [withDefault]
+ * @returns {ColorChoice}
+ */
+function paletteColorChoice(colors, withDefault) {
+  return {
+    items: () => [...(withDefault ? [{ value: "", label: "Default", colors: [] }] : []),
+                  ...colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
+    missing: v => ({ value: v, label: v, colors: Palettes.HEX.test(v) ? [v] : [] }),
+    fallback: list => { const first = list.find(it => it.value !== ""); return first ? first.value : ""; },
+    other: true,
+  };
+}
+
+/**
+ * The choice of a colour range (style conditions, highlight repeated): the ranges of the active palette.
+ * @param {() => ColorPickerItem[]} items  the palette's ranges with their gradient (rangeItems)
+ * @returns {ColorChoice}
+ */
+function colorRangeChoice(items) {
+  return {
+    items, swatchWidth: 60,
+    missing: v => ({ value: v, label: v, colors: [] }),
+    fallback: list => list.length ? list[0].value : "",   // a range the palette does not hold: its first range
+  };
+}
+
+/**
+ * Picker of one colour as a button (paletteColorChoice).
  * @param {Swt.Composite} parent
  * @param {{ colors: () => readonly { name: string, hex: string }[], value: string, onChange: (value: string) => void,
  *           withDefault?: boolean, tooltip?: string, width?: number }} opts
  * @returns {ColorPicker}
  */
 function paletteColorPicker(parent, opts) {
-  return colorPicker(parent, {
-    items: () => [...(opts.withDefault ? [{ value: "", label: "Default", colors: [] }] : []),
-                  ...opts.colors().map(c => ({ value: c.name, label: c.name, colors: [c.hex] }))],
-    missing: v => ({ value: v, label: v, colors: Palettes.HEX.test(v) ? [v] : [] }),
-    fallback: list => { const first = list.find(it => it.value !== ""); return first ? first.value : ""; },
-    other: true, value: opts.value, onChange: opts.onChange, tooltip: opts.tooltip, width: opts.width,
-  });
+  return colorPicker(parent, Object.assign(paletteColorChoice(opts.colors, opts.withDefault),
+    { value: opts.value, onChange: opts.onChange, tooltip: opts.tooltip, width: opts.width }));
 }
 
 /**
- * Colour-range picker (style conditions, highlight repeated): the ranges of the active palette.
+ * Picker of a colour range as a button (colorRangeChoice).
  * @param {Swt.Composite} parent
  * @param {string} value
  * @param {(value: string) => void} onChange
@@ -410,11 +469,7 @@ function paletteColorPicker(parent, opts) {
  * @param {string} [tooltip]
  */
 function colorRangePicker(parent, value, onChange, items, tooltip) {
-  return colorPicker(parent, {
-    items, value, onChange, tooltip, swatchWidth: 60, width: 150,
-    missing: v => ({ value: v, label: v, colors: [] }),
-    fallback: list => list.length ? list[0].value : "",   // a range the palette does not hold: its first range
-  });
+  return colorPicker(parent, Object.assign(colorRangeChoice(items), { value, onChange, tooltip, width: 150 }));
 }
 
 /**
@@ -616,6 +671,47 @@ function _placeTreePopup(popup, btn) {
   popup.setBounds(x, at.y, width, height);
 }
 
+// ── List pop-up ───────────────────────────────────────────────────────────────
+// The list of a condition-table cell: a pop-up under the cell (above it when the monitor has no room
+// below), at least as wide as the cell, with the current item selected. A click or Enter chooses;
+// Esc or a click elsewhere closes. What a read-only combo's list does, without the combo.
+
+const LIST_POPUP_ROWS = 12;   // visible items at most; the list scrolls for more
+
+/**
+ * @param {Swt.Control} control  the control the cell belongs to
+ * @param {Swt.Rectangle} cell  the cell in display coordinates
+ * @param {string[]} labels
+ * @param {number} selected  index of the current item, or -1
+ * @param {(index: number) => void} choose
+ */
+function openListPopup(control, cell, labels, selected, choose) {
+  const popup = new ShellWidget(control.getShell(), SWT.NO_TRIM);
+  GridLayoutFactory.fillDefaults().margins(0, 0).applyTo(popup);
+  const list = new ListWidget(popup, SWT.SINGLE | SWT.V_SCROLL | SWT.BORDER);
+  GridDataFactory.fillDefaults().grab(true, true).applyTo(list);
+  list.setItems(Java.to(labels, "java.lang.String[]"));
+  if (selected >= 0) { list.setSelection(selected); list.showSelection(); }
+
+  const close = () => { if (!popup.isDisposed()) popup.dispose(); };
+  const pick = () => { const i = list.getSelectionIndex(); close(); if (i >= 0) choose(i); };
+  list.addListener(SWT.MouseUp, e => { if (e.button === 1 && list.getSelectionIndex() >= 0) pick(); });
+  list.addListener(SWT.DefaultSelection, pick);
+  list.addListener(SWT.Traverse, e => { if (e.detail === SWT.TRAVERSE_ESCAPE) { e.doit = false; close(); } });
+  popup.addListener(SWT.Deactivate, close);
+
+  const area   = control.getShell().getMonitor().getClientArea();
+  const width  = Math.max(cell.width, popup.computeSize(SWT.DEFAULT, SWT.DEFAULT).x);
+  const height = popup.computeTrim(0, 0, width, list.getItemHeight() * Math.min(LIST_POPUP_ROWS, Math.max(1, labels.length))).height
+    + list.computeTrim(0, 0, 0, 0).height;
+  const below  = cell.y + cell.height;
+  const y      = below + height <= area.y + area.height || cell.y - height < area.y ? below : cell.y - height;
+  const x      = Math.max(area.x, Math.min(cell.x, area.x + area.width - width));
+  popup.setBounds(x, y, width, height);
+  popup.open();
+  list.setFocus();
+}
+
 // Inside a group, the same on every tab (ARCHITECTURE § Dialog, Look and feel realisation).
 const GROUP_MARGIN_H = 8;
 const GROUP_MARGIN_V = 6;
@@ -798,6 +894,34 @@ function pushBtn(parent, label, tip, handler) {
 const CHECK_SIZE = 16;
 
 /**
+ * Draw a checkbox of CHECK_SIZE at x, y: blue with a white tick when checked; grey when off.
+ * @param {Swt.GC} gc
+ * @param {Swt.Display} d
+ * @param {number} x
+ * @param {number} y
+ * @param {boolean} checked
+ * @param {boolean} on  enabled
+ */
+function drawCheck(gc, d, x, y, checked, on) {
+  const sys = (/** @type {number} */ c) => d.getSystemColor(c);
+  gc.setAntialias(SWT.ON);
+  if (checked) {
+    gc.setBackground(sys(on ? SWT.COLOR_LIST_SELECTION : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+    gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
+    gc.setForeground(sys(SWT.COLOR_WHITE));
+    gc.setLineWidth(2);
+    gc.drawLine(x + 4, y + 8, x + 7, y + 11);
+    gc.drawLine(x + 7, y + 11, x + 12, y + 5);
+  } else {
+    gc.setBackground(sys(on ? SWT.COLOR_LIST_BACKGROUND : SWT.COLOR_WIDGET_BACKGROUND));
+    gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
+    gc.setForeground(sys(on ? SWT.COLOR_WIDGET_DARK_SHADOW : SWT.COLOR_WIDGET_NORMAL_SHADOW));
+    gc.setLineWidth(1);
+    gc.drawRoundRectangle(x, y, CHECK_SIZE - 1, CHECK_SIZE - 1, 5, 5);
+  }
+}
+
+/**
  * A drawn checkbox. A disabled GTK checkbox keeps its blue tick and still looks active; this one
  * turns grey when disabled. Mouse click and Space toggle it; Tab moves past it.
  * @param {Swt.Composite} parent
@@ -810,25 +934,10 @@ function canvasCheck(parent, value, onChange) {
   let checked = !!value;
   const toggle = () => { if (!canvas.isEnabled()) return; checked = !checked; canvas.redraw(); onChange(checked); };
   canvas.addListener(SWT.Paint, e => {
-    const gc = e.gc, d = canvas.getDisplay(), on = canvas.isEnabled();
-    const sys = (/** @type {number} */ c) => d.getSystemColor(c);
+    const gc = e.gc;
     const a = canvas.getClientArea();
     const x = Math.floor((a.width - CHECK_SIZE) / 2), y = Math.floor((a.height - CHECK_SIZE) / 2);
-    gc.setAntialias(SWT.ON);
-    if (checked) {
-      gc.setBackground(sys(on ? SWT.COLOR_LIST_SELECTION : SWT.COLOR_WIDGET_NORMAL_SHADOW));
-      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
-      gc.setForeground(sys(SWT.COLOR_WHITE));
-      gc.setLineWidth(2);
-      gc.drawLine(x + 4, y + 8, x + 7, y + 11);
-      gc.drawLine(x + 7, y + 11, x + 12, y + 5);
-    } else {
-      gc.setBackground(sys(on ? SWT.COLOR_LIST_BACKGROUND : SWT.COLOR_WIDGET_BACKGROUND));
-      gc.fillRoundRectangle(x, y, CHECK_SIZE, CHECK_SIZE, 5, 5);
-      gc.setForeground(sys(on ? SWT.COLOR_WIDGET_DARK_SHADOW : SWT.COLOR_WIDGET_NORMAL_SHADOW));
-      gc.setLineWidth(1);
-      gc.drawRoundRectangle(x, y, CHECK_SIZE - 1, CHECK_SIZE - 1, 5, 5);
-    }
+    drawCheck(gc, canvas.getDisplay(), x, y, checked, canvas.isEnabled());
     if (canvas.isFocusControl()) { gc.setLineWidth(1); gc.drawFocus(x - 1, y - 1, CHECK_SIZE + 2, CHECK_SIZE + 2); }
   });
   canvas.addListener(SWT.MouseUp, e => { if (e.button === 1) toggle(); });
@@ -923,6 +1032,8 @@ function addSpinnerRow(parent, label, key, defVal, min, max, step, w, tooltip) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    scrolledTab, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions, colorPicker, paletteColorPicker, colorRangePicker, rangeItems, treePicker, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, canvasCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
+    scrolledTab, resizeScrolled, getBoldFont, getGroupBackground, noteLabel, hasNestingConditions,
+    colorPicker, paletteColorPicker, colorRangePicker, paletteColorChoice, colorRangeChoice, colorItemFor, openColorMenu, drawSwatch, SWATCH_H, SWATCH_W,
+    rangeItems, treePicker, openListPopup, group, formRow, alignFormColumns, addCombo, enable, pushBtn, addCheck, checkBox, drawCheck, CHECK_SIZE, addSpinnerRow, SPINNER_WIDTH, GAP_FIELD, GAP_PAIR, GROUP_MARGIN_H,
   };
 }
