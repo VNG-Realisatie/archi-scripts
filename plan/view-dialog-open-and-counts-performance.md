@@ -1,24 +1,14 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted (§ Widgets at open); next: the Windows run of the `setRedraw` lines and the count (§ Handoff), then the user chooses how to create fewer native widgets at open.
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted and confirmed on Windows; `setRedraw(false)` dropped (§ Widgets at open). Next: the user chooses how to create fewer native widgets at open (§ Handoff).
 
 ## Handoff
 
 Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) committed; typecheck and Node tests pass. Comparable run, split and SWT micro-benchmark on both machines. Cause of the Windows widget cost found as far as it goes without admin rights (§ Windows: why native widgets are slow): every native window event costs 100–300 µs on this laptop, spread over Windows' own listeners; not a third-party program, not SWT, not DPI scaling. The dialog cannot change that; it can create fewer native widgets at open.
 
-Done on Linux: the count at open (§ Widgets at open): 617 controls, of which 97 combos with 2 340 items, nearly all on the Selection and Layout tabs. `setRedraw(false)` added to `swt_timing.ajs`: no effect on Linux.
+Done on both machines (§ Widgets at open): the count at open is the same, 617 controls, of which 97 combos with 2 340 items, nearly all on the Selection and Layout tabs. `setRedraw(false)`: no effect on Linux; on Windows no pair gains, some lose up to 15 %: dropped. On Windows open → shown was 5.8 s this time against 11.6 s before, with the window-event cost at 90–130 µs against 280–420 µs: the Windows open time follows the event cost, so the number of native widgets is the lever.
 
-Next, on Windows (Git Bash in the repo, after `git pull`; Archi closed or not, the command line runs beside it):
-1. **`setRedraw(false)`.** Run the micro-benchmark twice and keep both outputs:
-
-       ~/scoop/apps/archi/current/Archi.exe -application com.archimatetool.commandline.app -consoleLog -nosplash \
-         --script.runScript "$(pwd -W)/Scripts/View/tools/swt_timing.ajs" > swt_timing.txt 2>&1
-
-   Shown windows flash briefly (the "shown:" lines open a shell). Compare each "redraw off" line with its pair (§ Widgets at open, the `setRedraw` table: "unshown: create + fill" against "create + fill with setItems", "unshown: layout" against "layout, filled combos without width hint", the "shown:" lines in pairs). A gain of 20 % or more on a pair is worth a line in the dialog; less, and the option is dropped.
-2. **Widget count, the same on both machines.** One run of `gui_timing.ajs` on a copy of the model with `SELECT_ID=id-1b4f4bbfef5c43f49340bd4f71733d70` (§ Comparable run, Windows). Its table "Widgets at open" should match Linux (617 controls, 97 combos, 2 340 items); a difference means a different preset or code state: note it. Also note "dialog open → shown".
-3. Put the numbers in § Widgets at open (a Windows column in the `setRedraw` table, the count confirmed or not) and the conclusion in this Handoff.
-
-Then, back on Linux (the user changes the dialog there):
+Next, on Linux (the user changes the dialog there):
 1. With the count and the Windows `setRedraw` result, the user chooses (§ Windows: why native widgets are slow › Options in the dialog): items filled on first use, lazy step bodies and tabs, or one cell editor per condition table.
 2. Measure each change on Linux; the Windows effect follows from the widget and item count (≈ 4–7 ms per combo, ≈ 0.12–0.4 ms per item on that laptop).
 
@@ -272,7 +262,7 @@ Options in the dialog: each native widget costs a fixed number of window events,
 - Combo items filled on first use (focus or mouse down) instead of at creation: saves ≈ 0.12–0.4 ms per item on that laptop; a few lines in `condition_table.js`; low risk.
 - Lazy step bodies (built on expand) and lazy Appearance / Properties tabs (§ Remaining open time, split): fewer widgets; 20–60 lines; medium risk (`_saveUI` reads them).
 - One cell editor per condition table (JFace `TableViewer` with a `ComboBoxCellEditor`: cells are drawn text, one combo appears in the cell being edited): one native window per table instead of one combo per cell; the largest gain on every machine; a rewrite of `condition_table.js`.
-- `setRedraw(false)` around `_fillWidgets`: may save state and location events; in `swt_timing.ajs` (§ Widgets at open), no effect on Linux, Windows not measured yet.
+- Dropped: `setRedraw(false)` around `_fillWidgets`; in `swt_timing.ajs` (§ Widgets at open) no effect on Linux, on Windows no gain and up to 15 % slower unshown.
 - `setItems` instead of the add loop: ≈ 20 % of fill time (§ SWT micro-benchmark).
 
 ### Widgets at open
@@ -301,20 +291,24 @@ What this means for Windows, at the rates measured there (§ SWT micro-benchmark
 - The other 520 controls (Labels, Composites, Buttons, Canvases) are native windows too: ≈ 1 ms each with layout (the label baseline) ≈ 0.5 s.
 - Per option: items on first use reaches the ≈ 1 550–1 950 items of the type combos; lazy Appearance and Properties tabs remove 144 controls (19 combos, 277 items); lazy step bodies remove part of the Selection tab's 206 controls (a body's share is not counted separately); one cell editor per condition table removes most of the 78 combos on Selection and Layout and their items.
 
-`setRedraw(false)` on the shell, `swt_timing.ajs` (new lines; 40 combos × 60 items, ms per round, two runs, Linux):
+Windows, 2026-11-13, same model copy, preset and code (`SELECT_ID=id-1b4f4bbfef5c43f49340bd4f71733d70`, 1 613 objects), two runs: the same table, 617 controls, 97 combos, 2 340 items, per class and per tab. One difference: 26 controls with their own `setVisible(false)` against 27, in "other" (14 against 15). The dialog code has no platform branch, so it is likely JFace's title area; the dialog's own widgets are the same.
 
-| Line | Linux run 1 · run 2 |
-|---|---|
-| unshown: create + fill (setItems), redraw off | 45 · 41 · 42 / 49 · 42 · 40 (redraw on: 44 · 42 · 40 / 45 · 42 · 43) |
-| unshown: layout, redraw off | 163 · 164 · 164 / 173 · 165 · 169 (on: 164 · 163 · 163 / 172 · 169 · 174) |
-| shown: create + fill (setItems) | 50 · 51 · 52 / 51 · 50 · 51 |
-| shown: create + fill, redraw off | 52 · 53 · 51 / 50 · 50 · 50 |
-| shown: refill (setItems) | 104 · 85 · 88 / 88 · 84 · 88 |
-| shown: refill, redraw off | 84 · 98 · 86 / 87 · 87 · 86 |
-| shown: fill + layout | 174 · 175 · 177 / 176 · 175 · 177 |
-| shown: fill + layout, redraw off | 176 · 182 · 176 / 178 · 180 · 181 |
+Same Windows runs: open → shown 5.8 s (5 821 · 5 766 ms), tabs 0.10–0.11 · 0.32–0.34 · 0.57 · 0.25–0.27 s, `addRelatedBlock` ×4 0.57–0.59 s, `dialogCounts` 0.74–0.75 s, load 0.9–2.0 s. About half the times in § Comparable run (open → shown 11.6–11.7 s), on battery in Balanced as before. `win32_events.ps1` right after: 90–130 µs per event (foreground 230 µs), against 280–420 µs then; fewer programs were open. So the event cost halved and the open time with it; plain JavaScript gained less (`dialogCounts` 1.4 → 0.75 s).
 
-No effect on Linux, which was expected on GTK. The question is Windows: run `swt_timing.ajs` there (§ SWT micro-benchmark). Expectation, unverified: at open the shell is not shown yet, and SWT on Win32 sends `WM_SETREDRAW` only to a visible window, so little effect at open; any gain would be at a preset load on the shown dialog.
+`setRedraw(false)` on the shell, `swt_timing.ajs` (40 combos × 60 items, ms per round, two runs per machine):
+
+| Line | Linux run 1 / run 2 | Windows run 1 / run 2 |
+|---|---|---|
+| unshown: create + fill (setItems), redraw off | 45 · 41 · 42 / 49 · 42 · 40 (redraw on: 44 · 42 · 40 / 45 · 42 · 43) | 1008 · 967 · 945 / 1001 · 966 · 953 (on: 837 · 812 · 827 / 828 · 818 · 809) |
+| unshown: layout, redraw off | 163 · 164 · 164 / 173 · 165 · 169 (on: 164 · 163 · 163 / 172 · 169 · 174) | 943 · 979 · 983 / 970 · 948 · 965 (on: 908 · 902 · 889 / 908 · 892 · 910) |
+| shown: create + fill (setItems) | 50 · 51 · 52 / 51 · 50 · 51 | 925 · 942 · 935 / 940 · 967 · 949 |
+| shown: create + fill, redraw off | 52 · 53 · 51 / 50 · 50 · 50 | 886 · 929 · 906 / 891 · 921 · 905 |
+| shown: refill (setItems) | 104 · 85 · 88 / 88 · 84 · 88 | 1516 · 1521 · 1514 / 1504 · 1562 · 1554 |
+| shown: refill, redraw off | 84 · 98 · 86 / 87 · 87 · 86 | 1568 · 1519 · 1609 / 1626 · 1566 · 1556 |
+| shown: fill + layout | 174 · 175 · 177 / 176 · 175 · 177 | 1034 · 1040 · 1070 / 1018 · 1018 · 1003 |
+| shown: fill + layout, redraw off | 176 · 182 · 176 / 178 · 180 · 181 | 998 · 1004 · 1007 / 1015 · 1034 · 1018 |
+
+No effect on Linux, as expected on GTK. Windows, third round, off against on: unshown create + fill +15–18 % (slower), unshown layout +6–11 %, shown create + fill −3–5 %, shown refill 0 to +6 %, shown fill + layout −6 to +1 %. No pair gains 20 %: the option is dropped. The other Windows lines were ≈ 20 % faster than in § SWT micro-benchmark (create + fill with setItems 0.81–0.83 against 1.05–1.07 s), in line with the lower event cost.
 
 ## Fix 2
 
@@ -396,4 +390,4 @@ The CLI quirks found, to note in the jarchi-scripting skill § Running headless:
 2. Done: fix 1 and fewer layouts; measured (command line, *GEMMA domeinen*); the user checks in Archi: open, preset load, add / move / remove step, a condition change.
 3. Done: fix 2; Node tests, typecheck, measured. The user checks the Layout tab counts in Archi.
 4. Done: the "GUI — before dialog" log fix (`CountRow` fields typed, so an unknown key fails the typecheck).
-5. With the Windows numbers (Handoff): decide on 3 and the not-proposed items.
+5. Windows numbers in (§ Widgets at open): decide on 3 and the not-proposed items, and on fewer native widgets at open (§ Handoff).
