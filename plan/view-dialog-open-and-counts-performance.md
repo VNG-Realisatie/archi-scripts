@@ -1,6 +1,6 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted and confirmed on Windows; `setRedraw(false)` dropped (§ Widgets at open). Next: the user chooses how to create fewer native widgets at open (§ Handoff).
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted and confirmed on Windows; `setRedraw(false)` dropped (§ Widgets at open). Decided: condition tables become native tables (`view-condition-table-as-native-table.md`).
 
 ## Handoff
 
@@ -8,9 +8,7 @@ Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) 
 
 Done on both machines (§ Widgets at open): the count at open is the same, 617 controls, of which 97 combos with 2 340 items, nearly all on the Selection and Layout tabs. `setRedraw(false)`: no effect on Linux; on Windows no pair gains, some lose up to 15 %: dropped. On Windows open → shown was 5.8 s this time against 11.6 s before, with the window-event cost at 90–130 µs against 280–420 µs: the Windows open time follows the event cost, so the number of native widgets is the lever.
 
-Next, on Linux (the user changes the dialog there):
-1. With the count and the Windows `setRedraw` result, the user chooses (§ Windows: why native widgets are slow › Options in the dialog): items filled on first use, lazy step bodies and tabs, or one cell editor per condition table.
-2. Measure each change on Linux; the Windows effect follows from the widget and item count (≈ 4–7 ms per combo, ≈ 0.12–0.4 ms per item on that laptop).
+Decided 2026-11-13: one native table per condition table (`view-condition-table-as-native-table.md`), chosen over items filled on first use (half the gain, a mechanism on top of the grid) and over a partial version; lazy step bodies gain nothing (steps always open expanded); lazy Appearance / Properties tabs are decided after the table change on new Windows numbers. Next: that plan's § To agree, then its steps.
 
 Open, not for the dialog: a reference measurement of `win32_events.ps1` (§ Windows: why native widgets are slow) on another Windows 11 machine; an event trace only if that machine is fast; a jArchi issue on interpreted JavaScript and per-run parsing.
 
