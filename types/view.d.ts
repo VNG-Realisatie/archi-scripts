@@ -566,12 +566,14 @@ interface WritePlan {
 }
 
 /** One row of logCountBlock: counts by field name, a grouped row, or a separator. */
+/** A count in the console count block (logCountBlock's FIELDS): the key is the canonical plural. */
+type CountField = "elements" | "relations" | "containers" | "nestedElements" | "standalones" | "extraOccurrences"
+  | "nestings" | "connections" | "views" | "diagramObjects" | "diagramConnections" | "folders";
 type CountRow = {
   label?: string;
   rule?: boolean;
-  group?: { sublabel: string; fields: [string, number][] }[];
-  [field: string]: unknown;
-};
+  group?: { sublabel: string; fields: [CountField, number][] }[];
+} & { [field in CountField]?: number };
 
 // ── Dialog counts (Scripts/View/lib/gui/counts.js) ──────────────────────────────────────────────
 

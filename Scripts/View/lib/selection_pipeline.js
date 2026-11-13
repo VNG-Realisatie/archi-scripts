@@ -301,6 +301,7 @@ function logCountBlock(title, rows) {
   const RULE = "──────────────────────────────────────────────";
   // [key (== plural), singular, plural]. The key is the user-facing plural word —
   // no abbreviations, per the canonical-vocabulary rule (AGENTS.md).
+  /** @type {[CountField, string, string][]} */
   const FIELDS = [
     ["elements",         "element",          "elements"],
     ["relations",        "relation",         "relations"],

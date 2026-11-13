@@ -219,10 +219,10 @@ function open(uiSelection) {
       // "Selected" reflects the raw UI pick — show views and folders too so users
       // who clicked a view see "1 view" instead of all-zeros.
       { label: "Selected:  ",
-        elems: selectedCount.elems, rels: selectedCount.rels,
-        views: selectedCount.views, diag: selectedCount.diagrams, folders: selectedCount.folders },
-      { label: "Containing:", elems: containingCount.elems, rels: containingCount.rels, diag: containingCount.diagrams },
-      { label: "Filtered:  ", elems: _lEl, rels: _lRel, diag: _lDiag },
+        elements: selectedCount.elems, relations: selectedCount.rels,
+        views: selectedCount.views, diagramObjects: selectedCount.diagrams, folders: selectedCount.folders },
+      { label: "Containing:", elements: containingCount.elems, relations: containingCount.rels, diagramObjects: containingCount.diagrams },
+      { label: "Filtered:  ", elements: _lEl, relations: _lRel, diagramObjects: _lDiag },
     ]);
   }
   PresetIO.ensureDefault();
