@@ -407,6 +407,25 @@ Windows, same run as § Proposal 3 measured, temporary marks again (reverted); r
 
 −0.15 s per click (−40 %), −0.22 s at open. Open → shown 4.77–4.95 s in these runs against 4.57–4.68 s before: the machine's state varies more than the gain. F2 not needed: the layout condition counts are ≈ 65 ms now.
 
+### Proposal 3 checked
+
+The user's session (2026-11-14: Tiles, 4 steps with 4 · 1 · 1 · 1 conditions, 3 nesting and 2 reverse conditions, no filter) on the *GEMMA domeinen* view the user generated (`id-8b05a2add5794887be2546230e717396` in `Views/_Generated/…`, 590 elements, 677 relations; model saved 2026-11-14 23:37, measured on a copy).
+
+Node (`counts_compare.js` in the agent's scratch folder: the old `counts.js` from `8106548^` next to the new one): 38 states a user reaches in the dialog, each on the one before: every step condition off and on, a repeat changed and back, an element filter (Exclude Business Function) and a relation filter (Exclude Aggregation) added and removed, every nesting and reverse condition off and on, steps 1 and 2 swapped and back (the caches move with their blocks), an Exclude condition added and removed, the last step removed and added as a new block. Per state the new code with the caches kept across states, the new code with fresh caches and the old code with kept caches all equal the old code with fresh caches: filter, step and per-condition counts, runs, candidates, the predicted elements and relations by id, the totals, the nesting and reverse counts. 0 differences; the same on the original view (`id-1b4f4bbf…`).
+
+Archi (Windows command line, `gui_timing.ajs` with the session, temporary code in `dialog_main.js`, reverted): four recounts per open, as a user's clicks: at open, unchanged, step 1 condition 2 off, back on; each logged every count and the predicted ids. Old and new code, two runs each: the four logs are byte for byte the same.
+
+Per recount, ms (old · new, two runs each; a recount is counts + counters on the widgets + style warnings + totals line):
+
+| Recount | Old | New | Of which counters, style warnings, totals line |
+|---|---|---|---|
+| At open (cold) | 772–811 | 683–710 | 30–35 |
+| Unchanged (warm) | 369–393 | 265–307 | 20–37 |
+| Step 1 condition 2 off | 460–463 | 361–374 | 15–17 |
+| Back on | 308–322 | 233–247 | 15–18 |
+
+So a click costs ≈ 0.25–0.37 s now against 0.31–0.46 s; nearly all of it is `dialogCounts`. Split of `dialogCounts` after a click (new code, ms): `resolveNesting` 75–97, steps expand 48–65, filter table counts 31–44, layout condition counts 23–43, relations between 11–16, `joinRuns` and `splitNestingRels` 7–8, `countView` 5–14, the rest < 5; step condition counts 1.5–2 when nothing upstream changed, 90–96 when a step's settings change (the steps after it count again: their chain key changed, as it must). At open the step condition counts are 216–228 (every condition counted once) and `resolveNesting` 153–168. No part stands out any more; open → shown with this session 6.0–6.5 s, of which ≈ 0.9 s the three extra recounts of the measurement.
+
 ## Fix 2
 
 `dialogCounts` splits and resolves the nesting once and passes it to the totals (`Nesting.countView`, the counting part of `predictViewCounts`, which the pipeline keeps calling) and to `layoutConditionCounts`. The Layout tab counts now resolve on the laid-out elements (`onView`), as the writer does (`docs/reference/gui.md` § Relation counters already says so); before they used every element, also those only inside a diagram-block. Node tests (`counts_test`, `nesting_test`, `compose_test`) unchanged.
