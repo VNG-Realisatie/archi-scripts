@@ -515,7 +515,10 @@ function conditionTable(parent, opts) {
   // table sized to its rows, the empty text when there are none.
   function syncRows() {
     const n = conditions.length;
-    if (table.getItemCount() > n) table.remove(n, table.getItemCount() - 1);
+    if (table.getItemCount() > n) {
+      table.remove(n, table.getItemCount() - 1);
+      table.deselectAll();   // GTK selects a neighbour of the removed rows, without a Selection event
+    }
     while (table.getItemCount() < n) new TableItemWidget(table, SWT.NONE);
     cursor.row = Math.min(cursor.row, Math.max(0, n - 1));
     lblEmpty.setVisible(n === 0);
