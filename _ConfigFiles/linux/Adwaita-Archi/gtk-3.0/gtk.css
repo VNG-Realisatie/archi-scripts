@@ -1,0 +1,24 @@
+/* Adwaita for Archi on Linux: Adwaita (which keeps Archi's own tables intact, unlike Breeze) with
+   light tooltips and a visible keyboard focus.
+   Install: ln -s <repo>/_ConfigFiles/linux/Adwaita-Archi ~/.local/share/themes/Adwaita-Archi
+   Start Archi with it, e.g. in ~/.local/share/applications/Archi.desktop:
+     Exec=env SWT_GTK3=1 GTK_THEME=Adwaita-Archi <Archi folder>/Archi.sh */
+@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained.css");
+
+/* Light tooltips in the dialog's colours (Adwaita's are dark). The background stays a little
+   translucent: on it GTK draws text greyscale-smoothed, as in the dialog; on an opaque one with
+   colour fringes. */
+tooltip.background, tooltip {
+  background-color: alpha(@theme_base_color, 0.97);
+  border: 1px solid @borders;
+  border-radius: 4px;
+}
+tooltip * { color: @theme_fg_color; }
+
+/* A visible keyboard focus (Adwaita's: 1px dashed, 30 % of the text colour). GTK shows it after
+   keyboard use only. */
+*, button, button.flat, combobox button, radiobutton, checkbutton, notebook tab, treeview, scale {
+  outline-color: @theme_selected_bg_color;
+  outline-style: solid;
+  outline-width: 2px;
+}

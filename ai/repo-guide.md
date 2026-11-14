@@ -18,6 +18,7 @@ Where things are and how scripts are put together. Rules: `AGENTS.md`. jArchi it
 | `Scripts/View/` | View generation with ELK, Dagre, Graphviz (`Scripts/View/AGENTS.md`) |
 | `Scripts/_lib/` | Shared modules (below) |
 | `Scripts/node_modules/` | Vendored runtime libraries (elkjs, dagre, chroma-js, papaparse, …) — no npm at runtime |
+| `_ConfigFiles/` | Archi configuration, not loaded by scripts: colour preferences (`.prefs`); `linux/Adwaita-Archi/`, the GTK theme Archi runs in on Linux (install and launch: comment in its `gtk.css`) |
 | `types/`, `jsconfig.json`, `package.json`, `tools/` | Static type checking and its verification tools (`types/README.md`) — development only |
 
 Any script may use `Scripts/_lib/`; domain folders do not depend on each other.
