@@ -5,13 +5,13 @@
      Exec=env SWT_GTK3=1 GTK_THEME=Adwaita-Archi <Archi folder>/Archi.sh */
 @import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained.css");
 
-/* Light tooltips in the dialog's colours (Adwaita's are dark). The background stays a little
-   translucent: on it GTK draws text greyscale-smoothed, as in the dialog; on an opaque one with
-   colour fringes. */
-tooltip.background, tooltip {
-  background-color: alpha(@theme_base_color, 0.97);
+/* Light tooltips in the dialog's colours (Adwaita's are dark). `tooltip` is GTK's own tooltip (column
+   headers, buttons); `window.tooltip` the window SWT reads its ToolTip colours from (table cells). */
+tooltip.background, tooltip, window.tooltip, .tooltip {
+  background-color: @theme_base_color;
   border: 1px solid @borders;
   border-radius: 4px;
+  color: @theme_fg_color;
 }
 tooltip * { color: @theme_fg_color; }
 
