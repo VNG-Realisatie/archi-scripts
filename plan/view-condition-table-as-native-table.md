@@ -57,8 +57,7 @@ Platform notes to check first (`ai/jarchi-scripting/swt-gtk.md`): `Table.setBack
 
 ## Handoff
 
-Done: Linux checked by agent and user (step 3); fixed since the Windows check: a row stayed selected after ✕ (4260334, `deselectAll` after a remove), the cursor frame drawn by the table itself (a855661, dotted, text colour; was `GC.drawFocus`, which Win32 hides until Tab or Alt). Next, on Windows:
+Done: Linux checked by agent and user (step 3); fixed since the Windows check: a row stayed selected after ✕ (4260334, `deselectAll` after a remove), the cursor frame drawn by the table itself (a855661, dotted, text colour; was `GC.drawFocus`, which Win32 hides until Tab or Alt). Windows, agent 2026-11-14: `npm run typecheck` exit 0; `gui_check.ajs` suite `tables` (GEMMA copy, `id-1b4f4bbf…`, `Bestuurscontext/Capability`), 33 shots, no `[check] ERROR`; after ✕ no row selected (shot 08); the dotted frame shows on the cursor cell after click, Esc, ← ← without Tab first (shot 14). Next:
 
-1. Agent: `npm run typecheck`; `gui_check.ajs` suite `tables` (skill `view-testing` § Dialog check, Windows command line); judge above all the two fixes on Win32: after ✕ no row selected; the dotted frame on the cursor cell after a click on a cell and Esc, then ← → (shot 14 `kbd_cursor_moved` onwards), without Tab first. The GTK button-position fix in `gui_check.ajs` (e5b8e07) does nothing on Win32.
-2. User in Archi on Windows: the frame (click a cell, Esc, ← →; Tab into a table); Space and Enter.
-3. User: approval of the table, then step 4 (docs; the Win32 and GTK mechanics of step 3 in `swt-gtk.md`) and step 5.
+1. User in Archi on Windows: the frame (click a cell, Esc, ← →; Tab into a table); Space and Enter.
+2. User: approval of the table, then step 4 (docs; the Win32 and GTK mechanics of step 3 in `swt-gtk.md`) and step 5.
