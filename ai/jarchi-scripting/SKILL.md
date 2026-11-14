@@ -43,6 +43,9 @@ Archi's command line runs a script without Archi's window, so the agent can run 
 - **Archi** on the user's machines: Linux `~/Tools/Archi/Archi`, Windows (scoop) `~/scoop/apps/archi/current/Archi.exe`.
 - **Next to an open Archi.** The run leaves the user's open models (`models.xml`) alone, but a model open in Archi does not see a file the script saves: the user closes that model first, or the script runs on a copy.
 - **Console** goes to stdout; `console.error` is not marked, so a script that must be checked afterwards marks its errors itself.
+- **No `shell`.** The global `shell` (Archi's main window) is not defined on the command line: a script that parents a dialog on it needs another parent there (`Scripts/View/tools/gui_timing.ajs`).
+- **Bare module names.** A bare `require("chroma-js")` from a script outside `Scripts/` is not resolved: require it by path.
+- **Closing a dialog from the script.** `Window.close()` returns OK, so the dialog's OK action runs; close the dialog's shell instead to end it as its close button does (Cancel).
 - **Linux display settings.** Without the GTK variables of the user's Archi, text measures differently and every element size differs from a run in Archi. `Scripts/View/tools/archi_cli.sh` sets them and runs on a copy of the model. On Windows it is not yet checked whether sizes match.
 - `__DIR__` and `require` work as in Archi; there is no selection.
 

@@ -1,6 +1,6 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted and confirmed on Windows; `setRedraw(false)` dropped (§ Widgets at open). Condition tables are native tables (`view-condition-table-as-native-table.md`, approved 2026-11-14): Windows open → shown 5.8 → 4.2 s (§ After the native table). Open: the decision on lazy Appearance / Properties tabs.
+Status: done 2026-11-14 for the code. Fix 1, fewer layouts, the log fix, fix 2, the native condition tables (`view-condition-table-as-native-table.md`) and Proposal 3 committed and checked. Windows open → shown 24.3 → ≈ 4.2–4.7 s, a recount after a click 0.31–0.46 → 0.25–0.37 s. Open: the user's choices in § Handoff.
 
 ## Handoff
 
@@ -10,7 +10,11 @@ Done on both machines (§ Widgets at open): the count at open is the same, 617 c
 
 Decided 2026-11-13: one native table per condition table (`view-condition-table-as-native-table.md`), chosen over items filled on first use (half the gain, a mechanism on top of the grid) and over a partial version; lazy step bodies gain nothing (steps always open expanded); lazy Appearance / Properties tabs are decided after the table change on new Windows numbers.
 
-Done 2026-11-14: the native table built, checked on both machines and approved; Windows numbers in § After the native table. Next: the user decides on the remaining candidates there (recommendation: stop here, or only the Properties tab reading on show).
+Done 2026-11-14: the native table built, checked on both machines and approved; Windows numbers in § After the native table. Proposal 3 designed, built (8106548), measured and checked on the user's session and generated view: identical counts in Node (38 states) and Archi (§ Proposal 3 checked). The CLI quirks are in the jarchi-scripting skill § Running headless.
+
+Open, the user's choice:
+- Lazy Appearance / Properties tabs, or only the Properties tab reading on show (§ After the native table). Recommendation: stop; no part of the open time or a click stands out any more.
+- The wrong reason in the Layout tab's nesting note (§ Found on the way): a note text, behaviour change, so after the user's yes.
 
 Open, not for the dialog: a reference measurement of `win32_events.ps1` (§ Windows: why native widgets are slow) on another Windows 11 machine; an event trace only if that machine is fast; a jArchi issue on interpreted JavaScript and per-run parsing.
 
