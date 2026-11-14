@@ -350,6 +350,34 @@ Split 2026-11-14 (Windows, battery, § Comparable run, open → shown 4.57 · 4.
 
 No hidden cause: "before the dialog" fell from 1.6 s to 0.53 s and "fill: layout params" from 1.0 s to 0.11–0.15 s with the event cost and the native tables; no single call stands out. The order now: tabs built 1.5 s (Appearance 0.55, Layout 0.38, Properties 0.28), fill 0.9 s, final recount 0.73 s, deferred layout 0.3 s. That leaves the candidates above unchanged: lazy Appearance / Properties tabs (≈ 0.8 s of their build plus part of the layout, medium risk), Properties tab read on show (part of its 0.28 s), Proposal 3 (part of 0.7 s).
 
+### Proposal 3 measured
+
+Windows, same run, two runs; temporary `System.nanoTime()` marks in `counts.js`, and a second `_updateFilteredCount` right after the first, so the second recount finds the step caches warm as a recount after a click does; reverted. The predicted view: 976 elements, 1 995 relations, 4 steps (6 step conditions), 4 nesting and 3 reverse conditions. ms, run 1 · run 2:
+
+| Part of `dialogCounts` | At open (cold cache) | Second recount (warm) |
+|---|---|---|
+| Base filter, relations between | 59 · 60 | 15 · 13 |
+| Filter table counts | 53 · 51 | 31 · 28 |
+| Steps: expand | 143 · 168 | 78 · 71 |
+| Steps: condition counts | 292 · 268 | 96 · 81 |
+| – of which `_idsSig` (cache keys) | 143 · 137 | 93 · 79 |
+| – of which expanding per condition (6 misses at open, 0 warm) | 142 · 125 | 0 |
+| Diagram blocks, `joinRuns`, `splitNestingRels` | 29 · 26 | 24 · 20 |
+| `resolveNesting` | 45 · 47 | 27 · 24 |
+| `countView` | 4 · 3 | 3 · 3 |
+| Layout condition counts (`featureConditionCounts`) | 149 · 138 | 117 · 133 |
+| Total | 777 · 764 | 391 · 374 |
+
+Findings:
+- A recount after a click costs ≈ 0.38 s of counting; `_idsSig` (≈ 85 ms) and `featureConditionCounts` (≈ 125 ms) are more than half of it. At open they are ≈ 0.28 s of 0.77 s.
+- `_idsSig` costs nearly as much as the cache saves: warm, the condition counts are almost all hashing. It hashes every id character by character in interpreted JavaScript, for input, cumulative and seen of every step, on every recount.
+- `featureConditionCounts` filters the 1 995 relations 9 times (each condition, plus the active set, per table) and reads `r.type`, `r.source.type`, `r.target.type` through the jArchi proxy for each match.
+
+Candidate fixes, behaviour unchanged (Node tests `counts_test` cover the numbers):
+- `featureConditionCounts`: read each relation's type triple once, group the relations by triple and match a condition once per triple (a condition with a property keeps the per-relation match). ≈ 15 lines; est. −100 ms per recount.
+- `_idsSig`: hash the joined ids in Java (`java.lang.String.hashCode`, compiled, not interpreted), with the count as today. ≈ 3 lines; est. −60–70 ms per recount. Node has no `Java`: the tests need the same in plain JS there.
+- Together ≈ −0.15–0.2 s per click (of ≈ 0.38 s counting plus the counters on the widgets), ≈ −0.2 s at open.
+
 ## Fix 2
 
 `dialogCounts` splits and resolves the nesting once and passes it to the totals (`Nesting.countView`, the counting part of `predictViewCounts`, which the pipeline keeps calling) and to `layoutConditionCounts`. The Layout tab counts now resolve on the laid-out elements (`onView`), as the writer does (`docs/reference/gui.md` § Relation counters already says so); before they used every element, also those only inside a diagram-block. Node tests (`counts_test`, `nesting_test`, `compose_test`) unchanged.
