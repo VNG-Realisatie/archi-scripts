@@ -48,14 +48,16 @@ const r = ELKA.layout({ algorithm: "Layered", nodes, edges, engineParams: {}, op
 
 The agent checks a dialog change in Archi itself, without the user: `Scripts/View/tools/gui_check.ajs` opens the dialog through Archi's command line as `_gui.ajs` does, runs a suite of steps with real OS input (`Display.post`: clicks, keys, mouse rests), screenshots the screen after each action and closes the dialog with Cancel (no run, session unchanged). The agent judges the screenshots and the console. What it cannot judge (a feel, the dark theme unless Archi runs in it) goes to the user as one concrete step.
 
-**Run.** On a copy of the model in the scratch folder (`.git/temp.archimate` of the coArchi clone, see Inputs; Windows: `~/Documents/Archi/model-repository/gemma-archi-repository/.git/temp.archimate`). The view *GEMMA domeinen* by id: Linux `id-ba72ad08ad1b475390125ad1938fd298`, Windows `id-1b4f4bbfef5c43f49340bd4f71733d70`. `SHOTS` must exist. The input goes to the desktop: the user keeps hands off mouse and keyboard while it runs (about two minutes); say so before starting.
+**Run.** On a copy of the model in the scratch folder (`.git/temp.archimate` of the coArchi clone, see Inputs; Windows: `~/Documents/Archi/model-repository/gemma-archi-repository/.git/temp.archimate`). The view *GEMMA domeinen* by id: Linux `id-ba72ad08ad1b475390125ad1938fd298`, Windows `id-1b4f4bbfef5c43f49340bd4f71733d70`. `SHOTS` must exist. On Windows the input goes to the desktop: the user keeps hands off mouse and keyboard while it runs (about two minutes); say so before starting. On Linux it runs in an X server of its own and leaves the desktop alone.
 
     # Windows (Git Bash; archi_cli.sh is Linux only)
     SHOTS=<dir> SELECT_ID=<id> PRESET="Bestuurscontext/Capability" ~/scoop/apps/archi/current/Archi.exe \
       -application com.archimatetool.commandline.app -consoleLog -nosplash --loadModel <copy> \
       --script.runScript "$(pwd -W)/Scripts/View/tools/gui_check.ajs" > gui_check.txt 2>&1
-    # Linux (X11 through archi_cli.sh, so Display.post and the screen capture work)
-    SHOTS=<dir> SELECT_ID=<id> PRESET="Bestuurscontext/Capability" Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_check.ajs <model>
+    # Linux: a rootful Xwayland of its own (the desktop's XWayland under Wayland reads its screen as black)
+    Xwayland :97 -geometry 2000x1900 & XP=$!; sleep 2
+    env -u WAYLAND_DISPLAY DISPLAY=:97 SHOTS=<dir> SELECT_ID=<id> PRESET="Bestuurscontext/Capability" \
+      Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_check.ajs <model>; kill $XP
 
 **Judge.**
 - Read every screenshot (`NN_<name>.png`); for detail crop and enlarge with Python PIL (`python -I`). A downscaled glyph shows ClearType colour fringes (a red or blue ✕): zoom before calling it a colour.
@@ -68,5 +70,7 @@ The agent checks a dialog change in Archi itself, without the user: `Scripts/Vie
 - A native tooltip lies over the controls below it and takes a click: move the mouse away (`away`) before clicking a cell under a header that showed its tooltip.
 - Win32 hides focus cues (`GC.drawFocus`) until the keyboard is used for navigation (Tab, Alt): after mouse steps a focus frame shows only after a Tab.
 - Win32 `List` sends `DefaultSelection` on a double click only, not on Enter; a Win32 `Table` shows its own tooltip over its header, never over its rows.
+- GTK: `Display.post` is not OS input. It puts a GDK event itself: a button event has no position (`gui_check.ajs` sets it from the pointer, `fixButtonPositionGTK`), a click moves no focus (a popup list never gets `Deactivate`, so it stays open), and keys never reach a popup shell (a cell's list, the colour menu). On Linux the check judges clicks on cells, tooltips over cells, the table itself; a list or menu after it opens (keys in it, closing, choosing) is judged by the user in Archi. No window manager in `:97`; on the KDE desktop runs did not repeat.
+- GTK tooltips are centred on the pointer: a long one runs off the left of a `shotTable` crop.
 
 **A new suite.** Add an entry to `SUITES` in `gui_check.ajs`: a list of `[ms to wait, step]`; find tables by tab and column header (`table("Layout", "Nested")`), act with `clickCell`, `hoverCell`, `hoverHeader`, `clickControl`, `clickTab`, `key`, and shoot with `shotTable` or `shotShell`. Run with `SUITE=<name>`. The `tables` suite is the condition-table checklist (plan `view-condition-table-as-native-table.md` § To agree).

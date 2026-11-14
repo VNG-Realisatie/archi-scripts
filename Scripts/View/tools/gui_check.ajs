@@ -16,7 +16,9 @@
  *   SELECT_ID=… PRESET="Bestuurscontext/Capability" SHOTS=<dir> ~/scoop/apps/archi/current/Archi.exe \
  *     -application com.archimatetool.commandline.app -consoleLog -nosplash --loadModel <copy> \
  *     --script.runScript "$(pwd -W)/Scripts/View/tools/gui_check.ajs" > gui_check.txt 2>&1
- * Linux: SELECT_ID=… PRESET=… SHOTS=<dir> Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_check.ajs <model>
+ * Linux, in an X server of its own (Wayland: the desktop's XWayland reads its screen as black):
+ *   Xwayland :97 -geometry 2000x1900 &
+ *   env -u WAYLAND_DISPLAY DISPLAY=:97 SELECT_ID=… PRESET=… SHOTS=<dir> Scripts/View/tools/archi_cli.sh Scripts/View/tools/gui_check.ajs <model>
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const System = Java.type("java.lang.System");
@@ -81,6 +83,20 @@ const shotTable = (name, t) => {
 
 /** @param {number} type @param {Record<string, any>} props */
 function post(type, props) { const e = new SWTEvent(); e.type = type; Object.assign(e, props); display.post(e); }
+/**
+ * On GTK, Display.post builds a button event without its position (x, y arrive as the control's
+ * negative origin), so a control that reads the position (a table cell) gets no hit: give each button
+ * event the pointer's position, which the posted motion did set.
+ */
+function fixButtonPositionGTK() {
+  if (String(SWT.getPlatform()) !== "gtk") return;
+  for (const type of [SWT.MouseDown, SWT.MouseUp]) {
+    display.addFilter(type, (/** @type {any} */ e) => {
+      const p = e.widget.toControl(display.getCursorLocation());
+      e.x = p.x; e.y = p.y;
+    });
+  }
+}
 /** @param {number} x @param {number} y */
 function moveTo(x, y) { post(SWT.MouseMove, { x, y }); }
 /** @param {number} x @param {number} y */
@@ -281,7 +297,7 @@ TabProperties.buildPropertiesTab = function (/** @type {any} */ tf, /** @type {a
   const r = buildPropertiesTab(tf, ctx);
   tabFolder = tf;
   shell = tf.getShell();
-  tf.getDisplay().asyncExec(() => { shell.forceActive(); run(0); });
+  tf.getDisplay().asyncExec(() => { fixButtonPositionGTK(); shell.forceActive(); run(0); });
   return r;
 };
 
