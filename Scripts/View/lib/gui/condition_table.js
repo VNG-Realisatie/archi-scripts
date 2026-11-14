@@ -334,7 +334,21 @@ function conditionTable(parent, opts) {
       }
       gc.drawText(fitText(gc, cellText(col, condition, i), w), x, ty, SWT.DRAW_TRANSPARENT);
     }
-    if (table.isFocusControl() && cursor.row === i && cursor.col === ci) gc.drawFocus(r.x + 1, r.y + 1, r.width - 2, r.height - 2);
+    if (table.isFocusControl() && cursor.row === i && cursor.col === ci) drawCursor(gc, r);
+  }
+
+  /**
+   * The keyboard cursor: a dotted frame of its own. GC.drawFocus is the theme's: Breeze draws
+   * nothing, Win32 nothing until the keyboard cues are on (Tab, Alt).
+   * @param {Swt.GC} gc
+   * @param {Swt.Rectangle} r  the cell
+   */
+  function drawCursor(gc, r) {
+    gc.setForeground(table.getDisplay().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND));
+    gc.setLineWidth(1);
+    gc.setLineStyle(SWT.LINE_DOT);
+    gc.drawRectangle(r.x + 1, r.y + 1, r.width - 3, r.height - 3);
+    gc.setLineStyle(SWT.LINE_SOLID);
   }
 
   // ── Editing ───────────────────────────────────────────────────────────────────

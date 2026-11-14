@@ -38,7 +38,7 @@ declare namespace Swt {
     // traversal details
     readonly TRAVERSE_RETURN: number; readonly TRAVERSE_ESCAPE: number;
     // GC
-    readonly ON: number; readonly DRAW_TRANSPARENT: number;
+    readonly ON: number; readonly DRAW_TRANSPARENT: number; readonly LINE_SOLID: number; readonly LINE_DOT: number;
     // system colours
     readonly COLOR_DARK_GRAY: number; readonly COLOR_WIDGET_BACKGROUND: number; readonly COLOR_WHITE: number;
     readonly COLOR_LIST_BACKGROUND: number; readonly COLOR_LIST_SELECTION: number;
@@ -62,6 +62,8 @@ declare namespace Swt {
     setForeground(color: Color): void;
     setAntialias(antialias: number): void;
     setLineWidth(width: number): void;
+    /** SWT.LINE_SOLID, LINE_DASH, LINE_DOT, … */
+    setLineStyle(style: number): void;
     fillRectangle(x: number, y: number, width: number, height: number): void;
     fillRoundRectangle(x: number, y: number, width: number, height: number, arcWidth: number, arcHeight: number): void;
     drawRoundRectangle(x: number, y: number, width: number, height: number, arcWidth: number, arcHeight: number): void;
