@@ -29,7 +29,7 @@ Behaviour that stays (the checklist for the Archi check, per table):
 - Property and value lists come from the caller (`propItems`, `valueItems`) at the moment the list opens; a value not in the list is kept and shown.
 - Colour cells: swatch of the chosen range or colour, the palette's menu with Other… and Default where the picker has them today; a value the palette lacks is replaced or shown as missing, as today.
 - Nesting and Reverse line up; a table wider than the tab widens the dialog (*Never cut off*); the group background shows through the table.
-- Light and dark theme on both platforms.
+- Light theme on both platforms. Dark is out of scope (user 2026-11-14): Archi's dark CSS theme on a light GTK (Adwaita) leaves several dialog controls unreadable (condition tables, spinners); the user does not use it and Archi supports it poorly.
 
 ## Design
 
@@ -57,7 +57,7 @@ Platform notes to check first (`ai/jarchi-scripting/swt-gtk.md`): `Table.setBack
 
 ## Handoff
 
-Done: Linux checked by agent and user (step 3), Archi in Adwaita; fixed: selection after ✕, cursor frame in every theme. Open, the user:
+Done: Linux checked by agent and user (step 3), Archi in Adwaita; fixed: selection after ✕, cursor frame in every theme; dark theme out of scope. Open, the user:
 
-1. A look in the dark theme, Linux and Windows; the cursor frame on Windows (after a click, Esc, ← →).
+1. Windows: the cursor frame (after a click, Esc, ← →).
 2. Approval of the table, then step 4 (docs; Win32 and GTK mechanics in `swt-gtk.md`) and step 5.
