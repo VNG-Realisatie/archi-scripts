@@ -27,6 +27,17 @@ jArchi scripts build UI with SWT and JFace through `Java.type` (classes) and `Ja
 - **Spinner**: lay out with `GridDataFactory.swtDefaults()`, not `fillDefaults()` (which stretches it); give all spinners of one kind the same `hint(width, SWT.DEFAULT)`.
 - **Small buttons**: GTK enforces a minimum button height; set an explicit height hint (e.g. `hint(28, 20)`) or rows grow taller than expected.
 
+## Owner-drawn Table
+
+Found building the View dialog's condition tables (`Scripts/View/lib/gui/condition_table.js`), on GTK and Win32.
+
+- **Owner draw.** `SWT.MeasureItem` sets the row height (`e.height`); `SWT.EraseItem` clears `SWT.SELECTED | SWT.HOT | SWT.FOCUSED | SWT.FOREGROUND` from `e.detail`; `SWT.PaintItem` draws the cell in `e.item.getBounds(e.index)`. GTK: that cell is 3 px narrower than its column.
+- **No selection.** GTK paints the selection over owner-drawn cells: `deselectAll()` on `SWT.Selection`. `Table.remove` on GTK selects a neighbour of the removed rows without a Selection event: `deselectAll()` after it too.
+- **Keyboard cursor.** `GC.drawFocus` follows the platform: Breeze draws nothing, Win32 nothing until the keyboard cues are on (Tab, Alt). Draw a frame of your own (`SWT.LINE_DOT`, the widget foreground).
+- **Enter.** `SWT.CR` is a Java char, not a JS string: match `String(e.character) === "\r"`. In a dialog Enter also presses the default button: `SWT.Traverse` with `TRAVERSE_RETURN` → `e.doit = false`.
+- **Tooltips.** A Win32 `Table` shows its own tooltip over the header, never over its rows (also with a fixed text): show an `SWT.ToolTip` (`org.eclipse.swt.widgets.ToolTip`) for the cell under the mouse from `MouseMove`, after a delay with `timerExec`; hide it on `MouseExit` and `MouseDown`. `TableColumn.setToolTipText` works on both. GTK centres a tooltip on the pointer.
+- **A list under a cell** (what a read-only combo's list does): a `Shell(parent, SWT.NO_TRIM)` holding a `List`, closed on `SWT.Deactivate`. A Win32 `List` sends `DefaultSelection` on a double click only, not on Enter: pick on KeyDown `"\r"` too, once (GTK sends both).
+
 ## TitleAreaDialog
 
 `createDialogArea()` puts a separator `Label` as the first child of the composite it returns.

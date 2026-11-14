@@ -98,37 +98,36 @@ Save As and Rename ask before overwriting another preset; the name Default is re
 Decides *which* objects feed the layout: the counts at the top, then the global filter, then the steps.
 
 ```
-┌─[Selection]──[Layout]────────────────────────────────────────────────────┐
-│ ┌─ Current selection ─────────────────────────────────────────────────┐  │
-│ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;            │  │
-│ │               First object: Business Actor: Customer                │  │
-│ │  Containing:  12 elements, 8 relations                              │  │
-│ │  Filter selection by element type (no Include condition = keep …):  │  │
-│ │   On │ Mode    │ Element type                                ✕      │  │
-│ │   ☑  │ Include │ All                                         ✕      │  │
-│ │   [+ Add condition]  ☐ Match property                               │  │
-│ │  Filter selection by diagram type (no Include condition = keep …):  │  │
-│ │   On │ Mode │ Diagram type     [+ Add condition]                    │  │
-│ │  Filter selection by relations (no Include condition = keep …):     │  │
-│ │   On│Mode│Source type│Relation type│Target type   [+ Add condition]  │  │
-│ └─────────────────────────────────────────────────────────────────────┘  │
-│ ┌─ Expand selection ─────────────────────────────────────────────────┐   │
-│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
-│ │ │ [▾] [1× ▾] Step 1 · Adds: 4 elements · 3 relations [↑][↓][✕] │   │   │
-│ │ │On│Mode   │Previous step│Direction│Added         │Added    │ │   │   │
-│ │ │  │       │elements     │         │relations     │elements │ │   │   │
-│ │ │☑ │Include│Grouping     │Outgoing │Aggregation(3)│All (4)  │✕│   │   │
-│ │ │ [+ Add condition]  ☐ Match property                          │   │   │
-│ │ └──────────────────────────────────────────────────────────────┘   │   │
-│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
-│ │ │ [▸] [∞ ▾]  Applications · Adds: 12 elements   [↑][↓] [✕]     │   │   │
-│ │ └──────────────────────────────────────────────────────────────┘   │   │
-│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
-│ │ │ [▸] [1× ▾] Step 3 · 1 condition · Adds: nothing   [↑][↓] [✕] │   │   │
-│ │ └──────────────────────────────────────────────────────────────┘   │   │
-│ │ [+ Add step]                                                       │   │
-│ └────────────────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────────────┘
+┌─[Selection]──[Layout]─────────────────────────────────────────────────────────────────┐
+│ ┌─ Current selection ───────────────────────────────────────────────────────────────┐ │
+│ │  Selected:    3 elements, 2 relations, 1 view, 1 folder;                          │ │
+│ │               First object: Business Actor: Customer                              │ │
+│ │  Containing:  12 elements, 8 relations                                            │ │
+│ │  Filter selection by element type (no Include condition = keep …):                │ │
+│ │   On │ Mode    │ Element type                                ✕                    │ │
+│ │   ☑  │ Include │ All                                         ✕                    │ │
+│ │   [+ Add condition]  ☐ Match property                                             │ │
+│ │  Filter selection by diagram type (no Include condition = keep …):                │ │
+│ │   On │ Mode │ Diagram type     [+ Add condition]                                  │ │
+│ │  Filter selection by relations (no Include condition = keep …):                   │ │
+│ │   On│Mode│Source type│Relation type│Target type   [+ Add condition]               │ │
+│ └───────────────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ Expand selection ────────────────────────────────────────────────────────────────┐ │
+│ │ ┌───────────────────────────────────────────────────────────────────────────────┐ │ │
+│ │ │ [▾] [1× ▾] Step 1 · Adds: 4 elements · 3 relations                 [↑][↓] [✕] │ │ │
+│ │ │ On│Mode   │Previous step elements│Direction│Added relations│Added elements│   │ │ │
+│ │ │ ☑ │Include│Grouping              │Outgoing │Aggregation (3)│All (4)       │✕  │ │ │
+│ │ │ [+ Add condition]  ☐ Match property                                           │ │ │
+│ │ └───────────────────────────────────────────────────────────────────────────────┘ │ │
+│ │ ┌───────────────────────────────────────────────────────────────────────────────┐ │ │
+│ │ │ [▸] [∞ ▾]  Applications · Adds: 12 elements                        [↑][↓] [✕] │ │ │
+│ │ └───────────────────────────────────────────────────────────────────────────────┘ │ │
+│ │ ┌───────────────────────────────────────────────────────────────────────────────┐ │ │
+│ │ │ [▸] [1× ▾] Step 3 · 1 condition · Adds: nothing                    [↑][↓] [✕] │ │ │
+│ │ └───────────────────────────────────────────────────────────────────────────────┘ │ │
+│ │ [+ Add step]                                                                      │ │
+│ └───────────────────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Counts.**
@@ -140,6 +139,11 @@ Decides *which* objects feed the layout: the counts at the top, then the global 
 - An Exclude condition shows instead what it removes from the other conditions' result.
 - Only types with a count above zero are shown.
 - Counts update on every change of a condition, on/off, repeat or step order. They use the same selection logic as the action ([counting rules](selection-nesting.md#counting-rules)).
+
+**Editing a condition.** This applies to every condition table: Selection, Nesting, Reverse and Style.
+- A click edits a cell. A cell with ▾ (a type, mode, direction, property or value) opens its list under the cell, the current item selected; a click or Enter chooses, Esc or a click elsewhere closes. A click on *On* or another check cell toggles it, on a colour cell opens the palette menu, on ✕ removes the condition.
+- Keyboard: a table is one Tab stop. In it ↑ ↓ move between rows and ← → between cells, the cell shown with a dotted frame; Space or Enter edits that cell as a click does. Esc outside a list closes the dialog (Cancel).
+- A mouse resting on a cell shows its tooltip: the column's, the row's on the first cell (style conditions), the warning's on ⚠. A column header shows the column's.
 
 **Conditions that are off.** This applies to every condition table: Selection, Nesting, Reverse and Style.
 - A condition that is off is greyed, except its *On* box and ✕.
