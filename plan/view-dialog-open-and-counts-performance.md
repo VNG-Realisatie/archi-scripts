@@ -331,6 +331,25 @@ Remaining candidates on Windows, estimates from § Remaining open time, split sc
 
 Recommendation: stop here. The dialog opens in ≈ 4 s on this laptop and under 2 s on Linux; what remains is ≤ 1–1.5 s together, at more code. If anything: the Properties tab reading on show, and one `gui_timing.ajs` split of "before the dialog" and "fill: layout params" before choosing more.
 
+Split 2026-11-14 (Windows, battery, § Comparable run, open → shown 4.57 · 4.68 s; temporary `Date.now()` marks in `dialog_main.js`, reverted). Run 1 · run 2, ms:
+
+| Part | ms |
+|---|---|
+| Before the dialog: `readSession` 79 · 64, selected count 8, containing count 99 · 104, raw objects 93 · 85, `describeVisuals` 133 · 156, `readDiagramBlocks` 33 · 30, log block + `ensureDefault` 24 · 29, `Java.extend` + `new ConfigDialog` 56 · 71, rest ≤ 6 | 531 · 548 |
+| JFace before `createDialogArea` | 144 · 132 |
+| Preset row, four tabs (Selection 183 · 185, Layout 403 · 358, Appearance 560 · 547, Properties 279 · 290), action area | 1 529 · 1 501 |
+| Fill: layout params (of which the Nesting and Reverse tables 106 · 136) | 111 · 148 |
+| Fill: filter tables | 72 · 107 |
+| Fill: step blocks | 352 · 371 |
+| Fill: view name, `updateAlgorithmControls` | 165 · 106 |
+| Fill: appearance and its states | 199 · 193 |
+| Fill: the rest (radios, aspect ratio, properties) | 11 · 3 |
+| Deferred layout on release | 277 · 358 |
+| Final recount (`dialogCounts` 699 · ≈ 730, counters) | 725 · 755 |
+| End of `createDialogArea` → shown (JFace size, layout, first paint) | ≈ 430 · ≈ 470 |
+
+No hidden cause: "before the dialog" fell from 1.6 s to 0.53 s and "fill: layout params" from 1.0 s to 0.11–0.15 s with the event cost and the native tables; no single call stands out. The order now: tabs built 1.5 s (Appearance 0.55, Layout 0.38, Properties 0.28), fill 0.9 s, final recount 0.73 s, deferred layout 0.3 s. That leaves the candidates above unchanged: lazy Appearance / Properties tabs (≈ 0.8 s of their build plus part of the layout, medium risk), Properties tab read on show (part of its 0.28 s), Proposal 3 (part of 0.7 s).
+
 ## Fix 2
 
 `dialogCounts` splits and resolves the nesting once and passes it to the totals (`Nesting.countView`, the counting part of `predictViewCounts`, which the pipeline keeps calling) and to `layoutConditionCounts`. The Layout tab counts now resolve on the laid-out elements (`onView`), as the writer does (`docs/reference/gui.md` § Relation counters already says so); before they used every element, also those only inside a diagram-block. Node tests (`counts_test`, `nesting_test`, `compose_test`) unchanged.
