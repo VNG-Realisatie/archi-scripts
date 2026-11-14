@@ -375,7 +375,7 @@ Findings:
 
 Candidate fixes, behaviour unchanged (Node tests `counts_test` cover the numbers):
 - `featureConditionCounts`: read each relation's type triple once, group the relations by triple and match a condition once per triple (a condition with a property keeps the per-relation match). ≈ 15 lines; est. −100 ms per recount.
-- `_idsSig`: hash the joined ids in Java (`java.lang.String.hashCode`, compiled, not interpreted), with the count as today. ≈ 3 lines; est. −60–70 ms per recount. Node has no `Java`: the tests need the same in plain JS there.
+- `_idsSig`: a step's input, cumulative and seen follow from the selection (fixed while the dialog is open), the element and relation filter and the steps before it. Key the cache on those settings (their JSON) instead of hashing the ids they produce. Pure, so Node tests it as today; ≈ 5–10 lines; est. −80 ms per recount. (Hashing in Java, `String.hashCode`, would also be fast, but `counts.js` is pure and Node has no `Java`.)
 - Together ≈ −0.15–0.2 s per click (of ≈ 0.38 s counting plus the counters on the widgets), ≈ −0.2 s at open.
 
 ## Fix 2
