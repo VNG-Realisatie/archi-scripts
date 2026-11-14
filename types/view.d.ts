@@ -601,8 +601,16 @@ interface DialogStep {
   step: Step;
   /** Its rows as shown (displayedConditions): one per-condition count each. */
   displayedConditions: StepCondition[];
-  /** Per-condition counts by condition and input, kept by the step block across recounts. */
+  /** Per-condition counts by condition and chain key (the settings the step's input follows from), kept by the step block across recounts; valid for one selection. */
   cache: Map<string, StepAdds>;
+}
+
+/** A relation with its type and its ends' types, read once (counts.js relationTypes). */
+interface RelationTypes {
+  rel: ArchiRelation;
+  type: string;
+  source: string;
+  target: string;
 }
 
 /** What dialogCounts counts from: the selection read before the dialog opened and the conditions in the tables. */

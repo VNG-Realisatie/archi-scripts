@@ -107,5 +107,17 @@ eq(counts("2 Edited", expandSnapshot).expandView,
   { elements: 15, containers: 5, nestedElements: 4, standalones: 6, extraOccurrences: 1, relations: 15, nestings: 6, connections: 9, diagramObjects: 3, diagramConnections: 1 },
   "2 Edited, Expand view totals");
 
+// A step block keeps its count cache across recounts: a changed element filter changes the step's input,
+// so its condition counts must follow, not come from the cache. An Include of a type the view does not
+// hold leaves no input: the step adds nothing.
+{
+  const selection = modelTreeSelection("2 Edited");
+  const before = countInput(selection, null);
+  Counts.dialogCounts(before);
+  const filter = { ...preset.filter, elementConditions: [{ ...ConditionLists.defaultCondition("element"), elementType: "location" }] };
+  const after = { ...countInput(selection, null), filter, steps: before.steps };
+  eq(Counts.dialogCounts(after).steps.map(s => s.conditionCounts), [[{ elements: 0, relations: 0 }]], "2 Edited, step count cache after a filter change");
+}
+
 if (failed) { console.log(`${failed} failed`); process.exit(1); }
 console.log("all counts tests passed");

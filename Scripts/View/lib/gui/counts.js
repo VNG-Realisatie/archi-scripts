@@ -73,6 +73,10 @@ function dialogCounts(input) {
   const steps = [];
   let cumulative = filteredElements.slice();
   let stepInput  = filteredElements.slice();
+  // A step's input, cumulative and seen follow from the selection and relationsOf (fixed while the dialog
+  // is open), the element and relation filter and the steps before it: those settings key its count cache.
+  // A setting the chain comes to depend on joins this key.
+  let chainKey = JSON.stringify([filter.elementConditions, filter.relationConditions]);
   /** @type {ArchiElement[][]} */
   const hops = [];
   for (const s of input.steps) {
@@ -82,10 +86,11 @@ function dialogCounts(input) {
     stepHops.forEach(h => hops.push(h));
     const adds = { elements: added.length, relations: stepRels.length };
     steps.push({ ...adds, runs, capped, candidates,
-      conditionCounts: stepConditionCounts(relationsOf, s, stepInput, cumulative, seenBefore, adds) });
+      conditionCounts: stepConditionCounts(relationsOf, s, stepInput, cumulative, seenBefore, adds, chainKey) });
     cumulative = newCumul;
     stepRels.forEach(r => finalRels.push(r));
     stepInput = added;                                                       // chain advance
+    chainKey += JSON.stringify([s.step.repeat, s.step.conditions]);
   }
 
   // Predict view-level counts (duplicates, containers) using the current params: the totals
@@ -145,22 +150,22 @@ function _filterTableCounts(input, filteredElements) {
  * Per-condition counts of a step: what the step adds with this condition alone — same input, same repeat —
  * so a condition's count changes only when the condition or the step input changes, never because another
  * condition was added. An Exclude condition: what it removes from the other conditions' result. Results are
- * cached per condition and input in the step's cache, so adding a condition computes only the new one.
+ * cached per condition and chain key in the step's cache, so adding a condition computes only the new one.
  * @param {RelationIndex}  relationsOf
  * @param {DialogStep}     s
  * @param {ArchiElement[]} input
  * @param {ArchiElement[]} cumulative
  * @param {Set<string>}    seen
  * @param {StepAdds}       total  what the step adds with all its conditions
+ * @param {string}         chainKey  the settings input, cumulative and seen follow from (dialogCounts)
  * @returns {StepAdds[]}  one entry per displayed condition; a condition that is off is counted as if it were on
  */
-function stepConditionCounts(relationsOf, s, input, cumulative, seen, total) {
+function stepConditionCounts(relationsOf, s, input, cumulative, seen, total, chainKey) {
   const { step, displayedConditions: conditions, cache } = s;
   if (cache.size > STEP_COUNT_CACHE_MAX) cache.clear();
-  const sig = `${step.repeat}|${_idsSig(input)}|${_idsSig(cumulative)}|${_idsSig(Array.from(seen))}`;
   /** @param {StepCondition[]} list */
   const run = list => {
-    const key = `${sig}|${JSON.stringify(list)}`;
+    const key = `${step.repeat}|${chainKey}|${JSON.stringify(list)}`;
     let r = cache.get(key);
     if (!r) {
       const res = Pipeline.expandStepWithRelations(relationsOf, input, Object.assign({}, step, { conditions: list }), cumulative, new Set(seen));
@@ -177,20 +182,6 @@ function stepConditionCounts(relationsOf, s, input, cumulative, seen, total) {
     const withIt  = r.on === false ? run([...others, asOn]) : total;
     return { elements: without.elements - withIt.elements, relations: without.relations - withIt.relations };
   });
-}
-
-/**
- * Short signature of a list of objects (or ids) for cache keys: count + FNV-1a hash of the ids.
- * @param {readonly any[]} list  objects with an id, or ids
- */
-function _idsSig(list) {
-  let h = 0x811c9dc5;
-  for (const o of list) {
-    const id = String(o && o.id !== undefined ? o.id : o);
-    for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-    h ^= 0x2c; h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return `${list.length}:${h.toString(16)}`;
 }
 
 /**
@@ -219,13 +210,13 @@ function filterConditionCounts(conditions, objects, test) {
  * Per-condition counts of a nesting / reverse table over the predicted view's relations. A condition that is
  * off is counted as if it were on (its Nested count stays empty).
  * @param {RelationCondition[]}     conditions      the table's rows as shown
- * @param {ArchiRelation[]}    relations
+ * @param {RelationTypes[]}    relations  the relations with their types read (relationTypes)
  * @param {Set<string> | null} nestedIds  relations drawn as nesting; null: no Nested column
  * @returns {ConditionTableCounts[]}
  */
 function featureConditionCounts(conditions, relations, nestedIds) {
-  /** @type {(list: RelationCondition[], r: ArchiRelation) => boolean} */
-  const match  = (list, r) => ConditionLists.matchRelation(list, r.type, r.source && r.source.type, r.target && r.target.type, false, r);
+  /** @type {(list: RelationCondition[], r: RelationTypes) => boolean} */
+  const match  = (list, r) => ConditionLists.matchRelation(list, r.type, r.source, r.target, false, r.rel);
   const active = conditions.filter(r => r.on !== false);
   const allHits = relations.filter(r => match(active, r)).length;
   return conditions.map((condition, i) => {
@@ -233,12 +224,22 @@ function featureConditionCounts(conditions, relations, nestedIds) {
     if (condition.mode !== "exclude") {
       const hit = relations.filter(r => match([asOn], r));
       // Nested: only for a condition that is on; what an off condition would nest needs a nesting run of its own.
-      return { relations: hit.length, nested: nestedIds && condition.on !== false ? hit.filter(r => nestedIds.has(r.id)).length : undefined };
+      return { relations: hit.length, nested: nestedIds && condition.on !== false ? hit.filter(r => nestedIds.has(r.rel.id)).length : undefined };
     }
     const others = conditions.filter((r, j) => j !== i && r.on !== false);
     const withIt = condition.on === false ? relations.filter(r => match([...others, asOn], r)).length : allHits;
     return { relations: relations.filter(r => match(others, r)).length - withIt };
   });
+}
+
+/**
+ * Each relation with its type and its ends' types, read once: a jArchi relation reads them through the
+ * model on every access, and a condition table matches every relation once per condition.
+ * @param {ArchiRelation[]} relations
+ * @returns {RelationTypes[]}
+ */
+function relationTypes(relations) {
+  return relations.map(rel => ({ rel, type: rel.type, source: rel.source && rel.source.type, target: rel.target && rel.target.type }));
 }
 
 /**
@@ -252,9 +253,10 @@ function featureConditionCounts(conditions, relations, nestedIds) {
 function layoutConditionCounts(tables, relations, nest) {
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
   const loops = nest.notNestedNestingRels.filter(r => r.source && r.target && r.source.id === r.target.id).length;
+  const typed = relationTypes(relations);
   return {
-    nesting: featureConditionCounts(tables.nesting, relations, nestedIds),
-    reverse: featureConditionCounts(tables.reverse, relations, null),
+    nesting: featureConditionCounts(tables.nesting, typed, nestedIds),
+    reverse: featureConditionCounts(tables.reverse, typed, null),
     multiParent: nest.notNestedNestingRels.length - loops,
     circular:    nest.circularNestingRels.length,
     cycles:      nest.cycles.length,
