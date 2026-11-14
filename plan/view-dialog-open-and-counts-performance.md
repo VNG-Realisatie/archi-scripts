@@ -378,6 +378,35 @@ Candidate fixes, behaviour unchanged (Node tests `counts_test` cover the numbers
 - `_idsSig`: a step's input, cumulative and seen follow from the selection (fixed while the dialog is open), the element and relation filter and the steps before it. Key the cache on those settings (their JSON) instead of hashing the ids they produce. Pure, so Node tests it as today; ≈ 5–10 lines; est. −80 ms per recount. (Hashing in Java, `String.hashCode`, would also be fast, but `counts.js` is pure and Node has no `Java`.)
 - Together ≈ −0.15–0.2 s per click (of ≈ 0.38 s counting plus the counters on the widgets), ≈ −0.2 s at open.
 
+### Proposal 3: design
+
+Both parts read jArchi proxies in a hot loop: `o.id` for every object hashed, `r.type`, `r.source.type`, `r.target.type` for every match (each `r.source` a new proxy).
+
+Cache key of the step condition counts:
+- **K1 settings key (chosen).** A step's input, cumulative and seen follow from the selection and the relation index (both fixed while the dialog is open, as long as a step block and its cache live), the element and relation filter and the steps before it (repeat, conditions). `dialogCounts` builds that key next to the chain it walks and passes it on; `_idsSig` goes. Cost ≈ 0 (JSON of a few conditions). Risk: a new setting the step input depends on must join the key; it is built on the same lines as the chain, and a Node test reuses the caches across a changed filter.
+- K2 incremental id hash: each id hashed once per recount as cumulative and seen grow. Keeps the key on the data, but still per-character JS and a proxy `id` read per object: ≈ a third of today, more code in the loop.
+- K3 no cache: every recount expands every step condition again (≈ 130 ms for 6 conditions, growing with conditions): slower than today.
+
+Relation matching of the nesting and reverse tables:
+- **F1 types read once (chosen).** `layoutConditionCounts` reads each relation's type, source type and target type once into a plain record, shared by both tables; the matching is unchanged. ≈ 10 lines. 3 proxy reads per relation instead of 5 per match.
+- F2 group by type triple: one match per condition and distinct triple; a condition with a property per relation; per-group relation lists for the Nested count. Fewest matches, ≈ 25 lines and a second path. Only if the measurement after F1 shows the matching itself as large.
+- F3 memoised `matchRelation` per condition and triple: F2's gain with a hidden cache in a pure function.
+
+### Proposal 3 built
+
+K1 and F1 in `counts.js` (`chainKey`, `relationTypes`; `_idsSig` removed), `types/view.d.ts` (`RelationTypes`), ARCHITECTURE § Count cache. `counts_test.js` reuses a step's cache across a filter change (fails with a key without the filter: checked). `npm run typecheck` exit 0; `counts_test`, `nesting_test`, `compose_test` pass.
+
+Windows, same run as § Proposal 3 measured, temporary marks again (reverted); runs 2–4 (run 1 discarded: the whole machine slow, open → shown 7.2 s). ms:
+
+| | Before | After |
+|---|---|---|
+| `dialogCounts` at open (cold cache) | 764 · 777 | 543 · 534 · 562 |
+| `dialogCounts` after a click (warm cache) | 374 · 391 | 230 · 247 · 231 |
+| – steps (expand and condition counts), warm | 150–175 | 73–78 |
+| – layout condition counts, warm | 117–133 | 61–66 |
+
+−0.15 s per click (−40 %), −0.22 s at open. Open → shown 4.77–4.95 s in these runs against 4.57–4.68 s before: the machine's state varies more than the gain. F2 not needed: the layout condition counts are ≈ 65 ms now.
+
 ## Fix 2
 
 `dialogCounts` splits and resolves the nesting once and passes it to the totals (`Nesting.countView`, the counting part of `predictViewCounts`, which the pipeline keeps calling) and to `layoutConditionCounts`. The Layout tab counts now resolve on the laid-out elements (`onView`), as the writer does (`docs/reference/gui.md` § Relation counters already says so); before they used every element, also those only inside a diagram-block. Node tests (`counts_test`, `nesting_test`, `compose_test`) unchanged.
