@@ -12,8 +12,9 @@ tooltip.background, tooltip, window.tooltip, .tooltip {
   border: 1px solid @borders;
   border-radius: 4px;
   color: @theme_fg_color;
+  text-shadow: none;   /* Adwaita's black text shadow, invisible on its dark tooltip, smudges on white */
 }
-tooltip * { color: @theme_fg_color; }
+tooltip * { color: @theme_fg_color; text-shadow: none; }
 
 /* A visible keyboard focus (Adwaita's: 1px dashed, 30 % of the text colour). GTK shows it after
    keyboard use only. */
