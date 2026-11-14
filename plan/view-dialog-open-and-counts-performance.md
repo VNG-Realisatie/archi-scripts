@@ -1,6 +1,6 @@
 # View: dialog open and counts performance
 
-Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted and confirmed on Windows; `setRedraw(false)` dropped (§ Widgets at open). Decided: condition tables become native tables (`view-condition-table-as-native-table.md`).
+Status: in progress 2026-11-13. Fix 1, fewer layouts, the log fix and fix 2 committed. Measured on both machines; the Windows widget cost lies in Windows' window events, not in the code (§ Windows: why native widgets are slow). Widgets at open counted and confirmed on Windows; `setRedraw(false)` dropped (§ Widgets at open). Condition tables are native tables (`view-condition-table-as-native-table.md`, approved 2026-11-14): Windows open → shown 5.8 → 4.2 s (§ After the native table). Open: the decision on lazy Appearance / Properties tabs.
 
 ## Handoff
 
@@ -8,7 +8,9 @@ Done: fix 1, fewer layouts (a0f1933), the log fix (2bda5d5) and fix 2 (53af7de) 
 
 Done on both machines (§ Widgets at open): the count at open is the same, 617 controls, of which 97 combos with 2 340 items, nearly all on the Selection and Layout tabs. `setRedraw(false)`: no effect on Linux; on Windows no pair gains, some lose up to 15 %: dropped. On Windows open → shown was 5.8 s this time against 11.6 s before, with the window-event cost at 90–130 µs against 280–420 µs: the Windows open time follows the event cost, so the number of native widgets is the lever.
 
-Decided 2026-11-13: one native table per condition table (`view-condition-table-as-native-table.md`), chosen over items filled on first use (half the gain, a mechanism on top of the grid) and over a partial version; lazy step bodies gain nothing (steps always open expanded); lazy Appearance / Properties tabs are decided after the table change on new Windows numbers. Next: that plan's § To agree, then its steps.
+Decided 2026-11-13: one native table per condition table (`view-condition-table-as-native-table.md`), chosen over items filled on first use (half the gain, a mechanism on top of the grid) and over a partial version; lazy step bodies gain nothing (steps always open expanded); lazy Appearance / Properties tabs are decided after the table change on new Windows numbers.
+
+Done 2026-11-14: the native table built, checked on both machines and approved; Windows numbers in § After the native table. Next: the user decides on the remaining candidates there (recommendation: stop here, or only the Properties tab reading on show).
 
 Open, not for the dialog: a reference measurement of `win32_events.ps1` (§ Windows: why native widgets are slow) on another Windows 11 machine; an event trace only if that machine is fast; a jArchi issue on interpreted JavaScript and per-run parsing.
 
@@ -307,6 +309,27 @@ Same Windows runs: open → shown 5.8 s (5 821 · 5 766 ms), tabs 0.10–0.11 ·
 | shown: fill + layout, redraw off | 176 · 182 · 176 / 178 · 180 · 181 | 998 · 1004 · 1007 / 1015 · 1034 · 1018 |
 
 No effect on Linux, as expected on GTK. Windows, third round, off against on: unshown create + fill +15–18 % (slower), unshown layout +6–11 %, shown create + fill −3–5 %, shown refill 0 to +6 %, shown fill + layout −6 to +1 %. No pair gains 20 %: the option is dropped. The other Windows lines were ≈ 20 % faster than in § SWT micro-benchmark (create + fill with setItems 0.81–0.83 against 1.05–1.07 s), in line with the lower event cost.
+
+### After the native table
+
+`gui_timing.ajs`, § Comparable run (Windows `id-1b4f4bbf…`, Linux `id-ba72ad08…`), the condition tables as native tables (7ee32fc and the fixes after it):
+
+| | Before (§ Widgets at open) | After |
+|---|---|---|
+| Controls at open | 617 | 429 (11 tables) |
+| Combo items at open | 2 340 | 159 |
+| Linux open → shown | 2.8–3.0 s | 1.75–1.81 s |
+| Windows open → shown | 5.8 s (battery) | 4.42 · 4.56 s battery, 4.15 · 4.17 s mains |
+
+The estimate (4.0–4.3 s) held. All three open → shown numbers since fix 1 on Windows: 24.3 → 11.6–12.9 → 5.8 (lower event cost, no code) → 4.2–4.6 s.
+
+Remaining candidates on Windows, estimates from § Remaining open time, split scaled to the 5.8 s run (not measured again per part):
+- Lazy Appearance and Properties tabs: their build was 0.57 + 0.25 s at 5.8 s, plus their share of the deferred layout; ≈ 0.5–0.8 s of 4.2 s. 40–60 lines, medium risk (a tab not built must not write defaults over the session).
+- Properties tab reads the properties of every view only when shown: ≈ 0.2–0.4 s, ≈ 10 lines, low risk.
+- `dialogCounts` (Proposal 3, cache signatures and `featureConditionCounts`): 0.75 s at 5.8 s; est. 0.2–0.3 s; measure first.
+- "Before the dialog" (≈ 1.6 s at 11.6 s) and "Fill: algorithm, layout params, view size" (≈ 1.0 s) were never split; both may hide a cheap cause, both may have shrunk with the event cost.
+
+Recommendation: stop here. The dialog opens in ≈ 4 s on this laptop and under 2 s on Linux; what remains is ≤ 1–1.5 s together, at more code. If anything: the Properties tab reading on show, and one `gui_timing.ajs` split of "before the dialog" and "fill: layout params" before choosing more.
 
 ## Fix 2
 
