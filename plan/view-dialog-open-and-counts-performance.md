@@ -18,6 +18,7 @@ Constraint: the most gain for the least code; no new mechanism in the GUI; the m
 | Every condition table a native table (`view-condition-table-as-native-table.md`) | on Windows each native window costs a fixed number of window events (§ Why Windows is slow); one table instead of one combo per cell | 7ee32fc |
 | Step count cache keyed on the settings (`chainKey`), relation types read once (`relationTypes`) | hashing every id per recount cost almost what the cache saved; the proxies were read once per condition | 8106548 |
 | Log block "GUI — before dialog" typed (`CountRow`) | it showed no counts: wrong keys, now caught by the typecheck | 2bda5d5 |
+| Nesting note: relations with an end only inside a diagram-block get their own reason | the note counted them as "the child already has a parent" (found while checking the nesting-once change) | d3a5af5 |
 
 Not done, and why: `setRedraw(false)` (no gain on either platform); lazy step bodies (steps always open expanded); Layout tab built lazily (the counts read its widgets); bundling modules (parsing stays).
 
@@ -52,7 +53,6 @@ Windows (Git Bash): the same environment variables, then `Archi.exe -application
 ## Handoff
 
 Open, the user's choice:
-- **Wrong reason in the Layout tab's nesting note: fixed, awaiting the user's check.** A nesting relation with an end that sits only inside a diagram-block is drawn as a line; the note counted it as "the child already has a parent". Now it has its own count (`inDiagramBlock`, `counts.js` `layoutConditionCounts`) and its own sentence in the note: "N matching relations are drawn as a line: an end sits only inside a diagram-block." Checked: typecheck, `counts_test`, `nesting_test` and `compose_test` pass; GEMMA, *Beheerview kennismodel* with `GEMMA/publicerenApplicatieServices`: 99 "already has a parent" before, now 0, and 99 "inside a diagram-block". Not committed. To do: the user looks at the note in Archi. After their yes, `docs/reference/gui.md` § Relation counters gets the new reason, and docs and code go in one commit.
 - **Lazy Appearance / Properties tabs**, or only the Properties tab reading the view properties when shown. Estimated gain ≈ 0.5–0.8 s of the 4.5 s, 40–60 lines, medium risk (a tab that was not built must not write defaults over the session); Properties on show ≈ 0.2–0.4 s, ≈ 10 lines, low risk. Recommendation: stop. No part of the open time or of a click stands out any more.
 
 Open, not for the dialog:
