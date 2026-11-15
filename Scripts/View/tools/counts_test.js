@@ -82,7 +82,7 @@ eq(counts("1 Nesting"), {
   layoutConditions: {
     nesting: [{ relations: 4, nested: 2 }, { relations: 3, nested: 3 }, { relations: 1, nested: 1 }],
     reverse: [{ relations: 1 }, { relations: 1 }],
-    multiParent: 0, circular: 2, cycles: 1, selfLoops: 0, deep: 0,
+    multiParent: 0, inDiagramBlock: 0, circular: 2, cycles: 1, selfLoops: 0, deep: 0,
   },
   expandView: null,
 }, "1 Nesting, model tree");
@@ -96,7 +96,7 @@ eq(counts("2 Edited"), {
   layoutConditions: {
     nesting: [{ relations: 4, nested: 2 }, { relations: 3, nested: 3 }, { relations: 1, nested: 1 }],
     reverse: [{ relations: 1 }, { relations: 1 }],
-    multiParent: 0, circular: 2, cycles: 1, selfLoops: 0, deep: 0,
+    multiParent: 0, inDiagramBlock: 0, circular: 2, cycles: 1, selfLoops: 0, deep: 0,
   },
   expandView: null,
 }, "2 Edited, model tree");

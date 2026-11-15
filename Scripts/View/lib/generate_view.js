@@ -368,7 +368,8 @@ function plan(preset, snapshot, actionId, runtime, timer = { lap() {} }) {
                                   objectSet.visuals, objectSet.visualRelations, objectSet.diagramConnections, objectSet, labels);
   timer.lap("layout graph");
   if (graph.nodes.length === 0) {
-    console.log("  No elements to place — view not generated.");
+    console.error(isModify ? "View not changed: nothing to place, the view holds no elements or diagram objects."
+      : `View not generated: nothing to place. No selected element passes the element filter (${snapshot.elements.length} selected, 0 kept), so the steps add none.`);
     return null;
   }
   _logRelationRoles(graph, nestingRels, routedRels);

@@ -69,10 +69,11 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 │ └───────────────────────────────────────────────────────────────────────┘  │
 │ ┌ Create new view ──────────────────┐ ┌ Modify selected view ───────────┐  │
 │ │ (•) New view   ( ) One view each  │ │ ( ) Expand view  ( ) Layout only│  │
-│ │ Folder [/_Generated]  Name [____] │ │ View: Customer journey          │  │
+│ │ Folder [/_Generated]  Name [____] │ │                                 │  │
 │ │ On the generated view:            │ │ On the expanded view:    (grey) │  │
 │ │   elements:    24 elements        │ │   elements:    31 elements      │  │
 │ │   relations:   35 connections     │ │   relations:   44 connections   │  │
+│ │ View: /_Generated/Customer journey│ │ View: /Processen/Customer jour… │  │
 │ └───────────────────────────────────┘ └─────────────────────────────────┘  │
 │                                            [ Create view ]  [  Cancel  ]   │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -215,7 +216,7 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Relation counters.** The Nesting and Reverse tables count, per condition, the relations on the predicted view that it matches on its own, after the chosen relation type: *Aggregation (62)*. An Exclude condition shows what it removes from the other conditions' matches. For nesting, *Nested* shows how many become a nesting; it is empty for a condition that is off. A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for conditions without *Every*), the nesting would be circular, or the relation is a self-relation. The counts use the same resolution as the writer.
+- **Relation counters.** The Nesting and Reverse tables count, per condition, the relations on the predicted view that it matches on its own, after the chosen relation type: *Aggregation (62)*. An Exclude condition shows what it removes from the other conditions' matches. For nesting, *Nested* shows how many become a nesting; it is empty for a condition that is off. A grey note under Nesting says why the others are drawn as a line: the child already has a parent (one parent per child for conditions without *Every*), an end sits only inside a diagram-block (so it is not laid out), the nesting would be circular, it would nest below the algorithm's nesting levels, or the relation is a self-relation. The counts use the same resolution as the writer.
 - **Inactive settings.** A setting the chosen algorithm does not use is greyed and keeps its value; the greying is the only sign. Containers is also greyed until a Nesting condition is on. The explanation of the Nesting and Reverse conditions is the tooltip of those boxes.
 - **No Include condition.** A Nesting or Reverse list starts from nothing. With Exclude conditions but no Include condition that is on, a grey note under the table says nothing is nested (or reversed) and that an Include condition is needed. The Mode tooltip states the starting point of its list: a filter keeps all without an Include condition; a feature list picks nothing.
 - **Locks.** Connections falls back to *Between containers* (greyed) when Layout inside is Grid or Pack, or a view size is active ([nesting reference](selection-nesting.md#containers-and-connections-mode)). Width and Height are greyed while Use label width is on; Wrap label at applies only with it.
@@ -416,19 +417,20 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 ### Action area
 
-Two groups with the same rows, so choices and fields line up; each holds two choices of the one action. Run and Cancel sit below, bottom right.
-- **Create new view**: *New view*, *One view each*; *Folder* and *Name* (this group only).
+Two groups of equal height; each holds two choices of the one action. Run and Cancel sit below, bottom right. Each group ends in a line *View:* with the view it writes in bold, its folder under Views and its name, so the two lines are level; a long path is cut off and its tooltip shows it in full. The line of the group not chosen is grey.
+- **Create new view**: *New view*, *One view each*; *Folder* and *Name* (this group only). *View:* shows Folder and Name (*/_Generated/Customer journey*); for *One view each* the pattern of its views: */_Generated/\<element name\>* (plus the preset's suffix), or *\<folder of each element\>/\<element name\>* with a folder or view selected.
 - **Modify selected view**:
   - *Expand view* is enabled only when objects on the view are selected, because it expands from them;
   - *Layout only*;
-  - *View: \<name\>* names the target: the view of the selected canvas objects, or a view selected in the model tree; without a target, the line says what to select and both choices are disabled;
+  - *View:* names the target: the view of the selected canvas objects, or a view selected in the model tree; without a target, the line says what to select and both choices are disabled;
   - with one selected view that has an origin, a note says how it was made: *Made from /Business/Processen with preset X.*
-- **Run** names the result: *Create view*, *Replace view* when that view exists, *Create 12 views*, *Expand view*, *Layout only*. It is disabled when no selected element passes the filter for *One view each*.
+- **Nothing to place.** When no selected element passes the element filter (and *New view* has no diagram objects to copy), a Create action writes nothing: Run is disabled, the *View:* line is grey and a bold note says why: *Nothing to place: no selected element passes the element filter (Selection tab).* A run without the dialog that has nothing to place says the same on the console as an error, with the selected count.
+- **Run** names the result: *Create view*, *Replace view* when that view exists, *Create 12 views*, *Expand view*, *Layout only*.
 - **Cancel** discards changes and remembers UI-only state (the active tab, the chosen action, the size and position of the dialog) for the next open; so does the window's close button.
 
 The dialog opens on the last action, or on *New view* when that does not fit the selection; with a view selected, on *Layout only*. It opens where it was closed, at that size, cut to its monitor; when that place is on no monitor, top centre.
 
-**Counts**: *On the generated view* is what *New view* puts on a new view, *On the expanded view* what *Expand view* leaves on the selected view; the one not chosen is grey, so a group keeps its height. Both use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens. *One view each* shows a note in their place: *12 views each in the folder of its element. 3 replace an existing view.* *Layout only* has no counts: it writes what is on the view, which *Current selection* on the Selection tab already counts.
+**Counts**: *On the generated view* is what *New view* puts on a new view, *On the expanded view* what *Expand view* leaves on the selected view; the one not chosen is grey, so a group keeps its height. Both use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens. *One view each* has no counts; a note says how many of its views replace an existing one: *3 of the 12 views replace an existing view.* *Layout only* has no counts and hides those of *Expand view*: it writes what is on the view, which *Current selection* on the Selection tab already counts.
 
 | Chosen action | Folder | Name | View name and folder |
 |---|---|---|---|

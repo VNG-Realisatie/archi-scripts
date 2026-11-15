@@ -538,7 +538,9 @@ function conditionTable(parent, opts) {
     lblEmpty.setVisible(n === 0);
     lblEmpty.getLayoutData().exclude = n > 0;
     const width = vcols.reduce((s, c) => s + colWidth(c), DEL_WIDTH);
-    const trim = table.computeTrim(0, 0, width, table.getHeaderHeight() + n * rowH);
+    // GTK makes a row taller than MeasureItem asks (31 px for 29): size the table by the row height it uses.
+    const itemH = Math.max(rowH, table.getItemHeight());
+    const trim = table.computeTrim(0, 0, width, table.getHeaderHeight() + n * itemH);
     const gd = table.getLayoutData();
     gd.widthHint = trim.width; gd.heightHint = trim.height;
     refresh();

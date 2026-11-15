@@ -361,13 +361,15 @@ function updateLayoutConditionCounts(ctx, relations, counts) {
   w.tblNestingConditions.setCounts(counts.nesting);
   w.tblReverseConditions.setCounts(counts.reverse);
 
-  const { multiParent: multi, circular: circ, cycles, selfLoops: loops, deep } = counts;
+  const { multiParent: multi, inDiagramBlock: inBlock, circular: circ, cycles, selfLoops: loops, deep } = counts;
   const alg = selectedAlgorithm(w), spec = ALGORITHMS[alg];
   /** @type {(n: number, s: string, p: string) => string} */
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
   const parts = [];
   if (multi) parts.push(`${plural(multi, "matching relation is", "matching relations are")} drawn as a line: the child already has a parent. ` +
                         "A condition with Every shows such a child in every parent.");
+  if (inBlock) parts.push(`${plural(inBlock, "matching relation is", "matching relations are")} drawn as a line: ` +
+                          "an end sits only inside a diagram-block.");
   if (circ)  parts.push(`${plural(circ, "matching relation forms", "matching relations form")} a circular nesting ` +
                         `(${plural(cycles, "cycle", "cycles")}, named in the log) and ${circ === 1 ? "is" : "are"} drawn as a line.`);
   if (deep)  parts.push(`${plural(deep, "matching relation is", "matching relations are")} drawn as a line: ` +

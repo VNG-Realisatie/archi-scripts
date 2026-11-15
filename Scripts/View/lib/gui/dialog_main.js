@@ -231,12 +231,16 @@ function open(uiSelection) {
 
   // The view Expand view / Layout only work on: the view of selected canvas objects, or a view
   // selected in the model tree (Layout only). name "" = none, the Modify group is then disabled;
-  // onCanvas: objects on the view are selected — Expand view needs them to expand from.
-  const target = { name: "", onCanvas: false };
+  // onCanvas: objects on the view are selected — Expand view needs them to expand from;
+  // path: its folder under Views and its name, as the View line shows it.
+  const target = { name: "", path: "", onCanvas: false };
+  /** @param {ArchiView} view */
+  const pathOf = view => `${ArchiFolders.printFolderPath(view).replace(/^\/Views/, "")}${view.name}`;
   uiSelection.each(o => {
     if (target.name) return;
-    if (o.view)                                    { target.name = String(o.view.name || ""); target.onCanvas = true; }
-    else if (o.type === "archimate-diagram-model") target.name = String(o.name || "");
+    if (o.view) { target.name = String(o.view.name || ""); target.path = pathOf(o.view); target.onCanvas = true; }
+    // Cast: the type says it is a view.
+    else if (o.type === "archimate-diagram-model") { target.name = String(o.name || ""); target.path = pathOf(/** @type {ArchiView} */ (o)); }
   });
   // Expand view's content is read once, here: the selection is read before the dialog opens, and
   // the totals line composes from it on every change (Pipeline.composeObjectSet).
@@ -642,6 +646,8 @@ function _seedElements(ctx) {
   return Pipeline.applyFilter(ctx.seeds, { ...ctx.config.filter, elementConditions: w.tblElementConditions ? w.tblElementConditions.getConditions() : [] });
 }
 
+const NOTHING_TO_PLACE = "Nothing to place: no selected element passes the element filter (Selection tab).";
+
 /**
  * What *One view each* will write: the folder of each element when the selection holds a folder
  * or a view, else Folder.
@@ -662,10 +668,10 @@ function _oneEachState(ctx, folder) {
   };
   const replaced = seeds.filter(e => _viewPaths(ctx).has(pathOf(e))).length;
   const count = `${seeds.length} view${seeds.length === 1 ? "" : "s"}`;
-  const where = ctx.mirrors ? "each in the folder of its element." : `in ${folder || Defs.GENERATED_VIEW_FOLDER}, named after the element.`;
-  const replaces = replaced ? ` ${replaced} replace${replaced === 1 ? "s" : ""} an existing view.` : "";
+  // Where the views go is the View line (_createViewText); the note says only what it replaces.
+  const replaces = replaced ? `${replaced} of the ${count} replace${replaced === 1 ? "s" : ""} an existing view.` : "";
   return { label: `Create ${count}`, folder: !ctx.mirrors, name: false, canRun: seeds.length > 0,
-           note: seeds.length ? `${count} ${where}${replaces}` : "No selected element passes the filter." };
+           note: seeds.length ? replaces : NOTHING_TO_PLACE };
 }
 
 /**
@@ -679,10 +685,27 @@ function _actionState(ctx) {
   if (ctx.action === ACTION.ONE_EACH.id) return _oneEachState(ctx, folder);
   if (ctx.action === ACTION.NEW_VIEW.id) {
     const replaces = _viewPaths(ctx).has(_viewPath(folder, w.txtViewName.getText().trim()));
-    return { label: replaces ? "Replace view" : "Create view", folder: true, name: true, canRun: true, note: "" };
+    // The steps start from the filtered selection: without an element there, only diagram objects can be placed.
+    const empty = !!ctx.counts && !ctx.counts.predicted.elements.length && !ctx.counts.view.diagramObjects;
+    return { label: replaces ? "Replace view" : "Create view", folder: true, name: true, canRun: !empty,
+             note: empty ? NOTHING_TO_PLACE : "" };
   }
   const label = ctx.action === ACTION.EXPAND_VIEW.id ? ACTION.EXPAND_VIEW.label : ACTION.LAYOUT_ONLY.label;
   return { label, folder: false, name: false, canRun: true, note: "" };
+}
+
+/**
+ * The view a Create action writes, under Views: New view its folder and name, One view each the
+ * pattern of its views.
+ * @param {DialogContext} ctx
+ * @returns {string}
+ */
+function _createViewText(ctx) {
+  const w = ctx.widgets;
+  const folder = w.txtViewFolder.getText().trim() || Defs.GENERATED_VIEW_FOLDER;
+  if (ctx.action !== ACTION.ONE_EACH.id) return `/${folder}/${w.txtViewName.getText().trim()}`.replace(/\/+/g, "/");
+  const name = `<element name>${ctx.config.view.suffix}`;
+  return ctx.mirrors ? `<folder of each element>/${name}` : `/${folder}/${name}`.replace(/\/+/g, "/");
 }
 
 /**
@@ -713,6 +736,16 @@ function _refreshAction(ctx) {
   w.btnRun.setText(state.label);
   w.btnRun.setEnabled(state.canRun);
   w.lblCreateNote.setText(state.note);
+  const view = _createViewText(ctx);
+  w.createView.text.setText(view);
+  w.createView.text.setToolTipText(`${view}\nThe view ${ctx.action === ACTION.ONE_EACH.id ? "each element gets" : "New view writes"}; ` +
+                                   "a view with this name in the folder is replaced.");
+  const create = ctx.action === ACTION.NEW_VIEW.id || ctx.action === ACTION.ONE_EACH.id;
+  // Nothing to place: no view is written, so its line is grey and the note says why, in bold.
+  const nothing = create && !state.canRun;
+  for (const lbl of [w.createView.title, w.createView.text]) lbl.setEnabled(create && !nothing);
+  for (const lbl of [w.modifyView.title, w.modifyView.text]) lbl.setEnabled(!create);
+  w.lblCreateNote.setFont(nothing ? Widgets.getBoldFont() : w.lblCreateNote.getDisplay().getSystemFont());
   w.lblOriginNote.setText(_originNote(ctx));
   _showTotals(ctx);
 }
@@ -732,12 +765,13 @@ function _showTotals(ctx) {
     _greyTotals(w.createTotals, ctx.action !== ACTION.NEW_VIEW.id);
     _greyTotals(w.expandTotals, ctx.action !== ACTION.EXPAND_VIEW.id);
     _showRow([w.createTotals.box], !oneEach);
-    _showRow([w.lblCreateNote], oneEach);
-    _showRow([w.expandTotals.box], !!(ctx.counts && ctx.counts.expandView));
+    _showRow([w.lblCreateNote], !!w.lblCreateNote.getText());
+    // Layout only rearranges what is on the view: the Expand view totals do not apply.
+    _showRow([w.expandTotals.box], !!(ctx.counts && ctx.counts.expandView) && ctx.action !== ACTION.LAYOUT_ONLY.id);
     _showRow([w.lblOriginNote], !!w.lblOriginNote.getText());
     // The line count may change: lay out these labels and their ancestors only, not every tab.
     const changed = [w.createTotals, w.expandTotals].flatMap(t => [t.box, t.title, ...t.rows.flatMap(r => [r.sub, r.counts])]);
-    if (ctx.area) ctx.area.layout(Java.to([...changed, w.lblCreateNote, w.lblOriginNote], "org.eclipse.swt.widgets.Control[]"));
+    if (ctx.area) ctx.area.layout(Java.to([...changed, w.createView.text, w.lblCreateNote, w.lblOriginNote], "org.eclipse.swt.widgets.Control[]"));
   } catch (e) {}   // silent: text and layout during a dialog update, on widgets that may be disposed
 }
 
@@ -787,7 +821,7 @@ function _totalsBlock(parent, title, tooltip) {
  * @param {Swt.Composite} area
  * @param {DialogContext} ctx
  * @param {JFace.TitleAreaDialog} dlg
- * @param {{ name: string, onCanvas: boolean }} target  the view Modify works on
+ * @param {{ name: string, path: string, onCanvas: boolean }} target  the view Modify works on
  */
 function _buildActionArea(area, ctx, dlg, target) {
   const targetViewName = target.name;
@@ -823,6 +857,7 @@ function _buildActionArea(area, ctx, dlg, target) {
   w.txtViewName.setToolTipText("Name of the new view, pre-filled with the first selected object.\nA view with this name in the folder is replaced.");
   GridDataFactory.fillDefaults().grab(true, false).hint(150, SWT.DEFAULT).applyTo(w.txtViewName);
   w.txtViewName.addListener(SWT.Modify, () => _refreshAction(ctx));
+  const rowHeight = w.txtViewFolder.computeSize(SWT.DEFAULT, SWT.DEFAULT).y;
 
   w.createTotals = _totalsBlock(grpCreate, "On the generated view: —",
     "What the current settings put on a new view:\n" +
@@ -831,28 +866,13 @@ function _buildActionArea(area, ctx, dlg, target) {
   w.createTotals.box.getLayoutData().horizontalSpan = 4;
   w.lblCreateNote = Widgets.noteLabel(grpCreate, "");
   w.lblCreateNote.getLayoutData().horizontalSpan = 4;
+  w.createView = _viewRow(grpCreate, 4, rowHeight);
+  w.createView.text.setFont(Widgets.getBoldFont());
 
   // ── Modify view ──
   const grpModify = Widgets.group(row, "Modify selected view", 2, { grabV: true, bold: false });
   _actionChoices(grpModify, 2, [ACTION.EXPAND_VIEW, ACTION.LAYOUT_ONLY], radios, available, ctx);
 
-  // "View: <name>" as text, right after the label, in a row as high as a text field (centred),
-  // so it lines up with Folder / Name. A long name is cut off; the tooltip shows it in full.
-  const viewRow = new CompositeWidget(grpModify, SWT.NONE);
-  GridLayoutFactory.fillDefaults().numColumns(2).spacing(6, 0).applyTo(viewRow);
-  GridDataFactory.fillDefaults().span(2, 1).grab(true, false)
-    .hint(150, w.txtViewFolder.computeSize(SWT.DEFAULT, SWT.DEFAULT).y).applyTo(viewRow);
-  const lblView = new LabelWidget(viewRow, SWT.NONE);
-  lblView.setText("View:");
-  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).grab(false, true).applyTo(lblView);
-  const lblTarget = new LabelWidget(viewRow, SWT.NONE);
-  lblTarget.setText(targetViewName || "— select a view, or elements on a view");
-  lblTarget.setToolTipText(targetViewName
-    ? `${targetViewName}\nExpand view and Layout only change this view in place.`
-      + (target.onCanvas ? "" : "\nExpand view needs elements selected on the view.")
-    : "Expand view and Layout only need a selected view, or elements on a view.");
-  GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, true).hint(100, SWT.DEFAULT).applyTo(lblTarget);
-  if (targetViewName) lblTarget.setFont(Widgets.getBoldFont());
 
   w.expandTotals = _totalsBlock(grpModify, "On the expanded view: —",
     "What Expand view puts on the selected view:\n" +
@@ -861,6 +881,14 @@ function _buildActionArea(area, ctx, dlg, target) {
   w.expandTotals.box.getLayoutData().horizontalSpan = 2;
   w.lblOriginNote = Widgets.noteLabel(grpModify, "");
   w.lblOriginNote.getLayoutData().horizontalSpan = 2;
+  w.modifyView = _viewRow(grpModify, 2, rowHeight);
+  const lblTarget = w.modifyView.text;
+  lblTarget.setText(target.path || "— select a view, or elements on a view");
+  lblTarget.setToolTipText(targetViewName
+    ? `${target.path}\nExpand view and Layout only change this view in place.`
+      + (target.onCanvas ? "" : "\nExpand view needs elements selected on the view.")
+    : "Expand view and Layout only need a selected view, or elements on a view.");
+  if (targetViewName) lblTarget.setFont(Widgets.getBoldFont());
 
   _fitGroupOnResize(area, grpCreate, w.createTotals, w.lblCreateNote);
   _fitGroupOnResize(area, grpModify, w.expandTotals, w.lblOriginNote);
@@ -880,6 +908,26 @@ function _buildActionArea(area, ctx, dlg, target) {
     _persistSession(ctx);  // remember _lastTabIndex even on cancel
     Java.super(dlg).cancelPressed();
   });
+}
+
+/**
+ * A row "View: <text>" at the bottom of its group, as high as a text field (text centred): the groups
+ * are equally high, so the View rows of both line up. A long text is cut off; the caller's tooltip shows it in full.
+ * @param {Swt.Composite} group
+ * @param {number} span    the columns of the group
+ * @param {number} height  of a text field
+ * @returns {{ title: Swt.Label, text: Swt.Label }}
+ */
+function _viewRow(group, span, height) {
+  const row = new CompositeWidget(group, SWT.NONE);
+  GridLayoutFactory.fillDefaults().numColumns(2).spacing(6, 0).applyTo(row);
+  GridDataFactory.fillDefaults().span(span, 1).grab(true, true).align(SWT.FILL, SWT.END).hint(150, height).applyTo(row);
+  const title = new LabelWidget(row, SWT.NONE);
+  title.setText("View:");
+  GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).grab(false, true).applyTo(title);
+  const text = new LabelWidget(row, SWT.NONE);
+  GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).grab(true, true).hint(100, SWT.DEFAULT).applyTo(text);
+  return { title, text };
 }
 
 /**

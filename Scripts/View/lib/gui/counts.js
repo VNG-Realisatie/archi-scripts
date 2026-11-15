@@ -108,7 +108,7 @@ function dialogCounts(input) {
   const split   = Nesting.splitNestingRels(finalRels, input.params);
   const nesting = Nesting.resolveNesting(onView, split.nestingRels, input.params, input.algorithm, input.visuals, joinRun);
   const view = Nesting.countView(onView, finalRels, diagram, input.algorithm, split.connectionRels, nesting);
-  const layoutConditions = input.layoutConditions ? layoutConditionCounts(input.layoutConditions, finalRels, nesting) : null;
+  const layoutConditions = input.layoutConditions ? layoutConditionCounts(input.layoutConditions, finalRels, nesting, onView) : null;
 
   // Expand view: composed by the pipeline itself from what it read before the dialog opened.
   const expandView = input.expandSnapshot
@@ -248,16 +248,22 @@ function relationTypes(relations) {
  * @param {{ nesting: RelationCondition[], reverse: RelationCondition[] }} tables  the rows as shown
  * @param {ArchiRelation[]}    relations  the predicted view's relations
  * @param {NestingResolution}  nest       their nesting (Nesting.resolveNesting)
+ * @param {ArchiElement[]}     onView     the laid-out elements: the predicted view without the elements only inside a diagram-block
  * @returns {LayoutConditionCounts}
  */
-function layoutConditionCounts(tables, relations, nest) {
+function layoutConditionCounts(tables, relations, nest, onView) {
   const nestedIds = new Set(nest.parentRels.map(b => b.rel.id));
-  const loops = nest.notNestedNestingRels.filter(r => r.source && r.target && r.source.id === r.target.id).length;
+  const laidOut = new Set(onView.map(el => el.id));
+  const isLoop = (/** @type {ArchiRelation} */ r) => r.source.id === r.target.id;
+  const outside = (/** @type {ArchiRelation} */ r) => !laidOut.has(r.source.id) || !laidOut.has(r.target.id);
+  const loops = nest.notNestedNestingRels.filter(isLoop).length;
+  const inBlock = nest.notNestedNestingRels.filter(r => !isLoop(r) && outside(r)).length;
   const typed = relationTypes(relations);
   return {
     nesting: featureConditionCounts(tables.nesting, typed, nestedIds),
     reverse: featureConditionCounts(tables.reverse, typed, null),
-    multiParent: nest.notNestedNestingRels.length - loops,
+    multiParent: nest.notNestedNestingRels.length - loops - inBlock,
+    inDiagramBlock: inBlock,
     circular:    nest.circularNestingRels.length,
     cycles:      nest.cycles.length,
     selfLoops:   loops,

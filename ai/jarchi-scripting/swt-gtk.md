@@ -31,7 +31,7 @@ jArchi scripts build UI with SWT and JFace through `Java.type` (classes) and `Ja
 
 Found building the View dialog's condition tables (`Scripts/View/lib/gui/condition_table.js`), on GTK and Win32.
 
-- **Owner draw.** `SWT.MeasureItem` sets the row height (`e.height`); `SWT.EraseItem` clears `SWT.SELECTED | SWT.HOT | SWT.FOCUSED | SWT.FOREGROUND` from `e.detail`; `SWT.PaintItem` draws the cell in `e.item.getBounds(e.index)`. GTK: that cell is 3 px narrower than its column.
+- **Owner draw.** `SWT.MeasureItem` sets the row height (`e.height`); `SWT.EraseItem` clears `SWT.SELECTED | SWT.HOT | SWT.FOCUSED | SWT.FOREGROUND` from `e.detail`; `SWT.PaintItem` draws the cell in `e.item.getBounds(e.index)`. GTK: that cell is 3 px narrower than its column, and a row is taller than `MeasureItem` asks (31 px for 29): a table sized to its rows uses `getItemHeight()`, else its last row is cut off.
 - **No selection.** GTK paints the selection over owner-drawn cells: `deselectAll()` on `SWT.Selection`. `Table.remove` on GTK selects a neighbour of the removed rows without a Selection event: `deselectAll()` after it too.
 - **Keyboard cursor.** `GC.drawFocus` follows the platform: Breeze draws nothing, Win32 nothing until the keyboard cues are on (Tab, Alt). Draw a frame of your own (`SWT.LINE_DOT`, the widget foreground).
 - **Enter.** `SWT.CR` is a Java char, not a JS string: match `String(e.character) === "\r"`. In a dialog Enter also presses the default button: `SWT.Traverse` with `TRAVERSE_RETURN` → `e.doit = false`.

@@ -8,7 +8,7 @@
  *   SELECT_ID  the object to select, by id (the command line has no selection)
  *   PRESET     the dialog opens on this preset instead of the session
  *   SHOTS      folder for the screenshots (NN_<name>.png), must exist
- *   SUITE      the steps to run, default "tables" (the condition-table checklist)
+ *   SUITE      the steps to run: "tables" (default, the condition-table checklist) or "open" (the dialog as it opens)
  * Each key logs the control that has the focus ("key … → focus List"), so a key that went elsewhere shows.
  *
  * Do not touch mouse or keyboard while it runs: the input is posted to the desktop (Display.post).
@@ -28,6 +28,10 @@ const SWTEvent = Java.type("org.eclipse.swt.widgets.Event");
 const Composite = Java.type("org.eclipse.swt.widgets.Composite");
 const TabFolder = Java.type("org.eclipse.swt.widgets.TabFolder");
 const Table = Java.type("org.eclipse.swt.widgets.Table");
+const Button = Java.type("org.eclipse.swt.widgets.Button");
+const Label = Java.type("org.eclipse.swt.widgets.Label");
+const Group = Java.type("org.eclipse.swt.widgets.Group");
+const Text = Java.type("org.eclipse.swt.widgets.Text");
 const ScrolledComposite = Java.type("org.eclipse.swt.custom.ScrolledComposite");
 const Image = Java.type("org.eclipse.swt.graphics.Image");
 const GC = Java.type("org.eclipse.swt.graphics.GC");
@@ -72,6 +76,41 @@ function shot(name, r) {
 }
 /** @param {string} name */
 const shotShell = name => shot(name, shell.getBounds());
+/**
+ * The action area as text, cheaper and more exact than a screenshot for text, grey and bold: per group
+ * every visible label, button and text field ("[…]"), "(grey)" when disabled, "*…*" when bold, "(x)" a chosen radio.
+ * The run buttons follow the groups.
+ * @param {string} name
+ */
+function logActionArea(name) {
+  const lines = [];
+  /** @param {any} c @param {string} indent */
+  const walk = (c, indent) => {
+    if (!c.isVisible()) return;
+    if (c instanceof Text) { lines.push(`${indent}[${c.getText()}]${c.isEnabled() ? "" : " (grey)"}`); return; }
+    if (c instanceof Label || c instanceof Button) {
+      const text = String(c.getText()).replace(/\n/g, " ");
+      if (!text) return;
+      const bold = (c.getFont().getFontData()[0].getStyle() & SWT.BOLD) !== 0;
+      const radio = (c.getStyle() & SWT.RADIO) !== 0 ? (c.getSelection() ? "(x) " : "( ) ") : "";
+      lines.push(`${indent}${radio}${bold ? `*${text}*` : text}${c.isEnabled() ? "" : " (grey)"}`);
+      return;
+    }
+    if (c instanceof Composite) for (const ch of c.getChildren()) walk(ch, c instanceof Group ? indent + "  " : indent);
+  };
+  /** The row of the two groups. @param {any} c @returns {any} */
+  const groupRow = c => {
+    if (c instanceof Group && String(c.getText()) === "Create new view") return c.getParent();
+    if (!(c instanceof Composite)) return null;
+    for (const ch of c.getChildren()) { const f = groupRow(ch); if (f) return f; }
+    return null;
+  };
+  const row = groupRow(shell);
+  for (const g of row.getChildren()) { lines.push(String(g.getText())); walk(g, "  "); }
+  const siblings = [...row.getParent().getChildren()];
+  walk(siblings[siblings.indexOf(row) + 1], "");   // Run and Cancel
+  log(`action area ${name}:\n  ${lines.join("\n  ")}`);
+}
 /** A table with its footer and room for tooltips, lists and menus. @param {string} name @param {any} t */
 const shotTable = (name, t) => {
   const b = t.getParent().getBounds();
@@ -169,7 +208,22 @@ function hoverHeader(t, header) {
 /** A condition table's footer control: 0 = + Add condition, 1 = Match property. @param {any} t @param {number} i */
 const footerChild = (t, i) => t.getParent().getChildren()[2].getChildren()[i];
 /** @param {any} c */
+function moveToControl(c) { const p = centerOf(c.getParent(), c.getBounds()); moveTo(p.x, p.y); }
+/** @param {any} c */
 function clickControl(c) { const p = centerOf(c.getParent(), c.getBounds()); clickAt(p.x, p.y); }
+/** The dialog's button with this text (a radio, a push button). @param {string} text */
+function button(text) {
+  /** @param {any} c @returns {any} */
+  const find = c => {
+    if (c instanceof Button && String(c.getText()) === text) return c;
+    if (!(c instanceof Composite)) return null;
+    for (const ch of c.getChildren()) { const f = find(ch); if (f) return f; }
+    return null;
+  };
+  const b = find(shell);
+  if (!b) throw new Error(`no button ${text}`);
+  return b;
+}
 /** @param {string} name */
 function clickTab(name) {
   const it = tabFolder.getItems().find((/** @type {any} */ i) => String(i.getText()) === name);
@@ -188,6 +242,23 @@ const NSTYLE  = () => table("Appearance", "Parent type");
 
 /** @type {Record<string, [number, () => void][]>} */
 const SUITES = {
+  // The dialog as it opens: the Selection tab and the action area.
+  open: [
+    // Each table as high as its header and rows: a shortfall cuts off the last row.
+    [2500, () => { log("table sizes:\n  " + tables().map(x => { const t = x.t, n = t.getItemCount();
+      return `${x.tab} ${x.headers[x.headers.length - 1]}: ${n} rows, item ${t.getItemHeight()} px, header ${t.getHeaderHeight()} px, ` +
+             `client ${t.getClientArea().height} px, needed ${t.getHeaderHeight() + n * t.getItemHeight()} px`; }).join("\n  ")); }],
+    [100,  () => clickTab("Selection")],
+    [1500, () => { logActionArea("open"); shotShell("open"); }],
+    [1000, () => moveToControl(button("One view each"))],
+    [300,  () => clickControl(button("One view each"))],
+    [1500, () => { logActionArea("one_view_each"); shotShell("one_view_each"); }],
+    [1000, () => moveToControl(button("New view"))],
+    [300,  () => clickControl(button("New view"))],
+    [1500, () => { logActionArea("new_view"); shotShell("new_view"); }],
+    [1000, () => { if (button("Layout only").getEnabled()) clickControl(button("Layout only")); }],
+    [1500, () => { logActionArea("layout_only"); shotShell("layout_only"); }],
+  ],
   // The condition-table checklist (plan/view-condition-table-as-native-table.md § To agree, "Behaviour that stays").
   tables: [
     [2500, () => { log("tables:\n  " + tables().map(x => `${x.tab}: ${x.headers.join("|")} (${x.t.getItemCount()} rows)`).join("\n  ")); clickTab("Selection"); }],

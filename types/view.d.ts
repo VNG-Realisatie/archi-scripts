@@ -658,6 +658,8 @@ interface LayoutConditionCounts {
   reverse: ConditionTableCounts[];
   /** Matching relations drawn as a line because the child already has a parent. */
   multiParent: number;
+  /** Matching relations drawn as a line because an end sits only inside a diagram-block, so it is not laid out. */
+  inDiagramBlock: number;
   /** Matching relations drawn as a line because they form a circular nesting. */
   circular: number;
   cycles: number;
@@ -924,6 +926,10 @@ type DialogWidgets = {
   expandTotals: TotalsBlock;
   txtViewFolder: Swt.Text;
   txtViewName: Swt.Text;
+  /** "View:" and the view a Create action writes. */
+  createView: { title: Swt.Label; text: Swt.Label };
+  /** "View:" and the view a Modify action changes. */
+  modifyView: { title: Swt.Label; text: Swt.Label };
   lblCreateNote: Swt.Label;
   lblOriginNote: Swt.Label;
   btnRun: Swt.Button;
