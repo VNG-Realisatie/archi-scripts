@@ -1,11 +1,11 @@
 /*
- * Probe the jArchi API assumptions behind ai/jarchi-scripting/jarchi.d.ts.
+ * Probe the jArchi API assumptions behind skills/jarchi-scripting/jarchi.d.ts.
  *
  * The model's contents are not changed: two probes write on a temporary view and delete it (Archi's undo
  * stack shows it); one of them can change the order rels() gives in memory, so reopen the model before a
  * baseline run. Select a model with at least two elements and one
  * relation; select a view (or something on it) to also probe visuals. Copy the console output
- * back into the typings (@remarks unverified → verified) and ai/jarchi-scripting docs.
+ * back into the typings (@remarks unverified → verified) and skills/jarchi-scripting docs.
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 

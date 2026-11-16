@@ -7,8 +7,8 @@ Requested 2026-11-03 with modelling conventions (ArchiMate 3.2). Model: `Scripts
 | Concept | ArchiMate element | Here |
 |---|---|---|
 | Agent | Application component | Claude Code, GitHub Copilot (the agents the repo configures: `.claude/`, `.github/copilot-instructions.md`) |
-| Skill | Application function | jarchi-scripting, elkjs, dagre, graphviz, view-testing, view-baseline (`ai/<skill>/`) |
-| Skill definition | Artifact | `ai/<skill>/SKILL.md` |
+| Skill | Application function | jarchi-scripting, elkjs, dagre, graphviz, view-testing, view-baseline (`skills/<skill>/`) |
+| Skill definition | Artifact | `skills/<skill>/SKILL.md` |
 | Development process | Business process | the existing steps of *Develop a View change*, *Version and commit*, *Diagnose a reported view* |
 | Agent rules | Artifact | `AGENTS.md`, `Scripts/View/AGENTS.md` |
 
@@ -25,6 +25,6 @@ Relations: agent → skill assignment; skill → process step serving (only the 
 ## Step log
 
 - 2026-11-03: steps 1–5.
-- 2026-11-03: *repo-guide* (business object) becomes the agent-rules artifact *ai/repo-guide*: AGENTS.md "routes to" it; it governs *Change pipeline, adapter, writer or dialog* and *Run the Node checks*. The empty folder Business/Instructions goes.
+- 2026-11-03: *repo-guide* (business object) becomes the agent-rules artifact *repo-guide*: AGENTS.md "routes to" it; it governs *Change pipeline, adapter, writer or dialog* and *Run the Node checks*. The empty folder Business/Instructions goes.
 - 2026-11-08 (after aa66c78, which made the Agent harness and moved "governs" to the top processes): the Agent harness reads (access) all three agent-rules artifacts instead of the association "instructs" from AGENTS.md; the rules keep governing the top processes directly (not through the agent). Skills no longer serve the steps directly: each realises an application service (*Write jArchi scripts*, *Configure a layout engine* ← elkjs, dagre, graphviz, *Reproduce and explain a view*, *Check against the Archi baseline*) that serves the steps. Agreed deviation from the request's "skills directly on the process steps".
 - 2026-11-06 (aa66c78): Claude Code and GitHub Copilot are one application component *Agent harness*; both are named in its documentation.

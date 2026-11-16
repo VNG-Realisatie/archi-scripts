@@ -169,7 +169,7 @@ Persistent state · Platform constraints · Verification · Known gaps
      - root `AGENTS.md` routing row (+ `docs/reference/`);
      - `Scripts/View/AGENTS.md` and README;
      - ARCH (`SPEC.md#managed-occurrences` → `reference/selection-nesting.md#…`);
-     - `ai/view-testing/SKILL.md`, if it names appendix sections.
+     - `skills/view-testing/SKILL.md`, if it names appendix sections.
    - Code comments that name appendix sections:
      - `generate_view.js` l.180, 464, 481, 642, 721;
      - `selection_pipeline.js` l.717, 802, 873, 978;

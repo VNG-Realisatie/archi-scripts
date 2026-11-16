@@ -17,7 +17,7 @@
  *
  * Run in Archi (no selection needed); close the test model first if it is open. To change the test data, edit
  * this script, rerun it, run run_baseline.ajs on the new model (a rebuild has no Baseline views) and commit
- * both. Procedure: skill view-baseline (ai/view-baseline/SKILL.md).
+ * both. Procedure: skill view-baseline (skills/view-baseline/SKILL.md).
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common       = require(REPO_ROOT + "_lib/Common");

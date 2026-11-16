@@ -53,10 +53,10 @@ AGENTS.md                        NEW  project: hierarchy, routing, repo hard rul
 (CLAUDE.md)                           removed: Claude Code ≥ 2.1.277 reads AGENTS.md natively
 .github/copilot-instructions.md  NEW  adapter: pointer to AGENTS.md (replaces .github/copilot/instructions.md)
 .claude/skills/*/SKILL.md             adapter stubs (also read by OpenCode)
-ai/repo-guide.md, ai/dialog-style.md  unchanged content, references updated
-ai/jarchi-scripting/SKILL.md          + 3 pitfalls from memory
+repo-guide.md, ai/dialog-style.md  unchanged content, references updated
+skills/jarchi-scripting/SKILL.md          + 3 pitfalls from memory
 ai/{elkjs,dagre,graphviz}/            unchanged
-ai/view-testing/SKILL.md         NEW  skill (from ai/view-testing.md Inputs/Steps + memory reference_view_testing)
+skills/view-testing/SKILL.md         NEW  skill (from ai/view-testing.md Inputs/Steps + memory reference_view_testing)
 .claude/skills/view-testing/SKILL.md NEW stub, same pattern as the other four
 Scripts/View/AGENTS.md           NEW  part: View hard rules, doc workflow, spec style, reading SPEC/ARCH selectively
 (Scripts/View/CLAUDE.md)              removed (same reason)
@@ -83,7 +83,7 @@ Classification:
 | `jarchi-scripting` | Skill (stays) | Triggered by "writing jArchi code"; knowledge for all of Archi, valid for every script in the repo. If another jArchi repo ever comes along, it is a candidate for the generic level |
 | `elkjs`, `dagre`, `graphviz` | Skill (stays) | Generic library knowledge plus a "In jArchi" section; triggered by engine work |
 | **`view-testing`** | **Skill** (new) | The trigger is a *user report* ("view X looks wrong"), not an opened file. The nested `Scripts/View/AGENTS.md` loads only after a View file is read, so a routing line there comes too late. As a skill its description is always visible (~60 tokens), and the procedure (~2k) loads only when needed. Its scope is View: the name and description say so |
-| `ai/repo-guide.md` | Reference | Structure and conventions for new scripts, modules and tests; routed from `AGENTS.md` |
+| `repo-guide.md` | Reference | Structure and conventions for new scripts, modules and tests; routed from `AGENTS.md` |
 | `ai/dialog-style.md` | Reference | Repo style for every SWT dialog; routed from `AGENTS.md` ("dialog code → read") and from the jarchi skill (`swt-gtk.md`) |
 | `types/README.md` | Reference | Typecheck rules; routed from repo hard rule *Typecheck* |
 | Test-case log | Documentation | History of findings, not an instruction → `Scripts/View/docs/test-cases.md`; the skill points to it |
@@ -106,7 +106,7 @@ Both stay full documentation: SPEC = reconstruction description including the GU
 | SPEC §14 bullet "Rule layering" | Restates the hierarchy global→repo→skill→subsystem | One sentence: "Rule hierarchy: `AGENTS.md`." |
 | SPEC Appendix "Rule scopes" (table + "plan files are not rules") | Second copy of the hierarchy, deviating from `ai/rules.md` | Moves to root `AGENTS.md` §Hierarchy; the heading in SPEC keeps one pointer line |
 | ARCHITECTURE §Content division, "Order of change" | SPEC first → code, same commit (conflicts with approval rule) | Approval workflow per decision 1; the rule itself is canonical in `Scripts/View/AGENTS.md` §Docs, ARCHITECTURE describes it as documentation |
-| ARCHITECTURE B.6 link (line 278) | `ai/view-testing.md` | `ai/view-testing/SKILL.md` and `docs/test-cases.md` |
+| ARCHITECTURE B.6 link (line 278) | `ai/view-testing.md` | `skills/view-testing/SKILL.md` and `docs/test-cases.md` |
 
 SPEC §11 *Rules & invariants* stays complete in SPEC (needed for reconstruction). The agent version in `Scripts/View/AGENTS.md` refers to it per rule ("SPEC rule n"). On a content conflict, SPEC wins. That overlap is deliberate.
 
@@ -159,7 +159,7 @@ Deleted after migration:
 | `.claude/settings.md` "check subfolder CLAUDE.md" | Native nested loading + routing line |
 | `.claude/settings.md` "no new CLAUDE.md without request" | `AGENTS.md` §Hierarchy |
 | `Scripts/View/CLAUDE.md` SPEC/ARCH/skill/test references, presets JSON | `Scripts/View/AGENTS.md` |
-| `ai/view-testing.md` Inputs/Steps | `ai/view-testing/SKILL.md` |
+| `ai/view-testing.md` Inputs/Steps | `skills/view-testing/SKILL.md` |
 | `ai/view-testing.md` Test cases | `Scripts/View/docs/test-cases.md` |
 | SPEC §14 "Rule layering", Appendix "Rule scopes" | `AGENTS.md` §Hierarchy; SPEC keeps a one-line pointer |
 | ARCHITECTURE "Order of change" | Brought in line with the approval workflow; canonical in `Scripts/View/AGENTS.md` §Docs |
@@ -171,7 +171,7 @@ Deleted after migration:
 | memory `spec_writing_style` | `Scripts/View/AGENTS.md` §Docs |
 | memory `reference_jarchi_api` (non-existent APIs) | jarchi SKILL pitfall "APIs that do not exist" |
 | memory `reference_jarchi_wiki` | jarchi SKILL "Where to look" (already there) + "consult before claims about Archi behaviour" |
-| memory `reference_view_testing` | `ai/view-testing/SKILL.md` (XML reading, ELK-in-Node, Archi paths, test models) |
+| memory `reference_view_testing` | `skills/view-testing/SKILL.md` (XML reading, ELK-in-Node, Archi paths, test models) |
 | memory `project_view_nesting_plan` | Completed; doc layout is in ARCHITECTURE §Content division → removed |
 | memory `plan_filenames`, `webfetch_docs` | `~/ai/shared/AGENTS.md` |
 | `~/.claude/rules.md`, `~/.claude/settings.md`, `~/.cursor/rules.md` | `~/ai/shared/AGENTS.md` |
@@ -181,7 +181,7 @@ Deleted after migration:
 0. `claude update` for the terminal CLI (2.1.186 → ≥ 2.1.281), after your OK.
 1. Create the global files and adapters. Check that `~/.config/opencode` exists.
 2. Write root `AGENTS.md` and `Scripts/View/AGENTS.md`, migrating content literally where possible.
-3. Write `ai/view-testing/SKILL.md`, its stub and `Scripts/View/docs/test-cases.md`. Add the jarchi SKILL pitfalls.
+3. Write `skills/view-testing/SKILL.md`, its stub and `Scripts/View/docs/test-cases.md`. Add the jarchi SKILL pitfalls.
 4. Turn the adapters into pointers. Delete the dead files.
 5. Update references:
    - In `.md` files: every `ai/rules.md` and `ai/view-testing.md` (`repo-guide.md`, `dialog-style.md`, ARCHITECTURE line 260/278, SPEC §14/Appendix).

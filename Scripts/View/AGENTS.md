@@ -42,4 +42,4 @@ Preset files (`presets/**/*.json`) are plain JSON, no `module.exports`.
 
 ## Testing
 
-A reported view that looks wrong: skill `view-testing` (`ai/view-testing/SKILL.md`); findings are logged in `docs/test-cases.md`. Test levels, judging a result, test data: `docs/ARCHITECTURE.md` § Development and testing.
+A reported view that looks wrong: skill `view-testing` (`skills/view-testing/SKILL.md`); findings are logged in `docs/test-cases.md`. Test levels, judging a result, test data: `docs/ARCHITECTURE.md` § Development and testing.

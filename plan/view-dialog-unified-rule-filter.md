@@ -338,7 +338,7 @@ Elke tabel, kolomkop en knop krijgt een compacte tooltip over de werking. Toolti
 - **Reverse heeft twee betekenissen** (ouder kiezen bij nesting, kant omdraaien in de layout). Dat blijft zo en valt buiten dit plan.
 - **Zelfrelaties** (bron = doel): bij Direction = Either mogen ze niet dubbel tellen. De matchmodule moet dat afvangen; nesting behandelt ze al apart.
 - **Tooltips en documentatie.** Tooltips komen uit `defs` met een gegenereerde "Used by"-regel (commit d8601df). `PARAM_WIDGETS`/`OWN_HANDLING`, `tools/check_registry.js` en `tools/gen_docs_tables.js` moeten de nieuwe parameters kennen. SPEC.md (schema §560–603, `schemaVersion`), ARCHITECTURE.md en README worden aangepast, inclusief de onjuiste claim dat het globale relatiefilter richting kent.
-- **GTK.** Een raster van comboboxen met knoppen als kopjes is nieuw in deze dialoog. Er zijn nu geen tabellen of popups. De regels in `ai/jarchi-scripting/SKILL.md` gelden: expliciete hoogte-hints op kleine knoppen, `layout(true, true)` en `_resizeScrolled` na dynamische wijzigingen.
+- **GTK.** Een raster van comboboxen met knoppen als kopjes is nieuw in deze dialoog. Er zijn nu geen tabellen of popups. De regels in `skills/jarchi-scripting/SKILL.md` gelden: expliciete hoogte-hints op kleine knoppen, `layout(true, true)` en `_resizeScrolled` na dynamische wijzigingen.
 
 ## 5b. Evaluatie tijdens de implementatie (aanvullingen op dit plan)
 

@@ -16,7 +16,7 @@ Replace the unmaintained `dagre-cluster-fix` 0.9.0 (last release 2022) with the 
 - 3.x calls `structuredClone` in the ordering step (on a tie in crossings); presumably missing in GraalJS — check in Archi, else shim it before loading.
 - Packaging: ESM-first; `dist/dagre.cjs` requires `@dagrejs/graphlib` by bare name; `dist/dagre.js` bundles graphlib but sets a global `var dagre` (needs a `module.exports` line). 107 KB, no lodash (cluster-fix 385 KB).
 - New in 3.x: per-cluster `rankdir` / `ranksep` / `nodesep` / `align` (cluster collapsed onto its children in a quick test), `rankalign`, order `constraints`, `customOrder`.
-- `ai/dagre/dagre-reference.md` is wrong that `@dagrejs/dagre` has no compound graphs: clusters work, edges at a cluster do not.
+- `skills/dagre/dagre-reference.md` is wrong that `@dagrejs/dagre` has no compound graphs: clusters work, edges at a cluster do not.
 - View 5 of the test model (300 elements, three nesting levels, 2026-11-02): 3.1.3 places 6 children outside their container (up to 1622 px), as cluster-fix does (1640 px): the ordering bug is in both (finding F10 in `view-test-plan.md`).
 
 ## Pros and cons
@@ -41,10 +41,10 @@ Unchanged:
 
 ## Steps
 
-1. Vendor `@dagrejs/dagre` 3.x as `Scripts/node_modules/dagre/` (bundled build + `module.exports`), remove `dagre-cluster-fix` and the unused dagre 1.0.4; update `ai/repo-guide.md` § libraries.
+1. Vendor `@dagrejs/dagre` 3.x as `Scripts/node_modules/dagre/` (bundled build + `module.exports`), remove `dagre-cluster-fix` and the unused dagre 1.0.4; update `repo-guide.md` § libraries.
 2. Adapter (`View/lib/engines/dagre.js`): edges with a container at either end stay out of the Dagre graph and are written unrouted (as the self-loop fallback); console line with their count. `structuredClone` shim if Archi lacks it.
 3. `defs.js` Dagre capabilities and tooltip: nesting partial, no edges at containers; docs (`reference/engines.md`, SPEC capability matrix) after approval (`Scripts/View/AGENTS.md` § Order of change).
-4. Fix `ai/dagre/SKILL.md` and `dagre-reference.md`: package, loading, cluster-edge limit, new options.
+4. Fix `skills/dagre/SKILL.md` and `dagre-reference.md`: package, loading, cluster-edge limit, new options.
 5. Check: typecheck, `check_registry.js`, `nesting_test.js`, harness on the views above against cluster-fix, then Dagre in Archi (GraalJS).
 
 ## Handoff

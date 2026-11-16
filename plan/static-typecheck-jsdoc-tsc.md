@@ -14,7 +14,7 @@ uitvoering vindt, zonder buildstap en zonder het runtimegedrag te veranderen.
 | F1 | Alle modules laden elkaar met `require(REPO_ROOT + "…")` (dynamisch pad) | tsc kan dat niet volgen → elk geïmporteerd module is `any`. Opgelost met een JSDoc-regel `/** @type {typeof import("…")} */` boven de `require` (alleen commentaar). In-memory getest: werkt, ook met de `if (typeof module …) module.exports = …`-guard. |
 | F2 | Entry-scripts hebben extensie `.ajs` | tsc accepteert geen `.ajs`. Entry-scripts vallen buiten de controle; ze zijn dun (3–8 regels) in View. |
 | F3 | `rchevallier/jarchi-lib` `globals.d.ts` (Apache-2.0, 263 regels) | Beschrijft jArchi **1.2**, laatst gewijzigd 2023-04; repo gebruikt 1.10+/1.12 (`add(vo,x,y)`-move, `parents()`, `delete(keepChildren)` ontbreken). Alleen als checklist gebruiken, niet overnemen. |
-| F4 | Repo-referentie `ai/jarchi-scripting/jarchi-api-reference.md` (v0.1–1.12, uit de wiki) | Bron voor de nieuwe typings; afwijkingen tegen wiki/broncode controleren. |
+| F4 | Repo-referentie `skills/jarchi-scripting/jarchi-api-reference.md` (v0.1–1.12, uit de wiki) | Bron voor de nieuwe typings; afwijkingen tegen wiki/broncode controleren. |
 | F5 | TypeScript 6 zet `strict` standaard aan | Strikt: ±667 meldingen in GUI/_lib, honderden in View/lib (vooral impliciete `any`). Niet-strikt: 21 meldingen in View/lib + `_lib/Common.js` + `archi_folders.js`. |
 | F6 | Conventie "No npm; vendor in `Scripts/node_modules/`"; `.gitignore` negeert élke `package.json` | Een ontwikkel-`package.json` in de root is een (te documenteren) afwijking en vergt een `.gitignore`-uitzondering. |
 | F7 | `Scripts/` wordt als geheel naar Archi gedistribueerd | Typings en config horen buiten `Scripts/` (repo-root). |
@@ -67,7 +67,7 @@ Los van de typecheck uit te voeren. Het raakt wel de typecheck, omdat de API-typ
 
 ### Doelindeling
 
-`ai/jarchi-scripting/` alleen over **jArchi-plugin, API en runtime**. Elk bestand heeft één reden om het te laden:
+`skills/jarchi-scripting/` alleen over **jArchi-plugin, API en runtime**. Elk bestand heeft één reden om het te laden:
 
 | Bestand | Doel | Laden wanneer | Omvang (doel) |
 |---|---|---|---|
@@ -76,18 +76,18 @@ Los van de typecheck uit te voeren. Het raakt wel de typecheck, omdat de API-typ
 | `graaljs-java.md` | Samengevoegd en ingekort: ES2024-niveau, `Java.type`/`extend`/`from`/`to`, arrays/lists/maps, strings, exceptions, overloads, externe processen (gecorrigeerd recept) | Java-interop | ±200 regels |
 | `swt-gtk.md` | Generieke SWT/JFace/GTK-regels (huidige "Core SWT Behaviours", fonts, tabs, spinners, TitleAreaDialog) | dialogen bouwen | ±70 regels |
 
-**B-D1 (aanbeveling): `jarchi.d.ts` vervangt `jarchi-api-reference.md`.** Eén bron die zowel gelezen als door tsc gecontroleerd wordt; compacter dan markdown en niet meer handmatig te synchroniseren. De versiegeschiedenis wordt `@since`-tags plus een lijst van 10 regels met breaking changes (1.1, 1.8) in `SKILL.md`. Gevolg voor de typecheck: `jsconfig.json` neemt `ai/jarchi-scripting/jarchi.d.ts` op, en `types/` bevat alleen repo-typen (`view.d.ts`, `layout.d.ts`). Stap 3 schrijft daarom eerst het in scope gebruikte deel; de rest volgt in spoor B.
+**B-D1 (aanbeveling): `jarchi.d.ts` vervangt `jarchi-api-reference.md`.** Eén bron die zowel gelezen als door tsc gecontroleerd wordt; compacter dan markdown en niet meer handmatig te synchroniseren. De versiegeschiedenis wordt `@since`-tags plus een lijst van 10 regels met breaking changes (1.1, 1.8) in `SKILL.md`. Gevolg voor de typecheck: `jsconfig.json` neemt `skills/jarchi-scripting/jarchi.d.ts` op, en `types/` bevat alleen repo-typen (`view.d.ts`, `layout.d.ts`). Stap 3 schrijft daarom eerst het in scope gebruikte deel; de rest volgt in spoor B.
 
 **Naar elders (repo-specifiek, uit de skill)**:
 - Dialoog-opmaakregels 1–12, volgorde binnen een groep en knopbreedte 95 px → `ai/dialog-style.md` (repo-UI-stijl), met een verwijzing in `ai/rules.md` § Source references.
-- `jarchi-script-development.md` → opgesplitst (zie evaluatie hieronder): regels naar `ai/rules.md` § Conventions (±25 regels), en een compacte module-index plus REPO_ROOT, repo-structuur en testen naar `ai/repo-guide.md` (±60 regels).
-- Engine-regels in jArchi → `ai/dagre/SKILL.md` en `ai/elkjs/SKILL.md`.
+- `jarchi-script-development.md` → opgesplitst (zie evaluatie hieronder): regels naar `ai/rules.md` § Conventions (±25 regels), en een compacte module-index plus REPO_ROOT, repo-structuur en testen naar `repo-guide.md` (±60 regels).
+- Engine-regels in jArchi → `skills/dagre/SKILL.md` en `skills/elkjs/SKILL.md`.
 
 **Index compacter?** Ja. De `_lib`-index (±120 regels met export-lijsten en voorbeelden) wordt één tabelrij per module: *module · doel · gebruik wanneer*. Dat is ±8 regels. Signatures komen uit JSDoc (bij modules in scope door tsc gecontroleerd); een agent opent het modulebestand alleen als hij het echt gebruikt.
 
 **Resultaat (schatting)**: per trigger geladen 12 KB → ≤ 4 KB (±−70%); hele skill 86 KB → ±35 KB (±−60%). Bronnen GraalVM-docs (UPL) vermelden in `graaljs-java.md`.
 
-### Evaluatie `ai/jarchi-scripting/jarchi-script-development.md`
+### Evaluatie `skills/jarchi-scripting/jarchi-script-development.md`
 
 Het document mengt drie dingen: **regels** (§ jArchi-Specific Rules, Coding Standards, Checklist, Template), een **index van gedeelde modules** (§ Available `_lib/` Modules, ±120 regels, een handmatige kopie van de exports) en **engine-regels** (§ Graph Layout Engines, ±90 regels, horen bij de dagre/elkjs-skills). De export-lijsten kloppen nu nog met de code, maar worden met de hand onderhouden. Met typecontrole wordt JSDoc in de module de bron.
 
@@ -137,13 +137,13 @@ Vastgesteld met de gebruiker: B1, B2, B3, B8. Overige volgens aanbeveling.
 1. **Gereedschap** — `package.json` (root, `private: true`, script `typecheck: "tsc -p jsconfig.json"`), lockfile, `.gitignore`-uitzonderingen, `jsconfig.json` (root):
    `allowJs, checkJs, noEmit, strict:true, target ES2022, module commonjs, lib ["ES2023"], types []`, `include`: `types/**/*.d.ts` + de reeds gemigreerde bestanden (groeit per stap 6). Geen `dom`-lib (GraalJS heeft geen DOM).
 2. **Runtime-globals** — `types/runtime.d.ts`; doel: meldingen TS2304/2584/2592 (globals) naar 0.
-3. **jArchi-typings** — `ai/jarchi-scripting/jarchi.d.ts` (B-D1; deze stap alleen het deel dat in scope wordt gebruikt, plus de runtime-globals uit stap 2): `ArchiCollection<T>` (`each`, `filter(selector|fn)`, `find` = descendants, `children`, `parent(s)`, `rels/inRels/outRels`, `ends`, `first`, `get`, `size`, `is`, `not`, `add`, `clone`, `attr`, `prop`, `delete`), `ArchiConcept`, `ArchiElement`, `ArchiRelation`, `ArchimateView`, `VisualObject`, `VisualConnection`, `Folder`, `Model`, `Bounds`. Volgorde: grep in scope welke leden echt gebruikt worden; alleen die opnemen.
+3. **jArchi-typings** — `skills/jarchi-scripting/jarchi.d.ts` (B-D1; deze stap alleen het deel dat in scope wordt gebruikt, plus de runtime-globals uit stap 2): `ArchiCollection<T>` (`each`, `filter(selector|fn)`, `find` = descendants, `children`, `parent(s)`, `rels/inRels/outRels`, `ends`, `first`, `get`, `size`, `is`, `not`, `add`, `clone`, `attr`, `prop`, `delete`), `ArchiConcept`, `ArchiElement`, `ArchiRelation`, `ArchimateView`, `VisualObject`, `VisualConnection`, `Folder`, `Model`, `Bounds`. Volgorde: grep in scope welke leden echt gebruikt worden; alleen die opnemen.
 4. **Cross-module typing** — boven elke `require(REPO_ROOT + …)` in scope `/** @type {typeof import("<relatief pad>")} */`. Voorbeeld: `Scripts/View/lib/generate_view.js:21-30`. Destructurerende requires idem.
 5. **Contracten** — `types/layout.d.ts`; JSDoc op `_buildLayoutGraph` (`generate_view.js`) en `layout()` in `engines/elk.js`, `dagre.js`, `graphviz.js`.
 6. **Migratie per module (strict)** — in de volgorde uit B3: bestand toevoegen aan `include`, `typeof import`-annotaties (stap 4) voor dat bestand, JSDoc aanvullen tot 0 meldingen, `view_harness` draaien, commit. Gedeelde vormen (preset, params, rule, occurrence, stepCounts) als `@typedef` in `types/view.d.ts`, namen volgens SPEC § Vocabulary (harde regel 11). Elke melding die geen checkerbeperking of ontbrekende annotatie is, wordt in het rapport geclassificeerd (echte fout / typing / beperking / runtime).
 7. **Runtime-verificatie** — `Scripts/Develop/probeCollectionApi.ajs` (gecommit, niet in het gitignored `_test/`): logt in Archi op de testview (coArchi `.git/temp.archimate`, Views/Test) het gedrag van `.each()` (callback-args, `return false`), `.filter(fn)`, `.find()` vs `.children()`, `.first()` op lege collectie, `for…of`/`.map` op collectie, `prop()` zonder sleutel, `bounds`, `typeof el.type` (Java- of JS-string), en of `require("./x")` vanuit een module relatief aan die module oplost. Resultaat terug in `@remarks` van de typings (unverified → verified). **Vereist jouw uitvoering in Archi.**
 8. **Documentatie** — `types/README.md` (installatie, gebruik, scope, beperkingen, typings uitbreiden, wat `unverified` betekent); harde regel + bronverwijzing in `ai/rules.md`; afgebakende "No npm at runtime"-regel.
-8b. **Spoor B, in commits**: (i) dode/foute regels herstellen (fouten 1–3, direct); (ii) `swt-gtk.md` + `ai/dialog-style.md` uit `SKILL.md` halen; (iii) `graaljs-java.md` samenvoegen en inkorten; (iv) `jarchi.d.ts` aanvullen tot volledige API, daarna `jarchi-api-reference.md` verwijderen; (v) `jarchi-script-development.md` verdelen over `ai/rules.md`, `ai/repo-guide.md` en de engine-skills, daarna verwijderen; (vi) `SKILL.md` herschrijven (valkuilen + routering), description inkorten, adapters in `.claude/skills/` gelijk houden. De regels over Java-strings en relatieve `require` pas definitief maken nadat de probe (stap 7) is uitgevoerd. Na elke stap: grep op verwijzingen naar verwijderde bestanden (`ai/`, `.claude/`, `.cursor/`, `.github/copilot/`, `Scripts/**/CLAUDE.md`) → 0 treffers. Herschikte content mag niet verloren gaan: per verwijderd bestand een controlelijst kop → bestemming.
+8b. **Spoor B, in commits**: (i) dode/foute regels herstellen (fouten 1–3, direct); (ii) `swt-gtk.md` + `ai/dialog-style.md` uit `SKILL.md` halen; (iii) `graaljs-java.md` samenvoegen en inkorten; (iv) `jarchi.d.ts` aanvullen tot volledige API, daarna `jarchi-api-reference.md` verwijderen; (v) `jarchi-script-development.md` verdelen over `ai/rules.md`, `repo-guide.md` en de engine-skills, daarna verwijderen; (vi) `SKILL.md` herschrijven (valkuilen + routering), description inkorten, adapters in `.claude/skills/` gelijk houden. De regels over Java-strings en relatieve `require` pas definitief maken nadat de probe (stap 7) is uitgevoerd. Na elke stap: grep op verwijzingen naar verwijderde bestanden (`ai/`, `.claude/`, `.cursor/`, `.github/copilot/`, `Scripts/**/CLAUDE.md`) → 0 treffers. Herschikte content mag niet verloren gaan: per verwijderd bestand een controlelijst kop → bestemming.
 9. **Rapport** — gecontroleerde scripts en API's, gevonden fouten, onzekere API's, onderhoudslast, wat nog Archi vereist.
 
 ## Verificatie

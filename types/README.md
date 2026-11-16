@@ -21,7 +21,7 @@ CI (`.github/workflows/check.yml`) runs `npm ci`, the typecheck and the Node tes
 | `Scripts/View/lib/gui/*.js` | View dialog (SWT / JFace) |
 | `Scripts/_lib/Common.js`, `archi_folders.js`, `selection.js` | Shared modules the View code loads |
 
-`jsconfig.pure.json` checks the pure files (listed in its `include`) a second time without `ai/jarchi-scripting/jarchi-globals.d.ts`, so `$`, `model`, `selection`, `window`, `Java`, `Packages`, `exit` or `load` in a pure file, or in a module it imports, is a type error. A file joins the list when it and everything it imports are pure.
+`jsconfig.pure.json` checks the pure files (listed in its `include`) a second time without `skills/jarchi-scripting/jarchi-globals.d.ts`, so `$`, `model`, `selection`, `window`, `Java`, `Packages`, `exit` or `load` in a pure file, or in a module it imports, is a type error. A file joins the list when it and everything it imports are pure.
 
 Not checked: `.ajs` entry scripts (tsc does not read that extension; keep them thin), `View/tools/` (Node), other folders, and the vendored libraries in `Scripts/node_modules/` (`maxNodeModuleJsDepth: 0`).
 
@@ -31,8 +31,8 @@ Settings: `strict` (no implicit `any`, null checks), ES2022 target, no DOM libra
 
 | File | Contents | Source |
 |---|---|---|
-| `ai/jarchi-scripting/jarchi.d.ts` | Collections, proxies, `console`, `__DIR__` and CommonJS, constants, ArchiMate type names (also in Node) | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
-| `ai/jarchi-scripting/jarchi-globals.d.ts` | The globals that exist only in Archi: `$`, `jArchi`, `model`, `selection`, `window`, `exit`, `load`, `Java`, `Packages` | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
+| `skills/jarchi-scripting/jarchi.d.ts` | Collections, proxies, `console`, `__DIR__` and CommonJS, constants, ArchiMate type names (also in Node) | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
+| `skills/jarchi-scripting/jarchi-globals.d.ts` | The globals that exist only in Archi: `$`, `jArchi`, `model`, `selection`, `window`, `exit`, `load`, `Java`, `Packages` | jArchi plugin source (dom/model, dom/ui, js/init.js) and Archi's `archimate.ecore` |
 | `types/view.d.ts` | Conditions, presets, algorithm specs, pipeline shapes, dialog counts and widgets | `Scripts/View/lib/rel_filter.js`, `defs.js`, `selection_pipeline.js`, `selection_read.js`, `nesting.js`, `write_plan.js`, `gui/*.js`; SPEC § Vocabulary |
 | `types/layout.d.ts` | `LayoutGraph` → `LayoutResult` engine contract, the `ProcessRunner` an adapter is passed, nesting resolution | SPEC §8, the adapters and the two runners (`Scripts/View/lib/process_runner.js`, `Scripts/View/tools/process_runner_node.js`) |
 | `types/vendor.d.ts` | The members used of dagre-cluster-fix, elkjs (sync wrapper), chroma-js, Graphviz `-Tjson` | Library docs; only what the code uses |

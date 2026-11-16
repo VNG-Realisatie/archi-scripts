@@ -17,7 +17,7 @@
  *   - AI development environment: an AI agent is an application component, assigned to the skills it performs; a
  *     skill is an application function, realised by its SKILL.md (an artifact), that realises an application
  *     service; the service serves the process steps that use it (only skills in use). Agent rules (AGENTS.md,
- *     ai/repo-guide) are artifacts the agents read, associated with the top processes they govern; the steps'
+ *     repo-guide) are artifacts the agents read, associated with the top processes they govern; the steps'
  *     documentation names the rule that applies. The process is modelled apart from the agent configuration: it
  *     sees the services, no agent is assigned to a process step.
  *   - Application components and system software access data objects; an application process has no access of its
@@ -187,7 +187,7 @@ const ELEMENT_GROUPS = [
 
   // ── Application: around the subsystem ─────────────────────────────────────────────────────────────────────
   { folder: "/Application/_lib", type: "application-component", props: { runtime: "Archi", typechecked: "yes" }, elements: [
-    ["lib", "_lib shared library", "Repo-wide helpers any script may use (ai/repo-guide.md § Shared modules).", { path: "Scripts/_lib/" }],
+    ["lib", "_lib shared library", "Repo-wide helpers any script may use (repo-guide.md § Shared modules).", { path: "Scripts/_lib/" }],
     ["Common", "Common.js", "Console banner, timing, info/debug logging, visual → concept, relation formatting.\n\nMain exports: initConsoleLog(), finishConsoleLog(), debug(), concept(), formatRelation().", { path: "Scripts/_lib/Common.js" }],
     ["selection", "selection.js", "Turns $(selection) into model concepts or visuals, expanding folders, views and view references; the diagram-object type list defs.js imports.\n\nMain exports: getSelection(), getVisualSelection(), getSelectionArray(), DIAGRAM_OBJECT_TYPES.", { path: "Scripts/_lib/selection.js" }],
     ["archi_folders", "archi_folders.js", "Folder paths: get or create, print a path, delete empty folders.\n\nMain exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().", { path: "Scripts/_lib/archi_folders.js" }],
@@ -313,7 +313,7 @@ const ELEMENT_GROUPS = [
     ["dDocTables", "Generated doc tables", "The tables in gui.md, engines.md and presets.md that mirror defs.js, between markers; gen_docs_tables.js checks and rewrites them.", { path: "Scripts/View/docs/reference/*.md" }],
   ] },
   { folder: "/Application/Data/Type declarations", type: "data-object", elements: [
-    ["dTypes", "Type declarations", "The typed contracts between the layers and with Archi, SWT and the libraries; the TypeScript compiler checks the JSDoc against them.", { path: "types/*.d.ts, ai/jarchi-scripting/jarchi.d.ts" }],
+    ["dTypes", "Type declarations", "The typed contracts between the layers and with Archi, SWT and the libraries; the TypeScript compiler checks the JSDoc against them.", { path: "types/*.d.ts, skills/jarchi-scripting/jarchi.d.ts" }],
   ] },
   { folder: "/Application/Data/Version control", type: "data-object", elements: [
     ["dCommit", "Commit", "A commit on a branch of the git repository: docs, code and expected files together."],
@@ -352,17 +352,17 @@ const ELEMENT_GROUPS = [
     ["asBaselineCheck", "Check against the Archi baseline", "Run the baseline in Archi's command line on a copy, compare in Node, judge the differences; rebuild the test model."],
   ] },
   { folder: "/Technology & Physical/AI development environment/Skill definitions", type: "artifact", elements: [
-    ["afSkillJarchi", "jarchi-scripting/SKILL.md", "Skill definition of jarchi-scripting, with jarchi.d.ts, graaljs-java.md and swt-gtk.md next to it.", { path: "ai/jarchi-scripting/SKILL.md" }],
-    ["afSkillElkjs", "elkjs/SKILL.md", "Skill definition of elkjs, with the ELK docs under docs/.", { path: "ai/elkjs/SKILL.md" }],
-    ["afSkillDagre", "dagre/SKILL.md", "Skill definition of dagre, with dagre-reference.md.", { path: "ai/dagre/SKILL.md" }],
-    ["afSkillGraphviz", "graphviz/SKILL.md", "Skill definition of graphviz, with the Graphviz docs under docs/.", { path: "ai/graphviz/SKILL.md" }],
-    ["afSkillViewTesting", "view-testing/SKILL.md", "Skill definition of view-testing.", { path: "ai/view-testing/SKILL.md" }],
-    ["afSkillViewBaseline", "view-baseline/SKILL.md", "Skill definition of view-baseline.", { path: "ai/view-baseline/SKILL.md" }],
+    ["afSkillJarchi", "jarchi-scripting/SKILL.md", "Skill definition of jarchi-scripting, with jarchi.d.ts, graaljs-java.md and swt-gtk.md next to it.", { path: "skills/jarchi-scripting/SKILL.md" }],
+    ["afSkillElkjs", "elkjs/SKILL.md", "Skill definition of elkjs, with the ELK docs under docs/.", { path: "skills/elkjs/SKILL.md" }],
+    ["afSkillDagre", "dagre/SKILL.md", "Skill definition of dagre, with dagre-reference.md.", { path: "skills/dagre/SKILL.md" }],
+    ["afSkillGraphviz", "graphviz/SKILL.md", "Skill definition of graphviz, with the Graphviz docs under docs/.", { path: "skills/graphviz/SKILL.md" }],
+    ["afSkillViewTesting", "view-testing/SKILL.md", "Skill definition of view-testing.", { path: "skills/view-testing/SKILL.md" }],
+    ["afSkillViewBaseline", "view-baseline/SKILL.md", "Skill definition of view-baseline.", { path: "skills/view-baseline/SKILL.md" }],
   ] },
   { folder: "/Technology & Physical/AI development environment/Agent rules", type: "artifact", elements: [
     ["afAgents", "AGENTS.md", "Repo rules and routing for every AI tool: hierarchy, hard rules, conventions.", { path: "AGENTS.md" }],
     ["afViewAgents", "View AGENTS.md", "Rules of Scripts/View: hard rules, tooltips, docs and order of change, testing.", { path: "Scripts/View/AGENTS.md" }],
-    ["afRepoGuide", "ai/repo-guide", "Repo layout, loading modules, shared modules, vendored libraries, testing; AGENTS.md routes to it.", { path: "ai/repo-guide.md" }],
+    ["afRepoGuide", "repo-guide", "Repo layout, loading modules, shared modules, vendored libraries, testing; AGENTS.md routes to it.", { path: "repo-guide.md" }],
   ] },
 ];
 

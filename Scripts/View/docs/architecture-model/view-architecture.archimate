@@ -844,7 +844,7 @@ Main export: flatten().</documentation>
     <folder name="_lib" id="id-4ccfc19e5ac35cb797e94e8c2e73613f">
       <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
       <element xsi:type="archimate:ApplicationComponent" name="_lib shared library" id="id-3e44efc14e1657c0afc904672c979285">
-        <documentation>Repo-wide helpers any script may use (ai/repo-guide.md § Shared modules).</documentation>
+        <documentation>Repo-wide helpers any script may use (repo-guide.md § Shared modules).</documentation>
         <property key="path" value="Scripts/_lib/"/>
         <property key="runtime" value="Archi"/>
         <property key="typechecked" value="yes"/>
@@ -1275,7 +1275,7 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
         <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         <element xsi:type="archimate:DataObject" name="Type declarations" id="id-315eda99df2f5343814153dd16c0e6e7">
           <documentation>The typed contracts between the layers and with Archi, SWT and the libraries; the TypeScript compiler checks the JSDoc against them.</documentation>
-          <property key="path" value="types/*.d.ts, ai/jarchi-scripting/jarchi.d.ts"/>
+          <property key="path" value="types/*.d.ts, skills/jarchi-scripting/jarchi.d.ts"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
       </folder>
@@ -1398,32 +1398,32 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
         <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         <element xsi:type="archimate:Artifact" name="jarchi-scripting/SKILL.md" id="id-8fa8ef04fbb955d0ad2ab00a35884671">
           <documentation>Skill definition of jarchi-scripting, with jarchi.d.ts, graaljs-java.md and swt-gtk.md next to it.</documentation>
-          <property key="path" value="ai/jarchi-scripting/SKILL.md"/>
+          <property key="path" value="skills/jarchi-scripting/SKILL.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
         <element xsi:type="archimate:Artifact" name="elkjs/SKILL.md" id="id-55b41a4a1c2c545094cd90aee85dcd12">
           <documentation>Skill definition of elkjs, with the ELK docs under docs/.</documentation>
-          <property key="path" value="ai/elkjs/SKILL.md"/>
+          <property key="path" value="skills/elkjs/SKILL.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
         <element xsi:type="archimate:Artifact" name="dagre/SKILL.md" id="id-374edcc523fe559bad17be924fe9147c">
           <documentation>Skill definition of dagre, with dagre-reference.md.</documentation>
-          <property key="path" value="ai/dagre/SKILL.md"/>
+          <property key="path" value="skills/dagre/SKILL.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
         <element xsi:type="archimate:Artifact" name="graphviz/SKILL.md" id="id-a1849cf540885299be6cd269a354377e">
           <documentation>Skill definition of graphviz, with the Graphviz docs under docs/.</documentation>
-          <property key="path" value="ai/graphviz/SKILL.md"/>
+          <property key="path" value="skills/graphviz/SKILL.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
         <element xsi:type="archimate:Artifact" name="view-testing/SKILL.md" id="id-4358e28489785dd3afa0ce2653a699fe">
           <documentation>Skill definition of view-testing.</documentation>
-          <property key="path" value="ai/view-testing/SKILL.md"/>
+          <property key="path" value="skills/view-testing/SKILL.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
         <element xsi:type="archimate:Artifact" name="view-baseline/SKILL.md" id="id-7663e3db896f5a36a5720a495c5b822b">
           <documentation>Skill definition of view-baseline.</documentation>
-          <property key="path" value="ai/view-baseline/SKILL.md"/>
+          <property key="path" value="skills/view-baseline/SKILL.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
       </folder>
@@ -1439,9 +1439,9 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
           <property key="path" value="Scripts/View/AGENTS.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
-        <element xsi:type="archimate:Artifact" name="ai/repo-guide" id="id-d6e6bbded0c357d8822c8b3a0db810e1">
+        <element xsi:type="archimate:Artifact" name="repo-guide" id="id-d6e6bbded0c357d8822c8b3a0db810e1">
           <documentation>Repo layout, loading modules, shared modules, vendored libraries, testing; AGENTS.md routes to it.</documentation>
-          <property key="path" value="ai/repo-guide.md"/>
+          <property key="path" value="repo-guide.md"/>
           <property key="view-architecture export date" value="2026-11-08T20:29:28.147Z"/>
         </element>
       </folder>
@@ -3626,7 +3626,7 @@ Main exports: getFolderPath(), printFolderPath(), deleteEmptyFolders().</documen
   <folder name="Views" id="id-bed413cc0f9b5269a4436b34af8aa508" type="diagrams"/>
   <purpose>The software architecture of the View subsystem (Scripts/View) and its wrappers: modules, their dependencies, the data they use, and the workflows to run, design, build, test, version and commit. Built by build_architecture_model.ajs from architecture_model.js.
 
-Conventions: one application component per file; a dependency (A requires, loads or starts B) is a serving relation B → A; business processes for people, application processes for the fine-grained steps of the scripts, which realise the application services that serve the business processes; business processes access business objects (documentation is a business object); application components and system software access data objects and serve the application processes that use the data; a data object realises the business object it holds; an AI agent is an application component assigned to its skills (application functions), a skill is realised by its SKILL.md (artifact) and realises an application service that serves the process steps that use it, the agents read the agent rules (AGENTS.md, ai/repo-guide; artifacts), which are associated with the top processes they govern; an actor is assigned to the top process it performs, to a part only when it performs just that part; and no agent is assigned to a process step; properties path, runtime, typechecked, version, and top process (yes on a process that is no part of another).
+Conventions: one application component per file; a dependency (A requires, loads or starts B) is a serving relation B → A; business processes for people, application processes for the fine-grained steps of the scripts, which realise the application services that serve the business processes; business processes access business objects (documentation is a business object); application components and system software access data objects and serve the application processes that use the data; a data object realises the business object it holds; an AI agent is an application component assigned to its skills (application functions), a skill is realised by its SKILL.md (artifact) and realises an application service that serves the process steps that use it, the agents read the agent rules (AGENTS.md, repo-guide; artifacts), which are associated with the top processes they govern; an actor is assigned to the top process it performs, to a part only when it performs just that part; and no agent is assigned to a process step; properties path, runtime, typechecked, version, and top process (yes on a process that is no part of another).
 
 Knowledge model (folders Knowledge model, derived by the build): one element per element type used, one relation per relation type used between two element types, a grouping per top folder; the documentation gives the counts.</purpose>
 </archimate:model>

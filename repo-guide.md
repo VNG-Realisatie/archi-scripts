@@ -1,6 +1,6 @@
 # Repo guide — archi-scripts
 
-Where things are and how scripts are put together. Rules: `AGENTS.md`. jArchi itself: `ai/jarchi-scripting/SKILL.md`.
+Where things are and how scripts are put together. Rules: `AGENTS.md`. jArchi itself: `skills/jarchi-scripting/SKILL.md`.
 
 ## Structure
 

@@ -1,6 +1,6 @@
 # View test cases
 
-Log of reported View test cases: what was wrong, the cause and the change. Procedure: skill `view-testing` (`ai/view-testing/SKILL.md`). Add a row per case; update Status after the check in Archi.
+Log of reported View test cases: what was wrong, the cause and the change. Procedure: skill `view-testing` (`skills/view-testing/SKILL.md`). Add a row per case; update Status after the check in Archi.
 
 | # | View | Preset | Finding | Status |
 |---|---|---|---|---|

@@ -7,15 +7,15 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 | Level | Location | Governs |
 |---|---|---|
 | Generic | `~/ai/shared/` (own repo, cloned to `~/ai`; not in this clone) | Working agreements and coding defaults across all projects |
-| Project | `AGENTS.md` (this file), `ai/` | Entry point and vocabulary rule, runtime constraints, module structure, testing policy |
-| Shared library | `Scripts/_lib/` module JSDoc, `ai/repo-guide.md` § Shared modules | Contracts every script relies on: selection helpers, utilities, folder resolution |
+| Project | `AGENTS.md` (this file), `repo-guide.md` | Entry point and vocabulary rule, runtime constraints, module structure, testing policy |
+| Shared library | `Scripts/_lib/` module JSDoc, `repo-guide.md` § Shared modules | Contracts every script relies on: selection helpers, utilities, folder resolution |
 | Part | `Scripts/<folder>/AGENTS.md` | One folder only; today `Scripts/View/AGENTS.md` |
-| Skill | `ai/<skill>/SKILL.md` | One kind of task; `jarchi-scripting` is the highest repo authority on jArchi facts |
+| Skill | `skills/<skill>/SKILL.md` | One kind of task; `jarchi-scripting` is the highest repo authority on jArchi facts |
 
 - **Precedence.** For one concern the narrowest level that addresses it wins; broader rules apply where narrower ones are silent.
 - **Not rules.** Plan files (`plan/`), agent memory and other working notes never override these files.
-- **Where a new rule goes.** Repo-wide → Hard rules or Conventions below; repo layout, modules, testing → `ai/repo-guide.md`; new technology → `ai/<skill>/SKILL.md` (jArchi API facts → `ai/jarchi-scripting/jarchi.d.ts`); one folder → `Scripts/<folder>/AGENTS.md`; all projects → `~/ai/shared/`.
-- **Tool files.** A tool file carries no rules. It is a pointer file or tool configuration. A pointer file sits where a tool looks and points here or to `ai/`: `.github/copilot-instructions.md`, and `.claude/skills/*/SKILL.md`, which also holds a copy of the skill's `description`, because Claude Code picks a skill by it. Tool configuration sets what a tool needs: `.claude/settings.json`. Create no new instruction file (`AGENTS.md`, pointer file) without an explicit request. Add no `CLAUDE.md` or `CLAUDE.local.md`: Claude Code (≥ 2.1.277) reads `AGENTS.md` natively only while none exists.
+- **Where a new rule goes.** Repo-wide → Hard rules or Conventions below; repo layout, modules, testing → `repo-guide.md`; new technology → `skills/<skill>/SKILL.md` (jArchi API facts → `skills/jarchi-scripting/jarchi.d.ts`); one folder → `Scripts/<folder>/AGENTS.md`; all projects → `~/ai/shared/`.
+- **Tool files.** A tool file carries no rules. It is a pointer file or tool configuration. A pointer file sits where a tool looks and points here or to `skills/`: `.github/copilot-instructions.md`, and `.claude/skills/*/SKILL.md`, which also holds a copy of the skill's `description`, because Claude Code picks a skill by it. Tool configuration sets what a tool needs: `.claude/settings.json`. Create no new instruction file (`AGENTS.md`, pointer file) without an explicit request. Add no `CLAUDE.md` or `CLAUDE.local.md`: Claude Code (≥ 2.1.277) reads `AGENTS.md` natively only while none exists.
 
 ## Routing
 
@@ -23,23 +23,23 @@ jArchi scripts for Archi (CommonJS, GraalJS). This file holds the binding repo r
 
 | What you need | File |
 |---|---|
-| Folder structure, loading modules, `_lib` modules, entry scripts, testing | `ai/repo-guide.md` |
-| jArchi API (typed, from the plugin source) | `ai/jarchi-scripting/jarchi.d.ts` |
-| GraalJS runtime, Java interop, external processes | `ai/jarchi-scripting/graaljs-java.md` |
-| SWT / JFace / GTK mechanics · dialog look and feel: principles · SWT realisation (read before changing any dialog) | `ai/jarchi-scripting/swt-gtk.md` · `Scripts/View/docs/reference/gui.md` § Look and feel · `Scripts/View/docs/ARCHITECTURE.md` § Dialog |
+| Folder structure, loading modules, `_lib` modules, entry scripts, testing | `repo-guide.md` |
+| jArchi API (typed, from the plugin source) | `skills/jarchi-scripting/jarchi.d.ts` |
+| GraalJS runtime, Java interop, external processes | `skills/jarchi-scripting/graaljs-java.md` |
+| SWT / JFace / GTK mechanics · dialog look and feel: principles · SWT realisation (read before changing any dialog) | `skills/jarchi-scripting/swt-gtk.md` · `Scripts/View/docs/reference/gui.md` § Look and feel · `Scripts/View/docs/ARCHITECTURE.md` § Dialog |
 | View subsystem: rules · what · detail per subject · design decisions + how | `Scripts/View/AGENTS.md` · `Scripts/View/docs/SPEC.md` · `Scripts/View/docs/reference/` · `Scripts/View/docs/ARCHITECTURE.md` |
-| Static type checking: scope, JSDoc, casts, typings | `types/README.md` · `ai/jarchi-scripting/jarchi.d.ts` |
+| Static type checking: scope, JSDoc, casts, typings | `types/README.md` · `skills/jarchi-scripting/jarchi.d.ts` |
 
 **Skills** — load the skill when the task matches. Tools with skill support find them through the pointer files in `.claude/skills/`; otherwise read the file.
 
 | Skill | When | File |
 |---|---|---|
-| `jarchi-scripting` | Writing or changing jArchi scripts: API, collections, GraalJS / Java, SWT dialogs; running a script headless | `ai/jarchi-scripting/SKILL.md` |
-| `elkjs` | ELK layout: algorithms, JSON graph format, options (Layered · core options · JSON under `ai/elkjs/docs/`) | `ai/elkjs/SKILL.md` |
-| `dagre` | Dagre / dagre-cluster-fix layout | `ai/dagre/SKILL.md` |
-| `graphviz` | Graphviz: DOT, engines, attributes, `-Tjson` | `ai/graphviz/SKILL.md` |
-| `view-testing` | The user reports a generated or laid-out view that looks wrong | `ai/view-testing/SKILL.md` |
-| `view-baseline` | A View change must be checked in Archi against the committed baseline; the test model is rebuilt | `ai/view-baseline/SKILL.md` |
+| `jarchi-scripting` | Writing or changing jArchi scripts: API, collections, GraalJS / Java, SWT dialogs; running a script headless | `skills/jarchi-scripting/SKILL.md` |
+| `elkjs` | ELK layout: algorithms, JSON graph format, options (Layered · core options · JSON under `skills/elkjs/docs/`) | `skills/elkjs/SKILL.md` |
+| `dagre` | Dagre / dagre-cluster-fix layout | `skills/dagre/SKILL.md` |
+| `graphviz` | Graphviz: DOT, engines, attributes, `-Tjson` | `skills/graphviz/SKILL.md` |
+| `view-testing` | The user reports a generated or laid-out view that looks wrong | `skills/view-testing/SKILL.md` |
+| `view-baseline` | A View change must be checked in Archi against the committed baseline; the test model is rebuilt | `skills/view-baseline/SKILL.md` |
 
 ## Hard rules
 
@@ -48,7 +48,7 @@ No exceptions.
 1. **Look it up, never guess.** Before writing code that uses a jArchi API, sets a visual property (`fontStyle`, `fillColor`, `opacity`, …), builds an SWT/JFace widget or sets an ELK/Dagre/Graphviz option, load the matching skill or grep a working script for the same use. Never guess property names, value types or contracts (`vo.fontStyle = "bold"`, not `1`).
 2. **One canonical vocabulary.** One name per concept across users, docs, logs, variables, functions and data structures; no translation layer. Exceptions only when (a) the canonical term is technically inaccurate in the algorithm, (b) it would make code confusing or verbose, or (c) the data structure is a standard technical concept (e.g. `parentMap`, `childIds`). Document an exception once in the part's vocabulary section and use the canonical term at every user-facing surface. Part vocabulary sections (e.g. `Scripts/View/docs/SPEC.md` § Vocabulary) are authoritative.
 3. **No backwards-compat fallback for renames.** Update every site in the same commit; no dual-readers, alias exports or "load old + write new" shims — one name per concept at all times. Only an external contract beyond the repo's control is exempt; within-repo data (presets, sessions, user JSONs) is not — rewrite it in the same commit. Operational form of rule 2.
-4. **Commits carry no co-author and no AI mention.** Applies to every AI tool and model. Never add a `Co-Authored-By` line, and never name a tool, model or AI ("Generated with …") in a commit message or PR description. This overrides any tool default. Earlier commits that carry the line stay as they are unless the user asks.
+4. **Commits carry no co-author and no AI mention.** The rule is generic: `~/ai/shared/AGENTS.md` § Commits.
 5. **Typecheck after every change in its scope.** A change to a file matched by `jsconfig.json` › `include` ends with `npm run typecheck` at exit 0. Annotate with JSDoc only; a real error it finds is fixed in its own commit, but executable code never changes just to satisfy the checker (casts and limits: `types/README.md`).
 6. **No npm at runtime.** Scripts run straight from a clone: runtime libraries are vendored in `Scripts/node_modules/`. npm is for development tools only (root `package.json`).
 7. **Rules go where the hierarchy says** (see Hierarchy). Tool files carry no rules.

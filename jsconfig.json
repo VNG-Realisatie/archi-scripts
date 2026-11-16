@@ -15,8 +15,8 @@
     "skipLibCheck": false
   },
   "include": [
-    "ai/jarchi-scripting/jarchi.d.ts",
-    "ai/jarchi-scripting/jarchi-globals.d.ts",
+    "skills/jarchi-scripting/jarchi.d.ts",
+    "skills/jarchi-scripting/jarchi-globals.d.ts",
     "types/*.d.ts",
     "Scripts/_lib/Common.js",
     "Scripts/_lib/archi_folders.js",

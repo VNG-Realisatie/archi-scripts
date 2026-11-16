@@ -4,7 +4,7 @@
   // Add a file to "include" when it becomes pure. Run: npm run typecheck. Scope: types/README.md.
   "extends": "./jsconfig.json",
   "include": [
-    "ai/jarchi-scripting/jarchi.d.ts",
+    "skills/jarchi-scripting/jarchi.d.ts",
     "types/layout.d.ts",
     "types/view.d.ts",
     "types/vendor.d.ts",

@@ -17,7 +17,7 @@
  *   line      relation name [relation id] (note line: its type) from source key to target key #n;
  *             bendpoints; other attributes
  * Z-order (the order of siblings) is not compared. Baseline procedure: skill view-baseline
- * (ai/view-baseline/SKILL.md).
+ * (skills/view-baseline/SKILL.md).
  */
 const path = require("path");
 const fs = require("fs");

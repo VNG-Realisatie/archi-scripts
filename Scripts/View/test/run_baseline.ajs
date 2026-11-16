@@ -10,7 +10,7 @@
  * Run in Archi with the test model (Scripts/View/test/model/view-test.archimate) selected, or through Archi's
  * command line on a copy: Scripts/View/tools/archi_cli.sh Scripts/View/test/run_baseline.ajs. The script first
  * deletes what Views/Baseline holds, then runs the matrix and saves the model in place. Procedure, comparing
- * with the committed baseline and when to commit a new one: skill view-baseline (ai/view-baseline/SKILL.md).
+ * with the committed baseline and when to commit a new one: skill view-baseline (skills/view-baseline/SKILL.md).
  */
 const REPO_ROOT = (() => { const p = __DIR__.replace(/\\/g, "/"), i = p.indexOf("/Scripts/"); return p.substring(0, i === -1 ? p.length : i + 9); })();
 const Common       = require(REPO_ROOT + "_lib/Common");

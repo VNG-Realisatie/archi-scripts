@@ -49,9 +49,9 @@ What the subsystem needs around it. Scripts run straight from a clone, with no i
 
 | Neighbour | Tested with | Contract | Without it |
 |---|---|---|---|
-| Archi + jArchi | Archi 5, jArchi 1.12: GraalJS 24.1.2, CommonJS on | The jArchi API (`ai/jarchi-scripting/jarchi.d.ts`), SWT / JFace for the dialog, one undo step per script run | Nothing runs; without CommonJS the libraries do not load, and ELK says so |
+| Archi + jArchi | Archi 5, jArchi 1.12: GraalJS 24.1.2, CommonJS on | The jArchi API (`skills/jarchi-scripting/jarchi.d.ts`), SWT / JFace for the dialog, one undo step per script run | Nothing runs; without CommonJS the libraries do not load, and ELK says so |
 | Graphviz | 14.1 | `dot -K<engine> -Tjson` from the PATH or the path in `config.js`; the `-Tjson` shape in `types/vendor.d.ts` | Dot, Neato, FDP, SFDP, Twopi and Circo stop with an error; the other algorithms work. Started by `lib/process_runner.js` in Archi and `tools/process_runner_node.js` in Node. Behaviour differs per version (test case 10) |
-| Vendored libraries | Versions in [`ai/repo-guide.md`](../../../ai/repo-guide.md) § Vendored libraries | elkjs (synchronous `layout`), dagre-cluster-fix (compound graphs), chroma-js (colour scales); the members used are typed in `types/vendor.d.ts` | The engine's algorithms fail; an update can change every layout |
+| Vendored libraries | Versions in [`repo-guide.md`](../../../repo-guide.md) § Vendored libraries | elkjs (synchronous `layout`), dagre-cluster-fix (compound graphs), chroma-js (colour scales); the members used are typed in `types/vendor.d.ts` | The engine's algorithms fail; an update can change every layout |
 | Files | — | Presets and the session, plain JSON with a `schemaVersion` ([Persistent state](#persistent-state)) | The Default preset comes from the code; the dialog starts from the defaults |
 | Calling scripts | — | The [public API](#public-api) | — |
 | Node | 22 (CI) | `node` from the PATH or the path in `config.js` runs the layout of every run ([Node layout](#performance)); development: `tools/`, the harness ([Runtimes](#runtimes)) | The layout runs in Archi, interpreted and much slower, with a log line; tests do not run |
@@ -151,7 +151,7 @@ The code stays plain JavaScript; TypeScript only checks it (JSDoc annotations, `
 
 | Boundary | Types | Used by |
 |---|---|---|
-| Archi ↔ every layer | `ai/jarchi-scripting/jarchi.d.ts`: jArchi globals, collections, proxies | all checked modules |
+| Archi ↔ every layer | `skills/jarchi-scripting/jarchi.d.ts`: jArchi globals, collections, proxies | all checked modules |
 | Archi reader → pure pipeline: the `Snapshot` | `types/view.d.ts`: `Snapshot`, `RelationIndex`, `ExistingView`; `readSelection` and the harness's `readSnapshot` both produce it | `selection_read`, `selection_pipeline`, `nesting`, the harness |
 | Layer 1 → 2: preset, conditions, object set, write plan | `types/view.d.ts`: conditions, presets, algorithm specs, pipeline shapes, `WritePlan` | dialog, pipeline, API, `defs`, `rel_filter` |
 | Inside the dialog: counts, widgets, context | `types/view.d.ts`: `DialogCountInput`, `DialogCounts`, `DialogWidgets`, `DialogContext`, `StepBlock` | `gui/*` |
@@ -292,10 +292,10 @@ Dialog (live counts, before the run) — gui/counts · dialogCounts calls the sa
 - **The action runs after the dialog closes.** The settings are saved to the session, then `generate_view` runs. With *Cycle selection order* on, the run's start is set first (Selection for a Create action), and the session gets the next one.
 - **Step header.** Repeat is a push button with a menu, as the colour picker: a GTK combo is taller than the header buttons. The name field takes the title's place (GridData `exclude`); the header row is padded to the field's height, so it keeps one height while editing. A display MouseDown filter ends the edit, because a click on a label takes no focus from the field. A single click collapses after the double-click time, so a double-click does not collapse and expand first.
 - **Default differences** (`PresetIO.logDefaultDifferences`): both sides normalised by `validatePreset` and compacted to file form, then flattened, a condition list as one value. Logged before the dialog opens when the session is Default, after it closes when Default was chosen in it, and by `run_preset` when it falls back to Default.
-- **Preset picker** (`Widgets.treePicker`): a push button with a pop-up `Shell` (`NO_TRIM`, no `ON_TOP`: [swt-gtk.md](../../../ai/jarchi-scripting/swt-gtk.md)) on the dialog's shell, holding a search `Text` and a `Tree`, rebuilt on every keystroke of the filter; the `first` names (Default) stand above the folders. A click picks on MouseUp over a preset item, so arrow keys move without loading; a folder folds open after its children are added, because GTK does not expand an empty item. The pop-up closes on `Deactivate`.
+- **Preset picker** (`Widgets.treePicker`): a push button with a pop-up `Shell` (`NO_TRIM`, no `ON_TOP`: [swt-gtk.md](../../../skills/jarchi-scripting/swt-gtk.md)) on the dialog's shell, holding a search `Text` and a `Tree`, rebuilt on every keystroke of the filter; the `first` names (Default) stand above the folders. A click picks on MouseUp over a preset item, so arrow keys move without loading; a folder folds open after its children are added, because GTK does not expand an empty item. The pop-up closes on `Deactivate`.
 - **Coupled distances** react to the spinners' Selection event, which only the user fires (not `setSelection`), and to every algorithm update, which also runs after a preset is loaded.
 
-**Look and feel realisation.** How the dialog realises the principles in [gui.md § Look and feel](reference/gui.md#look-and-feel), built with `widgets.js` (`group`, `formRow` / `alignFormColumns`, `noteLabel`, `resizeScrolled`); the reference implementation is the Layout and Appearance tabs. The widths and gaps are constants in `widgets.js`. SWT / GTK mechanics: [swt-gtk.md](../../../ai/jarchi-scripting/swt-gtk.md).
+**Look and feel realisation.** How the dialog realises the principles in [gui.md § Look and feel](reference/gui.md#look-and-feel), built with `widgets.js` (`group`, `formRow` / `alignFormColumns`, `noteLabel`, `resizeScrolled`); the reference implementation is the Layout and Appearance tabs. The widths and gaps are constants in `widgets.js`. SWT / GTK mechanics: [swt-gtk.md](../../../skills/jarchi-scripting/swt-gtk.md).
 
 | Principle | Realisation |
 |---|---|
@@ -679,7 +679,7 @@ Sources of order: the selection (Order *as selected*), ids (every relation looku
 | Decision | Why |
 |---|---|
 | The action runs on the UI thread, after the dialog closes, without progress or cancel. | jArchi scripts are synchronous: no timers, no event loop, and model changes belong on the UI thread. Archi does not respond during a run. |
-| **Node layout:** the engine call runs in a Node process, for every engine and every view size; without Node it runs in Archi, with a log line. | jArchi's GraalJS has no runtime compilation ([`graaljs-java.md`](../../../ai/jarchi-scripting/graaljs-java.md)): Tiles on 561 elements took 8.6 s in Archi and 0.6 s in Node. The layout is the only step whose input is known up front and plain data: the steps before it read the model as they go, the writer and appearance change it, and moving them as well gained little against a second translation layer. Every size, so Archi and the harness run the same code. Node is a system requirement like Graphviz, not an npm dependency (repo rule 6). |
+| **Node layout:** the engine call runs in a Node process, for every engine and every view size; without Node it runs in Archi, with a log line. | jArchi's GraalJS has no runtime compilation ([`graaljs-java.md`](../../../skills/jarchi-scripting/graaljs-java.md)): Tiles on 561 elements took 8.6 s in Archi and 0.6 s in Node. The layout is the only step whose input is known up front and plain data: the steps before it read the model as they go, the writer and appearance change it, and moving them as well gained little against a second translation layer. Every size, so Archi and the harness run the same code. Node is a system requirement like Graphviz, not an npm dependency (repo rule 6). |
 | The Node layout has a time limit, and Graphviz its own inside it. | Archi waits on its UI thread, so a long layout freezes it; a process can be stopped, the in-process fallback cannot. `dot` can hang for good on a rare bug. |
 | The Node layout process stops itself when its Archi is gone. | Archi enforces the limit; a process whose Archi was closed or killed went on computing (one ran almost 10 hours). |
 | The programs a run starts (`node`, `dot`) come from the PATH, or from the machine's own `config.js` ([Persistent state](#persistent-state)). | A desktop app does not always get the shell's PATH (macOS; Node from nvm). A path is per machine, so it is not in a preset. A configured path that is not found stops the run: a fallback would hide the wrong setting. |
@@ -733,7 +733,7 @@ Overwriting a view by name (`NEW_VIEW`) empties it but keeps the view and its pr
 
 ## Platform constraints
 
-View-specific jArchi behaviour. General jArchi rules are in [`ai/jarchi-scripting/SKILL.md`](../../../ai/jarchi-scripting/SKILL.md), SWT / GTK in [`swt-gtk.md`](../../../ai/jarchi-scripting/swt-gtk.md), and the realisation of the dialog's look and feel in [§ Dialog](#dialog).
+View-specific jArchi behaviour. General jArchi rules are in [`skills/jarchi-scripting/SKILL.md`](../../../skills/jarchi-scripting/SKILL.md), SWT / GTK in [`swt-gtk.md`](../../../skills/jarchi-scripting/swt-gtk.md), and the realisation of the dialog's look and feel in [§ Dialog](#dialog).
 
 - `$(view).children()` misses view references; find them per diagram type.
 - A view reference reports type `"archimate-diagram-model"` instead of `"diagram-model-reference"`; both are in `DIAGRAM_TYPES`.
@@ -746,7 +746,7 @@ View-specific jArchi behaviour. General jArchi rules are in [`ai/jarchi-scriptin
 
 ## Development and testing
 
-How a change is designed, built and checked. The binding steps are in [`Scripts/View/AGENTS.md`](../AGENTS.md) § Docs (approval first), and the repo rules on plans (rule 8) and the typecheck (rule 5) are in [`AGENTS.md`](../../../AGENTS.md); a reported view follows the skill [`view-testing`](../../../ai/view-testing/SKILL.md).
+How a change is designed, built and checked. The binding steps are in [`Scripts/View/AGENTS.md`](../AGENTS.md) § Docs (approval first), and the repo rules on plans (rule 8) and the typecheck (rule 5) are in [`AGENTS.md`](../../../AGENTS.md); a reported view follows the skill [`view-testing`](../../../skills/view-testing/SKILL.md).
 
 ### Cycle
 
@@ -765,7 +765,7 @@ How a change is designed, built and checked. The binding steps are in [`Scripts/
 | Layout option | `defs.js`: default in `DEFAULT_PRESET.params`, label, tooltip, active params per algorithm → dialog `PARAM_WIDGETS` → adapter mapping | `check_registry.js`, `gen_docs_tables.js --write`, typecheck; SPEC § 7 |
 | Value of an option | `defs.js` value list, label, tooltip → adapter mapping | as above |
 | Algorithm | `defs.js` registry entry (engine, style, capabilities, active params) → adapter mapping | as above; harness `--layout`; `tools/compare-layouts.js` for the other algorithms |
-| Engine | an adapter in `engines/` (`layout(LayoutGraph) → LayoutResult`) → one entry in `engines/registry.js` (`check_registry.js` checks that every algorithm's engine has one); its library in `Scripts/node_modules/`, its members in `types/vendor.d.ts` | as for an algorithm; `ai/repo-guide.md` § Vendored libraries |
+| Engine | an adapter in `engines/` (`layout(LayoutGraph) → LayoutResult`) → one entry in `engines/registry.js` (`check_registry.js` checks that every algorithm's engine has one); its library in `Scripts/node_modules/`, its members in `types/vendor.d.ts` | as for an algorithm; `repo-guide.md` § Vendored libraries |
 | Condition list | `defs.js` default (empty list) → `rel_filter` when it needs another column → a `condition_table` in the dialog → the pipeline or styling pass that reads it | `rel_filter_test.js`, `check_registry.js`, typecheck |
 | Diagram-object type | `defs.js` `DIAGRAM_TYPES` (closed set) → pipeline filter and traversal → writer | `nesting_test.js`; in Archi |
 | Action | `defs.js` `ACTION` → `run_preset` file-name map → dialog button → object set in the pipeline; the writer stays action-agnostic (SPEC rule 9) | every level; SPEC § 5 |
