@@ -67,7 +67,7 @@ var bedrijfsfuncties = {
     return element.id
   },
   setId: function (element, row) {
-    element.id prop("URI", row["_id"]);
+    element.prop("URI", row["_id"]);
   },
   id: "Bedrijfsfunctie_ID",
   name: "UniformeProductnaam",

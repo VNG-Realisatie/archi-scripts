@@ -36,6 +36,7 @@ try {
         .each((rel) => changeChildAF(0, rel.target));
     });
   }
+} catch (error) {
   console.error(`> ${typeof error.stack == "undefined" ? error : error.stack}`);
 }
 
