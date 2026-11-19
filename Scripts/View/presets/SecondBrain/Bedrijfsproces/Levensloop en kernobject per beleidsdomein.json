@@ -68,7 +68,9 @@
   "view": {
     "name": "Burgerzaken",
     "folder": "/Levensloopproces en kernobject",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

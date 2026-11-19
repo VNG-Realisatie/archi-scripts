@@ -440,18 +440,6 @@ function isViewOrViewFolder(object) {
 }
 
 /**
- * One view each mirrors the model tree when the selection holds a folder or a view: the user then
- * picked a part of the model, not single elements.
- * @param {ArchiCollection<ArchiObject>} uiSelection
- * @returns {boolean}
- */
-function holdsFolderOrView(uiSelection) {
-  let holds = false;
-  uiSelection.each(o => { if (o.type === "folder" || $(o).is("view")) holds = true; });
-  return holds;
-}
-
-/**
  * The diagram objects of one type in a view or under a visual. A type the view cannot hold finds
  * nothing or throws: a silent catch (ARCHITECTURE § Errors), around the lookup only.
  * @param {ArchiObject} scope  a view or a visual
@@ -473,5 +461,4 @@ module.exports = {
   describeVisuals,
   getSeedElements,
   isViewOrViewFolder,
-  holdsFolderOrView,
 };

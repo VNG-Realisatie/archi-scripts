@@ -172,7 +172,7 @@ function generate_view(rawPreset, uiSelection, actionId, options = {}) {
   if (settings.invalid) {
     throw new Error(`Run stopped: ${settings.invalid} engineParams setting(s) of the wrong type (✗ on the console). Correct the preset; nothing is written.`);
   }
-  console.log(`Name: "${preset.view.name}"  Folder: "${preset.view.folder}"`);
+  console.log(`Name: "${preset.view.name}"  Folder: ${preset.view.mirrored ? "Mirrored" : `Custom "${preset.view.folder}"`}${preset.view.underGenerated ? `  under ${GENERATED_VIEW_FOLDER}` : ""}`);
   {
     const vsMode = _rawParams.viewSizeMode || "none";
     const vsVal  = vsMode === "maxWidth"    ? `maxWidth=${_rawParams.maxWidth}`
@@ -531,7 +531,7 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
   }
 
   const siblings = options.siblings;
-  const mirror = siblings ? siblings.mirror : SelectionRead.holdsFolderOrView(uiSelection);
+  const mirror = preset.view.mirrored;
   const start = options.origin && !options.origin.script ? ViewOrigin.describeStart(uiSelection) : [];
 
   /** @type {ArchimateView[]} */
@@ -540,10 +540,10 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
     console.log(`\nGenerating view for: ${element.name}`);
     /** @type {ViewTarget} */
     const target = { name: element.name + preset.view.suffix, view: siblings && siblings.views.get(String(element.id)) };
-    if (mirror) target.folder = () => _mirroredFolder(element);
+    if (mirror) target.folder = () => _mirroredFolder(element, preset.view.underGenerated);
     if (options.origin) target.origin = options.origin.script ? options.origin : {
       ...options.origin, action: ACTION.ONE_EACH.id, selection: start, element: ViewOrigin.describeObject(element),
-      ...(mirror ? {} : { folder: preset.view.folder }),
+      ...(!mirror ? { folder: Defs.viewFolderPath(preset.view) } : preset.view.underGenerated ? { underGenerated: true } : {}),
     };
     const view = _generateSingle(preset, $(element), ACTION.NEW_VIEW.id, target, runtime);
     if (view) views.push(view);
@@ -552,16 +552,17 @@ function _generateOneEach(preset, uiSelection, runtime, options) {
 }
 
 /**
- * The folder under Views that mirrors the element's place in the model tree, the layer included,
- * created when missing. Name by name: a folder name may hold a "/".
+ * The folder under Views, or under /Views/_Generated, that mirrors the element's place in the model
+ * tree, the layer included, created when missing. Name by name: a folder name may hold a "/".
  * @param {ArchiElement} element
+ * @param {boolean}      underGenerated
  * @returns {Folder}
  */
-function _mirroredFolder(element) {
+function _mirroredFolder(element, underGenerated) {
   /** @type {string[]} */
   const names = [];
   for (let f = $(element).parent("folder").first(); f; f = $(f).parent("folder").first()) names.unshift(f.name);
-  let folder = _viewsFolder();
+  let folder = _resolveFolder({ folder: "", underGenerated });
   for (const name of names) {
     folder = $(folder).children("folder").filter(f => f.name === name).first() || folder.createFolder(name);
   }
@@ -591,11 +592,11 @@ function _singleTarget(uiSelection, action, options) {
  */
 function _targetView(preset, elements, target) {
   if (target.view) {
-    console.log(`  Regenerating view: "${target.view.name}"`);
+    console.log(`  Regenerating view: "${target.view.name}" in ${ArchiFolders.printFolderPath(target.view)}`);
     _emptyView(target.view);
     return target.view;
   }
-  const folder = target.folder ? target.folder() : _resolveFolder(preset.view.folder);
+  const folder = target.folder ? target.folder() : _resolveFolder(preset.view);
   return _getOrCreateView(folder, target.name || _resolveViewName(preset, elements));
 }
 
@@ -628,14 +629,14 @@ function _resolveViewName(preset, elements) {
 /**
  * The folder for a new view, created when missing. Throws when the model has no "Views" folder
  * (renamed): the run then aborts before anything is written.
- * @param {string} viewFolder
+ * @param {{ folder: string, underGenerated: boolean }} view  preset view settings
  * @returns {Folder}
  */
-function _resolveFolder(viewFolder) {
-  _viewsFolder();
-  // viewFolder is a path under /Views ("/_Generated/Test"); "" = GENERATED_VIEW_FOLDER.
-  const path = "/Views" + (viewFolder || GENERATED_VIEW_FOLDER);
-  const folder = ArchiFolders.getFolderPath(path);   // missing subfolders are created
+function _resolveFolder(view) {
+  const views = _viewsFolder();
+  const path = Defs.viewFolderPath(view);
+  if (path === "/") return views;
+  const folder = ArchiFolders.getFolderPath("/Views" + path);   // missing subfolders are created
   if (!folder) throw new Error(`View folder "${path}" not found.`);
   return folder;
 }
@@ -664,13 +665,13 @@ function _emptyView(view) {
 function _getOrCreateView(folder, viewName) {
   let existing = $(folder).children("view").filter(`.${viewName}`).first();
   if (existing) {
-    console.log(`  Overwriting view: "${viewName}"`);
+    console.log(`  Overwriting view: "${viewName}" in ${ArchiFolders.printFolderPath(existing)}`);
     _emptyView(existing);
     return existing;
   }
   const v = model.createArchimateView(viewName);
   folder.add(v);
-  console.log(`  Created view: "${viewName}"`);
+  console.log(`  Created view: "${viewName}" in ${ArchiFolders.printFolderPath(v)}`);
   return v;
 }
 

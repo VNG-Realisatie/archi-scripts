@@ -64,8 +64,10 @@
   },
   "view": {
     "name": "Aanbod en deelname ondersteunen",
-    "folder": "/_Generated/Thema",
-    "suffix": ""
+    "folder": "/Thema",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

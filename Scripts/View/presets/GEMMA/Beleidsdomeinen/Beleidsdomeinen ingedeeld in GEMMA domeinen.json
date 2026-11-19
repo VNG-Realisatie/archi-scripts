@@ -68,8 +68,10 @@
   },
   "view": {
     "name": "GEMMA domeinen",
-    "folder": "/_Generated/Beleidsdomeinen",
-    "suffix": ""
+    "folder": "/Beleidsdomeinen",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "GEMMA",

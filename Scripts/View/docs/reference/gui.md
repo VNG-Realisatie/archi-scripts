@@ -31,7 +31,7 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 
 **Look**
 1. **One grammar.** Groups, form rows, condition tables, notes and counts look and behave the same on every tab. The same kind of setting always gets the same kind of control, in the same place.
-2. **Left to right, left-aligned.** Labels, headings, notes and column headers are left-aligned, also over several lines. Nothing is right-aligned or stretched, except free-text inputs (name, folder), wrapping notes and the closing button of the dialog (Cancel, bottom right).
+2. **Left to right, left-aligned.** Labels, headings, notes and column headers are left-aligned, also over several lines. Nothing is right-aligned or stretched, except free-text inputs (name, folder), wrapping notes, the closing button of the dialog (Cancel, bottom right) and a switch that applies to every option below a heading, at the right of the heading's row (*Under _Generated*).
 3. **One group, one subject.** A group's title names its subject; an opening line of explanation is optional. Two subjects get two groups. Within a group: the main control first (e.g. a condition table), then switches, then numbers, then settings for the whole group. Switches that decide which columns of the table take effect come before it, with their numbers (Style by nesting level). Groups stand out from the page with a slightly lighter background, in a light and a dark theme.
 4. **Every control is named.** A label sits right before its control, or the control is a switch that names itself. A unit (px, pt, %) follows its field.
 5. **What belongs together sits together.** One row holds the options on one subject. The gap between a label and its control is small; the gap between pairs is clearly larger. An option that depends on a switch sits right behind it (*☐ Use label width  Wrap label at [400]*).
@@ -69,11 +69,13 @@ These principles hold for the whole dialog (preset row, every tab, totals line, 
 │ └───────────────────────────────────────────────────────────────────────┘  │
 │ ┌ Create new view ──────────────────┐ ┌ Modify selected view ───────────┐  │
 │ │ (•) New view   ( ) One view each  │ │ ( ) Expand view  ( ) Layout only│  │
-│ │ Folder [/_Generated]  Name [____] │ │                                 │  │
+│ │ Name [Customer journey_________]  │ │                                 │  │
 │ │ On the generated view:            │ │ On the expanded view:    (grey) │  │
 │ │   elements:    24 elements        │ │   elements:    31 elements      │  │
 │ │   relations:   35 connections     │ │   relations:   44 connections   │  │
-│ │ View: /_Generated/Customer journey│ │ View: /Processen/Customer jour… │  │
+│ │ Save view in folder: ☑ Under _Gen…│ │                                 │  │
+│ │   (•) Custom /_Generated [/Proj…] │ │                                 │  │
+│ │   ( ) Mirrored            (grey)  │ │ View: /Processen/Customer jour… │  │
 │ └───────────────────────────────────┘ └─────────────────────────────────┘  │
 │                                            [ Create view ]  [  Cancel  ]   │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -417,14 +419,20 @@ Decides *how* objects are positioned; groups follow the order of deciding.
 
 ### Action area
 
-Two groups of equal height; each holds two choices of the one action. Run and Cancel sit below, bottom right. Each group ends in a line *View:* with the view it writes in bold, its folder under Views and its name, so the two lines are level; a long path is cut off and its tooltip shows it in full. The line of the group not chosen is grey.
-- **Create new view**: *New view*, *One view each*; *Folder* and *Name* (this group only). *View:* shows Folder and Name (*/_Generated/Customer journey*); for *One view each* the pattern of its views: */_Generated/\<element name\>* (plus the preset's suffix), or *\<folder of each element\>/\<element name\>* with a folder or view selected.
+Two groups of equal height; each holds two choices of the one action. Run and Cancel sit below, bottom right. The bottom lines of the two groups are level. What the chosen action writes or changes is bold: the name and folder of the Create group, the view of the Modify group; the group not chosen is grey.
+- **Create new view**: *New view*, *One view each*; *Name*, used by *New view* only; at the bottom *Save view in folder:* with *Under _Generated* on the right of its row, and below it two options:
+  - *Custom* with its folder, a path under Views (`/Project`; empty = the folder itself);
+  - *Mirrored* (*One view each* only) with the pattern of its folders: */\<folder of each element\>*.
+  
+  With *Under _Generated* ticked, */_Generated* stands in front of the folder of both options.
+  
+  The tooltip of each option gives the full path of the view, the preset's suffix included.
 - **Modify selected view**:
   - *Expand view* is enabled only when objects on the view are selected, because it expands from them;
   - *Layout only*;
   - *View:* names the target: the view of the selected canvas objects, or a view selected in the model tree; without a target, the line says what to select and both choices are disabled;
   - with one selected view that has an origin, a note says how it was made: *Made from /Business/Processen with preset X.*
-- **Nothing to place.** When no selected element passes the element filter (and *New view* has no diagram objects to copy), a Create action writes nothing: Run is disabled, the *View:* line is grey and a bold note says why: *Nothing to place: no selected element passes the element filter (Selection tab).* A run without the dialog that has nothing to place says the same on the console as an error, with the selected count.
+- **Nothing to place.** When no selected element passes the element filter (and *New view* has no diagram objects to copy), a Create action writes nothing: Run is disabled, nothing is bold and a bold note says why: *Nothing to place: no selected element passes the element filter (Selection tab).* A run without the dialog that has nothing to place says the same on the console as an error, with the selected count.
 - **Run** names the result: *Create view*, *Replace view* when that view exists, *Create 12 views*, *Expand view*, *Layout only*.
 - **Cancel** discards changes and remembers UI-only state (the active tab, the chosen action, the size and position of the dialog) for the next open; so does the window's close button.
 
@@ -432,12 +440,14 @@ The dialog opens on the last action, or on *New view* when that does not fit the
 
 **Counts**: *On the generated view* is what *New view* puts on a new view, *On the expanded view* what *Expand view* leaves on the selected view; the one not chosen is grey, so a group keeps its height. Both use the console's grouped form ([counting rules](selection-nesting.md#counting-rules)) with zeros hidden: a field with value 0 is omitted, and a sub-line whose fields are all 0 is skipped. A sub-line too long for its column wraps between fields and continues under its counts. They refresh on every dialog change; the selected view's content is read once, when the dialog opens. *One view each* has no counts; a note says how many of its views replace an existing one: *3 of the 12 views replace an existing view.* *Layout only* has no counts and hides those of *Expand view*: it writes what is on the view, which *Current selection* on the Selection tab already counts.
 
-| Chosen action | Folder | Name | View name and folder |
-|---|---|---|---|
-| **New view** | on | on | Name from Name, pre-filled with the first selected object. Folder from Folder, a path under Views (`/_Generated/Project`; empty = `/_Generated`). With one view selected, its own folder, which is not saved in the preset. A view with that name in the folder is replaced. |
-| **One view each**, only elements selected | on | grey | One view per element in Folder, named after the element plus the preset's suffix (e.g. `" (GGM)"`). |
-| **One view each**, a folder or view in the selection | grey | grey | The same name, in the folder under Views that mirrors the element's own folder, the layer included. |
-| **Expand view / Layout only** | grey | grey | The selected view itself. |
+| Chosen action | Name | Custom | Mirrored | View name and folder |
+|---|---|---|---|---|
+| **New view** | on | chosen | grey | Name from Name, pre-filled with the first selected object, in the Custom folder. With one view selected, its own folder and *Under _Generated* as that folder is, not saved in the preset. A view with that name in the folder is replaced. |
+| **One view each**, Custom | grey | chosen | on | One view per element in the Custom folder, named after the element plus the preset's suffix (e.g. `" (GGM)"`). |
+| **One view each**, Mirrored | grey | grey | chosen | The same name, in the folder that mirrors the element's own folder, the layer included. |
+| **Expand view / Layout only** | grey | grey | grey | The selected view itself. |
+
+*Under _Generated* (on for *New view* and *One view each*) puts the Custom or Mirrored folder under `/Views/_Generated`.
 
 ### Interaction rules
 

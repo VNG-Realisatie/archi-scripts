@@ -75,8 +75,10 @@
   },
   "view": {
     "name": "Bestuur",
-    "folder": "/_Generated/Referentiecomponenten/Applicatieservices en referentiecomponenten",
-    "suffix": ""
+    "folder": "/Referentiecomponenten/Applicatieservices en referentiecomponenten",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "GEMMA",

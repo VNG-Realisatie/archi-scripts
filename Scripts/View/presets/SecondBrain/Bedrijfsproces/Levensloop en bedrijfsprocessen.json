@@ -65,7 +65,9 @@
   "view": {
     "name": "0 Bestuur, Politiek en Ondersteuning",
     "folder": "/Levensloop en bedrijfsprocessen",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

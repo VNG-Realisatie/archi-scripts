@@ -281,7 +281,7 @@ type Preset = {
     relationConditions: RelationCondition[];
   };
   relatedElements: { steps: Step[] };
-  view: { name: string; folder: string; suffix: string };
+  view: { name: string; folder: string; suffix: string; mirrored: boolean; underGenerated: boolean };
   appearance: {
     /** Name of a palette in presets/_palettes.json; "" = none. */
     palette: string;
@@ -792,6 +792,7 @@ type ViewOrigin = {
   action?: string;
   selection?: OriginObject[];
   folder?: string;
+  underGenerated?: boolean;
   element?: OriginObject;
   direction?: string;
   modified?: boolean;
@@ -805,8 +806,8 @@ type GenerateOptions = {
   origin?: RunOrigin;
   /** Regenerate: this view, with this origin. */
   regenerate?: ViewTarget;
-  /** Regenerate with siblings: the views of the group by element id; mirror: new views mirror the model tree. */
-  siblings?: { views: Map<string, ArchimateView>; mirror: boolean };
+  /** Regenerate with siblings: the views of the group by element id. */
+  siblings?: { views: Map<string, ArchimateView> };
 };
 type DialogBounds = { x: number; y: number; width: number; height: number };
 type DialogConfig = Preset & { _lastTabIndex?: number; _lastAction?: string; _dialogBounds?: DialogBounds; _parkedNestingConditions?: PresetParams["nestingConditions"] };
@@ -924,10 +925,17 @@ type DialogWidgets = {
   // Action area
   createTotals: TotalsBlock;
   expandTotals: TotalsBlock;
-  txtViewFolder: Swt.Text;
   txtViewName: Swt.Text;
-  /** "View:" and the view a Create action writes. */
-  createView: { title: Swt.Label; text: Swt.Label };
+  /** The folder choice: "Save view in folder:", Under _Generated, Custom with its folder, Mirrored with its pattern. */
+  lblSaveIn: Swt.Label;
+  chkUnderGenerated: CheckBox;
+  rdoCustom: Swt.Button;
+  /** "/_Generated" in front of the folder when Under _Generated is ticked, else "". */
+  lblCustomUnder: Swt.Label;
+  txtViewFolder: Swt.Text;
+  rdoMirrored: Swt.Button;
+  lblMirroredUnder: Swt.Label;
+  lblMirrored: Swt.Label;
   /** "View:" and the view a Modify action changes. */
   modifyView: { title: Swt.Label; text: Swt.Label };
   lblCreateNote: Swt.Label;
@@ -948,6 +956,8 @@ type ParamWidget = { kind: "spin"; w: WidgetName<Swt.Spinner> } | { kind: "check
  * recount and markModified call back into dialog_main.js, which the tabs cannot require.
  */
 /** What the chosen action uses and will write (dialog_main.js _actionState). */
+/** A Custom folder: a path under Views, or under /Views/_Generated. */
+type ViewFolder = { folder: string; underGenerated: boolean };
 type ActionState = { label: string; folder: boolean; name: boolean; canRun: boolean; note: string };
 
 interface DialogContext {
@@ -977,10 +987,10 @@ interface DialogContext {
   action: string; // ACTION.*.id of the chosen action
   _actionId?: string; // ACTION.*.id of the run, set when the run button is pressed
   holdsView?: boolean; // a view is in the selection
-  mirrors?: boolean; // One view each mirrors the model tree (SelectionRead.holdsFolderOrView)
   selectedView?: ArchimateView; // the one selected object is this view
-  viewFolder?: string; // its folder under Views: Folder is pre-filled with it
-  runFolder?: string; // Folder as the run uses it; not the preset's unless changed
+  viewFolder?: ViewFolder; // its folder under Views: Custom is pre-filled with it
+  runFolder?: ViewFolder; // Custom as the run uses it; not the preset's unless changed
+  mirrored?: boolean; // One view each: Mirrored is chosen (preset view.mirrored)
   viewPaths?: Set<string>; // the path of every view (_viewPaths)
   seeds?: ArchiElement[]; // the elements of One view each, before the filter
   seedFolders?: Map<string, string>; // their folders by id

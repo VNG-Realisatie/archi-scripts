@@ -73,8 +73,10 @@
   },
   "view": {
     "name": "CI check",
-    "folder": "/_Generated/Application",
-    "suffix": ""
+    "folder": "/Application",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

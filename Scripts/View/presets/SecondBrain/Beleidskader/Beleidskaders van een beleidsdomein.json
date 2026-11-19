@@ -60,7 +60,9 @@
   "view": {
     "name": "Burgerzaken",
     "folder": "/Beleidskaders",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

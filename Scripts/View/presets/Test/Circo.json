@@ -59,7 +59,9 @@
   "view": {
     "name": "DevOps en rollen (copy)",
     "folder": "/Test",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

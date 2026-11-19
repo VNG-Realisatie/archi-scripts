@@ -2,13 +2,15 @@
  * The origin of a generated view: how it was made, in a hidden view property, so the view can be
  * made again (Regenerate). The start only holds in one model, so it travels with the view.
  *
- *   { preset, action, selection: [{ id, name }], folder?, element?, direction?, modified?, script? }
+ *   { preset, action, selection: [{ id, name }], folder?, underGenerated?, element?, direction?, modified?, script? }
  *
  *   preset     preset name, not a copy: a better preset reaches the view
  *   action     ACTION.*.id of the run
  *   selection  the start. An object is found by its id; name is a label for the reader and the
  *              messages, refreshed at every regenerate, never used to find it
- *   folder     One view each: the Folder of the run; absent when the views mirror the model tree
+ *   folder     One view each, Custom: the path under Views the views went to ("/" = Views itself);
+ *              absent when the views mirror the model tree (Mirrored)
+ *   underGenerated  One view each, Mirrored: the mirrored folders are under /_Generated
  *   element    One view each: the element of this view
  *   direction  only when the run overruled the preset
  *   modified   made with unsaved settings, or changed by Expand view since: Regenerate differs

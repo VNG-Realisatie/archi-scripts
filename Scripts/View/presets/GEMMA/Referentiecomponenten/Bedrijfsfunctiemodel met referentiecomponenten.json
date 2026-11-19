@@ -83,8 +83,10 @@
   },
   "view": {
     "name": "Ondersteuning",
-    "folder": "/_Generated/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
-    "suffix": ""
+    "folder": "/Referentiecomponenten/Bedrijfsfuncties en referentiecomponenten",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "GEMMA",

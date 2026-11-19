@@ -58,8 +58,10 @@
   },
   "view": {
     "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "/_Generated",
-    "suffix": ""
+    "folder": "",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

@@ -65,7 +65,9 @@
   "view": {
     "name": "Application",
     "folder": "/Kennismodel",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

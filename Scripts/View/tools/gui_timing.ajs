@@ -62,7 +62,7 @@ record("load  all modules", Date.now() - T0);
 // wrapper's own cost would show.
 const MEASURED = {
   "_lib/selection.js":              ["getSelection"],
-  "View/lib/selection_read.js":     ["holdsFolderOrView", "describeVisuals", "readRelationIndex", "readDiagramBlocks", "readSelection"],
+  "View/lib/selection_read.js":     ["describeVisuals", "readRelationIndex", "readDiagramBlocks", "readSelection"],
   "View/lib/preset_io.js":          ["ensureDefault", "listPresets", "readPreset", "writeSession"],
   "View/lib/gui/preset_row.js":     ["buildPresetRow"],
   "View/lib/gui/tab_selection.js":  ["buildSelectionTab", "addRelatedBlock"],

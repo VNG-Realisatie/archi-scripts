@@ -56,7 +56,9 @@
   "view": {
     "name": "",
     "suffix": "",
-    "folder": ""
+    "folder": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

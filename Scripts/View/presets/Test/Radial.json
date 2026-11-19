@@ -55,7 +55,9 @@
   "view": {
     "name": "twopi",
     "folder": "/Test",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

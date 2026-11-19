@@ -77,8 +77,10 @@
   },
   "view": {
     "name": "CI check",
-    "folder": "/_Generated/ApplicationProces",
-    "suffix": ""
+    "folder": "/ApplicationProces",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

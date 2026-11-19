@@ -52,7 +52,9 @@
   },
   "view": {
     "name": "Gemeentelijke servicebuscomponent",
-    "folder": "/_Generated/Test"
+    "folder": "/Test",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

@@ -54,8 +54,10 @@
   },
   "view": {
     "name": "Bekostiging en besteding zijn rechtmatig en kwaliteitsbewust zorgvuldig",
-    "folder": "/_Generated/Doel",
-    "suffix": ""
+    "folder": "/Doel",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

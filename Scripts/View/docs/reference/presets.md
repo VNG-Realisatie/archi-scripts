@@ -24,8 +24,10 @@ Preset {
   relatedElements { steps : Step[] } // ordered chain, one per step block
   view {                             // Create actions only
     name   : string                  // New view; "" = first selected object
-    folder : string                  // path under Views; "" = "/_Generated"
+    folder : string                  // Custom: path under Views (or /Views/_Generated); "" = that folder itself
     suffix : string                  // One view each: appended to each element name
+    mirrored : boolean               // One view each: each view in the folder that mirrors its element's; default false
+    underGenerated : boolean         // the folder, Custom or Mirrored, under /Views/_Generated; default true
   }
   appearance {
     palette : string                 // name of a palette in presets/_palettes.json; default "Brewer"
@@ -186,4 +188,4 @@ The view property *View origin* holds how the view was made, as JSON, for Regene
   "folder": "/_Generated/Project", "element": { "id": "id-91bc", "name": "Klant" } }
 ```
 
-`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each* into Folder; absent when the views mirror the model tree. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.
+`id` finds the object; `name` is a label, refreshed at every regenerate. `direction`: only when the run overruled the preset. `folder`: *One view each* into Custom, the full path under Views (`"/"` = Views itself); absent when Mirrored. `underGenerated`: Mirrored under `/Views/_Generated`. `element`: *One view each*. `modified`: made with unsaved settings, or expanded since. `script`: made by that script; the origin then holds only this key.

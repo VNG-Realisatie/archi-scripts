@@ -66,8 +66,10 @@
   },
   "view": {
     "name": "Belang betrokkene bij cliëntondersteuning voorop",
-    "folder": "/_Generated/Principe",
-    "suffix": ""
+    "folder": "/Principe",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

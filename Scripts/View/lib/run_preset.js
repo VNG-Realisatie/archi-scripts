@@ -197,9 +197,13 @@ function _regenerateSiblings(key, origin) {
   if (!preset) return [];
   const { start, missing } = ViewOrigin.resolve(origin.selection || []);
   for (const object of missing) console.error(`Part of the start is gone: ${object.name}`);
+  // The origin keeps where the views went: Custom its full path under Views, Mirrored whether under _Generated.
+  preset.view.mirrored = origin.folder === undefined;
+  preset.view.underGenerated = origin.underGenerated === true;
   if (origin.folder !== undefined) preset.view.folder = origin.folder;
+  const mirroredUnder = origin.underGenerated ? ` under /Views${Defs.GENERATED_VIEW_FOLDER}` : "";
   _logRegeneration(`siblings of "${origin.element && origin.element.name}"`, origin, origin.selection || [],
-    `New views: ${origin.folder === undefined ? "in the folder of their element" : `in ${origin.folder || Defs.GENERATED_VIEW_FOLDER}`}`);
+    `New views: ${origin.folder === undefined ? `in the folder of their element${mirroredUnder}` : `in /Views${origin.folder === "/" ? "" : origin.folder}`}`);
 
   /** @type {Map<string, ArchimateView>} */
   const views = new Map();
@@ -214,7 +218,7 @@ function _regenerateSiblings(key, origin) {
   if (!confirmViewCount(start, ACTION.ONE_EACH.id, preset.filter)) { console.log("One view each cancelled: nothing written."); return []; }
   return GenView.generate_view(preset, start, ACTION.ONE_EACH.id, {
     origin: { preset: origin.preset, ...(origin.direction ? { direction: origin.direction } : {}) },
-    siblings: { views, mirror: origin.folder === undefined },
+    siblings: { views },
   });
 }
 

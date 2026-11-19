@@ -57,7 +57,9 @@
   "view": {
     "name": "2 Edited",
     "folder": "/Counters",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

@@ -82,8 +82,10 @@
   },
   "view": {
     "name": "Individuele jeugdhulpvoorzieningen passend kunnen bepalen",
-    "folder": "/_Generated/Capability",
-    "suffix": ""
+    "folder": "/Capability",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

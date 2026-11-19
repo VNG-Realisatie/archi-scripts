@@ -65,7 +65,9 @@
   "view": {
     "name": "Beleidsdomeinindeling",
     "folder": "/Kennismodel dot",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

@@ -66,8 +66,10 @@
   },
   "view": {
     "name": "SaaS - Software as a Service",
-    "folder": "/_Generated/Technische architectuur",
-    "suffix": ""
+    "folder": "/Technische architectuur",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

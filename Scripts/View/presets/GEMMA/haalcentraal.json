@@ -45,7 +45,9 @@
   "view": {
     "name": "",
     "folder": "",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

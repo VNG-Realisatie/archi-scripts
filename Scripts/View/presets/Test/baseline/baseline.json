@@ -59,7 +59,9 @@
   "view": {
     "name": "baseline",
     "folder": "/Baseline",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

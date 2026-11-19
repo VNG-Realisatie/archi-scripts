@@ -47,7 +47,9 @@
   },
   "view": {
     "name": "Burgerzaken",
-    "folder": "/Test"
+    "folder": "/Test",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

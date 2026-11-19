@@ -709,8 +709,19 @@ const DIAGRAM_TYPE_LABEL_TO_ID = Object.freeze(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views, like preset view.folder
+const GENERATED_VIEW_FOLDER = "/_Generated";  // under /Views; preset view.underGenerated puts it in front of the folder
 const SESSION_FILENAME     = "_session.json";
+
+/**
+ * The path under /Views of a Custom folder: "/_Generated/Test", "/Test"; "/" = Views itself.
+ * @param {{ folder: string, underGenerated: boolean }} view  preset view settings
+ * @returns {string}
+ */
+function viewFolderPath(view) {
+  const path = `/${view.underGenerated ? GENERATED_VIEW_FOLDER : ""}/${view.folder}/`.replace(/\/+/g, "/");
+  return path === "/" ? path : path.slice(0, -1);
+}
+
 const ONE_EACH_CONFIRM_ABOVE = 20;   // One view each: the entry point asks before writing more views than this
 // Spline sampling: number of points per cubic Bézier segment
 const SPLINE_SAMPLE_POINTS = 8;
@@ -769,8 +780,10 @@ const DEFAULT_PRESET = Object.freeze({
   },
   view: {
     name:   "",
-    folder: "",   // path under /Views, e.g. "/_Generated/Test"; "" = GENERATED_VIEW_FOLDER
+    folder: "",   // Custom: path under /Views (under GENERATED_VIEW_FOLDER with underGenerated), e.g. "/Test"; "" = that folder itself
     suffix: "",   // One view each: appended to each element name, e.g. " (GGM)"
+    mirrored: false,   // One view each: each view in the folder that mirrors its element's folder, not in folder (Custom)
+    underGenerated: true,   // the folder (Custom or Mirrored) under GENERATED_VIEW_FOLDER
   },
   appearance: {
     palette: "Brewer",   // palette name in presets/_palettes.json: every colour and colour range of the Appearance tab
@@ -1058,6 +1071,8 @@ function validatePreset(raw) {
     if (raw.view.name   !== undefined) preset.view.name   = String(raw.view.name);
     if (raw.view.folder !== undefined) preset.view.folder = String(raw.view.folder);
     if (raw.view.suffix !== undefined) preset.view.suffix = String(raw.view.suffix);
+    if (raw.view.mirrored !== undefined) preset.view.mirrored = raw.view.mirrored === true;
+    if (raw.view.underGenerated !== undefined) preset.view.underGenerated = raw.view.underGenerated === true;
   }
 
   // appearance
@@ -1173,7 +1188,7 @@ if (typeof module !== "undefined" && module.exports) {
     ELEMENT_TYPES, ELEMENT_TYPE_LABELS,
     DIAGRAM_TYPES, DIAGRAM_TYPE_LABELS, DIAGRAM_TYPE_ID_TO_LABEL, DIAGRAM_TYPE_LABEL_TO_ID,
     PROP_ID, PROP_MANAGED_OCCURRENCE, PROP_ORIGIN,
-    GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE,
+    GENERATED_VIEW_FOLDER, SESSION_FILENAME, ONE_EACH_CONFIRM_ABOVE, viewFolderPath,
     SPLINE_SAMPLE_POINTS,
     DEFAULT_PRESET,
     LABEL_SIZING_DEFAULTS, LABEL_SIZING_EFFECTS,

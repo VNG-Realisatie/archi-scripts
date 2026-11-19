@@ -53,7 +53,9 @@
   "view": {
     "name": "Begraafplaatsen en crematoria",
     "folder": "/Test",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

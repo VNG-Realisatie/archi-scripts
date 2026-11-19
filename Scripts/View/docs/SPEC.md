@@ -155,8 +155,8 @@ Four actions in two groups. The writer is the same for all four. An action diffe
 
 | Group | Action | Object set | Target view | VisualSet at start |
 |---|---|---|---|---|
-| **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a view in Folder with Name (replaces by name) | empty |
-| | `ONE_EACH` | each selected element, run independently | one view per element that passes the filter, named after the element (plus an optional preset suffix): in Folder, or mirroring the model tree | empty |
+| **Create new view** | `NEW_VIEW` | full selection, expanded through filter + steps | a view with Name in the Custom folder (replaces by name) | empty |
+| | `ONE_EACH` | each selected element, run independently | one view per element that passes the filter, named after the element (plus an optional preset suffix): in the Custom folder, or Mirrored | empty |
 | **Modify selected view** | `EXPAND_VIEW` | elements selected on the view drive expansion; the whole view is laid out | the selected view, in place | captured |
 | | `LAYOUT_ONLY` | the view's current contents only, no expansion | the selected view | captured |
 
@@ -170,9 +170,14 @@ A model-tree selection can drive only the Create group, because nothing identifi
 
 **The single writer rule.** It is action-agnostic, with no per-action branch: *for each result object, if a counterpart exists in the VisualSet, **reposition** it (appearance preserved, parenthood re-derived from the current nesting); otherwise **create** it with default appearance.* Relations follow the same rule: an existing relation gets its bendpoints rewritten, a new one is created.
 
-**Where One view each writes.** With only elements selected, every view goes to Folder. With a folder or view anywhere in the selection, every element, loose ones too, gets its view in the folder under Views that mirrors its own place in the model tree, the layer included, and Folder and Name are not used. The views get the structure the model has, and same-named elements from different folders do not overwrite each other. An element the preset's element filter drops gets no view, so no view stays empty.
+**Where a new view goes.** The preset chooses the folder, under Views:
+- *Custom*: one folder, typed by the user; *New view* always writes here.
+- *Mirrored* (*One view each* only): each view in the folder that mirrors its element's place in the model tree, the layer included. The views get the structure the model has, and same-named elements from different folders do not overwrite each other.
+- *Under _Generated* puts either folder under `/Views/_Generated`, apart from the model's own views.
 
-**Regenerate.** *New view* and *One view each* leave an **origin** on the view: the start, the preset by name, the action and, for *One view each*, the element and Folder. The start is what was selected: a folder stays a folder, so new elements in it join; a view is kept as the elements on it at that moment, so a view that replaced itself does not grow with every regenerate, and its diagram objects do not come back. Objects are found by their identity, which survives a rename and a move; their readable path is a label, never used to find them.
+The console names the folder of every view written. An element the preset's element filter drops gets no view, so no view stays empty.
+
+**Regenerate.** *New view* and *One view each* leave an **origin** on the view: the start, the preset by name, the action and, for *One view each*, the element and where its views went. The start is what was selected: a folder stays a folder, so new elements in it join; a view is kept as the elements on it at that moment, so a view that replaced itself does not grow with every regenerate, and its diagram objects do not come back. Objects are found by their identity, which survives a rename and a move; their readable path is a label, never used to find them.
 - *Regenerate* makes the selected views, or the views in a selected folder, again where they stand, with the saved preset; hand edits are lost. A view of *One view each* regenerates only itself.
 - *Regenerate with siblings* runs the start and action again: siblings are updated wherever they are now, a new element gets a view, and a view whose element left the start is reported and stays.
 - A view with a missing object or preset is reported and not written. A renamed preset is such a case; a new run repairs the view. A view made by a script that works on after the run is refused, naming the script.
@@ -347,7 +352,7 @@ The dialog defines a selection, a layout and styling, previews the result live, 
 - **Appearance**: the three styling groups of [§ 10](#10-colouring--appearance).
 - **Properties**: key/value properties of each generated view: a ticked row is written, an unticked row is removed. Keys the tool owns or an installation lists as hidden are not shown and never touched.
 
-**Actions.** Below the tabs, always visible, two equal groups: **Create new view** (*New view*, *One view each*; folder, name) and **Modify selected view** (*Expand view*, *Layout only*; the view), the latter available only when the selection identifies a view. The user chooses one action; what it does not use is greyed. Each group shows what its action writes: the predicted totals of *New view* and *Expand view*, grey when not chosen, and the view it writes or changes, by folder and name. A Create action with nothing to place cannot run and says why. One run button names the result (*Create 12 views*, *Replace view*). The last action is remembered; with a view selected the dialog opens on *Layout only*, so replacing a view is a deliberate choice. **Cancel** keeps the UI state.
+**Actions.** Below the tabs, always visible, two equal groups: **Create new view** (*New view*, *One view each*; name, folder) and **Modify selected view** (*Expand view*, *Layout only*; the view), the latter available only when the selection identifies a view. The user chooses one action; what it does not use is greyed. Each group shows what its action writes: the predicted totals of *New view* and *Expand view*, grey when not chosen, and the folder and name it writes, or the view it changes, in bold. A Create action with nothing to place cannot run and says why. One run button names the result (*Create 12 views*, *Replace view*). The last action is remembered; with a view selected the dialog opens on *Layout only*, so replacing a view is a deliberate choice. **Cancel** keeps the UI state.
 
 **Self-explanatory options.** A user picks an option by its effect, without knowing the engines.
 - A label or value names the **result** (where elements land, how lines look), never an engine technique or a word whose meaning hides behaviour.

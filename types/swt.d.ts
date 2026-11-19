@@ -104,6 +104,7 @@ declare namespace Swt {
     horizontalIndent: number;
   }
   interface GridLayout {
+    numColumns: number;
     verticalSpacing: number;
     marginWidth: number;
     marginHeight: number;

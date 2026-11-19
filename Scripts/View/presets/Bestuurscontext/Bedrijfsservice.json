@@ -73,8 +73,10 @@
   },
   "view": {
     "name": "Afhandeling van gemeentelijke jeugdhulpdeclaraties",
-    "folder": "/_Generated/Bedrijfsproces",
-    "suffix": ""
+    "folder": "/Bedrijfsproces",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

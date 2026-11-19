@@ -196,6 +196,7 @@ function _generateEdited(view1) {
   const preset = PresetIO.readPreset(PRESET);
   preset.view.name   = VIEW_EDITED;
   preset.view.folder = VIEW_FOLDER;
+  preset.view.underGenerated = false;
   const views = GenView.generate_view(preset, $(view1), ACTION.NEW_VIEW.id);
   if (views.length !== 1) throw new Error(`NEW_VIEW on "${view1.name}" wrote ${views.length} views, expected 1 (see the log above)`);
   return views[0];

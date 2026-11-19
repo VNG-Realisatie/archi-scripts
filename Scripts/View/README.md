@@ -32,8 +32,9 @@ The scripts run straight from a clone: the layout libraries are included in `Scr
    Every filter — global filter, steps, nesting, reverse, style by property — is a table of conditions: *Source type · Relation type · Target type*, each condition *Include* or *Exclude*. *All* matches any type. A step's conditions read from the previous step's elements: *Previous step elements · Direction · Added relations · Added elements*.
    - **Properties** — properties written to the generated view.
 3. Choose an action and press the run button, which names the result:
-   - **New view** — create a view in *Folder* with *Name*; with a view selected, these are its own, so it is replaced;
-   - **One view each** — create a view per element, in *Folder*; with a folder or view selected, in the folder that mirrors the element's place in the model tree;
+   - **New view** — create a view with *Name* in the *Custom* folder; with a view selected, these are its own, so it is replaced;
+   - **One view each** — create a view per element, in the *Custom* folder, or *Mirrored*: in the folder that mirrors the element's place in the model tree;
+   - *Save view in folder* chooses between them; *Under _Generated* puts the folder under `/Views/_Generated`. The console names the folder of every view;
    - **Expand view** / **Layout only** — change the selected view in place.
 
 What the chosen action does not use is grey.
@@ -108,7 +109,8 @@ const GenView    = require(REPO_ROOT + "View/lib/generate_view");
 const { ACTION } = require(REPO_ROOT + "View/lib/defs");
 
 const preset = PresetIO.readPreset("GEMMA/GGM/GGM data-object specialisaties");
-preset.view.folder = "/Data-objecten (GGM)";
+preset.view.folder = "/Data-objecten (GGM)";        // under Views; underGenerated: under /Views/_Generated
+preset.view.underGenerated = false;
 preset.view.suffix = " (GGM)";                       // One view each: appended to each name
 const views = GenView.generate_view(preset, $(selection), ACTION.ONE_EACH.id);  // → view[]
 ```

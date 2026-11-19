@@ -66,7 +66,9 @@
   "view": {
     "name": "0 Bestuur, Politiek en Ondersteuning",
     "folder": "/Beleidskaders",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

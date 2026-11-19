@@ -60,8 +60,10 @@
   },
   "view": {
     "name": "Beleidsdomeinen ingedeeld in Iv3",
-    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjecten per domein",
-    "suffix": ""
+    "folder": "/Bedrijfsobjecten/Bedrijfsobjecten per domein",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "GEMMA",

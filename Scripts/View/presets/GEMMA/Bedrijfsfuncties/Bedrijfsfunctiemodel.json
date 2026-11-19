@@ -63,8 +63,10 @@
   },
   "view": {
     "name": "Bedrijfsfunctielagen",
-    "folder": "/_Generated/Bedrijfsfuncties",
-    "suffix": ""
+    "folder": "/Bedrijfsfuncties",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

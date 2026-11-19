@@ -87,7 +87,7 @@ function logActionArea(name) {
   /** @param {any} c @param {string} indent */
   const walk = (c, indent) => {
     if (!c.isVisible()) return;
-    if (c instanceof Text) { lines.push(`${indent}[${c.getText()}]${c.isEnabled() ? "" : " (grey)"}`); return; }
+    if (c instanceof Text) { const bold = (c.getFont().getFontData()[0].getStyle() & SWT.BOLD) !== 0; lines.push(`${indent}[${bold ? `*${c.getText()}*` : c.getText()}]${c.isEnabled() ? "" : " (grey)"}`); return; }
     if (c instanceof Label || c instanceof Button) {
       const text = String(c.getText()).replace(/\n/g, " ");
       if (!text) return;
@@ -211,11 +211,11 @@ const footerChild = (t, i) => t.getParent().getChildren()[2].getChildren()[i];
 function moveToControl(c) { const p = centerOf(c.getParent(), c.getBounds()); moveTo(p.x, p.y); }
 /** @param {any} c */
 function clickControl(c) { const p = centerOf(c.getParent(), c.getBounds()); clickAt(p.x, p.y); }
-/** The dialog's button with this text (a radio, a push button). @param {string} text */
+/** The dialog's button with this text (a radio, a push button, a checkbox label). @param {string} text */
 function button(text) {
   /** @param {any} c @returns {any} */
   const find = c => {
-    if (c instanceof Button && String(c.getText()) === text) return c;
+    if ((c instanceof Button || c instanceof Label) && String(c.getText()) === text) return c;
     if (!(c instanceof Composite)) return null;
     for (const ch of c.getChildren()) { const f = find(ch); if (f) return f; }
     return null;
@@ -253,6 +253,15 @@ const SUITES = {
     [1000, () => moveToControl(button("One view each"))],
     [300,  () => clickControl(button("One view each"))],
     [1500, () => { logActionArea("one_view_each"); shotShell("one_view_each"); }],
+    [1000, () => moveToControl(button("Mirrored"))],
+    [300,  () => clickControl(button("Mirrored"))],
+    [1500, () => { logActionArea("mirrored"); shotShell("mirrored"); }],
+    [1000, () => moveToControl(button("Under _Generated"))],
+    [300,  () => clickControl(button("Under _Generated"))],
+    [1500, () => { logActionArea("mirrored_not_under_generated"); shotShell("mirrored_not_under_generated"); }],
+    [300,  () => clickControl(button("Under _Generated"))],
+    [1000, () => moveToControl(button("Custom"))],
+    [300,  () => clickControl(button("Custom"))],
     [1000, () => moveToControl(button("New view"))],
     [300,  () => clickControl(button("New view"))],
     [1500, () => { logActionArea("new_view"); shotShell("new_view"); }],

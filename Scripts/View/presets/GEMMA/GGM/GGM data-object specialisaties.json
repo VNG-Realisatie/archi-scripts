@@ -64,7 +64,9 @@
   "view": {
     "name": "Geo-Object",
     "folder": "",
-    "suffix": ""
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

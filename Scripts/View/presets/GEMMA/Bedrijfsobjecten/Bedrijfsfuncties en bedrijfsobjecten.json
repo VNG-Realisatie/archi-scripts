@@ -68,8 +68,10 @@
   },
   "view": {
     "name": "Bedrijfsfunctielagen",
-    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
-    "suffix": ""
+    "folder": "/Bedrijfsobjecten/Bedrijfsfuncties en bedrijfsobjecten",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",

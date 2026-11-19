@@ -74,8 +74,10 @@
   },
   "view": {
     "name": "Afval",
-    "folder": "/_Generated/Bedrijfsobjecten/Bedrijfsobjectmodellen",
-    "suffix": ""
+    "folder": "/Bedrijfsobjecten/Bedrijfsobjectmodellen",
+    "suffix": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "GEMMA",

@@ -70,7 +70,9 @@
   },
   "view": {
     "name": "7 Volksgezondheid en Milieu",
-    "folder": "/Bedrijfsprocessen"
+    "folder": "/Bedrijfsprocessen",
+    "mirrored": false,
+    "underGenerated": false
   },
   "appearance": {
     "palette": "Brewer",

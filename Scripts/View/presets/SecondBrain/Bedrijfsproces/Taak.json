@@ -62,7 +62,9 @@
   },
   "view": {
     "name": "Verzorgen burgerzaken",
-    "folder": "/_Generated"
+    "folder": "",
+    "mirrored": false,
+    "underGenerated": true
   },
   "appearance": {
     "palette": "Brewer",
